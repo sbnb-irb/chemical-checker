@@ -4,6 +4,7 @@
 
 import sys, os
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
+sys.path.append(os.path.join(sys.path[0],"../config"))
 import htstandardizer as hts
 import Psql
 import csv
