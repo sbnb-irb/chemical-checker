@@ -41,9 +41,14 @@ def usage(progName):
 
 def main():
  # Check arguments
+  # Check arguments
+  if len(sys.argv) != 2:
+    usage(sys.argv[0])
+    sys.exit(1)
   
+  configFilename = sys.argv[1]
 
-  checkercfg = checkerconfig.checkerConf( )  
+  checkercfg = checkerconfig.checkerConf(configFilename )  
 
   readyFiledir = checkercfg.getDirectory( "ready", configUpdate.UNIPROTKB_SUBDIR )
   
