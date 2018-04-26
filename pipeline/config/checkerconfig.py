@@ -18,7 +18,7 @@ logFilename = 'pipeline.log'
 
 
 # Interactome3D sender
-int3dEmailAddress = ("Chemical Checker","checker@irbbarcelona.org")
+checkerEmailAddress = ("Chemical Checker","checker@irbbarcelona.org")
 
 # List of steps
 steps = [
