@@ -152,10 +152,6 @@ class checkerConf:
     self._configParser = RawConfigParser()
     self._configParser.read(configFilename)
     self._VERSION_NUMBER  = self._configParser.get('General', 'release')
-
-    #self._OUTPUTDIR  = self._configParser.get('General', 'outputdir')
-    #self._DBSDIR     = self._configParser.get('General', 'dbsdir')
-    #self._RUN        = self._configParser.get('General', 'runname')
     self._SCRATCHDIR =  self._configParser.get('General', 'scratchdir')
  
   
