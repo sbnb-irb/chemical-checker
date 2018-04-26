@@ -50,7 +50,7 @@ def main():
 
   checkercfg = checkerconfig.checkerConf(configFilename )  
 
-  readyFiledir = checkercfg.getDirectory( "ready", configUpdate.UNIPROTKB_SUBDIR )
+  readyFiledir = checkercfg.getDirectory( "ready" )
   
 
   log = logSystem(sys.stdout)
