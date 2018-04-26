@@ -103,7 +103,7 @@ if not os.path.exists(os.path.join(downloadsdir,checkerconfig.kegg_mol_folder_do
     
 for drug in drugs:
     out = commands.getstatusoutput("wget -O " + os.path.join(downloadsdir,checkerconfig.kegg_mol_folder_download,drug + ".mol") + " http://rest.kegg.jp/get/" + drug + "/mol" )
-    if out[0] != 0:
+    if out[0] != 0 and out[0] != 404:
         log.error( "Step wget for mol  " + drug + " failed with message: " + out[1])
         sys.exit(1)
 
