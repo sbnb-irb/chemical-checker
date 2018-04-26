@@ -10,7 +10,13 @@ sys.path.append(os.path.join(sys.path[0],"../"))
 
 import checkerconfig
 
-checkercfg = checkerconfig.checkerConf( )  
+if len(sys.argv) != 2:
+    usage(sys.argv[0])
+    sys.exit(1)
+  
+configFilename = sys.argv[1]
+
+checkercfg = checkerconfig.checkerConf(configFilename )  
 
 print "Entering download files"
 
