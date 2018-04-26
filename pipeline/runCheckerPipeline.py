@@ -155,7 +155,7 @@ def main():
                        "The '--steps' option will be ignored.")
       sys.exit(1)
 
-  RUNNAME       = checkerCfg.getVariable('General', 'runname')
+  RUNNAME       = checkerCfg.getVariable('General', 'release')
   SMTPSERVER    = checkerCfg.getVariable('General', 'smtpserver')
   SMTPUSER      = checkerCfg.getVariable('General', 'smtpuser')
   SMTPPWD       = checkerCfg.getVariable('General', 'smtppwd')
@@ -167,18 +167,10 @@ def main():
   else:
     USER_LOG_FILE = ""
     
-  statsFiledir = checkerCfg.getDirectory("stats")
-  if not os.path.exists(statsFiledir):
-    os.makedirs(statsFiledir)
 
   readyFiledir = checkerCfg.getDirectory("ready")
   if not os.path.exists(readyFiledir):
     os.makedirs(readyFiledir)
-
-  # If the output directory does not exist I need to create it
-  outputDir = checkerCfg.getDirectory("output")
-  if not os.path.exists(outputDir):
-    os.makedirs(outputDir)
 
   # If the scratch directory does not exist I need to create it
   scratchDir = checkerCfg.getDirectory("scratch")
@@ -200,101 +192,7 @@ def main():
   
   log.info( "New execution started. Executing steps from %d to %d" % (firstStep, lastStep) )
   
-  #First I need to delete the "ready" files for the steps that I am going to
-  #execute
-  if options.cleanup:
-    for i in range(len(checkerconfig.steps)-1,0,-1):
-      # First I cleanup the things produced by the step
-      log.info( "Clean up of step %s started" % checkerconfig.steps[i] )
-      cleanUpScript = os.path.join(sys.path[0],checkerconfig.steps[i],CLEANUP_SCRIPT)
-      try:
-        p = Popen( [cleanUpScript,configFilename], stdout=logFile, stderr=STDOUT )
-        (pid,retcode) = os.waitpid(p.pid, 0)
-        if retcode != 0:
-          if retcode > 0:
-            log.error( "Clean up of step %s produced some ERROR, please check (exit code %d)!" % (checkerconfig.steps[i],retcode) )
-          elif retcode < 0:
-            log.error( "Clean up of step %s was terminated by signal %d" % (checkerconfig.steps[i],-retcode))
-          log.critical( "Clean up of step %s failed." % checkerconfig.steps[i] )
-          sys.exit(1)
-      except OSError, e:
-        log.critical( "Clean up of step %s failed: %s" % (checkerconfig.steps[i],e) )
-        sys.exit(1)
-    # Then I cleanup all the directories
-    # Backup the configuration file
-    log.info( "  - Backing up the file %s" % configFilename )
-    configBakFilename = configFilename+"."+str(datetime.datetime.now()).replace(" ","_")+".bak"
-    cmdStr = "mv "+configFilename+" "+configBakFilename
-    execAndCheck(cmdStr,log)
-    datasets = sorted(set([o.strip() for o in checkerCfg.getVariable('General', 'datasets').split(",")]))        
-    # The dom_dom_network directory
-    domdomNetworkDir = checkerCfg.getDirectory( "domdomnetwork" )
-    log.info( "  - Deleting directory %s" % domdomNetworkDir )
-    cmdStr = "rm -fr "+domdomNetworkDir
-    execAndCheck(cmdStr,log)
-    # The readyFiledir directory
-    log.info( "  - Deleting directory %s" % readyFiledir )
-    cmdStr = "rm -fr "+readyFiledir
-    execAndCheck(cmdStr,log)
-    # The statsFiledir directory
-    log.info( "  - Deleting directory %s" % statsFiledir )
-    cmdStr = "rm -fr "+statsFiledir
-    execAndCheck(cmdStr,log)
-    # The tmp directory
-    tmpDir = checkerCfg.getDirectory( "tmp" )
-    log.info( "  - Deleting directory %s" % tmpDir )
-    cmdStr = "rm -fr "+tmpDir
-    execAndCheck(cmdStr,log)
-    for dataset in sorted(datasets):
-      # The scratch directory
-      datasetScratchDir = checkerCfg.getDirectory( "datasetscratch",dataset)
-      log.info( "  - Deleting directory %s" % datasetScratchDir )
-      cmdStr = "rm -fr "+datasetScratchDir
-      execAndCheck(cmdStr,log)
-      # The dataset directory
-      datasetBaseDir = checkerCfg.getDirectory( "datasetbase", dataset )
-      log.info( "  - Deleting directory %s" % datasetBaseDir )
-      cmdStr = "rm -fr "+datasetBaseDir
-      execAndCheck(cmdStr,log)
-      # The pdbfiles directory
-      pdbfilesBaseDir = checkerCfg.getDirectory( "pdbfilesbase", dataset )
-      log.info( "  - Deleting directory %s" % pdbfilesBaseDir )
-      cmdStr = "rm -fr "+pdbfilesBaseDir
-      execAndCheck(cmdStr,log)
-      # The modbase output directory
-      modbaseOutputDir = checkerCfg.getDirectory( "modbaseoutput", dataset )
-      log.info( "  - Deleting directory %s" % modbaseOutputDir )
-      cmdStr = "rm -fr "+modbaseOutputDir
-      execAndCheck(cmdStr,log)
-      # The thumbnails directory
-      thumbnailsWebDir = checkerCfg.getDirectory( "thumbnailsweb", dataset )
-      log.info( "  - Deleting directory %s" % thumbnailsWebDir )
-      cmdStr = "rm -fr "+thumbnailsWebDir
-      execAndCheck(cmdStr,log)
-      # The summary directory
-      summaryWebDir = checkerCfg.getDirectory( "summaryweb", dataset )
-      log.info( "  - Deleting directory %s" % summaryWebDir )
-      cmdStr = "rm -fr "+summaryWebDir
-      execAndCheck(cmdStr,log)
-      # The repository directory
-      repositoryDir = checkerCfg.getDirectory( "repository", dataset )
-      log.info( "  - Deleting directory %s" % repositoryDir )
-      cmdStr = "rm -fr "+repositoryDir
-      execAndCheck(cmdStr,log)
-    # Cleans up the log files except the main one
-    log.info( "  - Cleaning up log files" )
-    log.detach()
-    logFile.close()
-    currentPath = os.getcwd()
-    os.chdir(checkerCfg.getDirectory("logsbase"))
-    cmdStr = "tar czf "+checkerCfg.getDirectory("logssubdir")+".tgz"+" "+checkerCfg.getDirectory("logssubdir")
-    execAndCheck(cmdStr,log)
-    os.chdir(currentPath)
-    logsDir = checkerCfg.getDirectory("logs")
-    cmdStr = "rm -rf "+logsDir
-    execAndCheck(cmdStr,log)
-    sys.exit(0)
-
+ 
     
   # Then I execute each step individually
   for i in range(firstStep-1,lastStep):
@@ -358,15 +256,11 @@ def main():
           resultsUrl = line.rstrip("\n\r").split()[-1]
           break
       userLogFile.close()
-    datasetNameList = []
-    datasets = sorted(set([o.strip() for o in checkerCfg.getVariable('General', 'datasets').split(",")]))        
-    for dataset in sorted(datasets):
-      datasetNameList.append(checkerCfg.getVariable(dataset,'completename'))
-    datasetStr = str(", ").join(datasetNameList)
+   
     if EMAIL != "":
-      sendSuccessMail(datasetStr,resultsUrl,EMAIL,SMTPSERVER,SMTPUSER,SMTPPWD)
+      sendSuccessMail("",resultsUrl,EMAIL,SMTPSERVER,SMTPUSER,SMTPPWD)
     if USREMAIL != "":
-      sendSuccessMail(datasetStr,resultsUrl,USREMAIL,SMTPSERVER,SMTPUSER,SMTPPWD)
+      sendSuccessMail("",resultsUrl,USREMAIL,SMTPSERVER,SMTPUSER,SMTPPWD)
     log.info( "An e-mail has been sent to %s" % EMAIL )
 
   log.detach()
