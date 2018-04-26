@@ -97,6 +97,7 @@ with open(os.path.join(downloadsdir,checkerconfig.kegg_atcs_download), "r") as f
                 drugs.update([l.split()[1]])
         drugs = sorted(drugs)
 
+log.info( "Downloading Kegg Molecules ")
 if not os.path.exists(os.path.join(downloadsdir,checkerconfig.kegg_mol_folder_download)):
     os.makedirs(os.path.join(downloadsdir,checkerconfig.kegg_mol_folder_download))
     
@@ -105,12 +106,14 @@ for drug in drugs:
     if out[0] != 0:
         log.error( "Step wget for mol  " + drug + " failed with message: " + out[1])
         sys.exit(1)
-        
+
+log.info( "Loading Chembl Database")
+
         
 logFilename = os.path.join(logsFiledir,"loadChemblinDB.log")
 
-job2run = "dropdb --if-exists -h aloy-dbsrv chembl\n"
-job2run += "createdb -h aloy-dbsrv chembl\n"
+job2run = "dropdb --if-exists -h aloy-dbsrv chembl;"
+job2run += "createdb -h aloy-dbsrv chembl;"
 job2run += "psql -h aloy-dbsrv -d chembl -f " + downloadsdir + "/chembl_*/chembl_*_postgresql/*.dmp"
 # And we start it
 cmdStr = os.path.join(sys.path[0],"../../src/utils/")+ "setupSingleJob.py -x -N db-chembl " + job2run
