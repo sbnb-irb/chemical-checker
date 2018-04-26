@@ -3,6 +3,7 @@
 import os,sys,string,commands
 
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
+sys.path.append(os.path.join(sys.path[0],"../config"))
 from checkerUtils import logSystem, execAndCheck
 sys.path.append(os.path.join(sys.path[0],"../"))
 
