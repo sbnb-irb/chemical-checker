@@ -172,6 +172,9 @@ class checkerConf:
     if dirSpec == "downloads":
       #os.path.join(self._OUTPUTDIR,DATASETS_SUBDIR,dataset,INTERACTOME_SUBDIR)
       return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER,DOWNLOAD_SUBDIR)
+  
+    if dirSpec == "scratch":  
+      return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER)
 
     if dirSpec == "logs":  
       return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER,LOG_SUBDIR)
