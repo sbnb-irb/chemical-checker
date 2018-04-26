@@ -160,7 +160,7 @@ def main():
   SMTPUSER      = checkerCfg.getVariable('General', 'smtpuser')
   SMTPPWD       = checkerCfg.getVariable('General', 'smtppwd')
   EMAIL         = checkerCfg.getVariable('General', 'email')
-  USREMAIL      = checkerCfg.getVariable('General', 'contactemail')
+  USREMAIL      = ""
   SCRATCHDIR    = checkerCfg.getVariable('General', 'scratchdir')
   if checkerCfg.hasVariable('General','userlogfile'):
     USER_LOG_FILE = checkerCfg.getVariable('General', 'userlogfile')
