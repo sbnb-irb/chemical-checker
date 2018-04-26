@@ -27,7 +27,7 @@ steps = [
 ]
 
 mosaic = "mosaic"
-chembl = "chembl_22"
+chembl = "chembl"
 
 drugbank_download = "drugbank.xml"
 pdb_components_smiles_download = "Components-smiles-stereo-oe.smi"
@@ -148,10 +148,11 @@ class checkerConf:
   _MODBASE      = None
   _PDBFILES     = None
   
-  def __init__( self ):
+  def __init__( self , configFilename):
     self._configParser = RawConfigParser()
+    self._configParser.read(configFilename)
     self._VERSION_NUMBER  = self._configParser.get('General', 'release')
-    #self._configParser.read(configFilename)
+
     #self._OUTPUTDIR  = self._configParser.get('General', 'outputdir')
     #self._DBSDIR     = self._configParser.get('General', 'dbsdir')
     #self._RUN        = self._configParser.get('General', 'runname')
