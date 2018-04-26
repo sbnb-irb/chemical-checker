@@ -54,19 +54,19 @@ downloads = [('ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*
              ('https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database','oriol.guitart@irbbarcelona.org','sbnbAloy','drugbank_all_full_database.xml.zip'),
              ('https://www.bindingdb.org/bind/downloads/BindingDB_All_2018m3.tsv.zip','','','BindingDB_All.tsv.zip'),
              ('http://prodata.swmed.edu/ecod/distributions/ecod.latest.domains.txt','','','ecod.latest.domains.txt'),
-             ('http://ligand-expo.rcsb.org/dictionaries/cc-to-pdb.tdd','','',''),
-             ('http://ligand-expo.rcsb.org/dictionaries/Components-smiles-stereo-oe.smi','','',''),
+             ('http://ligand-expo.rcsb.org/dictionaries/cc-to-pdb.tdd','','','cc-to-pdb.tdd'),
+             ('http://ligand-expo.rcsb.org/dictionaries/Components-smiles-stereo-oe.smi','','','Components-smiles-stereo-oe.smi'),
              ('ftp://ftp.ebi.ac.uk/pub/databases/chebi/SDF/ChEBI_lite_3star.sdf.gz','','','ChEBI_lite_3star.sdf.gz'),
              ('ftp://ftp.ebi.ac.uk/pub/databases/chebi/Flat_file_tab_delimited/compounds_3star.tsv.gz','','','compounds_3star.tsv.gz'),
-             ('ftp://ftp.ebi.ac.uk/pub/databases/chebi/ontology/chebi.obo','','',''),
+             ('ftp://ftp.ebi.ac.uk/pub/databases/chebi/ontology/chebi.obo','','','chebi.obo'),
              ('ftp://phylomedb.org/metaphors/latest/id_conversion.txt.gz','','','id_conversion.txt.gz'),
              ('ftp://phylomedb.org/metaphors/latest/orthologs/9606.txt.gz','','','9606.txt.gz'),
-             ('https://reactome.org/download/current/ChEBI2Reactome_All_Levels.txt','','',''),
-             ('https://reactome.org/download/current/UniProt2Reactome_All_Levels.txt','','',''),
-             ('https://reactome.org/download/current/ReactomePathwaysRelation.txt','','',''),
+             ('https://reactome.org/download/current/ChEBI2Reactome_All_Levels.txt','','','ChEBI2Reactome_All_Levels.txt'),
+             ('https://reactome.org/download/current/UniProt2Reactome_All_Levels.txt','','','UniProt2Reactome_All_Levels.txt'),
+             ('https://reactome.org/download/current/ReactomePathwaysRelation.txt','','','ReactomePathwaysRelation.txt'),
              ('https://www.uniprot.org/uniprot/?query=proteome:UP000005640&format=tab','','','human_proteome.tab'),
              ('ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz','','','goa_human.gaf.gz'),
-             ('http://snapshot.geneontology.org/ontology/go-basic.obo','','',''),
+             ('http://snapshot.geneontology.org/ontology/go-basic.obo','','','go-basic.obo'),
              ('ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_sig_info*.txt.gz','','','GSE70138_Broad_LINCS_sig_info*.txt.gz'),
              ('ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_sig_info.txt.gz','','','GSE92742_Broad_LINCS_sig_info.txt.gz'),
              ('ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_gene_info*.txt.gz','','','GSE70138_Broad_LINCS_gene_info*.txt.gz'),
@@ -84,7 +84,7 @@ downloads = [('ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*
              ('http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/tables/combined/combined_gene-target-predictions.zip','','','combined_gene-target-predictions.zip'),
              ('http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/compound_information/sdf/Structural_Data_Files_combined.zip','','','Structural_Data_Files_combined.zip'),
              ('http://lincsportal.ccs.miami.edu/dcic/api/download?path=LINCS_Data/Broad_Therapeutics&file=LDS-1195.tar.gz','','','LDS-1195.tar.gz'),
-             ('ftp://ftp.expasy.org/databases/cellosaurus/cellosaurus.obo','','',''),
+             ('ftp://ftp.expasy.org/databases/cellosaurus/cellosaurus.obo','','','cellosaurus.obo'),
              ('http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=','','','br08303.keg'),
              ('https://chiragjp.shinyapps.io/repoDB/_w_bb51f2e4/session/4ea0b89b04d865cf86f6ba1bba3feafe/download/downloadFull?w=bb51f2e4','','','repodb.csv'),
              ('http://ctdbase.org/reports/CTD_chemicals.csv.gz','','','CTD_chemicals.csv.gz'),
@@ -161,12 +161,6 @@ class checkerConf:
   def getVariable( self, section, variable ):
     return self._configParser.get( section, variable )
 
-  def getDatasetOptions( self, dataset ):
-    cOpts = set()
-    if self.hasVariable(dataset, 'options'):
-        cOpts = self.getVariable(dataset, 'options')
-        options = set([s.strip() for s in cOpts.split(",")])
-    return cOpts
 
   def getDirectory( self, dirSpec ):
     if dirSpec == "downloads":
