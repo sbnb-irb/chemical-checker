@@ -123,7 +123,7 @@ SETUPARRAYJOBMOD    = os.path.join(currentDir,"../utils/setupArrayJobMod.py -q -
 SETUPARRAYJOBNOLIST = os.path.join(currentDir,"../utils/setupArrayJobNoJobList.py -q -x -N %(JOB_NAME)s -t %(NUM_TASKS)d %(COMMAND)s")
 SETUPARRAYJOB       = os.path.join(currentDir,"../utils/setupArrayJob.py -q -x -N %(JOB_NAME)s -t %(NUM_TASKS)d -l %(TASKS_LIST)s %(COMMAND)s")
 
-SUBMITJOB           = "qsub -sync y job-%(JOB_NAME)s.sh"
+SUBMITJOB           = "qsub -sync y "
 
 
 # Intervals used when polling for results
