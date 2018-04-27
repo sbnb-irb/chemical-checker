@@ -104,7 +104,7 @@ DOWNLOAD_SUBDIR           = "downloads"
 WEBREPO        = '/aloy/web_checker/'
 WEBREPOMOLS    = WEBREPO + "/molecules/"
 MOSAICPATH     = "/aloy/home/mduran/myscripts/mosaic/"
-MOLREPO        = "/aloy/scratch/mduran/mosaic/molrepo/"
+MOLREPO        = "molrepo"
 
 LOG_SUBDIR                = "log"
 READY_SUBDIR              = "ready"
@@ -175,6 +175,9 @@ class checkerConf:
   
     if dirSpec == "ready":  
       return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER,READY_SUBDIR)
+  
+    if dirSpec == "molRepo":  
+      return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER,MOLREPO)
     
 
     raise Exception("Request for unknown directory %s" % dirSpec )

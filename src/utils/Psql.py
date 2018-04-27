@@ -12,12 +12,10 @@ import subprocess
 import shelve
 import numpy as np
 import sys, os
-sys.path.append(os.path.join(sys.path[0], "../"))
-from CONFIG import *
 
 # FUNCTIONS
 
-def connect(d, h='aloy-dbsrv',u='mduran',p='123mdfmdf'):
+def connect(d, h='aloy-dbsrv',u='sbnb-adm',p='db_adm'):
     datab = psycopg2.connect(host=h, user=u, password=p, database=d)
     return datab
     
