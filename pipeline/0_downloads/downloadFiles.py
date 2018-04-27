@@ -112,9 +112,9 @@ log.info( "Loading Chembl Database")
         
 logFilename = os.path.join(logsFiledir,"loadChemblinDB.log")
 
-job2run = "dropdb --if-exists -h aloy-dbsrv chembl && "
+job2run = '"dropdb --if-exists -h aloy-dbsrv chembl && '
 job2run += "createdb -h aloy-dbsrv chembl && "
-job2run += "psql -h aloy-dbsrv -d chembl -f " + downloadsdir + "/chembl_*/chembl_*_postgresql/*.dmp"
+job2run += 'pg_restore -h aloy-dbsrv -d chembl ' + downloadsdir + '/chembl_*/chembl_*_postgresql/*.dmp"'
 # And we start it
 cmdStr = os.path.join(sys.path[0],"../../src/utils/")+ "setupSingleJob.py -x -N db-chembl " + job2run
       
