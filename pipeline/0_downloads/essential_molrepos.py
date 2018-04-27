@@ -353,6 +353,13 @@ if __name__ == '__main__':
     
     downloadsdir = checkercfg.getDirectory( "downloads" )
     moldir = checkercfg.getDirectory( "molRepo" )
+    
+    check_dir = os.path.exists(moldir)
+
+
+    if check_dir == False:
+        c = os.makedirs(moldir)
+
 
     args = dict()
     args["do"] = sys.argv[1]
