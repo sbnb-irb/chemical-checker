@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 # Do the essential molrepos (DrugBank, ChEMBL, etc.)
 
 # Imports
