@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/miniconda/bin/python
 
 # Do the essential molrepos (DrugBank, ChEMBL, etc.)
 
