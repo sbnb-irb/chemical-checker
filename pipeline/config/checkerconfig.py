@@ -29,16 +29,16 @@ steps = [
 mosaic = "mosaic"
 chembl = "chembl"
 
-drugbank_download = "drugbank.xml"
+drugbank_download = "full database.xml"
 pdb_components_smiles_download = "Components-smiles-stereo-oe.smi"
 bindingdb_download =  "BindingDB_All.tsv"
 chebi_lite_download = "ChEBI_lite_3star.sdf"
-smpdb_metabolites_download =  "metabolites.csv"
-lincs_GSE92742_pert_info_download =  "GSE70138_Broad_LINCS_pert_info_2017-03-06.txt"
+smpdb_folder_download =  "smpdb_structures"
+lincs_GSE92742_pert_info_download =  "GSE70138_Broad_LINCS_pert_info_*.txt"
 lincs_GSE70138_pert_info_download =  "GSE92742_Broad_LINCS_pert_info.txt"
 nci60_download = "DTP_NCI60_ZSCORE.csv"
 mosaic_all_collections_download = "All_Collections.sdf"
-morphlincs_molecules_download = "Small_Molecule_Metadata.txt"
+morphlincs_molecules_download = "LDS-1195/Metadata/Small_Molecule_Metadata.txt"
 kegg_atcs_download =  "br08303.keg"
 kegg_mol_folder_download  = "kegg/"
 stitch_molecules_download =  "chemicals.v4.0.tsv"
@@ -67,6 +67,7 @@ downloads = [('ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*
              ('https://www.uniprot.org/uniprot/?query=proteome:UP000005640&format=tab','','','human_proteome.tab'),
              ('ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz','','','goa_human.gaf.gz'),
              ('http://snapshot.geneontology.org/ontology/go-basic.obo','','','go-basic.obo'),
+             ('http://smpdb.ca/downloads/smpdb_structures.zip','','','smpdb_structures.zip'),
              ('ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_sig_info*.txt.gz','','','GSE70138_Broad_LINCS_sig_info*.txt.gz'),
              ('ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_sig_info.txt.gz','','','GSE92742_Broad_LINCS_sig_info.txt.gz'),
              ('ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_gene_info*.txt.gz','','','GSE70138_Broad_LINCS_gene_info*.txt.gz'),
@@ -87,9 +88,9 @@ downloads = [('ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*
              ('ftp://ftp.expasy.org/databases/cellosaurus/cellosaurus.obo','','','cellosaurus.obo'),
              ('http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=','','','br08303.keg'),
              ('https://chiragjp.shinyapps.io/repoDB/_w_bb51f2e4/session/4ea0b89b04d865cf86f6ba1bba3feafe/download/downloadFull?w=bb51f2e4','','','repodb.csv'),
-             ('http://ctdbase.org/reports/CTD_chemicals.csv.gz','','','CTD_chemicals.csv.gz'),
-             ('http://ctdbase.org/reports/CTD_diseases.csv.gz','','','CTD_diseases.csv.gz'),
-             ('http://ctdbase.org/reports/CTD_chemicals_diseases.csv.gz','','','CTD_chemicals_diseases.csv.gz'),
+             ('http://ctdbase.org/reports/CTD_chemicals.tsv.gz','','','CTD_chemicals.tsv.gz'),
+             ('http://ctdbase.org/reports/CTD_diseases.tsv.gz','','','CTD_diseases.tsv.gz'),
+             ('http://ctdbase.org/reports/CTD_chemicals_diseases.tsv.gz','','','CTD_chemicals_diseases.tsv.gz'),
              ('http://www.disgenet.org/ds/DisGeNET/results/disease_mappings.tsv.gz','','','disease_mappings.tsv.gz'),
              ('http://sideeffects.embl.de/media/download/meddra_all_se.tsv.gz','','','meddra_all_se.tsv.gz'),
              ('http://sideeffects.embl.de/media/download/meddra_freq.tsv.gz','','','meddra_freq.tsv.gz'),
