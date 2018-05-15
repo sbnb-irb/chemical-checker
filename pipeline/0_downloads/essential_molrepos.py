@@ -317,13 +317,16 @@ def sider():
 
 def smpdb():
 
-    f = open(os.path.join(downloadsdir,checkerconfig.smpdb_metabolites_download), "r")
-    f.next()
+   
     g = open(moldir+"/smpdb.tsv", "w")
     S = set()
-    for r in csv.reader(f):
-        if not r[12]: continue
-        S.update([(r[5], r[12])])
+    L = os.listdir(os.path.join(downloadsdir,checkerconfig.smpdb_folder_download))
+    for l in L:
+        for mol in pybel.readfile("sdf", os.path.join(downloadsdir,checkerconfig.smpdb_folder_download) + "/" + l):
+            if not mol: continue
+            smi, Id = mol.write("can").rstrip("\n").split("\t")
+            S.update([(Id, smi)])
+   
     for s in sorted(S):
         Id = s[0]
         smi = s[1]
@@ -336,7 +339,6 @@ def smpdb():
             inchi = mol[1]
         g.write("%s\t%s\t%s\t%s\n" % (Id, smi, inchikey, inchi))
 
-    f.close()
     g.close()
 
 
