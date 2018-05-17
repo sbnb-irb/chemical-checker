@@ -1,5 +1,5 @@
 #
-# General configuration for the Interactome3D pipeline
+# General configuration for the Chemical Checker pipeline
 #
 
 # Imports
@@ -17,7 +17,7 @@ else:
 logFilename = 'pipeline.log'
 
 
-# Interactome3D sender
+# Chemical Checker sender
 checkerEmailAddress = ("Chemical Checker","checker@irbbarcelona.org")
 
 # List of steps
