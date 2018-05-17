@@ -1,6 +1,7 @@
-#!/usr/bin/python
+#!/miniconda/bin/python
 
 import os,sys,string,commands
+import pandas as pd
 
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
@@ -28,14 +29,12 @@ downloadsdir = checkercfg.getDirectory( "downloads" )
 
 check_dir = os.path.exists(logsFiledir)
 
-# Changed servers to mirror ftp.ebi.ac.uk (Roger)
 
 if check_dir == False:
   c = os.makedirs(logsFiledir)
 
 check_dir = os.path.exists(downloadsdir)
 
-# Changed servers to mirror ftp.ebi.ac.uk (Roger)
 
 if check_dir == False:
   c = os.makedirs(downloadsdir)
@@ -107,35 +106,8 @@ for drug in drugs:
         log.error( "Step wget for mol  " + drug + " failed with message: " + out[1])
         sys.exit(1)
 
-log.info( "Loading Chembl Database")
+log.info( "Converting Zscore xls file to csv")
 
-        
-logFilename = os.path.join(logsFiledir,"loadChemblinDB.log")
+data_xls = pd.read_excel(os.path.join(downloadsdir,"output/DTP_NCI60_ZSCORE.xls"), index_col=0,usecols="A:F")
+data_xls.to_csv(os.path.join(downloadsdir,checkerconfig.nci60_download), encoding='utf-8')
 
-job2run = '"dropdb --if-exists -h aloy-dbsrv chembl && '
-job2run += "createdb -h aloy-dbsrv chembl && "
-job2run += 'pg_restore -h aloy-dbsrv -d chembl ' + downloadsdir + '/chembl_*/chembl_*_postgresql/*.dmp"'
-# And we start it
-cmdStr = os.path.join(sys.path[0],"../../src/utils/")+ "setupSingleJob.py -x -N db-chembl " + job2run
-      
-# Then I move to the directory where I want the output generated
-wrapperCmd = "cd "+downloadsdir+"; "+cmdStr + "; " +checkerconfig.SUBMITJOB + " job-db-chembl.sh  > " + logFilename
-    
-if checkerconfig.MASTERNODE != "":
-    wrapperCmd = "ssh "+checkerconfig.MASTERNODE+" '%s'" % wrapperCmd
-ret = execAndCheck(wrapperCmd,log)
-# Then we check the log file
-logFile = open( logFilename )
-      
-taskOK = False
-    
-for line in logFile:
-    if line.find( "exited with exit code 0") != -1:
-        taskOK = True
-        break
-    
-    
-    if taskOK == False :
-        sys.exit(1)
-
-  

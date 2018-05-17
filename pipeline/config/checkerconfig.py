@@ -29,6 +29,8 @@ steps = [
 mosaic = "mosaic"
 chembl = "chembl"
 
+dbname = "cchecker"
+
 drugbank_download = "full database.xml"
 pdb_components_smiles_download = "Components-smiles-stereo-oe.smi"
 bindingdb_download =  "BindingDB_All.tsv"
