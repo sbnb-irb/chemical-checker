@@ -112,7 +112,7 @@ MOLREPO        = "molrepo"
 LOG_SUBDIR                = "log"
 READY_SUBDIR              = "ready"
 
-
+KEEP_TABLES = ['structure','fp2d','fp3d','scaffolds','subskeys','physchem','pubchem']
 
 # Other directories
 LOCAL_DIR                 = "/local/"+getpass.getuser()
