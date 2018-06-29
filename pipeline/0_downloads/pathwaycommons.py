@@ -14,6 +14,7 @@ import csv
 import os, sys
 import numpy as np
 import glob
+import collections
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
 from checkerUtils import logSystem, execAndCheck
@@ -28,7 +29,6 @@ import checkerconfig
 
 #### THIS IS FROM TERE'S SCRIPT!!!! ADAPT AS DESIRED.
 
-HOST        = 'http://www.pathwaycommons.org/archives/PC2/v9/' # CHECK LATEST VERSION!!!!
 DATA        = 'PathwayCommons9.All.hgnc.txt.gz'
 OUTPUTDIR   = 'pathwaycommons'
 DBS         = set(['Reactome','KEGG','NetPath','PANTHER','WikiPathways'])
@@ -46,20 +46,13 @@ log = ''
 def download_pathwaycommons():
 
     # Download Pathway Commons
-    data_file = os.path.join(OUTPUTDIR,DATA)
-    data_file = os.path.join(OUTPUTDIR,DATA.replace('.gz',''))
-    if not os.path.exists(os.path.join(OUTPUTDIR,DATA)) and not os.path.exists(data_file):
-        log.info( "Download %s from Pathway Commons..." % (DATA))
-        cmdStr = "wget %s%s -P %s" % (HOST, DATA, OUTPUTDIR)
-        config.execAndCheck( cmdStr )
-    if not os.path.exists(data_file):
-        log.info( 'Unzipping %s...' % DATA)
-        config.ZipFileManage(os.path.join(OUTPUTDIR,DATA), OUTPUTDIR, 'unzip')
+    
+    
     if not os.path.exists(os.path.join(OUTPUTDIR,'1.txt')) or not os.path.exists(os.path.join(OUTPUTDIR,'2.txt')):
         log.info( 'Split file in part 1 and 2...' )# Part 1 contains the interactions and part 2 the gene mapping
-        cmdStr = "sed '/^$/q' %s >%s/1.txt" % (data_file,OUTPUTDIR)
+        cmdStr = "sed '/^$/q' %s >%s/1.txt" % (DATA,OUTPUTDIR)
         config.execAndCheck( cmdStr )
-        cmdStr = "sed '1,/^$/d' %s >%s/2.txt" % (data_file,OUTPUTDIR)
+        cmdStr = "sed '1,/^$/d' %s >%s/2.txt" % (DATA,OUTPUTDIR)
         config.execAndCheck( cmdStr )
 
 ####
@@ -70,8 +63,6 @@ def read_mapping(dbname):
     
     R = Psql.qstring("select uniprot_ac, genename From uniprotkb_protein where taxid = '9606' and genename != '' and complete = 'Complete proteome'", dbname)
 
-
-    for r in R: class_prot[r[0]] += [r[1]]
 
     for l in R: 
         Map[l[0]].append(l[1])
@@ -138,7 +129,7 @@ def main():
     
     global DATA,OUTPUTDIR
     
-    DATA =  checkerconfig.pathway_data
+    DATA =  os.path.join(downloadsdir,checkerconfig.pathway_data)
     
     networksdir = checkercfg.getDirectory( "networks" )
     
@@ -152,6 +143,7 @@ def main():
     
     UNIPROTKB_SRCDBNAME = checkercfg.getVariable('UniprotKB', 'dbname'     )
     Map = read_mapping(UNIPROTKB_SRCDBNAME)
+    download_pathwaycommons()
     pathwaycommon = read_pathwaycommons(Map)
     write_network(pathwaycommon)
 
