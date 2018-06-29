@@ -111,6 +111,86 @@ def execInBackground(cmdStr,log):
       sys.exit(1)
   return proc
 
+def inchikey2webrepo(inchikey):
+    PATH = WEBREPOMOLS + "/" + inchikey[:2]
+    PATH = PATH.replace("//", "/")
+    if not os.path.exists(PATH):
+        os.mkdir(PATH)
+    PATH = PATH + "/" + inchikey[2:4]
+    if not os.path.exists(PATH):
+        os.mkdir(PATH)
+    PATH = PATH + "/" + inchikey
+    if not os.path.exists(PATH):
+        os.mkdir(PATH)
+    return PATH + "/"
+
+def inchikey2webrepo_no_mkdir(inchikey):
+    PATH = WEBREPOMOLS + "/" + inchikey[:2] + "/" + inchikey[2:4] + "/" + inchikey + "/"
+    PATH = PATH.replace("//", "/")
+    return PATH
+
+def coordinate2mosaic(coordinate):
+    return MOSAICPATH + "/" + coordinate[0] + "/" + coordinate + "/"
+
+
+# TABLE COORDINATES
+
+table_coordinates = {
+'fp2d': 'A1',
+'fp3d': 'A2',
+'scaffolds': 'A3',
+'subskeys': 'A4',
+'physchem': 'A5',
+'moa': 'B1',
+'metabgenes': 'B2',
+'crystals': 'B3',
+'binding': 'B4',
+'htsbioass': 'B5',
+'molroles': 'C1',
+'molpathways': 'C2',
+'pathways': 'C3',
+'bps': 'C4',
+'networks': 'C5',
+'transcript': 'D1',
+'cellpanel': 'D2',
+'chemgenet': 'D3',
+'morphology': 'D4',
+'cellbioass': 'D5',
+'therapareas': 'E1',
+'indications': 'E2',
+'sideeffects': 'E3',
+'phenotypes': 'E4',
+'ddis': 'E5'
+}
+
+coordinate_tables = dict((v,k) for k,v in table_coordinates.iteritems())
+
+# Table colors
+
+def rgb2hex(r, g, b):
+    return '#%02x%02x%02x' % (r, g, b)
+
+def table_color(table):
+    A = rgb2hex(250, 100, 80 )
+    B = rgb2hex(200, 100, 225)
+    C = rgb2hex(80,  120, 220)
+    D = rgb2hex(120, 180, 60 )
+    E = rgb2hex(250, 150, 50 )
+    if table_coordinates[table][0] == 'A': return A
+    if table_coordinates[table][0] == 'B': return B
+    if table_coordinates[table][0] == 'C': return C
+    if table_coordinates[table][0] == 'D': return D
+    if table_coordinates[table][0] == 'E': return E
+
+def coordinate_color(coord):
+    table = coordinate_tables[coord]
+    return table_color(table)
+
+
+gray = rgb2hex(220, 218, 219)
+
+
+
 def getNumOfLines(aFilename):
   tmpFile = open(aFilename)
   numLines = 0
