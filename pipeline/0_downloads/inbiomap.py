@@ -17,6 +17,9 @@ sys.path.append(os.path.join(sys.path[0],"../config"))
 from checkerUtils import logSystem, execAndCheck
 sys.path.append(os.path.join(sys.path[0],"../"))
 
+import checkerconfig
+
+
 # Variables
 
 inweb = "core.psimitab" # Downloaded from https://www.intomics.com/inbio/map/#downloads
@@ -66,11 +69,14 @@ def main():
 
     downloadsdir = checkercfg.getDirectory( "downloads" )
     
+    global inweb,output_folder
+    
     inweb =  glob.glob(downloadsdir + '/InBio_Map_core_*/core.psimitab')[0] 
     
     networksdir = checkercfg.getDirectory( "networks" )
     
-    output_folder = os.path.join(networksdir,output_folder)
+    dirname = "inbiomap"
+    output_folder = os.path.join(networksdir,dirname)
     check_dir = os.path.exists(output_folder)
 
 
