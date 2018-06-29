@@ -46,6 +46,8 @@ kegg_mol_folder_download  = "kegg/"
 stitch_molecules_download =  "chemicals.v4.0.tsv"
 sider_download = "meddra_all_se.tsv"
 ctd_molecules_download = "ctd.smi"
+eco_domains = "ecod.latest.domains.txt"
+chebi_obo = 'chebi.obo'
 
 
 #Downloads (link,username, password,outputfile)
@@ -55,12 +57,12 @@ downloads = [('ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*
              ('https://www.ebi.ac.uk/chembl/download_helper/indications_txt','','','chembl_indications.txt'),
              ('https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database','oriol.guitart@irbbarcelona.org','sbnbAloy','drugbank_all_full_database.xml.zip'),
              ('https://www.bindingdb.org/bind/downloads/BindingDB_All_2018m3.tsv.zip','','','BindingDB_All.tsv.zip'),
-             ('http://prodata.swmed.edu/ecod/distributions/ecod.latest.domains.txt','','','ecod.latest.domains.txt'),
+             ('http://prodata.swmed.edu/ecod/distributions/ecod.latest.domains.txt','','',eco_domains),
              ('http://ligand-expo.rcsb.org/dictionaries/cc-to-pdb.tdd','','','cc-to-pdb.tdd'),
              ('http://ligand-expo.rcsb.org/dictionaries/Components-smiles-stereo-oe.smi','','','Components-smiles-stereo-oe.smi'),
              ('ftp://ftp.ebi.ac.uk/pub/databases/chebi/SDF/ChEBI_lite_3star.sdf.gz','','','ChEBI_lite_3star.sdf.gz'),
              ('ftp://ftp.ebi.ac.uk/pub/databases/chebi/Flat_file_tab_delimited/compounds_3star.tsv.gz','','','compounds_3star.tsv.gz'),
-             ('ftp://ftp.ebi.ac.uk/pub/databases/chebi/ontology/chebi.obo','','','chebi.obo'),
+             ('ftp://ftp.ebi.ac.uk/pub/databases/chebi/ontology/chebi.obo','','',chebi_obo),
              ('ftp://phylomedb.org/metaphors/latest/id_conversion.txt.gz','','','id_conversion.txt.gz'),
              ('ftp://phylomedb.org/metaphors/latest/orthologs/9606.txt.gz','','','9606.txt.gz'),
              ('https://reactome.org/download/current/ChEBI2Reactome_All_Levels.txt','','','ChEBI2Reactome_All_Levels.txt'),
@@ -108,6 +110,7 @@ WEBREPO        = '/aloy/web_checker/'
 WEBREPOMOLS    = WEBREPO + "/molecules/"
 MOSAICPATH     = "/aloy/home/mduran/myscripts/mosaic/"
 MOLREPO        = "molrepo"
+NETWORKS        = "networks"
 
 LOG_SUBDIR                = "log"
 READY_SUBDIR              = "ready"
@@ -181,6 +184,9 @@ class checkerConf:
   
     if dirSpec == "molRepo":  
       return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER,MOLREPO)
+  
+    if dirSpec == "networks":  
+      return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER,NETWORKS)
     
 
     raise Exception("Request for unknown directory %s" % dirSpec )

@@ -40,11 +40,11 @@ def chemical_to_smiles(chemid, cn):
     return smiles
 
 
-if len(sys.argv) != 2:
+if len(sys.argv) != 3:
     usage(sys.argv[0])
     sys.exit(1)
   
-configFilename = sys.argv[1]
+configFilename = sys.argv[2]
 
 checkercfg = checkerconfig.checkerConf(configFilename )  
 

@@ -22,6 +22,7 @@ tasks = [
   ( 'Dowload all files',            'downloadFiles.py',    '',                 'download_files' ),
   ( 'Load Chembl DB',               'loadChemblDB.py',    '',                  'load_chembl_db' ),
   ( 'Create Chemicals List',        'createChemicalsList.py',    '',           'create_chemicals_list' ),
+  ( 'InbioMap Preprocessing',       'inbiomap.py',    '',                      'inbiomap_preprocess' ),
   ( 'Mol Repos BindingDB',          'essential_molrepos.py', 'bindingdb',      'mol_repos_bindingdb' ),
   ( 'Mol Repos Chebi',              'essential_molrepos.py', 'chebi',          'mol_repos_chebi' ),
   ( 'Mol Repos Chembl',             'essential_molrepos.py', 'chembl',         'mol_repos_chembl' ),
@@ -35,7 +36,7 @@ tasks = [
   ( 'Mol Repos PDB',                'essential_molrepos.py', 'pdb',            'mol_repos_pdb' ),
   ( 'Mol Repos Sider',              'essential_molrepos.py', 'sider',          'mol_repos_sider' ),
   ( 'Mol Repos Smpdb',              'essential_molrepos.py', 'smpdb',          'mol_repos_smpdb' ),
-  ( 'Create Checker DB',            'createChckerDB.py', '',                   'create_checker_db' )
+  ( 'Create Checker DB',            'createCheckerDB.py', '',                   'create_checker_db' )
 ]
 
 # Functions

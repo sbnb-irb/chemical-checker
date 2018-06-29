@@ -11,11 +11,11 @@ sys.path.append(os.path.join(sys.path[0],"../"))
 
 import checkerconfig
 
-if len(sys.argv) != 2:
+if len(sys.argv) != 3:
     usage(sys.argv[0])
     sys.exit(1)
   
-configFilename = sys.argv[1]
+configFilename = sys.argv[2]
 
 checkercfg = checkerconfig.checkerConf(configFilename )  
 
