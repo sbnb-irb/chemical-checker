@@ -15,6 +15,7 @@ import xml.etree.ElementTree as pxml
 import os
 import collections
 import itertools as itt
+import networkx as nx
 import numpy as np
 import operator
 import sys
@@ -103,13 +104,26 @@ def metabolic_network_directed(filter,degree):
                 for j in uniprot[pair[1]]:
                     edges.append((i,j, {'weight':1./sorted([len(chemicals[m]['proteins']) for m in common])[0]}))
     log.info(  'DONE')
-    G = config.generate_network(edges)
+    G = generate_network(edges)
     log.info(  'DONE')
     G.add_edges_from(edges_enz)
     log.info(  'DONE')
     return G
 
 
+def generate_network(ppis):
+
+    G = nx.Graph()
+    G.add_edges_from([p for p in ppis if p[0]!=p[1]])
+    log.info(  '\tNumber of edges: %s' % G.number_of_edges())
+    log.info(  '\tNumber of nodes: %s' % G.number_of_nodes())
+    log.info(  '\tDensity: %s' % nx.density(G))
+    log.info(  '\tDegree:')
+    log.info(  '\t\tAverage: %s' % np.mean(nx.degree(G).values()))
+    log.info(  '\t\tMedian: %s' % np.median(G.degree().values()))
+    log.info(  '\tAverage cluster: %s' % nx.average_clustering(G))
+    log.info(  '\tTransitivity: %s' % nx.transitivity(G))
+    return G
 
 
 
