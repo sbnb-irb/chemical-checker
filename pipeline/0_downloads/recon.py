@@ -37,10 +37,7 @@ THRESHOLD   = 0.01 # Percentage of metabolites to be removed
 log = ''
 dbname = ''
 
-chemicals = collections.defaultdict(dict)
-proteins  = collections.defaultdict(dict)
-reactions = collections.defaultdict(dict)
-genesid   = []
+
 
 #### 
 
@@ -58,10 +55,8 @@ def is_sprot(protein):
         return 0
 
 
-def metabolic_network_directed(filter,degree):
+def metabolic_network_directed(filter,degree,chemicals,proteins,reactions):
     
-    global chemicals,proteins,reactions,genesid
-
     degreeUniprot = {}
     geneid2Uniprot = uniprot_mapping()
     #log.info(  geneid2Uniprot.items()[:100])
@@ -127,8 +122,7 @@ def generate_network(ppis):
 
 
 
-def get_filter():
-    global chemicals,proteins,reactions,genesid
+def get_filter(chemicals,proteins,reactions,genesid):
     stats = collections.defaultdict(int)
     for c in chemicals:
         for v in reactions.values():
@@ -147,7 +141,10 @@ def get_filter():
 
 def read_xml():
 
-    global chemicals,proteins,reactions,genesid
+    chemicals = collections.defaultdict(dict)
+    proteins  = collections.defaultdict(dict)
+    reactions = collections.defaultdict(dict)
+    genesid   = []
     xml_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),"../files/",'recon_2.2.xml')
     log.info(  'Reading %s...' % xml_file)
     xml = pxml.parse(xml_file)
@@ -189,7 +186,7 @@ def read_xml():
                     chemicals[m]['proteins'] |= set(reactions[reaction.attrib['id']]['proteins'])
                 for m in reactions[reaction.attrib['id']]['products']:
                     chemicals[m]['proteins'] |= set(reactions[reaction.attrib['id']]['proteins'])
-    return get_filter()
+    return get_filter(chemicals,proteins,reactions,genesid)
 
 def uniprot_mapping():
 
@@ -246,7 +243,6 @@ def main():
     
     global dbname,OUTPUTDIR
     
-    DATA =  os.path.join(downloadsdir,checkerconfig.pathway_data).replace('.gz','')
     networksdir = checkercfg.getDirectory( "networks" )
     
     dirname = "recon"
@@ -259,8 +255,8 @@ def main():
     
     dbname = checkercfg.getVariable('UniprotKB', 'dbname'     )
 
-    filter, degree = read_xml()
-    G = metabolic_network_directed(filter, degree)
+    filter, degree,chemicals,proteins,reactions = read_xml()
+    G = metabolic_network_directed(filter, degree,chemicals,proteins,reactions)
     write_network(G)
 
 
