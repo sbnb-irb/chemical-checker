@@ -37,7 +37,7 @@ THRESHOLD   = 0.01 # Percentage of metabolites to be removed
 log = ''
 dbname = ''
 
-
+checkercfg = ''
 
 #### 
 
@@ -136,7 +136,7 @@ def get_filter(chemicals,proteins,reactions,genesid):
 
     to_remove = int(len(chemicals)*THRESHOLD)
 
-    return set([i[0] for i in sorted(degree.items(), key=operator.itemgetter(1), reverse=True)[to_remove:]]), degree
+    return set([i[0] for i in sorted(degree.items(), key=operator.itemgetter(1), reverse=True)[to_remove:]]), degree,chemicals,proteins,reactions
 
 
 def read_xml():
@@ -190,18 +190,20 @@ def read_xml():
 
 def uniprot_mapping():
 
+    global checkercfg
     geneid2Uniprot = collections.defaultdict(list)
     log.info(  'Mapping GeneID to UniprotAC...')
-    genes= list(set(genesid))
-    log.info(  '\t# Unique GeneID: %s' % len(genes))
+    #genes= list(set(genesid))
+    #log.info(  '\t# Unique GeneID: %s' % len(genes))
     log.info(  '\tRetrieving reference proteome...')
-    #proteome = select_reference_proteome()
-    R = Psql.qstring("select genename,uniprot_ac From uniprotkb_protein where taxid = '9606' and genename != '' and complete = 'Complete proteome' AND reference = 'Reference proteome'", dbname)
-
-
-    for l in R: 
-        geneid2Uniprot[l[0]].append(l[1])
-   
+    proteome = select_reference_proteome()
+    log.info( '\tReading %s...' % checkerconfig.hgnc_mapping_file)
+    for l in open(checkercfg.getDirectory( "downloads" ) + '/' + checkerconfig.hgnc_mapping_file).readlines()[1:]:
+        l = l.split('\t')
+        if len(l[25]) > 0:
+            for p in l[25].split('|'):
+                if p.replace(' ','') in proteome:
+                    geneid2Uniprot[l[0]].append(p.replace(' ',''))
     return geneid2Uniprot
 
 def select_reference_proteome():
@@ -231,7 +233,7 @@ def main():
   
     configFilename = sys.argv[2]
     
-    global log
+    global log,checkercfg
 
     checkercfg = checkerconfig.checkerConf(configFilename )  
 
