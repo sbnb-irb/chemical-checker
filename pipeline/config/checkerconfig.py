@@ -49,6 +49,7 @@ ctd_molecules_download = "ctd.smi"
 eco_domains = "ecod.latest.domains.txt"
 chebi_obo = 'chebi.obo'
 pathway_data        = 'PathwayCommons9.All.hgnc.txt.gz'
+hgnc_mapping_file = 'hgnc_mapping.txt'
 
 
 #Downloads (link,username, password,outputfile)
@@ -73,6 +74,7 @@ downloads = [('ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*
              ('ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz','','','goa_human.gaf.gz'),
              ('http://snapshot.geneontology.org/ontology/go-basic.obo','','','go-basic.obo'),
              ('http://smpdb.ca/downloads/smpdb_structures.zip','','','smpdb_structures.zip'),
+             ('ftp://ftp.ebi.ac.uk/pub/databases/genenames/new/tsv/hgnc_complete_set.txt','','',hgnc_mapping_file),
              ('http://www.pathwaycommons.org/archives/PC2/v9/PathwayCommons9.All.hgnc.txt.gz','','',pathway_data),
              ('ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_sig_info*.txt.gz','','','GSE70138_Broad_LINCS_sig_info*.txt.gz'),
              ('ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_sig_info.txt.gz','','','GSE92742_Broad_LINCS_sig_info.txt.gz'),
