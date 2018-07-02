@@ -1,3 +1,6 @@
+#!/miniconda/bin/python
+
+
 '''
 
 Fetch Recon data.
@@ -9,15 +12,10 @@ Based, mainly, in Tere's scripts.
 # Imports
 
 import xml.etree.ElementTree as pxml
-import config
 import os
 import collections
 import itertools as itt
-import networkx as nx
 import numpy as np
-from   scipy.sparse import csr_matrix
-from   scipy.io import savemat
-import matplotlib.pyplot as plt
 import operator
 import sys
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
@@ -60,6 +58,8 @@ def is_sprot(protein):
 
 
 def metabolic_network_directed(filter,degree):
+    
+    global chemicals,proteins,reactions,genesid
 
     degreeUniprot = {}
     geneid2Uniprot = uniprot_mapping()
@@ -110,25 +110,11 @@ def metabolic_network_directed(filter,degree):
     return G
 
 
-def metabolic_network_indirected(filter):
 
-    log.info(  'Generating metabolic network (indirected)...')
-    proteins_reaction = collections.defaultdict(list)
-    #log.info(  proteins_reaction.values()[1:10])
-    for r in reactions.values():
-        for p in r['proteins']:
-            proteins_reaction[p].extend(r['reactants'])
-            proteins_reaction[p].extend(r['products'])
-
-    edges = []
-    for pair in itt.combinations(proteins_reaction.keys(),2):
-        common = set(proteins_reaction[pair[0]]) & set(proteins_reaction[pair[1]])
-        if len(common - filter) > 0:
-            edges.append(pair)
-    return config.generate_network(edges)
 
 
 def get_filter():
+    global chemicals,proteins,reactions,genesid
     stats = collections.defaultdict(int)
     for c in chemicals:
         for v in reactions.values():
@@ -147,6 +133,7 @@ def get_filter():
 
 def read_xml():
 
+    global chemicals,proteins,reactions,genesid
     xml_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),"../files/",'recon_2.2.xml')
     log.info(  'Reading %s...' % xml_file)
     xml = pxml.parse(xml_file)
