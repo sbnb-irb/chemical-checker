@@ -13,7 +13,6 @@ import os
 import collections
 import itertools as itt
 import networkx as nx
-import numpy as np
 import operator
 import sys
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
@@ -156,8 +155,8 @@ def main():
         c = os.makedirs(output_folder)
     
     dbname = checkercfg.getVariable('UniprotKB', 'dbname'     )
+    log.info(  "Reading STRING")
     
-	log.info(  "Reading STRING")
     string = read_string()
     log.info(  "Mapping to UniProtKB")
     string = ENSP2Uniprot(string)
