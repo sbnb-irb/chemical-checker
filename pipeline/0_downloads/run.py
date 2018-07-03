@@ -26,6 +26,7 @@ tasks = [
   ( 'PathwayCommons Preprocessing', 'pathwaycommons.py',    '',                'pathway_preprocess' ),
   ( 'PpiDB Preprocessing',          'ppidb.py',    '',                         'ppidb_preprocess' ),
   ( 'Recon Preprocessing',          'recon.py',    '',                         'recon_preprocess' ),
+  ( 'String Preprocessing',         'string_net.py',    '',                        'string_preprocess' ),
   ( 'Mol Repos BindingDB',          'essential_molrepos.py', 'bindingdb',      'mol_repos_bindingdb' ),
   ( 'Mol Repos Chebi',              'essential_molrepos.py', 'chebi',          'mol_repos_chebi' ),
   ( 'Mol Repos Chembl',             'essential_molrepos.py', 'chembl',         'mol_repos_chembl' ),
