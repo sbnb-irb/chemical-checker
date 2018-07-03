@@ -40,6 +40,10 @@ if check_dir == False:
   c = os.makedirs(downloadsdir)
 
 os.chdir(downloadsdir)
+
+string_file = checkercfg.getVariable('Files', 'string_network'     )
+
+checkerconfig.downloads.append((string_file,'','',checkerconfig.string_network_file + '.gz'))
     
     
 for file in checkerconfig.downloads:
