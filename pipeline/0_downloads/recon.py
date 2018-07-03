@@ -40,6 +40,10 @@ dbname = ''
 checkercfg = ''
 
 #### 
+chemicals = collections.defaultdict(dict)
+proteins  = collections.defaultdict(dict)
+reactions = collections.defaultdict(dict)
+genesid   = []
 
 
 
@@ -55,7 +59,7 @@ def is_sprot(protein):
         return 0
 
 
-def metabolic_network_directed(filter,degree,chemicals,proteins,reactions):
+def metabolic_network_directed(filter,degree):
     
     degreeUniprot = {}
     geneid2Uniprot = uniprot_mapping()
@@ -114,16 +118,17 @@ def generate_network(ppis):
     log.info(  '\tNumber of nodes: %s' % G.number_of_nodes())
     log.info(  '\tDensity: %s' % nx.density(G))
     log.info(  '\tDegree:')
-    log.info(  '\t\tAverage: %s' % np.mean(nx.degree(G).values()))
-    log.info(  '\t\tMedian: %s' % np.median(G.degree().values()))
+    log.info(  '\t\tAverage: %s' % np.mean([val for (node, val) in G.degree()]))
+    log.info(  '\t\tMedian: %s' % np.median([val for (node, val) in G.degree()]))
     log.info(  '\tAverage cluster: %s' % nx.average_clustering(G))
     log.info(  '\tTransitivity: %s' % nx.transitivity(G))
     return G
 
 
 
-def get_filter(chemicals,proteins,reactions,genesid):
+def get_filter():
     stats = collections.defaultdict(int)
+    global chemicals
     for c in chemicals:
         for v in reactions.values():
             if c in v['reactants'] or c in v['products']:
@@ -132,19 +137,16 @@ def get_filter(chemicals,proteins,reactions,genesid):
     for i in set([i for i in sorted(stats.items(), key=operator.itemgetter(1))]):
         degree[i[0]] = i[1]
 
-    chemicals = set(degree.keys())
+    #chemicals = set(degree.keys())
 
-    to_remove = int(len(chemicals)*THRESHOLD)
+    to_remove = int(len(set(degree.keys()))*THRESHOLD)
 
-    return set([i[0] for i in sorted(degree.items(), key=operator.itemgetter(1), reverse=True)[to_remove:]]), degree,chemicals,proteins,reactions
+    return set([i[0] for i in sorted(degree.items(), key=operator.itemgetter(1), reverse=True)[to_remove:]]), degree
 
 
 def read_xml():
 
-    chemicals = collections.defaultdict(dict)
-    proteins  = collections.defaultdict(dict)
-    reactions = collections.defaultdict(dict)
-    genesid   = []
+    
     xml_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),"../files/",'recon_2.2.xml')
     log.info(  'Reading %s...' % xml_file)
     xml = pxml.parse(xml_file)
@@ -186,15 +188,15 @@ def read_xml():
                     chemicals[m]['proteins'] |= set(reactions[reaction.attrib['id']]['proteins'])
                 for m in reactions[reaction.attrib['id']]['products']:
                     chemicals[m]['proteins'] |= set(reactions[reaction.attrib['id']]['proteins'])
-    return get_filter(chemicals,proteins,reactions,genesid)
+    return get_filter()
 
 def uniprot_mapping():
 
     global checkercfg
     geneid2Uniprot = collections.defaultdict(list)
     log.info(  'Mapping GeneID to UniprotAC...')
-    #genes= list(set(genesid))
-    #log.info(  '\t# Unique GeneID: %s' % len(genes))
+    genes= list(set(genesid))
+    log.info(  '\t# Unique GeneID: %s' % len(genes))
     log.info(  '\tRetrieving reference proteome...')
     proteome = select_reference_proteome()
     log.info( '\tReading %s...' % checkerconfig.hgnc_mapping_file)
@@ -218,7 +220,7 @@ def write_network(G):
     E = set()
     for e in G.edges():
         E.update([tuple(sorted([e[0], e[1]]))])
-    with open(OUTPUTDIR + "/interactions.tsv") as f:
+    with open(OUTPUTDIR + "/interactions.tsv","w") as f:
         for e in E:
             f.write("%s\t%s\n" % (e[0], e[1]))
 
@@ -257,8 +259,8 @@ def main():
     
     dbname = checkercfg.getVariable('UniprotKB', 'dbname'     )
 
-    filter, degree,chemicals,proteins,reactions = read_xml()
-    G = metabolic_network_directed(filter, degree,chemicals,proteins,reactions)
+    filter, degree = read_xml()
+    G = metabolic_network_directed(filter, degree)
     write_network(G)
 
 
