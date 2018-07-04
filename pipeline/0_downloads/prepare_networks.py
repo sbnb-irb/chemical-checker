@@ -5,7 +5,7 @@ import pandas as pd
 
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
-from checkerUtils import logSystem, execAndCheck
+from checkerUtils import logSystem, execAndCheck, checkJobResultsForErrors 
 sys.path.append(os.path.join(sys.path[0],"../"))
 
 
@@ -48,6 +48,7 @@ outputFilename = "list_networks.txt"
 
 jobName = 'prepare-networks'
 numTasks = 0
+currentFile = os.path.realpath(__file__)
 
 outputFile = open( outputFilename, "w" )
 for i in [d for d in os.listdir('.') if os.path.isdir(d)]:
@@ -58,8 +59,8 @@ listFilename =os.path.join( '', outputFilename)
 logFilename = os.path.join(logsFiledir,jobName+".qsub")
 
 scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' + os.path.dirname(currentFile) + '/prepare_network.py -i ' +\
-            os.path.join(networksdir,'$i','interactions.tsv') + ' -o ' + os.path.join(networksdir,'$i') +\
-            ' -h ' + checkerconfig.HOTNET_PATH
+            os.path.join(networksdir,'\$i','interactions.tsv') + ' -o ' + os.path.join(networksdir,'\$i') +\
+            ' -p ' + checkerconfig.HOTNET_PATH
 
 cmdStr = checkerconfig.SETUPARRAYJOB % { 'JOB_NAME':jobName, 'NUM_TASKS':numTasks,
                                       'TASKS_LIST':listFilename,

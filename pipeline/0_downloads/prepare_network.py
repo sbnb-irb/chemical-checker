@@ -20,7 +20,7 @@ def get_parser():
     parser.add_argument('-i', '--interactions', type=str, required=True, help='Interactions filename')
     parser.add_argument('-a', '--all_nodes', type=bool, default=False, required=False, help='By default, we only get the giant component')
     parser.add_argument('-o', '--output_folder', type=str, required=False, default='.', help='Output folder')
-    parser.add_argument('-h', '--hotnet_path', type=str, required=False, default='.', help='Hotnet path')
+    parser.add_argument('-p', '--hotnet_path', type=str, required=False, default='.', help='Hotnet path')
     return parser
 
 args = get_parser().parse_args(sys.argv[1:])
