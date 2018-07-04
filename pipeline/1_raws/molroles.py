@@ -1,3 +1,5 @@
+#!/miniconda/bin/python
+
 '''
 
 Molecular roles extracted from ChEBI.
