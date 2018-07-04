@@ -1,3 +1,5 @@
+#!/miniconda/bin/python
+
 '''
 
 Metabolic genes.
