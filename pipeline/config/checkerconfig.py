@@ -132,13 +132,15 @@ MASTERNODE          = "pac-one-head.irb.pcb.ub.es"
 
 currentDir = os.path.dirname(os.path.abspath( __file__ ))
 
+HOTNET_PATH = os.path.join(currentDir,"../../tools/hierarchical-hotnet/src/")
+
 SETUPARRAYJOBMOD    = os.path.join(currentDir,"../utils/setupArrayJobMod.py -q -x -N %(JOB_NAME)s -t %(NUM_TASKS)d -l %(TASKS_LIST)s %(COMMAND)s")
 SETUPARRAYJOBNOLIST = os.path.join(currentDir,"../utils/setupArrayJobNoJobList.py -q -x -N %(JOB_NAME)s -t %(NUM_TASKS)d %(COMMAND)s")
 SETUPARRAYJOB       = os.path.join(currentDir,"../utils/setupArrayJob.py -q -x -N %(JOB_NAME)s -t %(NUM_TASKS)d -l %(TASKS_LIST)s %(COMMAND)s")
 
 SUBMITJOB           = "qsub -sync y "
 
-
+SING_IMAGE = '/aloy/home/sbnb-adm/singularity-images/ubuntu-checker.simg'
 # Intervals used when polling for results
 # One minute = 60 seconds
 POLL_TIME_INTERVAL = 60

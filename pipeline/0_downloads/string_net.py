@@ -29,6 +29,8 @@ log = ''
 dbname = ''
 
 checkercfg = ''
+string_file = ''
+map_file = ''
 
 output_folder = "XXX/string" # I recommend that you name this folder string.
 
@@ -40,7 +42,6 @@ CS = 700
 
 def read_string():
 
-    string_file = checkerconfig.string_network_file
     log.info(  "Reading %s..." % string_file)
     
 
@@ -67,7 +68,7 @@ def ENSP2Uniprot(string):
     notmapped     = []
     ints_amb      = []
     
-    map_file = checkerconfig.string_tab_file
+    
     log.info(  'Reading %s...' % map_file)
     for l in open(map_file):
         l = l.split('\t')
@@ -107,7 +108,7 @@ def ENSP2Uniprot(string):
             uni2 = ensp2Uniprot[i[1]]
 
         if len(uni1) and len(uni2):
-            for t in itertools.product(uni1,uni2):
+            for t in itt.product(uni1,uni2):
                 t += ({'weigth':i[2]},)
                 string_mapped.append(t)
     return string_mapped
@@ -142,12 +143,14 @@ def main():
 
     downloadsdir = checkercfg.getDirectory( "downloads" )
     
-    global dbname,output_folder
+    global dbname,output_folder,string_file,map_file
     
     networksdir = checkercfg.getDirectory( "networks" )
     
     dirname = "string"
     output_folder = os.path.join(networksdir,dirname)
+    string_file = os.path.join(downloadsdir,checkerconfig.string_network_file)
+    map_file = os.path.join(downloadsdir,checkerconfig.string_tab_file)
     check_dir = os.path.exists(output_folder)
 
 
