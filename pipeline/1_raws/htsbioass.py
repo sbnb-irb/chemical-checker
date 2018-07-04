@@ -1,3 +1,5 @@
+#!/miniconda/bin/python
+
 '''
 # ChEMBL HTS data (mainly PubChem functional assays)
 
