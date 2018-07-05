@@ -33,6 +33,9 @@ import math
 
 import networkx as nx
 
+import checkerconfig
+
+
 # Variables
 
 chembl_molrepo    = "XXXX"
