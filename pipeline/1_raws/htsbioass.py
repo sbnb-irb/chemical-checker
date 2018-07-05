@@ -21,6 +21,9 @@ sys.path.append(os.path.join(sys.path[0],"../config"))
 import Psql
 import math
 
+import checkerconfig
+
+
 # Variables
 
 pchembl_cutoff = 5

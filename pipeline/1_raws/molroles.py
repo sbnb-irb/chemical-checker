@@ -15,6 +15,7 @@ sys.path.append(os.path.join(sys.path[0], "../../dbutils/"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
 
 import Psql
+import checkerconfig
 
 # Variables
 
