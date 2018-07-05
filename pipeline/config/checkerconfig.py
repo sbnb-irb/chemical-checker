@@ -24,7 +24,6 @@ checkerEmailAddress = ("Chemical Checker","checker@irbbarcelona.org")
 steps = [
   "0_downloads",
   "1_raws"
- 
 ]
 
 mosaic = "mosaic"
