@@ -13,6 +13,7 @@ import networkx as nx
 import collections
 sys.path.append(os.path.join(sys.path[0], "../../dbutils/"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
+from checkerUtils import logSystem, execAndCheck
 
 import Psql
 import checkerconfig

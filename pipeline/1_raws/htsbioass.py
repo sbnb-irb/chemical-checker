@@ -17,6 +17,7 @@ import networkx as nx
 import sys, os
 sys.path.append(os.path.join(sys.path[0], "../../chemutils/"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
+from checkerUtils import logSystem, execAndCheck
 
 import Psql
 import math
