@@ -9,7 +9,7 @@ import shelve
 import sys, os
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
-from checkerUtils import logSystem, execAndCheck
+from checkerUtils import logSystem, execAndCheck, draw
 import Psql
 
 import numpy as np
@@ -30,6 +30,13 @@ chembl_dbname    = "chembl" # chembl
 table            = "moa"
 dbname           = ''
 # Functions
+def decide(acts):
+        m = np.mean(acts)
+        if m > 0:
+            return 1
+        else:
+            return -1
+
 
 def parse_chembl(ACTS = None):
 
@@ -96,13 +103,7 @@ def parse_chembl(ACTS = None):
         act = dirs[r[3]]
         ACTS[(inchikey, uniprot_ac)] += [act]
 
-    def decide(acts):
-        m = np.mean(acts)
-        if m > 0:
-            return 1
-        else:
-            return -1
-
+    
     ACTS = dict((k, decide(v)) for k,v in ACTS.iteritems())
 
     return ACTS
@@ -256,6 +257,9 @@ def insert_to_database(ACTS):
     for k,v in RAW.iteritems():
         inchikey_raw[k] = ",".join(v)
 
+    todos = Psql.insert_structures(inchikey_raw, dbname)
+    for ik in todos:
+        draw(ik,inchikey_raw[ik])
     Psql.insert_raw(table, inchikey_raw, dbname)
 
 
@@ -271,17 +275,16 @@ def main():
     configFilename = sys.argv[1]
 
     checkercfg = checkerconfig.checkerConf( configFilename)  
+    global dbname
     
     dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
     chembl_dbname = checkerconfig.chembl
-    chembl_molrepo   = "XXXX"
-    drugbank_molrepo = "XXXX"
+    global drugbank_xml,chembl_molrepo,drugbank_molrepo
     
     downloadsdir = checkercfg.getDirectory( "downloads" )
-    moldir = checkercfg.getDirectory( "molRepo" )
     drugbank_xml = os.path.join(downloadsdir,checkerconfig.drugbank_download)
-    chembl_molrepo = checkercfg.getDirectory( "molRepo" )
-    
+    chembl_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"chembl.tsv")
+    drugbank_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"drugbank.tsv")
     logsFiledir = checkercfg.getDirectory( "logs" )
 
     log = logSystem(sys.stdout)
