@@ -63,11 +63,12 @@ def insert_structures(inchikey_inchi,db, chunk = 1000):
         s = ", ".join(["('%s', '%s')" % (k, inchikey_inchi[k]) for k in c]) 
         query("INSERT INTO structure (inchikey, inchi) VALUES %s ON CONFLICT DO NOTHING" % s, db)
 
+    return todos
 
 def insert_raw(table, inchikey_raw, db, chunk = 10000, truncate = False):
     if truncate:
         Psql.query("TRUNCATE %s CASCADE" % table, db)
-    todos = [ik for ik in not_yet_in_table(list(inchikey_raw.keys()), table)]
+    todos = [ik for ik in not_yet_in_table(list(inchikey_raw.keys()), table,db)]
     for c in tqdm(chunker(todos, chunk)): 
         s = ",".join(["('%s', '%s')" % (k, inchikey_raw[k]) for k in c])
         query("INSERT INTO %s (inchikey, raw) VALUES %s ON CONFLICT DO NOTHING" % (table, s), db)
