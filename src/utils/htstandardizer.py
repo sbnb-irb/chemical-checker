@@ -2,10 +2,20 @@
 
 from standardiser import standardise
 from rdkit.Chem import AllChem as Chem
+from rdkit import RDLogger
 
+import logging
 # Iterate
 
 def apply(smi):
+    
+    lg = RDLogger.logger()
+
+    lg.setLevel(RDLogger.CRITICAL)
+    
+    logging.getLogger(standardise.__name__).setLevel(logging.ERROR)
+
+
     mol = standardise.Chem.MolFromSmiles(smi)
     if not mol: return None
     try:

@@ -7,8 +7,15 @@ import os
 import sys
 import datetime
 from subprocess import call, Popen
+from rdkit.Chem import AllChem
+from rdkit import Chem
+sys.path.append(os.path.join(sys.path[0],"../../pipeline/config"))
+import checkerconfig
 
 # Constants
+
+SPATH = os.path.dirname(os.path.abspath(__file__))
+
 
 # Classes
 class logSystem:
@@ -112,7 +119,7 @@ def execInBackground(cmdStr,log):
   return proc
 
 def inchikey2webrepo(inchikey):
-    PATH = WEBREPOMOLS + "/" + inchikey[:2]
+    PATH = checkerconfig.WEBREPOMOLS + "/" + inchikey[:2]
     PATH = PATH.replace("//", "/")
     if not os.path.exists(PATH):
         os.mkdir(PATH)
@@ -125,7 +132,7 @@ def inchikey2webrepo(inchikey):
     return PATH + "/"
 
 def inchikey2webrepo_no_mkdir(inchikey):
-    PATH = WEBREPOMOLS + "/" + inchikey[:2] + "/" + inchikey[2:4] + "/" + inchikey + "/"
+    PATH = checkerconfig.WEBREPOMOLS + "/" + inchikey[:2] + "/" + inchikey[2:4] + "/" + inchikey + "/"
     PATH = PATH.replace("//", "/")
     return PATH
 
@@ -198,6 +205,23 @@ def getNumOfLines(aFilename):
     numLines += 1
   tmpFile.close()
   return numLines
+  
+
+def draw(inchikey, inchi):
+    PATH = inchikey2webrepo(inchikey)
+    if  os.path.exists(PATH + "/2d.svg"): return
+    mol = Chem.rdinchi.InchiToMol(inchi)[0]
+    AllChem.Compute2DCoords(mol)
+    with open(PATH + "/2d.mol", "w") as f:
+        try:
+            f.write(Chem.MolToMolBlock(mol))
+        except:
+            f.write(Chem.MolToMolBlock(mol, kekulize = False))
+    cmd = "%s/../tools/mol2svg --bgcolor=220,218,219 --color=%s/black.conf %s/2d.mol > %s/2d.svg" % (SPATH, SPATH, PATH, PATH)
+    subprocess.Popen(cmd, shell = True).wait()
+    os.remove("%s/2d.mol" % PATH)
+
+
 
 def checkJobResultsForErrors(directory,jobName,log,maxNumOfErrors=0,errStrings=[]):
   # Error checking

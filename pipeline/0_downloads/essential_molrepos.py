@@ -86,9 +86,10 @@ def chembl():
             else:
                 inchikey = mol[0]
                 inchi = mol[1]
-            f.write("%s\t%s\t%s\t%s\n" % (Id, smi, inchikey, inchi))
-
-
+            
+            
+            f.write("%s\t%s\t%s\t%s\n" % (Id, smi.replace("\n","\\n"), inchikey, inchi))
+            
 def ctd():
     f = open(os.path.join(downloadsdir,checkerconfig.ctd_molecules_download), "r")
     g = open(moldir + "/ctd.tsv", "w")
