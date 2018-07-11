@@ -217,8 +217,8 @@ def draw(inchikey, inchi):
             f.write(Chem.MolToMolBlock(mol))
         except:
             f.write(Chem.MolToMolBlock(mol, kekulize = False))
-    cmd = "%s/../tools/mol2svg --bgcolor=220,218,219 --color=%s/black.conf %s/2d.mol > %s/2d.svg" % (SPATH, SPATH, PATH, PATH)
-    subprocess.Popen(cmd, shell = True).wait()
+    cmd = "%s/../../tools/mol2svg --bgcolor=220,218,219 --color=%s/black.conf %s/2d.mol > %s/2d.svg" % (SPATH, SPATH, PATH, PATH)
+    Popen(cmd, shell = True).wait()
     os.remove("%s/2d.mol" % PATH)
 
 

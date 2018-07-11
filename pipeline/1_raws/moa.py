@@ -87,11 +87,13 @@ def parse_chembl(ACTS = None):
     # Read molrepo file
 
     chemblid_inchikey = {}
+    inchikey_inchi = {}
     with open(chembl_molrepo, "r") as f:
         for l in f:
             l = l.rstrip("\n").split("\t")
             if not l[2]: continue
             chemblid_inchikey[l[0]] = l[2]
+            inchikey_inchi[l[2]] = l[3]
 
     # Iterate over results
 
@@ -101,7 +103,7 @@ def parse_chembl(ACTS = None):
         uniprot_ac = r[2]
         if r[3] not in dirs: continue
         act = dirs[r[3]]
-        ACTS[(inchikey, uniprot_ac)] += [act]
+        ACTS[(inchikey, uniprot_ac, inchikey_inchi[inchikey])] += [act]
 
     
     ACTS = dict((k, decide(v)) for k,v in ACTS.iteritems())
@@ -142,10 +144,12 @@ def parse_drugbank(ACTS = None):
     # Parse the molrepo
 
     dbid_inchikey = {}
+    inchikey_inchi = {}
     for l in open(drugbank_molrepo, "r"):
         l = l.rstrip("\n").split("\t")
         if not l[2]: continue
         dbid_inchikey[l[0]] = l[2]
+        inchikey_inchi[l[2]] = l[3]
     
     # Parse DrugBank
 
@@ -205,14 +209,14 @@ def parse_drugbank(ACTS = None):
 
     for inchikey, targs in DB.iteritems():
         for uniprot_ac, actions in targs.iteritems():
-            if (inchikey, uniprot_ac) in ACTS: continue
+            if (inchikey, uniprot_ac, inchikey_inchi[inchikey]) in ACTS: continue
             d = []
             for action in actions:
                 if action in dirs:
                     d += [dirs[action]]
             if not d: continue
             act = decide(d)
-            ACTS[(inchikey, uniprot_ac)] = act
+            ACTS[(inchikey, uniprot_ac, inchikey_inchi[inchikey])] = act
 
     return ACTS
 
@@ -242,7 +246,7 @@ def put_hierarchy(ACTS):
             for sp in p:
                 path.update(sp)
         for p in path:
-            classACTS[(k[0], "Class:%d" % p)] = v
+            classACTS[(k[0], "Class:%d" % p,k[2])] = v
 
     return classACTS
 
@@ -250,16 +254,18 @@ def put_hierarchy(ACTS):
 def insert_to_database(ACTS):
 
     RAW = collections.defaultdict(list)
+    inchikey_inchi = {}
     for k,v in ACTS.iteritems():
         RAW[k[0]] += [k[1] + "(%s)" % v]
+        inchikey_inchi[k[0]] = k[2]
 
     inchikey_raw = {}
     for k,v in RAW.iteritems():
         inchikey_raw[k] = ",".join(v)
 
-    todos = Psql.insert_structures(inchikey_raw, dbname)
+    todos = Psql.insert_structures(inchikey_inchi, dbname)
     for ik in todos:
-        draw(ik,inchikey_raw[ik])
+        draw(ik,inchikey_inchi[ik])
     Psql.insert_raw(table, inchikey_raw, dbname)
 
 

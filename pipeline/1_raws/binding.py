@@ -25,9 +25,9 @@ import numpy as np
 import collections
 
 import sys, os
-sys.path.append(os.path.join(sys.path[0], "../../dbutils/"))
+sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
-from checkerUtils import logSystem, execAndCheck
+from checkerUtils import logSystem, execAndCheck, draw
 import Psql
 import math
 
@@ -55,11 +55,13 @@ def parse_chembl(ACTS = None):
     # Read molrepo file
 
     chemblid_inchikey = {}
+    inchikey_inchi = {}
     with open(chembl_molrepo, "r") as f:
         for l in f:
             l = l.rstrip("\n").split("\t")
             if not l[2]: continue
             chemblid_inchikey[l[0]] = l[2]
+            inchikey_inchi[l[2]] = l[3]
 
     # Query ChEMBL
 
@@ -88,7 +90,7 @@ def parse_chembl(ACTS = None):
     for r in cur:
         chemblid = r[0]
         if chemblid not in chemblid_inchikey: continue
-        ACTS[(chemblid_inchikey[chemblid], r[1])] += [r[2]]
+        ACTS[(chemblid_inchikey[chemblid], r[1], inchikey_inchi[inchikey])] += [r[2]]
     con.close()
 
     return ACTS
@@ -126,11 +128,13 @@ def parse_bindingdb(ACTS = None):
     # Molrepo
 
     bdlig_inchikey = {}
+    inchikey_inchi = {}
     f = open(bindingdb_molrepo, "r")
     for l in f:
         l = l.rstrip("\n").split("\t")
         if not l[2]: continue
         bdlig_inchikey[l[0]] = l[2]
+        inchikey_inchi[l[2]] = l[3]
     f.close()
 
     # Read header of BindingDB
@@ -172,7 +176,7 @@ def parse_bindingdb(ACTS = None):
         uniprot_ac = l[uniprot_ac_idx]
         if not uniprot_ac: continue
         for p in uniprot_ac.split(","):
-            ACTS[(inchikey, p)] += [act]
+            ACTS[(inchikey, p,inchikey_inchi[inchikey])] += [act]
     f.close()
 
     return ACTS
@@ -271,7 +275,7 @@ def process_activity_according_to_pharos(ACTS):
         if k[1] not in class_prot: continue
         for c in class_prot[k[1]]:
             for p in class_path[c]:
-                classACTS[(k[0], "Class:%d" % p)] += [V]
+                classACTS[(k[0], "Class:%d" % p,k[2])] += [V]
 
     classACTS = dict((k, np.max(v)) for k,v in classACTS.iteritems())
 
@@ -281,11 +285,16 @@ def process_activity_according_to_pharos(ACTS):
 def insert_to_database(ACTS):
 
     inchikey_raw = collections.defaultdict(list)
+    inchikey_inchi = {}
     for k,v in ACTS.iteritems():
         inchikey_raw[k[0]] += [(k[1], v)]
+        inchikey_inchi[k[0]] = k[2]
 
     inchikey_raw = dict((k, ",".join(["%s(%d)" % (x[0], x[1]) for x in v])) for k,v in inchikey_raw.iteritems())
 
+    todos = Psql.insert_structures(inchikey_inchi, dbname)
+    for ik in todos:
+        draw(ik,inchikey_inchi[ik])
     Psql.insert_raw(table, inchikey_raw,dbname)    
 
 
@@ -301,15 +310,17 @@ def main():
     configFilename = sys.argv[1]
 
     checkercfg = checkerconfig.checkerConf( configFilename)  
+    global dbname,chembl_dbname
     
     dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
     chembl_dbname = checkerconfig.chembl
+    
+    global bindingdb_file,chembl_molrepo,bindingdb_molrepo
 
     downloadsdir = checkercfg.getDirectory( "downloads" )
-    moldir = checkercfg.getDirectory( "molRepo" )
-    ecod_domains = os.path.join(downloadsdir,checkerconfig.eco_domains)
+    bindingdb_molrepo =  os.path.join(checkercfg.getDirectory( "molRepo" ),"bindingdb.tsv")
     bindingdb_file =os.path.join(downloadsdir,checkerconfig.bindingdb_download)
-    chembl_molrepo = checkercfg.getDirectory( "molRepo" )
+    chembl_molrepo =  os.path.join(checkercfg.getDirectory( "molRepo" ),"chembl.tsv")
     
     logsFiledir = checkercfg.getDirectory( "logs" )
 

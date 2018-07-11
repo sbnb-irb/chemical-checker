@@ -15,9 +15,9 @@ import collections
 import networkx as nx
 
 import sys, os
-sys.path.append(os.path.join(sys.path[0], "../../chemutils/"))
+sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
-from checkerUtils import logSystem, execAndCheck
+from checkerUtils import logSystem, execAndCheck, draw
 
 import Psql
 import math
@@ -40,10 +40,12 @@ def parse_chembl():
 
     f = open(chembl_molrepo, "r")
     chemblid_inchikey = {}
+    inchikey_inchi = {}
     for l in f:
         l = l.rstrip("\n").split("\t")
         if not l[2]: continue
         chemblid_inchikey[l[0]] = l[2]
+        inchikey_inchi[l[2]] = l[3]
     f.close()
 
     def is_active(r):
@@ -108,7 +110,7 @@ def parse_chembl():
         for c in class_prot[r[1]]:
             path.update(class_paths[c])
         for p in path:
-            T.update([(r[0], "Class:%d" % p)])
+            T.update([(r[0], "Class:%d" % p,inchikey_inchi[r[0]])])
 
     return T
 
@@ -116,11 +118,16 @@ def parse_chembl():
 def insert_to_database(T):
 
     inchikey_raw = collections.defaultdict(list)
+    inchikey_inchi = {}
     for t in T:
         inchikey_raw[t[0]] += [t[1]]
+        inchikey_inchi[t[0]] = t[2]
 
     inchikey_raw = dict((k, ",".join([x for x in v])) for k,v in inchikey_raw.iteritems())
 
+    todos = Psql.insert_structures(inchikey_inchi, dbname)
+    for ik in todos:
+        draw(ik,inchikey_inchi[ik])
     Psql.insert_raw(table, inchikey_raw,dbname)
 
 
@@ -135,14 +142,13 @@ def main():
   
     configFilename = sys.argv[1]
 
+    global chembl_dbname, dbname,chembl_molrepo
     checkercfg = checkerconfig.checkerConf( configFilename)  
     chembl_dbname = checkerconfig.chembl
 
     dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
    
-    downloadsdir = checkercfg.getDirectory( "downloads" )
-    moldir = checkercfg.getDirectory( "molRepo" )
-    chembl_molrepo = checkercfg.getDirectory( "molRepo" )
+    chembl_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"chembl.tsv")
     
     logsFiledir = checkercfg.getDirectory( "logs" )
 
