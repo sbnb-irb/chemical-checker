@@ -58,7 +58,7 @@ def not_yet_in_table(inchikeys, table,db, chunk = 2000):
 # Dedicated insert functions
 
 def insert_structures(inchikey_inchi,db, chunk = 1000):
-    todos = [ik for ik in not_yet_in_table(list(inchikey_inchi.keys()), "structure")]
+    todos = [ik for ik in not_yet_in_table(list(inchikey_inchi.keys()), "structure",db)]
     for c in tqdm(chunker(todos, chunk)):
         s = ", ".join(["('%s', '%s')" % (k, inchikey_inchi[k]) for k in c]) 
         query("INSERT INTO structure (inchikey, inchi) VALUES %s ON CONFLICT DO NOTHING" % s, db)
