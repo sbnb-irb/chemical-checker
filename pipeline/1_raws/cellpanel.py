@@ -59,7 +59,6 @@ def parse_nci60():
         return v[my_i]
 
     sigs = collections.defaultdict(list)
-
     with open(dtp_data, "r") as f:
         f.next()
         for l in csv.reader(f):
@@ -72,7 +71,6 @@ def parse_nci60():
     sigs = dict((k, v) for k,v in sigs.iteritems() if count_nans(v) < 10)
 
     # Scale the signatures, and impute
-
     rowNames = []
     X_incomplete = []
     for k,v in sigs.iteritems():
@@ -115,9 +113,8 @@ def main():
     
     dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
     chembl_dbname = checkerconfig.chembl
-    global drugbank_xml,chembl_molrepo,drugbank_molrepo
     
-    dtp_data = os.path.join(checkercfg.getDirectory( "downloads" ),nci60_zcore)
+    dtp_data = os.path.join(checkercfg.getDirectory( "downloads" ),checkerconfig.nci60_zcore)
     nci60_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"nci60.tsv")
     logsFiledir = checkercfg.getDirectory( "logs" )
 
