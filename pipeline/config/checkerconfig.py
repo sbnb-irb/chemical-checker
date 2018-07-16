@@ -59,6 +59,7 @@ human_proteome = 'human_proteome.tab'
 uniprot2reactome = 'UniProt2Reactome_All_Levels.txt'
 nci60_zcore = 'DTP_NCI60_ZSCORE.csv'
 all_conditions = 'All_conditions.txt'
+comb_gt_preds = 'combined_gene-target-predictions.txt'
 
 
 #Downloads (link,username, password,outputfile)

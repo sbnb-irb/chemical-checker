@@ -112,6 +112,6 @@ for drug in drugs:
 
 log.info( "Converting Zscore xls file to csv")
 
-data_xls = pd.read_excel(os.path.join(downloadsdir,"output/DTP_NCI60_ZSCORE.xls"), index_col=0,usecols="A:F")
+data_xls = pd.read_excel(os.path.join(downloadsdir,"output/DTP_NCI60_ZSCORE.xls"), index_col=0)
 data_xls.to_csv(os.path.join(downloadsdir,checkerconfig.nci60_download), encoding='utf-8')
 
