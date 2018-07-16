@@ -52,6 +52,7 @@ pathway_data        = 'PathwayCommons9.All.hgnc.txt.gz'
 hgnc_mapping_file = 'hgnc_mapping.txt'
 string_tab_file = 'HUMAN_9606_idmapping_selected.tab'
 string_network_file = 'protein.links.txt'
+pathway_sif = "all_binary.sif"
 
 
 #Downloads (link,username, password,outputfile)
@@ -121,6 +122,8 @@ NETWORKS        = "networks"
 
 LOG_SUBDIR                = "log"
 READY_SUBDIR              = "ready"
+TMP_SUBDIR                = "tmp"
+
 
 KEEP_TABLES = ['structure','fp2d','fp3d','scaffolds','subskeys','physchem','pubchem']
 

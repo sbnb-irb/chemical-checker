@@ -59,7 +59,6 @@ def parse_ecod():
             if lig_id not in ligand_inchikey: continue
             inchikey_ecod[ligand_inchikey[lig_id]].update([s])
     f.close()
-    
     return inchikey_ecod,inchikey_inchi
 
 
@@ -91,7 +90,7 @@ def main():
    
     downloadsdir = checkercfg.getDirectory( "downloads" )
     ecod_domains = os.path.join(downloadsdir,checkerconfig.eco_domains)
-    pdb_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"chembl.tsv")
+    pdb_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"pdb.tsv")
     
     logsFiledir = checkercfg.getDirectory( "logs" )
 

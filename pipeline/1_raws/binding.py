@@ -1,23 +1,5 @@
 #!/miniconda/bin/python
 
-'''
-# ChEMBL and BindingDB
-
-Get binding data from ChEMBL and BindingDB.
-
-Use the same restrictions that https://pharos.nih.gov/idg/index
-
-ChEMBL ligand activities are selected for a given target are identified using the following criteria:
-
-* must have a pchembl value (ie a -Log M value)
-* must be from a binding assay
-* must have a MOL structure type
-* must have a target type of SINGLE_PROTEIN
-* must have standard_flag = 1 and and exact standard_relation (ie. no <= 10uM type values)
-* must be associated with a publication
-* must pass the family-specific thresholds (Kinases: <= 30nM; GPCRs: <= 100nM; Nuclear Receptors: <= 100nM; Ion Channels: <= 10μM; Others: <= 1uM)
-
-'''
 
 # Imports
 
@@ -90,7 +72,7 @@ def parse_chembl(ACTS = None):
     for r in cur:
         chemblid = r[0]
         if chemblid not in chemblid_inchikey: continue
-        ACTS[(chemblid_inchikey[chemblid], r[1], inchikey_inchi[inchikey])] += [r[2]]
+        ACTS[(chemblid_inchikey[chemblid], r[1], inchikey_inchi[chemblid_inchikey[chemblid]])] += [r[2]]
     con.close()
 
     return ACTS
@@ -161,7 +143,12 @@ def parse_bindingdb(ACTS = None):
     f = open(bindingdb_file, "r")
     f.next()
     for l in f:
+        
         l = l.rstrip("\n").split("\t")
+        if len(l) < nchains_idx:
+            continue
+        if l[nchains_idx] == '':
+            continue
         nchains = int(l[nchains_idx])
         if nchains != 1: continue
         bdlig = l[bdlig_idx]
@@ -204,7 +191,7 @@ def process_activity_according_to_pharos(ACTS):
     nuclear_idx = set([x for w in nuclear_idx for k,v in nx.dfs_successors(G, w).iteritems() for x in v] + nuclear_idx)
     ionchannel_idx = set([x for w in ionchannel_idx for k,v in nx.dfs_successors(G, w).iteritems() for x in v] + ionchannel_idx)
 
-    R = Psql.qstring("SELECT cs.accession, cc.protein_class_id FROM component_sequences cs, component_class cc WHERE cs.component_id = cc.component_id AND cs.accession IS NOT NULL", Psql.chembl)
+    R = Psql.qstring("SELECT cs.accession, cc.protein_class_id FROM component_sequences cs, component_class cc WHERE cs.component_id = cc.component_id AND cs.accession IS NOT NULL", chembl_dbname)
 
     class_prot = collections.defaultdict(list)
 
@@ -331,9 +318,9 @@ def main():
 
     ACTS = parse_chembl()
 
-    log.info(  " Parsing DrugBank")
+    log.info(  " Parsing BindingDB")
 
-    ACTS = parse_drugbank(ACTS)
+    ACTS = parse_bindingdb(ACTS)
 
     log.info(  " Processing activity and assigning target classes")
 
