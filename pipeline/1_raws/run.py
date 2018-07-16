@@ -24,7 +24,8 @@ tasks = [
   ( 'Raw Crystals',             'crystals.py',                 'raw_crystals' ),
   ( 'Raw Binding',              'binding.py',                  'raw_binding' ),
   ( 'Raw HTS Bioassay',         'htsbioass.py',                'raw_htsbioass' ),
-  ( 'Raw Molecular Roles',      'molroles.py',                 'raw_molroles' )
+  ( 'Raw Molecular Roles',      'molroles.py',                 'raw_molroles' ),
+  ( 'Raw Molecular Pathways',   'molpathways.py',              'raw_molpathways' )
 ]
 
 # Functions
