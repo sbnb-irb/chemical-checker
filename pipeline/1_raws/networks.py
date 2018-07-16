@@ -26,7 +26,7 @@ human_proteome   = "XXXX" # Human proteome - human_proteome.tab
 networks_dir = ''
 table = "networks"
 
-networks = ["string", "inbiomap", "ppidb", "pathwaycommons", "recon2"]
+networks = ["string", "inbiomap", "ppidb", "pathwaycommons", "recon"]
 
 # Functions
 

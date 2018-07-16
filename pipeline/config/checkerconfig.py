@@ -57,6 +57,8 @@ id_conversion = "id_conversion.txt"
 file_9606 = "9606.txt"
 human_proteome = 'human_proteome.tab'
 uniprot2reactome = 'UniProt2Reactome_All_Levels.txt'
+nci60_zcore = 'DTP_NCI60_ZSCORE.csv'
+all_conditions = 'All_conditions.txt'
 
 
 #Downloads (link,username, password,outputfile)
@@ -99,6 +101,7 @@ downloads = [('ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*
              ('ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_pert_metrics.txt.gz','','','GSE92742_Broad_LINCS_pert_metrics.txt.gz'),
              ('https://discover.nci.nih.gov/cellminerdata/normalizedArchives/DTP_NCI60_ZSCORE.zip','','','DTP_NCI60_ZSCORE.zip'),
              ('http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/tables/combined/combined_gene-target-predictions.zip','','','combined_gene-target-predictions.zip'),
+             ('http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/matrices_and_cdts/matrices/All_conditions.txt','','',all_conditions),
              ('http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/compound_information/sdf/Structural_Data_Files_combined.zip','','','Structural_Data_Files_combined.zip'),
              ('http://lincsportal.ccs.miami.edu/dcic/api/download?path=LINCS_Data/Broad_Therapeutics&file=LDS-1195.tar.gz','','','LDS-1195.tar.gz'),
              ('ftp://ftp.expasy.org/databases/cellosaurus/cellosaurus.obo','','','cellosaurus.obo'),

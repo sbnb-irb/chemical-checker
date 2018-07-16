@@ -1,23 +1,24 @@
-'''
-NCI60 data
-'''
+#!/miniconda/bin/python
 
 # Imports
 
 import sys, os
-sys.path.append(os.path.join(sys.path[0], "../../dbutils/"))
-sys.path.append(os.path.join(sys.path[0], "../../mlutils/"))
-from gaussian_scale_impute import scaleimpute
+sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
+sys.path.append(os.path.join(sys.path[0],"../config"))
+from checkerUtils import logSystem, execAndCheck, draw
 import Psql
+from gaussian_scale_impute import scaleimpute
 import numpy as np
 import pybel
 import collections
 import subprocess
 import csv
 
+import checkerconfig
+
 # Variables
 
-db = Psql.mosaic
+dbname = ''
 nci60_molrepo = "XXXX" # nci60.tsv
 dtp_data = "XXXX" # "data/DTP_NCI60_ZSCORE.csv"
 table = "cellpanel"
@@ -28,10 +29,12 @@ def parse_nci60():
 
     with open(nci60_molrepo, "r") as f:
         nci_inchikey = {}
+        inchikey_inchi = {}
         for l in f:
             l = l.rstrip("\n").split("\t")
             if not l[2]: continue
             nci_inchikey[l[0]] = l[2]
+            inchikey_inchi[l[2]] = l[3]
 
     # Read the NCI60 data
 
@@ -81,27 +84,51 @@ def parse_nci60():
 
     X = scaleimpute(X_incomplete)
 
-    return X, rowNames
+    return X, rowNames,inchikey_inchi
 
 
-def insert_to_database(X, rowNames):
+def insert_to_database(X, rowNames,inchikey_inchi):
 
     inchikey_raw = {}
     for i in xrange(len(rowNames)):
         inchikey_raw[rowNames[i]] = ",".join(["%.5f" % x for x in X[i]])
 
-    Psql.insert_raw(table, inchikey_raw)
+    todos = Psql.insert_structures(inchikey_inchi, dbname)
+    for ik in todos:
+        draw(ik,inchikey_inchi[ik])
+    Psql.insert_raw(table, inchikey_raw,dbname)
 
 
 # Main
 
 def main():
+    
+    import argparse
+    
+    if len(sys.argv) != 2:
+        sys.exit(1)
+  
+    configFilename = sys.argv[1]
 
-    print "Parsing NCI-60"
-    X, rowNames = parse_nci60()
+    checkercfg = checkerconfig.checkerConf( configFilename)  
+    global dbname,nci60_molrepo,dtp_data
+    
+    dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
+    chembl_dbname = checkerconfig.chembl
+    global drugbank_xml,chembl_molrepo,drugbank_molrepo
+    
+    dtp_data = os.path.join(checkercfg.getDirectory( "downloads" ),nci60_zcore)
+    nci60_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"nci60.tsv")
+    logsFiledir = checkercfg.getDirectory( "logs" )
 
-    print "Inserting to database"
-    insert_to_database(X, rowNames)
+    log = logSystem(sys.stdout)
+
+
+    log.info( "Parsing NCI-60")
+    X, rowNames,inchikey_inchi = parse_nci60()
+
+    log.info( "Inserting to database")
+    insert_to_database(X, rowNames,inchikey_inchi)
 
 
 if __name__ == '__main__':
