@@ -26,7 +26,9 @@ tasks = [
   ( 'Raw HTS Bioassay',         'htsbioass.py',                'raw_htsbioass' ),
   ( 'Raw Molecular Roles',      'molroles.py',                 'raw_molroles' ),
   ( 'Raw Molecular Pathways',   'molpathways.py',              'raw_molpathways' ),
-  ( 'Raw Pathways',             'pathways.py',                 'raw_pathways' )
+  ( 'Raw Pathways',             'pathways.py',                 'raw_pathways' ),
+  #( 'Raw Biological Processes', 'bps.py',                      'raw_bps' ),
+  ( 'Raw Networks',             'networks.py',                 'raw_networks' )
 ]
 
 # Functions
