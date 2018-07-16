@@ -53,6 +53,10 @@ hgnc_mapping_file = 'hgnc_mapping.txt'
 string_tab_file = 'HUMAN_9606_idmapping_selected.tab'
 string_network_file = 'protein.links.txt'
 pathway_sif = "all_binary.sif"
+id_conversion = "id_conversion.txt"
+file_9606 = "9606.txt"
+human_proteome = 'human_proteome.tab'
+uniprot2reactome = 'UniProt2Reactome_All_Levels.txt'
 
 
 #Downloads (link,username, password,outputfile)
@@ -68,12 +72,12 @@ downloads = [('ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*
              ('ftp://ftp.ebi.ac.uk/pub/databases/chebi/SDF/ChEBI_lite_3star.sdf.gz','','','ChEBI_lite_3star.sdf.gz'),
              ('ftp://ftp.ebi.ac.uk/pub/databases/chebi/Flat_file_tab_delimited/compounds_3star.tsv.gz','','','compounds_3star.tsv.gz'),
              ('ftp://ftp.ebi.ac.uk/pub/databases/chebi/ontology/chebi.obo','','',chebi_obo),
-             ('ftp://phylomedb.org/metaphors/latest/id_conversion.txt.gz','','','id_conversion.txt.gz'),
-             ('ftp://phylomedb.org/metaphors/latest/orthologs/9606.txt.gz','','','9606.txt.gz'),
+             ('ftp://phylomedb.org/metaphors/latest/id_conversion.txt.gz','','',id_conversion + '.gz'),
+             ('ftp://phylomedb.org/metaphors/latest/orthologs/9606.txt.gz','','',file_9606 + '.gz'),
              ('https://reactome.org/download/current/ChEBI2Reactome_All_Levels.txt','','','ChEBI2Reactome_All_Levels.txt'),
-             ('https://reactome.org/download/current/UniProt2Reactome_All_Levels.txt','','','UniProt2Reactome_All_Levels.txt'),
+             ('https://reactome.org/download/current/UniProt2Reactome_All_Levels.txt','','',uniprot2reactome),
              ('https://reactome.org/download/current/ReactomePathwaysRelation.txt','','','ReactomePathwaysRelation.txt'),
-             ('https://www.uniprot.org/uniprot/?query=proteome:UP000005640&format=tab','','','human_proteome.tab'),
+             ('https://www.uniprot.org/uniprot/?query=proteome:UP000005640&format=tab','','',human_proteome),
              ('ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz','','','goa_human.gaf.gz'),
              ('http://snapshot.geneontology.org/ontology/go-basic.obo','','','go-basic.obo'),
              ('http://smpdb.ca/downloads/smpdb_structures.zip','','','smpdb_structures.zip'),
