@@ -1,16 +1,13 @@
-'''
+#!/miniconda/bin/python
 
-Network impact of small molecules.
-
-It uses precomputed similarity matrices from HotNet in order to assess the *impact* of each node on the network.
-
-'''
 
 # Imports
 
 import h5py
 import sys, os
-sys.path.append(os.path.join(sys.path[0], "../../dbutils/"))
+sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
+sys.path.append(os.path.join(sys.path[0],"../config"))
+from checkerUtils import logSystem, execAndCheck, draw
 import Psql
 import collections
 import numpy as np
@@ -18,13 +15,15 @@ from sklearn.preprocessing import normalize
 
 # Variables
 
-db = Psql.mosaic # Change it if necessary
+dbname = ''
+
+import checkerconfig
+
 
 id_conversion    = "XXXX" # Metaphors - id_conversion.txt
-9606_file        = "XXXX" # Metaphors - 9606.txt
+file_9606        = "XXXX" # Metaphors - 9606.txt
 human_proteome   = "XXXX" # Human proteome - human_proteome.tab
-hotnet_outputs   = "XXXX" # now it is in data/, needs to be re-run (talk about it)
-
+networks_dir = ''
 table = "networks"
 
 networks = ["string", "inbiomap", "ppidb", "pathwaycommons", "recon2"]
@@ -44,7 +43,7 @@ def human_metaphors():
     f.close()
 
     any_human = collections.defaultdict(set)
-    f = open(9606_file, "r")
+    f = open(file_9606, "r")
     f.next()
     for l in f:
         l = l.rstrip("\n").split("\t")
@@ -68,7 +67,7 @@ def human_metaphors():
 
 def fetch_binding(any_human):
 
-    R = Psql.qstring("SELECT inchikey, raw FROM binding", db)
+    R = Psql.qstring("SELECT inchikey, raw FROM binding", dbname)
 
     ACTS = collections.defaultdict(list)
     for r in R:
@@ -131,7 +130,7 @@ def read_hotnet_output(ACTS):
     for network in networks:
         
         # Loading network
-        sm = load_matrix("%s/%s" % (hotnet_outputs, network))
+        sm = load_matrix("%s/%s" % (networks_dir, network))
         sm.A = scale_by_non_diagonal_max(sm.A)
         myprots = prots.intersection(sm.names)
         
@@ -158,23 +157,42 @@ def insert_to_database(D):
     inchikey_raw = {}
     for k,v in D.iteritems():
         inchikey_raw[k] = ",".join(["%s(%d)" % (x[0], x[1]) for x in v])
-    Psql.insert_raw(table, inchikey_raw)
+    Psql.insert_raw(table, inchikey_raw,dbname)
 
 
 # Main
 
 def main():
 
-    print "Human MetPhors"
+    import argparse
+    
+    if len(sys.argv) != 2:
+        sys.exit(1)
+  
+    configFilename = sys.argv[1]
+
+    checkercfg = checkerconfig.checkerConf( configFilename)  
+    global dbname,id_conversion,file_9606,human_proteome,networks_dir
+    
+    dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
+    
+    id_conversion = os.path.join(checkercfg.getDirectory( "downloads" ),checkerconfig.id_conversion)
+    file_9606 = os.path.join(checkercfg.getDirectory( "downloads" ),checkerconfig.file_9606)
+    human_proteome = os.path.join(checkercfg.getDirectory( "downloads" ),checkerconfig.human_proteome)
+    networks_dir = checkercfg.getDirectory( "networks" )
+
+    log = logSystem(sys.stdout)
+    
+    log.info( "Human MetPhors")
     any_human = human_metaphors()
 
-    print "Fetch activities"
+    log.info( "Fetch activities")
     ACTS = fetch_binding(any_human)
 
-    print "Reading Hotnet output"
+    log.info( "Reading Hotnet output")
     D = read_hotnet_output(ACTS)
 
-    print "Inserting to database"
+    log.info( "Inserting to database")
     insert_to_database(D)
 
 

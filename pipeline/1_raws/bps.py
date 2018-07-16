@@ -1,13 +1,12 @@
-'''
+#!/miniconda/bin/python
 
-Biological processes.
-
-'''
 
 # Imports
 
 import sys, os
-sys.path.append(os.path.join(sys.path[0], "../../dbutils/"))
+sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
+sys.path.append(os.path.join(sys.path[0],"../config"))
+from checkerUtils import logSystem, execAndCheck, draw
 import Psql
 import collections
 import numpy as np
@@ -15,16 +14,18 @@ import numpy as np
 import networkx as nx
 
 import csv
+import checkerconfig
+
 
 # Variables
 
 id_conversion    = "XXXX" # Metaphors - id_conversion.txt
-9606_file        = "XXXX" # Metaphors - 9606.txt
+file_9606        = "XXXX" # Metaphors - 9606.txt
 human_proteome   = "XXXX" # Human proteome - human_proteome.tab
 prot_allgos      = "XXXX" # ONE MUST RUN db/_prot_allgos.py BEFORE!!!!
 table = "bps"
 
-db = Psql.mosaic # 
+dbname = '' # 
 
 # Functions
 
@@ -41,7 +42,7 @@ def human_metaphors():
     f.close()
 
     any_human = collections.defaultdict(set)
-    f = open(9606_file, "r")
+    f = open(file_9606, "r")
     f.next()
     for l in f:
         l = l.rstrip("\n").split("\t")
@@ -55,7 +56,7 @@ def human_metaphors():
 
     f = open(human_proteome, "r")
     f.next()
-    for l in tqdm(f):
+    for l in f:
         p = l.split("\t")[0]
         any_human[p].update([p])
     f.close()
@@ -65,7 +66,7 @@ def human_metaphors():
 
 def fetch_binding(any_human):
 
-    R = Psql.qstring("SELECT inchikey, raw FROM binding", db)
+    R = Psql.qstring("SELECT inchikey, raw FROM binding", dbname)
 
     ACTS = collections.defaultdict(list)
     for r in tqdm(R):
@@ -80,7 +81,6 @@ def fetch_binding(any_human):
     ACTS = dict((k, np.max(v)) for k,v in ACTS.iteritems())
 
     any_human.clear()
-    metaphorsid_uniprot.clear()
 
     def get_allgos(uniprot_ac):
         if not os.path.exists("%s/%s.tsv" % (prot_allgos, uniprot_ac)): return None
@@ -103,11 +103,11 @@ def fetch_binding(any_human):
         class_prot[prot] = gos
 
     GOS = collections.defaultdict(list)
-    for k,v in tqdm(ACTS.iteritems()):
+    for k,v in ACTS.iteritems():
         if k[1] not in class_prot: continue
         for go in class_prot[k[1]]:
             GOS[(k[0], go)] += [v]
-    GOS = dict((k, np.max(v)) for k,v in tqdm(GOS.iteritems()))
+    GOS = dict((k, np.max(v)) for k,v in GOS.iteritems())
 
     return GOS
 
@@ -120,19 +120,37 @@ def insert_to_database(GOS):
 
     inchikey_raw = dict((k, ",".join(["%s(%d)" % (x[0], x[1]) for x in v])) for k,v in tqdm(inchikey_raw.iteritems()))
 
-    Psql.insert_raw(table, inchikey_raw)
+    Psql.insert_raw(table, inchikey_raw,dbname)
 
 # Main
 
-def main()
+def main():
 
-    print "Reading human MetaPhors"
+    import argparse
+    
+    if len(sys.argv) != 2:
+        sys.exit(1)
+  
+    configFilename = sys.argv[1]
+
+    checkercfg = checkerconfig.checkerConf( configFilename)  
+    global dbname,id_conversion,file_9606,human_proteome,prot_allgos
+    
+    dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
+    
+    id_conversion = os.path.join(checkercfg.getDirectory( "downloads" ),checkerconfig.id_conversion)
+    file_9606 = os.path.join(checkercfg.getDirectory( "downloads" ),checkerconfig.file_9606)
+    human_proteome = os.path.join(checkercfg.getDirectory( "downloads" ),checkerconfig.human_proteome)
+    prot_allgos = os.path.join(checkercfg.getDirectory( "downloads" ),checkerconfig.uniprot2reactome)
+
+    log = logSystem(sys.stdout)
+    log.info( "Reading human MetaPhors")
     any_human = human_metaphors()
 
-    print "Fetching binding data"
+    log.info( "Fetching binding data")
     GOS = fetch_binding(any_human)
 
-    print "Inserting to database"
+    log.info( "Inserting to database")
     insert_to_database(GOS)
 
 
