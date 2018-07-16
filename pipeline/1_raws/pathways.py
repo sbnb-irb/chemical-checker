@@ -1,25 +1,25 @@
-'''
-
-Pathways mapped from binding data.
-
-'''
+#!/miniconda/bin/python
 
 # Imports
 
 import sys, os
-sys.path.append(os.path.join(sys.path[0], "../../dbutils/"))
+sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
+sys.path.append(os.path.join(sys.path[0],"../config"))
+from checkerUtils import logSystem, execAndCheck, draw
 import Psql
 import collections
 import numpy as np
 import csv
 
+import checkerconfig
+
 # Variables
 
 id_conversion    = "XXXX" # Metaphors - id_conversion.txt
-9606_file        = "XXXX" # Metaphors - 9606.txt
+file_9606        = "XXXX" # Metaphors - 9606.txt
 human_proteome   = "XXXX" # Human proteome - human_proteome.tab
 uniprot2reactome = "XXXX" # Uniprot to reactome - UniProt2Reactome_All_Levels.txt"
-db               = Psql.mosaic
+dbname = ''
 
 table = "pathways"
 
@@ -38,7 +38,7 @@ def human_metaphors():
     f.close()
 
     any_human = collections.defaultdict(set)
-    f = open(9606_file, "r")
+    f = open(file_9606, "r")
     f.next()
     for l in f:
         l = l.rstrip("\n").split("\t")
@@ -94,20 +94,39 @@ def insert_to_database(PWYS):
 
     inchikey_raw = dict((k, ",".join(["%s(%d)" % (x[0], x[1]) for x in v])) for k,v in inchikey_raw.iteritems())
 
-    Psql.insert_raw(table, inchikey_raw)
+    Psql.insert_raw(table, inchikey_raw,dbname)
 
 
 # Main
 
-def main()
+def main():
+    
+    import argparse
+    
+    if len(sys.argv) != 2:
+        sys.exit(1)
+  
+    configFilename = sys.argv[1]
 
-    print "Reading human MetaPhors"
+    checkercfg = checkerconfig.checkerConf( configFilename)  
+    global dbname,id_conversion,file_9606,human_proteome,uniprot2reactome
+    
+    dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
+    
+    id_conversion = os.path.join(checkercfg.getDirectory( "downloads" ),checkerconfig.id_conversion)
+    file_9606 = os.path.join(checkercfg.getDirectory( "downloads" ),checkerconfig.file_9606)
+    human_proteome = os.path.join(checkercfg.getDirectory( "downloads" ),checkerconfig.human_proteome)
+    uniprot2reactome = os.path.join(checkercfg.getDirectory( "downloads" ),checkerconfig.uniprot2reactome)
+
+    log = logSystem(sys.stdout)
+
+    log.info(  "Reading human MetaPhors")
     any_human = human_metaphors()
 
-    print "Fetching binding data"
+    log.info(  "Fetching binding data")
     PWYS = fetch_binding(any_human)
 
-    print "Inserting to database"
+    log.info(  "Inserting to database")
     insert_to_database(PWYS)
 
 

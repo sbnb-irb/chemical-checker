@@ -38,6 +38,8 @@ def prepare_hotnet_input(outdir):
         l = l.rstrip("\n").split("\t")
         if not l[2]: continue
         chebi_inchikey[l[0]] = l[2]
+        inchikey_inchi[l[2]] = l[3]
+
     f.close()
 
     # Read graph
@@ -50,7 +52,6 @@ def prepare_hotnet_input(outdir):
             if l[0] in chebi_inchikey and l[2] in chebi_inchikey:
                 ik1 = chebi_inchikey[l[0]]
                 ik2 = chebi_inchikey[l[2]]
-                inchikey_inchi[l[2]] = l[3]
                 G.add_edge(ik1, ik2)
 
     with open(os.path.join(outdir,pcomms), "w") as f:
@@ -61,7 +62,8 @@ def prepare_hotnet_input(outdir):
 ## THIS IS PROVISIONAL!
 
 def run_hotnet(outdir):
-    cmd = "python ../0_downloads/prepare_network.py --interactions" + os.path.join(outdir,pcomms) + " --output_folder " + outdir + " -p " + checkerconfig.HOTNET_PATH
+    currentDir = os.path.dirname(os.path.abspath( __file__ ))
+    cmd = "python " + currentDir + "/../0_downloads/prepare_network.py --interactions " + os.path.join(outdir,pcomms) + " --output_folder " + outdir + " -p " + checkerconfig.HOTNET_PATH
     print cmd
     subprocess.Popen(cmd, shell = True).wait()
 
@@ -152,15 +154,20 @@ def main():
     chebi_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"chebi.tsv")
     all_binary_sif = os.path.join(checkercfg.getDirectory( "downloads" ),checkerconfig.pathway_sif)
     
-    log.info(  "Preparing HotNet input")
-
-    inchikey_inchi = prepare_hotnet_input()    
-
-    log.info(  "Running HotNet")
-    
     networksdir = checkercfg.getDirectory( "networks" )
     
     outdir = os.path.join(networksdir,table)
+
+    if  os.path.exists(outdir) == False:
+        c = os.makedirs(outdir)
+    
+    log = logSystem(sys.stdout)
+    
+    log.info(  "Preparing HotNet input")
+
+    inchikey_inchi = prepare_hotnet_input(outdir)    
+
+    log.info(  "Running HotNet")
 
     run_hotnet(outdir)
 
