@@ -52,7 +52,7 @@ def human_metaphors():
 
     f = open(human_proteome, "r")
     f.next()
-    for l in tqdm(f):
+    for l in f:
         p = l.split("\t")[0]
         any_human[p].update([p])
     f.close()
@@ -62,7 +62,7 @@ def human_metaphors():
 
 def fetch_binding(any_human):
 
-    R = Psql.qstring("SELECT inchikey, raw FROM binding", db)
+    R = Psql.qstring("SELECT inchikey, raw FROM binding", dbname)
 
     ACTS = collections.defaultdict(list)
     for r in R:
@@ -75,6 +75,13 @@ def fetch_binding(any_human):
             for hp in hps:    
                 ACTS[(r[0], hp)] += [act]
     ACTS = dict((k, np.max(v)) for k,v in ACTS.iteritems())
+    
+    uniprot_reactome = collections.defaultdict(set)
+    f = open(uniprot2reactome, "r")
+    
+    for l in f:
+        l = l.rstrip("\n").split("\t")
+        uniprot_reactome[l[0]].update([l[1]])
 
     PWYS = collections.defaultdict(list)
     for k,v in ACTS.iteritems():
