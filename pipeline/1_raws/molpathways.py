@@ -1,37 +1,38 @@
-'''
-
-Small molecule pathways.
-
-Essentially, metabolites.
-
-'''
+#!/miniconda/bin/python
 
 # Imports
 
 import sys, os
 import networkx as nx
 import collections
-sys.path.append(os.path.join(sys.path[0], "../../dbutils/"))
+sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
+sys.path.append(os.path.join(sys.path[0],"../config"))
+from checkerUtils import logSystem, execAndCheck, draw
 import Psql
 import subprocess
 import h5py
 import numpy as np
 from sklearn.preprocessing import normalize
 
+import checkerconfig
+
+
 # Variables
 
 chebi_molrepo  = "XXXX"
 all_binary_sif = "XXXX" # all_binary.sif
-pcomms         = "XXXX" # pcomms.tsv This is a temporary file that will then be used as an input for hotnet!
+pcomms         = "pcommons.tsv" # pcomms.tsv This is a temporary file that will then be used as an input for hotnet!
 table = "molpathways"
+dbname = ''
 
 # Functions
 
-def prepare_hotnet_input():
+def prepare_hotnet_input(outdir):
 
     # Read ChEBI molrepo
 
     chebi_inchikey = collections.defaultdict(set)
+    inchikey_inchi = {}
     f = open(chebi_molrepo, "r")
     for l in f:
         l = l.rstrip("\n").split("\t")
@@ -49,16 +50,18 @@ def prepare_hotnet_input():
             if l[0] in chebi_inchikey and l[2] in chebi_inchikey:
                 ik1 = chebi_inchikey[l[0]]
                 ik2 = chebi_inchikey[l[2]]
+                inchikey_inchi[l[2]] = l[3]
                 G.add_edge(ik1, ik2)
 
-    with open(pcomms, "w") as f:
+    with open(os.path.join(outdir,pcomms), "w") as f:
         for e in G.edges():
             f.write("%s\t%s\n" % (e[0], e[1]))
 
+    return inchikey_inchi
 ## THIS IS PROVISIONAL!
 
-def run_hotnet():
-    cmd = "python /aloy/home/mduran/myscripts/hotnet/prepare_network.py --interactions data/pcommons.tsv --output_folder data"
+def run_hotnet(outdir):
+    cmd = "python ../0_downloads/prepare_network.py --interactions" + os.path.join(outdir,pcomms) + " --output_folder " + outdir + " -p " + checkerconfig.HOTNET_PATH
     print cmd
     subprocess.Popen(cmd, shell = True).wait()
 
@@ -96,14 +99,14 @@ def network_impact(sm, node_scores):
 def scale_by_non_diagonal_max(A):
     S = A[:]
     np.fill_diagonal(S, 0.)
-    for j in tqdm(xrange(A.shape[1])):
+    for j in xrange(A.shape[1]):
         S[j,j] = np.max(S[:,j])
     S = normalize(S, norm = "max", axis = 0)
     return S
 
-def read_hotnet_output()
+def read_hotnet_output(outdir):
 
-    sm = load_matrix("data")
+    sm = load_matrix(outdir)
     sm.A = scale_by_non_diagonal_max(sm.A)
 
     profiles = collections.defaultdict(list)
@@ -118,34 +121,56 @@ def read_hotnet_output()
 
     return profiles
 
-def insert_to_database(profiles):
+def insert_to_database(profiles, inchikey_inchi):
 
     inchikey_raw = {}
     for k,v in profiles.iteritems():
         inchikey_raw[k] = ",".join(["%s(%d)" % (x[0], x[1]) for x in v])
 
-    Psql.insert_raw(table, inchikey_raw)
+    todos = Psql.insert_structures(inchikey_inchi, dbname)
+    for ik in todos:
+        draw(ik,inchikey_inchi[ik])
+    Psql.insert_raw(table, inchikey_raw,dbname)
 
 
 # Main
 
 def main():
     
-    print "Preparing HotNet input"
+    import argparse
+    
+    if len(sys.argv) != 2:
+        sys.exit(1)
+  
+    configFilename = sys.argv[1]
 
-    prepare_hotnet_input()    
+    checkercfg = checkerconfig.checkerConf( configFilename)  
+    global dbname,chebi_molrepo,all_binary_sif
+    
+    dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
+    
+    chebi_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"chebi.tsv")
+    all_binary_sif = os.path.join(checkercfg.getDirectory( "downloads" ),checkerconfig.pathway_sif)
+    
+    log.info(  "Preparing HotNet input")
 
-    print "Running HotNet"
+    inchikey_inchi = prepare_hotnet_input()    
 
-    run_hotnet()
+    log.info(  "Running HotNet")
+    
+    networksdir = checkercfg.getDirectory( "networks" )
+    
+    outdir = os.path.join(networksdir,table)
 
-    print "Reading HotNet output"
+    run_hotnet(outdir)
 
-    profiles = read_hotnet_output()
+    log.info(  "Reading HotNet output")
 
-    print "Insert to database"
+    profiles = read_hotnet_output(outdir)
 
-    insert_to_database(profiles)
+    log.info(  "Insert to database")
+
+    insert_to_database(profiles, inchikey_inchi)
 
 
 if __name__ == '__main__':

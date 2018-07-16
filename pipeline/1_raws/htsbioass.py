@@ -32,6 +32,7 @@ pchembl_cutoff = 5
 chembl_dbname  = "XXXX"
 chembl_molrepo = "XXXX"
 dbname         = ''
+table = 'htsbioass'
 # Functions
 
 def parse_chembl():
@@ -55,7 +56,7 @@ def parse_chembl():
 
     # Query
 
-    con = Psql.connect(Psql.chembl)
+    con = Psql.connect(chembl_dbname)
     con.set_isolation_level(0)
     cur = con.cursor()
     cur.execute('''
@@ -104,7 +105,7 @@ def parse_chembl():
             
     T = set()
     for r in R:
-        T.update([r])
+        T.update([(r[0], r[1],inchikey_inchi[r[0]])])
         if r[1] not in class_prot: continue
         path = set()
         for c in class_prot[r[1]]:
@@ -115,7 +116,7 @@ def parse_chembl():
     return T
 
 
-def insert_to_database(T):
+def inserting_to_database(T):
 
     inchikey_raw = collections.defaultdict(list)
     inchikey_inchi = {}

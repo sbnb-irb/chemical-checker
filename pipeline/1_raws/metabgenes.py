@@ -41,7 +41,7 @@ dbname           = ''
 
 def parse_chembl(ACTS = None):
 
-    if ACTS is None: ACTS = collections.defaultdict(set)
+    if ACTS is None: ACTS = set()
 
     # Query ChEMBL
     
@@ -78,14 +78,14 @@ def parse_chembl(ACTS = None):
         if r[0] not in chemblid_inchikey: continue
         inchikey = chemblid_inchikey[r[0]]
         uniprot_ac = r[1]
-        ACTS.update([(inchikey, uniprot_ac, inchikey_inchi[inchikey])])
+        ACTS.update([(inchikey, uniprot_ac,inchikey_inchi[inchikey])])
 
     return ACTS
 
 
 def parse_drugbank(ACTS = None):
 
-    if ACTS is None: ACTS = collections.defaultdict(set)    
+    if ACTS is None: ACTS = set()
 
     # Parse the molrepo
 
@@ -184,10 +184,10 @@ def put_hierarchy(ACTS):
 
     for r in R: class_prot[r[0]] += [r[1]]
 
-    classACTS = {}
+    classACTS = set()
 
-    for k,v in ACTS.iteritems():
-        classACTS[k] = v
+    for k in ACTS:
+        classACTS.update([k])
         if k[1] not in class_prot: continue
         path = set()
         for x in class_prot[k[1]]:
@@ -195,7 +195,7 @@ def put_hierarchy(ACTS):
             for sp in p:
                 path.update(sp)
         for p in path:
-            classACTS[(k[0], "Class:%d" % p,k[2])] = v
+            classACTS.update([(k[0], "Class:%d" % p,k[2])])
 
     return classACTS
 
@@ -204,8 +204,8 @@ def insert_to_database(ACTS):
 
     RAW = collections.defaultdict(list)
     inchikey_inchi = {}
-    for k,v in ACTS.iteritems():
-        RAW[k[0]] += [k[1] + "(%s)" % v]
+    for k in ACTS:
+        RAW[k[0]] += [k[1]]
         inchikey_inchi[k[0]] = k[2]
 
     inchikey_raw = {}
@@ -215,7 +215,7 @@ def insert_to_database(ACTS):
     todos = Psql.insert_structures(inchikey_inchi, dbname)
     for ik in todos:
         draw(ik,inchikey_inchi[ik])
-    Psql.insert_raw(table, inchikey_raw, dbname)
+    Psql.insert_raw(table, inchikey_raw,dbname)
 
 
 # Main
@@ -230,7 +230,7 @@ def main():
     configFilename = sys.argv[1]
 
     checkercfg = checkerconfig.checkerConf( configFilename)  
-    global dbname
+    global dbname,chembl_dbname
     
     dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
     chembl_dbname = checkerconfig.chembl
