@@ -36,7 +36,6 @@ def parse_kegg(inchikey_atc = None):
         l = l.rstrip("\n").split("\t")
         if not l[2]: continue
         kegg_inchikey[l[0]] = l[2]
-     kegg_inchikey
 
     # Read drug KEGG branch
     with open(br_file, "r") as f:
