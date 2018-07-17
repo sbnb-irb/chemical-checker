@@ -108,7 +108,7 @@ def parse_cellosaurus(R):
 
     # Add a root *
 
-    for n in G.nodes():
+    for n in list(G.nodes()):
         if not nx.ancestors(G, n):
             G.add_edge(n, "*")
 
@@ -126,7 +126,7 @@ def parse_cellosaurus(R):
     return cell_hier
 
 
-def insert_to_database(cell_hier,inchikey_inchi):
+def insert_to_database(R,cell_hier,inchikey_inchi):
 
     inchikey_raw = collections.defaultdict(set)
     for r in R:
@@ -173,7 +173,7 @@ def main():
     cell_hier = parse_cellosaurus(R)
 
     log.info( "Inserting to database")
-    insert_to_database(cell_hier,inchikey_inchi)
+    insert_to_database(R,cell_hier,inchikey_inchi)
 
 
 if __name__ == '__main__':
