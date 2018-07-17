@@ -61,6 +61,9 @@ nci60_zcore = 'DTP_NCI60_ZSCORE.csv'
 all_conditions = 'All_conditions.txt'
 comb_gt_preds = 'combined_gene-target-predictions.txt'
 cellosaurus_obo = 'cellosaurus.obo'
+repodb = 'repodb.csv'
+ctd_diseases = 'CTD_diseases.tsv'
+umls_disease_mappings = 'disease_mappings.tsv'
 
 
 #Downloads (link,username, password,outputfile)
@@ -108,11 +111,11 @@ downloads = [('ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*
              ('http://lincsportal.ccs.miami.edu/dcic/api/download?path=LINCS_Data/Broad_Therapeutics&file=LDS-1195.tar.gz','','','LDS-1195.tar.gz'),
              ('ftp://ftp.expasy.org/databases/cellosaurus/cellosaurus.obo','','',cellosaurus_obo),
              ('http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=','','',kegg_atcs_download),
-             ('https://chiragjp.shinyapps.io/repoDB/_w_bb51f2e4/session/4ea0b89b04d865cf86f6ba1bba3feafe/download/downloadFull?w=bb51f2e4','','','repodb.csv'),
+             ('https://chiragjp.shinyapps.io/repoDB/_w_bb51f2e4/session/4ea0b89b04d865cf86f6ba1bba3feafe/download/downloadFull?w=bb51f2e4','','',repodb),
              ('http://ctdbase.org/reports/CTD_chemicals.tsv.gz','','','CTD_chemicals.tsv.gz'),
-             ('http://ctdbase.org/reports/CTD_diseases.tsv.gz','','','CTD_diseases.tsv.gz'),
+             ('http://ctdbase.org/reports/CTD_diseases.tsv.gz','','',ctd_diseases + '.gz'),
              ('http://ctdbase.org/reports/CTD_chemicals_diseases.tsv.gz','','','CTD_chemicals_diseases.tsv.gz'),
-             ('http://www.disgenet.org/ds/DisGeNET/results/disease_mappings.tsv.gz','','','disease_mappings.tsv.gz'),
+             ('http://www.disgenet.org/ds/DisGeNET/results/disease_mappings.tsv.gz','','',umls_disease_mappings + '.gz'),
              ('http://sideeffects.embl.de/media/download/meddra_all_se.tsv.gz','','','meddra_all_se.tsv.gz'),
              ('http://sideeffects.embl.de/media/download/meddra_freq.tsv.gz','','','meddra_freq.tsv.gz'),
              ('http://stitch4.embl.de/download/chemicals.v4.0.tsv.gz','','','chemicals.v4.0.tsv.gz')
