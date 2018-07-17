@@ -65,6 +65,7 @@ repodb = 'repodb.csv'
 ctd_diseases = 'CTD_diseases.tsv'
 umls_disease_mappings = 'disease_mappings.tsv'
 sider_file = 'meddra_all_se.tsv'
+chemdis_file = 'CTD_chemicals_diseases.tsv'
 
 
 #Downloads (link,username, password,outputfile)
