@@ -35,7 +35,8 @@ tasks = [
   ( 'Raw Cell Bioassays',       'cellbioass.py',               'raw_cellbioass' ),
   ( 'Raw therapeutic Areas',    'therapareas.py',              'raw_therapareas' ),
   ( 'Raw Indications',          'indications.py',              'raw_indications' ),
-  ( 'Raw Side Effects',         'sideeffects.py',                    'raw_sideeffects' )
+  ( 'Raw Side Effects',         'sideeffects.py',              'raw_sideeffects' ),
+  ( 'Raw Phenotypes',           'phenotypes.py',               'raw_phenotypes' )
 ]
 
 # Functions
