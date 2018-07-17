@@ -66,6 +66,8 @@ ctd_diseases = 'CTD_diseases.tsv'
 umls_disease_mappings = 'disease_mappings.tsv'
 sider_file = 'meddra_all_se.tsv'
 chemdis_file = 'CTD_chemicals_diseases.tsv'
+go_file = 'go-basic.obo'
+goa_human= 'goa_human.gaf'
 
 
 #Downloads (link,username, password,outputfile)
@@ -87,8 +89,8 @@ downloads = [('ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*
              ('https://reactome.org/download/current/UniProt2Reactome_All_Levels.txt','','',uniprot2reactome),
              ('https://reactome.org/download/current/ReactomePathwaysRelation.txt','','','ReactomePathwaysRelation.txt'),
              ('https://www.uniprot.org/uniprot/?query=proteome:UP000005640&format=tab','','',human_proteome),
-             ('ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz','','','goa_human.gaf.gz'),
-             ('http://snapshot.geneontology.org/ontology/go-basic.obo','','','go-basic.obo'),
+             ('ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz','','',goa_human +'.gz'),
+             ('http://snapshot.geneontology.org/ontology/go-basic.obo','','',go_file),
              ('http://smpdb.ca/downloads/smpdb_structures.zip','','','smpdb_structures.zip'),
              ('ftp://ftp.ebi.ac.uk/pub/databases/genenames/new/tsv/hgnc_complete_set.txt','','',hgnc_mapping_file),
              ('ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/idmapping/by_organism/HUMAN_9606_idmapping_selected.tab.gz','','',string_tab_file+'.gz'),
@@ -210,6 +212,9 @@ class checkerConf:
   
     if dirSpec == "molRepo":  
       return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER,MOLREPO)
+  
+    if dirSpec == "temp":  
+      return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER,TMP_SUBDIR)
   
     if dirSpec == "networks":  
       return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER,NETWORKS)
