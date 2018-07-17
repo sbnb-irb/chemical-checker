@@ -17,6 +17,8 @@ import checkerconfig
 
 kegg_molrepo = "XXX"
 drugbank_molrepo = "XXX"
+drugbank_xml     = "XXXX" # db/drugbank.xml
+
 br_file = "XXX" # db/br08303.keg
 dbname = ''
 
@@ -32,7 +34,7 @@ def parse_kegg(inchikey_atc = None):
     # Read molrepo
     kegg_inchikey = {}
     inchikey_inchi = {}
-    f = open(molrepo_file, "r")
+    f = open(kegg_molrepo, "r")
     for l in f:
         l = l.rstrip("\n").split("\t")
         if not l[2]: continue
@@ -52,7 +54,7 @@ def parse_kegg(inchikey_atc = None):
     return inchikey_atc,inchikey_inchi
 
 
-def parse_drugbank(inchikey_inchi,inhchikey_atc = None):
+def parse_drugbank(inchikey_inchi,inchikey_atc = None):
 
     if not inchikey_atc:
         inchikey_atc = collections.defaultdict(set)
@@ -70,11 +72,10 @@ def parse_drugbank(inchikey_inchi,inhchikey_atc = None):
 
     import xml.etree.ElementTree as ET
 
-    xmlfile = "db/drugbank.xml"
 
     prefix = "{http://www.drugbank.ca}"
 
-    tree = ET.parse(xmlfile)
+    tree = ET.parse(drugbank_xml)
 
     root = tree.getroot()
 
@@ -97,6 +98,7 @@ def parse_drugbank(inchikey_inchi,inhchikey_atc = None):
             for atc in atcs:
                 inchikey_atc[inchikey].update([atc.attrib["code"]])
 
+    return inchikey_atc
 
 def break_atcs(inchikey_atc):
 
@@ -142,10 +144,11 @@ def main():
     global dbname
     
     dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
-    global br_file,kegg_molrepo,drugbank_molrepo
+    global br_file,kegg_molrepo,drugbank_molrepo,drugbank_xml
     
     downloadsdir = checkercfg.getDirectory( "downloads" )
     br_file = os.path.join(downloadsdir,checkerconfig.kegg_atcs_download)
+    drugbank_xml = os.path.join(downloadsdir,checkerconfig.drugbank_download)
     kegg_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"kegg.tsv")
     drugbank_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"drugbank.tsv")
     logsFiledir = checkercfg.getDirectory( "logs" )
