@@ -1,24 +1,23 @@
-'''
+#!/miniconda/bin/python
 
-# Cell bioassays
-
-Get cell bioassays from ChEMBL. Those that do not have a molecular target.
-
-'''
 
 # Imports
 
 import sys, os
-sys.path.append(os.path.join(sys.path[0], "../../dbutils/"))
+sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
+sys.path.append(os.path.join(sys.path[0],"../config"))
+from checkerUtils import logSystem, execAndCheck, draw
 import Psql
 import collections
 import networkx as nx
+
+import checkerconfig
 
 
 # Variables
 
 table = "cellbioass"
-db = "XXX" # Psql.mosaic
+dbname = "XXX" # Psql.mosaic
 chembl_dbname = "XXX"
 cellosaurus_obo = "XXX" # data/cellosaurus.obo
 
@@ -33,10 +32,12 @@ def fetch_chembl():
 
     f = open(chembl_molrepo, "r")
     chemblid_inchikey = {}
+    inchikey_inchi = {}
     for l in f:
         l = l.rstrip("\n").split("\t")
         if not l[2]: continue
         chemblid_inchikey[l[0]] = l[2]
+        inchikey_inchi[l[2]] = l[3]
 
     # Query
 
@@ -81,7 +82,7 @@ def fetch_chembl():
             continue
     con.close()
 
-    return R
+    return R,inchikey_inchi
 
 
 def parse_cellosaurus(R):
@@ -125,29 +126,54 @@ def parse_cellosaurus(R):
     return cell_hier
 
 
-def insert_to_database(cell_hier):
+def insert_to_database(cell_hier,inchikey_inchi):
 
     inchikey_raw = collections.defaultdict(set)
     for r in R:
         for c in cell_hier[r[-1]]:
             inchikey_raw[r[0]].update([r[-1]])
     inchikey_raw = dict((k, ",".join(v)) for k,v in inchikey_raw.iteritems())
+    
+    todos = Psql.insert_structures(inchikey_inchi, dbname)
+    for ik in todos:
+        draw(ik,inchikey_inchi[ik])
 
-    Psql.insert_raw(table, inchikey_raw)
+    Psql.insert_raw(table, inchikey_raw,dbname)
 
 
 # Main
 
 def main():
+    
+    import argparse
+    
+    if len(sys.argv) != 2:
+        sys.exit(1)
+  
+    configFilename = sys.argv[1]
 
-    print "Fetch from ChEMBL"
-    R = fetch_chembl()
+    checkercfg = checkerconfig.checkerConf( configFilename)  
+    global dbname,chembl_dbname
+    
+    dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
+    chembl_dbname = checkerconfig.chembl
+    global cellosaurus_obo,chembl_molrepo
+    
+    downloadsdir = checkercfg.getDirectory( "downloads" )
+    cellosaurus_obo = os.path.join(downloadsdir,checkerconfig.cellosaurus_obo)
+    chembl_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"chembl.tsv")
+    logsFiledir = checkercfg.getDirectory( "logs" )
 
-    print "Reading Cellosaurus"
+    log = logSystem(sys.stdout)
+
+    log.info( "Fetch from ChEMBL")
+    R,inchikey_inchi = fetch_chembl()
+
+    log.info( "Reading Cellosaurus")
     cell_hier = parse_cellosaurus(R)
 
-    print "Inserting to database"
-    insert_to_database(cell_hier)
+    log.info( "Inserting to database")
+    insert_to_database(cell_hier,inchikey_inchi)
 
 
 if __name__ == '__main__':

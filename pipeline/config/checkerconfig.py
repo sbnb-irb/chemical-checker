@@ -60,6 +60,7 @@ uniprot2reactome = 'UniProt2Reactome_All_Levels.txt'
 nci60_zcore = 'DTP_NCI60_ZSCORE.csv'
 all_conditions = 'All_conditions.txt'
 comb_gt_preds = 'combined_gene-target-predictions.txt'
+cellosaurus_obo = 'cellosaurus.obo'
 
 
 #Downloads (link,username, password,outputfile)
@@ -105,7 +106,7 @@ downloads = [('ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*
              ('http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/matrices_and_cdts/matrices/All_conditions.txt','','',all_conditions),
              ('http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/compound_information/sdf/Structural_Data_Files_combined.zip','','','Structural_Data_Files_combined.zip'),
              ('http://lincsportal.ccs.miami.edu/dcic/api/download?path=LINCS_Data/Broad_Therapeutics&file=LDS-1195.tar.gz','','','LDS-1195.tar.gz'),
-             ('ftp://ftp.expasy.org/databases/cellosaurus/cellosaurus.obo','','','cellosaurus.obo'),
+             ('ftp://ftp.expasy.org/databases/cellosaurus/cellosaurus.obo','','',cellosaurus_obo),
              ('http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=','','','br08303.keg'),
              ('https://chiragjp.shinyapps.io/repoDB/_w_bb51f2e4/session/4ea0b89b04d865cf86f6ba1bba3feafe/download/downloadFull?w=bb51f2e4','','','repodb.csv'),
              ('http://ctdbase.org/reports/CTD_chemicals.tsv.gz','','','CTD_chemicals.tsv.gz'),
