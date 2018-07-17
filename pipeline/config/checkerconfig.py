@@ -64,6 +64,7 @@ cellosaurus_obo = 'cellosaurus.obo'
 repodb = 'repodb.csv'
 ctd_diseases = 'CTD_diseases.tsv'
 umls_disease_mappings = 'disease_mappings.tsv'
+sider_file = 'meddra_all_se.tsv'
 
 
 #Downloads (link,username, password,outputfile)
@@ -116,7 +117,7 @@ downloads = [('ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*
              ('http://ctdbase.org/reports/CTD_diseases.tsv.gz','','',ctd_diseases + '.gz'),
              ('http://ctdbase.org/reports/CTD_chemicals_diseases.tsv.gz','','','CTD_chemicals_diseases.tsv.gz'),
              ('http://www.disgenet.org/ds/DisGeNET/results/disease_mappings.tsv.gz','','',umls_disease_mappings + '.gz'),
-             ('http://sideeffects.embl.de/media/download/meddra_all_se.tsv.gz','','','meddra_all_se.tsv.gz'),
+             ('http://sideeffects.embl.de/media/download/meddra_all_se.tsv.gz','','',sider_file + '.gz'),
              ('http://sideeffects.embl.de/media/download/meddra_freq.tsv.gz','','','meddra_freq.tsv.gz'),
              ('http://stitch4.embl.de/download/chemicals.v4.0.tsv.gz','','','chemicals.v4.0.tsv.gz')
              ]
