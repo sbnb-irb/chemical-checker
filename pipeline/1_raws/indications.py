@@ -1,30 +1,19 @@
-'''
-
-# Indications
-
-From RepoDB and ChEMBL.
-
-## RepoDB
-
-Data downloaded from [http://apps.chiragjpgroup.org/repoDB/]
-
-This is, de facto, a parsed version of DrugBank.
-
-## ChEMBL
-
-Indications extracted from ChEMBL. Phase is taken into account.
-
-'''
+#!/miniconda/bin/python
 
 # Imports
 
 import sys, os
-sys.path.append(os.path.join(sys.path[0], "../../dbutils/"))
+sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
+sys.path.append(os.path.join(sys.path[0],"../config"))
+from checkerUtils import logSystem, execAndCheck, draw
 import Psql
 import csv
 import collections
 import numpy as np
 import networkx as nx
+
+import checkerconfig
+
 
 # Variables
 
@@ -47,11 +36,13 @@ def parse_repodb(IND = None):
 
     # Parse DrugBank
     dbid_inchikey = {}
+    inchikey_inchi = {}
     f = open(drugbank_molrepo, "r")
     for l in f:
         l = l.rstrip("\n").split("\t")
         if not l[2]: continue
         dbid_inchikey[l[0]] = l[2]
+        inchikey_inchi[l[2]] = l[3]
     f.close()
 
     # Read UMLS to MESH
@@ -61,7 +52,8 @@ def parse_repodb(IND = None):
         if l[0] == "#": continue
         l = l.rstrip("\n").split("\t")
         if l[0] == "diseaseId": continue
-        umls_mesh[l[0].split(":")[1]].update([l[2]])
+        if l[2] == "MSH":
+            umls_mesh[l[0]].update([l[3]])
     f.close()
 
     # Parse RepoDB
@@ -91,10 +83,10 @@ def parse_repodb(IND = None):
             IND[(dbid_inchikey[l[1]], meshid)] += [phase]
     f.close()
 
-    return IND
+    return IND,inchikey_inchi
 
 
-def parse_chembl(IND = None):
+def parse_chembl(inchikey_inchi,IND = None):
 
     if IND is None:
         IND = collections.defaultdict(list)
@@ -106,6 +98,7 @@ def parse_chembl(IND = None):
         l = l.rstrip("\n").split("\t")
         if not l[2]: continue
         chemblid_inchikey[l[0]] = l[2]
+        inchikey_inchi[l[2]] = l[3]
     
     # Query ChEMBL
     R = Psql.qstring('''
@@ -115,7 +108,7 @@ def parse_chembl(IND = None):
 
     WHERE
 
-    md.molregno = di.molregno''', chembl)
+    md.molregno = di.molregno''', chembl_dbname)
 
     for r in R:
         if r[0] not in chemblid_inchikey: continue
@@ -155,31 +148,59 @@ def include_mesh(IND):
     return classIND
 
 
-def insert_to_database(classIND):
+def insert_to_database(classIND,inchikey_inchi):
 
     inchikey_raw = collections.defaultdict(list)
     for k,v in classIND.iteritems():
         inchikey_raw[k[0]] += [k[1] + "(%d)" % v]
     inchikey_raw = dict((k, ",".join(v)) for k,v in inchikey_raw.iteritems())
+    
+    todos = Psql.insert_structures(inchikey_inchi, dbname)
+    for ik in todos:
+        draw(ik,inchikey_inchi[ik])
 
-    Psql.insert_raw(table, inchikey_raw)
+    Psql.insert_raw(table, inchikey_raw,dbname)
 
 
 # Main
 
 def main():
+    
+    import argparse
+    
+    if len(sys.argv) != 2:
+        sys.exit(1)
+  
+    configFilename = sys.argv[1]
 
-   print "Parsing RepoDB"
-   IND = parse_repodb()
+    checkercfg = checkerconfig.checkerConf( configFilename)  
+    global dbname,chembl_dbname
+    chembl_dbname = checkerconfig.chembl
 
-   print "Parsing ChEMBL"
-   IND = parse_chembl(IND)
+    dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
+    global ctd_diseases,chembl_molrepo,drugbank_molrepo,repodb,umls2mesh
+    
+    downloadsdir = checkercfg.getDirectory( "downloads" )
+    ctd_diseases = os.path.join(downloadsdir,checkerconfig.ctd_diseases)
+    repodb = os.path.join(downloadsdir,checkerconfig.repodb)
+    umls2mesh = os.path.join(downloadsdir,checkerconfig.umls_disease_mappings)
+    chembl_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"chembl.tsv")
+    drugbank_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"drugbank.tsv")
+    logsFiledir = checkercfg.getDirectory( "logs" )
 
-   print "Including MeSH hierarchy"
-   classIND = include_mesh(IND)
+    log = logSystem(sys.stdout)
 
-   print "Inserting to database"
-   insert_to_database(classIND)
+    log.info( "Parsing RepoDB")
+    IND,inchikey_inchi = parse_repodb()
+
+    log.info( "Parsing ChEMBL")
+    IND = parse_chembl(inchikey_inchi,IND)
+
+    log.info( "Including MeSH hierarchy")
+    classIND = include_mesh(IND)
+
+    log.info( "Inserting to database")
+    insert_to_database(classIND,inchikey_inchi)
 
 
 if __name__ == "__main__":
