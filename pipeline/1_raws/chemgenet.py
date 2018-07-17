@@ -74,7 +74,7 @@ def insert_to_database(sig,inchikey_inchi):
     todos = Psql.insert_structures(inchikey_inchi, dbname)
     for ik in todos:
         draw(ik,inchikey_inchi[ik])
-    Psql.insert_to_database(table, inchikey_raw,dbname)
+    Psql.insert_raw(table, inchikey_raw,dbname)
 
 
 # Main

@@ -31,7 +31,8 @@ tasks = [
   ( 'Raw Networks',             'networks.py',                 'raw_networks' ),
   #( 'Raw Transcripts',          'transcript.py',                'raw_transcript' ),
   ( 'Raw Cell Panel',           'cellpanel.py',                'raw_cellpanel' ),
-  ( 'Raw Chemical Genetics',    'chemgenet.py',                'raw_chemgenet' )
+  ( 'Raw Chemical Genetics',    'chemgenet.py',                'raw_chemgenet' ),
+  ( 'Raw Cell Bioassays',       'cellbioass.py',                'raw_cellbioass' )
 ]
 
 # Functions
