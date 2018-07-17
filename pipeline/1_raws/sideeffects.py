@@ -20,7 +20,7 @@ import checkerconfig
 
 sider_molrepo = "XXX"
 sider_file = "XXX" # db/meddra_all_se.tsv
-table = "sider"
+table = "sideeffects"
 
 
 # Functions
@@ -29,7 +29,7 @@ def parse_sider():
 
     cid_inchikey = {}
     inchikey_inchi = {}
-    f = open(molrepo_file, "r")
+    f = open(sider_molrepo, "r")
     for l in f:
         l = l.rstrip("\n").split("\t")
         if not l[2]: continue
@@ -82,6 +82,8 @@ def main():
     
     sider_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"sider.tsv")
     logsFiledir = checkercfg.getDirectory( "logs" )
+    
+    log = logSystem(sys.stdout)
 
     log.info( "Parsing SIDER")
     inchikey_raw,inchikey_inchi = parse_sider()
