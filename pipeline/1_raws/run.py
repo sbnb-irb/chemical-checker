@@ -27,7 +27,7 @@ tasks = [
   ( 'Raw Molecular Roles',      'molroles.py',                 'raw_molroles' ),
   ( 'Raw Molecular Pathways',   'molpathways.py',              'raw_molpathways' ),
   ( 'Raw Pathways',             'pathways.py',                 'raw_pathways' ),
-  #( 'Raw Biological Processes', 'bps.py',                      'raw_bps' ),
+  ( 'Raw Biological Processes', 'bps.py',                      'raw_bps' ),
   ( 'Raw Networks',             'networks.py',                 'raw_networks' ),
   #( 'Raw Transcripts',          'transcript.py',                'raw_transcript' ),
   ( 'Raw Cell Panel',           'cellpanel.py',                'raw_cellpanel' ),
