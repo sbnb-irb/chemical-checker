@@ -134,8 +134,8 @@ WEBREPO        = '/aloy/web_checker/'
 WEBREPOMOLS    = WEBREPO + "/molecules/"
 MOSAICPATH     = "/aloy/home/mduran/myscripts/mosaic/"
 MOLREPO        = "molrepo"
-NETWORKS        = "networks"
-
+NETWORKS       = "networks"
+SIGNATURES     = "signatures" 
 LOG_SUBDIR                = "log"
 READY_SUBDIR              = "ready"
 TMP_SUBDIR                = "tmp"
@@ -157,7 +157,7 @@ SETUPARRAYJOBMOD    = os.path.join(currentDir,"../../src/utils/setupArrayJobMod.
 SETUPARRAYJOBNOLIST = os.path.join(currentDir,"../../src/utils/setupArrayJobNoJobList.py -q -x -N %(JOB_NAME)s -t %(NUM_TASKS)d %(COMMAND)s")
 SETUPARRAYJOB       = os.path.join(currentDir,"../../src/utils/setupArrayJob.py -q -x -N %(JOB_NAME)s -t %(NUM_TASKS)d -l %(TASKS_LIST)s %(COMMAND)s")
 
-SUBMITJOB           = "qsub -sync y "
+SUBMITJOB           = "qsub -sync y job-%(JOB_NAME)s.sh"
 
 SING_IMAGE = '/aloy/home/sbnb-adm/singularity-images/ubuntu-checker.simg'
 # Intervals used when polling for results
@@ -218,6 +218,9 @@ class checkerConf:
   
     if dirSpec == "networks":  
       return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER,NETWORKS)
+  
+    if dirSpec == "signatures":  
+      return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER,SIGNATURES)
     
 
     raise Exception("Request for unknown directory %s" % dirSpec )

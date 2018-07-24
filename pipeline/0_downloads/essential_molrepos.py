@@ -165,7 +165,7 @@ def kegg():
         for l in L:
             mol = pybel.readfile("mol", os.path.join(downloadsdir,checkerconfig.kegg_mol_folder_download) + "/" + l)
             for m in mol:
-                smi = m.write("smi").rstrip("\n")
+                smi = m.write("smi").rstrip("\n").rstrip("\t")
                 if ".mol" not in l: continue
                 Id = l.split(".")[0]
                 if not smi: continue

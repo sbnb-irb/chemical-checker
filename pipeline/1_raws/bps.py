@@ -6,10 +6,11 @@
 import sys, os
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
-from checkerUtils import logSystem, execAndCheck, draw
+from checkerUtils import logSystem, execAndCheck, draw, checkJobResultsForErrors
 import Psql
 import collections
 import numpy as np
+import math
 
 import networkx as nx
 
@@ -81,7 +82,7 @@ def fetch_binding(any_human):
     R = Psql.qstring("SELECT inchikey, raw FROM binding", dbname)
 
     ACTS = collections.defaultdict(list)
-    for r in tqdm(R):
+    for r in R:
         for x in r[1].split(","):
             uniprot_ac, act = x.split("(")
             act = int(act.split(")")[0])
@@ -127,10 +128,10 @@ def fetch_binding(any_human):
 def insert_to_database(GOS):
 
     inchikey_raw = collections.defaultdict(list)
-    for k,v in tqdm(GOS.iteritems()):
+    for k,v in GOS.iteritems():
         inchikey_raw[k[0]] += [(k[1], v)]
 
-    inchikey_raw = dict((k, ",".join(["%s(%d)" % (x[0], x[1]) for x in v])) for k,v in tqdm(inchikey_raw.iteritems()))
+    inchikey_raw = dict((k, ",".join(["%s(%d)" % (x[0], x[1]) for x in v])) for k,v in inchikey_raw.iteritems())
 
     Psql.insert_raw(table, inchikey_raw,dbname)
 
@@ -182,7 +183,7 @@ def main():
                 if parent == "regulates": continue
                 G.add_edge(parent, child)
     
-    f = open(os.path.join(tmpdir,"/bp.tsv"), "w")
+    f = open(os.path.join(tmpdir,"bp.tsv"), "w")
     for e in G.edges():
         f.write("%s\t%s\n" % (e[0], e[1]))
     f.close()
@@ -214,6 +215,9 @@ def main():
     
     jobName = 'bpanno'
     
+    log = logSystem(sys.stdout)
+
+    
     if os.path.exists(os.path.join(tmpdir,jobName+'.ready')) == False:
     
         logFilename = os.path.join(logsFiledir,jobName+".qsub")
@@ -234,7 +238,6 @@ def main():
     
         checkJobResultsForErrors(tmpdir,jobName,log)    
 
-    log = logSystem(sys.stdout)
     log.info( "Reading human MetaPhors")
     any_human = human_metaphors()
 
