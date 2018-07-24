@@ -63,20 +63,20 @@ def parse_repodb(IND = None):
         if l[1] not in dbid_inchikey: continue
         if l[3] not in umls_mesh: continue
         for meshid in umls_mesh[l[3]]:
-            if l[4] == "Withdrawn" or l[4] == "NA" or l[4] == "Suspended": continue
-            if l[4] == "Approved":
+            if l[5] == "Withdrawn" or l[5] == "NA" or l[5] == "Suspended": continue
+            if l[5] == "Approved":
                 phase = 4
             else:
-                if "Phase 3" in l[5]:
+                if "Phase 3" in l[6]:
                     phase = 3
                 else:
-                    if "Phase 2" in l[5]:
+                    if "Phase 2" in l[6]:
                         phase = 2
                     else:
-                        if "Phase 1" in l[5]:
+                        if "Phase 1" in l[6]:
                             phase = 1
                         else:
-                            if "Phase 0" in l[5]:
+                            if "Phase 0" in l[6]:
                                 phase = 0
                             else:
                                 continue
@@ -192,12 +192,15 @@ def main():
 
     log.info( "Parsing RepoDB")
     IND,inchikey_inchi = parse_repodb()
+    
 
     log.info( "Parsing ChEMBL")
     IND = parse_chembl(inchikey_inchi,IND)
+    
 
     log.info( "Including MeSH hierarchy")
     classIND = include_mesh(IND)
+    
 
     log.info( "Inserting to database")
     insert_to_database(classIND,inchikey_inchi)
