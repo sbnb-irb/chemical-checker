@@ -27,6 +27,7 @@ tasks = [
   ( 'PpiDB Preprocessing',          'ppidb.py',    '',                         'ppidb_preprocess' ),
   ( 'Recon Preprocessing',          'recon.py',    '',                         'recon_preprocess' ),
   ( 'String Preprocessing',         'string_net.py',    '',                    'string_preprocess' ),
+  ( 'Parse Level5',                 'parse_level.py',    '',                   'parse_level' ),
   ( 'Prepare Networks',             'prepare_networks.py',    '',              'prepare_networks' ),
   ( 'Mol Repos BindingDB',          'essential_molrepos.py', 'bindingdb',      'mol_repos_bindingdb' ),
   ( 'Mol Repos Chebi',              'essential_molrepos.py', 'chebi',          'mol_repos_chebi' ),

@@ -15,6 +15,7 @@ import subprocess
 import h5py
 import time
 import uuid
+import math
 import gaussianize as g
 from scipy.stats import rankdata
 from multiprocessing import Pool
@@ -38,7 +39,7 @@ SUBMITJOBANDREADY = os.path.join(sys.path[0],'../../src/utils/submitJobOnCluster
 # Functions
 
 
-def parse_level(downloaddir,signaturesdir):
+def parse_level(downloadsdir,signaturesdir):
     
     touchstone = set()
     with open(os.path.join(downloadsdir,"GSE92742_Broad_LINCS_pert_info.txt"), "r") as f:
@@ -57,11 +58,11 @@ def parse_level(downloaddir,signaturesdir):
         f.next()
         for l in f:
             l = l.split("\t")
-            genes[int(l[0])] = l[1]
+            genes[l[0]] = l[1]
 
     
     sig_info_ii = {}
-    with open(os.path.join(downloadsdir,"GSE70138_Broad_LINCS_sig_info*"), "r") as f:
+    with open(os.path.join(downloadsdir,"GSE70138_Broad_LINCS_sig_info*.txt"), "r") as f:
         f.next()
         for l in f:
             l = l.rstrip("\n").split("\t")
@@ -150,15 +151,15 @@ def parse_level(downloaddir,signaturesdir):
     gtcx_i  = os.path.join(downloadsdir,"GSE92742_Broad_LINCS_Level5_COMPZ.MODZ_n473647x12328.gctx")
     gtcx_ii = os.path.join(downloadsdir,"GSE70138_Broad_LINCS_Level5_COMPZ_n118050x12328*.gctx")
         
-    genes_i  = [genes[r[0]] for r in parse(gtcx_i , cid = [[x[0] for x in cids if x[1] == 1][0]]).data_df.iterrows()]
-    genes_ii = [genes[r[0]] for r in parse(gtcx_ii, cid = [[x[0] for x in cids if x[1] == 2][0]]).data_df.iterrows()] # Just to make sure.
+    genes_i  = [genes[r[0]] for r in parse.parse(gtcx_i , cid = [[x[0] for x in cids if x[1] == 1][0]]).data_df.iterrows()]
+    genes_ii = [genes[r[0]] for r in parse.parse(gtcx_ii, cid = [[x[0] for x in cids if x[1] == 2][0]]).data_df.iterrows()] # Just to make sure.
     
     for cid in cids:
         if cid[1] == 1:
-            expr = np.array(parse(gtcx_i, cid = [cid[0]]).data_df).ravel()
+            expr = np.array(parse.parse(gtcx_i, cid = [cid[0]]).data_df).ravel()
             genes = genes_i
         elif cid[1] == 2:
-            expr = np.array(parse(gtcx_ii, cid = [cid[0]]).data_df).ravel()
+            expr = np.array(parse.parse(gtcx_ii, cid = [cid[0]]).data_df).ravel()
             genes = genes_ii
         else:
             continue
@@ -365,7 +366,7 @@ def main():
     
     
     log.info(  "Parsing")
-    parse_level(downloadsdir)
+    parse_level(downloadsdir,signaturesdir)
     
     WD = os.path.dirname(os.path.realpath(__file__))
     
@@ -424,11 +425,11 @@ def main():
         execAndCheck(cmdStr,log)
     
         log.info( " - Launching the job %s on the cluster " % (jobName) )
-        cmdStr = SUBMITJOBANDREADY+" "+tmpdir+" "+jobName+" "+logFilename
+        cmdStr = SUBMITJOBANDREADY+" "+connectivitydir+" "+jobName+" "+logFilename
         execAndCheck(cmdStr,log)
     
     
-        checkJobResultsForErrors(tmpdir,jobName,log)    
+        checkJobResultsForErrors(connectivitydir,jobName,log)    
 
 
     log.info(  "Reading L1000")

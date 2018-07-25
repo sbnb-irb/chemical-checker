@@ -24,23 +24,48 @@ table = "ddis"
 
 def parse_ddis():
 
-	f = open(drugbank_molrepo, "r")
-	dbid_inchikey = {}
-	inchikey_inchi = {}
-	for l in f:
+    f = open(drugbank_molrepo, "r")
+    dbid_inchikey = {}
+    inchikey_inchi = {}
+    for l in f:
 	    l = l.rstrip("\n").split("\t")
 	    if not l[2]: continue
 	    dbid_inchikey[l[0]] = l[2]
 	    inchikey_inchi[l[2]] = l[3]   
-	f.close()
+    f.close()
 
-	inchikey_ddi = collections.defaultdict(list)
-	f = open(ddi_file, "r")
-	for l in f:
-	    l = l.split("\t")
-	    if l[0] not in dbid_inchikey: continue
-	    inchikey_ddi[dbid_inchikey[l[0]]] += [l[1]]
-	f.close()
+    inchikey_ddi = collections.defaultdict(list)
+    
+    import xml.etree.ElementTree as ET
+    
+    prefix = "{http://www.drugbank.ca}"
+	
+    tree = ET.parse(drugbank_xml)
+    
+
+    root = tree.getroot()
+
+    for drug in root:
+
+    # Drugbank ID
+        
+        db_id = None
+        for child in drug.findall(prefix + "drugbank-id"):
+            if "primary" not in child.attrib: continue
+            if child.attrib["primary"] == "true":
+                db_id = child.text
+
+                if db_id not in dbid_inchikey: continue
+                drug_interactions = drug.find(prefix +'drug-interactions')
+                drug_inter = drug_interactions.findall(prefix +'drug-interaction')
+
+                for inter in drug_inter:
+                    for child_did in inter.findall(prefix + "drugbank-id"):
+                        inchikey_ddi[dbid_inchikey[db_id]] += [child_did.text]
+            
+        
+        
+	
 
 	return inchikey_ddi,inchikey_inchi
 
@@ -70,10 +95,9 @@ def main():
     global dbname
     
     dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
-    global ddi_file,drugbank_molrepo
+    global drugbank_molrepo
     
     downloadsdir = checkercfg.getDirectory( "downloads" )
-    ddi_file = os.path.join(downloadsdir,checkerconfig.drugbank_download)
     drugbank_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"drugbank.tsv")
     logsFiledir = checkercfg.getDirectory( "logs" )
 
