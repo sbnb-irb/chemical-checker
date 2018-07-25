@@ -29,14 +29,16 @@ tasks = [
   ( 'Raw Pathways',             'pathways.py',                 'raw_pathways' ),
   ( 'Raw Biological Processes', 'bps.py',                      'raw_bps' ),
   ( 'Raw Networks',             'networks.py',                 'raw_networks' ),
-  #( 'Raw Transcripts',          'transcript.py',                'raw_transcript' ),
+  ( 'Raw Transcripts',          'transcript.py',               'raw_transcript' ),
   ( 'Raw Cell Panel',           'cellpanel.py',                'raw_cellpanel' ),
   ( 'Raw Chemical Genetics',    'chemgenet.py',                'raw_chemgenet' ),
+  ( 'Raw Morphology',           'morphology.py',               'raw_morphology' ),
   ( 'Raw Cell Bioassays',       'cellbioass.py',               'raw_cellbioass' ),
   ( 'Raw therapeutic Areas',    'therapareas.py',              'raw_therapareas' ),
   ( 'Raw Indications',          'indications.py',              'raw_indications' ),
   ( 'Raw Side Effects',         'sideeffects.py',              'raw_sideeffects' ),
-  ( 'Raw Phenotypes',           'phenotypes.py',               'raw_phenotypes' )
+  ( 'Raw Phenotypes',           'phenotypes.py',               'raw_phenotypes' ),
+  ( 'Raw Drug-Drug Interactions','ddis.py',                     'raw_ddis' )
 ]
 
 # Functions
