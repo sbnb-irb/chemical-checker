@@ -133,15 +133,64 @@ DOWNLOAD_SUBDIR           = "downloads"
 WEBREPO        = '/aloy/web_checker/'
 WEBREPOMOLS    = WEBREPO + "/molecules/"
 MOSAICPATH     = "/aloy/home/mduran/myscripts/mosaic/"
+CHECKER_COORD_PATH = "/aloy/web_checker/coordinates/"
 MOLREPO        = "molrepo"
 NETWORKS       = "networks"
 SIGNATURES     = "signatures" 
 LOG_SUBDIR                = "log"
 READY_SUBDIR              = "ready"
 TMP_SUBDIR                = "tmp"
+DEFAULT_MODELS_FOLDER = "models/"
+DEFAULT_PLOTS_FOLDER  = "plots/"
+SIG_FILENAME       = "sig.h5"
+CLUST_FILENAME     = "clust.h5"
+CLUSTSIAM_FILENAME = "clustsiam.h5"
+PROJ_FILENAME      = "proj.h5"
+
+
+TABLE_COORDINATES = {
+'fp2d': 'A1',
+'fp3d': 'A2',
+'scaffolds': 'A3',
+'subskeys': 'A4',
+'physchem': 'A5',
+'moa': 'B1',
+'metabgenes': 'B2',
+'crystals': 'B3',
+'binding': 'B4',
+'htsbioass': 'B5',
+'molroles': 'C1',
+'molpathways': 'C2',
+'pathways': 'C3',
+'bps': 'C4',
+'networks': 'C5',
+'transcript': 'D1',
+'cellpanel': 'D2',
+'chemgenet': 'D3',
+'morphology': 'D4',
+'cellbioass': 'D5',
+'therapareas': 'E1',
+'indications': 'E2',
+'sideeffects': 'E3',
+'phenotypes': 'E4',
+'ddis': 'E5'
+}
+
+
 
 
 KEEP_TABLES = ['structure','fp2d','fp3d','scaffolds','subskeys','physchem','pubchem']
+CHEM_TABLES = ['fp2d','fp3d','scaffolds','subskeys','physchem']
+TARGET_TABLES = ['moa','metabgenes','crystals','binding','htsbioass']
+NET_TABLES = ['molroles','molpathways','pathways','bps','networks']
+CELLS_TABLES = ['transcript','cellpanel','chemgenet','morphology','cellbioass']
+CLINICS_TABLES = ['therapareas','indications','sideeffects','phenotypes','ddis']
+
+CONTINUOUS_TABLES = ['physchem','cellpanel','morphology']
+CATEG_WEIGHTED_TABLES = [ "transcript",  "binding", "networks", "bps", "pathways", "molpathways", "chemgenet"]
+
+
+ALL_TABLES = {"Chemistry": CHEM_TABLES,"Targets":TARGET_TABLES,"Networks":NET_TABLES,"Cells":CELLS_TABLES,"Clinics":CLINICS_TABLES}
 
 # Other directories
 LOCAL_DIR                 = "/local/"+getpass.getuser()
@@ -182,11 +231,12 @@ class checkerConf:
   _MODBASE      = None
   _PDBFILES     = None
   
-  def __init__( self , configFilename):
-    self._configParser = RawConfigParser()
-    self._configParser.read(configFilename)
-    self._VERSION_NUMBER  = self._configParser.get('General', 'release')
-    self._SCRATCHDIR =  self._configParser.get('General', 'scratchdir')
+  def __init__( self , configFilename = None):
+      if not configFilename:
+        self._configParser = RawConfigParser()
+        self._configParser.read(configFilename)
+        self._VERSION_NUMBER  = self._configParser.get('General', 'release')
+        self._SCRATCHDIR =  self._configParser.get('General', 'scratchdir')
  
   
   def hasVariable( self, section, variable ):
@@ -194,6 +244,22 @@ class checkerConf:
   
   def getVariable( self, section, variable ):
     return self._configParser.get( section, variable )
+
+  def getTableList( self, field ):
+    
+    all_list = list()
+    if field.lower() == "all":
+        for area,lists in ALL_TABLES.iteritems():
+            for t in lists:
+                all_list.append(t)
+    else:
+        for area,lists in ALL_TABLES.iteritems():
+            if area.lower() == field.lower():
+                all_list = lists
+    return all_list
+
+  def coordinate2mosaic(coordinate):
+    return CHECKER_COORD_PATH + "/" + coordinate[0] + "/" + coordinate + "/"
 
 
   def getDirectory( self, dirSpec ):

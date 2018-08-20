@@ -230,9 +230,9 @@ def morphlincs():
     g = open(os.path.join(downloadsdir,checkerconfig.morphlincs_molecules_download), "r")
     g.next()
     for l in csv.reader(g, delimiter = "\t"):
-        if not l[7]: continue
-        Id = l[0]
-        smi = l[7]
+        if not l[6]: continue
+        Id = l[8]
+        smi = l[6]
         if not smi: continue
         mol = hts.apply(smi)
         if not mol:

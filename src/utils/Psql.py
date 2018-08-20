@@ -55,6 +55,8 @@ def not_yet_in_table(inchikeys, table,db, chunk = 2000):
         for r in qstring(cmd, db):
             yield r[0]
 
+def fetch_inchikeys(table,db):
+    return [r[0] for r in qstring("SELECT inchikey FROM %s" % table, db)]
 # Dedicated insert functions
 
 def insert_structures(inchikey_inchi,db, chunk = 1000):
