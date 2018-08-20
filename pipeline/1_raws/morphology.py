@@ -14,7 +14,6 @@ import numpy as np
 import collections
 import csv
 import random
-import matplotlib.pyplot as plt
 from cmapPy.pandasGEXpress import parse
 
 import checkerconfig
@@ -46,7 +45,7 @@ def parse_morphology(lds_file):
             pertid_inchikey[l[0]] = l[2]
             inchikey_inchi[l[2]] = l[3]
 
-    pd = parse(lds_file)
+    pd = parse.parse(lds_file)
     rownames = []
     for c in list(pd.col_metadata_df["pert_id"]):
         pertid = c.split("-")
@@ -73,7 +72,7 @@ def find_strongest_signature(v):
 
 def colshuffled_matrix(X):
     Xr = np.array(X)
-    for j in tqdm(xrange(Xr.shape[1])):
+    for j in xrange(Xr.shape[1]):
         shuffled = sorted(Xr[:,j], key=lambda k: random.random())
         Xr[:,j] = shuffled
     return Xr
@@ -99,13 +98,15 @@ def filter_data(X, rownames, pertid_inchikey):
     rownames_f = np.array(rownames)[T > cutoff]
     X_f = X[T > cutoff]
 
+    print len(rownames_f),len(pertid_inchikey)
     # To signatures
     sigs = collections.defaultdict(list)
-    for i in tqdm(xrange(len(rownames_f))):
+    for i in xrange(len(rownames_f)):
         if rownames_f[i] not in pertid_inchikey: continue
         ik = pertid_inchikey[rownames_f[i]]
         sigs[ik] += [X_f[i]]
 
+    print len(sigs)
     sigs = dict((k, find_strongest_signature(v)) for k,v in sigs.iteritems())
 
     return sigs
@@ -151,7 +152,7 @@ def main():
     X, rownames, pertid_inchikey,inchikey_inchi = parse_morphology(os.path.join(downloadsdir,lds_1195))
 
     log.info(  "Filtering...")
-
+    print len(rownames)
     sigs = filter_data(X, rownames, pertid_inchikey)
 
     log.info(  "Inserting to database...")

@@ -38,7 +38,8 @@ tasks = [
   ( 'Raw Indications',          'indications.py',              'raw_indications' ),
   ( 'Raw Side Effects',         'sideeffects.py',              'raw_sideeffects' ),
   ( 'Raw Phenotypes',           'phenotypes.py',               'raw_phenotypes' ),
-  ( 'Raw Drug-Drug Interactions','ddis.py',                     'raw_ddis' )
+  ( 'Raw Drug-Drug Interactions','ddis.py',                     'raw_ddis' ),
+  ( 'Raw All Chemistry',         'chemistry.py',                'raw_chemistry' )
 ]
 
 # Functions

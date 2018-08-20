@@ -9,14 +9,13 @@ sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
 from checkerUtils import logSystem, execAndCheck, draw
 import Psql
-
+import xml.etree.ElementTree as ET
 import checkerconfig
 
 # Variables
 
 dbname = ''
 drugbank_molrepo = "XXX"
-ddi_file = "XXX" # db/ddi.tsv I CANNOT RECALL WHERE DID I GET THIS FILE FROM! PROBABLY FROM DRUGBANK ITSELF (A PREVIOUS VERSION) IN THE NEW VERSION WE HAVE TO DO IT AGAIN. LET'S TALK ABOUT IT.
 
 table = "ddis"
 
@@ -24,50 +23,39 @@ table = "ddis"
 
 def parse_ddis():
 
+    tree = ET.parse(drugbank_xml)
+
     f = open(drugbank_molrepo, "r")
     dbid_inchikey = {}
     inchikey_inchi = {}
     for l in f:
-	    l = l.rstrip("\n").split("\t")
-	    if not l[2]: continue
-	    dbid_inchikey[l[0]] = l[2]
-	    inchikey_inchi[l[2]] = l[3]   
+        l = l.rstrip("\n").split("\t")
+        if not l[2]: continue
+        dbid_inchikey[l[0]] = l[2]
+        inchikey_inchi[l[2]] = l[3]   
     f.close()
-
     inchikey_ddi = collections.defaultdict(list)
-    
-    import xml.etree.ElementTree as ET
-    
-    prefix = "{http://www.drugbank.ca}"
-	
-    tree = ET.parse(drugbank_xml)
-    
 
     root = tree.getroot()
-
+    prefix = "{http://www.drugbank.ca}"
     for drug in root:
-
-    # Drugbank ID
-        
-        db_id = None
         for child in drug.findall(prefix + "drugbank-id"):
             if "primary" not in child.attrib: continue
             if child.attrib["primary"] == "true":
+                #print "primary: " + child.text
                 db_id = child.text
-
                 if db_id not in dbid_inchikey: continue
                 drug_interactions = drug.find(prefix +'drug-interactions')
                 drug_inter = drug_interactions.findall(prefix +'drug-interaction')
-
+                #print len(drug_inter)
                 for inter in drug_inter:
                     for child_did in inter.findall(prefix + "drugbank-id"):
+                        #print child_did.text
                         inchikey_ddi[dbid_inchikey[db_id]] += [child_did.text]
-            
-        
-        
-	
 
-	return inchikey_ddi,inchikey_inchi
+    print len(inchikey_ddi)
+
+    return inchikey_ddi,inchikey_inchi
 
 def insert_to_database(inchikey_ddi,inchikey_inchi):
 
@@ -95,9 +83,10 @@ def main():
     global dbname
     
     dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
-    global drugbank_molrepo
+    global drugbank_xml,drugbank_molrepo
     
     downloadsdir = checkercfg.getDirectory( "downloads" )
+    drugbank_xml = os.path.join(downloadsdir,checkerconfig.drugbank_download)
     drugbank_molrepo = os.path.join(checkercfg.getDirectory( "molRepo" ),"drugbank.tsv")
     logsFiledir = checkercfg.getDirectory( "logs" )
 
