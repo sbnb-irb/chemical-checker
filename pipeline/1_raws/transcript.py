@@ -5,7 +5,7 @@
 import sys, os
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
-from checkerUtils import logSystem, execAndCheck, draw,checkJobResultsForErrors
+from checkerUtils import logSystem, execAndCheck, draw,checkJobResultsForErrors,compressJobResults
 import Psql
 from gaussian_scale_impute import scaleimpute
 import numpy as np
@@ -38,136 +38,6 @@ SUBMITJOBANDREADY = os.path.join(sys.path[0],'../../src/utils/submitJobOnCluster
 
 # Functions
 
-
-def parse_level(downloadsdir,signaturesdir):
-    
-    touchstone = set()
-    with open(os.path.join(downloadsdir,"GSE92742_Broad_LINCS_pert_info.txt"), "r") as f:
-        f.next()
-        for l in f:
-            l = l.rstrip("\n").split("\t")
-            trt = l[2]
-            if trt not in ["trt_cp", "trt_sh.cgs", "trt_oe"]: continue
-            if l[3] == '0': continue
-            touchstone.add(l[0])
-            
-    # Gene symbols (same for LINCS I and II)
-    
-    genes = {}
-    with open(os.path.join(downloadsdir,"GSE92742_Broad_LINCS_gene_info.txt"), "r") as f:
-        f.next()
-        for l in f:
-            l = l.split("\t")
-            genes[l[0]] = l[1]
-
-    
-    sig_info_ii = {}
-    with open(os.path.join(downloadsdir,"GSE70138_Broad_LINCS_sig_info*.txt"), "r") as f:
-        f.next()
-        for l in f:
-            l = l.rstrip("\n").split("\t")
-            if l[1] in touchstone:
-                v = 1
-            else:
-                v = 0
-            sig_info_ii[l[0]] = (l[1], l[3], l[4], v, 2)
-    
-    # Signature metrics        
-    
-    sigs = collections.defaultdict(list)
-    with open(os.path.join(downloadsdir,"GSE70138_Broad_LINCS_sig_metrics*.txt"), "r") as f:
-        f.next()
-        for l in f:
-            l = l.rstrip("\n").split("\t")[1:]
-            if float(l[1]) < 0.2: continue
-            trt = l[5]
-            sig_id = l[0]
-            if trt not in ["trt_cp", "trt_sh.cgs", "trt_oe"]: continue
-            if sig_id not in sig_info_ii: continue
-            v = sig_info_ii[sig_id]
-            tas = float(l[6])
-            nsamp = int(l[-1])
-            phase = 2
-            sigs[(v[0], v[2])] += [(sig_id, trt, tas, nsamp, phase)]
-            
-            
-    sig_info_i = {}
-    with open(os.path.join(downloadsdir,"GSE92742_Broad_LINCS_sig_info.txt"), "r") as f:
-        f.next()
-        for l in f:
-            l = l.rstrip("\n").split("\t")
-            if l[1] in touchstone:
-                v = 1
-            else:
-                v = 0
-            sig_info_i[l[0]] = (l[1], l[3], l[4], v, 1)
-    
-    with open(os.path.join(downloadsdir,"GSE92742_Broad_LINCS_sig_metrics.txt"), "r") as f:
-        f.next()
-        for l in f:
-            l = l.rstrip("\n").split("\t")
-            if float(l[4]) < 0.2: continue
-            trt = l[3]
-            if trt not in ["trt_cp", "trt_sh.cgs", "trt_oe"]: continue
-            sig_id = l[0]
-            if sig_id not in sig_info_i: continue
-            v = sig_info_i[sig_id]
-            tas = float(l[8])
-            nsamp = int(l[-1])
-            phase = 1
-            sigs[(v[0], v[2])] += [(sig_id, trt, tas, nsamp, phase)]
-
-
-    def get_exemplar(v):
-        s = [x for x in v if x[3] >= 2 and x[3] <= 6]
-        if not s:
-            s = v
-        sel = None
-        max_tas = 0.
-        for x in s:
-            if not sel:
-                sel = (x[0], x[-1])
-                max_tas = x[2]
-            else:
-                if x[2] > max_tas:
-                    sel = (x[0], x[-1])
-                    max_tas = x[2]
-        return sel
-
-    sigs = dict((k, get_exemplar(v)) for k,v in sigs.iteritems())
-    
-    cids = []
-    with open(mini_sig_info_file, "w") as f:
-        for k,v in sigs.iteritems():
-            if v[1] == 1:
-                x = sig_info_i[v[0]]
-            else:
-                x = sig_info_ii[v[0]]
-            f.write("%s\t%s\t%s\t%s\t%d\t%d\n" % (v[0], x[0], x[1], x[2], x[3], v[1]))
-            cids += [(v[0], v[1])]
-            
-            
-
-    gtcx_i  = os.path.join(downloadsdir,"GSE92742_Broad_LINCS_Level5_COMPZ.MODZ_n473647x12328.gctx")
-    gtcx_ii = os.path.join(downloadsdir,"GSE70138_Broad_LINCS_Level5_COMPZ_n118050x12328*.gctx")
-        
-    genes_i  = [genes[r[0]] for r in parse.parse(gtcx_i , cid = [[x[0] for x in cids if x[1] == 1][0]]).data_df.iterrows()]
-    genes_ii = [genes[r[0]] for r in parse.parse(gtcx_ii, cid = [[x[0] for x in cids if x[1] == 2][0]]).data_df.iterrows()] # Just to make sure.
-    
-    for cid in cids:
-        if cid[1] == 1:
-            expr = np.array(parse.parse(gtcx_i, cid = [cid[0]]).data_df).ravel()
-            genes = genes_i
-        elif cid[1] == 2:
-            expr = np.array(parse.parse(gtcx_ii, cid = [cid[0]]).data_df).ravel()
-            genes = genes_ii
-        else:
-            continue
-        R  = zip(genes, expr)
-        R  = sorted(R, key=lambda tup: -tup[1])
-        with h5py.File(os.path.join(signaturesdir,"%s.h5" % cid[0]), "w") as hf:
-            hf.create_dataset("expr", data = [float(r[1]) for r in R])
-            hf.create_dataset("gene", data = [r[0] for r in R])
 
 def read_l1000(connectivitydir):
     
@@ -202,10 +72,10 @@ def read_l1000(connectivitydir):
             ik = pertid_inchikey[pert_id]
             inchikey_sigid[ik] += [sig_id]
 
-    return inchikey_sigid,inchikey_inchi
+    return inchikey_sigid,inchikey_inchi,siginfo
 
 
-def do_ik_matrices(inchikey_sigid,connectivitydir):
+def do_ik_matrices(inchikey_sigid,connectivitydir,siginfo):
 
     # Be careful!!! As it is now, it is a multiprocess.
 
@@ -229,10 +99,11 @@ def do_ik_matrices(inchikey_sigid,connectivitydir):
     cols   = sorted(set(siginfo[s] for s in signatures))
     cols_d = dict((cols[i], i) for i in xrange(len(cols)))
 
-    p = Pool()
+    #p = Pool()
 
-    pbar = total = len(inchikey_sigid) / p._processes
+    #pbar = total = len(inchikey_sigid) / p._processes
 
+    print  len(inchikey_sigid.keys())
     def parse_results(ik):
         v = inchikey_sigid[ik]
         neses = collections.defaultdict(list)
@@ -252,14 +123,24 @@ def do_ik_matrices(inchikey_sigid,connectivitydir):
         with h5py.File("%s/%s.h5" % (ik_matrices, ik), "w") as hf:
             hf.create_dataset("X", data = X)
             hf.create_dataset("rows", data = rows)
-        pbar.update(1)
+        #pbar.update(1)
 
-    p.map(parse_results, inchikey_sigid.keys())
+    for key in inchikey_sigid.keys():
+        parse_results(key)
+    #p.map(parse_results, inchikey_sigid.keys())
 
-
+def get_summary(v):
+        Qhi = np.percentile(v, 66)
+        Qlo = np.percentile(v, 33)
+        if np.abs(Qhi) > np.abs(Qlo):
+            return Qhi
+        else:
+            return Qlo
+        
+        
 def do_consensus():
 
-    inchikeys = [ik.split(".h5")[0] for ik in os.listdir(ik_matrices)]
+    inchikeys = [ ik.split(".h5")[0] for ik in os.listdir(ik_matrices) if ik.endswith(".h5")]
 
     def consensus_signature(ik):
         with h5py.File("%s/%s.h5" % (ik_matrices, ik), "r") as hf:
@@ -275,7 +156,7 @@ def do_consensus():
     return X, inchikeys
 
 
-def process():
+def process(X):
 
     def whiten(X):
         
@@ -324,7 +205,7 @@ def insert_to_database(Xcut, inchikeys,inchikey_inchi):
     todos = Psql.insert_structures(inchikey_inchi, dbname)
     for ik in todos:
         draw(ik,inchikey_inchi[ik])
-    Psql.insert_raw(transcript, inchikey_raw,dbname)
+    Psql.insert_raw(table, inchikey_raw,dbname)
 
 
 # Main
@@ -362,11 +243,8 @@ def main():
     consensus = os.path.join(signaturesdir,"consensus.h5")
 
     log = logSystem(sys.stdout)
-    
-    
-    
-    log.info(  "Parsing")
-    parse_level(downloadsdir,signaturesdir)
+        
+   
     
     WD = os.path.dirname(os.path.realpath(__file__))
     
@@ -383,6 +261,8 @@ def main():
         
     os.chdir(connectivitydir)
     connectivity_script = WD + "/connectivity.py"
+    
+    ikmatrices_script = WD + "/do_ik_matrices.py"
 
     log.info( "Getting signature files...")
     
@@ -402,11 +282,11 @@ def main():
         for l in os.listdir(signaturesdir):
             if ".h5" not in l: continue
             sig = l.split(".h5")[0]
-            #if sig not in cp_sigs: continue
-            if sig in cp_sigs: continue
+            if sig not in cp_sigs: continue
+            #if sig in cp_sigs: continue
             f.write(sig + "\n")
             S += 1
-            print sig
+            #print sig
     
     t = math.ceil(float(S)/granularity)
     jobName = 'connectivity'
@@ -430,19 +310,56 @@ def main():
     
     
         checkJobResultsForErrors(connectivitydir,jobName,log)    
+        compressJobResults(connectivitydir,jobName,['tasks'],log)
 
 
     log.info(  "Reading L1000")
-    inchikey_sigid,inchikey_inchi = read_l1000(connectivitydir)
+    inchikey_sigid,inchikey_inchi,siginfo = read_l1000(connectivitydir)
+    
+    filename = os.path.join(tmpdir , str(uuid.uuid4()))
+    
+    S = 0
+    granularity = 40
+    with open(filename, "w") as f:
+        for key in inchikey_sigid.keys():
+           
+            f.write(key + "\n")
+            S += 1
+            
+    jobName = 'ikmatrices'
+    
+    t = math.ceil(float(S)/granularity)
+    os.chdir(ik_matrices)
+    log.info(  "Doing ik matrices")
+    
+    if os.path.exists(os.path.join(ik_matrices,jobName+'.ready')) == False:
+    
+        logFilename = os.path.join(logsFiledir,jobName+".qsub")
+    
+        scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' +ikmatrices_script + ' \$i ' + mini_sig_info_file + " " + connectivitydir + ' ' + ik_matrices + ' ' + lincs_molrepo
+    
+        cmdStr = checkerconfig.SETUPARRAYJOB % { 'JOB_NAME':jobName, 'NUM_TASKS':t,
+                                          'TASKS_LIST':filename,
+                                          'COMMAND':scriptFile}
+    
+        
+        execAndCheck(cmdStr,log)
+    
+        log.info( " - Launching the job %s on the cluster " % (jobName) )
+        cmdStr = SUBMITJOBANDREADY+" "+ik_matrices+" "+jobName+" "+logFilename
+        execAndCheck(cmdStr,log)
+    
+    
+        checkJobResultsForErrors(ik_matrices,jobName,log)    
+        compressJobResults(ik_matrices,jobName,['tasks'],log)
 
-    log.info(  "Doing ik_matrices")
-    do_ik_matrices(inchikey_sigid,connectivitydir)
+        
 
     log.info(  "Doing consensus")
     X, inchikeys = do_consensus()
 
     log.info(  "Process output")
-    Xcut = process()
+    Xcut = process(X)
 
     log.info(  "Insert to database")
     insert_to_database(Xcut,inchikeys,inchikey_inchi)

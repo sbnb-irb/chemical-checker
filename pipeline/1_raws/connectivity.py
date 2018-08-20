@@ -81,7 +81,7 @@ if __name__ == '__main__':
                 if trt not in ["trt_cp", "trt_sh.cgs", "trt_oe"]: continue
                 if l[3] == '0': continue
                 touch.add(l[0])
-    sig_info = signature_info()
+    sig_info = signature_info(mini_sig_info_file)
     cell = sig_info[SIG][2]
     print SIG, cell
     with h5py.File("%s/%s.h5" % (PATH, SIG), "r") as hf:
