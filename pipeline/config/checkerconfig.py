@@ -23,7 +23,8 @@ checkerEmailAddress = ("Chemical Checker","checker@irbbarcelona.org")
 # List of steps
 steps = [
   "0_downloads",
-  "1_raws"
+  "1_raws",
+  "2_signatures"
 ]
 
 mosaic = "mosaic"
