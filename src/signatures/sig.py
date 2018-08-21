@@ -39,13 +39,14 @@ random.seed(42)
 
 class MyCorpus(object):
     
-    def __init__(self, plain_corpus):
+    def __init__(self, plain_corpus,dictionary):
         self.plain_corpus = plain_corpus
+        self.dictionary = dictionary
     
     def __iter__(self):
         for l in open(self.plain_corpus, "r"):
             l = l.rstrip("\n").split(" ")[1].split(",")
-            bow = dictionary.doc2bow(l)
+            bow = self.dictionary.doc2bow(l)
             if not bow:
                 continue
             yield bow
@@ -57,7 +58,7 @@ class MyCorpus(object):
         for l in open(self.plain_corpus, "r"):
             inchikey = l.split(" ")[0]
             l = l.rstrip("\n").split(" ")[1].split(",")
-            bow = dictionary.doc2bow(l)
+            bow = self.dictionary.doc2bow(l)
             if not bow:
                 continue
             yield inchikey
@@ -98,10 +99,12 @@ def log_data(log_obj, data):
         
 def tqdm_local(log_obj,iter_obj):
     if log_obj == None:
-        return tqdm(iter_obj)
+        for i in tqdm(iter_obj):
+            yield i
     else:
         for i in iter_obj:
             yield i
+        
 
 def lsi_variance_explained(tfidf_corpus, lsi, B , N , num_topics,log=None):
 
@@ -157,7 +160,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
         
     all_tables = checkercfg.getTableList("all")
     
-    if table not in tables:
+    if table not in all_tables:
         log_data(log,"Unrecognized table %s" % table) 
         return
     
@@ -175,8 +178,8 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     if sig_stats_file is None:
         sig_stats_file = outfile.split(".h5")[0]+"_stats.json"
     
-    if not os.path.exists(plots_folder): os.mkdir(plots_folder)
-    if not os.path.exists(models_folder): os.mkdir(models_folder)
+    if not os.path.exists(plots_folder): os.makedirs(plots_folder)
+    if not os.path.exists(models_folder): os.makedirs(models_folder)
     
     # Some heuristics here...
     if max_freq is None:
@@ -321,7 +324,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     
         # Functions to perform LSI
     
-        c = MyCorpus(plain_corpus)
+        c = MyCorpus(plain_corpus,dictionary)
     
         Mols = len(c)
         
@@ -374,7 +377,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
          
             log_data(log, "Deciding number of topics")
     
-            exp_var_ratios = lsi_variance_explained(tfidf_corpus, lsi, B = B, N = N, num_topics = num_topics,log)
+            exp_var_ratios = lsi_variance_explained(tfidf_corpus, lsi, B = B, N = N, num_topics = num_topics,log = log)
     
             cut_i, elb_i = variance_plot(exp_var_ratios, table = table, variance_cutoff = variance_cutoff, plot_folder = plots_folder)
     
@@ -414,7 +417,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
      
         inchikey_sig = shelve.open(tmp+".dict", "n")
         for i in tqdm_local(log,xrange(len(inchikeys))):
-            inchikey_sig[inchikeys[i]] = V[i]
+            inchikey_sig[str(inchikeys[i])] = V[i]
         inchikey_sig.close()
         f.close()
     
@@ -422,7 +425,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
         sort_idxs = np.argsort(inchikeys)
     
         with h5py.File(outfile, 'w') as hf:
-            hf.create_dataset("inchikeys", data = inchikeys[sort_idxs])
+            hf.create_dataset("keys", data = inchikeys[sort_idxs])
             hf.create_dataset("V",  data = V[sort_idxs])
     
         V = None
@@ -531,7 +534,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
         for i in tqdm_local(log,xrange(len(RowNames))):
             inchikey = RowNames[i]
             inchikeys += [inchikey]
-            inchikey_sig[inchikey] = V[i]
+            inchikey_sig[str(inchikey)] = V[i]
         inchikey_sig.close()
         inchikeys = np.array(inchikeys)
     
@@ -539,7 +542,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
         sort_idxs = np.argsort(inchikeys)
     
         with h5py.File(outfile, "w") as hf:
-            hf.create_dataset("inchikeys", data = inchikeys[sort_idxs])
+            hf.create_dataset("keys", data = inchikeys[sort_idxs])
             hf.create_dataset("V", data = V[sort_idxs])
         
         V = []    
@@ -582,8 +585,8 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     log_data(log, "MOA and ATC Validations")
     
     inchikey_sig = shelve.open(tmp+".dict", "r")
-    ks_moa, auc_moa = vector_validation(inchikey_sig, "sig", table, prefix = "moa", plot_folder = plots_folder)
-    ks_atc, auc_atc = vector_validation(inchikey_sig, "sig", table, prefix = "atc", plot_folder = plots_folder)
+    ks_moa, auc_moa = vector_validation(inchikey_sig, "sig", table, prefix = "moa", plot_folder = plots_folder, files_folder = tmpDir )
+    ks_atc, auc_atc = vector_validation(inchikey_sig, "sig", table, prefix = "atc", plot_folder = plots_folder, files_folder = tmpDir )
     inchikey_sig.close()
     os.remove(tmp+".dict")
     
@@ -591,7 +594,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     
     log_data(log, "Matrix plot")
     
-    matrix_plot(table)
+    matrix_plot(table,plots_folder)
     
     # Statistics file
     

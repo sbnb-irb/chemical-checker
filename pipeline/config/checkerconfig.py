@@ -233,7 +233,7 @@ class checkerConf:
   _PDBFILES     = None
   
   def __init__( self , configFilename = None):
-      if not configFilename:
+      if configFilename != None:
         self._configParser = RawConfigParser()
         self._configParser.read(configFilename)
         self._VERSION_NUMBER  = self._configParser.get('General', 'release')
@@ -259,7 +259,7 @@ class checkerConf:
                 all_list = lists
     return all_list
 
-  def coordinate2mosaic(coordinate):
+  def coordinate2mosaic(self,coordinate):
     return CHECKER_COORD_PATH + "/" + coordinate[0] + "/" + coordinate + "/"
 
 

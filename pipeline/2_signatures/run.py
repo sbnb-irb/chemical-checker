@@ -19,6 +19,33 @@ import checkerconfig
 
 
 # Constants
+#        TABLE,         NUM_TOPICS,MAX_FREQ,MULTIPASS
+tasks = [('moa',           200,    None,    False),
+         ('metabgenes',    200,    None,    False),
+         ('crystals',      500,    None,    False),
+         ('binding',       800,    None,    False),
+         ('htsbioass',     800,    None,    False),
+         ('molroles',      600,    None,    False),
+         ('molpathways',   500,    None,    False),
+         ('pathways',      200,    None,    False),
+         ('bps',           500,    None,    False),
+         ('networks',      600,    None,    False),
+         ('transcript',    4600,   None,    False),
+         ('cellpanel',     None,   None,    False),
+         ('chemgenet',     800,    None,    False),
+         ('morphology',    None,   None,    False),
+         ('cellbioass',    100,    None,    False),
+         ('therapareas',   250,    None,    False),
+         ('indications',   600,    None,    False),
+         ('sideeffects',   700,    None,    False),
+         ('phenotypes',    800,    None,    False),
+         ('ddis',          250,    None,    False),
+         ('fp2d',          1600,   0.8,     True),
+         ('fp3d',          1000,   0.8,     True),
+         ('scaffolds',     1500,   0.8,     True),
+         ('subskeys',      70,     0.9,     True),
+         ('physchem',      None,   None,    False)
+         ]
 
 
 # Functions
@@ -40,9 +67,7 @@ def main():
   tempdir = checkercfg.getDirectory( "temp" )
   
   dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
-  
-  all_tables = checkercfg.getTableList("all")
-  
+    
 
   log = logSystem(sys.stdout)
   log.debug(os.getcwd())
@@ -50,23 +75,23 @@ def main():
   dirName = os.path.abspath(sys.argv[0]).split("/")[-2]
   
   bOk = True
-  for table in all_tables:
-    log.info("====>>>> "+table+" <<<<====")
-    readyFilename = os.path.join(readyFiledir,dirName+"_"+table+".ready")
+  for task in tasks:
+    log.info("====>>>> "+task[0]+" <<<<====")
+    readyFilename = os.path.join(readyFiledir,dirName+"_"+task[0]+".ready")
     if os.path.exists(readyFilename):
-      log.info( "Ready file for task %s does exist. Skipping this task..." % table )
+      log.info( "Ready file for task %s does exist. Skipping this task..." % task[0] )
       continue
     # Then I execute the current task
     try:
         
-      sig.generate_signatures(dbname = dbname,table = table,log = log,tmpDir = tempdir)
+      sig.generate_signatures(dbname = dbname,table = task[0],num_topics = task[1],max_freq=task[2],multipass = task[3],log = log,tmpDir = tempdir)
       
       cmdStr = "touch "+readyFilename
       subprocess.call(cmdStr,shell=True)
     except OSError, e:
-      log.critical( "Execution of Script %s failed: %s" % (table,e) )
+      log.critical( "Execution of Script %s failed: %s" % (task[0],e) )
       sys.exit(1)
-    log.info("====>>>> "+table+"...done! <<<<====")
+    log.info("====>>>> "+task[0]+"...done! <<<<====")
   
   if bOk:
     readyFilename = os.path.join(readyFiledir,dirName+".ready")
