@@ -65,7 +65,7 @@ def main():
             f.write("%s\t%s\t%d\n" % (keys[i], keys[j], v))
     f.close()
     
-    R = Psql.qstring("SELECT inchikey, raw FROM moa", Psql.mosaic)
+    R = Psql.qstring("SELECT inchikey, raw FROM moa", dbname)
 
     d = {}
     for r in R:
