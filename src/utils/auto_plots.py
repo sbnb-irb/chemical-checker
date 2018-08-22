@@ -213,7 +213,7 @@ def for_the_validation(inchikey_dict, prefix, file_folder = None):
     if file_folder  is None:
         f = open(os.path.dirname(os.path.abspath(__file__))+"/data/%s_validation.tsv" % prefix, "r")
     else:
-        f = open(file_folder+"/data/%s_validation.tsv" % prefix, "r")
+        f = open(file_folder+"/%s_validation.tsv" % prefix, "r")
     S = set()
     D = set()
     inchikeys = set()
@@ -413,7 +413,7 @@ def vector_validation(inchikey_vec, vector_type, table = None, prefix = "moa", p
 
 # Matrix plot
 
-def matrix_plot(table, plot_folder = None):
+def matrix_plot(table, sig_folder, plot_folder = None):
 
     if plot_folder is None:
         return
@@ -421,8 +421,8 @@ def matrix_plot(table, plot_folder = None):
     sns.set_style("white")
 
     color = checkerUtils.table_color(table)
-    with h5py.File("sig.h5") as hf:
-        Mols = len(hf["inchikeys"])
+    with h5py.File(sig_folder + "/sig.h5") as hf:
+        Mols = len(hf["keys"])
         Vars = len(hf["V"][0])
 
     plt.figure(figsize = (4,4), dpi=300)
