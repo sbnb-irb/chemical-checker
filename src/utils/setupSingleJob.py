@@ -35,7 +35,6 @@ defaultOptions = """\
 templateScript = """\
 #!/bin/bash
 #
-# (c) 2008 Roberto Mosca
 #
 
 # Options for qsub

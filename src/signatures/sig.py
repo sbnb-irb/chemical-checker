@@ -9,7 +9,7 @@ import uuid
 from tqdm import tqdm
 from gensim import corpora, models
 import collections
-import sys, os
+import sys, os, glob
 sys.path.append(os.path.join(sys.path[0], "../utils/"))
 sys.path.append(os.path.join(sys.path[0],"../../pipeline/config"))
 import Psql
@@ -588,13 +588,14 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     ks_moa, auc_moa = vector_validation(inchikey_sig, "sig", table, prefix = "moa", plot_folder = plots_folder, files_folder = tmpDir )
     ks_atc, auc_atc = vector_validation(inchikey_sig, "sig", table, prefix = "atc", plot_folder = plots_folder, files_folder = tmpDir )
     inchikey_sig.close()
-    os.remove(tmp+".dict")
+    for filename in glob.glob(tmp+".dict*") :
+        os.remove(filename)
     
     # Cleaning
     
     log_data(log, "Matrix plot")
     
-    matrix_plot(table,plots_folder)
+    matrix_plot(table,checkercfg.coordinate2mosaic(coord),plots_folder)
     
     # Statistics file
     
