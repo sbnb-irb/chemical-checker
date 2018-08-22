@@ -6,6 +6,7 @@
 # Imports
 import os
 import sys
+import glob
 import subprocess
 
 
@@ -14,6 +15,7 @@ sys.path.append(os.path.join(sys.path[0],"../../src/signatures"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
 from checkerUtils import logSystem, execAndCheck
 import sig
+import time
 
 import checkerconfig
 
@@ -66,38 +68,93 @@ def main():
   readyFiledir = checkercfg.getDirectory( "ready" )
   tempdir = checkercfg.getDirectory( "temp" )
   
+  all_tables = checkercfg.getTableList("all")
+  
   dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
     
+  errTasks = set()
+  finished   = set()
+  
+  logsFiledir = checkercfg.getDirectory( "logs" )
+  jobTasksDir = os.path.join(tempdir,"sig_tasks")
+  if not os.path.exists(jobTasksDir):
+        os.makedirs(jobTasksDir)
 
   log = logSystem(sys.stdout)
   log.debug(os.getcwd())
+  
+  WD = os.path.dirname(os.path.realpath(__file__))
 
   dirName = os.path.abspath(sys.argv[0]).split("/")[-2]
   
-  bOk = True
-  for task in tasks:
-    log.info("====>>>> "+task[0]+" <<<<====")
-    readyFilename = os.path.join(readyFiledir,dirName+"_"+task[0]+".ready")
-    if os.path.exists(readyFilename):
-      log.info( "Ready file for task %s does exist. Skipping this task..." % task[0] )
-      continue
-    # Then I execute the current task
-    try:
-        
-      sig.generate_signatures(dbname = dbname,table = task[0],num_topics = task[1],max_freq=task[2],multipass = task[3],log = log,tmpDir = tempdir)
-      
-      cmdStr = "touch "+readyFilename
-      subprocess.call(cmdStr,shell=True)
-    except OSError, e:
-      log.critical( "Execution of Script %s failed: %s" % (task[0],e) )
-      sys.exit(1)
-    log.info("====>>>> "+task[0]+"...done! <<<<====")
+  for filename in glob.glob(os.path.join(jobTasksDir,"*.ready")) :
+        os.remove(filename)
+  for filename in glob.glob(os.path.join(jobTasksDir,"*.started")) :
+        os.remove(filename)
+  for filename in glob.glob(os.path.join(jobTasksDir,"*.error")) :
+        os.remove(filename)
   
-  if bOk:
-    readyFilename = os.path.join(readyFiledir,dirName+".ready")
-    log.debug(readyFilename)
-    cmdStr = "touch "+readyFilename
-    subprocess.call(cmdStr,shell=True)
+  call_sig_script = WD + "/call_sig.py"
+  
+  while True:
+    for task in tasks:
+        
+        if task[0] in finished:
+            continue
+        readyFilename = os.path.join(readyFiledir,dirName+"_"+task[0]+".ready")
+        if os.path.exists(readyFilename):
+          log.info( "Ready file for task %s does exist. Skipping this task..." % task[0] )
+          finished.add(task[0])
+          continue
+        else:
+        
+            jobName = "task_" + task[0]
+            
+            jobReadyFile   = os.path.join(jobTasksDir,jobName+".ready")
+            jobErrorFile   = os.path.join(jobTasksDir,jobName+".error")
+            jobStartedFile = os.path.join(jobTasksDir,jobName+".started")
+            
+            if not os.path.exists(jobStartedFile):
+                log.info("====>>>> "+task[0]+" <<<<====")
+                
+                logFilename = os.path.join(logsFiledir,jobName+".qsub")
+                
+                scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' +call_sig_script + ' ' + dbname + " " + task[0] + " " + task[1] + " " + task[2] + " " + task[3] + " " + tempdir
+    
+                cmdStr = checkerconfig.SETUPSINGLEJOB % { 'JOB_NAME':jobName, 'COMMAND':scriptFile}
+    
+        
+                execAndCheck(cmdStr,log)
+    
+                log.info( " - Launching the job %s on the cluster " % (jobName) )
+                cmdStr = SUBMITJOBANDREADY+" "+jobTasksDir+" "+jobName+" "+logFilename + " &"
+                execAndCheck(cmdStr,log)
+        
+            else:
+                if os.path.exists(jobErrorFile):
+                    # Notify error 
+                    log.error( "Generating signatures for table %s failed" % task[0])
+                    errTasks.add(task[0])
+                    finished.add(task[0])
+                    continue
+                
+                if os.path.exists(jobReadyFile):
+                        cmdStr = 'touch '+readyFilename
+                        execAndCheck(cmdStr,log)
+                        finished.add(task[0])
+                        log.info("====>>>> "+task[0]+"...done! <<<<====")
+                        
+    if len(finished) == len(tasks):
+        break
+    else:
+        time.sleep(checkerconfig.POLL_TIME_INTERVAL)
+      
+  if len(errTasks) > 0:
+    log.critical( "Error while generating signatures for the following tables: "+str(", ").join(sorted(errTasks)))
+    sys.exit(1)
+    
+    
+  
   
 # Main
 main()

@@ -206,6 +206,7 @@ HOTNET_PATH = os.path.join(currentDir,"../../tools/hierarchical-hotnet/src/")
 SETUPARRAYJOBMOD    = os.path.join(currentDir,"../../src/utils/setupArrayJobMod.py -q -x -N %(JOB_NAME)s -t %(NUM_TASKS)d -l %(TASKS_LIST)s %(COMMAND)s")
 SETUPARRAYJOBNOLIST = os.path.join(currentDir,"../../src/utils/setupArrayJobNoJobList.py -q -x -N %(JOB_NAME)s -t %(NUM_TASKS)d %(COMMAND)s")
 SETUPARRAYJOB       = os.path.join(currentDir,"../../src/utils/setupArrayJob.py -q -x -N %(JOB_NAME)s -t %(NUM_TASKS)d -l %(TASKS_LIST)s %(COMMAND)s")
+SETUPSINGLEJOB      = os.path.join(currentDir,"../../src/utils/setupSingleJob.py -x -N %(JOB_NAME)s  %(COMMAND)s")
 
 SUBMITJOB           = "qsub -sync y job-%(JOB_NAME)s.sh"
 

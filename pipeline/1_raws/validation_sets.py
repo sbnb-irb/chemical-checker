@@ -65,6 +65,7 @@ def main():
             f.write("%s\t%s\t%d\n" % (keys[i], keys[j], v))
     f.close()
     
+    log.info(  "Creating MOA validation file...")
     R = Psql.qstring("SELECT inchikey, raw FROM moa", dbname)
 
     d = {}
