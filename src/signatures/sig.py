@@ -206,7 +206,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
         all_chemistry = checkercfg.getTableList("chemistry")
         tables = list(set(all_tables) - set(all_chemistry))
         
-        for t in tqdm_local(log,tables): mymols.update(Psql.fetch_inchikeys(dbname,t))    
+        for t in tqdm_local(log,tables): mymols.update(Psql.fetch_inchikeys(t,dbname))    
     
     # LSI
     
@@ -229,9 +229,9 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     
             if not infile:
     
-                query = "SELECT inchikey, raw FROM %s" % table
+                query = "SELECT inchikey, raw FROM %s WHERE raw IS NOT NULL" % table
     
-                con = Psql.connect(db)
+                con = Psql.connect(dbname)
                 cur = con.cursor()
                 cur.execute(query)
                 for r in tqdm_local(log,cur):
@@ -257,7 +257,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     
             if not infile:
     
-                for r in tqdm_local(log,Psql.qstring("SELECT inchikey, raw FROM %s" % table, dbname)):
+                for r in tqdm_local(log,Psql.qstring("SELECT inchikey, raw FROM %s WHERE raw IS NOT NULL" % table, dbname)):
                     s = r[1].split(",")
                     sd = []
                     for x in s:
@@ -288,7 +288,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     
             if not infile:
             
-                for r in tqdm_local(log,Psql.qstring("SELECT inchikey, raw FROM %s" % table, dbname)):
+                for r in tqdm_local(log,Psql.qstring("SELECT inchikey, raw FROM %s WHERE raw IS NOT NULL" % table, dbname)):
                     f.write("%s %s\n" % (r[0], r[1]))
                     InitMols += 1
     
@@ -440,7 +440,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
             if not infile:
     
                 # Retain only molecules of interest.
-                R = Psql.qstring("SELECT * FROM %s" % table, dbname)
+                R = Psql.qstring("SELECT * FROM %s WHERE raw IS NOT NULL" % table, dbname)
                 RowNames = []
                 X = []
                 for r in tqdm_local(log,R):
@@ -474,7 +474,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
         else:
     
             if not infile:
-                R = Psql.qstring("SELECT inchikey, raw FROM %s" % table, dbname)
+                R = Psql.qstring("SELECT inchikey, raw FROM %s WHERE raw IS NOT NULL" % table, dbname)
                 RowNames = []
                 X = []
                 for r in tqdm_local(log,R):

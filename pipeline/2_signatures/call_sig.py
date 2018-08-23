@@ -27,9 +27,9 @@ if __name__ == '__main__':
     else:
         max_freq = float(sys.argv[4])
 
-    multipass = boolean(sys.argv[5])
+    multipass = bool(sys.argv[5])
     tempdir = sys.argv[6]
     log = logSystem(sys.stdout)
     log.debug(os.getcwd())
     
-    sig.generate_signatures(dbname = dbname,table = task[0],num_topics = task[1],max_freq=task[2],multipass = task[3],log = log,tmpDir = tempdir)
+    sig.generate_signatures(dbname = dbname,table = table,num_topics = num_topics,max_freq=max_freq,multipass = multipass,log = log,tmpDir = tempdir)
