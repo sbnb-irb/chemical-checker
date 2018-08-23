@@ -13,11 +13,14 @@ import subprocess
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
 sys.path.append(os.path.join(sys.path[0],"../../src/signatures"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
-from checkerUtils import logSystem, execAndCheck
+from checkerUtils import logSystem, execAndCheck,checkJobResultsForErrors
 import sig
 import time
 
 import checkerconfig
+
+
+SUBMITJOBANDREADY = os.path.join(sys.path[0],'../../src/utils/submitJobOnClusterAndReady.py')
 
 
 # Constants
@@ -96,6 +99,8 @@ def main():
   
   call_sig_script = WD + "/call_sig.py"
   
+  os.chdir(jobTasksDir)
+  
   while True:
     for task in tasks:
         
@@ -117,9 +122,12 @@ def main():
             if not os.path.exists(jobStartedFile):
                 log.info("====>>>> "+task[0]+" <<<<====")
                 
+                for filename in glob.glob(os.path.join(jobTasksDir,"task_"+task[0] + "*")) :
+                    os.remove(filename)
+                
                 logFilename = os.path.join(logsFiledir,jobName+".qsub")
                 
-                scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' +call_sig_script + ' ' + dbname + " " + task[0] + " " + task[1] + " " + task[2] + " " + task[3] + " " + tempdir
+                scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' +call_sig_script + ' ' + dbname + " " + task[0] + " " + str(task[1]) + " " + str(task[2]) + " " + str(task[3]) + " " + tempdir
     
                 cmdStr = checkerconfig.SETUPSINGLEJOB % { 'JOB_NAME':jobName, 'COMMAND':scriptFile}
     
@@ -129,7 +137,8 @@ def main():
                 log.info( " - Launching the job %s on the cluster " % (jobName) )
                 cmdStr = SUBMITJOBANDREADY+" "+jobTasksDir+" "+jobName+" "+logFilename + " &"
                 execAndCheck(cmdStr,log)
-        
+                cmdStr = 'touch '+jobStartedFile
+                execAndCheck(cmdStr,log)
             else:
                 if os.path.exists(jobErrorFile):
                     # Notify error 
@@ -139,6 +148,7 @@ def main():
                     continue
                 
                 if os.path.exists(jobReadyFile):
+                        checkJobResultsForErrors(jobTasksDir,jobName,log)
                         cmdStr = 'touch '+readyFilename
                         execAndCheck(cmdStr,log)
                         finished.add(task[0])
@@ -153,7 +163,11 @@ def main():
     log.critical( "Error while generating signatures for the following tables: "+str(", ").join(sorted(errTasks)))
     sys.exit(1)
     
-    
+
+  readyFilename = os.path.join(readyFiledir,dirName+".ready")
+  log.debug(readyFilename)
+  cmdStr = "touch "+readyFilename  
+  subprocess.call(cmdStr,shell=True)
   
   
 # Main
