@@ -14,7 +14,7 @@ sys.path.append(os.path.join(sys.path[0], "../utils/"))
 sys.path.append(os.path.join(sys.path[0],"../../pipeline/config"))
 import Psql
 import checkerconfig
-from checkerUtils import logSystem
+from checkerUtils import logSystem,log_data,tqdm_local
 from auto_plots import variance_plot, vector_validation, matrix_plot, euclidean_background
 import numpy as np
 import collections
@@ -89,21 +89,6 @@ def integerize(V,recycle,models_folder):
     
     return V
 
-def log_data(log_obj, data):
-
-    if log_obj == None:
-        print data
-    else:
-        log_obj.info(data)
-        
-        
-def tqdm_local(log_obj,iter_obj):
-    if log_obj == None:
-        for i in tqdm(iter_obj):
-            yield i
-    else:
-        for i in iter_obj:
-            yield i
         
 
 def lsi_variance_explained(tfidf_corpus, lsi, B , N , num_topics,log=None):
@@ -618,7 +603,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     "variance_cutoff": variance_cutoff
     }
     
-    with open(checkercfg.coordinate2mosaic(coord) + "/"'sig_stats.json', 'w') as fp:
+    with open(checkercfg.coordinate2mosaic(coord) + "/"+'sig_stats.json', 'w') as fp:
         json.dump(INFO, fp)
         
 if __name__ == '__main__':
