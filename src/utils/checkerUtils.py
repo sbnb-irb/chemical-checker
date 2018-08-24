@@ -194,7 +194,21 @@ def coordinate_color(coord):
 
 gray = rgb2hex(220, 218, 219)
 
+def log_data(log_obj, data):
 
+    if log_obj == None:
+        print data
+    else:
+        log_obj.info(data)
+        
+        
+def tqdm_local(log_obj,iter_obj):
+    if log_obj == None:
+        for i in tqdm(iter_obj):
+            yield i
+    else:
+        for i in iter_obj:
+            yield i
 
 def getNumOfLines(aFilename):
   tmpFile = open(aFilename)

@@ -21,42 +21,12 @@ import checkerconfig
 SUBMITJOBANDREADY = os.path.join(sys.path[0],'../../src/utils/submitJobOnClusterAndReady.py')
 
 
-# Constants
-#        TABLE,         NUM_TOPICS,MAX_FREQ,MULTIPASS
-tasks = [('moa',           200,    None,    False),
-         ('metabgenes',    200,    None,    False),
-         ('crystals',      500,    None,    False),
-         ('binding',       800,    None,    False),
-         ('htsbioass',     800,    None,    False),
-         ('molroles',      600,    None,    False),
-         ('molpathways',   500,    None,    False),
-         ('pathways',      200,    None,    False),
-         ('bps',           500,    None,    False),
-         ('networks',      600,    None,    False),
-         ('transcript',    4600,   None,    False),
-         ('cellpanel',     None,   None,    False),
-         ('chemgenet',     800,    None,    False),
-         ('morphology',    None,   None,    False),
-         ('cellbioass',    100,    None,    False),
-         ('therapareas',   250,    None,    False),
-         ('indications',   600,    None,    False),
-         ('sideeffects',   700,    None,    False),
-         ('phenotypes',    800,    None,    False),
-         ('ddis',          250,    None,    False),
-         ('fp2d',          1600,   0.8,     True),
-         ('fp3d',          1000,   0.8,     True),
-         ('scaffolds',     1500,   0.8,     True),
-         ('subskeys',      70,     0.9,     True),
-         ('physchem',      None,   None,    False)
-         ]
-
 
 # Functions
 def usage(progName):
   print "Usage: "+progName+" <config_ini>"
 
 def main():
- # Check arguments
   # Check arguments
   if len(sys.argv) != 2:
     usage(sys.argv[0])
@@ -76,8 +46,9 @@ def main():
   errTasks = set()
   finished   = set()
   
+  
   logsFiledir = checkercfg.getDirectory( "logs" )
-  jobTasksDir = os.path.join(tempdir,"sig_tasks")
+  jobTasksDir = os.path.join(tempdir,"clusters_tasks")
   if not os.path.exists(jobTasksDir):
         os.makedirs(jobTasksDir)
 
@@ -87,6 +58,8 @@ def main():
   WD = os.path.dirname(os.path.realpath(__file__))
 
   dirName = os.path.abspath(sys.argv[0]).split("/")[-2]
+  balance = checkercfg.getVariable(dirName,'balance')
+
   
   for filename in glob.glob(os.path.join(jobTasksDir,"*.ready")) :
         os.remove(filename)
@@ -95,37 +68,37 @@ def main():
   for filename in glob.glob(os.path.join(jobTasksDir,"*.error")) :
         os.remove(filename)
   
-  call_sig_script = WD + "/call_sig.py"
+  call_clust_script = WD + "/call_clusters.py"
   
   os.chdir(jobTasksDir)
   
   while True:
-    for task in tasks:
+    for task in all_tables:
         
-        if task[0] in finished:
+        if task in finished:
             continue
-        readyFilename = os.path.join(readyFiledir,dirName+"_"+task[0]+".ready")
+        readyFilename = os.path.join(readyFiledir,dirName+"_"+task+".ready")
         if os.path.exists(readyFilename):
-          log.info( "Ready file for task %s does exist. Skipping this task..." % task[0] )
-          finished.add(task[0])
+          log.info( "Ready file for task %s does exist. Skipping this task..." % task )
+          finished.add(task)
           continue
         else:
         
-            jobName = "task_" + task[0]
+            jobName = "clust_" + task
             
             jobReadyFile   = os.path.join(jobTasksDir,jobName+".ready")
             jobErrorFile   = os.path.join(jobTasksDir,jobName+".error")
             jobStartedFile = os.path.join(jobTasksDir,jobName+".started")
             
             if not os.path.exists(jobStartedFile):
-                log.info("====>>>> "+task[0]+" <<<<====")
+                log.info("====>>>> "+task+" <<<<====")
                 
-                for filename in glob.glob(os.path.join(jobTasksDir,"task_"+task[0] + "*")) :
+                for filename in glob.glob(os.path.join(jobTasksDir,"clust_"+task + "*")) :
                     os.remove(filename)
                 
                 logFilename = os.path.join(logsFiledir,jobName+".qsub")
                 
-                scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' +call_sig_script + ' ' + dbname + " " + task[0] + " " + str(task[1]) + " " + str(task[2]) + " " + str(task[3]) + " " + tempdir
+                scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' +call_clust_script + ' '  + task + " " + balance + " " + tempdir
     
                 cmdStr = checkerconfig.SETUPSINGLEJOB % { 'JOB_NAME':jobName, 'COMMAND':scriptFile}
     
@@ -140,19 +113,19 @@ def main():
             else:
                 if os.path.exists(jobErrorFile):
                     # Notify error 
-                    log.error( "Generating signatures for table %s failed" % task[0])
-                    errTasks.add(task[0])
-                    finished.add(task[0])
+                    log.error( "Generating signatures for table %s failed" % task)
+                    errTasks.add(task)
+                    finished.add(task)
                     continue
                 
                 if os.path.exists(jobReadyFile):
                         #checkJobResultsForErrors(jobTasksDir,jobName,log)
                         cmdStr = 'touch '+readyFilename
                         execAndCheck(cmdStr,log)
-                        finished.add(task[0])
-                        log.info("====>>>> "+task[0]+"...done! <<<<====")
+                        finished.add(task)
+                        log.info("====>>>> "+task+"...done! <<<<====")
                         
-    if len(finished) == len(tasks):
+    if len(finished) == len(all_tables):
         break
     else:
         time.sleep(checkerconfig.POLL_TIME_INTERVAL)
