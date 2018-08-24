@@ -243,7 +243,7 @@ def for_the_validation(inchikey_dict, prefix, file_folder = None):
     return S, D, d
 
 
-def label_validation(inchikey_lab, label_type, table = None, prefix = "moa", plot_folder = None):
+def label_validation(inchikey_lab, label_type, table = None, prefix = "moa", plot_folder = None, files_folder = None):
     
     if plot_folder is None:
         return
@@ -253,7 +253,7 @@ def label_validation(inchikey_lab, label_type, table = None, prefix = "moa", plo
     else:
         color = checkerUtils.table_color(table)
 
-    S, D, d = for_the_validation(inchikey_lab, prefix)
+    S, D, d = for_the_validation(inchikey_lab, prefix, files_folder)
 
     yy, yn, ny, nn = 0, 0, 0, 0
     

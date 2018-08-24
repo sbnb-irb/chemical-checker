@@ -24,7 +24,8 @@ checkerEmailAddress = ("Chemical Checker","checker@irbbarcelona.org")
 steps = [
   "0_downloads",
   "1_raws",
-  "2_signatures"
+  "2_signatures",
+  "3_clusters"
 ]
 
 mosaic = "mosaic"
@@ -127,8 +128,6 @@ downloads = [('ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*
              ]
 
 # Directories inside the output directory
-DATASETS_SUBDIR           = "datasets"
-
 
 DOWNLOAD_SUBDIR           = "downloads"
 WEBREPO        = '/aloy/web_checker/'
