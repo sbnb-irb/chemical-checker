@@ -6,6 +6,8 @@
 import os
 import sys
 import getpass
+import numpy as np
+
 if sys.version_info[0] >= 3:
   from configparser import RawConfigParser
 else:
@@ -217,6 +219,7 @@ WAIT_TIME_INTERVAL = 30
 # Ten minutes = 600 seconds
 LONG_POLL_TIME_INTERVAL = 60
 
+PVALRANGES = np.array([0, 0.001, 0.01, 0.1] + list(np.arange(1,100)) + [100]) / 100.
 
 
 # Classes

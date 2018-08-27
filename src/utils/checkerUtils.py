@@ -6,6 +6,7 @@
 import os
 import sys
 import datetime
+from tqdm import tqdm
 from subprocess import call, Popen
 from rdkit.Chem import AllChem
 from rdkit import Chem

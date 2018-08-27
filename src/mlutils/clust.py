@@ -15,6 +15,7 @@ sys.path.append(os.path.join(sys.path[0], "../utils/"))
 sys.path.append(os.path.join(sys.path[0],"../../pipeline/config"))
 from checkerUtils import logSystem,log_data,tqdm_local
 import Psql
+import checkerconfig
 import numpy as np
 import random
 import subprocess
@@ -38,8 +39,8 @@ clustcentroids_file   = "clustcentroids.h5"
 clust_info_file       = "clust_stats.json"
 clust_output          = 'clust.h5'
 bg_pq_euclideans_file = "bg_pq_euclideans.h5"
-
-
+sig_file              = "sig.h5"
+A = None
 
 
 # Functions
@@ -100,7 +101,7 @@ def minmaxscaler(v):
     return (v - Min) / (Max - Min)        
 
 
-def get_balance(V_pqcode, centroids, labels, balance, tmp,log):
+def get_balance(V_pqcode, centroids, labels, balance, k,tmp,log):
 
     if balance is None: return labels
 
@@ -144,7 +145,14 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
     
 
     checkercfg = checkerconfig.checkerConf()
-    
+     
+    if table in checkerconfig.TABLE_COORDINATES:
+        coord = checkerconfig.TABLE_COORDINATES[table]
+    else:
+        log_data(log,"Table %s is not know to the Chemical Checker...!" % table)
+        return
+    global A  
+
     if tmpDir != '':
         tmp =  os.path.join(tmpDir,str(uuid.uuid4()))
     else:
@@ -152,7 +160,10 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
         
     if outfile is None:
         outfile = checkercfg.coordinate2mosaic(coord) + "/" + clust_output
-        
+    
+    if filename is None:
+        filename = checkercfg.coordinate2mosaic(coord) + "/" + sig_file
+       
     if models_folder is None:
         models_folder = checkercfg.coordinate2mosaic(coord) + "/" + checkerconfig.DEFAULT_MODELS_FOLDER
     
@@ -161,8 +172,25 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
         
     if not os.path.exists(plots_folder): os.makedirs(plots_folder)
     if not os.path.exists(models_folder): os.makedirs(models_folder)
-    # Encode matrix...
     
+    # Load matrix...
+    
+    with h5py.File(filename, "r") as hf:
+        inchikeys = hf["keys"][:]
+        V = hf["V"][:]
+        try:
+            with open(filename.replace(".h5", "_stats.json"), "r") as f:
+                d = json.load(f)
+                Vn, Vm = d['molecules'], d['elbow_variables']
+        except:
+            log_data(log, "No elbow known, taking shape of input matrix (divided by 2)")
+            Vn, Vm = V.shape[0], V.shape[1] / 2
+    
+    if V.shape[1] < num_subdim:
+        V = np.hstack((V, np.zeros((V.shape[0], num_subdim - V.shape[1]))))
+    
+    # Encode matrix...
+
     if not recycle:
         encoder = pqkmeans.encoder.PQEncoder(num_subdim=num_subdim, Ks=Ks)
         inds = [i for i in xrange(int(int(V.shape[1]/num_subdim)*num_subdim))]
@@ -184,27 +212,12 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
         encoder.trained_encoder = trained_encoder
         encoder.Ds = trained_encoder.Ds
         V = V[:,inds]
-    
+
     V_pqcode = encoder.transform(V)
-    
+
     del V
-    
-    # Load matrix...
-    
-    with h5py.File(filename, "r") as hf:
-        inchikeys = hf["keys"][:]
-        V = hf["V"][:]
-        try:
-            with open(filename.replace(".h5", "_stats.json"), "r") as f:
-                d = json.load(f)
-                Vn, Vm = d['molecules'], d['elbow_variables']
-        except:
-            log_data(log, "No elbow known, taking shape of input matrix (divided by 2)")
-            Vn, Vm = V.shape[0], V.shape[1] / 2
-    
-    if V.shape[1] < num_subdim:
-        V = np.hstack((V, np.zeros((V.shape[0], num_subdim - V.shape[1]))))
-    
+
+
     # Do the clustering
     
     if recycle and not k:
@@ -213,6 +226,7 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
     
     elif not k:
     
+        log_data(log, "Calculating k...")
         # Do reference distributions for the gap statistic
     
         if not min_k:
@@ -255,7 +269,7 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
         S = np.abs((I**(1 - alpha)) - (D**(alpha)))
         S = minmaxscaler(-smooth(S,  max_k))
     
-        k = clustering_plot(Ncs, I, D, S, table = table)
+        k = clustering_plot(Ncs, I, D, S, table = table, plot_folder = plots_folder)
     
     
     
@@ -288,7 +302,7 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
     
     if not recycle:
         log_data(log, "Balancing...")
-        labels = get_balance(V_pqcode, centroids, labels, balance, tmp,log)
+        labels = get_balance(V_pqcode, centroids, labels, balance, k,tmp,log)
     
     log_data(log, "Saving matrix...")
     
@@ -306,7 +320,7 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
     
     inchikey_clust = shelve.open(tmp+".dict", "n")
     for i in tqdm_local(log,xrange(len(inchikeys))):
-        inchikey_clust[inchikeys[i]] = labels[i]
+        inchikey_clust[str(inchikeys[i])] = labels[i]
     odds_moa, pval_moa = label_validation(inchikey_clust, "clust", table, prefix = "moa", plot_folder = plots_folder,files_folder = tmpDir)
     odds_atc, pval_atc = label_validation(inchikey_clust, "clust", table, prefix = "atc", plot_folder = plots_folder,files_folder = tmpDir)
     inchikey_clust.close()
