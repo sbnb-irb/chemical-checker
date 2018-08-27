@@ -32,6 +32,8 @@ import matplotlib.patches as patches
 from sklearn.metrics import roc_curve, roc_auc_score
 import matplotlib as mpl
 import collections
+sys.path.append(os.path.join(sys.path[0],"../../pipeline/config"))
+import checkerconfig
 
 random.seed(42)
 np.random.seed(42)
@@ -197,7 +199,7 @@ def euclidean_background(inchikey_vec, inchikeys = None, B = 100000, metric = eu
     i = 0
     PVALS = [(0, 0., i)] # DISTANCE, RANK, INTEGER
     i += 1
-    percs = [0.001, 0.01, 0.1] + list(np.arange(1,100))
+    percs = checkerconfig.PVALRANGES[1:-1]*100
     for perc in percs:
         PVALS += [(np.percentile(bg, perc), perc/100., i)]
         i += 1
