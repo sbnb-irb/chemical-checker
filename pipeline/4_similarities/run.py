@@ -6,7 +6,7 @@
 # Imports
 import os
 import sys
-import subprocess
+from subprocess import call, Popen
 
 
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
@@ -51,7 +51,7 @@ def main():
   
   bOk = True
   for task in all_coords():
-    log.info("====>>>> "+task+" <<<<====")
+    log.info("====>>>> Similarities "+task+" <<<<====")
     readyFilename = os.path.join(readyFiledir,dirName+"_"+task+".ready")
     if os.path.exists(readyFilename):
       log.info( "Ready file for task %s does exist. Skipping this task..." % task )
@@ -63,7 +63,9 @@ def main():
             os.makedirs(jobTasksDir)
       scriptName = os.path.join(sys.path[0],"../../src/similarity/similarity.py") + " --dbname " + dbname + " --coordinates " + task + " --rundir " + jobTasksDir + " --vnumber " + release
       print scriptName
-      p = subprocess.Popen( [scriptName], stderr=subprocess.STDOUT )
+      #retcode = call(scriptName,shell=True)
+      #p = subprocess.Popen( [scriptName], stderr=subprocess.STDOUT )
+      p = Popen(scriptName,shell=True)
       (pid,retcode) = os.waitpid(p.pid, 0)
       if retcode != 0:
         bOk = False
@@ -75,9 +77,9 @@ def main():
       cmdStr = "touch "+readyFilename
       subprocess.call(cmdStr,shell=True)
     except OSError, e:
-      log.critical( "Execution of Script %s failed: %s" % (tasks[i][1],e) )
+      log.critical( "Execution of Script %s failed: %s" % (task,e) )
       sys.exit(1)
-    log.info("====>>>> "+task+"...done! <<<<====")
+    log.info("====>>>> Similarities "+task+"...done! <<<<====")
   
   if bOk:
     readyFilename = os.path.join(readyFiledir,dirName+".ready")

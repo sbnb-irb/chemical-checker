@@ -6,7 +6,7 @@ import sys, os
 import math
 sys.path.append(os.path.join(sys.path[0], "../utils/"))
 sys.path.append(os.path.join(sys.path[0],"../../pipeline/config"))
-from checkerUtils import all_coords,coordinate2mosaic
+from checkerUtils import all_coords,coordinate2mosaic, logSystem
 import checkerconfig
 import argparse
 import uuid
