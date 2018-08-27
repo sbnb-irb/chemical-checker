@@ -14,7 +14,7 @@ sys.path.append(os.path.join(sys.path[0], "../utils/"))
 sys.path.append(os.path.join(sys.path[0],"../../pipeline/config"))
 import Psql
 import checkerconfig
-from checkerUtils import logSystem,log_data,tqdm_local
+from checkerUtils import logSystem,log_data,tqdm_local,coordinate2mosaic
 from auto_plots import variance_plot, vector_validation, matrix_plot, euclidean_background
 import numpy as np
 import collections
@@ -152,13 +152,13 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     log_data(log, "WORKING ON %s (%s)" % (coord, table))
 
     if outfile is None:
-        outfile = checkercfg.coordinate2mosaic(coord) + "/" + checkerconfig.SIG_FILENAME
+        outfile = coordinate2mosaic(coord) + "/" + checkerconfig.SIG_FILENAME
     
     if models_folder is None:
-        models_folder = checkercfg.coordinate2mosaic(coord) + "/" + checkerconfig.DEFAULT_MODELS_FOLDER
+        models_folder = coordinate2mosaic(coord) + "/" + checkerconfig.DEFAULT_MODELS_FOLDER
     
     if plots_folder is None:
-        plots_folder = checkercfg.coordinate2mosaic(coord) + "/" + checkerconfig.DEFAULT_PLOTS_FOLDER
+        plots_folder = coordinate2mosaic(coord) + "/" + checkerconfig.DEFAULT_PLOTS_FOLDER
     
     if sig_stats_file is None:
         sig_stats_file = outfile.split(".h5")[0]+"_stats.json"
@@ -580,7 +580,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     
     log_data(log, "Matrix plot")
     
-    matrix_plot(table,checkercfg.coordinate2mosaic(coord),plots_folder)
+    matrix_plot(table,coordinate2mosaic(coord),plots_folder)
     
     # Statistics file
     
@@ -603,7 +603,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     "variance_cutoff": variance_cutoff
     }
     
-    with open(checkercfg.coordinate2mosaic(coord) + "/"+'sig_stats.json', 'w') as fp:
+    with open(coordinate2mosaic(coord) + "/"+'sig_stats.json', 'w') as fp:
         json.dump(INFO, fp)
         
 if __name__ == '__main__':
