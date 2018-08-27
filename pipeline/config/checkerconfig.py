@@ -27,7 +27,8 @@ steps = [
   "0_downloads",
   "1_raws",
   "2_signatures",
-  "3_clusters"
+  "3_clusters",
+  "4_similarities"
 ]
 
 mosaic = "mosaic"
@@ -135,6 +136,7 @@ DOWNLOAD_SUBDIR           = "downloads"
 WEBREPO        = '/aloy/web_checker/'
 WEBREPOMOLS    = WEBREPO + "/molecules/"
 MOSAICPATH     = "/aloy/home/mduran/myscripts/mosaic/"
+RELEASESPATH   = "/aloy/web_checker/releases/"
 CHECKER_COORD_PATH = "/aloy/web_checker/coordinates/"
 MOLREPO        = "molrepo"
 NETWORKS       = "networks"
@@ -262,8 +264,6 @@ class checkerConf:
                 all_list = lists
     return all_list
 
-  def coordinate2mosaic(self,coordinate):
-    return CHECKER_COORD_PATH + "/" + coordinate[0] + "/" + coordinate + "/"
 
 
   def getDirectory( self, dirSpec ):

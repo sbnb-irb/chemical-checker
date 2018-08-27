@@ -137,7 +137,8 @@ def inchikey2webrepo_no_mkdir(inchikey):
     PATH = PATH.replace("//", "/")
     return PATH
 
-
+def coordinate2mosaic(self,coordinate):
+    return checkerconfig.CHECKER_COORD_PATH + "/" + coordinate[0] + "/" + coordinate + "/"
 
 # TABLE COORDINATES
 
@@ -191,6 +192,9 @@ def table_color(table):
 def coordinate_color(coord):
     table = coordinate_tables[coord]
     return table_color(table)
+
+def all_coords():
+    return ["%s%d" % (x,y) for x in ["A", "B", "C", "D", "E"] for y in [1, 2, 3, 4, 5]]
 
 
 gray = rgb2hex(220, 218, 219)
