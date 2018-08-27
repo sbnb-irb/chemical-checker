@@ -13,7 +13,7 @@ import pqkmeans
 import sys, os, glob
 sys.path.append(os.path.join(sys.path[0], "../utils/"))
 sys.path.append(os.path.join(sys.path[0],"../../pipeline/config"))
-from checkerUtils import logSystem,log_data,tqdm_local
+from checkerUtils import logSystem,log_data,tqdm_local,coordinate2mosaic
 import Psql
 import checkerconfig
 import numpy as np
@@ -159,16 +159,16 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
         tmp = str(uuid.uuid4())
         
     if outfile is None:
-        outfile = checkercfg.coordinate2mosaic(coord) + "/" + clust_output
+        outfile = coordinate2mosaic(coord) + "/" + clust_output
     
     if filename is None:
-        filename = checkercfg.coordinate2mosaic(coord) + "/" + sig_file
+        filename = coordinate2mosaic(coord) + "/" + sig_file
        
     if models_folder is None:
-        models_folder = checkercfg.coordinate2mosaic(coord) + "/" + checkerconfig.DEFAULT_MODELS_FOLDER
+        models_folder = coordinate2mosaic(coord) + "/" + checkerconfig.DEFAULT_MODELS_FOLDER
     
     if plots_folder is None:
-        plots_folder = checkercfg.coordinate2mosaic(coord) + "/" + checkerconfig.DEFAULT_PLOTS_FOLDER
+        plots_folder = coordinate2mosaic(coord) + "/" + checkerconfig.DEFAULT_PLOTS_FOLDER
         
     if not os.path.exists(plots_folder): os.makedirs(plots_folder)
     if not os.path.exists(models_folder): os.makedirs(models_folder)
@@ -340,7 +340,7 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
         "odds_atc": odds_atc,
         "pval_atc": pval_atc 
         }   
-        with open(checkercfg.coordinate2mosaic(coord) + "/"+clust_info_file, 'w') as fp:
+        with open(coordinate2mosaic(coord) + "/"+clust_info_file, 'w') as fp:
             json.dump(INFO, fp) 
             
         
