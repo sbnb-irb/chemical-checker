@@ -137,7 +137,7 @@ def inchikey2webrepo_no_mkdir(inchikey):
     PATH = PATH.replace("//", "/")
     return PATH
 
-def coordinate2mosaic(self,coordinate):
+def coordinate2mosaic(coordinate):
     return checkerconfig.CHECKER_COORD_PATH + "/" + coordinate[0] + "/" + coordinate + "/"
 
 # TABLE COORDINATES

@@ -12,7 +12,7 @@ import subprocess
 import shelve
 import numpy as np
 import sys, os
-
+import apsw
 # FUNCTIONS
 
 def connect(d, h='aloy-dbsrv',u='sbnb-adm',p='db_adm'):
@@ -31,6 +31,12 @@ def qstring(query, dbname):
 def query(query, dbname):
     con = connect(dbname)
     con.set_isolation_level(0)
+    cur = con.cursor()
+    cur.execute(query)
+    con.close()
+    
+def querylite(query, dbfile):
+    con = apsw.Connection(dbfile)
     cur = con.cursor()
     cur.execute(query)
     con.close()

@@ -206,6 +206,8 @@ currentDir = os.path.dirname(os.path.abspath( __file__ ))
 
 HOTNET_PATH = os.path.join(currentDir,"../../tools/hierarchical-hotnet/src/")
 
+SQLITE_DATABASE_RELEASES = "/aloy/web_checker/releases/releases.db"
+
 SETUPARRAYJOBMOD    = os.path.join(currentDir,"../../src/utils/setupArrayJobMod.py -q -x -N %(JOB_NAME)s -t %(NUM_TASKS)d -l %(TASKS_LIST)s %(COMMAND)s")
 SETUPARRAYJOBNOLIST = os.path.join(currentDir,"../../src/utils/setupArrayJobNoJobList.py -q -x -N %(JOB_NAME)s -t %(NUM_TASKS)d %(COMMAND)s")
 SETUPARRAYJOB       = os.path.join(currentDir,"../../src/utils/setupArrayJob.py -q -x -N %(JOB_NAME)s -t %(NUM_TASKS)d -l %(TASKS_LIST)s %(COMMAND)s")
