@@ -36,7 +36,6 @@ def main():
   readyFiledir = checkercfg.getDirectory( "ready" )
   
   release = checkercfg.getVariable("General",'release')
-  dbname = checkerconfig.dbname + "_" + release
 
   log = logSystem(sys.stdout)
   log.debug(os.getcwd())
@@ -50,7 +49,7 @@ def main():
   dirName = os.path.abspath(sys.argv[0]).split("/")[-2]
   
   bOk = True
-  for task in all_coords():
+  for task in all_coords().sort(reverse = True):
     log.info("====>>>> Similarities "+task+" <<<<====")
     readyFilename = os.path.join(readyFiledir,dirName+"_"+task+".ready")
     if os.path.exists(readyFilename):
@@ -61,7 +60,7 @@ def main():
       jobTasksDir = os.path.join(simTasksDir,task)
       if not os.path.exists(jobTasksDir):
             os.makedirs(jobTasksDir)
-      scriptName = os.path.join(sys.path[0],"../../src/similarity/similarity.py") + " --dbname " + dbname + " --coordinates " + task + " --rundir " + jobTasksDir + " --vnumber " + release
+      scriptName = os.path.join(sys.path[0],"../../src/similarity/similarity.py") + " --coordinates " + task + " --rundir " + jobTasksDir + " --vnumber " + release
       print scriptName
       #retcode = call(scriptName,shell=True)
       #p = subprocess.Popen( [scriptName], stderr=subprocess.STDOUT )

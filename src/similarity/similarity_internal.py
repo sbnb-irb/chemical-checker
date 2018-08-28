@@ -11,13 +11,14 @@ import h5py
 sys.path.append(os.path.join(sys.path[0], "../utils/"))
 sys.path.append(os.path.join(sys.path[0],"../../pipeline/config"))
 from checkerUtils import inchikey2webrepo
-from Psql import  query
+from Psql import  querylite
+import checkerconfig
 import numpy as np
 import bisect
 
 # Compare molecules
 
-dbname,coordinate, inchikey, infile, bgfile, outfile, vname, VERSION = sys.argv[1].split('---')
+coordinate, inchikey, infile, bgfile, outfile, vname, VERSION = sys.argv[1].split('---')
 
 print coordinate, inchikey, vname
 
@@ -61,5 +62,5 @@ with h5py.File("%s/%s" % (PATH, outfile), "a") as hf:
 
 # Inserting the current version in the database
 
-cmd = "INSERT INTO distance_versions (inchikey, coord, vname, version) VALUES ('%s', '%s', '%s', '%s') ON CONFLICT (inchikey, coord, vname) DO UPDATE SET version = '%s'" % (inchikey, coordinate + "_obs", vname, VERSION)
-query(cmd, dbname)
+cmd = "INSERT INTO distance_versions (inchikey, coord, vname, version) VALUES ('%s', '%s', '%s', '%s') ON CONFLICT (inchikey, coord, vname) DO UPDATE SET version = '%s'" % (inchikey, coordinate + "_obs", vname, VERSION, VERSION)
+querylite(cmd, checkerconfig.SQLITE_DATABASE_RELEASES)
