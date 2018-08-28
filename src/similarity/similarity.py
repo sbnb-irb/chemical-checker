@@ -6,10 +6,11 @@ import sys, os
 import math
 sys.path.append(os.path.join(sys.path[0], "../utils/"))
 sys.path.append(os.path.join(sys.path[0],"../../pipeline/config"))
-from checkerUtils import all_coords,coordinate2mosaic, logSystem
+from checkerUtils import all_coords,coordinate2mosaic, logSystem, execAndCheck,checkJobResultsForErrors,compressJobResults
 import checkerconfig
 import argparse
 import uuid
+import h5py
 import subprocess
 import time
 
@@ -18,7 +19,7 @@ SUBMITJOBANDREADY = os.path.join(sys.path[0],'../utils/submitJobOnClusterAndRead
 
 
 
-def calc_similarities(dbname,coordinates = None, rundir = None,infolder = None, vname = None,vnumber = None,bgfile = None,outfile = None,granularity = 100, local = False):
+def calc_similarities(coordinates = None, rundir = None,infolder = None, vname = None,vnumber = None,bgfile = None,outfile = None,granularity = 100, local = False):
     
     if not outfile:
     
@@ -90,7 +91,7 @@ def calc_similarities(dbname,coordinates = None, rundir = None,infolder = None, 
             
             with open(filename, "w") as f:
                 for ik in list(todos):
-                    f.write("%s---%s---%s---%s---%s---%s---%s---%s---%s\n" % (dbname,coordinate, ik, versionfolder, infile, bgfile, outfile, vname, vnumber))
+                    f.write("%s---%s---%s---%s---%s---%s---%s---%s\n" % (coordinate, ik, versionfolder, infile, bgfile, outfile, vname, vnumber))
 
         else:
         #internal
@@ -105,7 +106,7 @@ def calc_similarities(dbname,coordinates = None, rundir = None,infolder = None, 
             
             with open(filename, "w") as f:
                 for ik in inchikeys:
-                    f.write("%s---%s---%s---%s---%s---%s---%s---%s\n" % (dbname,coordinate, ik, infile, bgfile, outfile, vname, vnumber))
+                    f.write("%s---%s---%s---%s---%s---%s---%s\n" % (coordinate, ik, infile, bgfile, outfile, vname, vnumber))
     
             
         if local:
@@ -152,7 +153,6 @@ if __name__ == '__main__':
     
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dbname", type = str,  help = "Name of the Database",required = True)
     parser.add_argument("--coordinates", type = str, default = None, help = "Coordinates in the panel (A1...), separated by '-'. If None, all 25 CC spaces are done.")
     parser.add_argument("--rundir", type = str, default = None, help = "Folder where the job data will be stored")
     parser.add_argument("--infolder", type = str, default = None, help = "Folder where the input files are stored. Should respect the coordinate hierarchy, namely, A/A1, B/B4, etc. If None, CC-vs-CC is done.")
@@ -165,7 +165,7 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    calc_similarities(dbname = args.dbname,coordinates = args.coordinates,rundir = args.rundir,infolder = args.infolder,  
+    calc_similarities(coordinates = args.coordinates,rundir = args.rundir,infolder = args.infolder,  
                       vname = args.vname, vnumber = args.vnumber, bgfile = args.bgfile, outfile = args.outfile,granularity = args. granularity,local = args.local    )
      
     
