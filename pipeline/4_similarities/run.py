@@ -7,7 +7,7 @@
 import os
 import sys
 from subprocess import call, Popen
-
+import subprocess
 
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
@@ -49,7 +49,9 @@ def main():
   dirName = os.path.abspath(sys.argv[0]).split("/")[-2]
   
   bOk = True
-  for task in all_coords().sort(reverse = True):
+  tasks = all_coords()
+  tasks.sort(reverse = True)
+  for task in tasks:
     log.info("====>>>> Similarities "+task+" <<<<====")
     readyFilename = os.path.join(readyFiledir,dirName+"_"+task+".ready")
     if os.path.exists(readyFilename):

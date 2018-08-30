@@ -37,6 +37,7 @@ def query(query, dbname):
     
 def querylite(query, dbfile):
     con = apsw.Connection(dbfile)
+    con.setbusytimeout(600000)
     cur = con.cursor()
     cur.execute(query)
     con.close()

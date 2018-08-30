@@ -58,10 +58,13 @@ PATH = inchikey2webrepo(inchikey)
 
 with h5py.File("%s/%s" % (PATH, outfile), "a") as hf:
     dname = coordinate + "_obs"
+    dversion = dname + "_vrs"
     if dname in hf.keys(): del hf[dname]
     hf.create_dataset(dname, data = INTEGERS)
+    if dversion in hf.keys(): del hf[dversion]
+    hf.create_dataset(dversion, data = [VERSION])
 
 # Inserting the current version in the database
 
-cmd = "INSERT INTO distance_versions (inchikey, coord, vname, version) VALUES ('%s', '%s', '%s', '%s') ON CONFLICT (inchikey, coord, vname) DO UPDATE SET version = '%s'" % (inchikey, coordinate + "_obs", vname, VERSION, VERSION)
-querylite(cmd, checkerconfig.SQLITE_DATABASE_RELEASES)
+#cmd = "INSERT INTO distance_versions (inchikey, coord, vname, version) VALUES ('%s', '%s', '%s', '%s') ON CONFLICT (inchikey, coord, vname) DO UPDATE SET version = '%s'" % (inchikey, coordinate + "_obs", vname, VERSION, VERSION)
+#querylite(cmd, checkerconfig.SQLITE_DATABASE_RELEASES)
