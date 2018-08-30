@@ -143,9 +143,10 @@ def calc_similarities(coordinates = None, rundir = None,infolder = None, vname =
             cmdStr = SUBMITJOBANDREADY+" "+rundir+" "+jobName+" "+logFilename
             execAndCheck(cmdStr,log)
         
-        
-            #checkJobResultsForErrors(fp3d_dir,jobName,log)    
-            compressJobResults(fp3d_dir,jobName,['tasks'],log)
+            log.info( " - Checking results for the job %s  " % (jobName) )
+            checkJobResultsForErrors(rundir,jobName,log)    
+            log.info( " - Compressing output for the job %s  " % (jobName) )
+            compressJobResults(rundir,jobName,['tasks'],log)
            
     
             
