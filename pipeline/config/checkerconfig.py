@@ -28,7 +28,8 @@ steps = [
   "1_raws",
   "2_signatures",
   "3_clusters",
-  "4_similarities"
+  "4_similarities",
+  "5_predictions"
 ]
 
 mosaic = "mosaic"
@@ -224,6 +225,13 @@ WAIT_TIME_INTERVAL = 30
 LONG_POLL_TIME_INTERVAL = 60
 
 PVALRANGES = np.array([0, 0.001, 0.01, 0.1] + list(np.arange(1,100)) + [100]) / 100.
+
+# For the non-paired coordinate conditional probabilities
+cuts_e = [1,4,13,28,103] # P of 1e-5, 0.001, 0.01, 0.1 and 0.25
+cuts_c = cuts_e
+cuts = [1, 3, 4, 8, 13, 28, 53, 78]
+# Performance integers
+performance_integers = [1, 4, 13]
 
 
 # Classes
