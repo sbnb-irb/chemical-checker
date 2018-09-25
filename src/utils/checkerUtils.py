@@ -248,7 +248,7 @@ def checkJobResultsForErrors(directory,jobName,log,maxNumOfErrors=0,errStrings=[
     sys.exit(1)
   grepResultsFilename = os.path.join(directory,jobName+".errcheck")
   if len(errStrings) == 0:
-    cmdStr = 'for i in '+os.path.join(directory,jobName+".o*.*")+'; do grep -i error $i; done > '+grepResultsFilename
+    cmdStr = 'for i in '+os.path.join(directory,jobName+".o*.*")+'; do grep -e error -e Error -e fail $i; done > '+grepResultsFilename
     execAndCheck(cmdStr,log,set([1]))
     cmdStr = 'for i in '+os.path.join(directory,jobName+".o*.*")+'; do grep -i "Traceback (most recent call last)" $i; done >> '+grepResultsFilename
     execAndCheck(cmdStr,log,set([1]))
