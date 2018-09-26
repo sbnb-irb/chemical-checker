@@ -92,11 +92,11 @@ if __name__ == '__main__':
     
     # Get molecules
     
-    with h5py.File(coordinate2mosaic(coordinate_1)+ "sig.h5") as hf:
+    with h5py.File(coordinate2mosaic(coordinate_1)+ "sig.h5","r") as hf:
         inchikeys1 = hf['keys'][:]
         n1 = len(inchikeys1)
     
-    with h5py.File(coordinate2mosaic(coordinate_2)+ "sig.h5") as hf:
+    with h5py.File(coordinate2mosaic(coordinate_2)+ "sig.h5","r") as hf:
         inchikeys2 = hf['keys'][:]
         n2 = len(inchikeys2)
     
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     
     if len(inchikeys) < 10: 
         print "Analysis not done! Only %d molecules in common between %s and %s..." % (len(inchikeys), coordinate_1, coordinate_2)
-        return
+        sys.exit(0)
     
     print len(inchikeys)
     
@@ -115,14 +115,14 @@ if __name__ == '__main__':
     print "Doing canonical correlation analysis"
 
 
-    with h5py.File(coordinate2mosaic(coordinate_1)+ "sig.h5") as hf:
+    with h5py.File(coordinate2mosaic(coordinate_1)+ "sig.h5","r") as hf:
         X = hf["V"][:,:max_comp]
         X = np.array([X[inchikeys1[ik],:] for ik in inchikeys])
         X = X[:,:X.shape[0]]
         inchikeys1 = {}
         comps_1 = X.shape[1]
     
-    with h5py.File(coordinate2mosaic(coordinate_2)+ "sig.h5") as hf:
+    with h5py.File(coordinate2mosaic(coordinate_2)+ "sig.h5","r") as hf:
         Y = hf["V"][:,:max_comp]
         Y = np.array([Y[inchikeys2[ik],:] for ik in inchikeys])
         Y = Y[:,:Y.shape[0]]
