@@ -6,7 +6,7 @@
 import sys, os
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
-from checkerUtils import logSystem, execAndCheck, draw, checkJobResultsForErrors
+from checkerUtils import logSystem, execAndCheck, draw, checkJobResultsForErrors,compressJobResults
 import Psql
 import collections
 import numpy as np
@@ -205,10 +205,14 @@ def main():
         f.write("%s\n" % p)
     f.close()
     
+    run_dir = os.path.join(tmpdir,table)
     # Get t
     t = math.ceil(float(len(uniprots))/granularity)
     
-    os.chdir(tmpdir)
+    if os.path.exists(run_dir) == False:
+        c = os.makedirs(run_dir)
+    
+    os.chdir(run_dir)
     
     if os.path.exists(prot_allgos) == False:
         c = os.makedirs(prot_allgos)
@@ -218,25 +222,26 @@ def main():
     log = logSystem(sys.stdout)
 
     
-    if os.path.exists(os.path.join(tmpdir,jobName+'.ready')) == False:
+    if os.path.exists(os.path.join(run_dir,jobName+'.ready')) == False:
     
         logFilename = os.path.join(logsFiledir,jobName+".qsub")
     
         scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' + myfold + '/prot2allgos.py \$i ' + tmpdir + " " + goa_file
     
         cmdStr = checkerconfig.SETUPARRAYJOB % { 'JOB_NAME':jobName, 'NUM_TASKS':t,
-                                          'TASKS_LIST':os.path.join(tmpdir,'bpanno.tsv'),
+                                          'TASKS_LIST':os.path.join(run_dir,'bpanno.tsv'),
                                           'COMMAND':scriptFile}
     
         
         execAndCheck(cmdStr,log)
     
         log.info( " - Launching the job %s on the cluster " % (jobName) )
-        cmdStr = SUBMITJOBANDREADY+" "+tmpdir+" "+jobName+" "+logFilename
+        cmdStr = SUBMITJOBANDREADY+" "+run_dir+" "+jobName+" "+logFilename
         execAndCheck(cmdStr,log)
     
     
-        checkJobResultsForErrors(tmpdir,jobName,log)    
+        checkJobResultsForErrors(run_dir,jobName,log) 
+        compressJobResults(run_dir,jobName,['tasks'],log)   
 
     log.info( "Reading human MetaPhors")
     any_human = human_metaphors()

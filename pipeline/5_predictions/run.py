@@ -19,13 +19,8 @@ import checkerconfig
 
 # Constants
 tasks = [
-  ( 'Preprocess Coordinate Correlation',                  'preprocess_coordinate_correlation.py',                      'preprocess_coordinate_correlation' ),
-  ( 'Preprocess Coordinate Conditionals',                 'preprocess_coordinate_conditionals.py',                     'preprocess_coordinate_conditionals' ),
-  ( 'Preprocess Coordinate Paired Conditionals',          'preprocess_coordinate_paired_conditionals.py',              'preprocess_coordinate_paired_conditionals' ),
-  ( 'Preprocess Coordinate Ranks',                        'preprocess_coordinate_ranks.py',                            'preprocess_coordinate_ranks' ),
-  ( 'Preprocess Coordinate Cluster Paired Conditionals',  'preprocess_coordinate_clust_paired_conditionals.py',        'preprocess_coordinate_clust_paired_conditionals' ),
-  ( 'Preprocess Expected Distributions',                  'preprocess_expected_distributions.py',                      'preprocess_expected_distributions' ),
-  ( 'Preparation Inference',                              'preparation_infer.py',                                      'preparation_infer' )
+  ( 'Preprocess predictions',                  'preprocess.py',                      'preprocess' ),
+  ( 'Preparation Inference',                   'preparation_infer.py',               'preparation_infer' )
   #( 'Inference',                                          'infer.py',                                                  'infer' )
  
 ]
