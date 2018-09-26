@@ -125,7 +125,7 @@ def main():
                 
                 logFilename = os.path.join(logsFiledir,jobName+".qsub")
                 
-                scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' +call_sig_script + ' ' + dbname + " " + task[0] + " " + str(task[1]) + " " + str(task[2]) + " " + str(task[3]) + " " + tempdir
+                scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' +call_sig_script + ' ' + dbname + " " + task[0] + " " + str(task[1]) + " " + str(task[2]) + " " + str(task[3]) + " " + jobTasksDir
     
                 cmdStr = checkerconfig.SETUPSINGLEJOB % { 'JOB_NAME':jobName, 'COMMAND':scriptFile}
     
