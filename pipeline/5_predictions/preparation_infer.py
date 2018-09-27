@@ -55,9 +55,9 @@ def main():
       if retcode != 0:
         bOk = False
         if retcode > 0:
-          log.error( "Script similarity for coord %s produced some ERROR, please check (exit code %d)!" % (task,retcode) )
+          log.error( "Script preparation inference  produced some ERROR, please check (exit code %d)!" % (retcode) )
         elif retcode < 0:
-          log.error( "Script similarity was terminated by signal %d" % (-retcode))
+          log.error( "Script  was terminated by signal %d" % (-retcode))
         sys.exit(1)
       
     except OSError, e:
