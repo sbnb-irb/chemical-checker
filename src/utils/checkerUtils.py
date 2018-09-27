@@ -123,13 +123,13 @@ def inchikey2webrepo(inchikey):
     PATH = checkerconfig.WEBREPOMOLS + "/" + inchikey[:2]
     PATH = PATH.replace("//", "/")
     if not os.path.exists(PATH):
-        os.mkdir(PATH)
+        os.mkdir(PATH,0775)
     PATH = PATH + "/" + inchikey[2:4]
     if not os.path.exists(PATH):
-        os.mkdir(PATH)
+        os.mkdir(PATH,0775)
     PATH = PATH + "/" + inchikey
     if not os.path.exists(PATH):
-        os.mkdir(PATH)
+        os.mkdir(PATH,0775)
     return PATH + "/"
 
 def inchikey2webrepo_no_mkdir(inchikey):

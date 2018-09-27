@@ -33,7 +33,7 @@ def log(x):
 if __name__ == '__main__':
 
 
-    coordinate_e, coordinate_c = sys.argv[1].split("---")
+    coordinate_e, coordinate_c,dbname = sys.argv[1].split("---")
     
     B = 1000
     
@@ -182,7 +182,7 @@ if __name__ == '__main__':
                                                                                              f2s(log(r[3])), f2s(log(r[4])),
                                                                                              f2s(log(r[5])), f2s(log(r[6])), r[7], r[8], r[9], r[10]) for r in R]
     
-    Psql.query("DELETE FROM coordinate_paired_conditionals WHERE coord_e = '%s' AND coord_c = '%s'" % (coordinate_e, coordinate_c), Psql.mosaic)
-    Psql.query("INSERT INTO coordinate_paired_conditionals VALUES %s" % ",".join(S), Psql.mosaic)
+    Psql.query("DELETE FROM coordinate_paired_conditionals WHERE coord_e = '%s' AND coord_c = '%s'" % (coordinate_e, coordinate_c), dbname)
+    Psql.query("INSERT INTO coordinate_paired_conditionals VALUES %s" % ",".join(S), dbname)
     
     print "Done!"

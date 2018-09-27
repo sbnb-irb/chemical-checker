@@ -65,7 +65,7 @@ if __name__ == '__main__':
         
         rnk_a = [set() for _ in xrange(len(integers))]
         rnk_b = [set() for _ in xrange(len(integers))]
-        PATH = inchikey2webrepo_no_mkdir(iks[idx]) + "/similars.h5"
+        PATH = inchikey2webrepo_no_mkdir(iks[idx]) + "/sig.h5"
         with h5py.File(PATH, "r") as hf:
             sim_a = hf["%s_obs" % coordinate_a][:][idxs_a[:idx]+idxs_a[(idx+1):]]
             sim_b = hf["%s_obs" % coordinate_b][:][idxs_b[:idx]+idxs_b[(idx+1):]]
