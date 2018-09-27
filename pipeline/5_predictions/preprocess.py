@@ -54,7 +54,7 @@ def main():
   checkercfg = checkerconfig.checkerConf(configFilename )  
 
   readyFiledir = checkercfg.getDirectory( "ready" )
-  tempdir = checkercfg.getDirectory( "temp" )
+  tmpdir = checkercfg.getDirectory( "temp" )
   
   inferTasksDir = os.path.join(tmpdir,"infer")
   if not os.path.exists(inferTasksDir):
@@ -82,7 +82,7 @@ def main():
   while True:
     for task in tasks:
         
-        if task[0] in finished:
+        if task[2] in finished:
             continue
         readyFilename = os.path.join(readyFiledir,dirName+"_"+task[2]+".ready")
         if os.path.exists(readyFilename):
@@ -146,6 +146,8 @@ def main():
                                                       'TASKS_LIST':filename,
                                                       'COMMAND':scriptFile}
     
+                execAndCheck(cmdStr,log)
+                
                 log.info( " - Launching the job %s on the cluster " % (jobName) )
                 cmdStr = SUBMITJOBANDREADY+" "+jobTasksDir+" "+jobName+" "+logFilename + " &"
                 execAndCheck(cmdStr,log)
@@ -154,7 +156,7 @@ def main():
             else:
                 if os.path.exists(jobErrorFile):
                     # Notify error 
-                    log.error( "Generating signatures for table %s failed" % task[2])
+                    log.error( "Preprocessing for task %s failed" % task[2])
                     errTasks.add(task[2])
                     finished.add(task[2])
                     continue
@@ -173,7 +175,7 @@ def main():
         time.sleep(checkerconfig.POLL_TIME_INTERVAL)
       
   if len(errTasks) > 0:
-    log.critical( "Error while generating signatures for the following tables: "+str(", ").join(sorted(errTasks)))
+    log.critical( "Error while preprocessing for the following tasks: "+str(", ").join(sorted(errTasks)))
     sys.exit(1)
     
 
