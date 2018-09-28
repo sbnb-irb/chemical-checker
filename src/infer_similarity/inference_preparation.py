@@ -39,6 +39,8 @@ clust_memb_file = "cluster_membership.h5"
 min_common = 3
 min_boundaries = 5
 
+equalize = True
+
 min_handmade = 0.001
 max_handmade = 0.1
 
@@ -151,8 +153,8 @@ def fetch_handmade(dbname):
 # Fetch conditional probabilities
 
 def fetch_conditional_probabilities(dbname):
-    e_integers = [r[0] for r in Psql.qstring("SELECT DISTINCT(integer_e) AS g FROM coordinate_conditionals ORDER BY (g)", Psql.mosaic)]
-    c_integers = [r[0] for r in Psql.qstring("SELECT DISTINCT(integer_c) AS g FROM coordinate_conditionals ORDER BY (g)", Psql.mosaic)]
+    e_integers = [r[0] for r in Psql.qstring("SELECT DISTINCT(integer_e) AS g FROM coordinate_conditionals ORDER BY (g)", dbname)]
+    c_integers = [r[0] for r in Psql.qstring("SELECT DISTINCT(integer_c) AS g FROM coordinate_conditionals ORDER BY (g)", dbname)]
     P  = np.zeros((len(e_integers), len(c_integers), len(coords), len(coords)))
     nP = np.zeros((len(e_integers), len(c_integers), len(coords), len(coords)))
     with h5py.File("%s/models/%s" % (PATH, p_e_c_file), "w") as hf:
@@ -162,12 +164,12 @@ def fetch_conditional_probabilities(dbname):
         p_e = np.zeros((len(e_integers), len(coords)))
         coords_idxs = dict((c, i) for i, c in enumerate(coords))
         # P(C) differs depending on the coordinate, for now, we take the mean...
-        R = list(set([r for r in Psql.qstring("SELECT integer_c, coord_c, log_p_c FROM coordinate_conditionals", Psql.mosaic)]))
+        R = list(set([r for r in Psql.qstring("SELECT integer_c, coord_c, log_p_c FROM coordinate_conditionals", dbname)]))
         d = collections.defaultdict(list)
         for r in R: d[(r[0], r[1])] += [r[2]]
         for k,v in d.iteritems(): p_c[bisect.bisect_left(c_integers, k[0]), coords_idxs[k[1]]] = np.mean(v)
         # Idem for P(E)
-        R = list(set([r for r in Psql.qstring("SELECT integer_e, coord_e, log_p_e FROM coordinate_conditionals", Psql.mosaic)]))
+        R = list(set([r for r in Psql.qstring("SELECT integer_e, coord_e, log_p_e FROM coordinate_conditionals", dbname)]))
         d = collections.defaultdict(list)
         for r in R: d[(r[0], r[1])] += [r[2]]
         for k,v in d.iteritems(): p_e[bisect.bisect_left(e_integers, k[0]), coords_idxs[k[1]]] = np.mean(v)
@@ -354,12 +356,12 @@ def kappa(C, weights = "quadratic"):
     return 1 - k
 
 
-def kappa_matrix():
+def kappa_matrix(dbname):
     with h5py.File("%s/models/%s" % (PATH, kappa_file), "w") as hf:
         d = collections.defaultdict(list)
         for coord_e in coords:
             for coord_c in coords:
-                k = kappa(contingency_fetcher(coord_e, coord_c))
+                k = kappa(contingency_fetcher(coord_e, coord_c,dbname))
                 d[tuple(sorted([coord_e, coord_c]))] += [k]
         K = np.zeros((len(coords), len(coords)))
         for k, v in d.iteritems():
@@ -423,42 +425,25 @@ if __name__ == '__main__':
     coords = all_coords()
 
     print "Calculating handmade correlations"
-    fetch_handmade()
+    fetch_handmade(args.dbname)
 
     print "Fetching conditional probabilities"
-    fetch_conditional_probabilities()
-    
+    fetch_conditional_probabilities(args.dbname)
+
     print "Fetching paired conditional probabilities"
-    fetch_conditional_paired_probabilites()
+    fetch_conditional_paired_probabilites(args.dbname)
 
     print "Fetching cluster paired conditional probabilities"
-    get_cluster_weights()
+    get_cluster_weights(args.dbname)
 
     print "Calculating Kappa correlations"
-    all_integers = np.array([i for i in xrange(len(pvalues))])
-
-    coords = all_coords()
-
-    print "Calculating handmade correlations"
-    fetch_handmade()
-
-    print "Fetching conditional probabilities"
-    fetch_conditional_probabilities()
-    
-    print "Fetching paired conditional probabilities"
-    fetch_conditional_paired_probabilites()
-
-    print "Fetching cluster paired conditional probabilities"
-    get_cluster_weights()
-
-    print "Calculating Kappa correlations"
-    kappa_matrix()
+    kappa_matrix(args.dbname)
 
     print "Fetching CCA"
-    fetch_cca()
+    fetch_cca(args.dbname)
 
     print "Fetching RBO"
-    fetch_rbo()
+    fetch_rbo(args.dbname)
 
     print "V file"
     placeholder_matrix(args.vname)

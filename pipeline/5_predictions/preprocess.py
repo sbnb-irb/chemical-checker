@@ -125,10 +125,17 @@ def main():
                 S = 0
                 with open(filename, "w") as f:
                     if task[2].find("coordinate") >= 0 :
-                        for i in xrange(len(coordinates)-1):
-                            for j in range(i+1,len(coordinates)):
-                                f.write("%s---%s---%s\n" % (coordinates[i], coordinates[j],dbname))
-                                S += 1
+                        if task[2].find("conditionals") >= 0 :
+                            for i in xrange(len(coordinates)):
+                                for j in xrange(len(coordinates)):
+                                    f.write("%s---%s---%s\n" % (coordinates[i], coordinates[j],dbname))
+                                    S += 1
+                            
+                        else:
+                            for i in xrange(len(coordinates)-1):
+                                for j in range(i+1,len(coordinates)):
+                                    f.write("%s---%s---%s\n" % (coordinates[i], coordinates[j],dbname))
+                                    S += 1
                     else:
                         for coord in coordinates:
                             f.write("%s---%s---%s\n" % (coord, vname, versionpath))
