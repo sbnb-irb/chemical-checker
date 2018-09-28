@@ -40,7 +40,7 @@ def main():
     tmpdir = checkercfg.getDirectory( "temp" )
     log = logSystem(sys.stdout)
     log.debug(os.getcwd())
-    
+    all_tables = checkercfg.getTableList("all")
     granularity = 1
     
     run_dir = os.path.join(tmpdir,"projections")
@@ -48,7 +48,7 @@ def main():
     # Get t
     S = 0
     with open(filename, "w") as f:
-        for key in checkerconfig.TABLE_COORDINATES.keys():
+        for key in all_tables:
            
             f.write(key + "\n")
             S += 1
@@ -69,7 +69,7 @@ def main():
     task_script = WD + "/../../src/projections/proj.py "
     logFilename = os.path.join(logsFiledir,jobName+".qsub")
     
-    scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' + task_script + ' \$i ' 
+    scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' + task_script + ' --table \$i --bw 0.1 --manifold tsne --unique' 
     
     cmdStr = checkerconfig.SETUPARRAYJOB % { 'JOB_NAME':jobName, 'NUM_TASKS':t,
                                           'TASKS_LIST':filename,
