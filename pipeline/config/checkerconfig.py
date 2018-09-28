@@ -29,7 +29,8 @@ steps = [
   "2_signatures",
   "3_clusters",
   "4_similarities",
-  "5_predictions"
+  "5_predictions",
+  "6_projections"
 ]
 
 mosaic = "mosaic"
@@ -149,7 +150,7 @@ DEFAULT_MODELS_FOLDER = "models/"
 DEFAULT_PLOTS_FOLDER  = "plots/"
 SIG_FILENAME       = "sig.h5"
 CLUST_FILENAME     = "clust.h5"
-CLUSTSIAM_FILENAME = "clustsiam.h5"
+CLUSTSIAM_FILENAME = "clustemb.h5"
 PROJ_FILENAME      = "proj.h5"
 
 
