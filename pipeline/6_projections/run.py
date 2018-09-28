@@ -19,8 +19,8 @@ import checkerconfig
 
 # Constants
 tasks = [
-  ( 'Create Cluster embeddings',                  'cluster_embedding.py',             'cluster_embedding' )
-  #( 'Generate Projections',                       'gen_projections.py',               'gen_projections' )
+  ( 'Create Cluster embeddings',                  'cluster_embedding.py',             'cluster_embedding' ),
+  ( 'Generate Projections',                       'gen_projections.py',               'gen_projections' )
  
 ]
 

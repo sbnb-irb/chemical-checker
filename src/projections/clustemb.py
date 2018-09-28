@@ -57,11 +57,11 @@ from sklearn.neighbors import NearestNeighbors
 
 import shelve
 import collections
-from auto_plots import vector_validation
 
 sys.path.append(os.path.join(sys.path[0], "../utils/"))
 sys.path.append(os.path.join(sys.path[0],"../../pipeline/config"))
 from checkerUtils import all_coords,coordinate2mosaic
+from auto_plots import vector_validation
 import checkerconfig
 
 

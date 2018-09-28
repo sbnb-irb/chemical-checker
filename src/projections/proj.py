@@ -53,10 +53,21 @@ args = parser.parse_args()
 
 print args
 
+
+if args.table in checkerconfig.TABLE_COORDINATES:
+    coord = checkerconfig.TABLE_COORDINATES[args.table]
+else:
+    sys.exit("Table %s is not know to the Chemical Checker...!" % args.table)
+
+
+if args.local_run == False:
+    savedir = coordinate2mosaic(coord) + "/" 
+else:
+    savedir = ""
 # Start
 
 if args.only_plot:
-    with h5py.File("proj.h5", "r") as hf:
+    with h5py.File(savedir + "proj.h5", "r") as hf:
         Proj = hf["V"][:]
     projection_plot(args.table, Proj, bw = args.bw, levels = args.levels)
     sys.exit("Plots done")
@@ -65,7 +76,7 @@ V = None
 
 if args.unique:
     drows = collections.defaultdict(list)    
-    with h5py.File(args.filename, "r") as hf:
+    with h5py.File(savedir + args.filename, "r") as hf:
         inchikeys = hf["keys"][:]
         V = hf["V"][:]
         for i in xrange(len(inchikeys)):
@@ -80,7 +91,7 @@ if args.unique:
 if args.manifold == "largevis":
 
     if not args.unique:
-        hf = h5py.File(args.filename, "r")
+        hf = h5py.File(savedir + args.filename, "r")
         inchikeys = hf["keys"][:]
         V = hf["V"]
 
@@ -91,7 +102,7 @@ if args.manifold == "largevis":
 
     def largevis_file_from_file(filename, max_comp = None):
         
-        faux = open(largevis_file + "aux", "w")
+        faux = open(savedir + largevis_file + "aux", "w")
         c = 0
    
         if args.unique:
@@ -108,14 +119,14 @@ if args.manifold == "largevis":
             c += 1
         faux.close()
         
-        f = open(largevis_file, "w")
+        f = open(savedir + largevis_file, "w")
         f.write("%d %d\n" % (c, len(s.split(" "))))
-        faux = open(largevis_file + "aux", "r")
+        faux = open(savedir + largevis_file + "aux", "r")
         for l in faux:
             f.write(l)
         faux.close()
         f.close()
-        os.remove(largevis_file + "aux")
+        os.remove(savedir + largevis_file + "aux")
         return c
 
     N = largevis_file_from_file(args.filename, max_comp = args.max_comp)
@@ -138,7 +149,7 @@ if args.manifold == "largevis":
 
     # Save to a file
 
-    with h5py.File("proj.h5", "w") as hf:
+    with h5py.File(savedir + "proj.h5", "w") as hf:
 
         if args.unique:
             pass    
@@ -154,12 +165,12 @@ if args.manifold == "largevis":
 
     # Clean
 
-    subprocess.Popen("rm %s annoy_index_file" % largevis_file, shell = True).wait()
+    subprocess.Popen("rm %s annoy_index_file" % (savedir + largevis_file), shell = True).wait()
 
 else:
 
     if not args.unique:
-        with h5py.File(args.filename, "r") as hf:
+        with h5py.File(savedir + args.filename, "r") as hf:
             inchikeys = hf["keys"][:]
             V = hf["V"][:]
 
@@ -194,7 +205,7 @@ else:
 
     # Save to a file
     
-    with h5py.File("proj.h5", "w") as hf:
+    with h5py.File(savedir + "proj.h5", "w") as hf:
         inchikey_proj = {}
         for i in xrange(len(inchikeys)):
             k = inchikeys[i]
@@ -229,5 +240,5 @@ INFO = {
 "ylim": ylim
 }
 
-with open('proj_stats.json', 'w') as fp:
+with open(savedir + 'proj_stats.json', 'w') as fp:
     json.dump(INFO, fp)
