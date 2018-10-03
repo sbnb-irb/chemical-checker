@@ -4,7 +4,7 @@
 # Imports
 
 import subprocess
-from scipy.spatial.distance import euclidean
+from scipy.spatial.distance import cosine
 import sys, os
 import json
 import h5py
@@ -47,7 +47,7 @@ with h5py.File(infile, "r") as hf:
         to_i = from_i + chunksize
         V = hf["V"][from_i:to_i]
         for j in xrange(V.shape[0]):
-            d = euclidean(mysig, V[j])
+            d = cosine(mysig, V[j])
             INTEGERS += [get_integer(distances, d)]
         from_i += chunksize
 
