@@ -9,9 +9,7 @@ from __future__ import division
 import h5py
 import math
 import sys, os
-#sys.path.append(os.path.join(sys.path[0], "../dbutils/"))
 import Psql
-#sys.path.append(os.path.join(sys.path[0], ".."))
 import checkerUtils
 import numpy as np
 from scipy.stats import gaussian_kde
@@ -173,9 +171,9 @@ def variance_plot(exp_var_ratios, table = None, variance_cutoff = 0.9, plot_fold
     return i90, ielb
 
 
-# Background distribution of euclidean distances
+# Background distribution of distances
 
-def euclidean_background(inchikey_vec, inchikeys = None, B = 100000, metric = euclidean):
+def distance_background(inchikey_vec, inchikeys = None, B = 100000, metric = cosine):
    
     # Check if it is a numpy array
  
@@ -307,7 +305,7 @@ def label_validation(inchikey_lab, label_type, table = None, prefix = "moa", plo
     return odds, pval
 
 
-def vector_validation(inchikey_vec, vector_type, table = None, prefix = "moa", plot_folder = None, files_folder = None, distance = "euclidean"):
+def vector_validation(inchikey_vec, vector_type, table = None, prefix = "moa", plot_folder = None, files_folder = None, distance = "cosine"):
 
     if plot_folder is None:
         return
@@ -335,7 +333,7 @@ def vector_validation(inchikey_vec, vector_type, table = None, prefix = "moa", p
  
     d = None
  
-    # Euclidean distance plot
+    # Distance plot
  
     sns.set_style("white")
 
@@ -355,7 +353,7 @@ def vector_validation(inchikey_vec, vector_type, table = None, prefix = "moa", p
     
     plt.ylim(0,1)
     plt.xlim(np.min([np.min(S), np.min(D)]) ,np.max([np.max(S), np.max(D)]))
-    plt.xlabel("Euclidean distance")
+    plt.xlabel("Distance")
     plt.ylabel("Cumulative proportion")
 
     plt.title("D: %.2f, P-val: %.2g, N: %d" % (ks[0], ks[1], N))
