@@ -41,8 +41,7 @@ if __name__ == '__main__':
     
     print coordinate_e, coordinate_c
     
-    with h5py.File(coordinate2mosaic("A1") + "models/bg_euclideans.h5" , "r") as hf:
-        pvals = hf["pvalue"][:]
+    pvals = checkerconfig.PVALRANGES
     
     pvals = [pvals[c] for c in checkerconfig.cuts]
     
