@@ -69,7 +69,7 @@ def main():
     task_script = WD + "/../../src/projections/proj.py "
     logFilename = os.path.join(logsFiledir,jobName+".qsub")
     
-    scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' + task_script + ' --table \$i --bw 0.1 --manifold tsne --unique' 
+    scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' + task_script + ' --table \$i --bw 0.1 --manifold tsne --unique --filesdir ' + tmpdir 
     
     cmdStr = checkerconfig.SETUPARRAYJOB % { 'JOB_NAME':jobName, 'NUM_TASKS':t,
                                           'TASKS_LIST':filename,
