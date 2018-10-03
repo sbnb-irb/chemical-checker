@@ -49,13 +49,13 @@ def calc_similarities(coordinates = None, rundir = None,infolder = None, vname =
     else:
         coordinates = coordinates.split("-")
     
-    # Background euclideans
+    # Background distances
     
     if not bgfile:
         if vname == "sig":
-            bgfile = "bg_euclideans.h5"
+            bgfile = "bg_distances.h5"
         else:
-            sys.exit("Infile %s.h5 not known yet, or background euclideans not known." % vname)
+            sys.exit("Infile %s.h5 not known yet, or background distances not known." % vname)
     else:
         pass
     
@@ -159,7 +159,7 @@ if __name__ == '__main__':
     parser.add_argument("--infolder", type = str, default = None, help = "Folder where the input files are stored. Should respect the coordinate hierarchy, namely, A/A1, B/B4, etc. If None, CC-vs-CC is done.")
     parser.add_argument("--vname", type = str, default = "sig", help = "Infile type to compute similarities with. Must be homogeneous across coordinates.")
     parser.add_argument("--vnumber", type = str, default = None, help = "Release number to be set")
-    parser.add_argument("--bgfile", type = str, default = None, help = "Background euclideans.")
+    parser.add_argument("--bgfile", type = str, default = None, help = "Background distances.")
     parser.add_argument("--outfile", type = str, default = None, help = "Name of the output file where similarities are stored.")
     parser.add_argument("--granularity", type = int, default = 100, help = "Tasks per job.")
     parser.add_argument("--local", default = False, action = "store_true", help = "Run locally (by default it runs in the cluster).")
