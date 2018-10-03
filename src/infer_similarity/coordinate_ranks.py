@@ -22,7 +22,8 @@ import random
 from rbo import rbo
 random.seed(42)
 
-# Variables
+# Main
+
 if __name__ == '__main__':
 
 
@@ -44,10 +45,9 @@ if __name__ == '__main__':
     
     # Simply get the integers (typically 0 to 103)
     
-    with h5py.File(coordinate2mosaic(coordinate_a) + "models/bg_euclideans.h5", "r") as hf:
-        integers = hf["integer"][:]
-        pvalue   = hf["pvalue"][:]
-        obj_idx  = bisect.bisect_left(pvalue, obj_pvalue)
+    pvalue = checkerconfig.PVALRANGES
+    integers = np.array([i for i in xrange(len(pvalue))])
+    obj_idx  = bisect.bisect_left(pvalue, obj_pvalue)
     
     # All iks
     
@@ -84,8 +84,6 @@ if __name__ == '__main__':
                 my_obj_idx -= 1
             else:
                 break
-    
-    #    random.shuffle(rnk_b)
     
         if my_obj_idx < 0:
             continue
