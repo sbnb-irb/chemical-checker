@@ -20,7 +20,7 @@ import numpy as np
 import random
 import subprocess
 import shelve
-from auto_plots import label_validation, clustering_plot, euclidean_background
+from auto_plots import label_validation, clustering_plot, distance_background
 import collections
 import argparse
 import bisect
@@ -236,7 +236,7 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
     
         # Doing euclidean background
         
-        pvals = np.array(euclidean_background(V_pqcode, metric = symmetric_distance, B = B_euclidean))
+        pvals = np.array(distance_background(V_pqcode, metric = symmetric_distance, B = B_euclidean))
         sig_dist = pvals[bisect.bisect_left(pvals[:,1], significance), 0]
     
         with h5py.File(os.path.join(models_folder,bg_pq_euclideans_file), "w") as hf:
