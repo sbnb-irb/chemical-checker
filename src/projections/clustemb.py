@@ -85,7 +85,7 @@ parser.add_argument('--pairs_per_mol', default = 10000, type = int, help = "Numb
 parser.add_argument('--max_pairs_per_cluster', default = 100000, type = int, help = "Maximum number of pairs per cluster")
 parser.add_argument('--not_knn', default = False, action = 'store_true', help = "Do not do knn")
 parser.add_argument('--knn', default = None, help = "In the k-nearest neighbors search")
-parser.add_argument('--pvalue_cutoff', default = 0.05, help = "P-value cutoff in the background Euclideans")
+parser.add_argument('--pvalue_cutoff', default = 0.05, help = "P-value cutoff in the background distances")
 parser.add_argument('--goal_pairs', default = 1000000, help = "Number of positive pairs that we have as a goal")
 parser.add_argument('--recycle', default = False, action = 'store_true', help = "Recycle stored models")
 parser.add_argument('--filesdir', default = None, type = str, help = "Where validation files are stored")
@@ -152,8 +152,8 @@ keras.losses.custom_loss = contrastive_loss
 
 if not args.recycle:
 
-    # Euclidean distance cutoff
-    with h5py.File(args.models_folder + "/bg_euclideans.h5") as hf:
+    # Distance cutoff
+    with h5py.File(args.models_folder + "/bg_distances.h5") as hf:
         pvals = hf["pvalue"][:]
         dists = hf["distance"][:]
         dist_cut = dists[bisect.bisect_left(pvals, args.pvalue_cutoff)]
@@ -199,7 +199,7 @@ if not args.recycle:
                     p = random.sample(pos, 2)
                     pos_pairs.update([tuple(sorted(p))])
             else:
-                knn = NearestNeighbors(n_neighbors = np.min([n_neighbors, len(pos)]), metric = "euclidean")
+                knn = NearestNeighbors(n_neighbors = np.min([n_neighbors, len(pos)]), metric = "cosine")
                 knn.fit(V[pos])
                 dists, neighs = knn.kneighbors(V[pos])
                 pos_pairs = set()
