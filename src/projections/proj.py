@@ -11,9 +11,11 @@ import numpy as np
 import string
 import random
 import subprocess
+import checkerconfig
 
 
 from auto_plots import vector_validation, projection_plot
+from checkerUtils import all_coords,coordinate2mosaic
 
 import collections
 from scipy import spatial
@@ -26,7 +28,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--manifold', default = 'largevis', type=str, help = 'largevis, tsne')
+parser.add_argument('--manifold', default = 'tsne', type=str, help = 'largevis, tsne, mds')
 parser.add_argument('--filename', default = 'clustemb.h5', type=str, help = 'Signature file.')
 parser.add_argument('--table', default = None, type=str, help = 'MOSAIC table name.')
 parser.add_argument('--max_comp', default = None, type=int, help = 'Maximum number of components to account for in the original space.')
@@ -48,6 +50,9 @@ parser.add_argument('--levels', default = 10, type = int, help = "Levels of the 
 parser.add_argument('--local_run', default = False,  help = "Define if this a local run of the script or path of the pipeline")
 parser.add_argument('--only_plot', default = False, action = 'store_true', help = "Only do the plots, it needs proj.tsv to be pre-calculated")
 parser.add_argument('--unique', default = False, action = 'store_true', help = "Project only on unique samples")
+parser.add_argument('--plots_folder', default = None, type = str, help = 'Plots folder')
+parser.add_argument('--filesdir', default = None, type = str, help = "Where validation files are stored")
+
 
 args = parser.parse_args()
 
@@ -59,7 +64,9 @@ if args.table in checkerconfig.TABLE_COORDINATES:
 else:
     sys.exit("Table %s is not know to the Chemical Checker...!" % args.table)
 
-
+if args.plots_folder is None:
+    args.plots_folder = coordinate2mosaic(coord) + "/" + checkerconfig.DEFAULT_PLOTS_FOLDER
+    
 if args.local_run == False:
     savedir = coordinate2mosaic(coord) + "/" 
 else:
@@ -69,7 +76,7 @@ else:
 if args.only_plot:
     with h5py.File(savedir + "proj.h5", "r") as hf:
         Proj = hf["V"][:]
-    projection_plot(args.table, Proj, bw = args.bw, levels = args.levels)
+    projection_plot(args.table, Proj, bw = args.bw, levels = args.levels, plot_folder = args.plots_folder)
     sys.exit("Plots done")
 
 V = None
@@ -183,7 +190,7 @@ else:
             perp = int(neigh / 3)
         else:
             perp = args.perp
-        tsne = TSNE(n_jobs = 4, perplexity = perp, angle = args.theta, n_iter = 1000)
+        tsne = TSNE(n_jobs = 4, perplexity = perp, angle = args.theta, n_iter = 1000, metric = "cosine")
         Proj = tsne.fit_transform(V.astype(np.float64))
         V = []
     
@@ -215,15 +222,15 @@ else:
 
 # Plot
 
-xlim, ylim = projection_plot(args.table, Proj, bw = args.bw, levels = args.levels)
+xlim, ylim = projection_plot(args.table, Proj, bw = args.bw, levels = args.levels,plot_folder = args.plots_folder)
 
 
 # MOA validation
 
 print "Doing MoA validation"
 
-ks_moa, auc_moa = vector_validation(inchikey_proj, "proj", args.table, prefix = "moa")
-ks_atc, auc_atc = vector_validation(inchikey_proj, "proj", args.table, prefix = "atc")
+ks_moa, auc_moa = vector_validation(inchikey_proj, "proj", args.table, prefix = "moa",plot_folder = args.plots_folder,files_folder = args.filesdir)
+ks_atc, auc_atc = vector_validation(inchikey_proj, "proj", args.table, prefix = "atc",plot_folder = args.plots_folder,files_folder = args.filesdir)
 
 
 # Saving results

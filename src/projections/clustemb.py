@@ -17,6 +17,7 @@ import pandas as pd
 import random
 random.seed(42)
 import os
+import glob
 import sys
 
 from keras import backend as K
@@ -87,6 +88,8 @@ parser.add_argument('--knn', default = None, help = "In the k-nearest neighbors 
 parser.add_argument('--pvalue_cutoff', default = 0.05, help = "P-value cutoff in the background Euclideans")
 parser.add_argument('--goal_pairs', default = 1000000, help = "Number of positive pairs that we have as a goal")
 parser.add_argument('--recycle', default = False, action = 'store_true', help = "Recycle stored models")
+parser.add_argument('--filesdir', default = None, type = str, help = "Where validation files are stored")
+parser.add_argument('--max_dim', default = None, type = int, help = "Max dimentions to take from signatures")
 
 args = parser.parse_args()
 
@@ -132,7 +135,10 @@ print "Reading data"
 
 with h5py.File(infile, "r") as hf:
     inchikeys = hf["keys"][:]
-    V = hf["V"][:]
+    if not args.max_dim:
+        V = hf["V"][:]
+    else:
+        V = hf["V"][:,:args.max_dim]
 
 def contrastive_loss(y_true, y_pred):
     '''Contrastive loss from Hadsell-et-al.'06
@@ -374,10 +380,11 @@ print "MOA and ATC Validations"
 
 inchikey_emb = shelve.open(tmp+".dict", "n")
 for i in xrange(len(inchikeys)):
-    inchikey_emb[inchikeys[i]] = E[i]
-ks_moa, auc_moa = vector_validation(inchikey_emb, "clustemb", args.table, prefix = "moa", plot_folder = args.plots_folder)
-ks_atc, auc_atc = vector_validation(inchikey_emb, "clustemb", args.table, prefix = "atc", plot_folder = args.plots_folder)
+    inchikey_emb[str(inchikeys[i])] = E[i]
+ks_moa, auc_moa = vector_validation(inchikey_emb, "clustemb", args.table, prefix = "moa", plot_folder = args.plots_folder,files_folder = args.filesdir)
+ks_atc, auc_atc = vector_validation(inchikey_emb, "clustemb", args.table, prefix = "atc", plot_folder = args.plots_folder,files_folder = args.filesdir)
 inchikey_emb.close()
 
 print "Cleaning"
-os.remove(tmp+".dict")
+for filename in glob.glob(tmp+".dict*") :
+    os.remove(filename)
