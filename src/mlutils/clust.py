@@ -39,7 +39,7 @@ clustcentroids_file   = "clustcentroids.h5"
 clust_info_file       = "clust_stats.json"
 clust_output          = 'clust.h5'
 bg_pq_euclideans_file = "bg_pq_euclideans.h5"
-sig_file              = "sig.h5"
+
 A = None
 
 
@@ -161,9 +161,6 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
     if outfile is None:
         outfile = coordinate2mosaic(coord) + "/" + clust_output
     
-    if filename is None:
-        filename = coordinate2mosaic(coord) + "/" + sig_file
-       
     if models_folder is None:
         models_folder = coordinate2mosaic(coord) + "/" + checkerconfig.DEFAULT_MODELS_FOLDER
     
