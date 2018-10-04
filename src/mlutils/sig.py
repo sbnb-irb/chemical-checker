@@ -24,7 +24,7 @@ from sklearn.utils.sparsefuncs import mean_variance_axis
 import random
 import shelve
 import argparse
-from sklearn.preprocessing import normalize, RobustScaler
+from sklearn.preprocessing import Normalizer, RobustScaler
 from sklearn.decomposition import PCA
 from sklearn.externals import joblib
 import csv
