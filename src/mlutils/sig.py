@@ -23,6 +23,7 @@ from scipy.sparse import csr_matrix, lil_matrix
 from sklearn.utils.sparsefuncs import mean_variance_axis
 import random
 import shelve
+import datetime
 import argparse
 from sklearn.preprocessing import Normalizer, RobustScaler
 from sklearn.decomposition import PCA
@@ -172,7 +173,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
         outfile = coordinate2mosaic(coord) + "/" + checkerconfig.SIG_FILENAME
     
     if models_folder is None:
-        models_folder = coordinate2mosaic(coord) + "/" + checkerconfig.DEFAULT_MODELS_FOLDER
+        models_folder = coordinate2mosaic(coord) + "/" + checkerconfig.DEFAULT_MODELS_FOLDER + "/sig"
     
     if plots_folder is None:
         plots_folder = coordinate2mosaic(coord) + "/" + checkerconfig.DEFAULT_PLOTS_FOLDER
@@ -464,6 +465,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
         with h5py.File(outfile, 'w') as hf:
             hf.create_dataset("keys", data = inchikeys[sort_idxs])
             hf.create_dataset("V",  data = V[sort_idxs])
+            hf.create_dataset("shape", data = V.shape)
     
         V = None
         c_lsi = None
@@ -588,27 +590,35 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
         with h5py.File(outfile, "w") as hf:
             hf.create_dataset("keys", data = inchikeys[sort_idxs])
             hf.create_dataset("V", data = V[sort_idxs])
+            hf.create_dataset("shape", data = V[sort_idxs].shape)
         
         V = []    
         pca = []
     
  
-    
+    with h5py.File(outfile, "a") as hf:
+        hf.create_dataset("name", data = [coord+"_sig"])
+        hf.create_dataset("date", data = [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+        hf.create_dataset("metric", data = ["cosine"])
+        hf.create_dataset("normed", data = [not not_normalized])
+        hf.create_dataset("integerized", data = [integerize])
+        hf.create_dataset("principal_components", data = [True])
     
     # Distance significances
     
-    if not recycle or not os.path.exists(models_folder+"/bg_distances.h5"):
+    if not recycle :
     
-        log_data(log, "Computing distance empirical P-values")
-    
-        inchikey_sig = shelve.open(tmp+".dict", "r")
-        pvals = distance_background(inchikey_sig, inchikeys, B = B_distances)
-        inchikey_sig.close()
-    
-        with h5py.File(models_folder+"/bg_distances.h5", "w") as hf:
-            hf.create_dataset("distance", data = np.array([p[0] for p in pvals]))
-            hf.create_dataset("pvalue"  , data = np.array([p[1] for p in pvals]))
-            hf.create_dataset("integer" , data = np.array([p[2] for p in pvals]).astype(np.int8))
+        with h5py.File(outfile, "a") as hf:
+            
+            if "distance" not in hf.keys() or "pvalue" not in hf.keys():
+                log_data(log, "Computing distance empirical P-values")
+            
+                inchikey_sig = shelve.open(tmp+".dict", "r")
+                pvals = distance_background(inchikey_sig, inchikeys, B = B_distances)
+                inchikey_sig.close()
+            
+                hf.create_dataset("distance", data = np.array([p[0] for p in pvals]))
+                hf.create_dataset("pvalue"  , data = np.array([p[1] for p in pvals]))
     
     log_data(log, "Cleaning")
     gc.collect()
