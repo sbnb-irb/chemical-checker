@@ -187,7 +187,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
                 f.write("integerize\n")
             else:
                 f.write("not_integerize\n")
-            if args.not_normalized:
+            if not_normalized:
                 f.write("not_normalized\n")
             else:
                 f.write("normalized\n")
@@ -595,11 +595,11 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
  
     
     
-    # Euclidean_distance significances
+    # Distance significances
     
-    if not recycle or not os.path.exists(models_folder+"/bg_euclideans.h5"):
+    if not recycle or not os.path.exists(models_folder+"/bg_distances.h5"):
     
-        log_data(log, "Computing euclidean distance empirical P-values")
+        log_data(log, "Computing distance empirical P-values")
     
         inchikey_sig = shelve.open(tmp+".dict", "r")
         pvals = distance_background(inchikey_sig, inchikeys, B = B_distances)
@@ -643,12 +643,12 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     
     # Statistics file
     
-    if args.integerize:
+    if integerize:
         integerized = True
     else:
         integerized = False
     
-    if not args.not_normalized:
+    if not not_normalized:
         normalized  = False
     else:
         normalized  = True
