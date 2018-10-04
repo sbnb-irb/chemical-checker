@@ -181,6 +181,9 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     if sig_stats_file is None:
         sig_stats_file = outfile.split(".h5")[0]+"_stats.json"
         
+    if not os.path.exists(plots_folder): os.makedirs(plots_folder)
+    if not os.path.exists(models_folder): os.makedirs(models_folder)
+        
     FILE = models_folder + "/procs.txt"
     if not recycle:
         with open(FILE, "w") as f:
@@ -204,10 +207,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
                 not_normalized = True
             else:
                 not_normalized = False
-
     
-    if not os.path.exists(plots_folder): os.makedirs(plots_folder)
-    if not os.path.exists(models_folder): os.makedirs(models_folder)
     
     # Some heuristics here...
     if max_freq is None:
