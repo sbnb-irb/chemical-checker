@@ -78,6 +78,10 @@ def main():
   parser.add_option("-s", "--sync",
                     action="store_false", dest="sync",
                     help="set synchronization job")
+  
+  parser.add_option("-p", "--pe",
+                    metavar="1", dest="pe",
+                    help="set multithreading jobs")
                     
   (options, args) = parser.parse_args()
   
@@ -118,6 +122,9 @@ def main():
 
   if options.sync:
     singleOptions.append( "#$ -sync y" )
+    
+  if options.pe != None:
+    singleOptions.append( "#$ -pe make " + options.pe )
 
   optionsText = defaultOptions+str("\n").join(singleOptions)
  

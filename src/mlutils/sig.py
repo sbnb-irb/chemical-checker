@@ -15,7 +15,7 @@ sys.path.append(os.path.join(sys.path[0],"../../pipeline/config"))
 import Psql
 import checkerconfig
 from checkerUtils import logSystem,log_data,tqdm_local,coordinate2mosaic
-from auto_plots import variance_plot, vector_validation, matrix_plot, euclidean_background
+from auto_plots import variance_plot, vector_validation, matrix_plot, distance_background
 import numpy as np
 import collections
 import subprocess
@@ -66,6 +66,8 @@ class MyCorpus(object):
 # Small functions
 
 def integerize(V,recycle,models_folder):
+    
+    FILE = models_folder+"/integerizer_ab.txt"
 
     def callibrator(lb, ub):
         # Returns a*x + b to convert V to an integer scale
@@ -74,19 +76,34 @@ def integerize(V,recycle,models_folder):
         return a, b
     
     # Convert to integer type from -128 to 127
-    if not recycle or not os.path.exists(models_folder+"/integerizer_ab.txt"):
+    if not recycle or not os.path.exists(FILE):
         lb = np.min(V)
         ub = np.max(V)
         a, b = callibrator(lb, ub)
-        with open(models_folder+"/integerizer_ab.txt", "w") as f:
+        with open(FILE, "w") as f:
             f.write("%f\n%f" % (a,b))
     else:
-        with open(models_folder+"/integerizer_ab.txt", "r") as f:
+        with open(FILE, "r") as f:
             a, b = [float(x) for x in f.read().split("\n")]
     def callibration(x): return a*x + b
     V = callibration(V)
     V = V.astype(np.int8)
     
+    return V
+
+def normalizer(V,recycle,models_folder):
+
+    FILE = models_folder+"/normalizer.pkl"
+
+    if not recycle or not os.path.exists(FILE):
+        nlz = Normalizer(copy = True, norm = "l2")
+        V = nlz.fit_transform(V)
+        joblib.dump(nlz, FILE)
+    else:
+        nlz = joblib.load(FILE)
+        V = nlz.transform(V)
+        print np.linalg.norm(V, axis = 1)
+
     return V
 
         
@@ -131,8 +148,8 @@ def lsi_variance_explained(tfidf_corpus, lsi, B , N , num_topics,log=None):
         return exp_var_ratios
 
 def generate_signatures(dbname, table,infile = None,outfile = None,models_folder = None,plots_folder = None,sig_stats_file = None, 
-                       min_freq = 5, max_freq = None,num_topics = None, B = 10, N = 1000, B_euclidean =1000000, multipass = False,
-                        recycle = False,variance_cutoff = 0.9, log = None, tmpDir = ''):
+                       min_freq = 5, max_freq = None,num_topics = None, B = 10, N = 1000, B_distances =1000000, multipass = False,
+                        recycle = False,variance_cutoff = 0.9, integerize = False, not_normalized = False, log = None, tmpDir = ''):
     
 
     checkercfg = checkerconfig.checkerConf()
@@ -162,6 +179,31 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     
     if sig_stats_file is None:
         sig_stats_file = outfile.split(".h5")[0]+"_stats.json"
+        
+    FILE = models_folder + "/procs.txt"
+    if not recycle:
+        with open(FILE, "w") as f:
+            if integerize:
+                f.write("integerize\n")
+            else:
+                f.write("not_integerize\n")
+            if args.not_normalized:
+                f.write("not_normalized\n")
+            else:
+                f.write("normalized\n")
+    else:
+        with open(FILE, "r") as f:
+            i = f.next()
+            n = f.next()
+            if "not_integerize" in i:
+                integerize = False
+            else:
+                integerize = True
+            if "not_normalized" in n:
+                not_normalized = True
+            else:
+                not_normalized = False
+
     
     if not os.path.exists(plots_folder): os.makedirs(plots_folder)
     if not os.path.exists(models_folder): os.makedirs(models_folder)
@@ -398,7 +440,17 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
             V[i,:] = v
             i += 1
     
-        V = integerize(V,recycle,models_folder)
+    
+        if not_normalized:
+            pass
+        else:
+            log_data(log, "Normalizing")
+            V = normalizer(V,recycle,models_folder)
+    
+        if integerize:
+            log_data(log, "Integerizing")
+            V = integerize(V,recycle,models_folder)
+        
      
         inchikey_sig = shelve.open(tmp+".dict", "n")
         for i in tqdm_local(log,xrange(len(inchikeys))):
@@ -511,8 +563,15 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
         V = pca.transform(X)
     
         log_data(log, "Saving stuff")
+        
+        if not_normalized:
+            pass
+        else:
+            V = normalizer(V,recycle,models_folder)
     
-        V = integerize(V,recycle,models_folder)
+        if integerize:
+            V = integerize(V,recycle,models_folder)
+
     
         inchikeys = []
         inchikey_sig = shelve.open(tmp+".dict", "n")
@@ -543,10 +602,10 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
         log_data(log, "Computing euclidean distance empirical P-values")
     
         inchikey_sig = shelve.open(tmp+".dict", "r")
-        pvals = euclidean_background(inchikey_sig, inchikeys, B = B_euclidean)
+        pvals = distance_background(inchikey_sig, inchikeys, B = B_distances)
         inchikey_sig.close()
     
-        with h5py.File(models_folder+"/bg_euclideans.h5", "w") as hf:
+        with h5py.File(models_folder+"/bg_distances.h5", "w") as hf:
             hf.create_dataset("distance", data = np.array([p[0] for p in pvals]))
             hf.create_dataset("pvalue"  , data = np.array([p[1] for p in pvals]))
             hf.create_dataset("integer" , data = np.array([p[2] for p in pvals]).astype(np.int8))
@@ -584,6 +643,17 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     
     # Statistics file
     
+    if args.integerize:
+        integerized = True
+    else:
+        integerized = False
+    
+    if not args.not_normalized:
+        normalized  = False
+    else:
+        normalized  = True
+
+    
     log_data(log,  "Statistics file")
     
     INFO = {
@@ -600,8 +670,11 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     "min_freq": min_freq,
     "max_freq": max_freq,
     "num_topics": num_topics,
-    "variance_cutoff": variance_cutoff
+    "variance_cutoff": variance_cutoff,
+    "integerized": integerized,
+    "normalized": normalized
     }
+
     
     with open(coordinate2mosaic(coord) + "/"+'sig_stats.json', 'w') as fp:
         json.dump(INFO, fp)
@@ -625,14 +698,17 @@ if __name__ == '__main__':
     parser.add_argument('--num_topics', default = None, type = int, help = 'Number of topics to start with')
     parser.add_argument('--B', default = 10, type = int, help = 'In the variance explained, number of random passes')
     parser.add_argument('--N', default = 1000, type = int, help = 'In the variance explained, number of random samples')
-    parser.add_argument('--B_euclidean', default = 1000000, type = int, help = 'In the euclidean distance estimation, number of random pairs')
+    parser.add_argument('--B_distances', default = 1000000, type = int, help = 'In the euclidean distance estimation, number of random pairs')
     parser.add_argument('--multipass', default = False, action = 'store_true', help = 'Multi-pass, for large datasets')
     parser.add_argument('--recycle', default = False, action = 'store_true', help = 'Recycle stored models')
-    parser.add_argument('--variance_cutoff', default = 0.9, type = float, help = "Variance cutoff")
+    parser.add_argument('--variance_cutoff', default = 0.9, type = float, help = 'Variance cutoff')
+    parser.add_argument('--integerize', default = False, action = 'store_true', help = 'Save an integerized (binned) version of the matrices')
+    parser.add_argument('--not_normalized', default = False, action = 'store_true', help = 'Do not normalize the vectors')
+
     
     args = parser.parse_args()
 
     
     generate_signatures(args.db, args.table,args.infile,args.outfile,args.models_folder,arg.plots_folder,args.sig_stats_file,args.min_freq,
-                        args.max_freq,args.num_topics,args.B,args.B_euclidean,args.multipass,args.recycle,args.variance_cutoff,None)
+                        args.max_freq,args.num_topics,args.B,args.N,args.B_distances,args.multipass,args.recycle,args.variance_cutoff,args.integerize,args.not_normalized,None)
 
