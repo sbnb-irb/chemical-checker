@@ -146,6 +146,7 @@ SIGNATURES     = "signatures"
 LOG_SUBDIR                = "log"
 READY_SUBDIR              = "ready"
 TMP_SUBDIR                = "tmp"
+VALIDATIONS_SUBDIR        = "files_validations"
 DEFAULT_MODELS_FOLDER = "models/"
 DEFAULT_PLOTS_FOLDER  = "plots/"
 SIG_FILENAME       = "sig.h5"
@@ -297,6 +298,9 @@ class checkerConf:
   
     if dirSpec == "temp":  
       return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER,TMP_SUBDIR)
+  
+    if dirSpec == "files_validations":  
+      return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER,VALIDATIONS_SUBDIR)
   
     if dirSpec == "networks":  
       return os.path.join(self._SCRATCHDIR,self._VERSION_NUMBER,NETWORKS)

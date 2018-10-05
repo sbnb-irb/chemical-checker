@@ -150,7 +150,7 @@ def lsi_variance_explained(tfidf_corpus, lsi, B , N , num_topics,log=None):
 
 def generate_signatures(dbname, table,infile = None,outfile = None,models_folder = None,plots_folder = None,sig_stats_file = None, 
                        min_freq = 5, max_freq = None,num_topics = None, B = 10, N = 1000, B_distances =1000000, multipass = False,
-                        recycle = False,variance_cutoff = 0.9, integerize = False, not_normalized = False, log = None, tmpDir = ''):
+                        recycle = False,variance_cutoff = 0.9, integerize = False, not_normalized = False, filesdir = None,log = None, tmpDir = ''):
     
 
     checkercfg = checkerconfig.checkerConf()
@@ -479,7 +479,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
             if not infile:
     
                 # Retain only molecules of interest.
-                R = Psql.qstring("SELECT * FROM %s WHERE raw IS NOT NULL" % table, dbname)
+                R = Psql.qstring("SELECT * FROM %s" % table, dbname)
                 RowNames = []
                 X = []
                 for r in tqdm_local(log,R):
@@ -639,8 +639,8 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     log_data(log, "MOA and ATC Validations")
     
     inchikey_sig = shelve.open(tmp+".dict", "r")
-    ks_moa, auc_moa = vector_validation(inchikey_sig, "sig", table, prefix = "moa", plot_folder = plots_folder, files_folder = tmpDir )
-    ks_atc, auc_atc = vector_validation(inchikey_sig, "sig", table, prefix = "atc", plot_folder = plots_folder, files_folder = tmpDir )
+    ks_moa, auc_moa = vector_validation(inchikey_sig, "sig", table, prefix = "moa", plot_folder = plots_folder, files_folder = filesdir )
+    ks_atc, auc_atc = vector_validation(inchikey_sig, "sig", table, prefix = "atc", plot_folder = plots_folder, files_folder = filesdir )
     inchikey_sig.close()
     for filename in glob.glob(tmp+".dict*") :
         os.remove(filename)
@@ -714,11 +714,13 @@ if __name__ == '__main__':
     parser.add_argument('--variance_cutoff', default = 0.9, type = float, help = 'Variance cutoff')
     parser.add_argument('--integerize', default = False, action = 'store_true', help = 'Save an integerized (binned) version of the matrices')
     parser.add_argument('--not_normalized', default = False, action = 'store_true', help = 'Do not normalize the vectors')
+    parser.add_argument('--filesdir', default = None, type = str, help = "Where validation files are stored")
 
     
     args = parser.parse_args()
 
     
     generate_signatures(args.db, args.table,args.infile,args.outfile,args.models_folder,arg.plots_folder,args.sig_stats_file,args.min_freq,
-                        args.max_freq,args.num_topics,args.B,args.N,args.B_distances,args.multipass,args.recycle,args.variance_cutoff,args.integerize,args.not_normalized,None)
+                        args.max_freq,args.num_topics,args.B,args.N,args.B_distances,args.multipass,args.recycle,args.variance_cutoff,args.integerize,
+                        args.not_normalized,args.filesdir,None)
 

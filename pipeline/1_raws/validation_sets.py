@@ -30,11 +30,14 @@ def main():
     
     dbname = checkerconfig.dbname + "_" + checkercfg.getVariable("General",'release')
     
-    tempdir = checkercfg.getDirectory( "temp" )
+    filesdir = checkercfg.getDirectory( "files_validations" )
    
     logsFiledir = checkercfg.getDirectory( "logs" )
 
     log = logSystem(sys.stdout)
+    
+    if not os.path.exists(filesdir):
+        os.makedirs(filesdir)
 
     log.info(  "Createing ATC validation file...")
     R = Psql.qstring("SELECT inchikey, raw FROM therapareas", dbname)
@@ -49,7 +52,7 @@ def main():
     
     keys = sorted(d.keys())
     
-    f = open(os.path.join(tempdir,"atc_validation.tsv"), "w")
+    f = open(os.path.join(filesdir,"atc_validation.tsv"), "w")
     for i in xrange(len(keys) - 1):
         for j in range(i+1, len(keys)):
             if keys[i].split("-")[0] == keys[j].split("-")[0]: continue
@@ -74,7 +77,7 @@ def main():
     
     keys = sorted(d.keys())
     
-    f = open(os.path.join(tempdir,"moa_validation.tsv"), "w")
+    f = open(os.path.join(filesdir,"moa_validation.tsv"), "w")
     for i in xrange(len(keys) - 1):
         for j in range(i+1, len(keys)):
             if keys[i].split("-")[0] == keys[j].split("-")[0]: continue
