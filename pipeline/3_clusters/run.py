@@ -48,6 +48,7 @@ def main():
   
   
   logsFiledir = checkercfg.getDirectory( "logs" )
+  filesdir = checkercfg.getDirectory( "files_validations" )
   jobTasksDir = os.path.join(tempdir,"clusters_tasks")
   if not os.path.exists(jobTasksDir):
         os.makedirs(jobTasksDir)
@@ -98,7 +99,7 @@ def main():
                 
                 logFilename = os.path.join(logsFiledir,jobName+".qsub")
                 
-                scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' +call_clust_script + ' '  + task + " " + balance + " " + tempdir
+                scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' +call_clust_script + ' '  + task + " " + balance + " " + tempdir + " " + filesdir
     
                 cmdStr = checkerconfig.SETUPSINGLEJOB % { 'JOB_NAME':jobName, 'COMMAND':scriptFile}
     
