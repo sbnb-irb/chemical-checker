@@ -29,7 +29,8 @@ if __name__ == '__main__':
 
     multipass = bool(sys.argv[5])
     tempdir = sys.argv[6]
+    filesdir = sys.argv[7]
     log = logSystem(sys.stdout)
     log.debug(os.getcwd())
     
-    sig.generate_signatures(dbname = dbname,table = table,num_topics = num_topics,max_freq=max_freq,multipass = multipass,log = log,tmpDir = tempdir)
+    sig.generate_signatures(dbname = dbname,table = table,num_topics = num_topics,max_freq=max_freq,multipass = multipass,filesdir = filesdir,log = log,tmpDir = tempdir)
