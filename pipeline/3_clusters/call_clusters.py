@@ -24,7 +24,8 @@ if __name__ == '__main__':
     
 
     tempdir = sys.argv[3]
+    filesdir = sys.argv[4]
     log = logSystem(sys.stdout)
     log.debug(os.getcwd())
     
-    clust.clustering(table = table,balance = balance,log = log,tmpDir = tempdir)
+    clust.clustering(table = table,balance = balance,filesdir = filesdir,log = log,tmpDir = tempdir)

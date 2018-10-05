@@ -141,7 +141,7 @@ def get_balance(V_pqcode, centroids, labels, balance, k,tmp,log):
 
 def clustering( table,filename = None,outfile = None,models_folder = None,plots_folder = None,max_k = None, 
                        min_k = 1, n_points = 100,k = None, num_subdim = 8, Ks = 256, 
-                        recycle = False,significance = 0.05, B_euclidean= 1000000, balance = None, log = None, tmpDir = ''):
+                        recycle = False,significance = 0.05, B_euclidean= 1000000, balance = None, filesdir = None,log = None, tmpDir = ''):
     
 
     checkercfg = checkerconfig.checkerConf()
@@ -318,8 +318,8 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
     inchikey_clust = shelve.open(tmp+".dict", "n")
     for i in tqdm_local(log,xrange(len(inchikeys))):
         inchikey_clust[str(inchikeys[i])] = labels[i]
-    odds_moa, pval_moa = label_validation(inchikey_clust, "clust", table, prefix = "moa", plot_folder = plots_folder,files_folder = tmpDir)
-    odds_atc, pval_atc = label_validation(inchikey_clust, "clust", table, prefix = "atc", plot_folder = plots_folder,files_folder = tmpDir)
+    odds_moa, pval_moa = label_validation(inchikey_clust, "clust", table, prefix = "moa", plot_folder = plots_folder,files_folder = filesdir)
+    odds_atc, pval_atc = label_validation(inchikey_clust, "clust", table, prefix = "atc", plot_folder = plots_folder,files_folder = filesdir)
     inchikey_clust.close()
     
     
@@ -363,9 +363,10 @@ if __name__ == '__main__':
     parser.add_argument('--significance', default = 0.05, type = float, help = 'Distance significance cutoff')
     parser.add_argument('--B_euclidean', default = 1000000, type = int, help = 'Number of samples in the background euclideans')
     parser.add_argument('--balance', default = None, type = float, help = 'If 1, all clusters are of equal size. Greater values are increasingly more imbalanced')
+    parser.add_argument('--filesdir', default = None, type = str, help = "Where validation files are stored")
     
     args = parser.parse_args()
     
     clustering( args.table,args.filename,args.outfile,args.models_folder,arg.plots_folder,args.max_k,args.min_k,
-                        args.n_points,args.k,args.num_subdim,args.Ks,args.recycle,args.significance,args.B_euclidean, args.balance,None)
+                        args.n_points,args.k,args.num_subdim,args.Ks,args.recycle,args.significance,args.B_euclidean, args.balance,args.filesdir,None)
 
