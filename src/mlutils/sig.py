@@ -263,7 +263,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
                 cur = con.cursor()
                 cur.execute(query)
                 for r in tqdm_local(log,cur):
-                    if r[0] not in mymols: continue
+                    if r[0] not in mymols or not r[1]: continue
                     f.write("%s %s\n" % (r[0], r[1]))
                     InitMols += 1
     
@@ -483,7 +483,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
                 RowNames = []
                 X = []
                 for r in tqdm_local(log,R):
-                    if r[0] not in mymols: continue
+                    if r[0] not in mymols or not r[1]: continue
                     RowNames += [r[0]]
                     X += [r[1:]]
                 X = np.array(X)
