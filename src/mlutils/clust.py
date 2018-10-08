@@ -27,6 +27,8 @@ import bisect
 from scipy.stats import pearsonr
 from scipy.spatial.distance import pdist, squareform, cdist
 from scipy.stats import rankdata
+from sklearn.externals import joblib
+import hdbscan
 
 # Variables
 
@@ -39,9 +41,9 @@ clustcentroids_file   = "clustcentroids.h5"
 clust_info_file       = "clust_stats.json"
 clust_output          = 'clust.h5'
 bg_pq_euclideans_file = "bg_pq_euclideans.h5"
+hdbscan_file          = "hdbscan.pkl"
 
 A = None
-
 
 # Functions
 
@@ -139,19 +141,16 @@ def get_balance(V_pqcode, centroids, labels, balance, k,tmp,log):
 
     return clusts 
 
-def clustering( table,filename = None,outfile = None,models_folder = None,plots_folder = None,max_k = None, 
-                       min_k = 1, n_points = 100,k = None, num_subdim = 8, Ks = 256, 
-                        recycle = False,significance = 0.05, B_euclidean= 1000000, balance = None, filesdir = None,log = None, tmpDir = ''):
-    
+
+def preparations(table, tmpDir, outfile, models_folder, plots_folder, log):
 
     checkercfg = checkerconfig.checkerConf()
-     
+ 
     if table in checkerconfig.TABLE_COORDINATES:
         coord = checkerconfig.TABLE_COORDINATES[table]
     else:
         log_data(log,"Table %s is not know to the Chemical Checker...!" % table)
-        return
-    global A  
+        sys.exit()
 
     if tmpDir != '':
         tmp =  os.path.join(tmpDir,str(uuid.uuid4()))
@@ -169,8 +168,113 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
         
     if not os.path.exists(plots_folder): os.makedirs(plots_folder)
     if not os.path.exists(models_folder): os.makedirs(models_folder)
+
+    return checkercfg, coord, tmp, outfile, models_folder, plots_folder  
+
+
+# Mains
+
+def hdbscan_clustering(table, filename = None, outfile = None, models_folder = None, plots_folder = None,
+                       min_members = 5, recycle = False, filesdir = None, log = None, tmpDir = ''):
+
+    # Preparations
+
+    checkercfg, coord, tmp, outfile, models_folder, plots_folder = preparations(table, tmpDir, outfile, models_folder, plots_folder, log)
+
+    # Read data
+
+    with h5py.File(filename, "r") as hf:
+        inchikeys = hf["keys"][:]
+        V = hf["V"][:]
+
+    # Fit the clustering
+
+    if recycle:
+
+        log_data(log, "Reading HDBSCAN clusters")
+
+        clusterer = joblib.load(models_folder+"/"+hdbscan_file)
+
+    else:
+
+        log_data(log, "Calculating HDBSCAN clusters")
+
+        clusterer = hdbscan.HDBSCAN(min_cluster_size = int(np.max([2, min_members])), prediction_data = True).fit(V)
+
+        log_data(log, "Saving the model")
+        
+        joblib.dump(clusterer, models_folder+"/"+hdbscan_file)
+
+    # Predict
+
+    log_data(log, "Predicting...")
+
+    labels, strengths = hdbscan.approximate_predict(clusterer, V)
     
+    # Save
+
+    log_data(log, "Saving matrix...")
+    
+    with h5py.File(outfile, "w") as hf:
+        hf.create_dataset("labels", data = labels)
+        hf.create_dataset("keys", data = inchikeys)
+        hf.create_dataset("strengths", data = strengths)
+    
+    if recycle:
+        sys.exit("Done")
+    
+    # MOA validation
+    
+    log_data(log, "Doing validations")
+    
+    inchikey_clust = shelve.open(tmp+".dict", "n")
+    for i in tqdm_local(log,xrange(len(inchikeys))):
+        lab = labels[i]
+        if lab == -1: continue
+        inchikey_clust[str(inchikeys[i])] = lab
+    odds_moa, pval_moa = label_validation(inchikey_clust, "clust", table, prefix = "moa", plot_folder = plots_folder, files_folder = filesdir)
+    odds_atc, pval_atc = label_validation(inchikey_clust, "clust", table, prefix = "atc", plot_folder = plots_folder, files_folder = filesdir)
+    inchikey_clust.close()
+    
+    log_data(log, "Cleaning")
+    for filename in glob.glob(tmp+".dict*") :
+        os.remove(filename)
+        
+    with h5py.File(outfile, "a") as hf:
+        hf.create_dataset("name", data = [coord+"_clust"])
+        hf.create_dataset("date", data = [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+        hf.create_dataset("metric", data = ["hdbscan"])
+        hf.create_dataset("normed", data = [False])
+        hf.create_dataset("integerized", data = [False])
+        hf.create_dataset("principal_components", data = [False])
+
+    # Info file. 
+    
+    log_data(log, "Saving info")
+    
+    INFO = {"k": len(set(labels)) - 1, # -1 clusters (outliers) do not count
+            "odds_moa": odds_moa,
+            "pval_moa": pval_moa,
+            "odds_atc": odds_atc,
+            "pval_atc": pval_atc}
+
+    with open(coordinate2mosaic(coord) + "/"+clust_info_file, 'w') as fp:
+        json.dump(INFO, fp) 
+            
+
+
+def kmeans_clustering(table,filename = None,outfile = None,models_folder = None,plots_folder = None,
+                      max_k = None, min_k = 1, n_points = 100,k = None, num_subdim = 8, Ks = 256, 
+                      recycle = False,significance = 0.05, B_euclidean= 1000000, balance = None, filesdir = None, log = None, tmpDir = ''):
+    
+
+    # Preparations
+
+    checkercfg, coord, tmp, outfile, models_folder, plots_folder = preparations(table, tmpDir, outfile, models_folder, plots_folder, log)
+
     # Load matrix...
+
+    global A
     
     with h5py.File(filename, "r") as hf:
         inchikeys = hf["keys"][:]
@@ -268,9 +372,7 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
     
         k = clustering_plot(Ncs, I, D, S, table = table, plot_folder = plots_folder)
     
-    
-    
-    
+  
     if not recycle:
     
         log_data(log, "Clustering with k = %d" % k)
@@ -306,7 +408,7 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
     with h5py.File(outfile, "w") as hf:
         hf.create_dataset("labels", data = labels)
         hf.create_dataset("keys", data = inchikeys)
-        hf.create_dataset("V_pqcode", data = V_pqcode)
+        hf.create_dataset("V", data = V_pqcode)
     
     if recycle:
         sys.exit("Done")
@@ -326,6 +428,14 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
     log_data(log, "Cleaning")
     for filename in glob.glob(tmp+".dict*") :
         os.remove(filename)
+        
+    with h5py.File(outfile, "a") as hf:
+        hf.create_dataset("name", data = [coord+"_clust"])
+        hf.create_dataset("date", data = [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+        hf.create_dataset("metric", data = ["symmetric_distance"])
+        hf.create_dataset("normed", data = [False])
+        hf.create_dataset("integerized", data = [False])
+        hf.create_dataset("principal_components", data = [False])
     
     # Only save if we've done the screening of k's. 
     if not k:
@@ -339,34 +449,55 @@ def clustering( table,filename = None,outfile = None,models_folder = None,plots_
         }   
         with open(coordinate2mosaic(coord) + "/"+clust_info_file, 'w') as fp:
             json.dump(INFO, fp) 
+
+
+
+def clustering(table, algorithm='kmeans', filename = None,outfile = None,models_folder = None,plots_folder = None,
+               min_members = 5, max_k = None, min_k = 1, n_points = 100,k = None, num_subdim = 8, Ks = 256,
+               recycle = False,significance = 0.05, B_euclidean= 1000000, balance = None, filesdir = None,log = None, tmpDir = ''):
+
+    if algorithm == 'kmeans':
+    
+        kmeans_clustering(table,filename,outfile,models_folder,plots_folder,
+                          max_k, min_k, n_points, k, num_subdim, Ks,
+                          recycle, significance, B_euclidean, balance, filesdir, log, tmpDir)
+
+    elif algorithm == 'hdbscan':
+
+        hdbscan_clustering(table, filename, outfile, models_folder, plots_folder,
+                           min_members, recycle, filesdir, log, tmpDir)
+
+    else:
+        log_data(log, "Algorithm %s not known" % algorithm)
+        sys.exit()
             
         
 if __name__ == '__main__':
-
 
     # Parse arguments
 
     parser = argparse.ArgumentParser()
     
     parser.add_argument('--table', default = None, type=str, help = 'Table')
+    parser.add_argument('--algorithm', default = 'kmeans', type = str, help = 'One of hdbscan, kmeans')
     parser.add_argument('--filename', default = 'sig.h5', type=str, help = 'Signature file.')
     parser.add_argument('--outfile', default = 'clust.h5', type=str, help = 'Output file.')
     parser.add_argument('--models_folder', default = None, type = str, help = 'Models folder')
     parser.add_argument('--plots_folder', default = None, type = str, help = 'Plots folder')
-    parser.add_argument('--max_k', default = None, type=int, help = 'Maximum number of clusters')
-    parser.add_argument('--min_k', default = 1, type=int, help = 'Minimum number of clusters')
-    parser.add_argument('--n_points', default = 100, type=int, help = 'Number of points to calculate')
-    parser.add_argument('--k', default = None, type = int, help = 'Exact number of clusters to do computation')
-    parser.add_argument('--num_subdim', default = 8, type = int, help = 'Splitting of the PQ encoder')
-    parser.add_argument('--Ks', default = 256, type = int, help = 'Bits of the PQ encoder')
+    parser.add_argument('--min_members', default = 20, type = int, help = 'Minimum number of points per cluster (hdbscan)')
+    parser.add_argument('--max_k', default = None, type=int, help = 'Maximum number of clusters (kmeans)')
+    parser.add_argument('--min_k', default = 1, type=int, help = 'Minimum number of clusters (kmeans)')
+    parser.add_argument('--n_points', default = 100, type=int, help = 'Number of points to calculate (kmeans)')
+    parser.add_argument('--k', default = None, type = int, help = 'Exact number of clusters to do computation (kmeans)')
+    parser.add_argument('--num_subdim', default = 8, type = int, help = 'Splitting of the PQ encoder (kmeans)')
+    parser.add_argument('--Ks', default = 256, type = int, help = 'Bits of the PQ encoder (kmeans)')
+    parser.add_argument('--significance', default = 0.05, type = float, help = 'Distance significance cutoff (kmeans)')
+    parser.add_argument('--B_euclidean', default = 1000000, type = int, help = 'Number of samples in the background euclideans (kmeans)')
+    parser.add_argument('--balance', default = None, type = float, help = 'If 1, all clusters are of equal size. Greater values are increasingly more imbalanced (kmeans)')
     parser.add_argument('--recycle', default = False, action = 'store_true', help = 'Recycle stored models')
-    parser.add_argument('--significance', default = 0.05, type = float, help = 'Distance significance cutoff')
-    parser.add_argument('--B_euclidean', default = 1000000, type = int, help = 'Number of samples in the background euclideans')
-    parser.add_argument('--balance', default = None, type = float, help = 'If 1, all clusters are of equal size. Greater values are increasingly more imbalanced')
     parser.add_argument('--filesdir', default = None, type = str, help = "Where validation files are stored")
-    
+
     args = parser.parse_args()
     
-    clustering( args.table,args.filename,args.outfile,args.models_folder,arg.plots_folder,args.max_k,args.min_k,
-                        args.n_points,args.k,args.num_subdim,args.Ks,args.recycle,args.significance,args.B_euclidean, args.balance,args.filesdir,None)
-
+    clustering(args.table,args.algorithm,args.filename,args.outfile,args.models_folder,args.plots_folder,args.min_members,args.max_k,args.min_k,
+               args.n_points,args.k,args.num_subdim, args.Ks, args.recycle, args.significance, args.B_euclidean, args.balance, args.filesdir, None)
