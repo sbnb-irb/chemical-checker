@@ -19,7 +19,6 @@ from scipy.stats import sem
 
 
 B = 10000 # Number of molecules to sample for the expected distributions.
-B = 10
 k = 5 # Number of clusters for the distributions.
 
 pvals = checkerconfig.PVALRANGES
