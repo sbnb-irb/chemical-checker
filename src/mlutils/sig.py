@@ -103,9 +103,8 @@ def normalizer(V,recycle,models_folder):
     else:
         nlz = joblib.load(FILE)
         V = nlz.transform(V)
-        print np.linalg.norm(V, axis = 1)
 
-    return V
+    return V.astype(np.float32)
 
         
 
@@ -464,7 +463,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     
         with h5py.File(outfile, 'w') as hf:
             hf.create_dataset("keys", data = inchikeys[sort_idxs])
-            hf.create_dataset("V",  data = V[sort_idxs].astype(np.float32))
+            hf.create_dataset("V",  data = V[sort_idxs])
             hf.create_dataset("shape", data = V.shape)
     
         V = None
@@ -589,7 +588,7 @@ def generate_signatures(dbname, table,infile = None,outfile = None,models_folder
     
         with h5py.File(outfile, "w") as hf:
             hf.create_dataset("keys", data = inchikeys[sort_idxs])
-            hf.create_dataset("V", data = V[sort_idxs].astype(np.float32))
+            hf.create_dataset("V", data = V[sort_idxs])
             hf.create_dataset("shape", data = V[sort_idxs].shape)
         
         V = []    
