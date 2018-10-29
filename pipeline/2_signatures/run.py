@@ -128,8 +128,8 @@ def main():
                 
                 scriptFile = 'singularity exec ' + checkerconfig.SING_IMAGE + ' python ' +call_sig_script + ' ' + dbname + " " + task[0] + " " + str(task[1]) + " " + str(task[2]) + " " + str(task[3]) + " " + jobTasksDir + " " + filesdir
     
-                cmdStr = checkerconfig.SETUPSINGLEJOBMULTI % { 'JOB_NAME':jobName,'NUM_THREADS': '32', 'COMMAND':scriptFile}
-    
+                #cmdStr = checkerconfig.SETUPSINGLEJOBMULTI % { 'JOB_NAME':jobName,'NUM_THREADS': '32', 'COMMAND':scriptFile}
+                cmdStr = checkerconfig.SETUPSINGLEJOB % { 'JOB_NAME':jobName, 'COMMAND':scriptFile}
         
                 execAndCheck(cmdStr,log)
     
