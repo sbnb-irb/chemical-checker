@@ -8,7 +8,8 @@ import collections
 sys.path.append(os.path.join(sys.path[0],"../../src/utils"))
 sys.path.append(os.path.join(sys.path[0],"../../src/mlutils"))
 sys.path.append(os.path.join(sys.path[0],"../config"))
-from checkerUtils import logSystem, execAndCheck
+from checkerUtils import logSystem, execAndCheck,coordinate2mosaic
+import checkerconfig
 
 import clust
 
@@ -22,10 +23,13 @@ if __name__ == '__main__':
     else:
         balance = float(sys.argv[2])
     
+    coord = checkerconfig.TABLE_COORDINATES[table]
+    
+    filename = coordinate2mosaic(coord) + "/sig.h5" 
 
     tempdir = sys.argv[3]
     filesdir = sys.argv[4]
     log = logSystem(sys.stdout)
     log.debug(os.getcwd())
     
-    clust.clustering(table = table,balance = balance,filesdir = filesdir,log = log,tmpDir = tempdir)
+    clust.clustering(table = table,filename = filename,balance = balance,filesdir = filesdir,log = log,tmpDir = tempdir)
