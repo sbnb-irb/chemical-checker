@@ -103,9 +103,8 @@ def normalizer(V,recycle,models_folder):
     else:
         nlz = joblib.load(FILE)
         V = nlz.transform(V)
-        print np.linalg.norm(V, axis = 1)
 
-    return V
+    return V.astype(np.float32)
 
         
 
