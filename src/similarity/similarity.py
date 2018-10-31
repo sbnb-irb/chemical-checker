@@ -47,7 +47,7 @@ def calc_similarities(coordinates=None, rundir=None, infolder=None, vname='sig',
 
     if not bgfile:
         if vname == "sig":
-            bgfile = "bg_distances.h5"
+            bgfile = "sig/bg_distances.h5"
         else:
             sys.exit(
                 "Infile %s.h5 not known yet, or background distances not known." % vname)
