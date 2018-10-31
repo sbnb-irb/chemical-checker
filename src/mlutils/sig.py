@@ -473,7 +473,7 @@ def generate_signatures(dbname, table, infile=None, outfile=None, models_folder=
 
         with h5py.File(outfile, 'w') as hf:
             hf.create_dataset("keys", data=inchikeys[sort_idxs])
-            hf.create_dataset("V",  data=V[sort_idxs])
+            hf.create_dataset("V", data=V[sort_idxs])
             hf.create_dataset("shape", data=V.shape)
 
         V = None
@@ -679,7 +679,7 @@ def generate_signatures(dbname, table, infile=None, outfile=None, models_folder=
     else:
         normalized = True
 
-    log_data(log,  "Statistics file")
+    log_data(log, "Statistics file")
 
     INFO = {
         "initial_molecules": InitMols,
@@ -734,7 +734,7 @@ if __name__ == '__main__':
     parser.add_argument('--N', default=1000, type=int,
                         help='In the variance explained, number of random samples')
     parser.add_argument('--B_distances', default=1000000, type=int,
-                        help='In the euclidean distance estimation, number of random pairs')
+                        help='In the background distance estimation, number of random pairs')
     parser.add_argument('--multipass', default=False,
                         action='store_true', help='Multi-pass, for large datasets')
     parser.add_argument('--recycle', default=False,
@@ -750,6 +750,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    generate_signatures(args.db, args.table, args.infile, args.outfile, args.models_folder, arg.plots_folder, args.sig_stats_file, args.min_freq,
+    generate_signatures(args.db, args.table, args.infile, args.outfile, args.models_folder, args.plots_folder, args.sig_stats_file, args.min_freq,
                         args.max_freq, args.num_topics, args.B, args.N, args.B_distances, args.multipass, args.recycle, args.variance_cutoff, args.integerize,
                         args.not_normalized, args.filesdir, None)
