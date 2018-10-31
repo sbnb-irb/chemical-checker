@@ -707,7 +707,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_topics', default = None, type = int, help = 'Number of topics to start with')
     parser.add_argument('--B', default = 10, type = int, help = 'In the variance explained, number of random passes')
     parser.add_argument('--N', default = 1000, type = int, help = 'In the variance explained, number of random samples')
-    parser.add_argument('--B_distances', default = 1000000, type = int, help = 'In the euclidean distance estimation, number of random pairs')
+    parser.add_argument('--B_distances', default = 1000000, type = int, help = 'In the background distance estimation, number of random pairs')
     parser.add_argument('--multipass', default = False, action = 'store_true', help = 'Multi-pass, for large datasets')
     parser.add_argument('--recycle', default = False, action = 'store_true', help = 'Recycle stored models')
     parser.add_argument('--variance_cutoff', default = 0.9, type = float, help = 'Variance cutoff')
