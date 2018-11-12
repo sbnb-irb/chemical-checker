@@ -238,7 +238,7 @@ def get_cluster_weights(dbname):
     
     clusts = sorted(clusts)
 
-    Clustw = np.zeros((len(clusts), len(clusts), len(coords), len(coords))) # The weight of the clustering.
+    Clustw = np.zeros((clusts[-1]+1, clusts[-1]+1, len(coords), len(coords))) # The weight of the clustering.
 
     for i, coord_e in enumerate(coords):
         for j, coord_c in enumerate(coords):
