@@ -25,6 +25,10 @@ coordinate, from_j, to_j, infile, bgfile, outfile, vname, VERSION, batch_ref = s
 
 from_j, to_j = int(from_j), int(to_j)
 
+# Numerical precision
+
+numerical_precision = 10
+
 print coordinate, vname, from_j, to_j
 
 chunksize = int(batch_ref)
@@ -54,7 +58,7 @@ with h5py.File(infile, "r") as hf:
     from_i = 0
     while from_i < N:
         to_i = from_i + chunksize
-        INTEGERS[from_i:to_i, :] = get_integer(cdist(hf["V"][from_i:to_i], my_V, metric = "cosine"))
+        INTEGERS[from_i:to_i, :] = get_integer(np.round(cdist(hf["V"][from_i:to_i], my_V, metric = "cosine"), numerical_precision))
         from_i += chunksize
 
 INTEGERS[INTEGERS > max_idx] = max_idx
