@@ -173,7 +173,7 @@ def variance_plot(exp_var_ratios, table = None, variance_cutoff = 0.9, plot_fold
 
 # Background distribution of distances
 
-def distance_background(inchikey_vec, inchikeys = None, B = 100000, metric = cosine):
+def distance_background(inchikey_vec, inchikeys = None, B = 100000, metric = cosine, unflat = True):
    
     # Check if it is a numpy array
  
@@ -203,7 +203,19 @@ def distance_background(inchikey_vec, inchikeys = None, B = 100000, metric = cos
         i += 1
     PVALS += [(np.max(bg), 1., i)]
 
-    return PVALS
+    if not unflat:
+        return PVALS
+    else:
+        # Remove flat regions whenever we observe them
+        dists  = [p[0] for p in PVALS]
+        pvals  = np.array([p[1] for p in PVALS])
+        top_pval = np.min([1./B, np.min(pvals[pvals > 0]) / 10.])
+        pvals[pvals == 0] = top_pval
+        pvals  = np.log10(pvals)
+        dists_ = sorted(set(dists))
+        pvals_ = [pvals[dists.index(d)] for d in dists_]
+        dists  = np.interp(pvals, pvals_, dists_)
+        return [(dists[i], PVALS[i][1], PVALS[i][2]) for i in xrange(len(PVALS))]
 
 
 # Validate using moa and KS test
