@@ -1,15 +1,15 @@
-"""Recipe definition.
+"""Config definition.
 
-A Recipe is a JSON file specifying network elements to include, classes for
-Network, NetworkSource, Cleaner, MetaPath, RandomWalker and Embedding, and
-their respective parameters.
+A Config is a JSON file specifying useful information throughout that are
+necessary for the Chemical Checker.
 """
 import os
 import json
+from chemicalchecker.util import logged
 
 
 class _Field():
-    """Recipe Field placeholder."""
+    """Config Field placeholder."""
 
     def __init__(self, field_kv):
         """Initialize updating __dict__ and evaluating values."""
@@ -25,26 +25,23 @@ class _Field():
         return self.__dict__.items()
 
 
+@logged
 class Config():
-    """The persistent container that determine the embedding.
+    """The persistent container of a config file.
 
-    Nodes and Edges type, attributes, and weights to consider are listed here.
-    The Config provide access to all parameters of Cleaner, MetaPath,
-    RandomWalker, and Embedding as well as all the specific classes to use
-    for each component.
+    The Config provide access to all sort of useful parameters.
     """
 
     def __init__(self, json_file=None):
         """A Config is loaded from a JSON file."""
-        #self.__log.debug('Loading recipe from: %s' % json_file)
         if not json_file:
             try:
                 json_file = os.environ["CC_CONFIG"]
             except KeyError as err:
-                raise KeyError("CC_CONFIG enviroment variable not set.")
+                raise KeyError("CC_CONFIG environment variable not set.")
             except Exception as err:
                 raise err
-
+        self.__log.debug('Loading config from: %s' % json_file)
         with open(json_file) as fh:
             obj_dict = json.load(fh)
         eval_obj_dict = dict()
