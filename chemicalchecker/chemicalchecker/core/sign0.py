@@ -1,4 +1,4 @@
-from signature_base import BaseSignature
+from .signature_base import BaseSignature
 
 
 class SignatureZero(BaseSignature):
@@ -7,8 +7,8 @@ class SignatureZero(BaseSignature):
     def __init__(self, config_file=None):
         """From the recipe we derive all the cleaning logic."""
         BaseSignature.__init__(self, config_file)
-        print 'SignatureZero'
-        print self.config.PATH.CC_ROOT
+        print('SignatureZero')
+        print(self.config.PATH.CC_ROOT)
 
     def fit(self):
         """Takes an input and learns to produce an output."""
