@@ -5,4 +5,5 @@ before_script:
 
 test:
   script:
-    - chemicalchecker/tox
+    - cd chemicalchecker
+    - tox
