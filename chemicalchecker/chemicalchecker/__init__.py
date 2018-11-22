@@ -2,7 +2,7 @@
 
 """Top-level package for chemicalchecker."""
 
-from chemicalchecker.core import ChemicalChecker
+from .core import ChemicalChecker
 
 
 __author__ = """SBNB"""

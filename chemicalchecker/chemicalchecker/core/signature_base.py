@@ -11,7 +11,7 @@ class BaseSignature(object):
     def __init__(self, config_file=None):
         """From the recipe we derive all the cleaning logic."""
         self.config = Config(config_file)
-        print 'BaseSignature'
+        print('BaseSignature')
 
     @abstractmethod
     def fit(self):
