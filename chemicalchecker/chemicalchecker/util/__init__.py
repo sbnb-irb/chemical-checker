@@ -1,4 +1,4 @@
-from .our_logging import *
+from .logging.our_logging import *
 from autologging import logged
-from .profilehooks import profile
+from .logging.profilehooks import profile
 from .config import Config
