@@ -50,7 +50,7 @@ class GeneralProp(Base):
         The data will be in array format. the order is very important
         """
         engine = get_engine()
-        for pos in xrange(0, len(data), chunk):
+        for pos in range(0, len(data), chunk):
 
             engine.execute(
                 GeneralProp.__table__.insert(),
