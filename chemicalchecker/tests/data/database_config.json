@@ -1,0 +1,11 @@
+{
+    "PATH": {
+        "CC_ROOT": "'/aloy/web_checker/'"
+    },
+    "DB": {
+    	"dialect": "'sqlite'",
+    	"file":  "'test.sqlite'"
+    	
+    }
+
+}
