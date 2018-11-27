@@ -23,14 +23,14 @@ class TestDatabase(unittest.TestCase):
             os.remove(testfile)
 
         if os.path.exists(testfile):
-            print testfile
+            print (testfile)
 
     def test_add_bulk(self):
 
         test_dir = os.path.dirname(os.path.realpath(__file__))
         testfile = os.path.join(test_dir, 'test.sqlite')
         if os.path.exists(testfile):
-            print testfile
+            print (testfile)
 
         res = self.GeneralProp.get('test2')
         self.assertIsNone(res)
