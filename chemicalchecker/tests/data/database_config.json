@@ -4,7 +4,7 @@
     },
     "DB": {
     	"dialect": "'sqlite'",
-    	"file":  "'test.sqlite'"
+    	"file":  "os.path.dirname(os.path.realpath(__file__))+'/test.sqlite'"
     	
     }
 
