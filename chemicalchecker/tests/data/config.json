@@ -1,5 +1,14 @@
 {
     "PATH": {
         "CC_ROOT": "'/aloy/web_checker/'"
+    },
+    "DB": {
+    	"dialect": "'postgresql'",
+    	"port":  "'5432'",
+    	"host": "'aloy-dbsrv'",
+    	"username": "'sbnb-adm'",
+    	"password": "'db_adm'",
+    	"main_DB": "'mosaic'"
     }
+
 }
