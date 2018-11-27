@@ -1,7 +1,9 @@
 """This class simplify and standardize access to the Chemical Checker.
-Main task of this lass are:
+
+Main tasks of this class are:
+
 1. Check and enforce the directory structure.
-2. Serve signatures to users.
+2. Serve signatures to users or pipelines.
 """
 
 import os
@@ -52,6 +54,12 @@ class ChemicalChecker():
 
         This should be the only place where we define the directory structure.
         The signature type directly map to a HDF5 file.
+
+        Args:
+            datatype(str): The datatype i.e. one of sign*.
+            dataset(str): The dataset of the Chemical Checker.
+        Returns:
+            data_path(str): The path to an .h5 file.
         """
         filename = '{}.h5'.format(datatype)
         data_path = os.path.join(self.cc_root, dataset[:1],
@@ -60,7 +68,15 @@ class ChemicalChecker():
         return data_path
 
     def get_data(self, datatype, dataset):
-        """Return the full signature for the given dataset."""
+        """Return the full signature for the given dataset.
+
+        Args:
+            datatype(str): The datatype i.e. one of sign*.
+            dataset(str): The dataset of the Chemical Checker.
+        Returns:
+            data(Signature): A `Signature` object, the specific type depends
+                on the datatype passed.
+        """
         data_path = self.get_data_path(datatype, dataset)
         # initialize a data object factory feeding the type and the path
         data_factory = DataFactory()
