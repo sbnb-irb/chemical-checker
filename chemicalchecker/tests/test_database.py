@@ -13,11 +13,14 @@ class TestDatabase(unittest.TestCase):
         conffile = os.path.join(self.data_dir, 'database_config.json')
         self.cfg = Config(conffile)
         from chemicalchecker.database import GeneralProp
+        from chemicalchecker.database import Dataset
         self.GeneralProp = GeneralProp
         GeneralProp.create_table()
+        self.Dataset = Dataset
+        Dataset.create_table()
 
     def tearDown(self):
-        
+
         if os.path.exists(self.cfg.DB.file):
             os.remove(self.cfg.DB.file)
 
@@ -36,3 +39,18 @@ class TestDatabase(unittest.TestCase):
         res = self.GeneralProp.get('test2')
         self.assertTrue(hasattr(res, 'mw'))
         self.assertTrue(res.heavy == 22)
+
+    def test_add(self):
+
+        res = self.Dataset.get('test2')
+        self.assertIsNone(res)
+
+        self.Dataset.add({"code": "A1.001", "level": "A", "unknowns": True})
+
+        res = self.Dataset.get('A1.001')
+        self.assertTrue(hasattr(res, 'level'))
+        self.assertTrue(res.level == "A")
+
+        res = self.Dataset.get('A1.001')
+        self.assertTrue(hasattr(res, 'unknowns'))
+        self.assertTrue(res.unknowns)
