@@ -5,7 +5,7 @@ from sqlalchemy import Column, Integer, Text, Float
 
 @logged
 class GeneralProp(Base):
-    """A Signature bla bla."""
+    """The general_properties class for the table of the same name"""
     __tablename__ = 'physchem'
     inchikey = Column(Text, primary_key=True)
     mw = Column(Integer)
@@ -45,16 +45,20 @@ class GeneralProp(Base):
 
     @staticmethod
     def add_bulk(data, chunk=1000):
-        """ Method to add a new row to the table.
+        """ Method to add a lot of rows to the table.
 
-        The data will be in array format. the order is very important
+            This method allows to load a big amound of rows in one instruction
+
+        Args:
+            data(list): The data in list format. Each list member is a new row. it is important the order.
+            chunk(int): The size of the chunks to load data to the database.
         """
         engine = get_engine()
         for pos in range(0, len(data), chunk):
 
             engine.execute(
                 GeneralProp.__table__.insert(),
-                [{"inchikey": row[0], "mw": row[1], "heavy": row[2], "hetero": row[4],
+                [{"inchikey": row[0], "mw": row[1], "heavy": row[2], "hetero": row[3],
                   "rings": row[4], "ringaliph": row[5], "ringarom": row[6], "alogp": row[7],
                   "mr": row[8], "hba": row[9], "hbd": row[10], "psa": row[11], "rotb": row[12],
                   "alerts_qed": row[13], "alerts_chembl": row[14], "ro5": row[15], "ro3": row[16], "qed": row[17]}
@@ -76,6 +80,6 @@ class GeneralProp(Base):
         return res
 
     @staticmethod
-    def create_table():
+    def _create_table():
         engine = get_engine()
         Base.metadata.create_all(engine)
