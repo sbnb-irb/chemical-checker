@@ -58,6 +58,6 @@ class Dataset(Base):
         return res
 
     @staticmethod
-    def create_table():
+    def _create_table():
         engine = get_engine()
         Base.metadata.create_all(engine)
