@@ -11,6 +11,7 @@ import itertools
 
 from .data import DataFactory
 from chemicalchecker.util import logged
+from chemicalchecker.database import Dataset
 
 
 @logged
@@ -96,10 +97,11 @@ class ChemicalChecker():
             data(Signature): A `Signature` object, the specific type depends
                 on the cctype passed.
         """
+        dataset_info = Dataset.get(dataset)
         data_path = self.get_data_path(cctype, dataset)
         model_path = self.get_model_path(cctype, dataset)
         # initialize a data object factory feeding the type and the path
         data_factory = DataFactory()
         # the factory will spit the data in the right class
-        data = data_factory.make_data(cctype, data_path, model_path)
+        data = data_factory.make_data(cctype, data_path, model_path, dataset_info)
         return data

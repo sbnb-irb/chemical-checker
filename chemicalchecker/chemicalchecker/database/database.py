@@ -9,7 +9,6 @@ import psycopg2
 
 Base = declarative_base()
 
-config = Config()
 
 
 def get_connection(dbname=None):
@@ -17,9 +16,11 @@ def get_connection(dbname=None):
 
     Args:
         dbname(str):The name of DB to connect. If none, the name from config file is used .
-    Res:
+    Returns:
         connection
     """
+    config = Config()
+
     if dbname is None:
         dbname = config.DB.main_DB
     datab = psycopg2.connect(host=config.DB.host, user=config.DB.username,
@@ -32,9 +33,11 @@ def get_engine(dbname=None):
 
     Args:
         dbname(str):The name of DB to connect. If none, the name from config file is used .
-    Res:
+    Returns:
         engine
     """
+    config = Config()
+
     if config.DB.dialect == 'sqlite':
         con = config.DB.dialect + ':///' + config.DB.file
     else:
@@ -52,7 +55,7 @@ def get_session(dbname=None):
 
     Args:
         dbname(str):The name of DB to connect. If none, the name from config file is used .
-    Res:
+    Returns:
         session
     """
     Session = sessionmaker()
@@ -67,7 +70,7 @@ def qstring(query, dbname):
 
     Args:
         dbname(str):The name of DB to connect. If none, the name from config file is used .
-    Res:
+    Returns:
         rows: the data queried in row format
     """
     con = get_connection(dbname=dbname)

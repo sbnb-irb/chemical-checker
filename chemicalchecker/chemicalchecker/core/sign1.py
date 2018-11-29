@@ -9,7 +9,7 @@ class sign1(BaseSignature):
     Signature type 1 is...
     """
 
-    def __init__(self, data_path, model_path):
+    def __init__(self, data_path, model_path, dataset_info):
         """Initialize the signature.
 
         Args:
@@ -21,7 +21,7 @@ class sign1(BaseSignature):
         self.__log.debug('model_path: %s', model_path)
         self.model_path = model_path
         # Calling base class to trigger file existence checks
-        BaseSignature.__init__(self, data_path, model_path)
+        BaseSignature.__init__(self, data_path, model_path, dataset_info)
 
     def fit(self, sign0):
         """Take `sign0` and learn an unsupervised `sign1` predictor.

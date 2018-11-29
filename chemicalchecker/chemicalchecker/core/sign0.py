@@ -9,7 +9,7 @@ class sign0(BaseSignature):
     Signature type 0 is...
     """
 
-    def __init__(self, data_path, model_path):
+    def __init__(self, data_path, model_path, dataset_info):
         """Initialize the signature.
 
         Args:
@@ -21,7 +21,7 @@ class sign0(BaseSignature):
         self.__log.debug('model_path: %s', model_path)
         self.model_path = model_path
         # Calling init on the base class to trigger file existance checks
-        BaseSignature.__init__(self, data_path, model_path)
+        BaseSignature.__init__(self, data_path, model_path, dataset_info)
 
     def fit(self):
         """Signature type 0 has no models to fit."""
