@@ -5,15 +5,21 @@ neighbors). Is the place where the classes implementing such data types are
 imported and initialized.
 """
 from .sign0 import sign0
-#from .sign1 import sign1
-#from .sign2 import sign2
-#from .sign3 import sign3
-#from .clst import clst
+from .sign1 import sign1
+from .clst1 import clst1
+from .neig1 import neig1
+from .sign2 import sign2
+from .proj1 import proj1
 
+from chemicalchecker.util import logged
+
+
+@logged
 class DataFactory():
 
-    def make_data(self, datatype, data_path):
-        if datatype in globals():
-            return eval(datatype)(data_path)
+    def make_data(self, cctype, data_path, model_path):
+        if cctype in globals():
+            self.__log.debug("initializing object %s", cctype)
+            return eval(cctype)(data_path, model_path)
         else:
-            raise Exception("Data type %s not available" % datatype)
+            raise Exception("Data type %s not available" % cctype)
