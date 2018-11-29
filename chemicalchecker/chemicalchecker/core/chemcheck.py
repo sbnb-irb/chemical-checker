@@ -29,8 +29,9 @@ class ChemicalChecker():
         self.__log.debug("ChemicalChecker with root: %s", cc_root)
         if not os.path.isdir(cc_root):
             self.__log.warning("Empty root directory, creating new one")
-            for coord in self.coordinates:
-                new_dir = os.path.join(cc_root, coord[:1], coord[:2])
+            for dataset in self.datasets:
+                new_dir = os.path.join(
+                    cc_root, dataset[:1], dataset[:2], dataset, 'models')
                 self.__log.debug("Creating %s", new_dir)
                 os.makedirs(new_dir)
 
@@ -49,37 +50,56 @@ class ChemicalChecker():
         for name, code in itertools.product("ABCDE", "12345"):
             yield name + code + ".001"
 
-    def get_data_path(self, datatype, dataset):
+    def get_data_path(self, cctype, dataset):
         """Return the path to signature file for the given dataset.
 
         This should be the only place where we define the directory structure.
         The signature type directly map to a HDF5 file.
 
         Args:
-            datatype(str): The datatype i.e. one of sign*.
+            cctype(str): The Chemical Checker datatype i.e. one of the sign*.
             dataset(str): The dataset of the Chemical Checker.
         Returns:
             data_path(str): The path to an .h5 file.
         """
-        filename = '{}.h5'.format(datatype)
+        filename = '{}.h5'.format(cctype)
         data_path = os.path.join(self.cc_root, dataset[:1],
                                  dataset[:2], dataset, filename)
-        self.__log.debug("signature path: %s", data_path)
+        self.__log.debug("data path: %s", data_path)
         return data_path
 
-    def get_data(self, datatype, dataset):
+    def get_model_path(self, cctype, dataset):
+        """Return the path to model file for the given dataset.
+
+        This should be the only place where we define the directory structure.
+        The signature type directly map to a persistent model file.
+
+        Args:
+            cctype(str): The Chemical Checker datatype i.e. one of the sign*.
+            dataset(str): The dataset of the Chemical Checker.
+        Returns:
+            model_path(str): The path to an persistent model file.
+        """
+        filename = '{}.pkl'.format(cctype)
+        model_path = os.path.join(self.cc_root, dataset[:1],
+                                  dataset[:2], dataset, 'models', filename)
+        self.__log.debug("model path: %s", model_path)
+        return model_path
+
+    def get_data(self, cctype, dataset):
         """Return the full signature for the given dataset.
 
         Args:
-            datatype(str): The datatype i.e. one of sign*.
+            cctype(str): The Chemical Checker datatype i.e. one of the sign*.
             dataset(str): The dataset of the Chemical Checker.
         Returns:
             data(Signature): A `Signature` object, the specific type depends
-                on the datatype passed.
+                on the cctype passed.
         """
-        data_path = self.get_data_path(datatype, dataset)
+        data_path = self.get_data_path(cctype, dataset)
+        model_path = self.get_model_path(cctype, dataset)
         # initialize a data object factory feeding the type and the path
         data_factory = DataFactory()
         # the factory will spit the data in the right class
-        data = data_factory.make_data(datatype, data_path)
+        data = data_factory.make_data(cctype, data_path, model_path)
         return data
