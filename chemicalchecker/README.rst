@@ -1,5 +1,5 @@
 ===============
-chemicalchecker
+Chemical Checker
 ===============
 
 Python Package with everything needed to create and query the Chemical Checker.
@@ -12,7 +12,8 @@ Python Package with everything needed to create and query the Chemical Checker.
 Features
 --------
 
-* TODO
+* Unified logging, profiling, and config
+* HPC and DB agnostic
 
 
 Unit-testing
@@ -38,13 +39,13 @@ Then run::
 
 $ bumpversion patch # possible: major / minor / patch
 
-TODO EXPAND... get version and tag accordingly
+TODO EXPAND... get version and tag accordingly::
 
 $ git pull --rebase
 $ git push
 $ git push --tags
 
-Upload it in DevPI
+Upload it in DevPI::
 
 $ devpi login USER --password='PASSWORD'
 $ devpi use USER/dev
@@ -55,6 +56,6 @@ $ devpi test chemicalchecker==0.1.0 root/dev
 Install it
 ----------
 
-with the following:
+with the following::
 
 $ sudo pip install --trusted-host devpi.sbnb.org --index http://devpi.sbnb.org:3141/root/dev/ chemicalchecker

@@ -4,4 +4,5 @@ Usage
 
 To use chemicalchecker in a project::
 
-    import chemicalchecker
+    from chemicalchecker import ChemicalChecker
+    cc = ChemicalChecker(CC_ROOT)
