@@ -17,9 +17,9 @@ from chemicalchecker.util import logged
 @logged
 class DataFactory():
 
-    def make_data(self, cctype, data_path, model_path):
+    def make_data(self, cctype, data_path, model_path, dataset_info):
         if cctype in globals():
             self.__log.debug("initializing object %s", cctype)
-            return eval(cctype)(data_path, model_path)
+            return eval(cctype)(data_path, model_path, dataset_info)
         else:
             raise Exception("Data type %s not available" % cctype)
