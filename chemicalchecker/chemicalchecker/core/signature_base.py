@@ -21,7 +21,7 @@ class BaseSignature(object):
     """
 
     @abstractmethod
-    def __init__(self, data_path, model_path):
+    def __init__(self, data_path, model_path, dataset_info):
         """From the recipe we derive all the cleaning logic."""
         BaseSignature.__log.debug('__init__')
         self.data_path = data_path
@@ -29,6 +29,7 @@ class BaseSignature(object):
             BaseSignature.__log.warning(
                 "Data file not available: %s" % data_path)
         self.model_path = model_path
+        self.dataset_info = dataset_info
         if not os.path.isfile(model_path):
             BaseSignature.__log.warning(
                 "Model file not available: %s" % model_path)
