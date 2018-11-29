@@ -8,10 +8,12 @@ Welcome to chemicalchecker's documentation!
    readme
    installation
    usage
-   modules
+   
    contributing
    authors
    history
+
+   chemicalchecker
 
 Indices and tables
 ==================
