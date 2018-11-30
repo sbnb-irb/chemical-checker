@@ -16,14 +16,13 @@ import tempfile
 from pyunpack import Archive, PatoolError
 
 from chemicalchecker.util import logged
-from chemicalchecker.util import Config
 
 
 @logged
 class Downloader():
     """Systematize download and decompression from external repositories."""
 
-    def __init__(self, url, data_path):
+    def __init__(self, url, data_path, tmp_dir):
         """Initialize the download object.
 
         Args:
@@ -33,13 +32,13 @@ class Downloader():
         self.__log.debug('%s to %s', url, data_path)
         self.url = url
         self.data_path = data_path
-        self.config = Config()
+        self.tmp_dir = tmp_dir
 
     def download(self):
         """Perform the download."""
         # create temp dir
         tmp_dir = tempfile.mkdtemp(
-            prefix='tmp_', dir=self.config.PATH.DOWNLOAD_TMP)
+            prefix='tmp_', dir=self.tmp_dir)
         self.__log.debug('temp download dir %s', tmp_dir)
         # download
         tmp_file = os.path.join(tmp_dir, wget.detect_filename(self.url))
