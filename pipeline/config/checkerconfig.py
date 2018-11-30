@@ -129,7 +129,8 @@ downloads = [('ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*
              ('http://www.disgenet.org/ds/DisGeNET/results/disease_mappings.tsv.gz','','',umls_disease_mappings + '.gz'),
              ('http://sideeffects.embl.de/media/download/meddra_all_se.tsv.gz','','',sider_file + '.gz'),
              ('http://sideeffects.embl.de/media/download/meddra_freq.tsv.gz','','','meddra_freq.tsv.gz'),
-             ('http://stitch4.embl.de/download/chemicals.v4.0.tsv.gz','','','chemicals.v4.0.tsv.gz')
+             ('http://stitch4.embl.de/download/chemicals.v4.0.tsv.gz','','','chemicals.v4.0.tsv.gz'),
+             ('https://www.intomics.com/inbio/api/data/map_public/inBio_Map_core_2016_09_12.tar.gz','','','')
              ]
 
 # Directories inside the output directory
