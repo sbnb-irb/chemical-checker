@@ -1,17 +1,22 @@
 from chemicalchecker.util import logged
 from .database import Base, get_session, get_engine
-from sqlalchemy import Column, Text
+from sqlalchemy import Column, Text, Boolean, ForeignKey, Integer
 
 
 @logged
 class Datafiles(Base):
     """A Signature bla bla."""
     __tablename__ = 'datafiles'
-    link = Column(Text, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    url = Column(Text)
+    dataset = Column(Text, ForeignKey("dataset.code"),
+                     nullable=False)  # foreign key
+    permanent = Column(Boolean)
+    enabled = Column(Boolean)
     username = Column(Text)
     password = Column(Text)
-    name = Column(Text)
-    dataset = Column(Text)
+    download_dir = Column(Text)
+    download_file = Column(Text)
     description = Column(Text)
 
     @staticmethod
@@ -19,7 +24,7 @@ class Datafiles(Base):
         """ Method to add a new row to the table.
 
         Args:
-            kwargs(dict):The data in dictionary format .
+            kwargs(dict):The data in dictionary format.
         """
         Datafiles.__log.debug(type(kwargs))
         if type(kwargs) is dict:
@@ -36,7 +41,8 @@ class Datafiles(Base):
         """ Method to query datafiles table.
 
         Args:
-            dataset(str):The code of the dataset to get all files related to that dataset.
+            dataset(str):The code of the dataset to get all files related to
+                that dataset.
         """
         session = get_session()
         query = session.query(Datafiles).filter_by(dataset=dataset)
