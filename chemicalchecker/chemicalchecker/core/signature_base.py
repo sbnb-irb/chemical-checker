@@ -33,6 +33,8 @@ class BaseSignature(object):
         if not os.path.isfile(model_path):
             BaseSignature.__log.warning(
                 "Model file not available: %s" % model_path)
+        if dataset_info is None:
+            raise Exception("There is no information on the specied dataset.")
 
     @abstractmethod
     def fit(self):
