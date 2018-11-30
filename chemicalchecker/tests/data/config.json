@@ -1,14 +1,16 @@
 {
     "PATH": {
-        "CC_ROOT": "'/aloy/web_checker/'"
+        "CC_ROOT": "'/aloy/web_checker/'",
+        "CC_DATA": "'/aloy/scratch/mbertoni/download/'",
+        "DOWNLOAD_TMP": "'/aloy/scratch/mbertoni/download/'"
     },
     "DB": {
     	"dialect": "'postgresql'",
     	"port":  "'5432'",
     	"host": "'aloy-dbsrv'",
-    	"username": "'sbnb-adm'",
+    	"user": "'sbnb-adm'",
     	"password": "'db_adm'",
-    	"main_DB": "'mosaic'"
+    	"database": "'mosaic'"
     }
 
 }
