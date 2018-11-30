@@ -11,3 +11,6 @@ pytest-runner==4.2
 sqlalchemy
 psycopg2
 autologging==1.1.0
+patool
+pyunpack
+wget
