@@ -4,35 +4,35 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
-import psycopg2
 
 
 Base = declarative_base()
-
 
 
 def get_connection(dbname=None):
     """ Method to connect to PSQL DB through psycopg2
 
     Args:
-        dbname(str):The name of DB to connect. If none, the name from config file is used .
+        dbname(str):The name of DB to connect.
+            If none, the name from config file is used.
     Returns:
         connection
     """
+    import psycopg2
     config = Config()
 
-    if dbname is None:
-        dbname = config.DB.main_DB
-    datab = psycopg2.connect(host=config.DB.host, user=config.DB.username,
-                             password=config.DB.password, database=dbname)
+    conn_dict = config.DB.asdict()
+    conn_dict.pop('dialect')
+    datab = psycopg2.connect(**conn_dict)
     return datab
 
 
 def get_engine(dbname=None):
-    """ Method to get engine for ORM SQLALCHEMY
+    """Method to get engine for ORM SQLALCHEMY.
 
     Args:
-        dbname(str):The name of DB to connect. If none, the name from config file is used .
+        dbname(str):The name of DB to connect.
+            If none, the name from config file is used.
     Returns:
         engine
     """
@@ -40,21 +40,21 @@ def get_engine(dbname=None):
 
     if config.DB.dialect == 'sqlite':
         con = config.DB.dialect + ':///' + config.DB.file
-    else:
-        if dbname is None:
-            dbname = config.DB.main_DB
-        con = config.DB.dialect + '://' + config.DB.username + ':' + config.DB.password + \
-            '@' + config.DB.host + ':' + config.DB.port + '/' + dbname
-    # engine = create_engine('sqlite:///orm_in_detail.sqlite', echo=True)
+        engine = create_engine(con, echo=True, poolclass=NullPool)
+        return engine
+
+    con = '{dialect}://{user}:{password}@{host}:{port}/{database}'.format(
+        **config.DB.asdict())
     engine = create_engine(con, echo=True, poolclass=NullPool)
     return engine
 
 
 def get_session(dbname=None):
-    """ Method to get session for ORM SQLALCHEMY
+    """Method to get session for ORM SQLALCHEMY.
 
     Args:
-        dbname(str):The name of DB to connect. If none, the name from config file is used .
+        dbname(str):The name of DB to connect.
+            If none, the name from config file is used.
     Returns:
         session
     """
@@ -66,10 +66,11 @@ def get_session(dbname=None):
 
 
 def qstring(query, dbname):
-    """ Method to query a PSQL DB
+    """Method to query a PSQL DB.
 
     Args:
-        dbname(str):The name of DB to connect. If none, the name from config file is used .
+        dbname(str):The name of DB to connect.
+            If none, the name from config file is used.
     Returns:
         rows: the data queried in row format
     """
@@ -83,10 +84,11 @@ def qstring(query, dbname):
 
 
 def query(query, dbname):
-    """ Method to query a PSQL database which returns data
+    """Method to query a PSQL database which returns data.
 
     Args:
-        dbname(str):The name of DB to connect. If none, the name from config file is used .
+        dbname(str):The name of DB to connect.
+            If none, the name from config file is used.
     """
     con = get_connection(dbname=dbname)
     con.set_isolation_level(0)

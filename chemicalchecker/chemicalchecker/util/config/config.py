@@ -24,6 +24,9 @@ class _Field():
     def items(self):
         return self.__dict__.items()
 
+    def asdict(self):
+        return self.__dict__
+
 
 @logged
 class Config():
