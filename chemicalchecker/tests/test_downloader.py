@@ -29,24 +29,3 @@ class TestConfig(unittest.TestCase):
         self.assertTrue(os.path.isdir(self.dest_path))
         self.assertTrue(os.path.isfile(
             os.path.join(self.dest_path, 'disease_mappings.tsv')))
-
-
-"""
-    def test_init_default(self):
-        filename = os.path.join(self.data_dir, 'config.json')
-        self.assertTrue(os.path.isfile(filename))
-        config = Config(filename)
-        self.assertTrue(hasattr(config, 'PATH'))
-        self.assertTrue(hasattr(config.PATH, 'CC_ROOT'))
-        self.assertEqual(config.PATH.CC_ROOT, '/aloy/web_checker/')
-
-        config = Config()
-        self.assertTrue(hasattr(config, 'PATH'))
-        self.assertTrue(hasattr(config.PATH, 'CC_ROOT'))
-        self.assertEqual(config.PATH.CC_ROOT, '/aloy/web_checker/')
-
-        del os.environ['CC_CONFIG']
-
-        with self.assertRaises(KeyError):
-            config = Config()
-"""
