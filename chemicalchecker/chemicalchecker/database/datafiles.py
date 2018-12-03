@@ -41,14 +41,37 @@ class Datafiles(Base):
         session.close()
 
     @staticmethod
-    def get(dataset):
-        """Get datafiles associated to the given dataset.
+    def add_bulk(data, chunk=1000):
+        """ Method to add a lot of rows to the table.
+
+            This method allows to load a big amound of rows in one instruction
+
+        Args:
+            data(list): The data in list format. Each list member is a new row. it is important the order.
+            chunk(int): The size of the chunks to load data to the database.
+        """
+        engine = get_engine()
+        for pos in range(0, len(data), chunk):
+
+            engine.execute(
+                Datafiles.__table__.insert(),
+                [{"url": row[0], "dataset": row[1], "permanent": row[2], "enabled": row[3],
+                  "username": row[4], "password": row[5], "download_dir": row[6], "download_file": row[7],
+                  "description": row[8]} for row in data[pos:pos + chunk]]
+            )
+
+    @staticmethod
+    def get(dataset=None):
+        """ Get datafiles associated to the given dataset.
 
         Args:
             dataset(str):The dataset code, e.g "A1.001"
         """
         session = get_session()
-        query = session.query(Datafiles).filter_by(dataset=dataset)
+        if dataset is not None:
+            query = session.query(Datafiles).filter_by(dataset=dataset)
+        else:
+            query = session.query(Datafiles)
         res = query.all()
 
         session.close()
