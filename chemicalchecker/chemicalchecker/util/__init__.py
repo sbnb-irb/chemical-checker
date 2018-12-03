@@ -3,3 +3,4 @@ from autologging import logged
 from .logging.profilehooks import profile
 from .config import Config
 from .download import Downloader
+from .hpc import HPC
