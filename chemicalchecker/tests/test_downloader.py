@@ -46,3 +46,12 @@ class TestConfig(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             downloader = Downloader(url, self.dest_path, self.tmp_path)
             downloader.download()
+
+    def test_file(self):
+        url = 'file://' + os.path.realpath(__file__)
+        downloader = Downloader(url, self.dest_path, self.tmp_path)
+        downloader.download()
+        self.assertTrue(os.path.isdir(self.dest_path))
+        self.assertTrue(os.path.isfile(
+            os.path.join(self.dest_path,
+                         os.path.basename(os.path.realpath(__file__)))))
