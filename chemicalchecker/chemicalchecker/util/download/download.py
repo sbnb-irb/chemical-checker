@@ -13,6 +13,8 @@ import os
 import wget
 import shutil
 import tempfile
+from ftplib import FTP
+from urlparse import urlparse
 from pyunpack import Archive, PatoolError
 
 from chemicalchecker.util import logged
@@ -25,14 +27,36 @@ class Downloader():
     def __init__(self, url, data_path, tmp_dir):
         """Initialize the download object.
 
+        Download from url, unpack in tmp_dir, and copy to data_path.
+        We allow wild-char in url only for FTP links. We resolve the link and
+        make sure there is only one file matching the regex.
+
         Args:
             url(str): The external link to a file.
             data_path(str): Final destination for downloaded stuff.
         """
         self.__log.debug('%s to %s', url, data_path)
-        self.url = url
         self.data_path = data_path
         self.tmp_dir = tmp_dir
+        # validating url
+        parsed = urlparse(url)
+        if '*' in parsed.path:
+            if parsed.scheme == 'ftp':
+                self.__log.debug('Wild-char `*` in FTP url, resolving.')
+                f = FTP(parsed.netloc)
+                f.login()
+                files = f.nlst(parsed.path)
+                if len(files) > 1:
+                    raise RuntimeError('Url resulting in multiple files.')
+                if len(files) == 0:
+                    raise RuntimeError('Url resulting no file.')
+                parsed = parsed._replace(path=files[0])
+                self.url = parsed.geturl()
+                self.__log.debug('Resolved to as: %s', self.url)
+            else:
+                raise RuntimeError('Wild-char `*` in url not accepted.')
+        else:
+            self.url = url
 
     def download(self):
         """Perform the download."""
