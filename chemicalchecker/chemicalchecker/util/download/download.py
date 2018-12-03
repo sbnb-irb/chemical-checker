@@ -101,6 +101,7 @@ class Downloader():
                 except Exception as err:
                     attempts += 1
                     self.__log.warning('Attempt failed: %s', str(err))
+                    request.urlcleanup()
                     sleep(5)
             if not downloaded:
                 raise Exception('All attempts to download failed.')
