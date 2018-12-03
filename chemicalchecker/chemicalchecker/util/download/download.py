@@ -15,8 +15,9 @@ import shutil
 import tempfile
 from ftplib import FTP
 from pyunpack import Archive, PatoolError
+from six.moves import urllib
 from six.moves.urllib.parse import urlparse
-
+from six.moves.urllib import request
 from chemicalchecker.util import logged
 
 
@@ -38,25 +39,37 @@ class Downloader():
         self.__log.debug('%s to %s', url, data_path)
         self.data_path = data_path
         self.tmp_dir = tmp_dir
+        self.url = Downloader.validate_url(url)
+
+    @staticmethod
+    def validate_url(url):
+        """Validate and check if url is working."""
         # validating url
         parsed = urlparse(url)
-        if '*' in parsed.path:
-            if parsed.scheme == 'ftp':
-                self.__log.debug('Wild-char `*` in FTP url, resolving.')
-                f = FTP(parsed.netloc)
-                f.login()
-                files = f.nlst(parsed.path)
-                if len(files) > 1:
-                    raise RuntimeError('Url resulting in multiple files.')
-                if len(files) == 0:
-                    raise RuntimeError('Url resulting no file.')
-                parsed = parsed._replace(path=files[0])
-                self.url = parsed.geturl()
-                self.__log.debug('Resolved to as: %s', self.url)
-            else:
+        if parsed.scheme == 'ftp':
+            f = FTP(parsed.netloc)
+            f.login()
+            files = f.nlst(parsed.path)
+            if len(files) > 1:
+                raise RuntimeError('Url resolving to multiple files.')
+            if len(files) == 0:
+                raise RuntimeError('Url resolving to no file.')
+            parsed = parsed._replace(path=files[0])
+            new_url = parsed.geturl()
+            Downloader.__log.debug('Resolved to as: %s', new_url)
+        elif parsed.scheme == 'http' or parsed.scheme == 'https':
+            if '*' in parsed.path:
                 raise RuntimeError('Wild-char `*` in url not accepted.')
+            req = request.Request(url)
+            req.get_method = lambda: 'HEAD'
+            try:
+                request.urlopen(req, timeout=60)
+                new_url = url
+            except urllib.error.HTTPError:
+                raise RuntimeError('Url resolving to no file.')
         else:
-            self.url = url
+            raise RuntimeError('Unrecognized URL protocol.')
+        return new_url
 
     def download(self):
         """Perform the download."""
