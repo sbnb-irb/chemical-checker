@@ -95,5 +95,9 @@ class Datafiles(Base):
         # create download path
         cfg = Config()
         data_path = os.path.join(cfg.PATH.CC_DATA, self.download_dir)
-        down = Downloader(url, data_path)
+        if os.path.isdir(data_path):
+            self.__log.warning(
+                "Directory %s already exists, skipping download.", data_path)
+            return
+        down = Downloader(url, data_path, cfg.PATH.DOWNLOAD_TMP)
         down.download()
