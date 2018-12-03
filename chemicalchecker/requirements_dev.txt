@@ -9,6 +9,7 @@ twine==1.12.1
 pytest==3.8.2
 pytest-runner==4.2
 sqlalchemy
+paramiko
 psycopg2
 autologging==1.1.0
 patool
