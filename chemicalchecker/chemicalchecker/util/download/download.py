@@ -14,8 +14,8 @@ import wget
 import shutil
 import tempfile
 from ftplib import FTP
-from urlparse import urlparse
 from pyunpack import Archive, PatoolError
+from six.moves.urllib.parse import urlparse
 
 from chemicalchecker.util import logged
 
