@@ -83,13 +83,38 @@ class Datafiles(Base):
         engine = get_engine()
         Base.metadata.create_all(engine)
 
+    @staticmethod
+    def check_all_download():
+        """Check if all datafiles are reachable."""
+        results = dict()
+        results['OK'] = list()
+        results['FAILED'] = list()
+        results['SKIPPED'] = list()
+        for df in Datafiles.get():
+            if df.username:
+                Datafiles.__log.info(
+                    "Skipping download check for %s, " +
+                    "authenticazion not supported", df.download_dir)
+                results['SKIPPED'].append(df)
+                continue
+            try:
+                Downloader.validate_url(df.url)
+                Datafiles.__log.info("%s OK", df.download_dir)
+                results['OK'].append(df)
+            except Exception as err:
+                Datafiles.__log.info("%s FAILED %s", df.download_dir, str(err))
+                results['FAILED'].append(df)
+        return results
+
     def download(self):
         """Download the datafile."""
         # create download string
         if self.username and self.password:
-            protocol, address = self.link.split('//')
-            url = "%s//%s@%s:%s".format(protocol,
-                                        self.username, self.password, address)
+            protocol, address = self.url.split('//')
+            url = "{}//{}:{}@{}".format(protocol,
+                                        self.username.replace('@', '%40'),
+                                        self.password, address)
+
         else:
             url = self.url
         # create download path
