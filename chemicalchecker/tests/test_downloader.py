@@ -29,3 +29,20 @@ class TestConfig(unittest.TestCase):
         self.assertTrue(os.path.isdir(self.dest_path))
         self.assertTrue(os.path.isfile(
             os.path.join(self.dest_path, 'disease_mappings.tsv')))
+
+    def test_wildchar(self):
+        url = 'ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz'
+        downloader = Downloader(url, self.dest_path, self.tmp_path)
+        downloader.download()
+        self.assertTrue(os.path.isdir(self.dest_path))
+        self.assertTrue(os.path.isfile(
+            os.path.join(self.dest_path, 'goa_human.gaf')))
+
+        url = 'ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/*.gz'
+        with self.assertRaises(RuntimeError):
+            downloader = Downloader(url, self.dest_path, self.tmp_path)
+            downloader.download()
+        url = 'ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/*asdfasdf.gz'
+        with self.assertRaises(RuntimeError):
+            downloader = Downloader(url, self.dest_path, self.tmp_path)
+            downloader.download()
