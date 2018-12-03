@@ -13,6 +13,7 @@ import os
 import wget
 import shutil
 import tempfile
+from time import sleep
 from ftplib import FTP
 from pyunpack import Archive, PatoolError
 from six.moves import urllib
@@ -67,6 +68,11 @@ class Downloader():
                 new_url = url
             except urllib.error.HTTPError:
                 raise RuntimeError('Url resolving to no file.')
+        elif parsed.scheme == 'file':
+            if os.path.isfile(parsed.path):
+                new_url = url
+            else:
+                raise RuntimeError('Url resolving to no file.')
         else:
             raise RuntimeError('Unrecognized URL protocol.')
         return new_url
@@ -79,7 +85,25 @@ class Downloader():
         self.__log.debug('temp download dir %s', tmp_dir)
         # download
         tmp_file = os.path.join(tmp_dir, wget.detect_filename(self.url))
-        wget.download(self.url, tmp_dir)
+        if self.url.startswith('file'):
+            # file can be on local filesystem
+            parsed = urlparse(self.url)
+            shutil.copy(parsed.path, tmp_dir)
+        else:
+            # or has to be downloaded, in case try several times
+            attempts = 0
+            downloaded = False
+            while attempts < 5:
+                try:
+                    wget.download(self.url, tmp_dir)
+                    downloaded = True
+                    break
+                except Exception as err:
+                    attempts += 1
+                    self.__log.warning('Attempt failed: %s', str(err))
+                    sleep(5)
+            if not downloaded:
+                raise Exception('All attempts to download failed.')
         # unzip
         tmp_unzip_dir = os.path.join(tmp_dir, 'unzip')
         os.mkdir(tmp_unzip_dir)
