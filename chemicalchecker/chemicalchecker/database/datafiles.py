@@ -71,7 +71,7 @@ class Datafiles(Base):
         if dataset is not None:
             query = session.query(Datafiles).filter_by(dataset=dataset)
         else:
-            query = session.query(Datafiles)
+            query = session.query(Datafiles).distinct(Datafiles.url)
         res = query.all()
 
         session.close()
