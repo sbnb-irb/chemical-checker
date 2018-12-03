@@ -11,6 +11,11 @@
     	"user": "'sbnb-adm'",
     	"password": "'db_adm'",
     	"database": "'mosaic'"
+    },
+    "HPC": {
+    	"system" : "'sge'",
+    	"host": "'pac-one-head'",
+    	"queue": "'all.q'"
     }
 
 }
