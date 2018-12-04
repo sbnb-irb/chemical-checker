@@ -13,9 +13,9 @@ import os
 import wget
 import shutil
 import tempfile
+import patoolib
 from time import sleep
 from ftplib import FTP
-from pyunpack import Archive, PatoolError
 from six.moves import urllib
 from six.moves.urllib.parse import urlparse
 from six.moves.urllib import request
@@ -83,11 +83,12 @@ class Downloader():
         tmp_dir = tempfile.mkdtemp(
             prefix='tmp_', dir=self.tmp_dir)
         self.__log.debug('temp download dir %s', tmp_dir)
-        # download
+        # determine file name
+        parsed = urlparse(self.url)
         tmp_file = os.path.join(tmp_dir, wget.detect_filename(self.url))
-        if self.url.startswith('file'):
+        # download
+        if parsed.scheme == 'file':
             # file can be on local filesystem
-            parsed = urlparse(self.url)
             shutil.copy(parsed.path, tmp_dir)
         else:
             # or has to be downloaded, in case try several times
@@ -95,7 +96,7 @@ class Downloader():
             downloaded = False
             while attempts < 5:
                 try:
-                    wget.download(self.url, tmp_dir)
+                    wget.download(self.url, tmp_file)
                     downloaded = True
                     break
                 except Exception as err:
@@ -110,12 +111,18 @@ class Downloader():
         os.mkdir(tmp_unzip_dir)
         self.__log.debug('temp unzip dir %s', tmp_unzip_dir)
         # not a clear way to check if file is compressed, just try
-        try:
-            Archive(tmp_file).extractall(tmp_unzip_dir)
-        except PatoolError as err:
-            self.__log.warning('problem uncompressing %s', tmp_file)
-            self.__log.warning('error was: %s', str(err))
+        mime, compression = patoolib.util.guess_mime(tmp_file)
+        self.__log.debug("MIME %s COMPRESSION %s", mime, compression)
+        if 'text' in mime and not compression:
+            self.__log.debug('no need to uncompress %s, copying', tmp_file)
             shutil.move(tmp_file, tmp_unzip_dir)
+        else:
+            try:
+                patoolib.extract_archive(tmp_file, outdir=tmp_unzip_dir)
+            except patoolib.util.PatoolError as err:
+                self.__log.error('problem uncompressing %s', tmp_file)
+                self.__log.error('error was: %s', str(err))
+                raise err
         # move to final destination
         shutil.move(tmp_unzip_dir, self.data_path)
         self.__log.debug('downloaded to  %s', self.data_path)
