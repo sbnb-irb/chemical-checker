@@ -12,7 +12,7 @@ def coordinates():
         yield name + code
 
 
-class TestConfig(unittest.TestCase):
+class TestChemicalChecker(unittest.TestCase):
 
     def setUp(self):
         # path for test data
