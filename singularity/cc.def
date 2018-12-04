@@ -38,7 +38,8 @@ From: centos
                    which \
                    vim \
                    bzip2 \
-                   bzip2-devel 
+                   bzip2-devel \
+                   file
 
     # conda
     mkdir /opt/miniconda2 
@@ -72,7 +73,6 @@ From: centos
     pip install sphinx # to generate docs
     pip install sphinx_rtd_theme # docs theme.
     pip install patool # unzipping
-    pip install pyunpack # unzipping wrapper
     pip install wget # download library
     # data packages
     pip install numpy # best numerical library ever
