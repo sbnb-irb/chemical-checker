@@ -5,7 +5,7 @@ import unittest
 from chemicalchecker.util import Downloader
 
 
-class TestConfig(unittest.TestCase):
+class TestDownloader(unittest.TestCase):
 
     def setUp(self):
         # path for test data
