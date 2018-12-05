@@ -4,4 +4,4 @@ from .dataset import Dataset
 from .pubchem import Pubchem
 from .libraries import Libraries
 from .structure import Structure
-from .datafiles import Datafiles
+from .datasource import Datasource
