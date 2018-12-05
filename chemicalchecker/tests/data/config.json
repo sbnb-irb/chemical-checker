@@ -2,7 +2,8 @@
     "PATH": {
         "CC_ROOT": "'/aloy/web_checker/'",
         "CC_DATA": "'/aloy/scratch/mbertoni/chemical_checker/data/download/'",
-        "DOWNLOAD_TMP": "'/aloy/scratch/mbertoni/chemical_checker/data/download_tmp/'"
+        "DOWNLOAD_TMP": "'/aloy/scratch/mbertoni/chemical_checker/data/download_tmp/'",
+        "CC_REPO": "'/aloy/home/oguitart/projects/source/chemical_checker'"
     },
     "DB": {
     	"dialect": "'postgresql'",
@@ -14,7 +15,7 @@
     },
     "HPC": {
     	"system" : "'sge'",
-    	"host": "'pac-one-head.irbbarcelona.pcb.ub.es'",
+    	"host": "'pac-one-head'",
     	"queue": "'all.q'",
     	"username": "'sbnb-adm'"
     }
