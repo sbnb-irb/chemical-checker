@@ -20,13 +20,14 @@ from six.moves import urllib
 from six.moves.urllib.parse import urlparse
 from six.moves.urllib import request
 from chemicalchecker.util import logged
+from chemicalchecker.util import Config
 
 
 @logged
 class Downloader():
     """Systematize download and decompression from external repositories."""
 
-    def __init__(self, url, data_path, tmp_dir):
+    def __init__(self, url, data_path, tmp_dir=None):
         """Initialize the download object.
 
         Download from url, unpack in tmp_dir, and copy to data_path.
@@ -36,9 +37,12 @@ class Downloader():
         Args:
             url(str): The external link to a file.
             data_path(str): Final destination for downloaded stuff.
+            tmp_dir(str): Temp download path, from config by default.
         """
         self.__log.debug('%s to %s', url, data_path)
         self.data_path = data_path
+        if not tmp_dir:
+            tmp_dir = Config().PATH.DOWNLOAD_TMP
         self.tmp_dir = tmp_dir
         self.url = Downloader.validate_url(url)
 
@@ -54,7 +58,7 @@ class Downloader():
             if len(files) > 1:
                 raise RuntimeError('Url resolving to multiple files.')
             if len(files) == 0:
-                raise RuntimeError('Url resolving to no file.')
+                raise RuntimeError('Url not resolving to file.')
             parsed = parsed._replace(path=files[0])
             new_url = parsed.geturl()
             Downloader.__log.debug('Resolved to as: %s', new_url)
@@ -67,12 +71,13 @@ class Downloader():
                 request.urlopen(req, timeout=60)
                 new_url = url
             except urllib.error.HTTPError:
-                raise RuntimeError('Url resolving to no file.')
+                raise RuntimeError('Url not resolving to file.')
         elif parsed.scheme == 'file':
             if os.path.isfile(parsed.path):
                 new_url = url
             else:
-                raise RuntimeError('Url resolving to no file.')
+                raise RuntimeError(
+                    'Url not resolving to file: %s.' % parsed.path)
         else:
             raise RuntimeError('Unrecognized URL protocol.')
         return new_url
