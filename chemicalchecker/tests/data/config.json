@@ -14,7 +14,7 @@
     },
     "HPC": {
     	"system" : "'sge'",
-    	"host": "'pac-one-head'",
+    	"host": "'pac-one-head.irbbarcelona.pcb.ub.es'",
     	"queue": "'all.q'",
     	"username": "'sbnb-adm'"
     }
