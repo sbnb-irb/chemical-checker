@@ -7,7 +7,6 @@ import os
 from .database import Base, get_session, get_engine
 from sqlalchemy import Column, Text, Boolean, ForeignKey, Integer
 from sqlalchemy.orm import class_mapper, ColumnProperty
-import pandas as pd
 
 from chemicalchecker.util import logged
 from chemicalchecker.util import Downloader
@@ -109,6 +108,7 @@ class Datasource(Base):
         Args:
             filename(str): Path to a CSV file.
         """
+        import pandas as pd
         df = pd.read_csv(filename)
         # check columns
         needed_cols = Datasource._table_attributes()
