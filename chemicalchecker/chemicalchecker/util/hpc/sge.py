@@ -14,7 +14,10 @@ import uuid
 import time
 
 from chemicalchecker.util import logged
-import hpc
+
+STARTED = "started"
+DONE = "done"
+READY = "ready"
 
 
 @logged
@@ -208,8 +211,8 @@ fi
             self.statusFile = os.path.join(
                 self.jobdir, self.job_name + sge.jobStatusSuffix)
             with open(self.statusFile, "w") as f:
-                f.write(hpc.STARTED)
-            self.status_id = hpc.STARTED
+                f.write(STARTED)
+            self.status_id = STARTED
 
         if wait:
             if check_error:
@@ -246,10 +249,10 @@ fi
         if len(errors) > 0:
             return errors
         else:
-            if self.status_id == hpc.DONE:
+            if self.status_id == DONE:
                 with open(self.statusFile, "w") as f:
-                    f.write(hpc.READY)
-                self.status_id = hpc.READY
+                    f.write(READY)
+                self.status_id = READY
             return None
 
     def compress(self):
@@ -287,7 +290,7 @@ fi
         if self.statusFile is None:
             return None
 
-        if self.status_id == hpc.STARTED:
+        if self.status_id == STARTED:
             try:
                 ssh = paramiko.SSHClient()
                 ssh.load_system_host_keys()
@@ -301,7 +304,7 @@ fi
 
                 # if message[0].find("do not exist") != -1:
                 if len(message) == 0:
-                    self.status_id = hpc.DONE
+                    self.status_id = DONE
                     with open(self.statusFile, "w") as f:
                         f.write(self.status_id)
             except paramiko.SSHException as sshException:
