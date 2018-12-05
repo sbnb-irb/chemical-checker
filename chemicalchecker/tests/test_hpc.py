@@ -19,6 +19,6 @@ class TestHPC(unittest.TestCase):
 
         config = Config()
 
-        cluster = HPC(config)
+        cluster = HPC(config, True)
 
         self.assertTrue(cluster.status() is None)
