@@ -15,7 +15,8 @@
     "HPC": {
     	"system" : "'sge'",
     	"host": "'pac-one-head'",
-    	"queue": "'all.q'"
+    	"queue": "'all.q'",
+    	"username": "'sbnb-adm'"
     }
 
 }
