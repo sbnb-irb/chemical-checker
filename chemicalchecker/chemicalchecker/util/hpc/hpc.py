@@ -11,10 +11,6 @@ from .sge import sge
 
 from chemicalchecker.util import logged
 
-STARTED = "started"
-DONE = "done"
-READY = "ready"
-
 
 @logged
 class HPC():
