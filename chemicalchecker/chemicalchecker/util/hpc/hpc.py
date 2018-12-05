@@ -16,7 +16,7 @@ from chemicalchecker.util import logged
 class HPC():
     """Send tasks to an HPC cluster."""
 
-    def __init__(self, config):
+    def __init__(self, config, dry_run=False):
         """Initialize the HPC object.
 
         """
@@ -24,7 +24,7 @@ class HPC():
 
         if config.HPC.system in globals():
             self.__log.debug("initializing object %s", config.HPC.system)
-            self.hpc = eval(config.HPC.system)(config)
+            self.hpc = eval(config.HPC.system)(config,dry_run)
         else:
             raise Exception("HPC system %s not available" % config.HPC.system)
 

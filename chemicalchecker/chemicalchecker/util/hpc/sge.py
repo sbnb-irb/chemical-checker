@@ -53,7 +53,7 @@ fi
 #$ -r yes
 """
 
-    def __init__(self, config):
+    def __init__(self, config, dry_run=False):
         """Initialize the SGE object.
 
         """
@@ -67,15 +67,16 @@ fi
         if "username" in config.HPC.asdict() and "password" in config.HPC.asdict():
             self.conn_params["username"] = config.HPC.username
             self.conn_params["password"] = config.HPC.password
-        try:
-            ssh = paramiko.SSHClient()
-            ssh.load_system_host_keys()
-            ssh.connect(self.host, **self.conn_params)
-        except paramiko.SSHException as sshException:
-            self.__log.warning(
-                "Unable to establish SSH connection: %s" % sshException)
-        finally:
-            ssh.close()
+        if not dry_run:
+            try:
+                ssh = paramiko.SSHClient()
+                ssh.load_system_host_keys()
+                ssh.connect(self.host, **self.conn_params)
+            except paramiko.SSHException as sshException:
+                self.__log.warning(
+                    "Unable to establish SSH connection: %s" % sshException)
+            finally:
+                ssh.close()
 
     def _chunks(self, l, n):
         """Yield successive n-sized chunks from l."""
