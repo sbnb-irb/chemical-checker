@@ -176,7 +176,7 @@ fi
                       {"options": paramsText, "command": command})
         jobFile.close()
 
-        os.chmod(jobFilename, 0755)
+        os.chmod(jobFilename, 0o755)
 
         submit_string += jobFilename
 
