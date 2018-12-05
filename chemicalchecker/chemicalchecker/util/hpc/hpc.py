@@ -1,8 +1,8 @@
 """Utility for sending tasks to and HPC cluster
 
-A lot of processes in this package are very computationally intensive. 
-this class allows to send any task to and HPC environmment. 
-According to the config parameters this class will send the tasks 
+A lot of processes in this package are very computationally intensive.
+This class allows to send any task to any HPC environmment.
+According to the config parameters this class will send the tasks
 in the right format to the specified queueing technology.
 """
 import os
@@ -10,6 +10,10 @@ import os
 from .sge import sge
 
 from chemicalchecker.util import logged
+
+STARTED = "started"
+DONE = "done"
+READY = "ready"
 
 
 @logged
@@ -32,6 +36,10 @@ class HPC():
         """Submit a multi job/task.
 
          Args:
+            command: The comand that will be executed in the cluster. It should contain a
+                     <TASK_ID> string and a <FILE> string. This will be replaced but
+                     the correponding task id and the pickle file with the elements that
+                     the command will need.
             num_jobs:Number of jobs to run the command (default:1)
             cpu:Number of cores the job will use(default:1)
             wait:Wait for the job to finish (default:True)
@@ -46,3 +54,40 @@ class HPC():
         """
 
         self.hpc.submitMultiJob(command, **kwargs)
+
+    def check_errors(self):
+        """Check for errors in the output logs of the jobs.
+
+        If there are no errors and the status is "done", the status will change to "ready".
+
+        Returns:
+            errors(str): The lines in the output logs where the error is found.
+                        The format of the errors is filename, line number and line text.
+                        If there are no errors it returns None.
+
+        """
+
+        return self.hpc.check_errors()
+
+    def compress(self):
+        """Compress the output logs into a tar.gz file in the same job directory
+
+
+        """
+
+        self.hpc.compress()
+
+    def status(self):
+        """Gets the status of the job submission
+
+           The status is None if there is no job submission.
+           The status is also saved in a *.status file in the job directory.
+
+        Returns:
+            status(str): There are three possible status if there was a submission
+                         "started": Job started but not finished
+                         "done": Job finished
+                         "ready": Job finished without errors
+        """
+
+        return self.hpc.status()
