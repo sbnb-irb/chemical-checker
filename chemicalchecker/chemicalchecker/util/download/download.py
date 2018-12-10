@@ -44,7 +44,11 @@ class Downloader():
         if not tmp_dir:
             tmp_dir = Config().PATH.DOWNLOAD_TMP
         self.tmp_dir = tmp_dir
-        self.url = Downloader.validate_url(url)
+        try:
+            self.url = Downloader.validate_url(url)
+        except Exception as err:
+            self.__log.warning("Cannot validate url: %s", str(err))
+            self.url = url
 
     @staticmethod
     def validate_url(url):
@@ -118,7 +122,7 @@ class Downloader():
         # not a clear way to check if file is compressed, just try
         mime, compression = patoolib.util.guess_mime(tmp_file)
         self.__log.debug("MIME %s COMPRESSION %s", mime, compression)
-        if 'text' in mime and not compression:
+        if mime not in patoolib.ArchiveMimetypes:
             self.__log.debug('no need to uncompress %s, copying', tmp_file)
             shutil.move(tmp_file, tmp_unzip_dir)
         else:
