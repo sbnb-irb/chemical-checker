@@ -40,12 +40,10 @@ class TestDownloader(unittest.TestCase):
 
         url = 'ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/*.gz'
         with self.assertRaises(RuntimeError):
-            downloader = Downloader(url, self.dest_path, self.tmp_path)
-            downloader.download()
+            Downloader.validate_url(url)
         url = 'ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/*asdfasdf.gz'
         with self.assertRaises(RuntimeError):
-            downloader = Downloader(url, self.dest_path, self.tmp_path)
-            downloader.download()
+            Downloader.validate_url(url)
 
     def test_file(self):
         url = 'file://' + os.path.realpath(__file__)
