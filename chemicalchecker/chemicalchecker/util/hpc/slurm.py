@@ -200,7 +200,6 @@ fi
             else:
                 self.job_id = job[0]
 
-            print self.job_id
             self.job_id = self.job_id.rstrip()
             self.__log.debug(self.job_id)
         except paramiko.SSHException as sshException:
