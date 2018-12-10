@@ -148,7 +148,7 @@ fi
             command = tmpname
 
         if cpu > 1:
-            jobParams.append("#$ -pe make " + cpu)
+            jobParams.append("#$ -pe make " + str(cpu))
 
         if memory > 1:
             jobParams.append("#$ -l mem_free=" + str(memory) +
