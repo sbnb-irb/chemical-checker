@@ -1,11 +1,11 @@
 name,url,dataset,permanent,enabled,user,password,description,molrepo_name,molrepo_file,molrepo_parser
-ChEMBLdb,ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*_postgresql.tar.gz,B4.001,False,True,,,,chembl,chembl_23/chembl_23_postgresql/chembl_23_postgresql.dmp,chembl
+ChEMBLdb,ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*_postgresql.tar.gz,B4.001,False,True,,,,chembl,chembl_*/chembl_*_postgresql/chembl_*_postgresql.dmp,chembl
 chembl_drugtargets,https://www.ebi.ac.uk/chembl/download_helper/drugstore_txt,B4.001,False,True,,,,,,
 chembl_indications,https://www.ebi.ac.uk/chembl/download_helper/indications_txt,B4.001,False,True,,,,,,
-drugbank,https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database,E5.001,False,True,oriol.guitart@irbbarcelona.org,sbnbAloy,,drugbank,drugbank_all_full_database.xml,drugbank
-drugbank,https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database,B1.001,False,True,oriol.guitart@irbbarcelona.org,sbnbAloy,,drugbank,drugbank_all_full_database.xml,drugbank
-drugbank,https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database,B2.001,False,True,oriol.guitart@irbbarcelona.org,sbnbAloy,,drugbank,drugbank_all_full_database.xml,drugbank
-drugbank,https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database,E1.001,False,True,oriol.guitart@irbbarcelona.org,sbnbAloy,,drugbank,drugbank_all_full_database.xml,drugbank
+drugbank,https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database,E5.001,False,True,oriol.guitart@irbbarcelona.org,sbnbAloy,,drugbank,full database.xml,drugbank
+drugbank,https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database,B1.001,False,True,oriol.guitart@irbbarcelona.org,sbnbAloy,,drugbank,full database.xml,drugbank
+drugbank,https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database,B2.001,False,True,oriol.guitart@irbbarcelona.org,sbnbAloy,,drugbank,full database.xml,drugbank
+drugbank,https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database,E1.001,False,True,oriol.guitart@irbbarcelona.org,sbnbAloy,,drugbank,full database.xml,drugbank
 bindingdb,file:///aloy/scratch/sbnb-adm/checker/local_downloads/BindingDB_All.tsv.zip,B4.001,False,True,,,,bindingdb,BindingDB_All.tsv,bindingdb
 ecod,http://prodata.swmed.edu/ecod/distributions/ecod.latest.domains.txt,B3.001,False,True,,,,,,
 pdb_components,http://ligand-expo.rcsb.org/dictionaries/Components-smiles-stereo-oe.smi,B3.001,False,True,,,,pdb,Components-smiles-stereo-oe.smi,pdb
@@ -40,12 +40,12 @@ GSE70138_Broad_LINCS_pert_info,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GS
 GSE92742_Broad_LINCS_Level5_COMPZ,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_Level5_COMPZ.MODZ_n473647x12328.gctx.gz,D1.001,False,True,,,,,,
 GSE92742_Broad_LINCS_pert_info,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_pert_info.txt.gz,D1.001,False,True,,,,lincs,GSE92742_Broad_LINCS_pert_info.txt,lincs_GSE92742
 GSE92742_Broad_LINCS_pert_metrics,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_pert_metrics.txt.gz,D1.001,False,True,,,,,,
-DTP_NCI60_ZSCORE,https://discover.nci.nih.gov/cellminerdata/normalizedArchives/DTP_NCI60_ZSCORE.zip,D2.001,False,True,,,,nci60,DTP_NCI60_ZSCORE.csv,nci60
+DTP_NCI60_ZSCORE,https://discover.nci.nih.gov/cellminerdata/normalizedArchives/DTP_NCI60_ZSCORE.zip,D2.001,False,True,,,,nci60,output/DTP_NCI60_ZSCORE.xls,nci60
 mosaic,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/tables/combined/combined_gene-target-predictions.zip,D3.001,False,True,,,,,,
 mosaic_all_conditions,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/matrices_and_cdts/matrices/All_conditions.txt,D3.001,False,True,,,,,,
 morphlincs_LDS-1195,http://lincsportal.ccs.miami.edu/dcic/api/download?path=LINCS_Data/Broad_Therapeutics&file=LDS-1195.tar.gz,D4.001,False,True,,,,morphlincs,LDS-1195/Metadata/Small_Molecule_Metadata.txt,morphlincs
 cellosaurus,ftp://ftp.expasy.org/databases/cellosaurus/cellosaurus.obo,D5.001,False,True,,,,,,
-kegg_br,http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=,E1.001,False,True,,,,kegg,br08303.keg,kegg
+kegg_br,http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=,E1.001,False,True,,,,kegg,download_htext,kegg
 repodb,file:///aloy/scratch/sbnb-adm/checker/local_downloads/repodb.csv,E2.001,False,True,,,,,,
 CTD_chemicals,http://ctdbase.org/reports/CTD_chemicals.tsv.gz,E4.001,False,True,,,,,,
 CTD_diseases,http://ctdbase.org/reports/CTD_diseases.tsv.gz,E2.001,False,True,,,,,,
