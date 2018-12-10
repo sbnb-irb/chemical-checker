@@ -8,6 +8,7 @@ in the right format to the specified queueing technology.
 import os
 
 from .sge import sge
+from .slurm import slurm
 
 from chemicalchecker.util import logged
 
@@ -21,10 +22,11 @@ class HPC():
 
         """
         self.__log.debug('HPC system to use: %s', config.HPC.system)
+        self.job_id = None
 
         if config.HPC.system in globals():
             self.__log.debug("initializing object %s", config.HPC.system)
-            self.hpc = eval(config.HPC.system)(config,dry_run)
+            self.hpc = eval(config.HPC.system)(config, dry_run)
         else:
             raise Exception("HPC system %s not available" % config.HPC.system)
 
@@ -49,7 +51,10 @@ class HPC():
 
         """
 
-        self.hpc.submitMultiJob(command, **kwargs)
+        if self.job_id is None:
+            self.job_id = self.hpc.submitMultiJob(command, **kwargs)
+        else:
+            raise Exception("HPC instance already in use")
 
     def check_errors(self):
         """Check for errors in the output logs of the jobs.
