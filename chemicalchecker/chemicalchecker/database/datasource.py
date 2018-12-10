@@ -4,6 +4,7 @@ A Datasource is a source of raw data. Typically comes in form of an url to an
 external resource. This class offer a mean to standardize raw data collection.
 """
 import os
+from glob import glob
 from .database import Base, get_session, get_engine
 from sqlalchemy import Column, Text, Boolean, ForeignKey, Integer
 from sqlalchemy.orm import class_mapper, ColumnProperty
@@ -11,6 +12,7 @@ from sqlalchemy.orm import class_mapper, ColumnProperty
 from chemicalchecker.util import logged
 from chemicalchecker.util import Downloader
 from chemicalchecker.util import Config
+from chemicalchecker.util import HPC
 
 
 @logged
@@ -28,7 +30,7 @@ class Datasource(Base):
         description(str): free text description of the resource.
         molrepo_name(str): optional, a `molrepo` name.
         molrepo_file(str): optional, a specific file in the Datasource that
-            will be used to fill the `molrepo` table.
+            will be used to fill the `molrepo` table. Can also be a directory.
         molrepo_parser(str): optional, a `Parser` class able to parse the
             `molrepo_file`.
     """
@@ -168,31 +170,39 @@ class Datasource(Base):
 
     @property
     def molrepo_path(self):
-        """Build path to molrepo file."""
+        """Build path to molrepo file or directory."""
         if not self.molrepo_file:
             self.__log.warning("Datasource %s has no molrepo file.", self)
             return None
         repo_path = os.path.join(self.data_path, self.molrepo_file)
+        if '*' in self.molrepo_file:
+            # resolve the path
+            paths = glob(repo_path)
+            if len(paths) > 1:
+                raise Exception("`*` in %s molrepo_file is ambigous.", self)
+            repo_path = paths[0]
         return repo_path
 
     @property
     def available_molrepo(self):
         """Check if Datasource molrepo is available."""
-        if os.path.isdir(self.molrepo_path):
-            self.__log.info("%s PASSED", self)
+        self.__log.debug("Checking %s", self.molrepo_path)
+        if os.path.isfile(self.molrepo_path) or \
+                os.path.isdir(self.molrepo_path):
+            self.__log.info("%s AVAILABLE", self)
             return True
         else:
-            self.__log.error("%s FAILED", self)
+            self.__log.warning("%s FAILED", self)
             return False
 
     @property
     def available(self):
         """Check if Datasource is available."""
         if os.path.isdir(self.data_path):
-            self.__log.info("%s PASSED", self)
+            self.__log.info("%s AVAILABLE", self)
             return True
         else:
-            self.__log.error("%s FAILED", self)
+            self.__log.warning("%s FAILED", self)
             return False
 
     @property
@@ -200,16 +210,16 @@ class Datasource(Base):
         """Check if Datasource url is valid."""
         try:
             Downloader.validate_url(self.url)
-            self.__log.info("%s PASSED", self)
+            self.__log.info("%s AVAILABLE", self)
             return True
         except Exception as err:
-            self.__log.error("%s FAILED %s", self, str(err))
+            self.__log.warning("%s FAILED %s", self, str(err))
             return False
 
     def download(self, force=False):
         """Download the Datasource."""
         # check if already downloaded
-        if not force and self.available():
+        if not force and self.available:
             self.__log.warning("Datasource available, skipping download.")
             return
         # create download string
@@ -223,3 +233,42 @@ class Datasource(Base):
         # call the downloader
         down = Downloader(url, self.data_path)
         down.download()
+
+    @staticmethod
+    def download_hpc(job_path):
+        cluster = HPC(Config())
+        all_datasources = Datasource.get()
+        params = {}
+        params["num_jobs"] = len(all_datasources)
+        # "/aloy/scratch/mbertoni/tmp_checker/download_hpc"
+        params["jobdir"] = job_path
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+        params["job_name"] = "CC_DOWNLOAD"
+        params["elements"] = range(len(all_datasources))
+        params["wait"] = False
+        script_lines = [
+            "import sys, os",
+            "import pickle",
+            "os.environ['CC_CONFIG'] = '/aloy/home/mbertoni/code/chemical_" +
+            "checker/chemicalchecker/tests/data/config.json'",
+            "sys.path.append('/aloy/home/mbertoni/code/chemical_checker/" +
+            "chemicalchecker')",
+            "from chemicalchecker.database import Datasource",
+            "ids = sys.argv[1]",
+            "filename = sys.argv[2]",
+            "inputs = pickle.load(open(filename, 'rb'))",
+            "data = inputs[ids]",
+            "for d in data:",
+            "    ds = Datasource.get()[d]",
+            "    ds.download()",
+        ]
+        script_name = os.path.join(job_path, 'hpc_script.py')
+        with open(script_name, 'w') as fh:
+            for line in script_lines:
+                fh.write(line + '\n')
+        singularity_image = '/aloy/home/mbertoni/images/cc.simg'
+        command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+            singularity_image, script_name)
+        cluster.submitMultiJob(command, **params)
+        return cluster
