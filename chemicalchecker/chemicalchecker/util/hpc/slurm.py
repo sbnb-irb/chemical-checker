@@ -1,4 +1,4 @@
-"""SGE interace to send jobs to an HPC cluster
+"""SLURM interace to send jobs to an HPC cluster
 
 """
 import os
@@ -21,8 +21,8 @@ READY = "ready"
 
 
 @logged
-class sge():
-    """Send tasks to an HPC cluster through SGE queueing system."""
+class slurm():
+    """Send tasks to an HPC cluster through SLURM queueing system."""
 
     jobFilenamePrefix = "job-"
     jobFilenameSuffix = ".sh"
@@ -34,7 +34,7 @@ class sge():
 #
 #
 
-# Options for qsub
+# Options for sbatch
 %(options)s
 # End of qsub options
 
@@ -54,7 +54,7 @@ fi
 """
 
     def __init__(self, config, dry_run=False):
-        """Initialize the SGE object.
+        """Initialize the SLURM object.
 
         """
         self.host = config.HPC.host
@@ -123,40 +123,39 @@ fi
         memory = kwargs.get("memory", 2)
         maxtime = kwargs.get("time", None)
 
-        submit_string = 'qsub -terse '
+        submit_string = 'sbatch --parsable '
 
         if self.queue is not None:
-            submit_string += " -q " + self.queue + " "
+            submit_string += " -p " + self.queue + " "
 
         if wait:
-            submit_string += " -sync y "
+            submit_string += " --wait "
 
         self.__log.debug("Job name is: " + self.job_name)
 
         if not os.path.exists(self.jobdir):
             os.makedirs(self.jobdir)
 
-        jobParams = ["#$ -N " + self.job_name]
-        jobParams.append("#$ -wd " + self.jobdir)
+        jobParams = ["#SBATCH -J " + self.job_name]
+        jobParams.append("#SBATCH --chdir=" + self.jobdir)
 
         if (len(elements) > 0 and num_jobs == 1) or (len(elements) == 0 and num_jobs > 1):
             raise("Number of specified jobs does not match to the number of elements")
 
         if num_jobs > 1:
-            jobParams.append("#$ -t 1-" + str(num_jobs))
-            tmpname = command.replace("<TASK_ID>", "$SGE_TASK_ID")
+            jobParams.append("#SBATCH --array=1-" + str(num_jobs))
+            tmpname = command.replace("<TASK_ID>", "$SLURM_ARRAY_TASK_ID")
             command = tmpname
 
         if cpu > 1:
-            jobParams.append("#$ -pe make " + str(cpu))
+            jobParams.append("#SBATCH --ntasks=" + str(cpu))
 
         if memory > 1:
-            jobParams.append("#$ -l mem_free=" + str(memory) +
-                             "G,h_vmem=" + str(memory + 0.5) + "G")
+            jobParams.append("#SBATCH --mem=" + str(memory) + "G")
 
         if maxtime is not None:
             jobParams.append(
-                "#$ -l h_rt=" + str(datetime.timedelta(minutes=maxtime)))
+                "#SBATCH --time=" + str(maxtime))
 
         if len(elements) > 0:
             chunk_size = int(
@@ -171,12 +170,12 @@ fi
             command = command.replace("<FILE>", input_path)
 
         # Creates the final job.sh
-        paramsText = self.defaultOptions + str("\n").join(jobParams)
+        paramsText = str("\n").join(jobParams)
         jobFilename = os.path.join(
-            self.jobdir, sge.jobFilenamePrefix + self.job_name + sge.jobFilenameSuffix)
+            self.jobdir, slurm.jobFilenamePrefix + self.job_name + slurm.jobFilenameSuffix)
         self.__log.info("Writing file " + jobFilename + "...")
         jobFile = open(jobFilename, "w")
-        jobFile.write(sge.templateScript %
+        jobFile.write(slurm.templateScript %
                       {"options": paramsText, "command": command})
         jobFile.close()
 
@@ -186,7 +185,7 @@ fi
 
         self.__log.debug("HPC submission: " + submit_string)
 
-        time.sleep(15)
+        time.sleep(2)
 
         try:
             ssh = paramiko.SSHClient()
@@ -201,6 +200,7 @@ fi
             else:
                 self.job_id = job[0]
 
+            print self.job_id
             self.job_id = self.job_id.rstrip()
             self.__log.debug(self.job_id)
         except paramiko.SSHException as sshException:
@@ -209,7 +209,7 @@ fi
         finally:
             ssh.close()
             self.statusFile = os.path.join(
-                self.jobdir, self.job_name + sge.jobStatusSuffix)
+                self.jobdir, self.job_name + slurm.jobStatusSuffix)
             with open(self.statusFile, "w") as f:
                 f.write(STARTED)
             self.status_id = STARTED
@@ -237,7 +237,7 @@ fi
 
         errors = ''
 
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.e*')):
+        for file_name in glob.glob(os.path.join(self.jobdir, 'slurm-*.out')):
             with open(file_name) as f:
                 num = 1
                 for line in f:
@@ -266,14 +266,10 @@ fi
         self.__log.debug("Compressing output job files...")
         tar = tarfile.open(os.path.join(
             self.jobdir, self.job_name + ".tar.gz"), "w:gz")
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.o*')):
-            tar.add(file_name, os.path.basename(file_name))
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.e*')):
+        for file_name in glob.glob(os.path.join(self.jobdir, 'slurm-*.out')):
             tar.add(file_name, os.path.basename(file_name))
         tar.close()
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.o*')):
-            os.remove(file_name)
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.e*')):
+        for file_name in glob.glob(os.path.join(self.jobdir, 'slurm-*.out')):
             os.remove(file_name)
 
     def status(self):
@@ -298,14 +294,14 @@ fi
                 ssh.load_system_host_keys()
                 ssh.connect(self.host, **self.conn_params)
                 stdin, stdout, stderr = ssh.exec_command(
-                    'qstat -j ' + self.job_id)
+                    'squeue --job ' + self.job_id)
 
                 message = stdout.readlines()
 
                 self.__log.debug(message)
 
                 # if message[0].find("do not exist") != -1:
-                if len(message) == 0:
+                if len(message) == 1:
                     self.status_id = DONE
                     with open(self.statusFile, "w") as f:
                         f.write(self.status_id)
