@@ -39,7 +39,9 @@ From: centos
                    vim \
                    bzip2 \
                    bzip2-devel \
-                   file
+                   file \
+                   libXrender \
+                   libXext
 
     # conda
     mkdir /opt/miniconda2 
