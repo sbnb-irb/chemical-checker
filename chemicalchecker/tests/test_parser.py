@@ -1,5 +1,6 @@
 import os
 import unittest
+import pytest
 
 from chemicalchecker.util import Parser
 
@@ -11,6 +12,7 @@ class TestConfig(unittest.TestCase):
         test_dir = os.path.dirname(os.path.realpath(__file__))
         self.data_dir = os.path.join(test_dir, 'data')
 
+    @pytest.mark.skip(reason="Skip because rdkit is not available")
     def test_bindingdb(self):
         file_path = os.path.join(self.data_dir, 'BindingDB_All.tsv')
         self.assertTrue(os.path.isfile(file_path))
@@ -26,6 +28,7 @@ class TestConfig(unittest.TestCase):
                     'src_name': 'bindingdb'}
         self.assertDictEqual(expected, results[0])
 
+    @pytest.mark.skip(reason="Skip because rdkit is not available")
     def test_chebi(self):
         file_path = os.path.join(self.data_dir, 'ChEBI_lite_3star.sdf')
         self.assertTrue(os.path.isfile(file_path))
