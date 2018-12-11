@@ -2,9 +2,11 @@
 
 ref: https://wwwdev.ebi.ac.uk/chembl/extra/francis/standardiser/
 """
-
-from standardiser import standardise
-from rdkit.Chem import AllChem as Chem
+try:
+    from standardiser import standardise
+    from rdkit.Chem import AllChem as Chem
+except ImportError:
+    pass
 
 
 class ConversionError(Exception):
