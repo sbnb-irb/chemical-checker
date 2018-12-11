@@ -3,7 +3,8 @@
         "CC_ROOT": "'/aloy/web_checker/'",
         "CC_DATA": "'/aloy/scratch/mbertoni/chemical_checker/data/download/'",
         "DOWNLOAD_TMP": "'/aloy/scratch/mbertoni/chemical_checker/data/download_tmp/'",
-        "CC_REPO": "'/aloy/home/oguitart/projects/source/chemical_checker'"
+        "CC_REPO": "'/aloy/home/oguitart/projects/source/chemical_checker'",
+        "SINGULARITY_IMAGE": "'/aloy/home/mbertoni/images/cc.simg'"
     },
     "DB": {
     	"dialect": "'postgresql'",
