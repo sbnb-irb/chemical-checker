@@ -5,3 +5,4 @@ from .pubchem import Pubchem
 from .libraries import Libraries
 from .structure import Structure
 from .datasource import Datasource
+from .molrepo import Molrepo
