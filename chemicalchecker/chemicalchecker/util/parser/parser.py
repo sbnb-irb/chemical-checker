@@ -23,7 +23,7 @@ class Parser():
             raise ex
 
     @staticmethod
-    def bindingdb(file_path, src_name, chunks):
+    def bindingdb(file_path, src_name, chunks=1000):
         fh = open(os.path.join(file_path), "r")
         # skip header
         header = fh.next()
@@ -67,7 +67,7 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def chebi(file_path, src_name, chunks):
+    def chebi(file_path, src_name, chunks=1000):
         suppl = Chem.SDMolSupplier(file_path)
         chunk = list()
         for idx, line in enumerate(suppl):
