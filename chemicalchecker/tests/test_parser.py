@@ -25,7 +25,7 @@ class TestConfig(unittest.TestCase):
                     'inchikey': 'UHTHHESEBZOYNR-UHFFFAOYSA-N',
                     'smile': 'COc1cc2c(Nc3ccc(Br)cc3F)ncnc2cc1OCC1CCN(C)CC1',
                     'src_id': 'UHTHHESEBZOYNR-UHFFFAOYSA-N',
-                    'src_name': 'bindingdb'}
+                    'molrepo_name': 'bindingdb'}
         self.assertDictEqual(expected, results[0])
 
     @pytest.mark.skip(reason="RDKit is not available on test enviroment")
@@ -41,5 +41,5 @@ class TestConfig(unittest.TestCase):
                     'inchikey': 'PFTAWBLQPZVEMU-UKRRQHHQSA-N',
                     'smile': 'Oc1cc(O)c2c(c1)O[C@H](c1ccc(O)c(O)c1)[C@H](O)C2',
                     'src_id': 'CHEBI:90',
-                    'src_name': 'chebi'}
+                    'molrepo_name': 'chebi'}
         self.assertDictEqual(expected, results[0])
