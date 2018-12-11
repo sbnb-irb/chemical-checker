@@ -1,5 +1,5 @@
 import os
-from .convert import Converter
+from .converter import Converter
 from chemicalchecker.util import logged
 import rdkit.Chem as Chem
 
