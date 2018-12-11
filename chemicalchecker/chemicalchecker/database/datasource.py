@@ -28,7 +28,8 @@ class Datasource(Base):
         user(str): few downloads require credentials.
         password(str): few downloads require credentials.
         description(str): free text description of the resource.
-        molrepo_name(str): optional, a `molrepo` name.
+        molrepo_name(str): optional, a `molrepo` name. NB this name is the
+            value of `Molrepo.molrepo_name`
         molrepo_file(str): optional, a specific file in the Datasource that
             will be used to fill the `molrepo` table. Can also be a directory.
         molrepo_parser(str): optional, a `Parser` class able to parse the
@@ -141,6 +142,16 @@ class Datasource(Base):
         return res
 
     @staticmethod
+    def get_molrepos():
+        """Get Datasources associated to a molrepo."""
+        session = get_session()
+        query = session.query(Datasource).filter(
+            ~(Datasource.molrepo_name == ''))
+        res = query.all()
+        session.close()
+        return res
+
+    @staticmethod
     def _create_table():
         """Create the Datasource table."""
         engine = get_engine()
@@ -181,7 +192,7 @@ class Datasource(Base):
             if len(paths) > 1:
                 raise Exception("`*` in %s molrepo_file is ambigous.", self)
             repo_path = paths[0]
-        return repo_path
+        return repo_path.encode('ascii', 'ignore')
 
     @property
     def available_molrepo(self):
