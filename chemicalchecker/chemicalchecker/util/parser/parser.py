@@ -1,7 +1,10 @@
 import os
 from .converter import Converter
 from chemicalchecker.util import logged
-import rdkit.Chem as Chem
+try:
+    import rdkit.Chem as Chem
+except ImportError:
+    pass
 
 
 @logged
