@@ -26,7 +26,7 @@ class Parser():
             raise ex
 
     @staticmethod
-    def bindingdb(file_path, src_name, chunks=1000):
+    def bindingdb(file_path, molrepo_name, chunks=1000):
         fh = open(os.path.join(file_path), "r")
         # skip header
         header = fh.next()
@@ -57,7 +57,7 @@ class Parser():
                 Parser.__log.warning("line %s: %s", idx, str(ex))
                 inchikey, inchi = "", ""
             result = {
-                "src_name": src_name,
+                "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smile": smile,
                 "inchikey": inchikey,
@@ -70,7 +70,7 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def chebi(file_path, src_name, chunks=1000):
+    def chebi(file_path, molrepo_name, chunks=1000):
         suppl = Chem.SDMolSupplier(file_path)
         chunk = list()
         for idx, line in enumerate(suppl):
@@ -85,7 +85,7 @@ class Parser():
                 Parser.__log.warning("line %s: %s", idx, str(ex))
                 inchikey, inchi = "", ""
             result = {
-                "src_name": src_name,
+                "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smile": smile,
                 "inchikey": inchikey,
