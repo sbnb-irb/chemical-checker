@@ -55,7 +55,7 @@ class Converter():
             url = 'http://pubchem.ncbi.nlm.nih.gov/rest/pug/substance/' + \
                 'sourceid/Comparative%20Toxicogenomics%20Database/' + \
                 ctdid + '/cids/TXT/'
-            pubchemcid = urlopen(url).read().rstrip().encode('ascii', 'ignore')
+            pubchemcid = urlopen(url).read().rstrip().decode()
         except Exception as ex:
             Converter.__log.warn(str(ex))
             raise ConversionError("Cannot fetch PubChemID CID from CTD", ctdid)
@@ -63,7 +63,7 @@ class Converter():
         try:
             url = 'http://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/' +\
                 'cid/%s/property/CanonicalSMILES/TXT/' % pubchemcid
-            smiles = urlopen(url).read().rstrip().encode('ascii', 'ignore')
+            smiles = urlopen(url).read().rstrip().decode()
         except Exception as ex:
             Converter.__log.warn(str(ex))
             raise ConversionError(
@@ -77,7 +77,7 @@ class Converter():
             chem_name = quote(chem_name)
             url = 'http://cactus.nci.nih.gov/chemical/' + \
                 'structure/%s/smiles' % chem_name
-            return urlopen(url).read().rstrip().encode('ascii', 'ignore')
+            return urlopen(url).read().rstrip().decode()
         except Exception as ex:
             Converter.__log.warn(str(ex))
             raise ConversionError(
