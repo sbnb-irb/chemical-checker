@@ -43,3 +43,19 @@ class TestConfig(unittest.TestCase):
                     'src_id': 'CHEBI:90',
                     'molrepo_name': 'chebi'}
         self.assertDictEqual(expected, results[0])
+
+    @pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    def test_ctd(self):
+        file_path = os.path.join(self.data_dir, 'CTD_chemicals_diseases.tsv')
+        self.assertTrue(os.path.isfile(file_path))
+        chunks = list(Parser.ctd(file_path, 'ctd'))
+        self.assertEqual(len(chunks), 1)
+        results = chunks[0]
+        self.assertEqual(len(results), 2)
+
+        expected = {'inchi': 'InChI=1S/C26H20N2O/c29-25-21-5-1-3-7-23(21)26(17-19-9-13-27-14-10-19,18-20-11-15-28-16-12-20)24-8-4-2-6-22(24)25/h1-16H,17-18H2',
+                    'inchikey': 'KHJFBUUFMUBONL-UHFFFAOYSA-N',
+                    'molrepo_name': 'ctd',
+                    'smiles': 'O=C1c2ccccc2C(Cc3ccncc3)(Cc4ccncc4)c5ccccc15',
+                    'src_id': 'C112297'}
+        self.assertDictEqual(expected, results[0])
