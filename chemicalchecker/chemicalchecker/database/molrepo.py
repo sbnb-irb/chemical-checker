@@ -7,7 +7,7 @@ import os
 import datetime
 from time import time
 from .database import Base, get_engine, get_session
-from sqlalchemy import Column, Text, Integer
+from sqlalchemy import Column, Text, Integer, Index
 from sqlalchemy.orm import class_mapper, ColumnProperty
 
 import chemicalchecker
@@ -36,10 +36,10 @@ class Molrepo(Base):
 
     __tablename__ = 'molrepo'
     id = Column(Integer, primary_key=True)
-    molrepo_name = Column(Text)
+    molrepo_name = Column(Text, index=True)
     src_id = Column(Text)
     smiles = Column(Text)
-    inchikey = Column(Text)
+    inchikey = Column(Text, index=True)
     inchi = Column(Text)
 
     def __repr__(self):
