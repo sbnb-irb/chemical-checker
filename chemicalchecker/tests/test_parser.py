@@ -25,7 +25,7 @@ class TestConfig(unittest.TestCase):
                     'inchikey': 'UHTHHESEBZOYNR-UHFFFAOYSA-N',
                     'smile': 'COc1cc2c(Nc3ccc(Br)cc3F)ncnc2cc1OCC1CCN(C)CC1',
                     'src_id': 'UHTHHESEBZOYNR-UHFFFAOYSA-N',
-                    'src_name': 'bindingdb'}
+                    'molrepo_name': 'bindingdb'}
         self.assertDictEqual(expected, results[0])
 
     @pytest.mark.skip(reason="RDKit is not available on test enviroment")
@@ -41,5 +41,21 @@ class TestConfig(unittest.TestCase):
                     'inchikey': 'PFTAWBLQPZVEMU-UKRRQHHQSA-N',
                     'smile': 'Oc1cc(O)c2c(c1)O[C@H](c1ccc(O)c(O)c1)[C@H](O)C2',
                     'src_id': 'CHEBI:90',
-                    'src_name': 'chebi'}
+                    'molrepo_name': 'chebi'}
+        self.assertDictEqual(expected, results[0])
+
+    @pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    def test_ctd(self):
+        file_path = os.path.join(self.data_dir, 'CTD_chemicals_diseases.tsv')
+        self.assertTrue(os.path.isfile(file_path))
+        chunks = list(Parser.ctd(file_path, 'ctd'))
+        self.assertEqual(len(chunks), 1)
+        results = chunks[0]
+        self.assertEqual(len(results), 2)
+
+        expected = {'inchi': 'InChI=1S/C26H20N2O/c29-25-21-5-1-3-7-23(21)26(17-19-9-13-27-14-10-19,18-20-11-15-28-16-12-20)24-8-4-2-6-22(24)25/h1-16H,17-18H2',
+                    'inchikey': 'KHJFBUUFMUBONL-UHFFFAOYSA-N',
+                    'molrepo_name': 'ctd',
+                    'smiles': 'C1=CC=C2C(=C1)C(=O)C3=CC=CC=C3C2(CC4=CC=NC=C4)CC5=CC=NC=C5',
+                    'src_id': 'C112297'}
         self.assertDictEqual(expected, results[0])
