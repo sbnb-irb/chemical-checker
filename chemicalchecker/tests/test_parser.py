@@ -56,6 +56,6 @@ class TestConfig(unittest.TestCase):
         expected = {'inchi': 'InChI=1S/C26H20N2O/c29-25-21-5-1-3-7-23(21)26(17-19-9-13-27-14-10-19,18-20-11-15-28-16-12-20)24-8-4-2-6-22(24)25/h1-16H,17-18H2',
                     'inchikey': 'KHJFBUUFMUBONL-UHFFFAOYSA-N',
                     'molrepo_name': 'ctd',
-                    'smiles': 'O=C1c2ccccc2C(Cc3ccncc3)(Cc4ccncc4)c5ccccc15',
+                    'smiles': 'C1=CC=C2C(=C1)C(=O)C3=CC=CC=C3C2(CC4=CC=NC=C4)CC5=CC=NC=C5',
                     'src_id': 'C112297'}
         self.assertDictEqual(expected, results[0])
