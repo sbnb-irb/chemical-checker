@@ -49,6 +49,7 @@ class Datasource(Base):
     molrepo_name = Column(Text)
     molrepo_file = Column(Text)
     molrepo_parser = Column(Text)
+    is_db = Column(Boolean)
 
     def __repr__(self):
         """String representation."""
@@ -242,7 +243,12 @@ class Datasource(Base):
         else:
             url = self.url
         # call the downloader
-        down = Downloader(url, self.data_path)
+        if self.is_db:
+            dbname = self.name
+        else:
+            dbname = None
+        down = Downloader(url, self.data_path, dbname=dbname,
+                          dbfile=self.molrepo_file)
         down.download()
 
     @staticmethod

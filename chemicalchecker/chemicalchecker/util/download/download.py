@@ -10,10 +10,13 @@ downloaded from external repositories. This class performs the following:
 5. copy to the local data path
 """
 import os
+import sys
 import wget
 import shutil
 import tempfile
 import patoolib
+from glob import glob
+from subprocess import call
 from time import sleep
 from ftplib import FTP
 from six.moves import urllib
@@ -21,13 +24,14 @@ from six.moves.urllib.parse import urlparse
 from six.moves.urllib import request
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
+from chemicalchecker.database import qstring
 
 
 @logged
 class Downloader():
     """Systematize download and decompression from external repositories."""
 
-    def __init__(self, url, data_path, tmp_dir=None):
+    def __init__(self, url, data_path, tmp_dir=None, dbname=None, dbfile=None):
         """Initialize the download object.
 
         Download from url, unpack in tmp_dir, and copy to data_path.
@@ -41,6 +45,8 @@ class Downloader():
         """
         self.__log.debug('%s to %s', url, data_path)
         self.data_path = data_path
+        self.dbname = dbname
+        self.dbfile = dbfile
         if not tmp_dir:
             tmp_dir = Config().PATH.DOWNLOAD_TMP
         self.tmp_dir = tmp_dir
@@ -132,6 +138,39 @@ class Downloader():
                 self.__log.error('problem uncompressing %s', tmp_file)
                 self.__log.error('error was: %s', str(err))
                 raise err
+        if self.dbname is not None:
+            file_path = os.path.join(tmp_unzip_dir, self.dbfile)
+            if '*' in self.dbfile:
+                # resolve the path
+                paths = glob(file_path)
+                if len(paths) > 1:
+                    raise Exception("`*` in %s db_file is ambigous.", self)
+                file_path = paths[0]
+            cmd2run = 'dropdb --if-exists -h ' + Config().DB.host + ' ' + \
+                self.dbname + ' && '
+            cmd2run += "createdb -h " + Config().DB.host + " " + self.dbname + " && "
+            cmd2run += 'pg_restore -h ' + Config().DB.host + '  -d ' + self.dbname + \
+                ' ' + file_path
+
+            try:
+                self.__log.debug('calling script: ' + cmd2run)
+                retcode = call(cmd2run, shell=True)
+                self.__log.debug("FINISHED! " + cmd2run +
+                                 (" returned code %d" % retcode))
+
+            except OSError as e:
+                self.__log.critical("Execution failed: %s" % e)
+                sys.exit(1)
+
+            R = qstring("SELECT pg_size_pretty(pg_database_size('" +
+                        self.dbname + "'))", Config().DB.database)
+
+            size = R[0][0].split(" ")
+
+            if size == 'kB':
+                raise RuntimeError(
+                    'DB created seems to be empty. Please check.')
+
         # move to final destination
         shutil.move(tmp_unzip_dir, self.data_path)
         self.__log.debug('downloaded to  %s', self.data_path)
