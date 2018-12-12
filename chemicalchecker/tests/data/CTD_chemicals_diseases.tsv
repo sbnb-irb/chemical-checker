@@ -1,0 +1,300 @@
+# The Comparative Toxicogenomics Database (CTD) - http://ctdbase.org/
+#   Copyright 2002-2012 MDI Biological Laboratory. All rights reserved.
+#   Copyright 2012-2018 MDI Biological Laboratory & NC State University. All rights reserved.
+#  
+# 
+# Use is subject to the terms set forth at http://ctdbase.org/about/legal.jsp
+# These terms include:
+# 
+#   1. All forms of publication (e.g., web sites, research papers, databases,
+#      software applications, etc.) that use or rely on CTD data must cite CTD.
+#      Citation guidelines: http://ctdbase.org/about/publications/#citing
+# 
+#   2. All electronic or online applications must include hyperlinks from 
+#      contexts that use CTD data to the applicable CTD data pages.
+#      Linking instructions: http://ctdbase.org/help/linking.jsp
+# 
+#   3. You must notify CTD, and describe your use of our data:
+#      http://ctdbase.org/help/contact.go
+# 
+#   4. For quality control purposes, you must provide CTD with periodic 
+#      access to your publication of our data.
+# 
+# More information: http://ctdbase.org/downloads/
+# 
+# Report created: Thu Nov 08 14:25:19 EST 2018
+#
+# Fields:
+# ChemicalName	ChemicalID	CasRN	DiseaseName	DiseaseID	DirectEvidence	InferenceGeneSymbol	InferenceScore	OmimIDs	PubMedIDs
+#
+06-Paris-LA-66 protocol	C046983		Precursor Cell Lymphoblastic Leukemia-Lymphoma	MESH:D054198	therapeutic				4519131
+10074-G5	C534883		Adenocarcinoma	MESH:D000230		MYC	4.40		26432044
+10074-G5	C534883		Adenocarcinoma of Lung	MESH:D000077192		MYC	4.65		26656844|27602772
+10074-G5	C534883		Burkitt Lymphoma	MESH:D002051		MYC	5.44	113970	
+10074-G5	C534883		Carcinoma	MESH:D002277		MYC	4.41		2228319
+10074-G5	C534883		Carcinoma, Hepatocellular	MESH:D006528		MYC	4.16		12029619|15565109|29698666|9029167
+10074-G5	C534883		Carcinoma, Merkel Cell	MESH:D015266		MYC	6.46		25277525
+10074-G5	C534883		Carcinoma, Non-Small-Cell Lung	MESH:D002289		MYC	4.60		24688052
+10074-G5	C534883		Carcinoma, Squamous Cell	MESH:D002294		MYC	4.54		26432044
+10074-G5	C534883		Cardiomyopathy, Hypertrophic	MESH:D002312		MYC	5.10		22000973
+10074-G5	C534883		Cell Transformation, Neoplastic	MESH:D002471		MYC	4.37		2543982
+10074-G5	C534883		Chromosome Breakage	MESH:D019457		MYC	4.76		25933419
+10074-G5	C534883		Cleft Lip	MESH:D002971		MYC	5.35		24859337
+10074-G5	C534883		Cleft Palate	MESH:D002972		MYC	4.96		24859337
+10074-G5	C534883		Colonic Neoplasms	MESH:D003110		MYC	4.35		12189186|15059925|18283038|21081470
+10074-G5	C534883		Disease Models, Animal	MESH:D004195		MYC	4.29		27602772
+10074-G5	C534883		Disease Progression	MESH:D018450		MYC	4.65		22321834|28191284
+10074-G5	C534883		Endometrial Neoplasms	MESH:D016889		MYC	4.89		26656844
+10074-G5	C534883		Fatty Liver	MESH:D005234		MYC	4.28		24210820
+10074-G5	C534883		Glioblastoma	MESH:D005909		MYC	4.79		21127729
+10074-G5	C534883		Hemangiosarcoma	MESH:D006394		MYC	5.29		17569031
+10074-G5	C534883		Hypertrophy, Left Ventricular	MESH:D017379		MYC	4.88		21472269
+10074-G5	C534883		Leukemia, Myeloid, Acute	MESH:D015470		MYC	4.53		25956709
+10074-G5	C534883		Liver Cirrhosis, Experimental	MESH:D008106		MYC	3.82		25380136
+10074-G5	C534883		Liver Neoplasms	MESH:D008113		MYC	4.19		11532874|8807143
+10074-G5	C534883		Liver Neoplasms, Experimental	MESH:D008114		MYC	4.28		11280770|18560566|9079223
+10074-G5	C534883		Lung Neoplasms	MESH:D008175		MYC	4.09		16289808|28191284
+10074-G5	C534883		Medulloblastoma	MESH:D008527		MYC	5.14		19270706
+10074-G5	C534883		Myelodysplastic Syndromes	MESH:D009190		MYC	5.19		10914558
+10074-G5	C534883		Neoplasm Metastasis	MESH:D009362		MYC	4.25		22321834
+10074-G5	C534883		Neoplasms	MESH:D009369		MYC	4.21		11559025
+10074-G5	C534883		Neuroblastoma	MESH:D009447		MYC	5.00		8761367
+10074-G5	C534883		Neuroectodermal Tumors	MESH:D017599		MYC	6.11		8761367
+10074-G5	C534883		Osteosarcoma	MESH:D012516		MYC	5.08		24646477
+10074-G5	C534883		Ovarian Neoplasms	MESH:D010051		MYC	4.54		20852632
+10074-G5	C534883		Pancreatic Neoplasms	MESH:D010190		MYC	4.56		25961927
+10074-G5	C534883		Pheochromocytoma	MESH:D010673		MAX	6.52	171300	21685915
+10074-G5	C534883		Polycystic Kidney, Autosomal Dominant	MESH:D016891		MYC	6.16		25877301
+10074-G5	C534883		Prostatic Neoplasms	MESH:D011471		MYC	3.89		17173048|23704919
+10074-G5	C534883		Stomach Neoplasms	MESH:D013274		MYC	4.22		17171786|21173787
+10074-G5	C534883		Urinary Bladder Neoplasms	MESH:D001749		MYC	4.40		2228319
+10074-G5	C534883		Uterine Cervical Neoplasms	MESH:D002583		MYC	5.08		26432044
+10074-G5	C534883		Wilms Tumor	MESH:D009396		MAX	6.34		28825729
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Adenocarcinoma	MESH:D000230		KCNQ1	4.76		23975432
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Amphetamine-Related Disorders	MESH:D019969		FOS	4.09		19689456
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Amyotrophic lateral sclerosis 1	MESH:C531617		FOS	4.57		11796754
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Anxiety Disorders	MESH:D001008		FOS	3.78		16488545
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Arthritis, Juvenile	MESH:D001171		FOS	4.07		19565504
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Atrial Fibrillation, Familial, 3	MESH:C563817		KCNQ1	7.61	607554	
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Beckwith-Wiedemann Syndrome	MESH:D001506		KCNQ1	6.71	130650	
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Brain Diseases	MESH:D001927		KCNQ2	4.90		27602407
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Brain Injuries	MESH:D001930		FOS	3.85		9630518
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Breast Neoplasms	MESH:D001943		FOS	3.16		16298037
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Carcinoma, Hepatocellular	MESH:D006528		FOS	3.47		9029167
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Cell Transformation, Neoplastic	MESH:D002471		FOS	3.68		8777434
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Cholestasis, Extrahepatic	MESH:D001651		FOS	4.68		28789951
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Cocaine-Related Disorders	MESH:D019970		FOS	3.52		17276011|18311559|19533625
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Developmental Disabilities	MESH:D002658		KCNQ2	5.58		20805988|27602407
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Diabetes Mellitus, Type 2	MESH:D003924		KCNQ1	4.71		18711366|18711367|26551672
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Disease Models, Animal	MESH:D004195		FOS	3.60		27093858
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Endometriosis	MESH:D004715		FOS	3.95		23284138
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Epilepsy	MESH:D004827		FOS	8.92		15973680
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Epilepsy	MESH:D004827		KCNQ2	8.92		16464983|29942082
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Epilepsy, Benign Neonatal	MESH:D020936		KCNQ2	7.31		19380078|26910900
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		EPILEPTIC ENCEPHALOPATHY, EARLY INFANTILE, 7	OMIM:613720		KCNQ2	7.66	613720	
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Fibrous Dysplasia of Bone	MESH:D005357		FOS	6.01		7739708
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Hearing Loss, Noise-Induced	MESH:D006317		KCNQ1	5.87		16823764
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Heat Stroke	MESH:D018883		FOS	4.78		24039931
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Hemorrhage	MESH:D006470		FOS	3.70		7844257
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Hyperalgesia	MESH:D006930		FOS	3.43		27093858
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Hyperkinesis	MESH:D006948	marker/mechanism				19098162
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Hyperkinesis	MESH:D006948		FOS	3.53		18355967
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Hypertension	MESH:D006973		FOS	3.13		12044476|24039778
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Infarction, Middle Cerebral Artery	MESH:D020244		FOS	4.37		12374626
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Intestinal Neoplasms	MESH:D007414		KCNQ1	5.53		23975432
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Jervell-Lange Nielsen Syndrome	MESH:D029593		KCNQ1	7.26	220400	
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Liver Cirrhosis, Experimental	MESH:D008106		FOS	3.14		25380136
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Long QT Syndrome	MESH:D008133		KCNQ1	4.96		10868744|14510655|15028050|17467628|18329740|20513597|22910039
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Lung Neoplasms	MESH:D008175		FOS	3.41		16289808
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Nervous System Diseases	MESH:D009422		FOS	8.19		12890883
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Nervous System Diseases	MESH:D009422		KCNQ2	8.19		20805988
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Neurodevelopmental Disorders	MESH:D065886		KCNQ2	5.35		29942082
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Neurotoxicity Syndromes	MESH:D020258		FOS	3.78		19220411
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Reperfusion Injury	MESH:D015427		FOS	3.84		7922267
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Romano-Ward Syndrome	MESH:D029597		KCNQ1	7.26	192500	15004216
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Seizures	MESH:D012640	marker/mechanism				26348896
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Seizures	MESH:D012640		FOS	6.26		11955713|12946577|8923670|9630518
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Seizures	MESH:D012640		KCNQ2	6.26		27602407
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		SEIZURES, BENIGN FAMILIAL NEONATAL, 1	OMIM:121200		KCNQ2	7.66	121200	
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		SEIZURES, BENIGN FAMILIAL NEONATAL, 2	OMIM:121201		KCNQ3	7.84	121201	
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Short QT Syndrome 2	MESH:C566505		KCNQ1	7.61	609621	
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Status Epilepticus	MESH:D013226		FOS	3.80		16696126|18587450|18988310|7984056
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Substance Withdrawal Syndrome	MESH:D013375		FOS	3.54		15196791|15196794|18485423
+10,10-bis(4-pyridinylmethyl)-9(10H)-anthracenone	C112297		Trigeminal Neuralgia	MESH:D014277		FOS	4.93		27093858
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Abnormalities, Drug-Induced	MESH:D000014		EPHX1	5.11		2336087
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Acute Lung Injury	MESH:D055371		EPHX1	5.48		26840748
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Amphetamine-Related Disorders	MESH:D019969		EPHX1	5.40		19598248
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Carcinoma	MESH:D002277		EPHX1	5.02		12376462
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Carcinoma, Hepatocellular	MESH:D006528		EPHX1	4.77		7892276
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Chemical and Drug Induced Liver Injury	MESH:D056486		EPHX1	4.18		25226513
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Hypercholanemia, Familial	MESH:C564336		EPHX1	7.33	607748	
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Leukemia, Myeloid, Acute	MESH:D015470		EPHX1	5.14		29605894
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Lung Neoplasms	MESH:D008175		EPHX1	4.70		17114358|17311802
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Lymphoma	MESH:D008223		EPHX1	5.54		11406608
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Lymphoma, Non-Hodgkin	MESH:D008228		EPHX1	5.39		11406608
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Mammary Neoplasms, Animal	MESH:D015674		EPHX1	5.21		12376462
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Mammary Neoplasms, Experimental	MESH:D008325		EPHX1	5.01		12376462
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Mesothelioma, Malignant	MESH:C562839		EPHX1	5.48		16697254
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Micronuclei, Chromosome-Defective	MESH:D048629		EPHX1	5.21		22156006
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Multiple Myeloma	MESH:D009101		EPHX1	5.40		16949155
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Myocardial Ischemia	MESH:D017202		EPHX1	4.91		29298899
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Precursor Cell Lymphoblastic Leukemia-Lymphoma	MESH:D054198		EPHX1	5.39		21983886
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Pre-Eclampsia	MESH:D011225		EPHX1	5.86		11283205|12173035
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Prostatic Neoplasms	MESH:D011471		EPHX1	4.49		17919073|21716162|24763052
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Pulmonary Disease, Chronic Obstructive	MESH:D029424		EPHX1	5.61		9288046
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Pulmonary Emphysema	MESH:D011656		EPHX1	6.43		9288046
+10,11-dihydro-10,11-dihydroxy-5H-dibenzazepine-5-carboxamide	C004822	35079-97-1	Skin Neoplasms	MESH:D012878		EPHX1	5.17		26295053
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Acute Kidney Injury	MESH:D058186		CYP2C19	4.16		19814645
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Adrenocortical Carcinoma	MESH:D018268		ABCB1	5.35		12015757
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Arthritis, Experimental	MESH:D001169		ABCB1	4.57		17827786
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Arthritis, Rheumatoid	MESH:D001172		ABCB1	4.22		20080907|22104130
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Atrial Fibrillation	MESH:D001281		CYP2C19	4.50		27356304
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Breast Neoplasms	MESH:D001943		ABCB1	3.61		22311042
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Carcinoma	MESH:D002277		ABCB1	4.18		21332314
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Carcinoma, Hepatocellular	MESH:D006528		ABCB1	3.93		17510421
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Carcinoma, Non-Small-Cell Lung	MESH:D002289		ABCB1	4.38		20627363
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Cardiovascular Diseases	MESH:D002318		CYP2C19	4.56		20978260
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Chemical and Drug Induced Liver Injury	MESH:D056486		ABCB1	6.86		20623750
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Chemical and Drug Induced Liver Injury	MESH:D056486		CYP2C19	6.86		12963435|28762043
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Colorectal Neoplasms	MESH:D015179		ABCB1	4.10		22294766|23977225
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Disease Progression	MESH:D018450		ABCB1	4.43		20627363
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Drug Metabolism, Poor, CYP2C19-Related	MESH:C563703		CYP2C19	7.38	609535	
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Drug-Related Side Effects and Adverse Reactions	MESH:D064420		ABCB1	3.79		18381794|20563569|21064136|25007187
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Epilepsy	MESH:D004827	therapeutic				17516704
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Epilepsy	MESH:D004827		ABCB1	4.32		19570321|8001500
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Escherichia coli Infections	MESH:D004927		ABCB1	5.12		24498193
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Esophageal Neoplasms	MESH:D004938		ABCB1	4.55		21332314
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Genetic Predisposition to Disease	MESH:D020022		ABCB1	13.51		22311042
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Genetic Predisposition to Disease	MESH:D020022		CYP2C19	13.51		27356304
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Heart Defects, Congenital	MESH:D006330		ABCB1	4.57		23874772
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Hematologic Neoplasms	MESH:D019337		ABCB1	5.37		22311042
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Hypotension, Orthostatic	MESH:D007024		ABCB1	4.51		12082591
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Inflammatory Bowel Disease 13	MESH:C567384		ABCB1	7.03	612244	
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Kidney Failure, Chronic	MESH:D007676		CYP2C19	4.89		15248218
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Kidney Neoplasms	MESH:D007680		ABCB1	4.50		22311042
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Liver Cirrhosis, Experimental	MESH:D008106		ABCB1	3.60		17072980
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Lymphoma, Large B-Cell, Diffuse	MESH:D016403		ABCB1	4.94		21325069
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Marijuana Abuse	MESH:D002189		ABCB1	5.65		19625010
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Mental Disorders	MESH:D001523		ABCB1	4.44		17015054
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Nausea	MESH:D009325		ABCB1	3.91		21840870
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Neoplasm Metastasis	MESH:D009362		ABCB1	4.02		12015757
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Neoplasms	MESH:D009369		ABCB1	3.98		22269388
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Nervous System Diseases	MESH:D009422		ABCB1	4.09		17015054|21064136
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Neuroblastoma	MESH:D009447		ABCB1	4.77		8761367
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Neurotoxicity Syndromes	MESH:D020258		ABCB1	4.25		12352921
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Neutropenia	MESH:D009503		ABCB1	4.33		16950614|25007187
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Pain, Postoperative	MESH:D010149		ABCB1	4.66		20627697
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Parkinson Disease	MESH:D010300		ABCB1	4.27		20558393
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Parkinson Disease, Secondary	MESH:D010302		ABCB1	4.54		26457621
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Peripheral Nervous System Diseases	MESH:D010523		ABCB1	4.19		16950614
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Poisoning	MESH:D011041		ABCB1	4.04		23562926
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Precursor Cell Lymphoblastic Leukemia-Lymphoma	MESH:D054198		ABCB1	4.55		22674224
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Primary Ovarian Insufficiency	MESH:D016649		CYP2C19	6.18		15248218
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Prostatic Neoplasms	MESH:D011471		CYP2C19	4.01		21716162
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Squamous Cell Carcinoma of Head and Neck	MESH:D000077195		ABCB1	5.01		25275603
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Thrombosis	MESH:D013927		CYP2C19	4.62		20978260
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Translocation, Genetic	MESH:D014178		ABCB1	5.75		21325069
+10,11-dihydro-10-hydroxycarbamazepine	C039775		Vomiting	MESH:D014839		ABCB1	3.95		21840870
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Alopecia	MESH:D000505		AR	5.19		15902657
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Androgen-Insensitivity Syndrome	MESH:D013734		AR	7.51	300068|312300	1303262|8281139
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Astrocytoma	MESH:D001254		AR	5.61		24680642
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Autistic Disorder	MESH:D001321		AR	4.61		19167832
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Breast Neoplasms	MESH:D001943		AR	4.08		21633166|22174584
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Breast Neoplasms, Male	MESH:D018567		AR	6.54		1303262|8281139
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Bulbospinal neuronopathy, X-linked recessive	MESH:C537017		AR	7.51	313200	
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Carcinoma, Hepatocellular	MESH:D006528		AR	4.40		18639551
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Diabetes, Gestational	MESH:D016640		AR	5.85		20421132
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Genital Diseases, Male	MESH:D005832		AR	5.71		25434310
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Hypertension	MESH:D006973		AR	4.04		10523385
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Hypospadias 1, X-Linked	MESH:C567482		AR	7.51	300633	
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Infertility, Female	MESH:D007247		AR	5.28		23710174
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Infertility, Male	MESH:D007248		AR	5.00		12220434|18554162|20164437
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Insulin Resistance	MESH:D007333		AR	4.74		21444647
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Leukemia	MESH:D007938		AR	4.97		19235587
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Neoplasm Recurrence, Local	MESH:D009364		AR	5.54		11742035
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Prostatic Intraepithelial Neoplasia	MESH:D019048		AR	5.95		20601956
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Prostatic Neoplasms	MESH:D011471		AR	4.13	176807	11742035|12237244|15389811|15790600|16266977|16877366|16934689|16998812|17003774|17141945|18829485|19011039|20729295|22610119|22666205|23704919|25062956|25735316|25908785|25970160|29610475
+10,11-dihydro-5H-dibenzo(a,d)cycloheptene	C515697		Prostatic Neoplasms, Castration-Resistant	MESH:D064129		AR	6.04		18985049|24740322|28757136
+10,11-dihydroxy-N-n-propylnorapomorphine	C425777		Hyperkinesis	MESH:D006948	marker/mechanism				15765258
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Acute Kidney Injury	MESH:D058186		SIRT1	4.70		21416250
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Atherosclerosis	MESH:D050197		SIRT1	5.20		20068143
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Atrial Fibrillation	MESH:D001281		SIRT1	5.04		29892015
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Autoimmune Diseases	MESH:D001327		SIRT1	5.65		23993977
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Brain Infarction	MESH:D020520		SIRT1	6.03		22878646
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Brain Neoplasms	MESH:D001932		SIRT1	5.68		22523472
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Breast Neoplasms	MESH:D001943		SIRT1	4.49		19839049
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Ceroid lipofuscinosis, neuronal 1, infantile	MESH:C537948		SIRT1	6.69		21224254
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Colitis	MESH:D003092		SIRT1	5.50		19940103|24548422|24782617
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Demyelinating Diseases	MESH:D003711		SIRT1	5.79		23547115
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Diabetes Mellitus	MESH:D003920		SIRT1	5.37		24894401
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Diabetes Mellitus, Experimental	MESH:D003921		SIRT1	5.19		23090186|23792339
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Diabetes Mellitus, Type 2	MESH:D003924		SIRT1	5.02		23834033
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Diabetic Retinopathy	MESH:D003930		SIRT1	6.17		24894401
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Encephalomyelitis, Autoimmune, Experimental	MESH:D004681		SIRT1	5.88		23547115
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Fatty Liver	MESH:D005234		SIRT1	4.95		21321189|23834033|24184811|24210820|24442997
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Fibrosis	MESH:D005355		SIRT1	5.16		20651248
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Genomic Instability	MESH:D042822		SIRT1	6.28		23217256
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Glucose Intolerance	MESH:D018149		SIRT1	5.49		21321189
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Heart Diseases	MESH:D006331		SIRT1	4.93		23217256
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Heart Failure	MESH:D006333		SIRT1	4.88		24535859
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		HIV Infections	MESH:D015658		SIRT1	5.34		19720090
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Hypertrophy	MESH:D006984		SIRT1	5.46		23297412
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Insulin Resistance	MESH:D007333		SIRT1	5.16		20068143|21321189|24442997|25849131|26026874
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Liver Cirrhosis, Experimental	MESH:D008106		SIRT1	4.48		26435214
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Lung Injury	MESH:D055370		SIRT1	5.37		24633890
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Metabolic Syndrome	MESH:D024821		SIRT1	5.70		20068143
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Myocardial Reperfusion Injury	MESH:D015428		SIRT1	5.33		21060073
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Neoplasm Metastasis	MESH:D009362		SIRT1	4.92		27793039
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Nerve Degeneration	MESH:D009410		SIRT1	4.90		17581637
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Neurodegenerative Diseases	MESH:D019636		SIRT1	5.45		17581637|17652729
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Non-alcoholic Fatty Liver Disease	MESH:D065626		SIRT1	5.45		26026874
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Obesity	MESH:D009765		SIRT1	5.05		24184811
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Osteosarcoma	MESH:D012516		SIRT1	5.75		27793039
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Paralysis	MESH:D010243		SIRT1	5.32		23547115
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Pneumonia	MESH:D011014		SIRT1	5.20		24633890
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Pneumonia, Pneumococcal	MESH:D011018		SIRT1	6.65		24894820
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Prostatic Neoplasms	MESH:D011471		SIRT1	4.55		21062352
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Retinal Diseases	MESH:D012164		SIRT1	5.68		23217256
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Scleroderma, Systemic	MESH:D012595		SIRT1	6.05		25707573
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Thrombosis	MESH:D013927		SIRT1	5.16		25339356
+10-(2-(5H-(1,2,4)triazino(5,6-b)indol-3-ylthio)butanoyl)-10H-phenothiazine	C573921		Wallerian Degeneration	MESH:D014855		SIRT1	6.83		24252177
+10-(2-pyrazolylethoxy)camptothecin	C534422		Adenocarcinoma	MESH:D000230		CASP8	4.31		21472143
+10-(2-pyrazolylethoxy)camptothecin	C534422		Alzheimer Disease	MESH:D000544		CASP3	4.09		18077176
+10-(2-pyrazolylethoxy)camptothecin	C534422		Autoimmune Lymphoproliferative Syndrome	MESH:D056735		CASP8	6.19	607271	
+10-(2-pyrazolylethoxy)camptothecin	C534422		Brain Ischemia	MESH:D002545		CASP3	4.10		11756504|17901229
+10-(2-pyrazolylethoxy)camptothecin	C534422		Breast Neoplasms	MESH:D001943		CASP8	3.73	114480	15601643|17293864|17450141|29915430
+10-(2-pyrazolylethoxy)camptothecin	C534422		Calcinosis	MESH:D002114		CASP3	4.64		21335463
+10-(2-pyrazolylethoxy)camptothecin	C534422		Carcinoma, Hepatocellular	MESH:D006528		CASP8	4.06	114550	
+10-(2-pyrazolylethoxy)camptothecin	C534422		Carcinoma, Non-Small-Cell Lung	MESH:D002289		CASP8	4.51		20471133
+10-(2-pyrazolylethoxy)camptothecin	C534422		Cerebral Hemorrhage	MESH:D002543		CASP3	11.39		17971790
+10-(2-pyrazolylethoxy)camptothecin	C534422		Cerebral Hemorrhage	MESH:D002543		CASP8	11.39		17971790
+10-(2-pyrazolylethoxy)camptothecin	C534422		Colitis, Ulcerative	MESH:D003093		CASP3	4.40		24055189
+10-(2-pyrazolylethoxy)camptothecin	C534422		Colorectal Neoplasms	MESH:D015179		CASP8	4.22		17450141
+10-(2-pyrazolylethoxy)camptothecin	C534422		Copper-Overload Cirrhosis	MESH:C566858		CASP3	5.49		22879914
+10-(2-pyrazolylethoxy)camptothecin	C534422		Cryptorchidism	MESH:D003456		CASP3	5.02		26050606
+10-(2-pyrazolylethoxy)camptothecin	C534422		Dermatitis, Allergic Contact	MESH:D017449		CASP8	4.33		16033404
+10-(2-pyrazolylethoxy)camptothecin	C534422		Dermatitis, Contact	MESH:D003877		CASP8	4.58		25724174
+10-(2-pyrazolylethoxy)camptothecin	C534422		Diabetes Mellitus, Experimental	MESH:D003921		CASP3	3.99		20654064
+10-(2-pyrazolylethoxy)camptothecin	C534422		Diabetes Mellitus, Type 2	MESH:D003924		CASP3	9.97		15531508
+10-(2-pyrazolylethoxy)camptothecin	C534422		Diabetes Mellitus, Type 2	MESH:D003924		CASP8	9.97		15531508
+10-(2-pyrazolylethoxy)camptothecin	C534422		Diabetic Angiopathies	MESH:D003925		CASP3	4.88		25381014
+10-(2-pyrazolylethoxy)camptothecin	C534422		Diabetic Neuropathies	MESH:D003929		CASP3	4.69		12502508
+10-(2-pyrazolylethoxy)camptothecin	C534422		Diabetic Retinopathy	MESH:D003930		CASP3	4.97		20654064
+10-(2-pyrazolylethoxy)camptothecin	C534422		Edema	MESH:D004487		CASP3	9.00		19874808
+10-(2-pyrazolylethoxy)camptothecin	C534422		Edema	MESH:D004487		CASP8	9.00		19874808
+10-(2-pyrazolylethoxy)camptothecin	C534422		Esophageal Neoplasms	MESH:D004938		CASP8	4.68		17450141|21472143
+10-(2-pyrazolylethoxy)camptothecin	C534422		Heart Valve Diseases	MESH:D006349		CASP3	4.74		21335463
+10-(2-pyrazolylethoxy)camptothecin	C534422		Hepatitis, Chronic	MESH:D006521		CASP3	4.81		22879914
+10-(2-pyrazolylethoxy)camptothecin	C534422		Lung Neoplasms	MESH:D008175		CASP8	3.99	211980	17450141
+10-(2-pyrazolylethoxy)camptothecin	C534422		Melanoma	MESH:D008545		CASP8	4.22		18563783|21983787
+10-(2-pyrazolylethoxy)camptothecin	C534422		Mycoplasma Infections	MESH:D009175		CASP3	5.58		20179380
+10-(2-pyrazolylethoxy)camptothecin	C534422		Myocardial Infarction	MESH:D009203		CASP3	3.65		25450231
+10-(2-pyrazolylethoxy)camptothecin	C534422		Myocardial Reperfusion Injury	MESH:D015428		CASP3	10.99		14998631
+10-(2-pyrazolylethoxy)camptothecin	C534422		Myocardial Reperfusion Injury	MESH:D015428		CASP8	10.99		14998631
+10-(2-pyrazolylethoxy)camptothecin	C534422		Nerve Degeneration	MESH:D009410		CASP3	3.70		14999069
+10-(2-pyrazolylethoxy)camptothecin	C534422		Nervous System Diseases	MESH:D009422		CASP3	3.79		12196588
+10-(2-pyrazolylethoxy)camptothecin	C534422		Neurotoxicity Syndromes	MESH:D020258		CASP3	3.95		21972528
+10-(2-pyrazolylethoxy)camptothecin	C534422		Papillomavirus Infections	MESH:D030361		CASP8	6.27		23358896
+10-(2-pyrazolylethoxy)camptothecin	C534422		Precursor Cell Lymphoblastic Leukemia-Lymphoma	MESH:D054198		CASP8	4.68		22010212
+10-(2-pyrazolylethoxy)camptothecin	C534422		Prostate cancer, familial	MESH:C537243		CASP8	5.12		29892016
+10-(2-pyrazolylethoxy)camptothecin	C534422		Reperfusion Injury	MESH:D015427		CASP3	10.55		23875703

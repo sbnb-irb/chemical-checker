@@ -1,4 +1,5 @@
 import os
+import csv
 from .converter import Converter
 from chemicalchecker.util import logged
 try:
@@ -41,25 +42,25 @@ class Parser():
             idx = idx + header_rows
             line = line.rstrip("\n").split("\t")
             src_id = line[bdlig_idx]
-            smile = line[smiles_idx]
+            smiles = line[smiles_idx]
             # skip repeated entries
             if src_id in done:
                 # Parser.__log.debug("skipping line %s: repeated.", idx)
                 continue
             done.add(src_id)
-            if not smile:
-                # Parser.__log.debug("skipping line %s: missing smile.", idx)
+            if not smiles:
+                # Parser.__log.debug("skipping line %s: missing smiles.", idx)
                 continue
             # the following is always the same
             try:
-                inchikey, inchi = Converter.smile_to_inchi(smile)
+                inchikey, inchi = Converter.smiles_to_inchi(smiles)
             except Exception as ex:
                 Parser.__log.warning("line %s: %s", idx, str(ex))
                 inchikey, inchi = "", ""
             result = {
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
-                "smile": smile,
+                "smiles": smiles,
                 "inchikey": inchikey,
                 "inchi": inchi
             }
@@ -77,17 +78,69 @@ class Parser():
             if not line:
                 continue
             src_id = line.GetPropsAsDict()['ChEBI ID']
-            smile = Chem.MolToSmiles(line)
+            smiles = Chem.MolToSmiles(line)
             # the following is always the same
             try:
-                inchikey, inchi = Converter.smile_to_inchi(smile)
+                inchikey, inchi = Converter.smiles_to_inchi(smiles)
             except Exception as ex:
                 Parser.__log.warning("line %s: %s", idx, str(ex))
                 inchikey, inchi = "", ""
             result = {
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
-                "smile": smile,
+                "smiles": smiles,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
+
+    @staticmethod
+    def ctd(file_path, molrepo_name, chunks=1000):
+        fh = open(os.path.join(file_path), "r")
+        done = set()
+        chunk = list()
+        for idx, line in enumerate(fh):
+            # skip header
+            if line.startswith("#"):
+                continue
+            line = line.rstrip("\n").split("\t")
+            # skip those without DirectEvidence
+            if not line[5]:
+                continue
+            chemicalname = line[0]
+            chemicalid = line[1]
+            src_id = chemicalid
+            # skip repeated entries
+            if src_id in done:
+                # Parser.__log.debug("skipping line %s: repeated.", idx)
+                continue
+            done.add(src_id)
+            # try to fetch the smiles
+            smiles = None
+            try:
+                smiles = Converter.ctd_to_smiles(chemicalid)
+            except Exception as ex:
+                Parser.__log.warning("line %s: %s", idx, str(ex))
+            try:
+                smiles = Converter.chemical_name_to_smiles(chemicalname)
+            except Exception as ex:
+                Parser.__log.warning("line %s: %s", idx, str(ex))
+            if not smiles:
+                continue
+            # the following is always the same
+            try:
+                inchikey, inchi = Converter.smiles_to_inchi(smiles)
+            except Exception as ex:
+                Parser.__log.warning("line %s: %s", idx, str(ex))
+                inchikey, inchi = "", ""
+            result = {
+                "molrepo_name": molrepo_name,
+                "src_id": src_id,
+                "smiles": smiles,
                 "inchikey": inchikey,
                 "inchi": inchi
             }
@@ -123,25 +176,7 @@ def chembl():
                     (Id, smi.replace("\n", "\\n"), inchikey, inchi))
 
 
-def ctd():
-    # FIXME include createChemicalsList.py
-    f = open(os.path.join(downloadsdir, checkerconfig.ctd_molecules_download), "r")
-    g = open(moldir + "/ctd.tsv", "w")
-    for l in csv.reader(f, delimiter="\t"):
-        if len(l) < 2:
-            continue
-        Id = l[0]
-        smi = l[1]
-        mol = hts.apply(smi)
-        if not mol:
-            inchikey = ""
-            inchi = ""
-        else:
-            inchikey = mol[0]
-            inchi = mol[1]
-        g.write("%s\t%s\t%s\t%s\n" % (Id, smi, inchikey, inchi))
-    g.close()
-    f.close()
+
 
 
 def drugbank():
