@@ -119,18 +119,19 @@ class Parser():
                 # Parser.__log.debug("skipping line %s: repeated.", idx)
                 continue
             done.add(src_id)
-            # try to fetch the smiles
+            # try to conert CTD id to SMILES
             smiles = None
             try:
                 smiles = Converter.ctd_to_smiles(chemicalid)
             except Exception as ex:
                 Parser.__log.warning("line %s: %s", idx, str(ex))
-            try:
-                smiles = Converter.chemical_name_to_smiles(chemicalname)
-            except Exception as ex:
-                Parser.__log.warning("line %s: %s", idx, str(ex))
+            # if that did't work we can still try with the chamical name
             if not smiles:
-                continue
+                try:
+                    smiles = Converter.chemical_name_to_smiles(chemicalname)
+                except Exception as ex:
+                    Parser.__log.warning("line %s: %s", idx, str(ex))
+                    continue
             # the following is always the same
             try:
                 inchikey, inchi = Converter.smiles_to_inchi(smiles)
