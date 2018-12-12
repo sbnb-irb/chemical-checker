@@ -24,7 +24,7 @@ from six.moves.urllib.parse import urlparse
 from six.moves.urllib import request
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
-from chemicalchecker.database import qstring
+from chemicalchecker.util import psql
 
 
 @logged
@@ -162,12 +162,14 @@ class Downloader():
                 self.__log.critical("Execution failed: %s" % e)
                 sys.exit(1)
 
-            R = qstring("SELECT pg_size_pretty(pg_database_size('" +
-                        self.dbname + "'))", Config().DB.database)
+            R = psql.qstring("SELECT pg_size_pretty(pg_database_size('" +
+                             self.dbname + "'))", Config().DB.database)
 
             size = R[0][0].split(" ")
 
-            if size == 'kB':
+            self.__log.debug("Size of the new DB in: " + size[1])
+
+            if size[1] == 'kB':
                 raise RuntimeError(
                     'DB created seems to be empty. Please check.')
 
