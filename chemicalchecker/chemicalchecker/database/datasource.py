@@ -9,6 +9,7 @@ from .database import Base, get_session, get_engine
 from sqlalchemy import Column, Text, Boolean, ForeignKey, Integer
 from sqlalchemy.orm import class_mapper, ColumnProperty
 
+import chemicalchecker
 from chemicalchecker.util import logged
 from chemicalchecker.util import Downloader
 from chemicalchecker.util import Config
@@ -54,6 +55,21 @@ class Datasource(Base):
     def __repr__(self):
         """String representation."""
         return self.name
+
+    @staticmethod
+    def _create_table():
+        engine = get_engine()
+        Datasource.metadata.create_all(engine)
+
+    @staticmethod
+    def _drop_table():
+        engine = get_engine()
+        Datasource.__table__.drop(engine)
+
+    @staticmethod
+    def _table_exists():
+        engine = get_engine()
+        return engine.dialect.has_table(engine, Datasource.__tablename__)
 
     @staticmethod
     def _table_attributes():
@@ -137,7 +153,7 @@ class Datasource(Base):
         if dataset is not None:
             query = session.query(Datasource).filter_by(dataset=dataset)
         else:
-            query = session.query(Datasource).distinct(Datasource.id)
+            query = session.query(Datasource).distinct(Datasource.name)
         res = query.all()
         session.close()
         return res
@@ -147,16 +163,11 @@ class Datasource(Base):
         """Get Datasources associated to a molrepo."""
         session = get_session()
         query = session.query(Datasource).filter(
-            ~(Datasource.molrepo_name == ''))
+            ~(Datasource.molrepo_parser == '')).distinct(
+            Datasource.molrepo_parser)
         res = query.all()
         session.close()
         return res
-
-    @staticmethod
-    def _create_table():
-        """Create the Datasource table."""
-        engine = get_engine()
-        Datasource.metadata.create_all(engine)
 
     @staticmethod
     def test_all_valid_url():
@@ -191,7 +202,7 @@ class Datasource(Base):
             # resolve the path
             paths = glob(repo_path)
             if len(paths) > 1:
-                raise Exception("`*` in %s molrepo_file is ambigous.", self)
+                raise Exception("`*` in %s molrepo_file is ambiguous.", self)
             repo_path = paths[0]
         return repo_path.encode('ascii', 'ignore')
 
@@ -229,7 +240,10 @@ class Datasource(Base):
             return False
 
     def download(self, force=False):
-        """Download the Datasource."""
+        """Download the Datasource.
+
+        force(bool): Force download overwriting previous download.
+        """
         # check if already downloaded
         if not force and self.available:
             self.__log.warning("Datasource available, skipping download.")
@@ -253,39 +267,49 @@ class Datasource(Base):
 
     @staticmethod
     def download_hpc(job_path):
-        cluster = HPC(Config())
-        all_datasources = Datasource.get()
-        params = {}
-        params["num_jobs"] = len(all_datasources)
-        # "/aloy/scratch/mbertoni/tmp_checker/download_hpc"
-        params["jobdir"] = job_path
+        """Run HPC jobs downloading the resources.
+
+        job_path(str): Path (usually in scratch) where the script files are
+            generated.
+        """
+        # create job directory if not available
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
-        params["job_name"] = "CC_DOWNLOAD"
-        params["elements"] = range(len(all_datasources))
-        params["wait"] = False
+        # create script file
+        cc_config = os.environ['CC_CONFIG']
+        cc_package = os.path.join(chemicalchecker.__path__[0], '../')
         script_lines = [
             "import sys, os",
             "import pickle",
-            "os.environ['CC_CONFIG'] = '/aloy/home/mbertoni/code/chemical_" +
-            "checker/chemicalchecker/tests/data/config.json'",
-            "sys.path.append('/aloy/home/mbertoni/code/chemical_checker/" +
-            "chemicalchecker')",
+            "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
+            "sys.path.append('%s')" % cc_package,  # allow package import
             "from chemicalchecker.database import Datasource",
-            "ids = sys.argv[1]",
-            "filename = sys.argv[2]",
-            "inputs = pickle.load(open(filename, 'rb'))",
-            "data = inputs[ids]",
-            "for d in data:",
-            "    ds = Datasource.get()[d]",
-            "    ds.download()",
+            "task_id = sys.argv[1]",  # <TASK_ID>
+            "filename = sys.argv[2]",  # <FILE>
+            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
+            "data = inputs[task_id]",  # elements for current job
+            "for d in data:",  # elements are indexes
+            "    ds = Datasource.get()[d]",  # query the db
+            "    ds.download()",  # start download
+            "print('JOB DONE')"
         ]
-        script_name = os.path.join(job_path, 'hpc_script.py')
+        script_name = os.path.join(job_path, 'download_script.py')
         with open(script_name, 'w') as fh:
             for line in script_lines:
                 fh.write(line + '\n')
-        singularity_image = '/aloy/home/mbertoni/images/cc.simg'
+        # hpc parameters
+        all_datasources = Datasource.get()
+        params = {}
+        params["num_jobs"] = len(all_datasources)
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_DOWNLOAD"
+        params["elements"] = range(len(all_datasources))
+        params["wait"] = True
+        # job command
+        singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
             singularity_image, script_name)
+        # submit jobs
+        cluster = HPC(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
