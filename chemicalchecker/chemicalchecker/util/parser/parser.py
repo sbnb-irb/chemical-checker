@@ -1,7 +1,7 @@
 import os
-import csv
 from .converter import Converter
 from chemicalchecker.util import logged
+from chemicalchecker.util import psql
 try:
     import rdkit.Chem as Chem
 except ImportError:
@@ -151,34 +151,39 @@ class Parser():
                 chunk = list()
         yield chunk
 
+    @staticmethod
+    def chembl(file_path, molrepo_name, chunks=1000):
+        # no file to parse here, but querying the chembl database
+        query = "SELECT md.chembl_id, cs.canonical_smiles " +\
+            "FROM molecule_dictionary md, compound_structures cs " +\
+            "WHERE md.molregno = cs.molregno " +\
+            "AND cs.canonical_smiles IS NOT NULL"
+        cur = psql.qstring_cur(query, molrepo_name)
+        chunk = list()
+        for idx, row in enumerate(cur):
+            src_id = row[0]
+            smiles = row[1]
+            # the following is always the same
+            try:
+                inchikey, inchi = Converter.smiles_to_inchi(smiles)
+            except Exception as ex:
+                Parser.__log.warning("line %s: %s", idx, str(ex))
+                inchikey, inchi = "", ""
+            result = {
+                "molrepo_name": molrepo_name,
+                "src_id": src_id,
+                "smiles": smiles,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
+
+
 """
-def chembl():
-    # FIXME include loadChemblDB.py
-    with open(moldir + "/chembl.tsv", "w") as f:
-
-        query = "SELECT md.chembl_id, cs.canonical_smiles FROM molecule_dictionary md, compound_structures cs WHERE md.molregno = cs.molregno AND cs.canonical_smiles IS NOT NULL"
-
-        con = Psql.connect(checkerconfig.chembl)
-        con.set_isolation_level(0)
-        cur = con.cursor()
-        cur.execute(query)
-        for r in cur:
-            Id = r[0]
-            smi = r[1]
-            mol = hts.apply(smi)
-            if not mol:
-                inchikey = ""
-                inchi = ""
-            else:
-                inchikey = mol[0]
-                inchi = mol[1]
-
-            f.write("%s\t%s\t%s\t%s\n" %
-                    (Id, smi.replace("\n", "\\n"), inchikey, inchi))
-
-
-
-
 
 def drugbank():
 
