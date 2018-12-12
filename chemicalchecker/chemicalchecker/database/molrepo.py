@@ -1,7 +1,7 @@
 """Molrepo implementation.
 
-The Molrepo is a repository of mappings between various compound molecular
-conventions (smile, inchi and inchikeys) to the external source identifier.
+The Molrepo is a repository of mappings between various textual identifier
+conventions (SMILES, InChI and InChIKey) to the external source identifier.
 """
 import os
 import datetime
@@ -29,16 +29,16 @@ class Molrepo(Base):
         id(int): primary key, auto-incrementing integer.
         molrepo_name(str): the molrepo name.
         src_id(str): the download id as in the source file.
-        smile(str): smile formula.
-        inchikey(bool): inchikey hash.
-        inchi(bool): inchi.
+        smiles(str): simplified molecular-input line-entry system (SMILES).
+        inchikey(bool): hashed version of the full InChI (SHA-256 algorithm).
+        inchi(bool): International Chemical Identifier (InChI).
     """
 
     __tablename__ = 'molrepo'
     id = Column(Integer, primary_key=True)
     molrepo_name = Column(Text)
     src_id = Column(Text)
-    smile = Column(Text)
+    smiles = Column(Text)
     inchikey = Column(Text)
     inchi = Column(Text)
 
