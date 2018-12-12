@@ -1,4 +1,4 @@
-from .database import get_connection, get_engine, get_session, qstring, query
+from .database import get_engine, get_session
 from .general_prop import GeneralProp
 from .dataset import Dataset
 from .pubchem import Pubchem

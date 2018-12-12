@@ -5,3 +5,4 @@ from .config import Config
 from .download import Downloader
 from .hpc import HPC
 from .parser import Parser, Converter
+import psql as psql
