@@ -7,6 +7,10 @@ import pandas as pd
 from .converter import Converter
 from chemicalchecker.util import logged
 from chemicalchecker.util import psql
+import xml.etree.ElementTree as ET
+import wget
+import pybel
+import csv
 try:
     import rdkit.Chem as Chem
 except ImportError:
@@ -33,6 +37,10 @@ class Parser():
 
     @staticmethod
     def bindingdb(file_path, molrepo_name, chunks=1000):
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
         fh = open(os.path.join(file_path), "r")
         # skip header
         header = fh.next()
@@ -77,6 +85,10 @@ class Parser():
 
     @staticmethod
     def chebi(file_path, molrepo_name, chunks=1000):
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
         suppl = Chem.SDMolSupplier(file_path)
         chunk = list()
         for idx, line in enumerate(suppl):
@@ -105,6 +117,10 @@ class Parser():
 
     @staticmethod
     def ctd(file_path, molrepo_name, chunks=1000):
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
         fh = open(os.path.join(file_path), "r")
         done = set()
         chunk = list()
@@ -187,341 +203,391 @@ class Parser():
                 chunk = list()
         yield chunk
 
-
-"""
-
-def drugbank():
-
-    # Parse Drugbank and convert to inchikeys.
-
-    import xml.etree.ElementTree as ET
-
-    xmlfile = os.path.join(downloadsdir, checkerconfig.drugbank_download)
-
-    prefix = "{http://www.drugbank.ca}"
-
-    tree = ET.parse(xmlfile)
-
-    root = tree.getroot()
-
-    with open(moldir + "/drugbank.tsv", "w") as f:
-
-        for drug in root:
-
+    @staticmethod
+    def drugbank(file_path, molrepo_name, chunks=1000):
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
+        # parse XML
+        prefix = "{http://www.drugbank.ca}"
+        tree = ET.parse(file_path)
+        root = tree.getroot()
+        chunk = list()
+        for idx, drug in enumerate(root):
             # Drugbank ID
-
-            db_id = None
+            src_id = None
             for child in drug.findall(prefix + "drugbank-id"):
                 if "primary" in child.attrib:
                     if child.attrib["primary"] == "true":
-                        db_id = child.text
-
-            if not db_id:
+                        src_id = child.text
+            if not src_id:
+                Parser.__log.warning("line %s: %s", idx, "no drugbank-id")
                 continue
-
-            # Smiles
-
+            # SMILES
             smiles = None
             for props in drug.findall(prefix + "calculated-properties"):
                 for prop in props:
                     if prop.find(prefix + "kind").text == "SMILES":
                         smiles = prop.find(prefix + "value").text
             if not smiles:
+                Parser.__log.warning("line %s: %s", idx, "no SMILES")
                 continue
+            # the following is always the same
+            try:
+                inchikey, inchi = Converter.smiles_to_inchi(smiles)
+            except Exception as ex:
+                Parser.__log.warning("line %s: %s", idx, str(ex))
+                inchikey, inchi = "", ""
+            result = {
+                "molrepo_name": molrepo_name,
+                "src_id": src_id,
+                "smiles": smiles,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
 
-            smi = smiles
-            Id = db_id
-
-            mol = hts.apply(smi)
-            if not mol:
-                inchikey = ""
-                inchi = ""
-            else:
-                inchikey = mol[0]
-                inchi = mol[1]
-            f.write("%s\t%s\t%s\t%s\n" % (Id, smi, inchikey, inchi))
-
-
-def kegg():
-    # FIXME include last lines from downloadFiles.py
-    with open(moldir + "/kegg.tsv", "w") as f:
-        L = os.listdir(os.path.join(
-            downloadsdir, checkerconfig.kegg_mol_folder_download))
-        for l in L:
-            mol = pybel.readfile("mol", os.path.join(
-                downloadsdir, checkerconfig.kegg_mol_folder_download) + "/" + l)
+    @staticmethod
+    def kegg(file_path, molrepo_name, chunks=1000):
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
+        fh = open(os.path.join(file_path), "r")
+        # kegg molecules will be downloaded to following dir
+        kegg_download = os.path.join(os.path.dirname(file_path), 'mols')
+        if not os.path.isdir(kegg_download):
+            os.mkdir(kegg_download)
+        done = set()
+        chunk = list()
+        for idx, line in enumerate(fh):
+            if not line.startswith("F"):
+                continue
+            src_id = line.split()[1]
+            # skip repeated entries
+            if src_id in done:
+                # Parser.__log.debug("skipping line %s: repeated.", idx)
+                continue
+            done.add(src_id)
+            # download mol if not available
+            mol_path = os.path.join(kegg_download, '%s.mol' % src_id)
+            if not os.path.isfile(mol_path):
+                url = "http://rest.kegg.jp/get/" + src_id + "/mol"
+                try:
+                    wget.download(url, mol_path)
+                except Exception:
+                    Parser.__log.error('Cannot download: %s', url)
+            mol = pybel.readfile("mol", mol_path)
             for m in mol:
-                smi = m.write("smi").rstrip("\n").rstrip("\t")
-                if ".mol" not in l:
-                    continue
-                Id = l.split(".")[0]
-                if not smi:
-                    continue
-                mol = hts.apply(smi)
-                if not mol:
-                    inchikey = ""
-                    inchi = ""
-                else:
-                    inchikey = mol[0]
-                    inchi = mol[1]
-                f.write("%s\t%s\t%s\t%s\n" % (Id, smi, inchikey, inchi))
+                smiles = m.write("smi").rstrip("\n").rstrip("\t")
+                if not smiles:
+                    Parser.__log.warning("line %s: %s", idx, "no SMILES")
+                # the following is always the same
+                try:
+                    inchikey, inchi = Converter.smiles_to_inchi(smiles)
+                except Exception as ex:
+                    Parser.__log.warning("line %s: %s", idx, str(ex))
+                    inchikey, inchi = "", ""
+                result = {
+                    "molrepo_name": molrepo_name,
+                    "src_id": src_id,
+                    "smiles": smiles,
+                    "inchikey": inchikey,
+                    "inchi": inchi
+                }
+                chunk.append(result)
+            if len(chunk) >= chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
 
-
-def lincs():
-    # FIXME split in two
-    S = set()
-
-    with open(os.path.join(downloadsdir, checkerconfig.lincs_GSE70138_pert_info_download), "r") as f:
-        f.next()
-        for r in csv.reader(f, delimiter="\t"):
-            if not r[1] or r[1] == "-666":
+    @staticmethod
+    def lincs_GSE70138(file_path, molrepo_name, chunks=1000):
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
+        fh = open(os.path.join(file_path), "r")
+        # skip header
+        fh.next()
+        chunk = list()
+        for idx, line in enumerate(csv.reader(fh, delimiter="\t")):
+            if not line[1] or line[1] == "-666":
                 continue
-            S.update([(r[0], r[1])])
+            src_id = line[0]
+            smiles = line[1]
+            # the following is always the same
+            try:
+                inchikey, inchi = Converter.smiles_to_inchi(smiles)
+            except Exception as ex:
+                Parser.__log.warning("line %s: %s", idx, str(ex))
+                inchikey, inchi = "", ""
+            result = {
+                "molrepo_name": molrepo_name,
+                "src_id": src_id,
+                "smiles": smiles,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
 
-    with open(os.path.join(downloadsdir, checkerconfig.lincs_GSE92742_pert_info_download), "r") as f:
-        f.next()
-        for r in csv.reader(f, delimiter="\t"):
-            if not r[6] or r[6] == "-666":
+    @staticmethod
+    def lincs_GSE92742(file_path, molrepo_name, chunks=1000):
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
+        fh = open(os.path.join(file_path), "r")
+        # skip header
+        fh.next()
+        chunk = list()
+        for idx, line in enumerate(csv.reader(fh, delimiter="\t")):
+            if not line[6] or line[6] == "-666":
                 continue
-            S.update([(r[0], r[6])])
+            src_id = line[0]
+            smiles = line[6]
+            # the following is always the same
+            try:
+                inchikey, inchi = Converter.smiles_to_inchi(smiles)
+            except Exception as ex:
+                Parser.__log.warning("line %s: %s", idx, str(ex))
+                inchikey, inchi = "", ""
+            result = {
+                "molrepo_name": molrepo_name,
+                "src_id": src_id,
+                "smiles": smiles,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
 
-    with open(moldir + "/lincs.tsv", "w") as f:
-        for s in sorted(S):
-            Id = s[0]
-            smi = s[1]
-            mol = hts.apply(smi)
-            if not mol:
-                inchikey = ""
-                inchi = ""
-            else:
-                inchikey = mol[0]
-                inchi = mol[1]
-            f.write("%s\t%s\t%s\t%s\n" % (Id, smi, inchikey, inchi))
-"""
-
-
-def mosaic(file_path, molrepo_name, chunks=1000):
-    # FIXME find source (hint: /aloy/home/mduran/myscripts/mosaic/D/D3/data)
-    # eventually add All_collection to local
-    if len(file_path) > 1:
-        raise Exception(
-            "Parser mosaic does not expect more than one input file")
-    file_path = file_path[0]
-    chunk = list()
-    for mol in pybel.readfile("sdf", file_path):
-        if not mol:
-            continue
-        smi, Id = mol.write("can").rstrip("\n").split("\t")
-        try:
-            inchikey, inchi = Converter.smiles_to_inchi(smi)
-        except Exception as ex:
-            Parser.__log.warning("Mosaic ID %s: %s", Id, str(ex))
-            inchikey, inchi = "", ""
-        result = {
-            "molrepo_name": molrepo_name,
-            "src_id": Id,
-            "smiles": smi,
-            "inchikey": inchikey,
-            "inchi": inchi
-        }
-        chunk.append(result)
-        if len(chunk) == chunks:
-            yield chunk
-            chunk = list()
-    yield chunk
-
-
-def morphlincs(file_path, molrepo_name, chunks=1000):
-
-    if len(file_path) > 1:
-        raise Exception(
-            "Parser morphlincs does not expect more than one input file")
-    file_path = file_path[0]
-
-    g = open(file_path, "r")
-    g.next()
-    chunk = list()
-    for l in csv.reader(g, delimiter="\t"):
-        if not l[6]:
-            continue
-        Id = l[8]
-        smi = l[6]
-        try:
-            inchikey, inchi = Converter.smiles_to_inchi(smi)
-        except Exception as ex:
-            Parser.__log.warning("Morphlincs ID %s: %s", Id, str(ex))
-            inchikey, inchi = "", ""
-        result = {
-            "molrepo_name": molrepo_name,
-            "src_id": Id,
-            "smiles": smi,
-            "inchikey": inchikey,
-            "inchi": inchi
-        }
-        chunk.append(result)
-        if len(chunk) == chunks:
-            yield chunk
-            chunk = list()
-    yield chunk
-
-
-def nci60(file_path, molrepo_name, chunks=1000):
-
-    if len(file_path) > 1:
-        raise Exception(
-            "Parser nci60 does not expect more than one input file")
-    file_path = file_path[0]
-
-    Parser.__log.info("Converting Zscore xls file to csv")
-
-    data_xls = pd.read_excel(file_path, index_col=0)
-    csv_path = file_path[:-4] + ".csv"
-    data_xls.to_csv(csv_path, encoding='utf-8')
-    f = open(csv_path, "r")
-    f.next()
-    chunk = list()
-    for l in csv.reader(f):
-        Id, smi = l[0], l[5]
-        try:
-            inchikey, inchi = Converter.smiles_to_inchi(smi)
-        except Exception as ex:
-            Parser.__log.warning("NCI60 ID %s: %s", Id, str(ex))
-            inchikey, inchi = "", ""
-        result = {
-            "molrepo_name": molrepo_name,
-            "src_id": Id,
-            "smiles": smi,
-            "inchikey": inchikey,
-            "inchi": inchi
-        }
-        chunk.append(result)
-        if len(chunk) == chunks:
-            yield chunk
-            chunk = list()
-    yield chunk
-
-
-def pdb(file_path, molrepo_name, chunks=1000):
-
-    if len(file_path) > 1:
-        raise Exception(
-            "Parser pdb does not expect more than one input file")
-    file_path = file_path[0]
-    chunk = list()
-    f = open(file_path, "r")
-    for l in f:
-        l = l.rstrip("\n").split("\t")
-        if len(l) < 2:
-            continue
-        lig_id = l[1]
-        smi = l[0]
-        try:
-            inchikey, inchi = Converter.smiles_to_inchi(smi)
-        except Exception as ex:
-            Parser.__log.warning("PDB ID %s: %s", lig_id, str(ex))
-            inchikey, inchi = "", ""
-        result = {
-            "molrepo_name": molrepo_name,
-            "src_id": lig_id,
-            "smiles": smi,
-            "inchikey": inchikey,
-            "inchi": inchi
-        }
-        chunk.append(result)
-        if len(chunk) == chunks:
-            yield chunk
-            chunk = list()
-    yield chunk
-
-
-def sider(file_path, molrepo_name, chunks=1000):
-
-    if len(file_path) != 2:
-        raise Exception(
-            "Parser sider needs two input files")
-
-    sider_file = ""
-    stitch_file = ""
-    chunk = list()
-    for file in file_path:
-        if "meddra_all_se" in file:
-            sider_file = file
-            continue
-        if "chemicals" in file:
-            stitch_file = file
-
-    if sider_file == "" or stitch_file == "":
-        raise Exception("Missing expected input files")
-
-    with open(sider_file, "r") as f:
-        S = set()
-        for l in f:
-            l = l.split("\t")
-            S.update([l[1]])
-
-    with open(stitch_file, "r") as f:
-        stitch = {}
-        f.next()
-        for r in csv.reader(f, delimiter="\t"):
-            if r[0] not in S:
-                continue
-            stitch[r[0]] = r[-1]
-
-    for s in list(S):
-        Id = s
-        smi = stitch[s]
-        try:
-            inchikey, inchi = Converter.smiles_to_inchi(smi)
-        except Exception as ex:
-            Parser.__log.warning("SIDER ID %s: %s", Id, str(ex))
-            inchikey, inchi = "", ""
-        result = {
-            "molrepo_name": molrepo_name,
-            "src_id": Id,
-            "smiles": smi,
-            "inchikey": inchikey,
-            "inchi": inchi
-        }
-        chunk.append(result)
-        if len(chunk) == chunks:
-            yield chunk
-            chunk = list()
-    yield chunk
-
-
-def smpdb(file_path, molrepo_name, chunks=1000):
-
-    if len(file_path) > 1:
-        raise Exception(
-            "Parser smpdb does not expect more than one input file")
-    file_path = file_path[0]
-    S = set()
-    L = os.listdir(file_path)
-    chunk = list()
-    for l in L:
-        for mol in pybel.readfile("sdf", file_path + "/" + l):
+    @staticmethod
+    def mosaic(file_path, molrepo_name, chunks=1000):
+        # FIXME find source (hint:/aloy/home/mduran/myscripts/mosaic/D/D3/data)
+        # eventually add All_collection to local
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
+        chunk = list()
+        for mol in pybel.readfile("sdf", file_path):
             if not mol:
                 continue
             smi, Id = mol.write("can").rstrip("\n").split("\t")
-            S.update([(Id, smi)])
+            try:
+                inchikey, inchi = Converter.smiles_to_inchi(smi)
+            except Exception as ex:
+                Parser.__log.warning("Mosaic ID %s: %s", Id, str(ex))
+                inchikey, inchi = "", ""
+            result = {
+                "molrepo_name": molrepo_name,
+                "src_id": Id,
+                "smiles": smi,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
 
-    for s in sorted(S):
-        Id = s[0]
-        smi = s[1]
-        try:
-            inchikey, inchi = Converter.smiles_to_inchi(smi)
-        except Exception as ex:
-            Parser.__log.warning("SMPDB ID %s: %s", Id, str(ex))
-            inchikey, inchi = "", ""
-        result = {
-            "molrepo_name": molrepo_name,
-            "src_id": Id,
-            "smiles": smi,
-            "inchikey": inchikey,
-            "inchi": inchi
-        }
-        chunk.append(result)
-        if len(chunk) == chunks:
-            yield chunk
-            chunk = list()
-    yield chunk
+    @staticmethod
+    def morphlincs(file_path, molrepo_name, chunks=1000):
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
+        g = open(file_path, "r")
+        g.next()
+        chunk = list()
+        for l in csv.reader(g, delimiter="\t"):
+            if not l[6]:
+                continue
+            Id = l[8]
+            smi = l[6]
+            try:
+                inchikey, inchi = Converter.smiles_to_inchi(smi)
+            except Exception as ex:
+                Parser.__log.warning("Morphlincs ID %s: %s", Id, str(ex))
+                inchikey, inchi = "", ""
+            result = {
+                "molrepo_name": molrepo_name,
+                "src_id": Id,
+                "smiles": smi,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
+
+    @staticmethod
+    def nci60(file_path, molrepo_name, chunks=1000):
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
+        Parser.__log.info("Converting Zscore xls file to csv")
+        data_xls = pd.read_excel(file_path, index_col=0)
+        csv_path = file_path[:-4] + ".csv"
+        data_xls.to_csv(csv_path, encoding='utf-8')
+        f = open(csv_path, "r")
+        f.next()
+        chunk = list()
+        for l in csv.reader(f):
+            Id, smi = l[0], l[5]
+            try:
+                inchikey, inchi = Converter.smiles_to_inchi(smi)
+            except Exception as ex:
+                Parser.__log.warning("NCI60 ID %s: %s", Id, str(ex))
+                inchikey, inchi = "", ""
+            result = {
+                "molrepo_name": molrepo_name,
+                "src_id": Id,
+                "smiles": smi,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
+
+    @staticmethod
+    def pdb(file_path, molrepo_name, chunks=1000):
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
+        chunk = list()
+        f = open(file_path, "r")
+        for l in f:
+            l = l.rstrip("\n").split("\t")
+            if len(l) < 2:
+                continue
+            lig_id = l[1]
+            smi = l[0]
+            try:
+                inchikey, inchi = Converter.smiles_to_inchi(smi)
+            except Exception as ex:
+                Parser.__log.warning("PDB ID %s: %s", lig_id, str(ex))
+                inchikey, inchi = "", ""
+            result = {
+                "molrepo_name": molrepo_name,
+                "src_id": lig_id,
+                "smiles": smi,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
+
+    @staticmethod
+    def sider(file_path, molrepo_name, chunks=1000):
+        # check input size
+        if len(file_path) != 2:
+            raise Exception("This parser expect 2 input files.")
+        sider_file = ""
+        stitch_file = ""
+        chunk = list()
+        for file in file_path:
+            if "meddra_all_se" in file:
+                sider_file = file
+                continue
+            if "chemicals" in file:
+                stitch_file = file
+
+        if sider_file == "" or stitch_file == "":
+            raise Exception("Missing expected input files")
+
+        with open(sider_file, "r") as f:
+            S = set()
+            for l in f:
+                l = l.split("\t")
+                S.update([l[1]])
+
+        with open(stitch_file, "r") as f:
+            stitch = {}
+            f.next()
+            for r in csv.reader(f, delimiter="\t"):
+                if r[0] not in S:
+                    continue
+                stitch[r[0]] = r[-1]
+
+        for s in list(S):
+            Id = s
+            smi = stitch[s]
+            try:
+                inchikey, inchi = Converter.smiles_to_inchi(smi)
+            except Exception as ex:
+                Parser.__log.warning("SIDER ID %s: %s", Id, str(ex))
+                inchikey, inchi = "", ""
+            result = {
+                "molrepo_name": molrepo_name,
+                "src_id": Id,
+                "smiles": smi,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
+
+    @staticmethod
+    def smpdb(file_path, molrepo_name, chunks=1000):
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
+        S = set()
+        L = os.listdir(file_path)
+        chunk = list()
+        for l in L:
+            for mol in pybel.readfile("sdf", file_path + "/" + l):
+                if not mol:
+                    continue
+                smi, Id = mol.write("can").rstrip("\n").split("\t")
+                S.update([(Id, smi)])
+
+        for s in sorted(S):
+            Id = s[0]
+            smi = s[1]
+            try:
+                inchikey, inchi = Converter.smiles_to_inchi(smi)
+            except Exception as ex:
+                Parser.__log.warning("SMPDB ID %s: %s", Id, str(ex))
+                inchikey, inchi = "", ""
+            result = {
+                "molrepo_name": molrepo_name,
+                "src_id": Id,
+                "smiles": smi,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
