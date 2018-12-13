@@ -307,71 +307,47 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def lincs_GSE70138(file_path, molrepo_name, chunks=1000):
+    def lincs(file_path, molrepo_name, chunks=1000):
         # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
-        fh = open(os.path.join(file_path), "r")
+        if len(file_path) != 2:
+            raise Exception("This parser expect 2 input files.")
         # skip header
-        fh.next()
         chunk = list()
-        for idx, line in enumerate(csv.reader(fh, delimiter="\t")):
-            if not line[1] or line[1] == "-666":
-                continue
-            src_id = line[0]
-            smiles = line[1]
-            # the following is always the same
-            try:
-                inchikey, inchi = Converter.smiles_to_inchi(smiles)
-            except Exception as ex:
-                Parser.__log.warning("line %s: %s", idx, str(ex))
-                inchikey, inchi = "", ""
-            result = {
-                "molrepo_name": molrepo_name,
-                "src_id": src_id,
-                "smiles": smiles,
-                "inchikey": inchikey,
-                "inchi": inchi
-            }
-            chunk.append(result)
-            if len(chunk) == chunks:
-                yield chunk
-                chunk = list()
-        yield chunk
+        col = -1
+        for file in file_path:
 
-    @staticmethod
-    def lincs_GSE92742(file_path, molrepo_name, chunks=1000):
-        # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
-        fh = open(os.path.join(file_path), "r")
-        # skip header
-        fh.next()
-        chunk = list()
-        for idx, line in enumerate(csv.reader(fh, delimiter="\t")):
-            if not line[6] or line[6] == "-666":
+            if "GSE92742" in file:
+                col = 6
                 continue
-            src_id = line[0]
-            smiles = line[6]
-            # the following is always the same
-            try:
-                inchikey, inchi = Converter.smiles_to_inchi(smiles)
-            except Exception as ex:
-                Parser.__log.warning("line %s: %s", idx, str(ex))
-                inchikey, inchi = "", ""
-            result = {
-                "molrepo_name": molrepo_name,
-                "src_id": src_id,
-                "smiles": smiles,
-                "inchikey": inchikey,
-                "inchi": inchi
-            }
-            chunk.append(result)
-            if len(chunk) == chunks:
-                yield chunk
-                chunk = list()
+            if "GSE70138" in file:
+                col = 1
+
+            if col < 0:
+                raise Exception("Missing expected input files")
+            fh = open(file, "r")
+            fh.next()
+            for idx, line in enumerate(csv.reader(fh, delimiter="\t")):
+                if not line[col] or line[col] == "-666":
+                    continue
+                src_id = line[0]
+                smiles = line[col]
+                # the following is always the same
+                try:
+                    inchikey, inchi = Converter.smiles_to_inchi(smiles)
+                except Exception as ex:
+                    Parser.__log.warning("line %s: %s", idx, str(ex))
+                    inchikey, inchi = "", ""
+                result = {
+                    "molrepo_name": molrepo_name,
+                    "src_id": src_id,
+                    "smiles": smiles,
+                    "inchikey": inchikey,
+                    "inchi": inchi
+                }
+                chunk.append(result)
+                if len(chunk) == chunks:
+                    yield chunk
+                    chunk = list()
         yield chunk
 
     @staticmethod

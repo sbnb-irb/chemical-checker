@@ -99,10 +99,12 @@ class TestParser(unittest.TestCase):
         shutil.rmtree(mol_dir)
 
     @pytest.mark.skip(reason="RDKit is not available on test enviroment")
-    def test_lincs_GSE70138(self):
-        file_path = os.path.join(self.data_dir, 'lincs_GSE70138.txt')
-        self.assertTrue(os.path.isfile(file_path))
-        chunks = list(Parser.lincs_GSE70138([file_path], 'lincs'))
+    def test_lincs(self):
+        file_path1 = os.path.join(self.data_dir, 'lincs_GSE70138.txt')
+        self.assertTrue(os.path.isfile(file_path1))
+        file_path2 = os.path.join(self.data_dir, 'lincs_GSE92742.txt')
+        self.assertTrue(os.path.isfile(file_path2))
+        chunks = list(Parser.lincs([file_path1, file_path2], 'lincs'))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
         self.assertEqual(len(results), 9)
@@ -115,17 +117,16 @@ class TestParser(unittest.TestCase):
         self.assertDictEqual(expected, results[0])
 
     @pytest.mark.skip(reason="RDKit is not available on test enviroment")
-    def test_lincs_GSE92742(self):
-        file_path = os.path.join(self.data_dir, 'lincs_GSE92742.txt')
-        self.assertTrue(os.path.isfile(file_path))
-        chunks = list(Parser.lincs_GSE92742([file_path], 'lincs'))
+    def test_smpdb(self):
+        file_path = os.path.join(self.data_dir, 'smpdb_structures')
+        chunks = list(Parser.smpdb([file_path], 'smpdb'))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
-        self.assertEqual(len(results), 11)
+        self.assertEqual(len(results), 2)
 
-        expected = {'inchi': 'InChI=1S/C10H13N3O5S/c1-8-7-19(16,17)5-4-12(8)11-6-9-2-3-10(18-9)13(14)15/h2-3,6,8H,4-5,7H2,1H3',
-                    'inchikey': 'ARFHIAQFJWUCFH-UHFFFAOYSA-N',
-                    'molrepo_name': 'lincs',
-                    'smiles': 'CC1CS(=O)(=O)CCN1N=Cc1ccc(o1)[N+]([O-])=O',
-                    'src_id': 'BRD-A00100033'}
+        expected = {'inchi': 'InChI=1S/C71H138O17P2/c1-61(2)47-39-31-23-17-14-12-10-9-11-13-15-19-28-37-45-53-70(75)87-66(58-82-69(74)52-44-36-29-21-25-33-41-49-63(5)6)59-85-89(77,78)83-55-65(72)56-84-90(79,80)86-60-67(88-71(76)54-46-38-30-22-26-34-42-50-64(7)8)57-81-68(73)51-43-35-27-20-16-18-24-32-40-48-62(3)4/h61-67,72H,9-60H2,1-8H3,(H,77,78)(H,79,80)/t65-,66+,67+/m0/s1',
+                    'smiles': 'O[C@H](COP(=O)(OC[C@H](OC(=O)CCCCCCCCCC(C)C)COC(=O)CCCCCCCCCCCC(C)C)O)COP(=O)(OC[C@H](OC(=O)CCCCCCCCCCCCCCCCCC(C)C)COC(=O)CCCCCCCCCC(C)C)O',
+                    'inchikey': 'CBGQZUCVOHIHAR-OHKZLATASA-N',
+                    'src_id': "1'-[1-11-methyldodecanoyl,2-19-methyleicosanoyl-sn-glycero-3-phospho],3'-[1-13-methyltetradecanoyl,2-11-methyldodecanoyl-sn-glycero-3-phospho]-sn-glycerol CL(i-13:0/i-21:0/i-15:0/i-13:0)",
+                    'molrepo_name': 'smpdb'}
         self.assertDictEqual(expected, results[0])

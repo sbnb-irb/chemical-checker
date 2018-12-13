@@ -38,14 +38,15 @@ GSE70138_Broad_LINCS_inst_info,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GS
 GSE92742_Broad_LINCS_sig_metrics,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_sig_metrics.txt.gz,D1.001,False,True,,,,,,,False
 GSE92742_Broad_LINCS_gene_info,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_gene_info.txt.gz,D1.001,False,True,,,,,,,False
 GSE70138_Broad_LINCS_Level5_COMPZ,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_Level5_COMPZ_n118050x12328*.gctx.gz,D1.001,False,True,,,,,,,False
-GSE70138_Broad_LINCS_pert_info,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_pert_info_*.txt.gz,D1.001,False,True,,,,lincs,GSE70138_Broad_LINCS_pert_info_*.txt,lincs_GSE70138,False
+GSE70138_Broad_LINCS_pert_info,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_pert_info_*.txt.gz,D1.001,False,True,,,,lincs,GSE70138_Broad_LINCS_pert_info_*.txt,lincs,False
 GSE70138_Broad_LINCS_pert_info,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_pert_info.txt.gz,D1.001,False,True,,,,,,,False
 GSE92742_Broad_LINCS_Level5_COMPZ,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_Level5_COMPZ.MODZ_n473647x12328.gctx.gz,D1.001,False,True,,,,,,,False
-GSE92742_Broad_LINCS_pert_info,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_pert_info.txt.gz,D1.001,False,True,,,,lincs,GSE92742_Broad_LINCS_pert_info.txt,lincs_GSE92742,False
+GSE92742_Broad_LINCS_pert_info,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_pert_info.txt.gz,D1.001,False,True,,,,lincs,GSE92742_Broad_LINCS_pert_info.txt,lincs,False
 GSE92742_Broad_LINCS_pert_metrics,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_pert_metrics.txt.gz,D1.001,False,True,,,,,,,False
 DTP_NCI60_ZSCORE,https://discover.nci.nih.gov/cellminerdata/normalizedArchives/DTP_NCI60_ZSCORE.zip,D2.001,False,True,,,,nci60,output/DTP_NCI60_ZSCORE.xls,nci60,False
 mosaic,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/tables/combined/combined_gene-target-predictions.zip,D3.001,False,True,,,,,,,False
 mosaic_all_conditions,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/matrices_and_cdts/matrices/All_conditions.txt,D3.001,False,True,,,,,,,False
+mosaic_all_collections,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/compound_information/sdf/Structural_Data_Files_combined.zip,D3.001,False,True,,,,mosaic,All_Collections.sdf,mosaic,False
 morphlincs_LDS-1195,http://lincsportal.ccs.miami.edu/dcic/api/download?path=LINCS_Data/Broad_Therapeutics&file=LDS-1195.tar.gz,D4.001,False,True,,,,morphlincs,LDS-1195/Metadata/Small_Molecule_Metadata.txt,morphlincs,False
 cellosaurus,ftp://ftp.expasy.org/databases/cellosaurus/cellosaurus.obo,D5.001,False,True,,,,,,,False
 kegg_br,http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=,E1.001,False,True,,,,kegg,download_htext,kegg,False
@@ -56,5 +57,5 @@ CTD_diseases,http://ctdbase.org/reports/CTD_diseases.tsv.gz,E4.001,False,True,,,
 CTD_chemicals_diseases,http://ctdbase.org/reports/CTD_chemicals_diseases.tsv.gz,E4.001,False,True,,,,ctd,CTD_chemicals_diseases.tsv,ctd,False
 disease_mappings,http://www.disgenet.org/ds/DisGeNET/results/disease_mappings.tsv.gz,E2.001,False,True,,,,,,,False
 meddra_all_se,http://sideeffects.embl.de/media/download/meddra_all_se.tsv.gz,E3.001,False,True,,,,sider,meddra_all_se.tsv,sider,False
-chemicals,http://stitch4.embl.de/download/chemicals.v4.0.tsv.gz,E3.001,False,True,,,,sider,chemicals.v4.0.tsv,sider_stitch,False
-inBio_Map_core,file:///aloy/scratch/sbnb-adm/checker/local_downloads/inBio_Map_core_2016_09_12.tar.gz,C5.001,False,True,,,,,,,
+chemicals,http://stitch4.embl.de/download/chemicals.v4.0.tsv.gz,E3.001,False,True,,,,sider,chemicals.v4.0.tsv,sider,False
+inBio_Map_core,file:///aloy/scratch/sbnb-adm/checker/local_downloads/inBio_Map_core_2016_09_12.tar.gz,C5.001,False,True,,,,,,,False
