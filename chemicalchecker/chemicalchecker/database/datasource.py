@@ -159,12 +159,16 @@ class Datasource(Base):
         return res
 
     @staticmethod
-    def get_molrepos():
+    def get_molrepos(molrepo_name=None):
         """Get Datasources associated to a molrepo."""
         session = get_session()
-        query = session.query(Datasource).filter(
-            ~(Datasource.molrepo_parser == '')).distinct(
-            Datasource.molrepo_parser)
+        if molrepo_name is None:
+            query = session.query(Datasource).filter(
+                ~(Datasource.molrepo_parser == '')).distinct(
+                Datasource.molrepo_parser)
+        else:
+            query = session.query(Datasource).filter(
+                (Datasource.molrepo_name == molrepo_name))
         res = query.all()
         session.close()
         return res
