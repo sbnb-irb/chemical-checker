@@ -7,7 +7,7 @@ import os
 import datetime
 from time import time
 from .database import Base, get_engine, get_session
-from sqlalchemy import Column, Text, Integer, Index
+from sqlalchemy import Column, Text, Integer
 from sqlalchemy.orm import class_mapper, ColumnProperty
 
 import chemicalchecker
@@ -119,6 +119,36 @@ class Molrepo(Base):
         return int(query) == len(molrepos_ds)
 
     @staticmethod
+    def from_molrepo_name(molrepo_name):
+        """Fill Molrepo table from a molrepo name.
+
+        Args:
+            molrepo_name(str): a molrepo name.
+        """
+        datasources = Datasource.get_molrepos(molrepo_name)
+        if len(datasources) == 0:
+            raise Exception(
+                "Molrepo name %s file not available.", molrepo_name)
+        molrepo_path = []
+        molrepo_parser = datasources[0].molrepo_parser
+        for ds in datasources:
+            Molrepo.__log.debug("Importing Datasource %s", ds)
+            molrepo_path.append(ds.molrepo_path)
+            if molrepo_parser != molrepo_parser:
+                raise Exception("Molrepo name with two different parsers")
+
+        # parser_fn yield a list of dictionaries with keys as a molrepo entry
+        parse_fn = Parser.parse_fn(molrepo_parser)
+        # profile time
+        t_start = time()
+        engine = get_engine()
+        for chunk in parse_fn(molrepo_path, molrepo_name, 1000):
+            engine.execute(Molrepo.__table__.insert(), chunk)
+        t_end = time()
+        t_delta = str(datetime.timedelta(seconds=t_end - t_start))
+        Molrepo.__log.info("Importing Molrepo Name %s took %s", molrepo_name, t_delta)
+
+    @staticmethod
     def from_datasource(ds):
         """Fill Molrepo table from Datasource.
 
@@ -134,7 +164,7 @@ class Molrepo(Base):
         # profile time
         t_start = time()
         engine = get_engine()
-        for chunk in parse_fn(ds.molrepo_path, molrepo_name, 1000):
+        for chunk in parse_fn([ds.molrepo_path], molrepo_name, 1000):
             engine.execute(Molrepo.__table__.insert(), chunk)
         t_end = time()
         t_delta = str(datetime.timedelta(seconds=t_end - t_start))
