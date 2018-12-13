@@ -1,4 +1,3 @@
-import psycopg2
 from chemicalchecker.util import Config
 
 
@@ -11,6 +10,7 @@ def get_connection(dbname=None):
     Returns:
         connection
     """
+    import psycopg2
     config = Config()
     conn_dict = config.DB.asdict()
     conn_dict.pop('dialect')
