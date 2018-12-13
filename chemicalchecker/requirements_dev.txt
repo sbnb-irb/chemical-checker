@@ -14,5 +14,6 @@ psycopg2
 pybel
 autologging==1.1.0
 patool
+pandas
 wget
 standardiser
