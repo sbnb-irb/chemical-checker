@@ -1,4 +1,9 @@
 import os
+import pybel
+import csv
+import pandas as pd
+
+
 from .converter import Converter
 from chemicalchecker.util import logged
 from chemicalchecker.util import psql
@@ -292,102 +297,169 @@ def lincs():
                 inchikey = mol[0]
                 inchi = mol[1]
             f.write("%s\t%s\t%s\t%s\n" % (Id, smi, inchikey, inchi))
+"""
 
 
-def mosaic():
-    #FIXME find source (hint: /aloy/home/mduran/myscripts/mosaic/D/D3/data) eventually add All_collection to local
-    with open(moldir + "/mosaic.tsv", "w") as f:
-        for mol in pybel.readfile("sdf", os.path.join(downloadsdir, checkerconfig.mosaic_all_collections_download)):
-            if not mol:
-                continue
-            smi, Id = mol.write("can").rstrip("\n").split("\t")
-            mol = hts.apply(smi)
-            if not mol:
-                inchikey = ""
-                inchi = ""
-            else:
-                inchikey = mol[0]
-                inchi = mol[1]
-            f.write("%s\t%s\t%s\t%s\n" % (Id, smi, inchikey, inchi))
+def mosaic(file_path, molrepo_name, chunks=1000):
+    # FIXME find source (hint: /aloy/home/mduran/myscripts/mosaic/D/D3/data)
+    # eventually add All_collection to local
+    if len(file_path) > 1:
+        raise Exception(
+            "Parser mosaic does not expect more than one input file")
+    file_path = file_path[0]
+    chunk = list()
+    for mol in pybel.readfile("sdf", file_path):
+        if not mol:
+            continue
+        smi, Id = mol.write("can").rstrip("\n").split("\t")
+        try:
+            inchikey, inchi = Converter.smiles_to_inchi(smi)
+        except Exception as ex:
+            Parser.__log.warning("Mosaic ID %s: %s", Id, str(ex))
+            inchikey, inchi = "", ""
+        result = {
+            "molrepo_name": molrepo_name,
+            "src_id": Id,
+            "smiles": smi,
+            "inchikey": inchikey,
+            "inchi": inchi
+        }
+        chunk.append(result)
+        if len(chunk) == chunks:
+            yield chunk
+            chunk = list()
+    yield chunk
 
 
-def morphlincs():
-    f = open(moldir + "/morphlincs.tsv", "w")
-    g = open(os.path.join(downloadsdir,
-                          checkerconfig.morphlincs_molecules_download), "r")
+def morphlincs(file_path, molrepo_name, chunks=1000):
+
+    if len(file_path) > 1:
+        raise Exception(
+            "Parser morphlincs does not expect more than one input file")
+    file_path = file_path[0]
+
+    g = open(file_path, "r")
     g.next()
+    chunk = list()
     for l in csv.reader(g, delimiter="\t"):
         if not l[6]:
             continue
         Id = l[8]
         smi = l[6]
-        if not smi:
-            continue
-        mol = hts.apply(smi)
-        if not mol:
-            inchikey = ""
-            inchi = ""
-        else:
-            inchikey = mol[0]
-            inchi = mol[1]
-        f.write("%s\t%s\t%s\t%s\n" % (Id, smi, inchikey, inchi))
-    g.close()
-    f.close()
+        try:
+            inchikey, inchi = Converter.smiles_to_inchi(smi)
+        except Exception as ex:
+            Parser.__log.warning("Morphlincs ID %s: %s", Id, str(ex))
+            inchikey, inchi = "", ""
+        result = {
+            "molrepo_name": molrepo_name,
+            "src_id": Id,
+            "smiles": smi,
+            "inchikey": inchikey,
+            "inchi": inchi
+        }
+        chunk.append(result)
+        if len(chunk) == chunks:
+            yield chunk
+            chunk = list()
+    yield chunk
 
 
-def nci60():
-    #FIXME the downloadfile is xls but in the pipeline is .csv, check where conversion happens
-    f = open(os.path.join(downloadsdir, checkerconfig.nci60_download), "r")
-    g = open(moldir + "/nci60.tsv", "w")
+def nci60(file_path, molrepo_name, chunks=1000):
+
+    if len(file_path) > 1:
+        raise Exception(
+            "Parser nci60 does not expect more than one input file")
+    file_path = file_path[0]
+
+    Parser.__log.info("Converting Zscore xls file to csv")
+
+    data_xls = pd.read_excel(file_path, index_col=0)
+    csv_path = file_path[:-4] + ".csv"
+    data_xls.to_csv(csv_path, encoding='utf-8')
+    f = open(csv_path, "r")
     f.next()
+    chunk = list()
     for l in csv.reader(f):
         Id, smi = l[0], l[5]
-        if not smi:
-            continue
-        mol = hts.apply(smi)
-        if not mol:
-            inchikey = ""
-            inchi = ""
-        else:
-            inchikey = mol[0]
-            inchi = mol[1]
-        g.write("%s\t%s\t%s\t%s\n" % (Id, smi, inchikey, inchi))
-    g.close()
-    f.close()
+        try:
+            inchikey, inchi = Converter.smiles_to_inchi(smi)
+        except Exception as ex:
+            Parser.__log.warning("NCI60 ID %s: %s", Id, str(ex))
+            inchikey, inchi = "", ""
+        result = {
+            "molrepo_name": molrepo_name,
+            "src_id": Id,
+            "smiles": smi,
+            "inchikey": inchikey,
+            "inchi": inchi
+        }
+        chunk.append(result)
+        if len(chunk) == chunks:
+            yield chunk
+            chunk = list()
+    yield chunk
 
 
-def pdb():
+def pdb(file_path, molrepo_name, chunks=1000):
 
-    ligand_inchikey = {}
-    inchikey_inchi = {}
-    f = open(os.path.join(downloadsdir,
-                          checkerconfig.pdb_components_smiles_download), "r")
-    g = open(moldir + "/pdb.tsv", "w")
+    if len(file_path) > 1:
+        raise Exception(
+            "Parser pdb does not expect more than one input file")
+    file_path = file_path[0]
+    chunk = list()
+    f = open(file_path, "r")
     for l in f:
         l = l.rstrip("\n").split("\t")
         if len(l) < 2:
             continue
         lig_id = l[1]
-        mol = hts.apply(l[0])
-        if not mol:
-            g.write("%s\t%s\t\t\n" % (lig_id, l[0]))
+        smi = l[0]
+        try:
+            inchikey, inchi = Converter.smiles_to_inchi(smi)
+        except Exception as ex:
+            Parser.__log.warning("PDB ID %s: %s", lig_id, str(ex))
+            inchikey, inchi = "", ""
+        result = {
+            "molrepo_name": molrepo_name,
+            "src_id": lig_id,
+            "smiles": smi,
+            "inchikey": inchikey,
+            "inchi": inchi
+        }
+        chunk.append(result)
+        if len(chunk) == chunks:
+            yield chunk
+            chunk = list()
+    yield chunk
+
+
+def sider(file_path, molrepo_name, chunks=1000):
+
+    if len(file_path) != 2:
+        raise Exception(
+            "Parser sider needs two input files")
+
+    sider_file = ""
+    stitch_file = ""
+    chunk = list()
+    for file in file_path:
+        if "meddra_all_se" in file:
+            sider_file = file
             continue
-        ligand_inchikey[lig_id] = mol[0]
-        inchikey_inchi[mol[0]] = mol[1]
-        g.write("%s\t%s\t%s\t%s\n" % (lig_id, l[0], mol[0], mol[1]))
-    f.close()
-    g.close()
+        if "chemicals" in file:
+            stitch_file = file
 
+    if sider_file == "" or stitch_file == "":
+        raise Exception("Missing expected input files")
 
-def sider():
-
-    with open(os.path.join(downloadsdir, checkerconfig.sider_download), "r") as f:
+    with open(sider_file, "r") as f:
         S = set()
         for l in f:
             l = l.split("\t")
             S.update([l[1]])
 
-    with open(os.path.join(downloadsdir, checkerconfig.stitch_molecules_download), "r") as f:
+    with open(stitch_file, "r") as f:
         stitch = {}
         f.next()
         for r in csv.reader(f, delimiter="\t"):
@@ -395,30 +467,39 @@ def sider():
                 continue
             stitch[r[0]] = r[-1]
 
-    with open(moldir + "/sider.tsv", "w") as f:
-        for s in list(S):
-            Id = s
-            smi = stitch[s]
-            if not smi:
-                continue
-            mol = hts.apply(smi)
-            if not mol:
-                inchikey = ""
-                inchi = ""
-            else:
-                inchikey = mol[0]
-                inchi = mol[1]
-            f.write("%s\t%s\t%s\t%s\n" % (Id, smi, inchikey, inchi))
+    for s in list(S):
+        Id = s
+        smi = stitch[s]
+        try:
+            inchikey, inchi = Converter.smiles_to_inchi(smi)
+        except Exception as ex:
+            Parser.__log.warning("SIDER ID %s: %s", Id, str(ex))
+            inchikey, inchi = "", ""
+        result = {
+            "molrepo_name": molrepo_name,
+            "src_id": Id,
+            "smiles": smi,
+            "inchikey": inchikey,
+            "inchi": inchi
+        }
+        chunk.append(result)
+        if len(chunk) == chunks:
+            yield chunk
+            chunk = list()
+    yield chunk
 
 
-def smpdb():
+def smpdb(file_path, molrepo_name, chunks=1000):
 
-    g = open(moldir + "/smpdb.tsv", "w")
+    if len(file_path) > 1:
+        raise Exception(
+            "Parser smpdb does not expect more than one input file")
+    file_path = file_path[0]
     S = set()
-    L = os.listdir(os.path.join(
-        downloadsdir, checkerconfig.smpdb_folder_download))
+    L = os.listdir(file_path)
+    chunk = list()
     for l in L:
-        for mol in pybel.readfile("sdf", os.path.join(downloadsdir, checkerconfig.smpdb_folder_download) + "/" + l):
+        for mol in pybel.readfile("sdf", file_path + "/" + l):
             if not mol:
                 continue
             smi, Id = mol.write("can").rstrip("\n").split("\t")
@@ -427,14 +508,20 @@ def smpdb():
     for s in sorted(S):
         Id = s[0]
         smi = s[1]
-        mol = hts.apply(smi)
-        if not mol:
-            inchikey = ""
-            inchi = ""
-        else:
-            inchikey = mol[0]
-            inchi = mol[1]
-        g.write("%s\t%s\t%s\t%s\n" % (Id, smi, inchikey, inchi))
-
-    g.close()
-"""
+        try:
+            inchikey, inchi = Converter.smiles_to_inchi(smi)
+        except Exception as ex:
+            Parser.__log.warning("SMPDB ID %s: %s", Id, str(ex))
+            inchikey, inchi = "", ""
+        result = {
+            "molrepo_name": molrepo_name,
+            "src_id": Id,
+            "smiles": smi,
+            "inchikey": inchikey,
+            "inchi": inchi
+        }
+        chunk.append(result)
+        if len(chunk) == chunks:
+            yield chunk
+            chunk = list()
+    yield chunk

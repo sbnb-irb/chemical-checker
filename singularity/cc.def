@@ -76,6 +76,7 @@ From: centos
     pip install sphinx_rtd_theme # docs theme.
     pip install patool # unzipping
     pip install wget # download library
+    pip install pybel
     # data packages
     pip install numpy # best numerical library ever
     pip install pandas # handles table-like datastracture
