@@ -26,7 +26,7 @@ def get_engine(dbname=None):
 
     con = '{dialect}://{user}:{password}@{host}:{port}/{database}'.format(
         **config.DB.asdict())
-    engine = create_engine(con, echo=True, poolclass=NullPool)
+    engine = create_engine(con, poolclass=NullPool)
     return engine
 
 

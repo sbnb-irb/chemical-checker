@@ -7,8 +7,10 @@ import os
 import datetime
 from time import time
 from .database import Base, get_engine, get_session
-from sqlalchemy import Column, Text, Integer
+from sqlalchemy import Column, Text
 from sqlalchemy.orm import class_mapper, ColumnProperty
+from sqlalchemy.dialects import postgresql
+
 
 import chemicalchecker
 from chemicalchecker.util import Parser
@@ -26,7 +28,7 @@ class Molrepo(Base):
     compound ids (e.g. chembl, bindigdb, etc.).
 
     Fields:
-        id(int): primary key, auto-incrementing integer.
+        id(str): primary key, src_id + "_" + molrepo_name.
         molrepo_name(str): the molrepo name.
         src_id(str): the download id as in the source file.
         smiles(str): simplified molecular-input line-entry system (SMILES).
@@ -35,7 +37,7 @@ class Molrepo(Base):
     """
 
     __tablename__ = 'molrepo'
-    id = Column(Integer, primary_key=True)
+    id = Column(Text, primary_key=True)
     molrepo_name = Column(Text, index=True)
     src_id = Column(Text)
     smiles = Column(Text)
@@ -130,12 +132,10 @@ class Molrepo(Base):
             raise Exception(
                 "Molrepo name %s file not available.", molrepo_name)
         molrepo_path = []
-        molrepo_parser = datasources[0].molrepo_parser
+        molrepo_parser = datasources[0].molrepo_name
         for ds in datasources:
             Molrepo.__log.debug("Importing Datasource %s", ds)
             molrepo_path.append(ds.molrepo_path)
-            if molrepo_parser != molrepo_parser:
-                raise Exception("Molrepo name with two different parsers")
 
         # parser_fn yield a list of dictionaries with keys as a molrepo entry
         parse_fn = Parser.parse_fn(molrepo_parser)
@@ -143,10 +143,13 @@ class Molrepo(Base):
         t_start = time()
         engine = get_engine()
         for chunk in parse_fn(molrepo_path, molrepo_name, 1000):
-            engine.execute(Molrepo.__table__.insert(), chunk)
+            engine.execute(postgresql.insert(Molrepo.__table__).values(
+                chunk).on_conflict_do_nothing(index_elements=[Molrepo.id]))
+            # engine.execute(Molrepo.__table__.insert(), chunk)
         t_end = time()
         t_delta = str(datetime.timedelta(seconds=t_end - t_start))
-        Molrepo.__log.info("Importing Molrepo Name %s took %s", molrepo_name, t_delta)
+        Molrepo.__log.info(
+            "Importing Molrepo Name %s took %s", molrepo_name, t_delta)
 
     @staticmethod
     def from_datasource(ds):
@@ -160,12 +163,14 @@ class Molrepo(Base):
         molrepo_name = ds.molrepo_name
         Molrepo.__log.debug("Importing Datasource %s", ds)
         # parser_fn yield a list of dictionaries with keys as a molrepo entry
-        parse_fn = Parser.parse_fn(ds.molrepo_parser)
+        parse_fn = Parser.parse_fn(ds.molrepo_name)
         # profile time
         t_start = time()
         engine = get_engine()
         for chunk in parse_fn([ds.molrepo_path], molrepo_name, 1000):
-            engine.execute(Molrepo.__table__.insert(), chunk)
+            engine.execute(postgresql.insert(Molrepo.__table__).values(
+                chunk).on_conflict_do_nothing(index_elements=[Molrepo.id]))
+            # engine.execute(Molrepo.__table__.insert(), chunk)
         t_end = time()
         t_delta = str(datetime.timedelta(seconds=t_end - t_start))
         Molrepo.__log.info("Importing Datasource %s took %s", ds, t_delta)
@@ -195,8 +200,7 @@ class Molrepo(Base):
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
             "data = inputs[task_id]",  # elements for current job
             "for d in data:",  # elements are indexes
-            "    ds = Datasource.get_molrepos()[d]",  # query the db
-            "    Molrepo.from_datasource(ds)",  # start import
+            "    Molrepo.from_molrepo_name(d)",  # start import
             "print('JOB DONE')"
         ]
         script_name = os.path.join(job_path, 'molrepo_script.py')
@@ -205,12 +209,17 @@ class Molrepo(Base):
                 fh.write(line + '\n')
         # hpc parameters
         all_datasources = Datasource.get_molrepos()
+        molrepos_names = set()
+        for ds in all_datasources:
+            molrepos_names.add(ds.molrepo_name)
+
         params = {}
-        params["num_jobs"] = len(all_datasources)
+        params["num_jobs"] = len(molrepos_names)
         params["jobdir"] = job_path
         params["job_name"] = "CC_MOLREPO"
-        params["elements"] = range(len(all_datasources))
+        params["elements"] = list(molrepos_names)
         params["wait"] = True
+        params["check_error"] = False
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
