@@ -6,8 +6,8 @@ external resource. This class offer a mean to standardize raw data collection.
 import os
 from glob import glob
 from .database import Base, get_session, get_engine
-from sqlalchemy import Column, Text, Boolean, ForeignKey, Integer
-from sqlalchemy.orm import class_mapper, ColumnProperty
+from sqlalchemy import Column, Text, Boolean
+from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
 
 import chemicalchecker
 from chemicalchecker.util import logged
@@ -20,28 +20,24 @@ from chemicalchecker.util import HPC
 class Datasource(Base):
     """The Datasource table.
 
-    Fields:
+    Parameters:
         name(str): primary key, simple unique name for the Datasource.
         url(str): the download link.
-        dataset(str): foreign key to the dataset using the Datasource.
         permanent(bool): whether the download is permanent (not updated).
         enabled(bool): flag that allow us to keep historical records.
         user(str): few downloads require credentials.
         password(str): few downloads require credentials.
         description(str): free text description of the resource.
         molrepo_name(str): optional, a `molrepo` name. NB this name is the
-            value of `Molrepo.molrepo_name`
+            value of `Molrepo.molrepo_name`  also is defininf the `Parser`
+            that will be used.
         molrepo_file(str): optional, a specific file in the Datasource that
             will be used to fill the `molrepo` table. Can also be a directory.
-        molrepo_parser(str): optional, a `Parser` class able to parse the
-            `molrepo_file`.
     """
 
     __tablename__ = 'datasource'
-    id = Column(Integer, primary_key=True)
-    name = Column(Text)
+    name = Column(Text, primary_key=True)
     url = Column(Text)
-    dataset = Column(Text, ForeignKey("dataset.code"), nullable=False)
     permanent = Column(Boolean)
     enabled = Column(Boolean)
     user = Column(Text)
@@ -49,8 +45,11 @@ class Datasource(Base):
     description = Column(Text)
     molrepo_name = Column(Text)
     molrepo_file = Column(Text)
-    molrepo_parser = Column(Text)
     is_db = Column(Boolean)
+
+    datasets = relationship("Dataset",
+                            secondary="map_dataset_datasource",
+                            lazy='joined')
 
     def __repr__(self):
         """String representation."""
@@ -75,7 +74,7 @@ class Datasource(Base):
     def _table_attributes():
         attrs = [a for a in class_mapper(Datasource).iterate_properties]
         col_attrs = [a.key for a in attrs if isinstance(a, ColumnProperty)]
-        input_attrs = [a for a in col_attrs if a != 'id']
+        input_attrs = [a for a in col_attrs]
         return input_attrs
 
     @staticmethod
@@ -85,44 +84,16 @@ class Datasource(Base):
         Args:
             kwargs(dict):The data in dictionary format.
         """
-        Datasource.__log.debug(type(kwargs))
         if type(kwargs) is dict:
             datasource = Datasource(**kwargs)
-        Datasource.__log.debug(datasource.name)
+        Datasource.__log.debug(datasource)
         session = get_session()
         session.add(datasource)
         session.commit()
         session.close()
 
     @staticmethod
-    def add_bulk(data, chunks=1000):
-        """Method to add a lot of rows to the table.
-
-        This method allows to load a big amount of rows in one instruction.
-
-        Args:
-            data(list): The data in list format. Each element will result in a
-                new row. The order is important.
-            chunks(int): The size of the chunks to load data to the database.
-        """
-        engine = get_engine()
-        for pos in range(0, len(data), chunks):
-            engine.execute(
-                Datasource.__table__.insert(),
-                [{"name": row[0],
-                  "url": row[1],
-                  "dataset": row[2],
-                  "permanent": row[3],
-                  "enabled": row[4],
-                  "user": row[5],
-                  "password": row[6],
-                  "description": row[7],
-                  "molrepo_name": row[8],
-                  "molrepo_file": row[9]} for row in data[pos:pos + chunks]]
-            )
-
-    @staticmethod
-    def from_cvs(filename):
+    def from_csv(filename):
         """Add entries from CSV file.
 
         Args:
@@ -143,15 +114,15 @@ class Datasource(Base):
                     "Error in line %s: %s", row_nr, str(err))
 
     @staticmethod
-    def get(dataset=None):
+    def get(name=None):
         """Get Datasources associated to the given dataset.
 
         Args:
-            dataset(str):The dataset code, e.g "A1.001"
+            name(str):The Datasource name, e.g "chebi"
         """
         session = get_session()
-        if dataset is not None:
-            query = session.query(Datasource).filter_by(dataset=dataset)
+        if name is not None:
+            query = session.query(Datasource).filter_by(name=name)
         else:
             query = session.query(Datasource).distinct(Datasource.name)
         res = query.all()
@@ -164,8 +135,8 @@ class Datasource(Base):
         session = get_session()
         if molrepo_name is None:
             query = session.query(Datasource).filter(
-                ~(Datasource.molrepo_parser == '')).distinct(
-                Datasource.molrepo_parser)
+                ~(Datasource.molrepo_name == '')).distinct(
+                Datasource.molrepo_name)
         else:
             query = session.query(Datasource).filter(
                 (Datasource.molrepo_name == molrepo_name)).distinct(

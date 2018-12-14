@@ -1,6 +1,6 @@
 from .database import get_engine, get_session
 from .general_prop import GeneralProp
-from .dataset import Dataset
+from .dataset import Dataset, MapDatasetDatasource
 from .pubchem import Pubchem
 from .libraries import Libraries
 from .structure import Structure
