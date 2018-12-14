@@ -17,7 +17,7 @@ class ConversionError(Exception):
 
     def __init__(self, message, idx):
         """Initialize a ConversionError."""
-        message = "Cannot convert: %s Error: %s" % (idx, message)
+        message = "Cannot convert: %s Message: %s" % (idx, message)
         super(Exception, self).__init__(message)
 
 

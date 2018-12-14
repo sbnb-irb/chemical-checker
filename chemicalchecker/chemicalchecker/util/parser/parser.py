@@ -71,6 +71,7 @@ class Parser():
                 Parser.__log.warning("line %s: %s", idx, str(ex))
                 inchikey, inchi = "", ""
             result = {
+                "id": molrepo_name + "_" + src_id,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smiles,
@@ -103,6 +104,7 @@ class Parser():
                 Parser.__log.warning("line %s: %s", idx, str(ex))
                 inchikey, inchi = "", ""
             result = {
+                "id": molrepo_name + "_" + src_id,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smiles,
@@ -160,6 +162,7 @@ class Parser():
                 Parser.__log.warning("line %s: %s", idx, str(ex))
                 inchikey, inchi = "", ""
             result = {
+                "id": molrepo_name + "_" + src_id,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smiles,
@@ -191,6 +194,7 @@ class Parser():
                 Parser.__log.warning("line %s: %s", idx, str(ex))
                 inchikey, inchi = "", ""
             result = {
+                "id": molrepo_name + "_" + src_id,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smiles,
@@ -240,6 +244,7 @@ class Parser():
                 Parser.__log.warning("line %s: %s", idx, str(ex))
                 inchikey, inchi = "", ""
             result = {
+                "id": molrepo_name + "_" + src_id,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smiles,
@@ -294,6 +299,7 @@ class Parser():
                     Parser.__log.warning("line %s: %s", idx, str(ex))
                     inchikey, inchi = "", ""
                 result = {
+                    "id": molrepo_name + "_" + src_id,
                     "molrepo_name": molrepo_name,
                     "src_id": src_id,
                     "smiles": smiles,
@@ -313,12 +319,11 @@ class Parser():
             raise Exception("This parser expect 2 input files.")
         # skip header
         chunk = list()
-        col = -1
-        for file in file_path:
 
+        for file in file_path:
+            col = -1
             if "GSE92742" in file:
                 col = 6
-                continue
             if "GSE70138" in file:
                 col = 1
 
@@ -338,6 +343,7 @@ class Parser():
                     Parser.__log.warning("line %s: %s", idx, str(ex))
                     inchikey, inchi = "", ""
                 result = {
+                    "id": molrepo_name + "_" + src_id,
                     "molrepo_name": molrepo_name,
                     "src_id": src_id,
                     "smiles": smiles,
@@ -362,15 +368,16 @@ class Parser():
         for mol in pybel.readfile("sdf", file_path):
             if not mol:
                 continue
-            smi, Id = mol.write("can").rstrip("\n").split("\t")
+            smi, src_id = mol.write("can").rstrip("\n").split("\t")
             try:
                 inchikey, inchi = Converter.smiles_to_inchi(smi)
             except Exception as ex:
-                Parser.__log.warning("Mosaic ID %s: %s", Id, str(ex))
+                Parser.__log.warning("Mosaic ID %s: %s", src_id, str(ex))
                 inchikey, inchi = "", ""
             result = {
+                "id": molrepo_name + "_" + src_id,
                 "molrepo_name": molrepo_name,
-                "src_id": Id,
+                "src_id": src_id,
                 "smiles": smi,
                 "inchikey": inchikey,
                 "inchi": inchi
@@ -393,16 +400,17 @@ class Parser():
         for l in csv.reader(g, delimiter="\t"):
             if not l[6]:
                 continue
-            Id = l[8]
+            src_id = l[8]
             smi = l[6]
             try:
                 inchikey, inchi = Converter.smiles_to_inchi(smi)
             except Exception as ex:
-                Parser.__log.warning("Morphlincs ID %s: %s", Id, str(ex))
+                Parser.__log.warning("Morphlincs ID %s: %s", src_id, str(ex))
                 inchikey, inchi = "", ""
             result = {
+                "id": molrepo_name + "_" + src_id,
                 "molrepo_name": molrepo_name,
-                "src_id": Id,
+                "src_id": src_id,
                 "smiles": smi,
                 "inchikey": inchikey,
                 "inchi": inchi
@@ -427,15 +435,16 @@ class Parser():
         f.next()
         chunk = list()
         for l in csv.reader(f):
-            Id, smi = l[0], l[5]
+            src_id, smi = l[0], l[5]
             try:
                 inchikey, inchi = Converter.smiles_to_inchi(smi)
             except Exception as ex:
-                Parser.__log.warning("NCI60 ID %s: %s", Id, str(ex))
+                Parser.__log.warning("NCI60 ID %s: %s", src_id, str(ex))
                 inchikey, inchi = "", ""
             result = {
+                "id": molrepo_name + "_" + src_id,
                 "molrepo_name": molrepo_name,
-                "src_id": Id,
+                "src_id": src_id,
                 "smiles": smi,
                 "inchikey": inchikey,
                 "inchi": inchi
@@ -458,16 +467,17 @@ class Parser():
             l = l.rstrip("\n").split("\t")
             if len(l) < 2:
                 continue
-            lig_id = l[1]
+            src_id = l[1]
             smi = l[0]
             try:
                 inchikey, inchi = Converter.smiles_to_inchi(smi)
             except Exception as ex:
-                Parser.__log.warning("PDB ID %s: %s", lig_id, str(ex))
+                Parser.__log.warning("PDB ID %s: %s", src_id, str(ex))
                 inchikey, inchi = "", ""
             result = {
+                "id": molrepo_name + "_" + src_id,
                 "molrepo_name": molrepo_name,
-                "src_id": lig_id,
+                "src_id": src_id,
                 "smiles": smi,
                 "inchikey": inchikey,
                 "inchi": inchi
@@ -511,16 +521,17 @@ class Parser():
                 stitch[r[0]] = r[-1]
 
         for s in list(S):
-            Id = s
+            src_id = s
             smi = stitch[s]
             try:
                 inchikey, inchi = Converter.smiles_to_inchi(smi)
             except Exception as ex:
-                Parser.__log.warning("SIDER ID %s: %s", Id, str(ex))
+                Parser.__log.warning("SIDER ID %s: %s", src_id, str(ex))
                 inchikey, inchi = "", ""
             result = {
+                "id": molrepo_name + "_" + src_id,
                 "molrepo_name": molrepo_name,
-                "src_id": Id,
+                "src_id": src_id,
                 "smiles": smi,
                 "inchikey": inchikey,
                 "inchi": inchi
@@ -548,16 +559,17 @@ class Parser():
                 S.update([(Id, smi)])
 
         for s in sorted(S):
-            Id = s[0]
+            src_id = s[0]
             smi = s[1]
             try:
                 inchikey, inchi = Converter.smiles_to_inchi(smi)
             except Exception as ex:
-                Parser.__log.warning("SMPDB ID %s: %s", Id, str(ex))
+                Parser.__log.warning("SMPDB ID %s: %s", src_id, str(ex))
                 inchikey, inchi = "", ""
             result = {
+                "id": molrepo_name + "_" + src_id,
                 "molrepo_name": molrepo_name,
-                "src_id": Id,
+                "src_id": src_id,
                 "smiles": smi,
                 "inchikey": inchikey,
                 "inchi": inchi
