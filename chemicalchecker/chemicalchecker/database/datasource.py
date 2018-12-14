@@ -168,7 +168,8 @@ class Datasource(Base):
                 Datasource.molrepo_parser)
         else:
             query = session.query(Datasource).filter(
-                (Datasource.molrepo_name == molrepo_name))
+                (Datasource.molrepo_name == molrepo_name)).distinct(
+                Datasource.url)
         res = query.all()
         session.close()
         return res
