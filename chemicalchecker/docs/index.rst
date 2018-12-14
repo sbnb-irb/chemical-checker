@@ -13,7 +13,13 @@ Welcome to chemicalchecker's documentation!
    authors
    history
 
-   chemicalchecker
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Sources:
+   :glob:
+
+   apidoc/chemicalchecker
 
 Indices and tables
 ==================

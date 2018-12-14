@@ -12,18 +12,18 @@ chemicalchecker.database.database module
     :undoc-members:
     :show-inheritance:
 
-chemicalchecker.database.datafiles module
------------------------------------------
-
-.. automodule:: chemicalchecker.database.datafiles
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 chemicalchecker.database.dataset module
 ---------------------------------------
 
 .. automodule:: chemicalchecker.database.dataset
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+chemicalchecker.database.datasource module
+------------------------------------------
+
+.. automodule:: chemicalchecker.database.datasource
     :members:
     :undoc-members:
     :show-inheritance:
@@ -40,6 +40,14 @@ chemicalchecker.database.libraries module
 -----------------------------------------
 
 .. automodule:: chemicalchecker.database.libraries
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+chemicalchecker.database.molrepo module
+---------------------------------------
+
+.. automodule:: chemicalchecker.database.molrepo
     :members:
     :undoc-members:
     :show-inheritance:
