@@ -83,15 +83,17 @@ class TestDatabase(unittest.TestCase):
     def test_add(self):
 
         res = self.Dataset.get('test2')
-        self.assertIsNone(res)
+        self.assertEqual([], res)
 
         self.Dataset.add({"code": "A1.001", "level": "A", "unknowns": True})
 
         res = self.Dataset.get('A1.001')
+        res = res[0]
         self.assertTrue(hasattr(res, 'level'))
         self.assertTrue(res.level == "A")
 
         res = self.Dataset.get('A1.001')
+        res = res[0]
         self.assertTrue(hasattr(res, 'unknowns'))
         self.assertTrue(res.unknowns)
 
