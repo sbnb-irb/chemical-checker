@@ -1,13 +1,13 @@
 import os
 import sys
 import argparse
-
+import numpy as np
 import collections
 import h5py
 
 
 from chemicalchecker.util import logged
-from chemicalchecker.database import Datasource
+from chemicalchecker.database import Dataset, Molrepo
 
 
 # Variables
@@ -15,17 +15,16 @@ from chemicalchecker.database import Datasource
 
 # Parse arguments
 
-def parse_ecod(ecod_domains, pdb_molrepo):
+def parse_ecod(ecod_domains):
 
     # Read molrepo
 
     ligand_inchikey = {}
-    with open(pdb_molrepo, "r") as f:
-        for l in f:
-            l = l.rstrip("\n").split("\t")
-            if not l[2]:
-                continue
-            ligand_inchikey[l[0]] = l[2]
+    molrepos = Molrepo.get_by_molrepo_name("pdb")
+    for molrepo in molrepos:
+        if not molrepo.inchikey:
+            continue
+        ligand_inchikey[molrepo.src_id] = molrepo.inchikey
 
     # Parse ECOD
     # [X-group].[H-group].[T-group].[F-group]
@@ -66,33 +65,33 @@ def main():
 
     args = get_parser().parse_args(sys.argv[1:])
 
-    dataset = 'B3.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
+    dataset_code = 'B3.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
-    files = Datasource.get(dataset)
+    dataset = Dataset.get(dataset_code)
 
     map_files = {}
 
-    for f in files:
-        map_files[f] = f.data_path
+    for ds in dataset[0].datasources:
+        map_files[ds.name] = ds.data_path
 
     main._log.debug(
-        "Running preprocess for dataset " + dataset + ". Saving output in " + args.output_file)
+        "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
     ecod_domains = os.path.join(map_files["ecod"], "ecod.latest.domains.txt")
 
     main._log.info("Reading ECOD")
-    inchikey_ecod = parse_ecod(ecod_domains,)
+    inchikey_ecod = parse_ecod(ecod_domains)
 
     main._log.info("Saving raws")
     keys = []
     raws = []
     for k in sorted(inchikey_ecod.iterkeys()):
         raws.append(",".join(inchikey_ecod[k]))
-        keys.append(k)
+        keys.append(str(k))
 
     with h5py.File(args.output_file, "w") as hf:
-        hf.create_dataset("keys", data=keys)
-        hf.create_dataset("V", data=raws)
+        hf.create_dataset("keys", data=np.array(keys))
+        hf.create_dataset("V", data=np.array(raws))
 
 if __name__ == '__main__':
     main()

@@ -98,10 +98,15 @@ class ChemicalChecker():
                 on the cctype passed.
         """
         dataset_info = Dataset.get(dataset)
+        if len(dataset_info) > 1:
+            self.__log.warning(
+                'Code %s returns more than one dataset', dataset)
+            raise Exception("More than one datatset for code: " + dataset)
         data_path = self.get_data_path(cctype, dataset)
         model_path = self.get_model_path(cctype, dataset)
         # initialize a data object factory feeding the type and the path
         data_factory = DataFactory()
         # the factory will spit the data in the right class
-        data = data_factory.make_data(cctype, data_path, model_path, dataset_info)
+        data = data_factory.make_data(
+            cctype, data_path, model_path, dataset_info)
         return data
