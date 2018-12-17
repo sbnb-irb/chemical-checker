@@ -41,7 +41,9 @@ From: centos
                    bzip2-devel \
                    file \
                    libXrender \
-                   libXext
+                   libXext \
+                   postgresql-server \
+                   postgresql-contrib
 
     # conda
     mkdir /opt/miniconda2 
