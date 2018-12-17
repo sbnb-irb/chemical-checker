@@ -214,10 +214,11 @@ fi
             self.status_id = STARTED
 
         if wait:
+            errors = None
             if check_error:
-                self.check_errors()
+                errors = self.check_errors()
 
-            if compress_out:
+            if compress_out and errors is None:
                 self.compress()
 
         return self.job_id
