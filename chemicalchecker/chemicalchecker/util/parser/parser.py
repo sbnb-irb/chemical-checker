@@ -2,15 +2,12 @@ import os
 import pybel
 import csv
 import pandas as pd
-
+import xml.etree.ElementTree as ET
+import wget
 
 from .converter import Converter
 from chemicalchecker.util import logged
 from chemicalchecker.util import psql
-import xml.etree.ElementTree as ET
-import wget
-import pybel
-import csv
 try:
     import rdkit.Chem as Chem
 except ImportError:
