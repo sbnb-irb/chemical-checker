@@ -3,10 +3,10 @@ import argparse
 import networkx as nx
 import collections
 import h5py
-
+import numpy as np
 
 from chemicalchecker.util import logged
-from chemicalchecker.database import Datasource
+from chemicalchecker.database import Dataset
 from chemicalchecker.util import psql
 from chemicalchecker.database import Molrepo
 
@@ -20,7 +20,7 @@ def parse_chembl():
 
     # Read molrepo
 
-    molrepos = Molrepo.get("chembl")
+    molrepos = Molrepo.get_by_molrepo_name("chembl")
     chemblid_inchikey = {}
     inchikey_inchi = {}
     for molrepo in molrepos:
@@ -114,17 +114,17 @@ def main():
 
     args = get_parser().parse_args(sys.argv[1:])
 
-    dataset = 'B5.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
+    dataset_code = 'B5.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
-    files = Datasource.get(dataset)
+    dataset = Dataset.get(dataset_code)
 
     map_files = {}
 
-    for f in files:
-        map_files[f] = f.data_path
+    for ds in dataset[0].datasources:
+        map_files[ds.name] = ds.data_path
 
     main._log.debug(
-        "Running preprocess for dataset " + dataset + ". Saving output in " + args.output_file)
+        "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
     main._log.info("Parsing ChEMBL")
 
@@ -138,11 +138,11 @@ def main():
     raws = []
     for k in sorted(inchikey_raw.iterkeys()):
         raws.append(",".join([x for x in inchikey_raw[k]]))
-        keys.append(k)
+        keys.append(str(k))
 
     with h5py.File(args.output_file, "w") as hf:
-        hf.create_dataset("keys", data=keys)
-        hf.create_dataset("V", data=raws)
+        hf.create_dataset("keys", data=np.array(keys))
+        hf.create_dataset("V", data=np.array(raws))
 
 
 if __name__ == '__main__':

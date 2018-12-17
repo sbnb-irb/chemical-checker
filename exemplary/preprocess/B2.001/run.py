@@ -4,12 +4,13 @@ import argparse
 import networkx as nx
 import collections
 import h5py
+import numpy as np
 
 import xml.etree.ElementTree as ET
 
 
 from chemicalchecker.util import logged
-from chemicalchecker.database import Datasource
+from chemicalchecker.database import Dataset
 from chemicalchecker.util import psql
 from chemicalchecker.database import Molrepo
 
@@ -48,7 +49,7 @@ def parse_chembl(ACTS=None):
 
     chemblid_inchikey = {}
     inchikey_inchi = {}
-    molrepos = Molrepo.get("chembl")
+    molrepos = Molrepo.get_by_molrepo_name("chembl")
     for molrepo in molrepos:
         if not molrepo.inchikey:
             continue
@@ -76,7 +77,7 @@ def parse_drugbank(ACTS=None, drugbank_xml=None):
 
     dbid_inchikey = {}
     inchikey_inchi = {}
-    molrepos = Molrepo.get("drugbank")
+    molrepos = Molrepo.get_by_molrepo_name("drugbank")
     for molrepo in molrepos:
         if not molrepo.inchikey:
             continue
@@ -208,17 +209,17 @@ def main():
 
     args = get_parser().parse_args(sys.argv[1:])
 
-    dataset = 'B2.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
+    dataset_code = 'B2.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
-    files = Datasource.get(dataset)
+    dataset = Dataset.get(dataset_code)
 
     map_files = {}
 
-    for f in files:
-        map_files[f] = f.data_path
+    for ds in dataset[0].datasources:
+        map_files[ds.name] = ds.data_path
 
     main._log.debug(
-        "Running preprocess for dataset " + dataset + ". Saving output in " + args.output_file)
+        "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
     drugbank_xml = os.path.join(map_files["drugbank"], "full database.xml")
 
@@ -239,11 +240,11 @@ def main():
     raws = []
     for k in sorted(RAW.iterkeys()):
         raws.append(",".join(RAW[k]))
-        keys.append(k)
+        keys.append(str(k))
 
     with h5py.File(args.output_file, "w") as hf:
-        hf.create_dataset("keys", data=keys)
-        hf.create_dataset("V", data=raws)
+        hf.create_dataset("keys", data=np.array(keys))
+        hf.create_dataset("V", data=np.array(raws))
 
 
 if __name__ == '__main__':
