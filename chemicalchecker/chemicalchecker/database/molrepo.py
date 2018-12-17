@@ -220,6 +220,7 @@ class Molrepo(Base):
         params["elements"] = list(molrepos_names)
         params["wait"] = True
         params["check_error"] = False
+        params["memory"] = 16
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
