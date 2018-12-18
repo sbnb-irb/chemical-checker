@@ -13,7 +13,7 @@ class sign0(BaseSignature):
     Signature type 0 is...
     """
 
-    def __init__(self, data_path, model_path, plots_path, dataset_info, **params):
+    def __init__(self, data_path, model_path, stats_path, dataset_info, **params):
         """Initialize the signature.
 
         Args:
@@ -67,6 +67,5 @@ class sign0(BaseSignature):
         self.__log.debug('faking data in %s', self.data_path)
         # open(self.data_path, 'a').close()
 
-    def validate(self, validation_set):
-        """Perform a validation across external data as MoA and ATC codes."""
-        self.__log.debug('pre-process validated on %s' % validation_set)
+    def statistics(self):
+        """Perform a statistics."""
