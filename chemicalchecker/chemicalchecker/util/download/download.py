@@ -48,7 +48,7 @@ class Downloader():
         self.dbname = dbname
         self.dbfile = dbfile
         if not tmp_dir:
-            tmp_dir = Config().PATH.DOWNLOAD_TMP
+            tmp_dir = Config().PATH.CC_TMP
         self.tmp_dir = tmp_dir
         try:
             self.url = Downloader.validate_url(url)
