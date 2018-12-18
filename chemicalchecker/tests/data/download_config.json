@@ -1,7 +1,7 @@
 {
     "PATH": {
         "CC_ROOT": "'/aloy/web_checker/'",
-        "DOWNLOAD_TMP": "'/aloy/scratch/mbertoni/download/'"
+        "CC_TMP": "'/aloy/scratch/mbertoni/download/'"
     },
     "DB": {
         "dialect": "'postgresql'",
