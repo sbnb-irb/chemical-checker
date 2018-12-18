@@ -21,18 +21,22 @@ class BaseSignature(object):
     """
 
     @abstractmethod
-    def __init__(self, data_path, model_path, dataset_info):
+    def __init__(self, data_path, model_path, plots_path, dataset_info):
         """From the recipe we derive all the cleaning logic."""
         BaseSignature.__log.debug('__init__')
+        self.dataset_info = dataset_info
         self.data_path = data_path
         if not os.path.isfile(data_path):
             BaseSignature.__log.warning(
                 "Data file not available: %s" % data_path)
         self.model_path = model_path
-        self.dataset_info = dataset_info
-        if not os.path.isfile(model_path):
+        if not os.path.isdir(model_path):
             BaseSignature.__log.warning(
-                "Model file not available: %s" % model_path)
+                "Model directory not available: %s" % model_path)
+        self.plots_path = plots_path
+        if not os.path.isdir(plots_path):
+            BaseSignature.__log.warning(
+                "Plots directory not available: %s" % plots_path)
         if dataset_info is None:
             raise Exception("There is no information on the specied dataset.")
 
