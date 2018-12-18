@@ -55,9 +55,9 @@ class BaseSignature(object):
             raise Exception("Model file not available.")
 
     @abstractmethod
-    def validate(self):
+    def statistics(self):
         """Perform a validation across external data as MoA and ATC codes."""
-        BaseSignature.__log.debug('validate')
+        BaseSignature.__log.debug('statistics')
         if not os.path.isfile(self.model_path):
             raise Exception("Model file not available.")
 
