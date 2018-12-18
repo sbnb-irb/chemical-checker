@@ -28,8 +28,6 @@ class sign2(BaseSignature):
         self.__log.debug('loading model from %s' % self.model_path)
         self.__log.debug('AdaNet predict %s' % features)
 
-    def validate(self, validation_set):
-        """Perform a validation across external data as MoA and ATC codes."""
+    def statistics(self):
+        """Perform a statistics """
         BaseSignature.validate(self)
-        self.__log.debug('Node2Vec validate on %s' % validation_set)
-        self.__log.debug('AdaNet validate on %s' % validation_set)
