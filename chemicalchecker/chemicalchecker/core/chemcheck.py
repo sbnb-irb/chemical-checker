@@ -73,21 +73,39 @@ class ChemicalChecker():
         """Return the path to model file for the given dataset.
 
         This should be the only place where we define the directory structure.
-        The signature type directly map to a persistent model file.
+        The signature type directly map to a persistent model directory.
 
         Args:
             cctype(str): The Chemical Checker datatype i.e. one of the sign*.
             dataset(str): The dataset of the Chemical Checker.
         Returns:
-            model_path(str): The path to an persistent model file.
+            model_path(str): The path to an persistent model directory.
         """
-        filename = '{}.pkl'.format(cctype)
+        # filename = '{}.pkl'.format(cctype)
         model_path = os.path.join(self.cc_root, dataset[:1],
-                                  dataset[:2], dataset, 'models', filename)
+                                  dataset[:2], dataset, 'models')
         self.__log.debug("model path: %s", model_path)
         return model_path
 
-    def get_data(self, cctype, dataset):
+    def get_plots_path(self, cctype, dataset):
+        """Return the path to model file for the given dataset.
+
+        This should be the only place where we define the directory structure.
+        The signature type directly map to a persistent plots directory.
+
+        Args:
+            cctype(str): The Chemical Checker datatype i.e. one of the sign*.
+            dataset(str): The dataset of the Chemical Checker.
+        Returns:
+            plots_path(str): The path to the plots directory.
+        """
+        # filename = '{}.pkl'.format(cctype)
+        plots_path = os.path.join(self.cc_root, dataset[:1],
+                                  dataset[:2], dataset, 'plots')
+        self.__log.debug("model path: %s", plots_path)
+        return plots_path
+
+    def get_data(self, cctype, dataset, **params):
         """Return the full signature for the given dataset.
 
         Args:
@@ -98,15 +116,16 @@ class ChemicalChecker():
                 on the cctype passed.
         """
         dataset_info = Dataset.get(dataset)
-        if len(dataset_info) > 1:
+        if dataset_info is None:
             self.__log.warning(
-                'Code %s returns more than one dataset', dataset)
-            raise Exception("More than one datatset for code: " + dataset)
+                'Code %s returns no dataset', dataset)
+            raise Exception("No dataset for code: " + dataset)
         data_path = self.get_data_path(cctype, dataset)
         model_path = self.get_model_path(cctype, dataset)
+        plots_path = self.get_plots_path(cctype, dataset)
         # initialize a data object factory feeding the type and the path
         data_factory = DataFactory()
         # the factory will spit the data in the right class
         data = data_factory.make_data(
-            cctype, data_path, model_path, dataset_info)
+            cctype, data_path, model_path, plots_path, dataset_info, **params)
         return data
