@@ -1,7 +1,7 @@
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 from .signature_base import BaseSignature
-from subprocess import call, Popen
+from subprocess import call
 import os
 import sys
 
@@ -13,7 +13,7 @@ class sign0(BaseSignature):
     Signature type 0 is...
     """
 
-    def __init__(self, data_path, model_path, dataset_info):
+    def __init__(self, data_path, model_path, plots_path, dataset_info, **params):
         """Initialize the signature.
 
         Args:
@@ -24,9 +24,11 @@ class sign0(BaseSignature):
         self.data_path = data_path
         self.__log.debug('model_path: %s', model_path)
         self.model_path = model_path
-        self.dataset_info = dataset_info[0]
+        self.dataset_info = dataset_info
+        for param, value in params.items():
+            self.__log.debug('parameter %s : %s', param, value)
         # Calling init on the base class to trigger file existance checks
-        BaseSignature.__init__(self, data_path, model_path, dataset_info[0])
+        BaseSignature.__init__(self, data_path, model_path, dataset_info)
 
     def fit(self):
         """Signature type 0 has no models to fit."""
@@ -42,7 +44,8 @@ class sign0(BaseSignature):
         self.__log.debug('calling pre-process script ' + preprocess_script)
 
         if not os.path.isfile(preprocess_script):
-            raise Exception("Preprocess script " + preprocess_script + " does not exist")
+            raise Exception("Preprocess script " +
+                            preprocess_script + " does not exist")
 
         try:
             cmdStr = "python " + preprocess_script + " -o " + self.data_path

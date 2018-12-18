@@ -135,9 +135,10 @@ class Dataset(Base):
         session = get_session()
         if code is not None:
             query = session.query(Dataset).filter_by(code=code)
+            res = query.one_or_none()
         else:
             query = session.query(Dataset).distinct(Dataset.code)
-        res = query.all()
+            res = query.all()
         session.close()
         return res
 
