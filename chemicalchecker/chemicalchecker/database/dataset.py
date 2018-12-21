@@ -48,7 +48,7 @@ class Dataset(Base):
     technical_name = Column(Text)
     description = Column(Text)
     unknowns = Column(Boolean)
-    data_type = Column(Text)
+    is_discrete = Column(Boolean)
     predicted = Column(Boolean)
     connectivity = Column(Boolean)
     keys = Column(Text)
