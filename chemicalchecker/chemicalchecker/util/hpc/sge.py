@@ -51,6 +51,7 @@ fi
     defaultOptions = """\
 #$ -S /bin/bash
 #$ -r yes
+#$ -j yes
 """
 
     def __init__(self, config, dry_run=False):
