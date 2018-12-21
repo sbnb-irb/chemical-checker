@@ -5,12 +5,11 @@ From: centos
     # PATHS
     export PATH=/opt/miniconda2/bin:$PATH
     export PATH=/opt/nextflow:$PATH
-
-%runscript
     source activate py27
     alias ll='ls -l'
     alias ipy='ipython'
     alias py='python'
+
 
 %post
     # bind paths
