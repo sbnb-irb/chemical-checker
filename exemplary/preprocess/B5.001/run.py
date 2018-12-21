@@ -120,7 +120,7 @@ def main():
 
     map_files = {}
 
-    for ds in dataset[0].datasources:
+    for ds in dataset.datasources:
         map_files[ds.name] = ds.data_path
 
     main._log.debug(

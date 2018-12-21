@@ -296,7 +296,7 @@ def main():
 
     map_files = {}
 
-    for ds in dataset[0].datasources:
+    for ds in dataset.datasources:
         map_files[ds.name] = ds.data_path
 
     main._log.debug(
@@ -323,7 +323,7 @@ def main():
     keys = []
     raws = []
     for k in sorted(inchikey_raw.iterkeys()):
-        raws.append(",".join(["%s(%d)" % (x[0], x[1])
+        raws.append(",".join([",".join([x[0]] * x[1])
                               for x in inchikey_raw[k]]))
         keys.append(str(k))
 
