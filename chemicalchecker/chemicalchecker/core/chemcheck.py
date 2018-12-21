@@ -35,6 +35,10 @@ class ChemicalChecker():
                     cc_root, dataset[:1], dataset[:2], dataset, 'models')
                 self.__log.debug("Creating %s", new_dir)
                 os.makedirs(new_dir)
+                new_dir = os.path.join(
+                    cc_root, dataset[:1], dataset[:2], dataset, 'stats')
+                self.__log.debug("Creating %s", new_dir)
+                os.makedirs(new_dir)
 
     @property
     def coordinates(self):
@@ -122,7 +126,7 @@ class ChemicalChecker():
             raise Exception("No dataset for code: " + dataset)
         data_path = self.get_data_path(cctype, dataset)
         model_path = self.get_model_path(cctype, dataset)
-        stats_path = self.get_plots_path(cctype, dataset)
+        stats_path = self.get_stats_path(cctype, dataset)
         # initialize a data object factory feeding the type and the path
         data_factory = DataFactory()
         # the factory will spit the data in the right class
