@@ -28,7 +28,8 @@ class sign0(BaseSignature):
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
         # Calling init on the base class to trigger file existance checks
-        BaseSignature.__init__(self, data_path, model_path, dataset_info)
+        BaseSignature.__init__(
+            self, data_path, model_path, stats_path, dataset_info)
 
     def fit(self):
         """Signature type 0 has no models to fit."""
