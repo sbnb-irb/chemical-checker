@@ -44,21 +44,21 @@ class BaseSignature(object):
     def fit(self):
         """Take an input and learns to produce an output."""
         BaseSignature.__log.debug('fit')
-        if os.path.isfile(self.model_path):
+        if os.path.isdir(self.model_path):
             BaseSignature.__log.warning("Model already available.")
 
     @abstractmethod
     def predict(self):
         """Use the fitted models to go from input to output."""
         BaseSignature.__log.debug('predict')
-        if not os.path.isfile(self.model_path):
+        if not os.path.isdir(self.model_path):
             raise Exception("Model file not available.")
 
     @abstractmethod
     def statistics(self):
         """Perform a validation across external data as MoA and ATC codes."""
         BaseSignature.__log.debug('statistics')
-        if not os.path.isfile(self.model_path):
+        if not os.path.isdir(self.model_path):
             raise Exception("Model file not available.")
 
     def __iter__(self):
