@@ -6,3 +6,4 @@ from .download import Downloader
 from .hpc import HPC
 from .parser import Parser, Converter
 from .psql import psql
+from .plot import Plot
