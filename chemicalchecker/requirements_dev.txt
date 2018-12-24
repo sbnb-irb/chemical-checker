@@ -22,4 +22,5 @@ numpy
 scipy
 scikit-learn
 seaborn
+matplotlib=1.5.3
 gensim
