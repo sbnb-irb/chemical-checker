@@ -17,3 +17,8 @@ patool
 pandas
 wget
 standardiser
+h5py
+numpy
+scipy
+sklearn
+matplotlib
