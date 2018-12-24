@@ -20,5 +20,6 @@ standardiser
 h5py
 numpy
 scipy
-sklearn
+scikit-learn
+seaborn
 matplotlib
