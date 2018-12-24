@@ -47,10 +47,7 @@ def Molprop(table_name):
 
                 engine.execute(
                     GenericMolprop.__table__.insert(),
-                    [{"inchikey": row[0], "mw": row[1], "heavy": row[2], "hetero": row[3],
-                      "rings": row[4], "ringaliph": row[5], "ringarom": row[6], "alogp": row[7],
-                      "mr": row[8], "hba": row[9], "hbd": row[10], "psa": row[11], "rotb": row[12],
-                      "alerts_qed": row[13], "alerts_chembl": row[14], "ro5": row[15], "ro3": row[16], "qed": row[17]}
+                    [{"inchikey": row[0], "raw": row[1]}
                         for row in data[pos:pos + chunk]]
                 )
 
