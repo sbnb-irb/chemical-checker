@@ -1,26 +1,26 @@
-code,level,coordinate,name,technical_name,description,unknowns,is_discrete,predicted,connectivity,keys,num_keys,features,num_features,exemplary,version,public
-A1.001,A,A1,,,,False,False,False,False,,,,,True,,True
-A2.001,A,A2,,,,False,False,False,False,,,,,True,,True
-A3.001,A,A3,,,,False,False,False,False,,,,,True,,True
-A4.001,A,A4,,,,False,False,False,False,,,,,True,,True
-A5.001,A,A5,,,,False,False,False,False,,,,,True,,True
-B1.001,B,B1,,,,False,True,False,False,,,,,True,,True
-B2.001,B,B2,,,,False,True,False,False,,,,,True,,True
-B3.001,B,B3,,,,False,True,False,False,,,,,True,,True
-B4.001,B,B4,,,,False,True,False,False,,,,,True,,True
-B5.001,B,B5,,,,False,True,False,False,,,,,True,,True
-C1.001,C,C1,,,,False,True,False,False,,,,,True,,True
-C2.001,C,C2,,,,False,True,False,False,,,,,True,,True
-C3.001,C,C3,,,,False,True,False,False,,,,,True,,True
-C4.001,C,C4,,,,False,True,False,False,,,,,True,,True
-C5.001,C,C5,,,,False,True,False,False,,,,,True,,True
-D1.001,D,D1,,,,False,True,False,False,,,,,True,,True
-D2.001,D,D2,,,,False,True,False,False,,,,,True,,True
-D3.001,D,D3,,,,False,True,False,False,,,,,True,,True
-D4.001,D,D4,,,,False,True,False,False,,,,,True,,True
-D5.001,D,D5,,,,False,True,False,False,,,,,True,,True
-E1.001,E,E1,,,,False,True,False,False,,,,,True,,True
-E2.001,E,E2,,,,False,True,False,False,,,,,True,,True
-E3.001,E,E3,,,,False,True,False,False,,,,,True,,True
-E4.001,E,E4,,,,False,True,False,False,,,,,True,,True
-E5.001,E,E5,,,,False,True,False,False,,,,,True,,True
+code;level;coordinate;name;technical_name;description;unknowns;discrete;keys;features;exemplary;public
+A1.001;A;A1;2D fingerprints;2048-bit Morgan fingerprints;Binary representation of the 2D structure of a molecule. The neighborhood of every atom is encoded using circular topology hashing.;False;True;CPD;;True;True
+A2.001;A;A2;3D fingerprints;1024-bit E3FP fingerprints;The 3D structures of the three best conformers after energy minimization are hashed into a binary representation without the need for structural alignment.;False;True;CPD;;True;True
+A3.001;A;A3;Scaffolds;Morgan scaffolds and 1024-bit Morgan fingerprints;Largest molecular scaffold (usually a ring system) remaining after applying Murcko's pruning rules. Additionally, we keep the corresponding framework, i.e. a version of the scaffold where all atoms are carbons and all bonds are single. The scaffold and the framework are encoded with path-based 1024-bit fingerprints, suitable for capturing substructures in similarity searches.;False;True;CPD;;True;True
+A4.001;A;A4;Structural keys;166-bit MACCS keys;166 functional groups and substructures widely accepted by medicinal chemists (MACCS keys).;False;True;CPD;;True;True
+A5.001;A;A5;Physicochemistry;Standard drug descriptors;Physicochemical properties such as molecular weight, logP and refractivity. Number of hydrogen-bond donors and acceptors, rings, etc. Drug-likeness measurements e.g. number of structural alerts, Lipinski's rule-of-5 violations or chemical beauty (QED).;False;False;CPD;;True;True
+B1.001;B;B1;Mechanism of action;Targets with a known therapeutic effect;Drug targets with known pharmacological action and modes (agonist, antagonist, etc.).;True;True;CPD;GEN;True;True
+B2.001;B;B2;Metabolic genes;Drug metabolizing enzymes, transporters and carriers;Drug metabolizing enzymes, transporters and carriers.;True;True;CPD;GEN;True;True
+B3.001;B;B3;Crystals;Compound-protein co-crystals encoded with ECOD domains;Small molecules co-crystalized with protein chains. Data is organized according to the structural families of the protein chains.;True;True;CPD;GEN;True;True
+B4.001;B;B4;Binding;Physical binding data extracted mainly from the literature;Compound-protein binding data available in major public chemogenomics databases. Data mainly comes from academic publications and patents. Only binding affinities below a class-specific threshold are kept (kinases: 30 nM, GPCRs: 100 nM, nuclear receptors: 100 nM, ion channels: 10 uM and others: 1 uM).;True;True;CPD;GEN;True;True
+B5.001;B;B5;HTS bioassays;Compound-protein interaction data, including functional assays, mainly extracted from HTS bioassays;Hits from screening campaigns against protein targets (mainly confirmatory functional assays below 10 uM).;True;True;CPD;GEN;True;True
+C1.001;C;C1;Small molecule roles;Small molecule role ontology (ChEBI);Ontology terms associated to small molecules with recognized biological roles, such as known drugs, metabolites and other natural products.;True;True;CPD;;True;True
+C2.001;C;C2;Small molecule pathways;Metabolic pathways from the human reconstruction of metabolism (Recon);Curated reconstruction of human metabolism, containing metabolites and reactions. Data is represented as a network where nodes are metabolites and edges connect substrates and products of reactions.;True;True;CPD;PWY;True;True
+C3.001;C;C3;Signaling pathways;Reactome pathways of the targets;Canonical pathways related to the known receptors of compounds (as recorded in B4.001). Pathways are assigned via a guilt-by-association approach, i.e. a molecule is related to a pathway if at least one of the molecule targets is a member of it.;True;True;CPD;PWY;True;True
+C4.001;C;C4;Biological processes;GO biological processes of the targets;Similar to C3.001, biological processes from the gene ontology are associated to compounds via a guilt-by-association approach from B4.001 data. All parent terms are kept, from the 'leaves' of the ontology to its 'root'.;True;True;CPD;PWY;True;True
+C5.001;C;C5;Interactome;Proteins in the PPI neighborhood of the targets;Neighborhoods of B4.001 targets are collected by inspecting several large protein-protein interaction networks. A random-walk algorithm is used to obtain a robust measure of ‘proximity’ in the network.;True;True;CPD;GEN;True;True
+D1.001;D;D1;Gene expression;LINCS gene expression profiles;Transcriptional response of cell lines upon exposure to small molecules. A well-documented reference dataset of gene expression profiles is used to map all compound profiles using a two-sided gene set enrichment analysis.;False;True;CPD;;True;True
+D2.001;D;D2;Cancer cell lines;NCI60 growth inhibition profiles;Small molecule sensitivity data (GI50) of a panel of 60 cancer cell lines.;False;False;CPD;CLL;True;True
+D3.001;D;D3;Chemical genetics;"Chemical genetics profiling extracted from the MOSAIC database; the inferred targets are used.";Growth inhibition profiles in a panel of aka 300 yeast mutants. Data are combined with yeast genetic interaction data, so that compounds can be assimilated to genetic alterations when they have similar profiles.;False;True;CPD;;True;True
+D4.001;D;D4;Morphology;812 morphological features from the LINCS consortium;Changes in U-2 OS cell morphology measured after compound treatment using a multiplexed-cytological 'cell painting' assay. 812 morphology features are recorded via automated microscopy and image analysis.;False;False;CPD;;True;True
+D5.001;D;D5;Cell bioassays;Growth inhibition (and similar) assays from the literature;Small molecule cell bioassays reported in ChEMBL, mainly growth and proliferation measurements found in the literature.;True;True;CPD;CLL;True;True
+E1.001;E;E1;Therapeutic areas;ATC codes;Anatomical Therapeutic Chemical (ATC) codes of drugs. All ATC levels are considered.;True;True;CPD;DIS;True;True
+E2.001;E;E2;Indications;Drug indications;Indications of approved drugs and drugs in clinical trials. A controlled medical vocabulary is used.;True;True;CPD;DIS;True;True
+E3.001;E;E3;Side effects;Drug side effects reported in package inserts (SIDER);Side effects extracted from drug package inserts via text-mining techniques.;True;True;CPD;DIS;True;True
+E4.001;E;E4;Diseases and toxicology;Therapeutic and marker/adverse compound-disease relations;Manually curated relationships between chemicals and diseases. Chemicals include drug molecules and environmental substances, among others.;True;True;CPD;DIS;True;True
+E5.001;E;E5;Drug-drug interactions;Drug-drug interactions, including pharmacokinetics;Changes in the effect of a drug when it is taken together with a second drug. Drug-drug interactions may alter pharmacokinetics and/or cause side effects.;True;True;CPD;CPD;True;True
