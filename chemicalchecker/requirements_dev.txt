@@ -24,5 +24,4 @@ scikit-learn
 seaborn
 matplotlib==1.5.3
 gensim
-e3fp
 timeout_decorator
