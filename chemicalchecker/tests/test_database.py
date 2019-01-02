@@ -70,7 +70,7 @@ class TestDatabase(unittest.TestCase):
         self.assertIsNone(res)
 
         self.Structure.add_bulk([["test1", "ttt"],
-                                 ["test2", "zzz"]])
+                                 ["test2", "zzz"]], on_conflict_do_nothing=False)
 
         res = self.Structure.get('test1')
         self.assertTrue(hasattr(res, 'inchi'))
