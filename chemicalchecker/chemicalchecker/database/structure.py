@@ -1,7 +1,7 @@
 from chemicalchecker.util import logged
 from .database import Base, get_session, get_engine
 from sqlalchemy import Column, Text
-
+from sqlalchemy.dialects import postgresql
 
 @logged
 class Structure(Base):
@@ -28,7 +28,7 @@ class Structure(Base):
         session.close()
 
     @staticmethod
-    def add_bulk(data, chunk=1000):
+    def add_bulk(data, chunk=1000, on_conflict_do_nothing=True):
         """ Method to add a lot of rows to the table.
 
             This method allows to load a big amount of rows in one instruction
@@ -39,12 +39,16 @@ class Structure(Base):
         """
         engine = get_engine()
         for pos in range(0, len(data), chunk):
-
-            engine.execute(
-                Structure.__table__.insert(),
-                [{"inchikey": row[0], "inchi": row[1]}
-                    for row in data[pos:pos + chunk]]
-            )
+            if on_conflict_do_nothing:
+                engine.execute(postgresql.insert(Structure.__table__).values(
+                    [{"inchikey": row[0], "inchi": row[1]}
+                     for row in data[pos:pos + chunk]]).on_conflict_do_nothing(index_elements=[Structure.inchikey]))
+            else:
+                engine.execute(
+                    Structure.__table__.insert(),
+                    [{"inchikey": row[0], "inchi": row[1]}
+                        for row in data[pos:pos + chunk]]
+                )
 
     @staticmethod
     def get(key):
