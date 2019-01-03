@@ -193,7 +193,8 @@ fi
             ssh = paramiko.SSHClient()
             ssh.load_system_host_keys()
             ssh.connect(self.host, **self.conn_params)
-            stdin, stdout, stderr = ssh.exec_command(submit_string, get_pty=True)
+            stdin, stdout, stderr = ssh.exec_command(
+                submit_string, get_pty=True)
 
             job = stdout.readlines()
 
@@ -239,7 +240,7 @@ fi
 
         errors = ''
 
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.e*')):
+        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.o*')):
             with open(file_name) as f:
                 num = 1
                 for line in f:
@@ -270,12 +271,8 @@ fi
             self.jobdir, self.job_name + ".tar.gz"), "w:gz")
         for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.o*')):
             tar.add(file_name, os.path.basename(file_name))
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.e*')):
-            tar.add(file_name, os.path.basename(file_name))
         tar.close()
         for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.o*')):
-            os.remove(file_name)
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.e*')):
             os.remove(file_name)
 
     def status(self):
