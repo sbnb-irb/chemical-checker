@@ -9,6 +9,7 @@ From: centos
     alias ll='ls -l'
     alias ipy='ipython'
     alias py='python'
+    export MKL_NUM_THREADS=1
 
 
 %post
