@@ -76,11 +76,12 @@ class sign1(BaseSignature):
         BaseSignature.__init__(
             self, data_path, model_path, stats_path, dataset_info)
 
-    def fit(self, sign0):
+    def fit(self, sign0, validations=True):
         """Take `sign0` and learn an unsupervised `sign1` predictor.
 
         Args:
             sign0(sign0): a `sign0` instance.
+            validations(boolean):Create validation files(plots, files,etc)(default:True)
         """
         # Calling base class to trigger file existence checks
         BaseSignature.fit(self)
@@ -108,6 +109,8 @@ class sign1(BaseSignature):
         tmp_dir = tempfile.mkdtemp(
             prefix='sign1_' + self.dataset_info.code + "_", dir=Config().PATH.CC_TMP)
 
+        self.__log.debug("Temporary files saved in " + tmp_dir)
+
         if self.dataset_info.is_discrete:
 
             plain_corpus = os.path.join(tmp_dir, "sign1.corpus.txt")
@@ -117,6 +120,8 @@ class sign1(BaseSignature):
 
             for i in range(0, len(keys)):
                 f.write("%s %s\n" % (keys[i], V[i]))
+
+            f.close()
 
             self.__log.info("Getting dictionary")
 
@@ -331,32 +336,36 @@ class sign1(BaseSignature):
         self.__log.info("Cleaning")
         gc.collect()
 
-        # Validation
+        if validations:
 
-        self.__log.info("MOA and ATC Validations")
+            # Validation
 
-        inchikey_sig = shelve.open(os.path.join(tmp_dir, "sign1.dict", "r"))
-        ks_moa, auc_moa = plot.vector_validation(
-            inchikey_sig, "sig", prefix="moa")
-        ks_atc, auc_atc = plot.vector_validation(
-            inchikey_sig, "sig", prefix="atc")
-        inchikey_sig.close()
-        for filename in glob.glob(os.path.join(tmp_dir, "sign1.dict*")):
-            os.remove(filename)
+            self.__log.info("MOA and ATC Validations")
 
-        # Cleaning
+            inchikey_sig = shelve.open(
+                os.path.join(tmp_dir, "sign1.dict"), "r")
+            # ks_moa, auc_moa = plot.vector_validation(
+            #     inchikey_sig, "sig", prefix="moa")
+            # ks_atc, auc_atc = plot.vector_validation(
+            #     inchikey_sig, "sig", prefix="atc")
+            inchikey_sig.close()
+            for filename in glob.glob(os.path.join(tmp_dir, "sign1.dict*")):
+                os.remove(filename)
 
-        self.__log.info("Matrix plot")
+            # Cleaning
 
-        plot.matrix_plot(self.data_path)
+            self.__log.info("Matrix plot")
 
-    def predict(self, sign0, destination=None):
+            plot.matrix_plot(self.data_path)
+
+    def predict(self, sign0, destination=None, validations=False):
         """Take `sign0` and predict `sign1`.
 
         Args:
             sign0(sign0): a `sign0` instance.
             destination(str): where to save the prediction by default the
                 current signature data path.
+            validations(boolean):Create validation files(plots, files,etc)(default:False)
         """
         # Calling base class to trigger file existence checks
         BaseSignature.predict(self)
@@ -364,6 +373,8 @@ class sign1(BaseSignature):
         self.__log.debug('loading model from %s' % self.model_path)
         self.__log.debug('LSI/PCA predict %s' % sign0)
         FILE = os.path.join(self.model_path, "procs.txt")
+        if destination is None:
+            destination = self.data_path
         with open(FILE, "r") as f:
             i = f.next()
             n = f.next()
@@ -394,6 +405,8 @@ class sign1(BaseSignature):
 
             for i in range(0, len(keys)):
                 f.write("%s %s\n" % (keys[i], V[i]))
+
+            f.close()
 
             self.__log.info("Getting dictionary")
 
@@ -459,7 +472,7 @@ class sign1(BaseSignature):
                 self.__log.info("Integerizing")
                 V = self._integerize(V, False)
 
-            self.__log.info("Saving to %s" % self.data_path)
+            self.__log.info("Saving to %s" % destination)
 
             inchikey_sig = shelve.open(
                 os.path.join(tmp_dir, "sign1.dict"), "n")
@@ -471,13 +484,10 @@ class sign1(BaseSignature):
             self.__log.info("... but sorting before!")
             sort_idxs = np.argsort(inchikeys)
 
-            if destination is None:
-                print("Nothing")
-            else:
-                with h5py.File(destination, 'w') as hf:
-                    hf.create_dataset("keys", data=inchikeys[sort_idxs])
-                    hf.create_dataset("V", data=V[sort_idxs])
-                    hf.create_dataset("shape", data=V.shape)
+            with h5py.File(destination, 'w') as hf:
+                hf.create_dataset("keys", data=inchikeys[sort_idxs])
+                hf.create_dataset("V", data=V[sort_idxs])
+                hf.create_dataset("shape", data=V.shape)
 
             V = None
             c_lsi = None
@@ -544,52 +554,48 @@ class sign1(BaseSignature):
             self.__log.info("... but sorting before!")
             sort_idxs = np.argsort(inchikeys)
 
-            if destination is None:
-                print("Nothing")
-            else:
-
-                with h5py.File(self.data_path, "w") as hf:
-                    hf.create_dataset("keys", data=inchikeys[sort_idxs])
-                    hf.create_dataset("V", data=V[sort_idxs])
-                    hf.create_dataset("shape", data=V[sort_idxs].shape)
+            with h5py.File(destination, "w") as hf:
+                hf.create_dataset("keys", data=inchikeys[sort_idxs])
+                hf.create_dataset("V", data=V[sort_idxs])
+                hf.create_dataset("shape", data=V[sort_idxs].shape)
 
             V = []
             pca = []
 
-        if destination is None:
-            print("Nothing")
-        else:
-            with h5py.File(self.data_path, "a") as hf:
-                hf.create_dataset(
-                    "name", data=[self.dataset_info.code + "_sig"])
-                hf.create_dataset(
-                    "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
-                hf.create_dataset("metric", data=["cosine"])
-                hf.create_dataset("normed", data=[not self.not_normalized])
-                hf.create_dataset("integerized", data=[self.integerize])
-                hf.create_dataset("principal_components", data=[True])
+        with h5py.File(destination, "a") as hf:
+            hf.create_dataset(
+                "name", data=[str(self.dataset_info.code) + "_sig"])
+            hf.create_dataset(
+                "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+            hf.create_dataset("metric", data=["cosine"])
+            hf.create_dataset("normed", data=[not self.not_normalized])
+            hf.create_dataset("integerized", data=[self.integerize])
+            hf.create_dataset("principal_components", data=[True])
 
         self.__log.info("Cleaning")
         gc.collect()
 
-        # Validation
+        if validations:
 
-        self.__log.info("MOA and ATC Validations")
+            # Validation
 
-        inchikey_sig = shelve.open(os.path.join(tmp_dir, "sign1.dict", "r"))
-        ks_moa, auc_moa = plot.vector_validation(
-            inchikey_sig, "sig", prefix="moa")
-        ks_atc, auc_atc = plot.vector_validation(
-            inchikey_sig, "sig", prefix="atc")
-        inchikey_sig.close()
-        for filename in glob.glob(os.path.join(tmp_dir, "sign1.dict*")):
-            os.remove(filename)
+            self.__log.info("MOA and ATC Validations")
 
-        # Cleaning
+            inchikey_sig = shelve.open(
+                os.path.join(tmp_dir, "sign1.dict"), "r")
+            # ks_moa, auc_moa = plot.vector_validation(
+            #     inchikey_sig, "sig", prefix="moa")
+            # ks_atc, auc_atc = plot.vector_validation(
+            #     inchikey_sig, "sig", prefix="atc")
+            inchikey_sig.close()
+            for filename in glob.glob(os.path.join(tmp_dir, "sign1.dict*")):
+                os.remove(filename)
 
-        self.__log.info("Matrix plot")
+            # Cleaning
 
-        plot.matrix_plot(self.data_path)
+            self.__log.info("Matrix plot")
+
+            plot.matrix_plot(destination)
 
     def statistics(self):
         """Perform a statistics."""
