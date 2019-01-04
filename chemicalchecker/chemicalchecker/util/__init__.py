@@ -7,3 +7,4 @@ from .hpc import HPC
 from .parser import Parser, Converter, PropCalculator
 from .psql import psql
 from .plot import Plot
+from .remove_near_duplicates import RNDuplicates
