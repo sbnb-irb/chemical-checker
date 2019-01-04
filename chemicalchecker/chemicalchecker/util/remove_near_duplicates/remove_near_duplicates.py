@@ -1,0 +1,151 @@
+"""Utility for removing near duplicates from matrix data.
+
+It removes duplicates or near-duplicates by using Faiss library,
+which the data vectors according their similarity.
+"""
+import os
+import h5py
+import faiss
+from collections import defaultdict
+import random
+import numpy as np
+from chemicalchecker.util import logged
+
+
+@logged
+class RNDuplicates():
+    """Removes near duplicates from matrix data."""
+
+    def __init__(self, nbits=128, only_duplicates=False, cpu=1):
+        """Initialize the RNDuplicates object.
+
+        Args:
+            nbits(int): Number of bits to use to quantize
+            only_duplicates(boolean): Remove only exact duplicates
+            cpu(int): Number of cores to use
+        """
+        self.nbits = nbits
+        self.only_duplicates = only_duplicates
+        self.cpu = cpu
+        self.__log.debug('RNDuplicates to use ' + str(self.nbits) + " bits")
+
+    def remove(self, data, keys=None):
+        """Remove near duplicates from data.
+
+        Args:
+            data(array): The data to remove duplicates from. It can be a numpy array
+                         or a file path to a .h5 file
+            keys(array): Array of keys for the input data
+        Returns:
+            keys(array):
+            data(array):
+            mappings(dictionary):
+
+        """
+        faiss.omp_set_num_threads(self.cpu)
+
+        if type(data) == str:
+            self.__log.debug("Data input is: " + data)
+            if os.path.isfile(data) and data[-3:] == ".h5":
+                dh5 = h5py.File(data)
+                if "keys" not in dh5.keys() or "V" not in dh5.keys():
+                    raise Exception(
+                        "H5 file " + data + " does not contain datasets 'keys' and 'V'")
+                self.data = np.array(dh5["V"][:], dtype=np.float32)
+                self.keys = dh5["keys"][:]
+                dh5.close()
+
+            else:
+                raise Exception("This module only accepts .h5 files")
+
+        else:
+            self.data = data
+            if keys is None:
+                self.keys = range(len(data))
+            else:
+                self.keys = keys
+
+        self.__log.info("Size before removing: " + str(self.data.shape[0]))
+
+        self.final_ids = list()
+        mappings = dict()
+
+        if self.only_duplicates:
+            indexl2 = faiss.IndexFlatL2(self.data.shape[1])
+
+            indexl2.add(self.data)
+
+            self.__log.debug("Done adding in L2 space")
+
+            D, I = indexl2.search(self.data, 1000)
+
+            self.__log.debug("Done searching in L2 space")
+
+            done = set()
+
+            for i in range(len(D)):
+                if i in done:
+                    continue
+                indexes = []
+                for j in range(1000):
+                    if i == I[i][j]:
+                        continue
+                    if D[i][j] == 0.0:
+                        done.add(I[i][j])
+                        indexes.append(I[i][j])
+                    else:
+                        if len(indexes) > 0:
+                            chosen = random.choice(indexes)
+                            self.final_ids.append(chosen)
+                            mappings[self.keys[chosen]] = [self.keys[v]
+                                                           for v in indexes]
+                        else:
+                            self.final_ids.append(i)
+                            mappings[self.keys[i]] = [self.keys[i]]
+
+                        break
+
+        else:
+
+            indexlsh = faiss.IndexLSH(self.data.shape[1], self.nbits)
+
+            indexlsh.add(self.data)
+
+            indexes = faiss.vector_to_array(
+                indexlsh.codes).reshape(-1, indexlsh.nbits / 8)
+
+            buckets = defaultdict(list)
+
+            for i in range(len(indexes)):
+                buckets[indexes[i].tobytes()].append(i)
+
+            for key, value in buckets.iteritems():
+                if(len(value) > 1):
+                    chosen = random.choice(value)
+                    self.final_ids.append(chosen)
+                    mappings[self.keys[chosen]] = [self.keys[v] for v in value]
+                else:
+                    self.final_ids.append(value[0])
+                    mappings[self.keys[value[0]]] = [self.keys[value[0]]]
+
+        self.final_ids.sort()
+
+        self.__log.info("Size after removing: " + str(len(self.final_ids)))
+
+        return self.keys[np.array(self.final_ids)], self.data[np.array(self.final_ids)], mappings
+
+    def save(self, destination):
+        """Save data after removing to a h5 file.
+
+        Returns:
+            destination(str): The destination file(.h5 file) where to save the new data after removing.
+
+        """
+        if not os.path.isfile(destination) or destination[-3:] != ".h5":
+            raise Exception("The destination file needs to be a .h5 file")
+
+        with h5py.File(destination, 'w') as hf:
+            hf.create_dataset("keys", data=self.keys[np.array(self.final_ids)])
+            V = self.data[np.array(self.final_ids)]
+            hf.create_dataset("V", data=V)
+            hf.create_dataset("shape", data=V.shape)
