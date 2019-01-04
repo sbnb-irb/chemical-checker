@@ -84,14 +84,24 @@ def main():
 
     main._log.info("Saving raws")
     keys = []
-    raws = []
+    words = set()
     for k in sorted(inchikey_ecod.iterkeys()):
-        raws.append(",".join(inchikey_ecod[k]))
+        # raws.append(",".join(inchikey_ecod[k]))
         keys.append(str(k))
+        words.update(inchikey_ecod[k])
+
+    orderwords = list(words)
+    raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
+    wordspos = {k: v for v, k in enumerate(orderwords)}
+
+    for i, k in enumerate(keys):
+        for word in inchikey_ecod[k]:
+            raws[i][wordspos[word]] = 1
 
     with h5py.File(args.output_file, "w") as hf:
         hf.create_dataset("keys", data=np.array(keys))
-        hf.create_dataset("V", data=np.array(raws))
+        hf.create_dataset("V", data=raws)
+        hf.create_dataset("features", data=np.array(orderwords))
 
 if __name__ == '__main__':
     main()
