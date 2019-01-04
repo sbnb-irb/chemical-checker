@@ -237,14 +237,24 @@ def main():
     for k in ACTS:
         RAW[k[0]] += [k[1]]
     keys = []
-    raws = []
+    words = set()
     for k in sorted(RAW.iterkeys()):
-        raws.append(",".join(RAW[k]))
+        # raws.append(",".join(RAW[k]))
         keys.append(str(k))
+        words.update(RAW[k])
+
+    orderwords = list(words)
+    raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
+    wordspos = {k: v for v, k in enumerate(orderwords)}
+
+    for i, k in enumerate(keys):
+        for word in RAW[k]:
+            raws[i][wordspos[word]] = 1
 
     with h5py.File(args.output_file, "w") as hf:
         hf.create_dataset("keys", data=np.array(keys))
-        hf.create_dataset("V", data=np.array(raws))
+        hf.create_dataset("V", data=raws)
+        hf.create_dataset("features", data=np.array(orderwords))
 
 
 if __name__ == '__main__':
