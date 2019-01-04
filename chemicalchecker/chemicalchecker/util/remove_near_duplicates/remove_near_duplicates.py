@@ -5,11 +5,14 @@ which the data vectors according their similarity.
 """
 import os
 import h5py
-import faiss
 from collections import defaultdict
 import random
 import numpy as np
 from chemicalchecker.util import logged
+try:
+    import faiss
+except ImportError:
+    pass
 
 
 @logged
