@@ -102,10 +102,6 @@ class sign1(BaseSignature):
 
         input_data = str(sign0)
 
-        with h5py.File(input_data, "r") as hf:
-            keys = hf["keys"][:]
-            V = hf["V"][:]
-
         tmp_dir = tempfile.mkdtemp(
             prefix='sign1_' + self.dataset_info.code + "_", dir=Config().PATH.CC_TMP)
 
@@ -113,13 +109,21 @@ class sign1(BaseSignature):
 
         if self.dataset_info.is_discrete:
 
+            with h5py.File(input_data, "r") as hf:
+                keys = hf["keys"][:]
+                V = hf["V"][:]
+                features = hf["features"][:]
+
             plain_corpus = os.path.join(tmp_dir, "sign1.corpus.txt")
             tfidf_corpus = os.path.join(tmp_dir, "sign1.mm")
 
             f = open(plain_corpus, "w")
 
             for i in range(0, len(keys)):
-                f.write("%s %s\n" % (keys[i], V[i]))
+                row = V[i]
+                mask = np.where(row > 0)
+                val = ",".join([",".join([features[x]] * row[x]) for x in mask[0]])
+                f.write("%s %s\n" % (keys[i], val))
 
             f.close()
 
@@ -239,6 +243,10 @@ class sign1(BaseSignature):
 
         else:
 
+            with h5py.File(input_data, "r") as hf:
+                keys = hf["keys"][:]
+                V = hf["V"][:]
+
             RowNames = []
             X = []
 
@@ -349,14 +357,16 @@ class sign1(BaseSignature):
             # ks_atc, auc_atc = plot.vector_validation(
             #     inchikey_sig, "sig", prefix="atc")
             inchikey_sig.close()
-            for filename in glob.glob(os.path.join(tmp_dir, "sign1.dict*")):
-                os.remove(filename)
 
             # Cleaning
 
             self.__log.info("Matrix plot")
 
             plot.matrix_plot(self.data_path)
+
+        for filename in glob.glob(os.path.join(tmp_dir, "sign1.dict*")):
+            os.remove(filename)
+        os.rmdir(tmp_dir)
 
     def predict(self, sign0, destination=None, validations=False):
         """Take `sign0` and predict `sign1`.
@@ -389,14 +399,15 @@ class sign1(BaseSignature):
 
         input_data = str(sign0)
 
-        with h5py.File(input_data, "r") as hf:
-            keys = hf["keys"][:]
-            V = hf["V"][:]
-
         tmp_dir = tempfile.mkdtemp(
             prefix='sign1_' + self.dataset_info.code + "_", dir=Config().PATH.CC_TMP)
 
         if self.dataset_info.is_discrete:
+
+            with h5py.File(input_data, "r") as hf:
+                keys = hf["keys"][:]
+                V = hf["V"][:]
+                features = hf["features"][:]
 
             plain_corpus = os.path.join(tmp_dir, "sign1.corpus.txt")
             tfidf_corpus = os.path.join(tmp_dir, "sign1.mm")
@@ -404,7 +415,10 @@ class sign1(BaseSignature):
             f = open(plain_corpus, "w")
 
             for i in range(0, len(keys)):
-                f.write("%s %s\n" % (keys[i], V[i]))
+                row = V[i]
+                mask = np.where(row > 0)
+                val = ",".join([",".join([features[x]] * row[x]) for x in mask[0]])
+                f.write("%s %s\n" % (keys[i], val))
 
             f.close()
 
@@ -501,6 +515,10 @@ class sign1(BaseSignature):
 
         else:
 
+            with h5py.File(input_data, "r") as hf:
+                keys = hf["keys"][:]
+                V = hf["V"][:]
+
             RowNames = []
             X = []
 
@@ -588,14 +606,16 @@ class sign1(BaseSignature):
             # ks_atc, auc_atc = plot.vector_validation(
             #     inchikey_sig, "sig", prefix="atc")
             inchikey_sig.close()
-            for filename in glob.glob(os.path.join(tmp_dir, "sign1.dict*")):
-                os.remove(filename)
 
             # Cleaning
 
             self.__log.info("Matrix plot")
 
             plot.matrix_plot(destination)
+
+        for filename in glob.glob(os.path.join(tmp_dir, "sign1.dict*")):
+            os.remove(filename)
+        os.rmdir(tmp_dir)
 
     def statistics(self):
         """Perform a statistics."""
