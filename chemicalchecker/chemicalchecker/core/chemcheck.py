@@ -48,12 +48,9 @@ class ChemicalChecker():
 
     @property
     def datasets(self, exemplary_only=False):
-        """Iterator on Chemical Checker datasets.
-
-        TODO This should be an iterator on the dataset db table.
-        """
-        for name, code in itertools.product("ABCDE", "12345"):
-            yield name + code + ".001"
+        """Iterator on Chemical Checker datasets."""
+        for dataset in Dataset.get():
+            yield dataset.code
 
     def get_data_path(self, cctype, dataset):
         """Return the path to signature file for the given dataset.
