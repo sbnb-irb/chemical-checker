@@ -51,8 +51,8 @@ class ChemicalChecker():
         for dataset in Dataset.get():
             yield dataset.code
 
-    def get_data_path(self, cctype, molset, dataset):
-        """Return the signature data path for the given dataset.
+    def get_signature_path(self, cctype, molset, dataset):
+        """Return the signature path for the given dataset.
 
         This should be the only place where we define the directory structure.
         The signature directory tipically contain the signature HDF5 file.
@@ -62,12 +62,12 @@ class ChemicalChecker():
             molset(str): The molecule set name.
             dataset(str): The dataset of the Chemical Checker.
         Returns:
-            data_path(str): The signature data path.
+            signature_path(str): The signature path.
         """
-        data_path = os.path.join(self.cc_root, molset, dataset[:1],
-                                 dataset[:2], dataset, cctype)
-        self.__log.debug("signature path: %s", data_path)
-        return data_path
+        signature_path = os.path.join(self.cc_root, molset, dataset[:1],
+                                      dataset[:2], dataset, cctype)
+        self.__log.debug("signature path: %s", signature_path)
+        return signature_path
 
     def get_signature(self, cctype, molset, dataset, **params):
         """Return the signature for the given dataset.
@@ -88,10 +88,10 @@ class ChemicalChecker():
             self.__log.warning(
                 'Code %s returns no dataset', dataset)
             raise Exception("No dataset for code: " + dataset)
-        data_path = self.get_data_path(cctype, molset, dataset)
+        signature_path = self.get_signature_path(cctype, molset, dataset)
         # initialize a data object factory feeding the type and the path
         data_factory = DataFactory()
         # the factory will return the signature with the right class
         data = data_factory.make_data(
-            cctype, data_path, dataset_info, **params)
+            cctype, signature_path, dataset_info, **params)
         return data
