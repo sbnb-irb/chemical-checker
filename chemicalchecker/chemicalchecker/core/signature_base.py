@@ -4,9 +4,11 @@ Each signature class derived from this base class will have to implement the
 `fit`, `predict` and `validate` methods. As the underlying data format for
 every signature is the same, this class implements the iterator and attribute
 getter.
+Also implements the signature status, and persistence of parameters.
 """
 import os
 import six
+import json
 from abc import ABCMeta, abstractmethod
 
 from chemicalchecker.util import logged
@@ -21,24 +23,30 @@ class BaseSignature(object):
     """
 
     @abstractmethod
-    def __init__(self, data_path, model_path, stats_path, dataset_info):
-        """From the recipe we derive all the cleaning logic."""
-        BaseSignature.__log.debug('__init__')
+    def __init__(self, signature_path, dataset_info, **params):
+        """Initialize or load the signature at the given path."""
         self.dataset_info = dataset_info
-        self.data_path = data_path
-        if not os.path.isfile(data_path):
-            BaseSignature.__log.warning(
-                "Data file not available: %s" % data_path)
-        self.model_path = model_path
-        if not os.path.isdir(model_path):
-            BaseSignature.__log.warning(
-                "Model directory not available: %s" % model_path)
-        self.stats_path = stats_path
-        if not os.path.isdir(stats_path):
-            BaseSignature.__log.warning(
-                "Plots directory not available: %s" % stats_path)
-        if dataset_info is None:
-            raise Exception("There is no information on the specied dataset.")
+        self.signature_path = signature_path
+        self.param_file = os.path.join(signature_path, 'PARAMS.JSON')
+
+        if not os.path.isdir(signature_path):
+            BaseSignature.__log.info(
+                "Initializing new signature in: %s" % signature_path)
+            os.makedirs(signature_path)
+            if not params:
+                params = dict()
+            with open(self.param_file, 'w') as fh:
+                json.dump(params, fh)
+        else:
+            if not os.path.isfile(self.param_file):
+                BaseSignature.__log.warning(
+                    "Signature missing parameter file: %s" % self.param_file)
+                BaseSignature.__log.warning(
+                    "Updating with current: %s" % self.param_file)
+                if not params:
+                    params = dict()
+                with open(self.param_file, 'w') as fh:
+                    json.dump(params, fh)
 
     @abstractmethod
     def fit(self):
@@ -65,7 +73,7 @@ class BaseSignature(object):
         """Batch iteration, if necessary."""
         BaseSignature.__log.debug('__iter__')
         if not os.path.isfile(self.data_path):
-            raise Exception("Data file not available.")
+            raise Exception("Data file %s not available." % self.data_path)
         BaseSignature.__log.debug('parsing data %s', self.data_path)
         yield
 
