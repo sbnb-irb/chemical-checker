@@ -24,21 +24,20 @@ class ChemicalChecker():
         If the CC_ROOT directory is empty a skeleton of CC is initialized.
 
         Args:
-            cc_root(str): The Chemical Checker root directory.
+            cc_root(str): The Chemical Checker root directory. It's version
+                dependendent.
         """
         self.cc_root = cc_root
+        self.basic_molsets = ['reference', 'full']
         self.__log.debug("ChemicalChecker with root: %s", cc_root)
         if not os.path.isdir(cc_root):
-            self.__log.warning("Empty root directory, creating new one")
-            for dataset in self.datasets:
-                new_dir = os.path.join(
-                    cc_root, dataset[:1], dataset[:2], dataset, 'models')
-                self.__log.debug("Creating %s", new_dir)
-                os.makedirs(new_dir)
-                new_dir = os.path.join(
-                    cc_root, dataset[:1], dataset[:2], dataset, 'stats')
-                self.__log.debug("Creating %s", new_dir)
-                os.makedirs(new_dir)
+            self.__log.warning("Empty root directory, creating dataset dirs")
+            for molset in self.basic_molsets:
+                for dataset in self.datasets:
+                    new_dir = os.path.join(
+                        cc_root, molset, dataset[:1], dataset[:2], dataset)
+                    self.__log.debug("Creating %s", new_dir)
+                    os.makedirs(new_dir)
 
     @property
     def coordinates(self):
@@ -52,66 +51,34 @@ class ChemicalChecker():
         for dataset in Dataset.get():
             yield dataset.code
 
-    def get_data_path(self, cctype, dataset):
-        """Return the path to signature file for the given dataset.
+    def get_data_path(self, cctype, molset, dataset):
+        """Return the signature data path for the given dataset.
 
         This should be the only place where we define the directory structure.
-        The signature type directly map to a HDF5 file.
+        The signature directory tipically contain the signature HDF5 file.
 
         Args:
             cctype(str): The Chemical Checker datatype i.e. one of the sign*.
+            molset(str): The molecule set name.
             dataset(str): The dataset of the Chemical Checker.
         Returns:
-            data_path(str): The path to an .h5 file.
+            data_path(str): The signature data path.
         """
-        filename = '{}.h5'.format(cctype)
-        data_path = os.path.join(self.cc_root, dataset[:1],
-                                 dataset[:2], dataset, filename)
-        self.__log.debug("data path: %s", data_path)
+        data_path = os.path.join(self.cc_root, molset, dataset[:1],
+                                 dataset[:2], dataset, cctype)
+        self.__log.debug("signature path: %s", data_path)
         return data_path
 
-    def get_model_path(self, cctype, dataset):
-        """Return the path to model file for the given dataset.
-
-        This should be the only place where we define the directory structure.
-        The signature type directly map to a persistent model directory.
+    def get_signature(self, cctype, molset, dataset, **params):
+        """Return the signature for the given dataset.
 
         Args:
             cctype(str): The Chemical Checker datatype i.e. one of the sign*.
-            dataset(str): The dataset of the Chemical Checker.
-        Returns:
-            model_path(str): The path to an persistent model directory.
-        """
-        # filename = '{}.pkl'.format(cctype)
-        model_path = os.path.join(self.cc_root, dataset[:1],
-                                  dataset[:2], dataset, 'models')
-        self.__log.debug("model path: %s", model_path)
-        return model_path
-
-    def get_stats_path(self, cctype, dataset):
-        """Return the path to statistics directory for the given dataset.
-
-        This should be the only place where we define the directory structure.
-        The signature type directly map to a persistent stats directory.
-
-        Args:
-            cctype(str): The Chemical Checker datatype i.e. one of the sign*.
-            dataset(str): The dataset of the Chemical Checker.
-        Returns:
-            stats_path(str): The path to the stats directory.
-        """
-        # filename = '{}.pkl'.format(cctype)
-        stats_path = os.path.join(self.cc_root, dataset[:1],
-                                  dataset[:2], dataset, 'stats')
-        self.__log.debug("model path: %s", stats_path)
-        return stats_path
-
-    def get_data(self, cctype, dataset, **params):
-        """Return the full signature for the given dataset.
-
-        Args:
-            cctype(str): The Chemical Checker datatype i.e. one of the sign*.
-            dataset(str): The dataset of the Chemical Checker.
+            molset(str): The molecule set name.
+            dataset(str): The dataset code of the Chemical Checker.
+            params(dict): Optional. The set of parameters to initialize and
+                compute the signature. If the signature is already initialized
+                this argument will be ignored.
         Returns:
             data(Signature): A `Signature` object, the specific type depends
                 on the cctype passed.
@@ -121,12 +88,10 @@ class ChemicalChecker():
             self.__log.warning(
                 'Code %s returns no dataset', dataset)
             raise Exception("No dataset for code: " + dataset)
-        data_path = self.get_data_path(cctype, dataset)
-        model_path = self.get_model_path(cctype, dataset)
-        stats_path = self.get_stats_path(cctype, dataset)
+        data_path = self.get_data_path(cctype, molset, dataset)
         # initialize a data object factory feeding the type and the path
         data_factory = DataFactory()
-        # the factory will spit the data in the right class
+        # the factory will return the signature with the right class
         data = data_factory.make_data(
-            cctype, data_path, model_path, stats_path, dataset_info, **params)
+            cctype, data_path, dataset_info, **params)
         return data
