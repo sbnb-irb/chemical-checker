@@ -2,14 +2,15 @@ import os
 import unittest
 import shutil
 import itertools
+import mock
 
 from chemicalchecker import ChemicalChecker
 
 
-def coordinates():
+def datasets():
     """Iterator on Chemical Checker coordinates."""
     for name, code in itertools.product("ABCDE", "12345"):
-        yield name + code
+        yield name + code + ".001"
 
 
 class TestChemicalChecker(unittest.TestCase):
@@ -27,19 +28,22 @@ class TestChemicalChecker(unittest.TestCase):
         cc_root = os.path.join(self.data_dir, 'alpha')
         self.cc_root = cc_root
         self.assertFalse(os.path.isdir(cc_root))
-        cc = ChemicalChecker(cc_root)
-        self.assertTrue(os.path.isdir(cc_root))
-        for coords in coordinates():
-            path1 = os.path.join(cc_root, 'reference', coords[:1])
-            self.assertTrue(os.path.isdir(path1))
-            path2 = os.path.join(cc_root, 'reference', coords[:1], coords[:2])
-            self.assertTrue(os.path.isdir(path2))
-            path1 = os.path.join(cc_root, 'full', coords[:1])
-            self.assertTrue(os.path.isdir(path1))
-            path2 = os.path.join(cc_root, 'full', coords[:1], coords[:2])
-            self.assertTrue(os.path.isdir(path2))
+        with mock.patch('chemicalchecker.ChemicalChecker.datasets',
+                        new_callable=mock.PropertyMock) as mock_foo:
+            mock_foo.return_value = list(datasets())
+            cc = ChemicalChecker(cc_root)
+            self.assertTrue(os.path.isdir(cc_root))
+            for coords in datasets():
+                path1 = os.path.join(cc_root, 'reference', coords[:1])
+                self.assertTrue(os.path.isdir(path1))
+                path2 = os.path.join(cc_root, 'reference',
+                                     coords[:1], coords[:2])
+                self.assertTrue(os.path.isdir(path2))
+                path3 = os.path.join(cc_root, 'reference', coords[
+                                     :1], coords[:2], coords)
+                self.assertTrue(os.path.isdir(path3))
 
-        sign_path = os.path.join(cc_root, 'reference',
-                                 'A', 'A1', 'A1.001', 'sign1')
-        self.assertEqual(cc.get_signature_path(
-            'sign1', 'reference', 'A1.001'), sign_path)
+            sign_path = os.path.join(cc_root, 'reference',
+                                     'A', 'A1', 'A1.001', 'sign1')
+            self.assertEqual(cc.get_signature_path(
+                'sign1', 'reference', 'A1.001'), sign_path)
