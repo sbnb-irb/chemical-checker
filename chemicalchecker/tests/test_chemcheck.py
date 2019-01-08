@@ -41,5 +41,5 @@ class TestChemicalChecker(unittest.TestCase):
 
         sign_path = os.path.join(cc_root, 'reference',
                                  'A', 'A1', 'A1.001', 'sign1')
-        self.assertEqual(cc.get_data_path(
+        self.assertEqual(cc.get_signature_path(
             'sign1', 'reference', 'A1.001'), sign_path)
