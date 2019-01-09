@@ -1,5 +1,8 @@
 import adanet
-import tensorflow as tf
+try:
+    import tensorflow as tf
+except:
+    pass
 from .dnn_generator import SimpleDNNGenerator
 import h5py
 
