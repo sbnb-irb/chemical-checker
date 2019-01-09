@@ -1,1 +1,1 @@
-from .adanet_wrap import AdanetWrapper as Adanet
+from .adanet_wrap import AdaNetWrapper as AdaNet
