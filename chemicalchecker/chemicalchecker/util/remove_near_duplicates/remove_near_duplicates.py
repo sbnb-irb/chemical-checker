@@ -55,6 +55,7 @@ class RNDuplicates():
                     raise Exception(
                         "H5 file " + data + " does not contain datasets 'keys' and 'V'")
                 self.data = np.array(dh5["V"][:], dtype=np.float32)
+                self.data_type = dh5["V"].dtype
                 self.keys = dh5["keys"][:]
                 dh5.close()
 
@@ -63,6 +64,7 @@ class RNDuplicates():
 
         else:
             self.data = data
+            self.data_type = data.dtype
             if keys is None:
                 self.keys = range(len(data))
             else:
@@ -135,7 +137,7 @@ class RNDuplicates():
 
         self.__log.info("Size after removing: " + str(len(self.final_ids)))
 
-        return self.keys[np.array(self.final_ids)], self.data[np.array(self.final_ids)], mappings
+        return self.keys[np.array(self.final_ids)], np.array(self.data[np.array(self.final_ids)], dtype=self.data_type), mappings
 
     def save(self, destination):
         """Save data after removing to a h5 file.
@@ -151,6 +153,7 @@ class RNDuplicates():
 
         with h5py.File(destination, 'w') as hf:
             hf.create_dataset("keys", data=self.keys[np.array(self.final_ids)])
-            V = self.data[np.array(self.final_ids)]
+            V = np.array(
+                self.data[np.array(self.final_ids)], dtype=self.data_type)
             hf.create_dataset("V", data=V)
             hf.create_dataset("shape", data=V.shape)
