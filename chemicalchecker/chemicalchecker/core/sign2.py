@@ -19,7 +19,7 @@ automatically learning high-quality models with minimal expert intervention.
 import os
 from .signature_base import BaseSignature
 from chemicalchecker.util import logged
-from chemicalchecker.tool import Node2Vec, AdaNet
+#from chemicalchecker.tool import Node2Vec, AdaNet
 
 
 @logged
