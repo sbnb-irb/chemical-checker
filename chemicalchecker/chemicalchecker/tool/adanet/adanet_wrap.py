@@ -1,5 +1,8 @@
 import adanet
-import tensorflow as tf
+try:
+    import tensorflow as tf
+except:
+    pass
 from .dnn_generator import SimpleDNNGenerator
 import h5py
 
@@ -80,7 +83,7 @@ class TraintestHDF5Reader(object):
         return x_shape, y_shape, example_generator_fn
 
 
-class AdanetWrapper(object):
+class AdaNetWrapper(object):
     """Wrapper class adapted from scripted examples on AdaNet's github.
 
     https://github.com/tensorflow/adanet/blob/master/adanet/
