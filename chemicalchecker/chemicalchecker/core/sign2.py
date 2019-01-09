@@ -30,9 +30,7 @@ class sign2(BaseSignature):
         """Initialize the signature.
 
         Args:
-            data_path(str): Where the signature h5 file is saved.
-            model_path(str): Directory where the persistent model is saved.
-            stats_path(str): Where the statistics of fit are saved.
+            signature_path(str): The signature root directory.
             dataset(`Dataset`): `chemicalchecker.database.Dataset` object.
             params(): Parameters, expected keys are 'graph', 'node2vec', and
                 'adanet'.
@@ -53,11 +51,15 @@ class sign2(BaseSignature):
         self.__log.debug('model_path: %s', self.model_path)
         self.__log.debug('stats_path: %s', self.stats_path)
 
-    def fit(self, sign1):
-        """Take an input and learns to produce an output.
+    def fit(self, sign1, neig1):
+        """Learn a model.
+
+        Node2vec embeddings are computed using the graph derived from sign1.
+        The predictive model is learned with AdaNet.
 
         Args:
             sign1(sign1): Signature type 1.
+            neig1(neig1): Nearest neighbor of type 1.
         """
         # step 1: Node2Vec (learn graph embedding) input is neig1
         self.__log.debug('Node2Vec on %s' % sign1)
@@ -86,7 +88,7 @@ class sign2(BaseSignature):
         self.__log.debug('model saved to %s' % self.model_path)
 
     def predict(self, sign1):
-        """Use the fitted AdaNet model to predict sign2."""
+        """Use the learned model to predict the signature."""
         # load AdaNet model
         adanet_path = os.path.join(self.model_path, 'adanet')
         self.__log.debug('loading model from %s' % adanet_path)
