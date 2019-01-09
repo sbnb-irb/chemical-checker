@@ -9,9 +9,12 @@ Main tasks of this class are:
 import os
 import itertools
 
+import chemicalchecker
 from .data import DataFactory
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
+from chemicalchecker.util import Config
+from chemicalchecker.util import HPC
 
 
 @logged
@@ -75,7 +78,7 @@ class ChemicalChecker():
         """Return the signature for the given dataset.
 
         Args:
-            cctype(str): The Chemical Checker datatype i.e. one of the sign*.
+            cctype(str): The Chemical Checker datatype (i.e. one of the sign*).
             molset(str): The molecule set name.
             dataset(str): The dataset code of the Chemical Checker.
             params(dict): Optional. The set of parameters to initialize and
@@ -97,3 +100,62 @@ class ChemicalChecker():
         data = data_factory.make_data(
             cctype, signature_path, dataset_info, **params)
         return data
+
+    @staticmethod
+    def remove_near_duplicates_hpc(job_path, cc_root, cctype):
+        """Run HPC jobs to remove near duplicates of a signature.
+
+        Args:
+            job_path(str): Path (usually in scratch) where the script files are
+                generated.
+            cc_root(str): The Chemical Checker root directory.
+            cctype(str): The Chemical Checker datatype (i.e. one of the sign*)
+                for which duplicates will be removed.
+        """
+        # create job directory if not available
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+        # create script file
+        cc_config = os.environ['CC_CONFIG']
+        cc_package = os.path.join(chemicalchecker.__path__[0], '../')
+        script_lines = [
+            "import sys, os",
+            "import pickle",
+            "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
+            "sys.path.append('%s')" % cc_package,  # allow package import
+            "from chemicalchecker.util import RNDuplicates",
+            "from chemicalchecker.core import ChemicalChecker",
+            "cc = ChemicalChecker('%s')" % cc_root,
+            "task_id = sys.argv[1]",  # <TASK_ID>
+            "filename = sys.argv[2]",  # <FILE>
+            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
+            "data = inputs[task_id]",  # elements for current job
+            "for ds in data:",  # elements are indexes
+            "    sign_full = cc.get_signature('%s', 'full', ds)" % cctype,
+            "    sign_ref = cc.get_signature('%s', 'reference', ds)" % cctype,
+            "    rnd = RNDuplicates()",
+            "    rnd.remove(sign_full.data_path.encode('ascii'))",
+            "    rnd.save(sign_ref.data_path)",
+            "print('JOB DONE')"
+        ]
+        script_name = os.path.join(job_path, 'remove_near_duplicates.py')
+        with open(script_name, 'w') as fh:
+            for line in script_lines:
+                fh.write(line + '\n')
+        # hpc parameters
+        all_datasets = [ds.code for ds in Dataset.get()]
+        params = {}
+        params["num_jobs"] = len(all_datasets)
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_REFERENCE"
+        params["elements"] = all_datasets
+        params["wait"] = True
+        params["memory"] = 1  # this avoids singularity segfault on some nodes
+        # job command
+        singularity_image = Config().PATH.SINGULARITY_IMAGE
+        command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+            singularity_image, script_name)
+        # submit jobs
+        cluster = HPC(Config())
+        cluster.submitMultiJob(command, **params)
+        return cluster
