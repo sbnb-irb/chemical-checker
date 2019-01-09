@@ -13,23 +13,21 @@ class sign0(BaseSignature):
     Signature type 0 is...
     """
 
-    def __init__(self, data_path, model_path, stats_path, dataset_info, **params):
+    def __init__(self, signature_path, dataset_info, **params):
         """Initialize the signature.
 
         Args:
-            data_path(str): Where the h5 file is.
-            model_path(str): Where the persistent model is.
+            signature_path(str): the path to the signature directory.
         """
-        self.__log.debug('data_path: %s', data_path)
-        self.data_path = data_path
-        self.__log.debug('model_path: %s', model_path)
-        self.model_path = model_path
-        self.dataset_info = dataset_info
-        for param, value in params.items():
-            self.__log.debug('parameter %s : %s', param, value)
         # Calling init on the base class to trigger file existance checks
         BaseSignature.__init__(
-            self, data_path, model_path, stats_path, dataset_info)
+            self, signature_path, dataset_info, **params)
+        self.__log.debug('signature path is: %s', signature_path)
+        self.data_path = os.path.join(signature_path, "sign0.h5")
+        self.__log.debug('data_path: %s', self.data_path)
+        self.__log.debug('param file: %s', self.param_file)
+        for param, value in params.items():
+            self.__log.debug('parameter %s : %s', param, value)
 
     def fit(self):
         """Signature type 0 has no models to fit."""

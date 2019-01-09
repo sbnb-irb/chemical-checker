@@ -32,7 +32,9 @@ class BaseSignature(object):
         if not os.path.isdir(signature_path):
             BaseSignature.__log.info(
                 "Initializing new signature in: %s" % signature_path)
-            os.makedirs(signature_path)
+            original_umask = os.umask(0)
+            os.makedirs(signature_path, 0o775)
+            os.umask(original_umask)
             if not params:
                 params = dict()
             with open(self.param_file, 'w') as fh:
@@ -47,6 +49,20 @@ class BaseSignature(object):
                     params = dict()
                 with open(self.param_file, 'w') as fh:
                     json.dump(params, fh)
+        self.model_path = os.path.join(signature_path, "models")
+        if not os.path.isdir(self.model_path):
+            BaseSignature.__log.info(
+                "Creating model_path in: %s" % self.model_path)
+            original_umask = os.umask(0)
+            os.makedirs(self.model_path, 0o775)
+            os.umask(original_umask)
+        self.stats_path = os.path.join(signature_path, "stats")
+        if not os.path.isdir(self.stats_path):
+            BaseSignature.__log.info(
+                "Creating stats_path in: %s" % self.stats_path)
+            original_umask = os.umask(0)
+            os.makedirs(self.stats_path, 0o775)
+            os.umask(original_umask)
 
     @abstractmethod
     def fit(self):

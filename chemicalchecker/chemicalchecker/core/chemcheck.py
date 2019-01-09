@@ -37,7 +37,9 @@ class ChemicalChecker():
                     new_dir = os.path.join(
                         cc_root, molset, dataset[:1], dataset[:2], dataset)
                     self.__log.debug("Creating %s", new_dir)
-                    os.makedirs(new_dir)
+                    original_umask = os.umask(0)
+                    os.makedirs(new_dir, 0o775)
+                    os.umask(original_umask)
 
     @property
     def coordinates(self):
