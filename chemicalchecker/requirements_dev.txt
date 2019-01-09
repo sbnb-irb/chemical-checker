@@ -26,3 +26,4 @@ matplotlib==1.5.3
 gensim
 timeout_decorator
 mock
+adanet
