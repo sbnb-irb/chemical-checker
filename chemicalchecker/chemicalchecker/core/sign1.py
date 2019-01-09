@@ -1,6 +1,7 @@
 import os
 import gc
 from scipy.sparse import lil_matrix
+from scipy.spatial.distance import euclidean, cosine
 from sklearn.utils.sparsefuncs import mean_variance_axis
 from gensim import corpora, models
 import random
@@ -30,7 +31,7 @@ class sign1(BaseSignature):
         """Initialize the signature.
 
         Args:
-            data_path(str): Where the h5 file is.
+            signature_path(str): the path to the signature directory.
             model_path(str): Where the persistent model is.
         """
         # Calling init on the base class to trigger file existance checks
@@ -346,7 +347,7 @@ class sign1(BaseSignature):
                 inchikey_sig = shelve.open(
                     os.path.join(tmp_dir, "sign1.dict"), "r")
                 pvals = plot.distance_background(
-                    inchikey_sig, inchikeys, B=self.B_distances, metric="euclidean")
+                    inchikey_sig, inchikeys, B=self.B_distances, metric=euclidean)
                 inchikey_sig.close()
 
                 hf.create_dataset(
