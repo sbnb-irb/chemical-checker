@@ -93,7 +93,7 @@ class RNDuplicates():
                 for j in range(1000):
                     if i == I[i][j]:
                         continue
-                    if D[i][j] == 0.0:
+                    if D[i][j] <= 0.0:
                         done.add(I[i][j])
                         indexes.append(I[i][j])
                     else:
@@ -144,8 +144,10 @@ class RNDuplicates():
             destination(str): The destination file(.h5 file) where to save the new data after removing.
 
         """
-        if not os.path.isfile(destination) or destination[-3:] != ".h5":
+        if destination[-3:] != ".h5":
             raise Exception("The destination file needs to be a .h5 file")
+
+        self.__log.info("Saving removed duplicates to : " + destination)
 
         with h5py.File(destination, 'w') as hf:
             hf.create_dataset("keys", data=self.keys[np.array(self.final_ids)])
