@@ -26,19 +26,18 @@ class sign1(BaseSignature):
     Signature type 1 is...
     """
 
-    def __init__(self, data_path, model_path, stats_path, dataset_info, **params):
+    def __init__(self, signature_path, dataset_info, **params):
         """Initialize the signature.
 
         Args:
             data_path(str): Where the h5 file is.
             model_path(str): Where the persistent model is.
         """
-        self.__log.debug('data_path: %s', data_path)
-        self.data_path = data_path
-        self.model_path = os.path.join(model_path, "sig")
-        self.__log.debug('model_path: %s', self.model_path)
-        self.stats_path = stats_path
-        self.__log.debug('stats_path: %s', self.stats_path)
+        # Calling init on the base class to trigger file existance checks
+        BaseSignature.__init__(
+            self, signature_path, dataset_info, **params)
+        self.__log.debug('signature path is: %s', signature_path)
+        self.data_path = os.path.join(signature_path, "sign1.h5")
         self.min_freq = 5
         self.max_freq = 0.25
         self.num_topics = None
@@ -71,10 +70,6 @@ class sign1(BaseSignature):
                 self.integerize = params["integerize"]
             if "not_normalized" in params:
                 self.not_normalized = params["not_normalized"]
-
-        # Calling base class to trigger file existence checks
-        BaseSignature.__init__(
-            self, data_path, model_path, stats_path, dataset_info)
 
     def fit(self, sign0, validations=True):
         """Take `sign0` and learn an unsupervised `sign1` predictor.
@@ -122,7 +117,8 @@ class sign1(BaseSignature):
             for i in range(0, len(keys)):
                 row = V[i]
                 mask = np.where(row > 0)
-                val = ",".join([",".join([features[x]] * row[x]) for x in mask[0]])
+                val = ",".join([",".join([features[x]] * row[x])
+                                for x in mask[0]])
                 f.write("%s %s\n" % (keys[i], val))
 
             f.close()
@@ -325,15 +321,32 @@ class sign1(BaseSignature):
             hf.create_dataset("integerized", data=[self.integerize])
             hf.create_dataset("principal_components", data=[True])
 
-        with h5py.File(self.model_path + "/bg_distances.h5", "a") as hf:
+        with h5py.File(self.model_path + "/bg_cosine_distances.h5", "a") as hf:
 
             if "distance" not in hf.keys() or "pvalue" not in hf.keys():
-                self.__log.info("Computing distance empirical P-values")
+                self.__log.info("Computing cosine distance empirical P-values")
 
                 inchikey_sig = shelve.open(
                     os.path.join(tmp_dir, "sign1.dict"), "r")
                 pvals = plot.distance_background(
                     inchikey_sig, inchikeys, B=self.B_distances)
+                inchikey_sig.close()
+
+                hf.create_dataset(
+                    "distance", data=np.array([p[0] for p in pvals]))
+                hf.create_dataset(
+                    "pvalue", data=np.array([p[1] for p in pvals]))
+
+        with h5py.File(self.model_path + "/bg_euclidean_distances.h5", "a") as hf:
+
+            if "distance" not in hf.keys() or "pvalue" not in hf.keys():
+                self.__log.info(
+                    "Computing euclidean distance empirical P-values")
+
+                inchikey_sig = shelve.open(
+                    os.path.join(tmp_dir, "sign1.dict"), "r")
+                pvals = plot.distance_background(
+                    inchikey_sig, inchikeys, B=self.B_distances, metric="euclidean")
                 inchikey_sig.close()
 
                 hf.create_dataset(
@@ -417,7 +430,8 @@ class sign1(BaseSignature):
             for i in range(0, len(keys)):
                 row = V[i]
                 mask = np.where(row > 0)
-                val = ",".join([",".join([features[x]] * row[x]) for x in mask[0]])
+                val = ",".join([",".join([features[x]] * row[x])
+                                for x in mask[0]])
                 f.write("%s %s\n" % (keys[i], val))
 
             f.close()
@@ -621,6 +635,43 @@ class sign1(BaseSignature):
         """Perform a statistics."""
         # Calling base class to trigger file existence checks
         BaseSignature.validate(self)
+
+    def background_distances(self, metric=None):
+        """Give the background distances according to the selected metric.
+
+        Args:
+            metric(str): the metric name (cosine or euclidean).
+        Returns:
+            bg_distances(dict): Dictionary with distances and Pvalues
+        """
+        if metric is None:
+            raise Exception("Need a metric to return background distances")
+
+        bg_distances = {}
+        if metric == "cosine":
+            bg_file = os.path.join(self.model_path, "bg_cosine_distances.h5")
+            if not os.path.isfile(bg_file):
+                raise Exception(
+                    "The background distances for metric " + metric + " are not available.")
+            f5 = h5py.File(bg_file)
+            bg_distances["distance"] = f5["distance"][:]
+            bg_distances["pvalue"] = f5["pvalue"][:]
+
+        if metric == "euclidean":
+            bg_file = os.path.join(
+                self.model_path, "bg_euclidean_distances.h5")
+            if not os.path.isfile(bg_file):
+                raise Exception(
+                    "The background distances for metric " + metric + " are not available.")
+            f5 = h5py.File(bg_file)
+            bg_distances["distance"] = f5["distance"][:]
+            bg_distances["pvalue"] = f5["pvalue"][:]
+
+        if len(bg_distances) == 0:
+            raise Exception(
+                "The background distances for metric " + metric + " are not available.")
+        else:
+            return bg_distances
 
     def _integerize(self, V, recycle):
 
