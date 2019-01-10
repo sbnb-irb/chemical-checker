@@ -110,12 +110,12 @@ class Node2Vec():
             fh.create_dataset('inchikeys', data=names[words[sorted_idx]])
             fh.create_dataset('V', data=matrix[sorted_idx])
 
-    def to_edgelist(self, neig1, sign1, out_file, **params):
+    def to_edgelist(self, sign1, neig1, out_file, **params):
         """Convert Nearest-neighbor to an edgelist.
 
         Args:
-            neig1(str): Nearest neighbors 1, h5 file path.
             sign1(str): Signature 1, h5 file path.
+            neig1(str): Nearest neighbors 1, h5 file path.
             out_file(str): Destination file.
             params(dict): Parameters defining similarity network.
 
@@ -132,30 +132,27 @@ class Node2Vec():
         self.min_degree = params.get("min_degree", 3)
         self.range_pvalue = self.max_pvalue - self.min_pvalue
         self.range_weight = self.max_weight - self.min_weight
-        # open h5s
-        neig1 = h5py.File(neig1, 'r')
-        sign1 = h5py.File(sign1, 'r')
-        thresholds = sign1.background_distances("cosine")
+        # get sign1 background distances thresholds
+        thresholds = sign1.background_distances('cosine')
         # derive max_degree
-        nr_nodes = neig1['keys'].shape[0]
-        self.max_degree = Node2Vec.heuristic_max_degree(nr_nodes)
+        mem_max_degree = Node2Vec.heuristic_max_degree(sign1.shape[0])
+        self.max_degree = params.get("max_degree", mem_max_degree)
+        if self.max_degree > mem_max_degree:
+            self.__log.warn('user max_degree too large: %s', self.max_degree)
+            self.__log.warn('using memory safe degree: %s', mem_max_degree)
+            self.max_degree = mem_max_degree
+        # write edgelist
         with open(out_file, 'w') as fh:
-            for src_idx in range(nr_nodes):
-                neig_indices = neig1['indices'][src_idx]
-                # FIXME nearest neighbor return doubled distances, why?
-                neig_distances = neig1['distances'][src_idx] / 2.
-                edges = self._get_edges(
-                    neig_distances, neig_indices, thresholds)
+            for src_idx, neighbors in enumerate(neig1):
+                self.__log.debug('molecule: %s', src_idx)
+                edges = self._get_edges(neighbors, thresholds)
                 for dst_idx, weight in edges:
                     # exclude self loops
                     if dst_idx == src_idx:
                         continue
                     fh.write("%i %i %.4f\n" % (src_idx, dst_idx, weight))
-        # close h5s
-        neig1.close()
-        sign1.close()
 
-    def _get_edges(self, neig_distances, neig_indices, thresholds):
+    def _get_edges(self, neighbors, thresholds):
         """Get a molecule neighbors and edge weight.
 
         We have a list of all possible pvalues and the pvalue id for each
@@ -174,14 +171,15 @@ class Node2Vec():
                 indexes are converted from local square to global ones.
         """
         # first check if the MIN_PVALUE is a sufficient condition (base case)
-        thr_pvalues = thresholds['pvalues']
-        thr_distances = thresholds['distances']
+        neig_indices, neig_distances = neighbors
+        thr_pvalues = thresholds['pvalue']
+        thr_distances = thresholds['distance']
         curr_pval_idx = bisect_left(thr_pvalues, self.min_pvalue) + 1
         curr_pval = thr_pvalues[curr_pval_idx]
         neig_mask = neig_distances <= thr_distances[curr_pval_idx]
         degree = np.count_nonzero(neig_mask)
-        print("curr_pval[%i]" %
-              curr_pval_idx, curr_pval, "degree", degree)
+        self.__log.debug("curr_pval[%i] %s - degree %s",
+                         curr_pval_idx, curr_pval, degree)
         # we want more than MIN_DEGREE and less than MAX_DEGREE
         if self.min_degree <= degree <= self.max_degree:
             considered_mol_ids = neig_indices[neig_mask]
@@ -193,30 +191,35 @@ class Node2Vec():
                 incr_pval = thr_pvalues[incr_pval_idx]
                 neig_mask = neig_distances <= thr_distances[incr_pval_idx]
                 degree = np.count_nonzero(neig_mask)
-                print("incr_pval[%i]" %
-                      incr_pval_idx, incr_pval, "degree", degree)
+                self.__log.debug("incr_pval[%i] %s - degree %s",
+                                 incr_pval_idx, incr_pval, degree)
                 # increasing threshold we have too many
-                if degree > self.min_degree:
+                if degree >= self.min_degree:
                     # sample neighbors from previous threshold
-                    to_add = self.min_degree - degree
-                    print("sampling", to_add)
                     prev_neig_mask = np.logical_and(
                         neig_distances <= thr_distances[incr_pval_idx],
                         neig_distances > thr_distances[incr_pval_idx - 1])
+                    already_in = neig_distances <= thr_distances[
+                        incr_pval_idx - 1]
+                    to_add = self.min_degree - np.count_nonzero(already_in)
+                    self.__log.debug(
+                        "sampling %s from pval %s", to_add, incr_pval)
                     sampled_idxs = np.random.choice(
                         np.argwhere(prev_neig_mask).flatten(),
                         to_add, replace=False)
                     sampled_neig_mask = np.full(neig_mask.shape, False)
                     sampled_neig_mask[sampled_idxs] = True
                     # add neighbors within current threshold
-                    neig_mask = np.logical_or(neig_mask, sampled_neig_mask)
+                    neig_mask = np.logical_or(already_in, sampled_neig_mask)
                     considered_mol_ids = neig_indices[neig_mask]
                     break
                 # corner case where the highest threshold has to be sampled
                 elif incr_pval_idx == len(thr_distances):
                     # sample from highest threshold
-                    to_add = self.min_degree - degree
-                    print("sampling", to_add)
+                    already_in = neig_distances <= thr_distances[
+                        incr_pval_idx - 1]
+                    to_add = self.min_degree - np.count_nonzero(already_in)
+                    self.__log.debug("corner sampling %s", to_add)
                     curr_neig_mask = neig_distances == thr_distances[
                         incr_pval_idx]
                     sampled_idxs = np.random.choice(
@@ -231,6 +234,7 @@ class Node2Vec():
                         prev_neig_mask, sampled_neig_mask)
                     considered_mol_ids = neig_indices[neig_mask]
                     break
+            assert(len(considered_mol_ids) == self.min_degree)
         # else too many
         else:
             # iterate decreasing threshold pvalue
@@ -239,13 +243,14 @@ class Node2Vec():
                 decr_pval = thr_pvalues[decr_pval_idx]
                 neig_mask = neig_distances <= thr_distances[decr_pval_idx]
                 degree = np.count_nonzero(neig_mask)
-                print("decr_pval[%i]" %
-                      decr_pval_idx, decr_pval, "degree", degree)
+                self.__log.debug("decr_pval[%i] %s - degree %s",
+                                 decr_pval_idx, decr_pval, degree)
                 # reducing threshold we have too few
-                if degree < self.max_degree:
+                if degree <= self.max_degree:
                     # sample neighbors from previous threshold
                     to_add = self.max_degree - degree
-                    print("sampling", to_add)
+                    self.__log.debug(
+                        "sampling %s from pval %s", to_add, decr_pval)
                     prev_neig_mask = np.logical_and(
                         neig_distances <= thr_distances[decr_pval_idx + 1],
                         neig_distances > thr_distances[decr_pval_idx])
@@ -261,7 +266,7 @@ class Node2Vec():
                 # corner case where the lowest threshold has to be sampled
                 elif decr_pval_idx == 0:
                     to_add = self.max_degree
-                    print("sampling", to_add)
+                    self.__log.debug("corner sampling %s", to_add)
                     sampled_idxs = np.random.choice(
                         np.argwhere(neig_mask).flatten(),
                         to_add, replace=False)
@@ -269,6 +274,7 @@ class Node2Vec():
                     sampled_neig_mask[sampled_idxs] = True
                     considered_mol_ids = neig_indices[sampled_neig_mask]
                     break
+            assert(len(considered_mol_ids) == self.max_degree)
         # convert distances to p-values index
         pvalues = np.zeros(neig_distances.shape, dtype=int)
         for dist in thr_distances:
@@ -279,7 +285,7 @@ class Node2Vec():
         # we force a minimal degree so we might have weights below MIN_WEIGHT
         # we cap to a default values one order of magnitude below MIN_WEIGHT
         weights[weights < self.min_weight] = self.min_weight / 10.
-        self.__log.info("similar molecules considered:",
+        self.__log.info("similar molecules considered: %s",
                         len(considered_mol_ids))
         return zip(considered_mol_ids, weights)
 
