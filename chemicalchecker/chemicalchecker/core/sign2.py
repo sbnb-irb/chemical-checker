@@ -50,6 +50,11 @@ class sign2(BaseSignature):
         self.__log.debug('data_path: %s', self.data_path)
         self.__log.debug('model_path: %s', self.model_path)
         self.__log.debug('stats_path: %s', self.stats_path)
+        # get parameters or default values
+        self.params = dict()
+        self.params['graph'] = params.get('graph', None)
+        self.params['node2vec'] = params.get('node2vec', None)
+        self.params['adanet'] = params.get('adanet', None)
 
     def fit(self, sign1, neig1):
         """Learn a model.
@@ -68,11 +73,17 @@ class sign2(BaseSignature):
         graph_params = self.params['graph']
         node2vec_path = os.path.join(self.model_path, 'node2vec')
         graph_file = os.path.join(node2vec_path, 'graph.edgelist')
-        n2v.to_edgelist(sign1, graph_file, **graph_params)
+        if graph_params:
+            n2v.to_edgelist(sign1, neig1, graph_file, **graph_params)
+        else:
+            n2v.to_edgelist(sign1, neig1, graph_file)
         # run Node2Vec to generate embeddings
         node2vec_params = self.params['node2vec']
         emb_file = os.path.join(node2vec_path, 'n2v.emb')
-        n2v.run(graph_file, emb_file, **node2vec_params)
+        if node2vec_params:
+            n2v.run(graph_file, emb_file, **node2vec_params)
+        else:
+            n2v.run(graph_file, emb_file)
         # convert to signature h5 format
         n2v.emb_to_h5(emb_file, self.data_path)
         # step 2: AdaNet (learn to predict sign2 from sign1 without Node2Vec)
