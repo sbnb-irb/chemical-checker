@@ -182,5 +182,5 @@ class neig1(BaseSignature):
         if not os.path.isfile(self.data_path):
             raise Exception("Data file %s not available." % self.data_path)
         with h5py.File(self.data_path, 'r') as hf:
-            for idxs, dists in zip(hf['indices'], hf['distances']):
-                yield idxs, dists
+            for i in range(self.shape[0]):
+                yield hf['indices'][i], hf['distances'][i]
