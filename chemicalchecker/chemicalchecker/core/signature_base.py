@@ -9,6 +9,7 @@ Also implements the signature status, and persistence of parameters.
 import os
 import six
 import json
+import h5py
 from abc import ABCMeta, abstractmethod
 
 from chemicalchecker.util import logged
@@ -84,6 +85,16 @@ class BaseSignature(object):
         BaseSignature.__log.debug('statistics')
         if not os.path.isdir(self.model_path):
             raise Exception("Model file not available.")
+
+    @property
+    def shape(self):
+        """Get the signature matrix shape (i.e. the sizes)."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if 'shape' not in hf.keys():
+                raise Exception("HDF5 file has no shape field.")
+            return hf['shape'][:]
 
     def __iter__(self):
         """Batch iteration, if necessary."""
