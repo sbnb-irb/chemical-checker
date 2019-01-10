@@ -1,8 +1,12 @@
 import os
 import h5py
 import numpy as np
-import faiss
+try:
+    import faiss
+except ImportError:
+    pass
 import datetime
+from time import time
 from numpy import linalg as LA
 from chemicalchecker.util import logged
 from .signature_base import BaseSignature
@@ -18,6 +22,7 @@ class neig1(BaseSignature):
         Args:
             signature_path(str): the path to the signature directory.
             metric(str): The metric used in the KNN algorithm: euclidean or cosine (default: cosine)
+            k_neig(int): The number of k neighbours to search for (default:1000)
             cpu(int): The number of cores to use (default:1)
         """
         # Calling init on the base class to trigger file existance checks
@@ -29,6 +34,7 @@ class neig1(BaseSignature):
         self.__log.debug('param file: %s', self.param_file)
         self.metric = "cosine"
         self.cpu = 1
+        self.k_neig = 1000
         self.norms_file = os.path.join(self.model_path, "norms.h5")
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
@@ -36,6 +42,8 @@ class neig1(BaseSignature):
                 self.metric = params["metric"]
             if "cpu" in params:
                 self.cpu = params["cpu"]
+            if "k_neig" in params:
+                self.k_neig = params["k_neig"]
 
     def fit(self, sign1):
         """Take an input and learns to produce an output."""
@@ -61,7 +69,7 @@ class neig1(BaseSignature):
         else:
             index = faiss.IndexFlatIP(self.data.shape[1])
 
-        k = min(self.data.shape[0], 1000)
+        k = min(self.data.shape[0], self.k_neig)
 
         index.add(self.data)
 
@@ -70,10 +78,18 @@ class neig1(BaseSignature):
         if self.metric == "cosine":
             norms = LA.norm(self.data, axis=1)
 
+            t_start = time()
+            mat = np.ones((self.data.shape[0], k))
+            mat = mat / norms[:, None]
             for i in range(0, self.data.shape[0]):
                 for j in range(0, k):
-                    D[i][j] = max(0.0, 1.0 - (D[i][j]) /
-                                  (norms[i] * norms[I[i][j]]))
+                    mat[i, j] = mat[i, j] / norms[I[i, j]]
+            D = np.maximum(0.0, 1.0 - (D * mat))
+            t_end = time()
+            t_delta = str(datetime.timedelta(seconds=t_end - t_start))
+            self.__log.info("Converting to cosine distance took %s", t_delta)
+
+            # print D[0, 4], D1[0, 4]
 
         fout = h5py.File(self.data_path, 'w')
 
@@ -119,7 +135,7 @@ class neig1(BaseSignature):
         index = faiss.read_index(os.path.join(
             self.model_path, "faiss_neig1.index"))
 
-        k = min(self.data.shape[0], 1000)
+        k = min(self.data.shape[0], self.k_neig)
 
         D, I = index.search(self.data, k)
 
@@ -129,10 +145,16 @@ class neig1(BaseSignature):
             with h5py.File(self.norms_file, "r") as hw:
                 norms_pred = hw["norms"][:]
 
+            t_start = time()
+            mat = np.ones((self.data.shape[0], k))
+            mat = mat / norms[:, None]
             for i in range(0, self.data.shape[0]):
                 for j in range(0, k):
-                    D[i][j] = max(0.0, 1.0 - D[i][j] /
-                                  (norms[i] * norms_pred[I[i][j]]))
+                    mat[i, j] = mat[i, j] / norms_pred[I[i, j]]
+            D = np.maximum(0.0, 1.0 - (D * mat))
+            t_end = time()
+            t_delta = str(datetime.timedelta(seconds=t_end - t_start))
+            self.__log.info("Converting to cosine distance took %s", t_delta)
 
         with h5py.File(self.data_path) as hr5:
             col_keys = hr5["row_keys"][:]
