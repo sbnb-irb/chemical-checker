@@ -5,6 +5,7 @@ import mock
 import h5py
 import numpy as np
 import pytest
+from scipy.spatial.distance import cosine
 
 from chemicalchecker import ChemicalChecker
 
@@ -20,7 +21,7 @@ class TestNeigh1(unittest.TestCase):
         if os.path.exists(self.cc_root):
             shutil.rmtree(self.cc_root)
 
-    @pytest.mark.skip(reason="Faiss is not available on test enviroment")
+    #@pytest.mark.skip(reason="Faiss is not available on test enviroment")
     def test_neig1(self):
         cc_root = os.path.join(self.data_dir, 'alpha')
         self.cc_root = cc_root
@@ -56,7 +57,10 @@ class TestNeigh1(unittest.TestCase):
             val = 1.0 - (np.dot(x, y) / (np.sqrt(np.dot(x, x))
                                          * np.sqrt(np.dot(y, y))))
 
+            val = cosine(x, y)
+
             a = "%.5f" % distances[2, 10]
             b = "%.5f" % val
 
+            self.assertAlmostEqual(distances[2, 10], val, places=5)
             self.assertTrue(a == b)
