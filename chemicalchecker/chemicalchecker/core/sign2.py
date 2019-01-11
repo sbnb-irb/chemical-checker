@@ -20,6 +20,8 @@ import os
 from .signature_base import BaseSignature
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
+from chemicalchecker.util import SNAPNetwork
+from chemicalchecker.util import LinkPrediction
 from chemicalchecker.tool import Node2Vec  # , AdaNet, Traintest
 
 
@@ -83,6 +85,11 @@ class sign2(BaseSignature):
                 n2v.to_edgelist(sign1, neig1, graph_file, **graph_params)
             else:
                 n2v.to_edgelist(sign1, neig1, graph_file)
+        # save graph stats
+        graph_stat_file = os.path.join(self.stats_path, 'graph_stats.json')
+        if not reuse or not os.path.isfile(graph_stat_file):
+            graph = SNAPNetwork.from_file(graph_file)
+            graph.stats_toJSON(graph_stat_file)
         # run Node2Vec to generate embeddings
         node2vec_params = self.params['node2vec']
         emb_file = os.path.join(node2vec_path, 'n2v.emb')
@@ -92,7 +99,14 @@ class sign2(BaseSignature):
             else:
                 n2v.run(graph_file, emb_file)
         # convert to signature h5 format
-        n2v.emb_to_h5(sign1, emb_file, self.data_path)
+        if not reuse or not os.path.isfile(self.data_path):
+            n2v.emb_to_h5(sign1, emb_file, self.data_path)
+        # save link prediction stats
+        linkpred_file = os.path.join(self.stats_path, 'linkpred.json')
+        if not reuse or not os.path.isfile(linkpred_file):
+            graph = SNAPNetwork.from_file(graph_file)
+            linkpred = LinkPrediction(self, graph)
+            linkpred.performance.toJSON(linkpred_file)
         """
         # step 2: AdaNet (learn to predict sign2 from sign1 without Node2Vec)
         self.__log.debug('AdaNet fit %s with Node2Vec output' % sign1)
