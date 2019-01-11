@@ -9,6 +9,8 @@ Also implements the signature status, and persistence of parameters.
 import os
 import six
 import json
+import h5py
+from bisect import bisect_left
 from abc import ABCMeta, abstractmethod
 
 from chemicalchecker.util import logged
@@ -85,6 +87,25 @@ class BaseSignature(object):
         if not os.path.isdir(self.model_path):
             raise Exception("Model file not available.")
 
+    @property
+    def shape(self):
+        """Get the signature matrix shape (i.e. the sizes)."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if 'shape' not in hf.keys():
+                raise Exception("HDF5 file has no 'shape' field.")
+            return hf['shape'][:]
+
+    def keys(self):
+        """Get the signature matrix shape (i.e. the sizes)."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if 'keys' not in hf.keys():
+                raise Exception("HDF5 file has no 'keys' field.")
+            return hf['keys'][:]
+
     def __iter__(self):
         """Batch iteration, if necessary."""
         BaseSignature.__log.debug('__iter__')
@@ -93,15 +114,27 @@ class BaseSignature(object):
         BaseSignature.__log.debug('parsing data %s', self.data_path)
         yield
 
-    def __getattr__(self):
+    def __getitem__(self, key):
         """Return the vector corresponding to the key.
 
+        The key can be a string (then it's mapped though self.keys()) or and
+        int.
         Works fast with bisect, but should return None if the key is not in
-        keys (ideally, keep a set to do this).."""
-        BaseSignature.__log.debug('__getattr__')
+        keys (ideally, keep a set to do this)."""
         if not os.path.isfile(self.data_path):
             raise Exception("Data file not available.")
-        yield
+        if isinstance(key, slice):
+            with h5py.File(self.data_path, 'r') as hf:
+                return hf['V'][key]
+        elif isinstance(key, str):
+            idx = bisect_left(self.keys(), key)
+            with h5py.File(self.data_path, 'r') as hf:
+                return hf['V'][idx]
+        elif isinstance(key, int):
+            with h5py.File(self.data_path, 'r') as hf:
+                return hf['V'][key]
+        else:
+            raise Exception("Key type %s not recognized." % type(key))
 
     def __repr__(self):
         """String representig the signature."""
