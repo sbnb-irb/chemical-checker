@@ -93,8 +93,17 @@ class BaseSignature(object):
             raise Exception("Data file %s not available." % self.data_path)
         with h5py.File(self.data_path, 'r') as hf:
             if 'shape' not in hf.keys():
-                raise Exception("HDF5 file has no shape field.")
+                raise Exception("HDF5 file has no 'shape' field.")
             return hf['shape'][:]
+
+    def keys(self):
+        """Get the signature matrix shape (i.e. the sizes)."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if 'keys' not in hf.keys():
+                raise Exception("HDF5 file has no 'keys' field.")
+            return hf['keys'][:]
 
     def __iter__(self):
         """Batch iteration, if necessary."""
