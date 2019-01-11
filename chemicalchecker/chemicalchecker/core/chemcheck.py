@@ -159,3 +159,116 @@ class ChemicalChecker():
         cluster = HPC(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
+
+    @staticmethod
+    def sign1_to_neig1_hpc(job_path, cc_root, molset):
+        """Run HPC jobs to remove near duplicates of a signature.
+
+        Args:
+            job_path(str): Path (usually in scratch) where the script files are
+                generated.
+            cc_root(str): The Chemical Checker root directory.
+            cctype(str): The Chemical Checker datatype (i.e. one of the sign*)
+                for which duplicates will be removed.
+        """
+        # create job directory if not available
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+        # create script file
+        cc_config = os.environ['CC_CONFIG']
+        cc_package = os.path.join(chemicalchecker.__path__[0], '../')
+        script_lines = [
+            "import sys, os",
+            "import pickle",
+            "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
+            "sys.path.append('%s')" % cc_package,  # allow package import
+            "from chemicalchecker.core import ChemicalChecker",
+            "cc = ChemicalChecker('%s')" % cc_root,
+            "task_id = sys.argv[1]",  # <TASK_ID>
+            "filename = sys.argv[2]",  # <FILE>
+            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
+            "data = inputs[task_id]",  # elements for current job
+            "for ds in data:",  # elements are indexes
+            "    sign1_ref = cc.get_signature('sign1', '%s', ds)" % molset,
+            "    neig1_ref = cc.get_signature('neig1', '%s', ds)" % molset,
+            "    neig1_ref.fit(sign1_ref)",
+            "print('JOB DONE')"
+        ]
+        script_name = os.path.join(job_path, 'sign1_to_neig1.py')
+        with open(script_name, 'w') as fh:
+            for line in script_lines:
+                fh.write(line + '\n')
+        # hpc parameters
+        all_datasets = [ds.code for ds in Dataset.get()]
+        params = {}
+        params["num_jobs"] = len(all_datasets)
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_SIGN1_TO_NEIG1"
+        params["elements"] = all_datasets
+        params["wait"] = True
+        params["memory"] = 1  # this avoids singularity segfault on some nodes
+        # job command
+        singularity_image = Config().PATH.SINGULARITY_IMAGE
+        command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+            singularity_image, script_name)
+        # submit jobs
+        cluster = HPC(Config())
+        cluster.submitMultiJob(command, **params)
+        return cluster
+
+    @staticmethod
+    def compute_sign2_hpc(job_path, cc_root):
+        """Run HPC jobs to remove near duplicates of a signature.
+
+        Args:
+            job_path(str): Path (usually in scratch) where the script files are
+                generated.
+            cc_root(str): The Chemical Checker root directory.
+            cctype(str): The Chemical Checker datatype (i.e. one of the sign*)
+                for which duplicates will be removed.
+        """
+        # create job directory if not available
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+        # create script file
+        cc_config = os.environ['CC_CONFIG']
+        cc_package = os.path.join(chemicalchecker.__path__[0], '../')
+        script_lines = [
+            "import sys, os",
+            "import pickle",
+            "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
+            "sys.path.append('%s')" % cc_package,  # allow package import
+            "from chemicalchecker.core import ChemicalChecker",
+            "cc = ChemicalChecker('%s')" % cc_root,
+            "task_id = sys.argv[1]",  # <TASK_ID>
+            "filename = sys.argv[2]",  # <FILE>
+            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
+            "data = inputs[task_id]",  # elements for current job
+            "for ds in data:",  # elements are indexes
+            "    sign1_ref = cc.get_signature('sign1', 'reference', ds)",
+            "    neig1_ref = cc.get_signature('neig1', 'reference', ds)",
+            "    sign2_ref = cc.get_signature('sign2', 'reference', ds)",
+            "    sign2_ref.fit(sign1_ref, neig1_ref)",
+            "print('JOB DONE')"
+        ]
+        script_name = os.path.join(job_path, 'sign2.py')
+        with open(script_name, 'w') as fh:
+            for line in script_lines:
+                fh.write(line + '\n')
+        # hpc parameters
+        all_datasets = [ds.code for ds in Dataset.get()]
+        params = {}
+        params["num_jobs"] = len(all_datasets)
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_SIGN2"
+        params["elements"] = all_datasets
+        params["wait"] = True
+        params["memory"] = 1  # this avoids singularity segfault on some nodes
+        # job command
+        singularity_image = Config().PATH.SINGULARITY_IMAGE
+        command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+            singularity_image, script_name)
+        # submit jobs
+        cluster = HPC(Config())
+        cluster.submitMultiJob(command, **params)
+        return cluster
