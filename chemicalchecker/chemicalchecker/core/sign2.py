@@ -22,7 +22,7 @@ from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 from chemicalchecker.util import SNAPNetwork
 from chemicalchecker.util import LinkPrediction
-from chemicalchecker.tool import Node2Vec  # , AdaNet, Traintest
+from chemicalchecker.tool import Node2Vec, AdaNet, Traintest
 
 
 @logged
@@ -71,7 +71,9 @@ class sign2(BaseSignature):
             sign1(sign1): Signature type 1.
             neig1(neig1): Nearest neighbor of type 1.
         """
+        #########
         # step 1: Node2Vec (learn graph embedding) input is neig1
+        #########
         self.__log.debug('Node2Vec on %s' % sign1)
         n2v = Node2Vec(executable=Config().TOOLS.node2vec_exec)
         # use neig1 to generate the Node2Vec input graph (as edgelist)
@@ -87,6 +89,7 @@ class sign2(BaseSignature):
                 n2v.to_edgelist(sign1, neig1, graph_file)
         # save graph stats
         graph_stat_file = os.path.join(self.stats_path, 'graph_stats.json')
+        graph = None
         if not reuse or not os.path.isfile(graph_stat_file):
             graph = SNAPNetwork.from_file(graph_file)
             graph.stats_toJSON(graph_stat_file)
@@ -104,31 +107,34 @@ class sign2(BaseSignature):
         # save link prediction stats
         linkpred_file = os.path.join(self.stats_path, 'linkpred.json')
         if not reuse or not os.path.isfile(linkpred_file):
-            graph = SNAPNetwork.from_file(graph_file)
+            if not graph:
+                graph = SNAPNetwork.from_file(graph_file)
             linkpred = LinkPrediction(self, graph)
             linkpred.performance.toJSON(linkpred_file)
-        """
+        #########
         # step 2: AdaNet (learn to predict sign2 from sign1 without Node2Vec)
+        #########
         self.__log.debug('AdaNet fit %s with Node2Vec output' % sign1)
         adanet_params = self.params['adanet']
         adanet_path = os.path.join(self.model_path, 'adanet')
         if not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
         if adanet_params:
-            ada = AdaNet(model_path=adanet_path, **adanet_params)
+            ada = AdaNet(model_dir=adanet_path, **adanet_params)
         else:
-            ada = AdaNet(model_path=adanet_path)
+            ada = AdaNet(model_dir=adanet_path)
         # prepare train-test file
         traintest_file = os.path.join(adanet_path, 'traintest.h5')
         Traintest.create(sign1.data_path, self.data_path, traintest_file)
         # learn NN with AdaNet
         ada.train_and_evaluate(traintest_file)
-        self.__log.debug('model saved to %s' % self.model_path)
-        """
+        # save AdaNet performances
+        adanet_perf = os.path.join(self.stats_path, 'adanet_perf.pkl')
+        ada.save_performances(adanet_perf)
+        self.__log.debug('model saved to %s' % adanet_path)
 
     def predict(self, sign1):
         """Use the learned model to predict the signature."""
-        """
         # load AdaNet model
         adanet_path = os.path.join(self.model_path, 'adanet')
         self.__log.debug('loading model from %s' % adanet_path)
@@ -137,7 +143,6 @@ class sign2(BaseSignature):
         self.__log.debug('AdaNet predict %s' % sign1)
         ada.prepare_predict(sign1.data_path)
         return ada.predict()
-        """
 
     def statistics(self):
         """Perform a statistics """

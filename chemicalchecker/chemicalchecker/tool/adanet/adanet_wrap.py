@@ -1,7 +1,14 @@
 import h5py
 import adanet
 import numpy as np
+import pandas as pd
+from time import time
 import tensorflow as tf
+import cPickle as pickle
+from scipy.stats import pearsonr
+from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.metrics import explained_variance_score
+from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import ShuffleSplit
 
 from .dnn_generator import SimpleDNNGenerator
@@ -32,12 +39,6 @@ class Traintest(object):
         """Open the HDF5."""
         self._f = h5py.File(self._file, 'r')
         self.__log.info("HDF5 open %s", self._file)
-        self.__log.debug("**** SHAPES ****")
-        self.__log.debug("x_train %s", self._f["x_train"].shape)
-        self.__log.debug("y_train %s", self._f["y_train"].shape)
-        self.__log.debug("x_test %s", self._f["x_test"].shape)
-        self.__log.debug("y_test %s", self._f["y_test"].shape)
-        self.__log.debug("**** SHAPES ****")
 
     def close(self):
         """Close the HDF5."""
@@ -81,6 +82,12 @@ class Traintest(object):
             fh.create_dataset('y_train', data=Y[train], dtype=np.float32)
             fh.create_dataset('x_test', data=X[test], dtype=np.float32)
             fh.create_dataset('y_test', data=Y[test], dtype=np.float32)
+            Traintest.__log.debug("**** SHAPES ****")
+            Traintest.__log.debug("x_train %s", fh["x_train"].shape)
+            Traintest.__log.debug("y_train %s", fh["y_train"].shape)
+            Traintest.__log.debug("x_test %s", fh["x_test"].shape)
+            Traintest.__log.debug("y_test %s", fh["y_test"].shape)
+            Traintest.__log.debug("**** SHAPES ****")
         fh.close()
         Traintest.__log.info('Traintest saved to %s', out_filename)
 
@@ -126,16 +133,17 @@ class AdaNetWrapper(object):
         self.batch_size = int(kwargs.get("batch_size", 32))
         self.learn_mixture_weights = kwargs.get("learn_mixture_weights", True)
         self.adanet_lambda = kwargs.get("adanet_lambda", 0.001)
-        self.boosting_iterations = int(kwargs.get("boosting_iterations", 100))
+        self.boosting_iterations = int(kwargs.get("boosting_iterations", 64))
         self.random_seed = int(kwargs.get("random_seed", 42))
         self.model_dir = kwargs.get("model_dir", None)
         self.activation = kwargs.get("activation", tf.nn.relu)
-        self.layer_size = int(kwargs.get("layer_size", 8))
+        self.layer_size = int(kwargs.get("layer_size", 32))
         self.shuffles = int(kwargs.get("shuffles", 10))
         self.results = None
         self.estimator = None
 
     def train_and_evaluate(self, traintest_file):
+        self.starttime = time()
 
         self.traintest_file = traintest_file
         with h5py.File(traintest_file, 'r') as hf:
@@ -253,21 +261,133 @@ class AdaNetWrapper(object):
             yield_single_examples=False)
         return predict_results
 
+    def save_performances(self, output_file):
+        self.time = time() - self.starttime
 
-"""
-import h5py
-from vec4bio.algorithms import Adanet
+        df = pd.DataFrame(columns=[
+            'dataset', 'r2', 'pearson_avg', 'pearson_std', 'algo', 'mse',
+            'explained_variance', 'time', 'architecture', 'nr_variables'])
+        with h5py.File(self.traintest_file, 'r') as hf:
+            y_train = hf['y_train'][:]
+            y_test = hf['y_test'][:]
 
-traintest_file = './train_test/E1.TRAIN_TEST.h5'
-ad = Adanet(model_dir='./models/E1/', train_step=100)
-estimator, results = ad.train_and_evaluate(traintest_file)
+        # Performances for AdaNet on TRAIN
+        self.__log.info("Performances for AdaNet on TRAIN")
+        y_train_pred = [y['predictions'] for y in self.predict("train")]
+        y_train_pred = np.concatenate(y_train_pred)
+        row_train = dict()
+        row_train['algo'] = 'AdaNet'
+        row_train['dataset'] = 'train'
+        row_train['r2'] = r2_score(y_train, y_train_pred)
+        pps = [pearsonr(y_train[:, x], y_train_pred[:, x])[0]
+               for x in range(self.label_dimension)]
+        row_train['pearson_avg'] = np.mean(pps)
+        row_train['pearson_std'] = np.std(pps)
+        row_train['mse'] = mean_squared_error(y_train, y_train_pred)
+        row_train['explained_variance'] = explained_variance_score(
+            y_train, y_train_pred)
+        row_train['time'] = self.time
+        row_train['architecture'] = self.architecture()
+        for k, v in row_train.items():
+            if isinstance(v, float):
+                self.__log.debug("{:<24} {:>4.3f}".format(k, v))
+            else:
+                self.__log.debug("{:<24} {}".format(k, v))
 
-with h5py.File(traintest_file, 'r') as hf:
-    x_test = hf['x_test'][:]
-    y_test = hf['y_test'][:]
+        # Performances for AdaNet on TEST
+        self.__log.info("Performances for AdaNet on TEST")
+        y_test_pred = [y['predictions'] for y in self.predict("test")]
+        y_test_pred = np.concatenate(y_test_pred)
+        row_test = dict()
+        row_test['algo'] = 'AdaNet'
+        row_test['dataset'] = 'test'
+        row_test['r2'] = r2_score(y_test, y_test_pred)
+        pps = [pearsonr(y_test[:, x], y_test_pred[:, x])[0]
+               for x in range(self.label_dimension)]
+        row_test['pearson_avg'] = np.mean(pps)
+        row_test['pearson_std'] = np.std(pps)
+        row_test['mse'] = mean_squared_error(y_test, y_test_pred)
+        row_test['explained_variance'] = explained_variance_score(
+            y_test, y_test_pred)
+        row_test['time'] = self.time
+        row_test['architecture'] = self.architecture()
+        for k, v in row_test.items():
+            if isinstance(v, float):
+                self.__log.debug("{:<24} {:>4.3f}".format(k, v))
+            else:
+                self.__log.debug("{:<24} {}".format(k, v))
 
-y_pred = ad.predict(x_test)
-from sklearn.metrics import r2_score, mean_squared_error
-print "R2", r2_score(y_test, y_pred)
-print "MSE", mean_squared_error(y_test, y_pred)
-"""
+        # get nr of variables in final model
+        tf.reset_default_graph()
+        latest_checkpoint = tf.train.latest_checkpoint(self.model_dir)
+        meta = latest_checkpoint + '.meta'
+        tf.train.import_meta_graph(meta)
+        nr_variables = np.sum([np.prod(v.get_shape().as_list())
+                               for v in tf.trainable_variables()])
+
+        # save rows
+        row_test["nr_variables"] = nr_variables
+        row_train["nr_variables"] = nr_variables
+        df.loc[len(df)] = pd.Series(row_test)
+        df.loc[len(df)] = pd.Series(row_train)
+        with open(output_file, 'wb') as fh:
+            pickle.dump(df, fh)
+
+        # compare to simple Linear Regression on TRAIN
+        self.__log.info("Performances for LinearRegression on TRAIN")
+        with h5py.File(self.traintest_file, 'r') as hf:
+            x_train = hf['x_train'][:]
+        t0 = time()
+        linreg = LinearRegression().fit(x_train, y_train)
+        t1 = time()
+        y_train_pred = linreg.predict(x_train)
+        row_train = dict()
+        row_train['algo'] = 'LinearRegression'
+        row_train['dataset'] = 'train'
+        row_train['r2'] = r2_score(y_train, y_train_pred)
+        pps = [pearsonr(y_train[:, x], y_train_pred[:, x])[0]
+               for x in range(self.label_dimension)]
+        row_train['pearson_avg'] = np.mean(pps)
+        row_train['pearson_std'] = np.std(pps)
+        row_train['mse'] = mean_squared_error(y_train, y_train_pred)
+        row_train['explained_variance'] = explained_variance_score(
+            y_train, y_train_pred)
+        row_train['time'] = t1 - t0
+        row_train['architecture'] = '| linear |'
+        row_train["nr_variables"] = self.label_dimension
+        for k, v in row_train.items():
+            if isinstance(v, float):
+                self.__log.debug("{:<24} {:>4.3f}".format(k, v))
+            else:
+                self.__log.debug("{:<24} {}".format(k, v))
+
+        # compare to simple Linear Regression on TEST
+        self.__log.info("Performances for LinearRegression on TEST")
+        with h5py.File(self.traintest_file, 'r') as hf:
+            x_test = hf['x_test'][:]
+        y_test_pred = linreg.predict(x_test)
+        row_test = dict()
+        row_test['algo'] = 'LinearRegression'
+        row_test['dataset'] = 'test'
+        row_test['r2'] = r2_score(y_test, y_test_pred)
+        pps = [pearsonr(y_test[:, x], y_test_pred[:, x])[0]
+               for x in range(self.label_dimension)]
+        row_test['pearson_avg'] = np.mean(pps)
+        row_test['pearson_std'] = np.std(pps)
+        row_test['mse'] = mean_squared_error(y_test, y_test_pred)
+        row_test['explained_variance'] = explained_variance_score(
+            y_test, y_test_pred)
+        row_test['time'] = t1 - t0
+        row_test['architecture'] = '| linear |'
+        row_test["nr_variables"] = self.label_dimension
+        for k, v in row_test.items():
+            if isinstance(v, float):
+                self.__log.debug("{:<24} {:>4.3f}".format(k, v))
+            else:
+                self.__log.debug("{:<24} {}".format(k, v))
+
+        # save rows
+        df.loc[len(df)] = pd.Series(row_test)
+        df.loc[len(df)] = pd.Series(row_train)
+        with open(output_file, 'wb') as fh:
+            pickle.dump(df, fh)
