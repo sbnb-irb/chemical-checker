@@ -40,7 +40,7 @@ class sign2(BaseSignature):
         BaseSignature.__init__(self, signature_path, dataset, **params)
         # generate needed paths
         self.data_path = os.path.join(signature_path, 'sign2.h5')
-        self.model_path = os.path.join(signature_path, 'model')
+        self.model_path = os.path.join(signature_path, 'models')
         if not os.path.isdir(self.model_path):
             os.makedirs(self.model_path)
         self.stats_path = os.path.join(signature_path, 'stats')
