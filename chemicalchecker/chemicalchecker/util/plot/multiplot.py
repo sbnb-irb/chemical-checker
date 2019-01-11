@@ -57,8 +57,8 @@ class MultiPlot():
                 colors.append(rgb2hex(250, 150, 50))
         return colors
 
-    def sign2_graph_stats(self):
-        """Plot the stats for the neig1 deirived graph."""
+    def sign2_stats(self):
+        """Plot the stats for sign2."""
 
         # plot selected stats
         stats = [
@@ -70,7 +70,9 @@ class MultiPlot():
             #"nonZIODegNodes",
             "Connected Components",
             "Degree",
-            "Weights"]
+            "Weights",
+            "AUC-ROC",
+            "MCC"]
         # the following are aggregated
         conncompo = [
             "SccSz",
@@ -96,31 +98,41 @@ class MultiPlot():
         for ds in tqdm(self.datasets):
             # get sign2 and stats file
             sign2 = self.cc.get_signature('sign2', 'reference', ds)
-            stats_file = os.path.join(sign2.stats_path, "graph_stats.json")
-            if not os.path.isfile(stats_file):
-                self.__log.warn('Graph stats %s not found', stats_file)
+            graph_file = os.path.join(sign2.stats_path, "graph_stats.json")
+            if not os.path.isfile(graph_file):
+                self.__log.warn('Graph stats %s not found', graph_file)
                 continue
-            tmp = json.load(open(stats_file, 'r'))
+            graph_stat = json.load(open(graph_file, 'r'))
+            linkpred_file = os.path.join(sign2.stats_path, "linkpred.json")
+            if not os.path.isfile(linkpred_file):
+                self.__log.warn('Graph stats %s not found', linkpred_file)
+                continue
+            liknpred_perf = json.load(open(linkpred_file, 'r'))
+            liknpred_perf = {k: float(v) for k, v in liknpred_perf.items()}
             # prepare row
             for deg in degrees:
                 row = dict()
-                row.update(tmp)
+                row.update(graph_stat)
+                row.update(liknpred_perf)
                 row.update({"dataset": ds})
-                row.update({"Degree": tmp[deg]})
+                row.update({"Degree": graph_stat[deg]})
                 df.loc[len(df)] = pd.Series(row)
             for conn in conncompo:
                 row = dict()
-                row.update(tmp)
+                row.update(graph_stat)
+                row.update(liknpred_perf)
                 row.update({"dataset": ds})
-                row.update({"Connected Components": tmp[conn]})
+                row.update({"Connected Components": graph_stat[conn]})
                 df.loc[len(df)] = pd.Series(row)
             for wei in weights:
                 row = dict()
-                row.update(tmp)
+                row.update(graph_stat)
+                row.update(liknpred_perf)
                 row.update({"dataset": ds})
-                row.update({"Weights": tmp[wei]})
+                row.update({"Weights": graph_stat[wei]})
                 df.loc[len(df)] = pd.Series(row)
 
+        df = df.infer_objects()
         sns.set(style="ticks")
         sns.set_context("talk", font_scale=1.)
         g = sns.PairGrid(df.sort_values("dataset", ascending=True),
@@ -136,16 +148,17 @@ class MultiPlot():
             ax.yaxis.grid(True)
 
         g.axes.flat[0].set_xscale("log")
-        g.axes.flat[0].set_xlim(1e4, 1e8)
+        g.axes.flat[0].set_xlim(1e3, 1e8)
         g.axes.flat[0].set_xlabel("Edges")
         g.axes.flat[1].set_xscale("log")
         g.axes.flat[1].set_xlim(1e2, 1e7)
         g.axes.flat[1].set_xlabel("Nodes")
-        g.axes.flat[-2].set_xscale("log")
-        g.axes.flat[-1].set_xscale("log")
+        g.axes.flat[3].set_xlim(min(df["Connected Components"].dropna()), 1.0)
+        g.axes.flat[-4].set_xscale("log")
+        g.axes.flat[-4].set_xlim(1)
         # g.axes.flat[-1].set_xlim(1e1,1e3)
         sns.despine(left=True, bottom=True)
 
-        outfile = os.path.join(self.plot_path, 'graph_stats.png')
+        outfile = os.path.join(self.plot_path, 'sign2_stats.png')
         plt.savefig(outfile, dpi=100)
         plt.close()
