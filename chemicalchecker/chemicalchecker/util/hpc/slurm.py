@@ -69,9 +69,16 @@ fi
             self.conn_params["password"] = config.HPC.password
         if not dry_run:
             try:
+                ssh_config = paramiko.SSHConfig()
+                user_config_file = os.path.expanduser("~/.ssh/config")
+                if os.path.exists(user_config_file):
+                    with open(user_config_file) as f:
+                        ssh_config.parse(f)
+                cfg = ssh_config.lookup(self.host)
                 ssh = paramiko.SSHClient()
                 ssh.load_system_host_keys()
-                ssh.connect(self.host, **self.conn_params)
+                ssh.connect(cfg['hostname'], username=cfg[
+                            'user'], key_filename=cfg['identityfile'][0])
             except paramiko.SSHException as sshException:
                 self.__log.warning(
                     "Unable to establish SSH connection: %s" % sshException)
@@ -191,7 +198,8 @@ fi
             ssh = paramiko.SSHClient()
             ssh.load_system_host_keys()
             ssh.connect(self.host, **self.conn_params)
-            stdin, stdout, stderr = ssh.exec_command(submit_string, get_pty=True)
+            stdin, stdout, stderr = ssh.exec_command(
+                submit_string, get_pty=True)
 
             job = stdout.readlines()
 
