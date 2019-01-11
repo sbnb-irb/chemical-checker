@@ -4,7 +4,7 @@ from .signature_base import BaseSignature
 
 
 @logged
-class clst1(BaseSignature):
+class clus1(BaseSignature):
     """A Signature bla bla."""
 
     def __init__(self, data_path, model_path, dataset_info):
