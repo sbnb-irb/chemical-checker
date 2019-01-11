@@ -6,7 +6,7 @@ imported and initialized.
 """
 from .sign0 import sign0
 from .sign1 import sign1
-from .clst1 import clst1
+from .clus1 import clus1
 from .neig1 import neig1
 from .sign2 import sign2
 from .proj1 import proj1
