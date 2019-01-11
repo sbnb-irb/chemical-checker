@@ -1,2 +1,2 @@
 from .node2vec import Node2Vec
-from .adanet import AdaNet
+#from .adanet import AdaNet, Traintest
