@@ -62,8 +62,8 @@ class MultiPlot():
 
         # plot selected stats
         stats = [
-            "edges",
             "nodes",
+            "edges",
             #"zeroNodes",
             "zeroInNodes",
             #"zeroOutNodes",
@@ -148,11 +148,11 @@ class MultiPlot():
             ax.yaxis.grid(True)
 
         g.axes.flat[0].set_xscale("log")
-        g.axes.flat[0].set_xlim(1e3, 1e8)
-        g.axes.flat[0].set_xlabel("Edges")
+        g.axes.flat[0].set_xlim(1e2, 1e7)
+        g.axes.flat[0].set_xlabel("Nodes")
         g.axes.flat[1].set_xscale("log")
-        g.axes.flat[1].set_xlim(1e2, 1e7)
-        g.axes.flat[1].set_xlabel("Nodes")
+        g.axes.flat[1].set_xlim(1e3, 1e8)
+        g.axes.flat[1].set_xlabel("Edges")
         g.axes.flat[3].set_xlim(min(df["Connected Components"].dropna()), 1.0)
         g.axes.flat[-4].set_xscale("log")
         g.axes.flat[-4].set_xlim(1)
