@@ -180,54 +180,6 @@ class Plot():
 
         return i90, ielb
 
-    # Background distribution of distances
-
-    def distance_background(self, inchikey_vec, inchikeys=None, B=100000, metric=cosine, unflat=True):
-
-        # Check if it is a numpy array
-        PVALRANGES = np.array([0, 0.001, 0.01, 0.1] +
-                              list(np.arange(1, 100)) + [100]) / 100.
-
-        if type(inchikey_vec).__module__ == np.__name__:
-            idxs = [i for i in xrange(inchikey_vec.shape[0])]
-            bg = []
-            for _ in xrange(B):
-                i, j = random.sample(idxs, 2)
-                bg += [metric(inchikey_vec[i, :], inchikey_vec[j, :])]
-
-        else:
-
-            if inchikeys is None:
-                inchikeys = np.array([k for k, v in inchikey_vec.iteritems()])
-
-            bg = []
-            for _ in xrange(B):
-                ik1, ik2 = random.sample(inchikeys, 2)
-                bg += [metric(inchikey_vec[ik1], inchikey_vec[ik2])]
-
-        i = 0
-        PVALS = [(0, 0., i)]  # DISTANCE, RANK, INTEGER
-        i += 1
-        percs = PVALRANGES[1:-1] * 100
-        for perc in percs:
-            PVALS += [(np.percentile(bg, perc), perc / 100., i)]
-            i += 1
-        PVALS += [(np.max(bg), 1., i)]
-
-        if not unflat:
-            return PVALS
-        else:
-            # Remove flat regions whenever we observe them
-            dists = [p[0] for p in PVALS]
-            pvals = np.array([p[1] for p in PVALS])
-            top_pval = np.min([1. / B, np.min(pvals[pvals > 0]) / 10.])
-            pvals[pvals == 0] = top_pval
-            pvals = np.log10(pvals)
-            dists_ = sorted(set(dists))
-            pvals_ = [pvals[dists.index(d)] for d in dists_]
-            dists = np.interp(pvals, pvals_, dists_)
-            return [(dists[t], PVALS[t][1], PVALS[t][2]) for t in xrange(len(PVALS))]
-
     # Validate using moa and KS test
 
     def _for_the_validation(self, inchikey_dict, prefix):
@@ -261,7 +213,7 @@ class Plot():
 
         return S, D, d
 
-    def label_validation(self, inchikey_lab, label_type, table=None, prefix="moa"):
+    def label_validation(self, inchikey_lab, label_type, prefix="moa"):
 
         S, D, d = self._for_the_validation(inchikey_lab, prefix)
 
