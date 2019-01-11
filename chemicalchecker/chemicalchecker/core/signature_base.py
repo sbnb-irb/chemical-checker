@@ -10,6 +10,7 @@ import os
 import six
 import json
 import h5py
+from bisect import bisect_left
 from abc import ABCMeta, abstractmethod
 
 from chemicalchecker.util import logged
@@ -113,15 +114,27 @@ class BaseSignature(object):
         BaseSignature.__log.debug('parsing data %s', self.data_path)
         yield
 
-    def __getattr__(self):
+    def __getitem__(self, key):
         """Return the vector corresponding to the key.
 
+        The key can be a string (then it's mapped though self.keys()) or and
+        int.
         Works fast with bisect, but should return None if the key is not in
-        keys (ideally, keep a set to do this).."""
-        BaseSignature.__log.debug('__getattr__')
+        keys (ideally, keep a set to do this)."""
         if not os.path.isfile(self.data_path):
             raise Exception("Data file not available.")
-        yield
+        if isinstance(key, slice):
+            with h5py.File(self.data_path, 'r') as hf:
+                return hf['V'][key]
+        elif isinstance(key, str):
+            idx = bisect_left(self.keys(), key)
+            with h5py.File(self.data_path, 'r') as hf:
+                return hf['V'][idx]
+        elif isinstance(key, int):
+            with h5py.File(self.data_path, 'r') as hf:
+                return hf['V'][key]
+        else:
+            raise Exception("Key type %s not recognized." % type(key))
 
     def __repr__(self):
         """String representig the signature."""
