@@ -1,36 +1,542 @@
+from csvsort import csvsort
+import csv
+import h5py
+import json
 import os
-from chemicalchecker.util import logged
+import glob
+import bisect
+from chemicalchecker.util import logged, Plot, Config
 from .signature_base import BaseSignature
+from scipy.spatial.distance import euclidean
+from scipy.spatial.distance import pdist
+from sklearn.preprocessing import Normalizer
+from sklearn.externals import joblib
+try:
+    import faiss
+    import hdbscan
+except ImportError:
+    pass
+import datetime
+import numpy as np
+import shelve
+import tempfile
 
 
 @logged
-class clst1(BaseSignature):
+class clus1(BaseSignature):
     """A Signature bla bla."""
 
-    def __init__(self, data_path, model_path, dataset_info):
-        """From the recipe we derive all the cleaning logic."""
-        self.__log.debug('data_path: %s', data_path)
-        self.data_path = data_path
-        self.__log.debug('model_path: %s', model_path)
-        self.model_path = model_path
-        # edit model_path to the specific model
-        BaseSignature.__init__(self, data_path, model_path, dataset_info)
+    def __init__(self, signature_path, dataset_info, **params):
+        """Initialize the signature.
 
-    def fit(self, features):
+        Args:
+            signature_path(str): the path to the signature directory.
+            metric(str): The metric used in the KNN algorithm: euclidean or cosine (default: cosine)
+            k_neig(int): The number of k neighbours to search for (default:1000)
+            cpu(int): The number of cores to use (default:1)
+        """
+        # Calling init on the base class to trigger file existance checks
+        BaseSignature.__init__(
+            self, signature_path, dataset_info, **params)
+        self.__log.debug('signature path is: %s', signature_path)
+        self.data_path = os.path.join(signature_path, "clus1.h5")
+        self.__log.debug('data_path: %s', self.data_path)
+        self.__log.debug('param file: %s', self.param_file)
+        self.clustencoder_file = "clustencoder.h5"
+        self.clustcentroids_file = "clustcentroids.h5"
+        self.clust_info_file = "clust_stats.json"
+        self.clust_output = 'clust.h5'
+        self.bg_pq_euclideans_file = "bg_pq_euclideans.h5"
+        self.hdbscan_file = "hdbscan.pkl"
+
+        self.type = "kmeans"
+        self.cpu = 1
+        self.k_neig = None
+        self.min_members = 5
+        self.num_subdim = 8
+        self.min_k = 1
+        self.max_k = None
+        self.n_points = 100
+        self.balance = None
+        self.significance = 0.05
+        self.metric = "euclidean"
+        for param, value in params.items():
+            self.__log.debug('parameter %s : %s', param, value)
+            if "metric" in params:
+                self.metric = params["metric"]
+            if "cpu" in params:
+                self.cpu = params["cpu"]
+            if "k_neig" in params:
+                self.k_neig = params["k_neig"]
+            if "min_members" in params:
+                self.min_members = params["min_members"]
+            if "num_subdim" in params:
+                self.num_subdim = params["num_subdim"]
+            if "min_k" in params:
+                self.min_k = params["min_k"]
+            if "max_k" in params:
+                self.max_k = params["max_k"]
+            if "n_points" in params:
+                self.n_points = params["n_points"]
+            if "balance" in params:
+                self.balance = params["balance"]
+            if "significance" in params:
+                self.significance = params["significance"]
+
+    def fit(self, sign1, validations=True):
         """Take an input and learns to produce an output."""
         BaseSignature.fit(self)
-        self.__log.debug('KMeans fit %s' % features)
-        self.__log.debug('saving model to %s' % self.model_path)
-        os.touch(self.model_path)
 
-    def predict(self, features):
+        plot = Plot(self.dataset_info, self.stats_path)
+
+        if os.path.isfile(sign1.data_path):
+            dh5 = h5py.File(sign1.data_path)
+            if "keys" not in dh5.keys() or "V" not in dh5.keys():
+                raise Exception(
+                    "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
+            self.data = np.array(dh5["V"][:], dtype=np.float32)
+            self.data_type = dh5["V"].dtype
+            self.keys = dh5["keys"][:]
+            dh5.close()
+
+        else:
+            raise Exception("The file " + sign1.data_path + " does not exist")
+
+        tmp_dir = tempfile.mkdtemp(
+            prefix='clus1_' + self.dataset_info.code + "_", dir=Config().PATH.CC_TMP)
+
+        self.__log.debug("Temporary files saved in " + tmp_dir)
+
+        if self.type == "hdbscan":
+            self.__log.info("Calculating HDBSCAN clusters")
+
+            clusterer = hdbscan.HDBSCAN(min_cluster_size=int(
+                np.max([2, self.min_members])), prediction_data=True).fit(self.data)
+
+            self.__log.info("Saving the model")
+
+            joblib.dump(clusterer, os.path.join(
+                self.model_path, self.hdbscan_file))
+
+            self.__log.info("Predicting...")
+
+            labels, strengths = hdbscan.approximate_predict(
+                clusterer, self.data)
+
+            # Save
+
+            self.__log.info("Saving matrix...")
+
+            with h5py.File(self.data_path, "w") as hf:
+                hf.create_dataset("labels", data=labels)
+                hf.create_dataset("keys", data=self.keys)
+                hf.create_dataset("strengths", data=strengths)
+
+            if validations:
+
+                self.__log.info("Doing validations")
+
+                inchikey_clust = shelve.open(
+                    os.path.join(tmp_dir, "clus1.dict"), "n")
+                for i in xrange(len(self.keys)):
+                    lab = labels[i]
+                    if lab == -1:
+                        continue
+                    inchikey_clust[str(self.keys[i])] = lab
+                odds_moa, pval_moa = plot.label_validation(
+                    inchikey_clust, "clust", prefix="moa")
+                odds_atc, pval_atc = plot.label_validation(
+                    inchikey_clust, "clust", prefix="atc")
+                inchikey_clust.close()
+
+            self.__log.info("Cleaning")
+            for filename in glob.glob(os.path.join(tmp_dir, "clus1.dict*")):
+                os.remove(filename)
+
+            os.rmdir(tmp_dir)
+
+            with h5py.File(self.data_path, "a") as hf:
+                hf.create_dataset(
+                    "name", data=[str(self.dataset_info.code) + "_clust"])
+                hf.create_dataset(
+                    "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+                hf.create_dataset("metric", data=["hdbscan"])
+                hf.create_dataset("normed", data=[False])
+                hf.create_dataset("integerized", data=[False])
+                hf.create_dataset("principal_components", data=[False])
+
+        if self.type == "kmeans":
+
+            faiss.omp_set_num_threads(self.cpu)
+
+            dh5 = h5py.File(sign1.data_path)
+            if "elbow" not in dh5.keys():
+                Vn, Vm = self.data.shape[0], self.data.shape[1] / 2
+            else:
+                Vn, Vm = self.data.shape[0], dh5["elbow"][0]
+
+            if self.metric == "cosine":
+                self.data = self._normalizer(self.data, False)
+
+            if self.data.shape[1] < self.num_subdim:
+                self.data = np.hstack((self.data, np.zeros(
+                    (self.data.shape[0], self.num_subdim - self.data.shape[1]))))
+
+            self.__log.info("Calculating k...")
+            # Do reference distributions for the gap statistic
+
+            if not self.max_k:
+                self.max_k = int(np.sqrt(self.data.shape[0]))
+
+            if self.k_neig is None:
+
+                cluster_range = np.arange(self.min_k, self.max_k, step=np.max(
+                    [int((self.max_k - self.min_k) / self.n_points), 1]))
+                inertias = []
+                disps = []
+                bg_distances = sign1.background_distances("euclidean")
+
+                pvals = bg_distances["pvalue"]
+                distance = bg_distances["distance"]
+
+                sig_dist = distance[
+                    bisect.bisect_left(pvals, self.significance)]
+
+                for k in cluster_range:
+                    niter = 20
+                    d = self.data.shape[1]
+                    kmeans = faiss.Kmeans(d, k, niter)
+                    kmeans.train(self.data)
+                    D, labels = kmeans.index.search(self.data, 1)
+                    inertias += [self._inertia(self.data,
+                                               labels, kmeans.centroids)]
+                    disps += [self._dispersion(kmeans.centroids, sig_dist)]
+                disps[0] = disps[1]
+
+                # Smooting, monotonizing, and combining the scores
+
+                Ncs = np.arange(self.min_k, self.max_k)
+                D = self._minmaxscaler(np.interp(Ncs, cluster_range, self._smooth(
+                    self._monotonize(np.array(disps), True), self.max_k)))
+                I = self._minmaxscaler(np.interp(Ncs, cluster_range, self._smooth(
+                    self._monotonize(np.array(inertias), False), self.max_k)))
+
+                alpha = Vm / (Vm + np.sqrt(Vn / 2.))
+
+                S = np.abs((I**(1 - alpha)) - (D**(alpha)))
+                S = self._minmaxscaler(-self._smooth(S, self.max_k))
+
+                k = plot.clustering_plot(Ncs, I, D, S)
+            else:
+                k = self.k_neig
+
+            self.__log.info("Clustering with k = %d" % k)
+
+            niter = 20
+            d = self.data.shape[1]
+            kmeans = faiss.Kmeans(d, k, niter)
+            kmeans.train(self.data)
+            D, labels = kmeans.index.search(self.data, 1)
+
+            centroids = kmeans.centroids
+
+            with h5py.File(os.path.join(self.model_path, self.clustcentroids_file), "w") as hf:
+                hf.create_dataset("centroids", data=centroids)
+
+            self.__log.info("Balancing...")
+            labels = self._get_balance(self.data, centroids,
+                                       labels, self.balance, k, tmp_dir)
+
+            self.__log.info("Saving matrix...")
+
+            with h5py.File(self.data_path, "w") as hf:
+                hf.create_dataset("labels", data=labels)
+                hf.create_dataset("keys", data=self.keys)
+                hf.create_dataset("V", data=self.data)
+
+            if validations:
+                # MOA validation
+
+                self.__log.info("Doing validations")
+                odds_moa = 0
+                pval_moa = 0
+                odds_atc = 0
+                pval_atc = 0
+                # inchikey_clust = shelve.open(
+                #     os.path.join(tmp_dir, "clus1.dict"), "n")
+                # for i in xrange(len(self.keys)):
+                #     inchikey_clust[str(self.keys[i])] = labels[i]
+                # odds_moa, pval_moa = plot.label_validation(
+                #     inchikey_clust, "clust", prefix="moa")
+                # odds_atc, pval_atc = plot.label_validation(
+                #     inchikey_clust, "clust", prefix="atc")
+                # inchikey_clust.close()
+
+            self.__log.info("Cleaning")
+            for filename in glob.glob(os.path.join(tmp_dir, "clus1.dict*")):
+                os.remove(filename)
+
+            os.rmdir(tmp_dir)
+
+            with h5py.File(self.data_path, "a") as hf:
+                hf.create_dataset(
+                    "name", data=[str(self.dataset_info.code) + "_clust"])
+                hf.create_dataset(
+                    "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+                hf.create_dataset("metric", data=[self.metric])
+                hf.create_dataset("normed", data=[False])
+                hf.create_dataset("integerized", data=[False])
+                hf.create_dataset("principal_components", data=[False])
+
+            faiss.write_index(kmeans.index, os.path.join(
+                self.model_path, "kmeans.index"))
+
+            if self.k_neig is None and validations:
+                self.__log.info("Saving info")
+                INFO = {
+                    "k": k,
+                    "odds_moa": odds_moa,
+                    "pval_moa": pval_moa,
+                    "odds_atc": odds_atc,
+                    "pval_atc": pval_atc
+                }
+                with open(os.path.join(self.model_path, self.clust_info_file), 'w') as fp:
+                    json.dump(INFO, fp)
+
+    def predict(self, sign1, destination=None, validations=False):
         """Use the fitted models to go from input to output."""
         BaseSignature.predict(self)
-        self.__log.debug('loading model from %s' % self.model_path)
-        self.__log.debug('KMeans predict %s' % features)
-        return 'clst1_pred'
+        plot = Plot(self.dataset_info, self.stats_path)
 
-    def validate(self, validation_set):
+        if os.path.isfile(sign1.data_path):
+            dh5 = h5py.File(sign1.data_path)
+            if "keys" not in dh5.keys() or "V" not in dh5.keys():
+                raise Exception(
+                    "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
+            self.data = np.array(dh5["V"][:], dtype=np.float32)
+            self.data_type = dh5["V"].dtype
+            self.keys = dh5["keys"][:]
+            dh5.close()
+
+        else:
+            raise Exception("The file " + sign1.data_path + " does not exist")
+
+        if destination is None:
+            raise Exception(
+                "Predict method requires a destination file to output results")
+
+        tmp_dir = tempfile.mkdtemp(
+            prefix='sign1_' + self.dataset_info.code + "_", dir=Config().PATH.CC_TMP)
+
+        self.__log.debug("Temporary files saved in " + tmp_dir)
+
+        if self.type == "hdbscan":
+            self.__log.info("Reading HDBSCAN clusters")
+
+            clusterer = joblib.load(os.path.join(
+                self.model_path, self.hdbscan_file))
+
+            self.__log.info("Predicting...")
+
+            labels, strengths = hdbscan.approximate_predict(
+                clusterer, self.data)
+
+            # Save
+
+            self.__log.info("Saving matrix...")
+
+            with h5py.File(destination, "w") as hf:
+                hf.create_dataset("labels", data=labels)
+                hf.create_dataset("keys", data=self.keys)
+                hf.create_dataset("strengths", data=strengths)
+
+            if validations:
+
+                self.__log.info("Doing validations")
+
+                inchikey_clust = shelve.open(
+                    os.path.join(tmp_dir, "clus1.dict"), "n")
+                for i in xrange(len(self.keys)):
+                    lab = labels[i]
+                    if lab == -1:
+                        continue
+                    inchikey_clust[str(self.keys[i])] = lab
+                odds_moa, pval_moa = plot.label_validation(
+                    inchikey_clust, "clust", prefix="moa")
+                odds_atc, pval_atc = plot.label_validation(
+                    inchikey_clust, "clust", prefix="atc")
+                inchikey_clust.close()
+
+            self.__log.info("Cleaning")
+            for filename in glob.glob(os.path.join(tmp_dir, "clus1.dict*")):
+                os.remove(filename)
+
+            os.rmdir(tmp_dir)
+
+            with h5py.File(destination, "a") as hf:
+                hf.create_dataset(
+                    "name", data=[str(self.dataset_info.code) + "_clust"])
+                hf.create_dataset(
+                    "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+                hf.create_dataset("metric", data=["hdbscan"])
+                hf.create_dataset("normed", data=[False])
+                hf.create_dataset("integerized", data=[False])
+                hf.create_dataset("principal_components", data=[False])
+
+        if self.type == "kmeans":
+
+            faiss.omp_set_num_threads(self.cpu)
+
+            if not os.path.isfile(os.path.join(self.model_path, "kmeans.index")):
+                raise Exception(
+                    "There is not cluster info. Please run fit method.")
+
+            if self.metric == "cosine":
+                self.data = self._normalizer(self.data, False)
+
+            index = faiss.read_index(os.path.join(
+                self.model_path, "kmeans.index"))
+
+            D, labels = index.search(self.data, 1)
+
+            self.__log.info("Saving matrix...")
+
+            with h5py.File(destination, "w") as hf:
+                hf.create_dataset("labels", data=labels)
+                hf.create_dataset("keys", data=self.keys)
+                hf.create_dataset("V", data=self.data)
+
+            if validations:
+                # MOA validation
+
+                self.__log.info("Doing validations")
+
+                # inchikey_clust = shelve.open(
+                #     os.path.join(tmp_dir, "clus1.dict"), "n")
+                # for i in xrange(len(self.keys)):
+                #     inchikey_clust[str(self.keys[i])] = labels[i]
+                # odds_moa, pval_moa = plot.label_validation(
+                #     inchikey_clust, "clust", prefix="moa")
+                # odds_atc, pval_atc = plot.label_validation(
+                #     inchikey_clust, "clust", prefix="atc")
+                # inchikey_clust.close()
+
+            self.__log.info("Cleaning")
+            for filename in glob.glob(os.path.join(tmp_dir, "clus1.dict*")):
+                os.remove(filename)
+
+            os.rmdir(tmp_dir)
+
+            with h5py.File(destination, "a") as hf:
+                hf.create_dataset(
+                    "name", data=[str(self.dataset_info.code) + "_clust"])
+                hf.create_dataset(
+                    "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+                hf.create_dataset("metric", data=["euclidean"])
+                hf.create_dataset("normed", data=[False])
+                hf.create_dataset("integerized", data=[False])
+                hf.create_dataset("principal_components", data=[False])
+
+    def statistics(self, validation_set):
         """Perform a validation across external data as MoA and ATC codes."""
-        BaseSignature.validate(self)
+        BaseSignature.statistics(self)
         self.__log.debug('KMeans validate on %s' % validation_set)
+
+    def _smooth(self, x, max_k, window_len=None, window='hanning'):
+        if window_len is None:
+            window_len = int(max_k / 10) + 1
+        if window_len % 2 == 0:
+            window_len += 1
+        if x.size < window_len:
+            raise ValueError(
+                "Input vector needs to be bigger than window size.")
+        if window_len < 3:
+            return x
+        if window not in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+            raise ValueError(
+                "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
+        s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
+        if window == 'flat':  # moving average
+            w = np.ones(window_len, 'd')
+        else:
+            w = eval('np.' + window + '(window_len)')
+        n = int((window_len - 1) / 2)
+        y = np.convolve(w / w.sum(), s, mode='valid')
+        return y[n:-n]
+
+    def _inertia(self, V_pqcode, labels, centroids):
+        ines = 0
+        for i in xrange(V_pqcode.shape[0]):
+            ines += euclidean(V_pqcode[i], centroids[labels[i]])
+        return ines
+
+    def _dispersion(self, centroids, sig_dist):
+        if len(centroids) == 1:
+            return None
+        return np.sum(pdist(centroids, metric=euclidean) < sig_dist)
+
+    def _monotonize(self, v, up=True):
+        if up:
+            return np.mean(np.array([np.maximum.accumulate(v), np.minimum.accumulate(v[::-1])[::-1]]), axis=0)
+        else:
+            return np.mean(np.array([np.minimum.accumulate(v), np.maximum.accumulate(v[::-1])[::-1]]), axis=0)
+
+    def _minmaxscaler(self, v):
+        v = np.array(v)
+        Min = np.min(v)
+        Max = np.max(v)
+        return (v - Min) / (Max - Min)
+
+    def _get_balance(self, V_pqcode, centroids, labels, balance, k, tmp):
+
+        if balance is None:
+            return labels
+
+        if balance < 1:
+            self.__log.info(
+                "Balance is smaller than 1. I don't understand. Anyway, I just don't balance.")
+            return labels
+
+        S = np.ceil((V_pqcode.shape[0] / k) * balance)
+
+        clusts = [None] * V_pqcode.shape[0]
+        counts = [0] * k
+
+        tmpfile = os.path.join(tmp, "clus1_dists.csv")
+
+        with open(tmpfile, "w") as f:
+
+            for i, v in enumerate(V_pqcode):
+                for j, c in enumerate(centroids):
+                    d = euclidean(c, v)
+                    f.write("%d,%d,%010d\n" % (i, j, d))
+
+        csvsort(tmpfile, [2], has_header=False)
+
+        with open(tmpfile, "r") as f:
+            for r in csv.reader(f):
+                item_id = int(r[0])
+                cluster_id = int(r[1])
+                if counts[cluster_id] >= S:
+                    continue
+                if clusts[item_id] is None:
+                    clusts[item_id] = cluster_id
+                    counts[cluster_id] += 1
+
+        os.remove(tmpfile)
+
+        return clusts
+
+    def _normalizer(self, V, recycle):
+
+        FILE = self.model_path + "/normalizer.pkl"
+
+        if not recycle or not os.path.exists(FILE):
+            nlz = Normalizer(copy=True, norm="l2")
+            V = nlz.fit_transform(V)
+            joblib.dump(nlz, FILE)
+        else:
+            nlz = joblib.load(FILE)
+            V = nlz.transform(V)
+
+        return V.astype(np.float32)
