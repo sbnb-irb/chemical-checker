@@ -88,6 +88,15 @@ From: centos
     pip install tqdm # handy progress-bar
     # graph packages
     pip install networkx # graph data stracture and algos
+
+    ## install SNAP.py
+    wget  https://snap.stanford.edu/snappy/release/snap-4.1.0-4.1-centos6.5-x64-py2.6.tar.gz
+    tar zxvf snap-4.1.0-4.1-centos6.5-x64-py2.6.tar.gz
+    cd snap-4.1.0-4.1-centos6.5-x64-py2.6
+    python setup.py install
+    cd ..
+    rm snap-4.1.0-4.1-centos6.5-x64-py2.6 -rf
+
     # visualization packages
     pip install matplotlib # chart library :)
     pip install seaborn # prettier graph built on top of matplotlib
