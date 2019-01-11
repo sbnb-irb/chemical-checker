@@ -194,7 +194,7 @@ class clus1(BaseSignature):
                     [int((self.max_k - self.min_k) / self.n_points), 1]))
                 inertias = []
                 disps = []
-                bg_distances = sign1.background_distances("euclidean")
+                bg_distances = sign1.background_distances(self.metric)
 
                 pvals = bg_distances["pvalue"]
                 distance = bg_distances["distance"]
