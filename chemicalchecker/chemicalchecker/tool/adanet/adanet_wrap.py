@@ -1,17 +1,23 @@
-import adanet
-try:
-    import tensorflow as tf
-except:
-    pass
-from .dnn_generator import SimpleDNNGenerator
 import h5py
+import adanet
+import numpy as np
+import tensorflow as tf
+from sklearn.model_selection import ShuffleSplit
+
+from .dnn_generator import SimpleDNNGenerator
+from chemicalchecker.util import logged
 
 
-class TraintestHDF5Reader(object):
-    """Convenience batch reader from HDF5 files."""
+@logged
+class Traintest(object):
+    """Convenience batch reader from HDF5 files.
+
+    This class allow creation and access to HDF5 train-test sets and expose
+    the generator functions which tensorflow likes.
+    """
 
     def __init__(self, hdf5_file, partition, batch_size):
-        """Initialize the reader.
+        """Initialize the traintest object.
 
         We assume the file is containing train and test split i.e.
         x_train, y_train, x_test, y_test
@@ -25,39 +31,63 @@ class TraintestHDF5Reader(object):
     def open(self):
         """Open the HDF5."""
         self._f = h5py.File(self._file, 'r')
-        print("HDF5 open", self._file)
-        print("**** SHAPES ****")
-        print("x_train", self._f["x_train"].shape)
-        print("y_train", self._f["y_train"].shape)
-        print("x_test", self._f["x_test"].shape)
-        print("y_test", self._f["y_test"].shape)
-        print("**** SHAPES ****")
+        self.__log.info("HDF5 open %s", self._file)
+        self.__log.debug("**** SHAPES ****")
+        self.__log.debug("x_train %s", self._f["x_train"].shape)
+        self.__log.debug("y_train %s", self._f["y_train"].shape)
+        self.__log.debug("x_test %s", self._f["x_test"].shape)
+        self.__log.debug("y_test %s", self._f["y_test"].shape)
+        self.__log.debug("**** SHAPES ****")
 
     def close(self):
         """Close the HDF5."""
         try:
             self._f.close()
-            print("HDF5 close", self._file)
+            self.__log.info("HDF5 close %s", self._file)
         except AttributeError:
-            print('HDF5 file is not open yet.')
+            self.__log.error('HDF5 file is not open yet.')
 
     def get_xy(self, beg_idx, end_idx):
         """Get the batch."""
-        #print("HDF5 get_xy", beg_idx, end_idx)
         features = self._f[self.x_name][beg_idx: end_idx]
         labels = self._f[self.y_name][beg_idx: end_idx]
         return features, labels
 
     def get_x(self, beg_idx, end_idx):
         """Get the batch."""
-        #print("HDF5 get_x", beg_idx, end_idx)
         features = self._f[self.x_name][beg_idx: end_idx]
         return features
 
     @staticmethod
+    def create(sign_from, sign_to, out_filename):
+        """Create the HDF5 file with both X and Y, train and test."""
+        # get type1
+        with h5py.File(sign_from, 'r') as fh:
+            X = fh['V'][:]
+            check_X = fh['keys'][:]
+        X = np.asarray(X, dtype=np.float32)
+        # get type2
+        with h5py.File(sign_to, 'r') as fh:
+            Y = fh['V'][:]
+            check_Y = fh['keys'][:]
+        assert(np.array_equal(check_X, check_Y))
+        Traintest.__log.info('shapes X %s  Y %s', X.shape, Y.shape)
+        # train test split
+        sp = ShuffleSplit(n_splits=1, train_size=0.8, random_state=0)
+        train, test = list(sp.split(X))[0]
+        # create dataset
+        with h5py.File(out_filename, "w") as fh:
+            fh.create_dataset('x_train', data=X[train], dtype=np.float32)
+            fh.create_dataset('y_train', data=Y[train], dtype=np.float32)
+            fh.create_dataset('x_test', data=X[test], dtype=np.float32)
+            fh.create_dataset('y_test', data=Y[test], dtype=np.float32)
+        fh.close()
+        Traintest.__log.info('Traintest saved to %s', out_filename)
+
+    @staticmethod
     def generator_fn(file_name, partition, batch_size=None, only_x=False):
         """Return the generator function that we can query for batches."""
-        reader = TraintestHDF5Reader(file_name, partition, batch_size)
+        reader = Traintest(file_name, partition, batch_size)
         reader.open()
         x_shape = reader._f[reader.x_name].shape
         y_shape = reader._f[reader.y_name].shape
@@ -72,7 +102,6 @@ class TraintestHDF5Reader(object):
                 if beg_idx >= total:
                     beg_idx = 0
                     epoch += 1
-                    print("\n*********** EPOCH ***********\n")
                     return
                 if only_x:
                     yield reader.get_x(beg_idx, end_idx)
@@ -83,6 +112,7 @@ class TraintestHDF5Reader(object):
         return x_shape, y_shape, example_generator_fn
 
 
+@logged
 class AdaNetWrapper(object):
     """Wrapper class adapted from scripted examples on AdaNet's github.
 
@@ -92,15 +122,15 @@ class AdaNetWrapper(object):
 
     def __init__(self, **kwargs):
         self.learning_rate = kwargs.get("learning_rate", 0.001)
-        self.train_step = int(kwargs.get("train_step", 100000))
+        self.train_step = int(kwargs.get("train_step", 1000000))
         self.batch_size = int(kwargs.get("batch_size", 32))
         self.learn_mixture_weights = kwargs.get("learn_mixture_weights", True)
-        self.adanet_lambda = kwargs.get("adanet_lambda", 0.15)
-        self.boosting_iterations = int(kwargs.get("boosting_iterations", 5))
+        self.adanet_lambda = kwargs.get("adanet_lambda", 0.001)
+        self.boosting_iterations = int(kwargs.get("boosting_iterations", 100))
         self.random_seed = int(kwargs.get("random_seed", 42))
         self.model_dir = kwargs.get("model_dir", None)
         self.activation = kwargs.get("activation", tf.nn.relu)
-        self.layer_size = int(kwargs.get("layer_size", 32))
+        self.layer_size = int(kwargs.get("layer_size", 8))
         self.shuffles = int(kwargs.get("shuffles", 10))
         self.results = None
         self.estimator = None
@@ -179,7 +209,7 @@ class AdaNetWrapper(object):
     def input_fn(self, partition, training):
         """Generate an input function for the Estimator."""
         def _input_fn():
-            x_shape, y_shape, generator_fn = TraintestHDF5Reader.generator_fn(
+            x_shape, y_shape, generator_fn = Traintest.generator_fn(
                 self.traintest_file, partition, self.batch_size)
 
             dataset = tf.data.Dataset.from_generator(
@@ -203,7 +233,7 @@ class AdaNetWrapper(object):
     def test_input_fn(self, partition):
         """Generate a test input function for the Estimator."""
         def _input_fn():
-            x_shape, y_shape, generator_fn = TraintestHDF5Reader.generator_fn(
+            x_shape, y_shape, generator_fn = Traintest.generator_fn(
                 self.traintest_file, partition, self.batch_size, only_x=True)
 
             dataset = tf.data.Dataset.from_generator(

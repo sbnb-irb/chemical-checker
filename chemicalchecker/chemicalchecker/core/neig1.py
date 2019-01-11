@@ -176,3 +176,11 @@ class neig1(BaseSignature):
         """Perform a validation across external data as MoA and ATC codes."""
         BaseSignature.statistics(self)
         self.__log.debug('Faiss kNN validate on %s' % validation_set)
+
+    def __iter__(self):
+        """Iterate on neighbours indeces and distances."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            for i in range(self.shape[0]):
+                yield hf['indices'][i], hf['distances'][i]

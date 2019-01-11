@@ -6,5 +6,7 @@ from .download import Downloader
 from .hpc import HPC
 from .parser import Parser, Converter, PropCalculator
 from .psql import psql
-from .plot import Plot
+from .plot import Plot, MultiPlot
 from .remove_near_duplicates import RNDuplicates
+from .network import SNAPNetwork
+from .performance import LinkPrediction
