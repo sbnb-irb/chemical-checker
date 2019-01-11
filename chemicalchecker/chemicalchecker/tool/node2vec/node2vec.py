@@ -24,8 +24,9 @@ import h5py
 import subprocess
 import numpy as np
 import distutils.spawn
+from datetime import datetime
 from bisect import bisect_left
-from chemicalchecker.util import logged, profile
+from chemicalchecker.util import logged
 
 
 @logged
@@ -87,35 +88,35 @@ class Node2Vec():
         We need to map back from sign1 ids to inchikeys and sort.
         """
         self.__log.info("Converting %s to %s" % (in_file, out_file))
+        inchikeys = sign1.keys()
         with open(in_file, 'r') as fh:
             words = list()
             vectors = list()
             fh.next()  # skip first row
-            skipped = 0
             for line in fh:
                 fields = line.split()
                 # first colum is id
-                word = int(fields[0])
-                # then embedding
+                word = inchikeys[int(fields[0])]
+                # rest is embedding
                 vector = np.fromiter((float(x) for x in fields[1:]),
-                                     dtype=np.float)
+                                     dtype=np.float32)
                 words.append(word)
                 vectors.append(vector)
+        # consistency check
+        assert(len(words) == len(inchikeys))
+        assert(len(words) == len(vectors))
         # to numpy arrays
         words = np.array(words)
         matrix = np.array(vectors)
         # get them sorted
         sorted_idx = np.argsort(words)
-        self.__log.info('words: %s' % str(words.shape))
-        self.__log.info('matrix: %s' % str(matrix.shape))
-        self.__log.info('skipped: %s' % skipped)
-        sign1 = h5py.File(sign1, 'r')
-        names = sign1['inchikeys'][:]
-        with h5py.File(out_file, "w") as fh:
-            fh.create_dataset('inchikeys', data=names[words[sorted_idx]])
-            fh.create_dataset('V', data=matrix[sorted_idx])
+        with h5py.File(out_file, "w") as hf:
+            hf.create_dataset('keys', data=words[sorted_idx])
+            hf.create_dataset('V', data=matrix[sorted_idx], dtype=np.float32)
+            hf.create_dataset("shape", data=matrix.shape)
+            hf.create_dataset(
+                "date", data=[datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
 
-    #@profile
     def to_edgelist(self, sign1, neig1, out_file, **params):
         """Convert Nearest-neighbor to an edgelist.
 
