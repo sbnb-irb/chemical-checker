@@ -25,4 +25,4 @@ class TestChemicalChecker(unittest.TestCase):
         file = os.path.join(self.data_dir, 'test_remove.h5')
         rnd = RNDuplicates(only_duplicates=True)
         keys, data, maps = rnd.remove(file)
-        self.assertTrue(len(keys) == 4685)
+        self.assertTrue(len(keys) == 3648)

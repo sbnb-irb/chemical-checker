@@ -41,7 +41,8 @@ class TestPropCalculator(unittest.TestCase):
 
         expected = {'raw': 'c42,c64,c80,c90,c121,c137,c170,c175,c254,c301,c314,c352,c356,c389,c432,c446,c458,c524,c528,c588,c624,c642,c650,c707,c709,c726,c730,c731,c751,c804,c849,c879,c887,c896,c900,c901,c926,c935,c938,c956,c984,c1019,f2,f4,f29,f33,f45,f80,f105,f133,f135,f152,f200,f226,f268,f285,f301,f327,f366,f400,f402,f427,f484,f622,f626,f647,f740,f832,f835,f842,f861,f887,f890,f926,f937,f1015,f1019',
                     'inchikey': 'YXKFPFQIDHAWAU-XAZDILKDSA-N'}
-        self.assertDictEqual(expected, results[0])
+        output = next(item for item in results if item["inchikey"] == "YXKFPFQIDHAWAU-XAZDILKDSA-N")
+        self.assertDictEqual(expected, output)
 
     #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
     def test_subskeys(self):
@@ -53,4 +54,5 @@ class TestPropCalculator(unittest.TestCase):
 
         expected = {'raw': '19,34,37,54,72,75,77,80,83,85,89,90,91,92,95,96,97,99,100,101,105,106,110,111,117,118,120,121,122,125,127,128,129,131,136,137,138,139,140,142,143,144,145,146,147,148,150,152,153,154,155,156,157,158,159,161,162,163,164,165',
                     'inchikey': 'YXKFPFQIDHAWAU-XAZDILKDSA-N'}
-        self.assertDictEqual(expected, results[0])
+        output = next(item for item in results if item["inchikey"] == "YXKFPFQIDHAWAU-XAZDILKDSA-N")
+        self.assertDictEqual(expected, output)
