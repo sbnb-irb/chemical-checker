@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from time import time
 import tensorflow as tf
-import cPickle as pickle
+import pickle
 from scipy.stats import pearsonr
 from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.metrics import explained_variance_score
