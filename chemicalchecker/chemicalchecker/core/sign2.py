@@ -18,6 +18,7 @@ automatically learning high-quality models with minimal expert intervention.
 """
 import os
 from .signature_base import BaseSignature
+from chemicalchecker.util import Plot
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 from chemicalchecker.util import SNAPNetwork
@@ -117,7 +118,7 @@ class sign2(BaseSignature):
         self.__log.debug('AdaNet fit %s with Node2Vec output' % sign1)
         adanet_params = self.params['adanet']
         adanet_path = os.path.join(self.model_path, 'adanet')
-        if not os.path.isdir(adanet_path):
+        if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
         if adanet_params:
             ada = AdaNet(model_dir=adanet_path, **adanet_params)
@@ -125,12 +126,16 @@ class sign2(BaseSignature):
             ada = AdaNet(model_dir=adanet_path)
         # prepare train-test file
         traintest_file = os.path.join(adanet_path, 'traintest.h5')
-        Traintest.create(sign1.data_path, self.data_path, traintest_file)
+        if not reuse or not os.path.isdir(traintest_file):
+            Traintest.create(sign1.data_path, self.data_path, traintest_file)
         # learn NN with AdaNet
         ada.train_and_evaluate(traintest_file)
-        # save AdaNet performances
-        adanet_perf = os.path.join(self.stats_path, 'adanet_perf.pkl')
-        ada.save_performances(adanet_perf)
+        # save AdaNet performances and plots
+        adanet_stats = os.path.join(self.stats_path, 'adanet')
+        if not reuse or not os.path.isdir(adanet_stats):
+            os.makedirs(adanet_stats)
+        sign2_plot = Plot(self.dataset, adanet_stats)
+        ada.save_performances(adanet_stats, sign2_plot)
         self.__log.debug('model saved to %s' % adanet_path)
 
     def predict(self, sign1):
