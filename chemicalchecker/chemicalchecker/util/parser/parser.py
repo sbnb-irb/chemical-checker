@@ -40,7 +40,7 @@ class Parser():
         file_path = file_path[0]
         fh = open(os.path.join(file_path), "r")
         # skip header
-        header = fh.next()
+        header = fh.readline()
         header_rows = 1
         header = header.rstrip("\n").split("\t")
         # get indexes
