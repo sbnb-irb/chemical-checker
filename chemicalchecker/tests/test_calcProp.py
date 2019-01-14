@@ -31,7 +31,7 @@ class TestPropCalculator(unittest.TestCase):
         output = next(item for item in results if item["inchikey"] == "YXKFPFQIDHAWAU-XAZDILKDSA-N")
         self.assertDictEqual(expected, output)
 
-    @pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
     def test_scaffolds(self):
 
         chunks = list(PropCalculator.scaffolds(self.inchikey_inchi))
@@ -43,7 +43,7 @@ class TestPropCalculator(unittest.TestCase):
                     'inchikey': 'YXKFPFQIDHAWAU-XAZDILKDSA-N'}
         self.assertDictEqual(expected, results[0])
 
-    @pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
     def test_subskeys(self):
 
         chunks = list(PropCalculator.subskeys(self.inchikey_inchi))
