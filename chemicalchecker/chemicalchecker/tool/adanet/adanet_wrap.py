@@ -137,7 +137,7 @@ class AdaNetWrapper(object):
         self.random_seed = int(kwargs.get("random_seed", 42))
         self.model_dir = kwargs.get("model_dir", None)
         self.activation = kwargs.get("activation", tf.nn.relu)
-        self.layer_size = int(kwargs.get("layer_size", 32))
+        self.layer_size = int(kwargs.get("layer_size", 8))
         self.shuffles = int(kwargs.get("shuffles", 10))
         self.results = None
         self.estimator = None
