@@ -1,7 +1,8 @@
-image: python:3.6
+image: conda/miniconda3-centos7:latest
 
 before_script:
   - pip install tox
+  - pip install tox-conda
 
 test:
   script:
