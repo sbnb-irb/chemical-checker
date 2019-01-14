@@ -24,6 +24,9 @@ from sklearn.metrics import roc_curve, roc_auc_score
 import matplotlib as mpl
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
+import matplotlib.patheffects as path_effects
+from sklearn.metrics import r2_score, mean_squared_error
+from scipy import stats
 
 random.seed(42)
 np.random.seed(42)
@@ -533,3 +536,71 @@ class Plot():
         ylim = ax.axes.get_ylim()
 
         return xlim, ylim
+
+    def sign2_plot(self, y_true, y_pred, predictor_name):
+
+        coord = self.dataset_info.coordinate
+        self.__log.info("sign2 %s predicted vs. actual %s",
+                        coord, predictor_name)
+        min_val = min(np.min(y_true), np.min(y_pred))
+        max_val = max(np.max(y_true), np.max(y_pred))
+        # we are assuming a dimension of 128 components
+        f, axarr = plt.subplots(
+            8, 16, sharex=True, sharey=True, figsize=(60, 30))
+        for comp, ax in zip(range(128), axarr.flatten()):
+            rsquare = r2_score(y_true[:, comp], y_pred[:, comp])
+            slope, intercept, r_value, p_value, std_err = stats.linregress(
+                y_true[:, comp], y_pred[:, comp])
+            # for plotting we subsample randomly
+            nr_samples = len(y_true[:, comp])
+            if nr_samples > 10000:
+                mask = np.random.choice(
+                    range(nr_samples), 10000, replace=False)
+                x = y_true[:, comp][mask]
+                y = y_pred[:, comp][mask]
+            else:
+                x = y_true[:, comp]
+                y = y_pred[:, comp]
+            ax.scatter(x, y, color=self._coord_color(coord), marker='.',
+                       alpha=0.3, zorder=2)
+            # add lines
+            ax.plot([min_val, max_val],
+                    [min_val * slope + intercept, max_val * slope + intercept],
+                    color=self._coord_color(coord))
+            ax.plot([min_val, max_val], [min_val, max_val], '--',
+                    color=self._coord_color(coord))
+            ax.axhline(0, min_val, max_val, ls='--',
+                       lw=0.5, color='grey', zorder=1)
+            ax.axvline(0, min_val, max_val, ls='--',
+                       lw=0.5, color='grey', zorder=1)
+            # fix limits considering all components dynamic range
+            ax.set_xlim(min_val, max_val)
+            ax.set_ylim(min_val, max_val)
+            # add R square stat
+            cmap = plt.cm.get_cmap('jet_r')
+            txt = ax.text(0.05, 0.85, "$R^2$: {:.2f}".format(rsquare),
+                          transform=ax.transAxes,
+                          size=30, color=cmap(rsquare / 2))
+            txt.set_path_effects([path_effects.Stroke(
+                linewidth=1, foreground='black'), path_effects.Normal()])
+            # this would be the intercept
+            txt2 = ax.text(0.2, 0.05,
+                           "$y = {:.2f}x {:+.2f}$".format(slope, intercept),
+                           transform=ax.transAxes,
+                           size=20, color='k')
+            """
+            # following would make one plot for each component (takes too long)
+            g = sns.JointGrid(x=y_true[:, comp], y=y_pred[:, comp], space=0)
+            g = g.plot_joint(sns.regplot, color="r")
+            g = g.plot_joint(sns.kdeplot, cmap="Greys")
+            g = g.plot_marginals(sns.kdeplot, color="r", shade=True)
+            rsquare = lambda a, b: stats.pearsonr(a, b)[0] ** 2
+            g = g.annotate(rsquare, template="{stat}: {val:.2f}",
+                           stat="$R^2$", loc="upper left", fontsize=12)
+            plt.savefig('pred_vs_true_%s_%s.png' % (coord, comp), dpi=100)
+            """
+        f.tight_layout()
+        filename = os.path.join(
+            self.plot_path, "pred_vs_true_%s.png" % predictor_name)
+        plt.savefig(filename, dpi=60)
+        plt.close()
