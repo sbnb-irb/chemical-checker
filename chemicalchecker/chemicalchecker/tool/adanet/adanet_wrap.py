@@ -1,3 +1,4 @@
+import os
 import h5py
 import adanet
 import numpy as np
@@ -13,6 +14,7 @@ from sklearn.model_selection import ShuffleSplit
 
 from .dnn_generator import SimpleDNNGenerator
 from chemicalchecker.util import logged
+from chemicalchecker.util import Plot
 
 
 @logged
@@ -141,6 +143,18 @@ class AdaNetWrapper(object):
         self.shuffles = int(kwargs.get("shuffles", 10))
         self.results = None
         self.estimator = None
+        self.__log.info("**** AdaNet Parameters: ***")
+        self.__log.info("train_step: {:>12}".format(self.train_step))
+        self.__log.info("batch_size: {:>12}".format(self.batch_size))
+        self.__log.info("learn_mixture_weights: {:>12}".format(
+            self.learn_mixture_weights))
+        self.__log.info("adanet_lambda: {:>12}".format(self.adanet_lambda))
+        self.__log.info("boosting_iterations: {:>12}".format(
+            self.boosting_iterations))
+        self.__log.info("random_seed: {:>12}".format(self.random_seed))
+        self.__log.info("model_dir: {:>12}".format(self.model_dir))
+        self.__log.info("activation: {:>12}".format(self.activation))
+        self.__log.info("layer_size: {:>12}".format(self.layer_size))
 
     def train_and_evaluate(self, traintest_file):
         self.starttime = time()
@@ -261,7 +275,7 @@ class AdaNetWrapper(object):
             yield_single_examples=False)
         return predict_results
 
-    def save_performances(self, output_file):
+    def save_performances(self, output_dir, plot):
         self.time = time() - self.starttime
 
         df = pd.DataFrame(columns=[
@@ -293,6 +307,8 @@ class AdaNetWrapper(object):
                 self.__log.debug("{:<24} {:>4.3f}".format(k, v))
             else:
                 self.__log.debug("{:<24} {}".format(k, v))
+        # save plot
+        plot.sign2_plot(y_train, y_train_pred, "AdaNet_TRAIN")
 
         # Performances for AdaNet on TEST
         self.__log.info("Performances for AdaNet on TEST")
@@ -316,6 +332,8 @@ class AdaNetWrapper(object):
                 self.__log.debug("{:<24} {:>4.3f}".format(k, v))
             else:
                 self.__log.debug("{:<24} {}".format(k, v))
+        # save plot
+        plot.sign2_plot(y_test, y_test_pred, "AdaNet_TEST")
 
         # get nr of variables in final model
         tf.reset_default_graph()
@@ -330,6 +348,7 @@ class AdaNetWrapper(object):
         row_train["nr_variables"] = nr_variables
         df.loc[len(df)] = pd.Series(row_test)
         df.loc[len(df)] = pd.Series(row_train)
+        output_file = os.path.join(output_dir, 'stats.pkl')
         with open(output_file, 'wb') as fh:
             pickle.dump(df, fh)
 
@@ -360,6 +379,8 @@ class AdaNetWrapper(object):
                 self.__log.debug("{:<24} {:>4.3f}".format(k, v))
             else:
                 self.__log.debug("{:<24} {}".format(k, v))
+        # save plot
+        plot.sign2_plot(y_train, y_train_pred, "LinearRegression_TRAIN")
 
         # compare to simple Linear Regression on TEST
         self.__log.info("Performances for LinearRegression on TEST")
@@ -385,6 +406,8 @@ class AdaNetWrapper(object):
                 self.__log.debug("{:<24} {:>4.3f}".format(k, v))
             else:
                 self.__log.debug("{:<24} {}".format(k, v))
+        # save plot
+        plot.sign2_plot(y_test, y_test_pred, "LinearRegression_TEST")
 
         # save rows
         df.loc[len(df)] = pd.Series(row_test)
