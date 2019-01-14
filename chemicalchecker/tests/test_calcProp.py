@@ -18,7 +18,7 @@ class TestPropCalculator(unittest.TestCase):
         for ele in results:
             self.inchikey_inchi[str(ele["inchikey"])] = str(ele["inchi"])
 
-    @pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
     def test_fp2d(self):
 
         chunks = list(PropCalculator.fp2d(self.inchikey_inchi))

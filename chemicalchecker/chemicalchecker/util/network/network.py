@@ -228,11 +228,11 @@ class SNAPNetwork():
 
     def print_nodes(self):
         for node in self.nodes():
-            print node
+            print (node)
 
     def print_edges(self):
         for edge in self.edges():
-            print edge
+            print (edge)
 
     def save(self, filename):
         FOut = snap.TFOut(filename)
