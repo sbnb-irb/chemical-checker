@@ -4,7 +4,7 @@ import os
 from chemicalchecker.util import logged
 import timeout_decorator
 #try:
-from e3fp import pipeline
+#from e3fp import pipeline
 from rdkit.Chem import AllChem as Chem
 from rdkit.Chem import Descriptors, rdMolDescriptors
 from rdkit.Chem.Scaffolds import MurckoScaffold
