@@ -28,7 +28,8 @@ class TestPropCalculator(unittest.TestCase):
 
         expected = {'raw': '80,92,264,314,352,389,458,588,624,642,650,694,731,804,807,879,935,940,984,996,997,1019,1066,1088,1145,1199,1257,1328,1366,1380,1404,1456,1470,1487,1488,1503,1645,1750,1754,1775,1800,1820,1847,1873,1911,1920',
                     'inchikey': 'YXKFPFQIDHAWAU-XAZDILKDSA-N'}
-        self.assertDictEqual(expected, results[0])
+        output = next(item for item in results if item["inchikey"] == "YXKFPFQIDHAWAU-XAZDILKDSA-N")
+        self.assertDictEqual(expected, output)
 
     @pytest.mark.skip(reason="RDKit is not available on test enviroment")
     def test_scaffolds(self):
