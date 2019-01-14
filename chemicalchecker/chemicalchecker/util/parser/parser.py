@@ -327,7 +327,7 @@ class Parser():
             if col < 0:
                 raise Exception("Missing expected input files")
             fh = open(file, "r")
-            fh.next()
+            fh.readline()
             for idx, line in enumerate(csv.reader(fh, delimiter="\t")):
                 if not line[col] or line[col] == "-666":
                     continue
@@ -392,7 +392,7 @@ class Parser():
             raise Exception("This parser expect a single input file.")
         file_path = file_path[0]
         g = open(file_path, "r")
-        g.next()
+        g.readline()
         chunk = list()
         for l in csv.reader(g, delimiter="\t"):
             if not l[6]:
@@ -429,7 +429,7 @@ class Parser():
         csv_path = file_path[:-4] + ".csv"
         data_xls.to_csv(csv_path, encoding='utf-8')
         f = open(csv_path, "r")
-        f.next()
+        f.readline()
         chunk = list()
         for l in csv.reader(f):
             src_id, smi = l[0], l[5]
@@ -511,7 +511,7 @@ class Parser():
 
         with open(stitch_file, "r") as f:
             stitch = {}
-            f.next()
+            f.readline()
             for r in csv.reader(f, delimiter="\t"):
                 if r[0] not in S:
                     continue
