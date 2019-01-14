@@ -117,7 +117,7 @@ class RNDuplicates():
             indexlsh.add(self.data)
 
             indexes = faiss.vector_to_array(
-                indexlsh.codes).reshape(-1, indexlsh.nbits / 8)
+                indexlsh.codes).reshape(-1, int(indexlsh.nbits / 8))
 
             buckets = defaultdict(list)
 
