@@ -99,7 +99,7 @@ class neig1(BaseSignature):
         fout.create_dataset("distances", data=D)
         fout.create_dataset("shape", data=D.shape)
         fout.create_dataset(
-            "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+            "date", data=[str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))])
         fout.create_dataset("metric", data=[self.metric])
 
         fout.close()
