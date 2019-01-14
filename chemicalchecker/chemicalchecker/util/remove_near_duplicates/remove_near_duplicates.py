@@ -124,7 +124,7 @@ class RNDuplicates():
             for i in range(len(indexes)):
                 buckets[indexes[i].tobytes()].append(i)
 
-            for key, value in buckets.iteritems():
+            for key, value in buckets.items():
                 if(len(value) > 1):
                     chosen = random.choice(value)
                     self.final_ids.append(chosen)
