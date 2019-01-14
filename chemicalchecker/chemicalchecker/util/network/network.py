@@ -3,7 +3,10 @@
 Provides mean of accessing a network/graph.
 """
 import os
-import snap
+try:
+    import snap
+except ImportError:
+    pass
 import json
 import numpy as np
 
