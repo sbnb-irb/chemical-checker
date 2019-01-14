@@ -21,7 +21,8 @@ class TestClus1(unittest.TestCase):
     def tearDown(self):
         if os.path.exists(self.cc_root):
             shutil.rmtree(self.cc_root)
-        os.remove(os.path.join(self.data_dir, "test_clus1.h5"))
+        if os.path.isfile(os.path.join(self.data_dir, "test_clus1.h5")):
+            os.remove(os.path.join(self.data_dir, "test_clus1.h5"))
 
     #@pytest.mark.skip(reason="Faiss is not available on test enviroment")
     def test_clus1(self):
@@ -48,6 +49,9 @@ class TestClus1(unittest.TestCase):
 
         clus1_ref.predict(sign1, os.path.join(self.data_dir, "test_clus1.h5"))
 
+        self.assertTrue(os.path.isfile(
+            os.path.join(self.data_dir, "test_clus1.h5")))
+
         with h5py.File(os.path.join(self.data_dir, "test_clus1.h5")) as hf:
             labels_pred = hf["labels"][:]
 
@@ -58,9 +62,8 @@ class TestClus1(unittest.TestCase):
 
         self.assertTrue(np.array_equal(labels, labels_pred))
 
-
     def background_distances(self, metric=None):
-       
+
         bg_distances = {}
         if metric == "cosine":
             bg_file = os.path.join(self.model_path, "bg_cosine_distances.h5")

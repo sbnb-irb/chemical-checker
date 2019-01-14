@@ -9,7 +9,7 @@
     "DB": {
     	"dialect": "'postgresql'",
     	"port":  "'5432'",
-    	"host": "'aloy-dbsrv'",
+    	"host": "'aloy-dbsrv.irbbarcelona.pcb.ub.es'",
     	"user": "'sbnb-adm'",
     	"password": "'db_adm'",
     	"database": "'mosaic'"
