@@ -146,11 +146,11 @@ class MultiEdgeNetwork():
 
     def print_nodes(self, node_type):
         for node in self.nodes(node_type, data=True):
-            print node
+            print (node)
 
     def print_edges(self, edge_type):
         for edge in self.edges(edge_type, data=True):
-            print edge
+            print (edge)
 
 
 @logged
