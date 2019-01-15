@@ -276,7 +276,7 @@ class clus1(BaseSignature):
             if self.k_neig is None and validations:
                 self.__log.info("Saving info")
                 INFO = {
-                    "k": k,
+                    "k": int(k),
                     "odds_moa": odds_moa,
                     "pval_moa": pval_moa,
                     "odds_atc": odds_atc,
@@ -428,7 +428,8 @@ class clus1(BaseSignature):
                     "name", data=[name.encode(encoding='UTF-8', errors='strict')])
                 hf.create_dataset(
                     "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
-                hf.create_dataset("metric", data=["euclidean"])
+                hf.create_dataset("metric", data=[self.metric.encode(
+                    encoding='UTF-8', errors='strict')])
                 hf.create_dataset("normed", data=[False])
                 hf.create_dataset("integerized", data=[False])
                 hf.create_dataset("principal_components", data=[False])
