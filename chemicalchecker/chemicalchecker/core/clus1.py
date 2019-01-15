@@ -206,7 +206,7 @@ class clus1(BaseSignature):
                     niter = 20
                     d = self.data.shape[1]
                     print (self.data.shape)
-                    kmeans = faiss.Kmeans(d, k, niter)
+                    kmeans = faiss.Kmeans(int(d), int(k), niter)
                     kmeans.train(self.data)
                     D, labels = kmeans.index.search(self.data, 1)
                     inertias += [self._inertia(self.data,
