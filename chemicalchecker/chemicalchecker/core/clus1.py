@@ -155,15 +155,7 @@ class clus1(BaseSignature):
 
             os.rmdir(tmp_dir)
 
-            with h5py.File(self.data_path, "a") as hf:
-                hf.create_dataset(
-                    "name", data=[str(self.dataset_info.code) + "_clust"])
-                hf.create_dataset(
-                    "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
-                hf.create_dataset("metric", data=["hdbscan"])
-                hf.create_dataset("normed", data=[False])
-                hf.create_dataset("integerized", data=[False])
-                hf.create_dataset("principal_components", data=[False])
+            self.metric = "hdbscan"
 
         if self.type == "kmeans":
 
@@ -278,16 +270,6 @@ class clus1(BaseSignature):
 
             os.rmdir(tmp_dir)
 
-            with h5py.File(self.data_path, "a") as hf:
-                hf.create_dataset(
-                    "name", data=[str(self.dataset_info.code) + "_clust"])
-                hf.create_dataset(
-                    "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
-                hf.create_dataset("metric", data=[self.metric])
-                hf.create_dataset("normed", data=[False])
-                hf.create_dataset("integerized", data=[False])
-                hf.create_dataset("principal_components", data=[False])
-
             faiss.write_index(kmeans.index, os.path.join(
                 self.model_path, "kmeans.index"))
 
@@ -302,6 +284,18 @@ class clus1(BaseSignature):
                 }
                 with open(os.path.join(self.model_path, self.clust_info_file), 'w') as fp:
                     json.dump(INFO, fp)
+
+        with h5py.File(self.data_path, "a") as hf:
+            name = str(self.dataset_info.code) + "_clus1"
+            hf.create_dataset(
+                "name", data=[name.encode(encoding='UTF-8', errors='strict')])
+            hf.create_dataset(
+                "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
+            hf.create_dataset("metric", data=[self.metric.encode(
+                encoding='UTF-8', errors='strict')])
+            hf.create_dataset("normed", data=[False])
+            hf.create_dataset("integerized", data=[False])
+            hf.create_dataset("principal_components", data=[False])
 
     def predict(self, sign1, destination=None, validations=False):
         """Use the fitted models to go from input to output."""
@@ -374,10 +368,11 @@ class clus1(BaseSignature):
             os.rmdir(tmp_dir)
 
             with h5py.File(destination, "a") as hf:
+                name = str(self.dataset_info.code) + "_clus1"
                 hf.create_dataset(
-                    "name", data=[str(self.dataset_info.code) + "_clust"])
+                    "name", data=[name.encode(encoding='UTF-8', errors='strict')])
                 hf.create_dataset(
-                    "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+                    "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
                 hf.create_dataset("metric", data=["hdbscan"])
                 hf.create_dataset("normed", data=[False])
                 hf.create_dataset("integerized", data=[False])
@@ -428,10 +423,11 @@ class clus1(BaseSignature):
             os.rmdir(tmp_dir)
 
             with h5py.File(destination, "a") as hf:
+                name = str(self.dataset_info.code) + "_clus1"
                 hf.create_dataset(
-                    "name", data=[str(self.dataset_info.code) + "_clust"])
+                    "name", data=[name.encode(encoding='UTF-8', errors='strict')])
                 hf.create_dataset(
-                    "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+                    "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
                 hf.create_dataset("metric", data=["euclidean"])
                 hf.create_dataset("normed", data=[False])
                 hf.create_dataset("integerized", data=[False])
