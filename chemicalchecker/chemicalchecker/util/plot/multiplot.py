@@ -57,7 +57,43 @@ class MultiPlot():
                 colors.append(rgb2hex(250, 150, 50))
         return colors
 
-    def sign2_stats(self):
+    def sign2_adanet_stats(self, metric):
+        # read stats fields
+        sign2 = self.cc.get_signature('sign2', 'reference', 'E5.001')
+        stat_file = os.path.join(sign2.stats_path, 'adanet', 'stats.pkl')
+        df = pd.read_pickle(stat_file)
+        # merge all stats to pandas
+        df = pd.DataFrame(columns=['coordinate'] + list(df.columns))
+        for ds in tqdm(self.datasets):
+            sign2 = self.cc.get_signature('sign2', 'reference', ds)
+            stat_file = os.path.join(sign2.stats_path, 'adanet', 'stats.pkl')
+            if not os.path.isfile(stat_file):
+                continue
+            tmpdf = pd.read_pickle(stat_file)
+            tmpdf['coordinate'] = ds
+            df = df.append(tmpdf, ignore_index=True)
+
+        sns.set_style("white")
+        fig, axes = plt.subplots(5, 5, sharey=True, figsize=(10, 10))
+        show_legend = False
+        for coord, ax in zip(self.datasets, axes.flatten()):
+            pdf = pd.DataFrame(df[df.coordinate == coord])
+            sns.scatterplot(data=pdf, x="algo", y=metric, ax=ax,
+                            style="dataset",
+                            legend=show_legend, markers=True,
+                            palette=[self.cc_palette([coord]), 'grey'])
+            #ax.set_ylim(0.0, 1)
+            ax.yaxis.grid(True)
+            ax.xaxis.grid(False)
+            ax.set_title(coord)
+            ax.set_xlabel('')
+        plt.tight_layout()
+
+        outfile = os.path.join(self.plot_path, 'sign2_adanet_stats.png')
+        plt.savefig(outfile, dpi=100)
+        plt.close('all')
+
+    def sign2_node2vec_stats(self):
         """Plot the stats for sign2."""
 
         # plot selected stats
@@ -105,7 +141,7 @@ class MultiPlot():
             graph_stat = json.load(open(graph_file, 'r'))
             linkpred_file = os.path.join(sign2.stats_path, "linkpred.json")
             if not os.path.isfile(linkpred_file):
-                self.__log.warn('Graph stats %s not found', linkpred_file)
+                self.__log.warn('Node2vec stats %s not found', linkpred_file)
                 continue
             liknpred_perf = json.load(open(linkpred_file, 'r'))
             liknpred_perf = {k: float(v) for k, v in liknpred_perf.items()}
@@ -159,6 +195,6 @@ class MultiPlot():
         # g.axes.flat[-1].set_xlim(1e1,1e3)
         sns.despine(left=True, bottom=True)
 
-        outfile = os.path.join(self.plot_path, 'sign2_stats.png')
+        outfile = os.path.join(self.plot_path, 'sign2_node2vec_stats.png')
         plt.savefig(outfile, dpi=100)
-        plt.close()
+        plt.close('all')
