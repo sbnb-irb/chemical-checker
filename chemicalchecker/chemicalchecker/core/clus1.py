@@ -138,7 +138,7 @@ class clus1(BaseSignature):
 
                 inchikey_clust = shelve.open(
                     os.path.join(tmp_dir, "clus1.dict"), "n")
-                for i in xrange(len(self.keys)):
+                for i in range(len(self.keys)):
                     lab = labels[i]
                     if lab == -1:
                         continue
@@ -265,7 +265,7 @@ class clus1(BaseSignature):
                 pval_atc = 0
                 # inchikey_clust = shelve.open(
                 #     os.path.join(tmp_dir, "clus1.dict"), "n")
-                # for i in xrange(len(self.keys)):
+                # for i in range(len(self.keys)):
                 #     inchikey_clust[str(self.keys[i])] = labels[i]
                 # odds_moa, pval_moa = plot.label_validation(
                 #     inchikey_clust, "clust", prefix="moa")
@@ -357,7 +357,7 @@ class clus1(BaseSignature):
 
                 inchikey_clust = shelve.open(
                     os.path.join(tmp_dir, "clus1.dict"), "n")
-                for i in xrange(len(self.keys)):
+                for i in range(len(self.keys)):
                     lab = labels[i]
                     if lab == -1:
                         continue
@@ -414,7 +414,7 @@ class clus1(BaseSignature):
 
                 # inchikey_clust = shelve.open(
                 #     os.path.join(tmp_dir, "clus1.dict"), "n")
-                # for i in xrange(len(self.keys)):
+                # for i in range(len(self.keys)):
                 #     inchikey_clust[str(self.keys[i])] = labels[i]
                 # odds_moa, pval_moa = plot.label_validation(
                 #     inchikey_clust, "clust", prefix="moa")
@@ -467,7 +467,7 @@ class clus1(BaseSignature):
 
     def _inertia(self, V_pqcode, labels, centroids):
         ines = 0
-        for i in xrange(V_pqcode.shape[0]):
+        for i in range(V_pqcode.shape[0]):
             ines += euclidean(V_pqcode[i], centroids[labels[i]])
         return ines
 
