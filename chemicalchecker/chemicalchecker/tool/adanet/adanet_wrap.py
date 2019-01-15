@@ -348,9 +348,11 @@ class AdaNetWrapper(object):
         row_train["nr_variables"] = nr_variables
         df.loc[len(df)] = pd.Series(row_test)
         df.loc[len(df)] = pd.Series(row_train)
-        output_file = os.path.join(output_dir, 'stats.pkl')
-        with open(output_file, 'wb') as fh:
+        output_pkl = os.path.join(output_dir, 'stats.pkl')
+        with open(output_pkl, 'wb') as fh:
             pickle.dump(df, fh)
+        output_csv = os.path.join(output_dir, 'stats.csv')
+        df.to_csv(output_csv)
 
         # compare to simple Linear Regression on TRAIN
         self.__log.info("Performances for LinearRegression on TRAIN")
@@ -412,5 +414,6 @@ class AdaNetWrapper(object):
         # save rows
         df.loc[len(df)] = pd.Series(row_test)
         df.loc[len(df)] = pd.Series(row_train)
-        with open(output_file, 'wb') as fh:
+        with open(output_pkl, 'wb') as fh:
             pickle.dump(df, fh)
+        df.to_csv(output_csv)
