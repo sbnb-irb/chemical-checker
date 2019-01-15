@@ -205,7 +205,6 @@ class clus1(BaseSignature):
                 for k in cluster_range:
                     niter = 20
                     d = self.data.shape[1]
-                    print (self.data.shape)
                     kmeans = faiss.Kmeans(int(d), int(k), niter)
                     kmeans.train(self.data)
                     D, labels = kmeans.index.search(self.data, 1)
