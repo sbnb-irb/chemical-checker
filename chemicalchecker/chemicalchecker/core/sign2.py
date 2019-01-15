@@ -125,6 +125,11 @@ class sign2(BaseSignature):
             adanet_path = adanet_params.pop('model_dir')
         else:
             adanet_path = os.path.join(self.model_path, 'adanet')
+        if 'boosting_iterations' in adanet_params:
+            if 'train_step' not in adanet_params:
+                adanet_params.update(
+                    {'train_step': 1000 * adanet_params['boosting_iterations']}
+                )
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
         if adanet_params:
@@ -137,6 +142,7 @@ class sign2(BaseSignature):
         if not reuse or not os.path.isfile(traintest_file):
             Traintest.create(sign1.data_path, self.data_path, traintest_file)
         # learn NN with AdaNet
+        self.__log.debug('AdaNet training on %s' % traintest_file)
         ada.train_and_evaluate(traintest_file)
         # save AdaNet performances and plots
         sign2_plot = Plot(self.dataset, adanet_path)
