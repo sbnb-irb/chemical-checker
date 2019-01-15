@@ -132,9 +132,9 @@ class sign2(BaseSignature):
         else:
             ada = AdaNet(model_dir=adanet_path)
         # prepare train-test file
-        traintest_file = self.params['adanet'].get(
+        traintest_file = adanet_params.get(
             'traintest_file', os.path.join(adanet_path, 'traintest.h5'))
-        if not reuse or not os.path.isdir(traintest_file):
+        if not reuse or not os.path.isfile(traintest_file):
             Traintest.create(sign1.data_path, self.data_path, traintest_file)
         # learn NN with AdaNet
         ada.train_and_evaluate(traintest_file)
@@ -154,15 +154,15 @@ class sign2(BaseSignature):
         ada.prepare_predict(sign1.data_path)
         return ada.predict()
 
-    def grid_search_adanet(self, sign1, neig1, job_path, reuse=True, traintest_file=None):
+    def grid_search_adanet(self, sign1, neig1, job_path, traintest_file=None):
         """Perform a grid search."""
         gridsearch_path = os.path.join(self.model_path, 'grid_search')
-        if not reuse or not os.path.isdir(gridsearch_path):
+        if not os.path.isdir(gridsearch_path):
             os.makedirs(gridsearch_path)
         # prepare train-test file
-        if not traintest_file:
+        if traintest_file is None:
             traintest_file = os.path.join(gridsearch_path, 'traintest.h5')
-            if not reuse or not os.path.isfile(traintest_file):
+            if not os.path.isfile(traintest_file):
                 Traintest.create(
                     sign1.data_path, self.data_path, traintest_file)
         parameters = {
