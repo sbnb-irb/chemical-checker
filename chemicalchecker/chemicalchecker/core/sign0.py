@@ -38,7 +38,7 @@ class sign0(BaseSignature):
         if preprocess_script is None:
             config = Config()
             preprocess_script = os.path.join(
-                config.PATH.CC_REPO, "exemplary/preprocess", self.dataset_info.code, "run.py")
+                config.PATH.CC_REPO, "scripts/preprocess", self.dataset_info.code, "run.py")
 
         self.__log.debug('calling pre-process script ' + preprocess_script)
 
