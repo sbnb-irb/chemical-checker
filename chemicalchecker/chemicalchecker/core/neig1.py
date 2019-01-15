@@ -6,8 +6,7 @@ try:
 except ImportError:
     pass
 import datetime
-from time import time as tm
-import time
+from time import time
 from numpy import linalg as LA
 from chemicalchecker.util import logged
 from .signature_base import BaseSignature
@@ -79,14 +78,14 @@ class neig1(BaseSignature):
         if self.metric == "cosine":
             norms = LA.norm(self.data, axis=1)
 
-            t_start = tm()
+            t_start = time()
             mat = np.ones((self.data.shape[0], k))
             mat = mat / norms[:, None]
             for i in range(0, self.data.shape[0]):
                 for j in range(0, k):
                     mat[i, j] = mat[i, j] / norms[I[i, j]]
             D = np.maximum(0.0, 1.0 - (D * mat))
-            t_end = tm()
+            t_end = time()
             t_delta = str(datetime.timedelta(seconds=t_end - t_start))
             self.__log.info("Converting to cosine distance took %s", t_delta)
 
@@ -94,16 +93,13 @@ class neig1(BaseSignature):
 
         fout = h5py.File(self.data_path, 'w')
 
-        timeformat = "%Y-%m-%d %H:%M:%S"
-        my_time = time.localtime()
-
         fout.create_dataset("row_keys", data=self.keys)
         fout["col_keys"] = h5py.SoftLink('/row_keys')
         fout.create_dataset("indices", data=I)
         fout.create_dataset("distances", data=D)
         fout.create_dataset("shape", data=D.shape)
         fout.create_dataset(
-            "date", data=[str(time.strftime(timeformat.encode('utf-8'), my_time).decode('utf-8'))])
+            "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
         fout.create_dataset("metric", data=[self.metric])
 
         fout.close()
@@ -149,14 +145,14 @@ class neig1(BaseSignature):
             with h5py.File(self.norms_file, "r") as hw:
                 norms_pred = hw["norms"][:]
 
-            t_start = tm()
+            t_start = time()
             mat = np.ones((self.data.shape[0], k))
             mat = mat / norms[:, None]
             for i in range(0, self.data.shape[0]):
                 for j in range(0, k):
                     mat[i, j] = mat[i, j] / norms_pred[I[i, j]]
             D = np.maximum(0.0, 1.0 - (D * mat))
-            t_end = tm()
+            t_end = time()
             t_delta = str(datetime.timedelta(seconds=t_end - t_start))
             self.__log.info("Converting to cosine distance took %s", t_delta)
 
@@ -171,7 +167,7 @@ class neig1(BaseSignature):
         fout.create_dataset("distances", data=D)
         fout.create_dataset("shape", data=D.shape)
         fout.create_dataset(
-            "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+            "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
         fout.create_dataset("metric", data=[self.metric])
 
         fout.close()
