@@ -174,7 +174,7 @@ class sign2(BaseSignature):
             params.update(
                 {'model_dir': os.path.join(gridsearch_path, model_dir)})
             params.update({'traintest_file': traintest_file})
-            elements.append(params)
+            elements.append({'adanet': params})
 
         # create job directory if not available
         if not os.path.isdir(job_path):
@@ -193,10 +193,10 @@ class sign2(BaseSignature):
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
             "data = inputs[task_id]",  # elements for current job
             "for params in data:",  # elements are indexes
-            "    sign1 = sign1('%s', None)" % sign1.signature_path,
-            "    neig1 = neig1('%s', None)" % neig1.signature_path,
-            "    sign2 = sign2('%s', None, **params)" % self.signature_path,
-            "    sign2.fit(sign1, neig1)",
+            "    s1 = sign1.sign1('%s', None)" % sign1.signature_path,
+            "    n1 = neig1.neig1('%s', None)" % neig1.signature_path,
+            "    s2 = sign2.sign2('%s', None, **params)" % self.signature_path,
+            "    s2.fit(s1, n1)",
             "print('JOB DONE')"
         ]
         script_name = os.path.join(job_path, 'sign2_grid_search_adanet.py')
