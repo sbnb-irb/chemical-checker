@@ -8,6 +8,7 @@ import h5py
 from collections import defaultdict
 import random
 import numpy as np
+import pickle
 from chemicalchecker.util import logged
 try:
     import faiss
@@ -73,7 +74,7 @@ class RNDuplicates():
         self.__log.info("Size before removing: " + str(self.data.shape[0]))
 
         self.final_ids = list()
-        mappings = dict()
+        self.mappings = dict()
 
         if self.only_duplicates:
             indexl2 = faiss.IndexFlatL2(self.data.shape[1])
@@ -102,11 +103,11 @@ class RNDuplicates():
                         if len(indexes) > 0:
                             chosen = random.choice(indexes)
                             self.final_ids.append(chosen)
-                            mappings[self.keys[chosen]] = [self.keys[v]
-                                                           for v in indexes]
+                            for v in indexes:
+                                self.mappings[v] = self.keys[chosen]
                         else:
                             self.final_ids.append(i)
-                            mappings[self.keys[i]] = [self.keys[i]]
+                            self.mappings[self.keys[i]] = self.keys[i]
 
                         break
 
@@ -128,16 +129,17 @@ class RNDuplicates():
                 if(len(value) > 1):
                     chosen = random.choice(value)
                     self.final_ids.append(chosen)
-                    mappings[self.keys[chosen]] = [self.keys[v] for v in value]
+                    for v in value:
+                        self.mappings[v] = self.keys[chosen]
                 else:
                     self.final_ids.append(value[0])
-                    mappings[self.keys[value[0]]] = [self.keys[value[0]]]
+                    self.mappings[self.keys[value[0]]] = self.keys[value[0]]
 
         self.final_ids.sort()
 
         self.__log.info("Size after removing: " + str(len(self.final_ids)))
 
-        return self.keys[np.array(self.final_ids)], np.array(self.data[np.array(self.final_ids)], dtype=self.data_type), mappings
+        return self.keys[np.array(self.final_ids)], np.array(self.data[np.array(self.final_ids)], dtype=self.data_type), self.mappings
 
     def save(self, destination):
         """Save data after removing to a h5 file.
@@ -149,6 +151,8 @@ class RNDuplicates():
         if destination[-3:] != ".h5":
             raise Exception("The destination file needs to be a .h5 file")
 
+        dirpath = os.path.dirname(destination)
+
         self.__log.info("Saving removed duplicates to : " + destination)
 
         with h5py.File(destination, 'w') as hf:
@@ -157,3 +161,6 @@ class RNDuplicates():
                 self.data[np.array(self.final_ids)], dtype=self.data_type)
             hf.create_dataset("V", data=V)
             hf.create_dataset("shape", data=V.shape)
+
+        with open(os.path.join(dirpath, "mappings"), 'wb') as fh:
+            pickle.dump(self.mappings, fh)
