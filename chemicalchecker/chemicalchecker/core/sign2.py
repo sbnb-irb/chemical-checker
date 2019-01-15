@@ -17,7 +17,11 @@ predict() capabilities. This is done using the AdaNet framework for for
 automatically learning high-quality models with minimal expert intervention.
 """
 import os
+from sklearn.model_selection import ParameterGrid
+
 from .signature_base import BaseSignature
+import chemicalchecker
+from chemicalchecker.util import HPC
 from chemicalchecker.util import Plot
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
@@ -117,7 +121,8 @@ class sign2(BaseSignature):
         #########
         self.__log.debug('AdaNet fit %s with Node2Vec output' % sign1)
         adanet_params = self.params['adanet']
-        adanet_path = os.path.join(self.model_path, 'adanet')
+        adanet_path = self.params['adanet'].get(
+            'model_dir', os.path.join(self.model_path, 'adanet'))
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
         if adanet_params:
@@ -125,17 +130,15 @@ class sign2(BaseSignature):
         else:
             ada = AdaNet(model_dir=adanet_path)
         # prepare train-test file
-        traintest_file = os.path.join(adanet_path, 'traintest.h5')
+        traintest_file = self.params['adanet'].get(
+            'traintest_file', os.path.join(adanet_path, 'traintest.h5'))
         if not reuse or not os.path.isdir(traintest_file):
             Traintest.create(sign1.data_path, self.data_path, traintest_file)
         # learn NN with AdaNet
         ada.train_and_evaluate(traintest_file)
         # save AdaNet performances and plots
-        adanet_stats = os.path.join(self.stats_path, 'adanet')
-        if not reuse or not os.path.isdir(adanet_stats):
-            os.makedirs(adanet_stats)
-        sign2_plot = Plot(self.dataset, adanet_stats)
-        ada.save_performances(adanet_stats, sign2_plot)
+        sign2_plot = Plot(self.dataset, adanet_path)
+        ada.save_performances(adanet_path, sign2_plot)
         self.__log.debug('model saved to %s' % adanet_path)
 
     def predict(self, sign1):
@@ -148,6 +151,74 @@ class sign2(BaseSignature):
         self.__log.debug('AdaNet predict %s' % sign1)
         ada.prepare_predict(sign1.data_path)
         return ada.predict()
+
+    def grid_search_adanet(self, sign1, neig1, job_path, reuse=True, traintest_file=None):
+        """Perform a grid search."""
+        gridsearch_path = os.path.join(self.model_path, 'grid_search')
+        if not reuse or not os.path.isdir(gridsearch_path):
+            os.makedirs(gridsearch_path)
+        # prepare train-test file
+        if not traintest_file:
+            traintest_file = os.path.join(gridsearch_path, 'traintest.h5')
+            if not reuse or not os.path.isfile(traintest_file):
+                Traintest.create(
+                    sign1.data_path, self.data_path, traintest_file)
+        parameters = {
+            'boosting_iterations': [int(1e2), int(5 * 1e2), int(1e3)],
+            'adanet_lambda': [1e-3, 5 * 1e-3, 1e-2],
+            'layer_size': [8, 128]
+        }
+        elements = list()
+        for params in ParameterGrid(parameters):
+            model_dir = '-'.join("%s_%s" % kv for kv in params.items())
+            params.update(
+                {'model_dir': os.path.join(gridsearch_path, model_dir)})
+            params.update({'traintest_file': traintest_file})
+            elements.append({'adanet': params})
+
+        # create job directory if not available
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+        # create script file
+        cc_config = os.environ['CC_CONFIG']
+        cc_package = os.path.join(chemicalchecker.__path__[0], '../')
+        script_lines = [
+            "import sys, os",
+            "import pickle",
+            "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
+            "sys.path.append('%s')" % cc_package,  # allow package import
+            "from chemicalchecker.core import sign1, neig1, sign2",
+            "task_id = sys.argv[1]",  # <TASK_ID>
+            "filename = sys.argv[2]",  # <FILE>
+            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
+            "data = inputs[task_id]",  # elements for current job
+            "for params in data:",  # elements are indexes
+            "    s1 = sign1.sign1('%s', None)" % sign1.signature_path,
+            "    n1 = neig1.neig1('%s', None)" % neig1.signature_path,
+            "    s2 = sign2.sign2('%s', None, **params)" % self.signature_path,
+            "    s2.fit(s1, n1)",
+            "print('JOB DONE')"
+        ]
+        script_name = os.path.join(job_path, 'sign2_grid_search_adanet.py')
+        with open(script_name, 'w') as fh:
+            for line in script_lines:
+                fh.write(line + '\n')
+        # hpc parameters
+        params = {}
+        params["num_jobs"] = len(elements)
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_SIGN2_GRID_SEARCH_ADANET"
+        params["elements"] = elements
+        params["wait"] = True
+        params["memory"] = 8
+        # job command
+        singularity_image = Config().PATH.SINGULARITY_IMAGE
+        command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+            singularity_image, script_name)
+        # submit jobs
+        cluster = HPC(Config())
+        cluster.submitMultiJob(command, **params)
+        return cluster
 
     def statistics(self):
         """Perform a statistics """
