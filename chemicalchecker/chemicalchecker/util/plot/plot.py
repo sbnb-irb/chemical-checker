@@ -119,7 +119,7 @@ class Plot():
         plt.savefig("%s/kmeans_kselect.png" % self.plot_path)
 
         with open("%s/kmeans_kselect.tsv" % self.plot_path, "w") as f:
-            for i in xrange(len(Nc)):
+            for i in range(len(Nc)):
                 f.write("%d\t%f\t%f\t%f\n" % (Nc[i], A[i], B[i], C[i]))
 
         return k
@@ -135,13 +135,13 @@ class Plot():
         plt.figure(figsize=(4, 4), dpi=600)
 
         fig = plt.subplot(111)
-        x = [i for i in xrange(len(cumsum) + 1)]
+        x = [i for i in range(len(cumsum) + 1)]
         y = [0] + list(cumsum)
         plt.plot(x, y, color=self.color, lw=2)
 
         # Varcut
         varcut = variance_cutoff
-        for i in xrange(len(cumsum)):
+        for i in range(len(cumsum)):
             if cumsum[i] > varcut:
                 break
         i90 = i
@@ -178,7 +178,7 @@ class Plot():
         plt.savefig("%s/variance_explained.png" % self.plot_path)
 
         with open("%s/variance_explained.tsv" % self.plot_path, "w") as f:
-            for i in xrange(len(x)):
+            for i in range(len(x)):
                 f.write("%f\t%f\n" % (x[i], y[i]))
 
         return i90, ielb
@@ -326,11 +326,11 @@ class Plot():
                     (self.plot_path, prefix, vector_type))
 
         with open("%s/%s_%s_ks_validation_D.tsv" % (self.plot_path, prefix, vector_type), "w") as f:
-            for i in xrange(len(D)):
+            for i in range(len(D)):
                 f.write("%f\t%f\n" % (D[i], cD[i]))
 
         with open("%s/%s_%s_ks_validation_S.tsv" % (self.plot_path, prefix, vector_type), "w") as f:
-            for i in xrange(len(S)):
+            for i in range(len(S)):
                 f.write("%f\t%f\n" % (S[i], cS[i]))
 
         # ROC curve
@@ -366,7 +366,7 @@ class Plot():
                     (self.plot_path, prefix, vector_type))
 
         with open("%s/%s_%s_auc_validation.tsv" % (self.plot_path, prefix, vector_type), "w") as f:
-            for i in xrange(len(fpr)):
+            for i in range(len(fpr)):
                 f.write("%f\t%f\n" % (fpr[i], tpr[i]))
 
         return ks, auc_score
@@ -401,8 +401,8 @@ class Plot():
         ax.add_patch(patches.Rectangle((0, 0), math.log10(
             Vars), math.log10(Mols), color=self.color))
 
-        plt.yticks([t for t in xrange(7)])
-        plt.xticks([t for t in xrange(4)])
+        plt.yticks([t for t in range(7)])
+        plt.xticks([t for t in range(4)])
 
         ax.set_xlabel("Latent variables (log10)")
         ax.set_ylabel("Molecules (log10)")
