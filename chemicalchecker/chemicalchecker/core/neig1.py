@@ -100,7 +100,7 @@ class neig1(BaseSignature):
         fout.create_dataset("shape", data=D.shape)
         fout.create_dataset(
             "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
-        fout.create_dataset("metric", data=[self.metric])
+        fout.create_dataset("metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
 
         fout.close()
 
@@ -168,7 +168,7 @@ class neig1(BaseSignature):
         fout.create_dataset("shape", data=D.shape)
         fout.create_dataset(
             "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
-        fout.create_dataset("metric", data=[self.metric])
+        fout.create_dataset("metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
 
         fout.close()
 
