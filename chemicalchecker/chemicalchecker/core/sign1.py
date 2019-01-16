@@ -11,6 +11,7 @@ import datetime
 import numpy as np
 import h5py
 import glob
+import pickle
 from sklearn.preprocessing import Normalizer, RobustScaler
 from scipy.spatial.distance import euclidean, cosine
 from sklearn.decomposition import PCA
@@ -84,7 +85,7 @@ class sign1(BaseSignature):
         BaseSignature.fit(self)
         # if not isinstance(sign0, Sign0.__class__):
         #     raise Exception("Fit method expects an instance of signature0")
-        plot = Plot(self.dataset, self.stats_path)
+        plot = Plot(self.dataset, self.stats_path, self.validation_path)
         self.__log.debug('LSI/PCA fit %s' % sign0)
         FILE = os.path.join(self.model_path, "procs.txt")
         with open(FILE, "w") as f:
@@ -98,6 +99,7 @@ class sign1(BaseSignature):
                 f.write("normalized\n")
 
         input_data = str(sign0)
+        mappings = None
 
         tmp_dir = tempfile.mkdtemp(
             prefix='sign1_' + self.dataset.code + "_", dir=Config().PATH.CC_TMP)
@@ -110,6 +112,8 @@ class sign1(BaseSignature):
                 keys = hf["keys"][:]
                 V = hf["V"][:]
                 features = hf["features"][:]
+                if "mappings" in hf.keys():
+                    mappings = hf["mappings"][:]
 
             plain_corpus = os.path.join(tmp_dir, "sign1.corpus.txt")
             tfidf_corpus = os.path.join(tmp_dir, "sign1.mm")
@@ -245,6 +249,8 @@ class sign1(BaseSignature):
             with h5py.File(input_data, "r") as hf:
                 keys = hf["keys"][:]
                 V = hf["V"][:]
+                if "mappings" in hf.keys():
+                    mappings = hf["mappings"][:]
 
             RowNames = []
             X = []
@@ -324,6 +330,8 @@ class sign1(BaseSignature):
             hf.create_dataset("normed", data=[not self.not_normalized])
             hf.create_dataset("integerized", data=[self.integerize])
             hf.create_dataset("principal_components", data=[True])
+            if mappings is not None:
+                hf.create_dataset("mappings", data=np.array(mappings))
 
         with h5py.File(self.model_path + "/bg_cosine_distances.h5", "a") as hf:
 
@@ -367,12 +375,17 @@ class sign1(BaseSignature):
 
             self.__log.info("MOA and ATC Validations")
 
+            if mappings is not None:
+                inchikey_mappings = dict(mappings)
+            else:
+                inchikey_mappings = None
+
             inchikey_sig = shelve.open(
                 os.path.join(tmp_dir, "sign1.dict"), "r")
-            # ks_moa, auc_moa = plot.vector_validation(
-            #     inchikey_sig, "sig", prefix="moa")
-            # ks_atc, auc_atc = plot.vector_validation(
-            #     inchikey_sig, "sig", prefix="atc")
+            ks_moa, auc_moa = plot.vector_validation(
+                inchikey_sig, "sign1", prefix="moa", inchikey_mappings=inchikey_mappings)
+            ks_atc, auc_atc = plot.vector_validation(
+                inchikey_sig, "sign1", prefix="atc", inchikey_mappings=inchikey_mappings)
             inchikey_sig.close()
 
             # Cleaning
@@ -415,6 +428,7 @@ class sign1(BaseSignature):
                 self.not_normalized = False
 
         input_data = str(sign0)
+        mappings = None
 
         tmp_dir = tempfile.mkdtemp(
             prefix='sign1_' + self.dataset.code + "_", dir=Config().PATH.CC_TMP)
@@ -425,6 +439,8 @@ class sign1(BaseSignature):
                 keys = hf["keys"][:]
                 V = hf["V"][:]
                 features = hf["features"][:]
+                if "mappings" in hf.keys():
+                    mappings = hf["mappings"][:]
 
             plain_corpus = os.path.join(tmp_dir, "sign1.corpus.txt")
             tfidf_corpus = os.path.join(tmp_dir, "sign1.mm")
@@ -536,6 +552,8 @@ class sign1(BaseSignature):
             with h5py.File(input_data, "r") as hf:
                 keys = hf["keys"][:]
                 V = hf["V"][:]
+                if "mappings" in hf.keys():
+                    mappings = hf["mappings"][:]
 
             RowNames = []
             X = []
@@ -607,6 +625,8 @@ class sign1(BaseSignature):
             hf.create_dataset("normed", data=[not self.not_normalized])
             hf.create_dataset("integerized", data=[self.integerize])
             hf.create_dataset("principal_components", data=[True])
+            if mappings is not None:
+                hf.create_dataset("mappings", data=mappings)
 
         self.__log.info("Cleaning")
         gc.collect()
@@ -617,12 +637,17 @@ class sign1(BaseSignature):
 
             self.__log.info("MOA and ATC Validations")
 
+            if mappings is not None:
+                inchikey_mappings = dict(mappings)
+            else:
+                inchikey_mappings = None
+
             inchikey_sig = shelve.open(
                 os.path.join(tmp_dir, "sign1.dict"), "r")
-            # ks_moa, auc_moa = plot.vector_validation(
-            #     inchikey_sig, "sig", prefix="moa")
-            # ks_atc, auc_atc = plot.vector_validation(
-            #     inchikey_sig, "sig", prefix="atc")
+            ks_moa, auc_moa = plot.vector_validation(
+                inchikey_sig, "sign1", prefix="moa", inchikey_mappings=inchikey_mappings)
+            ks_atc, auc_atc = plot.vector_validation(
+                inchikey_sig, "sign1", prefix="atc", inchikey_mappings=inchikey_mappings)
             inchikey_sig.close()
 
             # Cleaning
