@@ -60,13 +60,13 @@ class MultiPlot():
     def sign2_adanet_stats(self, metric):
         # read stats fields
         sign2 = self.cc.get_signature('sign2', 'reference', 'E5.001')
-        stat_file = os.path.join(sign2.stats_path, 'adanet', 'stats.pkl')
+        stat_file = os.path.join(sign2.model_path, 'adanet', 'stats.pkl')
         df = pd.read_pickle(stat_file)
         # merge all stats to pandas
         df = pd.DataFrame(columns=['coordinate'] + list(df.columns))
         for ds in tqdm(self.datasets):
             sign2 = self.cc.get_signature('sign2', 'reference', ds)
-            stat_file = os.path.join(sign2.stats_path, 'adanet', 'stats.pkl')
+            stat_file = os.path.join(sign2.model_path, 'adanet', 'stats.pkl')
             if not os.path.isfile(stat_file):
                 continue
             tmpdf = pd.read_pickle(stat_file)
