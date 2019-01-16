@@ -10,6 +10,7 @@ import os
 import six
 import json
 import h5py
+import numpy as np
 from bisect import bisect_left
 from abc import ABCMeta, abstractmethod
 
@@ -111,6 +112,7 @@ class BaseSignature(object):
                 raise Exception("HDF5 file has no 'shape' field.")
             return hf['shape'][:]
 
+    @cached_property
     def keys(self):
         """Get the signature matrix shape (i.e. the sizes)."""
         if not os.path.isfile(self.data_path):
@@ -123,7 +125,31 @@ class BaseSignature(object):
     @cached_property
     def unique_keys(self):
         """Get the keys of the signature as a set."""
-        return set(self.keys())
+        return set(self.keys)
+
+    def get_vectors(self, keys):
+        """Get vectors for a list of keys.
+
+        Args:
+            keys(list): a List of string, only the overlapping subset to the
+                signature keys is considered.
+        """
+        str_keys = set(k for k in keys if isinstance(k, str))
+        valid_keys = list(self.unique_keys & str_keys)
+        idxs = np.argwhere(
+            np.isin(self.keys, list(valid_keys), assume_unique=True))
+        inks, signs = list(), list()
+        with h5py.File(self.data_path, 'r') as hf:
+            dset = hf['V']
+            for idx in idxs.flatten():
+                inks.append(self.keys[idx])
+                signs.append(dset[idx])
+        missed_inks = set(keys) - set(inks)
+        if missed_inks:
+            self.__log.warn("Following requested keys are not available:")
+            for k in missed_inks:
+                self.__log.warn("%s", k)
+        return np.stack(inks), np.stack(signs)
 
     def __iter__(self):
         """Batch iteration, if necessary."""
@@ -136,7 +162,7 @@ class BaseSignature(object):
     def __getitem__(self, key):
         """Return the vector corresponding to the key.
 
-        The key can be a string (then it's mapped though self.keys()) or and
+        The key can be a string (then it's mapped though self.keys) or and
         int.
         Works fast with bisect, but should return None if the key is not in
         keys (ideally, keep a set to do this)."""
@@ -147,8 +173,8 @@ class BaseSignature(object):
                 return hf['V'][key]
         elif isinstance(key, str):
             if key not in self.unique_keys:
-                raise Exception("Key %s not found." % type(key))
-            idx = bisect_left(self.keys(), key)
+                raise Exception("Key '%s' not found." % key)
+            idx = bisect_left(self.keys, key)
             with h5py.File(self.data_path, 'r') as hf:
                 return hf['V'][idx]
         elif isinstance(key, int):
