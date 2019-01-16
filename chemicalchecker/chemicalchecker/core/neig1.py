@@ -51,6 +51,8 @@ class neig1(BaseSignature):
 
         faiss.omp_set_num_threads(self.cpu)
 
+        mappings = None
+
         if os.path.isfile(sign1.data_path):
             dh5 = h5py.File(sign1.data_path)
             if "keys" not in dh5.keys() or "V" not in dh5.keys():
@@ -59,6 +61,8 @@ class neig1(BaseSignature):
             self.data = np.array(dh5["V"][:], dtype=np.float32)
             self.data_type = dh5["V"].dtype
             self.keys = dh5["keys"][:]
+            if "mappings" in dh5.keys():
+                    mappings = dh5["mappings"][:]
             dh5.close()
 
         else:
@@ -101,6 +105,8 @@ class neig1(BaseSignature):
         fout.create_dataset(
             "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
         fout.create_dataset("metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
+        if mappings is not None:
+                fout.create_dataset("mappings", data=mappings)
 
         fout.close()
 

@@ -87,7 +87,9 @@ class clus1(BaseSignature):
         """Take an input and learns to produce an output."""
         BaseSignature.fit(self)
 
-        plot = Plot(self.dataset, self.stats_path)
+        plot = Plot(self.dataset, self.stats_path, self.validation_path)
+
+        mappings = None
 
         if os.path.isfile(sign1.data_path):
             dh5 = h5py.File(sign1.data_path)
@@ -97,6 +99,8 @@ class clus1(BaseSignature):
             self.data = np.array(dh5["V"][:], dtype=np.float32)
             self.data_type = dh5["V"].dtype
             self.keys = dh5["keys"][:]
+            if "mappings" in dh5.keys():
+                mappings = dh5["mappings"][:]
             dh5.close()
 
         else:
@@ -136,6 +140,11 @@ class clus1(BaseSignature):
 
                 self.__log.info("Doing validations")
 
+                if mappings is not None:
+                    inchikey_mappings = dict(mappings)
+                else:
+                    inchikey_mappings = None
+
                 inchikey_clust = shelve.open(
                     os.path.join(tmp_dir, "clus1.dict"), "n")
                 for i in range(len(self.keys)):
@@ -144,9 +153,9 @@ class clus1(BaseSignature):
                         continue
                     inchikey_clust[str(self.keys[i])] = lab
                 odds_moa, pval_moa = plot.label_validation(
-                    inchikey_clust, "clust", prefix="moa")
+                    inchikey_clust, "clus1", prefix="moa", inchikey_mappings=inchikey_mappings)
                 odds_atc, pval_atc = plot.label_validation(
-                    inchikey_clust, "clust", prefix="atc")
+                    inchikey_clust, "clus1", prefix="atc", inchikey_mappings=inchikey_mappings)
                 inchikey_clust.close()
 
             self.__log.info("Cleaning")
@@ -250,19 +259,21 @@ class clus1(BaseSignature):
                 # MOA validation
 
                 self.__log.info("Doing validations")
-                odds_moa = 0
-                pval_moa = 0
-                odds_atc = 0
-                pval_atc = 0
-                # inchikey_clust = shelve.open(
-                #     os.path.join(tmp_dir, "clus1.dict"), "n")
-                # for i in range(len(self.keys)):
-                #     inchikey_clust[str(self.keys[i])] = labels[i]
-                # odds_moa, pval_moa = plot.label_validation(
-                #     inchikey_clust, "clust", prefix="moa")
-                # odds_atc, pval_atc = plot.label_validation(
-                #     inchikey_clust, "clust", prefix="atc")
-                # inchikey_clust.close()
+
+                if mappings is not None:
+                    inchikey_mappings = dict(mappings)
+                else:
+                    inchikey_mappings = None
+
+                inchikey_clust = shelve.open(
+                    os.path.join(tmp_dir, "clus1.dict"), "n")
+                for i in range(len(self.keys)):
+                    inchikey_clust[str(self.keys[i])] = labels[i]
+                odds_moa, pval_moa = plot.label_validation(
+                    inchikey_clust, "clus1", prefix="moa", inchikey_mappings=inchikey_mappings)
+                odds_atc, pval_atc = plot.label_validation(
+                    inchikey_clust, "clus1", prefix="atc", inchikey_mappings=inchikey_mappings)
+                inchikey_clust.close()
 
             self.__log.info("Cleaning")
             for filename in glob.glob(os.path.join(tmp_dir, "clus1.dict*")):
@@ -296,11 +307,15 @@ class clus1(BaseSignature):
             hf.create_dataset("normed", data=[False])
             hf.create_dataset("integerized", data=[False])
             hf.create_dataset("principal_components", data=[False])
+            if mappings is not None:
+                hf.create_dataset("mappings", data=mappings)
 
     def predict(self, sign1, destination=None, validations=False):
         """Use the fitted models to go from input to output."""
         BaseSignature.predict(self)
-        plot = Plot(self.dataset, self.stats_path)
+        plot = Plot(self.dataset, self.stats_path, self.validation_path)
+
+        mappings = None
 
         if os.path.isfile(sign1.data_path):
             dh5 = h5py.File(sign1.data_path)
@@ -310,6 +325,8 @@ class clus1(BaseSignature):
             self.data = np.array(dh5["V"][:], dtype=np.float32)
             self.data_type = dh5["V"].dtype
             self.keys = dh5["keys"][:]
+            if "mappings" in dh5.keys():
+                mappings = dh5["mappings"][:]
             dh5.close()
 
         else:
@@ -348,6 +365,11 @@ class clus1(BaseSignature):
 
                 self.__log.info("Doing validations")
 
+                if mappings is not None:
+                    inchikey_mappings = dict(mappings)
+                else:
+                    inchikey_mappings = None
+
                 inchikey_clust = shelve.open(
                     os.path.join(tmp_dir, "clus1.dict"), "n")
                 for i in range(len(self.keys)):
@@ -356,9 +378,9 @@ class clus1(BaseSignature):
                         continue
                     inchikey_clust[str(self.keys[i])] = lab
                 odds_moa, pval_moa = plot.label_validation(
-                    inchikey_clust, "clust", prefix="moa")
+                    inchikey_clust, "clus1", prefix="moa", inchikey_mappings=inchikey_mappings)
                 odds_atc, pval_atc = plot.label_validation(
-                    inchikey_clust, "clust", prefix="atc")
+                    inchikey_clust, "clus1", prefix="atc", inchikey_mappings=inchikey_mappings)
                 inchikey_clust.close()
 
             self.__log.info("Cleaning")
@@ -377,6 +399,8 @@ class clus1(BaseSignature):
                 hf.create_dataset("normed", data=[False])
                 hf.create_dataset("integerized", data=[False])
                 hf.create_dataset("principal_components", data=[False])
+                if mappings is not None:
+                    hf.create_dataset("mappings", data=mappings)
 
         if self.type == "kmeans":
 
@@ -406,15 +430,20 @@ class clus1(BaseSignature):
 
                 self.__log.info("Doing validations")
 
-                # inchikey_clust = shelve.open(
-                #     os.path.join(tmp_dir, "clus1.dict"), "n")
-                # for i in range(len(self.keys)):
-                #     inchikey_clust[str(self.keys[i])] = labels[i]
-                # odds_moa, pval_moa = plot.label_validation(
-                #     inchikey_clust, "clust", prefix="moa")
-                # odds_atc, pval_atc = plot.label_validation(
-                #     inchikey_clust, "clust", prefix="atc")
-                # inchikey_clust.close()
+                if mappings is not None:
+                    inchikey_mappings = dict(mappings)
+                else:
+                    inchikey_mappings = None
+
+                inchikey_clust = shelve.open(
+                    os.path.join(tmp_dir, "clus1.dict"), "n")
+                for i in range(len(self.keys)):
+                    inchikey_clust[str(self.keys[i])] = labels[i]
+                odds_moa, pval_moa = plot.label_validation(
+                    inchikey_clust, "clus1", prefix="moa", inchikey_mappings=inchikey_mappings)
+                odds_atc, pval_atc = plot.label_validation(
+                    inchikey_clust, "clus1", prefix="atc", inchikey_mappings=inchikey_mappings)
+                inchikey_clust.close()
 
             self.__log.info("Cleaning")
             for filename in glob.glob(os.path.join(tmp_dir, "clus1.dict*")):
@@ -433,6 +462,8 @@ class clus1(BaseSignature):
                 hf.create_dataset("normed", data=[False])
                 hf.create_dataset("integerized", data=[False])
                 hf.create_dataset("principal_components", data=[False])
+                if mappings is not None:
+                    hf.create_dataset("mappings", data=mappings)
 
     def statistics(self, validation_set):
         """Perform a validation across external data as MoA and ATC codes."""
