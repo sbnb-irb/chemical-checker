@@ -36,22 +36,23 @@ np.random.seed(42)
 class Plot():
     """Produce different kind of plots."""
 
-    def __init__(self, dataset_info, plot_path):
+    def __init__(self, dataset, plot_path, validation_path):
         """Initialize the Plot object.
 
         Produce all kind of plots and data associated
 
         Args:
-            dataset_info(str): The Dataset object.
+            dataset(str): The Dataset object.
             plot_path(str): Final destination for the new plots and other stuff.
         """
         if not os.path.isdir(plot_path):
             raise Exception("Folder to save plots does not exist")
         self.__log.debug('Plots for %s saved to %s',
-                         dataset_info.code, plot_path)
+                         dataset.code, plot_path)
         self.plot_path = plot_path
-        self.dataset_info = dataset_info
-        self.color = self._coord_color(dataset_info.coordinate)
+        self.validation_path = validation_path
+        self.dataset = dataset
+        self.color = self._coord_color(dataset.coordinate)
 
     def _elbow(self, curve):
         nPoints = len(curve)
@@ -185,20 +186,27 @@ class Plot():
 
     # Validate using moa and KS test
 
-    def _for_the_validation(self, inchikey_dict, prefix):
+    def _for_the_validation(self, inchikey_dict, prefix, inchikey_mappings=None):
 
-        f = open(self.plot_path + "/%s_validation.tsv" % prefix, "r")
+        f = open(self.validation_path + "/%s_validation.tsv" % prefix, "r")
         S = set()
         D = set()
         inchikeys = set()
         for l in f:
             l = l.rstrip("\n").split("\t")
-            inchikeys.update([l[0], l[1]])
+            l0 = l[0]
+            l1 = l[1]
+            if inchikey_mappings is not None:
+                if l0 in inchikey_mappings:
+                    l0 = inchikey_mappings[l0]
+                if l1 in inchikey_mappings:
+                    l1 = inchikey_mappings[l1]
+            inchikeys.update([l0, l1])
             if int(l[2]) == 1:
-                S.update([(l[0], l[1])])
+                S.update([(l0, l1)])
             else:
                 if len(D) < 100000:
-                    D.update([(l[0], l[1])])
+                    D.update([(l0, l1)])
                 else:
                     pass
         f.close()
@@ -216,9 +224,9 @@ class Plot():
 
         return S, D, d
 
-    def label_validation(self, inchikey_lab, label_type, prefix="moa"):
+    def label_validation(self, inchikey_lab, label_type, prefix="moa", inchikey_mappings=None):
 
-        S, D, d = self._for_the_validation(inchikey_lab, prefix)
+        S, D, d = self._for_the_validation(inchikey_lab, prefix, inchikey_mappings)
 
         yy, yn, ny, nn = 0, 0, 0, 0
 
@@ -271,9 +279,9 @@ class Plot():
 
         return odds, pval
 
-    def vector_validation(self, inchikey_vec, vector_type, prefix="moa", distance="cosine"):
+    def vector_validation(self, inchikey_vec, vector_type, prefix="moa", distance="cosine", inchikey_mappings=None):
 
-        S, D, d = self._for_the_validation(inchikey_vec, prefix)
+        S, D, d = self._for_the_validation(inchikey_vec, prefix, inchikey_mappings)
 
         if distance == "euclidean":
             distance_metric = euclidean
@@ -539,7 +547,7 @@ class Plot():
 
     def sign2_plot(self, y_true, y_pred, predictor_name):
 
-        coord = self.dataset_info.coordinate
+        coord = self.dataset.coordinate
         self.__log.info("sign2 %s predicted vs. actual %s",
                         coord, predictor_name)
         min_val = min(np.min(y_true), np.min(y_pred))
