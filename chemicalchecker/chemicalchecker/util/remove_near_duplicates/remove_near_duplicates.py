@@ -6,6 +6,7 @@ which the data vectors according their similarity.
 import os
 import h5py
 from collections import defaultdict
+import collections
 import random
 import numpy as np
 import pickle
@@ -130,7 +131,7 @@ class RNDuplicates():
                     chosen = random.choice(value)
                     self.final_ids.append(chosen)
                     for v in value:
-                        self.mappings[v] = self.keys[chosen]
+                        self.mappings[self.keys[v]] = self.keys[chosen]
                 else:
                     self.final_ids.append(value[0])
                     self.mappings[self.keys[value[0]]] = self.keys[value[0]]
@@ -154,6 +155,7 @@ class RNDuplicates():
         dirpath = os.path.dirname(destination)
 
         self.__log.info("Saving removed duplicates to : " + destination)
+        list_maps = collections.OrderedDict(sorted(self.mappings.items()))
 
         with h5py.File(destination, 'w') as hf:
             hf.create_dataset("keys", data=self.keys[np.array(self.final_ids)])
@@ -161,6 +163,7 @@ class RNDuplicates():
                 self.data[np.array(self.final_ids)], dtype=self.data_type)
             hf.create_dataset("V", data=V)
             hf.create_dataset("shape", data=V.shape)
+            hf.create_dataset("mappings", data=np.array(list_maps.items()))
 
         with open(os.path.join(dirpath, "mappings"), 'wb') as fh:
             pickle.dump(self.mappings, fh)
