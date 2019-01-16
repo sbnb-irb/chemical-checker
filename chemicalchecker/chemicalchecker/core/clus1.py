@@ -26,7 +26,7 @@ import tempfile
 class clus1(BaseSignature):
     """A Signature bla bla."""
 
-    def __init__(self, signature_path, dataset_info, **params):
+    def __init__(self, signature_path, validation_path, dataset, **params):
         """Initialize the signature.
 
         Args:
@@ -37,7 +37,7 @@ class clus1(BaseSignature):
         """
         # Calling init on the base class to trigger file existance checks
         BaseSignature.__init__(
-            self, signature_path, dataset_info, **params)
+            self, signature_path, validation_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(signature_path, "clus1.h5")
         self.__log.debug('data_path: %s', self.data_path)
@@ -87,7 +87,7 @@ class clus1(BaseSignature):
         """Take an input and learns to produce an output."""
         BaseSignature.fit(self)
 
-        plot = Plot(self.dataset_info, self.stats_path)
+        plot = Plot(self.dataset, self.stats_path)
 
         if os.path.isfile(sign1.data_path):
             dh5 = h5py.File(sign1.data_path)
@@ -103,7 +103,7 @@ class clus1(BaseSignature):
             raise Exception("The file " + sign1.data_path + " does not exist")
 
         tmp_dir = tempfile.mkdtemp(
-            prefix='clus1_' + self.dataset_info.code + "_", dir=Config().PATH.CC_TMP)
+            prefix='clus1_' + self.dataset.code + "_", dir=Config().PATH.CC_TMP)
 
         self.__log.debug("Temporary files saved in " + tmp_dir)
 
@@ -286,7 +286,7 @@ class clus1(BaseSignature):
                     json.dump(INFO, fp)
 
         with h5py.File(self.data_path, "a") as hf:
-            name = str(self.dataset_info.code) + "_clus1"
+            name = str(self.dataset.code) + "_clus1"
             hf.create_dataset(
                 "name", data=[name.encode(encoding='UTF-8', errors='strict')])
             hf.create_dataset(
@@ -300,7 +300,7 @@ class clus1(BaseSignature):
     def predict(self, sign1, destination=None, validations=False):
         """Use the fitted models to go from input to output."""
         BaseSignature.predict(self)
-        plot = Plot(self.dataset_info, self.stats_path)
+        plot = Plot(self.dataset, self.stats_path)
 
         if os.path.isfile(sign1.data_path):
             dh5 = h5py.File(sign1.data_path)
@@ -320,7 +320,7 @@ class clus1(BaseSignature):
                 "Predict method requires a destination file to output results")
 
         tmp_dir = tempfile.mkdtemp(
-            prefix='sign1_' + self.dataset_info.code + "_", dir=Config().PATH.CC_TMP)
+            prefix='sign1_' + self.dataset.code + "_", dir=Config().PATH.CC_TMP)
 
         self.__log.debug("Temporary files saved in " + tmp_dir)
 
@@ -368,7 +368,7 @@ class clus1(BaseSignature):
             os.rmdir(tmp_dir)
 
             with h5py.File(destination, "a") as hf:
-                name = str(self.dataset_info.code) + "_clus1"
+                name = str(self.dataset.code) + "_clus1"
                 hf.create_dataset(
                     "name", data=[name.encode(encoding='UTF-8', errors='strict')])
                 hf.create_dataset(
@@ -423,7 +423,7 @@ class clus1(BaseSignature):
             os.rmdir(tmp_dir)
 
             with h5py.File(destination, "a") as hf:
-                name = str(self.dataset_info.code) + "_clus1"
+                name = str(self.dataset.code) + "_clus1"
                 hf.create_dataset(
                     "name", data=[name.encode(encoding='UTF-8', errors='strict')])
                 hf.create_dataset(

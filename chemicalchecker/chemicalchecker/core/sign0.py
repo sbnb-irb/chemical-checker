@@ -13,7 +13,7 @@ class sign0(BaseSignature):
     Signature type 0 is...
     """
 
-    def __init__(self, signature_path, dataset_info, **params):
+    def __init__(self, signature_path, validation_path, dataset, **params):
         """Initialize the signature.
 
         Args:
@@ -21,7 +21,7 @@ class sign0(BaseSignature):
         """
         # Calling init on the base class to trigger file existance checks
         BaseSignature.__init__(
-            self, signature_path, dataset_info, **params)
+            self, signature_path, validation_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(signature_path, "sign0.h5")
         self.__log.debug('data_path: %s', self.data_path)
@@ -38,7 +38,7 @@ class sign0(BaseSignature):
         if preprocess_script is None:
             config = Config()
             preprocess_script = os.path.join(
-                config.PATH.CC_REPO, "scripts/preprocess", self.dataset_info.code, "run.py")
+                config.PATH.CC_REPO, "scripts/preprocess", self.dataset.code, "run.py")
 
         self.__log.debug('calling pre-process script ' + preprocess_script)
 

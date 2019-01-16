@@ -12,7 +12,7 @@ class Validation():
     Creates a validation set
     """
 
-    def __init__(self, cc_root, name):
+    def __init__(self, validation_path, name):
         """Initialize the validation.
 
         Args:
@@ -20,8 +20,7 @@ class Validation():
         """
         config = Config()
         self.name = name
-        self.validation_sets_path = os.path.join(
-            cc_root, "tests", "validation_sets")
+        self.validation_sets_path = validation_path
         if not os.path.isdir(self.validation_sets_path):
             self.__log.warning("Creating validation sets dir")
             original_umask = os.umask(0)

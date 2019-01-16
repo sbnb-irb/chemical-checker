@@ -28,7 +28,7 @@ class sign1(BaseSignature):
     Signature type 1 is...
     """
 
-    def __init__(self, signature_path, dataset_info, **params):
+    def __init__(self, signature_path, validation_path, dataset, **params):
         """Initialize the signature.
 
         Args:
@@ -37,7 +37,7 @@ class sign1(BaseSignature):
         """
         # Calling init on the base class to trigger file existance checks
         BaseSignature.__init__(
-            self, signature_path, dataset_info, **params)
+            self, signature_path, validation_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(signature_path, "sign1.h5")
         self.min_freq = 5
@@ -84,7 +84,7 @@ class sign1(BaseSignature):
         BaseSignature.fit(self)
         # if not isinstance(sign0, Sign0.__class__):
         #     raise Exception("Fit method expects an instance of signature0")
-        plot = Plot(self.dataset_info, self.stats_path)
+        plot = Plot(self.dataset, self.stats_path)
         self.__log.debug('LSI/PCA fit %s' % sign0)
         FILE = os.path.join(self.model_path, "procs.txt")
         with open(FILE, "w") as f:
@@ -100,11 +100,11 @@ class sign1(BaseSignature):
         input_data = str(sign0)
 
         tmp_dir = tempfile.mkdtemp(
-            prefix='sign1_' + self.dataset_info.code + "_", dir=Config().PATH.CC_TMP)
+            prefix='sign1_' + self.dataset.code + "_", dir=Config().PATH.CC_TMP)
 
         self.__log.debug("Temporary files saved in " + tmp_dir)
 
-        if self.dataset_info.is_discrete:
+        if self.dataset.is_discrete:
 
             with h5py.File(input_data, "r") as hf:
                 keys = hf["keys"][:]
@@ -254,7 +254,7 @@ class sign1(BaseSignature):
                 X += [[float(x) for x in r[1].split(",")]]
             X = np.array(X)
 
-            if self.dataset_info.coordinate == 'A5':
+            if self.dataset.coordinate == 'A5':
                 scl = RobustScaler()
                 scl.fit(X)
                 joblib.dump(scl, self.model_path + "/robustscaler.pkl")
@@ -317,7 +317,7 @@ class sign1(BaseSignature):
 
         with h5py.File(self.data_path, "a") as hf:
             hf.create_dataset(
-                "name", data=[str(self.dataset_info.code) + "_sig"])
+                "name", data=[str(self.dataset.code) + "_sig"])
             hf.create_dataset(
                 "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
             hf.create_dataset("metric", data=["cosine"])
@@ -396,7 +396,7 @@ class sign1(BaseSignature):
         """
         # Calling base class to trigger file existence checks
         BaseSignature.predict(self)
-        plot = Plot(self.dataset_info, self.stats_path)
+        plot = Plot(self.dataset, self.stats_path)
         self.__log.debug('loading model from %s' % self.model_path)
         self.__log.debug('LSI/PCA predict %s' % sign0)
         FILE = os.path.join(self.model_path, "procs.txt")
@@ -417,9 +417,9 @@ class sign1(BaseSignature):
         input_data = str(sign0)
 
         tmp_dir = tempfile.mkdtemp(
-            prefix='sign1_' + self.dataset_info.code + "_", dir=Config().PATH.CC_TMP)
+            prefix='sign1_' + self.dataset.code + "_", dir=Config().PATH.CC_TMP)
 
-        if self.dataset_info.is_discrete:
+        if self.dataset.is_discrete:
 
             with h5py.File(input_data, "r") as hf:
                 keys = hf["keys"][:]
@@ -545,7 +545,7 @@ class sign1(BaseSignature):
                 X += [[float(x) for x in r[1].split(",")]]
             X = np.array(X)
 
-            if self.dataset_info.coordinate == 'A5':
+            if self.dataset.coordinate == 'A5':
                 scl = RobustScaler()
                 scl.fit(X)
                 joblib.dump(scl, self.model_path + "/robustscaler.pkl")
@@ -600,7 +600,7 @@ class sign1(BaseSignature):
 
         with h5py.File(destination, "a") as hf:
             hf.create_dataset(
-                "name", data=[str(self.dataset_info.code) + "_sig"])
+                "name", data=[str(self.dataset.code) + "_sig"])
             hf.create_dataset(
                 "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
             hf.create_dataset("metric", data=["cosine"])
