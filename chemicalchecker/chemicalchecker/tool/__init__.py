@@ -1,2 +1,5 @@
 from .node2vec import Node2Vec
-from .adanet import AdaNet, Traintest
+try:
+    from .adanet import AdaNet, Traintest
+except:
+    pass
