@@ -16,6 +16,19 @@ from abc import ABCMeta, abstractmethod
 from chemicalchecker.util import logged
 
 
+class cached_property(object):
+    """Decorator for properties calculated/stored on-demand on first use."""
+
+    def __init__(self, func):
+        self._attr_name = func.__name__
+        self._func = func
+
+    def __get__(self, instance, owner):
+        attr = self._func(instance)
+        setattr(instance, self._attr_name, attr)
+        return attr
+
+
 @logged
 @six.add_metaclass(ABCMeta)
 class BaseSignature(object):
@@ -107,6 +120,11 @@ class BaseSignature(object):
                 raise Exception("HDF5 file has no 'keys' field.")
             return hf['keys'][:]
 
+    @cached_property
+    def unique_keys(self):
+        """Get the keys of the signature as a set."""
+        return set(self.keys())
+
     def __iter__(self):
         """Batch iteration, if necessary."""
         BaseSignature.__log.debug('__iter__')
@@ -128,6 +146,8 @@ class BaseSignature(object):
             with h5py.File(self.data_path, 'r') as hf:
                 return hf['V'][key]
         elif isinstance(key, str):
+            if key not in self.unique_keys:
+                raise Exception("Key %s not found." % type(key))
             idx = bisect_left(self.keys(), key)
             with h5py.File(self.data_path, 'r') as hf:
                 return hf['V'][idx]
