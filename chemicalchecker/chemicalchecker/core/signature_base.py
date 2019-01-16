@@ -25,11 +25,12 @@ class BaseSignature(object):
     """
 
     @abstractmethod
-    def __init__(self, signature_path, dataset_info, **params):
+    def __init__(self, signature_path, validation_path, dataset, **params):
         """Initialize or load the signature at the given path."""
-        self.dataset_info = dataset_info
+        self.dataset = dataset
         self.signature_path = signature_path
         self.param_file = os.path.join(signature_path, 'PARAMS.JSON')
+        self.validation_path = validation_path
 
         if not os.path.isdir(signature_path):
             BaseSignature.__log.info(

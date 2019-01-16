@@ -37,7 +37,7 @@ except:
 class sign2(BaseSignature):
     """Signature type 2 class."""
 
-    def __init__(self, signature_path, dataset, **params):
+    def __init__(self, signature_path, validation_path, dataset, **params):
         """Initialize the signature.
 
         Args:
@@ -47,7 +47,8 @@ class sign2(BaseSignature):
                 'adanet'.
         """
         # Calling init on the base class to trigger file existence checks
-        BaseSignature.__init__(self, signature_path, dataset, **params)
+        BaseSignature.__init__(self, signature_path,
+                               validation_path, dataset, **params)
         # generate needed paths
         self.data_path = os.path.join(signature_path, 'sign2.h5')
         self.model_path = os.path.join(signature_path, 'models')

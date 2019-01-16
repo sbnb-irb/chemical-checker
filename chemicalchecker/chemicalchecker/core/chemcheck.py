@@ -56,8 +56,15 @@ class ChemicalChecker():
         for dataset in Dataset.get():
             yield dataset.code
 
-    def get_signature_path(self, cctype, molset, dataset):
-        """Return the signature path for the given dataset.
+    def get_validation_path(self):
+        """Return the validation path."""
+        validation_path = os.path.join(
+            self.cc_root, "tests", "validation_sets")
+        self.__log.debug("validation path: %s", validation_path)
+        return validation_path
+
+    def get_signature_path(self, cctype, molset, dataset_code):
+        """Return the signature path for the given dataset code.
 
         This should be the only place where we define the directory structure.
         The signature directory tipically contain the signature HDF5 file.
@@ -65,22 +72,22 @@ class ChemicalChecker():
         Args:
             cctype(str): The Chemical Checker datatype i.e. one of the sign*.
             molset(str): The molecule set name.
-            dataset(str): The dataset of the Chemical Checker.
+            dataset_code(str): The dataset of the Chemical Checker.
         Returns:
             signature_path(str): The signature path.
         """
-        signature_path = os.path.join(self.cc_root, molset, dataset[:1],
-                                      dataset[:2], dataset, cctype)
+        signature_path = os.path.join(self.cc_root, molset, dataset_code[:1],
+                                      dataset_code[:2], dataset_code, cctype)
         self.__log.debug("signature path: %s", signature_path)
         return signature_path
 
-    def get_signature(self, cctype, molset, dataset, **params):
-        """Return the signature for the given dataset.
+    def get_signature(self, cctype, molset, dataset_code, **params):
+        """Return the signature for the given dataset code.
 
         Args:
             cctype(str): The Chemical Checker datatype (i.e. one of the sign*).
             molset(str): The molecule set name.
-            dataset(str): The dataset code of the Chemical Checker.
+            dataset_code(str): The dataset code of the Chemical Checker.
             params(dict): Optional. The set of parameters to initialize and
                 compute the signature. If the signature is already initialized
                 this argument will be ignored.
@@ -88,17 +95,18 @@ class ChemicalChecker():
             data(Signature): A `Signature` object, the specific type depends
                 on the cctype passed.
         """
-        dataset_info = Dataset.get(dataset)
-        if dataset_info is None:
+        dataset = Dataset.get(dataset_code)
+        if dataset is None:
             self.__log.warning(
-                'Code %s returns no dataset', dataset)
-            raise Exception("No dataset for code: " + dataset)
-        signature_path = self.get_signature_path(cctype, molset, dataset)
+                'Code %s returns no dataset', dataset_code)
+            raise Exception("No dataset for code: " + dataset_code)
+        signature_path = self.get_signature_path(cctype, molset, dataset_code)
+        validation_path = self.get_validation_path()
         # initialize a data object factory feeding the type and the path
         data_factory = DataFactory()
         # the factory will return the signature with the right class
         data = data_factory.make_data(
-            cctype, signature_path, dataset_info, **params)
+            cctype, signature_path, validation_path, dataset, **params)
         return data
 
     @staticmethod
