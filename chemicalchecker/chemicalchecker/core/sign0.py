@@ -63,8 +63,5 @@ class sign0(BaseSignature):
             self.__log.critical("Execution failed: %s" % e)
             sys.exit(1)
 
-        self.__log.debug('faking data in %s', self.data_path)
-        # open(self.data_path, 'a').close()
-
     def statistics(self):
         """Perform a statistics."""
