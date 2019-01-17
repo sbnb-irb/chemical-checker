@@ -11,7 +11,13 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = [ ]
+requirements = ['six', 'autologging', 'paramiko', 'termcolor', 'standardiser',
+                'psycopg2', 'xlrd', 'cmapPy', 'e3fp', 'gensim', 'csvsort',
+                'intbitset', 'cython', 'sqlalchemy', 'patool', 'wget',
+                'timeout_decorator', 'numpy', 'pandas', 'scipy', 'theano',
+                'h5py', 'tqdm', 'networkx', 'matplotlib', 'seaborn',
+                'scikit-learn', 'tensorflow', 'adanet', 'keras', 'hdbscan',
+                'MulticoreTSNE', 'fancyimpute', 'pybel']
 
 setup_requirements = ['pytest-runner', ]
 
@@ -40,7 +46,7 @@ setup(
     include_package_data=True,
     keywords='chemicalchecker',
     name='chemicalchecker',
-    packages=find_packages(include=['chemicalchecker']),
+    packages=find_packages(),
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
