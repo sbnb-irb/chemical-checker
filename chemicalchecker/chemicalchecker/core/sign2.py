@@ -129,12 +129,6 @@ class sign2(BaseSignature):
             adanet_path = adanet_params.pop('model_dir')
         else:
             adanet_path = os.path.join(self.model_path, 'adanet')
-        if 'boosting_iterations' in adanet_params:
-            if 'train_step' not in adanet_params or adanet_params['train_step'] is None:
-                adanet_params.update(
-                    {'train_step': 10000 *
-                        adanet_params['boosting_iterations']}
-                )
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
         if adanet_params:
