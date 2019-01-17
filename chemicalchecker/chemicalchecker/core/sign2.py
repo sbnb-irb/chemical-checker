@@ -130,9 +130,10 @@ class sign2(BaseSignature):
         else:
             adanet_path = os.path.join(self.model_path, 'adanet')
         if 'boosting_iterations' in adanet_params:
-            if 'train_step' not in adanet_params:
+            if 'train_step' not in adanet_params or adanet_params['train_step'] is None:
                 adanet_params.update(
-                    {'train_step': 1000 * adanet_params['boosting_iterations']}
+                    {'train_step': 10000 *
+                        adanet_params['boosting_iterations']}
                 )
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
@@ -164,8 +165,16 @@ class sign2(BaseSignature):
         ada.prepare_predict(sign1.data_path)
         return ada.predict()
 
-    def grid_search_adanet(self, sign1, neig1, job_path, traintest_file=None):
-        """Perform a grid search."""
+    def grid_search_adanet(self, sign1, neig1, job_path, parameters, traintest_file=None):
+        """Perform a grid search.
+
+        parameters = {
+            'boosting_iterations': [int(1e2), int(5 * 1e2), int(1e3)],
+            'adanet_lambda': [1e-3, 5 * 1e-3, 1e-2],
+            'layer_size': [8, 128]
+            'train_step': [1000,None]
+        }
+        """
         gridsearch_path = os.path.join(self.model_path, 'grid_search')
         if not os.path.isdir(gridsearch_path):
             os.makedirs(gridsearch_path)
@@ -175,11 +184,6 @@ class sign2(BaseSignature):
             if not os.path.isfile(traintest_file):
                 Traintest.create(
                     sign1.data_path, self.data_path, traintest_file)
-        parameters = {
-            'boosting_iterations': [int(1e2), int(5 * 1e2), int(1e3)],
-            'adanet_lambda': [1e-3, 5 * 1e-3, 1e-2],
-            'layer_size': [8, 128]
-        }
         elements = list()
         for params in ParameterGrid(parameters):
             model_dir = '-'.join("%s_%s" % kv for kv in params.items())
@@ -222,7 +226,7 @@ class sign2(BaseSignature):
         params["job_name"] = "CC_SIGN2_GRID_SEARCH_ADANET"
         params["elements"] = elements
         params["wait"] = True
-        params["memory"] = 8
+        params["memory"] = 64
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
