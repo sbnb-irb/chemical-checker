@@ -144,17 +144,22 @@ class AdaNetWrapper(object):
         self.results = None
         self.estimator = None
         self.__log.info("**** AdaNet Parameters: ***")
-        self.__log.info("train_step: {:>12}".format(self.train_step))
-        self.__log.info("batch_size: {:>12}".format(self.batch_size))
-        self.__log.info("learn_mixture_weights: {:>12}".format(
-            self.learn_mixture_weights))
-        self.__log.info("adanet_lambda: {:>12}".format(self.adanet_lambda))
-        self.__log.info("boosting_iterations: {:>12}".format(
-            self.boosting_iterations))
-        self.__log.info("random_seed: {:>12}".format(self.random_seed))
-        self.__log.info("model_dir: {:>12}".format(self.model_dir))
-        self.__log.info("activation: {:>12}".format(self.activation))
-        self.__log.info("layer_size: {:>12}".format(self.layer_size))
+        self.__log.info("{:<22}: {:>12}".format("model_dir", self.model_dir))
+        self.__log.info("{:<22}: {:>12}".format(
+            "learning_rate", self.learning_rate))
+        self.__log.info("{:<22}: {:>12}".format("train_step", self.train_step))
+        self.__log.info("{:<22}: {:>12}".format("batch_size", self.batch_size))
+        self.__log.info("{:<22}: {:>12}".format(
+            "learn_mixture_weights", self.learn_mixture_weights))
+        self.__log.info("{:<22}: {:>12}".format(
+            "adanet_lambda", self.adanet_lambda))
+        self.__log.info("{:<22}: {:>12}".format(
+            "boosting_iterations", self.boosting_iterations))
+        self.__log.info("{:<22}: {:>12}".format(
+            "random_seed", self.random_seed))
+        self.__log.info("{:<22}: {:>12}".format("activation", self.activation))
+        self.__log.info("{:<22}: {:>12}".format("layer_size", self.layer_size))
+        self.__log.info("{:<22}: {:>12}".format("shuffles", self.shuffles))
 
     def train_and_evaluate(self, traintest_file):
         self.starttime = time()
