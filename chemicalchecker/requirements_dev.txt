@@ -30,3 +30,4 @@ adanet
 csvsort
 e3fp
 MulticoreTSNE
+hdbscan
