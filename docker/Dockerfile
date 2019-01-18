@@ -3,5 +3,4 @@ FROM conda/miniconda3-centos7:latest
 # Copy this file to a root access directory
 # cd to that directory
 # sudo docker build -t cc_image .
-RUN  yum install -y gcc g++ gcc-c++
-
+RUN  yum install -y gcc g++ gcc-c++ cmake gfortran gcc-gfortran make
