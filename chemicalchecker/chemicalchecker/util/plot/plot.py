@@ -635,7 +635,7 @@ class Plot():
         nr_samples = len(y_true)
         if nr_samples > 10000:
             mask = np.random.choice(
-                range(nr_samples), 1000, replace=False)
+                range(nr_samples), 10000, replace=False)
             x = cosine_distances(y_true[mask])[np.tril_indices(10000, -1)]
             y = cosine_distances(y_pred[mask])[np.tril_indices(10000, -1)]
         else:
