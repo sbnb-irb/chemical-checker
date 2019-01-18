@@ -137,11 +137,11 @@ class AdaNetWrapper(object):
         self.batch_size = int(kwargs.get("batch_size", 32))
         self.learn_mixture_weights = kwargs.get("learn_mixture_weights", True)
         self.adanet_lambda = kwargs.get("adanet_lambda", 0.001)
-        self.boosting_iterations = int(kwargs.get("boosting_iterations", 64))
+        self.boosting_iterations = int(kwargs.get("boosting_iterations", 10))
         self.random_seed = int(kwargs.get("random_seed", 42))
         self.model_dir = kwargs.get("model_dir", None)
         self.activation = kwargs.get("activation", tf.nn.relu)
-        self.layer_size = int(kwargs.get("layer_size", 8))
+        self.layer_size = int(kwargs.get("layer_size", 1024))
         self.shuffles = int(kwargs.get("shuffles", 10))
         self.results = None
         self.estimator = None
