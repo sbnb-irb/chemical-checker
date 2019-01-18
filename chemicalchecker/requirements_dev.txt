@@ -29,5 +29,6 @@ tensorflow
 adanet
 csvsort
 e3fp
+cython
 MulticoreTSNE
 hdbscan
