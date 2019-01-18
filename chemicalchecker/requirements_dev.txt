@@ -17,7 +17,7 @@ pandas
 wget
 standardiser
 h5py
-numpy
+numpy==1.16.0
 scipy
 scikit-learn
 seaborn
