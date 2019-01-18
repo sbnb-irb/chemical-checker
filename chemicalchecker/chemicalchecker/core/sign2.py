@@ -49,6 +49,7 @@ class sign2(BaseSignature):
         # Calling init on the base class to trigger file existence checks
         BaseSignature.__init__(self, signature_path,
                                validation_path, dataset, **params)
+        self.validation_path = validation_path
         # generate needed paths
         self.data_path = os.path.join(signature_path, 'sign2.h5')
         self.model_path = os.path.join(signature_path, 'models')
@@ -144,7 +145,7 @@ class sign2(BaseSignature):
         self.__log.debug('AdaNet training on %s' % traintest_file)
         ada.train_and_evaluate(traintest_file)
         # save AdaNet performances and plots
-        sign2_plot = Plot(self.dataset, adanet_path)
+        sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
         ada.save_performances(adanet_path, sign2_plot)
         self.__log.debug('model saved to %s' % adanet_path)
 
@@ -163,10 +164,9 @@ class sign2(BaseSignature):
         """Perform a grid search.
 
         parameters = {
-            'boosting_iterations': [int(1e2), int(5 * 1e2), int(1e3)],
+            'boosting_iterations': [10, 25, 50],
             'adanet_lambda': [1e-3, 5 * 1e-3, 1e-2],
-            'layer_size': [8, 128]
-            'train_step': [1000,None]
+            'layer_size': [8, 128, 512, 1024]
         }
         """
         gridsearch_path = os.path.join(self.model_path, 'grid_search')
