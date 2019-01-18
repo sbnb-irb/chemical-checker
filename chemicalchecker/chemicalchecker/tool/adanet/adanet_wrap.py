@@ -133,7 +133,6 @@ class AdaNetWrapper(object):
 
     def __init__(self, **kwargs):
         self.learning_rate = kwargs.get("learning_rate", 0.001)
-        self.train_step = int(kwargs.get("train_step", 1000000))
         self.batch_size = int(kwargs.get("batch_size", 32))
         self.learn_mixture_weights = kwargs.get("learn_mixture_weights", True)
         self.adanet_lambda = kwargs.get("adanet_lambda", 0.001)
@@ -149,7 +148,6 @@ class AdaNetWrapper(object):
         self.__log.info("{:<22}: {:>12}".format("model_dir", self.model_dir))
         self.__log.info("{:<22}: {:>12}".format(
             "learning_rate", self.learning_rate))
-        self.__log.info("{:<22}: {:>12}".format("train_step", self.train_step))
         self.__log.info("{:<22}: {:>12}".format("batch_size", self.batch_size))
         self.__log.info("{:<22}: {:>12}".format(
             "learn_mixture_weights", self.learn_mixture_weights))
@@ -171,7 +169,8 @@ class AdaNetWrapper(object):
             self.input_dimension = hf['x_test'].shape[1]
             self.label_dimension = hf['y_test'].shape[1]
             self.train_size = hf['x_train'].shape[0]
-        self.train_step = self.boosting_iterations * self.train_size // self.batch_size
+        self.train_step = max(1000, self.train_size // self.batch_size)
+        self.total_steps = self.train_step * self.boosting_iterations
 
         """Train an `adanet.Estimator`."""
         self.estimator = adanet.Estimator(
@@ -196,7 +195,7 @@ class AdaNetWrapper(object):
             adanet_lambda=self.adanet_lambda,
 
             # The number of train steps per iteration.
-            max_iteration_steps=self.train_step // self.boosting_iterations,
+            max_iteration_steps=self.train_step,
 
             # The evaluator will evaluate the model on the full training set to
             # compute the overall AdaNet loss (train loss + complexity
@@ -217,7 +216,7 @@ class AdaNetWrapper(object):
         # Train and evaluate using using the tf.estimator tooling.
         train_spec = tf.estimator.TrainSpec(
             input_fn=self.input_fn("train", training=True),
-            max_steps=self.train_step)
+            max_steps=self.total_steps)
         eval_spec = tf.estimator.EvalSpec(
             input_fn=self.input_fn("test", training=False),
             steps=None)
