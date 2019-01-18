@@ -126,10 +126,11 @@ class sign2(BaseSignature):
         #########
         self.__log.debug('AdaNet fit %s with Node2Vec output' % sign1)
         adanet_params = self.params['adanet']
-        if 'model_dir' in adanet_params:
-            adanet_path = adanet_params.pop('model_dir')
-        else:
-            adanet_path = os.path.join(self.model_path, 'adanet')
+        if adanet_params:
+            if 'model_dir' in adanet_params:
+                adanet_path = adanet_params.pop('model_dir')
+            else:
+                adanet_path = os.path.join(self.model_path, 'adanet')
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
         if adanet_params:
