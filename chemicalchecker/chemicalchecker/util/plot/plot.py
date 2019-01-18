@@ -26,6 +26,7 @@ from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 import matplotlib.patheffects as path_effects
 from sklearn.metrics import r2_score, mean_squared_error
+from sklearn.metrics.pairwise import cosine_distances
 from scipy import stats
 
 random.seed(42)
@@ -226,7 +227,8 @@ class Plot():
 
     def label_validation(self, inchikey_lab, label_type, prefix="moa", inchikey_mappings=None):
 
-        S, D, d = self._for_the_validation(inchikey_lab, prefix, inchikey_mappings)
+        S, D, d = self._for_the_validation(
+            inchikey_lab, prefix, inchikey_mappings)
 
         yy, yn, ny, nn = 0, 0, 0, 0
 
@@ -281,7 +283,8 @@ class Plot():
 
     def vector_validation(self, inchikey_vec, vector_type, prefix="moa", distance="cosine", inchikey_mappings=None):
 
-        S, D, d = self._for_the_validation(inchikey_vec, prefix, inchikey_mappings)
+        S, D, d = self._for_the_validation(
+            inchikey_vec, prefix, inchikey_mappings)
 
         if distance == "euclidean":
             distance_metric = euclidean
@@ -591,13 +594,14 @@ class Plot():
                           size=30, color=cmap(rsquare / 2))
             txt.set_path_effects([path_effects.Stroke(
                 linewidth=1, foreground='black'), path_effects.Normal()])
-            # this would be the intercept
-            txt2 = ax.text(0.2, 0.05,
-                           "$y = {:.2f}x {:+.2f}$".format(slope, intercept),
-                           transform=ax.transAxes,
-                           size=20, color='k')
+            # visualize linear regression equation
+            ax.text(0.2, 0.05,
+                    "$y = {:.2f}x {:+.2f}$".format(slope, intercept),
+                    transform=ax.transAxes,
+                    size=20, color='k')
             """
-            # following would make one plot for each component (takes too long)
+            # following would make one plot for each component along with
+            # distributions (takes too long)
             g = sns.JointGrid(x=y_true[:, comp], y=y_pred[:, comp], space=0)
             g = g.plot_joint(sns.regplot, color="r")
             g = g.plot_joint(sns.kdeplot, cmap="Greys")
@@ -610,5 +614,67 @@ class Plot():
         f.tight_layout()
         filename = os.path.join(
             self.plot_path, "pred_vs_true_%s.png" % predictor_name)
+        plt.savefig(filename, dpi=60)
+        plt.close()
+
+        ####
+        # relationship between predicted and observed distances
+        ####
+        self.__log.info("sign2 %s DISTANCES predicted vs. actual %s",
+                        coord, predictor_name)
+
+        # for plotting we subsample randomly
+        nr_samples = len(y_true)
+        if nr_samples > 10000:
+            mask = np.random.choice(
+                range(nr_samples), 10000, replace=False)
+            x = cosine_distances(y_true[mask])[np.tril_indices(10000, -1)]
+            y = cosine_distances(y_pred[mask])[np.tril_indices(10000, -1)]
+        else:
+            x = cosine_distances(y_true)[np.tril_indices(nr_samples, -1)]
+            y = cosine_distances(y_pred)[np.tril_indices(nr_samples, -1)]
+        # stats
+        pearson = stats.pearsonr(x, y)[0]
+        slope, intercept, r_value, p_value, std_err = stats.linregress(
+            x, y)
+        # plot
+        f, ax = plt.subplots()
+        ax.scatter(x, y, color=self._coord_color(coord), marker='.',
+                   alpha=0.2, zorder=2)
+        # add lines
+        min_val = 0.0
+        max_val = 1.0
+        ax.plot([min_val, max_val],
+                [min_val * slope + intercept, max_val * slope + intercept],
+                color=self._coord_color(coord))
+        ax.plot([min_val, max_val], [min_val, max_val], '--',
+                color=self._coord_color(coord))
+        ax.axhline(0, min_val, max_val, ls='--',
+                   lw=0.5, color='grey', zorder=1)
+        ax.axvline(0, min_val, max_val, ls='--',
+                   lw=0.5, color='grey', zorder=1)
+        # fix limits of distance metric
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        # set labels
+        ax.set_xlabel("Actual")
+        ax.set_ylabel("Predicted")
+        ax.set_title("Distances")
+        # add R square stat
+        cmap = plt.cm.get_cmap('jet_r')
+        txt = ax.text(0.05, 0.85, "$\\rho$: {:.2f}".format(pearson),
+                      transform=ax.transAxes,
+                      size=30, color=cmap(pearson))
+        txt.set_path_effects([path_effects.Stroke(
+            linewidth=1, foreground='black'), path_effects.Normal()])
+        # visualize linear regression equation
+        ax.text(0.2, 0.05,
+                "$y = {:.2f}x {:+.2f}$".format(slope, intercept),
+                transform=ax.transAxes,
+                size=20, color='k')
+
+        f.tight_layout()
+        filename = os.path.join(
+            self.plot_path, "DISTANCES_pred_vs_true_%s.png" % predictor_name)
         plt.savefig(filename, dpi=60)
         plt.close()
