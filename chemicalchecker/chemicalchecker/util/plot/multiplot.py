@@ -73,21 +73,11 @@ class MultiPlot():
             tmpdf['coordinate'] = ds
             df = df.append(tmpdf, ignore_index=True)
 
-        sns.set_style("white")
-        fig, axes = plt.subplots(5, 5, sharey=True, figsize=(10, 10))
-        show_legend = False
-        for coord, ax in zip(self.datasets, axes.flatten()):
-            pdf = pd.DataFrame(df[df.coordinate == coord])
-            sns.scatterplot(data=pdf, x="algo", y=metric, ax=ax,
-                            style="dataset",
-                            legend=show_legend, markers=True,
-                            palette=[self.cc_palette([coord]), 'grey'])
-            #ax.set_ylim(0.0, 1)
-            ax.yaxis.grid(True)
-            ax.xaxis.grid(False)
-            ax.set_title(coord)
-            ax.set_xlabel('')
-        plt.tight_layout()
+        sns.set_style("whitegrid")
+        sns.catplot(data=df, hue="algo", x='dataset', y=metric, kind='point',
+                    col="coordinate", col_wrap=5, col_order=self.datasets,
+                    aspect=.8, height=3, dodge=True, order=['train', 'test'],
+                    palette=['darkgreen', 'darkgrey'])
 
         outfile = os.path.join(self.plot_path, 'sign2_adanet_stats.png')
         plt.savefig(outfile, dpi=100)
