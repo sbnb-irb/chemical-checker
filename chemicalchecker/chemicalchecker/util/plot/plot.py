@@ -297,7 +297,11 @@ class Plot():
         S = np.array(sorted([distance_metric(d[k[0]], d[k[1]]) for k in S]))
         D = np.array(sorted([distance_metric(d[k[0]], d[k[1]]) for k in D]))
 
-        ks = ks_2samp(S, D)
+        try:
+            ks = ks_2samp(S, D)
+        except ValueError:
+            ks = 0.0
+            pass
 
         N = len(d)
 
@@ -719,8 +723,10 @@ class Plot():
                         x='adanet_lambda', col='boosting_iterations',
                         kind='scatter', data=ada_df)
         # linreg
-        linreg_train = df[(df.algo != 'AdaNet')&(df.dataset=='train')].iloc[0]['pearson_avg']
-        linreg_test = df[(df.algo != 'AdaNet')&(df.dataset=='test')].iloc[0]['pearson_avg']
+        linreg_train = df[(df.algo != 'AdaNet') & (
+            df.dataset == 'train')].iloc[0]['pearson_avg']
+        linreg_test = df[(df.algo != 'AdaNet') & (
+            df.dataset == 'test')].iloc[0]['pearson_avg']
         for ax in g.axes.flatten():
             ax.axhline(linreg_train, ls='--',
                        lw=0.5, color='grey', zorder=1)
