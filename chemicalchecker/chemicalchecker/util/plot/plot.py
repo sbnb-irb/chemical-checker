@@ -297,10 +297,13 @@ class Plot():
         S = np.array(sorted([distance_metric(d[k[0]], d[k[1]]) for k in S]))
         D = np.array(sorted([distance_metric(d[k[0]], d[k[1]]) for k in D]))
 
+        # This exception prevents this eeror in python3 on our pytest:
+        # ValueError: zero-size array to reduction operation maximum which has
+        # no identity
         try:
             ks = ks_2samp(S, D)
         except ValueError:
-            ks = 0.0
+            ks = [0.0, 0.0]
             pass
 
         N = len(d)
