@@ -21,7 +21,7 @@ numpy==1.16.0
 scipy
 scikit-learn
 seaborn
-matplotlib==1.5.3
+matplotlib==2.0.0
 gensim
 timeout_decorator
 mock
