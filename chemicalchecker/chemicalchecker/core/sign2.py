@@ -49,6 +49,7 @@ class sign2(BaseSignature):
         # Calling init on the base class to trigger file existence checks
         BaseSignature.__init__(self, signature_path,
                                validation_path, dataset, **params)
+        self.validation_path = validation_path
         # generate needed paths
         self.data_path = os.path.join(signature_path, 'sign2.h5')
         self.model_path = os.path.join(signature_path, 'models')
@@ -129,11 +130,6 @@ class sign2(BaseSignature):
             adanet_path = adanet_params.pop('model_dir')
         else:
             adanet_path = os.path.join(self.model_path, 'adanet')
-        if 'boosting_iterations' in adanet_params:
-            if 'train_step' not in adanet_params:
-                adanet_params.update(
-                    {'train_step': 1000 * adanet_params['boosting_iterations']}
-                )
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
         if adanet_params:
@@ -149,7 +145,7 @@ class sign2(BaseSignature):
         self.__log.debug('AdaNet training on %s' % traintest_file)
         ada.train_and_evaluate(traintest_file)
         # save AdaNet performances and plots
-        sign2_plot = Plot(self.dataset, adanet_path)
+        sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
         ada.save_performances(adanet_path, sign2_plot)
         self.__log.debug('model saved to %s' % adanet_path)
 
@@ -164,8 +160,15 @@ class sign2(BaseSignature):
         ada.prepare_predict(sign1.data_path)
         return ada.predict()
 
-    def grid_search_adanet(self, sign1, neig1, job_path, traintest_file=None):
-        """Perform a grid search."""
+    def grid_search_adanet(self, sign1, neig1, job_path, parameters, traintest_file=None):
+        """Perform a grid search.
+
+        parameters = {
+            'boosting_iterations': [10, 25, 50],
+            'adanet_lambda': [1e-3, 5 * 1e-3, 1e-2],
+            'layer_size': [8, 128, 512, 1024]
+        }
+        """
         gridsearch_path = os.path.join(self.model_path, 'grid_search')
         if not os.path.isdir(gridsearch_path):
             os.makedirs(gridsearch_path)
@@ -175,11 +178,6 @@ class sign2(BaseSignature):
             if not os.path.isfile(traintest_file):
                 Traintest.create(
                     sign1.data_path, self.data_path, traintest_file)
-        parameters = {
-            'boosting_iterations': [int(1e2), int(5 * 1e2), int(1e3)],
-            'adanet_lambda': [1e-3, 5 * 1e-3, 1e-2],
-            'layer_size': [8, 128]
-        }
         elements = list()
         for params in ParameterGrid(parameters):
             model_dir = '-'.join("%s_%s" % kv for kv in params.items())
@@ -222,7 +220,7 @@ class sign2(BaseSignature):
         params["job_name"] = "CC_SIGN2_GRID_SEARCH_ADANET"
         params["elements"] = elements
         params["wait"] = True
-        params["memory"] = 8
+        params["memory"] = 64
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
