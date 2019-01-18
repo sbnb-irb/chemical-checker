@@ -313,7 +313,8 @@ class AdaNetWrapper(object):
 
         df = pd.DataFrame(columns=[
             'dataset', 'r2', 'pearson_avg', 'pearson_std', 'algo', 'mse',
-            'explained_variance', 'time', 'architecture', 'nr_variables'])
+            'explained_variance', 'time', 'architecture', 'nr_variables',
+            'nn_layers'])
         with h5py.File(self.traintest_file, 'r') as hf:
             y_train = hf['y_train'][:]
             y_test = hf['y_test'][:]
@@ -374,10 +375,13 @@ class AdaNetWrapper(object):
             tf.get_default_graph()
             nr_variables = np.sum([np.prod(v.get_shape().as_list())
                                    for v in tf.trainable_variables()])
+            nn_layers = len(tf.trainable_variables()) / 2
 
         # save rows
         row_test["nr_variables"] = nr_variables
         row_train["nr_variables"] = nr_variables
+        row_test["nn_layers"] = nn_layers
+        row_train["nn_layers"] = nn_layers
         df.loc[len(df)] = pd.Series(row_test)
         df.loc[len(df)] = pd.Series(row_train)
         output_pkl = os.path.join(output_dir, 'stats.pkl')
