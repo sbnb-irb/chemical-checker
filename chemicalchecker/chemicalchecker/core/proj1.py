@@ -363,8 +363,11 @@ class proj1(BaseSignature):
             for i in range(0, size):
 
                 if any(np.isclose(weights[i], 1.0)):
-                    proj_data[i][0] = X[i]
-                    proj_data[i][1] = Y[i]
+                    pos = ids[i][0]
+                    if i in ids[i] or len(weights) == len(X):
+                        pos = i
+                    proj_data[i][0] = X[pos]
+                    proj_data[i][1] = Y[pos]
                 else:
                     proj_data[i][0] = np.average(
                         X[np.array(ids[i])], weights=weights[i])
