@@ -59,7 +59,7 @@ class TestProj1(unittest.TestCase):
         with h5py.File(os.path.join(path_test1, "proj1.h5")) as hf:
             proj = hf["V"][:]
 
-        np.testing.assert_array_almost_equal(proj, proj_pred)
+        np.testing.assert_array_almost_equal(proj, proj_pred, decimal=5)
 
     def background_distances(self, metric=None):
 
