@@ -11,6 +11,7 @@ from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.metrics import explained_variance_score
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import ShuffleSplit
+import tensorflow.contrib.slim as slim
 
 from .dnn_generator import SimpleDNNGenerator
 from chemicalchecker.util import logged
@@ -109,6 +110,7 @@ class Traintest(object):
             total = reader._f[reader.x_name].shape[0]
             while True:
                 if beg_idx >= total:
+                    Traintest.__log.debug("EPOCH completed")
                     beg_idx = 0
                     epoch += 1
                     return
@@ -135,33 +137,41 @@ class AdaNetWrapper(object):
         self.batch_size = int(kwargs.get("batch_size", 32))
         self.learn_mixture_weights = kwargs.get("learn_mixture_weights", True)
         self.adanet_lambda = kwargs.get("adanet_lambda", 0.001)
-        self.boosting_iterations = int(kwargs.get("boosting_iterations", 64))
+        self.boosting_iterations = int(kwargs.get("boosting_iterations", 10))
         self.random_seed = int(kwargs.get("random_seed", 42))
         self.model_dir = kwargs.get("model_dir", None)
         self.activation = kwargs.get("activation", tf.nn.relu)
-        self.layer_size = int(kwargs.get("layer_size", 8))
+        self.layer_size = int(kwargs.get("layer_size", 1024))
         self.shuffles = int(kwargs.get("shuffles", 10))
         self.results = None
         self.estimator = None
         self.__log.info("**** AdaNet Parameters: ***")
-        self.__log.info("train_step: {:>12}".format(self.train_step))
-        self.__log.info("batch_size: {:>12}".format(self.batch_size))
-        self.__log.info("learn_mixture_weights: {:>12}".format(
-            self.learn_mixture_weights))
-        self.__log.info("adanet_lambda: {:>12}".format(self.adanet_lambda))
-        self.__log.info("boosting_iterations: {:>12}".format(
-            self.boosting_iterations))
-        self.__log.info("random_seed: {:>12}".format(self.random_seed))
-        self.__log.info("model_dir: {:>12}".format(self.model_dir))
-        self.__log.info("activation: {:>12}".format(self.activation))
-        self.__log.info("layer_size: {:>12}".format(self.layer_size))
+        self.__log.info("{:<22}: {:>12}".format("model_dir", self.model_dir))
+        self.__log.info("{:<22}: {:>12}".format(
+            "learning_rate", self.learning_rate))
+        self.__log.info("{:<22}: {:>12}".format("train_step", self.train_step))
+        self.__log.info("{:<22}: {:>12}".format("batch_size", self.batch_size))
+        self.__log.info("{:<22}: {:>12}".format(
+            "learn_mixture_weights", self.learn_mixture_weights))
+        self.__log.info("{:<22}: {:>12}".format(
+            "adanet_lambda", self.adanet_lambda))
+        self.__log.info("{:<22}: {:>12}".format(
+            "boosting_iterations", self.boosting_iterations))
+        self.__log.info("{:<22}: {:>12}".format(
+            "random_seed", self.random_seed))
+        self.__log.info("{:<22}: {:>12}".format("activation", self.activation))
+        self.__log.info("{:<22}: {:>12}".format("layer_size", self.layer_size))
+        self.__log.info("{:<22}: {:>12}".format("shuffles", self.shuffles))
 
     def train_and_evaluate(self, traintest_file):
         self.starttime = time()
 
         self.traintest_file = traintest_file
         with h5py.File(traintest_file, 'r') as hf:
+            self.input_dimension = hf['x_test'].shape[1]
             self.label_dimension = hf['y_test'].shape[1]
+            self.train_size = hf['x_train'].shape[0]
+        self.train_step = self.boosting_iterations * self.train_size // self.batch_size
 
         """Train an `adanet.Estimator`."""
         self.estimator = adanet.Estimator(
@@ -214,6 +224,10 @@ class AdaNetWrapper(object):
 
         self.results = tf.estimator.train_and_evaluate(
             self.estimator, train_spec, eval_spec)
+
+        self.save_dir = self.save_model(self.model_dir)
+        self.__log.info("SAVING MODEL TO: %s", self.save_dir)
+        AdaNetWrapper.print_model_architechture(self.save_dir)
         return self.estimator, self.results
 
     def architecture(self):
@@ -274,6 +288,26 @@ class AdaNetWrapper(object):
             input_fn=self.test_input_fn(partition),
             yield_single_examples=False)
         return predict_results
+
+    def save_model(self, model_dir):
+        def serving_input_fn():
+            serialized_tf_example = tf.placeholder(
+                dtype=tf.string, shape=[None], name='input_tensors')
+            receiver_tensors = {"predictor_inputs": serialized_tf_example}
+            feature_spec = {"x": tf.FixedLenFeature(
+                [self.input_dimension], tf.float32)}
+            features = tf.parse_example(serialized_tf_example, feature_spec)
+            return tf.estimator.export.ServingInputReceiver(features, receiver_tensors)
+
+        return self.estimator.export_saved_model(model_dir, serving_input_fn)
+
+    @staticmethod
+    def print_model_architechture(model_dir):
+        with tf.Session(graph=tf.Graph()) as sess:
+            tf.saved_model.loader.load(sess, ["serve"], model_dir)
+            graph = tf.get_default_graph()
+            model_vars = tf.trainable_variables()
+            slim.model_analyzer.analyze_vars(model_vars, print_info=True)
 
     def save_performances(self, output_dir, plot):
         self.time = time() - self.starttime
@@ -336,12 +370,11 @@ class AdaNetWrapper(object):
         plot.sign2_plot(y_test, y_test_pred, "AdaNet_TEST")
 
         # get nr of variables in final model
-        tf.reset_default_graph()
-        latest_checkpoint = tf.train.latest_checkpoint(self.model_dir)
-        meta = latest_checkpoint + '.meta'
-        tf.train.import_meta_graph(meta)
-        nr_variables = np.sum([np.prod(v.get_shape().as_list())
-                               for v in tf.trainable_variables()])
+        with tf.Session(graph=tf.Graph()) as sess:
+            tf.saved_model.loader.load(sess, ["serve"], self.save_dir)
+            tf.get_default_graph()
+            nr_variables = np.sum([np.prod(v.get_shape().as_list())
+                                   for v in tf.trainable_variables()])
 
         # save rows
         row_test["nr_variables"] = nr_variables
