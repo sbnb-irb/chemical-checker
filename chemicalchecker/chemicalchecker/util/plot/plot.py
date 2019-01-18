@@ -28,6 +28,7 @@ import matplotlib.patheffects as path_effects
 from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.metrics.pairwise import cosine_distances
 from scipy import stats
+import pandas as pd
 
 random.seed(42)
 np.random.seed(42)
@@ -627,7 +628,7 @@ class Plot():
         nr_samples = len(y_true)
         if nr_samples > 10000:
             mask = np.random.choice(
-                range(nr_samples), 10000, replace=False)
+                range(nr_samples), 1000, replace=False)
             x = cosine_distances(y_true[mask])[np.tril_indices(10000, -1)]
             y = cosine_distances(y_pred[mask])[np.tril_indices(10000, -1)]
         else:
@@ -638,7 +639,7 @@ class Plot():
         slope, intercept, r_value, p_value, std_err = stats.linregress(
             x, y)
         # plot
-        f, ax = plt.subplots()
+        f, ax = plt.subplots(figsize=(7, 7))
         ax.scatter(x, y, color=self._coord_color(coord), marker='.',
                    alpha=0.2, zorder=2)
         # add lines
@@ -664,7 +665,7 @@ class Plot():
         cmap = plt.cm.get_cmap('jet_r')
         txt = ax.text(0.05, 0.85, "$\\rho$: {:.2f}".format(pearson),
                       transform=ax.transAxes,
-                      size=30, color=cmap(pearson))
+                      size=30, color=cmap(pearson / 2))
         txt.set_path_effects([path_effects.Stroke(
             linewidth=1, foreground='black'), path_effects.Normal()])
         # visualize linear regression equation
@@ -675,6 +676,58 @@ class Plot():
 
         f.tight_layout()
         filename = os.path.join(
-            self.plot_path, "DISTANCES_pred_vs_true_%s.png" % predictor_name)
+            self.plot_path, "DISTANCES_%s.png" % predictor_name)
+        plt.savefig(filename, dpi=60)
+        plt.close()
+
+        self.__log.info("sign2 %s DISTANCES KDE predicted vs. actual %s",
+                        coord, predictor_name)
+        if len(x) > 1000:
+            mask = np.random.choice(range(len(x)), 1000, replace=False)
+            x = x[mask]
+            y = y[mask]
+        sns.jointplot(x, y, kind="kde", color=self._coord_color(coord),
+                      height=7, xlim=(0, 1), ylim=(0, 1))
+        filename = os.path.join(
+            self.plot_path, "DISTANCES_kde_%s.png" % predictor_name)
+        plt.savefig(filename, dpi=60)
+        plt.close()
+
+    def sign2_grid_search_plot(self, grid_root):
+        dir_name = os.listdir(grid_root)[0]
+        params = {n.rsplit("_", 1)[0]: n.rsplit("_", 1)[1]
+                  for n in dir_name.split("-")}
+        tmpdf_file = os.path.join(grid_root, dir_name, 'stats.pkl')
+        cols = list(pd.read_pickle(tmpdf_file).columns)
+        df = pd.DataFrame(columns=cols + params.keys())
+        for dir_name in os.listdir(grid_root):
+            tmpdf_file = os.path.join(grid_root, dir_name, 'stats.pkl')
+            if not os.path.isfile(tmpdf_file):
+                print("File not found: %s", tmpdf_file)
+                continue
+            params = {n.rsplit("_", 1)[0]: n.rsplit("_", 1)[1]
+                      for n in dir_name.split("-")}
+            tmpdf = pd.read_pickle(tmpdf_file)
+            for k, v in params.items():
+                tmpdf[k] = pd.Series([v] * len(tmpdf))
+            df = df.append(tmpdf, ignore_index=True)
+        df['layer_size'] = df['layer_size'].astype(int)
+        df['boosting_iterations'] = df['boosting_iterations'].astype(int)
+        df['adanet_lambda'] = df['adanet_lambda'].astype(float)
+        ada_df = df[df.algo == 'AdaNet']
+        g = sns.relplot(y='pearson_avg', style="dataset", hue='layer_size',
+                        x='adanet_lambda', col='boosting_iterations',
+                        kind='scatter', data=ada_df)
+        # linreg
+        linreg_train = df[(df.algo != 'AdaNet')&(df.dataset=='train')].iloc[0]['pearson_avg']
+        linreg_test = df[(df.algo != 'AdaNet')&(df.dataset=='test')].iloc[0]['pearson_avg']
+        for ax in g.axes.flatten():
+            ax.axhline(linreg_train, ls='--',
+                       lw=0.5, color='grey', zorder=1)
+            ax.axhline(linreg_test,
+                       lw=0.5, color='grey', zorder=1)
+
+        filename = os.path.join(
+            self.plot_path, "sign2_grid_search.png")
         plt.savefig(filename, dpi=60)
         plt.close()
