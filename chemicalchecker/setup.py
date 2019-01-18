@@ -11,13 +11,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['six', 'autologging', 'paramiko', 'termcolor', 'standardiser',
-                'psycopg2', 'xlrd', 'cmapPy', 'e3fp', 'gensim', 'csvsort',
-                'intbitset', 'cython', 'sqlalchemy', 'patool', 'wget',
-                'timeout_decorator', 'numpy', 'pandas', 'scipy', 'theano',
-                'h5py', 'tqdm', 'networkx', 'matplotlib', 'seaborn',
-                'scikit-learn', 'tensorflow', 'adanet', 'keras', 'hdbscan',
-                'MulticoreTSNE', 'fancyimpute', 'pybel']
+requirements = [ ]
 
 setup_requirements = ['pytest-runner', ]
 
