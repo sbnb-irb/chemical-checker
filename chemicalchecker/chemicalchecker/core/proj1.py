@@ -225,11 +225,16 @@ class proj1(BaseSignature):
 
         if validations:
             self.__log.info("Doing MoA & ATC validations")
+            
+            if mappings is not None:
+                inchikey_mappings = dict(mappings)
+            else:
+                inchikey_mappings = None
 
             ks_moa, auc_moa = plot.vector_validation(
-                inchikey_proj, "proj1", prefix="moa")
+                inchikey_proj, "proj1", prefix="moa", inchikey_mappings=inchikey_mappings)
             ks_atc, auc_atc = plot.vector_validation(
-                inchikey_proj, "proj1", prefix="atc")
+                inchikey_proj, "proj1", prefix="atc", inchikey_mappings=inchikey_mappings)
 
             # Saving results
 
