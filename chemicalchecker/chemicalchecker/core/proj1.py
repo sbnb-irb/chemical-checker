@@ -76,6 +76,8 @@ class proj1(BaseSignature):
         plot = Plot(self.dataset, self.stats_path, self.validation_path)
 
         mappings = None
+        
+        faiss.omp_set_num_threads(self.cpu)
 
         if os.path.isfile(sign1.data_path):
             dh5 = h5py.File(sign1.data_path)
@@ -250,6 +252,8 @@ class proj1(BaseSignature):
         """Use the fitted models to go from input to output."""
         BaseSignature.predict(self)
         mappings = None
+        
+        faiss.omp_set_num_threads(self.cpu)
 
         if os.path.isfile(sign1.data_path):
             dh5 = h5py.File(sign1.data_path)
