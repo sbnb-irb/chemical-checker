@@ -44,7 +44,7 @@ class TestProj1(unittest.TestCase):
         path_test2 = os.path.join(cc_root, 'reference', coords[:1], coords[
             :2], coords, "proj1", "models")
         self.assertTrue(os.path.isdir(path_test2))
-        proj1_ref.fit(sign1)
+        proj1_ref.fit(sign1, validations=False)
 
         proj1_ref.predict(sign1, os.path.join(self.data_dir, "test_proj1.h5"))
 
