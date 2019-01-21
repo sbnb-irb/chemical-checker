@@ -186,3 +186,23 @@ class BaseSignature(object):
     def __repr__(self):
         """String representig the signature."""
         return self.data_path
+
+    def generator_fn(self, batch_size=None):
+        """Return the generator function that we can query for batches."""
+        hf = h5py.File(self.data_path, 'r')
+        dset = hf['V']
+        total = dset.shape[0]
+        if not batch_size:
+            batch_size = total
+
+        def _generator_fn():
+            beg_idx, end_idx = 0, batch_size
+            while True:
+                if beg_idx >= total:
+                    self.__log.debug("EPOCH completed")
+                    beg_idx = 0
+                    return
+                yield dset[beg_idx: end_idx]
+                beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
+
+        return _generator_fn
