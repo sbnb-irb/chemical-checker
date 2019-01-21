@@ -14,7 +14,7 @@ In the CC nomenclature, a dataset is determined by:
 from chemicalchecker.util import logged
 from .database import Base, get_session, get_engine
 from sqlalchemy import Column, Text, Boolean, ForeignKey, Integer
-from sqlalchemy.orm import class_mapper, ColumnProperty, relationship, backref
+from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
 
 
 @logged
@@ -22,22 +22,18 @@ class Dataset(Base):
     """The Dataset table.
 
     Parameters:
-        code(str): primary key, simple unique code for the Dataset.
-        level(str): TODO add field description.
-        coordinate(str): TODO add field description.
-        name(str): TODO add field description.
-        technical_name(str): TODO add field description.
-        description(str): TODO add field description.
-        unknowns(bool): TODO add field description.
-        data_type(str): TODO add field description.
-        predicted(bool): TODO add field description.
-        connectivity(bool): TODO add field description.
-        keys(str): TODO add field description.
-        num_keys(int): TODO add field description.
-        features(str): TODO add field description.
-        exemplary(bool): TODO add field description.
-        version(str): TODO add field description.
-        public(bool): TODO add field description.
+        code(str): primary key, Identifier of the dataset.
+        level(str): The CC level.
+        coordinate(str): Coordinates in the CC organization.
+        name(str): Display, short-name of the dataset.
+        technical_name(str): A more technical name for the dataset, suitable for chemo-/bio-informaticians.
+        description(str): This field contains a long description of the dataset.
+        unknowns(bool): Does the dataset contain known/unknown data.
+        discrete(str): The type of data that ultimately expresses de dataset, after the pre-processing.
+        keys(str): In the core CC database, most of the times this field will correspond to CPD, as the CC is centred on small molecules.
+        features(str): Twe express with this field the type of biological entities.
+        exemplary(bool): Is the dataset exemplary of the coordinate.
+        public(bool): Is dataset public.
     """
 
     __tablename__ = 'dataset'
@@ -48,15 +44,10 @@ class Dataset(Base):
     technical_name = Column(Text)
     description = Column(Text)
     unknowns = Column(Boolean)
-    is_discrete = Column(Boolean)
-    predicted = Column(Boolean)
-    connectivity = Column(Boolean)
+    discrete = Column(Boolean)
     keys = Column(Text)
-    num_keys = Column(Integer)
     features = Column(Text)
-    num_features = Column(Integer)
     exemplary = Column(Boolean)
-    version = Column(Text)
     public = Column(Boolean)
 
     datasources = relationship("Datasource",
@@ -112,7 +103,7 @@ class Dataset(Base):
             filename(str): Path to a CSV file.
         """
         import pandas as pd
-        df = pd.read_csv(filename)
+        df = pd.read_csv(filename, delimiter=";")
         # check columns
         needed_cols = Dataset._table_attributes()
         if needed_cols != list(df.columns):
