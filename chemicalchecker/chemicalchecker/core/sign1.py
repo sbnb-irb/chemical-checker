@@ -106,7 +106,7 @@ class sign1(BaseSignature):
 
         self.__log.debug("Temporary files saved in " + tmp_dir)
 
-        if self.dataset.is_discrete:
+        if self.dataset.discrete:
 
             with h5py.File(input_data, "r") as hf:
                 keys = hf["keys"][:]
@@ -433,7 +433,7 @@ class sign1(BaseSignature):
         tmp_dir = tempfile.mkdtemp(
             prefix='sign1_' + self.dataset.code + "_", dir=Config().PATH.CC_TMP)
 
-        if self.dataset.is_discrete:
+        if self.dataset.discrete:
 
             with h5py.File(input_data, "r") as hf:
                 keys = hf["keys"][:]
