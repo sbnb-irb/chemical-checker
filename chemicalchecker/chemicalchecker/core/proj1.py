@@ -41,6 +41,7 @@ class proj1(BaseSignature):
         self.__log.debug('param file: %s', self.param_file)
 
         self.index_file = "faiss_proj1.index"
+        self.projections_file = "centroids.h5"
         self.start_k = 1000
 
         self.type = "tsne"
@@ -76,7 +77,7 @@ class proj1(BaseSignature):
         plot = Plot(self.dataset, self.stats_path, self.validation_path)
 
         mappings = None
-        
+
         faiss.omp_set_num_threads(self.cpu)
 
         if os.path.isfile(sign1.data_path):
@@ -207,9 +208,6 @@ class proj1(BaseSignature):
                 inchikey_proj[k] = projections[i]
             hf.create_dataset("V", data=projections)
             hf.create_dataset("keys", data=self.keys)
-            hf.create_dataset("xlim", data=xlim)
-            hf.create_dataset("ylim", data=ylim)
-            hf.create_dataset("Proj", data=final_Proj)
             name = str(self.dataset.code) + "_proj1"
             hf.create_dataset(
                 "name", data=[name.encode(encoding='UTF-8', errors='strict')])
@@ -223,9 +221,13 @@ class proj1(BaseSignature):
         faiss.write_index(index, os.path.join(
             self.model_path, self.index_file))
 
+        with h5py.File(os.path.join(
+                self.model_path, self.projections_file), "w") as hf:
+            hf.create_dataset("Proj", data=final_Proj)
+
         if validations:
             self.__log.info("Doing MoA & ATC validations")
-            
+
             if mappings is not None:
                 inchikey_mappings = dict(mappings)
             else:
@@ -257,7 +259,7 @@ class proj1(BaseSignature):
         """Use the fitted models to go from input to output."""
         BaseSignature.predict(self)
         mappings = None
-        
+
         faiss.omp_set_num_threads(self.cpu)
 
         if os.path.isfile(sign1.data_path):
@@ -279,7 +281,7 @@ class proj1(BaseSignature):
             raise Exception(
                 "Predict method requires a destination file to output results")
 
-        if not os.path.isfile(os.path.join(self.model_path, self.index_file)):
+        if not os.path.isfile(os.path.join(self.model_path, self.index_file)) or not os.path.isfile(os.path.join(self.model_path, self.projections_file)):
             raise Exception(
                 "This projection does not have prediction information. Please, call fit method first to use the predict method.")
 
@@ -290,6 +292,11 @@ class proj1(BaseSignature):
         index = faiss.read_index(os.path.join(
             self.model_path, self.index_file))
 
+        dh5 = h5py.File(os.path.join(
+            self.model_path, self.projections_file))
+        Proj = dh5["Proj"][:]
+        dh5.close()
+
         # base_points = faiss.vector_float_to_array(index.xb).reshape(-1, index.d)
 
         points_proj = {}
@@ -297,9 +304,6 @@ class proj1(BaseSignature):
         points_proj["weights"], points_proj["ids"] = self._get_weights(
             index, self.data, 3)
 
-        dh5 = h5py.File(self.data_path)
-        Proj = dh5["Proj"][:]
-        dh5.close()
         projections = self._project_points(Proj, points_proj)
 
         with h5py.File(destination, "w") as hf:
