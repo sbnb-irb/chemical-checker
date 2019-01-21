@@ -80,6 +80,8 @@ class sign2(BaseSignature):
         Args:
             sign1(sign1): Signature type 1.
             neig1(neig1): Nearest neighbor of type 1.
+            reuse(bool): Reuse already generated intermediate files. Set to
+                False to re-train from scratch.
         """
         #########
         # step 1: Node2Vec (learn graph embedding) input is neig1
