@@ -1,5 +1,6 @@
 import os
 import h5py
+import shutil
 import adanet
 import numpy as np
 import pandas as pd
@@ -12,6 +13,7 @@ from sklearn.metrics import explained_variance_score
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import ShuffleSplit
 import tensorflow.contrib.slim as slim
+from tensorflow.contrib import predictor
 
 from .dnn_generator import SimpleDNNGenerator
 from chemicalchecker.util import logged
@@ -223,8 +225,12 @@ class AdaNetWrapper(object):
 
         self.results = tf.estimator.train_and_evaluate(
             self.estimator, train_spec, eval_spec)
-
-        self.save_dir = self.save_model(self.model_dir)
+        # save model
+        tmp_dir = self.save_model(self.model_dir)
+        self.save_dir = os.path.join(self.model_dir, 'savedmodel')
+        if os.path.isdir(self.save_dir):
+            shutil.rmtree(self.save_dir)
+        shutil.move(tmp_dir, self.save_dir)
         self.__log.info("SAVING MODEL TO: %s", self.save_dir)
         AdaNetWrapper.print_model_architechture(self.save_dir)
         return self.estimator, self.results
@@ -288,15 +294,22 @@ class AdaNetWrapper(object):
             yield_single_examples=False)
         return predict_results
 
+    @staticmethod
+    def predict_signature(model_dir, signature):
+        """Predict on given testset."""
+        predict_fn = predictor.from_saved_model(
+            model_dir, signature_def_key='predict')
+        pred = predict_fn({'x': signature[:]})
+        return pred['predictions']
+
     def save_model(self, model_dir):
         def serving_input_fn():
-            serialized_tf_example = tf.placeholder(
-                dtype=tf.string, shape=[None], name='input_tensors')
-            receiver_tensors = {"predictor_inputs": serialized_tf_example}
-            feature_spec = {"x": tf.FixedLenFeature(
-                [self.input_dimension], tf.float32)}
-            features = tf.parse_example(serialized_tf_example, feature_spec)
-            return tf.estimator.export.ServingInputReceiver(features, receiver_tensors)
+            inputs = {
+                "x": tf.placeholder(dtype=tf.float32,
+                                    shape=[None, self.input_dimension],
+                                    name="x")
+            }
+            return tf.estimator.export.ServingInputReceiver(inputs, inputs)
 
         return self.estimator.export_saved_model(model_dir, serving_input_fn)
 
