@@ -1,5 +1,6 @@
 import os
 import h5py
+import shutil
 import adanet
 import numpy as np
 import pandas as pd
@@ -12,6 +13,7 @@ from sklearn.metrics import explained_variance_score
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import ShuffleSplit
 import tensorflow.contrib.slim as slim
+from tensorflow.contrib import predictor
 
 from .dnn_generator import SimpleDNNGenerator
 from chemicalchecker.util import logged
@@ -223,8 +225,12 @@ class AdaNetWrapper(object):
 
         self.results = tf.estimator.train_and_evaluate(
             self.estimator, train_spec, eval_spec)
-
-        self.save_dir = self.save_model(self.model_dir)
+        # save model
+        tmp_dir = self.save_model(self.model_dir)
+        self.save_dir = os.path.join(self.model_dir, 'savedmodel')
+        if os.path.isdir(self.save_dir):
+            shutil.rmtree(self.save_dir)
+        shutil.move(tmp_dir, self.save_dir)
         self.__log.info("SAVING MODEL TO: %s", self.save_dir)
         AdaNetWrapper.print_model_architechture(self.save_dir)
         return self.estimator, self.results
@@ -281,22 +287,22 @@ class AdaNetWrapper(object):
             return {'x': features}
         return _input_fn
 
-    def predict(self, partition):
+    @staticmethod
+    def predict(model_dir, signature):
         """Predict on given testset."""
-        predict_results = self.estimator.predict(
-            input_fn=self.test_input_fn(partition),
-            yield_single_examples=False)
-        return predict_results
+        predict_fn = predictor.from_saved_model(
+            model_dir, signature_def_key='predict')
+        pred = predict_fn({'x': signature[:]})
+        return pred['predictions']
 
     def save_model(self, model_dir):
         def serving_input_fn():
-            serialized_tf_example = tf.placeholder(
-                dtype=tf.string, shape=[None], name='input_tensors')
-            receiver_tensors = {"predictor_inputs": serialized_tf_example}
-            feature_spec = {"x": tf.FixedLenFeature(
-                [self.input_dimension], tf.float32)}
-            features = tf.parse_example(serialized_tf_example, feature_spec)
-            return tf.estimator.export.ServingInputReceiver(features, receiver_tensors)
+            inputs = {
+                "x": tf.placeholder(dtype=tf.float32,
+                                    shape=[None, self.input_dimension],
+                                    name="x")
+            }
+            return tf.estimator.export.ServingInputReceiver(inputs, inputs)
 
         return self.estimator.export_saved_model(model_dir, serving_input_fn)
 
@@ -304,7 +310,7 @@ class AdaNetWrapper(object):
     def print_model_architechture(model_dir):
         with tf.Session(graph=tf.Graph()) as sess:
             tf.saved_model.loader.load(sess, ["serve"], model_dir)
-            graph = tf.get_default_graph()
+            tf.get_default_graph()
             model_vars = tf.trainable_variables()
             slim.model_analyzer.analyze_vars(model_vars, print_info=True)
 
@@ -318,11 +324,12 @@ class AdaNetWrapper(object):
         with h5py.File(self.traintest_file, 'r') as hf:
             y_train = hf['y_train'][:]
             y_test = hf['y_test'][:]
+            x_train = hf['x_train'][:]
+            x_test = hf['x_test'][:]
 
         # Performances for AdaNet on TRAIN
         self.__log.info("Performances for AdaNet on TRAIN")
-        y_train_pred = [y['predictions'] for y in self.predict("train")]
-        y_train_pred = np.concatenate(y_train_pred)
+        y_train_pred = AdaNetWrapper.predict(self.save_dir, x_train)
         row_train = dict()
         row_train['algo'] = 'AdaNet'
         row_train['dataset'] = 'train'
@@ -346,8 +353,7 @@ class AdaNetWrapper(object):
 
         # Performances for AdaNet on TEST
         self.__log.info("Performances for AdaNet on TEST")
-        y_test_pred = [y['predictions'] for y in self.predict("test")]
-        y_test_pred = np.concatenate(y_test_pred)
+        y_test_pred = AdaNetWrapper.predict(self.save_dir, x_test)
         row_test = dict()
         row_test['algo'] = 'AdaNet'
         row_test['dataset'] = 'test'
@@ -392,8 +398,6 @@ class AdaNetWrapper(object):
 
         # compare to simple Linear Regression on TRAIN
         self.__log.info("Performances for LinearRegression on TRAIN")
-        with h5py.File(self.traintest_file, 'r') as hf:
-            x_train = hf['x_train'][:]
         t0 = time()
         linreg = LinearRegression().fit(x_train, y_train)
         t1 = time()
@@ -422,8 +426,6 @@ class AdaNetWrapper(object):
 
         # compare to simple Linear Regression on TEST
         self.__log.info("Performances for LinearRegression on TEST")
-        with h5py.File(self.traintest_file, 'r') as hf:
-            x_test = hf['x_test'][:]
         y_test_pred = linreg.predict(x_test)
         row_test = dict()
         row_test['algo'] = 'LinearRegression'
