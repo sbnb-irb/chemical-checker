@@ -10,7 +10,6 @@ try:
     from rdkit.Chem.Scaffolds import MurckoScaffold
     from rdkit.Chem import MACCSkeys
     from silicos_it.descriptors import qed
-    from rdkit.Chem import Descriptors
     from rdkit.Chem import ChemicalFeatures
 except ImportError:
     pass
