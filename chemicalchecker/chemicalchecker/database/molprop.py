@@ -7,6 +7,7 @@ from .database import Base, get_session, get_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Text
 from sqlalchemy.dialects import postgresql
+from chemicalchecker.database import GeneralProp
 
 
 def Molprop(table_name):
@@ -39,25 +40,6 @@ def Molprop(table_name):
             session.close()
 
         @staticmethod
-        def add_bulk(data, chunk=1000):
-            """Method to add a lot of rows to the table.
-
-                This method allows to load a big amound of rows in one instruction
-
-            Args:
-                data(list): The data in list format. Each list member is a new row. it is important the order.
-                chunk(int): The size of the chunks to load data to the database.
-            """
-            engine = get_engine()
-            for pos in range(0, len(data), chunk):
-
-                engine.execute(
-                    GenericMolprop.__table__.insert(),
-                    [{"inchikey": row[0], "raw": row[1]}
-                        for row in data[pos:pos + chunk]]
-                )
-
-        @staticmethod
         def get(key):
             """Method to query general_properties table."""
             session = get_session()
@@ -83,9 +65,13 @@ def Molprop(table_name):
             t_start = time()
             engine = get_engine()
             for chunk in parse_fn(inchikey_inchi, 1000):
-                GenericMolprop.__log.debug("Loading chunk of size: " + str(len(chunk)))
-                engine.execute(postgresql.insert(GenericMolprop.__table__).values(
-                    chunk).on_conflict_do_nothing(index_elements=[GenericMolprop.inchikey]))
+                GenericMolprop.__log.debug(
+                    "Loading chunk of size: " + str(len(chunk)))
+                if GenericMolprop.__tablename__ == "physchem":
+                    GeneralProp.add_bulk(chunk)
+                else:
+                    engine.execute(postgresql.insert(GenericMolprop.__table__).values(
+                        chunk).on_conflict_do_nothing(index_elements=[GenericMolprop.inchikey]))
             t_end = time()
             t_delta = str(datetime.timedelta(seconds=t_end - t_start))
             GenericMolprop.__log.info(

@@ -9,6 +9,9 @@ try:
     from rdkit.Chem import Descriptors, rdMolDescriptors
     from rdkit.Chem.Scaffolds import MurckoScaffold
     from rdkit.Chem import MACCSkeys
+    from silicos_it.descriptors import qed
+    from rdkit.Chem import Descriptors
+    from rdkit.Chem import ChemicalFeatures
 except ImportError:
     pass
 
@@ -61,7 +64,9 @@ class PropCalculator():
     @staticmethod
     def fp3d(inchikey_inchi, chunks=1000):
 
-        params = pipeline.params_to_dicts(root + "/../files/defaults.cfg")
+        root = os.path.dirname(os.path.realpath(__file__))
+
+        params = pipeline.params_to_dicts(root + "/data/defaults.cfg")
 
         @timeout_decorator.timeout(100, use_signals=False)
         def fprints_from_inchi(inchi, inchikey, confgen_params={}, fprint_params={}, save=False):
@@ -152,6 +157,109 @@ class PropCalculator():
             result = {
                 "inchikey": k,
                 "raw": dense
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
+
+    @staticmethod
+    def physchem(inchikey_inchi, chunks=1000):
+
+        def descriptors(mol):
+            P = {}
+
+            P['ringaliph'] = Descriptors.NumAliphaticRings(mol)
+            P['mr'] = Descriptors.MolMR(mol)
+            P['heavy'] = Descriptors.HeavyAtomCount(mol)
+            P['hetero'] = Descriptors.NumHeteroatoms(mol)
+            P['rings'] = Descriptors.RingCount(mol)
+
+            props = qed.properties(mol)
+            P['mw'] = props[0]
+            P['alogp'] = props[1]
+            P['hba'] = props[2]
+            P['hbd'] = props[3]
+            P['psa'] = props[4]
+            P['rotb'] = props[5]
+            P['ringarom'] = props[6]
+            P['alerts_qed'] = props[7]
+            P['qed'] = qed.qed([0.66, 0.46, 0.05, 0.61, 0.06,
+                                0.65, 0.48, 0.95], props, True)
+
+            # Ro5
+            ro5 = 0
+            if P['hbd'] > 5:
+                ro5 += 1
+            if P['hba'] > 10:
+                ro5 += 1
+            if P['mw'] >= 500:
+                ro5 += 1
+            if P['alogp'] > 5:
+                ro5 += 1
+            P['ro5'] = ro5
+
+            # Ro3
+            ro3 = 0
+            if P['hbd'] > 3:
+                ro3 += 1
+            if P['hba'] > 3:
+                ro3 += 1
+            if P['rotb'] > 3:
+                ro3 += 1
+            if P['mw'] >= 300:
+                ro3 += 1
+            if P['alogp'] > 3:
+                ro3 += 1
+            P['ro3'] = ro3
+
+            # Structural alerts from Chembl
+            P['alerts_chembl'] = len(
+                set([int(feat.GetType()) for feat in alerts_chembl.GetFeaturesForMol(mol)]))
+            return P
+
+        root = os.path.dirname(os.path.realpath(__file__))
+
+        # Find how to create this file in netscreens/physchem
+        alerts_chembl = ChemicalFeatures.BuildFeatureFactory(
+            root + "/data/structural_alerts.fdef")
+
+        iks = inchikey_inchi.keys()
+        chunk = list()
+
+        for k in iks:
+            v = inchikey_inchi[k]
+            mol = Chem.rdinchi.InchiToMol(v)[0]
+            P = descriptors(mol)
+            raw = "%.2f,%d,%d,%d,%d,%d,%.3f,%.3f,%d,%d,%.3f,%d,%d,%d,%d,%d,%.3f" % (P['mw'], P['heavy'], P['hetero'],
+                                                                                    P['rings'], P['ringaliph'], P[
+                'ringarom'],
+                P['alogp'], P['mr'], P[
+                'hba'], P['hbd'], P['psa'],
+                P['rotb'], P['alerts_qed'], P[
+                'alerts_chembl'],
+                P['ro5'], P['ro3'], P['qed'])
+            result = {
+                "inchikey": k,
+                "mw": P['mw'],
+                "heavy": P['heavy'],
+                "hetero": P['hetero'],
+                "rings": P['rings'],
+                "ringaliph": P["ringaliph"],
+                "ringarom": P["ringarom"],
+                "alogp": P["alogp"],
+                "mr": P['mr'],
+                "hba": P['hba'],
+                "hbd": P['hbd'],
+                "psa": P['psa'],
+                "rotb": P["rotb"],
+                "alerts_qed": P['alerts_qed'],
+                "alerts_chembl": P['alerts_chembl'],
+                "ro5": P['ro5'],
+                "ro3": P['ro3'],
+                "qed": P['qed'],
+                "raw": raw
             }
             chunk.append(result)
             if len(chunk) == chunks:
