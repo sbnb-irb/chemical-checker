@@ -1,13 +1,16 @@
 import os
-import faiss
+try:
+    import faiss
+    from MulticoreTSNE import MulticoreTSNE as TSNE
+    import hdbscan
+except:
+    pass
 import numpy as np
 import h5py
 import random
-from MulticoreTSNE import MulticoreTSNE as TSNE
 from sklearn.manifold import MDS
 import matplotlib as mpl
 mpl.use('Agg')
-import hdbscan
 import json
 import datetime
 from time import time
@@ -29,8 +32,10 @@ class proj1(BaseSignature):
             validation_path(str): the path to the validation sets.
             dataset(object): The dataset object with all info related
             metric(str): The metric used in the KNN algorithm: euclidean or cosine (default: cosine)
-            k_neig(int): The number of k neighbours to search for (default:1000)
+            type(int): The type of plot technology used between tsne and mds (default:tsne)
             cpu(int): The number of cores to use (default:1)
+            perplexity(int): Perplexity for the NN-grapn (default:30)
+            angle(float): Angle in BH-TSNE, from 0 to 0.5 (default:0.5)
         """
         # Calling init on the base class to trigger file existance checks
         BaseSignature.__init__(
@@ -284,10 +289,6 @@ class proj1(BaseSignature):
         if not os.path.isfile(os.path.join(self.model_path, self.index_file)) or not os.path.isfile(os.path.join(self.model_path, self.projections_file)):
             raise Exception(
                 "This projection does not have prediction information. Please, call fit method first to use the predict method.")
-
-        if not os.path.isfile(self.data_path):
-            raise Exception(
-                "The clus1.h5 file does not exist. Please re run fit method")
 
         index = faiss.read_index(os.path.join(
             self.model_path, self.index_file))

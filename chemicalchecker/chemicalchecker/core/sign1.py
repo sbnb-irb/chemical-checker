@@ -409,7 +409,7 @@ class sign1(BaseSignature):
         """
         # Calling base class to trigger file existence checks
         BaseSignature.predict(self)
-        plot = Plot(self.dataset, self.stats_path)
+        plot = Plot(self.dataset, self.stats_path, self.validation_path)
         self.__log.debug('loading model from %s' % self.model_path)
         self.__log.debug('LSI/PCA predict %s' % sign0)
         FILE = os.path.join(self.model_path, "procs.txt")
