@@ -75,7 +75,7 @@ class TestPropCalculator(unittest.TestCase):
                       "inchikey"] == "YXKFPFQIDHAWAU-XAZDILKDSA-N")
         self.assertDictEqual(expected, output)
 
-    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    @pytest.mark.skip(reason="Qed package not available in gitlab")
     def test_physchem(self):
 
         chunks = list(PropCalculator.physchem(self.inchikey_inchi))
