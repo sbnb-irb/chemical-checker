@@ -79,7 +79,8 @@ class MultiPlot():
                     aspect=.8, height=3, dodge=True, order=['train', 'test'],
                     palette=['darkgreen', 'darkgrey'])
 
-        outfile = os.path.join(self.plot_path, 'sign2_adanet_stats.png')
+        outfile = os.path.join(
+            self.plot_path, 'sign2_adanet_stats_%s.png' % metric)
         plt.savefig(outfile, dpi=100)
         plt.close('all')
 

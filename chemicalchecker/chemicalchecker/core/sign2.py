@@ -80,6 +80,8 @@ class sign2(BaseSignature):
         Args:
             sign1(sign1): Signature type 1.
             neig1(neig1): Nearest neighbor of type 1.
+            reuse(bool): Reuse already generated intermediate files. Set to
+                False to re-train from scratch.
         """
         #########
         # step 1: Node2Vec (learn graph embedding) input is neig1
@@ -152,13 +154,9 @@ class sign2(BaseSignature):
     def predict(self, sign1):
         """Use the learned model to predict the signature."""
         # load AdaNet model
-        adanet_path = os.path.join(self.model_path, 'adanet')
+        adanet_path = os.path.join(self.model_path, 'adanet', 'savedmodel')
         self.__log.debug('loading model from %s' % adanet_path)
-        ada = AdaNet(model_path=adanet_path)
-        # prepare input file
-        self.__log.debug('AdaNet predict %s' % sign1)
-        ada.prepare_predict(sign1.data_path)
-        return ada.predict()
+        return AdaNet.predict_signature(adanet_path, sign1)
 
     def grid_search_adanet(self, sign1, neig1, job_path, parameters, traintest_file=None):
         """Perform a grid search.
