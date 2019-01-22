@@ -87,5 +87,4 @@ class TestPropCalculator(unittest.TestCase):
                     'raw': '553.66,41,8,5,2,3,3.541,155.313,5,2,101.390,10,2,4,1,4,0.289', 'mw': 553.6590000000003, 'rotb': 10, 'ro3': 4, 'alogp': 3.5407000000000037, 'ringarom': 3, 'alerts_chembl': 4, 'hbd': 2, 'ro5': 1, 'ringaliph': 2}
         output = next(item for item in results if item[
                       "inchikey"] == "YXKFPFQIDHAWAU-XAZDILKDSA-N")
-        print output
         self.assertDictEqual(expected, output)

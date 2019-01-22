@@ -67,7 +67,7 @@ def Molprop(table_name):
             for chunk in parse_fn(inchikey_inchi, 1000):
                 GenericMolprop.__log.debug(
                     "Loading chunk of size: " + str(len(chunk)))
-                if GenericMolprop.__tablename__ == "physchem":
+                if GenericMolprop.__tablename__ == GeneralProp.__tablename__:
                     GeneralProp.add_bulk(chunk)
                 else:
                     engine.execute(postgresql.insert(GenericMolprop.__table__).values(
