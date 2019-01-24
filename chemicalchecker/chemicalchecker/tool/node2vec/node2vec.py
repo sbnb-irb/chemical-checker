@@ -278,7 +278,7 @@ class Node2Vec():
             assert(len(considered_mol_ids) == self.max_degree)
         # convert distances to p-values index
         pvalues_idx = np.zeros(neig_dists.shape, dtype=int)
-        for dist in thr_dists:
+        for dist in thr_dists[:-1]:  # skip last distance for corner cases
             pvalues_idx += neig_dists > dist
         # convert p-value indexes to p-values
         pvalues = thr_pvals[pvalues_idx]
