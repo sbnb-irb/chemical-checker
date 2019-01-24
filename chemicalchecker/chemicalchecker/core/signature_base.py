@@ -103,6 +103,17 @@ class BaseSignature(object):
             raise Exception("Model file not available.")
 
     @property
+    def info_h5(self):
+        """Get the signature matrix shape (i.e. the sizes)."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        infos = dict()
+        with h5py.File(self.data_path, 'r') as hf:
+            for key in hf.keys():
+                infos[key] = hf[key].shape
+        return infos
+
+    @property
     def shape(self):
         """Get the signature matrix shape (i.e. the sizes)."""
         if not os.path.isfile(self.data_path):
