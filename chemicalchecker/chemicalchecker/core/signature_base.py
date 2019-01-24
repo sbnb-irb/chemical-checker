@@ -104,7 +104,7 @@ class BaseSignature(object):
 
     @property
     def info_h5(self):
-        """Get the signature matrix shape (i.e. the sizes)."""
+        """Get the dictionary of dataset and shapes."""
         if not os.path.isfile(self.data_path):
             raise Exception("Data file %s not available." % self.data_path)
         infos = dict()
@@ -113,9 +113,24 @@ class BaseSignature(object):
                 infos[key] = hf[key].shape
         return infos
 
+    def copy_from(self, sign, key):
+        """Copy dataset 'key' to current signature.
+
+        Args:
+            sign(SignatureBase): The source signature.
+            key(str): The dataset to copy from.
+        """
+        if key not in sign.info_h5:
+            raise Exception("Data file %s has no dataset named '%s'." %
+                            (sign.data_path, key))
+        with h5py.File(sign.data_path, 'r') as hf:
+            src = hf[key][:]
+        with h5py.File(self.data_path, 'a') as hf:
+            hf[key] = src
+
     @property
     def shape(self):
-        """Get the signature matrix shape (i.e. the sizes)."""
+        """Get the V matrix sizes."""
         if not os.path.isfile(self.data_path):
             raise Exception("Data file %s not available." % self.data_path)
         with h5py.File(self.data_path, 'r') as hf:
@@ -125,7 +140,7 @@ class BaseSignature(object):
 
     @cached_property
     def keys(self):
-        """Get the signature matrix shape (i.e. the sizes)."""
+        """Get the list of keys in the signature."""
         if not os.path.isfile(self.data_path):
             raise Exception("Data file %s not available." % self.data_path)
         with h5py.File(self.data_path, 'r') as hf:
