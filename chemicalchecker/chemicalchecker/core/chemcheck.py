@@ -225,7 +225,7 @@ class ChemicalChecker():
         return cluster
 
     @staticmethod
-    def compute_sign2_hpc(job_path, cc_root):
+    def compute_sign2_hpc(job_path, cc_root, cpu=1):
         """Run HPC jobs to remove near duplicates of a signature.
 
         Args:
@@ -272,6 +272,7 @@ class ChemicalChecker():
         params["elements"] = all_datasets
         params["wait"] = True
         params["memory"] = 1  # this avoids singularity segfault on some nodes
+        params["cpu"] = cpu  # Node2Vec parallelizes well
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
