@@ -2,22 +2,23 @@ import os
 import h5py
 import shutil
 import adanet
+import pickle
 import numpy as np
 import pandas as pd
 from time import time
 import tensorflow as tf
-import pickle
 from scipy.stats import pearsonr
 from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.metrics import explained_variance_score
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import ShuffleSplit
+from sklearn.model_selection import train_test_split
 import tensorflow.contrib.slim as slim
 from tensorflow.contrib import predictor
 
 from .dnn_generator import SimpleDNNGenerator
+from .dnn_stack_generator import StackDNNGenerator
+from .cnn_generator import SimpleCNNGenerator
 from chemicalchecker.util import logged
-from chemicalchecker.util import Plot
 
 
 @logged
@@ -76,23 +77,38 @@ class Traintest(object):
         with h5py.File(sign_to, 'r') as fh:
             Y = fh['V'][:]
             check_Y = fh['keys'][:]
+        Traintest.__log.debug(
+            "{:<20} shape: {:>10}".format("input X", X.shape))
+        Traintest.__log.debug(
+            "{:<20} shape: {:>10}".format("input Y", Y.shape))
         assert(np.array_equal(check_X, check_Y))
         Traintest.__log.info('shapes X %s  Y %s', X.shape, Y.shape)
-        # train test split
-        sp = ShuffleSplit(n_splits=1, train_size=0.8, random_state=0)
-        train, test = list(sp.split(X))[0]
+        # train test validation splits
+        x_train, x_test, y_train, y_test = train_test_split(
+            X, Y, test_size=0.2, random_state=42)
+        x_train, x_val, y_train, y_val = train_test_split(
+            x_train, y_train, test_size=0.2, random_state=42)
+
         # create dataset
         with h5py.File(out_filename, "w") as fh:
-            fh.create_dataset('x_train', data=X[train], dtype=np.float32)
-            fh.create_dataset('y_train', data=Y[train], dtype=np.float32)
-            fh.create_dataset('x_test', data=X[test], dtype=np.float32)
-            fh.create_dataset('y_test', data=Y[test], dtype=np.float32)
-            Traintest.__log.debug("**** SHAPES ****")
-            Traintest.__log.debug("x_train %s", fh["x_train"].shape)
-            Traintest.__log.debug("y_train %s", fh["y_train"].shape)
-            Traintest.__log.debug("x_test %s", fh["x_test"].shape)
-            Traintest.__log.debug("y_test %s", fh["y_test"].shape)
-            Traintest.__log.debug("**** SHAPES ****")
+            fh.create_dataset('x_train', data=x_train, dtype=np.float32)
+            fh.create_dataset('y_train', data=y_train, dtype=np.float32)
+            fh.create_dataset('x_test', data=x_test, dtype=np.float32)
+            fh.create_dataset('y_test', data=y_test, dtype=np.float32)
+            fh.create_dataset('x_validation', data=x_val, dtype=np.float32)
+            fh.create_dataset('y_validation', data=y_val, dtype=np.float32)
+            Traintest.__log.debug("{:<20} shape: {:>10}".format(
+                "x_train", fh["x_train"].shape))
+            Traintest.__log.debug("{:<20} shape: {:>10}".format(
+                "y_train", fh["y_train"].shape))
+            Traintest.__log.debug("{:<20} shape: {:>10}".format(
+                "x_test", fh["x_test"].shape))
+            Traintest.__log.debug("{:<20} shape: {:>10}".format(
+                "y_test", fh["y_test"].shape))
+            Traintest.__log.debug("{:<20} shape: {:>10}".format(
+                "x_validation", fh["x_validation"].shape))
+            Traintest.__log.debug("{:<20} shape: {:>10}".format(
+                "y_validation", fh["y_validation"].shape))
         fh.close()
         Traintest.__log.info('Traintest saved to %s', out_filename)
 
@@ -144,6 +160,8 @@ class AdaNetWrapper(object):
         self.activation = kwargs.get("activation", tf.nn.relu)
         self.layer_size = int(kwargs.get("layer_size", 1024))
         self.shuffles = int(kwargs.get("shuffles", 10))
+        self.subnetwork_generator = eval(kwargs.get(
+            "subnetwork_generator", "SimpleDNNGenerator"))
         self.results = None
         self.estimator = None
         self.__log.info("**** AdaNet Parameters: ***")
@@ -162,15 +180,19 @@ class AdaNetWrapper(object):
         self.__log.info("{:<22}: {:>12}".format("activation", self.activation))
         self.__log.info("{:<22}: {:>12}".format("layer_size", self.layer_size))
         self.__log.info("{:<22}: {:>12}".format("shuffles", self.shuffles))
+        self.__log.info("{:<22}: {:>12}".format(
+            "subnetwork_generator", self.subnetwork_generator))
 
     def train_and_evaluate(self, traintest_file):
+        """Train and evaluate AdaNet."""
         self.starttime = time()
-
+        # tune parameters according to input shape
         self.traintest_file = traintest_file
         with h5py.File(traintest_file, 'r') as hf:
-            self.input_dimension = hf['x_test'].shape[1]
-            self.label_dimension = hf['y_test'].shape[1]
+            self.input_dimension = hf['x_train'].shape[1]
+            self.label_dimension = hf['y_train'].shape[1]
             self.train_size = hf['x_train'].shape[0]
+        # this guarantees one epoch per train (however consider a minimum)
         self.train_step = max(1000, self.train_size // self.batch_size)
         self.total_steps = self.train_step * self.boosting_iterations
 
@@ -185,7 +207,7 @@ class AdaNetWrapper(object):
             # Define the generator, which defines our search space of
             # subnetworks to train as candidates to add to the final AdaNet
             # model.
-            subnetwork_generator=SimpleDNNGenerator(
+            subnetwork_generator=self.subnetwork_generator(
                 optimizer=tf.train.RMSPropOptimizer(
                     learning_rate=self.learning_rate),
                 learn_mixture_weights=self.learn_mixture_weights,
@@ -214,7 +236,6 @@ class AdaNetWrapper(object):
 
             model_dir=self.model_dir
         )
-
         # Train and evaluate using using the tf.estimator tooling.
         train_spec = tf.estimator.TrainSpec(
             input_fn=self.input_fn("train", training=True),
@@ -222,16 +243,17 @@ class AdaNetWrapper(object):
         eval_spec = tf.estimator.EvalSpec(
             input_fn=self.input_fn("test", training=False),
             steps=None)
-
         self.results = tf.estimator.train_and_evaluate(
             self.estimator, train_spec, eval_spec)
-        # save model
-        tmp_dir = self.save_model(self.model_dir)
+        # collect time stat
+        self.time = time() - self.starttime
+        # save persistent model
         self.save_dir = os.path.join(self.model_dir, 'savedmodel')
+        self.__log.info("SAVING MODEL TO: %s", self.save_dir)
+        tmp_dir = self.save_model(self.model_dir)
         if os.path.isdir(self.save_dir):
             shutil.rmtree(self.save_dir)
         shutil.move(tmp_dir, self.save_dir)
-        self.__log.info("SAVING MODEL TO: %s", self.save_dir)
         AdaNetWrapper.print_model_architechture(self.save_dir)
         return self.estimator, self.results
 
@@ -271,22 +293,6 @@ class AdaNetWrapper(object):
 
         return _input_fn
 
-    def test_input_fn(self, partition):
-        """Generate a test input function for the Estimator."""
-        def _input_fn():
-            x_shape, y_shape, generator_fn = Traintest.generator_fn(
-                self.traintest_file, partition, self.batch_size, only_x=True)
-
-            dataset = tf.data.Dataset.from_generator(
-                generator_fn,
-                output_types=tf.float32,
-                output_shapes=(None, x_shape[1])
-            )
-            iterator = dataset.make_one_shot_iterator()
-            features = iterator.get_next()
-            return {'x': features}
-        return _input_fn
-
     @staticmethod
     def predict(model_dir, signature):
         """Predict on given testset."""
@@ -308,150 +314,112 @@ class AdaNetWrapper(object):
 
     @staticmethod
     def print_model_architechture(model_dir):
+        """Print out the persistent NN structure."""
         with tf.Session(graph=tf.Graph()) as sess:
             tf.saved_model.loader.load(sess, ["serve"], model_dir)
-            tf.get_default_graph()
             model_vars = tf.trainable_variables()
             slim.model_analyzer.analyze_vars(model_vars, print_info=True)
 
-    def save_performances(self, output_dir, plot):
-        self.time = time() - self.starttime
+    @staticmethod
+    def get_trainable_variables(model_dir):
+        """Return the weigths of the persistent NN."""
+        model_vars = list()
+        with tf.Session(graph=tf.Graph()) as sess:
+            tf.saved_model.loader.load(sess, ["serve"], model_dir)
+            for var in tf.trainable_variables():
+                model_vars.append(var.eval())
+        return model_vars
 
+    def save_performances(self, output_dir, plot):
+        """Save stats and make plots."""
+        # read input
+        datasets = ['train', 'test', 'validation']
+        x = dict()
+        y = dict()
+        with h5py.File(self.traintest_file, 'r') as hf:
+            for ds in datasets:
+                x[ds] = hf["x_%s" % ds][:]
+                y[ds] = hf["y_%s" % ds][:]
+        # save in pandas
         df = pd.DataFrame(columns=[
             'dataset', 'r2', 'pearson_avg', 'pearson_std', 'algo', 'mse',
             'explained_variance', 'time', 'architecture', 'nr_variables',
             'nn_layers'])
-        with h5py.File(self.traintest_file, 'r') as hf:
-            y_train = hf['y_train'][:]
-            y_test = hf['y_test'][:]
-            x_train = hf['x_train'][:]
-            x_test = hf['x_test'][:]
 
-        # Performances for AdaNet on TRAIN
-        self.__log.info("Performances for AdaNet on TRAIN")
-        y_train_pred = AdaNetWrapper.predict(self.save_dir, x_train)
-        row_train = dict()
-        row_train['algo'] = 'AdaNet'
-        row_train['dataset'] = 'train'
-        row_train['r2'] = r2_score(y_train, y_train_pred)
-        pps = [pearsonr(y_train[:, x], y_train_pred[:, x])[0]
-               for x in range(self.label_dimension)]
-        row_train['pearson_avg'] = np.mean(pps)
-        row_train['pearson_std'] = np.std(pps)
-        row_train['mse'] = mean_squared_error(y_train, y_train_pred)
-        row_train['explained_variance'] = explained_variance_score(
-            y_train, y_train_pred)
-        row_train['time'] = self.time
-        row_train['architecture'] = self.architecture()
-        for k, v in row_train.items():
-            if isinstance(v, float):
-                self.__log.debug("{:<24} {:>4.3f}".format(k, v))
-            else:
-                self.__log.debug("{:<24} {}".format(k, v))
-        # save plot
-        plot.sign2_plot(y_train, y_train_pred, "AdaNet_TRAIN")
+        def _stats_row(y_true, y_pred, algo, dataset):
+            row = dict()
+            row['algo'] = algo
+            row['dataset'] = dataset
+            row['r2'] = r2_score(y_true, y_pred)
+            pps = [pearsonr(y_true[:, x], y_pred[:, x])[0]
+                   for x in range(y_true.shape[1])]
+            row['pearson_avg'] = np.mean(pps)
+            row['pearson_std'] = np.std(pps)
+            row['mse'] = mean_squared_error(y_true, y_pred)
+            row['explained_variance'] = explained_variance_score(
+                y_true, y_pred)
+            return row
 
-        # Performances for AdaNet on TEST
-        self.__log.info("Performances for AdaNet on TEST")
-        y_test_pred = AdaNetWrapper.predict(self.save_dir, x_test)
-        row_test = dict()
-        row_test['algo'] = 'AdaNet'
-        row_test['dataset'] = 'test'
-        row_test['r2'] = r2_score(y_test, y_test_pred)
-        pps = [pearsonr(y_test[:, x], y_test_pred[:, x])[0]
-               for x in range(self.label_dimension)]
-        row_test['pearson_avg'] = np.mean(pps)
-        row_test['pearson_std'] = np.std(pps)
-        row_test['mse'] = mean_squared_error(y_test, y_test_pred)
-        row_test['explained_variance'] = explained_variance_score(
-            y_test, y_test_pred)
-        row_test['time'] = self.time
-        row_test['architecture'] = self.architecture()
-        for k, v in row_test.items():
-            if isinstance(v, float):
-                self.__log.debug("{:<24} {:>4.3f}".format(k, v))
-            else:
-                self.__log.debug("{:<24} {}".format(k, v))
-        # save plot
-        plot.sign2_plot(y_test, y_test_pred, "AdaNet_TEST")
+        def _log_row(row):
+            for k, v in row.items():
+                if isinstance(v, float):
+                    self.__log.debug("{:<24} {:>4.3f}".format(k, v))
+                else:
+                    self.__log.debug("{:<24} {}".format(k, v))
 
+        # Performances for AdaNet
+        rows = dict()
+        for ds in datasets:
+            self.__log.info("Performances for AdaNet on %s" % ds)
+            y_pred = AdaNetWrapper.predict(self.save_dir, x[ds])
+            rows[ds] = _stats_row(y[ds], y_pred, 'AdaNet', ds)
+            rows[ds]['time'] = self.time
+            rows[ds]['architecture'] = self.architecture()
+            # log and save plot
+            _log_row(rows[ds])
+            plot.sign2_plot(y[ds], y_pred, "AdaNet_%s" % ds)
+
+        # some additional shared stats
         # get nr of variables in final model
         with tf.Session(graph=tf.Graph()) as sess:
             tf.saved_model.loader.load(sess, ["serve"], self.save_dir)
-            tf.get_default_graph()
             nr_variables = np.sum([np.prod(v.get_shape().as_list())
                                    for v in tf.trainable_variables()])
-            nn_layers = len(tf.trainable_variables()) / 2
+            nn_layers = (len(tf.trainable_variables()) / 2) - 1
 
         # save rows
-        row_test["nr_variables"] = nr_variables
-        row_train["nr_variables"] = nr_variables
-        row_test["nn_layers"] = nn_layers
-        row_train["nn_layers"] = nn_layers
-        df.loc[len(df)] = pd.Series(row_test)
-        df.loc[len(df)] = pd.Series(row_train)
+        for ds in datasets:
+            rows[ds]["nr_variables"] = nr_variables
+            rows[ds]["nn_layers"] = nn_layers
+            df.loc[len(df)] = pd.Series(rows[ds])
         output_pkl = os.path.join(output_dir, 'stats.pkl')
         with open(output_pkl, 'wb') as fh:
             pickle.dump(df, fh)
         output_csv = os.path.join(output_dir, 'stats.csv')
         df.to_csv(output_csv)
 
-        # compare to simple Linear Regression on TRAIN
-        self.__log.info("Performances for LinearRegression on TRAIN")
-        t0 = time()
-        linreg = LinearRegression().fit(x_train, y_train)
-        t1 = time()
-        y_train_pred = linreg.predict(x_train)
-        row_train = dict()
-        row_train['algo'] = 'LinearRegression'
-        row_train['dataset'] = 'train'
-        row_train['r2'] = r2_score(y_train, y_train_pred)
-        pps = [pearsonr(y_train[:, x], y_train_pred[:, x])[0]
-               for x in range(self.label_dimension)]
-        row_train['pearson_avg'] = np.mean(pps)
-        row_train['pearson_std'] = np.std(pps)
-        row_train['mse'] = mean_squared_error(y_train, y_train_pred)
-        row_train['explained_variance'] = explained_variance_score(
-            y_train, y_train_pred)
-        row_train['time'] = t1 - t0
-        row_train['architecture'] = '| linear |'
-        row_train["nr_variables"] = self.label_dimension
-        for k, v in row_train.items():
-            if isinstance(v, float):
-                self.__log.debug("{:<24} {:>4.3f}".format(k, v))
-            else:
-                self.__log.debug("{:<24} {}".format(k, v))
-        # save plot
-        plot.sign2_plot(y_train, y_train_pred, "LinearRegression_TRAIN")
-
-        # compare to simple Linear Regression on TEST
-        self.__log.info("Performances for LinearRegression on TEST")
-        y_test_pred = linreg.predict(x_test)
-        row_test = dict()
-        row_test['algo'] = 'LinearRegression'
-        row_test['dataset'] = 'test'
-        row_test['r2'] = r2_score(y_test, y_test_pred)
-        pps = [pearsonr(y_test[:, x], y_test_pred[:, x])[0]
-               for x in range(self.label_dimension)]
-        row_test['pearson_avg'] = np.mean(pps)
-        row_test['pearson_std'] = np.std(pps)
-        row_test['mse'] = mean_squared_error(y_test, y_test_pred)
-        row_test['explained_variance'] = explained_variance_score(
-            y_test, y_test_pred)
-        row_test['time'] = t1 - t0
-        row_test['architecture'] = '| linear |'
-        row_test["nr_variables"] = self.label_dimension
-        for k, v in row_test.items():
-            if isinstance(v, float):
-                self.__log.debug("{:<24} {:>4.3f}".format(k, v))
-            else:
-                self.__log.debug("{:<24} {}".format(k, v))
-        # save plot
-        plot.sign2_plot(y_test, y_test_pred, "LinearRegression_TEST")
+        # compare to simple Linear Regression
+        linreg_start = time()
+        linreg = LinearRegression().fit(x['train'], y['train'])
+        linreg_stop = time()
+        rows = dict()
+        for ds in datasets:
+            self.__log.info("Performances for LinearRegression on %s" % ds)
+            y_pred = linreg.predict(x[ds])
+            rows[ds] = _stats_row(y[ds], y_pred, 'LinearRegression', ds)
+            rows[ds]['time'] = linreg_stop - linreg_start
+            rows[ds]['architecture'] = '| linear |'
+            rows[ds]["nr_variables"] = y[ds].shape[1]
+            rows[ds]["nn_layers"] = 0
+            # log and save plot
+            _log_row(rows[ds])
+            plot.sign2_plot(y[ds], y_pred, "LinearRegression_%s" % ds)
 
         # save rows
-        df.loc[len(df)] = pd.Series(row_test)
-        df.loc[len(df)] = pd.Series(row_train)
+        for ds in datasets:
+            df.loc[len(df)] = pd.Series(rows[ds])
+        output_pkl = os.path.join(output_dir, 'stats.pkl')
         with open(output_pkl, 'wb') as fh:
             pickle.dump(df, fh)
+        output_csv = os.path.join(output_dir, 'stats.csv')
         df.to_csv(output_csv)
