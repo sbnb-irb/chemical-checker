@@ -139,8 +139,10 @@ class sign2(BaseSignature):
         else:
             ada = AdaNet(model_dir=adanet_path)
         # prepare train-test file
-        traintest_file = adanet_params.get(
-            'traintest_file', os.path.join(adanet_path, 'traintest.h5'))
+        traintest_file = os.path.join(adanet_path, 'traintest.h5')
+        if adanet_params:
+            traintest_file = adanet_params.get(
+                'traintest_file', traintest_file)
         if not reuse or not os.path.isfile(traintest_file):
             Traintest.create(sign1.data_path, self.data_path, traintest_file)
         # learn NN with AdaNet
