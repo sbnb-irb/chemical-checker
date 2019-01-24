@@ -131,30 +131,36 @@ class MultiPlot():
                 continue
             graph_stat = json.load(open(graph_file, 'r'))
             linkpred_file = os.path.join(sign2.stats_path, "linkpred.json")
+            skip_linkpred = False
             if not os.path.isfile(linkpred_file):
                 self.__log.warn('Node2vec stats %s not found', linkpred_file)
-                continue
-            liknpred_perf = json.load(open(linkpred_file, 'r'))
-            liknpred_perf = {k: float(v) for k, v in liknpred_perf.items()}
+                skip_linkpred = True
+                pass
+            if not skip_linkpred:
+                liknpred_perf = json.load(open(linkpred_file, 'r'))
+                liknpred_perf = {k: float(v) for k, v in liknpred_perf.items()}
             # prepare row
             for deg in degrees:
                 row = dict()
                 row.update(graph_stat)
-                row.update(liknpred_perf)
+                if not skip_linkpred:
+                    row.update(liknpred_perf)
                 row.update({"dataset": ds})
                 row.update({"Degree": graph_stat[deg]})
                 df.loc[len(df)] = pd.Series(row)
             for conn in conncompo:
                 row = dict()
                 row.update(graph_stat)
-                row.update(liknpred_perf)
+                if not skip_linkpred:
+                    row.update(liknpred_perf)
                 row.update({"dataset": ds})
                 row.update({"Connected Components": graph_stat[conn]})
                 df.loc[len(df)] = pd.Series(row)
             for wei in weights:
                 row = dict()
                 row.update(graph_stat)
-                row.update(liknpred_perf)
+                if not skip_linkpred:
+                    row.update(liknpred_perf)
                 row.update({"dataset": ds})
                 row.update({"Weights": graph_stat[wei]})
                 df.loc[len(df)] = pd.Series(row)
