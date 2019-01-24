@@ -11,6 +11,7 @@ import six
 import json
 import h5py
 import numpy as np
+from datetime import datetime
 from bisect import bisect_left
 from abc import ABCMeta, abstractmethod
 
@@ -126,7 +127,70 @@ class BaseSignature(object):
         with h5py.File(sign.data_path, 'r') as hf:
             src = hf[key][:]
         with h5py.File(self.data_path, 'a') as hf:
+            # delete if already there
+            if key in hf:
+                del hf[key]
             hf[key] = src
+
+    def consistency_check(self):
+        """Check that signature is valid."""
+        if os.path.isfile(self.data_path):
+            # check that keys are unique
+            if len(self.keys) != len(self.unique_keys):
+                raise Exception("Inconsistent: keys are not unique.")
+            # check that amout of keys is same as amount of signatures
+            with h5py.File(self.data_path, 'r') as hf:
+                nr_signatures = hf['V'].shape[0]
+            if len(self.keys) > nr_signatures:
+                raise Exception("Inconsistent: more Keys than signatures.")
+            if len(self.keys) < nr_signatures:
+                raise Exception("Inconsistent: more signatures than Keys.")
+            # check that keys are sorted
+            if not sorted(self.keys) == list(self.keys):
+                raise Exception("Inconsistent: Keys are not sorted.")
+
+    def map(self, out_file):
+        """Map signature throught mappings."""
+        if "mappings" not in self.info_h5:
+            raise Exception("Data file has no mappings.")
+        with h5py.File(self.data_path, 'r') as hf:
+            mappings = dict(hf['mappings'][:])
+        # avoid trivial mappings (where key==value)
+        to_map = set(mappings.keys()) - set(mappings.values())
+        if len(to_map) == 0:
+            # corner case where there's nothing to map
+            with h5py.File(self.data_path, 'r') as hf:
+                src_keys = hf['keys'][:]
+                src_vectors = hf['V'][:]
+            with h5py.File(out_file, "w") as hf:
+                hf.create_dataset('keys', data=src_keys)
+                hf.create_dataset('V', data=src_vectors, dtype=np.float32)
+                hf.create_dataset("shape", data=src_vectors.shape)
+                hf.create_dataset(
+                    "date", data=[datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+            return
+        # prepare key-vector arrays
+        dst_keys = list()
+        dst_vectors = list()
+        for dst_key in sorted(to_map):
+            dst_keys.append(dst_key)
+            dst_vectors.append(self[mappings[dst_key]])
+        # to numpy arrays
+        dst_keys = np.array(dst_keys)
+        matrix = np.vstack(dst_vectors)
+        # join with current key-signatures
+        with h5py.File(self.data_path, 'r') as hf:
+            src_vectors = hf['V'][:]
+        dst_keys = np.concatenate((dst_keys, self.keys))
+        matrix = np.concatenate((matrix, src_vectors))
+        # get them sorted
+        sorted_idx = np.argsort(dst_keys)
+        with h5py.File(out_file, "w") as hf:
+            hf.create_dataset('keys', data=dst_keys[sorted_idx])
+            hf.create_dataset('V', data=matrix[sorted_idx], dtype=np.float32)
+            hf.create_dataset("shape", data=matrix.shape)
+            hf.create_dataset(
+                "date", data=[datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
 
     @property
     def shape(self):
