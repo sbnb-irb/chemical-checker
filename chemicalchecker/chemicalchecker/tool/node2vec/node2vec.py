@@ -88,7 +88,7 @@ class Node2Vec():
         We need to map back from sign1 ids to inchikeys and sort.
         """
         self.__log.info("Converting %s to %s" % (in_file, out_file))
-        inchikeys = sign1.keys()
+        inchikeys = sign1.keys
         with open(in_file, 'r') as fh:
             words = list()
             vectors = list()
