@@ -76,7 +76,8 @@ class MultiPlot():
         sns.set_style("whitegrid")
         sns.catplot(data=df, hue="algo", x='dataset', y=metric, kind='point',
                     col="coordinate", col_wrap=5, col_order=self.datasets,
-                    aspect=.8, height=3, dodge=True, order=['train', 'test'],
+                    aspect=.8, height=3, dodge=True,
+                    order=['train', 'test', 'validation'],
                     palette=['darkgreen', 'darkgrey'])
 
         outfile = os.path.join(
