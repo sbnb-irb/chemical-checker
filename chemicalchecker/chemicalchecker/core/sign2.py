@@ -99,6 +99,13 @@ class sign2(BaseSignature):
                 n2v.to_edgelist(sign1, neig1, graph_file, **graph_params)
             else:
                 n2v.to_edgelist(sign1, neig1, graph_file)
+        # check that all molecules are considered in the graph
+        with open(graph_file, 'r') as fh:
+            lines = fh.readlines()
+        graph_mol = set(l.split()[0] for l in lines)
+        # we can just compare the total nr
+        if not len(graph_mol) == len(sign1.unique_keys):
+            raise Exception("Graph %s is missing nodes." % graph_file)
         # save graph stats
         graph_stat_file = os.path.join(self.stats_path, 'graph_stats.json')
         graph = None
@@ -123,6 +130,11 @@ class sign2(BaseSignature):
                 graph = SNAPNetwork.from_file(graph_file)
             linkpred = LinkPrediction(self, graph)
             linkpred.performance.toJSON(linkpred_file)
+        # copy reduced-full mappingsfrom sign1
+        if "mappings" in sign1.info_h5:
+            self.copy_from(sign1, "mappings")
+        else:
+            self.__log.warn("Cannot copy 'mappings' from sign1.")
         #########
         # step 2: AdaNet (learn to predict sign2 from sign1 without Node2Vec)
         #########
