@@ -556,7 +556,7 @@ class Plot():
 
         return xlim, ylim
 
-    def sign2_plot(self, y_true, y_pred, predictor_name):
+    def sign2_prediction_plot(self, y_true, y_pred, predictor_name):
 
         coord = self.dataset.coordinate
         self.__log.info("sign2 %s predicted vs. actual %s",
