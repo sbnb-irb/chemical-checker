@@ -556,6 +556,34 @@ class Plot():
 
         return xlim, ylim
 
+    def sign2_feature_distribution_plot(self, sign2):
+        if sign2.shape[0] > 10000:
+            keys = np.random.choice(sign2.keys, 10000, replace=False)
+            matrix = sign2.get_vectors(keys)[1]
+        else:
+            matrix = sign2[:]
+        df = pd.DataFrame(matrix).melt()
+
+        coord = self.dataset.coordinate
+        fig = plt.figure(figsize=(10, 3), dpi=100)
+        ax = fig.add_subplot(111)
+        sns.pointplot(x='variable', y='value', data=df,
+                      ax=ax, ci='sd', join=False, markers='.',
+                      color=self._coord_color(coord))
+        ax.set_ylim(-1, 1)
+        ax.set_xlim(-2, 130)
+        ax.set_xticks([])
+        ax.set_xlabel('')
+        min_mean = min(np.mean(matrix, axis=0))
+        max_mean = max(np.mean(matrix, axis=0))
+        ax.fill_between([-2, 130], [max_mean, max_mean], [min_mean, min_mean],
+                        facecolor=self._coord_color(coord), alpha=0.4,
+                        zorder=0)
+        sns.despine(bottom=True)
+        filename = os.path.join(self.plot_path, "feat_distrib_%s.png" % coord)
+        plt.savefig(filename, dpi=100)
+        plt.close()
+
     def sign2_prediction_plot(self, y_true, y_pred, predictor_name):
 
         coord = self.dataset.coordinate
