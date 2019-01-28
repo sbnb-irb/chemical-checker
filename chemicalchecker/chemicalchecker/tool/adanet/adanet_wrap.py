@@ -15,9 +15,8 @@ from sklearn.model_selection import train_test_split
 import tensorflow.contrib.slim as slim
 from tensorflow.contrib import predictor
 
-from .dnn_generator import SimpleDNNGenerator
 from .dnn_stack_generator import StackDNNGenerator
-from .cnn_generator import SimpleCNNGenerator
+from .dnn_extend_generator import ExtendDNNGenerator
 from chemicalchecker.util import logged
 
 
@@ -185,7 +184,6 @@ class AdaNetWrapper(object):
 
     def train_and_evaluate(self, traintest_file):
         """Train and evaluate AdaNet."""
-        self.starttime = time()
         # tune parameters according to input shape
         self.traintest_file = traintest_file
         with h5py.File(traintest_file, 'r') as hf:
@@ -196,9 +194,9 @@ class AdaNetWrapper(object):
         self.train_step = max(1000, self.train_size // self.batch_size)
         self.total_steps = self.train_step * self.boosting_iterations
 
-        """Train an `adanet.Estimator`."""
+        """Define the `adanet.Estimator`."""
         self.estimator = adanet.Estimator(
-            # We have amultiple-output regression problem,
+            # We have a multiple-output regression problem,
             # so we'll use a regression head that optimizes for MSE.
             head=tf.contrib.estimator.regression_head(
                 label_dimension=self.label_dimension,
@@ -230,10 +228,10 @@ class AdaNetWrapper(object):
 
             # Configuration for Estimators.
             config=tf.estimator.RunConfig(
-                save_checkpoints_steps=50000,
+                save_checkpoints_secs=1800,  # save checkpoints every half-our
                 save_summary_steps=50000,
-                tf_random_seed=self.random_seed),
-
+                tf_random_seed=self.random_seed,
+                model_dir=self.model_dir),
             model_dir=self.model_dir
         )
         # Train and evaluate using using the tf.estimator tooling.
@@ -242,11 +240,14 @@ class AdaNetWrapper(object):
             max_steps=self.total_steps)
         eval_spec = tf.estimator.EvalSpec(
             input_fn=self.input_fn("test", training=False),
-            steps=None)
+            steps=None,
+            start_delay_secs=1,
+            throttle_secs=1)
+        # call train and evaluate collecting time stats
+        t0 = time()
         self.results = tf.estimator.train_and_evaluate(
             self.estimator, train_spec, eval_spec)
-        # collect time stat
-        self.time = time() - self.starttime
+        self.time = time() - t0
         # save persistent model
         self.save_dir = os.path.join(self.model_dir, 'savedmodel')
         self.__log.info("SAVING MODEL TO: %s", self.save_dir)
@@ -254,6 +255,7 @@ class AdaNetWrapper(object):
         if os.path.isdir(self.save_dir):
             shutil.rmtree(self.save_dir)
         shutil.move(tmp_dir, self.save_dir)
+        # print final architechture
         AdaNetWrapper.print_model_architechture(self.save_dir)
         return self.estimator, self.results
 
