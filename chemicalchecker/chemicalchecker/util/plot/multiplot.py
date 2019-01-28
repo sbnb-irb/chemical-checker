@@ -3,6 +3,7 @@
 import os
 import json
 import matplotlib
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
@@ -209,3 +210,34 @@ class MultiPlot():
         outfile = os.path.join(self.plot_path, 'sign2_node2vec_stats.png')
         plt.savefig(outfile, dpi=100)
         plt.close('all')
+
+    def sign2_feature_distribution_plot(self, sample_size=10000):
+        fig, axes = plt.subplots(25, 1, sharey=True, sharex=True,
+                                 figsize=(10, 40), dpi=100)
+        for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
+            sign2 = self.cc.get_signature('sign2', 'reference', ds)
+            if sign2.shape[0] > sample_size:
+                keys = np.random.choice(sign2.keys, sample_size, replace=False)
+                matrix = sign2.get_vectors(keys)[1]
+            else:
+                matrix = sign2[:]
+            df = pd.DataFrame(matrix).melt()
+            sns.pointplot(x='variable', y='value', data=df,
+                          ax=ax, ci='sd', join=False, markers='.',
+                          color=self.cc_palette([ds])[0])
+            ax.set_ylim(-1, 1)
+            ax.set_xlim(-2, 130)
+            ax.set_xticks([])
+            ax.set_xlabel('')
+            ax.set_ylabel(ds)
+            min_mean = min(np.mean(matrix, axis=0))
+            max_mean = max(np.mean(matrix, axis=0))
+            ax.fill_between([-2, 130], [max_mean, max_mean],
+                            [min_mean, min_mean],
+                            facecolor=self.cc_palette([ds])[0], alpha=0.3,
+                            zorder=0)
+            sns.despine(bottom=True)
+        plt.tight_layout()
+        filename = os.path.join(self.plot_path, "feat_distrib.png")
+        plt.savefig(filename, dpi=100)
+        plt.close()
