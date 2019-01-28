@@ -33,7 +33,7 @@ class sign0(BaseSignature):
         """Signature type 0 has no models to fit."""
         self.__log.debug('nothing to fit.')
 
-    def predict(self, preprocess_script=None):
+    def predict(self, destination=None, preprocess_script=None):
         """Call the external preprocess script to generate h5 data."""
         if preprocess_script is None:
             config = Config()
@@ -45,6 +45,9 @@ class sign0(BaseSignature):
         if not os.path.isfile(preprocess_script):
             raise Exception("Preprocess script " +
                             preprocess_script + " does not exist")
+
+        if destination is not None:
+            self.data_path = destination
 
         try:
             cmdStr = "python " + preprocess_script + " -o " + self.data_path
