@@ -57,7 +57,7 @@ class MultiPlot():
                 colors.append(rgb2hex(250, 150, 50))
         return colors
 
-    def sign2_adanet_stats(self, metric):
+    def sign2_adanet_stats(self, metric=None):
         # read stats fields
         sign2 = self.cc.get_signature('sign2', 'reference', 'E5.001')
         stat_file = os.path.join(sign2.model_path, 'adanet', 'stats.pkl')
@@ -72,18 +72,31 @@ class MultiPlot():
             tmpdf = pd.read_pickle(stat_file)
             tmpdf['coordinate'] = ds
             df = df.append(tmpdf, ignore_index=True)
+        df = df.infer_objects()
+        df.to_csv("sign2_adanet_stats.csv")
+        df.to_pickle("sign2_adanet_stats.pkl")
 
-        sns.set_style("whitegrid")
-        sns.catplot(data=df, hue="algo", x='dataset', y=metric, kind='point',
-                    col="coordinate", col_wrap=5, col_order=self.datasets,
-                    aspect=.8, height=3, dodge=True,
-                    order=['train', 'test', 'validation'],
-                    palette=['darkgreen', 'darkgrey'])
+        if metric:
+            all_metrics = [metric]
+        else:
+            all_metrics = ['mse', 'r2', 'explained_variance', 'pearson_std',
+                           'pearson_avg', 'time', 'nn_layers', 'nr_variables']
+        for metric in all_metrics:
+            sns.set_style("whitegrid")
+            g = sns.catplot(data=df, kind='point', x='dataset', y=metric,
+                            hue="algo", col="coordinate", col_wrap=5,
+                            col_order=self.datasets,
+                            aspect=.8, height=3, dodge=True,
+                            order=['train', 'test', 'validation'],
+                            palette=['darkgreen', 'orange', 'darkgrey'])
+            if metric == 'r2':
+                for ax in g.axes.flatten():
+                    ax.set_ylim(0, 1)
 
-        outfile = os.path.join(
-            self.plot_path, 'sign2_adanet_stats_%s.png' % metric)
-        plt.savefig(outfile, dpi=100)
-        plt.close('all')
+            outfile = os.path.join(
+                self.plot_path, 'sign2_adanet_stats_%s.png' % metric)
+            plt.savefig(outfile, dpi=100)
+            plt.close('all')
 
     def sign2_node2vec_stats(self):
         """Plot the stats for sign2."""
