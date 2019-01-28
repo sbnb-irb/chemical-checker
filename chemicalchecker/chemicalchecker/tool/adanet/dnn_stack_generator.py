@@ -1,15 +1,13 @@
 import functools
 import adanet
 import tensorflow as tf
-from chemicalchecker.util import logged
 
 
-@logged
 class StackDNNBuilder(adanet.subnetwork.Builder):
     """Builds a DNN subnetwork for AdaNet."""
 
     def __init__(self, optimizer, layer_size, num_layers,
-                 learn_mixture_weights, seed, activation, previous_ensemble):
+                 learn_mixture_weights, seed, activation):
         """Initializes a `_DNNBuilder`.
 
         Args:
@@ -33,7 +31,6 @@ class StackDNNBuilder(adanet.subnetwork.Builder):
         self._learn_mixture_weights = learn_mixture_weights
         self._seed = seed
         self._activation = activation
-        self._previous_ensemble = previous_ensemble
 
     def build_subnetwork(self,
                          features,
@@ -41,41 +38,24 @@ class StackDNNBuilder(adanet.subnetwork.Builder):
                          training,
                          iteration_step,
                          summary,
-                         previous_ensemble):
+                         previous_ensemble=None):
         """See `adanet.subnetwork.Builder`."""
 
         input_layer = tf.to_float(features['x'])
         kernel_initializer = tf.glorot_uniform_initializer(seed=self._seed)
         last_layer = input_layer
-        persisted_tensors = dict()
-        for i in range(self._num_layers):
+        for _ in range(self._num_layers):
             last_layer = tf.layers.dense(
                 last_layer,
                 units=self._layer_size,
                 activation=self._activation,
                 kernel_initializer=kernel_initializer)
-            hidden_layer_key = "hidden_layer_{}".format(i)
-            self.__log.debug("hidden_layer_key: %s" % hidden_layer_key)
-            if previous_ensemble:
-                last_subnetwork = self._previous_ensemble.weighted_subnetworks[
-                    -1].subnetwork
-                persisted_tensors = last_subnetwork.persisted_tensors
-                self.__log.debug("persisted_tensors: %s" %
-                                 str(persisted_tensors.keys()))
-                if hidden_layer_key in persisted_tensors:
-                    last_layer = tf.concat([persisted_tensors[
-                        hidden_layer_key], last_layer], axis=1)
-            # Store hidden layer outputs for subsequent iterations.
-            persisted_tensors[hidden_layer_key] = last_layer
-        # update the num layers in persistent tensor
-        persisted_tensors.update({"num_layers": tf.constant(self._num_layers)})
-
-        self.__log.debug("persisted_tensors DONE: %s" %
-                         str(persisted_tensors.keys()))
         logits = tf.layers.dense(
             last_layer,
             units=logits_dimension,
             kernel_initializer=kernel_initializer)
+
+        persisted_tensors = {"num_layers": tf.constant(self._num_layers)}
         return adanet.Subnetwork(
             last_layer=last_layer,
             logits=logits,
@@ -109,7 +89,6 @@ class StackDNNBuilder(adanet.subnetwork.Builder):
         return "{}_layer_dnn".format(self._num_layers)
 
 
-@logged
 class StackDNNGenerator(adanet.subnetwork.Generator):
     """Generates a two DNN subnetworks at each iteration.
 
@@ -155,24 +134,16 @@ class StackDNNGenerator(adanet.subnetwork.Generator):
     def generate_candidates(self, previous_ensemble, iteration_number,
                             previous_ensemble_reports, all_reports):
         """See `adanet.subnetwork.Generator`."""
+
+        num_layers = 0
         seed = self._seed
+        if previous_ensemble:
+            num_layers = tf.contrib.util.constant_value(
+                previous_ensemble.weighted_subnetworks[
+                    -1].subnetwork.persisted_tensors["num_layers"])
         if seed is not None:
             seed += iteration_number
-        # initial number of layer (0 == linear)
-        num_layers = 0
-        # take the maximum depth reached in previous iterations + 1
-        if previous_ensemble:
-            last_subnetwork = previous_ensemble.weighted_subnetworks[
-                -1].subnetwork
-            persisted_tensors = last_subnetwork.persisted_tensors
-            num_layers = tf.contrib.util.constant_value(
-                persisted_tensors["num_layers"])
         return [
-            self._dnn_builder_fn(
-                num_layers=num_layers, seed=seed,
-                previous_ensemble=previous_ensemble),
-            self._dnn_builder_fn(
-                num_layers=num_layers + 1,
-                seed=seed,
-                previous_ensemble=previous_ensemble),
+            self._dnn_builder_fn(num_layers=num_layers, seed=seed),
+            self._dnn_builder_fn(num_layers=num_layers + 1, seed=seed),
         ]
