@@ -92,16 +92,22 @@ class Node2Vec():
         with open(in_file, 'r') as fh:
             words = list()
             vectors = list()
-            fh.next()  # skip first row
-            for line in fh:
-                fields = line.split()
-                # first colum is id
-                word = inchikeys[int(fields[0])]
-                # rest is embedding
-                vector = np.fromiter((float(x) for x in fields[1:]),
-                                     dtype=np.float32)
-                words.append(word)
-                vectors.append(vector)
+            header = fh.readline()  # skip first row
+            nr_words = int(header.split()[0])
+            nr_components = int(header.split()[1])
+            self.__log.info("words: %s features: %s", nr_words, nr_components)
+            try:
+                for idx, line in enumerate(fh):
+                    fields = line.split()
+                    # first colum is id
+                    word = inchikeys[int(fields[0])]
+                    # rest is embedding
+                    vector = np.fromiter((float(x) for x in fields[1:]),
+                                         dtype=np.float32)
+                    words.append(word)
+                    vectors.append(vector)
+            except Exception as ex:
+                self.__log.info("Error at line %s: %s", idx, str(ex))
         # consistency check
         assert(len(words) == len(inchikeys))
         assert(len(words) == len(vectors))
