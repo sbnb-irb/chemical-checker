@@ -1,7 +1,10 @@
 import datetime
 from time import time
-
+import os
+import chemicalchecker
 from chemicalchecker.util import logged
+from chemicalchecker.util import Config
+from chemicalchecker.util import HPC
 from chemicalchecker.util import PropCalculator
 from .database import Base, get_session, get_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -56,6 +59,28 @@ def Molprop(table_name):
             Base.metadata.create_all(engine)
 
         @staticmethod
+        def get_missing_from_set(keys):
+            size = 1000
+            present = set()
+
+            vec = list(keys)
+
+            session = get_session()
+            for pos in range(0, len(keys), size):
+                query = session.query(GenericMolprop).filter(
+                    GenericMolprop.inchikey.in_(vec[pos:pos + size]))
+                res = query.with_entities(GenericMolprop.inchikey).all()
+                for ele in res:
+                    present.add(ele[0])
+
+            session.close()
+
+            GenericMolprop.__log.debug(
+                "Found already present: " + str(len(present)))
+
+            return keys.difference(present)
+
+        @staticmethod
         def from_inchikey_inchi(inchikey_inchi):
             """Method to fill the property table from an inchikey to inchi map."""
             # calc_fn yield a list of dictionaries with keys as a molprop
@@ -76,5 +101,84 @@ def Molprop(table_name):
             t_delta = str(datetime.timedelta(seconds=t_end - t_start))
             GenericMolprop.__log.info(
                 "Loading Mol properties Name %s took %s", GenericMolprop.__tablename__, t_delta)
+
+        @staticmethod
+        def molprop_hpc(job_path, inchikey_inchi):
+            """Run HPC jobs importing all molrepos.
+
+            job_path(str): Path (usually in scratch) where the script files are
+                generated.
+            inchikey_inchi(list): List of inchikey, inchi tuples
+            """
+            # create job directory if not available
+            if not os.path.isdir(job_path):
+                os.mkdir(job_path)
+            # create script file
+            cc_config = os.environ['CC_CONFIG']
+            cc_package = os.path.join(chemicalchecker.__path__[0], '../')
+            script_lines = [
+                "import sys, os",
+                "import pickle",
+                # cc_config location
+                "os.environ['CC_CONFIG'] = '%s'" % cc_config,
+                "sys.path.append('%s')" % cc_package,  # allow package import
+                "from chemicalchecker.database import Molprop",
+                "task_id = sys.argv[1]",  # <TASK_ID>
+                "filename = sys.argv[2]",  # <FILE>
+                # load pickled data
+                "inputs = pickle.load(open(filename, 'rb'))",
+                # elements for current job
+                "inchikey_inchi = dict(inputs[task_id])",
+                # elements are indexes
+                "mol = Molprop('" + GenericMolprop.__tablename__ + "')",
+                'mol.from_inchikey_inchi(inchikey_inchi)',  # start import
+                "print('JOB DONE')"
+            ]
+            script_name = os.path.join(job_path, 'molprop_script.py')
+            with open(script_name, 'w') as fh:
+                for line in script_lines:
+                    fh.write(line + '\n')
+
+            set_inks = set()
+            list_inchikey_inchi = list()
+
+            for ele in inchikey_inchi:
+                if ele[0] is None:
+                    continue
+                set_inks.add(ele[0])
+
+            GenericMolprop.__log.debug(
+                "Size initial data to add: " + str(len(set_inks)))
+
+            todo_iks = GenericMolprop.get_missing_from_set(set_inks)
+
+            GenericMolprop.__log.debug(
+                "Size final data to add: " + str(len(todo_iks)))
+
+            if todo_iks == 0:
+                return None
+
+            for ele in inchikey_inchi:
+                if ele[0] in todo_iks:
+                    list_inchikey_inchi.append(ele)
+
+            params = {}
+            if GenericMolprop.__tablename__ == "f3d":
+                params["num_jobs"] = len(list_inchikey_inchi) / 200
+            else:
+                params["num_jobs"] = len(list_inchikey_inchi) / 2000
+            params["jobdir"] = job_path
+            params["job_name"] = "CC_MLP_" + GenericMolprop.__tablename__
+            params["elements"] = list_inchikey_inchi
+            params["wait"] = True
+            params["memory"] = 16
+            # job command
+            singularity_image = Config().PATH.SINGULARITY_IMAGE
+            command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+                singularity_image, script_name)
+            # submit jobs
+            cluster = HPC(Config())
+            cluster.submitMultiJob(command, **params)
+            return cluster
 
     return GenericMolprop

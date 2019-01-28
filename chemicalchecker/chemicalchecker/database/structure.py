@@ -3,6 +3,7 @@ from .database import Base, get_session, get_engine
 from sqlalchemy import Column, Text
 from sqlalchemy.dialects import postgresql
 
+
 @logged
 class Structure(Base):
     """The structure class for the table of the same name"""
@@ -63,6 +64,57 @@ class Structure(Base):
         session.close()
 
         return res
+
+    @staticmethod
+    def get_missing_from_set(keys):
+        size = 1000
+        present = set()
+
+        vec = list(keys)
+
+        session = get_session()
+        for pos in range(0, len(keys), size):
+            query = session.query(Structure).filter(
+                Structure.inchikey.in_(vec[pos:pos + size]))
+            res = query.with_entities(Structure.inchikey).all()
+            for ele in res:
+                present.add(ele[0])
+
+        session.close()
+
+        Structure.__log.debug("Found already present: " + str(len(present)))
+
+        return keys.difference(present)
+
+    @staticmethod
+    def add_missing_only(data):
+        """ Method to add data to the table that is not already present.
+
+            This method allows to load only the data that is not already present.
+
+        Args:
+            data(list): The data in list format, containing inchikey, inchi tuples.
+        """
+        list_inchikey_inchi = list()
+        set_inks = set()
+
+        for ele in data:
+            if ele[0] is None:
+                continue
+            set_inks.add(ele[0])
+
+        Structure.__log.debug("Size initial data to add: " + str(len(set_inks)))
+
+        todo_iks = Structure.get_missing_from_set(set_inks)
+
+        Structure.__log.debug("Size final data to add: " + str(len(todo_iks)))
+
+        for ele in data:
+            if ele[0] in todo_iks:
+                list_inchikey_inchi.append(ele)
+
+        if len(list_inchikey_inchi) > 0:
+            Structure.add_bulk(list_inchikey_inchi)
 
     @staticmethod
     def _create_table():
