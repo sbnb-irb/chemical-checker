@@ -41,7 +41,7 @@ class PropCalculator():
         radius = 2
         chunk = list()
         for ik in iks:
-            v = inchikey_inchi[ik]
+            v = str(inchikey_inchi[ik])
             # PropCalculator.__log.info( ik)
             mol = Chem.rdinchi.InchiToMol(v)[0]
             info = {}
