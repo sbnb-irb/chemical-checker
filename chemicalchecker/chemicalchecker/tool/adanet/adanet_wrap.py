@@ -379,7 +379,7 @@ class AdaNetWrapper(object):
             rows[ds]['architecture'] = self.architecture()
             # log and save plot
             _log_row(rows[ds])
-            plot.sign2_plot(y[ds], y_pred, "AdaNet_%s" % ds)
+            plot.sign2_prediction_plot(y[ds], y_pred, "AdaNet_%s" % ds)
 
         # some additional shared stats
         # get nr of variables in final model
@@ -415,7 +415,8 @@ class AdaNetWrapper(object):
             rows[ds]["nn_layers"] = 0
             # log and save plot
             _log_row(rows[ds])
-            plot.sign2_plot(y[ds], y_pred, "LinearRegression_%s" % ds)
+            plot.sign2_prediction_plot(
+                y[ds], y_pred, "LinearRegression_%s" % ds)
 
         # save rows
         for ds in datasets:
