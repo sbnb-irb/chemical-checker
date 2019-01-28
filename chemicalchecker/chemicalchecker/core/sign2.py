@@ -135,6 +135,8 @@ class sign2(BaseSignature):
             self.copy_from(sign1, "mappings")
         else:
             self.__log.warn("Cannot copy 'mappings' from sign1.")
+        sign2_plot = Plot(self.dataset, self.stats_path, self.validation_path)
+        sign2_plot.sign2_feature_distribution_plot(self)
         #########
         # step 2: AdaNet (learn to predict sign2 from sign1 without Node2Vec)
         #########
