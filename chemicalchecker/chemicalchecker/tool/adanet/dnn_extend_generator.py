@@ -1,13 +1,15 @@
 import functools
 import adanet
 import tensorflow as tf
+from chemicalchecker.util import logged
 
 
-class SimpleDNNBuilder(adanet.subnetwork.Builder):
+@logged
+class ExtendDNNBuilder(adanet.subnetwork.Builder):
     """Builds a DNN subnetwork for AdaNet."""
 
-    def __init__(self, optimizer, layer_size, num_layers,
-                 learn_mixture_weights, seed, activation):
+    def __init__(self, optimizer, layer_sizes, num_layers,
+                 learn_mixture_weights, seed, activation, previous_ensemble):
         """Initializes a `_DNNBuilder`.
 
         Args:
@@ -22,11 +24,11 @@ class SimpleDNNBuilder(adanet.subnetwork.Builder):
           seed: A random seed.
 
         Returns:
-          An instance of `SimpleDNNBuilder`.
+          An instance of `ExtendDNNBuilder`.
         """
 
         self._optimizer = optimizer
-        self._layer_size = layer_size
+        self._layer_sizes = layer_sizes
         self._num_layers = num_layers
         self._learn_mixture_weights = learn_mixture_weights
         self._seed = seed
@@ -40,14 +42,13 @@ class SimpleDNNBuilder(adanet.subnetwork.Builder):
                          summary,
                          previous_ensemble=None):
         """See `adanet.subnetwork.Builder`."""
-
         input_layer = tf.to_float(features['x'])
         kernel_initializer = tf.glorot_uniform_initializer(seed=self._seed)
         last_layer = input_layer
-        for _ in range(self._num_layers):
+        for layer_size in self._layer_sizes:
             last_layer = tf.layers.dense(
                 last_layer,
-                units=self._layer_size,
+                units=layer_size,
                 activation=self._activation,
                 kernel_initializer=kernel_initializer)
         logits = tf.layers.dense(
@@ -55,7 +56,10 @@ class SimpleDNNBuilder(adanet.subnetwork.Builder):
             units=logits_dimension,
             kernel_initializer=kernel_initializer)
 
-        persisted_tensors = {"num_layers": tf.constant(self._num_layers)}
+        persisted_tensors = {
+            "num_layers": tf.constant(self._num_layers),
+            "layer_sizes": tf.constant(self._layer_sizes),
+        }
         return adanet.Subnetwork(
             last_layer=last_layer,
             logits=logits,
@@ -82,14 +86,12 @@ class SimpleDNNBuilder(adanet.subnetwork.Builder):
     @property
     def name(self):
         """See `adanet.subnetwork.Builder`."""
-
-        if self._num_layers == 0:
-            # A DNN with no hidden layers is a linear model.
-            return "linear"
-        return "{}_layer_dnn".format(self._num_layers)
+        layer_size_str = '_'.join([str(x) for x in self._layer_sizes])
+        return "dnn_{}_layer_{}_nodes".format(self._num_layers, layer_size_str)
 
 
-class SimpleDNNGenerator(adanet.subnetwork.Generator):
+@logged
+class ExtendDNNGenerator(adanet.subnetwork.Generator):
     """Generates a two DNN subnetworks at each iteration.
 
     The first DNN has an identical shape to the most recently added subnetwork
@@ -124,26 +126,55 @@ class SimpleDNNGenerator(adanet.subnetwork.Generator):
         """
 
         self._seed = seed
+        self.layer_block_size = layer_size
         self._dnn_builder_fn = functools.partial(
-            SimpleDNNBuilder,
+            ExtendDNNBuilder,
             optimizer=optimizer,
-            layer_size=layer_size,
             activation=activation,
             learn_mixture_weights=learn_mixture_weights)
 
     def generate_candidates(self, previous_ensemble, iteration_number,
                             previous_ensemble_reports, all_reports):
         """See `adanet.subnetwork.Generator`."""
-
-        num_layers = 0
         seed = self._seed
-        if previous_ensemble:
-            num_layers = tf.contrib.util.constant_value(
-                previous_ensemble.weighted_subnetworks[
-                    -1].subnetwork.persisted_tensors["num_layers"])
         if seed is not None:
             seed += iteration_number
-        return [
-            self._dnn_builder_fn(num_layers=num_layers, seed=seed),
-            self._dnn_builder_fn(num_layers=num_layers + 1, seed=seed),
-        ]
+        # start with single layer
+        num_layers = 1
+        layer_sizes = [self.layer_block_size]
+        # take the maximum depth reached in previous iterations + 1
+        if previous_ensemble:
+            last_subnetwork = previous_ensemble.weighted_subnetworks[
+                -1].subnetwork
+            persisted_tensors = last_subnetwork.persisted_tensors
+            num_layers = tf.contrib.util.constant_value(
+                persisted_tensors["num_layers"])
+            layer_sizes = list(tf.contrib.util.constant_value(
+                persisted_tensors["layer_sizes"]))
+        # at each iteration we want to check if exdending any of the
+        # existing layes is good
+        candidates = list()
+        for extend_layer in range(num_layers):
+            new_sizes = layer_sizes[:]
+            new_sizes[extend_layer] += self.layer_block_size
+            candidates.append(
+                self._dnn_builder_fn(
+                    num_layers=num_layers,
+                    layer_sizes=new_sizes,
+                    seed=seed,
+                    previous_ensemble=previous_ensemble))
+        # also check if it's worth adding a new layer
+        candidates.append(
+            self._dnn_builder_fn(
+                num_layers=num_layers + 1,
+                layer_sizes=layer_sizes + [self.layer_block_size],
+                seed=seed,
+                previous_ensemble=previous_ensemble))
+        # also keep the un-extended candidate
+        candidates.append(
+            self._dnn_builder_fn(
+                num_layers=num_layers,
+                layer_sizes=layer_sizes,
+                seed=seed,
+                previous_ensemble=previous_ensemble))
+        return candidates
