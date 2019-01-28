@@ -22,8 +22,7 @@ class TestDownloader(unittest.TestCase):
         shutil.rmtree(self.dest_path)
 
     def test_download(self):
-        url = 'http://www.disgenet.org/ds/DisGeNET/' + \
-            'results/disease_mappings.tsv.gz'
+        url = 'http://www.disgenet.org/static/disgenet_ap1/files/downloads/disease_mappings.tsv.gz'
         downloader = Downloader(url, self.dest_path, self.tmp_path)
         downloader.download()
         self.assertTrue(os.path.isdir(self.dest_path))
