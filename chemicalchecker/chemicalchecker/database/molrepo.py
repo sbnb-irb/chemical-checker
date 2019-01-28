@@ -84,15 +84,50 @@ class Molrepo(Base):
         return res
 
     @staticmethod
-    def get_by_molrepo_name(molrepo_name):
+    def get_by_molrepo_name(molrepo_name, only_raw=False):
         """Get Molrepo entries associated to the given inchikey.
 
         Args:
             molrepo_name(str): The molrepo_name to search for.
+            only_raw(bool): Only get the raw values without the whole object(default:false)
         """
         session = get_session()
         query = session.query(Molrepo).filter_by(molrepo_name=molrepo_name)
-        res = query.all()
+        if only_raw:
+            res = query.with_entities(
+                Molrepo.molrepo_name, Molrepo.src_id, Molrepo.smiles, Molrepo.inchikey, Molrepo.inchi).all()
+        else:
+            res = query.all()
+        session.close()
+        return res
+
+    @staticmethod
+    def get_fields_by_molrepo_name(molrepo_name, fields=None):
+        """Get specified column fields from a molrepo_name in raw format(tuples).
+
+        Args:
+            molrepo_name(str): The molrepo_name to search for.
+            fields(list): List of field names. If None, all fields.
+        """
+
+        if fields is None:
+            return Molrepo.get_by_molrepo_name(molrepo_name, True)
+
+        cols = Molrepo._table_attributes()
+        query_fields = []
+
+        for field in fields:
+            if field in cols:
+                query_fields.append(field)
+
+        if len(query_fields) == 0:
+            return None
+
+        session = get_session()
+        query = session.query(Molrepo).filter_by(molrepo_name=molrepo_name)
+        res = query.with_entities(*[eval("Molrepo.%s" % f)
+                                    for f in query_fields]).all()
+
         session.close()
         return res
 
