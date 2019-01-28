@@ -224,6 +224,9 @@ fi
             if compress_out and errors is None:
                 self.compress()
 
+            if errors is not None:
+                return errors
+
         return self.job_id
 
     def check_errors(self):
@@ -239,6 +242,7 @@ fi
         """
 
         errors = ''
+        self.__log.debug("Checking errors in job")
 
         for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.o*')):
             with open(file_name) as f:
@@ -252,6 +256,7 @@ fi
                     num += 1
 
         if len(errors) > 0:
+            self.__log.debug("Found errors in job")
             return errors
         else:
             if self.status_id == DONE:
