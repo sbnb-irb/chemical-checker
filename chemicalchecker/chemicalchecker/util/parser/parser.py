@@ -66,9 +66,12 @@ class Parser():
                 inchikey, inchi = Converter.smiles_to_inchi(smiles)
             except Exception as ex:
                 Parser.__log.warning("line %s: %s", idx, str(ex))
-                inchikey, inchi = "", ""
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
             result = {
-                "id": molrepo_name + "_" + src_id,
+                "id": id_text,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smiles,
@@ -99,9 +102,12 @@ class Parser():
                 inchikey, inchi = Converter.smiles_to_inchi(smiles)
             except Exception as ex:
                 Parser.__log.warning("line %s: %s", idx, str(ex))
-                inchikey, inchi = "", ""
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
             result = {
-                "id": molrepo_name + "_" + src_id,
+                "id": id_text,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smiles,
@@ -157,9 +163,12 @@ class Parser():
                 inchikey, inchi = Converter.smiles_to_inchi(smiles)
             except Exception as ex:
                 Parser.__log.warning("line %s: %s", idx, str(ex))
-                inchikey, inchi = "", ""
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
             result = {
-                "id": molrepo_name + "_" + src_id,
+                "id": id_text,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smiles,
@@ -189,9 +198,12 @@ class Parser():
                 inchikey, inchi = Converter.smiles_to_inchi(smiles)
             except Exception as ex:
                 Parser.__log.warning("line %s: %s", idx, str(ex))
-                inchikey, inchi = "", ""
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
             result = {
-                "id": molrepo_name + "_" + src_id,
+                "id": id_text,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smiles,
@@ -239,9 +251,12 @@ class Parser():
                 inchikey, inchi = Converter.smiles_to_inchi(smiles)
             except Exception as ex:
                 Parser.__log.warning("line %s: %s", idx, str(ex))
-                inchikey, inchi = "", ""
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
             result = {
-                "id": molrepo_name + "_" + src_id,
+                "id": id_text,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smiles,
@@ -294,9 +309,12 @@ class Parser():
                     inchikey, inchi = Converter.smiles_to_inchi(smiles)
                 except Exception as ex:
                     Parser.__log.warning("line %s: %s", idx, str(ex))
-                    inchikey, inchi = "", ""
+                    inchikey, inchi = None, None
+                id_text = molrepo_name + "_" + src_id
+                if inchikey is not None:
+                    id_text += ("_" + inchikey)
                 result = {
-                    "id": molrepo_name + "_" + src_id,
+                    "id": id_text,
                     "molrepo_name": molrepo_name,
                     "src_id": src_id,
                     "smiles": smiles,
@@ -338,9 +356,12 @@ class Parser():
                     inchikey, inchi = Converter.smiles_to_inchi(smiles)
                 except Exception as ex:
                     Parser.__log.warning("line %s: %s", idx, str(ex))
-                    inchikey, inchi = "", ""
+                    inchikey, inchi = None, None
+                id_text = molrepo_name + "_" + src_id
+                if inchikey is not None:
+                    id_text += ("_" + inchikey)
                 result = {
-                    "id": molrepo_name + "_" + src_id,
+                    "id": id_text,
                     "molrepo_name": molrepo_name,
                     "src_id": src_id,
                     "smiles": smiles,
@@ -370,9 +391,12 @@ class Parser():
                 inchikey, inchi = Converter.smiles_to_inchi(smi)
             except Exception as ex:
                 Parser.__log.warning("Mosaic ID %s: %s", src_id, str(ex))
-                inchikey, inchi = "", ""
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
             result = {
-                "id": molrepo_name + "_" + src_id,
+                "id": id_text,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smi,
@@ -403,9 +427,12 @@ class Parser():
                 inchikey, inchi = Converter.smiles_to_inchi(smi)
             except Exception as ex:
                 Parser.__log.warning("Morphlincs ID %s: %s", src_id, str(ex))
-                inchikey, inchi = "", ""
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
             result = {
-                "id": molrepo_name + "_" + src_id,
+                "id": id_text,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smi,
@@ -437,9 +464,12 @@ class Parser():
                 inchikey, inchi = Converter.smiles_to_inchi(smi)
             except Exception as ex:
                 Parser.__log.warning("NCI60 ID %s: %s", src_id, str(ex))
-                inchikey, inchi = "", ""
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
             result = {
-                "id": molrepo_name + "_" + src_id,
+                "id": id_text,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smi,
@@ -470,9 +500,12 @@ class Parser():
                 inchikey, inchi = Converter.smiles_to_inchi(smi)
             except Exception as ex:
                 Parser.__log.warning("PDB ID %s: %s", src_id, str(ex))
-                inchikey, inchi = "", ""
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
             result = {
-                "id": molrepo_name + "_" + src_id,
+                "id": id_text,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smi,
@@ -524,9 +557,12 @@ class Parser():
                 inchikey, inchi = Converter.smiles_to_inchi(smi)
             except Exception as ex:
                 Parser.__log.warning("SIDER ID %s: %s", src_id, str(ex))
-                inchikey, inchi = "", ""
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
             result = {
-                "id": molrepo_name + "_" + src_id,
+                "id": id_text,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smi,
@@ -562,9 +598,12 @@ class Parser():
                 inchikey, inchi = Converter.smiles_to_inchi(smi)
             except Exception as ex:
                 Parser.__log.warning("SMPDB ID %s: %s", src_id, str(ex))
-                inchikey, inchi = "", ""
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
             result = {
-                "id": molrepo_name + "_" + src_id,
+                "id": id_text,
                 "molrepo_name": molrepo_name,
                 "src_id": src_id,
                 "smiles": smi,
@@ -575,4 +614,78 @@ class Parser():
             if len(chunk) == chunks:
                 yield chunk
                 chunk = list()
+        yield chunk
+
+    @staticmethod
+    def biur_real(file_path, molrepo_name, chunks=1000):
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
+        chunk = list()
+        suppl = Chem.SDMolSupplier(file_path)
+        for mol in suppl:
+            if not mol:
+                continue
+            src_id = mol.GetProp("_Name")
+            smi = Chem.MolToSmiles(mol)
+            try:
+                inchikey, inchi = Converter.smiles_to_inchi(smi)
+            except Exception as ex:
+                Parser.__log.warning("biur_real ID %s: %s", src_id, str(ex))
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
+            result = {
+                "id": id_text,
+                "molrepo_name": molrepo_name,
+                "src_id": src_id,
+                "smiles": smi,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
+
+    @staticmethod
+    def biur_virtual(file_path, molrepo_name, chunks=1000):
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
+        chunk = list()
+        sdf_files = [f for f in os.listdir(file_path) if f[-4:] == ".sdf"]
+        for sdf_file in sdf_files:
+            suppl = Chem.SDMolSupplier(file_path + "/" + sdf_file)
+            for mol in suppl:
+
+                src_id = mol.GetProp("_Name")
+                smi = Chem.MolToSmiles(mol)
+
+                try:
+                    inchikey, inchi = Converter.smiles_to_inchi(smi)
+                except Exception as ex:
+                    Parser.__log.warning(
+                        "biur_virtual ID %s: %s", src_id, str(ex))
+                    inchikey, inchi = None, None
+                id_text = molrepo_name + "_" + src_id
+                if inchikey is not None:
+                    id_text += ("_" + inchikey)
+
+                result = {
+                    "id": id_text,
+                    "molrepo_name": molrepo_name,
+                    "src_id": src_id,
+                    "smiles": smi,
+                    "inchikey": inchikey,
+                    "inchi": inchi
+                }
+                chunk.append(result)
+                if len(chunk) == chunks:
+                    yield chunk
+                    chunk = list()
         yield chunk
