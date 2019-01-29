@@ -74,8 +74,11 @@ class MultiPlot():
             tmpdf['coordinate'] = ds
             df = df.append(tmpdf, ignore_index=True)
         df = df.infer_objects()
-        df.to_csv("sign2_adanet_stats.csv")
-        df.to_pickle("sign2_adanet_stats.pkl")
+
+        outfile_csv = os.path.join(self.plot_path, 'sign2_adanet_stats.csv')
+        df.to_csv(outfile_csv)
+        outfile_pkl = os.path.join(self.plot_path, 'sign2_adanet_stats.pkl')
+        df.to_pickle(outfile_pkl)
 
         if metric:
             all_metrics = [metric]
