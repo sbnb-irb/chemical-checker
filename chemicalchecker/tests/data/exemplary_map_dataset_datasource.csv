@@ -16,7 +16,7 @@ C1.001,chebi_lite
 C2.001,chebi_lite
 C3.001,human_proteome
 C3.001,metaphors_9606
-C3.001,pathwaycommons_hgnc
+C3.001,metaphors_id_conversion
 C3.001,uniprot2reatome
 C4.001,goa_human
 C4.001,gobasic
