@@ -65,7 +65,7 @@ class Traintest(object):
         return features
 
     @staticmethod
-    def create(sign_from, sign_to, out_filename):
+    def create_signature_file(sign_from, sign_to, out_filename):
         """Create the HDF5 file with both X and Y, train and test."""
         # get type1
         with h5py.File(sign_from, 'r') as fh:
@@ -76,12 +76,17 @@ class Traintest(object):
         with h5py.File(sign_to, 'r') as fh:
             Y = fh['V'][:]
             check_Y = fh['keys'][:]
+        assert(np.array_equal(check_X, check_Y))
+        # train test validation splits
+        Traintest.create(X, Y, out_filename)
+
+    @staticmethod
+    def create(X, Y, out_filename):
+        """Create the HDF5 file with both X and Y, train and test."""
         Traintest.__log.debug(
             "{:<20} shape: {:>10}".format("input X", X.shape))
         Traintest.__log.debug(
             "{:<20} shape: {:>10}".format("input Y", Y.shape))
-        assert(np.array_equal(check_X, check_Y))
-        Traintest.__log.info('shapes X %s  Y %s', X.shape, Y.shape)
         # train test validation splits
         x_train, x_test, y_train, y_test = train_test_split(
             X, Y, test_size=0.2, random_state=42)
@@ -153,14 +158,14 @@ class AdaNetWrapper(object):
         self.batch_size = int(kwargs.get("batch_size", 32))
         self.learn_mixture_weights = kwargs.get("learn_mixture_weights", True)
         self.adanet_lambda = kwargs.get("adanet_lambda", 0.001)
-        self.boosting_iterations = int(kwargs.get("boosting_iterations", 10))
+        self.boosting_iterations = int(kwargs.get("boosting_iterations", 20))
         self.random_seed = int(kwargs.get("random_seed", 42))
         self.model_dir = kwargs.get("model_dir", None)
         self.activation = kwargs.get("activation", tf.nn.relu)
-        self.layer_size = int(kwargs.get("layer_size", 1024))
+        self.layer_size = int(kwargs.get("layer_size", 64))
         self.shuffles = int(kwargs.get("shuffles", 10))
         self.subnetwork_generator = eval(kwargs.get(
-            "subnetwork_generator", "SimpleDNNGenerator"))
+            "subnetwork_generator", "ExtendDNNGenerator"))
         self.results = None
         self.estimator = None
         self.__log.info("**** AdaNet Parameters: ***")
