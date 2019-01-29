@@ -15,6 +15,7 @@ from datetime import datetime
 from bisect import bisect_left
 from abc import ABCMeta, abstractmethod
 
+from chemicalchecker.util import RNDuplicates
 from chemicalchecker.util import logged
 
 
@@ -231,7 +232,7 @@ class BaseSignature(object):
         inks, signs = list(), list()
         with h5py.File(self.data_path, 'r') as hf:
             dset = hf['V']
-            for idx in idxs.flatten():
+            for idx in sorted(idxs.flatten()):
                 inks.append(self.keys[idx])
                 signs.append(dset[idx])
         missed_inks = set(keys) - set(inks)
@@ -296,3 +297,21 @@ class BaseSignature(object):
                 beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
 
         return _generator_fn
+
+    def get_non_redundant_intersection(self, sign):
+        """Return the non redundant intersection between two signatures.
+
+        (i.e. keys and vectors that are common to both signatures.)
+        N.B: to maximize overlap it's better to use signatures of type 'full'.
+        N.B: Near duplicates are found in the first signature.
+        """
+        shared_keys = self.unique_keys.intersection(sign.unique_keys)
+        self.__log.debug("%s shared keys.", len(shared_keys))
+        _, self_matrix = self.get_vectors(shared_keys)
+        rnd = RNDuplicates()
+        nr_keys, nr_matrix, mappings = rnd.remove(
+            self_matrix, keys=list(shared_keys))
+        a, self_matrix = self.get_vectors(nr_keys)
+        b, sign_matrix = sign.get_vectors(nr_keys)
+        assert(all(a == b))
+        return a, self_matrix, sign_matrix
