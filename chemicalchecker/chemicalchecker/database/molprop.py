@@ -155,7 +155,7 @@ def Molprop(table_name):
             GenericMolprop.__log.debug(
                 "Size final data to add: " + str(len(todo_iks)))
 
-            if todo_iks == 0:
+            if len(todo_iks) == 0:
                 return None
 
             for ele in inchikey_inchi:
