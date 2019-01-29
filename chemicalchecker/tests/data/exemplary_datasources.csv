@@ -36,7 +36,7 @@ GSE92742_Broad_LINCS_pert_metrics,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn
 GSE92742_Broad_LINCS_sig_info,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_sig_info.txt.gz,False,True,,,,,,False
 GSE92742_Broad_LINCS_sig_metrics,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_sig_metrics.txt.gz,False,True,,,,,,False
 hgnc_complete,ftp://ftp.ebi.ac.uk/pub/databases/genenames/new/tsv/hgnc_complete_set.txt,False,True,,,,,,False
-human_proteome,https://www.uniprot.org/uniprot/?query=proteome:UP000005640&format=tab,False,True,,,,,,False
+human_proteome,https://www.uniprot.org/uniprot/?query=proteome:UP000005640&format=tab,False,True,,,,,human_proteome.tab,False
 inBio_Map_core,file:///aloy/scratch/sbnb-adm/checker/local_downloads/inBio_Map_core_2016_09_12.tar.gz,False,True,,,,,,False
 metaphors_9606,ftp://phylomedb.org/metaphors/latest/orthologs/9606.txt.gz,False,True,,,,,,False
 metaphors_id_conversion,ftp://phylomedb.org/metaphors/latest/id_conversion.txt.gz,False,True,,,,,,False
