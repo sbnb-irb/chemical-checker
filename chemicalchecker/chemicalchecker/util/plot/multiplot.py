@@ -58,7 +58,7 @@ class MultiPlot():
                 colors.append(rgb2hex(250, 150, 50))
         return colors
 
-    def sign2_adanet_stats(self, metric=None):
+    def sign2_adanet_stats(self, metric=None, compare=None):
         # read stats fields
         sign2 = self.cc.get_signature('sign2', 'reference', 'E5.001')
         stat_file = os.path.join(sign2.model_path, 'adanet', 'stats.pkl')
@@ -80,6 +80,12 @@ class MultiPlot():
         outfile_pkl = os.path.join(self.plot_path, 'sign2_adanet_stats.pkl')
         df.to_pickle(outfile_pkl)
 
+        if compare:
+            cdf = pd.read_pickle(compare)
+            cdf = cdf[cdf.algo == 'AdaNet'].copy()
+            cdf['algo'] = cdf.algo.apply(lambda x: x + '_STACK')
+            df = df.append(cdf, ignore_index=True)
+
         if metric:
             all_metrics = [metric]
         else:
@@ -96,7 +102,15 @@ class MultiPlot():
             if metric == 'r2':
                 for ax in g.axes.flatten():
                     ax.set_ylim(0, 1)
+            if metric == 'mse':
+                for ax in g.axes.flatten():
+                    ax.set_ylim(0, 0.2)
+            if metric == 'explained_variance':
+                for ax in g.axes.flatten():
+                    ax.set_ylim(0, 1)
 
+            if compare:
+                metric += '_CMP'
             outfile = os.path.join(
                 self.plot_path, 'sign2_adanet_stats_%s.png' % metric)
             plt.savefig(outfile, dpi=100)
@@ -238,6 +252,12 @@ class MultiPlot():
             ax.fill_between([-2, 130], [max_mean, max_mean],
                             [min_mean, min_mean],
                             facecolor=self.cc_palette([ds])[0], alpha=0.3,
+                            zorder=0)
+            max_std = max(np.std(matrix, axis=0))
+            ax.fill_between([-2, 130],
+                            [max_mean + max_std, max_mean + max_std],
+                            [min_mean - max_std, min_mean - max_std],
+                            facecolor=self.cc_palette([ds])[0], alpha=0.2,
                             zorder=0)
             sns.despine(bottom=True)
         plt.tight_layout()
