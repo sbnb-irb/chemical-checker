@@ -68,9 +68,9 @@ class RNDuplicates():
             self.data = data
             self.data_type = data.dtype
             if keys is None:
-                self.keys = range(len(data))
+                self.keys = np.array(range(len(data)))
             else:
-                self.keys = keys
+                self.keys = np.array(keys)
 
         self.__log.info("Size before removing: " + str(self.data.shape[0]))
 
@@ -139,7 +139,6 @@ class RNDuplicates():
         self.final_ids.sort()
 
         self.__log.info("Size after removing: " + str(len(self.final_ids)))
-
         return self.keys[np.array(self.final_ids)], np.array(self.data[np.array(self.final_ids)], dtype=self.data_type), self.mappings
 
     def save(self, destination):
