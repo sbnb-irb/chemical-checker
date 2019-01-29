@@ -158,7 +158,8 @@ class sign2(BaseSignature):
             traintest_file = adanet_params.get(
                 'traintest_file', traintest_file)
         if not reuse or not os.path.isfile(traintest_file):
-            Traintest.create(sign1.data_path, self.data_path, traintest_file)
+            Traintest.create_signature_file(
+                sign1.data_path, self.data_path, traintest_file)
         # learn NN with AdaNet
         self.__log.debug('AdaNet training on %s' % traintest_file)
         ada.train_and_evaluate(traintest_file)
