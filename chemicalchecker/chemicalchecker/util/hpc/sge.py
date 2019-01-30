@@ -18,6 +18,7 @@ from chemicalchecker.util import logged
 STARTED = "started"
 DONE = "done"
 READY = "ready"
+ERROR = "error"
 
 
 @logged
@@ -218,6 +219,10 @@ fi
 
         if wait:
             errors = None
+            with open(self.statusFile, "w") as f:
+                f.write(DONE)
+            self.status_id = DONE
+
             if check_error:
                 errors = self.check_errors()
 
@@ -257,6 +262,10 @@ fi
 
         if len(errors) > 0:
             self.__log.debug("Found errors in job")
+            if self.status_id == DONE:
+                with open(self.statusFile, "w") as f:
+                    f.write(ERROR)
+                self.status_id = ERROR
             return errors
         else:
             if self.status_id == DONE:
