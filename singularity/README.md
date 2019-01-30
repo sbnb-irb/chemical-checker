@@ -21,6 +21,7 @@ You can use the image by doing:
 
 
     singularity shell /path/to/image
+    source activate py27
     python
 or
 
@@ -29,6 +30,12 @@ or
 
 ## Notebooks
 
-Run this command in your desktop machine:
+1. Create directory in your desktop home and give everybody read & write permissions
 
-    singularity exec -B /home/<username>/run_user_sing:/run/user <path-to-image> jupyter notebook
+        mkdir /home/<username>/run_user_sing
+        chmod +w /home/<username>/run_user_sing
+
+2. Run this command in your desktop machine:
+
+        singularity exec -B /home/<username>/run_user_sing:/run/user <path-to-image> jupyter notebook
+    
