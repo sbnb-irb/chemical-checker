@@ -82,7 +82,7 @@ class PropCalculator():
         for k in iks:
             try:
                 fps = fprints_from_inchi(
-                    inchikey_inchi[k], k, params[0], params[1])
+                    str(inchikey_inchi[k]), str(k), params[0], params[1])
             except Exception:
                 PropCalculator.__log.warning('Timeout inchikey: ' + k)
                 fps = None
@@ -125,7 +125,7 @@ class PropCalculator():
 
         chunk = list()
         for k in iks:
-            v = inchikey_inchi[k]
+            v = str(inchikey_inchi[k])
             mol = Chem.rdinchi.InchiToMol(v)[0]
             try:
                 dense = murcko_scaffold(mol)
@@ -148,7 +148,7 @@ class PropCalculator():
         iks = inchikey_inchi.keys()
         chunk = list()
         for k in iks:
-            v = inchikey_inchi[k]
+            v = str(inchikey_inchi[k])
             mol = Chem.rdinchi.InchiToMol(v)[0]
             fp = MACCSkeys.GenMACCSKeys(mol)
             dense = ",".join("%d" % s for s in sorted(
@@ -228,7 +228,7 @@ class PropCalculator():
         chunk = list()
 
         for k in iks:
-            v = inchikey_inchi[k]
+            v = str(inchikey_inchi[k])
             mol = Chem.rdinchi.InchiToMol(v)[0]
             P = descriptors(mol)
             raw = "%.2f,%d,%d,%d,%d,%d,%.3f,%.3f,%d,%d,%.3f,%d,%d,%d,%d,%d,%.3f" % (P['mw'], P['heavy'], P['hetero'],
