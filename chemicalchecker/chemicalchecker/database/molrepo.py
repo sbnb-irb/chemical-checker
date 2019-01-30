@@ -170,6 +170,8 @@ class Molrepo(Base):
         molrepo_parser = datasources[0].molrepo_name
         for ds in datasources:
             Molrepo.__log.debug("Importing Datasource %s", ds)
+            # Download datasource
+            ds.download()
             molrepo_path.append(ds.molrepo_path)
 
         # parser_fn yield a list of dictionaries with keys as a molrepo entry
@@ -199,6 +201,8 @@ class Molrepo(Base):
             raise Exception("Datasource molrepo file not available.")
         molrepo_name = ds.molrepo_name
         Molrepo.__log.debug("Importing Datasource %s", ds)
+        # Download datasource
+        ds.download()
         # parser_fn yield a list of dictionaries with keys as a molrepo entry
         parse_fn = Parser.parse_fn(ds.molrepo_name)
         # profile time
