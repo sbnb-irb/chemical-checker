@@ -90,6 +90,8 @@ def Molprop(table_name):
             t_start = time()
             engine = get_engine()
             for chunk in parse_fn(inchikey_inchi, 1000):
+                if len(chunk) == 0:
+                    continue
                 GenericMolprop.__log.debug(
                     "Loading chunk of size: " + str(len(chunk)))
                 if GenericMolprop.__tablename__ == GeneralProp.__tablename__:
@@ -163,7 +165,7 @@ def Molprop(table_name):
                     list_inchikey_inchi.append(ele)
 
             params = {}
-            if GenericMolprop.__tablename__ == "f3d":
+            if GenericMolprop.__tablename__ == "fp3d":
                 params["num_jobs"] = len(list_inchikey_inchi) / 200
             else:
                 params["num_jobs"] = len(list_inchikey_inchi) / 2000
