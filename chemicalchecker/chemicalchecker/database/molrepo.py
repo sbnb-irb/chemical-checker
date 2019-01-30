@@ -178,6 +178,8 @@ class Molrepo(Base):
         t_start = time()
         engine = get_engine()
         for chunk in parse_fn(molrepo_path, molrepo_name, 1000):
+            if len(chunk) == 0:
+                continue
             engine.execute(postgresql.insert(Molrepo.__table__).values(
                 chunk).on_conflict_do_nothing(index_elements=[Molrepo.id]))
             # engine.execute(Molrepo.__table__.insert(), chunk)
@@ -203,6 +205,8 @@ class Molrepo(Base):
         t_start = time()
         engine = get_engine()
         for chunk in parse_fn([ds.molrepo_path], molrepo_name, 1000):
+            if len(chunk) == 0:
+                continue
             engine.execute(postgresql.insert(Molrepo.__table__).values(
                 chunk).on_conflict_do_nothing(index_elements=[Molrepo.id]))
             # engine.execute(Molrepo.__table__.insert(), chunk)
