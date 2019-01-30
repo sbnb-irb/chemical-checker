@@ -105,16 +105,24 @@ def Molprop(table_name):
                 "Loading Mol properties Name %s took %s", GenericMolprop.__tablename__, t_delta)
 
         @staticmethod
-        def molprop_hpc(job_path, inchikey_inchi):
+        def molprop_hpc(job_path, inchikey_inchi, **kwargs):
             """Run HPC jobs importing all molrepos.
 
             job_path(str): Path (usually in scratch) where the script files are
                 generated.
             inchikey_inchi(list): List of inchikey, inchi tuples
+            cpu: Number of cores each job will use(default:1)
+            wait: Wait for the job to finish (default:True)
+            memory: Maximum memory the job can take in Gigabytes(default: 10)
             """
             # create job directory if not available
             if not os.path.isdir(job_path):
                 os.mkdir(job_path)
+
+            cpu = kwargs.get("cpu", 1)
+            wait = kwargs.get("wait", True)
+            memory = kwargs.get("memory", 10)
+
             # create script file
             cc_config = os.environ['CC_CONFIG']
             cc_package = os.path.join(chemicalchecker.__path__[0], '../')
@@ -172,8 +180,9 @@ def Molprop(table_name):
             params["jobdir"] = job_path
             params["job_name"] = "CC_MLP_" + GenericMolprop.__tablename__
             params["elements"] = list_inchikey_inchi
-            params["wait"] = True
-            params["memory"] = 16
+            params["wait"] = wait
+            params["cpu"] = cpu
+            params["memory"] = memory
             # job command
             singularity_image = Config().PATH.SINGULARITY_IMAGE
             command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
