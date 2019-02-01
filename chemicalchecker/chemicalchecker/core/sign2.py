@@ -131,7 +131,7 @@ class sign2(BaseSignature):
             linkpred = LinkPrediction(self, graph)
             linkpred.performance.toJSON(linkpred_file)
         # copy reduced-full mappingsfrom sign1
-        if "mappings" in sign1.info_h5:
+        if "mappings" not in self.info_h5 and "mappings" in sign1.info_h5:
             self.copy_from(sign1, "mappings")
         else:
             self.__log.warn("Cannot copy 'mappings' from sign1.")
@@ -141,6 +141,7 @@ class sign2(BaseSignature):
         # step 2: AdaNet (learn to predict sign2 from sign1 without Node2Vec)
         #########
         self.__log.debug('AdaNet fit %s with Node2Vec output' % sign1)
+        # get params and set folder
         adanet_params = self.params['adanet']
         adanet_path = os.path.join(self.model_path, 'adanet')
         if adanet_params:
@@ -148,21 +149,24 @@ class sign2(BaseSignature):
                 adanet_path = adanet_params.pop('model_dir')
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
-        if adanet_params:
-            ada = AdaNet(model_dir=adanet_path, **adanet_params)
-        else:
-            ada = AdaNet(model_dir=adanet_path)
         # prepare train-test file
         traintest_file = os.path.join(adanet_path, 'traintest.h5')
         if adanet_params:
             traintest_file = adanet_params.get(
                 'traintest_file', traintest_file)
+            adanet_params.pop('traintest_file')
         if not reuse or not os.path.isfile(traintest_file):
             Traintest.create_signature_file(
                 sign1.data_path, self.data_path, traintest_file)
+
+        if adanet_params:
+            ada = AdaNet(model_dir=adanet_path,
+                         traintest_file=traintest_file, **adanet_params)
+        else:
+            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
         # learn NN with AdaNet
         self.__log.debug('AdaNet training on %s' % traintest_file)
-        ada.train_and_evaluate(traintest_file)
+        ada.train_and_evaluate()
         # save AdaNet performances and plots
         sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
         ada.save_performances(adanet_path, sign2_plot)
@@ -175,7 +179,7 @@ class sign2(BaseSignature):
         self.__log.debug('loading model from %s' % adanet_path)
         return AdaNet.predict_signature(adanet_path, sign1)
 
-    def grid_search_adanet(self, sign1, neig1, job_path, parameters, traintest_file=None):
+    def grid_search_adanet(self, sign1, cc_root, job_path, parameters, traintest_file=None):
         """Perform a grid search.
 
         parameters = {
@@ -191,7 +195,7 @@ class sign2(BaseSignature):
         if traintest_file is None:
             traintest_file = os.path.join(gridsearch_path, 'traintest.h5')
             if not os.path.isfile(traintest_file):
-                Traintest.create(
+                Traintest.create_signature_file(
                     sign1.data_path, self.data_path, traintest_file)
         elements = list()
         for params in ParameterGrid(parameters):
@@ -212,15 +216,17 @@ class sign2(BaseSignature):
             "import pickle",
             "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
             "sys.path.append('%s')" % cc_package,  # allow package import
-            "from chemicalchecker.core import sign1, neig1, sign2",
+            "from chemicalchecker.core import ChemicalChecker",
+            "cc = ChemicalChecker('%s')" % cc_root,
             "task_id = sys.argv[1]",  # <TASK_ID>
             "filename = sys.argv[2]",  # <FILE>
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
             "data = inputs[task_id]",  # elements for current job
             "for params in data:",  # elements are indexes
-            "    s1 = sign1.sign1('%s', None)" % sign1.signature_path,
-            "    n1 = neig1.neig1('%s', None)" % neig1.signature_path,
-            "    s2 = sign2.sign2('%s', None, **params)" % self.signature_path,
+            "    ds = '%s'" % self.dataset.code,
+            "    s1 = cc.get_signature('sign1', 'reference', ds)",
+            "    n1 = cc.get_signature('neig1', 'reference', ds)",
+            "    s2 = cc.get_signature('sign2', 'reference', ds, **params)",
             "    s2.fit(s1, n1)",
             "print('JOB DONE')"
         ]
