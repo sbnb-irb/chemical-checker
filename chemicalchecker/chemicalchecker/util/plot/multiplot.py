@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 from matplotlib import pyplot as plt
 import seaborn as sns
+import matplotlib.colors as colors
 
 from chemicalchecker.util import logged
 
@@ -262,5 +263,55 @@ class MultiPlot():
             sns.despine(bottom=True)
         plt.tight_layout()
         filename = os.path.join(self.plot_path, "feat_distrib.png")
+        plt.savefig(filename, dpi=100)
+        plt.close()
+
+    def plot_adanet_subnetwork_layer_size(self, shapes=None, func=None):
+
+        if not shapes:
+            shapes = list()
+            for ds in self.cc.datasets:
+                sign1 = self.cc.get_signature('sign1', 'reference', ds)
+                x, y = sign1.shape
+                shapes.append((ds, x, y))
+
+        def layer_size(nr_samples, nr_features, nr_out=128, s_fact=10.):
+            heu_layer_size = (
+                1 / s_fact) * (np.sqrt(nr_samples) + ((nr_features + nr_out) / 4.))
+            heu_layer_size = np.power(2, np.ceil(np.log2(heu_layer_size)))
+            return heu_layer_size
+
+        if not func:
+            func = layer_size
+
+        x = np.logspace(2, 6, 500)
+        y = np.linspace(5, 5000, 500)
+        X, Y = np.meshgrid(x, y)  # grid of point
+        Z = func(X, Y)  # evaluation of the function on the grid
+
+        sns.set_style("whitegrid")
+        fig, ax = plt.subplots(figsize=(7, 5), dpi=100)
+        norm = colors.BoundaryNorm(
+            boundaries=[2**i for i in range(2, 11)], ncolors=256)
+        # drawing the function
+        im = ax.pcolormesh(X, Y, Z, norm=norm, cmap=plt.cm.Blues)
+        plt.xscale('log')
+        # adding the Contour lines with labels
+        # cset = ax.contour(Z, [2**i for i in range(2, 11)],linewidths = 2, cmap = plt.cm.Set2)
+        # plt.clabel(cset, inline=True, fmt='%1.1f', fontsize=10)
+        plt.colorbar(im, label='Neurons')  # adding the colobar on the right
+        plt.ylim(5, 5000)
+        ax.set_xlabel("Molecules")
+        ax.set_ylabel("Features")
+        plt.tight_layout()
+
+        for ds, x, y in shapes:
+            plt.scatter(x, y, color=self.cc_palette([ds])[0])
+            plt.text(x, y, "%s" % (ds[:2]),
+                     ha="center", va="center",
+                     bbox={"boxstyle":"circle", "color":self.cc_palette([ds])[0]},
+                     color='k', fontsize=10)
+
+        filename = os.path.join(self.plot_path, "layer_size.png")
         plt.savefig(filename, dpi=100)
         plt.close()
