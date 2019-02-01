@@ -661,11 +661,11 @@ class Plot():
 
         # for plotting we subsample randomly
         nr_samples = len(y_true)
-        if nr_samples > 10000:
+        if nr_samples > 1000:
             mask = np.random.choice(
-                range(nr_samples), 10000, replace=False)
-            x = cosine_distances(y_true[mask])[np.tril_indices(10000, -1)]
-            y = cosine_distances(y_pred[mask])[np.tril_indices(10000, -1)]
+                range(nr_samples), 1000, replace=False)
+            x = cosine_distances(y_true[mask])[np.tril_indices(1000, -1)]
+            y = cosine_distances(y_pred[mask])[np.tril_indices(1000, -1)]
         else:
             x = cosine_distances(y_true)[np.tril_indices(nr_samples, -1)]
             y = cosine_distances(y_pred)[np.tril_indices(nr_samples, -1)]
@@ -729,13 +729,15 @@ class Plot():
         plt.close()
 
     def sign2_grid_search_plot(self, grid_root):
-        dir_name = os.listdir(grid_root)[0]
+        dir_names = [name for name in os.listdir(
+            grid_root) if os.path.isdir(os.path.join(grid_root, name))]
+        dir_name = dir_names[0]
         params = {n.rsplit("_", 1)[0]: n.rsplit("_", 1)[1]
                   for n in dir_name.split("-")}
         tmpdf_file = os.path.join(grid_root, dir_name, 'stats.pkl')
         cols = list(pd.read_pickle(tmpdf_file).columns)
         df = pd.DataFrame(columns=cols + params.keys())
-        for dir_name in os.listdir(grid_root):
+        for dir_name in dir_names:
             tmpdf_file = os.path.join(grid_root, dir_name, 'stats.pkl')
             if not os.path.isfile(tmpdf_file):
                 print("File not found: %s", tmpdf_file)
@@ -747,11 +749,11 @@ class Plot():
                 tmpdf[k] = pd.Series([v] * len(tmpdf))
             df = df.append(tmpdf, ignore_index=True)
         df['layer_size'] = df['layer_size'].astype(int)
-        df['boosting_iterations'] = df['boosting_iterations'].astype(int)
+        df['adanet_iterations'] = df['adanet_iterations'].astype(int)
         df['adanet_lambda'] = df['adanet_lambda'].astype(float)
         ada_df = df[df.algo == 'AdaNet']
         g = sns.relplot(y='pearson_avg', style="dataset", hue='layer_size',
-                        x='adanet_lambda', col='boosting_iterations',
+                        x='adanet_lambda', col='adanet_iterations',
                         kind='scatter', data=ada_df)
         # linreg
         linreg_train = df[(df.algo != 'AdaNet') & (
