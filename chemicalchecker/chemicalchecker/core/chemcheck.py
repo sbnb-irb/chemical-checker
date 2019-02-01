@@ -338,3 +338,64 @@ class ChemicalChecker():
         cluster = HPC(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
+
+    @staticmethod
+    def sign3_cross_fit(job_path, cc_root, pairs, mdl_root):
+        """Run HPC jobs performing adanet cross fit between pairs.
+
+        Args:
+            job_path(str): Path (usually in scratch) where the script files are
+                generated.
+            cc_root(str): The Chemical Checker root directory.
+            pairs(list): pairs of datasets.
+        """
+        # create job directory if not available
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+        # create script file
+        cc_config = os.environ['CC_CONFIG']
+        cc_package = os.path.join(chemicalchecker.__path__[0], '../')
+        script_lines = [
+            "import sys, os",
+            "import pickle",
+            "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
+            "sys.path.append('%s')" % cc_package,  # allow package import
+            "from chemicalchecker.core import ChemicalChecker",
+            "from chemicalchecker.core.sign3 import sign3",
+            "cc = ChemicalChecker('%s')" % cc_root,
+            "task_id = sys.argv[1]",  # <TASK_ID>
+            "filename = sys.argv[2]",  # <FILE>
+            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
+            "data = inputs[task_id]",  # elements for current job
+            "for ds1, ds2 in data:",  # elements are indexes
+            "    sign_from = cc.get_signature('sign2', 'full_map', ds1)",
+            "    sign_from.consistency_check()",
+            "    sign_to = cc.get_signature('sign2', 'full_map', ds2)",
+            "    sign_to.consistency_check()",
+            "    suff = '%s_%s' % (ds1, ds2)",
+            "    mdl_path = os.path.join('%s', suff)" % mdl_root,
+            "    if not os.path.isdir(mdl_path):",
+            "        os.makedirs(mdl_path)",
+            "    sign3.cross_fit(sign_from, sign_to, mdl_path)",
+            "print('JOB DONE')"
+        ]
+        script_name = os.path.join(job_path, 'sign3_cross.py')
+        with open(script_name, 'w') as fh:
+            for line in script_lines:
+                fh.write(line + '\n')
+        # hpc parameters
+        params = {}
+        params["num_jobs"] = len(pairs)
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_SIGN3_CROSS"
+        params["elements"] = pairs
+        params["wait"] = True
+        params["memory"] = 1  # this avoids singularity segfault on some nodes
+        # job command
+        singularity_image = Config().PATH.SINGULARITY_IMAGE
+        command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+            singularity_image, script_name)
+        # submit jobs
+        cluster = HPC(Config())
+        cluster.submitMultiJob(command, **params)
+        return cluster
