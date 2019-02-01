@@ -1,6 +1,7 @@
 import functools
 import adanet
 import tensorflow as tf
+import numpy as np
 from chemicalchecker.util import logged
 
 
@@ -8,7 +9,7 @@ from chemicalchecker.util import logged
 class ExtendDNNBuilder(adanet.subnetwork.Builder):
     """Builds a DNN subnetwork for AdaNet."""
 
-    def __init__(self, optimizer, layer_sizes, num_layers,
+    def __init__(self, optimizer, layer_sizes, num_layers, layer_block_size,
                  learn_mixture_weights, seed, activation, previous_ensemble):
         """Initializes a `_DNNBuilder`.
 
@@ -30,6 +31,7 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
         self._optimizer = optimizer
         self._layer_sizes = layer_sizes
         self._num_layers = num_layers
+        self._layer_block_size = layer_block_size
         self._learn_mixture_weights = learn_mixture_weights
         self._seed = seed
         self._activation = activation
@@ -48,7 +50,7 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
         for layer_size in self._layer_sizes:
             last_layer = tf.layers.dense(
                 last_layer,
-                units=layer_size,
+                units=layer_size * self._layer_block_size,
                 activation=self._activation,
                 kernel_initializer=kernel_initializer)
         logits = tf.layers.dense(
@@ -68,7 +70,11 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
 
     def _measure_complexity(self):
         """Approximates Rademacher complexity as square-root of the depth."""
-        return tf.sqrt(tf.to_float(self._num_layers))
+        #depth_cmpl = np.sqrt(float(self._num_layers))
+        #max_width_cmpl = np.sqrt(float(max(self._layer_sizes)))
+        total_blocks_cmpl = np.sqrt(float(sum(self._layer_sizes)))
+        #self.__log.debug("\n\n***** COMPLEXITY\ndepth_cmpl: %s\max_width_cmpl %s\total_blocks_cmpl %s\n\n", depth_cmpl, max_width_cmpl, total_blocks_cmpl)
+        return total_blocks_cmpl
 
     def build_subnetwork_train_op(self, subnetwork, loss, var_list, labels,
                                   iteration_step, summary, previous_ensemble):
@@ -86,7 +92,10 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
     @property
     def name(self):
         """See `adanet.subnetwork.Builder`."""
-        layer_size_str = '_'.join([str(x) for x in self._layer_sizes])
+        if len(self._layer_sizes) == 0:
+            layer_size_str = '0'
+        else:
+            layer_size_str = '_'.join([str(x) for x in self._layer_sizes])
         return "dnn_{}_layer_{}_nodes".format(self._num_layers, layer_size_str)
 
 
@@ -126,11 +135,12 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
         """
 
         self._seed = seed
-        self.layer_block_size = layer_size
+        self._layer_block_size = layer_size
         self._dnn_builder_fn = functools.partial(
             ExtendDNNBuilder,
             optimizer=optimizer,
             activation=activation,
+            layer_block_size=layer_size,
             learn_mixture_weights=learn_mixture_weights)
 
     def generate_candidates(self, previous_ensemble, iteration_number,
@@ -140,8 +150,8 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
         if seed is not None:
             seed += iteration_number
         # start with single layer
-        num_layers = 1
-        layer_sizes = [self.layer_block_size]
+        num_layers = 0
+        layer_sizes = []
         # take the maximum depth reached in previous iterations + 1
         if previous_ensemble:
             last_subnetwork = previous_ensemble.weighted_subnetworks[
@@ -156,7 +166,7 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
         candidates = list()
         for extend_layer in range(num_layers):
             new_sizes = layer_sizes[:]
-            new_sizes[extend_layer] += self.layer_block_size
+            new_sizes[extend_layer] += 1
             candidates.append(
                 self._dnn_builder_fn(
                     num_layers=num_layers,
@@ -167,7 +177,7 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
         candidates.append(
             self._dnn_builder_fn(
                 num_layers=num_layers + 1,
-                layer_sizes=layer_sizes + [self.layer_block_size],
+                layer_sizes=layer_sizes + [1],
                 seed=seed,
                 previous_ensemble=previous_ensemble))
         # also keep the un-extended candidate
