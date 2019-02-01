@@ -81,7 +81,7 @@ class Traintest(object):
         Traintest.create(X, Y, out_filename)
 
     @staticmethod
-    def create(X, Y, out_filename):
+    def create(X, Y, out_filename, augment=False, augment_factor=3000):
         """Create the HDF5 file with both X and Y, train and test."""
         Traintest.__log.debug(
             "{:<20} shape: {:>10}".format("input X", X.shape))
@@ -92,6 +92,27 @@ class Traintest(object):
             X, Y, test_size=0.2, random_state=42)
         x_train, x_val, y_train, y_val = train_test_split(
             x_train, y_train, test_size=0.2, random_state=42)
+
+        if len(x_train) < 1000 and augment:
+            Traintest.__log.warn("Augmenting data.")
+            p_x = list([x_train])
+            p_y = list([y_train])
+            # perturb train vectors
+            if augment == 'noise':
+                for i in range(augment_factor):
+                    perturbation = np.random.normal() * 1e-4
+                    p_x.append(x_train + perturbation)
+                    p_y.append(y_train + perturbation)
+            elif augment == 'interpol':
+                mask = range(len(x_train))
+                mask1 = range(len(x_train))
+                for i in range(augment_factor):
+                    np.random.shuffle(mask)
+                    np.random.shuffle(mask1)
+                    p_x.append((x_train + x_train[mask] + x_train[mask1]) / 3.)
+                    p_y.append((y_train + y_train[mask] + y_train[mask1]) / 3.)
+            x_train = np.concatenate(tuple(p_x))
+            y_train = np.concatenate(tuple(p_y))
 
         # create dataset
         with h5py.File(out_filename, "w") as fh:
@@ -153,23 +174,47 @@ class AdaNetWrapper(object):
     examples/tutorials/adanet_objective.ipynb
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, traintest_file, **kwargs):
         self.learning_rate = kwargs.get("learning_rate", 0.001)
         self.batch_size = int(kwargs.get("batch_size", 32))
         self.learn_mixture_weights = kwargs.get("learn_mixture_weights", True)
         self.adanet_lambda = kwargs.get("adanet_lambda", 0.001)
-        self.boosting_iterations = int(kwargs.get("boosting_iterations", 20))
         self.random_seed = int(kwargs.get("random_seed", 42))
         self.model_dir = kwargs.get("model_dir", None)
         self.activation = kwargs.get("activation", tf.nn.relu)
-        self.layer_size = int(kwargs.get("layer_size", 64))
         self.shuffles = int(kwargs.get("shuffles", 10))
+        self.adanet_iterations = int(kwargs.get("adanet_iterations", 25))
         self.subnetwork_generator = eval(kwargs.get(
             "subnetwork_generator", "ExtendDNNGenerator"))
+        # read input shape
+        self.traintest_file = traintest_file
+        with h5py.File(traintest_file, 'r') as hf:
+            self.input_dimension = hf['x_train'].shape[1]
+            self.label_dimension = hf['y_train'].shape[1]
+            self.train_size = hf['x_train'].shape[0]
+            self.total_size = hf['x_train'].shape[0] + hf['x_test'].shape[0] + hf['x_validation'].shape[0]
+        # layer size heuristic
+        heu_layer_size = AdaNetWrapper.layer_size_heuristic(
+            self.total_size, self.input_dimension, self.label_dimension)
+        self.layer_size = int(kwargs.get("layer_size", heu_layer_size))
+        # make adanet iteration proportional to input size (with lower bound)
+        # we want to guarantee one epoch per adanet iteration
+        self.train_step = int(self.train_size // self.batch_size) + 1
+        self.train_step = max(self.train_step, 1000)
+        self.total_steps = self.train_step * self.adanet_iterations
         self.results = None
         self.estimator = None
+        # log parameters
         self.__log.info("**** AdaNet Parameters: ***")
+        self.__log.info("{:<22}: {:>12}".format(
+            "train_size", self.train_size))
+        self.__log.info("{:<22}: {:>12}".format(
+            "input_dimension", self.input_dimension))
+        self.__log.info("{:<22}: {:>12}".format(
+            "label_dimension", self.label_dimension))
         self.__log.info("{:<22}: {:>12}".format("model_dir", self.model_dir))
+        self.__log.info("{:<22}: {:>12}".format(
+            "traintest_file", self.traintest_file))
         self.__log.info("{:<22}: {:>12}".format(
             "learning_rate", self.learning_rate))
         self.__log.info("{:<22}: {:>12}".format("batch_size", self.batch_size))
@@ -178,7 +223,7 @@ class AdaNetWrapper(object):
         self.__log.info("{:<22}: {:>12}".format(
             "adanet_lambda", self.adanet_lambda))
         self.__log.info("{:<22}: {:>12}".format(
-            "boosting_iterations", self.boosting_iterations))
+            "adanet_iterations", self.adanet_iterations))
         self.__log.info("{:<22}: {:>12}".format(
             "random_seed", self.random_seed))
         self.__log.info("{:<22}: {:>12}".format("activation", self.activation))
@@ -186,18 +231,20 @@ class AdaNetWrapper(object):
         self.__log.info("{:<22}: {:>12}".format("shuffles", self.shuffles))
         self.__log.info("{:<22}: {:>12}".format(
             "subnetwork_generator", self.subnetwork_generator))
+        self.__log.info("{:<22}: {:>12}".format(
+            "train_step", self.train_step))
+        self.__log.info("{:<22}: {:>12}".format(
+            "total_steps", self.total_steps))
 
-    def train_and_evaluate(self, traintest_file):
+    @staticmethod
+    def layer_size_heuristic(nr_samples, nr_features, nr_out=128, s_fact=10.):
+        layer_size = (1 / s_fact) * (np.sqrt(nr_samples) +
+                                     ((nr_features + nr_out) / 4.))
+        layer_size = np.power(2, np.ceil(np.log2(layer_size)))
+        return layer_size
+
+    def train_and_evaluate(self):
         """Train and evaluate AdaNet."""
-        # tune parameters according to input shape
-        self.traintest_file = traintest_file
-        with h5py.File(traintest_file, 'r') as hf:
-            self.input_dimension = hf['x_train'].shape[1]
-            self.label_dimension = hf['y_train'].shape[1]
-            self.train_size = hf['x_train'].shape[0]
-        # this guarantees one epoch per train (however consider a minimum)
-        self.train_step = max(1000, self.train_size // self.batch_size)
-        self.total_steps = self.train_step * self.boosting_iterations
 
         """Define the `adanet.Estimator`."""
         self.estimator = adanet.Estimator(
@@ -351,12 +398,13 @@ class AdaNetWrapper(object):
         df = pd.DataFrame(columns=[
             'dataset', 'r2', 'pearson_avg', 'pearson_std', 'algo', 'mse',
             'explained_variance', 'time', 'architecture', 'nr_variables',
-            'nn_layers'])
+            'nn_layers', 'layer_size'])
 
         def _stats_row(y_true, y_pred, algo, dataset):
             row = dict()
             row['algo'] = algo
             row['dataset'] = dataset
+            row['layer_size'] = self.layer_size
             row['r2'] = r2_score(y_true, y_pred)
             pps = [pearsonr(y_true[:, x], y_pred[:, x])[0]
                    for x in range(y_true.shape[1])]
@@ -416,6 +464,7 @@ class AdaNetWrapper(object):
             rows[ds] = _stats_row(y[ds], y_pred, 'LinearRegression', ds)
             rows[ds]['time'] = linreg_stop - linreg_start
             rows[ds]['architecture'] = '| linear |'
+            rows[ds]['layer_size'] = 0
             rows[ds]["nr_variables"] = y[ds].shape[1]
             rows[ds]["nn_layers"] = 0
             # log and save plot
