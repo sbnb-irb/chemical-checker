@@ -134,8 +134,6 @@ fi
 
         submit_string = 'sbatch --parsable '
 
-        if self.queue is not None:
-            submit_string += " -p " + self.queue + " "
 
         if wait:
             submit_string += " --wait "
