@@ -728,15 +728,17 @@ class Plot():
         plt.savefig(filename, dpi=60)
         plt.close()
 
-    def sign2_grid_search_plot(self, grid_root):
+    def sign2_grid_search_plot(self, grid_root=None):
         dir_names = [name for name in os.listdir(
             grid_root) if os.path.isdir(os.path.join(grid_root, name))]
-        dir_name = dir_names[0]
-        params = {n.rsplit("_", 1)[0]: n.rsplit("_", 1)[1]
-                  for n in dir_name.split("-")}
-        tmpdf_file = os.path.join(grid_root, dir_name, 'stats.pkl')
+        for dir_name in dir_names:
+            params = {n.rsplit("_", 1)[0]: n.rsplit("_", 1)[1]
+                      for n in dir_name.split("-")}
+            tmpdf_file = os.path.join(grid_root, dir_name, 'stats.pkl')
+            if os.path.isfile(tmpdf_file):
+                break
         cols = list(pd.read_pickle(tmpdf_file).columns)
-        df = pd.DataFrame(columns=cols + params.keys())
+        df = pd.DataFrame(columns=set(cols) | set(params.keys()))
         for dir_name in dir_names:
             tmpdf_file = os.path.join(grid_root, dir_name, 'stats.pkl')
             if not os.path.isfile(tmpdf_file):
@@ -748,25 +750,30 @@ class Plot():
             for k, v in params.items():
                 tmpdf[k] = pd.Series([v] * len(tmpdf))
             df = df.append(tmpdf, ignore_index=True)
+
         df['layer_size'] = df['layer_size'].astype(int)
         df['adanet_iterations'] = df['adanet_iterations'].astype(int)
         df['adanet_lambda'] = df['adanet_lambda'].astype(float)
-        ada_df = df[df.algo == 'AdaNet']
-        g = sns.relplot(y='pearson_avg', style="dataset", hue='layer_size',
-                        x='adanet_lambda', col='adanet_iterations',
-                        kind='scatter', data=ada_df)
-        # linreg
-        linreg_train = df[(df.algo != 'AdaNet') & (
-            df.dataset == 'train')].iloc[0]['pearson_avg']
-        linreg_test = df[(df.algo != 'AdaNet') & (
-            df.dataset == 'test')].iloc[0]['pearson_avg']
-        for ax in g.axes.flatten():
-            ax.axhline(linreg_train, ls='--',
-                       lw=0.5, color='grey', zorder=1)
-            ax.axhline(linreg_test,
-                       lw=0.5, color='grey', zorder=1)
 
-        filename = os.path.join(
-            self.plot_path, "sign2_grid_search.png")
-        plt.savefig(filename, dpi=60)
-        plt.close()
+        for metric in ['pearson_avg', 'nr_variables']:
+            ada_df = df[df.algo == 'AdaNet']
+            hue_order = sorted(list(ada_df.subnetwork_generator.unique()))
+            g = sns.relplot(y=metric, style="dataset", hue='subnetwork_generator',
+                            x='adanet_lambda', col='adanet_iterations',
+                            hue_order=hue_order,
+                            kind='scatter', data=ada_df)
+            # linreg
+            linreg_train = df[(df.algo != 'AdaNet') & (
+                df.dataset == 'train')].iloc[0][metric]
+            linreg_test = df[(df.algo != 'AdaNet') & (
+                df.dataset == 'test')].iloc[0][metric]
+            for ax in g.axes.flatten():
+                ax.axhline(linreg_train, ls='--',
+                           lw=0.5, color='grey', zorder=1)
+                ax.axhline(linreg_test,
+                           lw=0.5, color='grey', zorder=1)
+
+            filename = os.path.join(
+                self.plot_path, "sign2_%s_grid_search_%s.png" % (self.dataset.code, metric))
+            plt.savefig(filename, dpi=100)
+            plt.close()
