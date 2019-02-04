@@ -238,7 +238,7 @@ class AdaNetWrapper(object):
             "total_steps", self.total_steps))
 
     @staticmethod
-    def layer_size_heuristic(nr_samples, nr_features, nr_out=128, s_fact=6.):
+    def layer_size_heuristic(nr_samples, nr_features, nr_out=128, s_fact=7.):
         heu_layer_size = (
             1 / s_fact) * (np.sqrt(nr_samples) / .3 + ((nr_features + nr_out) / 5.))
         heu_layer_size = np.power(2, np.ceil(np.log2(heu_layer_size)))
@@ -443,8 +443,7 @@ class AdaNetWrapper(object):
             model_vars = list()
             for var in tf.trainable_variables():
                 model_vars.append(var.eval())
-            nr_variables = np.sum([np.prod(v.get_shape().as_list())
-                                   for v in model_vars])
+            nr_variables = np.sum([np.prod(v.shape) for v in model_vars])
             nn_layers = (len(model_vars) / 2) - 1
             architecture = [model_vars[i].shape[1]
                             for i in range(0, len(model_vars), 2)]

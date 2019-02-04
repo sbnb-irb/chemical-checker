@@ -275,7 +275,7 @@ class MultiPlot():
                 x, y = sign1.shape
                 shapes.append((ds, x, y))
 
-        def layer_size(nr_samples, nr_features, nr_out=128, s_fact=6.):
+        def layer_size(nr_samples, nr_features, nr_out=128, s_fact=7.):
             heu_layer_size = (
                 1 / s_fact) * (np.sqrt(nr_samples) / .3 + ((nr_features + nr_out) / 5.))
             heu_layer_size = np.power(2, np.ceil(np.log2(heu_layer_size)))
@@ -293,7 +293,7 @@ class MultiPlot():
         sns.set_style("whitegrid")
         fig, ax = plt.subplots(figsize=(7, 5), dpi=100)
         norm = colors.BoundaryNorm(
-            boundaries=[2**i for i in range(2, 11)], ncolors=256)
+            boundaries=[2**i for i in range(5, 11)], ncolors=256)
         # drawing the function
         im = ax.pcolormesh(X, Y, Z, norm=norm, cmap=plt.cm.Blues)
         plt.xscale('log')
