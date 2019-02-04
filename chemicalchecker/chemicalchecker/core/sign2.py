@@ -223,7 +223,7 @@ class sign2(BaseSignature):
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
             "data = inputs[task_id]",  # elements for current job
             "for params in data:",  # elements are indexes
-            "    ds = '%s'" % self.dataset.code,
+            "    ds = '%s'" % self.dataset,
             "    s1 = cc.get_signature('sign1', 'reference', ds)",
             "    n1 = cc.get_signature('neig1', 'reference', ds)",
             "    s2 = cc.get_signature('sign2', 'reference', ds, **params)",
