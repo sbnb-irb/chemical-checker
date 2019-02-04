@@ -192,7 +192,8 @@ class AdaNetWrapper(object):
             self.input_dimension = hf['x_train'].shape[1]
             self.label_dimension = hf['y_train'].shape[1]
             self.train_size = hf['x_train'].shape[0]
-            self.total_size = hf['x_train'].shape[0] + hf['x_test'].shape[0] + hf['x_validation'].shape[0]
+            self.total_size = hf['x_train'].shape[
+                0] + hf['x_test'].shape[0] + hf['x_validation'].shape[0]
         # layer size heuristic
         heu_layer_size = AdaNetWrapper.layer_size_heuristic(
             self.total_size, self.input_dimension, self.label_dimension)
@@ -237,11 +238,12 @@ class AdaNetWrapper(object):
             "total_steps", self.total_steps))
 
     @staticmethod
-    def layer_size_heuristic(nr_samples, nr_features, nr_out=128, s_fact=10.):
-        layer_size = (1 / s_fact) * (np.sqrt(nr_samples) +
-                                     ((nr_features + nr_out) / 4.))
-        layer_size = np.power(2, np.ceil(np.log2(layer_size)))
-        return layer_size
+    def layer_size_heuristic(nr_samples, nr_features, nr_out=128, s_fact=6.):
+        heu_layer_size = (
+            1 / s_fact) * (np.sqrt(nr_samples) / .3 + ((nr_features + nr_out) / 5.))
+        heu_layer_size = np.power(2, np.ceil(np.log2(heu_layer_size)))
+        heu_layer_size = np.maximum(heu_layer_size, 32)
+        return heu_layer_size
 
     def train_and_evaluate(self):
         """Train and evaluate AdaNet."""
@@ -398,7 +400,7 @@ class AdaNetWrapper(object):
         df = pd.DataFrame(columns=[
             'dataset', 'r2', 'pearson_avg', 'pearson_std', 'algo', 'mse',
             'explained_variance', 'time', 'architecture', 'nr_variables',
-            'nn_layers', 'layer_size'])
+            'nn_layers', 'layer_size', 'architecture_history'])
 
         def _stats_row(y_true, y_pred, algo, dataset):
             row = dict()
@@ -429,7 +431,7 @@ class AdaNetWrapper(object):
             y_pred = AdaNetWrapper.predict(self.save_dir, x[ds])
             rows[ds] = _stats_row(y[ds], y_pred, 'AdaNet', ds)
             rows[ds]['time'] = self.time
-            rows[ds]['architecture'] = self.architecture()
+            rows[ds]['architecture_history'] = self.architecture()
             # log and save plot
             _log_row(rows[ds])
             plot.sign2_prediction_plot(y[ds], y_pred, "AdaNet_%s" % ds)
@@ -438,14 +440,20 @@ class AdaNetWrapper(object):
         # get nr of variables in final model
         with tf.Session(graph=tf.Graph()) as sess:
             tf.saved_model.loader.load(sess, ["serve"], self.save_dir)
+            model_vars = list()
+            for var in tf.trainable_variables():
+                model_vars.append(var.eval())
             nr_variables = np.sum([np.prod(v.get_shape().as_list())
-                                   for v in tf.trainable_variables()])
-            nn_layers = (len(tf.trainable_variables()) / 2) - 1
+                                   for v in model_vars])
+            nn_layers = (len(model_vars) / 2) - 1
+            architecture = [model_vars[i].shape[1]
+                            for i in range(0, len(model_vars), 2)]
 
         # save rows
         for ds in datasets:
             rows[ds]["nr_variables"] = nr_variables
             rows[ds]["nn_layers"] = nn_layers
+            rows[ds]["architecture"] = architecture
             df.loc[len(df)] = pd.Series(rows[ds])
         output_pkl = os.path.join(output_dir, 'stats.pkl')
         with open(output_pkl, 'wb') as fh:
@@ -463,7 +471,8 @@ class AdaNetWrapper(object):
             y_pred = linreg.predict(x[ds])
             rows[ds] = _stats_row(y[ds], y_pred, 'LinearRegression', ds)
             rows[ds]['time'] = linreg_stop - linreg_start
-            rows[ds]['architecture'] = '| linear |'
+            rows[ds]['architecture_history'] = '| linear |'
+            rows[ds]['architecture'] = [y[ds].shape[1]]
             rows[ds]['layer_size'] = 0
             rows[ds]["nr_variables"] = y[ds].shape[1]
             rows[ds]["nn_layers"] = 0
