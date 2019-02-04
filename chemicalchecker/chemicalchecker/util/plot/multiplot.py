@@ -275,10 +275,11 @@ class MultiPlot():
                 x, y = sign1.shape
                 shapes.append((ds, x, y))
 
-        def layer_size(nr_samples, nr_features, nr_out=128, s_fact=10.):
+        def layer_size(nr_samples, nr_features, nr_out=128, s_fact=6.):
             heu_layer_size = (
-                1 / s_fact) * (np.sqrt(nr_samples) + ((nr_features + nr_out) / 4.))
+                1 / s_fact) * (np.sqrt(nr_samples) / .3 + ((nr_features + nr_out) / 5.))
             heu_layer_size = np.power(2, np.ceil(np.log2(heu_layer_size)))
+            heu_layer_size = np.maximum(heu_layer_size, 32)
             return heu_layer_size
 
         if not func:
@@ -306,7 +307,7 @@ class MultiPlot():
         plt.tight_layout()
 
         for ds, x, y in shapes:
-            plt.scatter(x, y, color=self.cc_palette([ds])[0])
+            plt.scatter(x, y, color=self.cc_palette([ds])[0], alpha=.3)
             plt.text(x, y, "%s" % (ds[:2]),
                      ha="center", va="center",
                      bbox={"boxstyle":"circle", "color":self.cc_palette([ds])[0]},
