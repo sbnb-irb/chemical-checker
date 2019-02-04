@@ -241,7 +241,7 @@ class sign2(BaseSignature):
         params["job_name"] = "CC_SIGN2_GRID_SEARCH_ADANET"
         params["elements"] = elements
         params["wait"] = True
-        params["memory"] = 64
+        params["memory"] = 16
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
