@@ -188,7 +188,7 @@ class sign2(BaseSignature):
             'layer_size': [8, 128, 512, 1024]
         }
         """
-        gridsearch_path = os.path.join(self.model_path, 'grid_search')
+        gridsearch_path = os.path.join(self.model_path, 'grid_search_EXT_STACK')
         if not os.path.isdir(gridsearch_path):
             os.makedirs(gridsearch_path)
         # prepare train-test file
@@ -240,8 +240,8 @@ class sign2(BaseSignature):
         params["jobdir"] = job_path
         params["job_name"] = "CC_SIGN2_GRID_SEARCH_ADANET"
         params["elements"] = elements
-        params["wait"] = True
-        params["memory"] = 16
+        params["wait"] = False
+        params["memory"] = 32
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
