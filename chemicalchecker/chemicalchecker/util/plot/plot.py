@@ -38,23 +38,28 @@ np.random.seed(42)
 class Plot():
     """Produce different kind of plots."""
 
-    def __init__(self, dataset, plot_path, validation_path):
+    def __init__(self, dataset, plot_path, validation_path=None):
         """Initialize the Plot object.
 
         Produce all kind of plots and data associated
 
         Args:
-            dataset(str): The Dataset object.
-            plot_path(str): Final destination for the new plots and other stuff.
+            dataset(str): A Dataset object or the dataset code.
+            plot_path(str): Final destination for the new plot and other stuff.
+            validation_path(str): Directory where validation stats are found.
         """
         if not os.path.isdir(plot_path):
             raise Exception("Folder to save plots does not exist")
+        if hasattr(dataset, 'code'):
+            dataset_code = dataset.code
+        else:
+            dataset_code = dataset
         self.__log.debug('Plots for %s saved to %s',
-                         dataset.code, plot_path)
+                         dataset_code, plot_path)
         self.plot_path = plot_path
         self.validation_path = validation_path
-        self.dataset = dataset
-        self.color = self._coord_color(dataset.coordinate)
+        self.dataset_code = dataset_code
+        self.color = self._coord_color(dataset_code)
 
     def _elbow(self, curve):
         nPoints = len(curve)
@@ -564,7 +569,7 @@ class Plot():
             matrix = sign2[:]
         df = pd.DataFrame(matrix).melt()
 
-        coord = self.dataset.coordinate
+        coord = self.dataset_code
         fig = plt.figure(figsize=(10, 3), dpi=100)
         ax = fig.add_subplot(111)
         sns.pointplot(x='variable', y='value', data=df,
@@ -586,7 +591,7 @@ class Plot():
 
     def sign2_prediction_plot(self, y_true, y_pred, predictor_name):
 
-        coord = self.dataset.coordinate
+        coord = self.dataset_code
         self.__log.info("sign2 %s predicted vs. actual %s",
                         coord, predictor_name)
         min_val = min(np.min(y_true), np.min(y_pred))
@@ -774,6 +779,6 @@ class Plot():
                            lw=0.5, color='grey', zorder=1)
 
             filename = os.path.join(
-                self.plot_path, "sign2_%s_grid_search_%s.png" % (self.dataset.code, metric))
+                self.plot_path, "sign2_%s_grid_search_%s.png" % (self.dataset_code, metric))
             plt.savefig(filename, dpi=100)
             plt.close()
