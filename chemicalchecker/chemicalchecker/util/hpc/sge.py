@@ -12,6 +12,7 @@ import pickle
 from itertools import islice
 import uuid
 import time
+import numpy as np
 
 from chemicalchecker.util import logged
 
@@ -83,12 +84,12 @@ fi
     def _chunks(self, l, n):
         """Yield successive n-sized chunks from l."""
         if isinstance(l, list):
-            for i in range(0, len(l), n):
-                yield l[i:i + n]
+            for i in np.array_split(l, n):
+                yield i
         elif isinstance(l, dict):
-            it = iter(l)
-            for i in xrange(0, len(l)):
-                yield {k: l[k] for k in islice(it, n)}
+            keys = l.keys()
+            for i in np.array_split(keys, n):
+                yield {k: l[k] for k in i}
         else:
             raise Exception("Element datatype not supported: %s" % type(l))
 
@@ -161,11 +162,10 @@ fi
                 "#$ -l h_rt=" + str(datetime.timedelta(minutes=maxtime)))
 
         if len(elements) > 0:
-            chunk_size = int(
-                math.ceil(len(elements) / float(num_jobs)))
+            self.__log.debug("Num elements submitted " + str(len(elements)))
 
             input_dict = dict()
-            for cid, chunk in enumerate(self._chunks(elements, chunk_size), 1):
+            for cid, chunk in enumerate(self._chunks(elements, num_jobs), 1):
                 input_dict[str(cid)] = chunk
             input_path = os.path.join(self.jobdir, str(uuid.uuid4()))
             with open(input_path, 'wb') as fh:
