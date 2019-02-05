@@ -68,10 +68,13 @@ class Gaussianize(sklearn.base.TransformerMixin):
             if self.verbose:
                 print("Gaussianizing with Lambert method")
             for x_i in x.T:
-                self.coefs_.append(igmm(x_i, tol=self.tol, max_iter=self.max_iter))
+                self.coefs_.append(
+                    igmm(x_i, tol=self.tol, max_iter=self.max_iter))
         elif self.strategy == 'brute':
             for x_i in x.T:
-                self.coefs_.append(None)  # TODO: In principle, we could store parameters to do a quasi-invert
+                # TODO: In principle, we could store parameters to do a
+                # quasi-invert
+                self.coefs_.append(None)
         elif self.strategy == 'boxcox':
             for x_i in x.T:
                 self.coefs_.append(boxcox(x_i)[1])
@@ -85,9 +88,11 @@ class Gaussianize(sklearn.base.TransformerMixin):
         if len(x.shape) == 1:
             x = x[:, np.newaxis]
         elif len(x.shape) != 2:
-            print "Data should be a 1-d list of samples to transform or a 2d array with samples as rows."
+            print(
+                "Data should be a 1-d list of samples to transform or a 2d array with samples as rows.")
         if x.shape[1] != len(self.coefs_):
-            print "%d variables in test data, but %d variables were in training data." % (x.shape[1], len(self.coefs_))
+            print("%d variables in test data, but %d variables were in training data." % (
+                x.shape[1], len(self.coefs_)))
 
         if self.strategy == 'lambert':
             return np.array([w_t(x_i, tau_i) for x_i, tau_i in zip(x.T, self.coefs_)]).T
@@ -103,9 +108,9 @@ class Gaussianize(sklearn.base.TransformerMixin):
         if self.strategy == 'lambert':
             return np.array([inverse(y_i, tau_i) for y_i, tau_i in zip(y.T, self.coefs_)]).T
         elif self.strategy == 'boxcox':
-            return np.array([(1. + lmbda_i * y_i) ** (1./lmbda_i) for y_i, lmbda_i in zip(y.T, self.coefs_)]).T
+            return np.array([(1. + lmbda_i * y_i) ** (1. / lmbda_i) for y_i, lmbda_i in zip(y.T, self.coefs_)]).T
         else:
-            print 'Inversion not supported for this gaussianization transform.'
+            print('Inversion not supported for this gaussianization transform.')
             raise NotImplementedError
 
     def qqplot(self, x, prefix='qq'):
@@ -160,7 +165,8 @@ def igmm(y, tol=1.22e-4, max_iter=100):
             break
         else:
             if k == max_iter - 1:
-                print "Warning: No convergence after %d iterations. Increase max_iter." % max_iter
+                print(
+                    "Warning: No convergence after %d iterations. Increase max_iter." % max_iter)
     return tau1
 
 
@@ -186,7 +192,8 @@ def delta_gmm(z):
 def delta_init(z):
     gamma = kurtosis(z, fisher=False, bias=False)
     with np.errstate(all='ignore'):
-        delta0 = np.clip(1. / 66 * (np.sqrt(66 * gamma - 162.) - 6.), 0.01, 0.48)
+        delta0 = np.clip(
+            1. / 66 * (np.sqrt(66 * gamma - 162.) - 6.), 0.01, 0.48)
     if not np.isfinite(delta0):
         delta0 = 0.01
     return delta0
@@ -197,7 +204,8 @@ if __name__ == '__main__':
     # Sample commands:
     # python gaussianize.py test_data.csv
     import csv
-    import sys, os
+    import sys
+    import os
     import traceback
     from optparse import OptionParser, OptionGroup
 
@@ -236,13 +244,13 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args()
     if not len(args) == 1:
-        print "Run with '-h' option for usage help."
+        print("Run with '-h' option for usage help.")
         sys.exit()
 
-    #Load data from csv file
+    # Load data from csv file
     filename = args[0]
     with open(filename, 'rU') as csvfile:
-        reader = csv.reader(csvfile, delimiter=" ")  #options.delimiter)
+        reader = csv.reader(csvfile, delimiter=" ")  # options.delimiter)
         if options.nc:
             variable_names = None
         else:
@@ -262,9 +270,9 @@ if __name__ == '__main__':
             data[i] = map(float, data[i])
         X = np.array(data, dtype=float)  # Data matrix in numpy format
     except:
-        print "Incorrect data format.\nCheck that you've correctly specified options " \
-              "such as continuous or not, \nand if there is a header row or column.\n" \
-              "Run 'python gaussianize.py -h' option for help with options."
+        print ("Incorrect data format.\nCheck that you've correctly specified options \
+            such as continuous or not, \nand if there is a header row or column.\n \
+              Run 'python gaussianize.py -h' option for help with options.")
         traceback.print_exc(file=sys.stdout)
         sys.exit()
 
@@ -289,7 +297,7 @@ if __name__ == '__main__':
         pylab.hist(X[:, k], bins=30)
         pylab.xlabel(variable_names[k])
         pylab.ylabel('Histogram of patients')
-        pylab.savefig('high_kurtosis/'+variable_names[k] + '.png')
+        pylab.savefig('high_kurtosis/' + variable_names[k] + '.png')
     print pdict  # 203, 140 appear three times.
     sys.exit()
     out = Gaussianize(strategy=options.strategy)
@@ -305,8 +313,8 @@ if __name__ == '__main__':
                 writer.writerow(row)
 
     if options.q:
-        print 'Making qq plots'
+        print('Making qq plots')
         prefix = options.output.split('.')[0]
-        if not os.path.exists(prefix+'_q'):
-            os.makedirs(prefix+'_q')
+        if not os.path.exists(prefix + '_q'):
+            os.makedirs(prefix + '_q')
         out.qqplot(X, prefix=prefix + '_q/q')
