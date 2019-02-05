@@ -10,3 +10,4 @@ from .plot import Plot, MultiPlot
 from .remove_near_duplicates import RNDuplicates
 from .network import SNAPNetwork
 from .performance import LinkPrediction
+from .performance import gaussianize
