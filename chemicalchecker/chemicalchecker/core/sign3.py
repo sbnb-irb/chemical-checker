@@ -85,13 +85,14 @@ class sign3(BaseSignature):
         pass
 
     @staticmethod
-    def cross_fit(sign_from, sign_to, params, model_path, reuse=True):
-        """Learn a predictor between sign1 and sign2.
+    def cross_fit(sign_from, sign_to, model_path, params={'adanet': {}}, reuse=True):
+        """Learn a predictor between sign_from and sign_to.
 
         Signatures should be `full` to maximaze the intersaction, that's the
         training input.
         """
         sign3.__log.debug('AdaNet cross fit signatures')
+        # get params and set folder
         adanet_params = params['adanet']
         adanet_path = os.path.join(model_path, 'adanet')
         if adanet_params:
@@ -99,21 +100,22 @@ class sign3(BaseSignature):
                 adanet_path = adanet_params.pop('model_dir')
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
-        if adanet_params:
-            ada = AdaNet(model_dir=adanet_path, **adanet_params)
-        else:
-            ada = AdaNet(model_dir=adanet_path)
         # prepare train-test file
-        traintest_file = os.path.join(adanet_path, 'traintest.h5')
+        traintest_file = os.path.join(adanet_path, '../traintest.h5')
         if adanet_params:
             traintest_file = adanet_params.get(
                 'traintest_file', traintest_file)
         if not reuse or not os.path.isfile(traintest_file):
             _, X, Y = sign_from.get_non_redundant_intersection(sign_to)
             Traintest.create(X, Y, traintest_file)
+        if adanet_params:
+            ada = AdaNet(model_dir=adanet_path,
+                         traintest_file=traintest_file, **adanet_params)
+        else:
+            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
         # learn NN with AdaNet
         sign3.__log.debug('AdaNet training on %s' % traintest_file)
-        ada.train_and_evaluate(traintest_file)
+        ada.train_and_evaluate()
         # save AdaNet performances and plots
         sign2_plot = Plot(sign_from.dataset, adanet_path, adanet_path)
         ada.save_performances(adanet_path, sign2_plot)
