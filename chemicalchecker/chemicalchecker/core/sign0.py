@@ -61,12 +61,19 @@ class sign0(BaseSignature):
             self.__log.critical("Execution failed: %s" % e)
             sys.exit(1)
 
-    def predict(self, input_data_file, destination=None, preprocess_script=None):
+    def predict(self, input_data_file, destination=None, entry_point=None):
         """Call the external preprocess script to generate h5 data."""
-        if preprocess_script is None:
-            config = Config()
-            preprocess_script = os.path.join(
-                config.PATH.CC_REPO, "scripts/preprocess", self.dataset.code, "run.py")
+        """
+        Args:
+            input_data_file(str): Path to the file with the raw to generate the signature0.
+            destination(str): Path to a .h5 file where the predicted signature will be saved.
+            entry_point(str): Entry point of the input data into the signaturization process. It
+                                depends on the type of data passed at the input_data_file
+        """
+
+        config = Config()
+        preprocess_script = os.path.join(
+            config.PATH.CC_REPO, "scripts/preprocess", self.dataset.code, "run.py")
 
         self.__log.debug('calling pre-process script ' + preprocess_script)
 
@@ -76,10 +83,15 @@ class sign0(BaseSignature):
 
         if destination is not None:
             self.data_path = destination
+        else:
+            raise Exception(
+                "Predict method requires a destination path save the output data.")
 
         try:
             cmdStr = "python " + preprocess_script + " -i " + input_data_file + " -o " + self.data_path + \
-                " " + " -mp " + self.model_path + " " + " -m predict "
+                " " + " -mp " + self.model_path + " " + " -m predict"
+            if entry_point is not None:
+                cmdStr += " -ep " + entry_point
             retcode = call(cmdStr, shell=True)
             self.__log.debug("FINISHED! " + cmdStr +
                              (" returned code %d" % retcode))
