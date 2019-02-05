@@ -106,7 +106,7 @@ def Molprop(table_name):
 
         @staticmethod
         def molprop_hpc(job_path, inchikey_inchi, **kwargs):
-            """Run HPC jobs importing all molrepos.
+            """Run HPC jobs to calculate molecular properties from inchikey_inchi data.
 
             job_path(str): Path (usually in scratch) where the script files are
                 generated.
