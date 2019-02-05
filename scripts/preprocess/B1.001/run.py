@@ -23,6 +23,8 @@ graph_file = "graph.gpickle"
 features_file = "prots.h5"
 class_prot_file = "class_prot.pickl"
 # Parse arguments
+entry_point_full = "proteins"
+entry_point_class = "class"
 
 
 def get_parser():
@@ -36,6 +38,8 @@ def get_parser():
                         required=False, default='fit', help='Method: fit or predict')
     parser.add_argument('-mp', '--models_path', type=str,
                         required=False, default='', help='The models path')
+    parser.add_argument('-ep', '--entry_point', type=str,
+                        required=False, default=None, help='The predict entry point')
     return parser
 
 # Functions
@@ -299,6 +303,9 @@ def main():
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
+    if args.entry_point is None:
+        args.entry_point = entry_point_full
+
     if args.method == "fit":
 
         drugbank_xml = os.path.join(map_files["drugbank"], "full database.xml")
@@ -320,8 +327,11 @@ def main():
 
         ACTS = {}
 
-        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
-            prots = set(hf["prots"][:])
+        prots = None
+
+        if args.entry_point == entry_point_full:
+            with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+                prots = set(hf["prots"][:])
 
         G = nx.read_gpickle(os.path.join(args.models_path, graph_file))
 
@@ -332,12 +342,13 @@ def main():
 
             for l in f:
                 items = l.rstrip().split("\t")
-                if items[1] not in prots:
+                if prots is not None and items[1] not in prots:
                     continue
                 ACTS[(items[0], items[1])] = items[2]
 
-    main._log.info("Putting target hierarchy")
-    ACTS, prots = put_hierarchy(ACTS, class_prot, G)
+    if args.entry_point == entry_point_full:
+        main._log.info("Putting target hierarchy")
+        ACTS, prots = put_hierarchy(ACTS, class_prot, G)
 
     main._log.info("Saving raws")
     RAW = collections.defaultdict(list)
