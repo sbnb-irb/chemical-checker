@@ -6,6 +6,7 @@ import numpy as np
 import networkx as nx
 import collections
 import h5py
+import pickle
 
 import xml.etree.ElementTree as ET
 
@@ -18,18 +19,28 @@ from chemicalchecker.database import Molrepo
 # Variables
 
 chembl_dbname = 'chembl'
+graph_file = "graph.gpickle"
+features_file = "prots.h5"
+class_prot_file = "class_prot.pickl"
 # Parse arguments
 
 
 def get_parser():
     description = 'Run preprocess script.'
     parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('-i', '--input_file', type=str,
+                        required=False, default='.', help='Input file only for predict method')
     parser.add_argument('-o', '--output_file', type=str,
                         required=False, default='.', help='Output file')
+    parser.add_argument('-m', '--method', type=str,
+                        required=False, default='fit', help='Method: fit or predict')
+    parser.add_argument('-mp', '--models_path', type=str,
+                        required=False, default='', help='The models path')
     return parser
 
-
 # Functions
+
+
 def decide(acts):
     m = np.mean(acts)
     if m > 0:
@@ -230,7 +241,7 @@ def parse_drugbank(ACTS=None, drugbank_xml=None):
     return ACTS
 
 
-def put_hierarchy(ACTS):
+def create_class_prot():
 
     R = psql.qstring(
         "SELECT protein_class_id, parent_id, pref_name FROM protein_classification", chembl_dbname)
@@ -247,21 +258,28 @@ def put_hierarchy(ACTS):
     for r in R:
         class_prot[r[0]] += [r[1]]
 
-    classACTS = {}
+    return class_prot, G
 
-    for k, v in ACTS.iteritems():
+
+def put_hierarchy(ACTS, class_prot, G):
+
+    classACTS = {}
+    prots = set()
+
+    for k, v in ACTS.items():
         classACTS[k] = v
         if k[1] not in class_prot:
             continue
+        prots.add(k[1])
         path = set()
         for x in class_prot[k[1]]:
             p = nx.all_simple_paths(G, 0, x)
             for sp in p:
                 path.update(sp)
         for p in path:
-            classACTS[(k[0], "Class:%d" % p, k[2])] = v
+            classACTS[(k[0], "Class:%d" % p)] = v
 
-    return classACTS
+    return classACTS, prots
 
 
 @logged
@@ -281,25 +299,53 @@ def main():
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
-    drugbank_xml = os.path.join(map_files["drugbank"], "full database.xml")
+    if args.method == "fit":
 
-    main._log.info("Parsing ChEMBL")
-    ACTS = parse_chembl()
+        drugbank_xml = os.path.join(map_files["drugbank"], "full database.xml")
 
-    main._log.info("Parsing DrugBank")
-    ACTS = parse_drugbank(ACTS, drugbank_xml)
+        main._log.info("Parsing ChEMBL")
+        ACTS = parse_chembl()
+
+        main._log.info("Parsing DrugBank")
+        ACTS = parse_drugbank(ACTS, drugbank_xml)
+
+        class_prot, G = create_class_prot()
+
+        nx.write_gpickle(G, os.path.join(args.models_path, graph_file))
+
+        with open(os.path.join(args.models_path, class_prot_file), 'wb') as fh:
+            pickle.dump(class_prot, fh)
+
+    if args.method == "predict":
+
+        ACTS = {}
+
+        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+            prots = set(hf["prots"][:])
+
+        G = nx.read_gpickle(os.path.join(args.models_path, graph_file))
+
+        class_prot = pickle.load(
+            open(os.path.join(args.models_path, class_prot_file), 'rb'))
+
+        with open(args.input_file) as f:
+
+            for l in f:
+                items = l.rstrip().split("\t")
+                if items[1] not in prots:
+                    continue
+                ACTS[(items[0], items[1])] = items[2]
 
     main._log.info("Putting target hierarchy")
-    ACTS = put_hierarchy(ACTS)
+    ACTS, prots = put_hierarchy(ACTS, class_prot, G)
 
     main._log.info("Saving raws")
     RAW = collections.defaultdict(list)
-    for k, v in ACTS.iteritems():
+    for k, v in ACTS.items():
         RAW[k[0]] += [k[1] + "(%s)" % v]
     keys = []
     words = set()
-    for k in sorted(RAW.iterkeys()):
-        # raws.append(",".join(RAW[k]))
+    for k in sorted(RAW.keys()):
         keys.append(str(k))
         words.update(RAW[k])
 
@@ -315,6 +361,10 @@ def main():
         hf.create_dataset("keys", data=np.array(keys))
         hf.create_dataset("V", data=raws)
         hf.create_dataset("features", data=np.array(orderwords))
+
+    if args.method == "fit":
+        with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
+            hf.create_dataset("prots", data=np.array(list(prots)))
 
 
 if __name__ == '__main__':

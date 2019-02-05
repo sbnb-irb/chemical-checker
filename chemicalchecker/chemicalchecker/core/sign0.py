@@ -31,9 +31,37 @@ class sign0(BaseSignature):
 
     def fit(self):
         """Signature type 0 has no models to fit."""
-        self.__log.debug('nothing to fit.')
+        """Call the external preprocess script to generate h5 data."""
 
-    def predict(self, destination=None, preprocess_script=None):
+        config = Config()
+        preprocess_script = os.path.join(
+            config.PATH.CC_REPO, "scripts/preprocess", self.dataset.code, "run.py")
+
+        self.__log.debug('calling pre-process script ' + preprocess_script)
+
+        if not os.path.isfile(preprocess_script):
+            raise Exception("Preprocess script " +
+                            preprocess_script + " does not exist")
+
+        try:
+            cmdStr = "python " + preprocess_script + " -o " + self.data_path + \
+                " " + " -mp " + self.model_path + " " + " -m fit "
+            retcode = call(cmdStr, shell=True)
+            self.__log.debug("FINISHED! " + cmdStr +
+                             (" returned code %d" % retcode))
+            if retcode != 0:
+                if retcode > 0:
+                    self.__log.error(
+                        "ERROR return code %d, please check!" % retcode)
+                elif retcode < 0:
+                    self.__log.error(
+                        "Command terminated by signal %d" % -retcode)
+                sys.exit(1)
+        except OSError as e:
+            self.__log.critical("Execution failed: %s" % e)
+            sys.exit(1)
+
+    def predict(self, input_data_file, destination=None, preprocess_script=None):
         """Call the external preprocess script to generate h5 data."""
         if preprocess_script is None:
             config = Config()
@@ -50,7 +78,8 @@ class sign0(BaseSignature):
             self.data_path = destination
 
         try:
-            cmdStr = "python " + preprocess_script + " -o " + self.data_path
+            cmdStr = "python " + preprocess_script + " -i " + input_data_file + " -o " + self.data_path + \
+                " " + " -mp " + self.model_path + " " + " -m predict "
             retcode = call(cmdStr, shell=True)
             self.__log.debug("FINISHED! " + cmdStr +
                              (" returned code %d" % retcode))
