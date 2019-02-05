@@ -62,7 +62,7 @@ class Gaussianize(sklearn.base.TransformerMixin):
         if len(x.shape) == 1:
             x = x[:, np.newaxis]
         elif len(x.shape) != 2:
-            print "Data should be a 1-d list of samples to transform or a 2d array with samples as rows."
+            print ("Data should be a 1-d list of samples to transform or a 2d array with samples as rows.")
 
         if self.strategy == 'lambert':
             if self.verbose:
