@@ -264,7 +264,7 @@ if __name__ == '__main__':
                 sample_names.append(row[0])
             data.append(row[(1 - options.nr):])
 
-    print len(data), data[0]
+    print (len(data), data[0])
     try:
         for i in range(len(data)):
             data[i] = map(float, data[i])
@@ -279,7 +279,7 @@ if __name__ == '__main__':
     ks = []
     for xi in X.T:
         ks.append(kurtosis(xi))
-    print np.mean(np.array(ks) > 1)
+    print (np.mean(np.array(ks) > 1))
     from matplotlib import pylab
     pylab.hist(ks, bins=30)
     pylab.xlabel('excess kurtosis')
@@ -288,7 +288,7 @@ if __name__ == '__main__':
     pylab.hist([k for k in ks if k < 2], bins=30)
     pylab.xlabel('excess kurtosis')
     pylab.savefig('excess_kurtoses_near_zero.png')
-    print np.argmax(ks)
+    print (np.argmax(ks))
     pdict = {}
     for k in np.argsort(- np.array(ks))[:50]:
         pylab.clf()
@@ -298,7 +298,7 @@ if __name__ == '__main__':
         pylab.xlabel(variable_names[k])
         pylab.ylabel('Histogram of patients')
         pylab.savefig('high_kurtosis/' + variable_names[k] + '.png')
-    print pdict  # 203, 140 appear three times.
+    print (pdict)  # 203, 140 appear three times.
     sys.exit()
     out = Gaussianize(strategy=options.strategy)
     y = out.fit_transform(X)
