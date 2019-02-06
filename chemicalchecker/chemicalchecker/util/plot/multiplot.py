@@ -310,9 +310,225 @@ class MultiPlot():
             plt.scatter(x, y, color=self.cc_palette([ds])[0], alpha=.3)
             plt.text(x, y, "%s" % (ds[:2]),
                      ha="center", va="center",
-                     bbox={"boxstyle":"circle", "color":self.cc_palette([ds])[0]},
+                     bbox={"boxstyle": "circle", "color": self.cc_palette([ds])[
+                         0]},
                      color='k', fontsize=10)
 
         filename = os.path.join(self.plot_path, "layer_size.png")
         plt.savefig(filename, dpi=100)
         plt.close()
+
+    def sign2_grid_search_plot(self, grid_postfix=None):
+        grid_roots = list()
+        for ds in self.cc.datasets:
+            sign2 = self.cc.get_signature('sign2', 'reference', ds)
+            grid_roots.append(os.path.join(sign2.model_path,
+                                           'grid_search_%s' % grid_postfix))
+        file_names = list()
+        for grid_root in grid_roots:
+            file_names.extend([os.path.join(grid_root, name, 'stats.pkl') for name in os.listdir(
+                grid_root) if os.path.isfile(os.path.join(grid_root, name, 'stats.pkl'))])
+
+        cols = list(pd.read_pickle(file_names[0]).columns)
+        params = {n.rsplit("_", 1)[0]: n.rsplit("_", 1)[1]
+                  for n in file_names[0].split('/')[-2].split("-")}
+        df = pd.DataFrame(columns=set(cols) | set(params.keys()))
+        for tmpdf_file in file_names:
+            tmpdf = pd.read_pickle(tmpdf_file)
+            params = {n.rsplit("_", 1)[0]: n.rsplit("_", 1)[1]
+                      for n in tmpdf_file.split('/')[-2].split("-")}
+            for k, v in params.items():
+                tmpdf[k] = pd.Series([v] * len(tmpdf))
+            coordinate = tmpdf_file.split('/')[-6]
+            tmpdf['coordinate'] = pd.Series([coordinate] * len(tmpdf))
+            if 'Ext' in params["subnetwork_generator"]:
+                tmpdf = tmpdf[tmpdf.algo == 'AdaNet']
+            else:
+                tmpdf["subnetwork_generator"] = tmpdf.algo.map(
+                    {"AdaNet": "StackDNNGenerator", "LinearRegression": "LinearRegression"})
+            df = df.append(tmpdf, ignore_index=True)
+
+        # df['layer_size'] = df['layer_size'].astype(int)
+        # df['adanet_iterations'] = df['adanet_iterations'].astype(int)
+        # df['adanet_lambda'] = df['adanet_lambda'].astype(float)
+        df = df.infer_objects()
+        sns.set_context("talk")
+        netdf = pd.DataFrame(columns=list(df.columns) + ['layer', 'neurons'])
+        for index, row in df.iterrows():
+            for layer, size in enumerate(row.architecture[:-1]):
+                new_row = row.to_dict()
+                new_row['layer'] = layer + 1
+                new_row['neurons'] = size
+                netdf.loc[len(netdf)] = pd.Series(new_row)
+
+        sns.set_context("notebook")
+        sns.set_style("whitegrid")
+        hue_order = ["StackDNNGenerator", "ExtendDNNGenerator"]
+        g = sns.catplot(data=netdf, kind='bar', x='layer', y='neurons',
+                        hue="subnetwork_generator", col="coordinate", col_wrap=5,
+                        col_order=self.datasets, hue_order=hue_order,
+                        aspect=1.2, height=3, dodge=True,
+                        palette=['forestgreen', 'orange'])
+        for ax in g.axes.flatten():
+            ax.set_yscale('log', basey=2)
+            ax.set_title("")
+        filename = os.path.join(
+            self.plot_path, "sign2_%s_grid_search_NN.png" % (grid_postfix))
+        plt.savefig(filename, dpi=100)
+        plt.close()
+
+        hue_order = ["StackDNNGenerator", "ExtendDNNGenerator"]
+        g = sns.catplot(data=netdf[netdf.subnetwork_generator == 'StackDNNGenerator'], kind='bar', x='layer', y='neurons',
+                        hue="subnetwork_generator", col="coordinate", col_wrap=5,
+                        col_order=self.datasets, hue_order=[
+                            "StackDNNGenerator"],
+                        aspect=1.2, height=3, dodge=True,
+                        palette=['forestgreen', 'orange'])
+        for ax in g.axes.flatten():
+            ax.set_yscale('log', basey=2)
+            ax.set_title("")
+        filename = os.path.join(
+            self.plot_path, "sign2_%s_grid_search_NN_stackonly.png" % (grid_postfix))
+        plt.savefig(filename, dpi=100)
+        plt.close()
+
+        for metric in ['pearson_avg', 'time', 'r2', 'pearson_std', 'explained_variance']:
+            sns.set_style("whitegrid")
+            hue_order = ["StackDNNGenerator",
+                         "ExtendDNNGenerator", "LinearRegression"]
+            if metric == 'time':
+                sharey = False
+            else:
+                sharey = True
+            g = sns.catplot(data=df, kind='point', x='dataset', y=metric,
+                            hue="subnetwork_generator", col="coordinate", col_wrap=5,
+                            col_order=self.datasets, hue_order=hue_order, sharey=sharey,
+                            order=['train', 'test', 'validation'], aspect=1.2, height=3,
+                            palette=['forestgreen', 'orange', 'darkgrey'])
+
+            for ax in g.axes.flatten():
+                if metric == 'pearson_avg':
+                    ax.set_ylim(0.5, 1)
+                ax.set_title("")
+            filename = os.path.join(
+                self.plot_path, "sign2_%s_grid_search_%s.png" % (grid_postfix, metric))
+            plt.savefig(filename, dpi=100)
+            plt.close()
+
+            g = sns.catplot(data=df[df.subnetwork_generator != 'ExtendDNNGenerator'], kind='point', x='dataset', y=metric,
+                            hue="subnetwork_generator", col="coordinate", col_wrap=5,
+                            col_order=self.datasets, hue_order=[
+                                "StackDNNGenerator", "LinearRegression"],
+                            aspect=1.2, height=3, dodge=True, sharey=sharey,
+                            order=['train', 'test', 'validation'],
+                            palette=['forestgreen', 'darkgrey'])
+
+            for ax in g.axes.flatten():
+                if metric == 'pearson_avg':
+                    ax.set_ylim(0.5, 1)
+                ax.set_title("")
+            filename = os.path.join(
+                self.plot_path, "sign2_%s_grid_search_%s_stackonly.png" % (grid_postfix, metric))
+            plt.savefig(filename, dpi=100)
+            plt.close()
+
+    def sign3_grid_search_plot(self, grid_roots):
+        file_names = list()
+        for grid_root in grid_roots:
+            file_names.extend([os.path.join(grid_root, name, 'adanet', 'stats.pkl') for name in os.listdir(
+                grid_root) if os.path.isfile(os.path.join(grid_root, name, 'adanet', 'stats.pkl'))])
+
+        cols = list(pd.read_pickle(file_names[0]).columns)
+        df = pd.DataFrame(columns=list(set(cols)) + ['subnetwork_generator'])
+        for tmpdf_file in file_names:
+            tmpdf = pd.read_pickle(tmpdf_file)
+            coordinate = tmpdf_file.split('/')[-3]
+            tmpdf['coordinate'] = pd.Series([coordinate.split("_")[0]] * len(tmpdf))
+            if 'STACK' in tmpdf_file:
+                tmpdf = tmpdf[tmpdf.algo == 'AdaNet']
+                tmpdf["subnetwork_generator"] = tmpdf.algo.map(
+                    {"AdaNet": "StackDNNGenerator", "LinearRegression": "LinearRegression"})
+            else:
+                tmpdf["subnetwork_generator"] = tmpdf.algo.map(
+                    {"AdaNet": "ExtendDNNGenerator", "LinearRegression": "LinearRegression"})
+            df = df.append(tmpdf, ignore_index=True)
+
+        # df['layer_size'] = df['layer_size'].astype(int)
+        # df['adanet_iterations'] = df['adanet_iterations'].astype(int)
+        # df['adanet_lambda'] = df['adanet_lambda'].astype(float)
+        df = df.infer_objects()
+        sns.set_context("talk")
+        netdf = pd.DataFrame(columns=list(df.columns) + ['layer', 'neurons'])
+        for index, row in df.iterrows():
+            for layer, size in enumerate(row.architecture[:-1]):
+                new_row = row.to_dict()
+                new_row['layer'] = layer + 1
+                new_row['neurons'] = size
+                netdf.loc[len(netdf)] = pd.Series(new_row)
+
+        sns.set_context("notebook")
+        sns.set_style("whitegrid")
+        hue_order = ["StackDNNGenerator", "ExtendDNNGenerator"]
+        g = sns.catplot(data=netdf, kind='bar', x='layer', y='neurons',
+                        hue="subnetwork_generator", col="coordinate", col_wrap=5,
+                        col_order=self.datasets, hue_order=hue_order,
+                        aspect=1.2, height=3, dodge=True,
+                        palette=['forestgreen', 'orange'])
+        for ax in g.axes.flatten():
+            ax.set_yscale('log', basey=2)
+            ax.set_title("")
+        filename = os.path.join(
+            self.plot_path, "sign3_crossfit_NN.png")
+        plt.savefig(filename, dpi=100)
+        plt.close()
+
+        hue_order = ["StackDNNGenerator", "ExtendDNNGenerator"]
+        g = sns.catplot(data=netdf[netdf.subnetwork_generator == 'StackDNNGenerator'], kind='bar', x='layer', y='neurons',
+                        hue="subnetwork_generator", col="coordinate", col_wrap=5,
+                        col_order=self.datasets, hue_order=[
+                            "StackDNNGenerator"],
+                        aspect=1.2, height=3, dodge=True,
+                        palette=['forestgreen', 'orange'])
+        for ax in g.axes.flatten():
+            ax.set_yscale('log', basey=2)
+            ax.set_title("")
+        filename = os.path.join(
+            self.plot_path, "sign3_crossfit_NN_stackonly.png")
+        plt.savefig(filename, dpi=100)
+        plt.close()
+
+        for metric in ['pearson_avg', 'time', 'r2', 'pearson_std', 'explained_variance']:
+            sns.set_style("whitegrid")
+            hue_order = ["StackDNNGenerator",
+                         "ExtendDNNGenerator", "LinearRegression"]
+            if metric == 'time':
+                sharey = False
+            else:
+                sharey = True
+            g = sns.catplot(data=df, kind='point', x='dataset', y=metric,
+                            hue="subnetwork_generator", col="coordinate", col_wrap=5,
+                            col_order=self.datasets, hue_order=hue_order, sharey=sharey,
+                            order=['train', 'test', 'validation'], aspect=1.2, height=3,
+                            palette=['forestgreen', 'orange', 'darkgrey'])
+
+            for ax in g.axes.flatten():
+                ax.set_title("")
+            filename = os.path.join(
+                self.plot_path, "sign3_crossfit_%s.png" % (metric))
+            plt.savefig(filename, dpi=100)
+            plt.close()
+
+            g = sns.catplot(data=df[df.subnetwork_generator != 'ExtendDNNGenerator'], kind='point', x='dataset', y=metric,
+                            hue="subnetwork_generator", col="coordinate", col_wrap=5,
+                            col_order=self.datasets, hue_order=[
+                                "StackDNNGenerator", "LinearRegression"],
+                            aspect=1.2, height=3, dodge=True, sharey=sharey,
+                            order=['train', 'test', 'validation'],
+                            palette=['forestgreen', 'darkgrey'])
+
+            for ax in g.axes.flatten():
+                ax.set_title("")
+            filename = os.path.join(
+                self.plot_path, "sign3_crossfit_%s_stackonly.png" % (metric))
+            plt.savefig(filename, dpi=100)
+            plt.close()
