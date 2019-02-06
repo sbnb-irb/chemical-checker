@@ -8,6 +8,7 @@ Main tasks of this class are:
 
 import os
 import itertools
+from glob import glob
 
 import chemicalchecker
 from .data import DataFactory
@@ -25,24 +26,36 @@ class ChemicalChecker():
         """Initialize the Chemical Checker.
 
         If the CC_ROOT directory is empty a skeleton of CC is initialized.
+        Otherwise the directory is explored and molset and datasets variables
+        are discovered.
 
         Args:
             cc_root(str): The Chemical Checker root directory. It's version
                 dependendent.
         """
         self.cc_root = cc_root
-        self.basic_molsets = ['reference', 'full']
+        self._basic_molsets = ['reference', 'full']
+        self._datasets = set()
+        self._molsets = set(self._basic_molsets)
         self.__log.debug("ChemicalChecker with root: %s", cc_root)
         if not os.path.isdir(cc_root):
             self.__log.warning("Empty root directory, creating dataset dirs")
-            for molset in self.basic_molsets:
-                for dataset in self.datasets:
-                    new_dir = os.path.join(
-                        cc_root, molset, dataset[:1], dataset[:2], dataset)
+            for molset in self._basic_molsets:
+                for dataset in Dataset.get():
+                    ds = dataset.code
+                    new_dir = os.path.join(cc_root, molset, ds[:1], ds[:2], ds)
+                    self._datasets.add(ds)
                     self.__log.debug("Creating %s", new_dir)
                     original_umask = os.umask(0)
                     os.makedirs(new_dir, 0o775)
                     os.umask(original_umask)
+        else:
+            # if the directory exists get molsets and datasets
+            paths = glob(os.path.join(cc_root, '*', '*', '*', '*'))
+            self._molsets = set(x.split('/')[-4] for x in paths)
+            self._datasets = set(x.split('/')[-1] for x in paths)
+        self._molsets = sorted(list(self._molsets))
+        self._datasets = sorted(list(self._datasets))
 
     @property
     def coordinates(self):
@@ -53,8 +66,8 @@ class ChemicalChecker():
     @property
     def datasets(self, exemplary_only=False):
         """Iterator on Chemical Checker datasets."""
-        for dataset in Dataset.get():
-            yield dataset.code
+        for dataset in self._datasets:
+            yield dataset
 
     def get_validation_path(self):
         """Return the validation path."""
@@ -390,7 +403,7 @@ class ChemicalChecker():
         params["job_name"] = "CC_SIGN3_CROSS"
         params["elements"] = pairs
         params["wait"] = True
-        params["memory"] = 1  # this avoids singularity segfault on some nodes
+        params["memory"] = 32  # this avoids singularity segfault on some nodes
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
