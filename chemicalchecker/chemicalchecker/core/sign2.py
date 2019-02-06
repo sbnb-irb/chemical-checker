@@ -179,7 +179,7 @@ class sign2(BaseSignature):
         self.__log.debug('loading model from %s' % adanet_path)
         return AdaNet.predict_signature(adanet_path, sign1)
 
-    def grid_search_adanet(self, sign1, cc_root, job_path, parameters, traintest_file=None):
+    def grid_search_adanet(self, sign1, cc_root, job_path, parameters, dir_suffix="", traintest_file=None):
         """Perform a grid search.
 
         parameters = {
@@ -188,7 +188,7 @@ class sign2(BaseSignature):
             'layer_size': [8, 128, 512, 1024]
         }
         """
-        gridsearch_path = os.path.join(self.model_path, 'grid_search_EXT_STACK')
+        gridsearch_path = os.path.join(self.model_path, 'grid_search_%s' % dir_suffix)
         if not os.path.isdir(gridsearch_path):
             os.makedirs(gridsearch_path)
         # prepare train-test file
