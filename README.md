@@ -8,5 +8,15 @@ The Chemical Checker (CC) is a resource of small molecule signatures joining the
 
 ## Installation
 
+1. Download the `setup_chemicalchecker.sh` script to your home folder
 
-## Usage
+2. run the script with:
+    ```sh setup_chemicalchecker.sh```
+
+4. Open your browser to [http://localhost:8888/](http://localhost:8888/).
+
+5. Start a new notebook (on the top right jupiter page click New -> Python )
+
+6. ```import chemicalchecker```
+
+7. Have fun!
