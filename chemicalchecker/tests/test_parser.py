@@ -13,6 +13,8 @@ class TestParser(unittest.TestCase):
         test_dir = os.path.dirname(os.path.realpath(__file__))
         self.data_dir = os.path.join(test_dir, 'data')
         self.mol_dir = os.path.join(self.data_dir, 'mols')
+        os.environ["CC_CONFIG"] = os.path.join(
+            self.data_dir, 'config.json')
 
     def tearDown(self):
         if os.path.exists(self.mol_dir):
