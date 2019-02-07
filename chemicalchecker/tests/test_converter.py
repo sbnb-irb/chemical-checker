@@ -11,6 +11,8 @@ class TestConverter(unittest.TestCase):
         # path for test data
         test_dir = os.path.dirname(os.path.realpath(__file__))
         self.data_dir = os.path.join(test_dir, 'data')
+        os.environ["CC_CONFIG"] = os.path.join(
+            self.data_dir, 'config.json')
 
     #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
     def test_smiles_to_inchi(self):
