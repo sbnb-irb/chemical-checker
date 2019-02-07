@@ -10,8 +10,8 @@
     	"dialect": "'postgresql'",
     	"port":  "'5432'",
     	"host": "'10.5.4.240'",
-    	"user": "'sbnb-adm'",
-    	"password": "'db_adm'",
+    	"user": "'c_user'",
+    	"password": "'check'",
     	"database": "'mosaic'"
     },
     "HPC": {
