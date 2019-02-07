@@ -17,6 +17,8 @@ class TestPropCalculator(unittest.TestCase):
         self.inchikey_inchi = {}
         for ele in results:
             self.inchikey_inchi[str(ele["inchikey"])] = str(ele["inchi"])
+        os.environ["CC_CONFIG"] = os.path.join(
+            self.data_dir, 'config.json')
 
     #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
     def test_fp2d(self):
