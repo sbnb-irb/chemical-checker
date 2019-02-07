@@ -10,7 +10,7 @@
     	"dialect": "'postgresql'",
     	"port":  "'5432'",
     	"host": "'10.5.4.240'",
-    	"user": "'c_user'",
+    	"user": "'cc_user'",
     	"password": "'check'",
     	"database": "'mosaic'"
     },
@@ -18,7 +18,7 @@
     	"system" : "'sge'",
     	"host": "'pac-one-head'",
     	"queue": "'all.q'",
-    	"username": "'sbnb-adm'"
+    	"username": "'cc_user'"
     },
     "TOOLS": {
         "node2vec_exec" : "'/aloy/home/mbertoni/code/snap/examples/node2vec/node2vec'"
