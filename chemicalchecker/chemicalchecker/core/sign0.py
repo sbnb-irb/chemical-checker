@@ -61,7 +61,7 @@ class sign0(BaseSignature):
             self.__log.critical("Execution failed: %s" % e)
             sys.exit(1)
 
-    def predict(self, input_data_file, destination=None, entry_point=None):
+    def predict(self, input_data_file, destination, entry_point=None):
         """Call the external preprocess script to generate h5 data."""
         """
         Args:
@@ -81,11 +81,7 @@ class sign0(BaseSignature):
             raise Exception("Preprocess script " +
                             preprocess_script + " does not exist")
 
-        if destination is not None:
-            self.data_path = destination
-        else:
-            raise Exception(
-                "Predict method requires a destination path save the output data.")
+        self.data_path = destination
 
         try:
             cmdStr = "python " + preprocess_script + " -i " + input_data_file + " -o " + self.data_path + \
