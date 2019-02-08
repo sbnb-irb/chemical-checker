@@ -24,7 +24,7 @@ features_file = "prots.h5"
 class_prot_file = "class_prot.pickl"
 # Parse arguments
 entry_point_full = "proteins"
-entry_point_class = "class"
+entry_point_class = "classes"
 
 
 def get_parser():
@@ -344,7 +344,10 @@ def main():
                 items = l.rstrip().split("\t")
                 if prots is not None and items[1] not in prots:
                     continue
-                ACTS[(items[0], items[1])] = items[2]
+                if len(items) < 3:
+                    ACTS[(items[0], items[1])] = -1
+                else:
+                    ACTS[(items[0], items[1])] = items[2]
 
     if args.entry_point == entry_point_full:
         main._log.info("Putting target hierarchy")
