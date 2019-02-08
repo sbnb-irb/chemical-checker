@@ -19,6 +19,8 @@ class TestChemicalChecker(unittest.TestCase):
         # path for test data
         test_dir = os.path.dirname(os.path.realpath(__file__))
         self.data_dir = os.path.join(test_dir, 'data')
+        os.environ["CC_CONFIG"] = os.path.join(
+            self.data_dir, 'config.json')
 
     def tearDown(self):
         if os.path.exists(self.cc_root):
