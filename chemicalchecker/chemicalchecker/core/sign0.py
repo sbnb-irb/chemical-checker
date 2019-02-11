@@ -35,7 +35,7 @@ class sign0(BaseSignature):
 
         config = Config()
         preprocess_script = os.path.join(
-            config.PATH.CC_REPO, "scripts/preprocess", self.dataset.code, "run.py")
+            config.PATH.CC_REPO, "chemicalchecker/scripts/preprocess", self.dataset.code, "run.py")
 
         self.__log.debug('calling pre-process script ' + preprocess_script)
 
@@ -73,7 +73,7 @@ class sign0(BaseSignature):
 
         config = Config()
         preprocess_script = os.path.join(
-            config.PATH.CC_REPO, "scripts/preprocess", self.dataset.code, "run.py")
+            config.PATH.CC_REPO, "chemicalchecker/scripts/preprocess", self.dataset.code, "run.py")
 
         self.__log.debug('calling pre-process script ' + preprocess_script)
 
