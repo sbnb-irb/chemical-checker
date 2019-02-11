@@ -6,6 +6,7 @@ import networkx as nx
 import collections
 import h5py
 import math
+import pickle
 
 
 from chemicalchecker.util import logged
@@ -15,6 +16,38 @@ from chemicalchecker.database import Molrepo
 # Variables
 
 chembl_dbname = 'chembl'
+graph_file = "graph.gpickle"
+features_file = "prots.h5"
+class_prot_file = "class_prot.pickl"
+class_path_file = "class_path.pickl"
+class_prot_cutoff_file = "prot_cutoff.pickl"
+entry_point_full = "proteins"
+entry_point_class = "classes"
+
+cuts = {
+    'kinase': -math.log10(30e-9),
+    'gpcr': -math.log10(100e-9),
+    'nuclear': -math.log10(100e-9),
+    'ionchannel': -math.log10(10e-6),
+    'other': -math.log10(1e-6)
+}
+
+
+def get_parser():
+    description = 'Run preprocess script.'
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('-i', '--input_file', type=str,
+                        required=False, default='.', help='Input file only for predict method')
+    parser.add_argument('-o', '--output_file', type=str,
+                        required=False, default='.', help='Output file')
+    parser.add_argument('-m', '--method', type=str,
+                        required=False, default='fit', help='Method: fit or predict')
+    parser.add_argument('-mp', '--models_path', type=str,
+                        required=False, default='', help='The models path')
+    parser.add_argument('-ep', '--entry_point', type=str,
+                        required=False, default=None, help='The predict entry point')
+    return parser
+
 
 # Parse arguments
 
@@ -164,7 +197,7 @@ def parse_bindingdb(ACTS=None, bindingdb_file=None):
     return ACTS
 
 
-def process_activity_according_to_pharos(ACTS):
+def create_class_prot():
 
     R = psql.qstring(
         "SELECT protein_class_id, parent_id, pref_name FROM protein_classification", chembl_dbname)
@@ -201,17 +234,9 @@ def process_activity_according_to_pharos(ACTS):
 
     # According to Pharos
 
-    cuts = {
-        'kinase': -math.log10(30e-9),
-        'gpcr': -math.log10(100e-9),
-        'nuclear': -math.log10(100e-9),
-        'ionchannel': -math.log10(10e-6),
-        'other': -math.log10(1e-6)
-    }
-
     protein_cutoffs = collections.defaultdict(list)
 
-    for k, v in class_prot.iteritems():
+    for k, v in class_prot.items():
         for idx in v:
             if idx in ionchannel_idx:
                 protein_cutoffs[k] += [cuts['ionchannel']]
@@ -225,9 +250,7 @@ def process_activity_according_to_pharos(ACTS):
                 protein_cutoffs[k] += [cuts['other']]
 
     protein_cutoffs = dict((k, np.min(v))
-                           for k, v in protein_cutoffs.iteritems())
-
-    ACTS = dict((k, np.max(v)) for k, v in ACTS.iteritems())
+                           for k, v in protein_cutoffs.items())
 
     R = psql.qstring(
         "SELECT protein_class_id, parent_id, pref_name FROM protein_classification", chembl_dbname)
@@ -244,7 +267,7 @@ def process_activity_according_to_pharos(ACTS):
     for r in R:
         class_prot[r[0]] += [r[1]]
 
-    classes = set([c for k, v in class_prot.iteritems() for c in v])
+    classes = set([c for k, v in class_prot.items() for c in v])
     class_path = collections.defaultdict(set)
     for c in classes:
         path = set()
@@ -252,37 +275,41 @@ def process_activity_according_to_pharos(ACTS):
             path.update(sp)
         class_path[c] = path
 
-    classACTS = collections.defaultdict(list)
+    return class_prot, protein_cutoffs, class_path, G
 
-    for k, v in ACTS.iteritems():
-        if k[1] in protein_cutoffs:
-            cut = protein_cutoffs[k[1]]
+
+def process_activity_according_to_pharos(ACTS, class_prot, protein_cutoffs, class_path, G, ):
+
+    ACTS = dict((k, np.max(v)) for k, v in ACTS.items())
+
+    classACTS = collections.defaultdict(list)
+    prots = set()
+
+    for k, v in ACTS.items():
+        if protein_cutoffs is not None:
+            if k[1] in protein_cutoffs:
+                cut = protein_cutoffs[k[1]]
+            else:
+                cut = cuts['other']
+            if v < cut:
+                if v < (cut - 1):
+                    continue
+                V = 1
+            else:
+                V = 2
         else:
-            cut = cuts['other']
-        if v < cut:
-            if v < (cut - 1):
-                continue
-            V = 1
-        else:
-            V = 2
+            V = v
         classACTS[k] += [V]
         if k[1] not in class_prot:
             continue
+        prots.add(k[1])
         for c in class_prot[k[1]]:
             for p in class_path[c]:
-                classACTS[(k[0], "Class:%d" % p, k[2])] += [V]
+                classACTS[(k[0], "Class:%d" % p)] += [V]
 
-    classACTS = dict((k, np.max(v)) for k, v in classACTS.iteritems())
+    classACTS = dict((k, np.max(v)) for k, v in classACTS.items())
 
-    return classACTS
-
-
-def get_parser():
-    description = 'Run preprocess script.'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-o', '--output_file', type=str,
-                        required=False, default='.', help='Output file')
-    return parser
+    return classACTS, prots
 
 
 @logged
@@ -302,29 +329,78 @@ def main():
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
-    bindingdb_file = os.path.join(map_files["bindingdb"], "BindingDB_All.tsv")
+    if args.entry_point is None:
+        args.entry_point = entry_point_full
 
-    main._log.info(" Parsing ChEMBL")
+    if args.method == "fit":
 
-    ACTS = parse_chembl()
+        bindingdb_file = os.path.join(
+            map_files["bindingdb"], "BindingDB_All.tsv")
 
-    main._log.info(" Parsing BindingDB")
+        main._log.info(" Parsing ChEMBL")
 
-    ACTS = parse_bindingdb(ACTS, bindingdb_file)
+        ACTS = parse_chembl()
 
-    main._log.info(" Processing activity and assigning target classes")
+        main._log.info(" Parsing BindingDB")
 
-    ACTS = process_activity_according_to_pharos(ACTS)
+        ACTS = parse_bindingdb(ACTS, bindingdb_file)
+
+        class_prot, protein_cutoffs, class_path, G = create_class_prot()
+
+        nx.write_gpickle(G, os.path.join(args.models_path, graph_file))
+
+        with open(os.path.join(args.models_path, class_prot_file), 'wb') as fh:
+            pickle.dump(class_prot, fh)
+        with open(os.path.join(args.models_path, class_path_file), 'wb') as fh:
+            pickle.dump(class_path, fh)
+
+    if args.method == "predict":
+
+        ACTS = {}
+
+        prots = None
+
+        if args.entry_point == entry_point_full:
+            with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+                prots = set(hf["prots"][:])
+
+        G = nx.read_gpickle(os.path.join(args.models_path, graph_file))
+
+        class_prot = pickle.load(
+            open(os.path.join(args.models_path, class_prot_file), 'rb'))
+
+        class_path = pickle.load(
+            open(os.path.join(args.models_path, class_path_file), 'rb'))
+
+        protein_cutoffs = None
+
+        with open(args.input_file) as f:
+
+            for l in f:
+                items = l.rstrip().split("\t")
+                if prots is not None and items[1] not in prots:
+                    continue
+                if len(items) < 3:
+                    ACTS[(items[0], items[1])] = 1
+                else:
+                    ACTS[(items[0], items[1])] = int(items[2])
+
+    if args.entry_point == entry_point_full:
+
+        main._log.info(" Processing activity and assigning target classes")
+
+        ACTS, prots = process_activity_according_to_pharos(
+            ACTS, class_prot, protein_cutoffs, class_path, G)
+
     main._log.info("Saving raws")
     inchikey_raw = collections.defaultdict(list)
-    for k, v in ACTS.iteritems():
+    for k, v in ACTS.items():
         inchikey_raw[k[0]] += [(k[1], v)]
 
     keys = []
     words = set()
-    for k in sorted(inchikey_raw.iterkeys()):
-        # raws.append(",".join([",".join([x[0]] * x[1])
-        #                       for x in inchikey_raw[k]]))
+    for k in sorted(inchikey_raw.keys()):
+
         keys.append(str(k))
         words.update([x[0] for x in inchikey_raw[k]])
 
@@ -341,6 +417,9 @@ def main():
         hf.create_dataset("V", data=raws)
         hf.create_dataset("features", data=np.array(orderwords))
 
+    if args.method == "fit":
+        with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
+            hf.create_dataset("prots", data=np.array(list(prots)))
 
 if __name__ == '__main__':
     main()

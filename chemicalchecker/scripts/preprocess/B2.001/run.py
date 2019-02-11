@@ -207,11 +207,13 @@ def create_class_prot():
 def put_hierarchy(ACTS, class_prot, G):
 
     classACTS = set()
+    prots = set()
 
     for k in ACTS:
         classACTS.update([k])
         if k[1] not in class_prot:
             continue
+        prots.add(k[1])
         path = set()
         for x in class_prot[k[1]]:
             p = nx.all_simple_paths(G, 0, x)
@@ -220,7 +222,7 @@ def put_hierarchy(ACTS, class_prot, G):
         for p in path:
             classACTS.update([(k[0], "Class:%d" % p)])
 
-    return classACTS
+    return classACTS, prots
 
 
 @logged
@@ -285,7 +287,7 @@ def main():
 
     if args.entry_point == entry_point_full:
         main._log.info("Putting target hierarchy")
-        ACTS = put_hierarchy(ACTS)
+        ACTS, prots = put_hierarchy(ACTS, class_prot, G)
 
     main._log.info("Saving raws")
     RAW = collections.defaultdict(list)
@@ -293,7 +295,7 @@ def main():
         RAW[k[0]] += [k[1]]
     keys = []
     words = set()
-    for k in sorted(RAW.iterkeys()):
+    for k in sorted(RAW.keys()):
         keys.append(str(k))
         words.update(RAW[k])
 
