@@ -32,3 +32,4 @@ e3fp
 cython
 MulticoreTSNE
 hdbscan
+fancyimpute
