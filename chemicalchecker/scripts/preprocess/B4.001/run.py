@@ -17,7 +17,7 @@ from chemicalchecker.database import Molrepo
 
 chembl_dbname = 'chembl'
 graph_file = "graph.gpickle"
-features_file = "prots.h5"
+features_file = "features.h5"
 class_prot_file = "class_prot.pickl"
 class_path_file = "class_path.pickl"
 class_prot_cutoff_file = "prot_cutoff.pickl"
@@ -278,7 +278,7 @@ def create_class_prot():
     return class_prot, protein_cutoffs, class_path, G
 
 
-def process_activity_according_to_pharos(ACTS, class_prot, protein_cutoffs, class_path, G, ):
+def process_activity_according_to_pharos(ACTS, class_prot, protein_cutoffs, class_path, G):
 
     ACTS = dict((k, np.max(v)) for k, v in ACTS.items())
 
@@ -332,6 +332,8 @@ def main():
     if args.entry_point is None:
         args.entry_point = entry_point_full
 
+    features = None
+
     if args.method == "fit":
 
         bindingdb_file = os.path.join(
@@ -358,11 +360,9 @@ def main():
 
         ACTS = {}
 
-        prots = None
-
-        if args.entry_point == entry_point_full:
-            with h5py.File(os.path.join(args.models_path, features_file)) as hf:
-                prots = set(hf["prots"][:])
+        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+            features_list = hf["features"][:]
+            features = set(features_list)
 
         G = nx.read_gpickle(os.path.join(args.models_path, graph_file))
 
@@ -378,7 +378,7 @@ def main():
 
             for l in f:
                 items = l.rstrip().split("\t")
-                if prots is not None and items[1] not in prots:
+                if items[1] not in features:
                     continue
                 if len(items) < 3:
                     ACTS[(items[0], items[1])] = 1
@@ -404,7 +404,11 @@ def main():
         keys.append(str(k))
         words.update([x[0] for x in inchikey_raw[k]])
 
-    orderwords = list(words)
+    if features is not None:
+        orderwords = features_list
+    else:
+        orderwords = list(words)
+        orderwords.sort()
     raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
     wordspos = {k: v for v, k in enumerate(orderwords)}
 
@@ -419,7 +423,7 @@ def main():
 
     if args.method == "fit":
         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
-            hf.create_dataset("prots", data=np.array(list(prots)))
+            hf.create_dataset("features", data=np.array(orderwords))
 
 if __name__ == '__main__':
     main()
