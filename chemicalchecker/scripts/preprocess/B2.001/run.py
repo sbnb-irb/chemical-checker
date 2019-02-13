@@ -19,7 +19,7 @@ from chemicalchecker.database import Molrepo
 
 chembl_dbname = 'chembl'
 graph_file = "graph.gpickle"
-features_file = "prots.h5"
+features_file = "features.h5"
 class_prot_file = "class_prot.pickl"
 entry_point_full = "proteins"
 entry_point_class = "classes"
@@ -207,13 +207,11 @@ def create_class_prot():
 def put_hierarchy(ACTS, class_prot, G):
 
     classACTS = set()
-    prots = set()
 
     for k in ACTS:
         classACTS.update([k])
         if k[1] not in class_prot:
             continue
-        prots.add(k[1])
         path = set()
         for x in class_prot[k[1]]:
             p = nx.all_simple_paths(G, 0, x)
@@ -222,7 +220,7 @@ def put_hierarchy(ACTS, class_prot, G):
         for p in path:
             classACTS.update([(k[0], "Class:%d" % p)])
 
-    return classACTS, prots
+    return classACTS
 
 
 @logged
@@ -245,6 +243,8 @@ def main():
     if args.entry_point is None:
         args.entry_point = entry_point_full
 
+    features = None
+
     if args.method == "fit":
 
         drugbank_xml = os.path.join(map_files["drugbank"], "full database.xml")
@@ -266,11 +266,9 @@ def main():
 
         ACTS = []
 
-        prots = None
-
-        if args.entry_point == entry_point_full:
-            with h5py.File(os.path.join(args.models_path, features_file)) as hf:
-                prots = set(hf["prots"][:])
+        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+            features_list = hf["features"][:]
+            features = set(features_list)
 
         G = nx.read_gpickle(os.path.join(args.models_path, graph_file))
 
@@ -281,13 +279,13 @@ def main():
 
             for l in f:
                 items = l.rstrip().split("\t")
-                if prots is not None and items[1] not in prots:
+                if items[1] not in features:
                     continue
                 ACTS.append((items[0], items[1]))
 
     if args.entry_point == entry_point_full:
         main._log.info("Putting target hierarchy")
-        ACTS, prots = put_hierarchy(ACTS, class_prot, G)
+        ACTS = put_hierarchy(ACTS, class_prot, G)
 
     main._log.info("Saving raws")
     RAW = collections.defaultdict(list)
@@ -299,7 +297,12 @@ def main():
         keys.append(str(k))
         words.update(RAW[k])
 
-    orderwords = list(words)
+    if features is not None:
+        orderwords = features_list
+    else:
+        orderwords = list(words)
+        orderwords.sort()
+
     raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
     wordspos = {k: v for v, k in enumerate(orderwords)}
 
@@ -314,7 +317,7 @@ def main():
 
     if args.method == "fit":
         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
-            hf.create_dataset("prots", data=np.array(list(prots)))
+            hf.create_dataset("features", data=np.array(orderwords))
 
 
 if __name__ == '__main__':
