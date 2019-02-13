@@ -14,7 +14,7 @@ from chemicalchecker.database import Molrepo
 Role = "CHEBI:50906"
 
 entry_point_full = "terms"
-features_file = "prots.h5"
+features_file = "features.h5"
 graph_file = "graph.gpickle"
 
 
