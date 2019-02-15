@@ -15,8 +15,27 @@ from chemicalchecker.database import Molrepo
 # Variables
 
 chembl_dbname = 'chembl'
+features_file = "features.h5"
+entry_point_full = "proteins"
+entry_point_pathways = "pathways"
 
 # Parse arguments
+
+
+def get_parser():
+    description = 'Run preprocess script.'
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('-i', '--input_file', type=str,
+                        required=False, default='.', help='Input file only for predict method')
+    parser.add_argument('-o', '--output_file', type=str,
+                        required=False, default='.', help='Output file')
+    parser.add_argument('-m', '--method', type=str,
+                        required=False, default='fit', help='Method: fit or predict')
+    parser.add_argument('-mp', '--models_path', type=str,
+                        required=False, default='', help='The models path')
+    parser.add_argument('-ep', '--entry_point', type=str,
+                        required=False, default=None, help='The predict entry point')
+    return parser
 
 
 def parse_chembl(ACTS=None):
@@ -315,6 +334,20 @@ def human_metaphors(id_conversion, file_9606, human_proteome):
 
 def fetch_binding(any_human, ACTS, uniprot2reactome):
 
+    ACTS_new = collections.defaultdict(list)
+
+    for k, v in ACTS.items():
+        uniprot_ac = k[1]
+        act = v
+
+        if uniprot_ac not in any_human:
+            continue
+        hps = any_human[uniprot_ac]
+
+        for hp in hps:
+            ACTS_new[(k[0], hp)] += [act]
+    ACTS_new = dict((k, np.max(v)) for k, v in ACTS_new.items())
+
     uniprot_reactome = collections.defaultdict(set)
     f = open(uniprot2reactome, "r")
 
@@ -323,7 +356,7 @@ def fetch_binding(any_human, ACTS, uniprot2reactome):
         uniprot_reactome[l[0]].update([l[1]])
 
     PWYS = collections.defaultdict(list)
-    for k, v in ACTS.items():
+    for k, v in ACTS_new.items():
         if k[1] not in uniprot_reactome:
             continue
         for pwy in uniprot_reactome[k[1]]:
@@ -331,16 +364,6 @@ def fetch_binding(any_human, ACTS, uniprot2reactome):
     PWYS = dict((k, np.max(v)) for k, v in PWYS.items())
 
     return PWYS
-
-# Parse arguments
-
-
-def get_parser():
-    description = 'Run preprocess script.'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-o', '--output_file', type=str,
-                        required=False, default='.', help='Output file')
-    return parser
 
 
 @logged
@@ -354,24 +377,55 @@ def main():
 
     map_files = {}
 
-    for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+    if args.entry_point is None:
+        args.entry_point = entry_point_full
 
-    bindingdb_file = os.path.join(map_files["bindingdb"], "BindingDB_All.tsv")
+    features = None
 
-    main._log.info(" Parsing ChEMBL")
+    if args.method == "fit":
 
-    ACTS = parse_chembl()
+        for ds in dataset.datasources:
+            map_files[ds.name] = ds.data_path
 
-    main._log.info(" Parsing BindingDB")
+        bindingdb_file = os.path.join(
+            map_files["bindingdb"], "BindingDB_All.tsv")
 
-    ACTS = parse_bindingdb(ACTS, bindingdb_file)
+        main._log.info(" Parsing ChEMBL")
 
-    main._log.info(" Processing activity and assigning target classes")
+        ACTS = parse_chembl()
 
-    ACTS = process_activity_according_to_pharos(ACTS)
+        main._log.info(" Parsing BindingDB")
 
-    dataset_code = 'C3.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
+        ACTS = parse_bindingdb(ACTS, bindingdb_file)
+
+        main._log.info(" Processing activity and assigning target classes")
+
+        ACTS = process_activity_according_to_pharos(ACTS)
+
+    if args.method == "predict":
+
+        ACTS = {}
+
+        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+            features_list = hf["features"][:]
+            features = set(features_list)
+
+        with open(args.input_file) as f:
+
+            for l in f:
+                items = l.rstrip().split("\t")
+                if args.entry_point == entry_point_pathways and items[1] not in features:
+                    continue
+                if len(items) < 3:
+                    ACTS[(items[0], items[1])] = 1
+                else:
+                    ACTS[(items[0], items[1])] = int(items[2])
+
+    main._log.debug(
+        "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
+
+    # os.path.dirname(os.path.abspath(__file__))[-6:]
+    dataset_code = 'C3.001'
 
     dataset = Dataset.get(dataset_code)
 
@@ -380,28 +434,32 @@ def main():
     for ds in dataset.datasources:
         map_files[ds.name] = ds.data_path
 
-    main._log.debug(
-        "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
+    if args.entry_point == entry_point_full:
+        id_conversion = os.path.join(
+            map_files["metaphors_id_conversion"], "id_conversion.txt")
+        file_9606 = os.path.join(map_files["metaphors_9606"], "9606.txt")
+        human_proteome = os.path.join(
+            map_files["human_proteome"], "human_proteome.tab")
+        uniprot2reactome = os.path.join(
+            map_files["uniprot2reatome"], "UniProt2Reactome_All_Levels.txt")
 
-    id_conversion = os.path.join(
-        map_files["metaphors_id_conversion"], "id_conversion.txt")
-    file_9606 = os.path.join(map_files["metaphors_9606"], "9606.txt")
-    human_proteome = os.path.join(
-        map_files["human_proteome"], "human_proteome.tab")
-    uniprot2reactome = os.path.join(
-        map_files["uniprot2reatome"], "UniProt2Reactome_All_Levels.txt")
+        main._log.info("Reading human MetaPhors")
+        any_human = human_metaphors(id_conversion, file_9606, human_proteome)
 
-    main._log.info("Reading human MetaPhors")
-    any_human = human_metaphors(id_conversion, file_9606, human_proteome)
-
-    main._log.info("Fetching binding data")
-    PWYS = fetch_binding(any_human, ACTS, uniprot2reactome)
+        main._log.info("Fetching binding data")
+        PWYS = fetch_binding(any_human, ACTS, uniprot2reactome)
+        if features is not None:
+            inchikey_raw = collections.defaultdict(list)
+            for k, v in PWYS.items():
+                if k[1] not in features:
+                    continue
+                inchikey_raw[k[0]] += [(k[1], v)]
+        else:
+            inchikey_raw = PWYS
+    else:
+        inchikey_raw = ACTS
 
     main._log.info("Saving raw data")
-
-    inchikey_raw = collections.defaultdict(list)
-    for k, v in PWYS.items():
-        inchikey_raw[k[0]] += [(k[1], v)]
 
     keys = []
     words = set()
@@ -409,7 +467,11 @@ def main():
         keys.append(str(k))
         words.update([x[0] for x in inchikey_raw[k]])
 
-    orderwords = list(words)
+    if features is not None:
+        orderwords = features_list
+    else:
+        orderwords = list(words)
+        orderwords.sort()
     raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
     wordspos = {k: v for v, k in enumerate(orderwords)}
 
@@ -421,6 +483,10 @@ def main():
         hf.create_dataset("keys", data=np.array(keys))
         hf.create_dataset("V", data=raws)
         hf.create_dataset("features", data=np.array(orderwords))
+
+    if args.method == "fit":
+        with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
+            hf.create_dataset("features", data=np.array(orderwords))
 
 
 if __name__ == '__main__':
