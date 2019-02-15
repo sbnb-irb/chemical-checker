@@ -33,3 +33,4 @@ cython
 MulticoreTSNE
 hdbscan
 fancyimpute
+networkx
