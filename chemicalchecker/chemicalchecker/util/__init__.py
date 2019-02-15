@@ -9,6 +9,7 @@ from .psql import psql
 from .plot import Plot, MultiPlot
 from .remove_near_duplicates import RNDuplicates
 from .network import SNAPNetwork
+from .network import HotnetNetwork
 from .performance import LinkPrediction
 from .performance import gaussianize
 from .performance import gaussian_scale_impute
