@@ -9,8 +9,10 @@ except ImportError:
     pass
 import json
 import numpy as np
+import networkx as nx
 
 from chemicalchecker.util import logged
+from chemicalchecker.tool import Hotnet
 
 
 @logged
@@ -146,11 +148,11 @@ class MultiEdgeNetwork():
 
     def print_nodes(self, node_type):
         for node in self.nodes(node_type, data=True):
-            print (node)
+            print(node)
 
     def print_edges(self, edge_type):
         for edge in self.edges(edge_type, data=True):
-            print (edge)
+            print(edge)
 
 
 @logged
@@ -228,11 +230,11 @@ class SNAPNetwork():
 
     def print_nodes(self):
         for node in self.nodes():
-            print (node)
+            print(node)
 
     def print_edges(self):
         for edge in self.edges():
-            print (edge)
+            print(edge)
 
     def save(self, filename):
         FOut = snap.TFOut(filename)
@@ -291,3 +293,66 @@ class SNAPNetwork():
 
         with open(filename, 'w') as fh:
             json.dump(stats, fh)
+
+
+@logged
+class HotnetNetwork():
+    """Network tools for hotnet.
+
+    Read network and create files."""
+
+    def __init__(self, network):
+        self._network = network
+        self.__log.info("Nodes: %s Edges: %s" % (
+            len(self._network.nodes()),
+            len(self._network.edges())))
+
+    @staticmethod
+    def prepare(interactions, out_path, all_nodes=False):
+
+        HotnetNetwork.__log.info("Reading network")
+
+        G = nx.Graph()
+
+        with open(interactions, "r") as f:
+            for l in f:
+                l = l.rstrip("\n").split("\t")
+                G.add_edge(l[0], l[1])
+
+        if not all_nodes:
+            G = max(nx.connected_component_subgraphs(G), key=len)
+
+        # Writing files
+
+        # Index-to-gene file
+
+        f = open("%s/idx2node.tsv" % out_path, "w")
+        i = 1
+        node_idx = {}
+        for n in G.nodes():
+            f.write("%d\t%s\n" % (i, n))
+            node_idx[n] = i
+            i += 1
+        f.close()
+
+        # Edge-list file
+
+        f = open("%s/edgelist.tsv" % out_path, "w")
+        for e in G.edges():
+            f.write("%d\t%d\n" % (node_idx[e[0]], node_idx[e[1]]))
+        f.close()
+
+        # Calculate beta
+
+        HotnetNetwork.__log.info("Computing beta")
+
+        hotnet = Hotnet()
+        hotnet.choose_beta(os.path.join(out_path, "edgelist.tsv"),
+                           os.path.join(out_path, "beta.txt"))
+
+        # Calculate similarity matrix
+
+        HotnetNetwork.__log.info("Calculate Similarity matrix")
+        b = float(open(os.path.join(out_path, "beta.txt"), "r").read())
+        hotnet.create_similarity_matrix(os.path.join(out_path, "edgelist.tsv"),
+                                        os.path.join(out_path, "similarity_matrix.h5"), b=b)
