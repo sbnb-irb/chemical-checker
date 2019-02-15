@@ -13,7 +13,7 @@ B4.001,chembl_indications
 B5.001,chembl
 C1.001,chebi
 C1.001,chebi_lite
-C2.001,chebi_lite
+C2.001,molpathways
 C3.001,human_proteome
 C3.001,metaphors_9606
 C3.001,metaphors_id_conversion

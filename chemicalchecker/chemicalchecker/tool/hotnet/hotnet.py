@@ -30,15 +30,15 @@ class Hotnet():
 
         # prepare arguments
         args = [
-            "-i %s" % i,
-            "-o %s" % o
+            "-i%s" % i,
+            "-o%s" % o
         ]
 
         # log command
-        self.__log.info(' '.join(args))
+        self.__log.info(executable + ' '.join(args))
 
         # run process
-        process = subprocess.Popen([executable] + args,
+        process = subprocess.Popen(["python", executable] + args,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
 
@@ -66,20 +66,20 @@ class Hotnet():
         b = kwargs.get("b", 0.0)
 
         executable = os.path.join(
-            self.exec_path, " create_similarity_matrix.py")
+            self.exec_path, "create_similarity_matrix.py")
 
         # prepare arguments
         args = [
-            "-i %s" % i,
-            "-o %s" % o,
-            "-b %.2f" % b
+            "-i%s" % i,
+            "-o%s" % o,
+            "-b%.2f" % b
         ]
 
         # log command
         self.__log.info(' '.join(args))
 
         # run process
-        process = subprocess.Popen([executable] + args,
+        process = subprocess.Popen(["python", executable] + args,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
 
