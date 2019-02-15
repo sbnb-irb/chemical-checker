@@ -53,14 +53,14 @@ def scaleimpute(X, z_extreme=10, models_path=None, up=None, dw=None):
     M = scaler.transform(M)
     M, up, dw = deextremize(M, z_extreme, up, dw)
     M[np.isnan(X)] = np.nan
+    if fancy_file is None or not os.path.exists(fancy_file):
+        fancy = fancyImputer()
+        fancy.fit(M)
+        with open(fancy_file, 'wb') as fh:
+            pickle.dump(fancy, fh)
+    else:
+        fancy = pickle.load(open(fancy_file, 'rb'))
     if np.any(np.isnan(M)):
-        if fancy_file is None or not os.path.exists(fancy_file):
-            fancy = fancyImputer()
-            fancy.fit(M)
-            with open(fancy_file, 'wb') as fh:
-                pickle.dump(fancy, fh)
-        else:
-            fancy = pickle.load(open(fancy_file, 'rb'))
         M = fancy.transform(M)
         return deextremize(M, z_extreme)
     else:
