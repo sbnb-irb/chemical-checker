@@ -448,14 +448,12 @@ def main():
 
         main._log.info("Fetching binding data")
         PWYS = fetch_binding(any_human, ACTS, uniprot2reactome)
-        if features is not None:
-            inchikey_raw = collections.defaultdict(list)
-            for k, v in PWYS.items():
-                if k[1] not in features:
-                    continue
-                inchikey_raw[k[0]] += [(k[1], v)]
-        else:
-            inchikey_raw = PWYS
+        inchikey_raw = collections.defaultdict(list)
+        for k, v in PWYS.items():
+            if features is not None and k[1] not in features:
+                continue
+            inchikey_raw[k[0]] += [(k[1], v)]
+
     else:
         inchikey_raw = ACTS
 
