@@ -10,6 +10,30 @@ LOCAL_IMAGE=$LOCAL_CCREPO/container/singularity/cc.simg
 
 JUPYTER_DIR=$CC_HOME/run_user_sing
 
+# display usage for current script
+usage () {
+    echo ""
+    echo "Usage: $ bash setup_chemicalchecker.sh [-cish]"
+    echo ""
+    echo "  -c      force git clone"
+    echo "  -i      force copy image"
+    echo "  -s      launch singularity shell (instead of jupyter notebook)"
+    echo "  -h      print this help"
+    echo ""
+    exit 1
+}
+
+# parse arguments
+unset FORCE_GIT_CLONE FORCE_COPY_IMAGE SINGULARITY_SHELL
+while getopts 'cish' c
+do
+  case $c in
+    c) FORCE_GIT_CLONE=true ;;
+    i) FORCE_COPY_IMAGE=true ;;
+    s) SINGULARITY_SHELL=true ;;
+    h) usage ;; esac
+done
+
 # check if needed binaries are available
 _=$(command -v singularity);
 if [ "$?" != "0" ]; then
@@ -25,6 +49,12 @@ if [ "$?" != "0" ]; then
     exit 127;
 fi;
 
+if [ "$FORCE_GIT_CLONE"=true ]
+then
+    printf -- 'Removing old local repository...\n';
+    rm -rf $LOCAL_CCREPO;
+fi
+
 # check if the chemical checker repository is available
 if [ -d "$LOCAL_CCREPO" ]
 then
@@ -38,6 +68,12 @@ else
         printf -- '\033[31m ERROR: could not clone repository. \033[0m\n';
         exit 1;
     fi
+fi
+
+if [ "$FORCE_COPY_IMAGE"=true ]
+then
+    printf -- 'Removing old singularity image...\n';
+    rm $LOCAL_IMAGE;
 fi
 
 # check if a local singularity image is available, otherwise copy
@@ -76,8 +112,15 @@ else
     fi
 fi
 
-printf -- 'Starting Jupyter Notebook... \n';
-SINGULARITYENV_PYTHONPATH=$LOCAL_CCREPO/chemicalchecker \
-SINGULARITYENV_CC_CONFIG=$LOCAL_CCREPO/cc_config.json \
-singularity exec --cleanenv -B $CC_HOME/run_user_sing:/run/user $LOCAL_IMAGE jupyter notebook
-
+if [ "$SINGULARITY_SHELL"=true ]
+then
+    printf -- 'Starting Singularity Shell... (Press CTRL+D to exit)\n';
+    SINGULARITYENV_PYTHONPATH=$LOCAL_CCREPO/chemicalchecker \
+    SINGULARITYENV_CC_CONFIG=$LOCAL_CCREPO/cc_config.json \
+    singularity shell --cleanenv $LOCAL_IMAGE
+else
+    printf -- 'Starting Jupyter Notebook... \n';
+    SINGULARITYENV_PYTHONPATH=$LOCAL_CCREPO/chemicalchecker \
+    SINGULARITYENV_CC_CONFIG=$LOCAL_CCREPO/cc_config.json \
+    singularity exec --cleanenv -B $CC_HOME/run_user_sing:/run/user $LOCAL_IMAGE jupyter notebook
+fi
