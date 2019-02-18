@@ -10,7 +10,7 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
     """Builds a DNN subnetwork for AdaNet."""
 
     def __init__(self, optimizer, layer_sizes, num_layers, layer_block_size,
-                 learn_mixture_weights, seed, activation, previous_ensemble):
+                 learn_mixture_weights, dropout, seed, activation, previous_ensemble):
         """Initializes a `_DNNBuilder`.
 
         Args:
@@ -22,6 +22,9 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
             best mixture weights, or use their default value according to the
             mixture weight type. When `False`, the subnetworks will return a
             no_op for the mixture weight train op.
+          dropout: The dropout rate, between 0 and 1. E.g. "rate=0.1" would
+            drop out 10% of input units.
+          activation: The activation function to be used.
           seed: A random seed.
 
         Returns:
@@ -34,6 +37,7 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
         self._layer_block_size = layer_block_size
         self._learn_mixture_weights = learn_mixture_weights
         self._seed = seed
+        self._dropout = dropout
         self._activation = activation
 
     def build_subnetwork(self,
@@ -53,6 +57,11 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
                 units=layer_size * self._layer_block_size,
                 activation=self._activation,
                 kernel_initializer=kernel_initializer)
+            last_layer = tf.layers.dropout(
+                last_layer,
+                rate=self._dropout,
+                seed=self._seed,
+                training=training)
         logits = tf.layers.dense(
             last_layer,
             units=logits_dimension,
@@ -114,6 +123,7 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
                  optimizer,
                  layer_size=32,
                  learn_mixture_weights=False,
+                 dropout=0.0,
                  activation=tf.nn.relu,
                  seed=None):
         """Initializes a DNN `Generator`.
@@ -128,6 +138,9 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
             best mixture weights, or use their default value according to the
             mixture weight type. When `False`, the subnetworks will return a
             no_op for the mixture weight train op.
+          dropout: The dropout rate, between 0 and 1. E.g. "rate=0.1" would
+            drop out 10% of input units.
+          activation: The activation function to be used.
           seed: A random seed.
 
         Returns:
@@ -139,6 +152,7 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
         self._dnn_builder_fn = functools.partial(
             ExtendDNNBuilder,
             optimizer=optimizer,
+            dropout=dropout,
             activation=activation,
             layer_block_size=layer_size,
             learn_mixture_weights=learn_mixture_weights)

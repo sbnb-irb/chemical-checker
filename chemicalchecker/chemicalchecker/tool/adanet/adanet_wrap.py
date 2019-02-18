@@ -183,6 +183,7 @@ class AdaNetWrapper(object):
         self.model_dir = kwargs.get("model_dir", None)
         self.activation = kwargs.get("activation", tf.nn.relu)
         self.shuffles = int(kwargs.get("shuffles", 10))
+        self.dropout_rate = float(kwargs.get("dropout_rate", 0.0))
         self.adanet_iterations = int(kwargs.get("adanet_iterations", 10))
         self.subnetwork_generator = eval(kwargs.get(
             "subnetwork_generator", "ExtendDNNGenerator"))
@@ -231,6 +232,8 @@ class AdaNetWrapper(object):
         self.__log.info("{:<22}: {:>12}".format("layer_size", self.layer_size))
         self.__log.info("{:<22}: {:>12}".format("shuffles", self.shuffles))
         self.__log.info("{:<22}: {:>12}".format(
+            "dropout_rate", self.dropout_rate))
+        self.__log.info("{:<22}: {:>12}".format(
             "subnetwork_generator", self.subnetwork_generator))
         self.__log.info("{:<22}: {:>12}".format(
             "train_step", self.train_step))
@@ -264,6 +267,8 @@ class AdaNetWrapper(object):
                     learning_rate=self.learning_rate),
                 learn_mixture_weights=self.learn_mixture_weights,
                 layer_size=self.layer_size,
+                dropout=self.dropout_rate,
+                activation=self.activation,
                 seed=self.random_seed),
 
             # Lambda is a the strength of complexity regularization. A larger
