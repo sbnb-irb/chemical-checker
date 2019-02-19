@@ -17,7 +17,6 @@ from chemicalchecker.database import Molrepo
 
 
 # Variables
-
 chembl_dbname = 'chembl'
 graph_file = "graph.gpickle"
 features_file = "features.h5"
@@ -30,16 +29,31 @@ entry_point_class = "classes"
 def get_parser():
     description = 'Run preprocess script.'
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-i', '--input_file', type=str,
-                        required=False, default='.', help='Input file only for predict method')
-    parser.add_argument('-o', '--output_file', type=str,
-                        required=False, default='.', help='Output file')
-    parser.add_argument('-m', '--method', type=str,
-                        required=False, default='fit', help='Method: fit or predict')
-    parser.add_argument('-mp', '--models_path', type=str,
-                        required=False, default='', help='The models path')
-    parser.add_argument('-ep', '--entry_point', type=str,
-                        required=False, default=None, help='The predict entry point')
+    parser.add_argument('-i', '--input_file',
+                        type=str,
+                        required=False,
+                        default='.',
+                        help='Input file only for predict method')
+    parser.add_argument('-o', '--output_file',
+                        type=str,
+                        required=False,
+                        default='.',
+                        help='Output file')
+    parser.add_argument('-m', '--method',
+                        type=str,
+                        required=False,
+                        default='fit',
+                        help='Method: fit or predict')
+    parser.add_argument('-mp', '--models_path',
+                        type=str,
+                        required=False,
+                        default='',
+                        help='The models path')
+    parser.add_argument('-ep', '--entry_point',
+                        type=str,
+                        required=False,
+                        default=None,
+                        help='The predict entry point')
     return parser
 
 # Functions
@@ -286,56 +300,47 @@ def put_hierarchy(ACTS, class_prot, G):
 
 @logged
 def main():
-
+    # Reading arguments and getting datasource
     args = get_parser().parse_args(sys.argv[1:])
-
-    dataset_code = 'B1.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
-
+    dataset_code = 'B1.001'
     dataset = Dataset.get(dataset_code)
-
+    main._log.debug("[%s] Running preprocess. Saving output to %s",
+                    dataset_code, args.output_file)
     map_files = {}
-
     for ds in dataset.datasources:
         map_files[ds.name] = ds.data_path
 
-    main._log.debug(
-        "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
-
+    # decide entry point, if None use default
     if args.entry_point is None:
         args.entry_point = entry_point_full
 
-    features = None
-
+    # main FIT section
     if args.method == "fit":
 
-        drugbank_xml = os.path.join(map_files["drugbank"], "full database.xml")
-
-        main._log.info("Parsing ChEMBL")
+        # fetch ACTS from ChEMBL and DrugBank
+        main._log.info("[%s] Parsing ChEMBL.", dataset_code)
         ACTS = parse_chembl()
 
-        main._log.info("Parsing DrugBank")
+        main._log.info("[%s] Parsing DrugBank.", dataset_code)
+        drugbank_xml = os.path.join(map_files["drugbank"], "full database.xml")
         ACTS = parse_drugbank(ACTS, drugbank_xml)
 
+        # generate protein class dictionary and graph
         class_prot, G = create_class_prot()
 
+        # save them to disk
         nx.write_gpickle(G, os.path.join(args.models_path, graph_file))
-
         with open(os.path.join(args.models_path, class_prot_file), 'wb') as fh:
             pickle.dump(class_prot, fh)
 
+        # features will be calculated later
+        features = None
+
+    # main PREDICT section
     if args.method == "predict":
 
+        # fetch ACTS from input file
         ACTS = {}
-
-        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
-            features_list = hf["features"][:]
-            features = set(features_list)
-
-        G = nx.read_gpickle(os.path.join(args.models_path, graph_file))
-
-        class_prot = pickle.load(
-            open(os.path.join(args.models_path, class_prot_file), 'rb'))
-
         with open(args.input_file) as f:
 
             for l in f:
@@ -348,11 +353,23 @@ def main():
                     continue
                 ACTS[(items[0], items[1])] = v
 
+        # read protein class dictionary and graph
+        G = nx.read_gpickle(os.path.join(args.models_path, graph_file))
+        class_prot = pickle.load(
+            open(os.path.join(args.models_path, class_prot_file), 'rb'))
+
+        # load features (saved at FIT time)
+        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+            features_list = hf["features"][:]
+            features = set(features_list)
+
+    # two entry point options, when protein are used put hierarchy
     if args.entry_point == entry_point_full:
-        main._log.info("Putting target hierarchy")
+        main._log.info("[%s] Putting target hierarchy.", dataset_code)
         ACTS = put_hierarchy(ACTS, class_prot, G)
 
-    main._log.info("Saving raws")
+    # save raw values
+    main._log.info("[%s] Saving raws.", dataset_code)
     RAW = collections.defaultdict(list)
     for k, v in ACTS.items():
         RAW[k[0]] += [k[1] + "(%s)" % v]
@@ -375,13 +392,16 @@ def main():
         for word in RAW[k]:
             raws[i][wordspos[word]] = 1
 
+    # save signature 0
     with h5py.File(args.output_file, "w") as hf:
         hf.create_dataset("keys", data=np.array(keys))
         hf.create_dataset("V", data=raws)
         hf.create_dataset("features", data=np.array(orderwords))
 
+    # also sae features if fit was called
     if args.method == "fit":
-        with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
+        features_path = os.path.join(args.models_path, features_file)
+        with h5py.File(features_path, "w") as hf:
             hf.create_dataset("features", data=np.array(orderwords))
 
 
