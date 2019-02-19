@@ -6,7 +6,7 @@ import matplotlib
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-
+import h5py
 from matplotlib import pyplot as plt
 import seaborn as sns
 import matplotlib.colors as colors
@@ -58,6 +58,30 @@ class MultiPlot():
             elif "E" in coord:
                 colors.append(rgb2hex(250, 150, 50))
         return colors
+
+    def cmap_discretize(self, cmap, N):
+        """Return a discrete colormap from the continuous colormap cmap.
+
+            cmap: colormap instance, eg. cm.jet. 
+            N: number of colors.
+
+        Example
+            x = resize(arange(100), (5,100))
+            djet = cmap_discretize(cm.jet, 5)
+            imshow(x, cmap=djet)
+        """
+
+        if type(cmap) == str:
+            cmap = plt.get_cmap(cmap)
+        colors_i = np.concatenate((np.linspace(0, 1., N), (0., 0., 0., 0.)))
+        colors_rgba = cmap(colors_i)
+        indices = np.linspace(0, 1., N + 1)
+        cdict = {}
+        for ki, key in enumerate(('red', 'green', 'blue')):
+            cdict[key] = [(indices[i], colors_rgba[i - 1, ki],
+                           colors_rgba[i, ki]) for i in xrange(N + 1)]
+        # Return colormap object.
+        return matplotlib.colors.LinearSegmentedColormap(cmap.name + "_%d" % N, cdict, 1024)
 
     def sign2_adanet_stats(self, metric=None, compare=None):
         # read stats fields
@@ -443,7 +467,8 @@ class MultiPlot():
         for tmpdf_file in file_names:
             tmpdf = pd.read_pickle(tmpdf_file)
             coordinate = tmpdf_file.split('/')[-3]
-            tmpdf['coordinate'] = pd.Series([coordinate.split("_")[0]] * len(tmpdf))
+            tmpdf['coordinate'] = pd.Series(
+                [coordinate.split("_")[0]] * len(tmpdf))
             if 'STACK' in tmpdf_file:
                 tmpdf = tmpdf[tmpdf.algo == 'AdaNet']
                 tmpdf["subnetwork_generator"] = tmpdf.algo.map(
@@ -532,3 +557,116 @@ class MultiPlot():
                 self.plot_path, "sign3_crossfit_%s_stackonly.png" % (metric))
             plt.savefig(filename, dpi=100)
             plt.close()
+
+    def sign3_all_crossfit_plot(self, crossfit_dir):
+        file_names = list()
+        for name in os.listdir(crossfit_dir):
+            filename = os.path.join(crossfit_dir, name, 'adanet', 'stats.pkl')
+            if not os.path.isfile(filename):
+                print("File not found: %s", filename)
+                continue
+            file_names.append(filename)
+
+        cols = list(pd.read_pickle(file_names[0]).columns)
+        dfs = list()
+        for tmpdf_file in file_names:
+            tmpdf = pd.read_pickle(tmpdf_file)
+            coordinate = tmpdf_file.split('/')[-3]
+            tmpdf['coordinate_from'] = pd.Series(
+                [coordinate.split("_")[0]] * len(tmpdf))
+            tmpdf['coordinate_to'] = pd.Series(
+                [coordinate.split("_")[1]] * len(tmpdf))
+            # also find dataset size
+            traintest_file = os.path.join(os.path.split(tmpdf_file)[
+                                          0], '..', 'traintest.h5')
+            with h5py.File(traintest_file, 'r') as fh:
+                train_size = fh['x_train'].shape[0]
+            tmpdf['train_size'] = pd.Series([train_size] * len(tmpdf))
+            dfs.append(tmpdf)
+        df = pd.DataFrame(columns=list(set(cols)) +
+                          ['coordinate_from', 'coordinate_to', 'train_size'])
+        df = df.append(dfs, ignore_index=True)
+        df = df.infer_objects()
+
+        adanet_test = df[(df.algo == 'AdaNet') & (df.dataset == 'test')]
+        adanet_train = df[(df.algo == 'AdaNet') & (df.dataset == 'train')]
+
+        metrics = ['pearson_avg', 'time', 'r2', 'train_size',
+                   'pearson_std', 'explained_variance', 'nr_variables']
+
+        for idx, met in enumerate(metrics):
+            piv = adanet_test.pivot(
+                index='coordinate_from', columns='coordinate_to', values=met)
+            if met == 'train_size':
+                piv = np.log10(piv)
+                met = 'log_train_size'
+            if met == 'nr_variables':
+                piv = np.log10(piv)
+                met = 'log_nr_variables'
+            ax = plt.axes()
+            col_start = np.linspace(0, 3, len(metrics))[idx]
+            col_rot = 1. / len(metrics)
+            cubehelix = sns.cubehelix_palette(
+                start=col_start, rot=col_rot, as_cmap=True)
+            cubehelix.set_under(".9")
+            cmap = self.cmap_discretize(cubehelix, 5)
+            cmap.set_under(".9")
+            if met == 'pearson_avg':
+                sns.heatmap(piv, cmap=cmap,
+                            linecolor='grey',
+                            square=True, vmin=0., vmax=1., ax=ax)
+            else:
+                sns.heatmap(piv, cmap=cmap,
+                            linecolor='grey',
+                            square=True, ax=ax)
+            """
+            elif met in ['F1', 'AUC-ROC', 'AUC-PR']:
+                sns.heatmap(piv, cmap=cmap,
+                            linecolor='grey',
+                            square=True, vmin=0.5, vmax=1., ax=ax)
+            elif met in ['validation_neg_median', 'validation_pos_median']:
+                sns.heatmap(piv, cmap=cmap_discretize(cubehelix, 10),
+                            linecolor='grey',
+                            square=True, vmin=-1., vmax=1., ax=ax)
+            """
+            for grid in range(0, 26, 5):
+                ax.axhline(y=grid, color='grey', linewidth=0.5)
+                ax.axvline(x=grid, color='grey', linewidth=0.5)
+            ax.set_title(met)
+            plt.tight_layout()
+            filename = os.path.join(
+                self.plot_path, "sign3_all_crossfit_train_delta_%s.png" % (met))
+            plt.savefig(filename, dpi=300)
+            plt.close()
+
+        piv_test = adanet_test.pivot(
+            index='coordinate_from', columns='coordinate_to', values='pearson_avg')
+        piv_train = adanet_train.pivot(
+            index='coordinate_from', columns='coordinate_to', values='pearson_avg')
+        piv = piv_train - piv_test
+
+        overfit = piv.stack().reset_index()
+        overfit = overfit.rename(index=str, columns={0: 'overfit_pearson_avg'})
+        odf = pd.merge(adanet_test, overfit, how='left',
+                       left_on=['coordinate_from', 'coordinate_to'],
+                       right_on=['coordinate_from', 'coordinate_to'])
+        odf = odf[(odf.coordinate_from != odf.coordinate_to)]
+        odf['pair'] = odf['coordinate_from'].apply(
+            lambda x: x[:2]) + "_" + odf['coordinate_to'].apply(lambda x: x[:2])
+        #odf['capped_train_size'] = np.minimum(odf.train_size,20000)
+        odf['log10_train_size'] = np.log(odf.train_size)
+        odf['pearson_avg_train'] = odf.overfit_pearson_avg + odf.pearson_avg
+
+        sns.set_style("whitegrid")
+        sns.set_context("talk")
+        order = sorted(odf.coordinate_to.unique())
+        sns.relplot(x="pearson_avg_train", y="pearson_avg",
+                    hue='coordinate_from', hue_order=order,
+                    palette=self.cc_palette(order),
+                    col='coordinate_to', col_wrap=5, col_order=order,
+                    size="log10_train_size", sizes=(5, 100), data=odf,
+                    facet_kws={'xlim': (0., 1.), 'ylim': (0., 1.)})
+        filename = os.path.join(
+            self.plot_path, "sign3_overfit_vs_trainsize.png")
+        plt.savefig(filename, dpi=300)
+        plt.close()
