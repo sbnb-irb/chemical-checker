@@ -421,11 +421,11 @@ def main():
                 else:
                     ACTS[(items[0], items[1])] = int(items[2])
 
-    main._log.debug(
-        "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
-
     # os.path.dirname(os.path.abspath(__file__))[-6:]
     dataset_code = 'C3.001'
+
+    main._log.debug(
+        "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
     dataset = Dataset.get(dataset_code)
 
