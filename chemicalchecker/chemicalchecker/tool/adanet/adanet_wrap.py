@@ -183,7 +183,7 @@ class AdaNetWrapper(object):
         self.model_dir = kwargs.get("model_dir", None)
         self.activation = kwargs.get("activation", tf.nn.relu)
         self.shuffles = int(kwargs.get("shuffles", 10))
-        self.dropout_rate = float(kwargs.get("dropout_rate", 0.0))
+        self.dropout_rate = float(kwargs.get("dropout_rate", 0.2))
         self.adanet_iterations = int(kwargs.get("adanet_iterations", 10))
         self.subnetwork_generator = eval(kwargs.get(
             "subnetwork_generator", "ExtendDNNGenerator"))
