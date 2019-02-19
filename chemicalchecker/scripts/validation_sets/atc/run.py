@@ -28,7 +28,7 @@ def get_parser():
     return parser
 
 
-def parse_kegg(br_file=None):
+def parse_kegg(br_file):
 
     inchikey_atc = collections.defaultdict(set)
 
