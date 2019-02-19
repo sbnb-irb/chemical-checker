@@ -75,7 +75,8 @@ class Downloader():
         elif parsed.scheme == 'http' or parsed.scheme == 'https':
             if '*' in parsed.path:
                 raise RuntimeError('Wild-char `*` in url not accepted.')
-            req = request.Request(url)
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            req = request.Request(url, headers=headers)
             req.get_method = lambda: 'HEAD'
             try:
                 request.urlopen(req, timeout=60)
@@ -98,6 +99,10 @@ class Downloader():
         tmp_dir = tempfile.mkdtemp(
             prefix='tmp_', dir=self.tmp_dir)
         self.__log.debug('temp download dir %s', tmp_dir)
+        # set wget user agent
+        class MyOpener(urllib.request.FancyURLopener):
+            version = 'Mozilla/5.0'
+        wget.ulib.urlretrieve = MyOpener().retrieve
         # determine file name
         parsed = urlparse(self.url)
         tmp_file = os.path.join(tmp_dir, wget.detect_filename(self.url))
