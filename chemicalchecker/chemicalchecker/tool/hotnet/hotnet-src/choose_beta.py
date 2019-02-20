@@ -5,6 +5,7 @@ import numpy as np
 import scipy as sp
 import scipy.optimize
 import sys
+import os
 import argparse
 
 from common import convert_edge_list_to_adjacency_matrix, hh_similarity_matrix
@@ -24,6 +25,8 @@ def get_parser():
                         default=1.0, help='Threshold for edge weights')
     parser.add_argument('-o', '--output_file', type=str,
                         required=True, help='Output filename')
+    parser.add_argument('-c', '--cpu', type=str,
+                        required=True, help='Num cpus to use')
     return parser
 
 # Define functions.
@@ -46,6 +49,7 @@ def balanced_beta(A, threshold, digits):
 
 def run(args):
     # Load graph.
+    os.environ['OMP_NUM_THREADS'] = str(args.cpu)
     edge_list = load_edge_list(args.edge_list_file)
     A = convert_edge_list_to_adjacency_matrix(edge_list)
 
