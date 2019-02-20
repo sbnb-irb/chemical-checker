@@ -59,6 +59,23 @@ def Molprop(table_name):
             Base.metadata.create_all(engine)
 
         @staticmethod
+        def get_properties_from_list(keys):
+            size = 1000
+            props = set()
+
+            session = get_session()
+            for pos in range(0, len(keys), size):
+                query = session.query(GenericMolprop).filter(
+                    GenericMolprop.inchikey.in_(keys[pos:pos + size]))
+                res = query.with_entities(
+                    GenericMolprop.inchikey, GenericMolprop.raw).all()
+                props.update(res)
+
+            session.close()
+
+            return list(props)
+
+        @staticmethod
         def get_missing_from_set(keys):
             size = 1000
             present = set()

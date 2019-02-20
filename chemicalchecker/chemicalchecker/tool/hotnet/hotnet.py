@@ -11,9 +11,10 @@ from chemicalchecker.util import logged
 class Hotnet():
     """Wrapper to run hotnet."""
 
-    def __init__(self):
+    def __init__(self, cpu=1):
         self.exec_path = os.path.join(os.path.dirname(
             os.path.abspath(__file__)), "hotnet-src")
+        self.cpu = cpu
 
     def choose_beta(self, i, o, **kwargs):
         """Call external python with given parameters.
@@ -31,7 +32,8 @@ class Hotnet():
         # prepare arguments
         args = [
             "-i%s" % i,
-            "-o%s" % o
+            "-o%s" % o,
+            "-c%s" % self.cpu
         ]
 
         # log command
@@ -72,7 +74,8 @@ class Hotnet():
         args = [
             "-i%s" % i,
             "-o%s" % o,
-            "-b%.2f" % b
+            "-b%.2f" % b,
+            "-c%s" % self.cpu
         ]
 
         # log command

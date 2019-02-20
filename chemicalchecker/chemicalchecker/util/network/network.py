@@ -308,7 +308,7 @@ class HotnetNetwork():
             len(self._network.edges())))
 
     @staticmethod
-    def prepare(interactions, out_path, all_nodes=False):
+    def prepare(interactions, out_path, cpu=1, all_nodes=False):
 
         HotnetNetwork.__log.info("Reading network")
 
@@ -346,7 +346,7 @@ class HotnetNetwork():
 
         HotnetNetwork.__log.info("Computing beta")
 
-        hotnet = Hotnet()
+        hotnet = Hotnet(cpu)
         hotnet.choose_beta(os.path.join(out_path, "edgelist.tsv"),
                            os.path.join(out_path, "beta.txt"))
 
