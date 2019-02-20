@@ -47,3 +47,4 @@ repodb,file:///aloy/scratch/sbnb-adm/checker/local_downloads/repodb.csv,False,Tr
 uniprot_HUMAN_9606,ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/idmapping/by_organism/HUMAN_9606_idmapping_selected.tab.gz,False,True,,,,,,False
 uniprot2reatome,https://reactome.org/download/current/UniProt2Reactome_All_Levels.txt,False,True,,,,,,False
 molpathways,http://www.pathwaycommons.org/archives/PC2/v11/PathwayCommons11.All.hgnc.sif.gz,False,True,,,,,PathwayCommons11.All.hgnc.sif,False
+string,https://stringdb-static.org/download/protein.links.v11.0/9606.protein.links.v11.0.txt.gz,False,True,,,String network,,9606.protein.links.txt,False

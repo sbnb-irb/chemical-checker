@@ -3,6 +3,7 @@
 # Load modules.
 import math, numpy as np
 import sys, argparse
+import os
 
 from common import convert_edge_list_to_adjacency_matrix, hh_similarity_matrix
 from hhio import load_edge_list, save_matrix
@@ -15,10 +16,13 @@ def get_parser():
     parser.add_argument('-b', '--beta', type=float, required=True, help='Restart probability')
     parser.add_argument('-n', '--name', type=str, required=False, default='PPR', help='Similarity matrix name')
     parser.add_argument('-o', '--output_file', type=str, required=True, help='Output filename')
+    parser.add_argument('-c', '--cpu', type=str,
+                        required=True, help='Num cpus to use')
     return parser
 
 # Run script.
 def run(args):
+    os.environ['OMP_NUM_THREADS'] = str(args.cpu)
     edge_list = load_edge_list(args.edge_list_file)
     A = convert_edge_list_to_adjacency_matrix(edge_list)
     P = hh_similarity_matrix(A, args.beta)

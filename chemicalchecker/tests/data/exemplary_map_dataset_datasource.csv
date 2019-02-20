@@ -29,6 +29,8 @@ C5.001,inBio_Map_core
 C5.001,metaphors_9606
 C5.001,metaphors_id_conversion
 C5.001,uniprot_HUMAN_9606
+C5.001,pathwaycommons_hgnc
+C5.001,string
 D1.001,GSE70138_Broad_LINCS_gene_info
 D1.001,GSE70138_Broad_LINCS_inst_info
 D1.001,GSE70138_Broad_LINCS_Level5_COMPZ
