@@ -7,8 +7,7 @@ import h5py
 import numpy as np
 import shutil
 import math
-sys.path.append(
-    "/aloy/home/oguitart/projects/source/chemical_checker/chemicalchecker")
+
 from chemicalchecker.util import logged, Config
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import HPC
