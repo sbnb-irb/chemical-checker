@@ -1,6 +1,6 @@
 # Chemical Checker
 
-The Chemical Checker (CC) is a resource of small molecule signatures joining the realms of chemoinformatics and bioinformatics. In the CC, compounds are described from multiple viewpoints, spanning every aspect of the drug discovery process, from chemical properties to clinical outcomes.
+The Chemical Checker (CC) is a resource of small molecule signatures. In the CC, the realms of chemoinformatics and bioinformatics are unified and compounds are described from multiple viewpoints, spanning every aspect of the drug discovery process, from chemical properties to clinical outcomes.
 
 * For more information about this repositiory, please refer to our [Wiki page](http://gitlab.sbnb.org/project-specific-repositories/chemical_checker/wikis/home).
 * For a quick exploration of the resource, please visit the [CC web app](http://chemicalchecker.org).
@@ -15,7 +15,7 @@ The Chemical Checker (CC) is a resource of small molecule signatures joining the
 
 4. Open your browser to [http://localhost:8888/](http://localhost:8888/).
 
-5. Start a new notebook (on the top right jupiter page click New -> Python )
+5. Start a new notebook (on the top right jupyter page click New -> Python )
 
 6. ```import chemicalchecker```
 
