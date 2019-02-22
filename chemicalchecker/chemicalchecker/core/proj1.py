@@ -324,11 +324,6 @@ class proj1(BaseSignature):
             if mappings is not None:
                 hf.create_dataset("mappings", data=mappings)
 
-    def statistics(self, validation_set):
-        """Perform a validation across external data as MoA and ATC codes."""
-        BaseSignature.validate(self)
-        self.__log.debug('AdaNet validate on %s' % validation_set)
-
     def _get_weights(self, index, data, neigh):
         """Get weights for the first 'neigh' neighbours ."""
 

@@ -250,7 +250,3 @@ class sign2(BaseSignature):
         cluster = HPC(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
-
-    def statistics(self):
-        """Perform a statistics """
-        BaseSignature.validate(self)

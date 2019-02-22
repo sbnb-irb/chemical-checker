@@ -660,11 +660,6 @@ class sign1(BaseSignature):
             os.remove(filename)
         os.rmdir(tmp_dir)
 
-    def statistics(self):
-        """Perform a statistics."""
-        # Calling base class to trigger file existence checks
-        BaseSignature.validate(self)
-
     def background_distances(self, metric=None):
         """Give the background distances according to the selected metric.
 
