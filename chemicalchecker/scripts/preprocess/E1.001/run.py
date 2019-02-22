@@ -58,13 +58,11 @@ def parse_kegg(br_file, inchikey_atc=None):
 
     # KEGG molrepo
     kegg_inchikey = {}
-    inchikey_inchi = {}
     molrepos = Molrepo.get_by_molrepo_name("kegg")
     for molrepo in molrepos:
         if not molrepo.inchikey:
             continue
         kegg_inchikey[molrepo.src_id] = molrepo.inchikey
-        inchikey_inchi[molrepo.inchikey] = molrepo.inchi
 
     # Read drug KEGG branch
     with open(br_file, "r") as f:
@@ -77,23 +75,21 @@ def parse_kegg(br_file, inchikey_atc=None):
                     continue
                 inchikey_atc[kegg_inchikey[drug]].update([atc])
 
-    return inchikey_atc, inchikey_inchi
+    return inchikey_atc
 
 
-def parse_drugbank(inchikey_inchi, inchikey_atc=None, drugbank_xml=None):
+def parse_drugbank(inchikey_atc=None, drugbank_xml=None):
 
     if not inchikey_atc:
         inchikey_atc = collections.defaultdict(set)
 
     # DrugBank molrepo
     dbid_inchikey = {}
-    inchikey_inchi = {}
     molrepos = Molrepo.get_by_molrepo_name("drugbank")
     for molrepo in molrepos:
         if not molrepo.inchikey:
             continue
         dbid_inchikey[molrepo.src_id] = molrepo.inchikey
-        inchikey_inchi[molrepo.inchikey] = molrepo.inchi
 
     # Read DrugBank
 
@@ -165,11 +161,11 @@ def main():
         # fetch Anatomical Therapeutic Chemical (ATC) from KEGG and DrugBank
         main._log.info("Parsing KEGG.")
         kegg_br = os.path.join(map_files["kegg_br"], "br08303.keg")
-        ATCS, inchikey_inchi = parse_kegg(kegg_br)
+        ATCS = parse_kegg(kegg_br)
 
         main._log.info("Parsing DrugBank.")
         drugbank_xml = os.path.join(map_files["drugbank"], "full database.xml")
-        ATCS = parse_drugbank(inchikey_inchi, ATCS, drugbank_xml)
+        ATCS = parse_drugbank(ATCS, drugbank_xml)
 
         # break ATCs
         main._log.info("Breaking ATCs.")
