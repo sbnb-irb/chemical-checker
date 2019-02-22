@@ -62,7 +62,7 @@ class neig1(BaseSignature):
             self.data_type = dh5["V"].dtype
             self.keys = dh5["keys"][:]
             if "mappings" in dh5.keys():
-                    mappings = dh5["mappings"][:]
+                mappings = dh5["mappings"][:]
             dh5.close()
 
         else:
@@ -79,8 +79,9 @@ class neig1(BaseSignature):
 
         D, I = index.search(self.data, k)
 
+        norms = LA.norm(self.data, axis=1)
+
         if self.metric == "cosine":
-            norms = LA.norm(self.data, axis=1)
 
             t_start = time()
             mat = np.ones((self.data.shape[0], k))
@@ -104,9 +105,10 @@ class neig1(BaseSignature):
         fout.create_dataset("shape", data=D.shape)
         fout.create_dataset(
             "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
-        fout.create_dataset("metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
+        fout.create_dataset(
+            "metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
         if mappings is not None:
-                fout.create_dataset("mappings", data=mappings)
+            fout.create_dataset("mappings", data=mappings)
 
         fout.close()
 
@@ -149,14 +151,14 @@ class neig1(BaseSignature):
             norms = LA.norm(self.data, axis=1)
 
             with h5py.File(self.norms_file, "r") as hw:
-                norms_pred = hw["norms"][:]
+                norms_fit = hw["norms"][:]
 
             t_start = time()
             mat = np.ones((self.data.shape[0], k))
             mat = mat / norms[:, None]
             for i in range(0, self.data.shape[0]):
                 for j in range(0, k):
-                    mat[i, j] = mat[i, j] / norms_pred[I[i, j]]
+                    mat[i, j] = mat[i, j] / norms_fit[I[i, j]]
             D = np.maximum(0.0, 1.0 - (D * mat))
             t_end = time()
             t_delta = str(datetime.timedelta(seconds=t_end - t_start))
@@ -174,7 +176,8 @@ class neig1(BaseSignature):
         fout.create_dataset("shape", data=D.shape)
         fout.create_dataset(
             "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
-        fout.create_dataset("metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
+        fout.create_dataset(
+            "metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
 
         fout.close()
 
