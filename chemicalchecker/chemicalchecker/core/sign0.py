@@ -25,7 +25,6 @@ class sign0(BaseSignature):
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(signature_path, "sign0.h5")
         self.__log.debug('data_path: %s', self.data_path)
-        self.__log.debug('param file: %s', self.param_file)
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
 

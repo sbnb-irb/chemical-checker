@@ -43,7 +43,6 @@ class proj1(BaseSignature):
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(signature_path, "proj1.h5")
         self.__log.debug('data_path: %s', self.data_path)
-        self.__log.debug('param file: %s', self.param_file)
 
         self.index_file = "faiss_proj1.index"
         self.projections_file = "centroids.h5"
