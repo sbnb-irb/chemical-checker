@@ -229,6 +229,9 @@ class sign0(BaseSignature):
         old_only_keys = old_keys - self.unique_keys
         new_only_keys = self.unique_keys - old_keys
         shared_keys = self.unique_keys & old_keys
+        self.__log.info("Among %s OLD molecules %.2f%% are still present:",
+                        len(old_keys),
+                        100 * len(shared_keys) / float(len(old_keys)))
         self.__log.info("Old keys: %s", len(old_keys))
         self.__log.info("New keys: %s", len(self.unique_keys))
         self.__log.info("Shared keys: %s", len(shared_keys))
@@ -248,11 +251,12 @@ class sign0(BaseSignature):
         }
         to_sample = min(len(shared_keys), to_sample)
         sample = np.random.choice(list(shared_keys), to_sample, replace=False)
+        res = psql.qstring(
+            "SELECT inchikey,raw FROM %s WHERE inchikey =  ANY('{%s}');" %
+            (table_name, ','.join(sample)), old_dbname)
+        res = dict(res)
         for ink in tqdm(sample):
-            res = psql.qstring(
-                "SELECT raw FROM %s WHERE inchikey = '%s';" %
-                (table_name, ink), old_dbname)
-            feat_old = set(res[0][0].split(','))
+            feat_old = set(res[ink].split(','))
             feat_new = set(self.to_feature_string(
                 self[ink], string_func)[0].split(','))
             if feat_new == feat_old:
@@ -267,11 +271,17 @@ class sign0(BaseSignature):
                     most_diff['old_sign'] = feat_old
                     most_diff['new_sign'] = feat_new
                 total += len(feat_old)
-        self.__log.info("Among %s shared sampled signatures:", to_sample)
-        self.__log.info("Not changed: %s", not_changed)
-        self.__log.info("Changed: %s", changed)
-        self.__log.info("Among changed %.2f%% of features are shared",
-                        100 * shared / total)
+        self.__log.info("Among %s shared sampled signatures %.2f%% are equal:",
+                        to_sample, 100 * not_changed / float(to_sample))
+        self.__log.info("Equal: %s Changed: %s", not_changed, changed)
+        if changed == 0:
+            return
+        if total == 0.:
+            perc_changed = 0.0
+        else:
+            perc_changed = 100 * shared / total
+        self.__log.info("Among changed %.2f%% of features are equal to old",
+                        perc_changed)
         self.__log.info("Most different signature %s" % most_diff['key'])
         self.__log.info("OLD: %s" % sorted(list(most_diff['old_sign'])))
         self.__log.info("NEW: %s" % sorted(list(most_diff['new_sign'])))
