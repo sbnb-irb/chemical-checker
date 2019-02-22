@@ -63,13 +63,11 @@ def parse_repodb(repodb, umls2mesh, IND=None):
 
     # DrugBank molrepo
     dbid_inchikey = {}
-    inchikey_inchi = {}
     molrepos = Molrepo.get_by_molrepo_name("drugbank")
     for molrepo in molrepos:
         if not molrepo.inchikey:
             continue
         dbid_inchikey[molrepo.src_id] = molrepo.inchikey
-        inchikey_inchi[molrepo.inchikey] = molrepo.inchi
 
     # Read UMLS to MESH
     umls_mesh = collections.defaultdict(set)
@@ -113,24 +111,21 @@ def parse_repodb(repodb, umls2mesh, IND=None):
                                 continue
             IND[(dbid_inchikey[l[1]], meshid)] += [phase]
     f.close()
+    return IND
 
-    return IND, inchikey_inchi
 
-
-def parse_chembl(inchikey_inchi, IND=None):
+def parse_chembl(IND=None):
 
     if IND is None:
         IND = collections.defaultdict(list)
 
     # ChEMBL molrepo
     chemblid_inchikey = {}
-    inchikey_inchi = {}
     molrepos = Molrepo.get_by_molrepo_name("chembl")
     for molrepo in molrepos:
         if not molrepo.inchikey:
             continue
         chemblid_inchikey[molrepo.src_id] = molrepo.inchikey
-        inchikey_inchi[molrepo.inchikey] = molrepo.inchi
 
     # Query ChEMBL
     R = psql.qstring('''
@@ -206,10 +201,10 @@ def main():
         repodb = os.path.join(map_files["repodb"], "repodb.csv")
         umls2mesh = os.path.join(map_files["disease_mappings"],
                                  "disease_mappings.tsv")
-        IND, inchikey_inchi = parse_repodb(repodb, umls2mesh)
+        IND = parse_repodb(repodb, umls2mesh)
 
         main._log.info("Parsing ChEMBL")
-        IND = parse_chembl(inchikey_inchi, IND)
+        IND = parse_chembl(IND)
 
         # include MeSH hierarchy
         main._log.info("Including MeSH hierarchy")
@@ -238,7 +233,7 @@ def main():
             for l in f:
                 items = l.rstrip().split("\t")
                 if len(items) == 2:
-                    val = 1
+                    val = 2  # default value
                 else:
                     val = int(items[2])
                 inchikey_raw[items[0]][items[1]] = val
