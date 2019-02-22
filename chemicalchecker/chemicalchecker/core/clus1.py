@@ -477,11 +477,6 @@ class clus1(BaseSignature):
                 if mappings is not None:
                     hf.create_dataset("mappings", data=mappings)
 
-    def statistics(self, validation_set):
-        """Perform a validation across external data as MoA and ATC codes."""
-        BaseSignature.statistics(self)
-        self.__log.debug('KMeans validate on %s' % validation_set)
-
     def _smooth(self, x, max_k, window_len=None, window='hanning'):
         if window_len is None:
             window_len = int(max_k / 10) + 1

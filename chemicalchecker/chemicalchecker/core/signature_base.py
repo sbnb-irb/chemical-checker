@@ -97,13 +97,6 @@ class BaseSignature(object):
         if not os.path.isdir(self.model_path):
             raise Exception("Model file not available.")
 
-    @abstractmethod
-    def statistics(self):
-        """Perform a validation across external data as MoA and ATC codes."""
-        BaseSignature.__log.debug('statistics')
-        if not os.path.isdir(self.model_path):
-            raise Exception("Model file not available.")
-
     @property
     def info_h5(self):
         """Get the dictionary of dataset and shapes."""

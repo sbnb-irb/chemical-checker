@@ -1,14 +1,9 @@
-
-import os
-import sys
-import h5py
-import numpy as np
-from tqdm import tqdm
-from subprocess import call
-
-from .signature_base import BaseSignature
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
+from .signature_base import BaseSignature
+from subprocess import call
+import os
+import sys
 
 
 @logged
@@ -108,8 +103,6 @@ class sign0(BaseSignature):
             self.__log.critical("Execution failed: %s" % e)
             sys.exit(1)
 
-    def statistics(self):
-        """Perform a statistics."""
 
     def to_features(self, signatures):
         """Convert signature to explicit feature names.
