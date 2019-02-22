@@ -45,7 +45,6 @@ class BaseSignature(object):
         """Initialize or load the signature at the given path."""
         self.dataset = dataset
         self.signature_path = signature_path
-        self.param_file = os.path.join(signature_path, 'PARAMS.JSON')
         self.validation_path = validation_path
 
         if not os.path.isdir(signature_path):
@@ -54,20 +53,7 @@ class BaseSignature(object):
             original_umask = os.umask(0)
             os.makedirs(signature_path, 0o775)
             os.umask(original_umask)
-            if not params:
-                params = dict()
-            with open(self.param_file, 'w') as fh:
-                json.dump(params, fh)
-        else:
-            if not os.path.isfile(self.param_file):
-                BaseSignature.__log.warning(
-                    "Signature missing parameter file: %s" % self.param_file)
-                BaseSignature.__log.warning(
-                    "Updating with current: %s" % self.param_file)
-                if not params:
-                    params = dict()
-                with open(self.param_file, 'w') as fh:
-                    json.dump(params, fh)
+
         self.model_path = os.path.join(signature_path, "models")
         if not os.path.isdir(self.model_path):
             BaseSignature.__log.info(
