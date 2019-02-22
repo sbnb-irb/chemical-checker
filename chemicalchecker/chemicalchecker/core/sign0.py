@@ -1,3 +1,12 @@
+import os
+import sys
+import h5py
+import numpy as np
+from tqdm import tqdm
+from subprocess import call
+
+from .signature_base import BaseSignature
+from chemicalchecker.util import psql
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 from .signature_base import BaseSignature
@@ -112,11 +121,16 @@ class sign0(BaseSignature):
             list of dict: 1 dictionary per signature where keys are
                 feature_name and value as values.
         """
-        # early stop if features file is not there
+        # if no features file is available then the signature is just an array
         feature_file = os.path.join(self.model_path, "features.h5")
         if not os.path.isfile(feature_file):
             self.__log.warn("No feature file found.")
-            return None
+            result = list()
+            for sign in signatures:
+                keys = list(enumerate(sign))
+                values = list(sign)
+                result.append(dict(zip(keys, values)))
+            return result
         # read features names from file
         with h5py.File(feature_file) as hf:
             features = hf["features"][:]
@@ -131,46 +145,133 @@ class sign0(BaseSignature):
             result.append(dict(zip(keys, values)))
         return result
 
-    def _compare_to_old(self, old_db_dump, to_sample=1000):
-        """Compare current signature 0 to previous format.
-
-        The db dump can be obtained running the following:
-        psql -h aloy-dbsrv -U <user_name> -d mosaic -c "COPY (SELECT * FROM <table_name>) TO STDOUT WITH CSV" > file.csv
+    def to_feature_string(self, signatures, string_func):
+        """Covert signature to a string with feature names.
 
         Args:
-            old_db_dump(str): file name with old raw features dumped from db.
+            signatures(array): Signature array(s).
+            string_func(func): A function taking a dictionary as input and
+                returning a single string.
+        """
+        result_dicts = self.to_features(signatures)
+        result_strings = list()
+        for res_dict in result_dicts:
+            result_strings.append(string_func(res_dict))
+        return result_strings
+
+    @staticmethod
+    def _feat_key_only(res_dict):
+        """Suited for discrete spaces."""
+        strings = list()
+        for k in sorted(res_dict.keys()):
+            strings.append("%s" % k)
+        return ','.join(strings)
+
+    @staticmethod
+    def _feat_value_only(res_dict):
+        """Suited for continuos spaces."""
+        strings = list()
+        for k in sorted(res_dict.keys()):
+            strings.append("%.3f" % res_dict[k])
+        return ','.join(strings)
+
+    @staticmethod
+    def _feat_key_values(res_dict):
+        """Suited for discrete spaces."""
+        strings = list()
+        for k in sorted(res_dict.keys()):
+            strings.append("%s(%s)" % (k, res_dict[k]))
+        return ','.join(strings)
+
+    def _compare_to_old(self, old_dbname, string_func, to_sample=1000):
+        """Compare current signature 0 to previous format.
+
+        Args:
+            old_dbname(str): the name of the old db (e.g. 'mosaic').
+            string_func(func): A function taking a dictionary as input and
+                returning a single string.
             to_sample(int): Number of signatures to compare in the set of
                 shared moleules.
 
         """
+        old_table_names = {
+            'A1': 'fp2d',
+            'A2': 'fp3d',
+            'A3': 'scaffolds',
+            'A4': 'subskeys',
+            'A5': 'physchem',
+            'B1': 'moa',
+            'B2': 'metabgenes',
+            'B3': 'crystals',
+            'B4': 'binding',
+            'B5': 'htsbioass',
+            'C1': 'molroles',
+            'C2': 'molpathways',
+            'C3': 'pathways',
+            'C4': 'bps',
+            'C5': 'networks',
+            'D1': 'transcript',
+            'D2': 'cellpanel',
+            'D3': 'chemgenet',
+            'D4': 'morphology',
+            'D5': 'cellbioass',
+            'E1': 'therapareas',
+            'E2': 'indications',
+            'E3': 'sideeffects',
+            'E4': 'phenotypes',
+            'E5': 'ddis'
+        }
         # get old keys
-        with open(old_db_dump, 'r') as fh:
-            lines = fh.readlines()
-        old_keys = set(l[:27] for l in lines)
+        table_name = old_table_names[self.dataset.coordinate]
+        res = psql.qstring('SELECT inchikey FROM %s;' % table_name, old_dbname)
+        old_keys = set(r[0] for r in res)
         # compare to new
         old_only_keys = old_keys - self.unique_keys
         new_only_keys = self.unique_keys - old_keys
+        shared_keys = self.unique_keys & old_keys
         self.__log.info("Old keys: %s", len(old_keys))
         self.__log.info("New keys: %s", len(self.unique_keys))
-        self.__log.info("Shared keys: %s", len(self.unique_keys & old_keys))
+        self.__log.info("Shared keys: %s", len(shared_keys))
         self.__log.info("Old only keys: %s", len(old_only_keys))
         self.__log.info("New only keys: %s", len(new_only_keys))
 
-        old_has_more = 0
-        new_has_more = 0
-        # randomly sample 1000 entries
-        to_sample = min(len(lines), to_sample)
-        lines = np.random.choice(lines, to_sample, replace=False)
-        for line in tqdm(lines):
-            ink = line[:27]
-            if ink not in self.unique_keys:
-                continue
-            feat_old = set(line[29:-2].split(','))
-            feat_new = set(self.to_features(self[ink])[0].keys())
-            if len(feat_old - feat_new) != 0:
-                old_has_more += 1
-            if len(feat_new - feat_old) != 0:
-                new_has_more += 1
+        # randomly check sample entries
+        total = 0.0
+        shared = 0.0
+        changed = 0
+        not_changed = 0
+        most_diff = {
+            'shared': 99999,
+            'key': None,
+            'old_sign': None,
+            'new_sign': None
+        }
+        to_sample = min(len(shared_keys), to_sample)
+        sample = np.random.choice(list(shared_keys), to_sample, replace=False)
+        for ink in tqdm(sample):
+            res = psql.qstring(
+                "SELECT raw FROM %s WHERE inchikey = '%s';" %
+                (table_name, ink), old_dbname)
+            feat_old = set(res[0][0].split(','))
+            feat_new = set(self.to_feature_string(
+                self[ink], string_func)[0].split(','))
+            if feat_new == feat_old:
+                not_changed += 1
+            else:
+                changed += 1
+                curr_shared = len(feat_new & feat_old)
+                shared += curr_shared
+                if curr_shared < most_diff['shared']:
+                    most_diff['shared'] = curr_shared
+                    most_diff['key'] = ink
+                    most_diff['old_sign'] = feat_old
+                    most_diff['new_sign'] = feat_new
+                total += len(feat_old)
         self.__log.info("Among %s shared sampled signatures:", to_sample)
-        self.__log.info("Old features set larger: %s", old_has_more)
-        self.__log.info("New features set larger: %s", new_has_more)
+        self.__log.info("Not changed: %s", not_changed)
+        self.__log.info("Changed: %s", changed)
+        self.__log.info("Among changed %.2f%% of features are shared",
+                        100 * shared / total)
+        self.__log.info("Most different signature %s" % most_diff['key'])
+        self.__log.info("OLD: %s" % sorted(list(most_diff['old_sign'])))
+        self.__log.info("NEW: %s" % sorted(list(most_diff['new_sign'])))
