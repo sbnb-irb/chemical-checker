@@ -181,11 +181,6 @@ class neig1(BaseSignature):
 
         fout.close()
 
-    def statistics(self, validation_set):
-        """Perform a validation across external data as MoA and ATC codes."""
-        BaseSignature.statistics(self)
-        self.__log.debug('Faiss kNN validate on %s' % validation_set)
-
     def __iter__(self):
         """Iterate on neighbours indeces and distances."""
         if not os.path.isfile(self.data_path):
