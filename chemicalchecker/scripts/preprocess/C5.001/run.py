@@ -432,15 +432,15 @@ def read_hotnet_output(outdir, ACTS):
 
     for network in networks:
 
-        # We use 'string_net' because the class needs to be called like that
-        # But when creating the data we change to just 'string'
-        if network == 'string_net':
-            network = 'string'
-
         # Loading network
         sm = load_matrix("%s/%s" % (outdir, network))
         sm.A = scale_by_non_diagonal_max(sm.A)
         myprots = prots.intersection(sm.names)
+
+        # We use 'string_net' because the class needs to be called like that
+        # But when creating the data we change to just 'string'
+        if network == 'string_net':
+            network = 'string'
 
         # Get the protein profiles
         for prot in myprots:
@@ -472,6 +472,9 @@ def main():
     args = get_parser().parse_args(sys.argv[1:])
 
     features = None
+
+    if args.entry_point is None:
+        args.entry_point = entry_point_full
 
     if args.method == "fit":
 
@@ -568,7 +571,7 @@ def main():
                     else:
                         ACTS[(items[0], items[1])] = int(items[2])
 
-    if args.entry_point != entry_point_neigh_networks:
+    if args.entry_point == entry_point_full:
 
         # os.path.dirname(os.path.abspath(__file__))[-6:]
         dataset_code = 'C5.001'
@@ -602,7 +605,23 @@ def main():
                     inchikey_raw[k] += [val]
         else:
             inchikey_raw = inchikey_data
-    else:
+
+    if args.entry_point == entry_point_neigh:
+
+        inchikey_raw = collections.defaultdict(list)
+
+        for network in networks:
+
+            if network == 'string_net':
+                network = 'string'
+
+            for k, v in ACTS.items():
+                item = network + "_" + k[1]
+                if item not in features:
+                    continue
+                inchikey_raw[k[0]] += [(item, v)]
+
+    if args.entry_point == entry_point_neigh_networks:
         inchikey_raw = ACTS
 
     main._log.info("Saving raws")
