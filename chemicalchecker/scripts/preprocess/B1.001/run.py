@@ -1,22 +1,22 @@
 import os
 import sys
-import argparse
-
-import numpy as np
-import networkx as nx
-import collections
 import h5py
 import pickle
-
+import logging
+import argparse
+import collections
+import numpy as np
+import networkx as nx
 import xml.etree.ElementTree as ET
 
+from chemicalchecker.util import psql
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
-from chemicalchecker.util import psql
 from chemicalchecker.database import Molrepo
 
 
 # Variables
+dataset_code = 'B1.001'
 chembl_dbname = 'chembl'
 graph_file = "graph.gpickle"
 features_file = "features.h5"
@@ -298,14 +298,13 @@ def put_hierarchy(ACTS, class_prot, G):
     return classACTS
 
 
-@logged
+@logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main():
     # Reading arguments and getting datasource
     args = get_parser().parse_args(sys.argv[1:])
-    dataset_code = 'B1.001'
     dataset = Dataset.get(dataset_code)
-    main._log.debug("[%s] Running preprocess. Saving output to %s",
-                    dataset_code, args.output_file)
+    main._log.debug("Running preprocess. Saving output to %s",
+                    args.output_file)
     map_files = {}
     for ds in dataset.datasources:
         map_files[ds.name] = ds.data_path
@@ -318,10 +317,10 @@ def main():
     if args.method == "fit":
 
         # fetch ACTS from ChEMBL and DrugBank
-        main._log.info("[%s] Parsing ChEMBL.", dataset_code)
+        main._log.info("Parsing ChEMBL.")
         ACTS = parse_chembl()
 
-        main._log.info("[%s] Parsing DrugBank.", dataset_code)
+        main._log.info("Parsing DrugBank.")
         drugbank_xml = os.path.join(map_files["drugbank"], "full database.xml")
         ACTS = parse_drugbank(ACTS, drugbank_xml)
 
@@ -365,11 +364,11 @@ def main():
 
     # two entry point options, when protein are used put hierarchy
     if args.entry_point == entry_point_full:
-        main._log.info("[%s] Putting target hierarchy.", dataset_code)
+        main._log.info("Putting target hierarchy.")
         ACTS = put_hierarchy(ACTS, class_prot, G)
 
     # save raw values
-    main._log.info("[%s] Saving raws.", dataset_code)
+    main._log.info("Saving raws.")
     RAW = collections.defaultdict(list)
     for k, v in ACTS.items():
         RAW[k[0]] += [k[1] + "(%s)" % v]
