@@ -467,9 +467,9 @@ def read_hotnet_output(outdir, ACTS):
 
 
 @logged
-def main():
+def main(args):
 
-    args = get_parser().parse_args(sys.argv[1:])
+    args = get_parser().parse_args(args)
 
     features = None
 
@@ -655,4 +655,4 @@ def main():
             hf.create_dataset("features", data=np.array(orderwords))
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])

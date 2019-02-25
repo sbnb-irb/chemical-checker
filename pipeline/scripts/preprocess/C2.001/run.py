@@ -128,9 +128,9 @@ def read_hotnet_output(outdir):
 
 
 @logged
-def main():
+def main(args):
 
-    args = get_parser().parse_args(sys.argv[1:])
+    args = get_parser().parse_args(args)
 
     dataset_code = 'C2.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
@@ -212,4 +212,4 @@ def main():
             hf.create_dataset("features", data=np.array(orderwords))
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])

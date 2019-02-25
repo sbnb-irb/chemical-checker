@@ -101,9 +101,9 @@ def parse_ctd(disfile, chemdis_file):
 
 
 @logged
-def main():
+def main(args):
 
-    args = get_parser().parse_args(sys.argv[1:])
+    args = get_parser().parse_args(args)
 
     dataset_code = 'E4.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
@@ -180,5 +180,6 @@ def main():
         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
             hf.create_dataset("features", data=np.array(orderwords))
 
+
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])

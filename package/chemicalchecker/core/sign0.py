@@ -1,9 +1,26 @@
+"""Signature type 0.
+
+Signature type 0 are basically raw features. Each bioactive space has
+a peculiar format which might be categorial, discrete or continous.
+Given the diversity of formats and datasources the signaturization process
+is started here but performed in tailored pre-process scripts (available
+in the pipeline folder).
+The `fit` method invoke the pre-process script with a `fit` argument where
+we essentially `learn` the feature to consider.
+The `predict` argument (called by the `predict` method) allow deriving
+signatures without altering the feature set. This can also be used when mapping
+to a bioactive space different entities (i.e. not only compounds)
+E.g.
+categorical: "C0015230,C0016436..." which translates in n array of 0s or 1s.
+discrete: "GO:0006897(8),GO:0006796(3),..." which translates in an array of
+integers
+continous: "0.515,1.690,0.996" which is an array of floats
+"""
 import os
-import sys
+import imp
 import h5py
 import numpy as np
 from tqdm import tqdm
-from subprocess import call
 
 from .signature_base import BaseSignature
 from chemicalchecker.util import psql
@@ -17,10 +34,7 @@ import sys
 
 @logged
 class sign0(BaseSignature):
-    """Signature type 0 class.
-
-    Signature type 0 is...
-    """
+    """Signature type 0 class."""
 
     def __init__(self, signature_path, validation_path, dataset, **params):
         """Initialize the signature.
@@ -34,82 +48,64 @@ class sign0(BaseSignature):
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(signature_path, "sign0.h5")
         self.__log.debug('data_path: %s', self.data_path)
+        self.__log.debug('param file: %s', self.param_file)
+        self.preprocess_script = os.path.join(
+            Config().PATH.CC_REPO,
+            "pipeline/scripts/preprocess",
+            self.dataset.code,
+            "run.py")
+        if not os.path.isfile(self.preprocess_script):
+            self.__log.warn("Pre-process sript not found! %s",
+                            self.preprocess_script)
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
 
+    def call_preprocess(self, script, output, method, infile=None, entry=None):
+        """Call the external pre-process script."""
+        # create argument list
+        arglist = ["-o", output, "-mp", self.model_path, "-m", method]
+        if infile:
+            arglist.extend(['-i', infile])
+        if entry:
+            arglist.extend(['-ep', entry])
+        # import and run the run.py
+        preprocess = imp.load_source('main', script)
+        preprocess.main(arglist)
+
     def fit(self):
-        """Signature type 0 has no models to fit."""
-        """Call the external preprocess script to generate h5 data."""
+        """Call the external preprocess script to generate h5 data.
 
-        config = Config()
-        preprocess_script = os.path.join(
-            config.PATH.CC_REPO, "chemicalchecker/scripts/preprocess", self.dataset.code, "run.py")
-
-        self.__log.debug('calling pre-process script ' + preprocess_script)
-
-        if not os.path.isfile(preprocess_script):
-            raise Exception("Preprocess script " +
-                            preprocess_script + " does not exist")
-
-        try:
-            cmdStr = "python " + preprocess_script + " -o " + self.data_path + \
-                " " + " -mp " + self.model_path + " " + " -m fit "
-            retcode = call(cmdStr, shell=True)
-            self.__log.debug("FINISHED! " + cmdStr +
-                             (" returned code %d" % retcode))
-            if retcode != 0:
-                if retcode > 0:
-                    self.__log.error(
-                        "ERROR return code %d, please check!" % retcode)
-                elif retcode < 0:
-                    self.__log.error(
-                        "Command terminated by signal %d" % -retcode)
-                sys.exit(1)
-        except OSError as e:
-            self.__log.critical("Execution failed: %s" % e)
-            sys.exit(1)
+        The preprocess script is invoked with the `fit` argument, which means
+        features are extracted from datasoruces and saved.
+        """
+        # check that preprocess script is available and call it
+        self.__log.debug('calling pre-process script %s',
+                         self.preprocess_script)
+        if not os.path.isfile(self.preprocess_script):
+            raise Exception("Pre-process sript not found! %s",
+                            self.preprocess_script)
+        self.call_preprocess(self.preprocess_script, self.data_path, "fit")
 
     def predict(self, input_data_file, destination, entry_point=None):
         """Call the external preprocess script to generate h5 data."""
         """
         Args:
-            input_data_file(str): Path to the file with the raw to generate the signature0.
-            destination(str): Path to a .h5 file where the predicted signature will be saved.
-            entry_point(str): Entry point of the input data into the signaturization process. It
-                                depends on the type of data passed at the input_data_file
+            input_data_file(str): Path to the file with the raw to generate
+                the signature 0.
+            destination(str): Path to a .h5 file where the predicted signature
+                will be saved.
+            entry_point(str): Entry point of the input data for the
+                signaturization process. It depends on the type of data passed
+                at the input_data_file.
         """
-
-        config = Config()
-        preprocess_script = os.path.join(
-            config.PATH.CC_REPO, "chemicalchecker/scripts/preprocess", self.dataset.code, "run.py")
-
-        self.__log.debug('calling pre-process script ' + preprocess_script)
-
-        if not os.path.isfile(preprocess_script):
-            raise Exception("Preprocess script " +
-                            preprocess_script + " does not exist")
-
-        self.data_path = destination
-
-        try:
-            cmdStr = "python " + preprocess_script + " -i " + input_data_file + " -o " + self.data_path + \
-                " " + " -mp " + self.model_path + " " + " -m predict"
-            if entry_point is not None:
-                cmdStr += " -ep " + entry_point
-            retcode = call(cmdStr, shell=True)
-            self.__log.debug("FINISHED! " + cmdStr +
-                             (" returned code %d" % retcode))
-            if retcode != 0:
-                if retcode > 0:
-                    self.__log.error(
-                        "ERROR return code %d, please check!" % retcode)
-                elif retcode < 0:
-                    self.__log.error(
-                        "Command terminated by signal %d" % -retcode)
-                sys.exit(1)
-        except OSError as e:
-            self.__log.critical("Execution failed: %s" % e)
-            sys.exit(1)
+        # check that preprocess script is available
+        self.__log.debug('calling pre-process script %s',
+                         self.preprocess_script)
+        if not os.path.isfile(self.preprocess_script):
+            raise Exception("Pre-process sript not found! %s",
+                            self.preprocess_script)
+        self.call_preprocess(self.preprocess_script, destination, "predict",
+                             input_data_file, entry_point)
 
 
     def to_features(self, signatures):
