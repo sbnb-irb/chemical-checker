@@ -179,9 +179,9 @@ def include_mesh(ctd_diseases, IND):
 
 
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
-def main():
+def main(args):
     # Reading arguments and getting datasource
-    args = get_parser().parse_args(sys.argv[1:])
+    args = get_parser().parse_args(args)
     dataset = Dataset.get(dataset_code)
     main._log.debug("Running preprocess. Saving output to %s",
                     args.output_file)
@@ -276,4 +276,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])

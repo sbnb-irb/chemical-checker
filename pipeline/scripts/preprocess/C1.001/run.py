@@ -88,9 +88,9 @@ def find_paths(CHEBI, inchikey_chebi):
 
 
 @logged
-def main():
+def main(args):
 
-    args = get_parser().parse_args(sys.argv[1:])
+    args = get_parser().parse_args(args)
 
     dataset_code = 'C1.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
@@ -177,4 +177,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])
