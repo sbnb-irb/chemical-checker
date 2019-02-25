@@ -6,6 +6,28 @@ The Chemical Checker (CC) is a resource of small molecule signatures. In the CC,
 * For a quick exploration of the resource, please visit the [CC web app](http://chemicalchecker.org).
 * Concepts and methods are best described in the original CC publication, [Duran-Frigola et al. 2019](https://www.dropbox.com/s/x2rqszfdfpqdqdy/duranfrigola_etal_ms_current.pdf?dl=0).
 
+## How to start 
+
+1. Install singularity
+
+2. Download def file
+
+    Go to this link and use the download cloud button to get the def file
+    http://gitlab.sbnb.org/project-specific-repositories/chemical_checker/blob/master/container/singularity/cc-full.def
+    
+3. Create singularity sandbox
+
+    ```sudo singularity build --sanbox <PATH_TO_SANDBOX_DIRECTORY> <PATH_TO_>/cc-full.def```
+    
+4. Modify config file with your specific data
+
+    Run this command and change the paramaters:
+    ```sudo singularity --writable sandbox-test/ vi /opt/chemical_checker/cc_config.json```
+    
+5. Create final container image
+
+    ```sudo singularity build cc.simg <PATH_TO_SANDBOX_DIRECTORY>```
+
 ## Installation
 
 1. Download the `setup_chemicalchecker.sh` script to your home folder
