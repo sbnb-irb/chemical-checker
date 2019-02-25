@@ -47,7 +47,7 @@ class sign0(BaseSignature):
         self.__log.debug('param file: %s', self.param_file)
         self.preprocess_script = os.path.join(
             Config().PATH.CC_REPO,
-            "pipeline/scripts/preprocess",
+            "package/scripts/preprocess",
             self.dataset.code,
             "run.py")
         if not os.path.isfile(self.preprocess_script):
