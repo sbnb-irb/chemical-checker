@@ -34,3 +34,4 @@ MulticoreTSNE
 hdbscan
 fancyimpute
 networkx
+pathlib2
