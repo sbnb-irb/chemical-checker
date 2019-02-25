@@ -144,7 +144,7 @@ def main(args):
         orderwords = features_list
     else:
         orderwords = list(words)
-        orderwords.sort(key=int)
+        orderwords.sort()
 
     raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
     wordspos = {k: v for v, k in enumerate(orderwords)}

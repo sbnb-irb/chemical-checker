@@ -21,7 +21,7 @@ import imp
 import h5py
 import numpy as np
 from tqdm import tqdm
-
+from pathlib2 import Path
 from .signature_base import BaseSignature
 from chemicalchecker.util import psql
 from chemicalchecker.util import logged
@@ -44,7 +44,6 @@ class sign0(BaseSignature):
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(signature_path, "sign0.h5")
         self.__log.debug('data_path: %s', self.data_path)
-        self.__log.debug('param file: %s', self.param_file)
         self.preprocess_script = os.path.join(
             Config().PATH.CC_REPO,
             "package/scripts/preprocess",
@@ -81,6 +80,8 @@ class sign0(BaseSignature):
             raise Exception("Pre-process script not found! %s",
                             self.preprocess_script)
         self.call_preprocess(self.data_path, "fit")
+
+        Path(os.path.join(self.model_path, self.readyfile)).touch()
 
     def predict(self, input_data_file, destination, entry_point=None):
         """Call the external preprocess script to generate h5 data."""

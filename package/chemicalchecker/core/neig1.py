@@ -7,6 +7,7 @@ except ImportError:
     pass
 import datetime
 from time import time
+from pathlib2 import Path
 from numpy import linalg as LA
 from chemicalchecker.util import logged
 from .signature_base import BaseSignature
@@ -116,6 +117,8 @@ class neig1(BaseSignature):
 
         with h5py.File(self.norms_file, "w") as hw:
             hw.create_dataset("norms", data=norms)
+
+        Path(os.path.join(self.model_path, self.readyfile)).touch()
 
     def predict(self, sign1, destination=None):
         """Use the fitted models to go from input to output."""
