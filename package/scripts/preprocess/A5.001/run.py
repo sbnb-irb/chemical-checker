@@ -7,7 +7,7 @@ import numpy as np
 
 
 from chemicalchecker.util import logged
-from chemicalchecker.database import Molprop
+from chemicalchecker.database import Molprop, Datasource
 from chemicalchecker.database import Molrepo
 from chemicalchecker.util import PropCalculator
 from chemicalchecker.util import Converter
@@ -54,22 +54,25 @@ def main(args):
     if args.entry_point is None:
         args.entry_point = entry_point_keys
 
-    molrepos = ["bindingdb"]
-
     if args.method == "fit":
+
+        molrepos = Datasource.get_universe_molrepos()
 
         main._log.info("Querying molrepos")
 
         ACTS = []
+        inchikeys = set()
 
         molprop = Molprop(name)
 
         for molrepo in molrepos:
 
-            inchikeys = Molrepo.get_fields_by_molrepo_name(
-                molrepo, ["inchikey"])
-            props = molprop.get_properties_from_list([i[0] for i in inchikeys])
-            ACTS.extend(props)
+            molrepo = str(molrepo[0])
+
+            inchikeys.update(Molrepo.get_fields_by_molrepo_name(
+                molrepo, ["inchikey"]))
+        props = molprop.get_properties_from_list([i[0] for i in inchikeys])
+        ACTS.extend(props)
 
     if args.method == "predict":
 

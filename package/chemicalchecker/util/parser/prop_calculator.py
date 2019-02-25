@@ -41,6 +41,8 @@ class PropCalculator():
         radius = 2
         chunk = list()
         for ik in iks:
+            if ik is None:
+                continue
             v = str(inchikey_inchi[ik])
             # PropCalculator.__log.info( ik)
             mol = Chem.rdinchi.InchiToMol(v)[0]
@@ -80,6 +82,8 @@ class PropCalculator():
         iks = inchikey_inchi.keys()
         chunk = list()
         for k in iks:
+            if k is None:
+                continue
             try:
                 fps = fprints_from_inchi(
                     str(inchikey_inchi[k]), str(k), params[0], params[1])
@@ -125,6 +129,8 @@ class PropCalculator():
 
         chunk = list()
         for k in iks:
+            if k is None:
+                continue
             v = str(inchikey_inchi[k])
             mol = Chem.rdinchi.InchiToMol(v)[0]
             try:
@@ -148,6 +154,8 @@ class PropCalculator():
         iks = inchikey_inchi.keys()
         chunk = list()
         for k in iks:
+            if k is None:
+                continue
             v = str(inchikey_inchi[k])
             mol = Chem.rdinchi.InchiToMol(v)[0]
             fp = MACCSkeys.GenMACCSKeys(mol)
@@ -168,7 +176,6 @@ class PropCalculator():
 
         def descriptors(mol):
             P = {}
-
             P['ringaliph'] = Descriptors.NumAliphaticRings(mol)
             P['mr'] = Descriptors.MolMR(mol)
             P['heavy'] = Descriptors.HeavyAtomCount(mol)
@@ -228,6 +235,8 @@ class PropCalculator():
         chunk = list()
 
         for k in iks:
+            if k is None:
+                continue
             v = str(inchikey_inchi[k])
             mol = Chem.rdinchi.InchiToMol(v)[0]
             P = descriptors(mol)
