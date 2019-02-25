@@ -86,6 +86,10 @@ class BaseSignature(object):
         if not os.path.isdir(self.model_path):
             raise Exception("Model file not available.")
 
+        if not self.is_fit():
+            raise Exception(
+                "Before calling predict method, fit method needs to be called.")
+
     @property
     def info_h5(self):
         """Get the dictionary of dataset and shapes."""
