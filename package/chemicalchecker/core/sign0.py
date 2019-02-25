@@ -26,10 +26,6 @@ from .signature_base import BaseSignature
 from chemicalchecker.util import psql
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
-from .signature_base import BaseSignature
-from subprocess import call
-import os
-import sys
 
 
 @logged
@@ -60,7 +56,7 @@ class sign0(BaseSignature):
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
 
-    def call_preprocess(self, script, output, method, infile=None, entry=None):
+    def call_preprocess(self, output, method, infile=None, entry=None):
         """Call the external pre-process script."""
         # create argument list
         arglist = ["-o", output, "-mp", self.model_path, "-m", method]
@@ -69,7 +65,7 @@ class sign0(BaseSignature):
         if entry:
             arglist.extend(['-ep', entry])
         # import and run the run.py
-        preprocess = imp.load_source('main', script)
+        preprocess = imp.load_source('main', self.preprocess_script)
         preprocess.main(arglist)
 
     def fit(self):
@@ -79,12 +75,12 @@ class sign0(BaseSignature):
         features are extracted from datasoruces and saved.
         """
         # check that preprocess script is available and call it
-        self.__log.debug('calling pre-process script %s',
+        self.__log.debug('Calling pre-process script %s',
                          self.preprocess_script)
         if not os.path.isfile(self.preprocess_script):
-            raise Exception("Pre-process sript not found! %s",
+            raise Exception("Pre-process script not found! %s",
                             self.preprocess_script)
-        self.call_preprocess(self.preprocess_script, self.data_path, "fit")
+        self.call_preprocess(self.data_path, "fit")
 
     def predict(self, input_data_file, destination, entry_point=None):
         """Call the external preprocess script to generate h5 data."""
@@ -98,15 +94,14 @@ class sign0(BaseSignature):
                 signaturization process. It depends on the type of data passed
                 at the input_data_file.
         """
-        # check that preprocess script is available
-        self.__log.debug('calling pre-process script %s',
+        # check that preprocess script is available and call it
+        self.__log.debug('Calling pre-process script %s',
                          self.preprocess_script)
         if not os.path.isfile(self.preprocess_script):
-            raise Exception("Pre-process sript not found! %s",
+            raise Exception("Pre-process script not found! %s",
                             self.preprocess_script)
-        self.call_preprocess(self.preprocess_script, destination, "predict",
+        self.call_preprocess(destination, "predict",
                              input_data_file, entry_point)
-
 
     def to_features(self, signatures):
         """Convert signature to explicit feature names.
