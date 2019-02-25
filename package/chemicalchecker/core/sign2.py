@@ -27,10 +27,8 @@ from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 from chemicalchecker.util import SNAPNetwork
 from chemicalchecker.util import LinkPrediction
-try:
-    from chemicalchecker.tool import Node2Vec, AdaNet, Traintest
-except:
-    pass
+from chemicalchecker.tool import Node2Vec, AdaNet, Traintest
+
 
 
 @logged
