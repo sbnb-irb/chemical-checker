@@ -46,6 +46,7 @@ class BaseSignature(object):
         self.dataset = dataset
         self.signature_path = signature_path
         self.validation_path = validation_path
+        self.readyfile = "fit.ready"
 
         if not os.path.isdir(signature_path):
             BaseSignature.__log.info(
@@ -75,6 +76,8 @@ class BaseSignature(object):
         BaseSignature.__log.debug('fit')
         if os.path.isdir(self.model_path):
             BaseSignature.__log.warning("Model already available.")
+        if os.path.exists(os.path.join(self.model_path, self.readyfile)):
+            os.remove(os.path.join(self.model_path, self.readyfile))
 
     @abstractmethod
     def predict(self):
@@ -93,6 +96,13 @@ class BaseSignature(object):
             for key in hf.keys():
                 infos[key] = hf[key].shape
         return infos
+
+    def is_fit(self):
+        """The fit method was already called for this signature."""
+        if os.path.exists(os.path.join(self.model_path, self.readyfile)):
+            return True
+        else:
+            return False
 
     def copy_from(self, sign, key):
         """Copy dataset 'key' to current signature.

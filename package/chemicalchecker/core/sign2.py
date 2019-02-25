@@ -18,7 +18,7 @@ automatically learning high-quality models with minimal expert intervention.
 """
 import os
 from sklearn.model_selection import ParameterGrid
-
+from pathlib2 import Path
 from .signature_base import BaseSignature
 import chemicalchecker
 from chemicalchecker.util import HPC
@@ -169,6 +169,8 @@ class sign2(BaseSignature):
         sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
         ada.save_performances(adanet_path, sign2_plot)
         self.__log.debug('model saved to %s' % adanet_path)
+
+        Path(os.path.join(self.model_path, self.readyfile)).touch()
 
     def predict(self, sign1):
         """Use the learned model to predict the signature."""
