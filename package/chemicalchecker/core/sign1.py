@@ -12,6 +12,7 @@ import numpy as np
 import h5py
 import glob
 import pickle
+from pathlib2 import Path
 from sklearn.preprocessing import Normalizer, RobustScaler
 from scipy.spatial.distance import euclidean, cosine
 from sklearn.decomposition import PCA
@@ -397,6 +398,8 @@ class sign1(BaseSignature):
         for filename in glob.glob(os.path.join(tmp_dir, "sign1.dict*")):
             os.remove(filename)
         os.rmdir(tmp_dir)
+
+        Path(os.path.join(self.model_path, self.readyfile)).touch()
 
     def predict(self, sign0, destination=None, validations=False):
         """Take `sign0` and predict `sign1`.

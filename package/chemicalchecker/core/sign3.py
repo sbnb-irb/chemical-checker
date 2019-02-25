@@ -18,6 +18,7 @@ for each molecule.
 
 """
 import os
+from pathlib2 import Path
 from .signature_base import BaseSignature
 import chemicalchecker
 from chemicalchecker.util import HPC
@@ -79,6 +80,8 @@ class sign3(BaseSignature):
         # step 2:
         #########
         pass
+
+        Path(os.path.join(self.model_path, self.readyfile)).touch()
 
     def predict(self, sign1):
         """Use the learned model to predict the signature."""
