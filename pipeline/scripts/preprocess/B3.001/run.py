@@ -118,9 +118,9 @@ def parse_data_pdb(data, map_family_id, map_pdb):
 
 
 @logged
-def main():
+def main(args):
 
-    args = get_parser().parse_args(sys.argv[1:])
+    args = get_parser().parse_args(args)
 
     dataset_code = 'B3.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
@@ -228,4 +228,4 @@ def main():
             hf.create_dataset("features", data=np.array(orderwords))
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])
