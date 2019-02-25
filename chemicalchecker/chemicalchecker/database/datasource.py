@@ -46,6 +46,7 @@ class Datasource(Base):
     molrepo_name = Column(Text)
     molrepo_file = Column(Text)
     is_db = Column(Boolean)
+    is_universe = Column(Boolean)
 
     datasets = relationship("Dataset",
                             secondary="map_dataset_datasource",
@@ -141,6 +142,18 @@ class Datasource(Base):
             query = session.query(Datasource).filter(
                 (Datasource.molrepo_name == molrepo_name)).distinct(
                 Datasource.url)
+        res = query.all()
+        session.close()
+        return res
+
+    @staticmethod
+    def get_universe_molrepos():
+        """Get Molrepo names that are considered universe."""
+        session = get_session()
+
+        query = session.query(Datasource.molrepo_name).filter(
+            (Datasource.is_universe)).distinct(
+            Datasource.molrepo_name)
         res = query.all()
         session.close()
         return res
