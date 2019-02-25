@@ -8,7 +8,7 @@ The Chemical Checker (CC) is a resource of small molecule signatures. In the CC,
 
 ## How to start 
 
-1. Install singularity
+1. Install singularity:  https://www.sylabs.io/guides/2.6/user-guide/installation.html
 
 2. Download def file
 
@@ -22,7 +22,7 @@ The Chemical Checker (CC) is a resource of small molecule signatures. In the CC,
 4. Modify config file with your specific data
 
     Run this command and change the paramaters:
-    ```sudo singularity --writable sandbox-test/ vi /opt/chemical_checker/cc_config.json```
+    ```sudo singularity --writable <PATH_TO_SANDBOX_DIRECTORY> vi /opt/chemical_checker/cc_config.json```
     
 5. Create final container image
 
