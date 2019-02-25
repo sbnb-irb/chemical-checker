@@ -1,7 +1,6 @@
 """Wrapper for SNAP C++ implementation of node2vec.
 
 An algorithmic framework for representational learning on graphs. [Aug 27 2018]
-================================================================================
 usage: node2vec
    -i:Input graph path (default:'graph/karate.edgelist')
    -o:Output graph path (default:'emb/karate.emb')
