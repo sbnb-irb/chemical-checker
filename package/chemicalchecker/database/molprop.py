@@ -66,7 +66,7 @@ def Molprop(table_name):
             session = get_session()
             for pos in range(0, len(keys), size):
                 query = session.query(GenericMolprop).filter(
-                    GenericMolprop.inchikey.in_(keys[pos:pos + size]))
+                    GenericMolprop.inchikey.in_(keys[pos:pos + size]), GenericMolprop.raw.isnot(None))
                 res = query.with_entities(
                     GenericMolprop.inchikey, GenericMolprop.raw).all()
                 props.update(res)
@@ -98,15 +98,32 @@ def Molprop(table_name):
             return keys.difference(present)
 
         @staticmethod
-        def from_inchikey_inchi(inchikey_inchi):
+        def from_inchikey_inchi(inchikey_inchi, missing_only=True):
             """Method to fill the property table from an inchikey to inchi map."""
             # calc_fn yield a list of dictionaries with keys as a molprop
             # entry
+
+            if missing_only:
+                set_inks = set(inchikey_inchi.keys())
+
+                GenericMolprop.__log.debug(
+                    "Size initial data to add: " + str(len(set_inks)))
+
+                todo_iks = GenericMolprop.get_missing_from_set(set_inks)
+
+                GenericMolprop.__log.debug(
+                    "Size final data to add: " + str(len(todo_iks)))
+
+                dict_inchikey_inchi = {k: inchikey_inchi[k] for k in todo_iks}
+
+            else:
+                dict_inchikey_inchi = inchikey_inchi
+
             parse_fn = PropCalculator.calc_fn(GenericMolprop.__tablename__)
             # profile time
             t_start = time()
             engine = get_engine()
-            for chunk in parse_fn(inchikey_inchi, 1000):
+            for chunk in parse_fn(dict_inchikey_inchi, 1000):
                 if len(chunk) == 0:
                     continue
                 GenericMolprop.__log.debug(
