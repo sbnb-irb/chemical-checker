@@ -4,6 +4,7 @@ before_script:
   - conda update -y setuptools
   - pip install tox
   - pip install tox-conda
+  - pip install --upgrade pip
 
 test:
   script:
