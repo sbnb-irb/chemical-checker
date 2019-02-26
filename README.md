@@ -17,16 +17,18 @@ The Chemical Checker (CC) is a resource of small molecule signatures. In the CC,
     
 3. Create singularity sandbox
 
-    ```sudo singularity build --sanbox <PATH_TO_SANDBOX_DIRECTORY> <PATH_TO_>/cc-full.def```
+        sudo singularity build --sanbox <PATH_TO_SANDBOX_DIRECTORY> <PATH_TO_>/cc-full.def
+
     
 4. Modify config file with your specific data
 
     Run this command and change the paramaters:
-    ```sudo singularity --writable <PATH_TO_SANDBOX_DIRECTORY> vi /opt/chemical_checker/cc_config.json```
+    
+        sudo singularity --writable <PATH_TO_SANDBOX_DIRECTORY> vi /opt/chemical_checker/cc_config.json
     
 5. Create final container image
 
-    ```sudo singularity build cc.simg <PATH_TO_SANDBOX_DIRECTORY>```
+        sudo singularity build cc.simg <PATH_TO_SANDBOX_DIRECTORY>
 
 ## Installation
 
