@@ -115,12 +115,12 @@ fi
 if [ "$SINGULARITY_SHELL"=true ]
 then
     printf -- 'Starting Singularity Shell... (Press CTRL+D to exit)\n';
-    SINGULARITYENV_PYTHONPATH=$LOCAL_CCREPO/chemicalchecker \
+    SINGULARITYENV_PYTHONPATH=$LOCAL_CCREPO/package \
     SINGULARITYENV_CC_CONFIG=$LOCAL_CCREPO/cc_config.json \
     singularity shell --cleanenv $LOCAL_IMAGE
 else
     printf -- 'Starting Jupyter Notebook... \n';
-    SINGULARITYENV_PYTHONPATH=$LOCAL_CCREPO/chemicalchecker \
+    SINGULARITYENV_PYTHONPATH=$LOCAL_CCREPO/package \
     SINGULARITYENV_CC_CONFIG=$LOCAL_CCREPO/cc_config.json \
     singularity exec --cleanenv -B $CC_HOME/run_user_sing:/run/user $LOCAL_IMAGE jupyter notebook
 fi
