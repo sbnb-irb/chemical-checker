@@ -390,7 +390,7 @@ class AdaNetWrapper(object):
                 model_vars.append(var.eval())
         return model_vars
 
-    def save_performances(self, output_dir, plot):
+    def save_performances(self, output_dir, plot, extra_preditors=None):
         """Save stats and make plots."""
         # read input
         datasets = ['train', 'test', 'validation']
@@ -464,7 +464,7 @@ class AdaNetWrapper(object):
         output_csv = os.path.join(output_dir, 'stats.csv')
         df.to_csv(output_csv)
 
-        # compare to simple Linear Regression
+        # compare to baseline Linear Regression
         linreg_start = time()
         linreg = LinearRegression().fit(x['train'], y['train'])
         linreg_stop = time()
@@ -492,3 +492,33 @@ class AdaNetWrapper(object):
             pickle.dump(df, fh)
         output_csv = os.path.join(output_dir, 'stats.csv')
         df.to_csv(output_csv)
+
+        # compare to other predictors
+        if not extra_preditors:
+            return
+
+        for name, preds in extra_preditors.items():
+            rows = dict()
+            for ds in datasets:
+                self.__log.info("Performances for %s on %s", name, ds)
+                y_pred = preds[ds]
+                rows[ds] = _stats_row(y[ds], y_pred, name, ds)
+                rows[ds]['time'] = preds['time']
+                rows[ds]['architecture_history'] = '| linear |'
+                rows[ds]['architecture'] = [y[ds].shape[1]]
+                rows[ds]['layer_size'] = 0
+                rows[ds]["nr_variables"] = y[ds].shape[1]
+                rows[ds]["nn_layers"] = 0
+                # log and save plot
+                _log_row(rows[ds])
+                plot.sign2_prediction_plot(
+                    y[ds], y_pred, "%s_%s" % (name, ds))
+
+            # save rows
+            for ds in datasets:
+                df.loc[len(df)] = pd.Series(rows[ds])
+            output_pkl = os.path.join(output_dir, 'stats.pkl')
+            with open(output_pkl, 'wb') as fh:
+                pickle.dump(df, fh)
+            output_csv = os.path.join(output_dir, 'stats.csv')
+            df.to_csv(output_csv)
