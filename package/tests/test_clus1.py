@@ -24,7 +24,7 @@ class TestClus1(unittest.TestCase):
         if os.path.isfile(os.path.join(self.data_dir, "test_clus1.h5")):
             os.remove(os.path.join(self.data_dir, "test_clus1.h5"))
 
-    @pytest.mark.skip(reason="Faiss is not available on test enviroment")
+    #@pytest.mark.skip(reason="Faiss is not available on test enviroment")
     def test_clus1(self):
         cc_root = os.path.join(self.data_dir, 'alpha')
         self.cc_root = cc_root
