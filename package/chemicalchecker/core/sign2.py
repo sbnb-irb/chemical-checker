@@ -17,6 +17,8 @@ predict() capabilities. This is done using the AdaNet framework for for
 automatically learning high-quality models with minimal expert intervention.
 """
 import os
+import numpy as np
+from time import time
 from sklearn.model_selection import ParameterGrid
 from pathlib2 import Path
 from .signature_base import BaseSignature
@@ -28,7 +30,6 @@ from chemicalchecker.util import Config
 from chemicalchecker.util import SNAPNetwork
 from chemicalchecker.util import LinkPrediction
 from chemicalchecker.tool import Node2Vec, AdaNet, Traintest
-
 
 
 @logged
@@ -167,7 +168,11 @@ class sign2(BaseSignature):
         ada.train_and_evaluate()
         # save AdaNet performances and plots
         sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
-        ada.save_performances(adanet_path, sign2_plot)
+        nearest_neighbor_pred = self.predict_nearest_neighbor(traintest_file,
+                                                              neig1, sign1)
+        extra_preditors = dict()
+        extra_preditors['NearestNeighbor'] = nearest_neighbor_pred
+        ada.save_performances(adanet_path, sign2_plot, extra_preditors)
         self.__log.debug('model saved to %s' % adanet_path)
 
         Path(os.path.join(self.model_path, self.readyfile)).touch()
@@ -179,6 +184,34 @@ class sign2(BaseSignature):
         self.__log.debug('loading model from %s' % adanet_path)
         return AdaNet.predict_signature(adanet_path, sign1)
 
+    def predict_nearest_neighbor(self, traintest_file, neig1, sign1):
+        """Prediction with nearest neighbor.
+
+        Find nearest neighbor in sign 1 and mapping it to known sign 2.
+        """
+        self.__log.info('Performing Nearest Neighbor prediction.')
+        nn_pred_start = time()
+        datasets = ['train', 'test', 'validation']
+        nn_pred = dict()
+        for ds in datasets:
+            # get signature X
+            traintest = Traintest(traintest_file, ds)
+            traintest.open()
+            x = traintest.get_all_x()
+            traintest.close()
+            # get nearest neighbor indices and keys
+            nn_idxs = neig1.get_second_nearest(x)
+            nn_keys = sign1.keys[nn_idxs]
+            # save nearest neighbor signatures as predictions
+            nn_pred[ds] = list()
+            for ink in nn_keys:
+                nn_pred[ds].append(self[ink])
+            nn_pred[ds] = np.stack(nn_pred[ds])
+        nn_pred_end = time()
+        nn_pred['time'] = nn_pred_end - nn_pred_start
+        nn_pred['name'] = "NearestNeighbor"
+        return nn_pred
+
     def grid_search_adanet(self, sign1, cc_root, job_path, parameters, dir_suffix="", traintest_file=None):
         """Perform a grid search.
 
@@ -188,7 +221,8 @@ class sign2(BaseSignature):
             'layer_size': [8, 128, 512, 1024]
         }
         """
-        gridsearch_path = os.path.join(self.model_path, 'grid_search_%s' % dir_suffix)
+        gridsearch_path = os.path.join(
+            self.model_path, 'grid_search_%s' % dir_suffix)
         if not os.path.isdir(gridsearch_path):
             os.makedirs(gridsearch_path)
         # prepare train-test file
