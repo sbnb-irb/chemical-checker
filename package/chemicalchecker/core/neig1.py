@@ -112,8 +112,8 @@ class neig1(BaseSignature):
 
         fout.close()
 
-        faiss.write_index(index, os.path.join(
-            self.model_path, "faiss_neig1.index"))
+        index_filename = os.path.join(self.model_path, 'faiss_neig1.index')
+        faiss.write_index(index_filename.encode('ascii', 'ignore'))
 
         with h5py.File(self.norms_file, "w") as hw:
             hw.create_dataset("norms", data=norms)
@@ -142,8 +142,8 @@ class neig1(BaseSignature):
         else:
             raise Exception("The file " + sign1.data_path + " does not exist")
 
-        index = faiss.read_index(os.path.join(
-            self.model_path, "faiss_neig1.index"))
+        index_filename = os.path.join(self.model_path, 'faiss_neig1.index')
+        index = faiss.read_index(index_filename.encode('ascii', 'ignore'))
 
         k = min(self.data.shape[0], self.k_neig)
 
@@ -191,8 +191,8 @@ class neig1(BaseSignature):
         """
         # open faiss model
         faiss.omp_set_num_threads(self.cpu)
-        index = faiss.read_index(os.path.join(
-            self.model_path, "faiss_neig1.index"))
+        index_filename = os.path.join(self.model_path, 'faiss_neig1.index')
+        index = faiss.read_index(index_filename.encode('ascii', 'ignore'))
         # convert signatures to float32 as faiss is very picky
         data = np.array(signatures, dtype=np.float32)
         dists, idx = index.search(data, 2)
