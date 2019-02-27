@@ -4,9 +4,12 @@ before_script:
   - conda update -y setuptools
   - conda create --name=py27 python=2.7.10 -y
   - source activate py27
-  - pip install tox
 
-test:
+cache:
+  paths:
+    - pip-cache
+
+tests:
+  stage: test
   script:
-    - cd package
-    - tox
+    - python -m unittest discover -v
