@@ -2,6 +2,8 @@ image: cc_image:latest
 
 before_script:
   - conda update -y setuptools
+  - conda create --name=py27 python=2.7.10 -y
+  - source activate py27
   - pip install tox
 
 test:
