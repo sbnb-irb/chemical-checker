@@ -180,8 +180,23 @@ class neig1(BaseSignature):
             "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
         fout.create_dataset(
             "metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
-
         fout.close()
+
+    def get_second_nearest(self, signatures):
+        """Return the second nearest neigbor.
+
+        This is useful when we expect and want to exclude a perfect match,
+        i.e. when the signature we query for are the same that have been used
+        to generate the neighbors.
+        """
+        # open faiss model
+        faiss.omp_set_num_threads(self.cpu)
+        index = faiss.read_index(os.path.join(
+            self.model_path, "faiss_neig1.index"))
+        # convert signatures to float32 as faiss is very picky
+        data = np.array(signatures, dtype=np.float32)
+        dists, idx = index.search(data, 2)
+        return idx[:, 1]
 
     def __iter__(self):
         """Iterate on neighbours indeces and distances."""
