@@ -14,6 +14,7 @@ test:
 pages:
   script:
   - pip install sphinx
+  - pip install sphinx_rtd_theme
   - cd package/docs
   - sphinx-apidoc -o source ../chemicalchecker -f -e
   - make html
