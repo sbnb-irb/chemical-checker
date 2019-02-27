@@ -3,6 +3,7 @@ import unittest
 import shutil
 import itertools
 import mock
+import pytest
 
 from chemicalchecker import ChemicalChecker
 
@@ -26,6 +27,7 @@ class TestChemicalChecker(unittest.TestCase):
         if os.path.exists(self.cc_root):
             shutil.rmtree(self.cc_root)
 
+    @pytest.mark.skip(reason="Faiss is not available on test enviroment")
     def test_init(self):
         cc_root = os.path.join(self.data_dir, 'alpha')
         self.cc_root = cc_root
