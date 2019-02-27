@@ -18,8 +18,8 @@ pages:
   - cd package/docs
   - sphinx-apidoc -o source ../chemicalchecker -f -e
   - make html
-  - mv _build/html/ public/
-  - ls -l public
+  - mv _build/html/ ../../public/
+  - ls -l ../../public
   artifacts:
     paths:
     - public
