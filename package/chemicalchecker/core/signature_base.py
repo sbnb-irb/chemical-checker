@@ -236,12 +236,12 @@ class BaseSignature(object):
         return np.stack(inks), np.stack(signs)
 
     def __iter__(self):
-        """Batch iteration, if necessary."""
-        BaseSignature.__log.debug('__iter__')
+        """Iterate on signatures."""
         if not os.path.isfile(self.data_path):
             raise Exception("Data file %s not available." % self.data_path)
-        BaseSignature.__log.debug('parsing data %s', self.data_path)
-        yield
+        with h5py.File(self.data_path, 'r') as hf:
+            for i in range(self.shape[0]):
+                yield hf['V'][i]
 
     def __getitem__(self, key):
         """Return the vector corresponding to the key.
