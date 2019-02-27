@@ -10,7 +10,6 @@ import os
 import itertools
 from glob import glob
 
-import chemicalchecker
 from .data import DataFactory
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
@@ -134,6 +133,7 @@ class ChemicalChecker():
                 for which duplicates will be removed.
         """
         # create job directory if not available
+        import chemicalchecker
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         # create script file
@@ -192,6 +192,7 @@ class ChemicalChecker():
             molset(str): The Chemical Checker molset (eg. 'reference', 'full').
         """
         # create job directory if not available
+        import chemicalchecker
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         # create script file
@@ -247,6 +248,7 @@ class ChemicalChecker():
             cpu(int): Number of cores to reserve.
         """
         # create job directory if not available
+        import chemicalchecker
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         # create script file
@@ -303,6 +305,7 @@ class ChemicalChecker():
             cc_root(str): The Chemical Checker root directory.
         """
         # create job directory if not available
+        import chemicalchecker
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         # create script file
@@ -363,6 +366,7 @@ class ChemicalChecker():
             pairs(list): pairs of datasets.
         """
         # create job directory if not available
+        import chemicalchecker
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         # create script file
