@@ -28,7 +28,7 @@ class Traintest(object):
     the generator functions which tensorflow likes.
     """
 
-    def __init__(self, hdf5_file, partition, batch_size):
+    def __init__(self, hdf5_file, partition):
         """Initialize the traintest object.
 
         We assume the file is containing train and test split i.e.
@@ -38,7 +38,6 @@ class Traintest(object):
         self._f = None
         self.x_name = "x_%s" % partition
         self.y_name = "y_%s" % partition
-        self.batch_size = batch_size
 
     def open(self):
         """Open the HDF5."""
@@ -140,7 +139,7 @@ class Traintest(object):
     @staticmethod
     def generator_fn(file_name, partition, batch_size=None, only_x=False):
         """Return the generator function that we can query for batches."""
-        reader = Traintest(file_name, partition, batch_size)
+        reader = Traintest(file_name, partition)
         reader.open()
         x_shape = reader._f[reader.x_name].shape
         y_shape = reader._f[reader.y_name].shape
