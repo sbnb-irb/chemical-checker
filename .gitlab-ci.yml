@@ -10,5 +10,17 @@ before_script:
 test:
   script:
     - cd package
-    - tox
 
+pages:
+  script:
+  - apk --no-cache add py2-pip python-dev
+  - pip install sphinx
+  - apk --no-cache add make
+  - sphinx-apidoc -o source ../chemicalchecker -f -e
+  - make html
+  - mv _build/html/ public/
+  artifacts:
+    paths:
+    - public
+  only:
+  - master
