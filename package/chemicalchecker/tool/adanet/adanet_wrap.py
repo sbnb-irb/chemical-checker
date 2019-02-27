@@ -63,6 +63,11 @@ class Traintest(object):
         features = self._f[self.x_name][beg_idx: end_idx]
         return features
 
+    def get_all_x(self):
+        """Get the batch."""
+        features = self._f[self.x_name][:]
+        return features
+
     @staticmethod
     def create_signature_file(sign_from, sign_to, out_filename):
         """Create the HDF5 file with both X and Y, train and test."""
