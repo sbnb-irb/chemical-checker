@@ -14,7 +14,7 @@ test:
 pages:
   script:
   - pip install sphinx
-  - sphinx-apidoc -o source ../chemicalchecker -f -e
+  - sphinx-apidoc -o source package/chemicalchecker -f -e
   - make html
   - mv _build/html/ public/
   artifacts:
