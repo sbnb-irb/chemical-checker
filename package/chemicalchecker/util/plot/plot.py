@@ -29,9 +29,29 @@ from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.metrics.pairwise import cosine_distances
 from scipy import stats
 import pandas as pd
+import functools
 
 random.seed(42)
 np.random.seed(42)
+
+
+def continue_on_exception(function):
+    """
+    A decorator that wraps the passed in function and logs
+    exceptions should one occur
+    """
+    @logged
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except Exception:
+            # log the exception
+            err = "There was an exception in  "
+            err += function.__name__
+            wrapper._log.error(err)
+            return None
+    return wrapper
 
 
 @logged
@@ -589,6 +609,7 @@ class Plot():
         plt.savefig(filename, dpi=100)
         plt.close()
 
+    @continue_on_exception
     def sign2_prediction_plot(self, y_true, y_pred, predictor_name):
 
         coord = self.dataset_code
