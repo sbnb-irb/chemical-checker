@@ -113,7 +113,7 @@ class neig1(BaseSignature):
         fout.close()
 
         index_filename = os.path.join(self.model_path, 'faiss_neig1.index')
-        faiss.write_index(index_filename.encode('ascii', 'ignore'))
+        faiss.write_index(index, index_filename.encode('ascii', 'ignore'))
 
         with h5py.File(self.norms_file, "w") as hw:
             hw.create_dataset("norms", data=norms)
