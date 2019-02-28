@@ -31,8 +31,8 @@ class Traintest(object):
     def __init__(self, hdf5_file, partition):
         """Initialize the traintest object.
 
-        We assume the file is containing train and test split i.e.
-        x_train, y_train, x_test, y_test
+        We assume the file is containing diffrent partitions.
+        e.g. "x_train", "y_train", "x_test", ...
         """
         self._file = hdf5_file
         self._f = None
@@ -59,14 +59,19 @@ class Traintest(object):
         return features, labels
 
     def get_x(self, beg_idx, end_idx):
-        """Get the batch."""
+        """Get the Xs in a range."""
         features = self._f[self.x_name][beg_idx: end_idx]
         return features
 
     def get_all_x(self):
-        """Get the batch."""
+        """Get all the Xs."""
         features = self._f[self.x_name][:]
         return features
+
+    def get_all_y(self):
+        """Get all the Ys."""
+        labels = self._f[self.y_name][:]
+        return labels
 
     @staticmethod
     def create_signature_file(sign_from, sign_to, out_filename):
