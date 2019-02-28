@@ -17,6 +17,7 @@ predict() capabilities. This is done using the AdaNet framework for for
 automatically learning high-quality models with minimal expert intervention.
 """
 import os
+import shutil
 import numpy as np
 from time import time
 from sklearn.model_selection import ParameterGrid
@@ -168,8 +169,7 @@ class sign2(BaseSignature):
         ada.train_and_evaluate()
         # save AdaNet performances and plots
         sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
-        nearest_neighbor_pred = self.predict_nearest_neighbor(traintest_file,
-                                                              neig1, sign1)
+        nearest_neighbor_pred = self.predict_nearest_neighbor(traintest_file)
         extra_preditors = dict()
         extra_preditors['NearestNeighbor'] = nearest_neighbor_pred
         ada.save_performances(adanet_path, sign2_plot, extra_preditors)
@@ -184,28 +184,51 @@ class sign2(BaseSignature):
         self.__log.debug('loading model from %s' % adanet_path)
         return AdaNet.predict_signature(adanet_path, sign1)
 
-    def predict_nearest_neighbor(self, traintest_file, neig1, sign1):
+    def predict_nearest_neighbor(self, traintest_file):
         """Prediction with nearest neighbor.
 
         Find nearest neighbor in sign 1 and mapping it to known sign 2.
         """
+        from .data import DataFactory
+        from .neig1 import neig1
         self.__log.info('Performing Nearest Neighbor prediction.')
-        nn_pred_start = time()
+        # create directory to save neig and sign (delete if exists)
+        nn_path = os.path.join(self.model_path, "nearest_neighbor")
+        if os.path.isdir(nn_path):
+            shutil.rmtree(nn_path)
+        # evaluate all data splits
         datasets = ['train', 'test', 'validation']
         nn_pred = dict()
+        nn_pred_start = time()
         for ds in datasets:
-            # get signature X
+            # get dataset split
             traintest = Traintest(traintest_file, ds)
             traintest.open()
-            x = traintest.get_all_x()
+            sign1_data = traintest.get_all_x()
+            sign2_data = traintest.get_all_y()
             traintest.close()
+            # fit on train set
+            if ds == "train":
+                # signaturize dataset
+                sign1_dest = os.path.join(nn_path, "sign1")
+                os.makedirs(sign1_dest)
+                nn_sign1 = DataFactory.signaturize(
+                    "sign1", sign1_dest, sign1_data, dataset=self.dataset)
+                sign2_dest = os.path.join(nn_path, "sign2")
+                os.makedirs(sign2_dest)
+                nn_sign2 = DataFactory.signaturize(
+                    "sign2", sign2_dest, sign2_data, dataset=self.dataset)
+                # create temporary neig1 and call fit
+                neig1_dest = os.path.join(nn_path, "neig1")
+                os.makedirs(neig1_dest)
+                nn_neig1 = neig1(neig1_dest, neig1_dest, self.dataset)
+                nn_neig1.fit(nn_sign1)
             # get nearest neighbor indices and keys
-            nn_idxs = neig1.get_second_nearest(x)
-            nn_keys = sign1.keys[nn_idxs]
+            nn_idxs = nn_neig1.get_kth_nearest(sign1_data, 1)
             # save nearest neighbor signatures as predictions
             nn_pred[ds] = list()
-            for ink in nn_keys:
-                nn_pred[ds].append(self[ink])
+            for idx in nn_idxs:
+                nn_pred[ds].append(nn_sign2[idx])
             nn_pred[ds] = np.stack(nn_pred[ds])
         nn_pred_end = time()
         nn_pred['time'] = nn_pred_end - nn_pred_start
