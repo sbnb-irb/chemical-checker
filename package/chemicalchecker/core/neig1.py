@@ -182,10 +182,11 @@ class neig1(BaseSignature):
             "metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
         fout.close()
 
-    def get_second_nearest(self, signatures):
-        """Return the second nearest neigbor.
+    def get_kth_nearest(self, signatures, k=1):
+        """Return the k-th nearest neighbor.
 
-        This is useful when we expect and want to exclude a perfect match,
+        This function returns the k-th closest neighbor.
+        A k>1 is useful when we expect and want to exclude a perfect match,
         i.e. when the signature we query for are the same that have been used
         to generate the neighbors.
         """
@@ -195,8 +196,8 @@ class neig1(BaseSignature):
         index = faiss.read_index(index_filename.encode('ascii', 'ignore'))
         # convert signatures to float32 as faiss is very picky
         data = np.array(signatures, dtype=np.float32)
-        dists, idx = index.search(data, 2)
-        return idx[:, 1]
+        dists, idx = index.search(data, k)
+        return idx[:, k - 1]
 
     def __iter__(self):
         """Iterate on neighbours indeces and distances."""
