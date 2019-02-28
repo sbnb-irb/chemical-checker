@@ -129,7 +129,7 @@ class MultiPlot():
                     ax.set_ylim(0, 1)
             if metric == 'mse':
                 for ax in g.axes.flatten():
-                    ax.set_ylim(0, 0.2)
+                    ax.set_ylim(0, 0.02)
             if metric == 'explained_variance':
                 for ax in g.axes.flatten():
                     ax.set_ylim(0, 1)
