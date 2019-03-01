@@ -1,6 +1,7 @@
 image: cc_image:latest
 
 before_script:
+  - singularity --version
   - conda update -y setuptools
   - pip install tox
   - pip install tox-conda
