@@ -21,7 +21,7 @@ Install Singularity:
     - ./configure
     - make
     - ls -l
-    - ./bin/singularity --version
+    - sudo ./bin/singularity --version
     - cd ..
 
 Build Singularity Image:
@@ -30,7 +30,7 @@ Build Singularity Image:
     - echo "Test if we want to re-build the singularity image"
     - >
       if git diff HEAD~ --name-only|grep container; then
-        ./singularity-$SINGVER/bin/singularity build cc.simg ./container/singularity/cc.def
+        sudo ./singularity-$SINGVER/bin/singularity build cc.simg ./container/singularity/cc.def
       fi;
 
 Shared Enviroment:
