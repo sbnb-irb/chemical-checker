@@ -1,11 +1,16 @@
 image: cc_image:latest
 
+stages:
+  - test
+  - pages
+
 before_script:
   - conda update -y setuptools
   - pip install --upgrade pip
 
 
-Test Python2:
+Test Python 2.7.10:
+  stage: test
   before_script:
     - conda create --name=py27 python=2.7.10 -y
     - source activate py27
@@ -61,7 +66,8 @@ Test Python2:
     - cd package
     - pytest
 
-pages:
+Pages:
+  stage: pages
   script:
   - pip install sphinx
   - pip install sphinx_rtd_theme
