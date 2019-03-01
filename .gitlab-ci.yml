@@ -2,15 +2,64 @@ image: cc_image:latest
 
 before_script:
   - conda update -y setuptools
-  - pip install tox
-  - pip install tox-conda
   - pip install --upgrade pip
 
 
-test:
+Test Python2:
+  before_script:
+    - conda create --name=py27 python=2.7.10 -y
+    - source activate py27
   script:
+    - conda install -y -c rdkit rdkit        
+    - conda install -y -c openbabel openbabel
+    - conda install -y mkl-service           
+    - conda install -y anaconda-client       
+    - conda install -y faiss-cpu -c pytorch  
+    - conda install -y -c conda-forge hdbscan
+    - pip install ipython
+    - pip install six
+    - pip install pytest
+    - pip install autologging
+    - pip install paramiko
+    - pip install termcolor
+    - pip install standardiser
+    - pip install psycopg2-binary
+    - pip install xlrd
+    - pip install cmapPy
+    - pip install e3fp
+    - pip install csvsort
+    - pip install intbitset
+    - pip install cython
+    - pip install sqlalchemy
+    - pip install sphinx
+    - pip install sphinx_rtd_theme
+    - pip install patool
+    - pip install wget
+    - pip install timeout_decorator
+    - pip install tqdm
+    - pip install numpy
+    - pip install pandas
+    - pip install scipy
+    - pip install theano
+    - pip install h5py
+    - pip install fancyimpute
+    - pip install networkx
+    - wget  https://snap.stanford.edu/snappy/release/snap-4.1.0-4.1-centos6.5-x64-py2.6.tar.gz
+    - tar zxvf snap-4.1.0-4.1-centos6.5-x64-py2.6.tar.gz
+    - cd snap-4.1.0-4.1-centos6.5-x64-py2.6
+    - python setup.py install
+    - cd ..
+    - rm snap-4.1.0-4.1-centos6.5-x64-py2.6 -rf
+    - pip install matplotlib
+    - pip install seaborn
+    - pip install scikit-learn
+    - pip install gensim
+    - pip install tensorflow
+    - pip install adanet
+    - pip install keras
+    - pip install MulticoreTSNE
     - cd package
-    - tox
+    - pytest
 
 pages:
   script:
