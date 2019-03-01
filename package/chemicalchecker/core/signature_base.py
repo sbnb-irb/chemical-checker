@@ -8,14 +8,14 @@ Also implements the signature status, and persistence of parameters.
 """
 import os
 import six
-import json
+import sys
 import h5py
 import numpy as np
 from datetime import datetime
 from bisect import bisect_left
 from abc import ABCMeta, abstractmethod
 
-from chemicalchecker.util import RNDuplicates
+from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 from chemicalchecker.util import logged
 
 
@@ -46,6 +46,11 @@ class BaseSignature(object):
         self.dataset = dataset
         self.signature_path = signature_path
         self.validation_path = validation_path
+        if sys.version_info[0] == 2:
+            if isinstance(signature_path, unicode):
+                self.signature_path = signature_path.encode('ascii', 'ignore')
+            if isinstance(validation_path, unicode):
+                self.validation_path = validation_path.encode('ascii', 'ignore')
         self.readyfile = "fit.ready"
 
         if not os.path.isdir(signature_path):
