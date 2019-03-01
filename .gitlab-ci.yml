@@ -9,14 +9,10 @@ stages:
 Build Singularity Image:
   stage: image
   script:
-    - echo "Test if we want to re-build the singularity image"
-    - >
-      if git diff HEAD~ --name-only|grep container; then
-        sudo singularity build cc.simg ./container/singularity/cc.def
-      fi;
+    - sudo singularity build cc.simg ./container/singularity/cc.def
   artifacts:
-      paths:
-      - cc.simg
+    paths:
+    - cc.simg
 
 Test Python 2.7.10:
   stage: test
