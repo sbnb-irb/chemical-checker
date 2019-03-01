@@ -24,13 +24,14 @@ from sklearn.model_selection import ParameterGrid
 from pathlib2 import Path
 from .signature_base import BaseSignature
 import chemicalchecker
-from chemicalchecker.util import HPC
-from chemicalchecker.util import Plot
+from chemicalchecker.util.hpc import HPC
+from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
-from chemicalchecker.util import SNAPNetwork
-from chemicalchecker.util import LinkPrediction
-from chemicalchecker.tool import Node2Vec, AdaNet, Traintest
+from chemicalchecker.util.network import SNAPNetwork
+from chemicalchecker.util.performance import LinkPrediction
+from chemicalchecker.tool.adanet import AdaNet, Traintest
+from chemicalchecker.tool.node2vec import Node2Vec
 
 
 @logged

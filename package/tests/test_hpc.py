@@ -2,7 +2,7 @@ import os
 import shutil
 import unittest
 
-from chemicalchecker.util import HPC
+from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util import Config
 
 

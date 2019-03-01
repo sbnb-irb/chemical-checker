@@ -18,9 +18,10 @@ from scipy.spatial.distance import euclidean, cosine
 from sklearn.decomposition import PCA
 from sklearn.externals import joblib
 
-from chemicalchecker.util import logged, Plot
 from .signature_base import BaseSignature
+from chemicalchecker.util import logged
 from chemicalchecker.util import Config
+from chemicalchecker.util.plot import Plot
 
 
 @logged

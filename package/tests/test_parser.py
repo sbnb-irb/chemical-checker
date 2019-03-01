@@ -3,7 +3,7 @@ import unittest
 import pytest
 import shutil
 
-from chemicalchecker.util import Parser
+from chemicalchecker.util.parser import Parser
 
 
 class TestParser(unittest.TestCase):

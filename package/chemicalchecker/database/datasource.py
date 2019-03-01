@@ -9,11 +9,10 @@ from .database import Base, get_session, get_engine
 from sqlalchemy import Column, Text, Boolean
 from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
 
-import chemicalchecker
 from chemicalchecker.util import logged
-from chemicalchecker.util import Downloader
 from chemicalchecker.util import Config
-from chemicalchecker.util import HPC
+from chemicalchecker.util.download import Downloader
+from chemicalchecker.util.hpc import HPC
 
 
 @logged
@@ -261,6 +260,7 @@ class Datasource(Base):
         job_path(str): Path (usually in scratch) where the script files are
             generated.
         """
+        import chemicalchecker
         # create job directory if not available
         if not os.path.isdir(job_path):
             os.mkdir(job_path)

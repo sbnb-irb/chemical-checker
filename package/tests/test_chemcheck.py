@@ -5,7 +5,7 @@ import itertools
 import mock
 import pytest
 
-from chemicalchecker import ChemicalChecker
+from chemicalchecker.core import ChemicalChecker
 
 
 def datasets():
