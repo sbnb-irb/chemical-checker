@@ -11,7 +11,7 @@ Install Singularity:
   stage: singularity
   script:
     - SINGVER=2.5.1
-    - yum install wget
+    - yum install wget -y
     - wget https://github.com/sylabs/singularity/releases/download/$SINGVER/singularity-$SINGVER.tar.gz
     - tar xvf singularity-$SINGVER.tar.gz
     - cd singularity-$SINGVER
