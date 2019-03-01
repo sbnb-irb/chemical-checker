@@ -15,7 +15,7 @@ Install Singularity:
     - wget https://github.com/sylabs/singularity/releases/download/$SINGVER/singularity-$SINGVER.tar.gz
     - tar xvf singularity-$SINGVER.tar.gz
     - cd singularity-$SINGVER
-    - ./configure --prefix=/usr/local --sysconfdir=/etc
+    - ./configure --prefix=./ --sysconfdir=./
     - make
     - ls -l
     - ./bin/singularity --version
