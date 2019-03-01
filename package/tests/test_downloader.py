@@ -2,7 +2,7 @@ import os
 import shutil
 import unittest
 
-from chemicalchecker.util import Downloader
+from chemicalchecker.util.download import Downloader
 
 
 class TestDownloader(unittest.TestCase):

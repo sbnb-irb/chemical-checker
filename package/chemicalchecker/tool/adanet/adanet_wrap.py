@@ -1,19 +1,22 @@
 import os
 import h5py
 import shutil
-import adanet
 import pickle
 import numpy as np
 import pandas as pd
 from time import time
-import tensorflow as tf
 from scipy.stats import pearsonr
 from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.metrics import explained_variance_score
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
-import tensorflow.contrib.slim as slim
-from tensorflow.contrib import predictor
+try:
+    import adanet
+    import tensorflow as tf
+    import tensorflow.contrib.slim as slim
+    from tensorflow.contrib import predictor
+except ImportError:
+    print("ADANET module not imported!")
 
 from .dnn_stack_generator import StackDNNGenerator
 from .dnn_extend_generator import ExtendDNNGenerator

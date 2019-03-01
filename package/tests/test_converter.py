@@ -2,7 +2,7 @@ import os
 import unittest
 import pytest
 
-from chemicalchecker.util import Converter
+from chemicalchecker.util.parser import Converter
 
 
 class TestConverter(unittest.TestCase):

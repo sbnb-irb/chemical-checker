@@ -6,7 +6,7 @@ import h5py
 import numpy as np
 import pytest
 
-from chemicalchecker import ChemicalChecker
+from chemicalchecker.core import ChemicalChecker
 
 
 class TestClus1(unittest.TestCase):
