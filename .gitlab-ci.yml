@@ -1,9 +1,32 @@
 image: cc_image:latest
 
 stages:
-  - shared
-  - test
-  - pages
+  - singularity
+##  - image
+##  - shared
+##  - test
+##  - pages
+
+Install Singularity:
+  stage: singularity
+  script:
+    - VER=2.5.1
+    - wget https://github.com/sylabs/singularity/releases/download/$VER/singularity-$VER.tar.gz
+    - tar xvf singularity-$VER.tar.gz
+    - cd singularity-$VER
+    - ./configure --prefix=/usr/local --sysconfdir=/etc
+    - make
+    - ls -l
+
+Build Singularity Image:
+  stage: image
+  script:
+    - echo "Test if we want to re-build the singularity image"
+    - >
+      if git diff HEAD~ --name-only|grep container; then
+        docker build -t folder1 ./folder1/tests
+        docker run folder1 /tests/launch
+      fi;
 
 Shared Enviroment:
   stage: shared
