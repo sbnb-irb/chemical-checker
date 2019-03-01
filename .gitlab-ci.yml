@@ -37,19 +37,6 @@ Build Singularity Image:
         sudo ./singularity-$SINGVER/bin/singularity build cc.simg ./container/singularity/cc.def
       fi;
 
-Shared Enviroment:
-  stage: shared
-  script:
-    - yum update -y
-    - yum install -y gcc g++ gcc-c++ gfortran gcc-gfortran cmake make git wget curl which vim bzip2 bzip2-devel file libXrender libXext postgresql-server postgresql-contrib
-    - conda update -y setuptools
-    - pip install --upgrade pip
-    - conda install -y -c rdkit rdkit        
-    - conda install -y -c openbabel openbabel
-    - conda install -y mkl-service           
-    - conda install -y anaconda-client       
-    - conda install -y faiss-cpu -c pytorch  
-    - conda install -y -c conda-forge hdbscan
 
 Test Python 2.7.10:
   stage: test
