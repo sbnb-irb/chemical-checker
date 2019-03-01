@@ -4,8 +4,8 @@ import os
 import chemicalchecker
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
-from chemicalchecker.util import HPC
-from chemicalchecker.util import PropCalculator
+from chemicalchecker.util.hpc import HPC
+from chemicalchecker.util.parser import PropCalculator
 from .database import Base, get_session, get_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Text

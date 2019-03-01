@@ -6,7 +6,8 @@ import os
 import glob
 import bisect
 from pathlib2 import Path
-from chemicalchecker.util import logged, Plot, Config
+from chemicalchecker.util import logged, Config
+from chemicalchecker.util.plot import Plot
 from .signature_base import BaseSignature
 from scipy.spatial.distance import euclidean
 from scipy.spatial.distance import pdist

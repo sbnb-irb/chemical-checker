@@ -2,7 +2,7 @@ import os
 import unittest
 import pytest
 
-from chemicalchecker.util import Parser, PropCalculator
+from chemicalchecker.util.parser import Parser, PropCalculator
 
 
 class TestPropCalculator(unittest.TestCase):

@@ -10,14 +10,13 @@ import h5py
 import random
 from pathlib2 import Path
 from sklearn.manifold import MDS
-import matplotlib as mpl
-mpl.use('Agg')
 import json
 import datetime
 from time import time
 from numpy import linalg as LA
 
-from chemicalchecker.util import logged, Plot
+from chemicalchecker.util import logged
+from chemicalchecker.util.plot import Plot
 from .signature_base import BaseSignature
 
 

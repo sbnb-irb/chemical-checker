@@ -3,7 +3,7 @@ import unittest
 import pytest
 
 
-from chemicalchecker.util import RNDuplicates
+from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 
 
 class TestChemicalChecker(unittest.TestCase):

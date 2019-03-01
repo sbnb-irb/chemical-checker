@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from scipy.spatial.distance import cosine
 
-from chemicalchecker import ChemicalChecker
+from chemicalchecker.core import ChemicalChecker
 
 
 class TestNeigh1(unittest.TestCase):

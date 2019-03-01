@@ -13,11 +13,11 @@ from sqlalchemy.dialects import postgresql
 
 
 import chemicalchecker
-from chemicalchecker.util import Parser
+from chemicalchecker.util.parser import Parser
 from chemicalchecker.util import logged
 from chemicalchecker.database import Datasource
 from chemicalchecker.util import Config
-from chemicalchecker.util import HPC
+from chemicalchecker.util.hpc import HPC
 
 
 @logged

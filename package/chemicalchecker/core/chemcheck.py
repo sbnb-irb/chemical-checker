@@ -14,7 +14,7 @@ from .data import DataFactory
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
-from chemicalchecker.util import HPC
+from chemicalchecker.util.hpc import HPC
 
 
 @logged

@@ -6,13 +6,13 @@ import os
 try:
     import snap
 except ImportError:
-    pass
+    print("SNAP module not imported!")
 import json
 import numpy as np
 import networkx as nx
 
 from chemicalchecker.util import logged
-from chemicalchecker.tool import Hotnet
+from chemicalchecker.tool.hotnet import Hotnet
 
 
 @logged
