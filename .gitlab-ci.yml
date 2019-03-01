@@ -14,7 +14,9 @@ Build Singularity Image:
       if git diff HEAD~ --name-only|grep container; then
         sudo singularity build cc.simg ./container/singularity/cc.def
       fi;
-
+  artifacts:
+      paths:
+      - cc.simg
 
 Test Python 2.7.10:
   stage: test
