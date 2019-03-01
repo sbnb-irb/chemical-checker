@@ -216,12 +216,14 @@ class BaseSignature(object):
         """Get the keys of the signature as a set."""
         return set(self.keys)
 
-    def get_vectors(self, keys):
-        """Get vectors for a list of keys.
+    def get_vectors(self, keys, include_nan=False):
+        """Get vectors for a list of keys, sorted by defaults.
 
         Args:
             keys(list): a List of string, only the overlapping subset to the
                 signature keys is considered.
+            include_nan(bool): whether to include requested but absent
+                molecule signatures as NaNs.
         """
         str_keys = set(k for k in keys if isinstance(k, str))
         valid_keys = list(self.unique_keys & str_keys)
@@ -234,11 +236,22 @@ class BaseSignature(object):
                 inks.append(self.keys[idx])
                 signs.append(dset[idx])
         missed_inks = set(keys) - set(inks)
-        if missed_inks:
-            self.__log.warn("Following requested keys are not available:")
-            for k in missed_inks:
-                self.__log.warn("%s", k)
-        return np.stack(inks), np.stack(signs)
+        # if missing signatures are requested add NaNs
+        if include_nan:
+            inks.extend(list(missed_inks))
+            dimensions = (len(missed_inks), self.shape[1])
+            nan_matrix = np.zeros(dimensions) * np.nan
+            signs.append(nan_matrix)
+        elif missed_inks:
+            self.__log.warn("Following %s requested keys are not available:",
+                            len(missed_inks))
+            self.__log.warn(" ".join(list(missed_inks)[:10]) + "...")
+        if len(inks) == 0:
+            self.__log.warn("No requested keys available!")
+            return None, None
+        inks, signs = np.stack(inks), np.vstack(signs)
+        sort_idx = np.argsort(inks)
+        return inks[sort_idx], signs[sort_idx]
 
     def __iter__(self):
         """Iterate on signatures."""
