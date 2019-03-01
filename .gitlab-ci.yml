@@ -1,19 +1,22 @@
 image: cc_image:latest
 
 stages:
+  - shared
   - singularity
   - image
-  - shared
   - test
   - pages
+
+Shared Enviroment:
+  stage: shared
+  script:
+##    - yum update -y
+    - yum install -y gcc g++ gcc-c++ gfortran gcc-gfortran cmake make git wget curl which vim bzip2 bzip2-devel file libXrender libXext postgresql-server postgresql-contrib libarchive-devel
+    - yum groupinstall 'Development Tools' -y
 
 Install Singularity:
   stage: singularity
   script:
-    - yum update -y
-    - yum groupinstall 'Development Tools' -y
-    - yum install libarchive-devel -y 
-    - yum install wget -y
     - SINGVER=2.5.1
     - wget https://github.com/sylabs/singularity/releases/download/$SINGVER/singularity-$SINGVER.tar.gz
     - tar xvf singularity-$SINGVER.tar.gz
@@ -21,7 +24,8 @@ Install Singularity:
     - ./configure
     - make
     - ls -l
-    - sudo ./bin/singularity --version
+    - chmod +x ./bin/singularity
+    - ./bin/singularity --version
     - cd ..
 
 Build Singularity Image:
