@@ -5,35 +5,23 @@ stages:
   - test
   - pages
 
-
-Build Singularity Image:
+build_singularity_image:
   stage: image
   script:
-    - sudo singularity build cc.simg ./container/singularity/cc.def
+    - yum install squashfs-tools
+    - singularity build cc.simg ./container/singularity/cc.def
   artifacts:
     paths:
     - cc.simg
 
-Test Python 2.7.10:
+python_2.7.10:
   stage: test
-  before_script:
-    - conda create --name=py27 python=2.7.10 -y
-    - source activate py27
   script:
-    - cd package
-    - pytest
+    - singularity exec cc.simg pytest
+  dependencies:
+    - build_singularity_image
 
-Test Python 3.6.8:
-  stage: test
-  before_script:
-    - conda create --name=py36 python=3.6.8 -y
-    - source activate py36
-  script:
-    - cd package
-    - pip install -r requirements_dev.txt
-    - pytest
-
-Pages:
+pages:
   stage: pages
   script:
   - pip install sphinx
