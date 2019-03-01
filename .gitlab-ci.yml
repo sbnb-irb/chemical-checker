@@ -1,26 +1,29 @@
 image: cc_image:latest
 
 stages:
+  - shared
   - test
   - pages
 
-before_script:
-  - yum update -y
-  - yum install -y gcc g++ gcc-c++ gfortran gcc-gfortran cmake make git wget curl which vim bzip2 bzip2-devel file libXrender libXext postgresql-server postgresql-contrib
-  - conda update -y setuptools
-  - pip install --upgrade pip
-  - conda install -y -c rdkit rdkit        
-  - conda install -y -c openbabel openbabel
-  - conda install -y mkl-service           
-  - conda install -y anaconda-client       
-  - conda install -y faiss-cpu -c pytorch  
-  - conda install -y -c conda-forge hdbscan
-  - wget  https://snap.stanford.edu/snappy/release/snap-4.1.0-4.1-centos6.5-x64-py2.6.tar.gz
-  - tar zxvf snap-4.1.0-4.1-centos6.5-x64-py2.6.tar.gz
-  - cd snap-4.1.0-4.1-centos6.5-x64-py2.6
-  - python setup.py install
-  - cd ..
-  - rm snap-4.1.0-4.1-centos6.5-x64-py2.6 -rf
+Shared Enviroment:
+  stage: shared
+  script:
+    - yum update -y
+    - yum install -y gcc g++ gcc-c++ gfortran gcc-gfortran cmake make git wget curl which vim bzip2 bzip2-devel file libXrender libXext postgresql-server postgresql-contrib
+    - conda update -y setuptools
+    - pip install --upgrade pip
+    - conda install -y -c rdkit rdkit        
+    - conda install -y -c openbabel openbabel
+    - conda install -y mkl-service           
+    - conda install -y anaconda-client       
+    - conda install -y faiss-cpu -c pytorch  
+    - conda install -y -c conda-forge hdbscan
+    - wget  https://snap.stanford.edu/snappy/release/snap-4.1.0-4.1-centos6.5-x64-py2.6.tar.gz
+    - tar zxvf snap-4.1.0-4.1-centos6.5-x64-py2.6.tar.gz
+    - cd snap-4.1.0-4.1-centos6.5-x64-py2.6
+    - python setup.py install
+    - cd ..
+    - rm snap-4.1.0-4.1-centos6.5-x64-py2.6 -rf
 
 
 Test Python 2.7.10:
