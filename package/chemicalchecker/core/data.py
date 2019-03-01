@@ -7,25 +7,27 @@ imported and initialized.
 import os
 import h5py
 
-from .sign0 import sign0
-from .sign1 import sign1
-from .clus1 import clus1
-from .neig1 import neig1
-from .sign2 import sign2
-from .sign3 import sign3
-from .proj1 import proj1
-
 from chemicalchecker.util import logged
 
 
 @logged
 class DataFactory():
 
-    def make_data(self, cctype, signature_path, validation_path, dataset, **params):
-        if cctype in globals():
-            self.__log.debug("initializing object %s", cctype)
-            return eval(cctype)(signature_path, validation_path, dataset, **params)
-        else:
+    @staticmethod
+    def make_data(cctype, signature_path, validation_path, dataset, **params):
+        from .sign0 import sign0
+        from .sign1 import sign1
+        from .clus1 import clus1
+        from .neig1 import neig1
+        from .sign2 import sign2
+        from .sign3 import sign3
+        from .proj1 import proj1
+
+        try:
+            DataFactory.__log.debug("initializing object %s", cctype)
+            args = (signature_path, validation_path, dataset)
+            return eval(cctype)(*args, **params)
+        except Exception:
             raise Exception("Data type %s not available" % cctype)
 
     @staticmethod

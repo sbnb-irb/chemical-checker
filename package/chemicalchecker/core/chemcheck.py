@@ -114,10 +114,8 @@ class ChemicalChecker():
             raise Exception("No dataset for code: " + dataset_code)
         signature_path = self.get_signature_path(cctype, molset, dataset_code)
         validation_path = self.get_validation_path()
-        # initialize a data object factory feeding the type and the path
-        data_factory = DataFactory()
         # the factory will return the signature with the right class
-        data = data_factory.make_data(
+        data = DataFactory.make_data(
             cctype, signature_path, validation_path, dataset, **params)
         return data
 
