@@ -1,32 +1,10 @@
 image: cc_image:latest
 
 stages:
-  - shared
-  - singularity
   - image
   - test
   - pages
 
-Shared Enviroment:
-  stage: shared
-  script:
-##    - yum update -y
-    - yum install -y gcc g++ gcc-c++ gfortran gcc-gfortran cmake make git wget curl which vim bzip2 bzip2-devel file libXrender libXext postgresql-server postgresql-contrib libarchive-devel
-    - yum groupinstall 'Development Tools' -y
-
-Install Singularity:
-  stage: singularity
-  script:
-    - SINGVER=2.5.1
-    - wget https://github.com/sylabs/singularity/releases/download/$SINGVER/singularity-$SINGVER.tar.gz
-    - tar xvf singularity-$SINGVER.tar.gz
-    - cd singularity-$SINGVER
-    - ./configure
-    - make
-    - ls -l
-    - chmod +x ./bin/singularity
-    - ./bin/singularity --version
-    - cd ..
 
 Build Singularity Image:
   stage: image
@@ -34,7 +12,7 @@ Build Singularity Image:
     - echo "Test if we want to re-build the singularity image"
     - >
       if git diff HEAD~ --name-only|grep container; then
-        sudo ./singularity-$SINGVER/bin/singularity build cc.simg ./container/singularity/cc.def
+        sudo singularity build cc.simg ./container/singularity/cc.def
       fi;
 
 
@@ -45,7 +23,6 @@ Test Python 2.7.10:
     - source activate py27
   script:
     - cd package
-    - pip install -r requirements_dev.txt
     - pytest
 
 Test Python 3.6.8:
