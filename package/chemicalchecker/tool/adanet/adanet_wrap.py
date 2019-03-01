@@ -31,7 +31,7 @@ class Traintest(object):
     the generator functions which tensorflow likes.
     """
 
-    def __init__(self, hdf5_file, partition):
+    def __init__(self, hdf5_file, partition, nan_replacer=0.0):
         """Initialize the traintest object.
 
         We assume the file is containing diffrent partitions.
@@ -41,6 +41,7 @@ class Traintest(object):
         self._f = None
         self.x_name = "x_%s" % partition
         self.y_name = "y_%s" % partition
+        self.nan_replacer = nan_replacer
 
     def open(self):
         """Open the HDF5."""
@@ -59,16 +60,22 @@ class Traintest(object):
         """Get the batch."""
         features = self._f[self.x_name][beg_idx: end_idx]
         labels = self._f[self.y_name][beg_idx: end_idx]
+        # handle NaNs
+        features[np.where(np.isnan(features))] = self.nan_replacer
         return features, labels
 
     def get_x(self, beg_idx, end_idx):
         """Get the Xs in a range."""
         features = self._f[self.x_name][beg_idx: end_idx]
+        # handle NaNs
+        features[np.where(np.isnan(features))] = self.nan_replacer
         return features
 
     def get_all_x(self):
         """Get all the Xs."""
         features = self._f[self.x_name][:]
+        # handle NaNs
+        features[np.where(np.isnan(features))] = self.nan_replacer
         return features
 
     def get_all_y(self):
@@ -409,10 +416,13 @@ class AdaNetWrapper(object):
         datasets = ['train', 'test', 'validation']
         x = dict()
         y = dict()
-        with h5py.File(self.traintest_file, 'r') as hf:
-            for ds in datasets:
-                x[ds] = hf["x_%s" % ds][:]
-                y[ds] = hf["y_%s" % ds][:]
+        for ds in datasets:
+            # get dataset split
+            traintest = Traintest(self.traintest_file, ds)
+            traintest.open()
+            x[ds] = traintest.get_all_x()
+            y[ds] = traintest.get_all_y()
+            traintest.close()
         # save in pandas
         df = pd.DataFrame(columns=[
             'dataset', 'r2', 'pearson_avg', 'pearson_std', 'algo', 'mse',
