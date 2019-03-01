@@ -10,7 +10,7 @@ stages:
 Install Singularity:
   stage: singularity
   script:
-    - yum update
+    - yum update -y
     - yum groupinstall 'Development Tools' -y
     - yum install libarchive-devel -y 
     - yum install wget -y
