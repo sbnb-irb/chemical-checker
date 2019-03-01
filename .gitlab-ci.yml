@@ -3,7 +3,7 @@ image: cc_image:latest
 stages:
   - image
   - test
-  - pages
+  - documentation
 
 build_singularity_image:
   stage: image
@@ -21,7 +21,7 @@ python_2.7.10:
   dependencies:
     - build_singularity_image
 
-pages:
+documentation:
   stage: pages
   script:
   - pip install sphinx
