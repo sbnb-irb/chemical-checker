@@ -11,8 +11,8 @@ Install Singularity:
   stage: singularity
   script:
     - yum update
-    - yum groupinstall 'Development Tools'
-    - yum install libarchive-devel
+    - yum groupinstall 'Development Tools' -y
+    - yum install libarchive-devel -y 
     - yum install wget -y
     - SINGVER=2.5.1
     - wget https://github.com/sylabs/singularity/releases/download/$SINGVER/singularity-$SINGVER.tar.gz
