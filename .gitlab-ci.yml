@@ -9,7 +9,10 @@ build_singularity_image:
   stage: image
   script:
     - yum install squashfs-tools -y
-    - singularity build cc.simg ./container/singularity/cc.def
+    - >
+      if git diff HEAD~ --name-only|grep singularity; then
+        singularity build cc.simg ./container/singularity/cc.def
+      fi;
   artifacts:
     paths:
     - cc.simg
@@ -17,6 +20,8 @@ build_singularity_image:
 python_2.7.10:
   stage: test
   script:
+    - ls -l
+    - cd package
     - singularity exec cc.simg pytest
   dependencies:
     - build_singularity_image
