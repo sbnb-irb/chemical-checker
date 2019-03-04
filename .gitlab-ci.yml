@@ -9,10 +9,10 @@ build_singularity_image:
   stage: image
   script:
     - yum install squashfs-tools -y
-    - >
-      if git diff HEAD~ --name-only|grep singularity; then
-        singularity build cc.simg ./container/singularity/cc.def
-      fi;
+    - singularity build cc.simg ./container/singularity/cc.def
+  only:
+    changes:
+      - container/singularity/cc.def
   artifacts:
     paths:
     - cc.simg
@@ -22,8 +22,7 @@ python_2.7.10:
   script:
     - ls -l
     - cd package
-    - 'curl --location --output cc.simg "http://gitlab.sbnb.org/api/v4/projects/$CI_PROJECT_ID/jobs/artifacts/master/download?job=build_singularity_image&job_token=$CI_JOB_TOKEN"'
-    - singularity exec cc.simg pytest
+    - singularity exec ../cc.simg pytest
   dependencies:
     - build_singularity_image
 
