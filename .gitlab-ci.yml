@@ -1,4 +1,7 @@
 image: cc_image:latest
+cache:
+  paths:
+    - cc.simg
 
 stages:
   - image
@@ -10,17 +13,21 @@ build_singularity_image:
   script:
     - yum install squashfs-tools -y
     - singularity build cc.simg ./container/singularity/cc.def
-  artifacts:
+  cache:
     paths:
     - cc.simg
+  only:
+    changes:
+      - container/singularity/cc.def
 
 python_2.7.10:
   stage: test
   script:
     - ls -l
     - singularity exec -B $PWD:/test cc.simg pytest /test/package
-  dependencies:
-    - build_singularity_image
+  cache:
+    paths:
+    - cc.simg
 
 
 Pages:
