@@ -18,7 +18,7 @@ python_2.7.10:
   stage: test
   script:
     - ls -l
-    - singularity exec cc.simg pytest $PWD/package
+    - singularity exec -B $PWD:/root cc.simg pytest package
   dependencies:
     - build_singularity_image
 
