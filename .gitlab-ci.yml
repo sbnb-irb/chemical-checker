@@ -22,7 +22,7 @@ python_2.7.10:
   script:
     - ls -l
     - cd package
-    - 'curl --location --output cc.simg "https://gitlab.sbnb.org/api/v4/projects/$CI_PROJECT_ID/jobs/artifacts/master/download?job=build_singularity_image&job_token=$CI_JOB_TOKEN"'
+    - 'curl --location --output cc.simg "http://gitlab.sbnb.org/api/v4/projects/$CI_PROJECT_ID/jobs/artifacts/master/download?job=build_singularity_image&job_token=$CI_JOB_TOKEN"'
     - singularity exec cc.simg pytest
   dependencies:
     - build_singularity_image
