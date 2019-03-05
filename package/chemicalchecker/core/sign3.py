@@ -53,7 +53,8 @@ class sign3(BaseSignature):
         self.params['node2vec'] = params.get('node2vec', None)
         self.params['adanet'] = params.get('adanet', None)
 
-    def most_frequent_sign2(self, chemchecker):
+    def get_probabilities(self, chemchecker):
+        """Get the probabilities for space being present."""
         # get current space on which we'll train (using reference set to
         # limit redundancy)
         my_sign2 = chemchecker.get_signature(
@@ -68,27 +69,22 @@ class sign3(BaseSignature):
             self.__log.info('%s shared molecules between %s and %s',
                             sum(available), self.dataset, ds)
         # get availability matrix
-        available_mols = available_mols.astype(float)
         available_mols = np.stack(available_mols).T
+        available_mols = available_mols.astype(float)
         # get probabilities for a given space (column)
-        space_probs = np.sum(available_mols, axis=0) / np.sum(available_mols)
+        p_space = np.sum(available_mols, axis=0) / np.sum(available_mols)
         # get probabilities for how many spaces for a molecule (row)
-        freqs = dict()
+        p_count = dict()
         for row in available_mols:
-            r = np.sum(row)
-            if r not in freqs:
-                freqs[r] = 0.0
-            freqs[r] += 1
-        for k in freqs:
-            freqs[k] /= len(available_mols)
-        top10 = sorted(list(tuple(freqs.items())),
-                       key=lambda x: x[1], reverse=True)[:10]
-        self.__log.info("Most frequent combinations:")
-        for k, v in top10:
-            self.__log.info("%s  %.2f%%", k, v)
-        return top10
+            r = np.sum(row.astype(int))
+            if r not in p_count:
+                p_count[r] = 0.0
+            p_count[r] += 1
+        for k in p_count:
+            p_count[k] /= len(available_mols)
+        return p_space, p_count
 
-    def print_most_common_combinations(self, chemchecker):
+    def _print_most_common_combinations(self, chemchecker):
         my_sign2 = chemchecker.get_signature(
             'sign2', 'reference', self.dataset.code)
         available_mols = list()
@@ -140,24 +136,19 @@ class sign3(BaseSignature):
         return sign2_matrix, my_sign2[:]
 
     def fit(self, chemchecker, reuse=True):
-        """Learn a model.
-
-
-        Args:
-            sign2(list): Lst of Signature type 2.
-        """
-
+        """Learn a model."""
         # adanet
         self.__log.debug('AdaNet fit %s based on other sign2', self.dataset)
-        self.most_frequent_sign2(chemchecker)
         # get params and set folder
         adanet_params = self.params['adanet']
-        adanet_path = os.path.join(self.model_path, 'adanet')
+        adanet_path = os.path.join(self.model_path, 'adanet_augment')
         if adanet_params:
             if 'model_dir' in adanet_params:
                 adanet_path = adanet_params.pop('model_dir')
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
+        # get probabilities
+        probs = self.get_probabilities(chemchecker)
         # prepare train-test file
         traintest_file = os.path.join(adanet_path, 'traintest.h5')
         if adanet_params:
@@ -166,7 +157,10 @@ class sign3(BaseSignature):
             adanet_params.pop('traintest_file')
         if not reuse or not os.path.isfile(traintest_file):
             features, labels = self.get_sign2_matrix(chemchecker)
-            Traintest.create(features, labels, traintest_file)
+            augment = {'strategy': 'probabilities',
+                       'probabilities': probs,
+                       'max_size': 500000}
+            Traintest.create(features, labels, traintest_file, augment)
 
         if adanet_params:
             ada = AdaNet(model_dir=adanet_path,
