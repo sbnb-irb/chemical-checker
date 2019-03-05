@@ -95,13 +95,6 @@ From: centos
     pip install networkx                          # graph data stracture and algos
     pip install protobuf==3.6.1
 
-    ## install SNAP.py
-    wget  https://snap.stanford.edu/snappy/release/snap-4.1.0-4.1-centos6.5-x64-py2.6.tar.gz
-    tar zxvf snap-4.1.0-4.1-centos6.5-x64-py2.6.tar.gz
-    cd snap-4.1.0-4.1-centos6.5-x64-py2.6
-    python setup.py install
-    cd ..
-    rm snap-4.1.0-4.1-centos6.5-x64-py2.6 -rf
 
     # visualization packages
     pip install matplotlib                        # chart library :)
