@@ -3,7 +3,7 @@ From: centos
 
 %environment
     # PATHS
-    export PATH=/opt/miniconda2/bin:$PATH
+    export PATH=/opt/miniconda3/bin:$PATH
     source activate py36
     alias ll='ls -l'
     alias ipy='ipython'
