@@ -2,6 +2,7 @@ image: cc_image:latest
 cache:
   paths:
     - cc.simg
+    - cc_py36.simg
 
 stages:
   - image
