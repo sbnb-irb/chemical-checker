@@ -93,6 +93,7 @@ From: centos
     pip install fancyimpute                       # matrix completion and imputation algorithms
     # graph packages
     pip install networkx                          # graph data stracture and algos
+    pip install protobuf==3.6.1
 
     ## install SNAP.py
     wget  https://snap.stanford.edu/snappy/release/snap-4.1.0-4.1-centos6.5-x64-py2.6.tar.gz
