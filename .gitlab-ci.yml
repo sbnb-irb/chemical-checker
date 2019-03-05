@@ -12,6 +12,7 @@ build_singularity_image:
   stage: image
   script:
     - yum install squashfs-tools -y
+    - rm -f cc.simg
     - singularity build cc.simg ./container/singularity/cc.def
   cache:
     paths:
