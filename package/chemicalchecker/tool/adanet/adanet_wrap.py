@@ -5,6 +5,7 @@ import pickle
 import numpy as np
 import pandas as pd
 from time import time
+from tqdm import tqdm
 from scipy.stats import pearsonr
 from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.metrics import explained_variance_score
@@ -20,7 +21,7 @@ except ImportError:
 
 from .dnn_stack_generator import StackDNNGenerator
 from .dnn_extend_generator import ExtendDNNGenerator
-from chemicalchecker.util import logged
+from chemicalchecker.util import logged, profile
 
 
 @logged
@@ -100,7 +101,7 @@ class Traintest(object):
         Traintest.create(X, Y, out_filename)
 
     @staticmethod
-    def create(X, Y, out_filename, augment=False, augment_factor=3000):
+    def create(X, Y, out_filename, augment=None):
         """Create the HDF5 file with both X and Y, train and test."""
         Traintest.__log.debug(
             "{:<20} shape: {:>10}".format("input X", X.shape))
@@ -112,26 +113,118 @@ class Traintest(object):
         x_train, x_val, y_train, y_val = train_test_split(
             x_train, y_train, test_size=0.2, random_state=42)
 
-        if len(x_train) < 1000 and augment:
-            Traintest.__log.warn("Augmenting data.")
-            p_x = list([x_train])
-            p_y = list([y_train])
-            # perturb train vectors
-            if augment == 'noise':
-                for i in range(augment_factor):
+        if augment:
+            if 'strategy' not in augment:
+                raise Exception("Please specify a data augmentation strategy" +
+                                "e.g.'noise','interpolation','probabilities'")
+            if 'max_size' not in augment:
+                augment['max_size'] = 1e7
+            Traintest.__log.warn(
+                "Augmenting data with %s strategy.", augment['strategy'])
+            if augment['strategy'] == 'noise':
+                # initial list
+                p_x = list([x_train])
+                p_y = list([y_train])
+                # perturb train vectors
+                for i in range(augment['max_size'] - len(x_train)):
                     perturbation = np.random.normal() * 1e-4
                     p_x.append(x_train + perturbation)
                     p_y.append(y_train + perturbation)
-            elif augment == 'interpol':
+                # join list into numpy array
+                x_train = np.concatenate(tuple(p_x))
+                y_train = np.concatenate(tuple(p_y))
+            elif augment['strategy'] == 'interpolation':
+                # initial list
+                p_x = list([x_train])
+                p_y = list([y_train])
+                # interpolate point to get new points
                 mask = range(len(x_train))
                 mask1 = range(len(x_train))
-                for i in range(augment_factor):
+                for i in range(augment['max_size'] - len(x_train)):
                     np.random.shuffle(mask)
                     np.random.shuffle(mask1)
                     p_x.append((x_train + x_train[mask] + x_train[mask1]) / 3.)
                     p_y.append((y_train + y_train[mask] + y_train[mask1]) / 3.)
-            x_train = np.concatenate(tuple(p_x))
-            y_train = np.concatenate(tuple(p_y))
+                # join list into numpy array
+                x_train = np.concatenate(tuple(p_x))
+                y_train = np.concatenate(tuple(p_y))
+            elif augment['strategy'] == "probabilities" \
+                    and x_train.shape[0] < augment['max_size']:
+                # initial list
+                p_x = list()
+                p_y = list()
+                if 'probabilities' not in augment:
+                    raise Exception("Please specify probabilities.")
+                # probabilities
+                p_space, p_count = augment['probabilities']
+                # repeat the subsampling until enough subsamples are drawn
+                pbar = tqdm(total=augment['max_size'] - x_train.shape[0])
+                while len(p_x) < augment['max_size'] - x_train.shape[0]:
+                    # subsample vector
+                    mol_idxs = range(len(x_train))
+                    np.random.shuffle(mol_idxs)
+                    for idx in mol_idxs:
+                        # early termination criteria, when I have enought
+                        if len(p_x) >= augment['max_size'] - x_train.shape[0]:
+                            break
+                        # get the presence array e.g. 110
+                        presence = ~np.isnan(x_train[idx][0::128])
+                        # debug_str = "* {:<3} ".format(idx) + \
+                        #    ''.join(presence.astype(int).astype(str))
+                        # Traintest.__log.debug(debug_str)
+                        present_idxs = np.argwhere(presence).flatten()
+                        # iterate on  individual starting point e.g. 100, 010
+                        for initial in present_idxs:
+                            presence_add = np.zeros(
+                                presence.shape).astype(bool)
+                            presence_add[initial] = True
+                            # what's the max spaces I can had?
+                            max_add = present_idxs.shape[0] - 1
+                            my_p_count = {k: v for k,
+                                          v in p_count.items() if k < max_add}
+                            # normalize probabilities
+                            prob_sum = sum(my_p_count.values())
+                            my_p_count = [(k, v / prob_sum) for k,
+                                          v in my_p_count.items()]
+                            # check that we have options to subsample
+                            if not my_p_count:
+                                # Traintest.__log.debug("no subsampling.")
+                                break
+                            # pick how many to add
+                            ns = [x[0] for x in my_p_count]
+                            p_n = [x[1] for x in my_p_count]
+                            to_add = np.random.choice(ns, 1, p_n)[0]
+                            # pick which spaces
+                            pick = list(present_idxs)
+                            pick.remove(initial)
+                            for i in range(to_add):
+                                # normalize probabilities
+                                p_s = list(p_space[pick] / sum(p_space[pick]))
+                                added = np.random.choice(pick, 1, p_s)[0]
+                                pick.remove(added)
+                                presence_add[added] = True
+                            # debug_str = "{:<3}".format(initial) + \
+                            #    "{:<3}".format(to_add) + \
+                            #    ''.join(presence_add.astype(int).astype(str))
+                            # Traintest.__log.debug(debug_str)
+                            # assert(sum(presence_add) == to_add + 1)
+                            # check that generated array is a subset of
+                            # starting
+                            # assert(np.array_equal(
+                            #    np.logical_or(presence, presence_add),
+                            #    presence))
+                            # convert array to mask
+                            mask = np.hstack([[a] * 128 for a in presence_add])
+                            # append new row
+                            new_data = np.copy(x_train[idx])
+                            new_data[~mask] = np.nan
+                            p_x.append(new_data)
+                            p_y.append(np.copy(y_train[idx]))
+                            pbar.update(1)
+                pbar.close()
+                # join list into numpy array
+                x_train = np.vstack((x_train, np.vstack(p_x)))
+                y_train = np.vstack((y_train, np.vstack(p_y)))
 
         # create dataset
         with h5py.File(out_filename, "w") as fh:
