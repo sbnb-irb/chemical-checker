@@ -24,7 +24,7 @@ python_2.7.10:
   stage: test
   script:
     - ls -l
-    - singularity exec -B $PWD:/test cc.simg pytest /test/package
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec -B $PWD:/test cc.simg pytest /test/package
   cache:
     paths:
     - cc.simg
