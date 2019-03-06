@@ -1,15 +1,13 @@
 import os
 import h5py
-import numpy as np
-try:
-    import faiss
-except ImportError:
-    pass
 import datetime
+import numpy as np
 from time import time
 from numpy import linalg as LA
-from chemicalchecker.util import logged
+
 from .signature_base import BaseSignature
+
+from chemicalchecker.util import logged
 
 
 @logged
@@ -46,6 +44,11 @@ class neig1(BaseSignature):
 
     def fit(self, sign1):
         """Take an input and learns to produce an output."""
+        try:
+            import faiss
+        except ImportError:
+            raise ImportError("requires faiss " +
+                              "https://github.com/facebookresearch/faiss")
         BaseSignature.fit(self)
 
         faiss.omp_set_num_threads(self.cpu)
@@ -121,6 +124,11 @@ class neig1(BaseSignature):
 
     def predict(self, sign1, destination=None):
         """Use the fitted models to go from input to output."""
+        try:
+            import faiss
+        except ImportError:
+            raise ImportError("requires faiss " +
+                              "https://github.com/facebookresearch/faiss")
         BaseSignature.predict(self)
 
         if destination is None:
@@ -189,6 +197,11 @@ class neig1(BaseSignature):
         i.e. when the signature we query for are the same that have been used
         to generate the neighbors.
         """
+        try:
+            import faiss
+        except ImportError:
+            raise ImportError("requires faiss " +
+                              "https://github.com/facebookresearch/faiss")
         # open faiss model
         faiss.omp_set_num_threads(self.cpu)
         index_filename = os.path.join(self.model_path, 'faiss_neig1.index')

@@ -1,13 +1,25 @@
 import os
-import unittest
-import shutil
 import mock
 import h5py
-import numpy as np
+import shutil
 import pytest
+import functools
+import unittest
+import numpy as np
 from scipy.spatial.distance import cosine
 
 from chemicalchecker.core import ChemicalChecker
+
+
+def skip_if_import_exception(function):
+    """Assist in skipping tests failing because of missing dependencies."""
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except ImportError as err:
+            pytest.skip(str(err))
+    return wrapper
 
 
 class TestNeigh1(unittest.TestCase):
@@ -23,7 +35,7 @@ class TestNeigh1(unittest.TestCase):
         if os.path.exists(self.cc_root):
             shutil.rmtree(self.cc_root)
 
-    #@pytest.mark.skip(reason="Faiss is not available on test enviroment")
+    @skip_if_import_exception
     def test_neig1(self):
         cc_root = os.path.join(self.data_dir, 'alpha')
         self.cc_root = cc_root

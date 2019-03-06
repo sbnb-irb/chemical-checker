@@ -21,8 +21,9 @@ import imp
 import h5py
 import numpy as np
 from tqdm import tqdm
+
 from .signature_base import BaseSignature
-from chemicalchecker.util import psql
+
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 
@@ -185,6 +186,11 @@ class sign0(BaseSignature):
                 shared moleules.
 
         """
+        try:
+            from chemicalchecker.util import psql
+        except ImportError as err:
+            raise err
+
         old_table_names = {
             'A1': 'fp2d',
             'A2': 'fp3d',

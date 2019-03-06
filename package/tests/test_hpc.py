@@ -1,5 +1,4 @@
 import os
-import shutil
 import unittest
 
 from chemicalchecker.util.hpc import HPC
@@ -16,9 +15,6 @@ class TestHPC(unittest.TestCase):
             self.data_dir, 'config.json')
 
     def test_hpc(self):
-
         config = Config()
-
         cluster = HPC(config, True)
-
         self.assertTrue(cluster.status() is None)

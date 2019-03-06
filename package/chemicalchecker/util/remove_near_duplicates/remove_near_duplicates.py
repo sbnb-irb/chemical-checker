@@ -5,16 +5,18 @@ which the data vectors according their similarity.
 """
 import os
 import h5py
-from collections import defaultdict
-import collections
+import pickle
 import random
 import numpy as np
-import pickle
+import collections
+from collections import defaultdict
+
 from chemicalchecker.util import logged
 try:
     import faiss
 except ImportError:
-    pass
+    raise ImportError("requires faiss " +
+                      "https://github.com/facebookresearch/faiss")
 
 
 @logged

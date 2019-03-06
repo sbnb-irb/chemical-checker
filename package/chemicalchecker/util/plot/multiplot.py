@@ -1,15 +1,16 @@
 """Utility for plotting Chemical Checker data."""
 
 import os
+import h5py
 import json
-import matplotlib
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-import h5py
-from matplotlib import pyplot as plt
+
+import matplotlib
 import seaborn as sns
 import matplotlib.colors as colors
+from matplotlib import pyplot as plt
 
 from chemicalchecker.util import logged
 
