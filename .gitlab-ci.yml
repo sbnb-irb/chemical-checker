@@ -60,11 +60,11 @@ python_3.6.8:
       - cc_py36.simg
 
 
-Pages:
+pages:
   stage: deploy
   artifacts:
     paths:
-    - test
+    - public
   cache:
     paths:
       - cc.simg
