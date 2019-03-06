@@ -1,8 +1,20 @@
 import os
-import unittest
 import pytest
+import unittest
+import functools
 
 from chemicalchecker.util.parser import Converter
+
+
+def skip_if_import_exception(function):
+    """Assist in skipping tests failing because of missing dependencies."""
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except ImportError as err:
+            pytest.skip(str(err))
+    return wrapper
 
 
 class TestConverter(unittest.TestCase):
@@ -14,7 +26,7 @@ class TestConverter(unittest.TestCase):
         os.environ["CC_CONFIG"] = os.path.join(
             self.data_dir, 'config.json')
 
-    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    @skip_if_import_exception
     def test_smiles_to_inchi(self):
         smile = 'COc1cc2c(Nc3ccc(Br)cc3F)ncnc2cc1OCC4CCN(C)CC4'
         inchikey, inchi = Converter.smiles_to_inchi(smile)
