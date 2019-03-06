@@ -69,7 +69,9 @@ Pages:
   - ls -l ../../public
   artifacts:
     paths:
-    - cc.simg
     - public
+  cache:
+    paths:
+      - cc.simg
   only:
   - master
