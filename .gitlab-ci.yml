@@ -7,7 +7,7 @@ cache:
 stages:
   - image
   - test
-  - pages
+  - deploy
 
 build_singularity_image_py27:
   stage: image
@@ -61,7 +61,7 @@ python_3.6.8:
 
 
 Pages:
-  stage: pages
+  stage: deploy
   artifacts:
     paths:
     - test
@@ -71,7 +71,7 @@ Pages:
   script:
   - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg bash -c 'cd /test/package/docs && sphinx-apidoc -o source ../chemicalchecker -f -e && make html'
   - cd package/docs
-  - mv _build/html/ ../../test/
-  - ls -l ../../test
+  - mv _build/html/ ../../public/
+  - ls -l ../../public
   only:
   - master
