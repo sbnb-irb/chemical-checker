@@ -139,4 +139,3 @@ From: centos
 
     #Install jupyter to use notebooks
     pip install jupyter
-
