@@ -15,7 +15,6 @@ from datetime import datetime
 from bisect import bisect_left
 from abc import ABCMeta, abstractmethod
 
-from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 from chemicalchecker.util import logged
 
 
@@ -322,6 +321,7 @@ class BaseSignature(object):
         N.B: to maximize overlap it's better to use signatures of type 'full'.
         N.B: Near duplicates are found in the first signature.
         """
+        from chemicalchecker.util.remove_near_duplicates import RNDuplicates
         shared_keys = self.unique_keys.intersection(sign.unique_keys)
         self.__log.debug("%s shared keys.", len(shared_keys))
         _, self_matrix = self.get_vectors(shared_keys)

@@ -1,12 +1,24 @@
 import os
-import unittest
-import shutil
 import mock
 import h5py
-import numpy as np
+import shutil
 import pytest
+import unittest
+import functools
+import numpy as np
 
 from chemicalchecker.core import ChemicalChecker
+
+
+def skip_if_import_exception(function):
+    """Assist in skipping tests failing because of missing dependencies."""
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except ImportError as err:
+            pytest.skip(str(err))
+    return wrapper
 
 
 class TestProj1(unittest.TestCase):
@@ -24,7 +36,7 @@ class TestProj1(unittest.TestCase):
         if os.path.isfile(os.path.join(self.data_dir, "test_proj1.h5")):
             os.remove(os.path.join(self.data_dir, "test_proj1.h5"))
 
-    #@pytest.mark.skip(reason="Faiss is not available on test enviroment")
+    @skip_if_import_exception
     def test_proj1(self):
         cc_root = os.path.join(self.data_dir, 'alpha')
         self.cc_root = cc_root
@@ -37,7 +49,8 @@ class TestProj1(unittest.TestCase):
         self.assertTrue(os.path.isdir(cc_root))
         coords = "B1.001"
         proj1_ref = cc.get_signature("proj1", "reference", coords)
-        proj1_ref.validation_path = os.path.join(self.data_dir, "validation_sets")
+        proj1_ref.validation_path = os.path.join(
+            self.data_dir, "validation_sets")
         path_test1 = os.path.join(cc_root, 'reference', coords[
             :1], coords[:2], coords, "proj1")
         self.assertTrue(os.path.isdir(path_test1))

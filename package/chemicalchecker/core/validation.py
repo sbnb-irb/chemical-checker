@@ -1,8 +1,9 @@
-from chemicalchecker.util import logged
-from chemicalchecker.util import Config
-from subprocess import call
 import os
 import sys
+from subprocess import call
+
+from chemicalchecker.util import logged
+from chemicalchecker.util import Config
 
 
 @logged

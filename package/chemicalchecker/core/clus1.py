@@ -1,26 +1,23 @@
-from csvsort import csvsort
+import os
 import csv
+import glob
 import h5py
 import json
-import os
-import glob
 import bisect
-from chemicalchecker.util import logged, Config
-from chemicalchecker.util.plot import Plot
-from .signature_base import BaseSignature
-from scipy.spatial.distance import euclidean
-from scipy.spatial.distance import pdist
-from sklearn.preprocessing import Normalizer
-from sklearn.externals import joblib
-try:
-    import faiss
-    import hdbscan
-except ImportError:
-    pass
-import datetime
-import numpy as np
 import shelve
 import tempfile
+import datetime
+import numpy as np
+from csvsort import csvsort
+from sklearn.externals import joblib
+from sklearn.preprocessing import Normalizer
+from scipy.spatial.distance import euclidean, pdist
+
+from .signature_base import BaseSignature
+
+from chemicalchecker.util import logged
+from chemicalchecker.util import Config
+from chemicalchecker.util.plot import Plot
 
 
 @logged
@@ -97,6 +94,16 @@ class clus1(BaseSignature):
 
     def fit(self, sign1, validations=True):
         """Take an input and learns to produce an output."""
+        try:
+            import faiss
+        except ImportError:
+            raise ImportError("requires faiss " +
+                              "https://github.com/facebookresearch/faiss")
+        try:
+            import hdbscan
+        except ImportError:
+            raise ImportError("requires hdbscan " +
+                              "https://hdbscan.readthedocs.io/en/latest/")
         BaseSignature.fit(self)
 
         plot = Plot(self.dataset, self.stats_path, self.validation_path)
@@ -326,6 +333,16 @@ class clus1(BaseSignature):
 
     def predict(self, sign1, destination=None, validations=False):
         """Use the fitted models to go from input to output."""
+        try:
+            import faiss
+        except ImportError:
+            raise ImportError("requires faiss " +
+                              "https://github.com/facebookresearch/faiss")
+        try:
+            import hdbscan
+        except ImportError:
+            raise ImportError("requires hdbscan " +
+                              "https://hdbscan.readthedocs.io/en/latest/")
         BaseSignature.predict(self)
         plot = Plot(self.dataset, self.stats_path, self.validation_path)
 
