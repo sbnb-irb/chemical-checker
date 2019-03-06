@@ -1,18 +1,7 @@
 import os
-
+import timeout_decorator
 
 from chemicalchecker.util import logged
-import timeout_decorator
-try:
-    from e3fp import pipeline
-    from rdkit.Chem import AllChem as Chem
-    from rdkit.Chem import Descriptors, rdMolDescriptors
-    from rdkit.Chem.Scaffolds import MurckoScaffold
-    from rdkit.Chem import MACCSkeys
-    from silicos_it.descriptors import qed
-    from rdkit.Chem import ChemicalFeatures
-except ImportError:
-    pass
 
 
 @logged
@@ -36,6 +25,11 @@ class PropCalculator():
 
     @staticmethod
     def fp2d(inchikey_inchi, chunks=1000):
+        try:
+            from rdkit.Chem import AllChem as Chem
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
         iks = inchikey_inchi.keys()
         nBits = 2048
         radius = 2
@@ -64,20 +58,35 @@ class PropCalculator():
 
     @staticmethod
     def fp3d(inchikey_inchi, chunks=1000):
+        try:
+            from rdkit.Chem import AllChem as Chem
+            from rdkit.Chem import Descriptors, rdMolDescriptors
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
+        try:
+            from e3fp import pipeline
+        except ImportError:
+            raise ImportError("requires e3fp " +
+                              "https://github.com/keiserlab/e3fp")
 
         root = os.path.dirname(os.path.realpath(__file__))
 
         params = pipeline.params_to_dicts(root + "/data/defaults.cfg")
 
         @timeout_decorator.timeout(100, use_signals=False)
-        def fprints_from_inchi(inchi, inchikey, confgen_params={}, fprint_params={}, save=False):
+        def fprints_from_inchi(inchi, inchikey, confgen_params={},
+                               fprint_params={}, save=False):
             mol = Chem.rdinchi.InchiToMol(inchi)[0]
 
-            if Descriptors.MolWt(mol) > 800 or rdMolDescriptors.CalcNumRotatableBonds(mol) > 11:
+            if Descriptors.MolWt(mol) > 800 or \
+                    rdMolDescriptors.CalcNumRotatableBonds(mol) > 11:
                 return None
 
             smiles = Chem.MolToSmiles(mol)
-            return pipeline.fprints_from_smiles(smiles, inchikey, confgen_params, fprint_params, save)
+            result = pipeline.fprints_from_smiles(
+                smiles, inchikey, confgen_params, fprint_params, save)
+            return result
 
         iks = inchikey_inchi.keys()
         chunk = list()
@@ -109,6 +118,12 @@ class PropCalculator():
 
     @staticmethod
     def scaffolds(inchikey_inchi, chunks=1000):
+        try:
+            from rdkit.Chem import AllChem as Chem
+            from rdkit.Chem.Scaffolds import MurckoScaffold
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
 
         iks = inchikey_inchi.keys()
         nBits = 1024
@@ -135,7 +150,7 @@ class PropCalculator():
             mol = Chem.rdinchi.InchiToMol(v)[0]
             try:
                 dense = murcko_scaffold(mol)
-            except:
+            except Exception:
                 dense = None
 
             result = {
@@ -150,6 +165,12 @@ class PropCalculator():
 
     @staticmethod
     def subskeys(inchikey_inchi, chunks=1000):
+        try:
+            from rdkit.Chem import AllChem as Chem
+            from rdkit.Chem import MACCSkeys
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
 
         iks = inchikey_inchi.keys()
         chunk = list()
@@ -173,6 +194,18 @@ class PropCalculator():
 
     @staticmethod
     def physchem(inchikey_inchi, chunks=1000):
+        try:
+            from rdkit.Chem import AllChem as Chem
+            from rdkit.Chem import Descriptors, ChemicalFeatures
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
+        try:
+            from silicos_it.descriptors import qed
+        except ImportError:
+            raise ImportError("requires qed " +
+                              "http://silicos-it.be.s3-website-eu-west-1" +
+                              ".amazonaws.com/index.html")
 
         def descriptors(mol):
             P = {}
@@ -222,7 +255,8 @@ class PropCalculator():
 
             # Structural alerts from Chembl
             P['alerts_chembl'] = len(
-                set([int(feat.GetType()) for feat in alerts_chembl.GetFeaturesForMol(mol)]))
+                set([int(f.GetType()) for f
+                     in alerts_chembl.GetFeaturesForMol(mol)]))
             return P
 
         root = os.path.dirname(os.path.realpath(__file__))
@@ -240,14 +274,13 @@ class PropCalculator():
             v = str(inchikey_inchi[k])
             mol = Chem.rdinchi.InchiToMol(v)[0]
             P = descriptors(mol)
-            raw = "%.2f,%d,%d,%d,%d,%d,%.3f,%.3f,%d,%d,%.3f,%d,%d,%d,%d,%d,%.3f" % (P['mw'], P['heavy'], P['hetero'],
-                                                                                    P['rings'], P['ringaliph'], P[
-                'ringarom'],
-                P['alogp'], P['mr'], P[
-                'hba'], P['hbd'], P['psa'],
-                P['rotb'], P['alerts_qed'], P[
-                'alerts_chembl'],
-                P['ro5'], P['ro3'], P['qed'])
+            raw = "%.2f,%d,%d,%d,%d,%d,%.3f,%.3f" + \
+                ",%d,%d,%.3f,%d,%d,%d,%d,%d,%.3f"
+            raw = raw % (P['mw'], P['heavy'], P['hetero'],
+                         P['rings'], P['ringaliph'], P['ringarom'],
+                         P['alogp'], P['mr'], P['hba'], P['hbd'], P['psa'],
+                         P['rotb'], P['alerts_qed'], P['alerts_chembl'],
+                         P['ro5'], P['ro3'], P['qed'])
             result = {
                 "inchikey": k,
                 "mw": P['mw'],

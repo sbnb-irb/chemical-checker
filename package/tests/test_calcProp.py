@@ -1,8 +1,21 @@
 import os
-import unittest
 import pytest
+import unittest
+import functools
 
-from chemicalchecker.util.parser import Parser, PropCalculator
+from chemicalchecker.util.parser import Parser
+from chemicalchecker.util.parser import PropCalculator
+
+
+def skip_if_import_exception(function):
+    """Assist in skipping tests failing because of missing dependencies."""
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except ImportError as err:
+            pytest.skip(str(err))
+    return wrapper
 
 
 class TestPropCalculator(unittest.TestCase):
@@ -20,7 +33,7 @@ class TestPropCalculator(unittest.TestCase):
         os.environ["CC_CONFIG"] = os.path.join(
             self.data_dir, 'config.json')
 
-    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    @skip_if_import_exception
     def test_fp2d(self):
 
         chunks = list(PropCalculator.fp2d(self.inchikey_inchi))
@@ -49,7 +62,7 @@ class TestPropCalculator(unittest.TestCase):
                       "inchikey"] == "YXKFPFQIDHAWAU-XAZDILKDSA-N")
         self.assertDictEqual(expected, output)
 
-    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    @skip_if_import_exception
     def test_scaffolds(self):
 
         chunks = list(PropCalculator.scaffolds(self.inchikey_inchi))
@@ -63,7 +76,7 @@ class TestPropCalculator(unittest.TestCase):
                       "inchikey"] == "YXKFPFQIDHAWAU-XAZDILKDSA-N")
         self.assertDictEqual(expected, output)
 
-    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    @skip_if_import_exception
     def test_subskeys(self):
 
         chunks = list(PropCalculator.subskeys(self.inchikey_inchi))
@@ -77,7 +90,7 @@ class TestPropCalculator(unittest.TestCase):
                       "inchikey"] == "YXKFPFQIDHAWAU-XAZDILKDSA-N")
         self.assertDictEqual(expected, output)
 
-    @pytest.mark.skip(reason="Qed package not available in gitlab")
+    @skip_if_import_exception
     def test_physchem(self):
 
         chunks = list(PropCalculator.physchem(self.inchikey_inchi))
