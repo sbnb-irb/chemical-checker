@@ -21,7 +21,6 @@ import shutil
 import numpy as np
 from time import time
 from sklearn.model_selection import ParameterGrid
-from pathlib2 import Path
 from .signature_base import BaseSignature
 import chemicalchecker
 from chemicalchecker.util.hpc import HPC
@@ -176,7 +175,7 @@ class sign2(BaseSignature):
         ada.save_performances(adanet_path, sign2_plot, extra_preditors)
         self.__log.debug('model saved to %s' % adanet_path)
 
-        Path(os.path.join(self.model_path, self.readyfile)).touch()
+        self.mark_ready()
 
     def predict(self, sign1):
         """Use the learned model to predict the signature."""

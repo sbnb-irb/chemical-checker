@@ -50,7 +50,8 @@ class BaseSignature(object):
             if isinstance(signature_path, unicode):
                 self.signature_path = signature_path.encode('ascii', 'ignore')
             if isinstance(validation_path, unicode):
-                self.validation_path = validation_path.encode('ascii', 'ignore')
+                self.validation_path = validation_path.encode(
+                    'ascii', 'ignore')
         self.readyfile = "fit.ready"
 
         if not os.path.isdir(signature_path):
@@ -94,6 +95,11 @@ class BaseSignature(object):
         if not self.is_fit():
             raise Exception(
                 "Before calling predict method, fit method needs to be called.")
+
+    def mark_ready(self):
+        filename = os.path.join(self.model_path, self.readyfile)
+        with open(filename, 'w') as fh:
+            pass
 
     @property
     def info_h5(self):

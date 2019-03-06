@@ -6,7 +6,6 @@ virtually *any* molecule in *any* dataset.
 """
 import os
 import numpy as np
-from pathlib2 import Path
 from .signature_base import BaseSignature
 from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util.plot import Plot
@@ -175,7 +174,7 @@ class sign3(BaseSignature):
         ada.save_performances(adanet_path, sign2_plot)
         self.__log.debug('model saved to %s' % adanet_path)
 
-        Path(os.path.join(self.model_path, self.readyfile)).touch()
+        self.mark_ready()
 
     def predict(self, sign1):
         """Use the learned model to predict the signature."""
