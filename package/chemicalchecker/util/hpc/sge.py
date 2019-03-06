@@ -1,17 +1,13 @@
-"""SGE interace to send jobs to an HPC cluster
-
-"""
+"""SGE interace to send jobs to an HPC cluster."""
 import os
-import paramiko
-import datetime
-import glob
-import tarfile
 import re
-import math
-import pickle
-from itertools import islice
+import glob
 import uuid
 import time
+import pickle
+import tarfile
+import paramiko
+import datetime
 import numpy as np
 
 from chemicalchecker.util import logged
