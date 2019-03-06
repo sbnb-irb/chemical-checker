@@ -119,13 +119,6 @@ From: centos
     sbnb_pip sbnb-uniprotkb                       # interface to the local UniprotKB database
     sbnb_pip sbnb-util                            # utility code in the SBNB lab
 
-    # chemical beauty QED
-    curl -LO http://silicos-it.be.s3-website-eu-west-1.amazonaws.com/_downloads/qed-1.0.1.tar.gz
-    mv qed-*.tar.gz /usr/local/src/
-    cd /usr/local/src/
-    tar -xvf qed-*.tar.gz
-    cd qed-*
-    python setup.py install
 
     # APSW stands for Another Python SQLite Wrapper
     pip install https://github.com/rogerbinns/apsw/releases/download/3.24.0-r1/apsw-3.24.0-r1.zip --global-option=fetch --global-option=--version --global-option=3.24.0 --global-option=--all --global-option=build --global-option=--enable-all-extensions
