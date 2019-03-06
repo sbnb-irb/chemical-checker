@@ -5,6 +5,7 @@ necessary for the Chemical Checker.
 """
 import os
 import json
+
 from chemicalchecker.util import logged
 
 
