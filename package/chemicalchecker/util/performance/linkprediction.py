@@ -4,6 +4,7 @@ from numpy.random import randint
 from scipy.spatial.distance import cosine
 
 from .performance import PerformanceBinary
+
 from chemicalchecker.util import logged
 
 
