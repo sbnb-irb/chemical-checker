@@ -16,12 +16,13 @@ import shutil
 import tempfile
 import patoolib
 from glob import glob
-from subprocess import call
 from time import sleep
 from ftplib import FTP
+from subprocess import call
 from six.moves import urllib
-from six.moves.urllib.parse import urlparse
 from six.moves.urllib import request
+from six.moves.urllib.parse import urlparse
+
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 from chemicalchecker.util import psql
