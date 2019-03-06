@@ -5,7 +5,6 @@ import json
 import os
 import glob
 import bisect
-from pathlib2 import Path
 from chemicalchecker.util import logged, Config
 from chemicalchecker.util.plot import Plot
 from .signature_base import BaseSignature
@@ -323,7 +322,7 @@ class clus1(BaseSignature):
             if mappings is not None:
                 hf.create_dataset("mappings", data=mappings)
 
-        Path(os.path.join(self.model_path, self.readyfile)).touch()
+        self.mark_ready()
 
     def predict(self, sign1, destination=None, validations=False):
         """Use the fitted models to go from input to output."""

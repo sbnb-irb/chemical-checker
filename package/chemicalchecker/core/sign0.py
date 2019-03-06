@@ -21,7 +21,6 @@ import imp
 import h5py
 import numpy as np
 from tqdm import tqdm
-from pathlib2 import Path
 from .signature_base import BaseSignature
 from chemicalchecker.util import psql
 from chemicalchecker.util import logged
@@ -81,7 +80,7 @@ class sign0(BaseSignature):
                             self.preprocess_script)
         self.call_preprocess(self.data_path, "fit")
 
-        Path(os.path.join(self.model_path, self.readyfile)).touch()
+        self.mark_ready()
 
     def predict(self, input_data_file, destination, entry_point=None):
         """Call the external preprocess script to generate h5 data."""
