@@ -1,8 +1,8 @@
-from sklearn.preprocessing import Imputer, RobustScaler
-from fancyimpute import IterativeImputer as fancyImputer
-import numpy as np
 import os
 import pickle
+import numpy as np
+from sklearn.preprocessing import Imputer, RobustScaler
+from fancyimpute import IterativeImputer as fancyImputer
 
 perc = 99.9
 
