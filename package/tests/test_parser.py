@@ -1,9 +1,21 @@
 import os
-import unittest
 import pytest
 import shutil
+import unittest
+import functools
 
 from chemicalchecker.util.parser import Parser
+
+
+def skip_if_import_exception(function):
+    """Assist in skipping tests failing because of missing dependencies."""
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except ImportError as err:
+            pytest.skip(str(err))
+    return wrapper
 
 
 class TestParser(unittest.TestCase):
@@ -20,7 +32,7 @@ class TestParser(unittest.TestCase):
         if os.path.exists(self.mol_dir):
             shutil.rmtree(self.mol_dir)
 
-    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    @skip_if_import_exception
     def test_bindingdb(self):
         file_path = os.path.join(self.data_dir, 'BindingDB_All.tsv')
         self.assertTrue(os.path.isfile(file_path))
@@ -36,7 +48,7 @@ class TestParser(unittest.TestCase):
                     'molrepo_name': 'bindingdb'}
         self.assertDictEqual(expected, results[0])
 
-    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    @skip_if_import_exception
     def test_chebi(self):
         file_path = os.path.join(self.data_dir, 'ChEBI_lite_3star.sdf')
         self.assertTrue(os.path.isfile(file_path))
@@ -52,7 +64,7 @@ class TestParser(unittest.TestCase):
                     'molrepo_name': 'chebi'}
         self.assertDictEqual(expected, results[0])
 
-    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    @skip_if_import_exception
     def test_ctd(self):
         file_path = os.path.join(self.data_dir, 'CTD_chemicals_diseases.tsv')
         self.assertTrue(os.path.isfile(file_path))
@@ -68,7 +80,7 @@ class TestParser(unittest.TestCase):
                     'src_id': 'C112297'}
         self.assertDictEqual(expected, results[0])
 
-    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    @skip_if_import_exception
     def test_drugbank(self):
         file_path = os.path.join(self.data_dir, 'drugbank.xml')
         self.assertTrue(os.path.isfile(file_path))
@@ -84,7 +96,7 @@ class TestParser(unittest.TestCase):
                     'src_id': 'DB00006'}
         self.assertDictEqual(expected, results[0])
 
-    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    @skip_if_import_exception
     def test_kegg(self):
         file_path = os.path.join(self.data_dir, 'kegg.br')
         self.assertTrue(os.path.isfile(file_path))
@@ -104,7 +116,7 @@ class TestParser(unittest.TestCase):
 
         self.assertDictEqual(expected, results[0])
 
-    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    @skip_if_import_exception
     def test_lincs(self):
         file_path1 = os.path.join(self.data_dir, 'lincs_GSE70138.txt')
         self.assertTrue(os.path.isfile(file_path1))
@@ -123,7 +135,7 @@ class TestParser(unittest.TestCase):
                     'src_id': 'BRD-K70792160'}
         self.assertDictEqual(expected, results[0])
 
-    #@pytest.mark.skip(reason="RDKit is not available on test enviroment")
+    @skip_if_import_exception
     def test_smpdb(self):
         file_path = os.path.join(self.data_dir, 'smpdb_structures')
         chunks = list(Parser.smpdb([file_path], 'smpdb'))

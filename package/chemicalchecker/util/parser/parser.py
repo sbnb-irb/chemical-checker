@@ -1,17 +1,12 @@
 import os
-import pybel
 import csv
+import wget
 import pandas as pd
 import xml.etree.ElementTree as ET
-import wget
 
 from .converter import Converter
 from chemicalchecker.util import logged
 from chemicalchecker.util import psql
-try:
-    import rdkit.Chem as Chem
-except ImportError:
-    pass
 
 
 @logged
@@ -86,6 +81,11 @@ class Parser():
 
     @staticmethod
     def chebi(file_path, molrepo_name, chunks=1000):
+        try:
+            import rdkit.Chem as Chem
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -271,6 +271,11 @@ class Parser():
 
     @staticmethod
     def kegg(file_path, molrepo_name, chunks=1000):
+        try:
+            import pybel
+        except ImportError:
+            raise ImportError("requires pybel " +
+                              "http://openbabel.org")
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -376,6 +381,11 @@ class Parser():
 
     @staticmethod
     def mosaic(file_path, molrepo_name, chunks=1000):
+        try:
+            import pybel
+        except ImportError:
+            raise ImportError("requires pybel " +
+                              "http://openbabel.org")
         # FIXME find source (hint:/aloy/home/mduran/myscripts/mosaic/D/D3/data)
         # eventually add All_collection to local
         # check input size
@@ -577,6 +587,11 @@ class Parser():
 
     @staticmethod
     def smpdb(file_path, molrepo_name, chunks=1000):
+        try:
+            import pybel
+        except ImportError:
+            raise ImportError("requires pybel " +
+                              "http://openbabel.org")
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -618,6 +633,11 @@ class Parser():
 
     @staticmethod
     def biur_real(file_path, molrepo_name, chunks=1000):
+        try:
+            import rdkit.Chem as Chem
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -653,6 +673,11 @@ class Parser():
 
     @staticmethod
     def biur_virtual(file_path, molrepo_name, chunks=1000):
+        try:
+            import rdkit.Chem as Chem
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
