@@ -3,10 +3,6 @@
 Provides mean of accessing a network/graph.
 """
 import os
-try:
-    import snap
-except ImportError:
-    print("SNAP module not imported!")
 import json
 import numpy as np
 import networkx as nx
@@ -56,6 +52,12 @@ class MultiEdgeNetwork():
     Multiple type of node, Multiple type of edge."""
 
     def __init__(self, network):
+        try:
+            import snap
+            self.snap = snap
+        except ImportError:
+            raise ImportError("requires snap " +
+                              "http://snap.stanford.edu/")
         self._network = network
         self.__log.info("Node types: %s" % network.GetModeNets())
         self.node_types = list()
@@ -90,7 +92,7 @@ class MultiEdgeNetwork():
         node = modenet.BegMMNI()
         while node < modenet.EndMMNI():
             if data:
-                attr = snap.TStrV()
+                attr = self.snap.TStrV()
                 node.GetStrAttrVal(attr)
                 yield (node.GetId(), attr[0])
             else:
@@ -106,7 +108,7 @@ class MultiEdgeNetwork():
             src = edge.GetSrcNId()
             dst = edge.GetDstNId()
             if data:
-                weight = snap.TFltV()
+                weight = self.snap.TFltV()
                 crossnet.FltAttrValueEI(edge.GetId(), weight)
                 yield (src, dst, weight[0])
             else:
@@ -122,14 +124,14 @@ class MultiEdgeNetwork():
             crossnet = self._current_crossnet[1]
         else:
             crossnet = self._network.GetCrossNetByName(edge_type)
-        edgeids = snap.TIntV()
+        edgeids = self.snap.TIntV()
         modenet.GetNeighborsByCrossNet(nodeid, edge_type, edgeids, True)
         for edgeid in edgeids:
             ei = crossnet.GetEdgeI(edgeid)
-            edge = snap.TCrossNetEdgeI(ei)
+            edge = self.snap.TCrossNetEdgeI(ei)
             ei.disown()
             if data:
-                weight = snap.TFltV()
+                weight = self.snap.TFltV()
                 crossnet.FltAttrValueEI(edgeid, weight)
                 yield (edge.GetDstNId(), weight[0])
             else:
@@ -162,12 +164,23 @@ class SNAPNetwork():
     Single type of node, single type of edge."""
 
     def __init__(self, network):
+        try:
+            import snap
+            self.snap = snap
+        except ImportError:
+            raise ImportError("requires snap " +
+                              "http://snap.stanford.edu/")
         self._network = network
         self.__log.info("Nodes : {:>12}".format(network.GetNodes()))
         self.__log.info("Edges : {:>12}".format(network.GetEdges()))
 
     @classmethod
     def from_file(cls, filename, delimiter=' ', read_weights=True):
+        try:
+            import snap
+        except ImportError:
+            raise ImportError("requires snap " +
+                              "http://snap.stanford.edu/")
         filename = os.path.abspath(filename)
         network = snap.LoadEdgeList(snap.PNEANet, filename, 0, 1, delimiter)
         # add weigths
@@ -185,7 +198,7 @@ class SNAPNetwork():
         node = self._network.BegNI()
         while node < self._network.EndNI():
             if data:
-                attr = snap.TStrV()
+                attr = self.snap.TStrV()
                 node.GetStrAttrVal(attr)
                 yield (node.GetId(), attr[0])
             else:
@@ -198,7 +211,7 @@ class SNAPNetwork():
             src = edge.GetSrcNId()
             dst = edge.GetDstNId()
             if data:
-                weight = snap.TFltV()
+                weight = self.snap.TFltV()
                 self._network.FltAttrValueEI(edge.GetId(), weight)
                 yield (src, dst, weight[0])
             else:
@@ -211,7 +224,7 @@ class SNAPNetwork():
             neig = node.GetNbrNId(nid)
             if data:
                 edgeid = node.GetNbrEId(nid)
-                weight = snap.TFltV()
+                weight = self.snap.TFltV()
                 self._network.FltAttrValueEI(edgeid, weight)
                 yield (neig, weight[0])
             else:
@@ -237,7 +250,7 @@ class SNAPNetwork():
             print(edge)
 
     def save(self, filename):
-        FOut = snap.TFOut(filename)
+        FOut = self.snap.TFOut(filename)
         self._network.Save(FOut)
         FOut.Flush()
 
@@ -265,7 +278,7 @@ class SNAPNetwork():
         edge = self._network.BegEI()
         weights = list()
         while edge < self._network.EndEI():
-            weight = snap.TFltV()
+            weight = self.snap.TFltV()
             self._network.FltAttrValueEI(edge.GetId(), weight)
             weights.append(weight[0])
             edge.Next()
@@ -287,9 +300,9 @@ class SNAPNetwork():
         stats["Weight_50"] = np.percentile(weights, 50)
         stats["Weight_75"] = np.percentile(weights, 75)
         # fraction of nodes in largest weakly connected component
-        stats["WccSz"] = snap.GetMxWccSz(self._network)
+        stats["WccSz"] = self.snap.GetMxWccSz(self._network)
         # fraction of nodes in largest strongly connected component
-        stats["SccSz"] = snap.GetMxSccSz(self._network)
+        stats["SccSz"] = self.snap.GetMxSccSz(self._network)
 
         with open(filename, 'w') as fh:
             json.dump(stats, fh)
