@@ -1,22 +1,17 @@
 import os
-try:
-    import faiss
-    from MulticoreTSNE import MulticoreTSNE as TSNE
-    import hdbscan
-except:
-    pass
-import numpy as np
 import h5py
-import random
-from sklearn.manifold import MDS
 import json
+import random
 import datetime
+import numpy as np
 from time import time
 from numpy import linalg as LA
+from sklearn.manifold import MDS
+
+from .signature_base import BaseSignature
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.plot import Plot
-from .signature_base import BaseSignature
 
 
 @logged
@@ -75,6 +70,21 @@ class proj1(BaseSignature):
 
     def fit(self, sign1, validations=True):
         """Take an input and learns to produce an output."""
+        try:
+            import faiss
+        except ImportError:
+            raise ImportError("requires faiss " +
+                              "https://github.com/facebookresearch/faiss")
+        try:
+            import hdbscan
+        except ImportError:
+            raise ImportError("requires hdbscan " +
+                              "https://hdbscan.readthedocs.io/en/latest/")
+        try:
+            from MulticoreTSNE import MulticoreTSNE as TSNE
+        except ImportError:
+            raise ImportError("requires hdbscan " +
+                              "http://github.com/DmitryUlyanov/Multicore-TSNE")
         BaseSignature.fit(self)
 
         plot = Plot(self.dataset, self.stats_path, self.validation_path)
@@ -262,6 +272,11 @@ class proj1(BaseSignature):
 
     def predict(self, sign1, destination=None, validations=False):
         """Use the fitted models to go from input to output."""
+        try:
+            import faiss
+        except ImportError:
+            raise ImportError("requires faiss " +
+                              "https://github.com/facebookresearch/faiss")
         BaseSignature.predict(self)
         mappings = None
 

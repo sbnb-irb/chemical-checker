@@ -1,45 +1,42 @@
 """Utility for plotting from data.
 
-Basically every Chemical Checker dataset can produce one or more plots
-This class performs all this kind of plots.
-
+Basically every Chemical Checker dataset can produce one or more plots.
+This class performs offers a shared functions (e.g. color codes) to produce
+different kind of plots.
 """
 from __future__ import division
-import h5py
-import math
-import sys
-import os
-import numpy as np
-from scipy.stats import gaussian_kde
-import matplotlib
-matplotlib.use('Agg')
-import random
-from matplotlib import pyplot as plt
-import seaborn as sns
-from scipy.stats import ks_2samp, fisher_exact
-from scipy.spatial.distance import euclidean, cosine
-from numpy import matlib
-import matplotlib.patches as patches
-from sklearn.metrics import roc_curve, roc_auc_score
-import matplotlib as mpl
-from chemicalchecker.util import logged
-from chemicalchecker.util import Config
-import matplotlib.patheffects as path_effects
-from sklearn.metrics import r2_score, mean_squared_error
-from sklearn.metrics.pairwise import cosine_distances
-from scipy import stats
-import pandas as pd
-import functools
 
+import os
+import sys
+import math
+import h5py
+import random
+import functools
+import numpy as np
+import pandas as pd
+from numpy import matlib
+from scipy import stats
+from scipy.stats import ks_2samp, fisher_exact, gaussian_kde
+from scipy.spatial.distance import euclidean, cosine
+from sklearn.metrics import roc_curve, roc_auc_score, r2_score
+from sklearn.metrics.pairwise import cosine_distances
+
+import matplotlib
+import seaborn as sns
+import matplotlib as mpl
+from matplotlib import pyplot as plt
+import matplotlib.patches as patches
+import matplotlib.patheffects as path_effects
+
+from chemicalchecker.util import logged
+
+matplotlib.use('Agg')
 random.seed(42)
 np.random.seed(42)
 
 
-def continue_on_exception(function):
-    """
-    A decorator that wraps the passed in function and logs
-    exceptions should one occur
-    """
+def skip_on_exception(function):
+    """Assist in skipping failing plots gracefully."""
     @logged
     @functools.wraps(function)
     def wrapper(*args, **kwargs):
@@ -609,7 +606,7 @@ class Plot():
         plt.savefig(filename, dpi=100)
         plt.close()
 
-    @continue_on_exception
+    @skip_on_exception
     def sign2_prediction_plot(self, y_true, y_pred, predictor_name):
 
         coord = self.dataset_code

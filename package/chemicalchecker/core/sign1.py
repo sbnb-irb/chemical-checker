@@ -1,23 +1,22 @@
 import os
 import gc
-from scipy.sparse import lil_matrix
-from scipy.spatial.distance import euclidean, cosine
-from sklearn.utils.sparsefuncs import mean_variance_axis
-from gensim import corpora, models
-import random
-import tempfile
-import shelve
-import datetime
-import numpy as np
 import h5py
 import glob
-import pickle
-from sklearn.preprocessing import Normalizer, RobustScaler
-from scipy.spatial.distance import euclidean, cosine
-from sklearn.decomposition import PCA
+import random
+import shelve
+import tempfile
+import datetime
+import numpy as np
+from gensim import corpora, models
+from scipy.sparse import lil_matrix
 from sklearn.externals import joblib
+from sklearn.decomposition import PCA
+from scipy.spatial.distance import euclidean, cosine
+from sklearn.utils.sparsefuncs import mean_variance_axis
+from sklearn.preprocessing import Normalizer, RobustScaler
 
 from .signature_base import BaseSignature
+
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 from chemicalchecker.util.plot import Plot

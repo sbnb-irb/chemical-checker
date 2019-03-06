@@ -6,12 +6,11 @@ virtually *any* molecule in *any* dataset.
 """
 import os
 import numpy as np
+
 from .signature_base import BaseSignature
-from chemicalchecker.util.hpc import HPC
+
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
-from chemicalchecker.util import Config
-from chemicalchecker.tool.adanet import AdaNet, Traintest
 
 
 @logged
@@ -136,6 +135,10 @@ class sign3(BaseSignature):
 
     def fit(self, chemchecker, reuse=True):
         """Learn a model."""
+        try:
+            from chemicalchecker.tool.adanet import AdaNet, Traintest
+        except ImportError as err:
+            raise err
         # adanet
         self.__log.debug('AdaNet fit %s based on other sign2', self.dataset)
         # get params and set folder
@@ -178,6 +181,10 @@ class sign3(BaseSignature):
 
     def predict(self, sign1):
         """Use the learned model to predict the signature."""
+        try:
+            from chemicalchecker.tool.adanet import AdaNet
+        except ImportError as err:
+            raise err
         pass
 
     @staticmethod
@@ -187,6 +194,10 @@ class sign3(BaseSignature):
         Signatures should be `full` to maximize the intersaction, that's the
         training input.
         """
+        try:
+            from chemicalchecker.tool.adanet import AdaNet, Traintest
+        except ImportError as err:
+            raise err
         sign3.__log.debug('AdaNet cross fit signatures')
         # get params and set folder
         adanet_params = params['adanet']

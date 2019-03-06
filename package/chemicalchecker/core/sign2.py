@@ -20,17 +20,12 @@ import os
 import shutil
 import numpy as np
 from time import time
-from sklearn.model_selection import ParameterGrid
+
 from .signature_base import BaseSignature
-import chemicalchecker
-from chemicalchecker.util.hpc import HPC
+
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
-from chemicalchecker.util.network import SNAPNetwork
-from chemicalchecker.util.performance import LinkPrediction
-from chemicalchecker.tool.adanet import AdaNet, Traintest
-from chemicalchecker.tool.node2vec import Node2Vec
 
 
 @logged
@@ -86,6 +81,14 @@ class sign2(BaseSignature):
         #########
         # step 1: Node2Vec (learn graph embedding) input is neig1
         #########
+        try:
+            from chemicalchecker.util.network import SNAPNetwork
+            from chemicalchecker.util.performance import LinkPrediction
+            from chemicalchecker.tool.adanet import AdaNet, Traintest
+            from chemicalchecker.tool.node2vec import Node2Vec
+        except ImportError as err:
+            raise err
+
         self.__log.debug('Node2Vec on %s' % sign1)
         n2v = Node2Vec(executable=Config().TOOLS.node2vec_exec)
         # use neig1 to generate the Node2Vec input graph (as edgelist)
@@ -179,6 +182,10 @@ class sign2(BaseSignature):
 
     def predict(self, sign1):
         """Use the learned model to predict the signature."""
+        try:
+            from chemicalchecker.tool.adanet import AdaNet
+        except ImportError as err:
+            raise err
         # load AdaNet model
         adanet_path = os.path.join(self.model_path, 'adanet', 'savedmodel')
         self.__log.debug('loading model from %s' % adanet_path)
@@ -191,6 +198,7 @@ class sign2(BaseSignature):
         """
         from .data import DataFactory
         from .neig1 import neig1
+        from chemicalchecker.tool.adanet import Traintest
         self.__log.info('Performing Nearest Neighbor prediction.')
         # create directory to save neig and sign (delete if exists)
         nn_path = os.path.join(self.model_path, "nearest_neighbor")
@@ -244,6 +252,11 @@ class sign2(BaseSignature):
             'layer_size': [8, 128, 512, 1024]
         }
         """
+        import chemicalchecker
+        from chemicalchecker.util.hpc import HPC
+        from chemicalchecker.tool.adanet import Traintest
+        from sklearn.model_selection import ParameterGrid
+
         gridsearch_path = os.path.join(
             self.model_path, 'grid_search_%s' % dir_suffix)
         if not os.path.isdir(gridsearch_path):
