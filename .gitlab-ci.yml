@@ -1,11 +1,8 @@
 image: cc_image:latest
 cache:
-  key: py27
-    paths:
-      - cc.simg
-  key: py36
-    paths:
-      - cc_py36.simg
+  paths:
+    - cc.simg
+    - cc_py36.simg
 
 stages:
   - image
@@ -19,9 +16,9 @@ build_singularity_image_py27:
     - rm -f cc.simg
     - singularity build cc.simg ./container/singularity/cc.def
   cache:
-    key: py27
-      paths:
-        - cc.simg
+    paths:
+      - cc.simg
+      - cc_py36.simg
   only:
     changes:
       - container/singularity/cc.def
@@ -33,9 +30,9 @@ build_singularity_image_py36:
     - rm -f cc_py36.simg
     - singularity build cc_py36.simg ./container/singularity/cc_py36.def
   cache:
-    key: py36
-      paths:
-        - cc_py36.simg
+    paths:
+      - cc.simg
+      - cc_py36.simg
   only:
     changes:
       - container/singularity/cc_py36.def
@@ -47,9 +44,9 @@ python_2.7.10:
     - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg which python
     - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg pytest -s /test/package
   cache:
-    key: py27
-      paths:
-        - cc.simg
+    paths:
+      - cc.simg
+      - cc_py36.simg
 
 python_3.6.8:
   stage: test
@@ -58,9 +55,9 @@ python_3.6.8:
     - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_py36.simg which python
     - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_py36.simg pytest -s /test/package
   cache:
-    key: py36
-      paths:
-        - cc_py36.simg
+    paths:
+      - cc.simg
+      - cc_py36.simg
 
 
 Pages:
