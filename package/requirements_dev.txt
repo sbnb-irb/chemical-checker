@@ -33,4 +33,3 @@ cython
 MulticoreTSNE
 fancyimpute
 networkx
-pathlib2
