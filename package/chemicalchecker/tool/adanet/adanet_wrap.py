@@ -153,26 +153,25 @@ class Traintest(object):
                 # raise if not probabilities are given
                 if 'probabilities' not in augment:
                     raise Exception("Please specify probabilities.")
+                # read probabilities
+                p_space, p_count = augment['probabilities']
                 # initialize the whole empty array
-                # (memory safer rather than appending)
                 p_x = np.zeros((augment['max_size'], x_train.shape[1]),
                                dtype=np.float32)
                 p_y = np.zeros((augment['max_size'], 128), dtype=np.float32)
-                # probabilities
-                p_space, p_count = augment['probabilities']
+                # add original datapoints
+                p_x[:len(x_train)] = x_train
+                p_y[:len(y_train)] = y_train
+                counter = len(x_train)
                 # repeat the subsampling until enough subsamples are drawn
-                pbar = tqdm(total=augment['max_size'])
-                counter = 0
+                pbar = tqdm(total=augment['max_size'], initial=len(x_train))
                 while counter < augment['max_size']:
-                    # subsample vector
+                    # iterate on original data randomly as we don't know if
+                    # we can subsample all of them or if we need to resample
+                    # the original data more than once (depends on max_size)
                     mol_idxs = range(len(x_train))
                     np.random.shuffle(mol_idxs)
                     for idx in mol_idxs:
-                        # add the original datapoint
-                        p_x[counter] = x_train[idx]
-                        p_y[counter] = y_train[idx]
-                        counter += 1
-                        pbar.update(1)
                         # get the presence array e.g. 110
                         presence = ~np.isnan(x_train[idx][0::128])
                         # debug_str = "* {:<3} ".format(idx) + \
@@ -180,11 +179,12 @@ class Traintest(object):
                         # Traintest.__log.debug(debug_str)
                         present_idxs = np.argwhere(presence).flatten()
                         # iterate on  individual starting point e.g. 100, 010
+                        # we want all spaces used at least once
                         for initial in present_idxs:
                             presence_add = np.zeros(
                                 presence.shape).astype(bool)
                             presence_add[initial] = True
-                            # what's the max spaces I can had?
+                            # what's the max spaces I can add?
                             max_add = present_idxs.shape[0] - 1
                             my_p_count = {k: v for k,
                                           v in p_count.items() if k < max_add}
