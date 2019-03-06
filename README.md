@@ -6,41 +6,49 @@ The Chemical Checker (CC) is a resource of small molecule signatures. In the CC,
 * For a quick exploration of the resource, please visit the [CC web app](http://chemicalchecker.org).
 * Concepts and methods are best described in the original CC publication, [Duran-Frigola et al. 2019](https://www.dropbox.com/s/x2rqszfdfpqdqdy/duranfrigola_etal_ms_current.pdf?dl=0).
 
-## How to start 
+## Installation 
 
 1. Install singularity:  https://www.sylabs.io/guides/2.6/user-guide/installation.html
 
-2. Download def file
+2. Install Git
 
-    Go to this link and use the download cloud button to get the def file
-    http://gitlab.sbnb.org/project-specific-repositories/chemical_checker/blob/master/container/singularity/cc-full.def
+3. Download the `setup_chemicalchecker.sh` script to your home folder
+
+4. Run the script with:
+
+        sh setup_chemicalchecker.sh
+
+    This script will require sudo access and it will request to type your password.
     
-3. Create singularity sandbox
+`setup_chemicalchecker.sh` allows you to create a singularity image with all necessary packages including the Chemical Checker package.
 
-        sudo singularity build --sanbox <PATH_TO_SANDBOX_DIRECTORY> <PATH_TO_>/cc-full.def
+After the first run of this script, if you only want to update the Chemical Checker package, run the script like that:
 
+        sh setup_chemicalchecker.sh -i
+        
+Every time, you run this script it will rrequire you to modify or just validate the Chemical Checker config file.
+If you only want to change the config file, run the script like that:
+
+        sh setup_chemicalchecker.sh -e
     
-4. Modify config file with your specific data
+## Usage
 
-    Run this command and change the paramaters:
+1. Download the `run_chemicalchecker.sh` script to your home folder
+
+2. Run the script with (if you want to use it as notebook):
+
+        sh run_chemicalchecker.sh
+
+    2.1. Open your browser, paste the URL that the script has produced.
+
+    2.2. Start a new notebook (on the top right jupyter page click New -> Python )
+
+    2.3. Type ***import chemicalchecker***
+
+3. Run the script with:
+
+        sh run_chemicalchecker.sh -s
+        
+    3.1 Type ***python***
     
-        sudo singularity --writable <PATH_TO_SANDBOX_DIRECTORY> vi /opt/chemical_checker/cc_config.json
-    
-5. Create final container image
-
-        sudo singularity build cc.simg <PATH_TO_SANDBOX_DIRECTORY>
-
-## Installation
-
-1. Download the `setup_chemicalchecker.sh` script to your home folder
-
-2. run the script with:
-    ```sh setup_chemicalchecker.sh```
-
-4. Open your browser to [http://localhost:8888/](http://localhost:8888/).
-
-5. Start a new notebook (on the top right jupyter page click New -> Python )
-
-6. ```import chemicalchecker```
-
-7. Have fun!
+    3.2 Type ***import chemicalchecker***
