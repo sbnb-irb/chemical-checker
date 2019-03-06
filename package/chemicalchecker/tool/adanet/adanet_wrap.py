@@ -150,23 +150,29 @@ class Traintest(object):
                 y_train = np.concatenate(tuple(p_y))
             elif augment['strategy'] == "probabilities" \
                     and x_train.shape[0] < augment['max_size']:
-                # initial list
-                p_x = list()
-                p_y = list()
+                # raise if not probabilities are given
                 if 'probabilities' not in augment:
                     raise Exception("Please specify probabilities.")
+                # initialize the whole empty array
+                # (memory safer rather than appending)
+                p_x = np.zeros((augment['max_size'], x_train.shape[1]),
+                               dtype=np.float32)
+                p_y = np.zeros((augment['max_size'], 128), dtype=np.float32)
                 # probabilities
                 p_space, p_count = augment['probabilities']
                 # repeat the subsampling until enough subsamples are drawn
-                pbar = tqdm(total=augment['max_size'] - x_train.shape[0])
-                while len(p_x) < augment['max_size'] - x_train.shape[0]:
+                pbar = tqdm(total=augment['max_size'])
+                counter = 0
+                while counter < augment['max_size']:
                     # subsample vector
                     mol_idxs = range(len(x_train))
                     np.random.shuffle(mol_idxs)
                     for idx in mol_idxs:
-                        # early termination criteria, when I have enought
-                        if len(p_x) >= augment['max_size'] - x_train.shape[0]:
-                            break
+                        # add the original datapoint
+                        p_x[counter] = x_train[idx]
+                        p_y[counter] = y_train[idx]
+                        counter += 1
+                        pbar.update(1)
                         # get the presence array e.g. 110
                         presence = ~np.isnan(x_train[idx][0::128])
                         # debug_str = "* {:<3} ".format(idx) + \
@@ -218,13 +224,18 @@ class Traintest(object):
                             # append new row
                             new_data = np.copy(x_train[idx])
                             new_data[~mask] = np.nan
-                            p_x.append(new_data)
-                            p_y.append(np.copy(y_train[idx]))
+                            p_x[counter] = new_data
+                            p_y[counter] = y_train[idx]
+                            counter += 1
                             pbar.update(1)
+                            if counter == len(p_x):
+                                break
+                        if counter == len(p_x):
+                            break
                 pbar.close()
                 # join list into numpy array
-                x_train = np.vstack((x_train, np.vstack(p_x)))
-                y_train = np.vstack((y_train, np.vstack(p_y)))
+                x_train = p_x
+                y_train = p_y
 
         # create dataset
         with h5py.File(out_filename, "w") as fh:
