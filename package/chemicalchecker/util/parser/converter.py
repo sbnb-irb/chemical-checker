@@ -1,15 +1,8 @@
-"""Convert between molecule identifier conventions.
-
-standardiser ref: https://wwwdev.ebi.ac.uk/chembl/extra/francis/standardiser/
-"""
+"""Convert between molecule identifier conventions."""
 from six.moves.urllib.request import urlopen
 from six.moves.urllib.parse import quote
+
 from chemicalchecker.util import logged
-try:
-    from standardiser import standardise
-    from rdkit.Chem import AllChem as Chem
-except ImportError:
-    pass
 
 
 class ConversionError(Exception):
@@ -28,6 +21,17 @@ class Converter():
     @staticmethod
     def smiles_to_inchi(smiles):
         """From SMILES to InChIKey and InChI."""
+        try:
+            import rdkit.Chem as Chem
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
+        try:
+            from standardiser import standardise
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://wwwdev.ebi.ac.uk/chembl/extra/" +
+                              "francis/standardiser/")
         mol = standardise.Chem.MolFromSmiles(smiles)
         if not mol:
             raise ConversionError("MolFromSmiles returned None", smiles)
