@@ -8,7 +8,6 @@ except:
 import numpy as np
 import h5py
 import random
-from pathlib2 import Path
 from sklearn.manifold import MDS
 import json
 import datetime
@@ -259,7 +258,7 @@ class proj1(BaseSignature):
             with open(os.path.join(self.stats_path, 'proj_stats.json'), 'w') as fp:
                 json.dump(INFO, fp)
 
-        Path(os.path.join(self.model_path, self.readyfile)).touch()
+        self.mark_ready()
 
     def predict(self, sign1, destination=None, validations=False):
         """Use the fitted models to go from input to output."""
