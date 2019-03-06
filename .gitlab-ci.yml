@@ -62,16 +62,16 @@ python_3.6.8:
 
 Pages:
   stage: pages
-  script:
-  - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg bash -c 'cd /test/package/docs && sphinx-apidoc -o source ../chemicalchecker -f -e && make html'
-  - cd package/docs
-  - mv _build/html/ ../../public/
-  - ls -l ../../public
   artifacts:
     paths:
-    - public
+    - test
   cache:
     paths:
       - cc.simg
+  script:
+  - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg bash -c 'cd /test/package/docs && sphinx-apidoc -o source ../chemicalchecker -f -e && make html'
+  - cd package/docs
+  - mv _build/html/ ../../test/
+  - ls -l ../../test
   only:
   - master
