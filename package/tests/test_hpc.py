@@ -1,8 +1,21 @@
 import os
+import pytest
 import unittest
+import functools
 
 from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util import Config
+
+
+def skip_if_import_exception(function):
+    """Assist in skipping tests failing because of missing dependencies."""
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except ImportError as err:
+            pytest.skip(str(err))
+    return wrapper
 
 
 class TestHPC(unittest.TestCase):
@@ -14,6 +27,7 @@ class TestHPC(unittest.TestCase):
         os.environ["CC_CONFIG"] = os.path.join(
             self.data_dir, 'config.json')
 
+    @skip_if_import_exception
     def test_hpc(self):
         config = Config()
         cluster = HPC(config, True)
