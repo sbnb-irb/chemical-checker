@@ -57,18 +57,17 @@ class sign3(BaseSignature):
         # limit redundancy)
         my_sign2 = chemchecker.get_signature(
             'sign2', 'reference', self.dataset.code)
-        available_mols = list()
-        for ds in list(chemchecker.datasets):
-            if ds == self.dataset.code:
-                continue
+        # get other space signature 2 for molecule in current space (presence)
+        other_spaces = list(chemchecker.datasets)
+        other_spaces.remove(self.dataset.code)
+        available_mols = np.zeros((my_sign2.shape[0], len(other_spaces)),
+                                  dtype=np.float32)
+        for idx, ds in enumerate(other_spaces):
             sign2_ds = chemchecker.get_signature('sign2', 'full_map', ds)
             available = np.isin(my_sign2.keys, sign2_ds.keys)
-            available_mols.append(available)
+            available_mols[:, idx] = available.T
             self.__log.info('%s shared molecules between %s and %s',
                             sum(available), self.dataset, ds)
-        # get availability matrix
-        available_mols = np.stack(available_mols).T
-        available_mols = available_mols.astype(float)
         # get probabilities for a given space (column)
         p_space = np.sum(available_mols, axis=0) / np.sum(available_mols)
         # get probabilities for how many spaces for a molecule (row)
@@ -85,17 +84,17 @@ class sign3(BaseSignature):
     def _print_most_common_combinations(self, chemchecker):
         my_sign2 = chemchecker.get_signature(
             'sign2', 'reference', self.dataset.code)
-        available_mols = list()
-        for ds in list(chemchecker.datasets):
-            if ds == self.dataset.code:
-                continue
+        # get other space signature 2 for molecule in current space (presence)
+        other_spaces = list(chemchecker.datasets)
+        other_spaces.remove(self.dataset.code)
+        available_mols = np.zeros((my_sign2.shape[0], len(other_spaces)),
+                                  dtype=np.float32)
+        for idx, ds in enumerate(other_spaces):
             sign2_ds = chemchecker.get_signature('sign2', 'full_map', ds)
             available = np.isin(my_sign2.keys, sign2_ds.keys)
-            available_mols.append(available)
+            available_mols[:, idx] = available.T
             self.__log.info('%s shared molecules between %s and %s',
                             sum(available), self.dataset, ds)
-        # get availability matrix
-        available_mols = np.stack(available_mols).T
         # most common combinations?
         freqs = dict()
         for row in available_mols:
@@ -118,19 +117,22 @@ class sign3(BaseSignature):
         # limit redundancy)
         my_sign2 = chemchecker.get_signature(
             'sign2', 'reference', self.dataset.code)
-        # get signature 2 for molecule in current space (allow nan)
-        sign2_matrix = list()
-        for ds in list(chemchecker.datasets):
-            if ds == self.dataset.code:
-                continue
+        # get other space signature 2 for molecule in current space (allow nan)
+        other_spaces = list(chemchecker.datasets)
+        other_spaces.remove(self.dataset.code)
+        ref_dimension = my_sign2.shape[1]
+        sign2_matrix = np.zeros(
+            (my_sign2.shape[0], ref_dimension * len(other_spaces)),
+            dtype=np.float32)
+        for idx, ds in enumerate(other_spaces):
             sign2_ds = chemchecker.get_signature('sign2', 'full_map', ds)
             _, signs = sign2_ds.get_vectors(my_sign2.keys, include_nan=True)
-            sign2_matrix.append(signs)
+            start_idx = ref_dimension * idx
+            end_idx = ref_dimension * (idx + 1)
+            sign2_matrix[:, start_idx:end_idx] = signs
             available = np.isin(my_sign2.keys, sign2_ds.keys)
             self.__log.info('%s shared molecules between %s and %s',
                             sum(available), self.dataset, ds)
-        # horizontally stack al signatures
-        sign2_matrix = np.hstack(sign2_matrix)
         return sign2_matrix, my_sign2[:]
 
     def fit(self, chemchecker, reuse=True):
