@@ -100,10 +100,11 @@ devpi:
   stage: deploy
   script:
     - conda update -c anaconda setuptools
-    - pip install devpi
+    - pip install devpi-client
     - devpi use http://devpi.sbnb.org:3141
     - devpi login gitlab --password='sbnb'
     - devpi use root/prod
+    - cd package
     - devpi upload
     - devpi push chemicalchecker==0.1.0 root/prod
 
