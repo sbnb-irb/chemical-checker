@@ -5,95 +5,95 @@ cache:
     - cc_py36.simg
     - cc_lite.simg
 
-#stages:
-#  - image
-#  - test
-#  - deploy
-#
-#
-#
-#build_singularity_image_py27:
-#  stage: image
-#  script:
-#    - yum install squashfs-tools -y
-#    - rm -f cc.simg
-#    - singularity build cc.simg ./container/singularity/cc.def
-#  cache:
-#    paths:
-#      - cc.simg
-#      - cc_py36.simg
-#      - cc_lite.simg
-#  only:
-#    changes:
-#      - container/singularity/cc.def
-#
-#build_singularity_image_py36:
-#  stage: image
-#  script:
-#    - yum install squashfs-tools -y
-#    - rm -f cc_py36.simg
-#    - singularity build cc_py36.simg ./container/singularity/cc_py36.def
-#  cache:
-#    paths:
-#      - cc.simg
-#      - cc_py36.simg
-#      - cc_lite.simg
-#  only:
-#    changes:
-#      - container/singularity/cc_py36.def
-#
-#build_singularity_image_lite:
-#  stage: image
-#  script:
-#    - yum install squashfs-tools -y
-#    - rm -f cc_lite.simg
-#    - singularity build cc_lite.simg ./container/singularity/cc_lite.def
-#  cache:
-#    paths:
-#      - cc.simg
-#      - cc_py36.simg
-#      - cc_lite.simg
-#  only:
-#    changes:
-#      - container/singularity/cc_lite.def
-#
-#
-#
-#python_2.7.10:
-#  stage: test
-#  script:
-#    - ls -l
-#    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg which python
-#    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg pytest -s /test/package
-#  cache:
-#    paths:
-#      - cc.simg
-#      - cc_py36.simg
-#      - cc_lite.simg
-#
-#python_3.6.8:
-#  stage: test
-#  script:
-#    - ls -l
-#    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_py36.simg which python
-#    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_py36.simg pytest -s /test/package
-#  cache:
-#    paths:
-#      - cc.simg
-#      - cc_py36.simg
-#      - cc_lite.simg
-#
-#python_2.7.10_lite:
-#  stage: test
-#  script:
-#    - ls -l
-#    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_lite.simg which python
-#    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_lite.simg pytest -s /test/package
-#  cache:
-#    paths:
-#      - cc.simg
-#      - cc_py36.simg
-#      - cc_lite.simg
+stages:
+  - image
+  - test
+  - deploy
+
+
+
+build_singularity_image_py27:
+  stage: image
+  script:
+    - yum install squashfs-tools -y
+    - rm -f cc.simg
+    - singularity build cc.simg ./container/singularity/cc.def
+  cache:
+    paths:
+      - cc.simg
+      - cc_py36.simg
+      - cc_lite.simg
+  only:
+    changes:
+      - container/singularity/cc.def
+
+build_singularity_image_py36:
+  stage: image
+  script:
+    - yum install squashfs-tools -y
+    - rm -f cc_py36.simg
+    - singularity build cc_py36.simg ./container/singularity/cc_py36.def
+  cache:
+    paths:
+      - cc.simg
+      - cc_py36.simg
+      - cc_lite.simg
+  only:
+    changes:
+      - container/singularity/cc_py36.def
+
+build_singularity_image_lite:
+  stage: image
+  script:
+    - yum install squashfs-tools -y
+    - rm -f cc_lite.simg
+    - singularity build cc_lite.simg ./container/singularity/cc_lite.def
+  cache:
+    paths:
+      - cc.simg
+      - cc_py36.simg
+      - cc_lite.simg
+  only:
+    changes:
+      - container/singularity/cc_lite.def
+
+
+
+python_2.7.10:
+  stage: test
+  script:
+    - ls -l
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg which python
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg pytest -s /test/package
+  cache:
+    paths:
+      - cc.simg
+      - cc_py36.simg
+      - cc_lite.simg
+
+python_3.6.8:
+  stage: test
+  script:
+    - ls -l
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_py36.simg which python
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_py36.simg pytest -s /test/package
+  cache:
+    paths:
+      - cc.simg
+      - cc_py36.simg
+      - cc_lite.simg
+
+python_2.7.10_lite:
+  stage: test
+  script:
+    - ls -l
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_lite.simg which python
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_lite.simg pytest -s /test/package
+  cache:
+    paths:
+      - cc.simg
+      - cc_py36.simg
+      - cc_lite.simg
 
 
 devpi:
@@ -105,13 +105,10 @@ devpi:
     - devpi login gitlab --password='sbnb'
     - devpi use root/prod
     - cd package
-    - devpi test chemicalchecker==0.1.0
-    - devpi push chemicalchecker==0.1.0 root/prod
-  cache:
-    paths:
-      - cc.simg
-      - cc_py36.simg
-      - cc_lite.simg
+    - devpi push chemicalchecker==$CI_COMMIT_TAG root/prod
+  only:
+    - tags
+
 
 pages:
   stage: deploy
