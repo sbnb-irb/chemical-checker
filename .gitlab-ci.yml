@@ -104,9 +104,7 @@ devpi:
     - devpi use http://devpi.sbnb.org:3141
     - devpi login gitlab --password='sbnb'
     - devpi use root/prod
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg make -C /test/package docs
     - cd package
-    - devpi upload --with-docs
     - devpi test chemicalchecker==0.1.0
     - devpi push chemicalchecker==0.1.0 root/prod
   cache:
@@ -124,9 +122,9 @@ pages:
     paths:
       - cc.simg
   script:
-  - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg bash -c 'cd /test/package/docs && sphinx-apidoc -o source ../chemicalchecker -f -e && make html'
-  - cd package/docs
-  - mv _build/html/ ../../public/
-  - ls -l ../../public
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg make -C /test/package docs
+    - cd package/docs
+    - mv _build/html/ ../../public/
+    - ls -l ../../public
   only:
-  - master
+    - master
