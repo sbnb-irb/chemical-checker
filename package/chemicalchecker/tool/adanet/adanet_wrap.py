@@ -101,6 +101,20 @@ class Traintest(object):
         Traintest.create(X, Y, out_filename)
 
     @staticmethod
+    def get_split_indeces(matrix, fractions):
+        if not sum(fractions) == 1.0:
+            raise Exception("fractions should sum to 1.0")
+        # shuffle indeces
+        idxs = range(matrix.shape[0])
+        np.random.shuffle(idxs)
+        # from frequs to indices
+        splits = np.cumsum(fractions)
+        splits = splits[:-1]
+        splits *= len(idxs)
+        splits = splits.round().astype(np.int)
+        return np.split(idxs, splits)
+
+    @staticmethod
     def create(X, Y, out_filename, augment=None):
         """Create the HDF5 file with both X and Y, train and test."""
         Traintest.__log.debug(
@@ -108,10 +122,8 @@ class Traintest(object):
         Traintest.__log.debug(
             "{:<20} shape: {:>10}".format("input Y", Y.shape))
         # train test validation splits
-        x_train, x_test, y_train, y_test = train_test_split(
-            X, Y, test_size=0.2, random_state=42)
-        x_train, x_val, y_train, y_val = train_test_split(
-            x_train, y_train, test_size=0.2, random_state=42)
+        train_idxs, test_idxs, val_idxs = Traintest.get_split_indeces(
+            X, [.8, .1, .1])
 
         if augment:
             if 'strategy' not in augment:
@@ -123,57 +135,62 @@ class Traintest(object):
                 "Augmenting data with %s strategy.", augment['strategy'])
             if augment['strategy'] == 'noise':
                 # initial list
-                p_x = list([x_train])
-                p_y = list([y_train])
+                p_x = list([X[train_idxs]])
+                p_y = list([Y[train_idxs]])
                 # perturb train vectors
-                for i in range(augment['max_size'] - len(x_train)):
+                for i in range(augment['max_size'] - len(X[train_idxs])):
                     perturbation = np.random.normal() * 1e-4
-                    p_x.append(x_train + perturbation)
-                    p_y.append(y_train + perturbation)
+                    p_x.append(X[train_idxs] + perturbation)
+                    p_y.append(Y[train_idxs] + perturbation)
                 # join list into numpy array
                 x_train = np.concatenate(tuple(p_x))
                 y_train = np.concatenate(tuple(p_y))
             elif augment['strategy'] == 'interpolation':
                 # initial list
-                p_x = list([x_train])
-                p_y = list([y_train])
+                p_x = list([X[train_idxs]])
+                p_y = list([Y[train_idxs]])
                 # interpolate point to get new points
-                mask = range(len(x_train))
-                mask1 = range(len(x_train))
-                for i in range(augment['max_size'] - len(x_train)):
+                mask = range(len(X[train_idxs]))
+                mask1 = range(len(X[train_idxs]))
+                for i in range(augment['max_size'] - len(X[train_idxs])):
                     np.random.shuffle(mask)
                     np.random.shuffle(mask1)
-                    p_x.append((x_train + x_train[mask] + x_train[mask1]) / 3.)
-                    p_y.append((y_train + y_train[mask] + y_train[mask1]) / 3.)
+                    p_x.append((X[train_idxs] + X[train_idxs]
+                                [mask] + X[train_idxs][mask1]) / 3.)
+                    p_y.append((Y[train_idxs] + Y[train_idxs]
+                                [mask] + Y[train_idxs][mask1]) / 3.)
                 # join list into numpy array
                 x_train = np.concatenate(tuple(p_x))
                 y_train = np.concatenate(tuple(p_y))
             elif augment['strategy'] == "probabilities" \
-                    and x_train.shape[0] < augment['max_size']:
+                    and X[train_idxs].shape[0] < augment['max_size']:
                 # raise if not probabilities are given
                 if 'probabilities' not in augment:
                     raise Exception("Please specify probabilities.")
                 # read probabilities
                 p_space, p_count = augment['probabilities']
-                # initialize the whole empty array
-                p_x = np.zeros((augment['max_size'], x_train.shape[1]),
+                # initialize the empty array we will fill
+                tot_to_add = augment['max_size'] - X[train_idxs].shape[0]
+                p_x = np.zeros((tot_to_add, X[train_idxs].shape[1]),
                                dtype=np.float32)
-                p_y = np.zeros((augment['max_size'], 128), dtype=np.float32)
+                p_y = np.zeros((tot_to_add, 128), dtype=np.float32)
                 # add original datapoints
-                p_x[:len(x_train)] = x_train
-                p_y[:len(y_train)] = y_train
-                counter = len(x_train)
+                p_x = np.vstack(X[train_idxs], p_x)
+                p_y = np.vstack(Y[train_idxs], p_y)
+                counter = len(X[train_idxs])
+                # possile starting molecules
+                mol_idxs = range(len(X[train_idxs]))
                 # repeat the subsampling until enough subsamples are drawn
-                pbar = tqdm(total=augment['max_size'], initial=len(x_train))
+                pbar = tqdm(total=augment['max_size'],
+                            initial=len(X[train_idxs]))
                 while counter < augment['max_size']:
                     # iterate on original data randomly as we don't know if
                     # we can subsample all of them or if we need to resample
                     # the original data more than once (depends on max_size)
-                    mol_idxs = range(len(x_train))
                     np.random.shuffle(mol_idxs)
                     for idx in mol_idxs:
                         # get the presence array e.g. 110
-                        presence = ~np.isnan(x_train[idx][0::128])
+                        presence = ~np.isnan(X[train_idxs][idx][0::128])
                         # debug_str = "* {:<3} ".format(idx) + \
                         #    ''.join(presence.astype(int).astype(str))
                         # Traintest.__log.debug(debug_str)
@@ -222,10 +239,10 @@ class Traintest(object):
                             # convert array to mask
                             mask = np.hstack([[a] * 128 for a in presence_add])
                             # append new row
-                            new_data = np.copy(x_train[idx])
+                            new_data = np.copy(X[train_idxs][idx])
                             new_data[~mask] = np.nan
                             p_x[counter] = new_data
-                            p_y[counter] = y_train[idx]
+                            p_y[counter] = Y[train_idxs][idx]
                             counter += 1
                             pbar.update(1)
                             if counter == len(p_x):
@@ -241,10 +258,12 @@ class Traintest(object):
         with h5py.File(out_filename, "w") as fh:
             fh.create_dataset('x_train', data=x_train, dtype=np.float32)
             fh.create_dataset('y_train', data=y_train, dtype=np.float32)
-            fh.create_dataset('x_test', data=x_test, dtype=np.float32)
-            fh.create_dataset('y_test', data=y_test, dtype=np.float32)
-            fh.create_dataset('x_validation', data=x_val, dtype=np.float32)
-            fh.create_dataset('y_validation', data=y_val, dtype=np.float32)
+            fh.create_dataset('x_test', data=X[test_idxs], dtype=np.float32)
+            fh.create_dataset('y_test', data=Y[test_idxs], dtype=np.float32)
+            fh.create_dataset('x_validation', data=X[
+                              val_idxs], dtype=np.float32)
+            fh.create_dataset('y_validation', data=Y[
+                              val_idxs], dtype=np.float32)
             Traintest.__log.debug("{:<20} shape: {:>10}".format(
                 "x_train", fh["x_train"].shape))
             Traintest.__log.debug("{:<20} shape: {:>10}".format(
