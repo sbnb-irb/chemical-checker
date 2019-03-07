@@ -104,8 +104,10 @@ devpi:
     - devpi use http://devpi.sbnb.org:3141
     - devpi login gitlab --password='sbnb'
     - devpi use root/prod
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg make -C /test/package docs
     - cd package
-    - devpi upload
+    - devpi upload --with-docs
+    - devpi test chemicalchecker==0.1.0
     - devpi push chemicalchecker==0.1.0 root/prod
 
 pages:
