@@ -64,7 +64,7 @@ class TestParser(unittest.TestCase):
                     'molrepo_name': 'chebi'}
         self.assertDictEqual(expected, results[0])
 
-    @skip_if_import_exception
+    @pytest.mark.skip(reason="It is too slow")
     def test_ctd(self):
         file_path = os.path.join(self.data_dir, 'CTD_chemicals_diseases.tsv')
         self.assertTrue(os.path.isfile(file_path))
