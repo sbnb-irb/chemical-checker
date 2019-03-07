@@ -11,9 +11,10 @@ import itertools
 from glob import glob
 
 from .data import DataFactory
+
 from chemicalchecker.util import logged
-from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
+from chemicalchecker.database import Dataset
 from chemicalchecker.util.hpc import HPC
 
 
