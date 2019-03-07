@@ -1,6 +1,6 @@
 import os
 
-from .timeout_decorator import timeout_decorator
+from .timeout_decorator import timeout
 
 from chemicalchecker.util import logged
 
@@ -75,7 +75,7 @@ class PropCalculator():
 
         params = pipeline.params_to_dicts(root + "/data/defaults.cfg")
 
-        @timeout_decorator.timeout(100, use_signals=False)
+        @timeout.timeout(100, use_signals=False)
         def fprints_from_inchi(inchi, inchikey, confgen_params={},
                                fprint_params={}, save=False):
             mol = Chem.rdinchi.InchiToMol(inchi)[0]
