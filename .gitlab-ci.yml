@@ -99,6 +99,7 @@ image: cc_image:latest
 devpi:
   stage: deploy
   script:
+    - pip uninstall setuptools
     - pip install devpi
     - devpi use http://devpi.sbnb.org:3141
     - devpi login gitlab --password='sbnb'
