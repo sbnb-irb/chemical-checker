@@ -1,0 +1,69 @@
+BootStrap: docker
+From: centos
+
+%environment
+    # PATHS
+    export PATH=/opt/miniconda2/bin:$PATH
+    source activate py27
+    alias ll='ls -l'
+    alias ipy='ipython'
+    alias py='python'
+
+%post
+    # bind paths
+    mkdir /aloy
+    mkdir /aloy/home
+    mkdir /aloy/data
+    mkdir /aloy/scratch
+    mkdir /aloy/web_checker
+    mkdir /slgpfs
+    
+    # update yum
+    yum update -y
+
+    # basic packages
+    yum install -y gcc \
+                   g++ \
+                   gcc-c++ \
+                   gfortran \
+                   gcc-gfortran \
+                   cmake \
+                   make \
+                   git \
+                   wget \
+                   curl \
+                   which \
+                   vim \
+                   bzip2 \
+                   bzip2-devel \
+                   file \
+                   libXrender \
+                   libXext \
+                   postgresql-server \
+                   postgresql-contrib
+
+    # conda
+    mkdir /opt/miniconda2 
+    cd /opt/miniconda2 
+    wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+    bash Miniconda2-latest-Linux-x86_64.sh -p /opt/miniconda2 -b -f
+    rm Miniconda2-latest-Linux-x86_64.sh
+    export PATH=/opt/miniconda2/bin:$PATH
+
+    # create and activate conda enviroment
+    conda create --name=py27 python=2.7.10 -y
+    source activate py27
+
+    # basic requirements
+    pip install numpy
+    pip install h5py
+    pip install psycopg2-binary
+    pip install pandas
+    pip install networkx
+    pip install autologging
+    pip install scipy
+    pip install sqlalchemy
+    # unittest utils
+    pip install pytest
+    pip install mock
+
