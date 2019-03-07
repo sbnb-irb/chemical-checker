@@ -25,7 +25,7 @@ class TestPropCalculator(unittest.TestCase):
         test_dir = os.path.dirname(os.path.realpath(__file__))
         self.data_dir = os.path.join(test_dir, 'data')
         filename = os.path.join(self.data_dir, 'inchikey_inchi.pkl')
-        self.inchikey_inchi = pickle.load(open(filename, 'r'))
+        self.inchikey_inchi = pickle.load(open(filename, 'rb'))
         os.environ["CC_CONFIG"] = os.path.join(self.data_dir, 'config.json')
 
     @skip_if_import_exception
