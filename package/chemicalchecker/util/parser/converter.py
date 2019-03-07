@@ -18,35 +18,38 @@ class ConversionError(Exception):
 class Converter():
     """Container for static conversion methods."""
 
-    @staticmethod
-    def smiles_to_inchi(smiles):
-        """From SMILES to InChIKey and InChI."""
+    def __init__(self):
         try:
             import rdkit.Chem as Chem
+            self.Chem = Chem
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
         try:
             from standardiser import standardise
+            self.standardise = standardise
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://wwwdev.ebi.ac.uk/chembl/extra/" +
                               "francis/standardiser/")
-        mol = standardise.Chem.MolFromSmiles(smiles)
+
+    def smiles_to_inchi(self, smiles):
+        """From SMILES to InChIKey and InChI."""
+        mol = self.standardise.Chem.MolFromSmiles(smiles)
         if not mol:
             raise ConversionError("MolFromSmiles returned None", smiles)
         try:
-            mol = standardise.run(mol)
+            mol = self.standardise.run(mol)
         except Exception as ex:
             raise ConversionError("'standardise.run' exception", ex.message)
-        inchi = Chem.rdinchi.MolToInchi(mol)[0]
+        inchi = self.Chem.rdinchi.MolToInchi(mol)[0]
         if not inchi:
             raise ConversionError("'MolToInchi' returned None.", smiles)
-        inchikey = Chem.rdinchi.InchiToInchiKey(inchi)
+        inchikey = self.Chem.rdinchi.InchiToInchiKey(inchi)
         if not inchi:
             raise ConversionError("'InchiToInchiKey' returned None", smiles)
         try:
-            mol = Chem.rdinchi.InchiToMol(inchi)[0]
+            mol = self.Chem.rdinchi.InchiToMol(inchi)[0]
         except Exception as ex:
             raise ConversionError("'InchiToMol' exception:", ex.message)
         return inchikey, inchi
