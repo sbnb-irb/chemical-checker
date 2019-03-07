@@ -1,5 +1,6 @@
 import os
-import timeout_decorator
+
+from .timeout_decorator import timeout_decorator
 
 from chemicalchecker.util import logged
 
