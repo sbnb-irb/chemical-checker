@@ -1,10 +1,10 @@
 image: cc_image:latest
-#cache:
-#  paths:
-#    - cc.simg
-#    - cc_py36.simg
-#    - cc_lite.simg
-#
+cache:
+  paths:
+    - cc.simg
+    - cc_py36.simg
+    - cc_lite.simg
+
 #stages:
 #  - image
 #  - test
@@ -109,6 +109,11 @@ devpi:
     - devpi upload --with-docs
     - devpi test chemicalchecker==0.1.0
     - devpi push chemicalchecker==0.1.0 root/prod
+  cache:
+    paths:
+      - cc.simg
+      - cc_py36.simg
+      - cc_lite.simg
 
 pages:
   stage: deploy
