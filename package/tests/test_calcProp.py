@@ -1,9 +1,9 @@
 import os
 import pytest
+import pickle
 import unittest
 import functools
 
-from chemicalchecker.util.parser import Parser
 from chemicalchecker.util.parser import PropCalculator
 
 
@@ -24,14 +24,9 @@ class TestPropCalculator(unittest.TestCase):
         # path for test data
         test_dir = os.path.dirname(os.path.realpath(__file__))
         self.data_dir = os.path.join(test_dir, 'data')
-        file_path = os.path.join(self.data_dir, 'BindingDB_All.tsv')
-        chunks = list(Parser.bindingdb([file_path], 'bindingdb'))
-        results = chunks[0]
-        self.inchikey_inchi = {}
-        for ele in results:
-            self.inchikey_inchi[str(ele["inchikey"])] = str(ele["inchi"])
-        os.environ["CC_CONFIG"] = os.path.join(
-            self.data_dir, 'config.json')
+        filename = os.path.join(self.data_dir, 'inchikey_inchi.pkl')
+        self.inchikey_inchi = pickle.load(open(filename, 'r'))
+        os.environ["CC_CONFIG"] = os.path.join(self.data_dir, 'config.json')
 
     @skip_if_import_exception
     def test_fp2d(self):
