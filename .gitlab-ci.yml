@@ -99,6 +99,7 @@ python_2.7.10_lite:
 devpi:
   stage: deploy
   script:
+    - pip install setuptools
     - pip install devpi-client
     - devpi use http://devpi.sbnb.org:3141
     - devpi login gitlab --password='sbnb'
