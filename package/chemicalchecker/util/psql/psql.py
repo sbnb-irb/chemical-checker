@@ -1,8 +1,15 @@
+"""Basic connection and query fuctions for PostgreSQL."""
+try:
+    import psycopg2
+except ImportError:
+    raise ImportError("requires psycopg2 " +
+                      "http://initd.org/psycopg/")
+
 from chemicalchecker.util import Config
 
 
 def get_connection(dbname=None):
-    """ Method to connect to PSQL DB through psycopg2
+    """Return the connection to a PSQL DB.
 
     Args:
         dbname(str):The name of DB to connect.
@@ -10,7 +17,6 @@ def get_connection(dbname=None):
     Returns:
         connection
     """
-    import psycopg2
     config = Config()
     conn_dict = config.DB.asdict()
     conn_dict.pop('dialect')

@@ -6,7 +6,6 @@ import uuid
 import time
 import pickle
 import tarfile
-import paramiko
 import numpy as np
 
 from chemicalchecker.util import logged
@@ -54,6 +53,12 @@ fi
         """Initialize the SLURM object.
 
         """
+        try:
+            import paramiko
+            self.paramiko = paramiko
+        except ImportError:
+            raise ImportError("requires paramiko " +
+                              "http://www.paramiko.org/")
         self.host = config.HPC.host
         self.queue = None
         self.statusFile = None
@@ -66,17 +71,17 @@ fi
             self.conn_params["password"] = config.HPC.password
         if not dry_run:
             try:
-                ssh_config = paramiko.SSHConfig()
+                ssh_config = self.paramiko.SSHConfig()
                 user_config_file = os.path.expanduser("~/.ssh/config")
                 if os.path.exists(user_config_file):
                     with open(user_config_file) as f:
                         ssh_config.parse(f)
                 cfg = ssh_config.lookup(self.host)
-                ssh = paramiko.SSHClient()
+                ssh = self.paramiko.SSHClient()
                 ssh.load_system_host_keys()
                 ssh.connect(cfg['hostname'], username=cfg[
                             'user'], key_filename=cfg['identityfile'][0])
-            except paramiko.SSHException as sshException:
+            except self.paramiko.SSHException as sshException:
                 self.__log.warning(
                     "Unable to establish SSH connection: %s" % sshException)
             finally:
@@ -188,13 +193,13 @@ fi
         time.sleep(2)
 
         try:
-            ssh_config = paramiko.SSHConfig()
+            ssh_config = self.paramiko.SSHConfig()
             user_config_file = os.path.expanduser("~/.ssh/config")
             if os.path.exists(user_config_file):
                 with open(user_config_file) as f:
                     ssh_config.parse(f)
             cfg = ssh_config.lookup(self.host)
-            ssh = paramiko.SSHClient()
+            ssh = self.paramiko.SSHClient()
             ssh.load_system_host_keys()
             ssh.connect(cfg['hostname'], username=cfg[
                         'user'], key_filename=cfg['identityfile'][0])
@@ -210,7 +215,7 @@ fi
 
             self.job_id = self.job_id.rstrip()
             self.__log.debug(self.job_id)
-        except paramiko.SSHException as sshException:
+        except self.paramiko.SSHException as sshException:
             self.__log.warning(
                 "Unable to establish SSH connection: %s" % sshException)
         finally:
@@ -310,13 +315,13 @@ fi
 
         if self.status_id == STARTED:
             try:
-                ssh_config = paramiko.SSHConfig()
+                ssh_config = self.paramiko.SSHConfig()
                 user_config_file = os.path.expanduser("~/.ssh/config")
                 if os.path.exists(user_config_file):
                     with open(user_config_file) as f:
                         ssh_config.parse(f)
                 cfg = ssh_config.lookup(self.host)
-                ssh = paramiko.SSHClient()
+                ssh = self.paramiko.SSHClient()
                 ssh.load_system_host_keys()
                 ssh.connect(cfg['hostname'], username=cfg[
                             'user'], key_filename=cfg['identityfile'][0])
@@ -332,7 +337,7 @@ fi
                     self.status_id = DONE
                     with open(self.statusFile, "w") as f:
                         f.write(self.status_id)
-            except paramiko.SSHException as sshException:
+            except self.paramiko.SSHException as sshException:
                 self.__log.warning(
                     "Unable to establish SSH connection: %s" % sshException)
             finally:
