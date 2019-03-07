@@ -11,10 +11,8 @@ downloaded from external repositories. This class performs the following:
 """
 import os
 import sys
-import wget
 import shutil
 import tempfile
-import patoolib
 from glob import glob
 from time import sleep
 from ftplib import FTP
@@ -96,11 +94,22 @@ class Downloader():
 
     def download(self):
         """Perform the download."""
+        try:
+            import wget
+        except ImportError:
+            raise ImportError("requires wget " +
+                              "http://bitbucket.org/techtonik/python-wget/src")
+        try:
+            import patoolib
+        except ImportError:
+            raise ImportError("requires patoolib " +
+                              "http://wummel.github.io/patool/")
         # create temp dir
         tmp_dir = tempfile.mkdtemp(
             prefix='tmp_', dir=self.tmp_dir)
         self.__log.debug('temp download dir %s', tmp_dir)
         # set wget user agent
+
         class MyOpener(urllib.request.FancyURLopener):
             version = 'Mozilla/5.0'
         wget.ulib.urlretrieve = MyOpener().retrieve
