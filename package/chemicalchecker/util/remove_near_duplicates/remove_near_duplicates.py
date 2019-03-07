@@ -12,11 +12,6 @@ import collections
 from collections import defaultdict
 
 from chemicalchecker.util import logged
-try:
-    import faiss
-except ImportError:
-    raise ImportError("requires faiss " +
-                      "https://github.com/facebookresearch/faiss")
 
 
 @logged
@@ -49,6 +44,11 @@ class RNDuplicates():
             mappings(dictionary):
 
         """
+        try:
+            import faiss
+        except ImportError:
+            raise ImportError("requires faiss " +
+                              "https://github.com/facebookresearch/faiss")
         faiss.omp_set_num_threads(self.cpu)
 
         if type(data) == str:
