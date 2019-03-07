@@ -99,8 +99,8 @@ image: cc_image:latest
 devpi:
   stage: deploy
   script:
-    - conda env list
-    - conda install devpi
+    - conda update -c anaconda setuptools
+    - pip install devpi
     - devpi use http://devpi.sbnb.org:3141
     - devpi login gitlab --password='sbnb'
     - devpi use root/prod
