@@ -9,6 +9,7 @@ Submodules
    chemicalchecker.util.parser.converter
    chemicalchecker.util.parser.parser
    chemicalchecker.util.parser.prop_calculator
+   chemicalchecker.util.parser.timeout_decorator
 
 Module contents
 ---------------
