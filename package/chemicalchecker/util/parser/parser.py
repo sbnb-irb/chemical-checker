@@ -1,6 +1,5 @@
 import os
 import csv
-import wget
 import pandas as pd
 import xml.etree.ElementTree as ET
 
@@ -276,6 +275,11 @@ class Parser():
         except ImportError:
             raise ImportError("requires pybel " +
                               "http://openbabel.org")
+        try:
+            import wget
+        except ImportError:
+            raise ImportError("requires wget " +
+                              "http://bitbucket.org/techtonik/python-wget/src")
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
