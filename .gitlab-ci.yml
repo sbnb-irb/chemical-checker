@@ -99,7 +99,9 @@ image: cc_image:latest
 devpi:
   stage: deploy
   script:
-    - pip uninstall setuptools -y
+    - pip install virtualenv
+    - virtualenv ./virtualenvironment/my_new_app
+    - source ./virtualenvironment/my_new_app/bin/activate
     - pip install devpi
     - devpi use http://devpi.sbnb.org:3141
     - devpi login gitlab --password='sbnb'
