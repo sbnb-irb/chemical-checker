@@ -22,6 +22,7 @@ from sklearn.metrics import roc_curve, roc_auc_score, r2_score
 from sklearn.metrics.pairwise import cosine_distances
 
 import matplotlib
+matplotlib.use('Agg')
 import seaborn as sns
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -30,7 +31,6 @@ import matplotlib.patheffects as path_effects
 
 from chemicalchecker.util import logged
 
-matplotlib.use('Agg')
 random.seed(42)
 np.random.seed(42)
 
