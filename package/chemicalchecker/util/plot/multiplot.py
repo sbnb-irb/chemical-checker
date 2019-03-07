@@ -8,14 +8,12 @@ import pandas as pd
 from tqdm import tqdm
 
 import matplotlib
+matplotlib.use('Agg')
 import seaborn as sns
 import matplotlib.colors as colors
 from matplotlib import pyplot as plt
 
 from chemicalchecker.util import logged
-
-
-matplotlib.use('Agg')
 
 
 @logged
