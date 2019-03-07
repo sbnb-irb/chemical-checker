@@ -28,6 +28,7 @@ class Parser():
 
     @staticmethod
     def bindingdb(file_path, molrepo_name, chunks=1000):
+        converter = Converter()
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -57,7 +58,7 @@ class Parser():
                 continue
             # the following is always the same
             try:
-                inchikey, inchi = Converter.smiles_to_inchi(smiles)
+                inchikey, inchi = converter.smiles_to_inchi(smiles)
             except Exception as ex:
                 Parser.__log.warning("line %s: %s", idx, str(ex))
                 inchikey, inchi = None, None
@@ -85,6 +86,7 @@ class Parser():
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
+        converter = Converter()
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -98,7 +100,7 @@ class Parser():
             smiles = Chem.MolToSmiles(line)
             # the following is always the same
             try:
-                inchikey, inchi = Converter.smiles_to_inchi(smiles)
+                inchikey, inchi = converter.smiles_to_inchi(smiles)
             except Exception as ex:
                 Parser.__log.warning("line %s: %s", idx, str(ex))
                 inchikey, inchi = None, None
@@ -121,6 +123,7 @@ class Parser():
 
     @staticmethod
     def ctd(file_path, molrepo_name, chunks=1000):
+        converter = Converter()
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -147,19 +150,19 @@ class Parser():
             # try to conert CTD id to SMILES
             smiles = None
             try:
-                smiles = Converter.ctd_to_smiles(chemicalid)
+                smiles = converter.ctd_to_smiles(chemicalid)
             except Exception as ex:
                 Parser.__log.warning("line %s: %s", idx, str(ex))
             # if that did't work we can still try with the chamical name
             if not smiles:
                 try:
-                    smiles = Converter.chemical_name_to_smiles(chemicalname)
+                    smiles = converter.chemical_name_to_smiles(chemicalname)
                 except Exception as ex:
                     Parser.__log.warning("line %s: %s", idx, str(ex))
                     continue
             # the following is always the same
             try:
-                inchikey, inchi = Converter.smiles_to_inchi(smiles)
+                inchikey, inchi = converter.smiles_to_inchi(smiles)
             except Exception as ex:
                 Parser.__log.warning("line %s: %s", idx, str(ex))
                 inchikey, inchi = None, None
@@ -182,6 +185,7 @@ class Parser():
 
     @staticmethod
     def chembl(file_path, molrepo_name, chunks=1000):
+        converter = Converter()
         # no file to parse here, but querying the chembl database
         query = "SELECT md.chembl_id, cs.canonical_smiles " +\
             "FROM molecule_dictionary md, compound_structures cs " +\
@@ -194,7 +198,7 @@ class Parser():
             smiles = row[1]
             # the following is always the same
             try:
-                inchikey, inchi = Converter.smiles_to_inchi(smiles)
+                inchikey, inchi = converter.smiles_to_inchi(smiles)
             except Exception as ex:
                 Parser.__log.warning("line %s: %s", idx, str(ex))
                 inchikey, inchi = None, None
@@ -217,6 +221,7 @@ class Parser():
 
     @staticmethod
     def drugbank(file_path, molrepo_name, chunks=1000):
+        converter = Converter()
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -247,7 +252,7 @@ class Parser():
                 continue
             # the following is always the same
             try:
-                inchikey, inchi = Converter.smiles_to_inchi(smiles)
+                inchikey, inchi = converter.smiles_to_inchi(smiles)
             except Exception as ex:
                 Parser.__log.warning("line %s: %s", idx, str(ex))
                 inchikey, inchi = None, None
@@ -280,6 +285,7 @@ class Parser():
         except ImportError:
             raise ImportError("requires wget " +
                               "http://bitbucket.org/techtonik/python-wget/src")
+        converter = Converter()
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -315,7 +321,7 @@ class Parser():
                     Parser.__log.warning("line %s: %s", idx, "no SMILES")
                 # the following is always the same
                 try:
-                    inchikey, inchi = Converter.smiles_to_inchi(smiles)
+                    inchikey, inchi = converter.smiles_to_inchi(smiles)
                 except Exception as ex:
                     Parser.__log.warning("line %s: %s", idx, str(ex))
                     inchikey, inchi = None, None
@@ -338,6 +344,7 @@ class Parser():
 
     @staticmethod
     def lincs(file_path, molrepo_name, chunks=1000):
+        converter = Converter()
         # check input size
         if len(file_path) != 2:
             raise Exception("This parser expect 2 input files.")
@@ -362,7 +369,7 @@ class Parser():
                 smiles = line[col]
                 # the following is always the same
                 try:
-                    inchikey, inchi = Converter.smiles_to_inchi(smiles)
+                    inchikey, inchi = converter.smiles_to_inchi(smiles)
                 except Exception as ex:
                     Parser.__log.warning("line %s: %s", idx, str(ex))
                     inchikey, inchi = None, None
@@ -390,6 +397,7 @@ class Parser():
         except ImportError:
             raise ImportError("requires pybel " +
                               "http://openbabel.org")
+        converter = Converter()
         # FIXME find source (hint:/aloy/home/mduran/myscripts/mosaic/D/D3/data)
         # eventually add All_collection to local
         # check input size
@@ -402,7 +410,7 @@ class Parser():
                 continue
             smi, src_id = mol.write("can").rstrip("\n").split("\t")
             try:
-                inchikey, inchi = Converter.smiles_to_inchi(smi)
+                inchikey, inchi = converter.smiles_to_inchi(smi)
             except Exception as ex:
                 Parser.__log.warning("Mosaic ID %s: %s", src_id, str(ex))
                 inchikey, inchi = None, None
@@ -425,6 +433,7 @@ class Parser():
 
     @staticmethod
     def morphlincs(file_path, molrepo_name, chunks=1000):
+        converter = Converter()
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -438,7 +447,7 @@ class Parser():
             src_id = l[8]
             smi = l[6]
             try:
-                inchikey, inchi = Converter.smiles_to_inchi(smi)
+                inchikey, inchi = converter.smiles_to_inchi(smi)
             except Exception as ex:
                 Parser.__log.warning("Morphlincs ID %s: %s", src_id, str(ex))
                 inchikey, inchi = None, None
@@ -461,6 +470,7 @@ class Parser():
 
     @staticmethod
     def nci60(file_path, molrepo_name, chunks=1000):
+        converter = Converter()
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -475,7 +485,7 @@ class Parser():
         for l in csv.reader(f):
             src_id, smi = l[0], l[5]
             try:
-                inchikey, inchi = Converter.smiles_to_inchi(smi)
+                inchikey, inchi = converter.smiles_to_inchi(smi)
             except Exception as ex:
                 Parser.__log.warning("NCI60 ID %s: %s", src_id, str(ex))
                 inchikey, inchi = None, None
@@ -498,6 +508,7 @@ class Parser():
 
     @staticmethod
     def pdb(file_path, molrepo_name, chunks=1000):
+        converter = Converter()
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -511,7 +522,7 @@ class Parser():
             src_id = l[1]
             smi = l[0]
             try:
-                inchikey, inchi = Converter.smiles_to_inchi(smi)
+                inchikey, inchi = converter.smiles_to_inchi(smi)
             except Exception as ex:
                 Parser.__log.warning("PDB ID %s: %s", src_id, str(ex))
                 inchikey, inchi = None, None
@@ -534,6 +545,7 @@ class Parser():
 
     @staticmethod
     def sider(file_path, molrepo_name, chunks=1000):
+        converter = Converter()
         # check input size
         if len(file_path) != 2:
             raise Exception("This parser expect 2 input files.")
@@ -568,7 +580,7 @@ class Parser():
             src_id = s
             smi = stitch[s]
             try:
-                inchikey, inchi = Converter.smiles_to_inchi(smi)
+                inchikey, inchi = converter.smiles_to_inchi(smi)
             except Exception as ex:
                 Parser.__log.warning("SIDER ID %s: %s", src_id, str(ex))
                 inchikey, inchi = None, None
@@ -596,6 +608,7 @@ class Parser():
         except ImportError:
             raise ImportError("requires pybel " +
                               "http://openbabel.org")
+        converter = Converter()
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -614,7 +627,7 @@ class Parser():
             src_id = s[0]
             smi = s[1]
             try:
-                inchikey, inchi = Converter.smiles_to_inchi(smi)
+                inchikey, inchi = converter.smiles_to_inchi(smi)
             except Exception as ex:
                 Parser.__log.warning("SMPDB ID %s: %s", src_id, str(ex))
                 inchikey, inchi = None, None
@@ -642,6 +655,7 @@ class Parser():
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
+        converter = Converter()
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -654,7 +668,7 @@ class Parser():
             src_id = mol.GetProp("_Name")
             smi = Chem.MolToSmiles(mol)
             try:
-                inchikey, inchi = Converter.smiles_to_inchi(smi)
+                inchikey, inchi = converter.smiles_to_inchi(smi)
             except Exception as ex:
                 Parser.__log.warning("biur_real ID %s: %s", src_id, str(ex))
                 inchikey, inchi = None, None
@@ -682,6 +696,7 @@ class Parser():
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
+        converter = Converter()
         # check input size
         if len(file_path) != 1:
             raise Exception("This parser expect a single input file.")
@@ -696,7 +711,7 @@ class Parser():
                 smi = Chem.MolToSmiles(mol)
 
                 try:
-                    inchikey, inchi = Converter.smiles_to_inchi(smi)
+                    inchikey, inchi = converter.smiles_to_inchi(smi)
                 except Exception as ex:
                     Parser.__log.warning(
                         "biur_virtual ID %s: %s", src_id, str(ex))

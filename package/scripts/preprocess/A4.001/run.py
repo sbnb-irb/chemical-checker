@@ -97,10 +97,12 @@ def main(args):
 
             inchikey_inchi = {}
 
+            converter = Converter()
+
             for d in data:
 
                 try:
-                    inchikey, inchi = Converter.smiles_to_inchi(d[1])
+                    inchikey, inchi = converter.smiles_to_inchi(d[1])
                 except Exception:
                     continue
 
