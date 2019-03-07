@@ -46,7 +46,7 @@ class Molrepo(Base):
 
     def __repr__(self):
         """String representation."""
-        return self.inchikey
+        return str(self.inchikey)
 
     @staticmethod
     def _create_table():
