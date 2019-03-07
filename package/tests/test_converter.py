@@ -29,7 +29,8 @@ class TestConverter(unittest.TestCase):
     @skip_if_import_exception
     def test_smiles_to_inchi(self):
         smile = 'COc1cc2c(Nc3ccc(Br)cc3F)ncnc2cc1OCC4CCN(C)CC4'
-        inchikey, inchi = Converter.smiles_to_inchi(smile)
+        converter = Converter()
+        inchikey, inchi = converter.smiles_to_inchi(smile)
         self.assertEqual(inchikey, 'UHTHHESEBZOYNR-UHFFFAOYSA-N')
         self.assertEqual(
             inchi,
@@ -39,18 +40,21 @@ class TestConverter(unittest.TestCase):
 
     def test_ctd_to_smiles(self):
         ctdid = 'C112297'
-        smiles = Converter.ctd_to_smiles(ctdid)
+        converter = Converter()
+        smiles = converter.ctd_to_smiles(ctdid)
         self.assertEqual(
             smiles, 'C1=CC=C2C(=C1)C(=O)C3=CC=CC=C3C2(CC4=CC=NC=C4)CC5=CC=NC=C5')
         with self.assertRaises(Exception):
             ctdid = 'C046983'
-            smiles = Converter.ctd_to_smiles(ctdid)
+            smiles = converter.ctd_to_smiles(ctdid)
 
+    @pytest.mark.skip(reason="It is too slow")
     def test_chemical_name_to_smiles(self):
         ctdid = 'oxygen'
-        smiles = Converter.chemical_name_to_smiles(ctdid)
+        converter = Converter()
+        smiles = converter.chemical_name_to_smiles(ctdid)
         self.assertEqual(
             smiles, 'O')
         with self.assertRaises(Exception):
             ctdid = 'qwerqwerqwerqer'
-            smiles = Converter.ctd_to_smiles(ctdid)
+            smiles = converter.ctd_to_smiles(ctdid)
