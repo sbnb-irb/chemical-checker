@@ -50,7 +50,7 @@ From: centos
     rm Miniconda2-latest-Linux-x86_64.sh
     export PATH=/opt/miniconda2/bin:$PATH
 
-    # create and activate conda enviroment
+    # create and activate conda enviroments
     conda create --name=py27 python=2.7.10 -y
     source activate py27
 
