@@ -278,7 +278,8 @@ class sign2(BaseSignature):
             os.makedirs(node2vec_path)
         # use neig1 to generate the Node2Vec input graph (as edgelist)
         graph_params = self.params['graph']
-        graph_file = os.path.join(self.model_path, 'graph.edgelist')
+        graph_file = os.path.join(
+            self.model_path, 'node2vec', 'graph.edgelist')
         if not reuse or not os.path.isfile(graph_file):
             if graph_params:
                 n2v.to_edgelist(sign1, neig1, graph_file, **graph_params)
@@ -317,13 +318,13 @@ class sign2(BaseSignature):
             n2v.emb_to_h5(sign1, emb_file, self.data_path)
         # save link prediction stats
         linkpred_file_train = os.path.join(
-            self.model_path, 'linkpred.train.json')
+            node2vec_path, 'linkpred.train.json')
         if not reuse or not os.path.isfile(linkpred_file_train):
             graph = SNAPNetwork.from_file(graph_train)
             linkpred = LinkPrediction(self, graph)
             linkpred.performance.toJSON(linkpred_file_train)
         linkpred_file_test = os.path.join(
-            self.model_path, 'linkpred.test.json')
+            node2vec_path, 'linkpred.test.json')
         if not reuse or not os.path.isfile(linkpred_file_test):
             graph = SNAPNetwork.from_file(graph_test)
             linkpred = LinkPrediction(self, graph)
@@ -417,12 +418,23 @@ class sign2(BaseSignature):
         import chemicalchecker
         from chemicalchecker.util.hpc import HPC
         from sklearn.model_selection import ParameterGrid
+        from chemicalchecker.util.network import SNAPNetwork
+        from chemicalchecker.tool.node2vec import Node2Vec
 
+        n2v = Node2Vec(executable=Config().TOOLS.node2vec_exec)
         gridsearch_path = os.path.join(
             self.model_path, 'grid_search_%s' % dir_suffix)
         if not os.path.isdir(gridsearch_path):
             os.makedirs(gridsearch_path)
         elements = list()
+        graph_file = os.path.join(
+            self.model_path, 'node2vec', 'graph.edgelist')
+        graph_train = graph_file + ".train"
+        graph_test = graph_file + ".test"
+        if not os.path.isfile(graph_train) \
+                or not os.path.isfile(graph_test):
+            graph = SNAPNetwork.from_file(graph_file)
+            n2v.split_edgelist(graph, graph_train, graph_test)
         for params in ParameterGrid(parameters):
             model_dir = '-'.join("%s_%s" % kv for kv in params.items())
             params.update(
@@ -465,7 +477,7 @@ class sign2(BaseSignature):
         params["job_name"] = "CC_SIGN2_GRID_SEARCH_NODE2VEC"
         params["elements"] = elements
         params["wait"] = False
-        params["memory"] = 16
+        params["memory"] = 6
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
