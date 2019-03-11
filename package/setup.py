@@ -19,7 +19,8 @@ requirements = [
     'networkx',
     'autologging',
     'scipy',
-    'sqlalchemy'
+    'sqlalchemy',
+    'paramiko'
 ]
 
 setup_requirements = ['pytest-runner']

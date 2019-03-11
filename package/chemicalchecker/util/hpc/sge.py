@@ -7,6 +7,7 @@ import time
 import pickle
 import tarfile
 import datetime
+import paramiko
 import numpy as np
 
 from chemicalchecker.util import logged
@@ -55,12 +56,6 @@ fi
         """Initialize the SGE object.
 
         """
-        try:
-            import paramiko
-            self.paramiko = paramiko
-        except ImportError:
-            raise ImportError("requires paramiko " +
-                              "http://www.paramiko.org/")
         self.host = config.HPC.host
         self.queue = None
         self.statusFile = None
@@ -73,10 +68,10 @@ fi
             self.conn_params["password"] = config.HPC.password
         if not dry_run:
             try:
-                ssh = self.paramiko.SSHClient()
+                ssh = paramiko.SSHClient()
                 ssh.load_system_host_keys()
                 ssh.connect(self.host, **self.conn_params)
-            except self.paramiko.SSHException as sshException:
+            except paramiko.SSHException as sshException:
                 self.__log.warning(
                     "Unable to establish SSH connection: %s" % sshException)
             finally:
@@ -192,7 +187,7 @@ fi
         time.sleep(15)
 
         try:
-            ssh = self.paramiko.SSHClient()
+            ssh = paramiko.SSHClient()
             ssh.load_system_host_keys()
             ssh.connect(self.host, **self.conn_params)
             stdin, stdout, stderr = ssh.exec_command(
@@ -207,7 +202,7 @@ fi
 
             self.job_id = self.job_id.rstrip()
             self.__log.debug(self.job_id)
-        except self.paramiko.SSHException as sshException:
+        except paramiko.SSHException as sshException:
             self.__log.warning(
                 "Unable to establish SSH connection: %s" % sshException)
         finally:
@@ -308,7 +303,7 @@ fi
 
         if self.status_id == STARTED:
             try:
-                ssh = self.paramiko.SSHClient()
+                ssh = paramiko.SSHClient()
                 ssh.load_system_host_keys()
                 ssh.connect(self.host, **self.conn_params)
                 stdin, stdout, stderr = ssh.exec_command(
@@ -323,7 +318,7 @@ fi
                     self.status_id = DONE
                     with open(self.statusFile, "w") as f:
                         f.write(self.status_id)
-            except self.paramiko.SSHException as sshException:
+            except paramiko.SSHException as sshException:
                 self.__log.warning(
                     "Unable to establish SSH connection: %s" % sshException)
             finally:
