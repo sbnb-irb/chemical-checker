@@ -35,7 +35,8 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.PATH.CC_ROOT, '/aloy/web_checker/')
 
         del os.environ['CC_CONFIG']
-        with self.assertRaises(KeyError):
-            config = Config()
+        self.assertTrue(hasattr(config, 'PATH'))
+        self.assertTrue(hasattr(config.PATH, 'CC_ROOT'))
+        self.assertEqual(config.PATH.CC_ROOT, '/aloy/web_checker/')
         os.environ["CC_CONFIG"] = os.path.join(
             self.data_dir, 'config.json')
