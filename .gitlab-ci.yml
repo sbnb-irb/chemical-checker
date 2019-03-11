@@ -64,7 +64,7 @@ python_2.7.10:
   script:
     - ls -l
     - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg which python
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg pytest -s /test/package
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg pytest /test/package
   cache:
     paths:
       - cc.simg
@@ -76,7 +76,7 @@ python_3.6.8:
   script:
     - ls -l
     - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_py36.simg which python
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_py36.simg pytest -s /test/package
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_py36.simg pytest /test/package
   cache:
     paths:
       - cc.simg
@@ -88,7 +88,7 @@ python_2.7.10_lite:
   script:
     - ls -l
     - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_lite.simg which python
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_lite.simg pytest -s /test/package
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_lite.simg pytest /test/package
   cache:
     paths:
       - cc.simg
