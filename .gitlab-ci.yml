@@ -96,7 +96,7 @@ python_2.7.10_lite:
       - cc_lite.simg
 
 
-devpi:
+devpi_prod:
   stage: deploy
   script:
     - conda update -c anaconda setuptools
@@ -109,6 +109,16 @@ devpi:
   only:
     - tags
 
+devpi_dev:
+  stage: deploy
+  script:
+    - conda update -c anaconda setuptools
+    - pip install devpi-client
+    - devpi use http://devpi.sbnb.org:3141
+    - devpi login gitlab --password='sbnb'
+    - devpi use root/dev
+    - cd package
+    - devpi push chemicalchecker==0.1.0 root/dev
 
 pages:
   stage: deploy
