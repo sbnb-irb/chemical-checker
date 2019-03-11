@@ -42,7 +42,10 @@ class Config():
             try:
                 json_file = os.environ["CC_CONFIG"]
             except KeyError as err:
-                raise KeyError("CC_CONFIG environment variable not set.")
+                self.__log.debug("CC_CONFIG environment variable not set. " +
+                                 "Using default config file.")
+                json_file = os.path.join(os.path.dirname(
+                    os.path.abspath(__file__)), 'cc_config.json')
             except Exception as err:
                 raise err
         self.__log.debug('Loading config from: %s' % json_file)
