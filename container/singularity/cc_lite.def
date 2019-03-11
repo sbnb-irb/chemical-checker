@@ -63,6 +63,7 @@ From: centos
     pip install autologging
     pip install scipy
     pip install sqlalchemy
+    pip install paramiko
     # unittest utils
     pip install pytest
     pip install mock

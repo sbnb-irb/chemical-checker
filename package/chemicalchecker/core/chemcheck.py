@@ -22,7 +22,7 @@ from chemicalchecker.util.hpc import HPC
 class ChemicalChecker():
     """Explore the Chemical Checker."""
 
-    def __init__(self, cc_root):
+    def __init__(self, cc_root=None):
         """Initialize the Chemical Checker.
 
         If the CC_ROOT directory is empty a skeleton of CC is initialized.
@@ -33,17 +33,21 @@ class ChemicalChecker():
             cc_root(str): The Chemical Checker root directory. It's version
                 dependendent.
         """
-        self.cc_root = cc_root
+        if not cc_root:
+            self.cc_root = Config().PATH.CC_ROOT
+        else:
+            self.cc_root = cc_root
         self._basic_molsets = ['reference', 'full']
         self._datasets = set()
         self._molsets = set(self._basic_molsets)
-        self.__log.debug("ChemicalChecker with root: %s", cc_root)
-        if not os.path.isdir(cc_root):
+        self.__log.debug("ChemicalChecker with root: %s", self.cc_root)
+        if not os.path.isdir(self.cc_root):
             self.__log.warning("Empty root directory, creating dataset dirs")
             for molset in self._basic_molsets:
                 for dataset in Dataset.get():
                     ds = dataset.code
-                    new_dir = os.path.join(cc_root, molset, ds[:1], ds[:2], ds)
+                    new_dir = os.path.join(
+                        self.cc_root, molset, ds[:1], ds[:2], ds)
                     self._datasets.add(ds)
                     self.__log.debug("Creating %s", new_dir)
                     original_umask = os.umask(0)
@@ -51,7 +55,7 @@ class ChemicalChecker():
                     os.umask(original_umask)
         else:
             # if the directory exists get molsets and datasets
-            paths = glob(os.path.join(cc_root, '*', '*', '*', '*'))
+            paths = glob(os.path.join(self.cc_root, '*', '*', '*', '*'))
             self._molsets = set(x.split('/')[-4] for x in paths)
             self._datasets = set(x.split('/')[-1] for x in paths)
         self._molsets = sorted(list(self._molsets))
