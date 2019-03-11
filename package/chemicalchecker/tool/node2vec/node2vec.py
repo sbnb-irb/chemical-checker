@@ -22,6 +22,7 @@ import os
 import h5py
 import subprocess
 import numpy as np
+from tqdm import tqdm
 import distutils.spawn
 from datetime import datetime
 from bisect import bisect_left
@@ -162,6 +163,26 @@ class Node2Vec():
                     neig_idxs, neig_dists, thr_pvals, thr_dists)
                 for dst_idx, weight in edges:
                     fh.write("%i %i %.4f\n" % (src_idx, dst_idx, weight))
+
+    def split_edgelist(self, full_graph, train, test, train_fraction=0.8):
+        """Split a graph in train and test.
+
+        Give a Network object split it in two sets, train and test, so that
+        train has train_fraction of edges for each node.
+        """
+        train_out = open(train, 'w')
+        test_out = open(test, 'w')
+        # we want each node to keep edges so the split is on each node
+        for node in tqdm(full_graph.nodes()):
+            neighbors = list(full_graph.neighbors(node, data=True))
+            np.random.shuffle(neighbors)
+            split_id = int(len(neighbors) * train_fraction)
+            for neig, weight in neighbors[:split_id]:
+                train_out.write("%i %i %.4f\n" % (node, neig, weight))
+            for neig, weight in neighbors[split_id:]:
+                test_out.write("%i %i %.4f\n" % (node, neig, weight))
+        train_out.close()
+        test_out.close()
 
     def _get_edges(self, neig_idxs, neig_dists, thr_pvals, thr_dists):
         """Get a molecule neighbors and edge weight.
