@@ -163,7 +163,7 @@ class sign3(BaseSignature):
             features, labels = self.get_sign2_matrix(chemchecker)
             augment = {'strategy': 'probabilities',
                        'probabilities': probs,
-                       'max_size': 500000}
+                       'max_size': 1e6}
             Traintest.create(features, labels, traintest_file, augment)
 
         if adanet_params:
