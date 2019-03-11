@@ -243,6 +243,92 @@ class sign2(BaseSignature):
         nn_pred['name'] = "NearestNeighbor"
         return nn_pred
 
+    def eval_node2vec(self, sign1, neig1, reuse=True):
+        """Evaluate node2vec performances.
+
+        Node2vec embeddings are computed using the graph derived from sign1.
+        We split edges in a train and test set so we can compute the ROC
+        of link prediction.
+
+        Args:
+            sign1(sign1): Signature type 1.
+            neig1(neig1): Nearest neighbor of type 1.
+            reuse(bool): Reuse already generated intermediate files. Set to
+                False to re-train from scratch.
+        """
+        #########
+        # step 1: Node2Vec (learn graph embedding) input is neig1
+        #########
+        try:
+            from chemicalchecker.util.network import SNAPNetwork
+            from chemicalchecker.util.performance import LinkPrediction
+            from chemicalchecker.tool.node2vec import Node2Vec
+        except ImportError as err:
+            raise err
+
+        self.__log.debug('Node2Vec on %s' % sign1)
+        n2v = Node2Vec(executable=Config().TOOLS.node2vec_exec)
+        # define the n2v model path
+        node2vec_params = self.params['node2vec']
+        node2vec_path = os.path.join(self.model_path, 'node2vec')
+        if node2vec_params:
+            if 'model_dir' in node2vec_params:
+                node2vec_path = node2vec_params.pop('model_dir')
+        if not reuse or not os.path.isdir(node2vec_path):
+            os.makedirs(node2vec_path)
+        # use neig1 to generate the Node2Vec input graph (as edgelist)
+        graph_params = self.params['graph']
+        graph_file = os.path.join(self.model_path, 'graph.edgelist')
+        if not reuse or not os.path.isfile(graph_file):
+            if graph_params:
+                n2v.to_edgelist(sign1, neig1, graph_file, **graph_params)
+            else:
+                n2v.to_edgelist(sign1, neig1, graph_file)
+        # split graph in train and test
+        graph_train = graph_file + ".train"
+        graph_test = graph_file + ".test"
+        if not reuse or not os.path.isfile(graph_train) \
+                or not os.path.isfile(graph_test):
+            graph = SNAPNetwork.from_file(graph_file)
+            n2v.split_edgelist(graph, graph_train, graph_test)
+        # check that all molecules are considered in all the graph
+        for g_file in [graph_file, graph_train, graph_test]:
+            with open(g_file, 'r') as fh:
+                lines = fh.readlines()
+            graph_mol = set(l.split()[0] for l in lines)
+            # we can just compare the total nr
+            if not len(graph_mol) == len(sign1.unique_keys):
+                raise Exception("Graph %s is missing nodes." % g_file)
+            # save graph stats
+            graph_stat_file = g_file + ".stats"
+            graph = None
+            if not reuse or not os.path.isfile(graph_stat_file):
+                graph = SNAPNetwork.from_file(g_file)
+                graph.stats_toJSON(graph_stat_file)
+        # run Node2Vec to generate embeddings based on train
+        emb_file = os.path.join(node2vec_path, 'n2v.emb')
+        if not reuse or not os.path.isfile(emb_file):
+            if node2vec_params:
+                n2v.run(graph_train, emb_file, **node2vec_params)
+            else:
+                n2v.run(graph_train, emb_file)
+        # convert to signature h5 format
+        if not reuse or not os.path.isfile(self.data_path):
+            n2v.emb_to_h5(sign1, emb_file, self.data_path)
+        # save link prediction stats
+        linkpred_file_train = os.path.join(
+            self.model_path, 'linkpred.train.json')
+        if not reuse or not os.path.isfile(linkpred_file_train):
+            graph = SNAPNetwork.from_file(graph_train)
+            linkpred = LinkPrediction(self, graph)
+            linkpred.performance.toJSON(linkpred_file_train)
+        linkpred_file_test = os.path.join(
+            self.model_path, 'linkpred.test.json')
+        if not reuse or not os.path.isfile(linkpred_file_test):
+            graph = SNAPNetwork.from_file(graph_test)
+            linkpred = LinkPrediction(self, graph)
+            linkpred.performance.toJSON(linkpred_file_test)
+
     def grid_search_adanet(self, sign1, cc_root, job_path, parameters, dir_suffix="", traintest_file=None):
         """Perform a grid search.
 
@@ -312,6 +398,74 @@ class sign2(BaseSignature):
         params["elements"] = elements
         params["wait"] = False
         params["memory"] = 32
+        # job command
+        singularity_image = Config().PATH.SINGULARITY_IMAGE
+        command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+            singularity_image, script_name)
+        # submit jobs
+        cluster = HPC(Config())
+        cluster.submitMultiJob(command, **params)
+        return cluster
+
+    def grid_search_node2vec(self, cc_root, job_path, parameters, dir_suffix=""):
+        """Perform a grid search.
+
+        parameters = {
+            'd': [2**i for i in range(1,11)]
+        }
+        """
+        import chemicalchecker
+        from chemicalchecker.util.hpc import HPC
+        from sklearn.model_selection import ParameterGrid
+
+        gridsearch_path = os.path.join(
+            self.model_path, 'grid_search_%s' % dir_suffix)
+        if not os.path.isdir(gridsearch_path):
+            os.makedirs(gridsearch_path)
+        elements = list()
+        for params in ParameterGrid(parameters):
+            model_dir = '-'.join("%s_%s" % kv for kv in params.items())
+            params.update(
+                {'model_dir': os.path.join(gridsearch_path, model_dir)})
+            elements.append({'node2vec': params})
+
+        # create job directory if not available
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+        # create script file
+        cc_config = os.environ['CC_CONFIG']
+        cc_package = os.path.join(chemicalchecker.__path__[0], '../')
+        script_lines = [
+            "import sys, os",
+            "import pickle",
+            "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
+            "sys.path.append('%s')" % cc_package,  # allow package import
+            "from chemicalchecker.core import ChemicalChecker",
+            "cc = ChemicalChecker('%s')" % cc_root,
+            "task_id = sys.argv[1]",  # <TASK_ID>
+            "filename = sys.argv[2]",  # <FILE>
+            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
+            "data = inputs[task_id]",  # elements for current job
+            "for params in data:",  # elements are indexes
+            "    ds = '%s'" % self.dataset,
+            "    s1 = cc.get_signature('sign1', 'reference', ds)",
+            "    n1 = cc.get_signature('neig1', 'reference', ds)",
+            "    s2 = cc.get_signature('sign2', 'reference', ds, **params)",
+            "    s2.eval_node2vec(s1, n1)",
+            "print('JOB DONE')"
+        ]
+        script_name = os.path.join(job_path, 'sign2_grid_search_adanet.py')
+        with open(script_name, 'w') as fh:
+            for line in script_lines:
+                fh.write(line + '\n')
+        # hpc parameters
+        params = {}
+        params["num_jobs"] = len(elements)
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_SIGN2_GRID_SEARCH_NODE2VEC"
+        params["elements"] = elements
+        params["wait"] = False
+        params["memory"] = 16
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
