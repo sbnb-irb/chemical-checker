@@ -253,6 +253,10 @@ class Traintest(object):
                 # join list into numpy array
                 x_train = p_x
                 y_train = p_y
+        # no augmentation
+        else:
+            x_train = X[train_idxs]
+            y_train = Y[train_idxs]
 
         # create dataset
         with h5py.File(out_filename, "w") as fh:
