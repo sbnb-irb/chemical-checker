@@ -3,6 +3,8 @@ include CONTRIBUTING.rst
 include HISTORY.rst
 include LICENSE
 include README.rst
+include chemicalchecker/util/config/cc_config.json
+include chemicalchecker/util/logging/logging_conf.ini
 
 recursive-include tests *
 recursive-exclude * __pycache__
