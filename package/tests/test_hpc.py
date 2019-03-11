@@ -3,7 +3,7 @@ import pytest
 import unittest
 import functools
 
-from chemicalchecker.util.hpc import HPC
+from chemicalchecker.util import HPC
 from chemicalchecker.util import Config
 
 
