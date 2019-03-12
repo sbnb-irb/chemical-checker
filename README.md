@@ -4,7 +4,7 @@ The Chemical Checker (CC) is a resource of small molecule signatures. In the CC,
 
 * For more information about this repositiory, please refer to our [Wiki page](http://gitlab.sbnb.org/project-specific-repositories/chemical_checker/wikis/home).
 * For a quick exploration of the resource, please visit the [CC web app](http://chemicalchecker.org).
-* For full API documentation of the python package [API Doc](http://project-specific-repositories.pages.irbbarcelona.pcb.ub.es/chemical_checker)
+* For full API documentation of the python package [API Doc](http://project-specific-repositories.sbnb-pages.irbbarcelona.pcb.ub.es/chemical_checker)
 * Concepts and methods are best described in the original CC publication, [Duran-Frigola et al. 2019](https://www.dropbox.com/s/x2rqszfdfpqdqdy/duranfrigola_etal_ms_current.pdf?dl=0).
 
 ## Installation 
