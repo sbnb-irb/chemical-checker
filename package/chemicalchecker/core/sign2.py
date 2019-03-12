@@ -292,20 +292,6 @@ class sign2(BaseSignature):
                 or not os.path.isfile(graph_test):
             graph = SNAPNetwork.from_file(graph_file)
             n2v.split_edgelist(graph, graph_train, graph_test)
-        # check that all molecules are considered in all the graph
-        for g_file in [graph_file, graph_train, graph_test]:
-            with open(g_file, 'r') as fh:
-                lines = fh.readlines()
-            graph_mol = set(l.split()[0] for l in lines)
-            # we can just compare the total nr
-            if not len(graph_mol) == len(sign1.unique_keys):
-                raise Exception("Graph %s is missing nodes." % g_file)
-            # save graph stats
-            graph_stat_file = g_file + ".stats"
-            graph = None
-            if not reuse or not os.path.isfile(graph_stat_file):
-                graph = SNAPNetwork.from_file(g_file)
-                graph.stats_toJSON(graph_stat_file)
         # run Node2Vec to generate embeddings based on train
         emb_file = os.path.join(node2vec_path, 'n2v.emb')
         if not reuse or not os.path.isfile(emb_file):
@@ -313,22 +299,18 @@ class sign2(BaseSignature):
                 n2v.run(graph_train, emb_file, **node2vec_params)
             else:
                 n2v.run(graph_train, emb_file)
+        # create evaluation sign2
+        eval_s2 = sign2(node2vec_path, node2vec_path, self.dataset)
         # convert to signature h5 format
-        if not reuse or not os.path.isfile(self.data_path):
-            n2v.emb_to_h5(sign1, emb_file, self.data_path)
+        if not reuse or not os.path.isfile(eval_s2.data_path):
+            n2v.emb_to_h5(sign1, emb_file, eval_s2.data_path)
         # save link prediction stats
-        linkpred_file_train = os.path.join(
-            node2vec_path, 'linkpred.train.json')
-        if not reuse or not os.path.isfile(linkpred_file_train):
-            graph = SNAPNetwork.from_file(graph_train)
-            linkpred = LinkPrediction(self, graph)
-            linkpred.performance.toJSON(linkpred_file_train)
-        linkpred_file_test = os.path.join(
-            node2vec_path, 'linkpred.test.json')
-        if not reuse or not os.path.isfile(linkpred_file_test):
-            graph = SNAPNetwork.from_file(graph_test)
-            linkpred = LinkPrediction(self, graph)
-            linkpred.performance.toJSON(linkpred_file_test)
+        linkpred = LinkPrediction(eval_s2, SNAPNetwork.from_file(graph_train))
+        perf_train_filen = os.path.join(node2vec_path, 'linkpred.train.json')
+        linkpred.performance.toJSON(perf_train_filen)
+        linkpred = LinkPrediction(eval_s2, SNAPNetwork.from_file(graph_test))
+        perf_test_file = os.path.join(node2vec_path, 'linkpred.test.json')
+        linkpred.performance.toJSON(perf_test_file)
 
     def grid_search_adanet(self, sign1, cc_root, job_path, parameters, dir_suffix="", traintest_file=None):
         """Perform a grid search.
