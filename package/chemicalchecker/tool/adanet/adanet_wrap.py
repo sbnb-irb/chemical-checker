@@ -175,7 +175,7 @@ class Traintest(object):
                 # read probabilities
                 p_space, p_count = augment['probabilities']
                 # initialize the empty array we will fill
-                tot_to_add = augment['max_size'] - X[train_idxs].shape[0]
+                tot_to_add = int(augment['max_size'] - X[train_idxs].shape[0])
                 p_x = np.zeros((tot_to_add, X[train_idxs].shape[1]),
                                dtype=np.float32)
                 p_y = np.zeros((tot_to_add, 128), dtype=np.float32)
