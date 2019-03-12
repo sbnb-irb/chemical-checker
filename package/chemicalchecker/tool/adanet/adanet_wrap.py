@@ -180,8 +180,8 @@ class Traintest(object):
                                dtype=np.float32)
                 p_y = np.zeros((tot_to_add, 128), dtype=np.float32)
                 # add original datapoints
-                p_x = np.vstack(X[train_idxs], p_x)
-                p_y = np.vstack(Y[train_idxs], p_y)
+                p_x = np.vstack((X[train_idxs], p_x))
+                p_y = np.vstack((Y[train_idxs], p_y))
                 counter = len(X[train_idxs])
                 # possile starting molecules
                 mol_idxs = range(len(X[train_idxs]))
