@@ -64,6 +64,9 @@ From: centos
     pip install scipy
     pip install sqlalchemy
     pip install paramiko
+    pip install sklearn
+    pip install csvsort
+    pip install seaborn
     # unittest utils
     pip install pytest
     pip install mock
