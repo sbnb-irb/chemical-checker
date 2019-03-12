@@ -11,16 +11,22 @@ from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.metrics import explained_variance_score
 from sklearn.linear_model import LinearRegression
 try:
-    import adanet
     import tensorflow as tf
     import tensorflow.contrib.slim as slim
     from tensorflow.contrib import predictor
 except ImportError:
-    print("ADANET module not imported!")
+    raise ImportError("requires tensorflow " +
+                      "https://www.tensorflow.org/")
+try:
+    import adanet
+except ImportError:
+    raise ImportError("requires adanet " +
+                      "https://github.com/tensorflow/adanet")
 
 from .dnn_stack_generator import StackDNNGenerator
 from .dnn_extend_generator import ExtendDNNGenerator
-from chemicalchecker.util import logged, profile
+
+from chemicalchecker.util import logged
 
 
 @logged
