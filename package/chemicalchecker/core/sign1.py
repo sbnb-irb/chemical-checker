@@ -7,7 +7,6 @@ import shelve
 import tempfile
 import datetime
 import numpy as np
-from gensim import corpora, models
 from scipy.sparse import lil_matrix
 from sklearn.externals import joblib
 from sklearn.decomposition import PCA
@@ -81,6 +80,11 @@ class sign1(BaseSignature):
             sign0(sign0): a `sign0` instance.
             validations(boolean):Create validation files(plots, files,etc)(default:True)
         """
+        try:
+            from gensim import corpora, models
+        except ImportError:
+            raise ImportError("requires gensim " +
+                              "https://radimrehurek.com/gensim/")
         # Calling base class to trigger file existence checks
         BaseSignature.fit(self)
         # if not isinstance(sign0, Sign0.__class__):
@@ -409,6 +413,11 @@ class sign1(BaseSignature):
                 current signature data path.
             validations(boolean):Create validation files(plots, files,etc)(default:False)
         """
+        try:
+            from gensim import corpora, models
+        except ImportError:
+            raise ImportError("requires gensim " +
+                              "https://radimrehurek.com/gensim/")
         # Calling base class to trigger file existence checks
         BaseSignature.predict(self)
         plot = Plot(self.dataset, self.stats_path, self.validation_path)
@@ -747,6 +756,11 @@ class sign1(BaseSignature):
             # B: Number of runs, to ensure robustness
             # N: Size of the random sample sample (1000 should be enough, 100
             # works)
+        try:
+            from gensim import corpora
+        except ImportError:
+            raise ImportError("requires gensim " +
+                              "https://radimrehurek.com/gensim/")
 
         mm = corpora.MmCorpus(tfidf_corpus)
 

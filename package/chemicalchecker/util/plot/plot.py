@@ -24,7 +24,6 @@ from sklearn.metrics.pairwise import cosine_distances
 import matplotlib
 matplotlib.use('Agg')
 import seaborn as sns
-import matplotlib as mpl
 from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.patheffects as path_effects
@@ -507,7 +506,7 @@ class Plot():
                 cdict['green'].append((pos, color[1], color[1]))
                 cdict['blue'].append((pos, color[2], color[2]))
 
-            cmap = mpl.colors.LinearSegmentedColormap(
+            cmap = matplotlib.colors.LinearSegmentedColormap(
                 'my_colormap', cdict, 256)
             return cmap
 

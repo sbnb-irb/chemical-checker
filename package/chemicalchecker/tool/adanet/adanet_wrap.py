@@ -10,7 +10,6 @@ from scipy.stats import pearsonr
 from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.metrics import explained_variance_score
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
 try:
     import adanet
     import tensorflow as tf

@@ -10,7 +10,6 @@ from tqdm import tqdm
 import matplotlib
 matplotlib.use('Agg')
 import seaborn as sns
-import matplotlib.colors as colors
 from matplotlib import pyplot as plt
 
 from chemicalchecker.util import logged
@@ -315,7 +314,7 @@ class MultiPlot():
 
         sns.set_style("whitegrid")
         fig, ax = plt.subplots(figsize=(7, 5), dpi=100)
-        norm = colors.BoundaryNorm(
+        norm = matplotlib.colors.BoundaryNorm(
             boundaries=[2**i for i in range(5, 11)], ncolors=256)
         # drawing the function
         im = ax.pcolormesh(X, Y, Z, norm=norm, cmap=plt.cm.Blues)

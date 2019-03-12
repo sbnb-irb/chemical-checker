@@ -20,7 +20,10 @@ requirements = [
     'autologging',
     'scipy',
     'sqlalchemy',
-    'paramiko'
+    'paramiko',
+    'sklearn',
+    'csvsort',
+    'seaborn'
 ]
 
 setup_requirements = ['pytest-runner']
