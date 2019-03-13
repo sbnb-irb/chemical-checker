@@ -27,7 +27,7 @@ following paper:
     Duran-Frigola et al., Extending the small molecule similarity principle to all levels of biology (2019)
 
 and has since
-produced a number of :doc:`related publications <pubblications>`.
+produced a number of :doc:`related publications <publications>`.
 
 .. _Structural Bioinformatics & Network Biology Laboratory: https://sbnb.irbbarcelona.org/
 .. _IRB Barcelona: https://www.irbbarcelona.org/en
@@ -43,9 +43,9 @@ produced a number of :doc:`related publications <pubblications>`.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Pubblications
+   :caption: Publications
 
-   pubblications
+   publications
 
 
 Indices and tables
