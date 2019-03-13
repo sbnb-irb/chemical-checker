@@ -454,6 +454,73 @@ class MultiPlot():
             plt.savefig(filename, dpi=100)
             plt.close()
 
+    def sign2_grid_search_node2vec_plot(self, grid_postfix=None):
+        grid_roots = list()
+        for ds in self.cc.datasets:
+            sign2 = self.cc.get_signature('sign2', 'reference', ds)
+            grid_roots.append(os.path.join(sign2.model_path,
+                                           'grid_search_%s' % grid_postfix))
+        file_names = list()
+        for grid_root in grid_roots:
+            file_names.extend([os.path.join(grid_root, name, 'linkpred.test.json') for name in os.listdir(
+                grid_root) if os.path.isfile(os.path.join(grid_root, name, 'linkpred.test.json'))])
+            file_names.extend([os.path.join(grid_root, name, 'linkpred.train.json') for name in os.listdir(
+                grid_root) if os.path.isfile(os.path.join(grid_root, name, 'linkpred.train.json'))])
+
+        cols = json.load(open(file_names[0], 'r')).keys()
+        params = {n.rsplit("_", 1)[0]: n.rsplit("_", 1)[1]
+                  for n in file_names[0].split('/')[-2].split("-")}
+        columns = list(set(cols) | set(params.keys()))
+        df = pd.DataFrame(columns=columns + ['coordinate', 'dataset'])
+        for tmpdf_file in file_names:
+            row = json.load(open(tmpdf_file, 'r'))
+            row = {k: float(v) for k, v in row.items()}
+            row['coordinate'] = tmpdf_file.split('/')[-6]
+            if 'train' in tmpdf_file:
+                row['dataset'] = 'train'
+            else:
+                row['dataset'] = 'test'
+            params = {n.rsplit("_", 1)[0]: n.rsplit("_", 1)[1]
+                      for n in tmpdf_file.split('/')[-2].split("-")}
+            row.update(params)
+            df.loc[len(df)] = pd.Series(row)
+        df['d'] = df['d'].astype(int)
+        df = df.infer_objects()
+
+        sns.set_context("talk")
+        sns.set_style("ticks")
+        matplotlib.rcParams['font.sans-serif'] = "Arial"
+        g = sns.relplot(data=df, kind='line', x='d', y='AUC-ROC',
+                        hue="coordinate", col="coordinate", col_wrap=5,
+                        col_order=self.datasets, style="dataset",
+                        palette=self.cc_palette(self.datasets),
+                        aspect=1, height=2.475, legend=False, lw=3)
+        g.fig.set_size_inches(16.5, 16.5)
+        g.set_titles("")
+        coords = {0: "$\\bf{A}$", 5: "$\\bf{B}$",
+                  10: "$\\bf{C}$", 15: "$\\bf{D}$", 20: "$\\bf{E}$"}
+        for idx, ax in enumerate(g.axes.flatten()):
+            ax.set_xscale('log', basex=2)
+            ax.set_xticks([2,  16, 128, 1024])
+            ax.set_yticks([.8, .9, 1.0])
+            ax.set_ylim([.78, 1.02])
+            if not idx % 5:
+                ax.set_ylabel(coords[idx])
+            if idx >= 20:
+                ax.set_xlabel("$\\bf{%s}$" % ((idx % 5) + 1))
+            if idx == 24:
+                lines = [matplotlib.lines.Line2D(
+                    [0], [0], color=".15",
+                    linewidth=2, linestyle=ls) for ls in ['--', '-']]
+                labels = ['Train', 'Test']
+                ax.legend(lines, labels, frameon=False)
+        sns.despine(top=False, right=False, left=False, bottom=False)
+        filename = os.path.join(
+            self.plot_path, "sign2_%s_grid_search_node2vec.png" % (grid_postfix))
+        plt.tight_layout()
+        plt.savefig(filename, dpi=100)
+        plt.close()
+
     def sign3_grid_search_plot(self, grid_roots):
         file_names = list()
         for grid_root in grid_roots:
