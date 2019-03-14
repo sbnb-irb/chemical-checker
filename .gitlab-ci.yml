@@ -14,6 +14,7 @@ build_singularity_image_py27:
   stage: image
   script:
     - yum install squashfs-tools -y
+    - mkdir images -p
     - rm -f images/cc_py27.simg
     - singularity build images/cc_py27.simg container/singularity/cc_py27.def
   cache:
@@ -27,6 +28,7 @@ build_singularity_image_py36:
   stage: image
   script:
     - yum install squashfs-tools -y
+    - mkdir images -p
     - rm -f images/cc_py36.simg
     - singularity build images/cc_py36.simg container/singularity/cc_py36.def
   cache:
@@ -40,6 +42,7 @@ build_singularity_image_py27_lite:
   stage: image
   script:
     - yum install squashfs-tools -y
+    - mkdir images -p
     - rm -f images/cc_py27_lite.simg
     - singularity build images/cc_py27_lite.simg container/singularity/cc_py27_lite.def
   cache:
