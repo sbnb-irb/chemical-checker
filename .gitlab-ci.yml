@@ -1,9 +1,7 @@
 image: cc_image:latest
 cache:
   paths:
-    - cc.simg
-    - cc_py36.simg
-    - cc_lite.simg
+    - images
 
 stages:
   - image
@@ -16,46 +14,40 @@ build_singularity_image_py27:
   stage: image
   script:
     - yum install squashfs-tools -y
-    - rm -f cc.simg
-    - singularity build cc.simg ./container/singularity/cc.def
+    - rm -f images/cc_py27.simg
+    - singularity build images/cc_py27.simg container/singularity/cc_py27.def
   cache:
     paths:
-      - cc.simg
-      - cc_py36.simg
-      - cc_lite.simg
+      - images
   only:
     changes:
-      - container/singularity/cc.def
+      - container/singularity/cc_py27.def
 
 build_singularity_image_py36:
   stage: image
   script:
     - yum install squashfs-tools -y
-    - rm -f cc_py36.simg
-    - singularity build cc_py36.simg ./container/singularity/cc_py36.def
+    - rm -f images/cc_py36.simg
+    - singularity build images/cc_py36.simg container/singularity/cc_py36.def
   cache:
     paths:
-      - cc.simg
-      - cc_py36.simg
-      - cc_lite.simg
+      - images
   only:
     changes:
       - container/singularity/cc_py36.def
 
-build_singularity_image_lite:
+build_singularity_image_py27_lite:
   stage: image
   script:
     - yum install squashfs-tools -y
-    - rm -f cc_lite.simg
-    - singularity build cc_lite.simg ./container/singularity/cc_lite.def
+    - rm -f images/cc_py27_lite.simg
+    - singularity build images/cc_py27_lite.simg container/singularity/cc_py27_lite.def
   cache:
     paths:
-      - cc.simg
-      - cc_py36.simg
-      - cc_lite.simg
+      - images
   only:
     changes:
-      - container/singularity/cc_lite.def
+      - container/singularity/cc_py27_lite.def
 
 
 
@@ -63,37 +55,31 @@ python_2.7.10:
   stage: test
   script:
     - ls -l
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg which python
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg pytest /test/package
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27.simg which python
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27.simg make -C /test/package test
   cache:
     paths:
-      - cc.simg
-      - cc_py36.simg
-      - cc_lite.simg
+      - images
 
 python_3.6.8:
   stage: test
   script:
     - ls -l
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_py36.simg which python
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_py36.simg pytest /test/package
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py36.simg which python
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py36.simg make -C /test/package test
   cache:
     paths:
-      - cc.simg
-      - cc_py36.simg
-      - cc_lite.simg
+      - images
 
 python_2.7.10_lite:
   stage: test
   script:
     - ls -l
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_lite.simg which python
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc_lite.simg pytest /test/package
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27_lite.simg which python
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27_lite.simg make -C /test/package test
   cache:
     paths:
-      - cc.simg
-      - cc_py36.simg
-      - cc_lite.simg
+      - images
 
 
 devpi_prod:
@@ -129,9 +115,9 @@ pages:
     - public
   cache:
     paths:
-      - cc.simg
+      - images
   script:
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test cc.simg make -C /test/package docs
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27.simg make -C /test/package docs
     - cd package/docs
     - mv _build/html/ ../../public/
     - ls -l ../../public
