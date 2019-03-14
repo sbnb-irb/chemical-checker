@@ -5,9 +5,6 @@ From: centos
     # PATHS
     export PATH=/opt/miniconda3/bin:$PATH
     source activate py36
-    alias ll='ls -l'
-    alias ipy='ipython'
-    alias py='python'
 
 %post
     # bind paths

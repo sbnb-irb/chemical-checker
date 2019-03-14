@@ -3,7 +3,7 @@ FROM conda/miniconda3-centos7:latest
 # Copy this file to a root access directory
 # cd to that directory
 # sudo docker build -t cc_image .
-RUN  yum install -y gcc g++ gcc-c++ cmake gfortran gcc-gfortran make wget
+RUN  yum install -y gcc g++ gcc-c++ cmake gfortran gcc-gfortran make wget squashfs-tools
 RUN  yum install -y libarchive-devel
 RUN  yum groupinstall 'Development Tools' -y
 RUN  export SINGVER=2.5.1
