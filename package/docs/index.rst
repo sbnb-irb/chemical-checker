@@ -33,6 +33,28 @@ produced a number of :doc:`related publications <publications>`.
 .. _IRB Barcelona: https://www.irbbarcelona.org/en
 
 
+Quick Start
+-----------
+
+Assuming you have Python already, Install the Chemical Checker package:
+
+.. prompt:: bash $
+
+    export DEVPI_HOST=10.7.108.15
+    export DEVPI_PORT=3141
+    pip install --index http://$DEVPI_HOST:$DEVPI_PORT/root/dev/ --trusted-host $DEVPI_HOST chemicalchecker
+
+This will install the *lite* version of the package
+
+.. code-block:: python
+
+    from chemicachecker.core import ChemicalChecker
+
+    cc = ChemicalChecker()
+
+
+
+
 
 .. toctree::
    :maxdepth: 2
