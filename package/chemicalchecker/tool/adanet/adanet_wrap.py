@@ -37,7 +37,7 @@ class Traintest(object):
     the generator functions which tensorflow likes.
     """
 
-    def __init__(self, hdf5_file, partition, nan_replacer=0.0):
+    def __init__(self, hdf5_file, partition, nan_replacer=0.0, augment=None):
         """Initialize the traintest object.
 
         We assume the file is containing diffrent partitions.
@@ -48,6 +48,7 @@ class Traintest(object):
         self.x_name = "x_%s" % partition
         self.y_name = "y_%s" % partition
         self.nan_replacer = nan_replacer
+        self.augment = augment
 
     def open(self):
         """Open the HDF5."""
@@ -66,15 +67,65 @@ class Traintest(object):
         """Get the batch."""
         features = self._f[self.x_name][beg_idx: end_idx]
         labels = self._f[self.y_name][beg_idx: end_idx]
+        if not self.augment:
+            return features, labels
+        # TODO make this faster than python lists...
+        p_x = list()
+        p_y = list()
+        # read probabilities
+        p_space, p_count = self.augment['probabilities']
+        for idx in range(beg_idx,end_idx):
+            # get the presence array e.g. 110
+            presence = ~np.isnan(features[idx][0::128])
+            # debug_str = "* {:<3} ".format(idx) + \
+            #    ''.join(presence.astype(int).astype(str))
+            # Traintest.__log.debug(debug_str)
+            present_idxs = np.argwhere(presence).flatten()
+            # iterate on  individual starting point e.g. 100, 010
+            # we want all spaces used at least once
+            for initial in present_idxs:
+                presence_add = np.zeros(presence.shape).astype(bool)
+                presence_add[initial] = True
+                # what's the max spaces I can add?
+                max_add = present_idxs.shape[0] - 1
+                my_p_count = {k: v for k, v in p_count.items() if k < max_add}
+                # normalize probabilities
+                prob_sum = sum(my_p_count.values())
+                my_p_count = [(k, v / prob_sum) for k,v in my_p_count.items()]
+                # check that we have options to subsample
+                if not my_p_count:
+                    # Traintest.__log.debug("no subsampling.")
+                    break
+                # pick how many to add
+                ns = [x[0] for x in my_p_count]
+                p_n = [x[1] for x in my_p_count]
+                to_add = np.random.choice(ns, 1, p_n)[0]
+                # pick which spaces
+                pick = list(present_idxs)
+                pick.remove(initial)
+                for i in range(to_add):
+                    # normalize probabilities
+                    p_s = list(p_space[pick] / sum(p_space[pick]))
+                    added = np.random.choice(pick, 1, p_s)[0]
+                    pick.remove(added)
+                    presence_add[added] = True
+                # convert array to mask
+                mask = np.hstack([[a] * 128 for a in presence_add])
+                # append new row
+                new_data = np.copy(features[idx])
+                new_data[~mask] = np.nan
+                p_x.append(new_data)
+                p_y.append(labels[idx])
+        # stack augmented data
+        p_x = np.vstack(p_x)
+        p_y = np.vstack(p_y)
         # handle NaNs
-        features[np.where(np.isnan(features))] = self.nan_replacer
-        return features, labels
+        p_x[np.where(np.isnan(p_x))] = self.nan_replacer
+        return p_x, p_y
 
     def get_x(self, beg_idx, end_idx):
         """Get the Xs in a range."""
-        features = self._f[self.x_name][beg_idx: end_idx]
-        # handle NaNs
-        features[np.where(np.isnan(features))] = self.nan_replacer
+        features, labels = self.get_xy(beg_idx, end_idx)
         return features
 
     def get_all_x(self):
@@ -336,6 +387,7 @@ class AdaNetWrapper(object):
         self.shuffles = int(kwargs.get("shuffles", 10))
         self.dropout_rate = float(kwargs.get("dropout_rate", 0.2))
         self.adanet_iterations = int(kwargs.get("adanet_iterations", 10))
+        self.augmentation = kwargs.get("augmentation", None)
         self.subnetwork_generator = eval(kwargs.get(
             "subnetwork_generator", "ExtendDNNGenerator"))
         # read input shape
@@ -390,6 +442,8 @@ class AdaNetWrapper(object):
             "train_step", self.train_step))
         self.__log.info("{:<22}: {:>12}".format(
             "total_steps", self.total_steps))
+        self.__log.info("{:<22}: {:>12}".format(
+            "augmentation", str(self.augmentation)))
 
     @staticmethod
     def layer_size_heuristic(nr_samples, nr_features, nr_out=128, s_fact=7.):
@@ -446,7 +500,8 @@ class AdaNetWrapper(object):
         )
         # Train and evaluate using using the tf.estimator tooling.
         train_spec = tf.estimator.TrainSpec(
-            input_fn=self.input_fn("train", training=True),
+            input_fn=self.input_fn("train", training=True,
+                augmentation=self.augmentation),
             max_steps=self.total_steps)
         eval_spec = tf.estimator.EvalSpec(
             input_fn=self.input_fn("test", training=False),
@@ -481,11 +536,11 @@ class AdaNetWrapper(object):
         except Exception:
             return None
 
-    def input_fn(self, partition, training):
+    def input_fn(self, partition, training, augmentation=None):
         """Generate an input function for the Estimator."""
         def _input_fn():
             x_shape, y_shape, generator_fn = Traintest.generator_fn(
-                self.traintest_file, partition, self.batch_size)
+                self.traintest_file, partition, self.batch_size, augmentation)
 
             dataset = tf.data.Dataset.from_generator(
                 generator_fn,

@@ -159,18 +159,20 @@ class sign3(BaseSignature):
             traintest_file = adanet_params.get(
                 'traintest_file', traintest_file)
             adanet_params.pop('traintest_file')
+
+        augment = {'strategy': 'probabilities',
+                   'probabilities': probs,
+                   'max_size': 1e6}
         if not reuse or not os.path.isfile(traintest_file):
             features, labels = self.get_sign2_matrix(chemchecker)
-            augment = {'strategy': 'probabilities',
-                       'probabilities': probs,
-                       'max_size': 1e6}
-            Traintest.create(features, labels, traintest_file, augment)
-
+            Traintest.create(features, labels, traintest_file)
         if adanet_params:
             ada = AdaNet(model_dir=adanet_path,
-                         traintest_file=traintest_file, **adanet_params)
+                         traintest_file=traintest_file, augment=augment,
+                         **adanet_params)
         else:
-            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
+            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file,
+                augment=augment)
         # learn NN with AdaNet
         self.__log.debug('AdaNet training on %s' % traintest_file)
         ada.train_and_evaluate()
