@@ -11,10 +11,10 @@ import glob
 
 
 from chemicalchecker.util import logged, Config, profile
-from chemicalchecker.util import HPC
+from chemicalchecker.util.hpc import HPC
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
-from chemicalchecker.util import gaussianize as g
+from chemicalchecker.util.performance import gaussianize as g
 # Variables
 
 
@@ -378,69 +378,83 @@ def main(args):
 
     ikmatrices_script = WD + "/do_agg_matrices.py"
 
-    main._log.info("Getting signature files...")
+    readyfile = "conn.ready"
 
-    job_path = os.path.join(Config().PATH.CC_TMP, "job_conn")
+    if not os.path.exists(os.path.join(connectivitydir, readyfile)):
 
-    if os.path.isdir(job_path):
-        shutil.rmtree(job_path)
-    os.mkdir(job_path)
+        main._log.info("Getting signature files...")
 
-    GSE92742_Broad_LINCS_pert_info = os.path.join(
-        map_files["GSE92742_Broad_LINCS_pert_info"], "GSE92742_Broad_LINCS_pert_info.txt")
+        job_path = os.path.join(Config().PATH.CC_TMP, "job_conn")
 
-    params = {}
+        if os.path.isdir(job_path):
+            shutil.rmtree(job_path)
+        os.mkdir(job_path)
 
-    params["num_jobs"] = len(sig_map.keys()) / 10
-    params["jobdir"] = job_path
-    params["job_name"] = "CC_D1_conn"
-    params["elements"] = sig_map
-    params["memory"] = 10
-    # job command
-    singularity_image = Config().PATH.SINGULARITY_IMAGE
-    command = "singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {}".format(
-        singularity_image, connectivity_script, mini_sig_info_file, signaturesdir,
-        connectivitydir, GSE92742_Broad_LINCS_pert_info, min_idxs)
-    # submit jobs
-    cluster = HPC(Config())
-    cluster.submitMultiJob(command, **params)
+        GSE92742_Broad_LINCS_pert_info = os.path.join(
+            map_files["GSE92742_Broad_LINCS_pert_info"], "GSE92742_Broad_LINCS_pert_info.txt")
 
-    if cluster.status() == 'error':
-        main._log.error(
-            "Connectivity job produced some errors. The preprocess script can't continue")
-        sys.exit(1)
+        params = {}
 
-    main._log.info("Reading L1000")
-    inchikey_sigid, inchikey_inchi, siginfo = read_l1000(
-        mini_sig_info_file, connectivitydir)
+        params["num_jobs"] = len(sig_map.keys()) / 10
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_D1_conn"
+        params["elements"] = sig_map
+        params["memory"] = 10
+        # job command
+        singularity_image = Config().PATH.SINGULARITY_IMAGE
+        command = "MKL_NUM_THREADS=1 singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {}".format(
+            singularity_image, connectivity_script, mini_sig_info_file, signaturesdir,
+            connectivitydir, GSE92742_Broad_LINCS_pert_info, min_idxs)
+        # submit jobs
+        cluster = HPC(Config())
+        cluster.submitMultiJob(command, **params)
 
-    main._log.info("Doing aggregation matrices")
+        if cluster.status() == 'error':
+            main._log.error(
+                "Connectivity job produced some errors. The preprocess script can't continue")
+            sys.exit(1)
 
-    job_path = os.path.join(Config().PATH.CC_TMP, "job_agg_matrices")
+        with open(os.path.join(connectivitydir, readyfile), "w") as f:
+            f.write("")
 
-    if os.path.isdir(job_path):
-        shutil.rmtree(job_path)
-    os.mkdir(job_path)
+    readyfile = "agg_matrices.ready"
 
-    params = {}
+    if not os.path.exists(os.path.join(ik_matrices, readyfile)):
 
-    params["num_jobs"] = len(inchikey_sigid.keys()) / 10
-    params["jobdir"] = job_path
-    params["job_name"] = "CC_D1_agg_mat"
-    params["elements"] = inchikey_sigid.keys()
-    params["memory"] = 10
-    # job command
-    singularity_image = Config().PATH.SINGULARITY_IMAGE
-    command = "singularity exec {} python {} <TASK_ID> <FILE> {} {} {}".format(
-        singularity_image, ikmatrices_script, mini_sig_info_file, connectivitydir, ik_matrices)
-    # submit jobs
-    cluster = HPC(Config())
-    cluster.submitMultiJob(command, **params)
+        main._log.info("Reading L1000")
+        inchikey_sigid, inchikey_inchi, siginfo = read_l1000(
+            mini_sig_info_file, connectivitydir)
 
-    if cluster.status() == 'error':
-        main._log.error(
-            "Agg_matrices job produced some errors. The preprocess script can't continue")
-        sys.exit(1)
+        main._log.info("Doing aggregation matrices")
+
+        job_path = os.path.join(Config().PATH.CC_TMP, "job_agg_matrices")
+
+        if os.path.isdir(job_path):
+            shutil.rmtree(job_path)
+        os.mkdir(job_path)
+
+        params = {}
+
+        params["num_jobs"] = len(inchikey_sigid.keys()) / 10
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_D1_agg_mat"
+        params["elements"] = inchikey_sigid.keys()
+        params["memory"] = 10
+        # job command
+        singularity_image = Config().PATH.SINGULARITY_IMAGE
+        command = "singularity exec {} python {} <TASK_ID> <FILE> {} {} {}".format(
+            singularity_image, ikmatrices_script, mini_sig_info_file, connectivitydir, ik_matrices)
+        # submit jobs
+        cluster = HPC(Config())
+        cluster.submitMultiJob(command, **params)
+
+        if cluster.status() == 'error':
+            main._log.error(
+                "Agg_matrices job produced some errors. The preprocess script can't continue")
+            sys.exit(1)
+
+        with open(os.path.join(ik_matrices, readyfile), "w") as f:
+            f.write("")
 
     main._log.info("Doing consensus")
     X, inchikeys = do_consensus(ik_matrices, consensus)
