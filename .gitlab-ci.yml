@@ -11,11 +11,11 @@ Wiki2PDF:
     # Details of your self-hosted Gitlab's installation? 
     # Considering "https://foo.bar/" GITLAB_DOMAIN is "foo.bar".
     #GITLAB_DOMAIN: "foo.bar"
-    GITLAB_DOMAIN: "gitlab.com"
+    GITLAB_DOMAIN: "gitlab.sbnb.org"
     
     # Considering "https://foo.bar/" GITLAB_SCHEME is "https".
     #GITLAB_SCHEME: "http"
-    GITLAB_SCHEME: "https"    
+    GITLAB_SCHEME: "http"    
     
     # Subfolders separator, used to separate path entries in generated file names, eg /foo/bar/baz.md -> ./foo@bar@baz.pdf
     SEPARATOR: "@"
