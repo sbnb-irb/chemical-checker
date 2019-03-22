@@ -11,10 +11,9 @@ import itertools
 from glob import glob
 
 from .data import DataFactory
-
 from chemicalchecker.util import logged
-from chemicalchecker.util import Config
 from chemicalchecker.database import Dataset
+from chemicalchecker.util import Config
 from chemicalchecker.util.hpc import HPC
 
 
@@ -30,8 +29,8 @@ class ChemicalChecker():
         are discovered.
 
         Args:
-            cc_root(str): The Chemical Checker root directory. It's version
-                dependendent.
+            cc_root(str): The Chemical Checker root directory. If not specified
+                            the root is taken from the config file. (default:None)
         """
         if not cc_root:
             self.cc_root = Config().PATH.CC_ROOT
