@@ -17,6 +17,11 @@ from chemicalchecker.util import logged
 class HPC():
     """Send tasks to an HPC cluster."""
 
+    STARTED = "started"
+    DONE = "done"
+    READY = "ready"
+    ERROR = "error"
+
     def __init__(self, config, dry_run=False):
         """Initialize the HPC object.
 
