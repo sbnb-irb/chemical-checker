@@ -7,6 +7,7 @@ from chemicalchecker.util import Config
 from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util.parser import PropCalculator
 from .database import Base, get_session, get_engine
+from .structure import Structure
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Text
 from sqlalchemy.dialects import postgresql
@@ -118,6 +119,8 @@ def Molprop(table_name):
 
             else:
                 dict_inchikey_inchi = inchikey_inchi
+
+            Structure.add_missing_only(inchikey_inchi)
 
             parse_fn = PropCalculator.calc_fn(GenericMolprop.__tablename__)
             # profile time
