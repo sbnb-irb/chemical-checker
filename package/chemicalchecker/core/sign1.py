@@ -102,7 +102,7 @@ class sign1(BaseSignature):
             else:
                 f.write("normalized\n")
 
-        input_data = str(sign0)
+        input_data = sign0.data_path
         mappings = None
 
         tmp_dir = tempfile.mkdtemp(
@@ -438,7 +438,7 @@ class sign1(BaseSignature):
             else:
                 self.not_normalized = False
 
-        input_data = str(sign0)
+        input_data = sign0.data_path
         mappings = None
 
         tmp_dir = tempfile.mkdtemp(
