@@ -337,5 +337,131 @@ Wiki2PDF:
     - apt-get install -y git >/dev/null
     - apt-get install -y wget >/dev/null
     
-#    - cp /etc/gitlab-runner/certs/ca.crt /usr/local/share/ca-certificates/ca.crt
-#    - update-ca-certificates
+image: cc_image:latest
+cache:
+  paths:
+    - images
+
+stages:
+  - image
+  - test
+  - deploy
+
+
+
+build_singularity_image_py27:
+  stage: image
+  script:
+    - yum install squashfs-tools -y
+    - mkdir images -p
+    - rm -f images/cc_py27.simg
+    - singularity build images/cc_py27.simg container/singularity/cc_py27.def
+  cache:
+    paths:
+      - images
+  only:
+    changes:
+      - container/singularity/cc_py27.def
+
+build_singularity_image_py36:
+  stage: image
+  script:
+    - yum install squashfs-tools -y
+    - mkdir images -p
+    - rm -f images/cc_py36.simg
+    - singularity build images/cc_py36.simg container/singularity/cc_py36.def
+  cache:
+    paths:
+      - images
+  only:
+    changes:
+      - container/singularity/cc_py36.def
+
+build_singularity_image_py27_lite:
+  stage: image
+  script:
+    - yum install squashfs-tools -y
+    - mkdir images -p
+    - rm -f images/cc_py27_lite.simg
+    - singularity build images/cc_py27_lite.simg container/singularity/cc_py27_lite.def
+  cache:
+    paths:
+      - images
+  only:
+    changes:
+      - container/singularity/cc_py27_lite.def
+
+
+
+python_2.7.10:
+  stage: test
+  script:
+    - ls -l
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27.simg which python
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27.simg make -C /test/package test
+  cache:
+    paths:
+      - images
+
+python_3.6.8:
+  stage: test
+  script:
+    - ls -l
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py36.simg which python
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py36.simg make -C /test/package test
+  cache:
+    paths:
+      - images
+
+python_2.7.10_lite:
+  stage: test
+  script:
+    - ls -l
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27_lite.simg which python
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27_lite.simg make -C /test/package test
+  cache:
+    paths:
+      - images
+
+
+devpi_prod:
+  stage: deploy
+  script:
+    - conda update -c anaconda setuptools
+    - pip install devpi-client
+    - devpi use http://devpi.sbnb.org:3141
+    - devpi login gitlab --password='sbnb'
+    - devpi use root/prod
+    - cd package
+    - devpi upload
+    - devpi push chemicalchecker==$CI_COMMIT_TAG root/prod
+  only:
+    - tags
+
+devpi_dev:
+  stage: deploy
+  script:
+    - conda update -c anaconda setuptools
+    - pip install devpi-client
+    - devpi use http://devpi.sbnb.org:3141
+    - devpi login gitlab --password='sbnb'
+    - devpi use root/dev
+    - cd package
+    - devpi upload
+    - devpi push chemicalchecker==0.1.0 root/dev
+
+pages:
+  stage: deploy
+  artifacts:
+    paths:
+    - public
+  cache:
+    paths:
+      - images
+  script:
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27.simg make -C /test/package docs
+    - cd package/docs
+    - mv _build/html/ ../../public/
+    - ls -l ../../public
+  only:
+    - master
