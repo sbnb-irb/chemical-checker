@@ -9,9 +9,9 @@ The Chemical Checker (CC) is a resource of small molecule signatures. In the CC,
 
 ## Installation 
 
-1. Install singularity:  https://www.sylabs.io/guides/2.6/user-guide/installation.html
+1. [Install singularity](https://www.sylabs.io/guides/2.6/user-guide/installation.html)
 
-2. Install Git
+2. [Install Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 
 3. Download the `setup_chemicalchecker.sh` script to your home folder
 
@@ -23,7 +23,7 @@ The Chemical Checker (CC) is a resource of small molecule signatures. In the CC,
     
 `setup_chemicalchecker.sh` allows you to create a singularity image with all necessary packages including the Chemical Checker package.
 
-After the first run of this script, if you only want to update the Chemical Checker package, run the script like that:
+After the first run of this script, if you only want to **update** the Chemical Checker package, run the script like that:
 
         sh setup_chemicalchecker.sh -i
         
@@ -44,12 +44,16 @@ If you only want to change the config file, run the script like that:
 
     2.2. Start a new notebook (on the top right jupyter page click New -> Python )
 
-    2.3. Type ***import chemicalchecker***
+    2.3. Type `import chemicalchecker`
 
 3. Run the script with:
 
         sh run_chemicalchecker.sh -s
         
-    3.1 Type ***python***
+    3.1 Type `python`
     
-    3.2 Type ***import chemicalchecker***
+    3.2 Type `import chemicalchecker`
+
+## Examples
+
+For use case examples, please see notebooks in this repository.
