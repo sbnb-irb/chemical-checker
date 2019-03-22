@@ -111,7 +111,7 @@ fi
         """
 
         # get arguments or default values
-        num_jobs = kwargs.get("num_jobs", 1)
+        num_jobs = int(kwargs.get("num_jobs", 1))
         cpu = kwargs.get("cpu", 1)
         wait = kwargs.get("wait", True)
         self.jobdir = kwargs.get("jobdir", '')
