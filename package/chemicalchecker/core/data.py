@@ -37,6 +37,14 @@ class DataFactory():
         Produce a signature-like structure for the given input.
         Given a matrix of anonymous molucules add keys to mantain the order.
         """
+        from .sign0 import sign0
+        from .sign1 import sign1
+        from .clus1 import clus1
+        from .neig1 import neig1
+        from .sign2 import sign2
+        from .sign3 import sign3
+        from .proj1 import proj1
+
         data_path = os.path.join(signature_path, '%s.h5' % cctype)
         if not keys:
             keys = ["{0:027d}".format(n) for n in range(len(matrix))]
@@ -46,4 +54,7 @@ class DataFactory():
             hf.create_dataset("keys", data=keys)
             hf.create_dataset("V", data=matrix)
             hf.create_dataset("shape", data=matrix.shape)
-        return eval(cctype)(signature_path, signature_path, dataset)
+        try:
+            return eval(cctype)(signature_path, signature_path, dataset)
+        except Exception:
+            raise Exception("Data type %s not available" % cctype)
