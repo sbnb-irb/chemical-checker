@@ -237,6 +237,8 @@ class sign2(BaseSignature):
                 os.makedirs(sign1_dest)
                 nn_sign1 = DataFactory.signaturize(
                     "sign1", sign1_dest, sign1_data)
+                # sign2 is needed just to get the default keys
+                # as neig1.get_kth_nearest is returning keys of sign1
                 sign2_dest = os.path.join(nn_path, "sign2")
                 os.makedirs(sign2_dest)
                 nn_sign2 = DataFactory.signaturize(
@@ -250,7 +252,7 @@ class sign2(BaseSignature):
             nn_pred[ds] = dict()
             # get nearest neighbor indices and keys
             nn_idxs = nn_neig1.get_kth_nearest(sign1_data, 1)
-            nn_pred[ds]['true'] = sign1_data
+            nn_pred[ds]['true'] = sign2_data
             nn_pred[ds]['pred'] = list()
             for idx in nn_idxs:
                 nn_pred[ds]['pred'].append(nn_sign2[idx])
