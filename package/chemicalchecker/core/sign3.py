@@ -139,6 +139,7 @@ class sign3(BaseSignature):
         """Learn a model."""
         try:
             from chemicalchecker.tool.adanet import AdaNet, Traintest
+            from .sign2 import sign2
         except ImportError as err:
             raise err
         # adanet
@@ -152,7 +153,7 @@ class sign3(BaseSignature):
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
         # get probabilities
-        probs = self.get_probabilities(chemchecker)
+        #probs = self.get_probabilities(chemchecker)
         # prepare train-test file
         traintest_file = os.path.join(adanet_path, 'traintest.h5')
         if adanet_params:
@@ -160,25 +161,37 @@ class sign3(BaseSignature):
                 'traintest_file', traintest_file)
             adanet_params.pop('traintest_file')
 
-        augment = {'strategy': 'probabilities',
-                   'probabilities': probs,
-                   'max_size': 1e6}
         if not reuse or not os.path.isfile(traintest_file):
             features, labels = self.get_sign2_matrix(chemchecker)
             Traintest.create(features, labels, traintest_file)
         if adanet_params:
             ada = AdaNet(model_dir=adanet_path,
-                         traintest_file=traintest_file, augment=augment,
+                         traintest_file=traintest_file,
                          **adanet_params)
         else:
-            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file,
-                augment=augment)
+            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
         # learn NN with AdaNet
         self.__log.debug('AdaNet training on %s' % traintest_file)
         ada.train_and_evaluate()
         # save AdaNet performances and plots
         sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
-        ada.save_performances(adanet_path, sign2_plot)
+        # baseline comparison to cross predictors and neraest neighbors
+        other_spaces = list(chemchecker.datasets)
+        other_spaces.remove(self.dataset.code)
+        extra_preditors = dict()
+        for idx, ds in enumerate(other_spaces):
+            col_idx = other_spaces.index(ds)
+            cols = (col_idx * 128, (col_idx + 1) * 128)
+            cross_pred_path = os.path.join(
+                self.model_path, 'crosspred_%s' % ds)
+            nearest_neighbor_pred = sign2.predict_nearest_neighbor(
+                cross_pred_path, traintest_file, cols=cols)
+            # we might skip dataset without intersections
+            if nearest_neighbor_pred is None:
+                continue
+            extra_preditors['NearestNeighbor_%s' % ds] = nearest_neighbor_pred
+
+        ada.save_performances(adanet_path, sign2_plot, extra_preditors)
         self.__log.debug('model saved to %s' % adanet_path)
 
         self.mark_ready()
