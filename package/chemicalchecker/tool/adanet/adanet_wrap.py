@@ -216,7 +216,7 @@ class AdaNetWrapper(object):
         self.shuffles = int(kwargs.get("shuffles", 10))
         self.dropout_rate = float(kwargs.get("dropout_rate", 0.2))
         self.adanet_iterations = int(kwargs.get("adanet_iterations", 10))
-        self.augmentation = kwargs.get("augmentation", None)
+        self.augmentation = kwargs.get("augmentation", False)
         self.subnetwork_generator = eval(kwargs.get(
             "subnetwork_generator", "ExtendDNNGenerator"))
         # read input shape
@@ -330,7 +330,7 @@ class AdaNetWrapper(object):
         # Train and evaluate using using the tf.estimator tooling.
         train_spec = tf.estimator.TrainSpec(
             input_fn=self.input_fn("train", training=True,
-                augmentation=self.augmentation),
+                                   augmentation=self.augmentation),
             max_steps=self.total_steps)
         eval_spec = tf.estimator.EvalSpec(
             input_fn=self.input_fn("test", training=False),
@@ -365,7 +365,7 @@ class AdaNetWrapper(object):
         except Exception:
             return None
 
-    def input_fn(self, partition, training, augmentation=True):
+    def input_fn(self, partition, training, augmentation=False):
         """Generate an input function for the Estimator."""
         def _input_fn():
             x_shape, y_shape, generator_fn = Traintest.generator_fn(
