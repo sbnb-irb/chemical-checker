@@ -583,18 +583,19 @@ class AdaNetWrapper(object):
             rows = dict()
             for ds in datasets:
                 self.__log.info("Performances for %s on %s", name, ds)
-                y_pred = preds[ds]
-                rows[ds] = _stats_row(y[ds], y_pred, name, ds)
+                y_pred = preds[ds]['pred']
+                y_true = preds[ds]['true']
+                rows[ds] = _stats_row(y_true, y_pred, name, ds)
                 rows[ds]['time'] = preds['time']
                 rows[ds]['architecture_history'] = '| linear |'
-                rows[ds]['architecture'] = [y[ds].shape[1]]
+                rows[ds]['architecture'] = [y_true.shape[1]]
                 rows[ds]['layer_size'] = 0
-                rows[ds]["nr_variables"] = y[ds].shape[1]
+                rows[ds]["nr_variables"] = y_true.shape[1]
                 rows[ds]["nn_layers"] = 0
                 # log and save plot
                 _log_row(rows[ds])
                 plot.sign2_prediction_plot(
-                    y[ds], y_pred, "%s_%s" % (name, ds))
+                    y_true, y_pred, "%s_%s" % (name, ds))
 
             # save rows
             for ds in datasets:
