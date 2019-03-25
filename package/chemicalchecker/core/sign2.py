@@ -172,7 +172,8 @@ class sign2(BaseSignature):
         ada.train_and_evaluate()
         # save AdaNet performances and plots
         sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
-        nearest_neighbor_pred = self.predict_nearest_neighbor(traintest_file)
+        nearest_neighbor_pred = sign2.predict_nearest_neighbor(
+            self.model_path, traintest_file)
         extra_preditors = dict()
         extra_preditors['NearestNeighbor'] = nearest_neighbor_pred
         ada.save_performances(adanet_path, sign2_plot, extra_preditors)
@@ -191,7 +192,8 @@ class sign2(BaseSignature):
         self.__log.debug('loading model from %s' % adanet_path)
         return AdaNet.predict_signature(adanet_path, sign1)
 
-    def predict_nearest_neighbor(self, traintest_file):
+    @staticmethod
+    def predict_nearest_neighbor(destination_path, traintest_file, cols=None):
         """Prediction with nearest neighbor.
 
         Find nearest neighbor in sign 1 and mapping it to known sign 2.
@@ -199,9 +201,9 @@ class sign2(BaseSignature):
         from .data import DataFactory
         from .neig1 import neig1
         from chemicalchecker.tool.adanet import Traintest
-        self.__log.info('Performing Nearest Neighbor prediction.')
+        sign2.__log.info('Performing Nearest Neighbor prediction.')
         # create directory to save neig and sign (delete if exists)
-        nn_path = os.path.join(self.model_path, "nearest_neighbor")
+        nn_path = os.path.join(destination_path, "nearest_neighbor")
         if os.path.isdir(nn_path):
             shutil.rmtree(nn_path)
         # evaluate all data splits
@@ -212,32 +214,47 @@ class sign2(BaseSignature):
             # get dataset split
             traintest = Traintest(traintest_file, ds)
             traintest.open()
-            sign1_data = traintest.get_all_x()
+            if cols is None:
+                sign1_data = traintest.get_all_x()
+            else:
+                sign1_data = traintest.get_all_x_columns(cols)
+            # filter nan
+            notnan_idx = ~np.isnan(sign1_data).any(axis=1)
+            sign1_data = sign1_data[notnan_idx]
             sign2_data = traintest.get_all_y()
+            sign2_data = sign2_data[notnan_idx]
             traintest.close()
+            sign2.__log.info('Nearest Neighbor %s  X:%s  Y:%s.',
+                             ds, sign1_data.shape, sign2_data.shape)
+            # check that there are samples left
+            if sign1_data.shape[0] == 0:
+                sign2.__log.warning("No samples available, skipping.")
+                return None
             # fit on train set
             if ds == "train":
                 # signaturize dataset
                 sign1_dest = os.path.join(nn_path, "sign1")
                 os.makedirs(sign1_dest)
                 nn_sign1 = DataFactory.signaturize(
-                    "sign1", sign1_dest, sign1_data, dataset=self.dataset)
+                    "sign1", sign1_dest, sign1_data)
                 sign2_dest = os.path.join(nn_path, "sign2")
                 os.makedirs(sign2_dest)
                 nn_sign2 = DataFactory.signaturize(
-                    "sign2", sign2_dest, sign2_data, dataset=self.dataset)
+                    "sign2", sign2_dest, sign2_data)
                 # create temporary neig1 and call fit
                 neig1_dest = os.path.join(nn_path, "neig1")
                 os.makedirs(neig1_dest)
-                nn_neig1 = neig1(neig1_dest, neig1_dest, self.dataset)
+                nn_neig1 = neig1(neig1_dest, neig1_dest, "NN.001")
                 nn_neig1.fit(nn_sign1)
+            # save nearest neighbor signatures as predictions
+            nn_pred[ds] = dict()
             # get nearest neighbor indices and keys
             nn_idxs = nn_neig1.get_kth_nearest(sign1_data, 1)
-            # save nearest neighbor signatures as predictions
-            nn_pred[ds] = list()
+            nn_pred[ds]['true'] = sign1_data
+            nn_pred[ds]['pred'] = list()
             for idx in nn_idxs:
-                nn_pred[ds].append(nn_sign2[idx])
-            nn_pred[ds] = np.stack(nn_pred[ds])
+                nn_pred[ds]['pred'].append(nn_sign2[idx])
+            nn_pred[ds]['pred'] = np.vstack(nn_pred[ds]['pred'])
         nn_pred_end = time()
         nn_pred['time'] = nn_pred_end - nn_pred_start
         nn_pred['name'] = "NearestNeighbor"
