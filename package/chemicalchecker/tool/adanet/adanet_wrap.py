@@ -37,7 +37,7 @@ class Traintest(object):
     the generator functions which tensorflow likes.
     """
 
-    def __init__(self, hdf5_file, partition, nan_replacer=0.0, augment=None):
+    def __init__(self, hdf5_file, partition, replace_nan=None):
         """Initialize the traintest object.
 
         We assume the file is containing diffrent partitions.
@@ -47,8 +47,7 @@ class Traintest(object):
         self._f = None
         self.x_name = "x_%s" % partition
         self.y_name = "y_%s" % partition
-        self.nan_replacer = nan_replacer
-        self.augment = augment
+        self.replace_nan = replace_nan
 
     def open(self):
         """Open the HDF5."""
@@ -66,73 +65,33 @@ class Traintest(object):
     def get_xy(self, beg_idx, end_idx):
         """Get the batch."""
         features = self._f[self.x_name][beg_idx: end_idx]
-        labels = self._f[self.y_name][beg_idx: end_idx]
-        if not self.augment:
-            return features, labels
-        # TODO make this faster than python lists...
-        p_x = list()
-        p_y = list()
-        # read probabilities
-        p_space, p_count = self.augment['probabilities']
-        for idx in range(beg_idx,end_idx):
-            # get the presence array e.g. 110
-            presence = ~np.isnan(features[idx][0::128])
-            # debug_str = "* {:<3} ".format(idx) + \
-            #    ''.join(presence.astype(int).astype(str))
-            # Traintest.__log.debug(debug_str)
-            present_idxs = np.argwhere(presence).flatten()
-            # iterate on  individual starting point e.g. 100, 010
-            # we want all spaces used at least once
-            for initial in present_idxs:
-                presence_add = np.zeros(presence.shape).astype(bool)
-                presence_add[initial] = True
-                # what's the max spaces I can add?
-                max_add = present_idxs.shape[0] - 1
-                my_p_count = {k: v for k, v in p_count.items() if k < max_add}
-                # normalize probabilities
-                prob_sum = sum(my_p_count.values())
-                my_p_count = [(k, v / prob_sum) for k,v in my_p_count.items()]
-                # check that we have options to subsample
-                if not my_p_count:
-                    # Traintest.__log.debug("no subsampling.")
-                    break
-                # pick how many to add
-                ns = [x[0] for x in my_p_count]
-                p_n = [x[1] for x in my_p_count]
-                to_add = np.random.choice(ns, 1, p_n)[0]
-                # pick which spaces
-                pick = list(present_idxs)
-                pick.remove(initial)
-                for i in range(to_add):
-                    # normalize probabilities
-                    p_s = list(p_space[pick] / sum(p_space[pick]))
-                    added = np.random.choice(pick, 1, p_s)[0]
-                    pick.remove(added)
-                    presence_add[added] = True
-                # convert array to mask
-                mask = np.hstack([[a] * 128 for a in presence_add])
-                # append new row
-                new_data = np.copy(features[idx])
-                new_data[~mask] = np.nan
-                p_x.append(new_data)
-                p_y.append(labels[idx])
-        # stack augmented data
-        p_x = np.vstack(p_x)
-        p_y = np.vstack(p_y)
         # handle NaNs
-        p_x[np.where(np.isnan(p_x))] = self.nan_replacer
-        return p_x, p_y
+        if self.replace_nan is not None:
+            features[np.where(np.isnan(features))] = self.replace_nan
+        labels = self._f[self.y_name][beg_idx: end_idx]
+        return features, labels
 
     def get_x(self, beg_idx, end_idx):
         """Get the Xs in a range."""
-        features, labels = self.get_xy(beg_idx, end_idx)
+        features = self._f[self.x_name][beg_idx: end_idx]
+        # handle NaNs
+        if self.replace_nan is not None:
+            features[np.where(np.isnan(features))] = self.replace_nan
         return features
 
     def get_all_x(self):
         """Get all the Xs."""
         features = self._f[self.x_name][:]
         # handle NaNs
-        features[np.where(np.isnan(features))] = self.nan_replacer
+        if self.replace_nan is not None:
+            features[np.where(np.isnan(features))] = self.replace_nan
+        return features
+
+    def get_all_x_columns(self, columns):
+        features = self._f[self.x_name][:, slice(*columns)]
+        # handle NaNs
+        if self.replace_nan is not None:
+            features[np.where(np.isnan(features))] = self.replace_nan
         return features
 
     def get_all_y(self):
@@ -171,7 +130,7 @@ class Traintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def create(X, Y, out_filename, augment=None):
+    def create(X, Y, out_filename):
         """Create the HDF5 file with both X and Y, train and test."""
         Traintest.__log.debug(
             "{:<20} shape: {:>10}".format("input X", X.shape))
@@ -181,138 +140,8 @@ class Traintest(object):
         train_idxs, test_idxs, val_idxs = Traintest.get_split_indeces(
             X, [.8, .1, .1])
 
-        if augment:
-            if 'strategy' not in augment:
-                raise Exception("Please specify a data augmentation strategy" +
-                                "e.g.'noise','interpolation','probabilities'")
-            if 'max_size' not in augment:
-                augment['max_size'] = 1e7
-            Traintest.__log.warn(
-                "Augmenting data with %s strategy.", augment['strategy'])
-            if augment['strategy'] == 'noise':
-                # initial list
-                p_x = list([X[train_idxs]])
-                p_y = list([Y[train_idxs]])
-                # perturb train vectors
-                for i in range(augment['max_size'] - len(X[train_idxs])):
-                    perturbation = np.random.normal() * 1e-4
-                    p_x.append(X[train_idxs] + perturbation)
-                    p_y.append(Y[train_idxs] + perturbation)
-                # join list into numpy array
-                x_train = np.concatenate(tuple(p_x))
-                y_train = np.concatenate(tuple(p_y))
-            elif augment['strategy'] == 'interpolation':
-                # initial list
-                p_x = list([X[train_idxs]])
-                p_y = list([Y[train_idxs]])
-                # interpolate point to get new points
-                mask = range(len(X[train_idxs]))
-                mask1 = range(len(X[train_idxs]))
-                for i in range(augment['max_size'] - len(X[train_idxs])):
-                    np.random.shuffle(mask)
-                    np.random.shuffle(mask1)
-                    p_x.append((X[train_idxs] + X[train_idxs]
-                                [mask] + X[train_idxs][mask1]) / 3.)
-                    p_y.append((Y[train_idxs] + Y[train_idxs]
-                                [mask] + Y[train_idxs][mask1]) / 3.)
-                # join list into numpy array
-                x_train = np.concatenate(tuple(p_x))
-                y_train = np.concatenate(tuple(p_y))
-            elif augment['strategy'] == "probabilities" \
-                    and X[train_idxs].shape[0] < augment['max_size']:
-                # raise if not probabilities are given
-                if 'probabilities' not in augment:
-                    raise Exception("Please specify probabilities.")
-                # read probabilities
-                p_space, p_count = augment['probabilities']
-                # initialize the empty array we will fill
-                tot_to_add = int(augment['max_size'] - X[train_idxs].shape[0])
-                p_x = np.zeros((tot_to_add, X[train_idxs].shape[1]),
-                               dtype=np.float32)
-                p_y = np.zeros((tot_to_add, 128), dtype=np.float32)
-                # add original datapoints
-                p_x = np.vstack((X[train_idxs], p_x))
-                p_y = np.vstack((Y[train_idxs], p_y))
-                counter = len(X[train_idxs])
-                # possile starting molecules
-                mol_idxs = range(len(X[train_idxs]))
-                # repeat the subsampling until enough subsamples are drawn
-                pbar = tqdm(total=augment['max_size'],
-                            initial=len(X[train_idxs]))
-                while counter < augment['max_size']:
-                    # iterate on original data randomly as we don't know if
-                    # we can subsample all of them or if we need to resample
-                    # the original data more than once (depends on max_size)
-                    np.random.shuffle(mol_idxs)
-                    for idx in mol_idxs:
-                        # get the presence array e.g. 110
-                        presence = ~np.isnan(X[train_idxs][idx][0::128])
-                        # debug_str = "* {:<3} ".format(idx) + \
-                        #    ''.join(presence.astype(int).astype(str))
-                        # Traintest.__log.debug(debug_str)
-                        present_idxs = np.argwhere(presence).flatten()
-                        # iterate on  individual starting point e.g. 100, 010
-                        # we want all spaces used at least once
-                        for initial in present_idxs:
-                            presence_add = np.zeros(
-                                presence.shape).astype(bool)
-                            presence_add[initial] = True
-                            # what's the max spaces I can add?
-                            max_add = present_idxs.shape[0] - 1
-                            my_p_count = {k: v for k,
-                                          v in p_count.items() if k < max_add}
-                            # normalize probabilities
-                            prob_sum = sum(my_p_count.values())
-                            my_p_count = [(k, v / prob_sum) for k,
-                                          v in my_p_count.items()]
-                            # check that we have options to subsample
-                            if not my_p_count:
-                                # Traintest.__log.debug("no subsampling.")
-                                break
-                            # pick how many to add
-                            ns = [x[0] for x in my_p_count]
-                            p_n = [x[1] for x in my_p_count]
-                            to_add = np.random.choice(ns, 1, p_n)[0]
-                            # pick which spaces
-                            pick = list(present_idxs)
-                            pick.remove(initial)
-                            for i in range(to_add):
-                                # normalize probabilities
-                                p_s = list(p_space[pick] / sum(p_space[pick]))
-                                added = np.random.choice(pick, 1, p_s)[0]
-                                pick.remove(added)
-                                presence_add[added] = True
-                            # debug_str = "{:<3}".format(initial) + \
-                            #    "{:<3}".format(to_add) + \
-                            #    ''.join(presence_add.astype(int).astype(str))
-                            # Traintest.__log.debug(debug_str)
-                            # assert(sum(presence_add) == to_add + 1)
-                            # check that generated array is a subset of
-                            # starting
-                            # assert(np.array_equal(
-                            #    np.logical_or(presence, presence_add),
-                            #    presence))
-                            # convert array to mask
-                            mask = np.hstack([[a] * 128 for a in presence_add])
-                            # append new row
-                            new_data = np.copy(X[train_idxs][idx])
-                            new_data[~mask] = np.nan
-                            p_x[counter] = new_data
-                            p_y[counter] = Y[train_idxs][idx]
-                            counter += 1
-                            pbar.update(1)
-                            if counter == len(p_x):
-                                break
-                        if counter == len(p_x):
-                            break
-                pbar.close()
-                # join list into numpy array
-                x_train = p_x
-                y_train = p_y
-        # no augmentation
-        else:
-            x_train = X[train_idxs]
-            y_train = Y[train_idxs]
+        x_train = X[train_idxs]
+        y_train = Y[train_idxs]
 
         # create dataset
         with h5py.File(out_filename, "w") as fh:
@@ -536,11 +365,11 @@ class AdaNetWrapper(object):
         except Exception:
             return None
 
-    def input_fn(self, partition, training, augmentation=None):
+    def input_fn(self, partition, training, augmentation=True):
         """Generate an input function for the Estimator."""
         def _input_fn():
             x_shape, y_shape, generator_fn = Traintest.generator_fn(
-                self.traintest_file, partition, self.batch_size, augmentation)
+                self.traintest_file, partition, self.batch_size)
 
             dataset = tf.data.Dataset.from_generator(
                 generator_fn,
@@ -548,12 +377,55 @@ class AdaNetWrapper(object):
                 output_shapes=((None, x_shape[1]),
                                (None, y_shape[1]))
             )
+
+            def fill_nan_with_zeros(vector, label):
+                nan_idxs = tf.is_nan(vector)
+                replace = tf.zeros_like(vector)
+                return tf.where(nan_idxs, replace, vector), label
+
             # We call repeat after shuffling, rather than before,
             # to prevent separate epochs from blending together.
             if training:
+                def print_bin_str(vector):
+                    presence = ~np.isnan(
+                        vector[:, 0::128]).astype(int).astype(str)
+                    for row in presence:
+                        print ''.join(row)
+
+                # subsampling function
+                def subsample(vector, label):
+                    new_data = np.copy(vector)
+                    # add noise
+                    rnd = np.random.rand(*new_data.shape).astype(np.float32)
+                    new_data = new_data + (rnd * .001)
+                    mask = np.zeros_like(vector).astype(bool)
+                    for idx, row in enumerate(new_data):
+                        presence = ~np.isnan(row[0::128])
+                        if np.random.rand() > 0.5:
+                            presence_add = presence
+                        else:
+                            present_idxs = np.argwhere(presence).flatten()
+                            max_add = present_idxs.shape[0] - 1
+                            n_to_add = np.random.choice(max_add) + 1
+                            to_add = np.random.choice(present_idxs, n_to_add,
+                                                      replace=False)
+                            presence_add = np.zeros(
+                                presence.shape).astype(bool)
+                            presence_add[to_add] = True
+                        mask[idx] = np.repeat(presence_add, 128)
+                    new_data[~mask] = 0.0
+                    return new_data, label
+
                 dataset = dataset.shuffle(
                     self.shuffles * self.batch_size,
                     seed=self.random_seed).repeat()
+                if augmentation:
+                    dataset = dataset.map(lambda x, y: tuple(
+                        tf.py_func(subsample, [x, y], [x.dtype, y.dtype])))
+                else:
+                    dataset = dataset.map(fill_nan_with_zeros)
+            else:
+                dataset = dataset.map(fill_nan_with_zeros)
             iterator = dataset.make_one_shot_iterator()
             features, labels = iterator.get_next()
             return {'x': features}, labels
@@ -605,7 +477,7 @@ class AdaNetWrapper(object):
         y = dict()
         for ds in datasets:
             # get dataset split
-            traintest = Traintest(self.traintest_file, ds)
+            traintest = Traintest(self.traintest_file, ds, replace_nan=0.0)
             traintest.open()
             x[ds] = traintest.get_all_x()
             y[ds] = traintest.get_all_y()
