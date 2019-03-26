@@ -332,3 +332,10 @@ class BaseSignature(object):
         b, sign_matrix = sign.get_vectors(nr_keys)
         assert(all(a == b))
         return a, self_matrix, sign_matrix
+
+    def get_intersection(self, sign):
+        """Return the intersection between two signatures."""
+        shared_keys = self.unique_keys.intersection(sign.unique_keys)
+        a, self_matrix = self.get_vectors(shared_keys)
+        b, sign_matrix = sign.get_vectors(shared_keys)
+        return a, self_matrix, sign_matrix
