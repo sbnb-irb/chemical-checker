@@ -146,7 +146,7 @@ class sign3(BaseSignature):
         self.__log.debug('AdaNet fit %s based on other sign2', self.dataset)
         # get params and set folder
         adanet_params = self.params['adanet']
-        adanet_path = os.path.join(self.model_path, 'adanet_augment')
+        adanet_path = os.path.join(self.model_path, 'adanet')
         if adanet_params:
             if 'model_dir' in adanet_params:
                 adanet_path = adanet_params.pop('model_dir')
@@ -155,11 +155,10 @@ class sign3(BaseSignature):
         # get probabilities
         #probs = self.get_probabilities(chemchecker)
         # prepare train-test file
-        traintest_file = os.path.join(adanet_path, 'traintest.h5')
+        traintest_file = os.path.join(self.model_path, 'traintest.h5')
         if adanet_params:
-            traintest_file = adanet_params.get(
+            traintest_file = adanet_params.pop(
                 'traintest_file', traintest_file)
-            adanet_params.pop('traintest_file')
 
         if not reuse or not os.path.isfile(traintest_file):
             features, labels = self.get_sign2_matrix(chemchecker)
@@ -175,17 +174,40 @@ class sign3(BaseSignature):
         ada.train_and_evaluate()
         # save AdaNet performances and plots
         sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
-        # baseline comparison to cross predictors and neraest neighbors
+        # baseline comparison to cross predictors and nearest neighbors
         other_spaces = list(chemchecker.datasets)
         other_spaces.remove(self.dataset.code)
         extra_preditors = dict()
+        # check out adanet with augmentation
+        #adanet_aug_path = os.path.join(self.model_path, 'adanet_augmentation')
+        # adanet_pred = sign2.predict_adanet(
+        #    adanet_aug_path, traintest_file,
+        #    {'adanet_iterations': 1, 'augmentation': True})
+        #extra_preditors['AdaNet_augmentation'] = adanet_pred
         for idx, ds in enumerate(other_spaces):
+            # decide input columns (we train baselines on single datasets)
             col_idx = other_spaces.index(ds)
             cols = (col_idx * 128, (col_idx + 1) * 128)
             cross_pred_path = os.path.join(
                 self.model_path, 'crosspred_%s' % ds)
+            if not reuse or not os.path.isdir(cross_pred_path):
+                os.makedirs(cross_pred_path)
+            # create traintest file (dropping NaNs)
+            ds_traintest_file = os.path.join(cross_pred_path, 'traintest.h5')
+            if not os.path.isfile(ds_traintest_file):
+                Traintest.copy_x_columns(
+                    traintest_file, ds_traintest_file, cols)
+            # adanet baseline
+            adanet_pred = sign2.predict_adanet(
+                cross_pred_path, ds_traintest_file, {'adanet_iterations': 1})
+            extra_preditors['AdaNet_%s' % ds] = adanet_pred
+            # linear regression baseline
+            lr_pred = sign2.predict_linear_regression(
+                cross_pred_path, ds_traintest_file)
+            extra_preditors['LinearRegression_%s' % ds] = lr_pred
+            # get nearest neighbor baseline
             nearest_neighbor_pred = sign2.predict_nearest_neighbor(
-                cross_pred_path, traintest_file, cols=cols)
+                cross_pred_path, ds_traintest_file)
             # we might skip dataset without intersections
             if nearest_neighbor_pred is None:
                 continue
