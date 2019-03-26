@@ -358,7 +358,7 @@ class ChemicalChecker():
         return cluster
 
     @staticmethod
-    def sign3_cross_fit(job_path, cc_root, pairs, mdl_root):
+    def sign3_cross_fit(job_path, cc_root, pairs):
         """Run HPC jobs performing adanet cross fit between pairs.
 
         Args:
@@ -386,16 +386,9 @@ class ChemicalChecker():
             "filename = sys.argv[2]",  # <FILE>
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
             "data = inputs[task_id]",  # elements for current job
-            "for ds1, ds2 in data:",  # elements are indexes
-            "    sign_from = cc.get_signature('sign2', 'full_map', ds1)",
-            "    sign_from.consistency_check()",
-            "    sign_to = cc.get_signature('sign2', 'full_map', ds2)",
-            "    sign_to.consistency_check()",
-            "    suff = '%s_%s' % (ds1, ds2)",
-            "    mdl_path = os.path.join('%s', suff)" % mdl_root,
-            "    if not os.path.isdir(mdl_path):",
-            "        os.makedirs(mdl_path)",
-            "    sign3.cross_fit(sign_from, sign_to, mdl_path)",
+            "for ds_from, ds_to in data:",  # elements are indexes
+            "    s3 = cc.get_signature('sign3', 'full_map', ds_to)",
+            "    sign3.cross_fit(cc, s3.model_path, ds_from, ds_to)",
             "print('JOB DONE')"
         ]
         script_name = os.path.join(job_path, 'sign3_cross.py')
@@ -409,7 +402,7 @@ class ChemicalChecker():
         params["job_name"] = "CC_SIGN3_CROSS"
         params["elements"] = pairs
         params["wait"] = True
-        params["memory"] = 32  # this avoids singularity segfault on some nodes
+        params["memory"] = 16  # this avoids singularity segfault on some nodes
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
