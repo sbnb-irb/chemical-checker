@@ -51,72 +51,12 @@ class sign3(BaseSignature):
         self.params['node2vec'] = params.get('node2vec', None)
         self.params['adanet'] = params.get('adanet', None)
 
-    def get_probabilities(self, chemchecker):
-        """Get the probabilities for space being present."""
-        # get current space on which we'll train (using reference set to
-        # limit redundancy)
-        my_sign2 = chemchecker.get_signature(
-            'sign2', 'reference', self.dataset.code)
-        # get other space signature 2 for molecule in current space (presence)
-        other_spaces = list(chemchecker.datasets)
-        other_spaces.remove(self.dataset.code)
-        available_mols = np.zeros((my_sign2.shape[0], len(other_spaces)),
-                                  dtype=np.float32)
-        for idx, ds in enumerate(other_spaces):
-            sign2_ds = chemchecker.get_signature('sign2', 'full_map', ds)
-            available = np.isin(my_sign2.keys, sign2_ds.keys)
-            available_mols[:, idx] = available.T
-            self.__log.info('%s shared molecules between %s and %s',
-                            sum(available), self.dataset, ds)
-        # get probabilities for a given space (column)
-        p_space = np.sum(available_mols, axis=0) / np.sum(available_mols)
-        # get probabilities for how many spaces for a molecule (row)
-        p_count = dict()
-        for row in available_mols:
-            r = np.sum(row.astype(int))
-            if r not in p_count:
-                p_count[r] = 0.0
-            p_count[r] += 1
-        for k in p_count:
-            p_count[k] /= len(available_mols)
-        return p_space, p_count
-
-    def _print_most_common_combinations(self, chemchecker):
-        my_sign2 = chemchecker.get_signature(
-            'sign2', 'reference', self.dataset.code)
-        # get other space signature 2 for molecule in current space (presence)
-        other_spaces = list(chemchecker.datasets)
-        other_spaces.remove(self.dataset.code)
-        available_mols = np.zeros((my_sign2.shape[0], len(other_spaces)),
-                                  dtype=np.float32)
-        for idx, ds in enumerate(other_spaces):
-            sign2_ds = chemchecker.get_signature('sign2', 'full_map', ds)
-            available = np.isin(my_sign2.keys, sign2_ds.keys)
-            available_mols[:, idx] = available.T
-            self.__log.info('%s shared molecules between %s and %s',
-                            sum(available), self.dataset, ds)
-        # most common combinations?
-        freqs = dict()
-        for row in available_mols:
-            r = ''.join(row.astype(int).astype(str).tolist())
-            if r not in freqs:
-                freqs[r] = 0.0
-            freqs[r] += 1
-        for k in freqs:
-            freqs[k] /= len(available_mols)
-            freqs[k] *= 100
-        top10 = sorted(list(tuple(freqs.items())),
-                       key=lambda x: x[1], reverse=True)[:10]
-        self.__log.info("Most frequent combinations:")
-        for k, v in top10:
-            self.__log.info("%s  %.2f%%", k, v)
-
     def get_sign2_matrix(self, chemchecker):
         """Get combined matrix of stacked signature 2."""
         # get current space on which we'll train (using reference set to
         # limit redundancy)
         my_sign2 = chemchecker.get_signature(
-            'sign2', 'reference', self.dataset.code)
+            'sign2', 'full_map', self.dataset.code)
         # get other space signature 2 for molecule in current space (allow nan)
         other_spaces = list(chemchecker.datasets)
         other_spaces.remove(self.dataset.code)
@@ -152,68 +92,27 @@ class sign3(BaseSignature):
                 adanet_path = adanet_params.pop('model_dir')
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
-        # get probabilities
-        #probs = self.get_probabilities(chemchecker)
         # prepare train-test file
         traintest_file = os.path.join(self.model_path, 'traintest.h5')
         if adanet_params:
             traintest_file = adanet_params.pop(
                 'traintest_file', traintest_file)
-
         if not reuse or not os.path.isfile(traintest_file):
             features, labels = self.get_sign2_matrix(chemchecker)
             Traintest.create(features, labels, traintest_file)
+        # initialize adanet
         if adanet_params:
             ada = AdaNet(model_dir=adanet_path,
                          traintest_file=traintest_file,
                          **adanet_params)
         else:
             ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
-        # learn NN with AdaNet
+        # learn
         self.__log.debug('AdaNet training on %s' % traintest_file)
         ada.train_and_evaluate()
         # save AdaNet performances and plots
         sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
-        # baseline comparison to cross predictors and nearest neighbors
-        other_spaces = list(chemchecker.datasets)
-        other_spaces.remove(self.dataset.code)
-        extra_preditors = dict()
-        # check out adanet with augmentation
-        #adanet_aug_path = os.path.join(self.model_path, 'adanet_augmentation')
-        # adanet_pred = sign2.predict_adanet(
-        #    adanet_aug_path, traintest_file,
-        #    {'adanet_iterations': 1, 'augmentation': True})
-        #extra_preditors['AdaNet_augmentation'] = adanet_pred
-        for idx, ds in enumerate(other_spaces):
-            # decide input columns (we train baselines on single datasets)
-            col_idx = other_spaces.index(ds)
-            cols = (col_idx * 128, (col_idx + 1) * 128)
-            cross_pred_path = os.path.join(
-                self.model_path, 'crosspred_%s' % ds)
-            if not reuse or not os.path.isdir(cross_pred_path):
-                os.makedirs(cross_pred_path)
-            # create traintest file (dropping NaNs)
-            ds_traintest_file = os.path.join(cross_pred_path, 'traintest.h5')
-            if not os.path.isfile(ds_traintest_file):
-                Traintest.copy_x_columns(
-                    traintest_file, ds_traintest_file, cols)
-            # adanet baseline
-            adanet_pred = sign2.predict_adanet(
-                cross_pred_path, ds_traintest_file, {'adanet_iterations': 1})
-            extra_preditors['AdaNet_%s' % ds] = adanet_pred
-            # linear regression baseline
-            lr_pred = sign2.predict_linear_regression(
-                cross_pred_path, ds_traintest_file)
-            extra_preditors['LinearRegression_%s' % ds] = lr_pred
-            # get nearest neighbor baseline
-            nearest_neighbor_pred = sign2.predict_nearest_neighbor(
-                cross_pred_path, ds_traintest_file)
-            # we might skip dataset without intersections
-            if nearest_neighbor_pred is None:
-                continue
-            extra_preditors['NearestNeighbor_%s' % ds] = nearest_neighbor_pred
-
-        ada.save_performances(adanet_path, sign2_plot, extra_preditors)
+        ada.save_performances(adanet_path, sign2_plot)
         self.__log.debug('model saved to %s' % adanet_path)
 
         self.mark_ready()
@@ -227,7 +126,7 @@ class sign3(BaseSignature):
         pass
 
     @staticmethod
-    def cross_fit(sign_from, sign_to, model_path, params={'adanet': {}}, reuse=True):
+    def cross_fit(chemchecker, model_path, ds_from, ds_to, reuse=True):
         """Learn a predictor between sign_from and sign_to.
 
         Signatures should be `full` to maximize the intersaction, that's the
@@ -235,34 +134,30 @@ class sign3(BaseSignature):
         """
         try:
             from chemicalchecker.tool.adanet import AdaNet, Traintest
+            from .sign2 import sign2
         except ImportError as err:
             raise err
         sign3.__log.debug('AdaNet cross fit signatures')
         # get params and set folder
-        adanet_params = params['adanet']
-        adanet_path = os.path.join(model_path, 'adanet')
-        if adanet_params:
-            if 'model_dir' in adanet_params:
-                adanet_path = adanet_params.pop('model_dir')
-        if not reuse or not os.path.isdir(adanet_path):
-            os.makedirs(adanet_path)
-        # prepare train-test file
-        traintest_file = os.path.join(adanet_path, '../traintest.h5')
-        if adanet_params:
-            traintest_file = adanet_params.get(
-                'traintest_file', traintest_file)
-        if not reuse or not os.path.isfile(traintest_file):
-            _, X, Y = sign_from.get_non_redundant_intersection(sign_to)
-            Traintest.create(X, Y, traintest_file)
-        if adanet_params:
-            ada = AdaNet(model_dir=adanet_path,
-                         traintest_file=traintest_file, **adanet_params)
-        else:
-            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
-        # learn NN with AdaNet
-        sign3.__log.debug('AdaNet training on %s' % traintest_file)
-        ada.train_and_evaluate()
-        # save AdaNet performances and plots
-        sign2_plot = Plot(sign_from.dataset, adanet_path, adanet_path)
-        ada.save_performances(adanet_path, sign2_plot)
-        sign3.__log.debug('model saved to %s' % adanet_path)
+        cross_pred_path = os.path.join(model_path, 'crosspred_%s' % ds_from)
+        if not reuse or not os.path.isdir(cross_pred_path):
+            os.makedirs(cross_pred_path)
+        # create traintest file (simple intersection)
+        ds_traintest_file = os.path.join(cross_pred_path, 'traintest.h5')
+        sign_from = chemchecker.get_signature('sign2', 'full_map', ds_from)
+        sign_to = chemchecker.get_signature('sign2', 'full_map', ds_to)
+        if not reuse or not os.path.isfile(ds_traintest_file):
+            _, X, Y = sign_from.get_intersection(sign_to)
+            Traintest.create(X, Y, ds_traintest_file)
+        # adanet
+        ada_single_space = AdaNet(model_dir=cross_pred_path,
+                                  traintest_file=ds_traintest_file)
+        ada_single_space.train_and_evaluate()
+        # add nearest neighbor predictor
+        nearest_neighbor_pred = sign2.predict_nearest_neighbor(
+            cross_pred_path, ds_traintest_file)
+        extra_predictors = dict()
+        extra_predictors['NearestNeighbor'] = nearest_neighbor_pred
+        sign2_plot = Plot(ds_to, cross_pred_path, cross_pred_path)
+        ada_single_space.save_performances(
+            cross_pred_path, sign2_plot, extra_predictors)
