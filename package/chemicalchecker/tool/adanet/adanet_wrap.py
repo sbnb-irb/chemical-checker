@@ -100,6 +100,22 @@ class Traintest(object):
         return labels
 
     @staticmethod
+    def copy_x_columns(traintest_file, ds_traintest_file, columns, drop_nan=True):
+        with h5py.File(ds_traintest_file, "w") as fh:
+            for part in ['train', 'test', 'validation']:
+                traintest = Traintest(traintest_file, part)
+                traintest.open()
+                x_data = traintest.get_all_x_columns(columns)
+                y_data = traintest.get_all_y()
+                traintest.close()
+                if drop_nan:
+                    notnan_idx = ~np.isnan(x_data).any(axis=1)
+                    x_data = x_data[notnan_idx]
+                    y_data = y_data[notnan_idx]
+                fh.create_dataset('x_%s' % part, data=x_data, dtype=np.float32)
+                fh.create_dataset('y_%s' % part, data=y_data, dtype=np.float32)
+
+    @staticmethod
     def create_signature_file(sign_from, sign_to, out_filename):
         """Create the HDF5 file with both X and Y, train and test."""
         # get type1
