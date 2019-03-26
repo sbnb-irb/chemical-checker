@@ -214,13 +214,13 @@ class sign2(BaseSignature):
             # get dataset split
             traintest = Traintest(traintest_file, ds)
             traintest.open()
-            sign1_data = traintest.get_all_x()
-            sign2_data = traintest.get_all_y()
+            x_data = traintest.get_all_x()
+            y_data = traintest.get_all_y()
             traintest.close()
             sign2.__log.info('Nearest Neighbor %s  X:%s  Y:%s.',
-                             ds, sign1_data.shape, sign2_data.shape)
+                             ds, x_data.shape, y_data.shape)
             # check that there are samples left
-            if sign1_data.shape[0] == 0:
+            if x_data.shape[0] == 0:
                 sign2.__log.warning("No samples available, skipping.")
                 return None
             # fit on train set
@@ -229,13 +229,13 @@ class sign2(BaseSignature):
                 sign1_dest = os.path.join(nn_path, "sign1")
                 os.makedirs(sign1_dest)
                 nn_sign1 = DataFactory.signaturize(
-                    "sign1", sign1_dest, sign1_data)
+                    "sign1", sign1_dest, x_data)
                 # sign2 is needed just to get the default keys
                 # as neig1.get_kth_nearest is returning keys of sign1
                 sign2_dest = os.path.join(nn_path, "sign2")
                 os.makedirs(sign2_dest)
                 nn_sign2 = DataFactory.signaturize(
-                    "sign2", sign2_dest, sign2_data)
+                    "sign2", sign2_dest, y_data)
                 # create temporary neig1 and call fit
                 neig1_dest = os.path.join(nn_path, "neig1")
                 os.makedirs(neig1_dest)
@@ -244,8 +244,8 @@ class sign2(BaseSignature):
             # save nearest neighbor signatures as predictions
             nn_pred[ds] = dict()
             # get nearest neighbor indices and keys
-            nn_idxs = nn_neig1.get_kth_nearest(sign1_data, 1)
-            nn_pred[ds]['true'] = sign2_data
+            nn_idxs = nn_neig1.get_kth_nearest(x_data, 1)
+            nn_pred[ds]['true'] = y_data
             nn_pred[ds]['pred'] = list()
             for idx in nn_idxs:
                 nn_pred[ds]['pred'].append(nn_sign2[idx])
@@ -279,6 +279,12 @@ class sign2(BaseSignature):
             x_data = traintest.get_all_x()
             y_data = traintest.get_all_y()
             traintest.close()
+            sign2.__log.info('AdaNet %s  X:%s  Y:%s.',
+                             ds, x_data.shape, y_data.shape)
+            # check that there are samples left
+            if x_data.shape[0] == 0:
+                sign2.__log.warning("No samples available, skipping.")
+                return None
             ada_pred[ds] = dict()
             # get nearest neighbor indices and keys
             ada_pred[ds]['true'] = y_data
@@ -307,6 +313,12 @@ class sign2(BaseSignature):
             x_data = traintest.get_all_x()
             y_data = traintest.get_all_y()
             traintest.close()
+            sign2.__log.info('LinearRegression %s  X:%s  Y:%s.',
+                             ds, x_data.shape, y_data.shape)
+            # check that there are samples left
+            if x_data.shape[0] == 0:
+                sign2.__log.warning("No samples available, skipping.")
+                return None
             lr_pred[ds] = dict()
             if ds == 'train':
                 lr_pred_start = time()
