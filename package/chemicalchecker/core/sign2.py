@@ -193,7 +193,7 @@ class sign2(BaseSignature):
         return AdaNet.predict_signature(adanet_path, sign1)
 
     @staticmethod
-    def predict_nearest_neighbor(destination_path, traintest_file, cols=None):
+    def predict_nearest_neighbor(destination_path, traintest_file):
         """Prediction with nearest neighbor.
 
         Find nearest neighbor in sign 1 and mapping it to known sign 2.
@@ -214,15 +214,8 @@ class sign2(BaseSignature):
             # get dataset split
             traintest = Traintest(traintest_file, ds)
             traintest.open()
-            if cols is None:
-                sign1_data = traintest.get_all_x()
-            else:
-                sign1_data = traintest.get_all_x_columns(cols)
-            # filter nan
-            notnan_idx = ~np.isnan(sign1_data).any(axis=1)
-            sign1_data = sign1_data[notnan_idx]
+            sign1_data = traintest.get_all_x()
             sign2_data = traintest.get_all_y()
-            sign2_data = sign2_data[notnan_idx]
             traintest.close()
             sign2.__log.info('Nearest Neighbor %s  X:%s  Y:%s.',
                              ds, sign1_data.shape, sign2_data.shape)
@@ -261,6 +254,70 @@ class sign2(BaseSignature):
         nn_pred['time'] = nn_pred_end - nn_pred_start
         nn_pred['name'] = "NearestNeighbor"
         return nn_pred
+
+    @staticmethod
+    def predict_adanet(destination_path, traintest_file, params):
+        """Prediction with adanet."""
+        from chemicalchecker.tool.adanet import Traintest, AdaNet
+        sign2.__log.info('Performing AdaNet prediction.')
+        # create directory to save neig and sign (delete if exists)
+        ada_path = os.path.join(destination_path, "adanet")
+        if os.path.isdir(ada_path):
+            shutil.rmtree(ada_path)
+        # evaluate all data splits
+        datasets = ['train', 'test', 'validation']
+        ada_pred = dict()
+        ada_pred_start = time()
+        ada = AdaNet(model_dir=ada_path, traintest_file=traintest_file,
+                     **params)
+        ada.train_and_evaluate()
+        ada_pred_end = time()
+        for ds in datasets:
+            # get dataset split
+            traintest = Traintest(traintest_file, ds)
+            traintest.open()
+            x_data = traintest.get_all_x()
+            y_data = traintest.get_all_y()
+            traintest.close()
+            ada_pred[ds] = dict()
+            # get nearest neighbor indices and keys
+            ada_pred[ds]['true'] = y_data
+            ada_pred[ds]['pred'] = AdaNet.predict(ada.save_dir, x_data)
+        ada_pred['time'] = ada_pred_end - ada_pred_start
+        ada_pred['name'] = "AdaNet"
+        return ada_pred
+
+    @staticmethod
+    def predict_linear_regression(destination_path, traintest_file):
+        """Prediction with adanet."""
+        from chemicalchecker.tool.adanet import Traintest
+        from sklearn.linear_model import LinearRegression
+        sign2.__log.info('Performing LinearRegression prediction.')
+        # create directory to save neig and sign (delete if exists)
+        lr_path = os.path.join(destination_path, "linear")
+        if os.path.isdir(lr_path):
+            shutil.rmtree(lr_path)
+        # evaluate all data splits
+        datasets = ['train', 'test', 'validation']
+        lr_pred = dict()
+        for ds in datasets:
+            # get dataset split
+            traintest = Traintest(traintest_file, ds)
+            traintest.open()
+            x_data = traintest.get_all_x()
+            y_data = traintest.get_all_y()
+            traintest.close()
+            lr_pred[ds] = dict()
+            if ds == 'train':
+                lr_pred_start = time()
+                linreg = LinearRegression().fit(x_data, y_data)
+                lr_pred_end = time()
+            # get nearest neighbor indices and keys
+            lr_pred[ds]['true'] = y_data
+            lr_pred[ds]['pred'] = linreg.predict(x_data)
+        lr_pred['time'] = lr_pred_end - lr_pred_start
+        lr_pred['name'] = "LinearRegression"
+        return lr_pred
 
     def eval_node2vec(self, sign1, neig1, reuse=True):
         """Evaluate node2vec performances.
