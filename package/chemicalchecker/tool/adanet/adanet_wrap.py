@@ -485,7 +485,7 @@ class AdaNetWrapper(object):
                 model_vars.append(var.eval())
         return model_vars
 
-    def save_performances(self, output_dir, plot, extra_preditors=None):
+    def save_performances(self, output_dir, plot, extra_predictors=None):
         """Save stats and make plots."""
         # read input
         datasets = ['train', 'test', 'validation']
@@ -592,10 +592,10 @@ class AdaNetWrapper(object):
         df.to_csv(output_csv)
 
         # compare to other predictors
-        if not extra_preditors:
+        if not extra_predictors:
             return
 
-        for name, preds in extra_preditors.items():
+        for name, preds in extra_predictors.items():
             rows = dict()
             for ds in datasets:
                 self.__log.info("Performances for %s on %s", name, ds)
