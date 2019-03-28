@@ -799,3 +799,46 @@ class Plot():
                 self.plot_path, "sign2_%s_grid_search_%s.png" % (self.dataset_code, metric))
             plt.savefig(filename, dpi=100)
             plt.close()
+
+    def sign3_evaluation_plot(self, sign3):
+        dir_names = [name for name in os.listdir(
+            sign3.model_path) if os.path.isdir(os.path.join(sign3.model_path, name))]
+        for dir_name in dir_names:
+            tmpdf_file = os.path.join(sign3.model_path, dir_name, 'stats.pkl')
+            if os.path.isfile(tmpdf_file):
+                cols = list(pd.read_pickle(tmpdf_file).columns)
+                break
+        df = pd.DataFrame(columns=cols + ['from'])
+        for dir_name in dir_names:
+            if "_" in dir_name:
+                ds = dir_name.split("_")[1]
+            else:
+                ds = "ALL"
+            tmpdf_file = os.path.join(sign3.model_path, dir_name, 'stats.pkl')
+            if not os.path.isfile(tmpdf_file):
+                continue
+            tmpdf = pd.read_pickle(tmpdf_file)
+            # tmpdf['algo'] = tmpdf['algo'].apply(lambda x: "{}_{}".format(x,
+            # ds))
+            tmpdf['from'] = pd.Series([ds] * len(tmpdf))
+            df = df.append(tmpdf, ignore_index=True)
+
+        metric = "pearson_avg"
+        #order = sorted(df['from'].unique())
+        # order.append(order.pop(order.index('ALL')))
+        order = df[(df.dataset == 'test') & (df.algo == 'AdaNet')].sort_values(
+            'pearson_avg', ascending=False)['from'].to_list()
+        hue_order = sorted(df['algo'].unique())
+
+        sns.set_style("whitegrid")
+        g = sns.catplot(x="from", y=metric, hue="algo", row="dataset",
+                        order=order, hue_order=hue_order,
+                        row_order=['train', 'test', 'validation'],
+                        legend_out=True,sharex=False,
+                        data=df, height=6, aspect=2.5, kind="bar",
+                        palette="muted")
+        g.set(ylim=(0, 1))
+        filename = os.path.join(
+            self.plot_path, "sign3_%s_%s.png" % (self.dataset_code, metric))
+        plt.savefig(filename, dpi=100)
+        plt.close()
