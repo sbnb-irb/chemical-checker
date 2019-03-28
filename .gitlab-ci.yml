@@ -108,6 +108,7 @@ devpi_dev:
     - devpi login gitlab --password='sbnb'
     - devpi use root/dev
     - cd package
+    - devpi remove -y chemicalchecker==0.1.0
     - devpi upload
     - devpi push chemicalchecker==0.1.0 root/dev
 
