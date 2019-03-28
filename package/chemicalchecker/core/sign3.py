@@ -161,3 +161,108 @@ class sign3(BaseSignature):
         sign2_plot = Plot(ds_to, cross_pred_path, cross_pred_path)
         ada_single_space.save_performances(
             cross_pred_path, sign2_plot, extra_predictors)
+
+    def average_cross_fit(self, chemchecker):
+        try:
+            from chemicalchecker.tool.adanet import AdaNet, Traintest
+            from .sign2 import sign2
+            from .neig1 import neig1
+            from scipy.stats import pearsonr
+            from sklearn.metrics import r2_score, mean_squared_error
+            from sklearn.metrics import explained_variance_score
+            import pandas as pd
+            import pickle
+            from sklearn.linear_model import LinearRegression
+        except ImportError as err:
+            raise err
+
+        def _stats_row(y_true, y_pred, algo, dataset):
+            row = dict()
+            row['algo'] = algo
+            row['dataset'] = dataset
+            row['r2'] = r2_score(y_true, y_pred)
+            pps = [pearsonr(y_true[:, x], y_pred[:, x])[0]
+                   for x in range(y_true.shape[1])]
+            row['pearson_avg'] = np.mean(pps)
+            row['pearson_std'] = np.std(pps)
+            row['mse'] = mean_squared_error(y_true, y_pred)
+            row['explained_variance'] = explained_variance_score(
+                y_true, y_pred)
+            return row
+
+        df = pd.DataFrame(columns=[
+            'dataset', 'r2', 'pearson_avg', 'pearson_std', 'algo', 'mse',
+            'explained_variance', 'time', 'architecture', 'nr_variables',
+            'nn_layers', 'layer_size', 'architecture_history'])
+
+        traintest_file = os.path.join(self.model_path, 'traintest.h5')
+        linreg = dict()
+        for part in ['train', 'test', 'validation']:
+            # copy matrix from traintest_file
+            traintest = Traintest(traintest_file, part)
+            traintest.open()
+            x_data = traintest.get_all_x()
+            results = dict()
+            results['AdaNet'] = traintest.get_all_x()
+            results['NearestNeighbor'] = traintest.get_all_x()
+            results['LinearRegression'] = traintest.get_all_x()
+            y_data = traintest.get_all_y()
+            traintest.close()
+            # iterate on spaces
+            other_spaces = list(chemchecker.datasets)
+            other_spaces.remove(self.dataset.code)
+            for idx, ds in enumerate(other_spaces):
+                cross_pred_path = os.path.join(
+                    self.model_path, 'crosspred_%s' % ds)
+                ds_traintest_file = os.path.join(
+                    cross_pred_path, 'traintest.h5')
+                # train (on ds_traintest_file) or get algo
+                # copy traintest_file columns
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                ds_x_data = x_data[:, col_slice]
+                # not nan idxs
+                notnan_idxs = ~np.isnan(ds_x_data).any(axis=1)
+                # predict with adanet and append to x matrix
+                save_dir = os.path.join(cross_pred_path, 'savedmodel')
+                ds_pred = AdaNet.predict(save_dir, ds_x_data[notnan_idxs])
+                results['AdaNet'][notnan_idxs, col_slice] = ds_pred
+                # nn predictions
+                nn_path = os.path.join(cross_pred_path, "nearest_neighbor")
+                sign2_dest = os.path.join(nn_path, "sign2")
+                nn_sign2 = sign2(sign2_dest, sign2_dest, ds)
+                neig1_dest = os.path.join(nn_path, "neig1")
+                nn_neig1 = neig1(neig1_dest, neig1_dest, "NN.001")
+                nn_idxs = nn_neig1.get_kth_nearest(ds_x_data[notnan_idxs], 1)
+                tmp = list()
+                for idx in nn_idxs:
+                    tmp.append(nn_sign2[idx])
+                results['NearestNeighbor'][
+                    notnan_idxs, col_slice] = np.vstack(tmp)
+                # linear regression
+                if part == 'train':
+                    tt = Traintest(ds_traintest_file, part)
+                    tt.open()
+                    linreg[ds] = LinearRegression().fit(
+                        tt.get_all_x(), tt.get_all_y())
+                    tt.close()
+                results['LinearRegression'][notnan_idxs, col_slice] = \
+                    linreg[ds].predict(ds_x_data[notnan_idxs])
+
+            for name, res in results.items():
+                y_pred = np.zeros_like(y_data)
+                for idx, row in enumerate(res):
+                    mol = row.reshape((24, 128))
+                    notnan_idxs = ~np.isnan(mol).any(axis=1)
+                    y_pred[idx] = np.average(mol[notnan_idxs], axis=0)
+
+                # Performances for AdaNet
+                rows = _stats_row(y_data, y_pred, name, part)
+                df.loc[len(df)] = pd.Series(rows)
+                output_dir = os.path.join(self.model_path, 'crosspred_AVG')
+                if not os.path.isdir(output_dir):
+                    os.makedirs(output_dir)
+                output_pkl = os.path.join(output_dir, 'stats.pkl')
+                with open(output_pkl, 'wb') as fh:
+                    pickle.dump(df, fh)
+                output_csv = os.path.join(output_dir, 'stats.csv')
+                df.to_csv(output_csv)
