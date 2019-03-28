@@ -7,7 +7,19 @@ The Chemical Checker (CC) is a resource of small molecule signatures. In the CC,
 * For full API documentation of the python package [API Doc](http://project-specific-repositories.sbnb-pages.irbbarcelona.pcb.ub.es/chemical_checker)
 * Concepts and methods are best described in the original CC publication, [Duran-Frigola et al. 2019](https://www.dropbox.com/s/x2rqszfdfpqdqdy/duranfrigola_etal_ms_current.pdf?dl=0).
 
-## Installation 
+## Quick start
+
+To fetch signatures (without fancy CC package capabilities) the package can be installed directly via `pip` from our local PyPI server:
+
+```shell
+sudo pip install --index http://10.7.108.15:3141/root/dev/ --trusted-host 10.7.108.15 chemicalchecker
+```
+
+N.B. Only bare minimm dependencies are installed along with the package
+
+## Complete Installation 
+
+For an advanced usage of the CC package capabilities, we recomend creating the CC dependency enviroment within a container image:
 
 1. [Install singularity](https://www.sylabs.io/guides/2.6/user-guide/installation.html)
 
