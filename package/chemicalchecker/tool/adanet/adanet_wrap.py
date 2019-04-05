@@ -233,6 +233,9 @@ class AdaNetWrapper(object):
         self.dropout_rate = float(kwargs.get("dropout_rate", 0.2))
         self.adanet_iterations = int(kwargs.get("adanet_iterations", 10))
         self.augmentation = kwargs.get("augmentation", False)
+        self.min_train_step = kwargs.get("min_train_step", 1000)
+        self.epoch_per_iteration = kwargs.get("epoch_per_iteration", 1)
+        self.nan_mask_value = kwargs.get("nan_mask_value", 0.0)
         self.subnetwork_generator = eval(kwargs.get(
             "subnetwork_generator", "ExtendDNNGenerator"))
         # read input shape
@@ -249,8 +252,19 @@ class AdaNetWrapper(object):
         self.layer_size = int(kwargs.get("layer_size", heu_layer_size))
         # make adanet iteration proportional to input size (with lower bound)
         # we want to guarantee one epoch per adanet iteration
-        self.train_step = int(self.train_size // self.batch_size) + 1
-        self.train_step = max(self.train_step, 1000)
+        self.train_step = int(np.ceil(self.train_size / self.batch_size *
+                                      float(self.epoch_per_iteration)))
+        if self.train_step < self.min_train_step:
+            self.epoch_per_iteration = int(
+                np.ceil(float(self.min_train_step) * self.batch_size /
+                        self.train_size))
+            self.__log.warn("Given input size (%s) would reslt in few train" +
+                            " steps, increasing epoch per iterations to %s",
+                            self.train_size, self.epoch_per_iteration)
+            self.train_step = int(np.ceil(self.train_size / self.batch_size *
+                                          float(self.epoch_per_iteration)))
+
+        self.train_step = max(self.train_step, self.min_train_step)
         self.total_steps = self.train_step * self.adanet_iterations
         self.results = None
         self.estimator = None
@@ -289,6 +303,11 @@ class AdaNetWrapper(object):
             "total_steps", self.total_steps))
         self.__log.info("{:<22}: {:>12}".format(
             "augmentation", str(self.augmentation)))
+        self.__log.info("{:<22}: {:>12}".format(
+            "epoch_per_iteration", str(self.epoch_per_iteration)))
+        self.__log.info("{:<22}: {:>12}".format(
+            "nan_mask_value", str(self.nan_mask_value)))
+        self.__log.info("**** AdaNet Parameters: ***")
 
     @staticmethod
     def layer_size_heuristic(nr_samples, nr_features, nr_out=128, s_fact=7.):
@@ -315,6 +334,8 @@ class AdaNetWrapper(object):
             subnetwork_generator=self.subnetwork_generator(
                 optimizer=tf.train.RMSPropOptimizer(
                     learning_rate=self.learning_rate),
+                input_shape=self.input_dimension,
+                nan_mask_value=self.nan_mask_value,
                 learn_mixture_weights=self.learn_mixture_weights,
                 layer_size=self.layer_size,
                 dropout=self.dropout_rate,
@@ -390,58 +411,18 @@ class AdaNetWrapper(object):
             dataset = tf.data.Dataset.from_generator(
                 generator_fn,
                 output_types=(tf.float32, tf.float32),
-                output_shapes=((None, x_shape[1]),
-                               (None, y_shape[1]))
+                output_shapes=(tf.TensorShape([None, x_shape[1]]),
+                               tf.TensorShape([None, y_shape[1]]))
             )
-
-            def fill_nan_with_zeros(vector, label):
-                nan_idxs = tf.is_nan(vector)
-                replace = tf.zeros_like(vector)
-                return tf.where(nan_idxs, replace, vector), label
-
             # We call repeat after shuffling, rather than before,
             # to prevent separate epochs from blending together.
             if training:
-                def print_bin_str(vector):
-                    presence = ~np.isnan(
-                        vector[:, 0::128]).astype(int).astype(str)
-                    for row in presence:
-                        print ''.join(row)
-
-                # subsampling function
-                def subsample(vector, label):
-                    new_data = np.copy(vector)
-                    # add noise
-                    rnd = np.random.rand(*new_data.shape).astype(np.float32)
-                    new_data = new_data + (rnd * .001)
-                    mask = np.zeros_like(vector).astype(bool)
-                    for idx, row in enumerate(new_data):
-                        presence = ~np.isnan(row[0::128])
-                        if np.random.rand() > 0.5:
-                            presence_add = presence
-                        else:
-                            present_idxs = np.argwhere(presence).flatten()
-                            max_add = present_idxs.shape[0] - 1
-                            n_to_add = np.random.choice(max_add) + 1
-                            to_add = np.random.choice(present_idxs, n_to_add,
-                                                      replace=False)
-                            presence_add = np.zeros(
-                                presence.shape).astype(bool)
-                            presence_add[to_add] = True
-                        mask[idx] = np.repeat(presence_add, 128)
-                    new_data[~mask] = 0.0
-                    return new_data, label
-
                 dataset = dataset.shuffle(
                     self.shuffles * self.batch_size,
                     seed=self.random_seed).repeat()
                 if augmentation:
                     dataset = dataset.map(lambda x, y: tuple(
-                        tf.py_func(subsample, [x, y], [x.dtype, y.dtype])))
-                else:
-                    dataset = dataset.map(fill_nan_with_zeros)
-            else:
-                dataset = dataset.map(fill_nan_with_zeros)
+                        tf.py_func(augmentation, [x, y], [x.dtype, y.dtype])))
             iterator = dataset.make_one_shot_iterator()
             features, labels = iterator.get_next()
             return {'x': features}, labels
