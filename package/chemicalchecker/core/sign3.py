@@ -51,7 +51,7 @@ class sign3(BaseSignature):
         self.params['node2vec'] = params.get('node2vec', None)
         self.params['adanet'] = params.get('adanet', None)
 
-    def get_sign2_matrix(self, chemchecker):
+    def get_sign2_matrix(self, chemchecker, include_self):
         """Get combined matrix of stacked signature 2."""
         # get current space on which we'll train (using reference set to
         # limit redundancy)
@@ -59,7 +59,8 @@ class sign3(BaseSignature):
             'sign2', 'full_map', self.dataset.code)
         # get other space signature 2 for molecule in current space (allow nan)
         other_spaces = list(chemchecker.datasets)
-        other_spaces.remove(self.dataset.code)
+        if not include_self:
+            other_spaces.remove(self.dataset.code)
         ref_dimension = my_sign2.shape[1]
         sign2_matrix = np.zeros(
             (my_sign2.shape[0], ref_dimension * len(other_spaces)),
@@ -75,7 +76,7 @@ class sign3(BaseSignature):
                             sum(available), self.dataset, ds)
         return sign2_matrix, my_sign2[:]
 
-    def fit(self, chemchecker, reuse=True):
+    def fit(self, chemchecker, reuse=True, suffix=None, include_self=False):
         """Learn a model."""
         try:
             from chemicalchecker.tool.adanet import AdaNet, Traintest
@@ -86,7 +87,10 @@ class sign3(BaseSignature):
         self.__log.debug('AdaNet fit %s based on other sign2', self.dataset)
         # get params and set folder
         adanet_params = self.params['adanet']
-        adanet_path = os.path.join(self.model_path, 'adanet')
+        if suffix:
+            adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
+        else:
+            adanet_path = os.path.join(self.model_path, 'adanet')
         if adanet_params:
             if 'model_dir' in adanet_params:
                 adanet_path = adanet_params.pop('model_dir')
@@ -98,7 +102,7 @@ class sign3(BaseSignature):
             traintest_file = adanet_params.pop(
                 'traintest_file', traintest_file)
         if not reuse or not os.path.isfile(traintest_file):
-            features, labels = self.get_sign2_matrix(chemchecker)
+            features, labels = self.get_sign2_matrix(chemchecker, include_self)
             Traintest.create(features, labels, traintest_file)
         # initialize adanet
         if adanet_params:
@@ -163,6 +167,15 @@ class sign3(BaseSignature):
             cross_pred_path, sign2_plot, extra_predictors)
 
     def average_cross_fit(self, chemchecker):
+        """Prediction averaging single cross-predictors.
+
+        We want to compare the performances of single cross-predictors (e.g.
+        X: A1, y: E5) to the horizontally-stacked adanet prediction (e.g.
+        X:A1-A2-...-E4, Y: E5).
+        This is not totally fair as single preditors are trained on different
+        train-test split so train molecules of single cross-predictors might be
+        part of the test set used here giving them an advantage.
+        """
         try:
             from chemicalchecker.tool.adanet import AdaNet, Traintest
             from .sign2 import sign2
@@ -195,8 +208,10 @@ class sign3(BaseSignature):
             'explained_variance', 'time', 'architecture', 'nr_variables',
             'nn_layers', 'layer_size', 'architecture_history'])
 
+        # train-test split from horizontal-stack dataset
         traintest_file = os.path.join(self.model_path, 'traintest.h5')
         linreg = dict()
+        # for each dataset partition
         for part in ['train', 'test', 'validation']:
             # copy matrix from traintest_file
             traintest = Traintest(traintest_file, part)
@@ -211,6 +226,9 @@ class sign3(BaseSignature):
             # iterate on spaces
             other_spaces = list(chemchecker.datasets)
             other_spaces.remove(self.dataset.code)
+
+            # for each of the spaces generate individual prediction
+            # with all methods (each with its own prediction matrix)
             for idx, ds in enumerate(other_spaces):
                 cross_pred_path = os.path.join(
                     self.model_path, 'crosspred_%s' % ds)
@@ -248,14 +266,15 @@ class sign3(BaseSignature):
                 results['LinearRegression'][notnan_idxs, col_slice] = \
                     linreg[ds].predict(ds_x_data[notnan_idxs])
 
+            # the 'average' prediction is done per molecule reshaping the
+            # full prediction matrix and getting the average along first axis
             for name, res in results.items():
                 y_pred = np.zeros_like(y_data)
                 for idx, row in enumerate(res):
                     mol = row.reshape((24, 128))
                     notnan_idxs = ~np.isnan(mol).any(axis=1)
                     y_pred[idx] = np.average(mol[notnan_idxs], axis=0)
-
-                # Performances for AdaNet
+                # save performances
                 rows = _stats_row(y_data, y_pred, name, part)
                 df.loc[len(df)] = pd.Series(rows)
                 output_dir = os.path.join(self.model_path, 'crosspred_AVG')
