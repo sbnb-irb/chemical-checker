@@ -441,7 +441,7 @@ class ChemicalChecker():
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
             "data = inputs[task_id]",  # elements for current job
             "for ds in data:",  # elements are indexes
-            "    sign3_ref = cc.get_signature('sign3', 'reference', ds)",
+            "    sign3_ref = cc.get_signature('sign3', 'full_map', ds)",
             "    sign3_ref.fit(cc)",
             "print('JOB DONE')"
         ]
@@ -457,7 +457,7 @@ class ChemicalChecker():
         params["job_name"] = "CC_SIGN3"
         params["elements"] = all_datasets
         params["wait"] = True
-        params["memory"] = 1  # this avoids singularity segfault on some nodes
+        params["memory"] = 16  # this avoids singularity segfault on some nodes
         params["cpu"] = cpu  # Node2Vec parallelizes well
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
