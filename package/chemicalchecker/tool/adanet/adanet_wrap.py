@@ -466,29 +466,34 @@ class AdaNetWrapper(object):
                 model_vars.append(var.eval())
         return model_vars
 
-    def save_performances(self, output_dir, plot, extra_predictors=None):
+    def save_performances(self, output_dir, plot, suffix=None, extra_predictors=None):
         """Save stats and make plots."""
         # read input
-        datasets = ['train', 'test', 'validation']
+        partitions = ['train', 'test', 'validation']
         x = dict()
         y = dict()
-        for ds in datasets:
+        part_size = 0
+        for part in partitions:
             # get dataset split
-            traintest = Traintest(self.traintest_file, ds, replace_nan=0.0)
+            traintest = Traintest(self.traintest_file, part,
+                                  replace_nan=self.nan_mask_value)
             traintest.open()
-            x[ds] = traintest.get_all_x()
-            y[ds] = traintest.get_all_y()
+            x[part] = traintest.get_all_x()
+            y[part] = traintest.get_all_y()
             traintest.close()
+            part_size += x[part].shape[0]
         # save in pandas
         df = pd.DataFrame(columns=[
-            'dataset', 'r2', 'pearson_avg', 'pearson_std', 'algo', 'mse',
+            'dataset', 'component', 'r2', 'pearson', 'algo', 'mse',
             'explained_variance', 'time', 'architecture', 'nr_variables',
-            'nn_layers', 'layer_size', 'architecture_history'])
+            'nn_layers', 'layer_size', 'architecture_history', 'from',
+            'dataset_size', 'coverage'])
 
-        def _stats_row(y_true, y_pred, algo, dataset):
+        def _stats_row(y_true, y_pred, algo, dataset, dataset_size):
             row = dict()
             row['algo'] = algo
             row['dataset'] = dataset
+            row['dataset_size'] = dataset_size
             row['layer_size'] = self.layer_size
             row['r2'] = r2_score(y_true, y_pred)
             pps = [pearsonr(y_true[:, x], y_pred[:, x])[0]
@@ -500,6 +505,29 @@ class AdaNetWrapper(object):
                 y_true, y_pred)
             return row
 
+        def _stats_row(y_true, y_pred, algo, dataset, from_part):
+            rows = list()
+            for comp in range(y_true.shape[1]):
+                row = dict()
+                row['algo'] = algo
+                row['dataset'] = dataset
+                row['dataset_size'] = y_true.shape[0]
+                row['component'] = comp
+                comp_res = y_true[:, comp].flatten(), y_pred[:, comp].flatten()
+                row['r2'] = r2_score(*comp_res)
+                row['pearson'] = pearsonr(*comp_res)[0]
+                row['mse'] = mean_squared_error(*comp_res)
+                row['explained_variance'] = explained_variance_score(*comp_res)
+                row['from'] = from_part
+                # self.__log.debug("comp: %s p: %.2f", comp, row['pearson'])
+                rows.append(row)
+            return rows
+
+        def _update_row(rows, key, value):
+            for row in rows:
+                row[key] = value
+            return rows
+
         def _log_row(row):
             for k, v in row.items():
                 if isinstance(v, float):
@@ -509,15 +537,20 @@ class AdaNetWrapper(object):
 
         # Performances for AdaNet
         rows = dict()
-        for ds in datasets:
-            self.__log.info("Performances for AdaNet on %s" % ds)
-            y_pred = AdaNetWrapper.predict(self.save_dir, x[ds])
-            rows[ds] = _stats_row(y[ds], y_pred, 'AdaNet', ds)
-            rows[ds]['time'] = self.time
-            rows[ds]['architecture_history'] = self.architecture()
+        for part in partitions:
+            self.__log.info("Performances for AdaNet on %s" % part)
+            y_pred = AdaNetWrapper.predict(self.save_dir, x[part])
+            if suffix:
+                name = "AdaNet_%s" % suffix
+            else:
+                name = 'AdaNet'
+            rows[part] = _stats_row(y[part], y_pred, name, part, "ALL")
+            rows[part] = _update_row(rows[part], "time", self.time)
+            rows[part] = _update_row(
+                rows[part], "architecture_history", self.architecture())
             # log and save plot
-            _log_row(rows[ds])
-            plot.sign2_prediction_plot(y[ds], y_pred, "AdaNet_%s" % ds)
+            #_log_row(rows[part])
+            #plot.sign2_prediction_plot(y[part], y_pred, "AdaNet_%s" % part)
 
         # some additional shared stats
         # get nr of variables in final model
@@ -532,11 +565,13 @@ class AdaNetWrapper(object):
                             for i in range(0, len(model_vars), 2)]
 
         # save rows
-        for ds in datasets:
-            rows[ds]["nr_variables"] = nr_variables
-            rows[ds]["nn_layers"] = nn_layers
-            rows[ds]["architecture"] = architecture
-            df.loc[len(df)] = pd.Series(rows[ds])
+        for part in partitions:
+            rows[part] = _update_row(rows[part], "nr_variables", nr_variables)
+            rows[part] = _update_row(rows[part], "nn_layers", nn_layers)
+            rows[part] = _update_row(rows[part], "architecture", architecture)
+            rows[part] = _update_row(rows[part], "coverage", 1.0)
+            for row in rows[part]:
+                df.loc[len(df)] = pd.Series(row)
         output_pkl = os.path.join(output_dir, 'stats.pkl')
         with open(output_pkl, 'wb') as fh:
             pickle.dump(df, fh)
@@ -548,24 +583,31 @@ class AdaNetWrapper(object):
         linreg = LinearRegression().fit(x['train'], y['train'])
         linreg_stop = time()
         rows = dict()
-        for ds in datasets:
-            self.__log.info("Performances for LinearRegression on %s" % ds)
-            y_pred = linreg.predict(x[ds])
-            rows[ds] = _stats_row(y[ds], y_pred, 'LinearRegression', ds)
-            rows[ds]['time'] = linreg_stop - linreg_start
-            rows[ds]['architecture_history'] = '| linear |'
-            rows[ds]['architecture'] = [y[ds].shape[1]]
-            rows[ds]['layer_size'] = 0
-            rows[ds]["nr_variables"] = y[ds].shape[1]
-            rows[ds]["nn_layers"] = 0
+        for part in partitions:
+            self.__log.info("Performances for LinearRegression on %s" % part)
+            y_pred = linreg.predict(x[part])
+            rows[part] = _stats_row(
+                y[part], y_pred, 'LinearRegression', part, "ALL")
+            rows[part] = _update_row(
+                rows[part], "time", linreg_stop - linreg_start)
+            rows[part] = _update_row(
+                rows[part], "architecture_history", '| linear |')
+            rows[part] = _update_row(
+                rows[part], "architecture", [y[part].shape[1]])
+            rows[part] = _update_row(rows[part], "layer_size", 0)
+            rows[part] = _update_row(
+                rows[part], "nr_variables", [y[part].shape[1]])
+            rows[part] = _update_row(rows[part], "nn_layers", 0)
+            rows[part] = _update_row(rows[part], "coverage", 1.0)
             # log and save plot
-            _log_row(rows[ds])
-            plot.sign2_prediction_plot(
-                y[ds], y_pred, "LinearRegression_%s" % ds)
+            #_log_row(rows[part])
+            # plot.sign2_prediction_plot(
+            #    y[part], y_pred, "LinearRegression_%s" % part)
 
         # save rows
-        for ds in datasets:
-            df.loc[len(df)] = pd.Series(rows[ds])
+        for part in partitions:
+            for row in rows[part]:
+                df.loc[len(df)] = pd.Series(row)
         output_pkl = os.path.join(output_dir, 'stats.pkl')
         with open(output_pkl, 'wb') as fh:
             pickle.dump(df, fh)
@@ -576,27 +618,39 @@ class AdaNetWrapper(object):
         if not extra_predictors:
             return
 
-        for name, preds in extra_predictors.items():
+        for (name, from_ds), preds in extra_predictors.items():
             rows = dict()
-            for ds in datasets:
-                self.__log.info("Performances for %s on %s", name, ds)
-                y_pred = preds[ds]['pred']
-                y_true = preds[ds]['true']
-                rows[ds] = _stats_row(y_true, y_pred, name, ds)
-                rows[ds]['time'] = preds['time']
-                rows[ds]['architecture_history'] = '| linear |'
-                rows[ds]['architecture'] = [y_true.shape[1]]
-                rows[ds]['layer_size'] = 0
-                rows[ds]["nr_variables"] = y_true.shape[1]
-                rows[ds]["nn_layers"] = 0
+            for part in partitions:
+                if part not in preds:
+                    continue
+                self.__log.info("Performances for %s on %s", name, part)
+                y_pred = preds[part]['pred']
+                y_true = preds[part]['true']
+                part_size = preds[part]['part_size']
+                runtime = preds[part]['time']
+                coverage = preds[part]['coverage']
+                rows[part] = _stats_row(y_true, y_pred, name, part, from_ds)
+                rows[part] = _update_row(rows[part], "coverage", coverage)
+                rows[part] = _update_row(rows[part], "time", runtime)
+                rows[part] = _update_row(
+                    rows[part], "architecture_history", '| linear |')
+                rows[part] = _update_row(
+                    rows[part], "architecture", [y[part].shape[1]])
+                rows[part] = _update_row(rows[part], "layer_size", 0)
+                rows[part] = _update_row(
+                    rows[part], "nr_variables", [y[part].shape[1]])
+                rows[part] = _update_row(rows[part], "nn_layers", 0)
                 # log and save plot
-                _log_row(rows[ds])
-                plot.sign2_prediction_plot(
-                    y_true, y_pred, "%s_%s" % (name, ds))
+                #_log_row(rows[part])
+                # plot.sign2_prediction_plot(
+                #    y_true, y_pred, "%s_%s" % (name, part))
 
             # save rows
-            for ds in datasets:
-                df.loc[len(df)] = pd.Series(rows[ds])
+            for part in partitions:
+                if part not in preds:
+                    continue
+                for row in rows[part]:
+                    df.loc[len(df)] = pd.Series(row)
             output_pkl = os.path.join(output_dir, 'stats.pkl')
             with open(output_pkl, 'wb') as fh:
                 pickle.dump(df, fh)
