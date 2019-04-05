@@ -80,7 +80,6 @@ class sign3(BaseSignature):
         """Learn a model."""
         try:
             from chemicalchecker.tool.adanet import AdaNet, Traintest
-            from .sign2 import sign2
         except ImportError as err:
             raise err
         # adanet
@@ -98,6 +97,8 @@ class sign3(BaseSignature):
             os.makedirs(adanet_path)
         # prepare train-test file
         traintest_file = os.path.join(self.model_path, 'traintest.h5')
+        if include_self:
+            traintest_file = os.path.join(self.model_path, 'traintest_SELF.h5')
         if adanet_params:
             traintest_file = adanet_params.pop(
                 'traintest_file', traintest_file)
@@ -124,37 +125,6 @@ class sign3(BaseSignature):
         self.__log.debug('model saved to %s' % adanet_path)
 
         self.mark_ready()
-
-    @staticmethod
-    def subsample(vector, label):
-        """Function to subsample stacked data."""
-        # it is safe to make a local copy of the input matrix
-        new_data = np.copy(vector)
-        # we will have amasking matrix at the end
-        mask = np.zeros_like(vector).astype(bool)
-        for idx, row in enumerate(new_data):
-            # the following assume the stacked signature to have a fixed width
-            presence = ~np.isnan(row[0::128])
-            # low probability of keeping the original sample
-            if np.random.rand() > 0.95:
-                presence_add = presence
-            else:
-                # present datasets
-                present_idxs = np.argwhere(presence).flatten()
-                # how many dataset in this subsampling?
-                max_add = present_idxs.shape[0] - 1
-                n_to_add = np.random.choice(max_add) + 1
-                # which ones?
-                to_add = np.random.choice(
-                    present_idxs, n_to_add, replace=False)
-                # dataset mask
-                presence_add = np.zeros(presence.shape).astype(bool)
-                presence_add[to_add] = True
-            # from dataset mask to signature mask
-            mask[idx] = np.repeat(presence_add, 128)
-        # make masked dataset NaN
-        new_data[~mask] = np.nan
-        return new_data, label
 
     def predict(self, sign1):
         """Use the learned model to predict the signature."""
@@ -382,21 +352,99 @@ class sign3(BaseSignature):
                 results[name][part]['coverage'] = y_data_transf.shape[0] / \
                     total_size
                 results[name][part]['time'] = 0.
-
-                """
-                # save performances
-                rows = _stats_row(y_data_transf, y_pred,
-                                  "AdaNet_%s" % suffix, part, ds)
-                for row in rows:
-                    df.loc[len(df)] = pd.Series(row)
-                output_dir = os.path.join(
-                    self.model_path, 'adanet_CMP_%s' % suffix)
-                if not os.path.isdir(output_dir):
-                    os.makedirs(output_dir)
-                output_pkl = os.path.join(output_dir, 'stats.pkl')
-                with open(output_pkl, 'wb') as fh:
-                    pickle.dump(df, fh)
-                output_csv = os.path.join(output_dir, 'stats.csv')
-                df.to_csv(output_csv)
-                """
         return results
+
+    @staticmethod
+    def test_params(cc_root, job_path, dataset, parameters):
+        """Perform a grid search.
+
+        parameters = [
+            {"init": {'augmentation': False}, "fit": {"suffix": "BASE"}},
+            {"init": {'augmentation': False}, "fit": {"suffix": "BASE*", "include_self": True}},
+            {"init": {'augmentation': sign3.subsample}, "fit": {"suffix": "SUB"}},
+            {"init": {'augmentation': sign3.subsample}, "fit": {"suffix": "SUB*", "include_self": True}},
+            {"init": {'augmentation': sign3.subsample, 'epoch_per_iteration': 1500}, "fit": {"suffix": "AUG"}},
+            {"init": {'augmentation': sign3.subsample, 'epoch_per_iteration': 1500}, "fit": {"suffix": "AUG*", "include_self": True}},
+            {"init": {'augmentation': sign3.subsample, 'epoch_per_iteration': 30000}, "fit": {"suffix": "AUG+"}},
+            {"init": {'augmentation': sign3.subsample, 'epoch_per_iteration': 30000}, "fit": {"suffix": "AUG+*", "include_self": True}},
+        ]
+        """
+        import chemicalchecker
+        from chemicalchecker.util.hpc import HPC
+        from chemicalchecker.util import Config
+
+        # create job directory if not available
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+        # create script file
+        cc_config = os.environ['CC_CONFIG']
+        cc_package = os.path.join(chemicalchecker.__path__[0], '../')
+        script_lines = [
+            "import sys, os",
+            "import pickle",
+            "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
+            "sys.path.append('%s')" % cc_package,  # allow package import
+            "from chemicalchecker.core import ChemicalChecker",
+            "cc = ChemicalChecker('%s')" % cc_root,
+            "task_id = sys.argv[1]",  # <TASK_ID>
+            "filename = sys.argv[2]",  # <FILE>
+            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
+            "data = inputs[task_id]",  # elements for current job
+            "for params in data:",  # elements are indexes
+            "    ds = '%s'" % dataset,
+            "    s3 = cc.get_signature('sign3', 'full_map', ds, adanet=params['init'])",
+            "    s3.fit(cc, **params['fit'])",
+            "print('JOB DONE')"
+        ]
+        script_name = os.path.join(job_path, 'sign3_test_params.py')
+        with open(script_name, 'w') as fh:
+            for line in script_lines:
+                fh.write(line + '\n')
+        # hpc parameters
+        params = {}
+        elements = parameters
+        params["num_jobs"] = len(elements)
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_SIGN3_TEST_PARAMS"
+        params["elements"] = elements
+        params["wait"] = False
+        params["memory"] = 6
+        # job command
+        singularity_image = Config().PATH.SINGULARITY_IMAGE
+        command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+            singularity_image, script_name)
+        # submit jobs
+        cluster = HPC(Config())
+        cluster.submitMultiJob(command, **params)
+        return cluster
+
+
+def subsample(vector, label):
+    """Function to subsample stacked data."""
+    # it is safe to make a local copy of the input matrix
+    new_data = np.copy(vector)
+    # we will have amasking matrix at the end
+    mask = np.zeros_like(vector).astype(bool)
+    for idx, row in enumerate(new_data):
+        # the following assume the stacked signature to have a fixed width
+        presence = ~np.isnan(row[0::128])
+        # low probability of keeping the original sample
+        if np.random.rand() > 0.95:
+            presence_add = presence
+        else:
+            # present datasets
+            present_idxs = np.argwhere(presence).flatten()
+            # how many dataset in this subsampling?
+            max_add = present_idxs.shape[0] - 1
+            n_to_add = np.random.choice(max_add) + 1
+            # which ones?
+            to_add = np.random.choice(
+                present_idxs, n_to_add, replace=False)
+            # dataset mask
+            presence_add = np.zeros(presence.shape).astype(bool)
+            presence_add[to_add] = True
+        # from dataset mask to signature mask
+        mask[idx] = np.repeat(presence_add, 128)
+    # make masked dataset NaN
+    new_data[~mask] = np.nan
+    return new_data, label
