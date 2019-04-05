@@ -114,12 +114,47 @@ class sign3(BaseSignature):
         # learn
         self.__log.debug('AdaNet training on %s' % traintest_file)
         ada.train_and_evaluate()
+        # compare performance with cross predictors
+        singles = self.adanet_single_spaces(chemchecker, adanet_path,
+                                            traintest_file, suffix,
+                                            include_self)
         # save AdaNet performances and plots
         sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
-        ada.save_performances(adanet_path, sign2_plot)
+        ada.save_performances(adanet_path, sign2_plot, suffix, singles)
         self.__log.debug('model saved to %s' % adanet_path)
 
         self.mark_ready()
+
+    @staticmethod
+    def subsample(vector, label):
+        """Function to subsample stacked data."""
+        # it is safe to make a local copy of the input matrix
+        new_data = np.copy(vector)
+        # we will have amasking matrix at the end
+        mask = np.zeros_like(vector).astype(bool)
+        for idx, row in enumerate(new_data):
+            # the following assume the stacked signature to have a fixed width
+            presence = ~np.isnan(row[0::128])
+            # low probability of keeping the original sample
+            if np.random.rand() > 0.95:
+                presence_add = presence
+            else:
+                # present datasets
+                present_idxs = np.argwhere(presence).flatten()
+                # how many dataset in this subsampling?
+                max_add = present_idxs.shape[0] - 1
+                n_to_add = np.random.choice(max_add) + 1
+                # which ones?
+                to_add = np.random.choice(
+                    present_idxs, n_to_add, replace=False)
+                # dataset mask
+                presence_add = np.zeros(presence.shape).astype(bool)
+                presence_add[to_add] = True
+            # from dataset mask to signature mask
+            mask[idx] = np.repeat(presence_add, 128)
+        # make masked dataset NaN
+        new_data[~mask] = np.nan
+        return new_data, label
 
     def predict(self, sign1):
         """Use the learned model to predict the signature."""
@@ -285,3 +320,83 @@ class sign3(BaseSignature):
                     pickle.dump(df, fh)
                 output_csv = os.path.join(output_dir, 'stats.csv')
                 df.to_csv(output_csv)
+
+    def adanet_single_spaces(self, chemchecker, adanet_path, traintest_file, suffix, include_self):
+        """Prediction of adanet using single space signatures.
+
+        We want to compare the performances of trained adanet to those of
+        predictors based on single space.
+        This is done filling the matrix with zeros in other spaces.
+        """
+        try:
+            from chemicalchecker.tool.adanet import AdaNet, Traintest
+
+        except ImportError as err:
+            raise err
+
+        results = dict()
+        other_spaces = list(chemchecker.datasets)
+        if not include_self:
+            other_spaces.remove(self.dataset.code)
+        for ds in other_spaces:
+            if suffix:
+                name = ("AdaNet_%s" % suffix, ds)
+            else:
+                name = ("AdaNet", ds)
+            results[name] = dict()
+
+        for part in ['train', 'test', 'validation']:
+            traintest = Traintest(traintest_file, part)
+            traintest.open()
+            x_data = traintest.get_all_x()
+            y_data = traintest.get_all_y()
+            traintest.close()
+            total_size = float(y_data.shape[0])
+
+            self.__log.info("%s X: %s Y: %s", part,
+                            x_data.shape, y_data.shape)
+            # iterate on spaces
+            for idx, ds in enumerate(other_spaces):
+                # zero out everything apart current space
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x_data_transf = np.zeros_like(x_data, dtype=np.float32)
+                x_data_transf[:, col_slice] = x_data[:, col_slice]
+                # drop NAN rows
+                not_nan = ~np.isnan(x_data_transf).any(axis=1)
+                x_data_transf = x_data_transf[not_nan]
+                y_data_transf = y_data[not_nan]
+                self.__log.info("%s X: %s ", ds, x_data_transf.shape)
+                if x_data_transf.shape[0] < 4:
+                    continue
+                # call predict
+                save_dir = os.path.join(adanet_path, 'savedmodel')
+                y_pred = AdaNet.predict(save_dir, x_data_transf)
+                if suffix:
+                    name = ("AdaNet_%s" % suffix, ds)
+                else:
+                    name = ("AdaNet", ds)
+                results[name][part] = dict()
+                results[name][part]['true'] = y_data_transf
+                results[name][part]['pred'] = y_pred
+                results[name][part]['part_size'] = y_data_transf.shape[0]
+                results[name][part]['coverage'] = y_data_transf.shape[0] / \
+                    total_size
+                results[name][part]['time'] = 0.
+
+                """
+                # save performances
+                rows = _stats_row(y_data_transf, y_pred,
+                                  "AdaNet_%s" % suffix, part, ds)
+                for row in rows:
+                    df.loc[len(df)] = pd.Series(row)
+                output_dir = os.path.join(
+                    self.model_path, 'adanet_CMP_%s' % suffix)
+                if not os.path.isdir(output_dir):
+                    os.makedirs(output_dir)
+                output_pkl = os.path.join(output_dir, 'stats.pkl')
+                with open(output_pkl, 'wb') as fh:
+                    pickle.dump(df, fh)
+                output_csv = os.path.join(output_dir, 'stats.csv')
+                df.to_csv(output_csv)
+                """
+        return results
