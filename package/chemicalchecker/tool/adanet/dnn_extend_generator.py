@@ -5,12 +5,25 @@ import numpy as np
 from chemicalchecker.util import logged
 
 
+class NanMaskingLayer(tf.keras.layers.Layer):
+
+    def __init__(self, mask_value=0.0):
+        super(NanMaskingLayer, self).__init__()
+        self.mask_value = mask_value
+
+    def call(self, input):
+        nan_idxs = tf.is_nan(input)
+        replace = tf.ones_like(input) * self.mask_value
+        return tf.where(nan_idxs, replace, input)
+
+
 @logged
 class ExtendDNNBuilder(adanet.subnetwork.Builder):
     """Builds a DNN subnetwork for AdaNet."""
 
     def __init__(self, optimizer, layer_sizes, num_layers, layer_block_size,
-                 learn_mixture_weights, dropout, seed, activation, previous_ensemble):
+                 learn_mixture_weights, dropout, seed, activation,
+                 previous_ensemble, input_shape, nan_mask_value=0.0):
         """Initializes a `_DNNBuilder`.
 
         Args:
@@ -39,6 +52,8 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
         self._seed = seed
         self._dropout = dropout
         self._activation = activation
+        self._input_shape = input_shape
+        self._nan_mask_value = nan_mask_value
 
     def build_subnetwork(self,
                          features,
@@ -49,8 +64,12 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
                          previous_ensemble=None):
         """See `adanet.subnetwork.Builder`."""
         input_layer = tf.to_float(features['x'])
+        # forcing to input shape as dataset uses tf.py_func (loosing shape)
+        input_layer = tf.reshape(features['x'], [-1, self._input_shape])
         kernel_initializer = tf.glorot_uniform_initializer(seed=self._seed)
         last_layer = input_layer
+        if self._nan_mask_value is not None:
+            last_layer = NanMaskingLayer(self._nan_mask_value)(last_layer)
         for layer_size in self._layer_sizes:
             last_layer = tf.layers.dense(
                 last_layer,
@@ -121,6 +140,8 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
 
     def __init__(self,
                  optimizer,
+                 input_shape,
+                 nan_mask_value=0.0,
                  layer_size=32,
                  learn_mixture_weights=False,
                  dropout=0.0,
@@ -153,6 +174,8 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
             ExtendDNNBuilder,
             optimizer=optimizer,
             dropout=dropout,
+            input_shape=input_shape,
+            nan_mask_value=nan_mask_value,
             activation=activation,
             layer_block_size=layer_size,
             learn_mixture_weights=learn_mixture_weights)
