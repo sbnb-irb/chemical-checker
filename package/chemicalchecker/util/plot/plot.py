@@ -800,45 +800,104 @@ class Plot():
             plt.savefig(filename, dpi=100)
             plt.close()
 
-    def sign3_evaluation_plot(self, sign3):
-        dir_names = [name for name in os.listdir(
-            sign3.model_path) if os.path.isdir(os.path.join(sign3.model_path, name))]
+    def sign3_adanet_comparison(self, sign3, metric="pearson", pathbase="adanet_CMP"):
+        dir_names = list()
+        for name in os.listdir(sign3.model_path):
+            if pathbase is not None and not name.startswith(pathbase):
+                continue
+            if os.path.isdir(os.path.join(sign3.model_path, name)):
+                dir_names.append(name)
         for dir_name in dir_names:
             tmpdf_file = os.path.join(sign3.model_path, dir_name, 'stats.pkl')
             if os.path.isfile(tmpdf_file):
                 cols = list(pd.read_pickle(tmpdf_file).columns)
                 break
-        df = pd.DataFrame(columns=cols + ['from'])
+        df = pd.DataFrame(columns=set(cols))
         for dir_name in dir_names:
-            if "_" in dir_name:
-                ds = dir_name.split("_")[1]
-            else:
-                ds = "ALL"
+            if pathbase is not None and not dir_name.startswith(pathbase):
+                continue
             tmpdf_file = os.path.join(sign3.model_path, dir_name, 'stats.pkl')
             if not os.path.isfile(tmpdf_file):
                 continue
             tmpdf = pd.read_pickle(tmpdf_file)
-            # tmpdf['algo'] = tmpdf['algo'].apply(lambda x: "{}_{}".format(x,
-            # ds))
-            tmpdf['from'] = pd.Series([ds] * len(tmpdf))
             df = df.append(tmpdf, ignore_index=True)
 
-        metric = "pearson_avg"
-        #order = sorted(df['from'].unique())
-        # order.append(order.pop(order.index('ALL')))
-        order = df[(df.dataset == 'test') & (df.algo == 'AdaNet')].sort_values(
-            'pearson_avg', ascending=False)['from'].to_list()
-        hue_order = sorted(df['algo'].unique())
+        froms = sorted(list(df['from'].unique()))
+        order = froms
+        if 'ALL' in froms:
+            froms.remove('ALL')
+            order = ['ALL'] + froms
+        hue_order = df[(df.dataset == 'test') & (df.component == 1) & (
+            df['from'] == 'A1.001')].sort_values('pearson')['algo'].to_list()
 
         sns.set_style("whitegrid")
         g = sns.catplot(x="from", y=metric, hue="algo", row="dataset",
                         order=order, hue_order=hue_order,
                         row_order=['train', 'test', 'validation'],
-                        legend_out=True,sharex=False,
-                        data=df, height=6, aspect=2.5, kind="bar",
-                        palette="muted")
+                        legend_out=True, sharex=False,
+                        data=df, height=6, aspect=3, kind="bar",
+                        palette=sns.color_palette("Blues")[-4:])
         g.set(ylim=(0, 1))
-        filename = os.path.join(
-            self.plot_path, "sign3_%s_%s.png" % (self.dataset_code, metric))
+        g.map_dataframe(sns.stripplot, x="from", y="coverage",
+                        order=order, jitter=False, palette=['crimson'])
+        if pathbase is not None:
+            qual = "_".join([self.dataset_code, metric, pathbase])
+        else:
+            qual = "_".join([self.dataset_code, metric])
+        filename = os.path.join(self.plot_path, "sign3_%s.png" % qual)
+        plt.savefig(filename, dpi=100)
+        plt.close()
+
+    def sign3_crosspred_comparison(self, sign3, metric="pearson", pathbase="crosspred"):
+        dir_names = list()
+        for name in os.listdir(sign3.model_path):
+            if pathbase is not None and not name.startswith(pathbase):
+                continue
+            if os.path.isdir(os.path.join(sign3.model_path, name)):
+                dir_names.append(name)
+        for dir_name in dir_names:
+            tmpdf_file = os.path.join(sign3.model_path, dir_name, 'stats.pkl')
+            if os.path.isfile(tmpdf_file):
+                cols = list(pd.read_pickle(tmpdf_file).columns)
+                break
+        df = pd.DataFrame(columns=set(cols) | {'from'})
+        for dir_name in dir_names:
+            if pathbase is not None and not dir_name.startswith(pathbase):
+                continue
+            tmpdf_file = os.path.join(sign3.model_path, dir_name, 'stats.pkl')
+            if not os.path.isfile(tmpdf_file):
+                continue
+            tmpdf = pd.read_pickle(tmpdf_file)
+            if 'from' not in tmpdf:
+                from_ds = dir_name.split("_")[1]
+                tmpdf['from'] = pd.Series([from_ds] * len(tmpdf))
+            df = df.append(tmpdf, ignore_index=True)
+
+        froms = sorted(list(df['from'].unique()))
+        order = froms
+        if 'ALL' in froms:
+            froms.remove('ALL')
+            order = ['ALL'] + froms
+        if 'AVG' in froms:
+            froms.remove('AVG')
+            order = ['AVG'] + froms
+        hue_order = df[(df.dataset == 'test') & (
+            df['from'] == 'A1.001')].sort_values(metric)['algo'].to_list()
+
+        sns.set_style("whitegrid")
+        g = sns.catplot(x="from", y=metric, hue="algo", row="dataset",
+                        order=order, hue_order=hue_order,
+                        row_order=['train', 'test', 'validation'],
+                        legend_out=True, sharex=False,
+                        data=df, height=6, aspect=3, kind="bar",
+                        palette=[sns.color_palette('Greens')[2],
+                                 sns.color_palette('Oranges')[2],
+                                 sns.color_palette("Blues")[3]])
+        g.set(ylim=(0, 1))
+        if pathbase is not None:
+            qual = "_".join([self.dataset_code, metric, pathbase])
+        else:
+            qual = "_".join([self.dataset_code, metric])
+        filename = os.path.join(self.plot_path, "sign3_%s.png" % qual)
         plt.savefig(filename, dpi=100)
         plt.close()
