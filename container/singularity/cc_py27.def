@@ -116,12 +116,6 @@ From: centos
     DEVPI_PORT=3141
     alias sbnb_pip='pip install --index http://$DEVPI_HOST:$DEVPI_PORT/root/dev/ --trusted-host $DEVPI_HOST'
     sbnb_pip pqkmeans==1.0.4                      # slighty modified pqkmeans
-    sbnb_pip pdbe-api                             # PDBe REST API
-    sbnb_pip pride-api                            # PRIDE REST API
-    sbnb_pip reactome-api                         # Reactome REST API
-    sbnb_pip sbnb-dsysmap                         # access the sbnb-dsysmap database
-    sbnb_pip sbnb-uniprotkb                       # interface to the local UniprotKB database
-    sbnb_pip sbnb-util                            # utility code in the SBNB lab
 
     # chemical beauty QED
     curl -LO http://silicos-it.be.s3-website-eu-west-1.amazonaws.com/_downloads/qed-1.0.1.tar.gz
