@@ -109,13 +109,6 @@ From: centos
     DEVPI_PORT=3141
     alias sbnb_pip='pip install --index http://$DEVPI_HOST:$DEVPI_PORT/root/dev/ --trusted-host $DEVPI_HOST'
     sbnb_pip pqkmeans==1.0.4                      # slighty modified pqkmeans
-    sbnb_pip pdbe-api                             # PDBe REST API
-    sbnb_pip pride-api                            # PRIDE REST API
-    sbnb_pip reactome-api                         # Reactome REST API
-    sbnb_pip sbnb-dsysmap                         # access the sbnb-dsysmap database
-    sbnb_pip sbnb-uniprotkb                       # interface to the local UniprotKB database
-    sbnb_pip sbnb-util                            # utility code in the SBNB lab
-
 
     # APSW stands for Another Python SQLite Wrapper
     pip install https://github.com/rogerbinns/apsw/releases/download/3.24.0-r1/apsw-3.24.0-r1.zip --global-option=fetch --global-option=--version --global-option=3.24.0 --global-option=--all --global-option=build --global-option=--enable-all-extensions
