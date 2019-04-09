@@ -225,7 +225,7 @@ class clus1(BaseSignature):
                 for k in cluster_range:
                     niter = 20
                     d = self.data.shape[1]
-                    kmeans = faiss.Kmeans(int(d), int(k), niter)
+                    kmeans = faiss.Kmeans(int(d), int(k), niter=niter)
                     kmeans.train(self.data)
                     D, labels = kmeans.index.search(self.data, 1)
                     inertias += [self._inertia(self.data,
@@ -254,7 +254,7 @@ class clus1(BaseSignature):
 
             niter = 20
             d = self.data.shape[1]
-            kmeans = faiss.Kmeans(int(d), int(k), niter)
+            kmeans = faiss.Kmeans(int(d), int(k), niter=niter)
             kmeans.train(self.data)
             D, labels = kmeans.index.search(self.data, 1)
 
