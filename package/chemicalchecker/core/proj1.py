@@ -120,7 +120,7 @@ class proj1(BaseSignature):
         niter = 20
         d = self.data.shape[1]
 
-        kmeans = faiss.Kmeans(d, self.k, niter)
+        kmeans = faiss.Kmeans(d, self.k, niter=niter)
 
         if self.k != self.data.shape[0]:
             kmeans.train(self.data)
