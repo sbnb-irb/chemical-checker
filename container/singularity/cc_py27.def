@@ -46,7 +46,6 @@ From: centos
     bash Miniconda2-latest-Linux-x86_64.sh -p /opt/miniconda2 -b -f
     rm Miniconda2-latest-Linux-x86_64.sh
     export PATH=/opt/miniconda2/bin:$PATH
-    conda update -n base -c defaults conda
 
     # create and activate conda enviroments
     conda create --name=py27 python=2.7.10 -y
