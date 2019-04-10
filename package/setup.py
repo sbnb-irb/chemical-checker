@@ -23,6 +23,7 @@ requirements = [
     'paramiko',
     'sklearn',
     'csvsort',
+    'matplotlib<3.0',
     'seaborn'
 ]
 
