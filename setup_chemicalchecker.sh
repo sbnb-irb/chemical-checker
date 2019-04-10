@@ -71,6 +71,11 @@ usage () {
     exit 1
 }
 
+# compare versions
+version_gt () {
+    test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1";
+}
+
 # parse arguments
 unset FORCE_UPDATE_IMAGE FORCE_CREATE_IMAGE
 FORCE_UPDATE_IMAGE=false
@@ -93,6 +98,16 @@ if [ "$?" != "0" ]; then
     printf -- 'Follow the guide at: https://www.sylabs.io/guides/2.6/user-guide/installation.html\n';
     exit 127;
 fi;
+
+# check singularity version
+SINGULARITY_MIN_VERSION=2.5.0
+SINGULARITY_INSTALLED_VERSION="$(singularity --version)"
+if version_gt $SINGULARITY_MIN_VERSION $SINGULARITY_INSTALLED_VERSION; then
+    printf -- "\033[31m ERROR: Update Singularity, we require at least version $SINGULARITY_MIN_VERSION ($SINGULARITY_INSTALLED_VERSION detected) \033[0m\n";
+    printf -- 'Follow the guide at: https://www.sylabs.io/guides/2.6/user-guide/installation.html\n';
+    exit 127;
+fi
+
 
 _=$(command -v git);
 if [ "$?" != "0" ]; then
