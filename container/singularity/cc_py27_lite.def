@@ -51,5 +51,20 @@ From: centos
     conda create --name=py27 python=2.7.10 -y
     source activate py27
 
-    # install the chemicalchecker package
-    pip install --index http://10.7.108.15:3141/root/dev/ --trusted-host 10.7.108.15 chemicalchecker
+    # basic requirements
+    pip install numpy
+    pip install h5py
+    pip install psycopg2-binary
+    pip install pandas
+    pip install networkx
+    pip install autologging
+    pip install scipy
+    pip install sqlalchemy
+    pip install paramiko
+    pip install sklearn
+    pip install csvsort
+    pip install seaborn
+    # unittest utils
+    pip install pytest
+    pip install mock
+
