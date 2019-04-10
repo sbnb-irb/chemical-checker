@@ -111,6 +111,7 @@ devpi_dev:
     - devpi remove -y chemicalchecker==0.1.0
     - devpi upload
     - devpi push chemicalchecker==0.1.0 root/dev
+    - pip install --index http://devpi.sbnb.org:3141/root/dev/ --trusted-host devpi.sbnb.org chemicalchecker
 
 pages:
   stage: deploy
