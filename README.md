@@ -7,50 +7,80 @@ The Chemical Checker (CC) is a resource of small molecule signatures. In the CC,
 * For full API documentation of the python package [API Doc](http://project-specific-repositories.sbnb-pages.irbbarcelona.pcb.ub.es/chemical_checker)
 * Concepts and methods are best described in the original CC publication, [Duran-Frigola et al. 2019](https://www.dropbox.com/s/x2rqszfdfpqdqdy/duranfrigola_etal_ms_current.pdf?dl=0).
 
+## Working from a laptop
+
+1. Check that you are connected to the local network
+
+        ping coelho.irb.pcb.ub.es
+
+2. Mount the remote filesystem
+
+        sudo mkdir /aloy
+        chown <laptop_username>:<laptop_username> /aloy
+        sshfs <sbnb_username>@pac-one-head.irb.pcb.ub.es:/aloy /aloy
+
+You can unmount the filesystem with:
+
+        fusermount -u /aloy
+
+
 ## Quick start
 
 To fetch signatures (without fancy CC package capabilities) the package can be installed directly via `pip` from our local PyPI server:
 
 ```shell
-sudo pip install --index http://10.7.108.15:3141/root/dev/ --trusted-host 10.7.108.15 chemicalchecker
+sudo pip install --index http://coelho.irbbarcelona.pcb.ub.es:3141/root/dev/ --trusted-host coelho.irbbarcelona.pcb.ub.es chemicalchecker
 ```
 
-N.B. Only bare minimm dependencies are installed along with the package
+_N.B. Only bare minimum dependencies are installed along with the package_
 
 ## Complete Installation 
 
 For an advanced usage of the CC package capabilities, we recomend creating the CC dependency enviroment within a container image:
 
-1. [Install singularity](https://www.sylabs.io/guides/2.6/user-guide/installation.html)
+1. [Install Singularity](https://www.sylabs.io/guides/2.6/user-guide/installation.html)
+
+        VER=2.5.1
+        wget https://github.com/sylabs/singularity/releases/download/$VER/singularity-$VER.tar.gz
+        tar xvf singularity-$VER.tar.gz
+        cd singularity-$VER
+        ./configure --prefix=/usr/local --sysconfdir=/etc
+        make
+        sudo make install
 
 2. [Install Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 
-3. Download the `setup_chemicalchecker.sh` script to your home folder
+        apt-get install git
 
-4. Run the script with:
+3. Download the [setup_chemicalchecker.sh](setup_chemicalchecker.sh) script to your home folder:
+
+        wget http://gitlab.sbnb.org/project-specific-repositories/chemical_checker/raw/master/setup_chemicalchecker.sh
+
+4. Run the script (this script will require sudo access and it will request to type your password) with:
 
         sh setup_chemicalchecker.sh
 
-    This script will require sudo access and it will request to type your password.
-    
-`setup_chemicalchecker.sh` allows you to create a singularity image with all necessary packages including the Chemical Checker package.
 
-After the first run of this script, if you only want to **update** the Chemical Checker package, run the script like that:
+The setup_chemicalchecker script has created an alias in your ~/.bashrc so you can start the Chamical Checker with:
+
+        source ~/.bashrc
+        chemcheck
+
+
+After the first run of this script you can **update** the Chemical Checker package with the following command:
 
         sh setup_chemicalchecker.sh -i
         
-Every time, you run this script it will rrequire you to modify or just validate the Chemical Checker config file.
-If you only want to change the config file, run the script like that:
+If you only want to change the config file, run the script with the -e argument:
 
         sh setup_chemicalchecker.sh -e
     
 ## Usage
 
-1. Download the `run_chemicalchecker.sh` script to your home folder
 
-2. Run the script with (if you want to use it as notebook):
+1. Run a Jupiter Notebook with:
 
-        sh run_chemicalchecker.sh
+        chemcheck
 
     2.1. Open your browser, paste the URL that the script has produced.
 
@@ -58,13 +88,31 @@ If you only want to change the config file, run the script like that:
 
     2.3. Type `import chemicalchecker`
 
-3. Run the script with:
+2. Run a shell within the image:
 
-        sh run_chemicalchecker.sh -s
+        chemcheck -s
         
-    3.1 Type `python`
+    3.1 Type `ipython`
     
     3.2 Type `import chemicalchecker`
+
+
+## Adding a package or software to the image
+
+1. You will have to enter the singularity sandbox
+
+        cd ~/local_checker
+        sudo singularity shell --writable sandbox
+
+2. Install the package/software and exit the image
+
+        pip install <package_of_your_dreams>
+        exit
+
+3. Re-generate the image:
+
+        rm cc.simg
+        sudo singularity build cc.simg sandbox
 
 ## Examples
 
