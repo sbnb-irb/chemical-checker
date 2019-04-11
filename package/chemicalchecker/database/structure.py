@@ -9,7 +9,7 @@ from tqdm import tqdm
 class Structure(Base):
     """The structure class for the table of the same name"""
     __tablename__ = 'structure'
-    inchikey = Column(Text, primary_key=True)
+    inchikey = Column(Text, primary_key=True, index=True)
     inchi = Column(Text)
 
     @staticmethod
