@@ -51,7 +51,7 @@ class sign3(BaseSignature):
         self.params['node2vec'] = params.get('node2vec', None)
         self.params['adanet'] = params.get('adanet', None)
 
-    def get_sign2_matrix(self, chemchecker, include_self):
+    def get_sign2_matrix(self, chemchecker, include_self=True):
         """Get combined matrix of stacked signature 2."""
         # get current space on which we'll train (using reference set to
         # limit redundancy)
@@ -76,7 +76,7 @@ class sign3(BaseSignature):
                             sum(available), self.dataset, ds)
         return sign2_matrix, my_sign2[:]
 
-    def fit(self, chemchecker, reuse=True, suffix=None, include_self=False):
+    def fit(self, chemchecker, reuse=True, suffix=None):
         """Learn a model."""
         try:
             from chemicalchecker.tool.adanet import AdaNet, Traintest
@@ -97,13 +97,11 @@ class sign3(BaseSignature):
             os.makedirs(adanet_path)
         # prepare train-test file
         traintest_file = os.path.join(self.model_path, 'traintest.h5')
-        if include_self:
-            traintest_file = os.path.join(self.model_path, 'traintest_SELF.h5')
         if adanet_params:
             traintest_file = adanet_params.pop(
                 'traintest_file', traintest_file)
         if not reuse or not os.path.isfile(traintest_file):
-            features, labels = self.get_sign2_matrix(chemchecker, include_self)
+            features, labels = self.get_sign2_matrix(chemchecker)
             Traintest.create(features, labels, traintest_file)
         # initialize adanet
         if adanet_params:
@@ -117,8 +115,7 @@ class sign3(BaseSignature):
         ada.train_and_evaluate()
         # compare performance with cross predictors
         singles = self.adanet_single_spaces(chemchecker, adanet_path,
-                                            traintest_file, suffix,
-                                            include_self)
+                                            traintest_file, suffix)
         # save AdaNet performances and plots
         sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
         ada.save_performances(adanet_path, sign2_plot, suffix, singles)
@@ -291,7 +288,7 @@ class sign3(BaseSignature):
                 output_csv = os.path.join(output_dir, 'stats.csv')
                 df.to_csv(output_csv)
 
-    def adanet_single_spaces(self, chemchecker, adanet_path, traintest_file, suffix, include_self):
+    def adanet_single_spaces(self, chemchecker, adanet_path, traintest_file, suffix):
         """Prediction of adanet using single space signatures.
 
         We want to compare the performances of trained adanet to those of
@@ -300,20 +297,19 @@ class sign3(BaseSignature):
         """
         try:
             from chemicalchecker.tool.adanet import AdaNet, Traintest
-
         except ImportError as err:
             raise err
 
         results = dict()
-        other_spaces = list(chemchecker.datasets)
-        if not include_self:
-            other_spaces.remove(self.dataset.code)
-        for ds in other_spaces:
+        for ds in chemchecker.datasets:
             if suffix:
                 name = ("AdaNet_%s" % suffix, ds)
             else:
                 name = ("AdaNet", ds)
             results[name] = dict()
+        # consider when the space itself is not available
+        results[(name[0], "-self")] = dict()
+        self.__log.info("%s" % results)
 
         for part in ['train', 'test', 'validation']:
             traintest = Traintest(traintest_file, part)
@@ -322,22 +318,25 @@ class sign3(BaseSignature):
             y_data = traintest.get_all_y()
             traintest.close()
             total_size = float(y_data.shape[0])
-
-            self.__log.info("%s X: %s Y: %s", part,
-                            x_data.shape, y_data.shape)
+            frac_non_nan = np.count_nonzero(
+                np.isnan(x_data)) / float(x_data.size) * 100
+            self.__log.info("%s X: %s Y: %s, (%.2f%% non NaN)", part,
+                            x_data.shape, y_data.shape, frac_non_nan)
+            self.__log.info("%s Y: %s", part, y_data.shape)
             # iterate on spaces
-            for idx, ds in enumerate(other_spaces):
+            for idx, ds in enumerate(chemchecker.datasets):
                 # zero out everything apart current space
                 col_slice = slice(idx * 128, (idx + 1) * 128)
-                x_data_transf = np.zeros_like(x_data, dtype=np.float32)
+                x_data_transf = np.zeros_like(
+                    x_data, dtype=np.float32) * np.nan
                 x_data_transf[:, col_slice] = x_data[:, col_slice]
-                # drop NAN rows
-                not_nan = ~np.isnan(x_data_transf).any(axis=1)
+                # current space contain NaNs, drop those rows
+                not_nan = np.isfinite(x_data_transf).any(axis=1)
                 x_data_transf = x_data_transf[not_nan]
                 y_data_transf = y_data[not_nan]
-                self.__log.info("%s X: %s ", ds, x_data_transf.shape)
                 if x_data_transf.shape[0] < 4:
                     continue
+                self.__log.info("%s X: %s", ds, x_data_transf.shape)
                 # call predict
                 save_dir = os.path.join(adanet_path, 'savedmodel')
                 y_pred = AdaNet.predict(save_dir, x_data_transf)
@@ -352,6 +351,34 @@ class sign3(BaseSignature):
                 results[name][part]['coverage'] = y_data_transf.shape[0] / \
                     total_size
                 results[name][part]['time'] = 0.
+                # case to fairly evaluate performances, predicting without Ys
+                if ds in self.dataset.code:
+                    # set current space to nan
+                    col_slice = slice(idx * 128, (idx + 1) * 128)
+                    x_data_transf = np.copy(x_data)
+                    x_data_transf[:, col_slice] = np.nan
+                    # drop rows that only contain NaNs
+                    not_nan = np.isfinite(x_data_transf).any(axis=1)
+                    x_data_transf = x_data_transf[not_nan]
+                    y_data_transf = y_data[not_nan]
+                    if x_data_transf.shape[0] < 4:
+                        continue
+                    self.__log.info("%s X: %s", ds, x_data_transf.shape)
+                    # call predict
+                    save_dir = os.path.join(adanet_path, 'savedmodel')
+                    y_pred = AdaNet.predict(save_dir, x_data_transf)
+                    if suffix:
+                        name = ("AdaNet_%s" % suffix, "-self")
+                    else:
+                        name = ("AdaNet", "-self")
+                    results[name][part] = dict()
+                    results[name][part]['true'] = y_data_transf
+                    results[name][part]['pred'] = y_pred
+                    results[name][part]['part_size'] = y_data_transf.shape[0]
+                    results[name][part]['coverage'] = y_data_transf.shape[0] / \
+                        total_size
+                    results[name][part]['time'] = 0.
+
         return results
 
     @staticmethod
@@ -359,14 +386,18 @@ class sign3(BaseSignature):
         """Perform a grid search.
 
         parameters = [
-            {"init": {'augmentation': False}, "fit": {"suffix": "BASE"}},
-            {"init": {'augmentation': False}, "fit": {"suffix": "BASE*", "include_self": True}},
-            {"init": {'augmentation': sign3.subsample}, "fit": {"suffix": "SUB"}},
-            {"init": {'augmentation': sign3.subsample}, "fit": {"suffix": "SUB*", "include_self": True}},
-            {"init": {'augmentation': sign3.subsample, 'epoch_per_iteration': 1500}, "fit": {"suffix": "AUG"}},
-            {"init": {'augmentation': sign3.subsample, 'epoch_per_iteration': 1500}, "fit": {"suffix": "AUG*", "include_self": True}},
-            {"init": {'augmentation': sign3.subsample, 'epoch_per_iteration': 30000}, "fit": {"suffix": "AUG+"}},
-            {"init": {'augmentation': sign3.subsample, 'epoch_per_iteration': 30000}, "fit": {"suffix": "AUG+*", "include_self": True}},
+            {"init":
+             {'augmentation': False},
+             "fit": {"suffix": "BASE"}},
+            {"init":
+             {'augmentation': sign3.subsample},
+             "fit": {"suffix": "SUB"}},
+            {"init":
+             {'augmentation': sign3.subsample, 'epoch_per_iteration': 150},
+             "fit": {"suffix": "AUG"}},
+            {"init":
+             {'augmentation': sign3.subsample, 'epoch_per_iteration': 500},
+             "fit": {"suffix": "AUG+"}},
         ]
         """
         import chemicalchecker

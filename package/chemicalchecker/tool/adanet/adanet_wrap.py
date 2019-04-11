@@ -472,7 +472,6 @@ class AdaNetWrapper(object):
         partitions = ['train', 'test', 'validation']
         x = dict()
         y = dict()
-        part_size = 0
         for part in partitions:
             # get dataset split
             traintest = Traintest(self.traintest_file, part,
@@ -481,7 +480,6 @@ class AdaNetWrapper(object):
             x[part] = traintest.get_all_x()
             y[part] = traintest.get_all_y()
             traintest.close()
-            part_size += x[part].shape[0]
         # save in pandas
         df = pd.DataFrame(columns=[
             'dataset', 'component', 'r2', 'pearson', 'algo', 'mse',
@@ -618,18 +616,19 @@ class AdaNetWrapper(object):
         if not extra_predictors:
             return
 
-        for (name, from_ds), preds in extra_predictors.items():
+        for name, preds in extra_predictors.items():
             rows = dict()
             for part in partitions:
                 if part not in preds:
                     continue
                 self.__log.info("Performances for %s on %s", name, part)
+                algo, from_ds = name
                 y_pred = preds[part]['pred']
                 y_true = preds[part]['true']
                 part_size = preds[part]['part_size']
                 runtime = preds[part]['time']
                 coverage = preds[part]['coverage']
-                rows[part] = _stats_row(y_true, y_pred, name, part, from_ds)
+                rows[part] = _stats_row(y_true, y_pred, algo, part, from_ds)
                 rows[part] = _update_row(rows[part], "coverage", coverage)
                 rows[part] = _update_row(rows[part], "time", runtime)
                 rows[part] = _update_row(
@@ -643,7 +642,7 @@ class AdaNetWrapper(object):
                 # log and save plot
                 #_log_row(rows[part])
                 # plot.sign2_prediction_plot(
-                #    y_true, y_pred, "%s_%s" % (name, part))
+                #    y_true, y_pred, "%s_%s" % (algo, part))
 
             # save rows
             for part in partitions:
