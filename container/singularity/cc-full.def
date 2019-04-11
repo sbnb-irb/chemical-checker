@@ -4,12 +4,7 @@ From: centos
 %environment
     # PATHS
     export PATH=/opt/miniconda2/bin:$PATH
-    export PYTHONPATH="/opt/chemical_checker/package":$PYTHONPATH
-    export CC_CONFIG="/opt/chemical_checker/cc_config.json"
     source activate py27
-    alias ll='ls -l'
-    alias ipy='ipython'
-    alias py='python'
 
 %post
     # bind paths
