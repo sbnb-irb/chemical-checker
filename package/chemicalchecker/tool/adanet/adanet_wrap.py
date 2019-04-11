@@ -156,29 +156,30 @@ class Traintest(object):
         train_idxs, test_idxs, val_idxs = Traintest.get_split_indeces(
             X, [.8, .1, .1])
 
-        x_train = X[train_idxs]
-        y_train = Y[train_idxs]
-
         # create dataset
+        Traintest.__log.info('Traintest saving to %s', out_filename)
         with h5py.File(out_filename, "w") as fh:
-            fh.create_dataset('x_train', data=x_train, dtype=np.float32)
-            fh.create_dataset('y_train', data=y_train, dtype=np.float32)
-            fh.create_dataset('x_test', data=X[test_idxs], dtype=np.float32)
-            fh.create_dataset('y_test', data=Y[test_idxs], dtype=np.float32)
-            fh.create_dataset('x_validation', data=X[
-                              val_idxs], dtype=np.float32)
-            fh.create_dataset('y_validation', data=Y[
-                              val_idxs], dtype=np.float32)
+            # train
+            fh.create_dataset('x_train', data=X[train_idxs], dtype=np.float32)
             Traintest.__log.debug("{:<20} shape: {:>10}".format(
                 "x_train", fh["x_train"].shape))
+            fh.create_dataset('y_train', data=Y[train_idxs], dtype=np.float32)
             Traintest.__log.debug("{:<20} shape: {:>10}".format(
                 "y_train", fh["y_train"].shape))
+            # test
+            fh.create_dataset('x_test', data=X[test_idxs], dtype=np.float32)
             Traintest.__log.debug("{:<20} shape: {:>10}".format(
                 "x_test", fh["x_test"].shape))
+            fh.create_dataset('y_test', data=Y[test_idxs], dtype=np.float32)
             Traintest.__log.debug("{:<20} shape: {:>10}".format(
                 "y_test", fh["y_test"].shape))
+            # validation
+            fh.create_dataset('x_validation', data=X[
+                              val_idxs], dtype=np.float32)
             Traintest.__log.debug("{:<20} shape: {:>10}".format(
                 "x_validation", fh["x_validation"].shape))
+            fh.create_dataset('y_validation', data=Y[
+                              val_idxs], dtype=np.float32)
             Traintest.__log.debug("{:<20} shape: {:>10}".format(
                 "y_validation", fh["y_validation"].shape))
         fh.close()
@@ -422,7 +423,7 @@ class AdaNetWrapper(object):
                     seed=self.random_seed).repeat()
                 if augmentation:
                     dataset = dataset.map(lambda x, y: tuple(
-                        tf.py_func(augmentation, [x, y], [x.dtype, y.dtype])))
+                        tf.py_function(augmentation, [x, y], [x.dtype, y.dtype])))
             iterator = dataset.make_one_shot_iterator()
             features, labels = iterator.get_next()
             return {'x': features}, labels
@@ -623,8 +624,8 @@ class AdaNetWrapper(object):
                     continue
                 self.__log.info("Performances for %s on %s", name, part)
                 algo, from_ds = name
-                y_pred = preds[part]['pred']
-                y_true = preds[part]['true']
+                y_pred = np.load(preds[part]['pred'] + ".npy")
+                y_true = np.load(preds[part]['true'] + ".npy")
                 part_size = preds[part]['part_size']
                 runtime = preds[part]['time']
                 coverage = preds[part]['coverage']
