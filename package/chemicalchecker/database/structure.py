@@ -1,7 +1,8 @@
 from chemicalchecker.util import logged
 from .database import Base, get_session, get_engine
-from sqlalchemy import Column, Text
+from sqlalchemy import Column, Text, or_
 from sqlalchemy.dialects import postgresql
+from tqdm import tqdm
 
 
 @logged
@@ -66,6 +67,23 @@ class Structure(Base):
         return res
 
     @staticmethod
+    def get_inchikey_inchi_mapping(inchikeys, batch=10000):
+        mapping = dict()
+        for ink in inchikeys:
+            mapping[ink] = None
+
+        engine = get_engine()
+        table = Structure.__table__
+        for idx in tqdm(range(0, len(inchikeys), batch)):
+            conditions = [table.columns.inchikey ==
+                          ink for ink in inchikeys[idx:idx + batch]]
+            query = table.select(or_(*conditions))
+            res = engine.execute(query).fetchall()
+            mapping.update(dict(res))
+
+        return mapping
+
+    @staticmethod
     def get_missing_from_set(keys):
         size = 1000
         present = set()
@@ -103,7 +121,8 @@ class Structure(Base):
                 continue
             set_inks.add(ele[0])
 
-        Structure.__log.debug("Size initial data to add: " + str(len(set_inks)))
+        Structure.__log.debug(
+            "Size initial data to add: " + str(len(set_inks)))
 
         todo_iks = Structure.get_missing_from_set(set_inks)
 
