@@ -155,13 +155,13 @@ then
     sudo rm -f $LOCAL_IMAGE;
 
     # change pythonpath in the image permanently to different CC repository
-    if [ "$CHANGE_ENV" = true ]
-    then
-        text_replace_py="/export PYTHONPATH/c\\    export PYTHONPATH=\""$PATH_BRANCH"/package\":\$PYTHONPATH";
-        text_replace_conf="/export CC_CONFIG/c\\    export CC_CONFIG=\""$PATH_BRANCH"/cc_config.json\"";
-        sudo singularity exec  --writable $LOCAL_IMAGE_SANDBOX sed -i "$text_replace_py" /environment;
-        sudo singularity exec  --writable $LOCAL_IMAGE_SANDBOX sed -i "$text_replace_conf" /environment;
-    fi
+    # if [ "$CHANGE_ENV" = true ]
+    # then
+    #     text_replace_py="/export PYTHONPATH/c\\    export PYTHONPATH=\""$PATH_BRANCH"/package\":\$PYTHONPATH";
+    #     text_replace_conf="/export CC_CONFIG/c\\    export CC_CONFIG=\""$PATH_BRANCH"/cc_config.json\"";
+    #     sudo singularity exec  --writable $LOCAL_IMAGE_SANDBOX sed -i "$text_replace_py" /environment;
+    #     sudo singularity exec  --writable $LOCAL_IMAGE_SANDBOX sed -i "$text_replace_conf" /environment;
+    # fi
 
     # update CC to latest
     if [ "$UPDATE_CC" = true ]
