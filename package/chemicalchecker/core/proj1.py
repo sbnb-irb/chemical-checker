@@ -221,7 +221,7 @@ class proj1(BaseSignature):
                 inchikey_proj[k] = projections[i]
             hf.create_dataset("V", data=projections)
             hf.create_dataset("keys", data=self.keys)
-            name = str(self.dataset.code) + "_proj1"
+            name = str(self.dataset) + "_proj1"
             hf.create_dataset(
                 "name", data=[name.encode(encoding='UTF-8', errors='strict')])
             hf.create_dataset(
@@ -329,7 +329,7 @@ class proj1(BaseSignature):
                 inchikey_proj[k] = projections[i]
             hf.create_dataset("V", data=projections)
             hf.create_dataset("keys", data=self.keys)
-            name = str(self.dataset.code) + "_proj1"
+            name = str(self.dataset) + "_proj1"
             hf.create_dataset(
                 "name", data=[name.encode(encoding='UTF-8', errors='strict')])
             hf.create_dataset(

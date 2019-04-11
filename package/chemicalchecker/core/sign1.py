@@ -50,6 +50,14 @@ class sign1(BaseSignature):
         self.variance_cutoff = 0.9
         self.integerize = False
         self.not_normalized = False
+
+        dataset_obj = Dataset.get(dataset)
+        if dataset_obj is None:
+            self.__log.warning(
+                'Code %s returns no dataset', dataset_obj)
+            raise Exception("No dataset for code: " + dataset_obj)
+        self.discrete = dataset_obj.discrete
+
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
             if "min_freq" in params:
@@ -106,11 +114,11 @@ class sign1(BaseSignature):
         mappings = None
 
         tmp_dir = tempfile.mkdtemp(
-            prefix='sign1_' + self.dataset.code + "_", dir=Config().PATH.CC_TMP)
+            prefix='sign1_' + self.dataset + "_", dir=Config().PATH.CC_TMP)
 
         self.__log.debug("Temporary files saved in " + tmp_dir)
 
-        if self.dataset.discrete:
+        if self.discrete:
 
             with h5py.File(input_data, "r") as hf:
                 keys = hf["keys"][:]
@@ -264,7 +272,7 @@ class sign1(BaseSignature):
                 X += [[float(x) for x in r[1].split(",")]]
             X = np.array(X)
 
-            if self.dataset.coordinate == 'A5':
+            if self.dataset[:2] == 'A5':
                 scl = RobustScaler()
                 scl.fit(X)
                 joblib.dump(scl, self.model_path + "/robustscaler.pkl")
@@ -327,7 +335,7 @@ class sign1(BaseSignature):
 
         with h5py.File(self.data_path, "a") as hf:
             hf.create_dataset(
-                "name", data=[str(self.dataset.code) + "_sig"])
+                "name", data=[str(self.dataset) + "_sig"])
             hf.create_dataset(
                 "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
             hf.create_dataset("metric", data=["cosine"])
@@ -442,9 +450,9 @@ class sign1(BaseSignature):
         mappings = None
 
         tmp_dir = tempfile.mkdtemp(
-            prefix='sign1_' + self.dataset.code + "_", dir=Config().PATH.CC_TMP)
+            prefix='sign1_' + self.dataset + "_", dir=Config().PATH.CC_TMP)
 
-        if self.dataset.discrete:
+        if self.discrete:
 
             with h5py.File(input_data, "r") as hf:
                 keys = hf["keys"][:]
@@ -574,7 +582,7 @@ class sign1(BaseSignature):
                 X += [[float(x) for x in r[1].split(",")]]
             X = np.array(X)
 
-            if self.dataset.coordinate == 'A5':
+            if self.dataset[:2] == 'A5':
                 scl = RobustScaler()
                 scl.fit(X)
                 joblib.dump(scl, self.model_path + "/robustscaler.pkl")
@@ -629,7 +637,7 @@ class sign1(BaseSignature):
 
         with h5py.File(destination, "a") as hf:
             hf.create_dataset(
-                "name", data=[str(self.dataset.code) + "_sig"])
+                "name", data=[str(self.dataset) + "_sig"])
             hf.create_dataset(
                 "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
             hf.create_dataset("metric", data=["cosine"])

@@ -47,7 +47,7 @@ class sign0(BaseSignature):
         self.preprocess_script = os.path.join(
             Config().PATH.CC_REPO,
             "package/scripts/preprocess",
-            self.dataset.code,
+            self.dataset,
             "run.py")
         if not os.path.isfile(self.preprocess_script):
             self.__log.warn("Pre-process sript not found! %s",
@@ -219,7 +219,7 @@ class sign0(BaseSignature):
             'E5': 'ddis'
         }
         # get old keys
-        table_name = old_table_names[self.dataset.coordinate]
+        table_name = old_table_names[self.dataset[:2]]
         res = psql.qstring('SELECT inchikey FROM %s;' % table_name, old_dbname)
         old_keys = set(r[0] for r in res)
         # compare to new

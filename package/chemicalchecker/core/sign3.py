@@ -56,11 +56,11 @@ class sign3(BaseSignature):
         # get current space on which we'll train (using reference set to
         # limit redundancy)
         my_sign2 = chemchecker.get_signature(
-            'sign2', 'full_map', self.dataset.code)
+            'sign2', 'full_map', self.dataset)
         # get other space signature 2 for molecule in current space (allow nan)
         other_spaces = list(chemchecker.datasets)
         if not include_self:
-            other_spaces.remove(self.dataset.code)
+            other_spaces.remove(self.dataset)
         ref_dimension = my_sign2.shape[1]
         sign2_matrix = np.zeros(
             (my_sign2.shape[0], ref_dimension * len(other_spaces)),
@@ -227,7 +227,7 @@ class sign3(BaseSignature):
             traintest.close()
             # iterate on spaces
             other_spaces = list(chemchecker.datasets)
-            other_spaces.remove(self.dataset.code)
+            other_spaces.remove(self.dataset)
 
             # for each of the spaces generate individual prediction
             # with all methods (each with its own prediction matrix)
@@ -352,7 +352,7 @@ class sign3(BaseSignature):
                     total_size
                 results[name][part]['time'] = 0.
                 # case to fairly evaluate performances, predicting without Ys
-                if ds in self.dataset.code:
+                if ds in self.dataset:
                     # set current space to nan
                     col_slice = slice(idx * 128, (idx + 1) * 128)
                     x_data_transf = np.copy(x_data)
@@ -390,17 +390,16 @@ class sign3(BaseSignature):
              {'augmentation': False},
              "fit": {"suffix": "BASE"}},
             {"init":
-             {'augmentation': sign3.subsample},
+             {'augmentation': subsample},
              "fit": {"suffix": "SUB"}},
             {"init":
-             {'augmentation': sign3.subsample, 'epoch_per_iteration': 150},
+             {'augmentation': subsample, 'epoch_per_iteration': 150},
              "fit": {"suffix": "AUG"}},
             {"init":
-             {'augmentation': sign3.subsample, 'epoch_per_iteration': 500},
+             {'augmentation': subsample, 'epoch_per_iteration': 500},
              "fit": {"suffix": "AUG+"}},
         ]
         """
-        import chemicalchecker
         from chemicalchecker.util.hpc import HPC
         from chemicalchecker.util import Config
 
@@ -409,7 +408,8 @@ class sign3(BaseSignature):
             os.mkdir(job_path)
         # create script file
         cc_config = os.environ['CC_CONFIG']
-        cc_package = os.path.join(chemicalchecker.__path__[0], '../')
+        cfg = Config(cc_config)
+        cc_package = os.path.join(cfg.PATH.CC_REPO, 'package')
         script_lines = [
             "import sys, os",
             "import pickle",
