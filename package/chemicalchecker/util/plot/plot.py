@@ -800,7 +800,7 @@ class Plot():
             plt.savefig(filename, dpi=100)
             plt.close()
 
-    def sign3_adanet_comparison(self, sign3, metric="pearson", pathbase="adanet_CMP"):
+    def sign3_adanet_comparison(self, sign3, metric="pearson", pathbase="adanet"):
         dir_names = list()
         for name in os.listdir(sign3.model_path):
             if pathbase is not None and not name.startswith(pathbase):
@@ -836,7 +836,7 @@ class Plot():
                         row_order=['train', 'test', 'validation'],
                         legend_out=True, sharex=False,
                         data=df, height=6, aspect=3, kind="bar",
-                        palette=sns.color_palette("Blues")[-4:])
+                        palette="muted")
         g.set(ylim=(0, 1))
         g.map_dataframe(sns.stripplot, x="from", y="coverage",
                         order=order, jitter=False, palette=['crimson'])
