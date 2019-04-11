@@ -25,6 +25,8 @@ def main(args):
 
     map_files = {}
 
+    # Data sources associated to this dataset are stored in map_files
+    # Keys are the datasources names and values the file paths
     for ds in dataset.datasources:
         map_files[ds.name] = ds.data_path
 
