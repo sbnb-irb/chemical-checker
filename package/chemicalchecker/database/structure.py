@@ -2,7 +2,6 @@ from chemicalchecker.util import logged
 from .database import Base, get_session, get_engine
 from sqlalchemy import Column, Text, or_
 from sqlalchemy.dialects import postgresql
-from tqdm import tqdm
 
 
 @logged
@@ -74,7 +73,7 @@ class Structure(Base):
 
         engine = get_engine()
         table = Structure.__table__
-        for idx in tqdm(range(0, len(inchikeys), batch)):
+        for idx in range(0, len(inchikeys), batch):
             conditions = [table.columns.inchikey ==
                           ink for ink in inchikeys[idx:idx + batch]]
             query = table.select(or_(*conditions))
