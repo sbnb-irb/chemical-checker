@@ -344,9 +344,15 @@ class sign3(BaseSignature):
                     name = ("AdaNet_%s" % suffix, ds)
                 else:
                     name = ("AdaNet", ds)
+                file_true = os.path.join(
+                    adanet_path, "_".join(list(name) + [part, 'true']))
+                np.save(file_true, y_data_transf)
+                file_pred = os.path.join(
+                    adanet_path, "_".join(list(name) + [part, 'pred']))
+                np.save(file_pred, y_pred)
                 results[name][part] = dict()
-                results[name][part]['true'] = y_data_transf
-                results[name][part]['pred'] = y_pred
+                results[name][part]['true'] = file_true
+                results[name][part]['pred'] = file_pred
                 results[name][part]['part_size'] = y_data_transf.shape[0]
                 results[name][part]['coverage'] = y_data_transf.shape[0] / \
                     total_size
@@ -371,9 +377,15 @@ class sign3(BaseSignature):
                         name = ("AdaNet_%s" % suffix, "-self")
                     else:
                         name = ("AdaNet", "-self")
+                    file_true = os.path.join(
+                        adanet_path, "_".join(list(name) + [part, 'true']))
+                    np.save(file_true, y_data_transf)
+                    file_pred = os.path.join(
+                        adanet_path, "_".join(list(name) + [part, 'pred']))
+                    np.save(file_pred, y_pred)
                     results[name][part] = dict()
-                    results[name][part]['true'] = y_data_transf
-                    results[name][part]['pred'] = y_pred
+                    results[name][part]['true'] = file_true
+                    results[name][part]['pred'] = file_pred
                     results[name][part]['part_size'] = y_data_transf.shape[0]
                     results[name][part]['coverage'] = y_data_transf.shape[0] / \
                         total_size
@@ -393,11 +405,14 @@ class sign3(BaseSignature):
              {'augmentation': subsample},
              "fit": {"suffix": "SUB"}},
             {"init":
-             {'augmentation': subsample, 'epoch_per_iteration': 150},
-             "fit": {"suffix": "AUG"}},
+             {'augmentation': subsample, 'epoch_per_iteration': 25},
+             "fit": {"suffix": "AUG_25"}},
             {"init":
-             {'augmentation': subsample, 'epoch_per_iteration': 500},
-             "fit": {"suffix": "AUG+"}},
+             {'augmentation': subsample, 'epoch_per_iteration': 250},
+             "fit": {"suffix": "AUG_250"}},
+            {"init":
+             {'augmentation': subsample, 'epoch_per_iteration': 2500},
+             "fit": {"suffix": "AUG_2500"}},
         ]
         """
         from chemicalchecker.util.hpc import HPC
