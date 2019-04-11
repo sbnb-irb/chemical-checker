@@ -19,6 +19,7 @@ from .signature_base import BaseSignature
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 from chemicalchecker.util.plot import Plot
+from chemicalchecker.database import Dataset
 
 
 @logged
