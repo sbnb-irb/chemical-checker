@@ -111,16 +111,11 @@ class ChemicalChecker():
             data(Signature): A `Signature` object, the specific type depends
                 on the cctype passed.
         """
-        dataset = Dataset.get(dataset_code)
-        if dataset is None:
-            self.__log.warning(
-                'Code %s returns no dataset', dataset_code)
-            raise Exception("No dataset for code: " + dataset_code)
         signature_path = self.get_signature_path(cctype, molset, dataset_code)
         validation_path = self.get_validation_path()
         # the factory will return the signature with the right class
         data = DataFactory.make_data(
-            cctype, signature_path, validation_path, dataset, **params)
+            cctype, signature_path, validation_path, dataset_code, **params)
         return data
 
     @staticmethod
