@@ -439,6 +439,14 @@ class AdaNetWrapper(object):
         return pred['predictions']
 
     @staticmethod
+    def predict_fn(model_dir):
+        """Predict on given testset."""
+        predict_fn = predictor.from_saved_model(
+            model_dir, signature_def_key='predict')
+        #pred = predict_fn({'x': signature[:]})
+        return predict_fn
+
+    @staticmethod
     def predict_online(model_dir, h5_file, partition, batch_size=10000):
         """Predict on given testset."""
         predict_fn = predictor.from_saved_model(
