@@ -405,6 +405,9 @@ class sign3(BaseSignature):
              {'augmentation': subsample},
              "fit": {"suffix": "SUB"}},
             {"init":
+             {'augmentation': subsample, 'adanet_iterations': 1},
+             "fit": {"suffix": "SUB_1it"}},
+            {"init":
              {'augmentation': subsample, 'epoch_per_iteration': 25},
              "fit": {"suffix": "AUG_25"}},
             {"init":
@@ -481,7 +484,7 @@ def subsample(vector, label):
             # present datasets
             present_idxs = np.argwhere(presence).flatten()
             # how many dataset in this subsampling?
-            max_add = present_idxs.shape[0] - 1
+            max_add = present_idxs.shape[0]
             n_to_add = np.random.choice(max_add) + 1
             # which ones?
             to_add = np.random.choice(
