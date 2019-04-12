@@ -438,6 +438,19 @@ class AdaNetWrapper(object):
         pred = predict_fn({'x': signature[:]})
         return pred['predictions']
 
+    @staticmethod
+    def predict_online(model_dir, h5_file, partition, batch_size=10000):
+        """Predict on given testset."""
+        predict_fn = predictor.from_saved_model(
+            model_dir, signature_def_key='predict')
+        x_shape, y_shape, fn = Traintest.generator_fn(
+            h5_file, partition, batch_size, only_x=True)
+        Y = np.zeros(y_shape, dtype=np.float32)
+        for idx, X in enumerate(fn()):
+            pred = predict_fn({'x': X})
+            Y[idx * batch_size:(idx + 1) * batch_size] = pred['predictions']
+        return Y
+
     def save_model(self, model_dir):
         def serving_input_fn():
             inputs = {
@@ -471,14 +484,14 @@ class AdaNetWrapper(object):
         """Save stats and make plots."""
         # read input
         partitions = ['train', 'test', 'validation']
-        x = dict()
+        #x = dict()
         y = dict()
         for part in partitions:
             # get dataset split
             traintest = Traintest(self.traintest_file, part,
                                   replace_nan=self.nan_mask_value)
             traintest.open()
-            x[part] = traintest.get_all_x()
+            #x[part] = traintest.get_all_x()
             y[part] = traintest.get_all_y()
             traintest.close()
         # save in pandas
@@ -538,7 +551,8 @@ class AdaNetWrapper(object):
         rows = dict()
         for part in partitions:
             self.__log.info("Performances for AdaNet on %s" % part)
-            y_pred = AdaNetWrapper.predict(self.save_dir, x[part])
+            y_pred = AdaNetWrapper.predict_online(
+                self.save_dir, self.traintest_file, part)
             if suffix:
                 name = "AdaNet_%s" % suffix
             else:
@@ -577,6 +591,8 @@ class AdaNetWrapper(object):
         output_csv = os.path.join(output_dir, 'stats.csv')
         df.to_csv(output_csv)
 
+        '''
+        # TODO use out-of-core linear regression
         # compare to baseline Linear Regression
         linreg_start = time()
         linreg = LinearRegression().fit(x['train'], y['train'])
@@ -602,6 +618,7 @@ class AdaNetWrapper(object):
             #_log_row(rows[part])
             # plot.sign2_prediction_plot(
             #    y[part], y_pred, "LinearRegression_%s" % part)
+        '''
 
         # save rows
         for part in partitions:
