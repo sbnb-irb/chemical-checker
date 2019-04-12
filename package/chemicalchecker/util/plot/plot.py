@@ -827,8 +827,7 @@ class Plot():
         if 'ALL' in froms:
             froms.remove('ALL')
             order = ['ALL'] + froms
-        hue_order = df[(df.dataset == 'test') & (df.component == 1) & (
-            df['from'] == 'A1.001')].sort_values('pearson')['algo'].to_list()
+        hue_order = sorted(df[df['from'] == 'A1.001']['algo'].unique())
 
         sns.set_style("whitegrid")
         g = sns.catplot(x="from", y=metric, hue="algo", row="dataset",
