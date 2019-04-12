@@ -800,7 +800,7 @@ class Plot():
             plt.savefig(filename, dpi=100)
             plt.close()
 
-    def sign3_adanet_comparison(self, sign3, metric="pearson", pathbase="adanet"):
+    def sign3_adanet_comparison(self, sign3, metric="pearson", pathbase="adanet", hue_order=None):
         dir_names = list()
         for name in os.listdir(sign3.model_path):
             if pathbase is not None and not name.startswith(pathbase):
@@ -827,7 +827,8 @@ class Plot():
         if 'ALL' in froms:
             froms.remove('ALL')
             order = ['ALL'] + froms
-        hue_order = sorted(df[df['from'] == 'A1.001']['algo'].unique())
+        if hue_order is None:
+            hue_order = sorted(df[df['from'] == 'A1.001']['algo'].unique())
 
         sns.set_style("whitegrid")
         g = sns.catplot(x="from", y=metric, hue="algo", row="dataset",
@@ -835,7 +836,7 @@ class Plot():
                         row_order=['train', 'test', 'validation'],
                         legend_out=True, sharex=False,
                         data=df, height=6, aspect=3, kind="bar",
-                        palette="muted")
+                        palette=sns.color_palette("Blues"))
         g.set(ylim=(0, 1))
         g.map_dataframe(sns.stripplot, x="from", y="coverage",
                         order=order, jitter=False, palette=['crimson'])
