@@ -311,6 +311,9 @@ class sign3(BaseSignature):
         results[(name[0], "-self")] = dict()
         self.__log.info("%s" % results)
 
+        # get predict function
+        save_dir = os.path.join(adanet_path, 'savedmodel')
+        predict_fn = AdaNet.predict_fn(save_dir)
         for part in ['train', 'test', 'validation']:
             traintest = Traintest(traintest_file, part)
             traintest.open()
@@ -338,8 +341,7 @@ class sign3(BaseSignature):
                     continue
                 self.__log.info("%s X: %s", ds, x_data_transf.shape)
                 # call predict
-                save_dir = os.path.join(adanet_path, 'savedmodel')
-                y_pred = AdaNet.predict(save_dir, x_data_transf)
+                y_pred = predict_fn({'x': x_data_transf[:]})['predictions']
                 if suffix:
                     name = ("AdaNet_%s" % suffix, ds)
                 else:
@@ -457,7 +459,7 @@ class sign3(BaseSignature):
         params["job_name"] = "CC_SIGN3_TEST_PARAMS"
         params["elements"] = elements
         params["wait"] = False
-        params["memory"] = 6
+        params["memory"] = 16
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
