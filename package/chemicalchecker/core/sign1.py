@@ -19,7 +19,6 @@ from .signature_base import BaseSignature
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 from chemicalchecker.util.plot import Plot
-from chemicalchecker.database import Dataset
 
 
 @logged
@@ -51,13 +50,11 @@ class sign1(BaseSignature):
         self.variance_cutoff = 0.9
         self.integerize = False
         self.not_normalized = False
+        self.discrete = True
 
-        dataset_obj = Dataset.get(dataset)
-        if dataset_obj is None:
+        if "discrete" not in params:
             self.__log.warning(
-                'Code %s returns no dataset', dataset_obj)
-            raise Exception("No dataset for code: " + dataset_obj)
-        self.discrete = dataset_obj.discrete
+                'Sign1 using default value (True) for discrete parameter')
 
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
@@ -81,6 +78,8 @@ class sign1(BaseSignature):
                 self.integerize = params["integerize"]
             if "not_normalized" in params:
                 self.not_normalized = params["not_normalized"]
+            if "discrete" in params:
+                self.discrete = params["discrete"]
 
     def fit(self, sign0, validations=True):
         """Take `sign0` and learn an unsupervised `sign1` predictor.
