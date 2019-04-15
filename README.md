@@ -69,7 +69,7 @@ The setup_chemicalchecker script has created an alias in your ~/.bashrc so you c
 
 After the first run of this script you can **update** the Chemical Checker package with the following command:
 
-        sh setup_chemicalchecker.sh -i
+        sh setup_chemicalchecker.sh -u
         
 If you only want to change the config file, run the script with the -e argument:
 
