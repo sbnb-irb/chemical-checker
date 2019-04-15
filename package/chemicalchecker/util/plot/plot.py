@@ -829,19 +829,22 @@ class Plot():
             order = ['ALL'] + froms
         if hue_order is None:
             hue_order = sorted(df[df['from'] == 'A1.001']['algo'].unique())
+        else:
+            df = df[df.algo.isin(hue_order)]
         if palette is None:
-            palette =  sns.color_palette("Blues")
+            palette = sns.color_palette("Blues")
 
         sns.set_style("whitegrid")
         g = sns.catplot(x="from", y=metric, hue="algo", row="dataset",
                         order=order, hue_order=hue_order,
                         row_order=['train', 'test', 'validation'],
-                        legend_out=True, sharex=False,
+                        legend=False, sharex=False,
                         data=df, height=6, aspect=3, kind="bar",
                         palette=palette)
-        g.set(ylim=(0, 1))
         g.map_dataframe(sns.stripplot, x="from", y="coverage",
                         order=order, jitter=False, palette=['crimson'])
+        plt.legend(loc='upper right')
+        g.set(ylim=(0, 1))
         if pathbase is not None:
             qual = "_".join([self.dataset_code, metric, pathbase])
         else:
@@ -890,7 +893,7 @@ class Plot():
         g = sns.catplot(x="from", y=metric, hue="algo", row="dataset",
                         order=order, hue_order=hue_order,
                         row_order=['train', 'test', 'validation'],
-                        legend_out=True, sharex=False,
+                        legend_out=False, sharex=False,
                         data=df, height=6, aspect=3, kind="bar",
                         palette=[sns.color_palette('Greens')[2],
                                  sns.color_palette('Oranges')[2],
