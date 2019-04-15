@@ -576,7 +576,7 @@ class AdaNetWrapper(object):
                 rows[part], "architecture_history", self.architecture())
             # log and save plot
             #_log_row(rows[part])
-            #plot.sign2_prediction_plot(y[part], y_pred, "AdaNet_%s" % part)
+            plot.sign2_prediction_plot(y_true, y_pred, "AdaNet_%s" % part)
 
         # some additional shared stats
         # get nr of variables in final model
@@ -673,8 +673,8 @@ class AdaNetWrapper(object):
                 rows[part] = _update_row(rows[part], "nn_layers", 0)
                 # log and save plot
                 #_log_row(rows[part])
-                # plot.sign2_prediction_plot(
-                #    y_true, y_pred, "%s_%s" % (algo, part))
+                plot.sign2_prediction_plot(
+                    y_true, y_pred, "_".join(list(name) + [part]))
 
             # save rows
             for part in partitions:
