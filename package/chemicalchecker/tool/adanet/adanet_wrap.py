@@ -49,6 +49,13 @@ class Traintest(object):
         self.y_name = "y_%s" % partition
         self.replace_nan = replace_nan
 
+    def get_xy_shapes(self):
+        self.open()
+        x_shape = self._f[self.x_name].shape
+        y_shape = self._f[self.y_name].shape
+        self.close()
+        return x_shape, y_shape
+
     def open(self):
         """Open the HDF5."""
         self._f = h5py.File(self._file, 'r')
@@ -64,6 +71,7 @@ class Traintest(object):
 
     def get_xy(self, beg_idx, end_idx):
         """Get the batch."""
+        #self.__log.debug("HDF5 get_xy %s:%s", beg_idx, end_idx)
         features = self._f[self.x_name][beg_idx: end_idx]
         # handle NaNs
         if self.replace_nan is not None:
@@ -431,10 +439,11 @@ class AdaNetWrapper(object):
         return _input_fn
 
     @staticmethod
-    def predict(model_dir, signature):
+    def predict(model_dir, signature, predict_fn=None):
         """Predict on given testset."""
-        predict_fn = predictor.from_saved_model(
-            model_dir, signature_def_key='predict')
+        if predict_fn is None:
+            predict_fn = predictor.from_saved_model(
+                model_dir, signature_def_key='predict')
         pred = predict_fn({'x': signature[:]})
         return pred['predictions']
 
@@ -447,17 +456,36 @@ class AdaNetWrapper(object):
         return predict_fn
 
     @staticmethod
-    def predict_online(model_dir, h5_file, partition, batch_size=10000):
+    def predict_online(model_dir, h5_file, partition, predict_fn=None, mask_fn=None, batch_size=10000, limit=2000):
         """Predict on given testset."""
-        predict_fn = predictor.from_saved_model(
-            model_dir, signature_def_key='predict')
+        if predict_fn is None:
+            predict_fn = predictor.from_saved_model(
+                model_dir, signature_def_key='predict')
         x_shape, y_shape, fn = Traintest.generator_fn(
-            h5_file, partition, batch_size, only_x=True)
-        Y = np.zeros(y_shape, dtype=np.float32)
-        for idx, X in enumerate(fn()):
-            pred = predict_fn({'x': X})
-            Y[idx * batch_size:(idx + 1) * batch_size] = pred['predictions']
-        return Y
+            h5_file, partition, batch_size, only_x=False)
+        # tha max size of the return prediction is at most same size as input
+        y_pred = np.zeros(y_shape, dtype=np.float32) * np.nan
+        y_true = np.zeros(y_shape, dtype=np.float32) * np.nan
+        last_idx = 0
+        if y_shape[0] < limit:
+            limit = y_shape[0]
+        if mask_fn is None:
+            def mask_fn(x, y):
+                return x, y
+        for x_data, y_data in fn():
+            x_m, y_m = mask_fn(x_data, y_data)
+            if x_m.shape[0] == 0:
+                continue
+            y_m_pred = predict_fn({'x': x_m})
+            y_true[last_idx:last_idx + len(y_m)] = y_m
+            y_pred[last_idx:last_idx + len(y_m)] = y_m_pred['predictions']
+            last_idx += len(y_m)
+            if last_idx >= limit:
+                break
+        # we might not reach the limit
+        if last_idx < limit:
+            limit = last_idx
+        return y_pred[:limit], y_true[:limit]
 
     def save_model(self, model_dir):
         def serving_input_fn():
@@ -492,38 +520,12 @@ class AdaNetWrapper(object):
         """Save stats and make plots."""
         # read input
         partitions = ['train', 'test', 'validation']
-        #x = dict()
-        y = dict()
-        for part in partitions:
-            # get dataset split
-            traintest = Traintest(self.traintest_file, part,
-                                  replace_nan=self.nan_mask_value)
-            traintest.open()
-            #x[part] = traintest.get_all_x()
-            y[part] = traintest.get_all_y()
-            traintest.close()
         # save in pandas
         df = pd.DataFrame(columns=[
             'dataset', 'component', 'r2', 'pearson', 'algo', 'mse',
             'explained_variance', 'time', 'architecture', 'nr_variables',
             'nn_layers', 'layer_size', 'architecture_history', 'from',
             'dataset_size', 'coverage'])
-
-        def _stats_row(y_true, y_pred, algo, dataset, dataset_size):
-            row = dict()
-            row['algo'] = algo
-            row['dataset'] = dataset
-            row['dataset_size'] = dataset_size
-            row['layer_size'] = self.layer_size
-            row['r2'] = r2_score(y_true, y_pred)
-            pps = [pearsonr(y_true[:, x], y_pred[:, x])[0]
-                   for x in range(y_true.shape[1])]
-            row['pearson_avg'] = np.mean(pps)
-            row['pearson_std'] = np.std(pps)
-            row['mse'] = mean_squared_error(y_true, y_pred)
-            row['explained_variance'] = explained_variance_score(
-                y_true, y_pred)
-            return row
 
         def _stats_row(y_true, y_pred, algo, dataset, from_part):
             rows = list()
@@ -557,15 +559,18 @@ class AdaNetWrapper(object):
 
         # Performances for AdaNet
         rows = dict()
+        # load network
+        predict_fn = AdaNetWrapper.predict_fn(self.save_dir)
         for part in partitions:
             self.__log.info("Performances for AdaNet on %s" % part)
-            y_pred = AdaNetWrapper.predict_online(
-                self.save_dir, self.traintest_file, part)
+            y_pred, y_true = AdaNetWrapper.predict_online(
+                self.save_dir, self.traintest_file, part,
+                predict_fn=predict_fn)
             if suffix:
                 name = "AdaNet_%s" % suffix
             else:
                 name = 'AdaNet'
-            rows[part] = _stats_row(y[part], y_pred, name, part, "ALL")
+            rows[part] = _stats_row(y_true, y_pred, name, part, "ALL")
             rows[part] = _update_row(rows[part], "time", self.time)
             rows[part] = _update_row(
                 rows[part], "architecture_history", self.architecture())
@@ -642,7 +647,8 @@ class AdaNetWrapper(object):
         if not extra_predictors:
             return
 
-        for name, preds in extra_predictors.items():
+        for name in sorted(extra_predictors):
+            preds = extra_predictors[name]
             rows = dict()
             for part in partitions:
                 if part not in preds:
@@ -660,10 +666,10 @@ class AdaNetWrapper(object):
                 rows[part] = _update_row(
                     rows[part], "architecture_history", '| linear |')
                 rows[part] = _update_row(
-                    rows[part], "architecture", [y[part].shape[1]])
+                    rows[part], "architecture", [y_true.shape[1]])
                 rows[part] = _update_row(rows[part], "layer_size", 0)
                 rows[part] = _update_row(
-                    rows[part], "nr_variables", [y[part].shape[1]])
+                    rows[part], "nr_variables", [y_true.shape[1]])
                 rows[part] = _update_row(rows[part], "nn_layers", 0)
                 # log and save plot
                 #_log_row(rows[part])

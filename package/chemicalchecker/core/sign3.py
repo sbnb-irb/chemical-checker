@@ -6,6 +6,7 @@ virtually *any* molecule in *any* dataset.
 """
 import os
 import numpy as np
+from functools import partial
 
 from .signature_base import BaseSignature
 
@@ -307,91 +308,107 @@ class sign3(BaseSignature):
             else:
                 name = ("AdaNet", ds)
             results[name] = dict()
-        # consider when the space itself is not available
-        results[(name[0], "-self")] = dict()
-        self.__log.info("%s" % results)
 
-        # get predict function
+        # get predict function (loads the neural network)
+        self.__log.info("Loading AdaNet model")
         save_dir = os.path.join(adanet_path, 'savedmodel')
         predict_fn = AdaNet.predict_fn(save_dir)
         for part in ['train', 'test', 'validation']:
             traintest = Traintest(traintest_file, part)
-            traintest.open()
-            x_data = traintest.get_all_x()
-            y_data = traintest.get_all_y()
-            traintest.close()
-            total_size = float(y_data.shape[0])
-            frac_non_nan = np.count_nonzero(
-                np.isnan(x_data)) / float(x_data.size) * 100
-            self.__log.info("%s X: %s Y: %s, (%.2f%% non NaN)", part,
-                            x_data.shape, y_data.shape, frac_non_nan)
-            self.__log.info("%s Y: %s", part, y_data.shape)
+            x_shape, y_shape = traintest.get_xy_shapes()
+            total_size = float(y_shape[0])
+            self.__log.info("%s X: %s Y: %s", part, x_shape, y_shape)
+            self.__log.info("%s Y: %s", part, y_shape)
             # iterate on spaces
             for idx, ds in enumerate(chemchecker.datasets):
-                # zero out everything apart current space
-                col_slice = slice(idx * 128, (idx + 1) * 128)
-                x_data_transf = np.zeros_like(
-                    x_data, dtype=np.float32) * np.nan
-                x_data_transf[:, col_slice] = x_data[:, col_slice]
-                # current space contain NaNs, drop those rows
-                not_nan = np.isfinite(x_data_transf).any(axis=1)
-                x_data_transf = x_data_transf[not_nan]
-                y_data_transf = y_data[not_nan]
-                if x_data_transf.shape[0] < 4:
-                    continue
-                self.__log.info("%s X: %s", ds, x_data_transf.shape)
+
+                def mask_space(idx, x_data, y_data):
+                    # zero out everything apart current space
+                    col_slice = slice(idx * 128, (idx + 1) * 128)
+                    x_data_transf = np.zeros_like(
+                        x_data, dtype=np.float32) * np.nan
+                    x_data_transf[:, col_slice] = x_data[:, col_slice]
+                    # current space contain NaNs, drop those rows
+                    not_nan = np.isfinite(x_data_transf).any(axis=1)
+                    x_data_transf = x_data_transf[not_nan]
+                    y_data_transf = y_data[not_nan]
+                    return x_data_transf, y_data_transf
+
                 # call predict
-                y_pred = predict_fn({'x': x_data_transf[:]})['predictions']
+                y_pred, y_true = AdaNet.predict_online(
+                    save_dir, traintest_file, part,
+                    predict_fn=predict_fn,
+                    mask_fn=partial(mask_space, idx))
+                self.__log.info("%s Y: %s", ds, y_pred.shape)
+                if y_pred.shape[0] < 4:
+                    continue
+
                 if suffix:
                     name = ("AdaNet_%s" % suffix, ds)
                 else:
                     name = ("AdaNet", ds)
                 file_true = os.path.join(
                     adanet_path, "_".join(list(name) + [part, 'true']))
-                np.save(file_true, y_data_transf)
+                np.save(file_true, y_true)
                 file_pred = os.path.join(
                     adanet_path, "_".join(list(name) + [part, 'pred']))
                 np.save(file_pred, y_pred)
                 results[name][part] = dict()
                 results[name][part]['true'] = file_true
                 results[name][part]['pred'] = file_pred
-                results[name][part]['part_size'] = y_data_transf.shape[0]
-                results[name][part]['coverage'] = y_data_transf.shape[0] / \
+                results[name][part]['part_size'] = y_true.shape[0]
+                results[name][part]['coverage'] = y_true.shape[0] / \
                     total_size
                 results[name][part]['time'] = 0.
+                del y_true
+                del y_pred
+
                 # case to fairly evaluate performances, predicting without Ys
                 if ds in self.dataset:
-                    # set current space to nan
-                    col_slice = slice(idx * 128, (idx + 1) * 128)
-                    x_data_transf = np.copy(x_data)
-                    x_data_transf[:, col_slice] = np.nan
-                    # drop rows that only contain NaNs
-                    not_nan = np.isfinite(x_data_transf).any(axis=1)
-                    x_data_transf = x_data_transf[not_nan]
-                    y_data_transf = y_data[not_nan]
-                    if x_data_transf.shape[0] < 4:
-                        continue
-                    self.__log.info("%s X: %s", ds, x_data_transf.shape)
+
+                    # results when the space itself is not available
+                    if not (name[0], "not-%s" % ds) in results:
+                        results[(name[0], "not-%s" % ds)] = dict()
+
+                    def mask_self(idx, x_data, y_data):
+                        # set current space to nan
+                        col_slice = slice(idx * 128, (idx + 1) * 128)
+                        x_data_transf = np.copy(x_data)
+                        x_data_transf[:, col_slice] = np.nan
+                        # drop rows that only contain NaNs
+                        not_nan = np.isfinite(x_data_transf).any(axis=1)
+                        x_data_transf = x_data_transf[not_nan]
+                        y_data_transf = y_data[not_nan]
+                        return x_data_transf, y_data_transf
+
                     # call predict
-                    save_dir = os.path.join(adanet_path, 'savedmodel')
-                    y_pred = AdaNet.predict(save_dir, x_data_transf)
+                    y_pred, y_true = AdaNet.predict_online(
+                        save_dir, traintest_file, part,
+                        predict_fn=predict_fn,
+                        mask_fn=partial(mask_self, idx))
+                    self.__log.info("%s Y: %s", "not-%s" % ds, y_pred.shape)
+                    if y_pred.shape[0] < 4:
+                        continue
+
                     if suffix:
-                        name = ("AdaNet_%s" % suffix, "-self")
+                        name = ("AdaNet_%s" % suffix, "not-%s" % ds)
                     else:
-                        name = ("AdaNet", "-self")
+                        name = ("AdaNet", "not-%s" % ds)
                     file_true = os.path.join(
                         adanet_path, "_".join(list(name) + [part, 'true']))
-                    np.save(file_true, y_data_transf)
+                    np.save(file_true, y_true)
                     file_pred = os.path.join(
                         adanet_path, "_".join(list(name) + [part, 'pred']))
                     np.save(file_pred, y_pred)
                     results[name][part] = dict()
                     results[name][part]['true'] = file_true
                     results[name][part]['pred'] = file_pred
-                    results[name][part]['part_size'] = y_data_transf.shape[0]
-                    results[name][part]['coverage'] = y_data_transf.shape[0] / \
+                    results[name][part]['part_size'] = y_true.shape[0]
+                    results[name][part]['coverage'] = y_true.shape[0] / \
                         total_size
                     results[name][part]['time'] = 0.
+                    del y_true
+                    del y_pred
 
         return results
 
