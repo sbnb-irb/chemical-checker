@@ -78,7 +78,7 @@ If you only want to change the config file, run the script with the -e argument:
 ## Usage
 
 
-1. Run a Jupiter Notebook with:
+1. Run a Jupyter Notebook with:
 
         chemcheck
 
@@ -90,7 +90,7 @@ If you only want to change the config file, run the script with the -e argument:
 
 2. Run a shell within the image:
 
-        chemcheck -s
+        chemcheck -s [-d <PATH_TO_SOURCE_CODE_ROOT>] [-c <PATH_TO_CONFIG_FILE>]
         
     3.1 Type `ipython`
     
