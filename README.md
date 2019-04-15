@@ -101,7 +101,7 @@ If you only want to change the config file, run the script with the -e argument:
 
 1. You will have to enter the singularity sandbox
 
-        cd ~/local_checker
+        cd ~/chemical_checker
         sudo singularity shell --writable sandbox
 
 2. Install the package/software and exit the image
