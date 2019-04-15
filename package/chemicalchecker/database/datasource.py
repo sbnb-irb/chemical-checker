@@ -46,6 +46,7 @@ class Datasource(Base):
     molrepo_file = Column(Text)
     is_db = Column(Boolean)
     is_universe = Column(Boolean)
+    updatable = Column(Boolean)
 
     datasets = relationship("Dataset",
                             secondary="map_dataset_datasource",
@@ -114,29 +115,42 @@ class Datasource(Base):
                     "Error in line %s: %s", row_nr, str(err))
 
     @staticmethod
-    def get(name=None):
+    def get(name=None, updatable=None):
         """Get Datasources associated to the given dataset.
 
         Args:
             name(str):The Datasource name, e.g "chebi"
         """
-        session = get_session()
+        params = {}
+        if updatable is not None:
+            params["updatable"] = updatable
         if name is not None:
-            query = session.query(Datasource).filter_by(name=name)
-        else:
+            params["name"] = name
+
+        session = get_session()
+
+        if len(params) == 0:
             query = session.query(Datasource).distinct(Datasource.name)
+        else:
+            query = session.query(Datasource).filter_by(**params)
+
         res = query.all()
         session.close()
         return res
 
     @staticmethod
-    def get_molrepos(molrepo_name=None):
+    def get_molrepos(molrepo_name=None, only_updatable=False):
         """Get Datasources associated to a molrepo."""
         session = get_session()
         if molrepo_name is None:
-            query = session.query(Datasource).filter(
-                ~(Datasource.molrepo_name == '')).distinct(
-                Datasource.molrepo_name)
+            if only_updatable:
+                query = session.query(Datasource).filter(
+                    ~(Datasource.molrepo_name == ''), Datasource.updatable == only_updatable).distinct(
+                    Datasource.molrepo_name)
+            else:
+                query = session.query(Datasource).filter(
+                    ~(Datasource.molrepo_name == '')).distinct(
+                    Datasource.molrepo_name)
         else:
             query = session.query(Datasource).filter(
                 (Datasource.molrepo_name == molrepo_name)).distinct(
@@ -164,9 +178,16 @@ class Datasource(Base):
         return all([ds.valid_url for ds in testable_ds])
 
     @staticmethod
-    def test_all_downloaded():
-        """Check if all Datasources have been downloaded."""
-        return all([ds.available for ds in Datasource.get()])
+    def test_all_downloaded(only_updatable=False):
+        """Check if all Datasources have been downloaded.
+
+        Args:
+            only_updatable(bool):Test for only the updatable datasources(default: False).
+        """
+        if only_updatable:
+            return all([ds.available for ds in Datasource.get(updatable=True)])
+        else:
+            return all([ds.available for ds in Datasource.get()])
 
     @staticmethod
     def test_all_molrepo():
@@ -254,11 +275,13 @@ class Datasource(Base):
         down.download()
 
     @staticmethod
-    def download_hpc(job_path):
+    def download_hpc(job_path, only_updatable=False):
         """Run HPC jobs downloading the resources.
 
-        job_path(str): Path (usually in scratch) where the script files are
-            generated.
+        Args:
+            job_path(str): Path (usually in scratch) where the script files are
+                generated.
+            only_updatable(bool):Download only the updatable datasources(default: False).
         """
         import chemicalchecker
         # create job directory if not available
@@ -278,8 +301,8 @@ class Datasource(Base):
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
             "data = inputs[task_id]",  # elements for current job
             "for d in data:",  # elements are indexes
-            "    ds = Datasource.get()[d]",  # query the db
-            "    ds.download()",  # start download
+            "    ds = Datasource.get(name=d)",  # query the db
+            "    ds[0].download()",  # start download
             "print('JOB DONE')"
         ]
         script_name = os.path.join(job_path, 'download_script.py')
@@ -287,12 +310,24 @@ class Datasource(Base):
             for line in script_lines:
                 fh.write(line + '\n')
         # hpc parameters
-        all_datasources = Datasource.get()
+        if only_updatable:
+            all_datasources = []
+            datasources = Datasource.get(updatable=True)
+            for ds in datasources:
+                if ds.updatable:
+                    all_datasources.append(ds)
+        else:
+            all_datasources = Datasource.get()
+
+        ds_names = []
+        for ds in all_datasources:
+            ds_names.append(ds.name)
+
         params = {}
-        params["num_jobs"] = len(all_datasources)
+        params["num_jobs"] = len(ds_names)
         params["jobdir"] = job_path
         params["job_name"] = "CC_DOWNLOAD"
-        params["elements"] = range(len(all_datasources))
+        params["elements"] = ds_names
         params["wait"] = True
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
