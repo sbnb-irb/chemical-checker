@@ -146,7 +146,9 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
                  learn_mixture_weights=False,
                  dropout=0.0,
                  activation=tf.nn.relu,
-                 seed=None):
+                 seed=None,
+                 num_layers=0,
+                 layer_sizes=[]):
         """Initializes a DNN `Generator`.
 
         Args:
@@ -170,6 +172,8 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
 
         self._seed = seed
         self._layer_block_size = layer_size
+        self._layer_sizes = layer_sizes
+        self._num_layers = num_layers
         self._dnn_builder_fn = functools.partial(
             ExtendDNNBuilder,
             optimizer=optimizer,
@@ -186,9 +190,8 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
         seed = self._seed
         if seed is not None:
             seed += iteration_number
-        # start with single layer
-        num_layers = 0
-        layer_sizes = []
+        num_layers = self._num_layers
+        layer_sizes = self._layer_sizes
         # take the maximum depth reached in previous iterations + 1
         if previous_ensemble:
             last_subnetwork = previous_ensemble.weighted_subnetworks[
@@ -198,8 +201,7 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
                 persisted_tensors["num_layers"])
             layer_sizes = list(tf.contrib.util.constant_value(
                 persisted_tensors["layer_sizes"]))
-        # at each iteration we want to check if exdending any of the
-        # existing layes is good
+        # at each iteration try exdending any of the existing layers (width)
         candidates = list()
         for extend_layer in range(num_layers):
             new_sizes = layer_sizes[:]
@@ -210,14 +212,14 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
                     layer_sizes=new_sizes,
                     seed=seed,
                     previous_ensemble=previous_ensemble))
-        # also check if it's worth adding a new layer
+        # try adding a new layer (depth)
         candidates.append(
             self._dnn_builder_fn(
                 num_layers=num_layers + 1,
                 layer_sizes=layer_sizes + [1],
                 seed=seed,
                 previous_ensemble=previous_ensemble))
-        # also keep the un-extended candidate
+        # keep the un-extended candidate
         candidates.append(
             self._dnn_builder_fn(
                 num_layers=num_layers,
