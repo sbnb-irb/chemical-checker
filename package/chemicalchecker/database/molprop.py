@@ -178,7 +178,7 @@ def Molprop(table_name):
                 "inchikey_inchi = dict(inputs[task_id])",
                 # elements are indexes
                 "mol = Molprop('" + GenericMolprop.__tablename__ + "')",
-                'mol.from_inchikey_inchi(inchikey_inchi)',  # start import
+                'mol.from_inchikey_inchi(inchikey_inchi,missing_only=False)',  # start import
                 "print('JOB DONE')"
             ]
             script_name = os.path.join(job_path, 'molprop_script.py')
