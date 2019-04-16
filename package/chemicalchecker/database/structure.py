@@ -110,15 +110,15 @@ class Structure(Base):
             This method allows to load only the data that is not already present.
 
         Args:
-            data(list): The data in list format, containing inchikey, inchi tuples.
+            data(dict): The data in dict format, containing inchikey, inchi .
         """
         list_inchikey_inchi = list()
         set_inks = set()
 
-        for ele in data:
-            if ele[0] is None:
+        for ik, inchi in data.items():
+            if ik is None:
                 continue
-            set_inks.add(ele[0])
+            set_inks.add(ik)
 
         Structure.__log.debug(
             "Size initial data to add: " + str(len(set_inks)))
@@ -127,9 +127,9 @@ class Structure(Base):
 
         Structure.__log.debug("Size final data to add: " + str(len(todo_iks)))
 
-        for ele in data:
-            if ele[0] in todo_iks:
-                list_inchikey_inchi.append(ele)
+        for ik, inchi in data.items():
+            if ik in todo_iks:
+                list_inchikey_inchi.append((ik, inchi))
 
         if len(list_inchikey_inchi) > 0:
             Structure.add_bulk(list_inchikey_inchi)
