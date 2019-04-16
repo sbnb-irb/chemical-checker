@@ -75,7 +75,7 @@ class PropCalculator():
 
         params = pipeline.params_to_dicts(root + "/data/defaults.cfg")
 
-        @timeout.timeout(100, use_signals=False)
+        @timeout(100, use_signals=False)
         def fprints_from_inchi(inchi, inchikey, confgen_params={},
                                fprint_params={}, save=False):
             mol = Chem.rdinchi.InchiToMol(inchi)[0]
