@@ -138,7 +138,7 @@ fi
         jobParams = ["#$ -N " + self.job_name]
         jobParams.append("#$ -wd " + self.jobdir)
 
-        if (len(elements) > 0 and num_jobs == 1) or (len(elements) == 0 and num_jobs > 1):
+        if (len(elements) == 0 and num_jobs > 1):
             raise("Number of specified jobs does not match to the number of elements")
 
         if num_jobs == 0:
