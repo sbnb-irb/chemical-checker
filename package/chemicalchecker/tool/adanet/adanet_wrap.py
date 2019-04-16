@@ -50,6 +50,7 @@ class Traintest(object):
         self.replace_nan = replace_nan
 
     def get_xy_shapes(self):
+        """Return the shpaes of X an Y."""
         self.open()
         x_shape = self._f[self.x_name].shape
         y_shape = self._f[self.y_name].shape
@@ -70,7 +71,7 @@ class Traintest(object):
             self.__log.error('HDF5 file is not open yet.')
 
     def get_xy(self, beg_idx, end_idx):
-        """Get the batch."""
+        """Get a batch of X and Y."""
         #self.__log.debug("HDF5 get_xy %s:%s", beg_idx, end_idx)
         features = self._f[self.x_name][beg_idx: end_idx]
         # handle NaNs
@@ -80,7 +81,7 @@ class Traintest(object):
         return features, labels
 
     def get_x(self, beg_idx, end_idx):
-        """Get the Xs in a range."""
+        """Get a batch of X."""
         features = self._f[self.x_name][beg_idx: end_idx]
         # handle NaNs
         if self.replace_nan is not None:
@@ -88,7 +89,7 @@ class Traintest(object):
         return features
 
     def get_all_x(self):
-        """Get all the Xs."""
+        """Get full X."""
         features = self._f[self.x_name][:]
         # handle NaNs
         if self.replace_nan is not None:
@@ -96,6 +97,11 @@ class Traintest(object):
         return features
 
     def get_all_x_columns(self, columns):
+        """Get all the X.
+
+        Args:
+            colums(tuple(int,int)): start, stop indexes.
+        """
         features = self._f[self.x_name][:, slice(*columns)]
         # handle NaNs
         if self.replace_nan is not None:
@@ -103,15 +109,16 @@ class Traintest(object):
         return features
 
     def get_all_y(self):
-        """Get all the Ys."""
+        """Get full Y."""
         labels = self._f[self.y_name][:]
         return labels
 
     @staticmethod
-    def copy_x_columns(traintest_file, ds_traintest_file, columns, drop_nan=True):
-        with h5py.File(ds_traintest_file, "w") as fh:
+    def copy_x_columns(from_file, to_file, columns, drop_nan=True):
+        """Copy some columns to a new file."""
+        with h5py.File(to_file, "w") as fh:
             for part in ['train', 'test', 'validation']:
-                traintest = Traintest(traintest_file, part)
+                traintest = Traintest(from_file, part)
                 traintest.open()
                 x_data = traintest.get_all_x_columns(columns)
                 y_data = traintest.get_all_y()
@@ -231,6 +238,7 @@ class AdaNetWrapper(object):
     """
 
     def __init__(self, traintest_file, **kwargs):
+        # read parameters
         self.learning_rate = kwargs.get("learning_rate", 0.001)
         self.batch_size = int(kwargs.get("batch_size", 32))
         self.learn_mixture_weights = kwargs.get("learn_mixture_weights", True)
