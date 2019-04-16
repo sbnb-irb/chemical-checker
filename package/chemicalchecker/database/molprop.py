@@ -178,7 +178,8 @@ def Molprop(table_name):
                 "inchikey_inchi = dict(inputs[task_id])",
                 # elements are indexes
                 "mol = Molprop('" + GenericMolprop.__tablename__ + "')",
-                'mol.from_inchikey_inchi(inchikey_inchi,missing_only=False)',  # start import
+                # start import
+                'mol.from_inchikey_inchi(inchikey_inchi,missing_only=False)',
                 "print('JOB DONE')"
             ]
             script_name = os.path.join(job_path, 'molprop_script.py')
@@ -211,9 +212,9 @@ def Molprop(table_name):
 
             params = {}
             if GenericMolprop.__tablename__ == "fp3d":
-                params["num_jobs"] = len(list_inchikey_inchi) / 200
+                params["num_jobs"] = max(len(list_inchikey_inchi) / 200, 1)
             else:
-                params["num_jobs"] = len(list_inchikey_inchi) / 2000
+                params["num_jobs"] = max(len(list_inchikey_inchi) / 2000, 1)
             params["jobdir"] = job_path
             params["job_name"] = "CC_MLP_" + GenericMolprop.__tablename__
             params["elements"] = list_inchikey_inchi

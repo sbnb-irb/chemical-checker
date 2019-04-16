@@ -141,6 +141,9 @@ fi
         if (len(elements) > 0 and num_jobs == 1) or (len(elements) == 0 and num_jobs > 1):
             raise("Number of specified jobs does not match to the number of elements")
 
+        if num_jobs == 0:
+            raise("Number of specified jobs is zero")
+
         if num_jobs > 1:
             jobParams.append("#$ -t 1-" + str(num_jobs))
             tmpname = command.replace("<TASK_ID>", "$SGE_TASK_ID")
