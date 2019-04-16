@@ -255,6 +255,8 @@ class AdaNetWrapper(object):
         self.nan_mask_value = kwargs.get("nan_mask_value", 0.0)
         self.subnetwork_generator = eval(kwargs.get(
             "subnetwork_generator", "ExtendDNNGenerator"))
+        self.num_layers = kwargs.get("num_layers", 0)
+        self.layer_sizes = kwargs.get("layer_sizes", [])
         # read input shape
         self.traintest_file = traintest_file
         with h5py.File(traintest_file, 'r') as hf:
@@ -324,6 +326,10 @@ class AdaNetWrapper(object):
             "epoch_per_iteration", str(self.epoch_per_iteration)))
         self.__log.info("{:<22}: {:>12}".format(
             "nan_mask_value", str(self.nan_mask_value)))
+        self.__log.info("{:<22}: {:>12}".format(
+            "num_layers", str(self.num_layers)))
+        self.__log.info("{:<22}: {:>12}".format(
+            "layer_sizes", str(self.layer_sizes)))
         self.__log.info("**** AdaNet Parameters: ***")
 
     @staticmethod
@@ -357,7 +363,9 @@ class AdaNetWrapper(object):
                 layer_size=self.layer_size,
                 dropout=self.dropout_rate,
                 activation=self.activation,
-                seed=self.random_seed),
+                seed=self.random_seed,
+                num_layers=self.num_layers,
+                layer_sizes=self.layer_sizes),
 
             # Lambda is a the strength of complexity regularization. A larger
             # value will penalize more complex subnetworks.
