@@ -420,7 +420,7 @@ class sign3(BaseSignature):
             'augmentation': [False, subsample],
             'epoch_per_iteration': [1, 2, 3, 25, 100],
             'adanet_iterations': [1, 3, 4],
-            'initial_architecture': [[], [4, 1], [4, 3, 2, 1]]
+            'initial_architecture': [[], [9, 1], [4, 3, 2, 1]]
         }
         """
         from chemicalchecker.util.hpc import HPC
@@ -466,8 +466,8 @@ class sign3(BaseSignature):
                 if type(v) == list:
                     str_pair = "%s_%s" % (k, ','.join([str(x) for x in v]))
                 str_params.append(str_pair)
-            model_dir = 'adanet_' + '-'.join(str_params)
-            elements.append({'init': params, 'fit': {'suffix': model_dir}})
+            suffix = '-'.join(str_params)
+            elements.append({'init': params, 'fit': {'suffix': suffix}})
 
         params["num_jobs"] = len(elements)
         params["jobdir"] = job_path
