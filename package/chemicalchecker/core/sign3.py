@@ -416,29 +416,16 @@ class sign3(BaseSignature):
     def test_params(cc_root, job_path, dataset, parameters):
         """Perform a grid search.
 
-        parameters = [
-            {"init":
-             {'augmentation': False},
-             "fit": {"suffix": "BASE"}},
-            {"init":
-             {'augmentation': subsample},
-             "fit": {"suffix": "SUB"}},
-            {"init":
-             {'augmentation': subsample, 'adanet_iterations': 1},
-             "fit": {"suffix": "SUB_1it"}},
-            {"init":
-             {'augmentation': subsample, 'epoch_per_iteration': 25},
-             "fit": {"suffix": "AUG_25"}},
-            {"init":
-             {'augmentation': subsample, 'epoch_per_iteration': 250},
-             "fit": {"suffix": "AUG_250"}},
-            {"init":
-             {'augmentation': subsample, 'epoch_per_iteration': 2500},
-             "fit": {"suffix": "AUG_2500"}},
-        ]
+        parameters = {
+            'augmentation': [False, subsample],
+            'epoch_per_iteration': [1, 2, 3, 25, 100],
+            'adanet_iterations': [1, 3, 4],
+            'initial_architecture': [[], [4, 1], [4, 3, 2, 1]]
+        }
         """
         from chemicalchecker.util.hpc import HPC
         from chemicalchecker.util import Config
+        from sklearn.model_selection import ParameterGrid
 
         # create job directory if not available
         if not os.path.isdir(job_path):
@@ -469,8 +456,19 @@ class sign3(BaseSignature):
             for line in script_lines:
                 fh.write(line + '\n')
         # hpc parameters
-        params = {}
-        elements = parameters
+        elements = list()
+        for params in ParameterGrid(parameters):
+            str_params = list()
+            for k, v in params.items():
+                str_pair = "%s_%s" % (k, v)
+                if hasattr(v, 'func_name'):
+                    str_pair = "%s_%s" % (k, v.func_name)
+                if type(v) == list:
+                    str_pair = "%s_%s" % (k, ','.join([str(x) for x in v]))
+                str_params.append(str_pair)
+            model_dir = '-'.join(str_params)
+            elements.append({'init': params, 'fit': {'suffix': model_dir}})
+
         params["num_jobs"] = len(elements)
         params["jobdir"] = job_path
         params["job_name"] = "CC_SIGN3_TEST_PARAMS"
