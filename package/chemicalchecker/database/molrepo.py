@@ -124,7 +124,8 @@ class Molrepo(Base):
             return None
 
         session = get_session()
-        query = session.query(Molrepo).filter_by(molrepo_name=molrepo_name)
+        query = session.query(Molrepo).filter(
+            Molrepo.molrepo_name == molrepo_name, Molrepo.inchikey.isnot(None))
         res = query.with_entities(*[eval("Molrepo.%s" % f)
                                     for f in query_fields]).all()
 
@@ -219,7 +220,7 @@ class Molrepo(Base):
         Molrepo.__log.info("Importing Datasource %s took %s", ds, t_delta)
 
     @staticmethod
-    def molrepo_hpc(job_path):
+    def molrepo_hpc(job_path, only_updatable=False):
         """Run HPC jobs importing all molrepos.
 
         job_path(str): Path (usually in scratch) where the script files are
@@ -251,7 +252,8 @@ class Molrepo(Base):
             for line in script_lines:
                 fh.write(line + '\n')
         # hpc parameters
-        all_datasources = Datasource.get_molrepos()
+        all_datasources = Datasource.get_molrepos(
+            only_updatable=only_updatable)
         molrepos_names = set()
         for ds in all_datasources:
             molrepos_names.add(ds.molrepo_name)
