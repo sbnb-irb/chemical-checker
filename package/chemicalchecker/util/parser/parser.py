@@ -733,3 +733,89 @@ class Parser():
                     yield chunk
                     chunk = list()
         yield chunk
+
+    @staticmethod
+    def cmaup(file_path, molrepo_name, chunks=1000):
+        try:
+            import rdkit.Chem as Chem
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
+        converter = Converter()
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
+        chunk = list()
+        f = open(file_path, "r")
+        for l in f:
+            l = l.rstrip("\n").split("\t")
+            if len(l) < 2:
+                continue
+            src_id = l[0]
+            smi = l[-1]
+            try:
+                inchikey, inchi = converter.smiles_to_inchi(smi)
+            except Exception as ex:
+                Parser.__log.warning("CMAUP ID %s: %s", src_id, str(ex))
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
+            result = {
+                "id": id_text,
+                "molrepo_name": molrepo_name,
+                "src_id": src_id,
+                "smiles": smi,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
+
+    @staticmethod
+    def repohub(file_path, molrepo_name, chunks=1000):
+        try:
+            import rdkit.Chem as Chem
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
+        converter = Converter()
+        # check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
+        chunk = list()
+        f = open(file_path, "r")
+        for l in f:
+            l = l.rstrip("\n").split("\t")
+            if len(l) < 2:
+                continue
+            src_ids = l[7].split(", ")
+            smis    = l[8].split(", ")
+            for (src_id, smi) in zip(src_ids, smis):
+                try:
+                    inchikey, inchi = converter.smiles_to_inchi(smi)
+                except Exception as ex:
+                    Parser.__log.warning("RepoHub ID %s: %s", src_id, str(ex))
+                    inchikey, inchi = None, None
+                id_text = molrepo_name + "_" + src_id
+                if inchikey is not None:
+                    id_text += ("_" + inchikey)
+                result = {
+                    "id": id_text,
+                    "molrepo_name": molrepo_name,
+                    "src_id": src_id,
+                    "smiles": smi,
+                    "inchikey": inchikey,
+                    "inchi": inchi
+                }
+                chunk.append(result)
+                if len(chunk) == chunks:
+                    yield chunk
+                    chunk = list()
+        yield chunk
+
