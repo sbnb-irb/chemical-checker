@@ -326,9 +326,7 @@ class AdaNetWrapper(object):
         self.__log.info("{:<22}: {:>12}".format(
             "nan_mask_value", str(self.nan_mask_value)))
         self.__log.info("{:<22}: {:>12}".format(
-            "num_layers", str(self.num_layers)))
-        self.__log.info("{:<22}: {:>12}".format(
-            "layer_sizes", str(self.layer_sizes)))
+            "initial_architecture", str(self.initial_architecture)))
         self.__log.info("**** AdaNet Parameters: ***")
 
     @staticmethod
