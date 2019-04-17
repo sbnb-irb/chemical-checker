@@ -113,12 +113,7 @@ class Structure(Base):
             data(dict): The data in dict format, containing inchikey, inchi .
         """
         list_inchikey_inchi = list()
-        set_inks = set()
-
-        for ik, inchi in data.items():
-            if ik is None:
-                continue
-            set_inks.add(ik)
+        set_inks = set(data.keys())
 
         Structure.__log.debug(
             "Size initial data to add: " + str(len(set_inks)))
