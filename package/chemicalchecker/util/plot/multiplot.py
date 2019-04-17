@@ -735,3 +735,27 @@ class MultiPlot():
             self.plot_path, "sign3_overfit_vs_trainsize.png")
         plt.savefig(filename, dpi=300)
         plt.close()
+
+    def spy_matrix(self, matrix):
+        present = (~np.isnan(matrix)).astype(int)
+        print np.sum(present, axis=0)[0:-1:128] / float(matrix.shape[0])
+        fig, ax = plt.subplots()
+        ax.spy(present)
+        ax.set_xticks(np.arange(0, 3200, 128))
+        ax.set_xticklabels([ds[:2] for ds in list(self.cc.datasets)])
+        filename = os.path.join(self.plot_path, "spy.png")
+        plt.savefig(filename, dpi=100)
+        plt.close()
+
+    def spy_augment(self, matrix, augment_fn, epochs=1):
+        nr_samples, nr_features = matrix.shape
+        fig, axes = plt.subplots(nrows=epochs // 5, ncols=5, figsize=(15, 15))
+        for idx in range(epochs):
+            ax = axes.flatten()[idx]
+            aug_mat, _ = augment_fn(matrix, True)
+            ax.spy(aug_mat)
+            ax.set_yticklabels([])
+            ax.set_xticklabels([])
+        filename = os.path.join(self.plot_path, "spy.png")
+        plt.savefig(filename, dpi=100)
+        plt.close()
