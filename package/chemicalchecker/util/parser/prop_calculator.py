@@ -308,3 +308,83 @@ class PropCalculator():
                 yield chunk
                 chunk = list()
         yield chunk
+
+    @staticmethod
+    def chembl_target_predictions(inchikey_inchi, chunks=1000):
+        try:
+            from rdkit.Chem import AllChem as Chem
+            from rdkit import DataStructs            
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
+        from sklearn.externals import joblib
+        import collections
+        import numpy as np
+        import pandas as pd
+        from chemicalchecker.database import Datasource
+        # Variables
+        max_targets = 20
+        min_targets = 1
+        min_proba   = 0.5
+        # Paths
+        models_path          = Datasource.get("chembl_target_predictions")[0].data_path
+        uniprot_mapping_path = Datasource.get("chembl_uniprot_mapping")[0].data_path
+        # Load models
+        morgan_nb = joblib.load(models_path + "/models_23/10uM/mNB_10uM_all.pkl")
+        classes   = list(morgan_nb.targets)
+        # Read target-to-uniprot mapping
+        chembltarg2prot = collections.defaultdict(set)
+        with open(uniprot_mapping_path + "/chembl_uniprot_mapping.txt", "r") as f:
+            for l in f:
+                if l[0] == "#": continue
+                l = l.rstrip("\n").split("\t")
+                chembltarg2prot[l[1]].update([l[0]])
+        # Fuction for target prediction
+        def predict_targets(inchi):
+            mol = Chem.rdinchi.InchiToMol(inchi)[0]
+            fp = Chem.GetMorganFingerprintAsBitVect(mol, 2, nBits=2048, bitInfo={})
+            res = np.zeros(len(fp), np.int32)
+            DataStructs.ConvertToNumpyArray(fp, res)
+            probas = list(morgan_nb.predict_proba(res.reshape(1,-1))[0])
+            predictions = pd.DataFrame(zip(classes, probas), columns=['id','proba'])
+            top_preds = predictions.sort_values(by='proba', ascending=False).head(max_targets)
+            top_preds = top_preds[top_preds["proba"] >= min_proba]
+            prots = []
+            for r in np.array(top_preds):
+                if r[0] not in chembltarg2prot: continue
+                for p in chembltarg2prot[r[0]]:
+                    prots += [(p, int(r[1]*10))]
+            if len(prots) < min_targets:
+                return None
+            return prots
+        # Start iterating
+        iks = inchikey_inchi.keys()
+        chunk = list()
+        for ik in iks:
+            if ik is None:
+                continue
+            v = str(inchikey_inchi[ik])
+            # PropCalculator.__log.info( ik)
+            targs = predict_targets(v)
+            if not targs:
+                result = {
+                    "inchikey": ik,
+                    "raw": targs
+                }
+            else:
+                targs_ = collections.defaultdict(list)
+                for t in targs:
+                    targs_[t[0]] += [t[1]]
+                targs_ = dict((k, np.max(v)) for k,v in targs_.iteritems())
+                targs  = sorted(targs_.items(), key=lambda x: -x[1])
+                dense = ",".join("%s(%d)" % x for x in targs)
+                result = {
+                    "inchikey": ik,
+                    "raw": dense
+                }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
+
