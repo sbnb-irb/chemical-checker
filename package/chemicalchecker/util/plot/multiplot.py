@@ -738,7 +738,6 @@ class MultiPlot():
 
     def spy_matrix(self, matrix):
         present = (~np.isnan(matrix)).astype(int)
-        print np.sum(present, axis=0)[0:-1:128] / float(matrix.shape[0])
         fig, ax = plt.subplots()
         ax.spy(present)
         ax.set_xticks(np.arange(0, 3200, 128))
