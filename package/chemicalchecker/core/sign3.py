@@ -466,7 +466,7 @@ class sign3(BaseSignature):
                 if type(v) == list:
                     str_pair = "%s_%s" % (k, ','.join([str(x) for x in v]))
                 str_params.append(str_pair)
-            model_dir = '-'.join(str_params)
+            model_dir = 'adanet_' + '-'.join(str_params)
             elements.append({'init': params, 'fit': {'suffix': model_dir}})
 
         params["num_jobs"] = len(elements)
