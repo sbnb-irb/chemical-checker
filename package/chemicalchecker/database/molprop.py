@@ -57,7 +57,7 @@ def Molprop(table_name):
         @staticmethod
         def _create_table():
             engine = get_engine()
-            Base.metadata.create_all(engine)
+            DynamicBase.metadata.create_all(engine)
 
         @staticmethod
         def get_properties_from_list(keys):
