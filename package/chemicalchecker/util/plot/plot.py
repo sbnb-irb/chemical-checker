@@ -800,7 +800,7 @@ class Plot():
             plt.savefig(filename, dpi=100)
             plt.close()
 
-    def sign3_adanet_comparison(self, sign3, metric="pearson", pathbase="adanet", hue_order=None, palette=None):
+    def sign3_adanet_comparison(self, sign3, metric="pearson", pathbase="adanet", hue_order=None, palette=None, ds_name=None):
         dir_names = list()
         for name in os.listdir(sign3.model_path):
             if pathbase is not None and not name.startswith(pathbase):
@@ -820,6 +820,8 @@ class Plot():
             if not os.path.isfile(tmpdf_file):
                 continue
             tmpdf = pd.read_pickle(tmpdf_file)
+            if ds_name:
+                tmpdf = tmpdf.replace("-self", "not-%s" % ds_name)
             df = df.append(tmpdf, ignore_index=True)
 
         froms = sorted(list(df['from'].unique()))
@@ -849,6 +851,8 @@ class Plot():
             qual = "_".join([self.dataset_code, metric, pathbase])
         else:
             qual = "_".join([self.dataset_code, metric])
+        if ds_name:
+            qual += "_%s" % ds_name
         filename = os.path.join(self.plot_path, "sign3_%s.png" % qual)
         plt.savefig(filename, dpi=100)
         plt.close()
