@@ -255,8 +255,7 @@ class AdaNetWrapper(object):
         self.nan_mask_value = kwargs.get("nan_mask_value", 0.0)
         self.subnetwork_generator = eval(kwargs.get(
             "subnetwork_generator", "ExtendDNNGenerator"))
-        self.num_layers = kwargs.get("num_layers", 0)
-        self.layer_sizes = kwargs.get("layer_sizes", [])
+        self.initial_architecture = kwargs.get("initial_architecture", [])
         # read input shape
         self.traintest_file = traintest_file
         with h5py.File(traintest_file, 'r') as hf:
@@ -364,8 +363,7 @@ class AdaNetWrapper(object):
                 dropout=self.dropout_rate,
                 activation=self.activation,
                 seed=self.random_seed,
-                num_layers=self.num_layers,
-                layer_sizes=self.layer_sizes),
+                initial_architecture=self.initial_architecture),
 
             # Lambda is a the strength of complexity regularization. A larger
             # value will penalize more complex subnetworks.

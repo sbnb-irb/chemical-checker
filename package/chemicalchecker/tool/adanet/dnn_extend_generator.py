@@ -147,8 +147,7 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
                  dropout=0.0,
                  activation=tf.nn.relu,
                  seed=None,
-                 num_layers=0,
-                 layer_sizes=[]):
+                 initial_architecture=[]):
         """Initializes a DNN `Generator`.
 
         Args:
@@ -172,8 +171,10 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
 
         self._seed = seed
         self._layer_block_size = layer_size
-        self._layer_sizes = layer_sizes
-        self._num_layers = num_layers
+        self._layer_sizes = initial_architecture
+        self._num_layers = len(initial_architecture)-1
+        if self._num_layers == -1:
+            self._num_layers = 0
         self._dnn_builder_fn = functools.partial(
             ExtendDNNBuilder,
             optimizer=optimizer,
