@@ -1,7 +1,8 @@
 import functools
 import adanet
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+from tensorflow.keras.layers import Dense, Dropout
 from chemicalchecker.util import logged
 
 
@@ -63,7 +64,7 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
                          summary,
                          previous_ensemble=None):
         """See `adanet.subnetwork.Builder`."""
-        input_layer = tf.to_float(features['x'])
+        input_layer = tf.cast(features['x'], tf.float32)
         # forcing to input shape as dataset uses tf.py_func (loosing shape)
         input_layer = tf.reshape(features['x'], [-1, self._input_shape])
         kernel_initializer = tf.glorot_uniform_initializer(seed=self._seed)
@@ -71,22 +72,22 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
         if self._nan_mask_value is not None:
             last_layer = NanMaskingLayer(self._nan_mask_value)(last_layer)
         for layer_size in self._layer_sizes:
-            last_layer = tf.layers.dense(
+            last_layer = Dense(
                 last_layer,
                 units=layer_size * self._layer_block_size,
                 activation=self._activation,
                 kernel_initializer=kernel_initializer)
-            last_layer = tf.layers.dropout(
+            last_layer = Dropout(
                 last_layer,
                 rate=self._dropout,
                 seed=self._seed,
                 training=training)
-        logits = tf.layers.dense(
+        logits = Dense(
             last_layer,
             units=logits_dimension,
             kernel_initializer=kernel_initializer)
 
-        persisted_tensors = {
+        shared_tensors = {
             "num_layers": tf.constant(self._num_layers),
             "layer_sizes": tf.constant(self._layer_sizes),
         }
@@ -94,14 +95,14 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
             last_layer=last_layer,
             logits=logits,
             complexity=self._measure_complexity(),
-            persisted_tensors=persisted_tensors)
+            shared=shared_tensors)
 
     def _measure_complexity(self):
         """Approximates Rademacher complexity as square-root of the depth."""
-        #depth_cmpl = np.sqrt(float(self._num_layers))
-        #max_width_cmpl = np.sqrt(float(max(self._layer_sizes)))
+        # depth_cmpl = np.sqrt(float(self._num_layers))
+        # max_width_cmpl = np.sqrt(float(max(self._layer_sizes)))
         total_blocks_cmpl = np.sqrt(float(sum(self._layer_sizes)))
-        #self.__log.debug("\n\n***** COMPLEXITY\ndepth_cmpl: %s\max_width_cmpl %s\total_blocks_cmpl %s\n\n", depth_cmpl, max_width_cmpl, total_blocks_cmpl)
+        # self.__log.debug("\n\n***** COMPLEXITY\ndepth_cmpl: %s\max_width_cmpl %s\total_blocks_cmpl %s\n\n", depth_cmpl, max_width_cmpl, total_blocks_cmpl)
         return total_blocks_cmpl
 
     def build_subnetwork_train_op(self, subnetwork, loss, var_list, labels,
@@ -172,7 +173,7 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
         self._seed = seed
         self._layer_block_size = layer_size
         self._layer_sizes = initial_architecture
-        self._num_layers = len(initial_architecture)-1
+        self._num_layers = len(initial_architecture) - 1
         if self._num_layers == -1:
             self._num_layers = 0
         self._dnn_builder_fn = functools.partial(
@@ -197,11 +198,11 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
         if previous_ensemble:
             last_subnetwork = previous_ensemble.weighted_subnetworks[
                 -1].subnetwork
-            persisted_tensors = last_subnetwork.persisted_tensors
+            shared_tensors = last_subnetwork.shared_tensors
             num_layers = tf.contrib.util.constant_value(
-                persisted_tensors["num_layers"])
+                shared_tensors["num_layers"])
             layer_sizes = list(tf.contrib.util.constant_value(
-                persisted_tensors["layer_sizes"]))
+                shared_tensors["layer_sizes"]))
         # at each iteration try exdending any of the existing layers (width)
         candidates = list()
         for extend_layer in range(num_layers):
