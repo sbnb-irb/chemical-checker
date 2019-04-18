@@ -1,7 +1,9 @@
 import datetime
 from time import time
 import os
+import math
 import chemicalchecker
+import numpy as np
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 from chemicalchecker.util.hpc import HPC
@@ -151,6 +153,7 @@ def Molprop(table_name):
             cpu: Number of cores each job will use(default:1)
             wait: Wait for the job to finish (default:True)
             memory: Maximum memory the job can take in Gigabytes(default: 10)
+            chunks: Maximum number of elements per HPC submission(default: 100000)
             """
             # create job directory if not available
             if not os.path.isdir(job_path):
@@ -159,6 +162,7 @@ def Molprop(table_name):
             cpu = kwargs.get("cpu", 1)
             wait = kwargs.get("wait", True)
             memory = kwargs.get("memory", 10)
+            chunks = kwargs.get("chunks", 100000)
 
             # create script file
             cc_config = os.environ['CC_CONFIG']
@@ -210,24 +214,26 @@ def Molprop(table_name):
                 if ele[0] in todo_iks:
                     list_inchikey_inchi.append(ele)
 
-            params = {}
-            if GenericMolprop.__tablename__ == "fp3d":
-                params["num_jobs"] = max(len(list_inchikey_inchi) / 200, 1)
-            else:
-                params["num_jobs"] = max(len(list_inchikey_inchi) / 2000, 1)
-            params["jobdir"] = job_path
-            params["job_name"] = "CC_MLP_" + GenericMolprop.__tablename__
-            params["elements"] = list_inchikey_inchi
-            params["wait"] = wait
-            params["cpu"] = cpu
-            params["memory"] = memory
-            # job command
-            singularity_image = Config().PATH.SINGULARITY_IMAGE
-            command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
-                singularity_image, script_name)
-            # submit jobs
-            cluster = HPC(Config())
-            cluster.submitMultiJob(command, **params)
-            return cluster
+            n = int(math.ceil(len(list_inchikey_inchi) / chunks))
+            for lst in np.array_split(list_inchikey_inchi, n):
+
+                params = {}
+                if GenericMolprop.__tablename__ == "fp3d":
+                    params["num_jobs"] = max(len(lst) / 200, 1)
+                else:
+                    params["num_jobs"] = max(len(lst) / 2000, 1)
+                params["jobdir"] = job_path
+                params["job_name"] = "CC_MLP_" + GenericMolprop.__tablename__
+                params["elements"] = lst.tolist()
+                params["wait"] = wait
+                params["cpu"] = cpu
+                params["memory"] = memory
+                # job command
+                singularity_image = Config().PATH.SINGULARITY_IMAGE
+                command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+                    singularity_image, script_name)
+                # submit jobs
+                cluster = HPC(Config())
+                cluster.submitMultiJob(command, **params)
 
     return GenericMolprop
