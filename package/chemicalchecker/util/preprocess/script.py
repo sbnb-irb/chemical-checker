@@ -43,8 +43,11 @@ def save_output(output_file, inchikey_raw, method, models_path, discrete, featur
 
         categ = False
 
-        if isinstance(inchikey_raw[keys[0]], tuple):
-            categ = True
+        for k, v in inchikey_raw.items():
+            if len(v) > 0:
+                if isinstance(v[0], tuple):
+                    categ = True
+                break
 
         for i, k in enumerate(keys):
             for word in inchikey_raw[k]:
