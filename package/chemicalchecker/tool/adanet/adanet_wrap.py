@@ -5,7 +5,6 @@ import pickle
 import numpy as np
 import pandas as pd
 from time import time
-from tqdm import tqdm
 from scipy.stats import pearsonr
 from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.metrics import explained_variance_score
@@ -379,10 +378,12 @@ class AdaNetWrapper(object):
 
             # Configuration for Estimators.
             config=tf.estimator.RunConfig(
-                save_checkpoints_secs=1800,  # save checkpoints every half-our
+                save_checkpoints_secs=18000,  # save checkpoints every 5 hours
                 save_summary_steps=50000,
                 tf_random_seed=self.random_seed,
-                model_dir=self.model_dir),
+                model_dir=self.model_dir,
+                intra_op_parallelism_threads=4,
+                inter_op_parallelism_threads=4),
             model_dir=self.model_dir
         )
         # Train and evaluate using using the tf.estimator tooling.
@@ -424,7 +425,14 @@ class AdaNetWrapper(object):
             return None
 
     def input_fn(self, partition, training, augmentation=False):
-        """Generate an input function for the Estimator."""
+        """Generate an input function for the Estimator.
+
+        Args:
+            partition(str): the partition to use within the traintest file.
+            training(bool): whether we are training or evaluating.
+            augmentation(func): a function to aument data, False if no
+                aumentation is desired.
+        """
         def _input_fn():
             x_shape, y_shape, generator_fn = Traintest.generator_fn(
                 self.traintest_file, partition, self.batch_size)
@@ -443,7 +451,8 @@ class AdaNetWrapper(object):
                     seed=self.random_seed).repeat()
                 if augmentation:
                     dataset = dataset.map(lambda x, y: tuple(
-                        tf.py_function(augmentation, [x, y], [x.dtype, y.dtype])))
+                        tf.py_function(augmentation, [x, y],
+                                       [x.dtype, y.dtype])))
             iterator = dataset.make_one_shot_iterator()
             features, labels = iterator.get_next()
             return {'x': features}, labels
@@ -451,25 +460,46 @@ class AdaNetWrapper(object):
         return _input_fn
 
     @staticmethod
-    def predict(model_dir, signature, predict_fn=None):
-        """Predict on given testset."""
+    def predict(model_dir, features, predict_fn=None):
+        """Load model and return predictions.
+
+        Args:
+            model_dir(str): path where to save the model.
+            features(matrix): a numpy matrix of Xs.
+            predict_fn(func): the predict function returned by `predict_fn`.
+        """
         if predict_fn is None:
             predict_fn = predictor.from_saved_model(
                 model_dir, signature_def_key='predict')
-        pred = predict_fn({'x': signature[:]})
+        pred = predict_fn({'x': features[:]})
         return pred['predictions']
 
     @staticmethod
     def predict_fn(model_dir):
-        """Predict on given testset."""
+        """Load model and return the predict function.
+
+        Args:
+            model_dir(str): path where to save the model.
+        """
         predict_fn = predictor.from_saved_model(
             model_dir, signature_def_key='predict')
-        #pred = predict_fn({'x': signature[:]})
         return predict_fn
 
     @staticmethod
-    def predict_online(model_dir, h5_file, partition, predict_fn=None, mask_fn=None, batch_size=10000, limit=2000):
-        """Predict on given testset."""
+    def predict_online(model_dir, h5_file, partition,
+                       predict_fn=None, mask_fn=None,
+                       batch_size=10000, limit=2000):
+        """Predict on given testset without killing the memory.
+
+        Args:
+            model_dir(str): path where to save the model.
+            h5_file(str): path to h5 file compatible with `Traintest`.
+            partition(str): the partition to use within the h5_file.
+            predict_fn(func): the predict function returned by `predict_fn`.
+            mask_fn(func): a function masking part of the input.
+            batch_size(int): batch size for `Traintest` file.
+            limit(int): maximum number of predictions.
+        """
         if predict_fn is None:
             predict_fn = predictor.from_saved_model(
                 model_dir, signature_def_key='predict')
@@ -500,6 +530,11 @@ class AdaNetWrapper(object):
         return y_pred[:limit], y_true[:limit]
 
     def save_model(self, model_dir):
+        """Print out the NAS network architechture structure.
+
+        Args:
+            model_dir(str): path where to save the model.
+        """
         def serving_input_fn():
             inputs = {
                 "x": tf.placeholder(dtype=tf.float32,
@@ -512,7 +547,11 @@ class AdaNetWrapper(object):
 
     @staticmethod
     def print_model_architechture(model_dir):
-        """Print out the persistent NN structure."""
+        """Print out the NAS network architechture structure.
+
+        Args:
+            model_dir(str): path where of the saved model.
+        """
         with tf.Session(graph=tf.Graph()) as sess:
             tf.saved_model.loader.load(sess, ["serve"], model_dir)
             model_vars = tf.trainable_variables()
@@ -520,7 +559,11 @@ class AdaNetWrapper(object):
 
     @staticmethod
     def get_trainable_variables(model_dir):
-        """Return the weigths of the persistent NN."""
+        """Return the weigths of the trained neural network.
+
+        Args:
+            model_dir(str): path where of the saved model.
+        """
         model_vars = list()
         with tf.Session(graph=tf.Graph()) as sess:
             tf.saved_model.loader.load(sess, ["serve"], model_dir)
@@ -528,7 +571,8 @@ class AdaNetWrapper(object):
                 model_vars.append(var.eval())
         return model_vars
 
-    def save_performances(self, output_dir, plot, suffix=None, extra_predictors=None):
+    def save_performances(self, output_dir, plot,
+                          suffix=None, extra_predictors=None):
         """Save stats and make plots."""
         # read input
         partitions = ['train', 'test', 'validation']
@@ -587,7 +631,7 @@ class AdaNetWrapper(object):
             rows[part] = _update_row(
                 rows[part], "architecture_history", self.architecture())
             # log and save plot
-            #_log_row(rows[part])
+            # _log_row(rows[part])
             plot.sign2_prediction_plot(y_true, y_pred, "AdaNet_%s" % part)
 
         # some additional shared stats
@@ -669,7 +713,6 @@ class AdaNetWrapper(object):
                 algo, from_ds = name
                 y_pred = np.load(preds[part]['pred'] + ".npy")
                 y_true = np.load(preds[part]['true'] + ".npy")
-                part_size = preds[part]['part_size']
                 runtime = preds[part]['time']
                 coverage = preds[part]['coverage']
                 rows[part] = _stats_row(y_true, y_pred, algo, part, from_ds)
@@ -684,7 +727,7 @@ class AdaNetWrapper(object):
                     rows[part], "nr_variables", [y_true.shape[1]])
                 rows[part] = _update_row(rows[part], "nn_layers", 0)
                 # log and save plot
-                #_log_row(rows[part])
+                # _log_row(rows[part])
                 plot.sign2_prediction_plot(
                     y_true, y_pred, "_".join(list(name) + [part]))
 
