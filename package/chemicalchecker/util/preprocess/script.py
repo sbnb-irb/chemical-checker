@@ -28,18 +28,6 @@ def save_output(output_file, inchikey_raw, method, models_path, discrete, featur
     keys = []
 
     if discrete:
-        words = set()
-        for k in sorted(inchikey_raw.keys()):
-            keys.append(str(k))
-            words.update(inchikey_raw[k])
-
-        if features is not None:
-            orderwords = features
-        else:
-            orderwords = list(words)
-            orderwords.sort()
-        raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
-        wordspos = {k: v for v, k in enumerate(orderwords)}
 
         categ = False
 
@@ -48,6 +36,23 @@ def save_output(output_file, inchikey_raw, method, models_path, discrete, featur
                 if isinstance(v[0], tuple):
                     categ = True
                 break
+
+        words = set()
+        for k in sorted(inchikey_raw.keys()):
+            keys.append(str(k))
+            if categ:
+                for word in inchikey_raw[k]:
+                    words.add(word[0])
+            else:
+                words.update(inchikey_raw[k])
+
+        if features is not None:
+            orderwords = features
+        else:
+            orderwords = list(words)
+            orderwords.sort()
+        raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
+        wordspos = {k: v for v, k in enumerate(orderwords)}
 
         for i, k in enumerate(keys):
             for word in inchikey_raw[k]:
