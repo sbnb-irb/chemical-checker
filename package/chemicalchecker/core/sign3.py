@@ -418,8 +418,8 @@ class sign3(BaseSignature):
 
         parameters = {
             'augmentation': [False, subsample],
-            'epoch_per_iteration': [1, 2, 3, 25, 100],
-            'adanet_iterations': [1, 3, 4],
+            'epoch_per_iteration': [1, 5, 25, 100],
+            'adanet_iterations': [1, 3],
             'initial_architecture': [[], [9, 1], [4, 3, 2, 1]]
         }
         """
@@ -485,12 +485,12 @@ class sign3(BaseSignature):
         return cluster
 
 
-def subsample(vector, label):
+def subsample(tensor, label):
     """Function to subsample stacked data."""
     # it is safe to make a local copy of the input matrix
-    new_data = np.copy(vector)
-    # we will have amasking matrix at the end
-    mask = np.zeros_like(vector).astype(bool)
+    new_data = np.copy(tensor)
+    # we will have a masking matrix at the end
+    mask = np.zeros_like(new_data).astype(bool)
     for idx, row in enumerate(new_data):
         # the following assume the stacked signature to have a fixed width
         presence = ~np.isnan(row[0::128])
@@ -514,3 +514,53 @@ def subsample(vector, label):
     # make masked dataset NaN
     new_data[~mask] = np.nan
     return new_data, label
+
+"""
+import tensorflow as tf
+
+
+def subsample_tf(tensor, label):
+    #Function to subsample stacked data.
+    # it is safe to make a local copy of the input matrix
+    new_data = tf.identity(tensor)
+    # we will have a masking matrix at the end
+    mask = tf.zeros_like(new_data)
+    mask = tf.cast(mask, tf.bool)
+    # presence matrix (assume the stacked signature to have a fixed width)
+    presence = tf.cast(~tf.is_nan(new_data[:, 0::128]), tf.int32)
+    # how many dataset do we have for each row?
+    max_ds = tf.cast(tf.math.reduce_sum(presence, axis=1), tf.int32)
+    # how many dataset do we want to consider for each row?
+    nr_ds = tf.random_uniform(max_ds.shape, minval=1,
+                              maxval=max_ds + 1, dtype=tf.int32)
+    # nr_ds_i goes from 1 to maximum dataset for each row
+    # for each line remove 1s until we have same as nr_ds_i
+    joined = tf.concat((presence, nr_ds), axis=1)
+
+    def subsample_presence(joined):
+        cond = lambda i: tf.equal(tf.math.reduce_sum(i[-1:]), i[-1])
+        body = lambda i: tf.add(i, 1)
+        return arg[0] + arg[1]
+        # present datasets
+        present_idxs = np.argwhere(presence).flatten()
+        # how many dataset in this subsampling?
+        max_add = present_idxs.shape[0]
+        n_to_add = np.random.choice(max_add) + 1
+        # which ones?
+        to_add = np.random.choice(
+            present_idxs, n_to_add, replace=False)
+        # dataset mask
+        presence_add = np.zeros(presence.shape).astype(bool)
+        presence_add[to_add] = True
+
+    # from dataset mask to signature mask
+    mask[idx] = np.repeat(presence_add, 128)
+
+    # low probability of keeping the original sample
+    if np.random.rand() > 0.95:
+        presence_add = presence
+    else:
+        # make masked dataset NaN
+    new_data[~mask] = np.nan
+    return new_data, label
+"""
