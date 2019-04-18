@@ -4,8 +4,9 @@
 """
 import os
 import sys
-from chemicalchecker.util import logged
 import logging
+
+from chemicalchecker.util import logged
 
 
 @logged
@@ -15,81 +16,77 @@ class Pipeline():
     def __init__(self, config, steps_path):
         """Initialize the Pipeline object.
 
+        config(Config): a `Config` object.
+        steps_path(str): the path containing the step directory.
         """
 
-        self.steps_path = steps_path
-
+        # read the config
         self.config = config
-
+        self.steps_path = steps_path
         self.readydir = os.path.join(self.config.PATH, "ready")
-
         self.logdir = os.path.join(self.config.PATH, "log")
-
         self.logfile = os.path.join(self.config.PATH, "log", "pipeline.log")
-
         self.tmpdir = os.path.join(self.config.PATH, "tmp")
-
-        if os.path.exists(steps_path + "/steps") is False:
+        # check steps directory structure
+        step_dir = os.path.join(steps_path, 'steps')
+        if not os.path.exists(step_dir):
             raise Exception(
-                "There is no directory steps in " + steps_path + " path")
-
-        if os.path.exists(steps_path + "/steps/__init__.py") is False:
-            raise Exception("The directory " + steps_path + "/steps should contain a __init__.py" +
-                            " file in order to run the pipeline.")
-
-        if os.path.exists(self.config.PATH) is False:
+                "There is no directory 'steps' in " + steps_path + " path")
+        step_init_file = os.path.join(steps_path, 'steps', '__init__.py')
+        if not os.path.exists(step_init_file):
+            raise Exception("The directory %s " % step_dir +
+                            "should contain a __init__.py " +
+                            "file in order to run the pipeline.")
+        # check and make needed directories
+        if not os.path.exists(self.config.PATH):
             os.makedirs(self.config.PATH)
-
-        if os.path.exists(self.readydir) is False:
+        if not os.path.exists(self.readydir):
             os.makedirs(self.readydir)
-
-        if os.path.exists(self.tmpdir) is False:
+        if not os.path.exists(self.tmpdir):
             os.makedirs(self.tmpdir)
-
-        if os.path.exists(self.logdir) is False:
+        if not os.path.exists(self.logdir):
             os.makedirs(self.logdir)
 
-        # get chemical checker logger
+        # log to file
         logger = logging.getLogger()
-        # we use a FileHandler to save to file
         fh = logging.FileHandler(self.logfile)
-        # set logging level here
         fh.setLevel(logging.DEBUG)
-        # define the formatter and set it
         formatter = logging.Formatter(
             '%(asctime)s %(name)-12s [%(levelname)-8s] %(message)s')
         fh.setFormatter(formatter)
-        # add handler to logger
         logger.addHandler(fh)
 
     def run(self):
         """Run the pipeline."""
-
+        # add to system PATH the steps path
+        # so that we can import the step classes
         sys.path.append(self.steps_path)
-
-        from steps import *
-
+        import steps
+        # read general parameters
         params = {}
         params["readydir"] = self.readydir
         params["tmpdir"] = self.tmpdir
-
+        # iterate on the steps
         for step in self.config.RUN:
-
+            # initialize the step
             try:
-                Pipeline.__log.debug("initializing object %s", step)
-                current_step = eval(step)(self.config, step, **params)
+                Pipeline.__log.debug("initializing object '%s'", step)
+                step_class = "steps." + step
+                current_step = eval(step_class)(self.config, step, **params)
             except Exception as ex:
                 Pipeline.__log.debug(ex)
-                raise Exception("Step %s not available" % step)
-
+                raise Exception("Step '%s' not available" % step)
+            # check if already done
             if current_step.is_ready():
                 Pipeline.__log.info(
-                    "Step: " + step + " already done. Skipping...")
+                    "Step: '%s' already done. Skipping...", step)
                 continue
-
+            # run it
             current_step.run()
-
+            # after runnin we expect the step to be in ready state
             if not current_step.is_ready():
+                # if not we report the error
                 Pipeline.__log.error(
-                    "Pipeline failed in step " + current_step.name + ". Please, check errors.")
+                    "Pipeline failed in step %s. Please, check errors.",
+                    current_step.name)
                 break
