@@ -5,3 +5,4 @@ from .logging.profilehooks import profile
 from .config import Config
 from .hpc import HPC
 from .preprocess.script import *
+from .pipeline import *
