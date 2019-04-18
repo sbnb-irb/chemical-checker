@@ -413,7 +413,7 @@ class sign3(BaseSignature):
         return results
 
     @staticmethod
-    def test_params(cc_root, job_path, dataset, parameters):
+    def test_params(cc_root, job_path, dataset, parameters, cpu=1):
         """Perform a grid search.
 
         parameters = {
@@ -475,7 +475,7 @@ class sign3(BaseSignature):
         params["elements"] = elements
         params["wait"] = False
         params["memory"] = 16
-        params["cpu"] = 4
+        params["cpu"] = cpu
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
