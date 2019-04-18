@@ -381,9 +381,7 @@ class AdaNetWrapper(object):
                 save_checkpoints_secs=18000,  # save checkpoints every 5 hours
                 save_summary_steps=50000,
                 tf_random_seed=self.random_seed,
-                model_dir=self.model_dir,
-                intra_op_parallelism_threads=4,
-                inter_op_parallelism_threads=4),
+                model_dir=self.model_dir),
             model_dir=self.model_dir
         )
         # Train and evaluate using using the tf.estimator tooling.
