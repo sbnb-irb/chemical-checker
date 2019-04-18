@@ -140,8 +140,11 @@ fi
         jobParams = ["#SBATCH -J " + self.job_name]
         jobParams.append("#SBATCH --chdir=" + self.jobdir)
 
-        if (len(elements) > 0 and num_jobs == 1) or (len(elements) == 0 and num_jobs > 1):
+        if (len(elements) == 0 and num_jobs > 1):
             raise("Number of specified jobs does not match to the number of elements")
+
+        if num_jobs == 0:
+            raise("Number of specified jobs is zero")
 
         if num_jobs > 1:
             jobParams.append("#SBATCH --array=1-" + str(num_jobs))
