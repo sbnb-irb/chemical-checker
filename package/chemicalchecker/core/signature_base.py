@@ -219,13 +219,22 @@ class BaseSignature(object):
 
     @cached_property
     def keys(self):
-        """Get the list of keys in the signature."""
+        """Get the list of features in the signature."""
         if not os.path.isfile(self.data_path):
             raise Exception("Data file %s not available." % self.data_path)
         with h5py.File(self.data_path, 'r') as hf:
             if 'keys' not in hf.keys():
                 raise Exception("HDF5 file has no 'keys' field.")
             return hf['keys'][:]
+
+    def get_h5_dataset(self, h5_dataset_name):
+        """Get a specific dataset in the signature."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if h5_dataset_name not in hf.keys():
+                raise Exception("HDF5 file has no '%s'." % h5_dataset_name)
+            return hf[h5_dataset_name][:]
 
     @cached_property
     def unique_keys(self):
