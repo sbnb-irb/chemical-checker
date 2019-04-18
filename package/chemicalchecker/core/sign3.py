@@ -475,6 +475,7 @@ class sign3(BaseSignature):
         params["elements"] = elements
         params["wait"] = False
         params["memory"] = 16
+        params["cpu"] = 4
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
