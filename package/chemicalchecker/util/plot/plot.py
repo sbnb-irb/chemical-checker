@@ -800,7 +800,7 @@ class Plot():
             plt.savefig(filename, dpi=100)
             plt.close()
 
-    def sign3_adanet_comparison(self, sign3, metric="pearson", pathbase="adanet", hue_order=None, palette=None, ds_name=None):
+    def sign3_adanet_comparison(self, sign3, metric="pearson", pathbase="adanet", hue_order=None, palette=None, ds_name=None, filter_from=None):
         dir_names = list()
         for name in os.listdir(sign3.model_path):
             if pathbase is not None and not name.startswith(pathbase):
@@ -824,6 +824,9 @@ class Plot():
                 tmpdf = tmpdf.replace("-self", "not-%s" % ds_name)
             df = df.append(tmpdf, ignore_index=True)
 
+        if filter_from:
+            df = df[df['from'] == filter_from]
+            
         froms = sorted(list(df['from'].unique()))
         order = froms
         if 'ALL' in froms:
