@@ -1,0 +1,11 @@
+{
+    "STEPS": {
+        "Downloads": {"datasources" : "'all'"},
+        "Molproperties" : {"molprops": "['fp2d', 'fp3d', 'subskeys', 'scaffolds', 'physchem']"},
+        "Validations" : {"sets" : "['moa','atc']"}
+
+    },
+    "RUN": "['Downloads','Molrepos','Molproperties','Validations']",
+    "PATH": "'/aloy/scratch/oguitart/cc_pipeline'"
+
+}
