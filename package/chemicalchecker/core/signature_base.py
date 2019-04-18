@@ -207,6 +207,17 @@ class BaseSignature(object):
             return hf['shape'][:]
 
     @cached_property
+    def features(self):
+        """Get the list of keys in the signature."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if 'features' not in hf.keys():
+                self.__log.warn("No features available for this signature!")
+                return None
+            return hf['features'][:]
+
+    @cached_property
     def keys(self):
         """Get the list of keys in the signature."""
         if not os.path.isfile(self.data_path):
