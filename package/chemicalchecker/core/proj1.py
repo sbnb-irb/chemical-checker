@@ -282,8 +282,15 @@ class proj1(BaseSignature):
 
         faiss.omp_set_num_threads(self.cpu)
 
-        if os.path.isfile(sign1.data_path):
-            dh5 = h5py.File(sign1.data_path)
+        input_data_file = ''
+
+        if isinstance(sign1, str):
+            input_data_file = sign1
+        else:
+            input_data_file = sign1.data_path
+
+        if os.path.isfile(input_data_file):
+            dh5 = h5py.File(input_data_file)
             if "keys" not in dh5.keys() or "V" not in dh5.keys():
                 raise Exception(
                     "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
@@ -295,7 +302,7 @@ class proj1(BaseSignature):
             dh5.close()
 
         else:
-            raise Exception("The file " + sign1.data_path + " does not exist")
+            raise Exception("The file " + input_data_file + " does not exist")
 
         if destination is None:
             raise Exception(
