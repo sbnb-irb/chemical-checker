@@ -28,6 +28,10 @@ class _Field():
     def asdict(self):
         return self.__dict__
 
+    def __getitem__(self, key):
+
+        return self.__dict__[key]
+
 
 @logged
 class Config():
@@ -53,9 +57,12 @@ class Config():
             obj_dict = json.load(fh)
         eval_obj_dict = dict()
         for k, v in obj_dict.items():
-            eval_obj_dict[k] = _Field(v)
+            if type(v) == dict:
+                eval_obj_dict[k] = _Field(v)
+            else:
+                eval_obj_dict[k] = eval(v)
         self.__dict__.update(eval_obj_dict)
-        os.environ["CC_CONFIG"] = json_file
+        #os.environ["CC_CONFIG"] = json_file
 
 
 __all__ = [
