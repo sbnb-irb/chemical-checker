@@ -26,7 +26,8 @@ def main(args):
     map_files = {}
 
     # Data sources associated to this dataset are stored in map_files
-    # Keys are the datasources names and values the file paths
+    # Keys are the datasources names and values the file paths.
+    # If no datasources are necessary, the list is just empty.
     for ds in dataset.datasources:
         map_files[ds.name] = ds.data_path
 
@@ -34,8 +35,6 @@ def main(args):
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
     features = None
-
-    # The entry point is available through the variable args.entry_point
 
     if args.method == "fit":
 
@@ -47,13 +46,12 @@ def main(args):
 
         main._log.info("Predicting")
 
-        # If we are in the predict method and the dataset is discrete, we need to read the features from
-        # the features_file that was saved in the models_path
-        if dataset.discrete:
-            with h5py.File(os.path.join(args.models_path, features_file)) as hf:
-                features = hf["features"][:]
+        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+            features = hf["features"][:]
 
         # Read the data from the args.input_file
+        # The entry point is available through the variable args.entry_point
+
 
 
 ###############################################################################
@@ -64,10 +62,8 @@ def main(args):
 
     main._log.info("Saving raw data")
     # To save the signature0, the data needs to be in the form of a dictionary
-    # where the keys are inchikeys and the values are a list with the data
-    # If the data is discrete, it can be categorized or not.
-    # For categorized data, the list is a list of tuples as (word,integer)
-    # For not categorized data, the list is just a list of words
+    # where the keys are inchikeys and the values are a list with the data.
+    # For sparse data, we can use [word] or [(word, integer)].
     inchikey_raw = collections.defaultdict(list)
 
     save_output(args.output_file, inchikey_raw, args.method,
