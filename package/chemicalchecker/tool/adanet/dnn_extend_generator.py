@@ -198,7 +198,7 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
         if previous_ensemble:
             last_subnetwork = previous_ensemble.weighted_subnetworks[
                 -1].subnetwork
-            shared_tensors = last_subnetwork.shared_tensors
+            shared_tensors = last_subnetwork.shared
             num_layers = tf.contrib.util.constant_value(
                 shared_tensors["num_layers"])
             layer_sizes = list(tf.contrib.util.constant_value(
