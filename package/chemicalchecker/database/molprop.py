@@ -214,7 +214,7 @@ def Molprop(table_name):
                 if ele[0] in todo_iks:
                     list_inchikey_inchi.append(ele)
 
-            n = int(math.ceil(len(list_inchikey_inchi) / chunks))
+            n = max(int(math.ceil(len(list_inchikey_inchi) / chunks)), 1)
             for lst in np.array_split(list_inchikey_inchi, n):
 
                 params = {}
