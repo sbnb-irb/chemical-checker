@@ -5,6 +5,7 @@
 import os
 import sys
 import logging
+from importlib import import_module
 
 from chemicalchecker.util import logged
 
@@ -28,13 +29,9 @@ class Pipeline():
         self.logfile = os.path.join(self.config.PATH, "log", "pipeline.log")
         self.tmpdir = os.path.join(self.config.PATH, "tmp")
         # check steps directory structure
-        step_dir = os.path.join(steps_path, 'steps')
-        if not os.path.exists(step_dir):
-            raise Exception(
-                "There is no directory 'steps' in " + steps_path + " path")
-        step_init_file = os.path.join(steps_path, 'steps', '__init__.py')
+        step_init_file = os.path.join(steps_path, '__init__.py')
         if not os.path.exists(step_init_file):
-            raise Exception("The directory %s " % step_dir +
+            raise Exception("The directory %s " % steps_path +
                             "should contain a __init__.py " +
                             "file in order to run the pipeline.")
         # check and make needed directories
@@ -58,10 +55,6 @@ class Pipeline():
 
     def run(self):
         """Run the pipeline."""
-        # add to system PATH the steps path
-        # so that we can import the step classes
-        sys.path.append(self.steps_path)
-        import steps
         # read general parameters
         params = {}
         params["readydir"] = self.readydir
@@ -71,8 +64,12 @@ class Pipeline():
             # initialize the step
             try:
                 Pipeline.__log.debug("initializing object '%s'", step)
-                step_class = "steps." + step
-                current_step = eval(step_class)(self.config, step, **params)
+                cwd = os.getcwd()
+                os.chdir(self.steps_path)
+                module_object = import_module('__init__')
+                step_class = getattr(module_object, step)
+                current_step = step_class(self.config, step, **params)
+                os.chdir(cwd)
             except Exception as ex:
                 Pipeline.__log.debug(ex)
                 raise Exception("Step '%s' not available" % step)
