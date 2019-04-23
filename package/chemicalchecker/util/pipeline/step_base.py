@@ -45,6 +45,7 @@ class BaseStep(object):
 
     def mark_ready(self, substep=None):
         """Mark the step as done."""
+        BaseStep.__log.debug('mark_ready')
         if substep is None:
             filename = os.path.join(self.readydir, self.readyfile)
         else:
