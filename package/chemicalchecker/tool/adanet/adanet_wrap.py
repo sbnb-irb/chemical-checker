@@ -263,6 +263,8 @@ class AdaNetWrapper(object):
             self.train_size = hf['x_train'].shape[0]
             self.total_size = hf['x_train'].shape[
                 0] + hf['x_test'].shape[0] + hf['x_validation'].shape[0]
+            # derive number of classes from train data
+            self.n_classes = len(set(hf['y_train'][:]))
         # layer size heuristic
         heu_layer_size = AdaNetWrapper.layer_size_heuristic(
             self.total_size, self.input_dimension, self.label_dimension)
@@ -285,8 +287,25 @@ class AdaNetWrapper(object):
         self.total_steps = self.train_step * self.adanet_iterations
         self.results = None
         self.estimator = None
+        # check the prediction task at hand
+        self.prediction_task = kwargs.get("prediction_task",
+                                          "multioutput_regression")
+        if self.prediction_task == "multioutput_regression":
+            self._estimator_head = tf.contrib.estimator.regression_head(
+                label_dimension=self.label_dimension)
+        elif self.prediction_task == "multiclass_classification":
+            self._estimator_head = tf.contrib.estimator.multi_class_head(
+                n_classes=self.n_classes)
+        else:
+            raise Exception("Prediction task '%s' not recognized.",
+                            self.prediction_task)
         # log parameters
         self.__log.info("**** AdaNet Parameters: ***")
+        self.__log.info("{:<22}: {:>12}".format(
+            "prediction_task", self.prediction_task))
+        if "classification" in self.prediction_task:
+            self.__log.info("{:<22}: {:>12}".format(
+                "n_classes", self.n_classes))
         self.__log.info("{:<22}: {:>12}".format(
             "train_size", self.train_size))
         self.__log.info("{:<22}: {:>12}".format(
@@ -341,11 +360,8 @@ class AdaNetWrapper(object):
 
         """Define the `adanet.Estimator`."""
         self.estimator = adanet.Estimator(
-            # We have a multiple-output regression problem,
-            # so we'll use a regression head that optimizes for MSE.
-            head=tf.contrib.estimator.regression_head(
-                label_dimension=self.label_dimension,
-                loss_reduction=tf.losses.Reduction.SUM_OVER_BATCH_SIZE),
+            # We'll use a regression head defined during initialization.
+            head=self._estimator_head,
 
             # Define the generator, which defines our search space of
             # subnetworks to train as candidates to add to the final AdaNet
