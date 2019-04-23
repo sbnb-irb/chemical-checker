@@ -820,13 +820,14 @@ class Plot():
             if not os.path.isfile(tmpdf_file):
                 continue
             tmpdf = pd.read_pickle(tmpdf_file)
+            self.__log.debug("%s lines in: %s", len(tmpdf), dir_name)
             if ds_name:
                 tmpdf = tmpdf.replace("-self", "not-%s" % ds_name)
             df = df.append(tmpdf, ignore_index=True)
 
         if filter_from:
             df = df[df['from'] == filter_from]
-            
+
         froms = sorted(list(df['from'].unique()))
         order = froms
         if 'ALL' in froms:
@@ -880,6 +881,7 @@ class Plot():
             if not os.path.isfile(tmpdf_file):
                 continue
             tmpdf = pd.read_pickle(tmpdf_file)
+            self.__log.debug("%s lines in: %s", len(tmpdf), dir_name)
             if 'from' not in tmpdf:
                 from_ds = dir_name.split("_")[1]
                 tmpdf['from'] = pd.Series([from_ds] * len(tmpdf))
