@@ -160,8 +160,11 @@ class Traintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def create(X, Y, out_filename):
+    def create(X, Y, out_filename, x_dtype=np.float32, y_dtype=np.float32):
         """Create the HDF5 file with both X and Y, train and test."""
+        # Force number of dimension to 2 (reshape Y)
+        if Y.ndim == 1:
+            Y = np.reshape(Y, (len(Y), 1))
         Traintest.__log.debug(
             "{:<20} shape: {:>10}".format("input X", X.shape))
         Traintest.__log.debug(
@@ -174,26 +177,26 @@ class Traintest(object):
         Traintest.__log.info('Traintest saving to %s', out_filename)
         with h5py.File(out_filename, "w") as fh:
             # train
-            fh.create_dataset('x_train', data=X[train_idxs], dtype=np.float32)
+            fh.create_dataset('x_train', data=X[train_idxs], dtype=x_dtype)
             Traintest.__log.debug("{:<20} shape: {:>10}".format(
                 "x_train", fh["x_train"].shape))
-            fh.create_dataset('y_train', data=Y[train_idxs], dtype=np.float32)
+            fh.create_dataset('y_train', data=Y[train_idxs], dtype=y_dtype)
             Traintest.__log.debug("{:<20} shape: {:>10}".format(
                 "y_train", fh["y_train"].shape))
             # test
-            fh.create_dataset('x_test', data=X[test_idxs], dtype=np.float32)
+            fh.create_dataset('x_test', data=X[test_idxs], dtype=x_dtype)
             Traintest.__log.debug("{:<20} shape: {:>10}".format(
                 "x_test", fh["x_test"].shape))
-            fh.create_dataset('y_test', data=Y[test_idxs], dtype=np.float32)
+            fh.create_dataset('y_test', data=Y[test_idxs], dtype=y_dtype)
             Traintest.__log.debug("{:<20} shape: {:>10}".format(
                 "y_test", fh["y_test"].shape))
             # validation
             fh.create_dataset('x_validation', data=X[
-                              val_idxs], dtype=np.float32)
+                              val_idxs], dtype=x_dtype)
             Traintest.__log.debug("{:<20} shape: {:>10}".format(
                 "x_validation", fh["x_validation"].shape))
             fh.create_dataset('y_validation', data=Y[
-                              val_idxs], dtype=np.float32)
+                              val_idxs], dtype=y_dtype)
             Traintest.__log.debug("{:<20} shape: {:>10}".format(
                 "y_validation", fh["y_validation"].shape))
         fh.close()
@@ -204,12 +207,18 @@ class Traintest(object):
         """Return the generator function that we can query for batches."""
         reader = Traintest(file_name, partition)
         reader.open()
+        # read shapes
         x_shape = reader._f[reader.x_name].shape
         y_shape = reader._f[reader.y_name].shape
+        # read data types
+        x_dtype = reader._f[reader.x_name].dtype
+        y_dtype = reader._f[reader.y_name].dtype
+        # no batch size -> return everything
         if not batch_size:
             batch_size = x_shape[0]
 
         def example_generator_fn():
+            # generator function yielding data
             epoch = 0
             beg_idx, end_idx = 0, batch_size
             total = reader._f[reader.x_name].shape[0]
@@ -225,7 +234,7 @@ class Traintest(object):
                     yield reader.get_xy(beg_idx, end_idx)
                 beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
 
-        return x_shape, y_shape, example_generator_fn
+        return (x_shape, y_shape), (x_dtype, y_dtype), example_generator_fn
 
 
 @logged
@@ -259,7 +268,10 @@ class AdaNetWrapper(object):
         self.traintest_file = traintest_file
         with h5py.File(traintest_file, 'r') as hf:
             self.input_dimension = hf['x_train'].shape[1]
-            self.label_dimension = hf['y_train'].shape[1]
+            if len(hf['y_train'].shape) == 1:
+                self.label_dimension = 1
+            else:
+                self.label_dimension = hf['y_train'].shape[1]
             self.train_size = hf['x_train'].shape[0]
             self.total_size = hf['x_train'].shape[
                 0] + hf['x_test'].shape[0] + hf['x_validation'].shape[0]
@@ -288,14 +300,16 @@ class AdaNetWrapper(object):
         self.results = None
         self.estimator = None
         # check the prediction task at hand
-        self.prediction_task = kwargs.get("prediction_task",
-                                          "multioutput_regression")
-        if self.prediction_task == "multioutput_regression":
+        self.prediction_task = kwargs.get("prediction_task", "regression")
+        if self.prediction_task == "regression":
             self._estimator_head = tf.contrib.estimator.regression_head(
                 label_dimension=self.label_dimension)
-        elif self.prediction_task == "multiclass_classification":
-            self._estimator_head = tf.contrib.estimator.multi_class_head(
-                n_classes=self.n_classes)
+        elif self.prediction_task == "classification":
+            self._estimator_head = \
+                tf.contrib.estimator.binary_classification_head()
+            if self.n_classes > 2:
+                self._estimator_head = tf.contrib.estimator.multi_class_head(
+                    n_classes=self.n_classes)
         else:
             raise Exception("Prediction task '%s' not recognized.",
                             self.prediction_task)
@@ -448,12 +462,13 @@ class AdaNetWrapper(object):
                 aumentation is desired.
         """
         def _input_fn():
-            x_shape, y_shape, generator_fn = Traintest.generator_fn(
+            # get shapes, dtypes, and generator function
+            (x_shape, y_shape), dtypes, generator_fn = Traintest.generator_fn(
                 self.traintest_file, partition, self.batch_size)
-
+            # create dataset object
             dataset = tf.data.Dataset.from_generator(
                 generator_fn,
-                output_types=(tf.float32, tf.float32),
+                output_types=dtypes,
                 output_shapes=(tf.TensorShape([None, x_shape[1]]),
                                tf.TensorShape([None, y_shape[1]]))
             )
@@ -486,7 +501,10 @@ class AdaNetWrapper(object):
             predict_fn = predictor.from_saved_model(
                 model_dir, signature_def_key='predict')
         pred = predict_fn({'x': features[:]})
-        return pred['predictions']
+        if 'predictions' in pred:
+            return pred['predictions']
+        else:
+            return pred['class_ids']
 
     @staticmethod
     def predict_fn(model_dir):
@@ -517,11 +535,13 @@ class AdaNetWrapper(object):
         if predict_fn is None:
             predict_fn = predictor.from_saved_model(
                 model_dir, signature_def_key='predict')
-        x_shape, y_shape, fn = Traintest.generator_fn(
+        shapes, dtypes, fn = Traintest.generator_fn(
             h5_file, partition, batch_size, only_x=False)
+        x_shape, y_shape = shapes
+        x_dtype, y_dtype = dtypes
         # tha max size of the return prediction is at most same size as input
-        y_pred = np.zeros(y_shape, dtype=np.float32) * np.nan
-        y_true = np.zeros(y_shape, dtype=np.float32) * np.nan
+        y_pred = np.zeros(y_shape, dtype=x_dtype) * np.nan
+        y_true = np.zeros(y_shape, dtype=y_dtype) * np.nan
         last_idx = 0
         if y_shape[0] < limit:
             limit = y_shape[0]
@@ -534,7 +554,10 @@ class AdaNetWrapper(object):
                 continue
             y_m_pred = predict_fn({'x': x_m})
             y_true[last_idx:last_idx + len(y_m)] = y_m
-            y_pred[last_idx:last_idx + len(y_m)] = y_m_pred['predictions']
+            if 'predictions' in y_m_pred:
+                y_pred[last_idx:last_idx + len(y_m)] = y_m_pred['predictions']
+            else:
+                y_pred[last_idx:last_idx + len(y_m)] = y_m_pred['class_ids']
             last_idx += len(y_m)
             if last_idx >= limit:
                 break
