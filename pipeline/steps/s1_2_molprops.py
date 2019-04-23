@@ -59,7 +59,7 @@ class Molproperties(BaseStep):
                 self.__log.error("Not all molecular properties were calculated. There are " +
                                  str(missing) + " missing out of " + str(len(iks)))
                 return
-
-            self.mark_ready(mol)
+            else:
+                self.mark_ready(mol)
 
         self.mark_ready()
