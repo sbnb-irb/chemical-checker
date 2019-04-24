@@ -606,7 +606,7 @@ class Plot():
         plt.close()
 
     @skip_on_exception
-    def sign2_prediction_plot(self, y_true, y_pred, predictor_name):
+    def sign2_prediction_plot(self, y_true, y_pred, predictor_name, max_samples=1000):
 
         coord = self.dataset_code
         self.__log.info("sign2 %s predicted vs. actual %s",
@@ -617,19 +617,19 @@ class Plot():
         f, axarr = plt.subplots(
             8, 16, sharex=True, sharey=True, figsize=(60, 30))
         for comp, ax in zip(range(128), axarr.flatten()):
-            rsquare = r2_score(y_true[:, comp], y_pred[:, comp])
-            slope, intercept, r_value, p_value, std_err = stats.linregress(
-                y_true[:, comp], y_pred[:, comp])
             # for plotting we subsample randomly
             nr_samples = len(y_true[:, comp])
-            if nr_samples > 10000:
+            if nr_samples > max_samples:
                 mask = np.random.choice(
-                    range(nr_samples), 10000, replace=False)
+                    range(nr_samples), max_samples, replace=False)
                 x = y_true[:, comp][mask]
                 y = y_pred[:, comp][mask]
             else:
                 x = y_true[:, comp]
                 y = y_pred[:, comp]
+            rsquare = r2_score(x, y)
+            slope, intercept, r_value, p_value, std_err = stats.linregress(
+                x, y)
             ax.scatter(x, y, color=self._coord_color(coord), marker='.',
                        alpha=0.3, zorder=2)
             # add lines
