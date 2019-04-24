@@ -615,7 +615,7 @@ class AdaNetWrapper(object):
         splits = ['train', 'test', 'validation']
         # save in pandas
         df = pd.DataFrame(columns=[
-            'dataset', 'component', 'r2', 'pearson', 'algo', 'mse',
+            'dataset', 'split', 'component', 'r2', 'pearson', 'algo', 'mse',
             'explained_variance', 'time', 'architecture', 'nr_variables',
             'nn_layers', 'layer_size', 'architecture_history', 'from',
             'dataset_size', 'coverage'])
