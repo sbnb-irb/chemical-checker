@@ -806,6 +806,7 @@ class Plot():
             if pathbase is not None and not name.startswith(pathbase):
                 continue
             if os.path.isdir(os.path.join(sign3.model_path, name)):
+                self.__log.debug(name)
                 dir_names.append(name)
         for dir_name in dir_names:
             tmpdf_file = os.path.join(sign3.model_path, dir_name, 'stats.pkl')
@@ -850,7 +851,8 @@ class Plot():
         g.map_dataframe(sns.stripplot, x="from", y="coverage",
                         order=order, jitter=False, palette=['crimson'])
         plt.legend(loc='upper right')
-        g.set(ylim=(0, 1))
+        if metric == "pearson":
+            g.set(ylim=(0, 1))
         if pathbase is not None:
             qual = "_".join([self.dataset_code, metric, pathbase])
         else:
