@@ -301,115 +301,128 @@ class sign3(BaseSignature):
         except ImportError as err:
             raise err
 
-        results = dict()
-        for ds in chemchecker.datasets:
-            if suffix:
-                name = ("AdaNet_%s" % suffix, ds)
-            else:
-                name = ("AdaNet", ds)
-            results[name] = dict()
+        def mask_keep(idxs, x_data, y_data):
+            x_data_transf = np.zeros_like(x_data, dtype=np.float32) * np.nan
+            for idx in idxs:
+                # zero out everything apart current space
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x_data_transf[:, col_slice] = x_data[:, col_slice]
+            # current space contain NaNs, drop those rows
+            not_nan = np.isfinite(x_data_transf).any(axis=1)
+            x_data_transf = x_data_transf[not_nan]
+            y_data_transf = y_data[not_nan]
+            return x_data_transf, y_data_transf
+
+        def mask_exclude(idxs, x_data, y_data):
+            x_data_transf = np.copy(x_data)
+            for idx in idxs:
+                # set current space to nan
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x_data_transf[:, col_slice] = np.nan
+            # drop rows that only contain NaNs
+            not_nan = np.isfinite(x_data_transf).any(axis=1)
+            x_data_transf = x_data_transf[not_nan]
+            y_data_transf = y_data[not_nan]
+            return x_data_transf, y_data_transf
+
+        def predict_and_save(name, idxs, save_dir, traintest_file, split,
+                             predict_fn, mask_fn, adanet_path, total_size):
+            # call predict
+            self.__log.info("Predicting for: %s", name)
+            y_pred, y_true = AdaNet.predict_online(
+                save_dir, traintest_file, split,
+                predict_fn=predict_fn,
+                mask_fn=partial(mask_fn, idxs))
+            self.__log.info("%s Y: %s", name, y_pred.shape)
+            if y_pred.shape[0] < 4:
+                return
+            file_true = os.path.join(
+                adanet_path, "_".join(list(name) + [split, 'true']))
+            np.save(file_true, y_true)
+            y_true_shape = y_true.shape[0]
+            del y_true
+            file_pred = os.path.join(
+                adanet_path, "_".join(list(name) + [split, 'pred']))
+            np.save(file_pred, y_pred)
+            del y_pred
+            result = dict()
+            result['true'] = file_true
+            result['pred'] = file_pred
+            result['coverage'] = y_true_shape / total_size
+            result['time'] = 0.
+            return result
 
         # get predict function (loads the neural network)
         self.__log.info("Loading AdaNet model")
         save_dir = os.path.join(adanet_path, 'savedmodel')
         predict_fn = AdaNet.predict_fn(save_dir)
-        for part in ['train', 'test', 'validation']:
-            traintest = Traintest(traintest_file, part)
+        # get results for each split
+        results = dict()
+        all_dss = list(chemchecker.datasets)
+        for split in ['train', 'test', 'validation']:
+            traintest = Traintest(traintest_file, split)
             x_shape, y_shape = traintest.get_xy_shapes()
             total_size = float(y_shape[0])
-            self.__log.info("%s X: %s Y: %s", part, x_shape, y_shape)
-            self.__log.info("%s Y: %s", part, y_shape)
-            # iterate on spaces
-            for idx, ds in enumerate(chemchecker.datasets):
+            self.__log.info("%s X: %s Y: %s", split, x_shape, y_shape)
+            self.__log.info("%s Y: %s", split, y_shape)
 
-                def mask_space(idx, x_data, y_data):
-                    # zero out everything apart current space
-                    col_slice = slice(idx * 128, (idx + 1) * 128)
-                    x_data_transf = np.zeros_like(
-                        x_data, dtype=np.float32) * np.nan
-                    x_data_transf[:, col_slice] = x_data[:, col_slice]
-                    # current space contain NaNs, drop those rows
-                    not_nan = np.isfinite(x_data_transf).any(axis=1)
-                    x_data_transf = x_data_transf[not_nan]
-                    y_data_transf = y_data[not_nan]
-                    return x_data_transf, y_data_transf
-
-                # call predict
-                y_pred, y_true = AdaNet.predict_online(
-                    save_dir, traintest_file, part,
-                    predict_fn=predict_fn,
-                    mask_fn=partial(mask_space, idx))
-                self.__log.info("%s Y: %s", ds, y_pred.shape)
-                if y_pred.shape[0] < 4:
-                    continue
-
+            # make prediction keeping only a single space
+            for idx, ds in enumerate(all_dss):
+                # algo name, prepare results
+                name = ("AdaNet", ds)
                 if suffix:
                     name = ("AdaNet_%s" % suffix, ds)
-                else:
-                    name = ("AdaNet", ds)
-                file_true = os.path.join(
-                    adanet_path, "_".join(list(name) + [part, 'true']))
-                np.save(file_true, y_true)
-                file_pred = os.path.join(
-                    adanet_path, "_".join(list(name) + [part, 'pred']))
-                np.save(file_pred, y_pred)
-                results[name][part] = dict()
-                results[name][part]['true'] = file_true
-                results[name][part]['pred'] = file_pred
-                results[name][part]['part_size'] = y_true.shape[0]
-                results[name][part]['coverage'] = y_true.shape[0] / \
-                    total_size
-                results[name][part]['time'] = 0.
-                del y_true
-                del y_pred
-
-                # case to fairly evaluate performances, predicting without Ys
-                if ds in self.dataset:
-
-                    # results when the space itself is not available
-                    if not (name[0], "not-%s" % ds) in results:
-                        results[(name[0], "not-%s" % ds)] = dict()
-
-                    def mask_self(idx, x_data, y_data):
-                        # set current space to nan
-                        col_slice = slice(idx * 128, (idx + 1) * 128)
-                        x_data_transf = np.copy(x_data)
-                        x_data_transf[:, col_slice] = np.nan
-                        # drop rows that only contain NaNs
-                        not_nan = np.isfinite(x_data_transf).any(axis=1)
-                        x_data_transf = x_data_transf[not_nan]
-                        y_data_transf = y_data[not_nan]
-                        return x_data_transf, y_data_transf
-
-                    # call predict
-                    y_pred, y_true = AdaNet.predict_online(
-                        save_dir, traintest_file, part,
-                        predict_fn=predict_fn,
-                        mask_fn=partial(mask_self, idx))
-                    self.__log.info("%s Y: %s", "not-%s" % ds, y_pred.shape)
-                    if y_pred.shape[0] < 4:
-                        continue
-
-                    if suffix:
-                        name = ("AdaNet_%s" % suffix, "not-%s" % ds)
-                    else:
-                        name = ("AdaNet", "not-%s" % ds)
-                    file_true = os.path.join(
-                        adanet_path, "_".join(list(name) + [part, 'true']))
-                    np.save(file_true, y_true)
-                    file_pred = os.path.join(
-                        adanet_path, "_".join(list(name) + [part, 'pred']))
-                    np.save(file_pred, y_pred)
-                    results[name][part] = dict()
-                    results[name][part]['true'] = file_true
-                    results[name][part]['pred'] = file_pred
-                    results[name][part]['part_size'] = y_true.shape[0]
-                    results[name][part]['coverage'] = y_true.shape[0] / \
-                        total_size
-                    results[name][part]['time'] = 0.
-                    del y_true
-                    del y_pred
-
+                if name not in results:
+                    results[name] = dict()
+                # predict and save
+                results[name][split] = predict_and_save(name, [idx], save_dir,
+                                                        traintest_file, split,
+                                                        predict_fn, mask_keep,
+                                                        adanet_path,
+                                                        total_size)
+            # make prediction excluding space to predict
+            ds = self.dataset
+            idx = all_dss.index(ds)
+            # algo name, prepare results
+            name = ("AdaNet", "not-%s" % ds)
+            if suffix:
+                name = ("AdaNet_%s" % suffix, "not-%s" % ds)
+            if name not in results:
+                results[name] = dict()
+            # predict and save
+            results[name][split] = predict_and_save(name, [idx], save_dir,
+                                                    traintest_file, split,
+                                                    predict_fn, mask_exclude,
+                                                    adanet_path, total_size)
+            # exclude level to predict
+            dss = [d for d in all_dss if d.startswith(self.dataset[0])]
+            idxs = [all_dss.index(ds) for d in dss]
+            # algo name, prepare results
+            name = ("AdaNet", "not-%sX" % self.dataset[0])
+            if suffix:
+                name = ("AdaNet_%s" % suffix, "not-%sX" % self.dataset[0])
+            if name not in results:
+                results[name] = dict()
+            # predict and save
+            results[name][split] = predict_and_save(name, idxs, save_dir,
+                                                    traintest_file, split,
+                                                    predict_fn, mask_exclude,
+                                                    adanet_path, total_size)
+            # check special combinations
+            dss = [d for d in all_dss if d.startswith('B')] + \
+                [d for d in all_dss if d.startswith('C')]
+            idxs = [all_dss.index(ds) for d in dss]
+            # algo name, prepare results
+            name = ("AdaNet", "not-BX|CX")
+            if suffix:
+                name = ("AdaNet_%s" % suffix, "not-BX|CX")
+            if name not in results:
+                results[name] = dict()
+            # predict and save
+            results[name][split] = predict_and_save(name, idxs, save_dir,
+                                                    traintest_file, split,
+                                                    predict_fn, mask_exclude,
+                                                    adanet_path, total_size)
         return results
 
     @staticmethod
