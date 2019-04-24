@@ -609,7 +609,7 @@ class AdaNetWrapper(object):
         return model_vars
 
     def save_performances(self, output_dir, plot,
-                          suffix=None, extra_predictors=None):
+                          suffix=None, extra_predictors=None, do_plot=False):
         """Save stats and make plots."""
         # read input
         splits = ['train', 'test', 'validation']
@@ -670,7 +670,8 @@ class AdaNetWrapper(object):
                 rows[split], "architecture_history", self.architecture())
             # log and save plot
             # _log_row(rows[split])
-            plot.sign2_prediction_plot(y_true, y_pred, "AdaNet_%s" % split)
+            if do_plot:
+                plot.sign2_prediction_plot(y_true, y_pred, "AdaNet_%s" % split)
 
         # some additional shared stats
         # get nr of variables in final model
@@ -686,9 +687,11 @@ class AdaNetWrapper(object):
 
         # save rows
         for split in splits:
-            rows[split] = _update_row(rows[split], "nr_variables", nr_variables)
+            rows[split] = _update_row(
+                rows[split], "nr_variables", nr_variables)
             rows[split] = _update_row(rows[split], "nn_layers", nn_layers)
-            rows[split] = _update_row(rows[split], "architecture", architecture)
+            rows[split] = _update_row(
+                rows[split], "architecture", architecture)
             rows[split] = _update_row(rows[split], "coverage", 1.0)
             for row in rows[split]:
                 df.loc[len(df)] = pd.Series(row)
@@ -722,8 +725,8 @@ class AdaNetWrapper(object):
             rows[split] = _update_row(rows[split], "nn_layers", 0)
             rows[split] = _update_row(rows[split], "coverage", 1.0)
             # log and save plot
-            #_log_row(rows[split])
-            # plot.sign2_prediction_plot(
+            #_log_row(rows[split])if do_plot:
+            #    plot.sign2_prediction_plot(
             #    y[split], y_pred, "LinearRegression_%s" % split)
         '''
 
@@ -746,6 +749,10 @@ class AdaNetWrapper(object):
             rows = dict()
             for split in splits:
                 if split not in preds:
+                    self.__log.info("Skipping %s on %s", name, split)
+                    continue
+                if preds[split] is None:
+                    self.__log.info("Skipping %s on %s", name, split)
                     continue
                 self.__log.info("Performances for %s on %s", name, split)
                 algo, dataset = name
@@ -766,15 +773,13 @@ class AdaNetWrapper(object):
                 rows[split] = _update_row(rows[split], "nn_layers", 0)
                 # log and save plot
                 # _log_row(rows[split])
-                plot.sign2_prediction_plot(
-                    y_true, y_pred, "_".join(list(name) + [split]))
+                if do_plot:
+                    plot.sign2_prediction_plot(
+                        y_true, y_pred, "_".join(list(name) + [split]))
 
             # save rows
-            for split in splits:
-                if split not in preds:
-                    continue
-                for row in rows[split]:
-                    df.loc[len(df)] = pd.Series(row)
+            for split in rows:
+                df = df.append(pd.DataFrame(rows[split]), ignore_index=True)
             output_pkl = os.path.join(output_dir, 'stats.pkl')
             with open(output_pkl, 'wb') as fh:
                 pickle.dump(df, fh)
