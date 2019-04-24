@@ -36,17 +36,19 @@ class Traintest(object):
     the generator functions which tensorflow likes.
     """
 
-    def __init__(self, hdf5_file, partition, replace_nan=None):
+    def __init__(self, hdf5_file, split, replace_nan=None):
         """Initialize the traintest object.
 
-        We assume the file is containing diffrent partitions.
+        We assume the file is containing diffrent splits.
         e.g. "x_train", "y_train", "x_test", ...
         """
         self._file = hdf5_file
         self._f = None
-        self.x_name = "x_%s" % partition
-        self.y_name = "y_%s" % partition
+        self.x_name = "x_%s" % split
+        self.y_name = "y_%s" % split
         self.replace_nan = replace_nan
+        if split not in self.get_split_names():
+            raise Exception("Specified split name not found!")
 
     def get_xy_shapes(self):
         """Return the shpaes of X an Y."""
@@ -55,6 +57,16 @@ class Traintest(object):
         y_shape = self._f[self.y_name].shape
         self.close()
         return x_shape, y_shape
+
+    def get_split_names(self):
+        """Return the name of the splits."""
+        self.open()
+        if "split_names" in self._f:
+            split_names = list(self._f["split_names"])
+        else:
+            split_names = ['train', 'test', 'validation']
+        self.close()
+        return split_names
 
     def open(self):
         """Open the HDF5."""
@@ -71,7 +83,6 @@ class Traintest(object):
 
     def get_xy(self, beg_idx, end_idx):
         """Get a batch of X and Y."""
-        #self.__log.debug("HDF5 get_xy %s:%s", beg_idx, end_idx)
         features = self._f[self.x_name][beg_idx: end_idx]
         # handle NaNs
         if self.replace_nan is not None:
@@ -113,23 +124,6 @@ class Traintest(object):
         return labels
 
     @staticmethod
-    def copy_x_columns(from_file, to_file, columns, drop_nan=True):
-        """Copy some columns to a new file."""
-        with h5py.File(to_file, "w") as fh:
-            for part in ['train', 'test', 'validation']:
-                traintest = Traintest(from_file, part)
-                traintest.open()
-                x_data = traintest.get_all_x_columns(columns)
-                y_data = traintest.get_all_y()
-                traintest.close()
-                if drop_nan:
-                    notnan_idx = ~np.isnan(x_data).any(axis=1)
-                    x_data = x_data[notnan_idx]
-                    y_data = y_data[notnan_idx]
-                fh.create_dataset('x_%s' % part, data=x_data, dtype=np.float32)
-                fh.create_dataset('y_%s' % part, data=y_data, dtype=np.float32)
-
-    @staticmethod
     def create_signature_file(sign_from, sign_to, out_filename):
         """Create the HDF5 file with both X and Y, train and test."""
         # get type1
@@ -147,8 +141,9 @@ class Traintest(object):
 
     @staticmethod
     def get_split_indeces(matrix, fractions):
+        """Get random indeces for different splits."""
         if not sum(fractions) == 1.0:
-            raise Exception("fractions should sum to 1.0")
+            raise Exception("Split fractions should sum to 1.0")
         # shuffle indeces
         idxs = range(matrix.shape[0])
         np.random.shuffle(idxs)
@@ -160,52 +155,55 @@ class Traintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def create(X, Y, out_filename, x_dtype=np.float32, y_dtype=np.float32):
-        """Create the HDF5 file with both X and Y, train and test."""
+    def create(X, Y, out_filename, split_names=['train', 'test', 'validation'],
+               split_fractions=[.8, .1, .1], x_dtype=np.float32,
+               y_dtype=np.float32):
+        """Create the HDF5 file with validation splits for both X and Y.
+
+        Args:
+            X(numpy.ndarray): features to train from.
+            Y(numpy.ndarray): labels to predict.
+            out_filename(Str): path of the h5 file to write.
+            split_names(list(str)): names for the split of data.
+            split_fractions(list(float)): fraction of data in each split.
+            x_dtype(type): numpy data type for X.
+            y_dtype(type): numpy data type for Y (np.float32 for regression,
+                np.int32 for classification.
+        """
         # Force number of dimension to 2 (reshape Y)
         if Y.ndim == 1:
+            Traintest.__log.debug("We need Y as a column vector, reshaping.")
             Y = np.reshape(Y, (len(Y), 1))
         Traintest.__log.debug(
             "{:<20} shape: {:>10}".format("input X", X.shape))
         Traintest.__log.debug(
             "{:<20} shape: {:>10}".format("input Y", Y.shape))
         # train test validation splits
-        train_idxs, test_idxs, val_idxs = Traintest.get_split_indeces(
-            X, [.8, .1, .1])
+        if len(split_names) != len(split_fractions):
+            raise Exception("Split names and fraction should be same amount.")
+        split_idxs = Traintest.get_split_indeces(X, split_fractions)
 
         # create dataset
         Traintest.__log.info('Traintest saving to %s', out_filename)
         with h5py.File(out_filename, "w") as fh:
-            # train
-            fh.create_dataset('x_train', data=X[train_idxs], dtype=x_dtype)
-            Traintest.__log.debug("{:<20} shape: {:>10}".format(
-                "x_train", fh["x_train"].shape))
-            fh.create_dataset('y_train', data=Y[train_idxs], dtype=y_dtype)
-            Traintest.__log.debug("{:<20} shape: {:>10}".format(
-                "y_train", fh["y_train"].shape))
-            # test
-            fh.create_dataset('x_test', data=X[test_idxs], dtype=x_dtype)
-            Traintest.__log.debug("{:<20} shape: {:>10}".format(
-                "x_test", fh["x_test"].shape))
-            fh.create_dataset('y_test', data=Y[test_idxs], dtype=y_dtype)
-            Traintest.__log.debug("{:<20} shape: {:>10}".format(
-                "y_test", fh["y_test"].shape))
-            # validation
-            fh.create_dataset('x_validation', data=X[
-                              val_idxs], dtype=x_dtype)
-            Traintest.__log.debug("{:<20} shape: {:>10}".format(
-                "x_validation", fh["x_validation"].shape))
-            fh.create_dataset('y_validation', data=Y[
-                              val_idxs], dtype=y_dtype)
-            Traintest.__log.debug("{:<20} shape: {:>10}".format(
-                "y_validation", fh["y_validation"].shape))
+            fh.create_dataset('split_names', data=split_names)
+            fh.create_dataset('split_fractions', data=split_fractions)
+            for name, idxs in zip(split_names, split_idxs):
+                ds_name = "x_%s" % name
+                fh.create_dataset(ds_name, data=X[idxs], dtype=x_dtype)
+                Traintest.__log.debug("{:<20} shape: {:>10}".format(
+                    ds_name, fh[ds_name].shape))
+                ds_name = "y_%s" % name
+                fh.create_dataset(ds_name, data=Y[idxs], dtype=y_dtype)
+                Traintest.__log.debug("{:<20} shape: {:>10}".format(
+                    ds_name, fh[ds_name].shape))
         fh.close()
         Traintest.__log.info('Traintest saved to %s', out_filename)
 
     @staticmethod
-    def generator_fn(file_name, partition, batch_size=None, only_x=False):
+    def generator_fn(file_name, split, batch_size=None, only_x=False):
         """Return the generator function that we can query for batches."""
-        reader = Traintest(file_name, partition)
+        reader = Traintest(file_name, split)
         reader.open()
         # read shapes
         x_shape = reader._f[reader.x_name].shape
@@ -452,11 +450,11 @@ class AdaNetWrapper(object):
         except Exception:
             return None
 
-    def input_fn(self, partition, training, augmentation=False):
+    def input_fn(self, split, training, augmentation=False):
         """Generate an input function for the Estimator.
 
         Args:
-            partition(str): the partition to use within the traintest file.
+            split(str): the split to use within the traintest file.
             training(bool): whether we are training or evaluating.
             augmentation(func): a function to aument data, False if no
                 aumentation is desired.
@@ -464,7 +462,7 @@ class AdaNetWrapper(object):
         def _input_fn():
             # get shapes, dtypes, and generator function
             (x_shape, y_shape), dtypes, generator_fn = Traintest.generator_fn(
-                self.traintest_file, partition, self.batch_size)
+                self.traintest_file, split, self.batch_size)
             # create dataset object
             dataset = tf.data.Dataset.from_generator(
                 generator_fn,
@@ -518,7 +516,7 @@ class AdaNetWrapper(object):
         return predict_fn
 
     @staticmethod
-    def predict_online(model_dir, h5_file, partition,
+    def predict_online(model_dir, h5_file, split,
                        predict_fn=None, mask_fn=None,
                        batch_size=10000, limit=2000):
         """Predict on given testset without killing the memory.
@@ -526,7 +524,7 @@ class AdaNetWrapper(object):
         Args:
             model_dir(str): path where to save the model.
             h5_file(str): path to h5 file compatible with `Traintest`.
-            partition(str): the partition to use within the h5_file.
+            split(str): the split to use within the h5_file.
             predict_fn(func): the predict function returned by `predict_fn`.
             mask_fn(func): a function masking part of the input.
             batch_size(int): batch size for `Traintest` file.
@@ -536,7 +534,7 @@ class AdaNetWrapper(object):
             predict_fn = predictor.from_saved_model(
                 model_dir, signature_def_key='predict')
         shapes, dtypes, fn = Traintest.generator_fn(
-            h5_file, partition, batch_size, only_x=False)
+            h5_file, split, batch_size, only_x=False)
         x_shape, y_shape = shapes
         x_dtype, y_dtype = dtypes
         # tha max size of the return prediction is at most same size as input
@@ -612,7 +610,7 @@ class AdaNetWrapper(object):
                           suffix=None, extra_predictors=None):
         """Save stats and make plots."""
         # read input
-        partitions = ['train', 'test', 'validation']
+        splits = ['train', 'test', 'validation']
         # save in pandas
         df = pd.DataFrame(columns=[
             'dataset', 'component', 'r2', 'pearson', 'algo', 'mse',
@@ -620,12 +618,13 @@ class AdaNetWrapper(object):
             'nn_layers', 'layer_size', 'architecture_history', 'from',
             'dataset_size', 'coverage'])
 
-        def _stats_row(y_true, y_pred, algo, dataset, from_part):
+        def _stats_row(y_true, y_pred, algo, split, dataset):
             rows = list()
             for comp in range(y_true.shape[1]):
                 row = dict()
                 row['algo'] = algo
-                row['dataset'] = dataset
+                row['split'] = split
+                row['dataset'] = split
                 row['dataset_size'] = y_true.shape[0]
                 row['component'] = comp
                 comp_res = y_true[:, comp].flatten(), y_pred[:, comp].flatten()
@@ -633,7 +632,7 @@ class AdaNetWrapper(object):
                 row['pearson'] = pearsonr(*comp_res)[0]
                 row['mse'] = mean_squared_error(*comp_res)
                 row['explained_variance'] = explained_variance_score(*comp_res)
-                row['from'] = from_part
+                row['from'] = dataset
                 # self.__log.debug("comp: %s p: %.2f", comp, row['pearson'])
                 rows.append(row)
             return rows
@@ -654,22 +653,22 @@ class AdaNetWrapper(object):
         rows = dict()
         # load network
         predict_fn = AdaNetWrapper.predict_fn(self.save_dir)
-        for part in partitions:
-            self.__log.info("Performances for AdaNet on %s" % part)
+        for split in splits:
+            self.__log.info("Performances for AdaNet on %s" % split)
             y_pred, y_true = AdaNetWrapper.predict_online(
-                self.save_dir, self.traintest_file, part,
+                self.save_dir, self.traintest_file, split,
                 predict_fn=predict_fn)
             if suffix:
                 name = "AdaNet_%s" % suffix
             else:
                 name = 'AdaNet'
-            rows[part] = _stats_row(y_true, y_pred, name, part, "ALL")
-            rows[part] = _update_row(rows[part], "time", self.time)
-            rows[part] = _update_row(
-                rows[part], "architecture_history", self.architecture())
+            rows[split] = _stats_row(y_true, y_pred, name, split, "ALL")
+            rows[split] = _update_row(rows[split], "time", self.time)
+            rows[split] = _update_row(
+                rows[split], "architecture_history", self.architecture())
             # log and save plot
-            # _log_row(rows[part])
-            plot.sign2_prediction_plot(y_true, y_pred, "AdaNet_%s" % part)
+            # _log_row(rows[split])
+            plot.sign2_prediction_plot(y_true, y_pred, "AdaNet_%s" % split)
 
         # some additional shared stats
         # get nr of variables in final model
@@ -684,12 +683,12 @@ class AdaNetWrapper(object):
                             for i in range(0, len(model_vars), 2)]
 
         # save rows
-        for part in partitions:
-            rows[part] = _update_row(rows[part], "nr_variables", nr_variables)
-            rows[part] = _update_row(rows[part], "nn_layers", nn_layers)
-            rows[part] = _update_row(rows[part], "architecture", architecture)
-            rows[part] = _update_row(rows[part], "coverage", 1.0)
-            for row in rows[part]:
+        for split in splits:
+            rows[split] = _update_row(rows[split], "nr_variables", nr_variables)
+            rows[split] = _update_row(rows[split], "nn_layers", nn_layers)
+            rows[split] = _update_row(rows[split], "architecture", architecture)
+            rows[split] = _update_row(rows[split], "coverage", 1.0)
+            for row in rows[split]:
                 df.loc[len(df)] = pd.Series(row)
         output_pkl = os.path.join(output_dir, 'stats.pkl')
         with open(output_pkl, 'wb') as fh:
@@ -704,31 +703,31 @@ class AdaNetWrapper(object):
         linreg = LinearRegression().fit(x['train'], y['train'])
         linreg_stop = time()
         rows = dict()
-        for part in partitions:
-            self.__log.info("Performances for LinearRegression on %s" % part)
-            y_pred = linreg.predict(x[part])
-            rows[part] = _stats_row(
-                y[part], y_pred, 'LinearRegression', part, "ALL")
-            rows[part] = _update_row(
-                rows[part], "time", linreg_stop - linreg_start)
-            rows[part] = _update_row(
-                rows[part], "architecture_history", '| linear |')
-            rows[part] = _update_row(
-                rows[part], "architecture", [y[part].shape[1]])
-            rows[part] = _update_row(rows[part], "layer_size", 0)
-            rows[part] = _update_row(
-                rows[part], "nr_variables", [y[part].shape[1]])
-            rows[part] = _update_row(rows[part], "nn_layers", 0)
-            rows[part] = _update_row(rows[part], "coverage", 1.0)
+        for split in splits:
+            self.__log.info("Performances for LinearRegression on %s" % split)
+            y_pred = linreg.predict(x[split])
+            rows[split] = _stats_row(
+                y[split], y_pred, 'LinearRegression', split, "ALL")
+            rows[split] = _update_row(
+                rows[split], "time", linreg_stop - linreg_start)
+            rows[split] = _update_row(
+                rows[split], "architecture_history", '| linear |')
+            rows[split] = _update_row(
+                rows[split], "architecture", [y[split].shape[1]])
+            rows[split] = _update_row(rows[split], "layer_size", 0)
+            rows[split] = _update_row(
+                rows[split], "nr_variables", [y[split].shape[1]])
+            rows[split] = _update_row(rows[split], "nn_layers", 0)
+            rows[split] = _update_row(rows[split], "coverage", 1.0)
             # log and save plot
-            #_log_row(rows[part])
+            #_log_row(rows[split])
             # plot.sign2_prediction_plot(
-            #    y[part], y_pred, "LinearRegression_%s" % part)
+            #    y[split], y_pred, "LinearRegression_%s" % split)
         '''
 
         # save rows
-        for part in partitions:
-            for row in rows[part]:
+        for split in splits:
+            for row in rows[split]:
                 df.loc[len(df)] = pd.Series(row)
         output_pkl = os.path.join(output_dir, 'stats.pkl')
         with open(output_pkl, 'wb') as fh:
@@ -743,36 +742,36 @@ class AdaNetWrapper(object):
         for name in sorted(extra_predictors):
             preds = extra_predictors[name]
             rows = dict()
-            for part in partitions:
-                if part not in preds:
+            for split in splits:
+                if split not in preds:
                     continue
-                self.__log.info("Performances for %s on %s", name, part)
-                algo, from_ds = name
-                y_pred = np.load(preds[part]['pred'] + ".npy")
-                y_true = np.load(preds[part]['true'] + ".npy")
-                runtime = preds[part]['time']
-                coverage = preds[part]['coverage']
-                rows[part] = _stats_row(y_true, y_pred, algo, part, from_ds)
-                rows[part] = _update_row(rows[part], "coverage", coverage)
-                rows[part] = _update_row(rows[part], "time", runtime)
-                rows[part] = _update_row(
-                    rows[part], "architecture_history", '| linear |')
-                rows[part] = _update_row(
-                    rows[part], "architecture", [y_true.shape[1]])
-                rows[part] = _update_row(rows[part], "layer_size", 0)
-                rows[part] = _update_row(
-                    rows[part], "nr_variables", [y_true.shape[1]])
-                rows[part] = _update_row(rows[part], "nn_layers", 0)
+                self.__log.info("Performances for %s on %s", name, split)
+                algo, dataset = name
+                y_pred = np.load(preds[split]['pred'] + ".npy")
+                y_true = np.load(preds[split]['true'] + ".npy")
+                runtime = preds[split]['time']
+                coverage = preds[split]['coverage']
+                rows[split] = _stats_row(y_true, y_pred, algo, split, dataset)
+                rows[split] = _update_row(rows[split], "coverage", coverage)
+                rows[split] = _update_row(rows[split], "time", runtime)
+                rows[split] = _update_row(
+                    rows[split], "architecture_history", '| linear |')
+                rows[split] = _update_row(
+                    rows[split], "architecture", [y_true.shape[1]])
+                rows[split] = _update_row(rows[split], "layer_size", 0)
+                rows[split] = _update_row(
+                    rows[split], "nr_variables", [y_true.shape[1]])
+                rows[split] = _update_row(rows[split], "nn_layers", 0)
                 # log and save plot
-                # _log_row(rows[part])
+                # _log_row(rows[split])
                 plot.sign2_prediction_plot(
-                    y_true, y_pred, "_".join(list(name) + [part]))
+                    y_true, y_pred, "_".join(list(name) + [split]))
 
             # save rows
-            for part in partitions:
-                if part not in preds:
+            for split in splits:
+                if split not in preds:
                     continue
-                for row in rows[part]:
+                for row in rows[split]:
                     df.loc[len(df)] = pd.Series(row)
             output_pkl = os.path.join(output_dir, 'stats.pkl')
             with open(output_pkl, 'wb') as fh:
