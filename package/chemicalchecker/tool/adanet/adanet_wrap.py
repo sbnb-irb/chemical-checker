@@ -275,6 +275,8 @@ class AdaNetWrapper(object):
                 0] + hf['x_test'].shape[0] + hf['x_validation'].shape[0]
             # derive number of classes from train data
             self.n_classes = np.unique(hf['y_train'][:100000]).shape[0]
+        # override number of classes if specified
+        self.n_classes = kwargs.get("n_classes", self.n_classes)
         # layer size heuristic
         heu_layer_size = AdaNetWrapper.layer_size_heuristic(
             self.total_size, self.input_dimension, self.label_dimension)
