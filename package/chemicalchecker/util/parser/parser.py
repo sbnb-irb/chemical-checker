@@ -819,3 +819,55 @@ class Parser():
                     chunk = list()
         yield chunk
 
+    @staticmethod
+    def hmdb(file_path, molrepo_name, chunks=1000):
+        from lxml import etree as ET
+        converter = Converter()
+        # Functions
+        def fast_iter(context, func):
+            for event, elem in context:
+                yield func(elem)
+                elem.clear()
+                for ancestor in elem.xpath('ancestor-or-self::*'):
+                    while ancestor.getprevious() is not None:
+                        del ancestor.getparent()[0]
+            del context
+        def process_elem(elem):
+            src_id = elem.find(ns+"accession")
+            smiles = elem.find(ns+"smiles")
+            if src_id is None or smiles is None: return None, None
+            return src_id.text, smiles.text
+        # Check input size
+        if len(file_path) != 1:
+            raise Exception("This parser expect a single input file.")
+        file_path = file_path[0]
+        ns        = "{http://www.hmdb.ca}"
+        chunk     = list()
+        idx       = 0
+        # parse XML
+        context = ET.iterparse(file_path, events = ("end", ), tag = ns+"metabolite")
+        for src_id, smiles in fast_iter(context, process_elem):
+            if src_id is None or smiles is None: continue
+            # the following is always the same
+            try:
+                inchikey, inchi = converter.smiles_to_inchi(smiles)
+            except Exception as ex:
+                Parser.__log.warning("line %s: %s", idx, str(ex))
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
+            result = {
+                "id": id_text,
+                "molrepo_name": molrepo_name,
+                "src_id": src_id,
+                "smiles": smiles,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            idx += 1            
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
