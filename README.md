@@ -114,6 +114,24 @@ If you only want to change the config file, run the script with the -e argument:
         rm cc.simg
         sudo singularity build cc.simg sandbox
 
+4. In case you make use of the HPC utility, remember to copy your newly generated image to a directory accessible by the queueing system and edit the config file (section PATH.SINGULARITY_IMAGE) accordingly e.g.:
+
+        cp cc.simg /aloy/scratch/<yout_user>/cc.simg
+
+
+## Adding a permanent dependency to the package
+
+Not re-inventing the wheel is a great philosophy, but each dependency we introduce comes at the cost of maintainability. Double check that the module you want to add is the best option for doing what you want to do. Check that it is actively developed and that it supports Python 2 and 3. Test it thoroughly using the sandbox approach presented above. When your approach is mature you can happily add the new dependency to the package.
+
+To do so you can add a `pip install <package_of_your_dreams>` line to the following files in container/singularity:
+
+* cc-full.def (the definition file used by setup_chemicalchecker.sh)
+* cc_py27.def (unit-testing Python 2 environment)
+* cc_py36.def (unit-testing Python 3 environment)
+
+Don't forget to also add a short comment on why and where this new dependency is used, also in the commit message. E.g. "Added dependency used in preprocessing for space B5.003". The idea is that whenever B5.003 is obsoleted we can also safely remove the dependency.
+
+
 ## Examples
 
 For use case examples, please see notebooks in this repository.
