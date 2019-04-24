@@ -81,6 +81,7 @@ From: centos
     pip install wget                              # download library
     pip install timeout_decorator                 # method timeout
     pip install tqdm                              # handy progress-bar
+    pip install lxml                              # xml parser
     # data packages
     pip install numpy                             # best numerical library ever
     pip install pandas                            # handles table-like datastracture
