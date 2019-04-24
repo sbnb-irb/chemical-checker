@@ -23,7 +23,7 @@ def get_parser():
     return parser
 
 
-def save_output(output_file, inchikey_raw, method, models_path, discrete, features):
+def save_output(output_file, inchikey_raw, method, models_path, discrete, features, chunk=2000):
 
     keys = []
 
@@ -51,20 +51,34 @@ def save_output(output_file, inchikey_raw, method, models_path, discrete, featur
         else:
             orderwords = list(words)
             orderwords.sort()
-        raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
+
+        with h5py.File(output_file, "w") as hf:
+            hf.create_dataset("keys", data=np.array(keys))
+            hf.create_dataset("V", (len(keys), len(orderwords)), dtype='i8')
+            hf.create_dataset("features", data=np.array(orderwords))
+
+        raws = np.zeros((chunk, len(orderwords)), dtype=np.int8)
         wordspos = {k: v for v, k in enumerate(orderwords)}
+        index = 0
 
         for i, k in enumerate(keys):
             for word in inchikey_raw[k]:
                 if categ:
-                    raws[i][wordspos[word[0]]] = word[1]
+                    raws[index][wordspos[word[0]]] = word[1]
                 else:
-                    raws[i][wordspos[word]] = 1
+                    raws[index][wordspos[word]] = 1
+            index += 1
 
-        with h5py.File(output_file, "w") as hf:
-            hf.create_dataset("keys", data=np.array(keys))
-            hf.create_dataset("V", data=raws)
-            hf.create_dataset("features", data=np.array(orderwords))
+            if index == chunk or i == len(keys) - 1:
+                end = i + 1
+                if index != chunk:
+                    chunk = index
+                with h5py.File(output_file, "r+") as hf:
+                    dataset = hf["V"]
+                    dataset[end - chunk:end] = raws[:chunk]
+
+                raws = np.zeros((chunk, len(orderwords)), dtype=np.int8)
+                index = 0
 
         if method == "fit":
             with h5py.File(os.path.join(models_path, features_file), "w") as hf:
