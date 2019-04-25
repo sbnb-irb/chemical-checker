@@ -120,24 +120,23 @@ class sign1(BaseSignature):
 
         if self.discrete:
 
-            with h5py.File(input_data, "r") as hf:
-                keys = hf["keys"][:]
-                V = hf["V"][:]
-                features = hf["features"][:]
-                if "mappings" in hf.keys():
-                    mappings = hf["mappings"][:]
-
             plain_corpus = os.path.join(tmp_dir, "sign1.corpus.txt")
             tfidf_corpus = os.path.join(tmp_dir, "sign1.mm")
 
             f = open(plain_corpus, "w")
 
-            for i in range(0, len(keys)):
-                row = V[i]
-                mask = np.where(row > 0)
-                val = ",".join([",".join([features[x]] * row[x])
-                                for x in mask[0]])
-                f.write("%s %s\n" % (keys[i], val))
+            with h5py.File(input_data, "r") as hf:
+                features = hf["features"][:]
+                if "mappings" in hf.keys():
+                    mappings = hf["mappings"][:]
+                for chunk in sign0.chunker():
+                    V = hf["V"][chunk]
+                    keys = hf['keys'][chunk]
+                    for key, row in zip(keys, V):
+                        mask = np.where(row > 0)
+                        val = ",".join([",".join([features[x]] * row[x])
+                                        for x in mask[0]])
+                        f.write("%s %s\n" % (key, val))
 
             f.close()
 
