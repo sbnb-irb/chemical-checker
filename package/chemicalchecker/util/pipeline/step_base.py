@@ -5,7 +5,7 @@ methods.
 """
 import os
 import six
-import sys
+import glob
 
 from abc import ABCMeta, abstractmethod
 
@@ -49,6 +49,23 @@ class BaseStep(object):
         if substep is None:
             filename = os.path.join(self.readydir, self.readyfile)
         else:
-            filename = os.path.join(self.readydir, self.name + "_" + substep + ".ready")
+            filename = os.path.join(
+                self.readydir, self.name + "_" + substep + ".ready")
         with open(filename, 'w') as fh:
             pass
+
+    def clean(self, substep=None):
+        """Clean the step."""
+        BaseStep.__log.debug('clean')
+        if substep is None:
+            for filename in glob.glob(os.path.join(self.readydir, self.name + "_*.ready")):
+                os.remove(filename)
+        else:
+            filename = os.path.join(
+                self.readydir, self.name + "_" + substep + ".ready")
+            if os.path.exists(filename):
+                os.remove(filename)
+
+        filename = os.path.join(self.readydir, self.readyfile)
+        if os.path.exists(filename):
+            os.remove(filename)
