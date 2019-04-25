@@ -29,7 +29,7 @@ class Validation():
             os.umask(original_umask)
 
         self.validation_script = os.path.join(
-            config.PATH.CC_REPO, "scripts/validation_sets", name, "run.py")
+            config.PATH.CC_REPO, "package/scripts/validation_sets", name, "run.py")
 
         if not os.path.isfile(self.validation_script):
             raise Exception(
@@ -40,7 +40,6 @@ class Validation():
 
     def run(self, destination=None):
         """Run the validation script."""
-        self.__log.debug('nothing to fit.')
 
         if destination is None:
             destination = self.destination_file
