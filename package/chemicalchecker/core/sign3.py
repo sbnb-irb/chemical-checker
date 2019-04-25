@@ -302,12 +302,13 @@ class sign3(BaseSignature):
             raise err
 
         def mask_keep(idxs, x_data, y_data):
+            # we will fill an array of NaN with values we want to keep
             x_data_transf = np.zeros_like(x_data, dtype=np.float32) * np.nan
             for idx in idxs:
-                # zero out everything apart current space
+                # copy column from original data
                 col_slice = slice(idx * 128, (idx + 1) * 128)
                 x_data_transf[:, col_slice] = x_data[:, col_slice]
-            # current space contain NaNs, drop those rows
+            # keep rows containing at least one not-NaN value
             not_nan = np.isfinite(x_data_transf).any(axis=1)
             x_data_transf = x_data_transf[not_nan]
             y_data_transf = y_data[not_nan]
@@ -396,7 +397,7 @@ class sign3(BaseSignature):
                                                     adanet_path, total_size)
             # exclude level to predict
             dss = [d for d in all_dss if d.startswith(self.dataset[0])]
-            idxs = [all_dss.index(ds) for d in dss]
+            idxs = [all_dss.index(d) for d in dss]
             # algo name, prepare results
             name = ("AdaNet", "not-%sX" % self.dataset[0])
             if suffix:
@@ -411,7 +412,7 @@ class sign3(BaseSignature):
             # check special combinations
             dss = [d for d in all_dss if d.startswith('B')] + \
                 [d for d in all_dss if d.startswith('C')]
-            idxs = [all_dss.index(ds) for d in dss]
+            idxs = [all_dss.index(d) for d in dss]
             # algo name, prepare results
             name = ("AdaNet", "not-BX|CX")
             if suffix:
