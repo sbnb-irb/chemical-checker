@@ -4,7 +4,7 @@ chebi_lite,ftp://ftp.ebi.ac.uk/pub/databases/chebi/SDF/ChEBI_lite_3star.sdf.gz,F
 chembl,ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*_postgresql.tar.gz,False,True,,,,chembl,chembl_*/chembl_*_postgresql/chembl_*_postgresql.dmp,True,True
 CTD_chemicals_diseases,http://ctdbase.org/reports/CTD_chemicals_diseases.tsv.gz,False,True,,,,ctd,CTD_chemicals_diseases.tsv,False,True
 drugbank,https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database,False,True,oriol.guitart@irbbarcelona.org,sbnbAloy,,drugbank,full database.xml,False,True
-kegg_br,http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=,False,True,,,,kegg,download_htext,False,True
+kegg_br,http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=,False,True,,,,kegg,br08303.keg,False,True
 GSE70138_Broad_LINCS_pert_info_date,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_pert_info_*.txt.gz,False,True,,,,lincs,GSE70138_Broad_LINCS_pert_info_*.txt,False,True
 GSE92742_Broad_LINCS_pert_info,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_pert_info.txt.gz,False,True,,,,lincs,GSE92742_Broad_LINCS_pert_info.txt,False,True
 morphlincs_LDS-1195,http://lincsportal.ccs.miami.edu/dcic/api/download?path=LINCS_Data/Broad_Therapeutics&file=LDS-1195.tar.gz,False,True,,,,morphlincs,LDS-1195/Metadata/Small_Molecule_Metadata.txt,False,True
