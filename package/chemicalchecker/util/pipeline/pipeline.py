@@ -87,3 +87,45 @@ class Pipeline():
                     "Pipeline failed in step %s. Please, check errors.",
                     current_step.name)
                 break
+
+    def clean(self, step=None, substep=None):
+        """Clean all or some of the pipeline steps"""
+
+        params = {}
+        params["readydir"] = self.readydir
+        params["tmpdir"] = self.tmpdir
+
+        if step is None:
+
+            for step in self.config.RUN:
+                # initialize the step
+                try:
+                    Pipeline.__log.debug("initializing object '%s'", step)
+                    cwd = os.getcwd()
+                    os.chdir(self.steps_path)
+                    module_object = import_module('__init__')
+                    step_class = getattr(module_object, step)
+                    current_step = step_class(self.config, step, **params)
+                    os.chdir(cwd)
+                except Exception as ex:
+                    Pipeline.__log.debug(ex)
+
+                # clean it
+                current_step.clean()
+
+        else:
+
+            # initialize the step
+            try:
+                Pipeline.__log.debug("initializing object '%s'", step)
+                cwd = os.getcwd()
+                os.chdir(self.steps_path)
+                module_object = import_module('__init__')
+                step_class = getattr(module_object, step)
+                current_step = step_class(self.config, step, **params)
+                os.chdir(cwd)
+            except Exception as ex:
+                Pipeline.__log.debug(ex)
+
+            # clean it
+            current_step.clean(substep)
