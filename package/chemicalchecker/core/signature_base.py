@@ -286,6 +286,13 @@ class BaseSignature(object):
             for i in range(self.shape[0]):
                 yield hf['V'][i]
 
+    def chunker(self, size=2000):
+        """Iterate on signatures."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        for i in range(0, len(self.keys), size):
+            yield slice(i, i + size)
+
     def __getitem__(self, key):
         """Return the vector corresponding to the key.
 
