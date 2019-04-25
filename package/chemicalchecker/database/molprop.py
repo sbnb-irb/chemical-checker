@@ -4,6 +4,7 @@ import os
 import math
 import chemicalchecker
 import numpy as np
+import h5py
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 from chemicalchecker.util.hpc import HPC
@@ -152,8 +153,8 @@ def Molprop(table_name):
             inchikey_inchi(list): List of inchikey, inchi tuples
             cpu: Number of cores each job will use(default:1)
             wait: Wait for the job to finish (default:True)
-            memory: Maximum memory the job can take in Gigabytes(default: 10)
-            chunks: Maximum number of elements per HPC submission(default: 100000)
+            memory: Maximum memory the job can take in Gigabytes(default: 5)
+            chunk: Number of elements per HPC job(default: 200)
             """
             # create job directory if not available
             if not os.path.isdir(job_path):
@@ -161,8 +162,8 @@ def Molprop(table_name):
 
             cpu = kwargs.get("cpu", 1)
             wait = kwargs.get("wait", True)
-            memory = kwargs.get("memory", 10)
-            chunks = kwargs.get("chunks", 100000)
+            memory = kwargs.get("memory", 5)
+            chunk = kwargs.get("chunk", 200)
 
             # create script file
             cc_config = os.environ['CC_CONFIG']
@@ -170,16 +171,21 @@ def Molprop(table_name):
             script_lines = [
                 "import sys, os",
                 "import pickle",
+                "import h5py",
                 # cc_config location
                 "os.environ['CC_CONFIG'] = '%s'" % cc_config,
                 "sys.path.append('%s')" % cc_package,  # allow package import
                 "from chemicalchecker.database import Molprop",
                 "task_id = sys.argv[1]",  # <TASK_ID>
                 "filename = sys.argv[2]",  # <FILE>
+                "h5_file = sys.argv[3]",  # <H5 FILE>
                 # load pickled data
                 "inputs = pickle.load(open(filename, 'rb'))",
                 # elements for current job
-                "inchikey_inchi = dict(inputs[task_id])",
+                "start_index = int(inputs[task_id])",
+                "with h5py.File(h5_file, 'r') as hf:",
+                "    inchikey_inchi = dict(hf['ik_inchi'][start_index:start_index+" + str(
+                    chunk) + "])",
                 # elements are indexes
                 "mol = Molprop('" + GenericMolprop.__tablename__ + "')",
                 # start import
@@ -212,28 +218,32 @@ def Molprop(table_name):
 
             for ele in inchikey_inchi:
                 if ele[0] in todo_iks:
-                    list_inchikey_inchi.append(ele)
+                    list_inchikey_inchi.append((str(ele[0]), str(ele[1])))
 
-            n = max(int(math.ceil(len(list_inchikey_inchi) / chunks)), 1)
-            for lst in np.array_split(list_inchikey_inchi, n):
+            h5_file_name = os.path.join(job_path, "ik_inchi.h5")
+            del inchikey_inchi
 
-                params = {}
-                if GenericMolprop.__tablename__ == "fp3d":
-                    params["num_jobs"] = max(len(lst) / 200, 1)
-                else:
-                    params["num_jobs"] = max(len(lst) / 2000, 1)
-                params["jobdir"] = job_path
-                params["job_name"] = "CC_MLP_" + GenericMolprop.__tablename__
-                params["elements"] = lst.tolist()
-                params["wait"] = wait
-                params["cpu"] = cpu
-                params["memory"] = memory
-                # job command
-                singularity_image = Config().PATH.SINGULARITY_IMAGE
-                command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
-                    singularity_image, script_name)
-                # submit jobs
-                cluster = HPC(Config())
-                cluster.submitMultiJob(command, **params)
+            with h5py.File(h5_file_name, "w") as hf:
+                hf.create_dataset(
+                    "ik_inchi", data=np.array(list_inchikey_inchi))
+
+            indices = range(0, len(list_inchikey_inchi), chunk)
+
+            params = {}
+
+            params["num_jobs"] = len(indices)
+            params["jobdir"] = job_path
+            params["job_name"] = "CC_MLP_" + GenericMolprop.__tablename__
+            params["elements"] = indices
+            params["wait"] = wait
+            params["cpu"] = cpu
+            params["memory"] = memory
+            # job command
+            singularity_image = Config().PATH.SINGULARITY_IMAGE
+            command = "singularity exec {} python {} <TASK_ID> <FILE> {}".format(
+                singularity_image, script_name, h5_file_name)
+            # submit jobs
+            cluster = HPC(Config())
+            cluster.submitMultiJob(command, **params)
 
     return GenericMolprop
