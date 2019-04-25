@@ -40,11 +40,6 @@ class Molproperties(BaseStep):
             if self.is_ready(mol):
                 continue
 
-            params = {}
-
-            if mol == 'fp3d':
-                params['chunks'] = 20000
-
             self.__log.info("Calculating mol properties for " + mol)
 
             job_path = tempfile.mkdtemp(
@@ -53,7 +48,7 @@ class Molproperties(BaseStep):
             molprop = Molprop(mol)
 
             # This method sends the job and waits for the job to finish
-            molprop.molprop_hpc(job_path, list(final_ik_inchi), **params)
+            molprop.molprop_hpc(job_path, list(final_ik_inchi))
             missing = len(molprop.get_missing_from_set(iks))
             if missing > 0:
                 self.__log.error("Not all molecular properties were calculated. There are " +
