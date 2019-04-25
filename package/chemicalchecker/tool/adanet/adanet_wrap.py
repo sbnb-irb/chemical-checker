@@ -696,8 +696,7 @@ class AdaNetWrapper(object):
             rows[split] = _update_row(
                 rows[split], "architecture", architecture)
             rows[split] = _update_row(rows[split], "coverage", 1.0)
-            for row in rows[split]:
-                df.loc[len(df)] = pd.Series(row)
+            df = df.append(pd.DataFrame(rows[split]), ignore_index=True)
         output_pkl = os.path.join(output_dir, 'stats.pkl')
         with open(output_pkl, 'wb') as fh:
             pickle.dump(df, fh)
@@ -731,17 +730,16 @@ class AdaNetWrapper(object):
             #_log_row(rows[split])if do_plot:
             #    plot.sign2_prediction_plot(
             #    y[split], y_pred, "LinearRegression_%s" % split)
-        '''
 
         # save rows
         for split in splits:
-            for row in rows[split]:
-                df.loc[len(df)] = pd.Series(row)
+            df = df.append(pd.DataFrame(rows[split]), ignore_index=True)
         output_pkl = os.path.join(output_dir, 'stats.pkl')
         with open(output_pkl, 'wb') as fh:
             pickle.dump(df, fh)
         output_csv = os.path.join(output_dir, 'stats.csv')
         df.to_csv(output_csv)
+        '''
 
         # compare to other predictors
         if not extra_predictors:
