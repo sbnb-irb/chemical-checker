@@ -489,13 +489,14 @@ class AdaNetWrapper(object):
         return _input_fn
 
     @staticmethod
-    def predict(model_dir, features, predict_fn=None):
+    def predict(model_dir, features, predict_fn=None, probs=False):
         """Load model and return predictions.
 
         Args:
             model_dir(str): path where to save the model.
             features(matrix): a numpy matrix of Xs.
             predict_fn(func): the predict function returned by `predict_fn`.
+            probs(bool): if this is a classifier return the probabilities.
         """
         if predict_fn is None:
             predict_fn = predictor.from_saved_model(
@@ -504,7 +505,10 @@ class AdaNetWrapper(object):
         if 'predictions' in pred:
             return pred['predictions']
         else:
-            return pred['class_ids']
+            if probs:
+                return pred['probabilities']
+            else:
+                return pred['class_ids']
 
     @staticmethod
     def predict_fn(model_dir):
@@ -520,7 +524,7 @@ class AdaNetWrapper(object):
     @staticmethod
     def predict_online(model_dir, h5_file, split,
                        predict_fn=None, mask_fn=None,
-                       batch_size=10000, limit=10000):
+                       batch_size=10000, limit=10000, probs=False):
         """Predict on given testset without killing the memory.
 
         Args:
@@ -531,6 +535,7 @@ class AdaNetWrapper(object):
             mask_fn(func): a function masking part of the input.
             batch_size(int): batch size for `Traintest` file.
             limit(int): maximum number of predictions.
+            probs(bool): if this is a classifier return the probabilities.
         """
         if predict_fn is None:
             predict_fn = predictor.from_saved_model(
@@ -552,12 +557,10 @@ class AdaNetWrapper(object):
             x_m, y_m = mask_fn(x_data, y_data)
             if x_m.shape[0] == 0:
                 continue
-            y_m_pred = predict_fn({'x': x_m})
+            y_m_pred = AdaNetWrapper.predict(
+                model_dir, x_m, predict_fn, probs=probs)
             y_true[last_idx:last_idx + len(y_m)] = y_m
-            if 'predictions' in y_m_pred:
-                y_pred[last_idx:last_idx + len(y_m)] = y_m_pred['predictions']
-            else:
-                y_pred[last_idx:last_idx + len(y_m)] = y_m_pred['class_ids']
+            y_pred[last_idx:last_idx + len(y_m)] = y_m_pred
             last_idx += len(y_m)
             if last_idx >= limit:
                 break
