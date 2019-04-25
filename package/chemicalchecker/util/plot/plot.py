@@ -827,7 +827,7 @@ class Plot():
             df = df.append(tmpdf, ignore_index=True)
 
         if filter_from:
-            df = df[df['from'] == filter_from]
+            df = df[df['from'].isin(filter_from)]
 
         froms = sorted(list(df['from'].unique()))
         order = froms
