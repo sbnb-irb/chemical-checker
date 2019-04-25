@@ -39,8 +39,6 @@ def main(args):
 
     args = get_parser().parse_args(args)
 
-    print args
-
     dataset_code = "B4.002"
 
     dataset = Dataset.get(dataset_code)
