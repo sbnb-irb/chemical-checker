@@ -77,7 +77,7 @@ class sign3(BaseSignature):
                             sum(available), self.dataset, ds)
         return sign2_matrix, my_sign2[:]
 
-    def fit(self, chemchecker, reuse=True, suffix=None):
+    def fit(self, chemchecker, reuse=True, suffix=None, evaluate=True):
         """Learn a model."""
         try:
             from chemicalchecker.tool.adanet import AdaNet, Traintest
@@ -97,13 +97,23 @@ class sign3(BaseSignature):
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
         # prepare train-test file
-        traintest_file = os.path.join(self.model_path, 'traintest.h5')
-        if adanet_params:
-            traintest_file = adanet_params.pop(
-                'traintest_file', traintest_file)
-        if not reuse or not os.path.isfile(traintest_file):
-            features, labels = self.get_sign2_matrix(chemchecker)
-            Traintest.create(features, labels, traintest_file)
+        if evaluate:
+            traintest_file = os.path.join(self.model_path, 'traintest.h5')
+            if adanet_params:
+                traintest_file = adanet_params.pop(
+                    'traintest_file', traintest_file)
+            if not reuse or not os.path.isfile(traintest_file):
+                features, labels = self.get_sign2_matrix(chemchecker)
+                Traintest.create(features, labels, traintest_file)
+        else:
+            traintest_file = os.path.join(self.model_path, 'train.h5')
+            if adanet_params:
+                traintest_file = adanet_params.pop(
+                    'traintest_file', traintest_file)
+            if not reuse or not os.path.isfile(traintest_file):
+                features, labels = self.get_sign2_matrix(chemchecker)
+                Traintest.create(features, labels, traintest_file,
+                                 split_fractions=[1.0])
         # initialize adanet
         if adanet_params:
             ada = AdaNet(model_dir=adanet_path,
@@ -113,15 +123,15 @@ class sign3(BaseSignature):
             ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
         # learn
         self.__log.debug('AdaNet training on %s' % traintest_file)
-        ada.train_and_evaluate()
-        # compare performance with cross predictors
-        singles = self.adanet_single_spaces(chemchecker, adanet_path,
-                                            traintest_file, suffix)
-        # save AdaNet performances and plots
-        sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
-        ada.save_performances(adanet_path, sign2_plot, suffix, singles)
+        ada.train_and_evaluate(evaluate=evaluate)
         self.__log.debug('model saved to %s' % adanet_path)
-
+        if evaluate:
+            # compare performance with cross predictors
+            singles = self.adanet_single_spaces(chemchecker, adanet_path,
+                                                traintest_file, suffix)
+            # save AdaNet performances and plots
+            sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
+            ada.save_performances(adanet_path, sign2_plot, suffix, singles)
         self.mark_ready()
 
     def predict(self, sign1):
@@ -486,6 +496,59 @@ class sign3(BaseSignature):
         params["num_jobs"] = len(elements)
         params["jobdir"] = job_path
         params["job_name"] = "CC_SIGN3_TEST_PARAMS"
+        params["elements"] = elements
+        params["wait"] = False
+        params["memory"] = 16
+        params["cpu"] = cpu
+        # job command
+        singularity_image = Config().PATH.SINGULARITY_IMAGE
+        command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+            singularity_image, script_name)
+        # submit jobs
+        cluster = HPC(Config())
+        cluster.submitMultiJob(command, **params)
+        return cluster
+
+
+    @staticmethod
+    def fit_hpc(cc_root, job_path, elements, evaluate=True, cpu=1):
+        """Perform a grid search.
+        """
+        from chemicalchecker.util.hpc import HPC
+        from chemicalchecker.util import Config
+
+        # create job directory if not available
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+        # create script file
+        cc_config = os.environ['CC_CONFIG']
+        cfg = Config(cc_config)
+        cc_package = os.path.join(cfg.PATH.CC_REPO, 'package')
+        script_lines = [
+            "import sys, os",
+            "import pickle",
+            "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
+            "sys.path.append('%s')" % cc_package,  # allow package import
+            "from chemicalchecker.core import ChemicalChecker",
+            "cc = ChemicalChecker('%s')" % cc_root,
+            "task_id = sys.argv[1]",  # <TASK_ID>
+            "filename = sys.argv[2]",  # <FILE>
+            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
+            "data = inputs[task_id]",  # elements for current job
+            "for ds in data:",  # elements are indexes
+            "    s3 = cc.get_signature('sign3', 'full_map', ds, adanet={'initial_architecture':[9,1]})",
+            "    s3.fit(cc, evaluate=%s, suffix='final')" % evaluate,
+            "print('JOB DONE')"
+        ]
+        script_name = os.path.join(job_path, 'sign3_test_params.py')
+        with open(script_name, 'w') as fh:
+            for line in script_lines:
+                fh.write(line + '\n')
+        # hpc parameters
+        params = dict()
+        params["num_jobs"] = len(elements)
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_SIGN3"
         params["elements"] = elements
         params["wait"] = False
         params["memory"] = 16
