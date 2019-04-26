@@ -280,7 +280,7 @@ class AdaNetWrapper(object):
             self.total_size, self.input_dimension, self.label_dimension)
         self.layer_size = int(kwargs.get("layer_size", heu_layer_size))
         # make adanet iteration proportional to input size (with lower bound)
-        adanet_it, epoch_it = AdaNetWrapper.layer_size_heuristic(
+        adanet_it, epoch_it = AdaNetWrapper.iteration_epoch_heuristic(
             self.total_size)
         self.epoch_per_iteration = int(kwargs.get("epoch_per_iteration", epoch_it))
         self.adanet_iterations = int(kwargs.get("adanet_iterations", adanet_it))
