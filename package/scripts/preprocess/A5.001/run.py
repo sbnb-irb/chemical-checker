@@ -18,6 +18,7 @@ from chemicalchecker.util import Converter
 entry_point_keys = "inchikey"
 entry_point_inchi = "inchi"
 entry_point_smiles = "smiles"
+features_file = "features.h5"
 
 name = "physchem"
 
@@ -136,13 +137,19 @@ def main(args):
     inds = keys.argsort()
     data = []
 
+    features = ["mw", "heavy", "hetero", "rings", "ringaliph", "ringarom", "alogp", "mr",
+                "hba", "hbd", "psa", "rotb", "alerts_qed", "alerts_chembl", "ro5", "ro3", "qed"]
     for i in inds:
         data.append(sigs[keys[i]])
 
     with h5py.File(args.output_file, "w") as hf:
         hf.create_dataset("keys", data=keys[inds])
         hf.create_dataset("V", data=np.array(data))
+        hf.create_dataset("features", data=np.array(features))
 
+    if args.method == "fit":
+        with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
+            hf.create_dataset("features", data=np.array(features))
 
 if __name__ == '__main__':
     main(sys.argv[1:])
