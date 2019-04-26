@@ -113,7 +113,7 @@ class sign3(BaseSignature):
             if not reuse or not os.path.isfile(traintest_file):
                 features, labels = self.get_sign2_matrix(chemchecker)
                 Traintest.create(features, labels, traintest_file,
-                                 split_fractions=[1.0])
+                                 split_fractions=[1.0, .0, .0])
         # initialize adanet
         if adanet_params:
             ada = AdaNet(model_dir=adanet_path,
