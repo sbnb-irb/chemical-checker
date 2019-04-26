@@ -98,3 +98,8 @@ def save_output(output_file, inchikey_raw, method, models_path, discrete, featur
         with h5py.File(output_file, "w") as hf:
             hf.create_dataset("keys", data=keys[inds])
             hf.create_dataset("V", data=np.array(data))
+            hf.create_dataset("features", data=np.array(features))
+
+        if method == "fit":
+            with h5py.File(os.path.join(models_path, features_file), "w") as hf:
+                hf.create_dataset("features", data=np.array(features))

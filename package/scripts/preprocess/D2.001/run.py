@@ -15,6 +15,7 @@ from chemicalchecker.util import gaussian_scale_impute
 # Variables
 
 entry_point_full = "profile"
+features_file = "features.h5"
 cell_headers_file = "cell_names.pcl"
 up_down_file = "up_down.pcl"
 
@@ -105,6 +106,7 @@ def main(args):
 
     up = None
     dw = None
+    cell_names = []
     sigs = collections.defaultdict(list)
 
     if args.method == "fit":
@@ -136,15 +138,18 @@ def main(args):
                 v = [Float(x) for x in l[6:-2]]
                 sigs[inchikey] += [v]
 
-            with open(os.path.join(args.models_path, cell_headers_file), 'wb') as fh:
-                pickle.dump({k: v for v, k in enumerate(cell_names)}, fh)
+        with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
+            hf.create_dataset("features", data=np.array(cell_names))
+            # pickle.dump({k: v for v, k in enumerate(cell_names)}, fh)
 
     if args.method == "predict":
 
         pre_data = []
 
-        cell_names_map = pickle.load(
-            open(os.path.join(args.models_path, cell_headers_file), 'rb'))
+        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+            cell_names = hf["features"][:]
+
+        cell_names_map = {k: v for v, k in enumerate(cell_names)}
 
         up_dw_map = pickle.load(
             open(os.path.join(args.models_path, up_down_file), 'rb'))
@@ -188,6 +193,7 @@ def main(args):
     with h5py.File(args.output_file, "w") as hf:
         hf.create_dataset("keys", data=keys[inds])
         hf.create_dataset("V", data=np.array(data))
+        hf.create_dataset("features", data=np.array(cell_names))
 
 
 if __name__ == '__main__':

@@ -17,6 +17,7 @@ from cmapPy.pandasGEXpress import parse
 
 entry_point_full = "measure"
 cell_headers_file = "cell_names.pcl"
+features_file = "features.h5"
 up_down_file = "up_down.pcl"
 
 
@@ -151,6 +152,7 @@ def main(args):
     up = None
     dw = None
     sigs = collections.defaultdict(list)
+    features = None
 
     if args.method == "fit":
 
@@ -171,11 +173,13 @@ def main(args):
         X, rownames, col_names, up, dw = parse_morphology(
             lds_1195, args.models_path, up, dw)
 
+        features = col_names
+
         with open(os.path.join(args.models_path, up_down_file), 'wb') as fh:
             pickle.dump({"up": up, "dw": dw}, fh)
 
-        with open(os.path.join(args.models_path, cell_headers_file), 'wb') as fh:
-            pickle.dump({k: v for v, k in enumerate(col_names)}, fh)
+        with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
+            hf.create_dataset("features", data=np.array(features))
 
         main._log.info("Filtering...")
         sigs = filter_data(X, rownames, pertid_inchikey)
@@ -187,8 +191,10 @@ def main(args):
         X = []
         rownames = []
 
-        cell_names_map = pickle.load(
-            open(os.path.join(args.models_path, cell_headers_file), 'rb'))
+        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+            features = hf["features"][:]
+
+        cell_names_map = {k: v for v, k in enumerate(features)}
 
         up_dw_map = pickle.load(
             open(os.path.join(args.models_path, up_down_file), 'rb'))
@@ -230,6 +236,7 @@ def main(args):
     with h5py.File(args.output_file, "w") as hf:
         hf.create_dataset("keys", data=keys[inds])
         hf.create_dataset("V", data=np.array(data))
+        hf.create_dataset("features", data=np.array(features))
 
 
 if __name__ == '__main__':
