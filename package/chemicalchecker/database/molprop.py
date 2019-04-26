@@ -20,6 +20,8 @@ from chemicalchecker.database import GeneralProp
 def Molprop(table_name):
 
     DynamicBase = declarative_base(class_registry=dict())
+    config = Config()
+
 
     @logged
     class GenericMolprop(DynamicBase):
@@ -28,6 +30,7 @@ def Molprop(table_name):
         __tablename__ = table_name
         inchikey = Column(Text, primary_key=True)
         raw = Column(Text)
+        dbname = config.DB.molprop_dbname
 
         @staticmethod
         def add(kwargs):
@@ -41,7 +44,7 @@ def Molprop(table_name):
                 prop = GenericMolprop(**kwargs)
 
             GenericMolprop.__log.debug(prop.inchikey)
-            session = get_session()
+            session = get_session(GenericMolprop.dbname)
             session.add(prop)
             session.commit()
             session.close()
@@ -49,7 +52,7 @@ def Molprop(table_name):
         @staticmethod
         def get(key):
             """Method to query general_properties table."""
-            session = get_session()
+            session = get_session(GenericMolprop.dbname)
             query = session.query(GenericMolprop).filter_by(inchikey=key)
             res = query.one_or_none()
 
@@ -59,7 +62,7 @@ def Molprop(table_name):
 
         @staticmethod
         def _create_table():
-            engine = get_engine()
+            engine = get_engine(GenericMolprop.dbname)
             DynamicBase.metadata.create_all(engine)
 
         @staticmethod
@@ -67,7 +70,7 @@ def Molprop(table_name):
             size = 1000
             props = set()
 
-            session = get_session()
+            session = get_session(GenericMolprop.dbname)
             for pos in range(0, len(keys), size):
                 query = session.query(GenericMolprop).filter(
                     GenericMolprop.inchikey.in_(keys[pos:pos + size]), GenericMolprop.raw.isnot(None))
@@ -86,7 +89,7 @@ def Molprop(table_name):
 
             vec = list(keys)
 
-            session = get_session()
+            session = get_session(GenericMolprop.dbname)
             for pos in range(0, len(keys), size):
                 query = session.query(GenericMolprop).filter(
                     GenericMolprop.inchikey.in_(vec[pos:pos + size]))
@@ -128,7 +131,7 @@ def Molprop(table_name):
             parse_fn = PropCalculator.calc_fn(GenericMolprop.__tablename__)
             # profile time
             t_start = time()
-            engine = get_engine()
+            engine = get_engine(GenericMolprop.dbname)
             for chunk in parse_fn(dict_inchikey_inchi, 1000):
                 if len(chunk) == 0:
                     continue

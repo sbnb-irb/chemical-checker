@@ -12,7 +12,8 @@
         "host": "'10.5.4.240'",
         "user": "'cc_user'",
         "password": "'checker'",
-        "database": "'mosaic'"
+        "database": "'mosaic'",
+        "molprop_dbname": "'mosaic'"
     },
     "HPC": {
         "system" : "'sge'",
