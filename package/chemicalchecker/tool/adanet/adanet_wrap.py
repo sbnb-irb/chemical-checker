@@ -254,10 +254,8 @@ class AdaNetWrapper(object):
         self.activation = kwargs.get("activation", tf.nn.relu)
         self.shuffles = int(kwargs.get("shuffles", 10))
         self.dropout_rate = float(kwargs.get("dropout_rate", 0.2))
-        self.adanet_iterations = int(kwargs.get("adanet_iterations", 10))
         self.augmentation = kwargs.get("augmentation", False)
         self.min_train_step = kwargs.get("min_train_step", 1000)
-        self.epoch_per_iteration = kwargs.get("epoch_per_iteration", 1)
         self.nan_mask_value = kwargs.get("nan_mask_value", 0.0)
         self.subnetwork_generator = eval(kwargs.get(
             "subnetwork_generator", "ExtendDNNGenerator"))
@@ -282,7 +280,11 @@ class AdaNetWrapper(object):
             self.total_size, self.input_dimension, self.label_dimension)
         self.layer_size = int(kwargs.get("layer_size", heu_layer_size))
         # make adanet iteration proportional to input size (with lower bound)
-        # we want to guarantee one epoch per adanet iteration
+        adanet_it, epoch_it = AdaNetWrapper.layer_size_heuristic(
+            self.total_size)
+        self.epoch_per_iteration = int(kwargs.get("epoch_per_iteration", epoch_it))
+        self.adanet_iterations = int(kwargs.get("adanet_iterations", adanet_it))
+        # howevere we want to guarantee one epoch per adanet iteration
         self.train_step = int(np.ceil(self.train_size / self.batch_size *
                                       float(self.epoch_per_iteration)))
         if self.train_step < self.min_train_step:
@@ -369,7 +371,18 @@ class AdaNetWrapper(object):
         heu_layer_size = np.maximum(heu_layer_size, 32)
         return heu_layer_size
 
-    def train_and_evaluate(self):
+    @staticmethod
+    def iteration_epoch_heuristic(nr_samples, min_it=3, max_it=10, min_ep=30,
+                                  max_ep=300, sigmoind_midpoint=100000,
+                                  steepness=1):
+        # logistic function of nr of samples
+        adanet_it = np.int32(min_it + (max_it - min_it) / \
+            (1 + np.exp(steepness * (nr_samples - sigmoind_midpoint))))
+        epoch_it = np.int32(min_ep + (max_ep - min_ep) / \
+            (1 + np.exp(steepness * (nr_samples - sigmoind_midpoint))))
+        return adanet_it, epoch_it
+
+    def train_and_evaluate(self, evaluate=True):
         """Train and evaluate AdaNet."""
 
         """Define the `adanet.Estimator`."""
@@ -419,11 +432,18 @@ class AdaNetWrapper(object):
             input_fn=self.input_fn("train", training=True,
                                    augmentation=self.augmentation),
             max_steps=self.total_steps)
-        eval_spec = tf.estimator.EvalSpec(
-            input_fn=self.input_fn("test", training=False),
-            steps=None,
-            start_delay_secs=1,
-            throttle_secs=1)
+        if evaluate:
+            eval_spec = tf.estimator.EvalSpec(
+                input_fn=self.input_fn("test", training=False),
+                steps=None,
+                start_delay_secs=1,
+                throttle_secs=1)
+        else:
+            eval_spec = tf.estimator.EvalSpec(
+                input_fn=self.input_fn("train", training=False),
+                steps=None,
+                start_delay_secs=1,
+                throttle_secs=1)
         # call train and evaluate collecting time stats
         t0 = time()
         self.results = tf.estimator.train_and_evaluate(
@@ -489,7 +509,7 @@ class AdaNetWrapper(object):
         return _input_fn
 
     @staticmethod
-    def predict(model_dir, features, predict_fn=None, probs=False):
+    def predict(model_dir, features, predict_fn=None, mask_fn=None, probs=False):
         """Load model and return predictions.
 
         Args:
@@ -501,9 +521,51 @@ class AdaNetWrapper(object):
         if predict_fn is None:
             predict_fn = predictor.from_saved_model(
                 model_dir, signature_def_key='predict')
+
+        if mask_fn is None:
+            def mask_fn(tensor):
+                """Function to subsample stacked data."""
+                # it is safe to make a local copy of the input matrix
+                new_data = np.copy(tensor)
+                # we will have a masking matrix at the end
+                mask = np.zeros_like(new_data).astype(bool)
+                for idx, row in enumerate(new_data):
+                    # the following assume the stacked signature to have a fixed width
+                    presence = ~np.isnan(row[0::128])
+                    # low probability of keeping the original sample
+                    if np.random.rand() > 0.95:
+                        presence_add = presence
+                    else:
+                        # present datasets
+                        present_idxs = np.argwhere(presence).flatten()
+                        # how many dataset in this subsampling?
+                        max_add = present_idxs.shape[0]
+                        n_to_add = np.random.choice(max_add) + 1
+                        # which ones?
+                        to_add = np.random.choice(
+                            present_idxs, n_to_add, replace=False)
+                        # dataset mask
+                        presence_add = np.zeros(presence.shape).astype(bool)
+                        presence_add[to_add] = True
+                    # from dataset mask to signature mask
+                    mask[idx] = np.repeat(presence_add, 128)
+                # make masked dataset NaN
+                new_data[~mask] = np.nan
+                return new_data
+
         pred = predict_fn({'x': features[:]})
         if 'predictions' in pred:
-            return pred['predictions']
+            if probs:
+                samples = 100
+                pred_shape = pred['predictions'].shape
+                results = np.ndarray((pred_shape[0], pred_shape[1], samples))
+                for idx in range(samples):
+                    mask_pred = predict_fn({'x': mask_fn(features[:])})
+                    results[:, :, idx] = mask_pred['predictions']
+                return results
+                pass
+            else:
+                return pred['predictions']
         else:
             if probs:
                 return pred['probabilities']
