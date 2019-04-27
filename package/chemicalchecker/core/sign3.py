@@ -511,7 +511,7 @@ class sign3(BaseSignature):
 
 
     @staticmethod
-    def fit_hpc(cc_root, job_path, elements, evaluate=True, cpu=1):
+    def fit_hpc(cc_root, job_path, elements, evaluate=True, suffix='final', cpu=1):
         """Perform a grid search.
         """
         from chemicalchecker.util.hpc import HPC
@@ -537,7 +537,7 @@ class sign3(BaseSignature):
             "data = inputs[task_id]",  # elements for current job
             "for ds in data:",  # elements are indexes
             "    s3 = cc.get_signature('sign3', 'full_map', ds, adanet={'initial_architecture':[9,1]})",
-            "    s3.fit(cc, evaluate=%s, suffix='final')" % evaluate,
+            "    s3.fit(cc, evaluate=%s, suffix='%s')" % (evaluate, suffix),
             "print('JOB DONE')"
         ]
         script_name = os.path.join(job_path, 'sign3_test_params.py')
