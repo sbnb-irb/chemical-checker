@@ -64,7 +64,7 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
                          summary,
                          previous_ensemble=None):
         """See `adanet.subnetwork.Builder`."""
-        input_layer = tf.to_float(features['x'])
+        input_layer = tf.cast(features['x'], tf.float32)
         # forcing to input shape as dataset uses tf.py_func (loosing shape)
         input_layer = tf.reshape(features['x'], [-1, self._input_shape])
         kernel_initializer = tf.glorot_uniform_initializer(seed=self._seed)
@@ -72,20 +72,16 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
         if self._nan_mask_value is not None:
             last_layer = NanMaskingLayer(self._nan_mask_value)(last_layer)
         for layer_size in self._layer_sizes:
-            last_layer = tf.layers.dense(
-                last_layer,
+            last_layer = Dense(
                 units=layer_size * self._layer_block_size,
                 activation=self._activation,
-                kernel_initializer=kernel_initializer)
-            last_layer = tf.layers.dropout(
-                last_layer,
+                kernel_initializer=kernel_initializer)(last_layer)
+            last_layer = Dropout(
                 rate=self._dropout,
-                seed=self._seed,
-                training=training)
-        logits = tf.layers.dense(
-            last_layer,
+                seed=self._seed)(last_layer, training=training)
+        logits = Dense(
             units=logits_dimension,
-            kernel_initializer=kernel_initializer)
+            kernel_initializer=kernel_initializer)(last_layer)
 
         shared_tensors = {
             "num_layers": tf.constant(self._num_layers),
