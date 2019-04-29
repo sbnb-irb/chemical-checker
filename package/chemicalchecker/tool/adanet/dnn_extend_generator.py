@@ -72,16 +72,20 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
         if self._nan_mask_value is not None:
             last_layer = NanMaskingLayer(self._nan_mask_value)(last_layer)
         for layer_size in self._layer_sizes:
-            last_layer = Dense(
+            last_layer = tf.layers.dense(
+                last_layer,
                 units=layer_size * self._layer_block_size,
                 activation=self._activation,
-                kernel_initializer=kernel_initializer)(last_layer)
-            last_layer = Dropout(
+                kernel_initializer=kernel_initializer)
+            last_layer = tf.layers.dropout(
+                last_layer,
                 rate=self._dropout,
-                seed=self._seed)(last_layer, training=training)
-        logits = Dense(
+                seed=self._seed,
+                training=training)
+        logits = tf.layers.dense(
+            last_layer,
             units=logits_dimension,
-            kernel_initializer=kernel_initializer)(last_layer)
+            kernel_initializer=kernel_initializer)
 
         shared_tensors = {
             "num_layers": tf.constant(self._num_layers),
