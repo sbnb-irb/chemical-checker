@@ -758,3 +758,32 @@ class MultiPlot():
         filename = os.path.join(self.plot_path, "spy.png")
         plt.savefig(filename, dpi=100)
         plt.close()
+
+    def sign3_adanet_performance_plot(self, metric="pearson"):
+        fig, axes = plt.subplots(25, 1, sharey=True, sharex=True,
+                                 figsize=(20, 40), dpi=100)
+        sns.set_style("whitegrid")
+        for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
+            s3 = self.cc.get_signature('sign3', 'full_map', ds)
+            perf_file = os.path.join(
+                s3.model_path, 'adanet_final', 'stats.pkl')
+            if not os.path.isfile(perf_file):
+                continue
+            df = pd.read_pickle(perf_file)
+            sns.barplot(x='from', y=metric, data=df, hue="split",
+                        hue_order=['train', 'validation'],
+                        ax=ax, color=self.cc_palette([ds])[0])
+            ax.get_legend().remove()
+
+            """
+            ax.set_ylim(-1, 1)
+            ax.set_xlim(-2, 130)
+            ax.set_xticks([])
+            ax.set_xlabel('')
+            ax.set_ylabel(ds)
+            sns.despine(bottom=True)
+            """
+        plt.tight_layout()
+        filename = os.path.join(self.plot_path, "adanet_performance.png")
+        plt.savefig(filename, dpi=100)
+        plt.close()
