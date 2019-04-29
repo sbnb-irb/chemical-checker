@@ -269,8 +269,9 @@ class AdaNetWrapper(object):
             else:
                 self.label_dimension = hf['y_train'].shape[1]
             self.train_size = hf['x_train'].shape[0]
-            self.total_size = hf['x_train'].shape[
-                0] + hf['x_test'].shape[0] + hf['x_validation'].shape[0]
+            self.total_size = 0
+            for split in [i for i in hf.keys() if i.startswith('x_')]:
+                self.total_size += hf[split].shape[0]
             # derive number of classes from train data
             self.n_classes = np.unique(hf['y_train'][:100000]).shape[0]
         # override number of classes if specified
