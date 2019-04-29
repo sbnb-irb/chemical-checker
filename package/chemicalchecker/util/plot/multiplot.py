@@ -60,7 +60,7 @@ class MultiPlot():
     def cmap_discretize(self, cmap, N):
         """Return a discrete colormap from the continuous colormap cmap.
 
-            cmap: colormap instance, eg. cm.jet. 
+            cmap: colormap instance, eg. cm.jet.
             N: number of colors.
 
         Example
@@ -718,7 +718,7 @@ class MultiPlot():
         odf = odf[(odf.coordinate_from != odf.coordinate_to)]
         odf['pair'] = odf['coordinate_from'].apply(
             lambda x: x[:2]) + "_" + odf['coordinate_to'].apply(lambda x: x[:2])
-        #odf['capped_train_size'] = np.minimum(odf.train_size,20000)
+        # odf['capped_train_size'] = np.minimum(odf.train_size,20000)
         odf['log10_train_size'] = np.log(odf.train_size)
         odf['pearson_avg_train'] = odf.overfit_pearson_avg + odf.pearson_avg
 
@@ -759,31 +759,48 @@ class MultiPlot():
         plt.savefig(filename, dpi=100)
         plt.close()
 
-    def sign3_adanet_performance_plot(self, metric="pearson"):
-        fig, axes = plt.subplots(25, 1, sharey=True, sharex=True,
-                                 figsize=(20, 40), dpi=100)
+    def sign3_adanet_performance_plot(self, metric="pearson", suffix=None):
+
+        fig, axes = plt.subplots(25, 1, sharey=True, sharex=False,
+                                 figsize=(25, 80), dpi=100)
         sns.set_style("whitegrid")
+        adanet_dir = 'adanet_eval'
+        if suffix is not None:
+            adanet_dir = 'adanet_%s' % suffix
         for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
             s3 = self.cc.get_signature('sign3', 'full_map', ds)
             perf_file = os.path.join(
-                s3.model_path, 'adanet_final', 'stats.pkl')
+                s3.model_path, adanet_dir, 'stats.pkl')
             if not os.path.isfile(perf_file):
                 continue
             df = pd.read_pickle(perf_file)
             sns.barplot(x='from', y=metric, data=df, hue="split",
-                        hue_order=['train', 'validation'],
+                        hue_order=['train', 'test'],
                         ax=ax, color=self.cc_palette([ds])[0])
+            ax.set_ylim(0, 1)
+            sns.stripplot(x='from', y='coverage', data=df, hue="split",
+                          hue_order=['train', 'test'],
+                          ax=ax, jitter=False, palette=['pink', 'crimson'])
             ax.get_legend().remove()
+            ax.set_xlabel('')
+            ax.set_ylabel(ds)
+            for idx, p in enumerate(ax.patches):
+                if "%.2f" % p.get_height() == 'nan':
+                    continue
+                val = "%.2f" % p.get_height()
+                ax.annotate(val[1:],
+                            (p.get_x() + p.get_width() / 2., 0),
+                            ha='center', va='center', fontsize=11,
+                            color='k', rotation=90, xytext=(0, 20),
+                            textcoords='offset points')
 
             """
             ax.set_ylim(-1, 1)
             ax.set_xlim(-2, 130)
             ax.set_xticks([])
-            ax.set_xlabel('')
-            ax.set_ylabel(ds)
             sns.despine(bottom=True)
             """
         plt.tight_layout()
         filename = os.path.join(self.plot_path, "adanet_performance.png")
         plt.savefig(filename, dpi=100)
-        plt.close()
+        plt.close('all')
