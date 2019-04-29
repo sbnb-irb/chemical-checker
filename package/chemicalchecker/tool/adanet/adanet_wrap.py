@@ -282,8 +282,10 @@ class AdaNetWrapper(object):
         # make adanet iteration proportional to input size (with lower bound)
         adanet_it, epoch_it = AdaNetWrapper.iteration_epoch_heuristic(
             self.total_size)
-        self.epoch_per_iteration = int(kwargs.get("epoch_per_iteration", epoch_it))
-        self.adanet_iterations = int(kwargs.get("adanet_iterations", adanet_it))
+        self.epoch_per_iteration = int(
+            kwargs.get("epoch_per_iteration", epoch_it))
+        self.adanet_iterations = int(
+            kwargs.get("adanet_iterations", adanet_it))
         # howevere we want to guarantee one epoch per adanet iteration
         self.train_step = int(np.ceil(self.train_size / self.batch_size *
                                       float(self.epoch_per_iteration)))
@@ -376,10 +378,10 @@ class AdaNetWrapper(object):
                                   max_ep=300, sigmoind_midpoint=100000,
                                   steepness=1):
         # logistic function of nr of samples
-        adanet_it = np.int32(min_it + (max_it - min_it) / \
-            (1 + np.exp(steepness * (nr_samples - sigmoind_midpoint))))
-        epoch_it = np.int32(min_ep + (max_ep - min_ep) / \
-            (1 + np.exp(steepness * (nr_samples - sigmoind_midpoint))))
+        adanet_it = np.int32(min_it + (max_it - min_it) /
+                             (1 + np.exp(steepness * (nr_samples - sigmoind_midpoint))))
+        epoch_it = np.int32(min_ep + (max_ep - min_ep) /
+                            (1 + np.exp(steepness * (nr_samples - sigmoind_midpoint))))
         return adanet_it, epoch_it
 
     def train_and_evaluate(self, evaluate=True):
@@ -530,7 +532,8 @@ class AdaNetWrapper(object):
                 # we will have a masking matrix at the end
                 mask = np.zeros_like(new_data).astype(bool)
                 for idx, row in enumerate(new_data):
-                    # the following assume the stacked signature to have a fixed width
+                    # the following assume the stacked signature to have a
+                    # fixed width
                     presence = ~np.isnan(row[0::128])
                     # low probability of keeping the original sample
                     if np.random.rand() > 0.95:
