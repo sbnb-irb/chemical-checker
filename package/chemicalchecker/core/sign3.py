@@ -50,7 +50,11 @@ class sign3(BaseSignature):
         self.params = dict()
         self.params['graph'] = params.get('graph', None)
         self.params['node2vec'] = params.get('node2vec', None)
-        self.params['adanet'] = params.get('adanet', None)
+        default_adanet = {
+            "augmentation": subsample,
+            "initial_architecture": [9, 1]
+        }
+        self.params['adanet'] = params.get('adanet', default_adanet)
 
     def get_sign2_matrix(self, chemchecker, include_self=True):
         """Get combined matrix of stacked signature 2."""
@@ -509,7 +513,6 @@ class sign3(BaseSignature):
         cluster.submitMultiJob(command, **params)
         return cluster
 
-
     @staticmethod
     def fit_hpc(cc_root, job_path, elements, evaluate=True, suffix='final', cpu=1):
         """Perform a grid search.
@@ -520,6 +523,8 @@ class sign3(BaseSignature):
         # create job directory if not available
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
+        if evaluate:
+            suffix = '%s_eval' % suffix
         # create script file
         cc_config = os.environ['CC_CONFIG']
         cfg = Config(cc_config)
@@ -536,11 +541,11 @@ class sign3(BaseSignature):
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
             "data = inputs[task_id]",  # elements for current job
             "for ds in data:",  # elements are indexes
-            "    s3 = cc.get_signature('sign3', 'full_map', ds, adanet={'initial_architecture':[9,1]})",
+            "    s3 = cc.get_signature('sign3', 'full_map', ds)",
             "    s3.fit(cc, evaluate=%s, suffix='%s')" % (evaluate, suffix),
             "print('JOB DONE')"
         ]
-        script_name = os.path.join(job_path, 'sign3_test_params.py')
+        script_name = os.path.join(job_path, 'sign3_fit.py')
         with open(script_name, 'w') as fh:
             for line in script_lines:
                 fh.write(line + '\n')
