@@ -526,36 +526,9 @@ class AdaNetWrapper(object):
                 model_dir, signature_def_key='predict')
 
         if mask_fn is None:
-            def mask_fn(tensor):
-                """Function to subsample stacked data."""
-                # it is safe to make a local copy of the input matrix
-                new_data = np.copy(tensor)
-                # we will have a masking matrix at the end
-                mask = np.zeros_like(new_data).astype(bool)
-                for idx, row in enumerate(new_data):
-                    # the following assume the stacked signature to have a
-                    # fixed width
-                    presence = ~np.isnan(row[0::128])
-                    # low probability of keeping the original sample
-                    if np.random.rand() > 0.95:
-                        presence_add = presence
-                    else:
-                        # present datasets
-                        present_idxs = np.argwhere(presence).flatten()
-                        # how many dataset in this subsampling?
-                        max_add = present_idxs.shape[0]
-                        n_to_add = np.random.choice(max_add) + 1
-                        # which ones?
-                        to_add = np.random.choice(
-                            present_idxs, n_to_add, replace=False)
-                        # dataset mask
-                        presence_add = np.zeros(presence.shape).astype(bool)
-                        presence_add[to_add] = True
-                    # from dataset mask to signature mask
-                    mask[idx] = np.repeat(presence_add, 128)
-                # make masked dataset NaN
-                new_data[~mask] = np.nan
-                return new_data
+            # TODO if no subsampling is provided we can apply some noise
+            def mask_fn(data):
+                return data
 
         pred = predict_fn({'x': features[:]})
         if 'predictions' in pred:
@@ -588,9 +561,9 @@ class AdaNetWrapper(object):
         return predict_fn
 
     @staticmethod
-    def predict_online(model_dir, h5_file, split,
-                       predict_fn=None, mask_fn=None,
-                       batch_size=10000, limit=10000, probs=False):
+    def predict_online(model_dir, h5_file, split, predict_fn=None,
+                       mask_fn=None, batch_size=10000, limit=10000,
+                       probs=False, n_classes=None):
         """Predict on given testset without killing the memory.
 
         Args:
@@ -612,6 +585,10 @@ class AdaNetWrapper(object):
         x_dtype, y_dtype = dtypes
         # tha max size of the return prediction is at most same size as input
         y_pred = np.zeros(y_shape, dtype=x_dtype) * np.nan
+        if probs:
+            if n_classes is None:
+                raise Exception("Specify number of classes.")
+            y_pred = np.zeros((y_shape[0], n_classes), dtype=x_dtype) * np.nan
         y_true = np.zeros(y_shape, dtype=y_dtype) * np.nan
         last_idx = 0
         if y_shape[0] < limit:
