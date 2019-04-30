@@ -871,3 +871,46 @@ class Parser():
                 yield chunk
                 chunk = list()
         yield chunk
+
+    @staticmethod
+    def pharmacodb(file_path, molrepo_name, chunks=1000):
+        from pubchempy import Compound
+        converter = Converter()
+        # no file to parse here, but querying the chembl database
+        query = "SELECT drug_id, smiles, pubchem " +\
+            "FROM drug_annots WHERE smiles IS NOT NULL or pubchem IS NOT NULL"
+        cur = psql.qstring_cur(query, molrepo_name)
+        chunk = list()
+        for idx, row in enumerate(cur):
+            src_id  = "pharmacodb_%d" % row[0]
+            smiles  = row[1]
+            pubchem = row[2]
+            if (smiles is None or smiles == "-666") and pubchem is not None:
+                try:
+                    smiles = Compound.from_cid(pubchem).isomeric_smiles
+                except:
+                    continue
+            if smiles is None or smiles == "-666": continue
+            # the following is always the same
+            try:
+                inchikey, inchi = converter.smiles_to_inchi(smiles)
+            except Exception as ex:
+                Parser.__log.warning("line %s: %s", idx, str(ex))
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
+            result = {
+                "id": id_text,
+                "molrepo_name": molrepo_name,
+                "src_id": src_id,
+                "smiles": smiles,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
+
