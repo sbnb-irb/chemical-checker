@@ -345,13 +345,14 @@ class AdaNetWrapper(object):
             "adanet_iterations", self.adanet_iterations))
         self.__log.info("{:<22}: {:>12}".format(
             "random_seed", self.random_seed))
-        self.__log.info("{:<22}: {:>12}".format("activation", self.activation))
+        self.__log.info("{:<22}: {:>12}".format(
+            "activation", str(self.activation)))
         self.__log.info("{:<22}: {:>12}".format("layer_size", self.layer_size))
         self.__log.info("{:<22}: {:>12}".format("shuffles", self.shuffles))
         self.__log.info("{:<22}: {:>12}".format(
             "dropout_rate", self.dropout_rate))
         self.__log.info("{:<22}: {:>12}".format(
-            "subnetwork_generator", self.subnetwork_generator))
+            "subnetwork_generator", str(self.subnetwork_generator)))
         self.__log.info("{:<22}: {:>12}".format(
             "train_step", self.train_step))
         self.__log.info("{:<22}: {:>12}".format(
