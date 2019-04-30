@@ -169,7 +169,12 @@ class sign1(BaseSignature):
 
             corpora.MmCorpus.serialize(tfidf_corpus, c_tfidf)
 
-            self.__log.info("LSI model with %d topics..." % self.num_topics)
+            if self.num_topics is None:
+                num_topics = np.min([int(0.67*len(dictionary)), 5000])
+            else:
+                num_topics = self.num_topics
+
+            self.__log.info("LSI model with %d topics..." % num_topics)
 
             if self.multipass:
                 onepass = False
@@ -177,7 +182,7 @@ class sign1(BaseSignature):
                 onepass = True
 
             lsi = models.LsiModel(
-                c_tfidf, id2word=dictionary, num_topics=self.num_topics, onepass=onepass)
+                c_tfidf, id2word=dictionary, num_topics=num_topics, onepass=onepass)
 
             lsi.save(self.model_path + "/lsi.pkl")
 
@@ -188,7 +193,7 @@ class sign1(BaseSignature):
             self.__log.info("Deciding number of topics")
 
             exp_var_ratios = self._lsi_variance_explained(
-                tfidf_corpus, lsi, B=self.B_val, N=self.N_val, num_topics=self.num_topics)
+                tfidf_corpus, lsi, B=self.B_val, N=self.N_val, num_topics=num_topics)
 
             cut_i, elb_i = plot.variance_plot(
                 exp_var_ratios, variance_cutoff=self.variance_cutoff)
