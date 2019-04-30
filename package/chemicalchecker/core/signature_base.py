@@ -10,11 +10,15 @@ import os
 import six
 import sys
 import h5py
+import pickle
+import tempfile
 import numpy as np
 from datetime import datetime
 from bisect import bisect_left
 from abc import ABCMeta, abstractmethod
 
+from chemicalchecker.util.hpc import HPC
+from chemicalchecker.util import Config
 from chemicalchecker.util import logged
 
 
@@ -83,6 +87,57 @@ class BaseSignature(object):
             BaseSignature.__log.warning("Model already available.")
         if os.path.exists(os.path.join(self.model_path, self.readyfile)):
             os.remove(os.path.join(self.model_path, self.readyfile))
+
+    def fit_hpc(self, *args, **kwargs):
+        """Execute the fit method on the configured HPC.
+
+        Args:
+            args(tuple): the arguments for of the fit method
+            kwargs(dict): arguments for the HPC method.
+        """
+        # read config file
+        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
+        cfg = Config(cc_config)
+        # create job directory if not available
+        job_base_path = cfg.PATH.CC_TMP
+        tmp_dir = tempfile.mktemp(prefix='tmp_', dir=job_base_path)
+        job_path = kwargs.get("job_path", tmp_dir)
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+        # create script file
+        script_lines = [
+            "import sys",
+            "import pickle",
+            "sign, args = pickle.load(open(sys.argv[1], 'rb'))",
+            "sign.fit(*args)",
+            "print('JOB DONE')"
+        ]
+        script_name = '%s_fit_hpc.py' % self.__class__.__name__
+        script_path = os.path.join(job_path, script_name)
+        with open(script_path, 'w') as fh:
+            for line in script_lines:
+                fh.write(line + '\n')
+        # pickle self and fit args
+        pickle_file = '%s_fit_hpc.pkl' % self.__class__.__name__
+        pickle_path = os.path.join(job_path, pickle_file)
+        pickle.dump((self, args), open(pickle_path, 'w'))
+        # hpc parameters
+        params = kwargs
+        params["num_jobs"] = 1
+        params["jobdir"] = job_path
+        params["job_name"] = script_name
+        params["wait"] = False
+        # job command
+        singularity_image = cfg.PATH.SINGULARITY_IMAGE
+        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
+            " singularity exec {} python {} {}"
+        command = command.format(
+            os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
+            singularity_image, script_name, pickle_file)
+        # submit jobs
+        cluster = HPC(Config())
+        cluster.submitMultiJob(command, **params)
+        return cluster
 
     @abstractmethod
     def predict(self):
