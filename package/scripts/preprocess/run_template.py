@@ -4,7 +4,7 @@ import collections
 import h5py
 
 from chemicalchecker.util import logged, get_parser, save_output, features_file
-from chemicalchecker.database import Dataset
+from chemicalchecker.database import Dataset, Molrepo
 
 
 ##########################################################################
@@ -64,9 +64,9 @@ def main(args):
     # To save the signature0, the data needs to be in the form of a dictionary
     # where the keys are inchikeys and the values are a list with the data.
     # For sparse data, we can use [word] or [(word, integer)].
-    inchikey_raw = collections.defaultdict(list)
+    key_raw = collections.defaultdict(list)
 
-    save_output(args.output_file, inchikey_raw, args.method,
+    save_output(args.output_file, key_raw, args.method,
                 args.models_path, dataset.discrete, features)
 
 if __name__ == '__main__':
