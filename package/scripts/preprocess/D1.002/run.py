@@ -117,7 +117,7 @@ def parse_deepcodex(dcx, dcx_cc, map_files):
         for x, n in hits:
             if x[0] not in dcx_cc: continue
             for y in dcx_cc[x[0]]:
-                hits_cc += [(y, n)]
+                hits_cc += [(y, int(n/10.) + 1)]
         return hits_cc
 
 # Main
@@ -161,9 +161,6 @@ def main(args):
         for k, v in key_pairs.iteritems():
             key_raw[str(k[0][0])] += [(str(k[1][0]+"_"+k[1][1]), v)]
         features = sorted(set([x[0] for v in key_raw.values() for x in v]))
-
-        for feat in features:
-            print feat
 
     if args.method == "predict":
 
