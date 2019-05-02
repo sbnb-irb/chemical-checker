@@ -46,11 +46,11 @@ class sign2(BaseSignature):
                                validation_path, dataset, **params)
         self.validation_path = validation_path
         # generate needed paths
-        self.data_path = os.path.join(signature_path, 'sign2.h5')
-        self.model_path = os.path.join(signature_path, 'models')
+        self.data_path = os.path.join(self.signature_path, 'sign2.h5')
+        self.model_path = os.path.join(self.signature_path, 'models')
         if not os.path.isdir(self.model_path):
             os.makedirs(self.model_path)
-        self.stats_path = os.path.join(signature_path, 'stats')
+        self.stats_path = os.path.join(self.signature_path, 'stats')
         if not os.path.isdir(self.model_path):
             os.makedirs(self.stats_path)
         # assign dataset

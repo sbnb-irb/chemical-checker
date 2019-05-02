@@ -42,7 +42,7 @@ class sign0(BaseSignature):
         BaseSignature.__init__(
             self, signature_path, validation_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
-        self.data_path = os.path.join(signature_path, "sign0.h5")
+        self.data_path = os.path.join(self.signature_path, "sign0.h5")
         self.__log.debug('data_path: %s', self.data_path)
         self.preprocess_script = os.path.join(
             Config().PATH.CC_REPO,
