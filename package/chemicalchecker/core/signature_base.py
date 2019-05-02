@@ -105,9 +105,12 @@ class BaseSignature(object):
         job_path = kwargs.get("job_path", tmp_dir)
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
+        # check cpus
+        cpu = kwargs.get("cpu", 1)
         # create script file
         script_lines = [
-            "import sys",
+            "import os, sys",
+            "os.environ['OMP_NUM_THREADS'] = str(%s)" % cpu,
             "import pickle",
             "sign, args = pickle.load(open(sys.argv[1], 'rb'))",
             "sign.fit(*args)",
