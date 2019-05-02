@@ -50,28 +50,29 @@ class BaseSignature(object):
         self.signature_path = os.path.abspath(signature_path)
         self.validation_path = os.path.abspath(validation_path)
         if sys.version_info[0] == 2:
-            if isinstance(signature_path, unicode):
-                self.signature_path = signature_path.encode('ascii', 'ignore')
-            if isinstance(validation_path, unicode):
-                self.validation_path = validation_path.encode(
+            if isinstance(self.signature_path, unicode):
+                self.signature_path = self.signature_path.encode('ascii',
+                                                                 'ignore')
+            if isinstance(self.validation_path, unicode):
+                self.validation_path = self.validation_path.encode(
                     'ascii', 'ignore')
         self.readyfile = "fit.ready"
 
-        if not os.path.isdir(signature_path):
+        if not os.path.isdir(self.signature_path):
             BaseSignature.__log.info(
-                "Initializing new signature in: %s" % signature_path)
+                "Initializing new signature in: %s" % self.signature_path)
             original_umask = os.umask(0)
-            os.makedirs(signature_path, 0o775)
+            os.makedirs(self.signature_path, 0o775)
             os.umask(original_umask)
 
-        self.model_path = os.path.join(signature_path, "models")
+        self.model_path = os.path.join(self.signature_path, "models")
         if not os.path.isdir(self.model_path):
             BaseSignature.__log.info(
                 "Creating model_path in: %s" % self.model_path)
             original_umask = os.umask(0)
             os.makedirs(self.model_path, 0o775)
             os.umask(original_umask)
-        self.stats_path = os.path.join(signature_path, "stats")
+        self.stats_path = os.path.join(self.signature_path, "stats")
         if not os.path.isdir(self.stats_path):
             BaseSignature.__log.info(
                 "Creating stats_path in: %s" % self.stats_path)
