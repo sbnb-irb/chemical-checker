@@ -388,3 +388,19 @@ class PropCalculator():
                 chunk = list()
         yield chunk
 
+    @staticmethod
+    def pidginv3_orthologs(inchikey_inchi, chunks=1000):
+        try:
+            from rdkit.Chem import AllChem as Chem
+            from rdkit import DataStructs            
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
+        
+        # Start iterating
+        iks = inchikey_inchi.keys()
+        chunk = list()
+        for ik in iks:
+            ""
+
+
