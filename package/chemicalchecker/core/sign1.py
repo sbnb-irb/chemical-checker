@@ -39,7 +39,7 @@ class sign1(BaseSignature):
         BaseSignature.__init__(
             self, signature_path, validation_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
-        self.data_path = os.path.join(signature_path, "sign1.h5")
+        self.data_path = os.path.join(self.signature_path, "sign1.h5")
         self.min_freq = 5
         self.max_freq = 0.25
         self.num_topics = None
