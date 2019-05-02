@@ -47,8 +47,8 @@ class BaseSignature(object):
     def __init__(self, signature_path, validation_path, dataset, **params):
         """Initialize or load the signature at the given path."""
         self.dataset = dataset
-        self.signature_path = signature_path
-        self.validation_path = validation_path
+        self.signature_path = os.path.abspath(signature_path)
+        self.validation_path = os.path.abspath(validation_path)
         if sys.version_info[0] == 2:
             if isinstance(signature_path, unicode):
                 self.signature_path = signature_path.encode('ascii', 'ignore')
