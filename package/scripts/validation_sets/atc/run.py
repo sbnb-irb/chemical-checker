@@ -132,7 +132,7 @@ def main():
     map_files = {}
 
     for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path
 
     main._log.debug(
         "Running validation for dataset ATC. Saving output in " + args.output_file)

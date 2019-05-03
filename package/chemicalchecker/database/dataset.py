@@ -13,7 +13,7 @@ In the CC nomenclature, a dataset is determined by:
 """
 from chemicalchecker.util import logged
 from .database import Base, get_session, get_engine
-from sqlalchemy import Column, Text, Boolean, ForeignKey, Integer
+from sqlalchemy import Column, Text, Boolean, ForeignKey, VARCHAR
 from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
 
 
@@ -22,7 +22,7 @@ class Dataset(Base):
     """The Dataset table.
 
     Parameters:
-        code(str): primary key, Identifier of the dataset.
+        dataset_code(str): primary key, Identifier of the dataset.
         level(str): The CC level.
         coordinate(str): Coordinates in the CC organization.
         name(str): Display, short-name of the dataset.
@@ -37,31 +37,31 @@ class Dataset(Base):
     """
 
     __tablename__ = 'dataset'
-    code = Column(Text, primary_key=True)
-    level = Column(Text)
-    coordinate = Column(Text)
+    dataset_code = Column(VARCHAR(6), primary_key=True)
+    level = Column(VARCHAR(1))
+    coordinate = Column(VARCHAR(2))
     name = Column(Text)
     technical_name = Column(Text)
     description = Column(Text)
     unknowns = Column(Boolean)
     discrete = Column(Boolean)
-    keys = Column(Text)
-    features = Column(Text)
+    keys = Column(VARCHAR(3))
+    features = Column(VARCHAR(3))
     exemplary = Column(Boolean)
     public = Column(Boolean)
 
     datasources = relationship("Datasource",
-                               secondary="map_dataset_datasource",
+                               secondary="dataset_has_datasource",
                                lazy='joined')
 
     def __repr__(self):
         """String representation."""
-        return self.code
+        return self.dataset_code
 
     @staticmethod
     def _create_table():
         engine = get_engine()
-        Dataset.metadata.create_all(engine)
+        Base.metadata.create_all(engine, tables=[Dataset.__table__])
 
     @staticmethod
     def _drop_table():
@@ -125,25 +125,24 @@ class Dataset(Base):
         """
         session = get_session()
         if code is not None:
-            query = session.query(Dataset).filter_by(code=code)
+            query = session.query(Dataset).filter_by(dataset_code=code)
             res = query.one_or_none()
         else:
-            query = session.query(Dataset).distinct(Dataset.code)
+            query = session.query(Dataset).distinct(Dataset.dataset_code)
             res = query.all()
         session.close()
         return res
 
 
 @logged
-class MapDatasetDatasource(Base):
+class DatasetHasDatasource(Base):
     """Dataset-Datasource have Many-to-Many relationship."""
 
-    __tablename__ = 'map_dataset_datasource'
-    id = Column(Integer, primary_key=True)
-    dataset_code = Column(Text,
-                          ForeignKey("dataset.code"), primary_key=True)
+    __tablename__ = 'dataset_has_datasource'
+    dataset_code = Column(VARCHAR(6),
+                          ForeignKey("dataset.dataset_code"), primary_key=True)
     datasource_name = Column(Text,
-                             ForeignKey("datasource.name"), primary_key=True)
+                             ForeignKey("datasource.datasource_name"), primary_key=True)
 
     def __repr__(self):
         """String representation."""
@@ -152,23 +151,23 @@ class MapDatasetDatasource(Base):
     @staticmethod
     def _create_table():
         engine = get_engine()
-        MapDatasetDatasource.metadata.create_all(engine)
+        Base.metadata.create_all(engine, tables=[DatasetHasDatasource.__table__])
 
     @staticmethod
     def _drop_table():
         engine = get_engine()
-        MapDatasetDatasource.__table__.drop(engine)
+        DatasetHasDatasource.__table__.drop(engine)
 
     @staticmethod
     def _table_exists():
         engine = get_engine()
         return engine.dialect.has_table(engine,
-                                        MapDatasetDatasource.__tablename__)
+                                        DatasetHasDatasource.__tablename__)
 
     @staticmethod
     def _table_attributes():
         attrs = [a for a in class_mapper(
-            MapDatasetDatasource).iterate_properties]
+            DatasetHasDatasource).iterate_properties]
         col_attrs = [a.key for a in attrs if isinstance(a, ColumnProperty)]
         input_attrs = [a for a in col_attrs if a != 'id']
         return input_attrs
@@ -181,8 +180,8 @@ class MapDatasetDatasource(Base):
             kwargs(dict):The data in dictionary format.
         """
         if type(kwargs) is dict:
-            entry = MapDatasetDatasource(**kwargs)
-        MapDatasetDatasource.__log.debug(entry)
+            entry = DatasetHasDatasource(**kwargs)
+        DatasetHasDatasource.__log.debug(entry)
         session = get_session()
         session.add(entry)
         session.commit()
@@ -198,13 +197,13 @@ class MapDatasetDatasource(Base):
         import pandas as pd
         df = pd.read_csv(filename)
         # check columns
-        needed_cols = MapDatasetDatasource._table_attributes()
+        needed_cols = DatasetHasDatasource._table_attributes()
         if needed_cols != list(df.columns):
             raise Exception("Input missing columns: %s", ' '.join(needed_cols))
         # add them
         for row_nr, row in df.iterrows():
             try:
-                MapDatasetDatasource.add(row.dropna().to_dict())
+                DatasetHasDatasource.add(row.dropna().to_dict())
             except Exception as err:
-                MapDatasetDatasource.__log.error(
+                DatasetHasDatasource.__log.error(
                     "Error in line %s: %s", row_nr, str(err))

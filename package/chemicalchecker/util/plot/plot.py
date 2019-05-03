@@ -67,7 +67,7 @@ class Plot():
         if not os.path.isdir(plot_path):
             raise Exception("Folder to save plots does not exist")
         if hasattr(dataset, 'code'):
-            dataset_code = dataset.code
+            dataset_code = dataset.dataset_code
         else:
             dataset_code = dataset
         self.__log.debug('Plots for %s saved to %s',

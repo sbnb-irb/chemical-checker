@@ -3,6 +3,8 @@ import argparse
 import h5py
 import numpy as np
 
+from chemicalchecker.database import Dataset
+
 
 features_file = "features.h5"
 
@@ -22,6 +24,16 @@ def get_parser():
                         required=False, default=None, help='The predict entry point')
     return parser
 
+def get_datasources(dataset_code):
+
+    dataset = Dataset.get(dataset_code)
+
+    map_files = {}
+
+    for ds in dataset.datasources:
+        map_files[ds.name] = ds.data_path
+
+    return map_files
 
 def save_output(output_file, inchikey_raw, method, models_path, discrete, features, chunk=2000):
 

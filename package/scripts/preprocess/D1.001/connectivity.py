@@ -113,6 +113,7 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touc
         with open("%s/signatures.tsv" % connectivity_dir, "w") as f:
             for s in S:
                 f.write("%s\n" % s[0])
+
     with h5py.File("%s/%s.h5" % (connectivity_dir, SIG), "w") as hf:
         es = np.array([s[1] * 1000 for s in S]).astype(np.int16)
         nes = np.array([s[2] * 1000 for s in S]).astype(np.int16)

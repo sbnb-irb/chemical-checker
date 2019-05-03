@@ -1,14 +1,14 @@
 from chemicalchecker.util import logged
 from .database import Base, get_session, get_engine
-from sqlalchemy import Column, Text, or_
+from sqlalchemy import Column, Text, or_, VARCHAR
 from sqlalchemy.dialects import postgresql
 
 
 @logged
-class Structure(Base):
+class Molecule(Base):
     """The structure class for the table of the same name"""
-    __tablename__ = 'structure'
-    inchikey = Column(Text, primary_key=True, index=True)
+    __tablename__ = 'molecule'
+    inchikey = Column(VARCHAR(27), primary_key=True, index=True)
     inchi = Column(Text)
 
     @staticmethod
@@ -18,11 +18,11 @@ class Structure(Base):
         Args:
             kwargs(dict):The data in dictionary format .
         """
-        Structure.__log.debug(type(kwargs))
+        Molecule.__log.debug(type(kwargs))
         if type(kwargs) is dict:
-            struct = Structure(**kwargs)
+            struct = Molecule(**kwargs)
 
-        Structure.__log.debug(struct.inchikey)
+        Molecule.__log.debug(struct.inchikey)
         session = get_session()
         session.add(struct)
         session.commit()
@@ -41,12 +41,12 @@ class Structure(Base):
         engine = get_engine()
         for pos in range(0, len(data), chunk):
             if on_conflict_do_nothing:
-                engine.execute(postgresql.insert(Structure.__table__).values(
+                engine.execute(postgresql.insert(Molecule.__table__).values(
                     [{"inchikey": row[0], "inchi": row[1]}
-                     for row in data[pos:pos + chunk]]).on_conflict_do_nothing(index_elements=[Structure.inchikey]))
+                     for row in data[pos:pos + chunk]]).on_conflict_do_nothing(index_elements=[Molecule.inchikey]))
             else:
                 engine.execute(
-                    Structure.__table__.insert(),
+                    Molecule.__table__.insert(),
                     [{"inchikey": row[0], "inchi": row[1]}
                         for row in data[pos:pos + chunk]]
                 )
@@ -58,7 +58,7 @@ class Structure(Base):
 
         """
         session = get_session()
-        query = session.query(Structure).filter_by(inchikey=key)
+        query = session.query(Molecule).filter_by(inchikey=key)
         res = query.one_or_none()
 
         session.close()
@@ -72,7 +72,7 @@ class Structure(Base):
             mapping[ink] = None
 
         engine = get_engine()
-        table = Structure.__table__
+        table = Molecule.__table__
         for idx in range(0, len(inchikeys), batch):
             conditions = [table.columns.inchikey ==
                           ink for ink in inchikeys[idx:idx + batch]]
@@ -91,15 +91,15 @@ class Structure(Base):
 
         session = get_session()
         for pos in range(0, len(keys), size):
-            query = session.query(Structure).filter(
-                Structure.inchikey.in_(vec[pos:pos + size]))
-            res = query.with_entities(Structure.inchikey).all()
+            query = session.query(Molecule).filter(
+                Molecule.inchikey.in_(vec[pos:pos + size]))
+            res = query.with_entities(Molecule.inchikey).all()
             for ele in res:
                 present.add(ele[0])
 
         session.close()
 
-        Structure.__log.debug("Found already present: " + str(len(present)))
+        Molecule.__log.debug("Found already present: " + str(len(present)))
 
         return keys.difference(present)
 
@@ -115,19 +115,19 @@ class Structure(Base):
         list_inchikey_inchi = list()
         set_inks = set(data.keys())
 
-        Structure.__log.debug(
+        Molecule.__log.debug(
             "Size initial data to add: " + str(len(set_inks)))
 
-        todo_iks = Structure.get_missing_from_set(set_inks)
+        todo_iks = Molecule.get_missing_from_set(set_inks)
 
-        Structure.__log.debug("Size final data to add: " + str(len(todo_iks)))
+        Molecule.__log.debug("Size final data to add: " + str(len(todo_iks)))
 
         for ik, inchi in data.items():
             if ik in todo_iks:
                 list_inchikey_inchi.append((ik, inchi))
 
         if len(list_inchikey_inchi) > 0:
-            Structure.add_bulk(list_inchikey_inchi)
+            Molecule.add_bulk(list_inchikey_inchi)
 
     @staticmethod
     def _create_table():

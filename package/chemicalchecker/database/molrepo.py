@@ -7,9 +7,11 @@ import os
 import datetime
 from time import time
 from .database import Base, get_engine, get_session
-from sqlalchemy import Column, Text
-from sqlalchemy.orm import class_mapper, ColumnProperty
+from sqlalchemy import Column, Text, Boolean, ForeignKey, VARCHAR
+from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
 from sqlalchemy.dialects import postgresql
+from .molecule import Molecule
+from .datasource import Datasource
 
 
 import chemicalchecker
@@ -37,21 +39,22 @@ class Molrepo(Base):
     """
 
     __tablename__ = 'molrepo'
-    id = Column(Text, primary_key=True)
-    molrepo_name = Column(Text, index=True)
-    src_id = Column(Text)
-    smiles = Column(Text)
-    inchikey = Column(Text, index=True)
-    inchi = Column(Text)
+    molrepo_name = Column(Text, primary_key=True)
+    description = Column(Text)
+    universe = Column(Boolean)
+
+    datasources = relationship("Datasource",
+                               secondary="molrepo_has_datasource",
+                               lazy='joined')
 
     def __repr__(self):
         """String representation."""
-        return str(self.inchikey)
+        return str(self.molrepo_name)
 
     @staticmethod
     def _create_table():
         engine = get_engine()
-        Molrepo.metadata.create_all(engine)
+        Base.metadata.create_all(engine, tables=[Molrepo.__table__])
 
     @staticmethod
     def _drop_table():
@@ -71,31 +74,90 @@ class Molrepo(Base):
         return input_attrs
 
     @staticmethod
-    def get(inchikey):
-        """Get Molrepo entries associated to the given inchikey.
+    def add(kwargs):
+        """Add a new row to the table.
 
         Args:
-            inchikey(str): The inchikey to search for.
+            kwargs(dict):The data in dictionary format.
         """
+        if type(kwargs) is dict:
+            molrepo = Molrepo(**kwargs)
+        Molrepo.__log.debug(molrepo)
         session = get_session()
-        query = session.query(Molrepo).filter_by(inchikey=inchikey)
+        session.add(molrepo)
+        session.commit()
+        session.close()
+
+    @staticmethod
+    def get(name=None):
+        """Get molrepos associated to the given name.
+
+        Args:
+            name(str):The molrepo name, e.g "chebi"
+        """
+        params = {}
+        if name is not None:
+            params["molrepo_name"] = name
+
+        session = get_session()
+
+        if len(params) == 0:
+            query = session.query(Molrepo)
+        else:
+            query = session.query(Molrepo).filter_by(**params)
+
+        res = query.all()
+        session.close()
+        return res
+
+    @staticmethod
+    def from_csv(filename):
+        """Add entries from CSV file.
+
+        Args:
+            filename(str): Path to a CSV file.
+        """
+        import pandas as pd
+        df = pd.read_csv(filename)
+        # check columns
+        needed_cols = Molrepo._table_attributes()
+        if needed_cols != list(df.columns):
+            raise Exception("Input missing columns: %s", ' '.join(needed_cols))
+        # add them
+        for row_nr, row in df.iterrows():
+            try:
+                Molrepo.add(row.dropna().to_dict())
+            except Exception as err:
+                Molrepo.__log.error(
+                    "Error in line %s: %s", row_nr, str(err))
+
+    @staticmethod
+    def get_universe_molrepos():
+        """Get Molrepo names that are considered universe."""
+        session = get_session()
+
+        query = session.query(Molrepo.molrepo_name).filter(
+            (Molrepo.universe)).distinct(
+            Molrepo.molrepo_name)
         res = query.all()
         session.close()
         return res
 
     @staticmethod
     def get_by_molrepo_name(molrepo_name, only_raw=False):
-        """Get Molrepo entries associated to the given inchikey.
+        """Get Molrepo entries associated to the given name.
 
         Args:
             molrepo_name(str): The molrepo_name to search for.
             only_raw(bool): Only get the raw values without the whole object(default:false)
         """
         session = get_session()
-        query = session.query(Molrepo).filter_by(molrepo_name=molrepo_name)
+        query = session.query(MolrepoHasMolecule.molrepo_name, MolrepoHasMolecule.src_id,
+                              MolrepoHasMolecule.smiles, MolrepoHasMolecule.inchikey, Molecule.inchi).outerjoin(Molecule, Molecule.inchikey == MolrepoHasMolecule.inchikey).filter(
+            MolrepoHasMolecule.molrepo_name == molrepo_name)
         if only_raw:
             res = query.with_entities(
-                Molrepo.molrepo_name, Molrepo.src_id, Molrepo.smiles, Molrepo.inchikey, Molrepo.inchi).all()
+                MolrepoHasMolecule.molrepo_name, MolrepoHasMolecule.src_id, MolrepoHasMolecule.smiles, MolrepoHasMolecule.inchikey, Molecule.inchi).all()
         else:
             res = query.all()
         session.close()
@@ -109,25 +171,26 @@ class Molrepo(Base):
             molrepo_name(str): The molrepo_name to search for.
             fields(list): List of field names. If None, all fields.
         """
-
         if fields is None:
             return Molrepo.get_by_molrepo_name(molrepo_name, True)
 
-        cols = Molrepo._table_attributes()
+        cols = MolrepoHasMolecule._table_attributes()
         query_fields = []
 
         for field in fields:
-            if field in cols:
-                query_fields.append(field)
+            if field in cols or field == "inchi":
+                if field == "inchi":
+                    query_fields.append("Molecule." + field)
+                else:
+                    query_fields.append("MolrepoHasMolecule." + field)
 
         if len(query_fields) == 0:
             return None
 
         session = get_session()
-        query = session.query(Molrepo).filter(
-            Molrepo.molrepo_name == molrepo_name, Molrepo.inchikey.isnot(None))
-        res = query.with_entities(*[eval("Molrepo.%s" % f)
-                                    for f in query_fields]).all()
+        query = session.query(MolrepoHasMolecule).outerjoin(Molecule, Molecule.inchikey == MolrepoHasMolecule.inchikey).filter(
+            MolrepoHasMolecule.molrepo_name == molrepo_name, MolrepoHasMolecule.inchikey.isnot(None))
+        res = query.with_entities(*[eval(f) for f in query_fields]).all()
 
         session.close()
         return res
@@ -141,20 +204,11 @@ class Molrepo(Base):
         """
         session = get_session()
         if molrepo_name:
-            query = session.query(Molrepo).filter_by(
+            query = session.query(MolrepoHasMolecule).filter_by(
                 molrepo_name=molrepo_name).count()
         else:
-            query = session.query(Molrepo).count()
+            query = session.query(MolrepoHasMolecule).count()
         return int(query)
-
-    @staticmethod
-    def test_all_available():
-        """Check if Molrepo has entries for each Datasource."""
-        molrepos_ds = Datasource.get_molrepos()
-        session = get_session()
-        query = session.query(Molrepo).distinct(Molrepo.molrepo_name).count()
-        Molrepo.__log.debug("%s Molrepos available", int(query))
-        return int(query) == len(molrepos_ds)
 
     @staticmethod
     def from_molrepo_name(molrepo_name):
@@ -163,61 +217,47 @@ class Molrepo(Base):
         Args:
             molrepo_name(str): a molrepo name.
         """
-        datasources = Datasource.get_molrepos(molrepo_name)
-        if len(datasources) == 0:
+        molrepo = Molrepo.get(molrepo_name)
+        if len(molrepo) == 0:
             raise Exception(
                 "Molrepo name %s file not available.", molrepo_name)
-        molrepo_path = []
-        molrepo_parser = datasources[0].molrepo_name
-        for ds in datasources:
-            Molrepo.__log.debug("Importing Datasource %s", ds)
-            # Download datasource
+
+        map_files = {}
+
+        for ds in molrepo[0].datasources:
+            path = ds.data_path
+            if ds.filename is not None and ds.is_db is False:
+                path = os.path.join(path, ds.filename)
+            map_files[ds.datasource_name] = path
+            Molrepo.__log.debug("Importing Datasource %s", ds.datasource_name)
             ds.download()
-            molrepo_path.append(ds.molrepo_path)
+        molrepo_parser = molrepo_name
 
         # parser_fn yield a list of dictionaries with keys as a molrepo entry
         parse_fn = Parser.parse_fn(molrepo_parser)
         # profile time
         t_start = time()
         engine = get_engine()
-        for chunk in parse_fn(molrepo_path, molrepo_name, 1000):
+        for chunk in parse_fn(map_files, molrepo_name, 1000):
             if len(chunk) == 0:
                 continue
-            engine.execute(postgresql.insert(Molrepo.__table__).values(
-                chunk).on_conflict_do_nothing(index_elements=[Molrepo.id]))
-            # engine.execute(Molrepo.__table__.insert(), chunk)
+            chunk_inchi = []
+            chunk_molrepo = []
+            for data in chunk:
+                if data["inchikey"] is not None:
+                    chunk_inchi.append(
+                        {"inchikey": data["inchikey"], "inchi": data["inchi"]})
+                del data["inchi"]
+                chunk_molrepo.append(data)
+            if len(chunk_inchi) > 0:
+                engine.execute(postgresql.insert(Molecule.__table__).values(
+                    chunk_inchi).on_conflict_do_nothing(index_elements=[Molecule.inchikey]))
+            engine.execute(postgresql.insert(MolrepoHasMolecule.__table__).values(
+                chunk_molrepo).on_conflict_do_nothing(index_elements=[MolrepoHasMolecule.id]))
         t_end = time()
         t_delta = str(datetime.timedelta(seconds=t_end - t_start))
         Molrepo.__log.info(
             "Importing Molrepo Name %s took %s", molrepo_name, t_delta)
-
-    @staticmethod
-    def from_datasource(ds):
-        """Fill Molrepo table from Datasource.
-
-        Args:
-            ds(Datasource): a Datasource entry.
-        """
-        if not ds.available_molrepo:
-            raise Exception("Datasource molrepo file not available.")
-        molrepo_name = ds.molrepo_name
-        Molrepo.__log.debug("Importing Datasource %s", ds)
-        # Download datasource
-        ds.download()
-        # parser_fn yield a list of dictionaries with keys as a molrepo entry
-        parse_fn = Parser.parse_fn(ds.molrepo_name)
-        # profile time
-        t_start = time()
-        engine = get_engine()
-        for chunk in parse_fn([ds.molrepo_path], molrepo_name, 1000):
-            if len(chunk) == 0:
-                continue
-            engine.execute(postgresql.insert(Molrepo.__table__).values(
-                chunk).on_conflict_do_nothing(index_elements=[Molrepo.id]))
-            # engine.execute(Molrepo.__table__.insert(), chunk)
-        t_end = time()
-        t_delta = str(datetime.timedelta(seconds=t_end - t_start))
-        Molrepo.__log.info("Importing Datasource %s took %s", ds, t_delta)
 
     @staticmethod
     def molrepo_hpc(job_path, only_updatable=False):
@@ -252,11 +292,11 @@ class Molrepo(Base):
             for line in script_lines:
                 fh.write(line + '\n')
         # hpc parameters
-        all_datasources = Datasource.get_molrepos(
-            only_updatable=only_updatable)
+
         molrepos_names = set()
-        for ds in all_datasources:
-            molrepos_names.add(ds.molrepo_name)
+        molrepos = Molrepo.get()
+        for molrepo in molrepos:
+            molrepos_names.add(molrepo.molrepo_name)
 
         params = {}
         params["num_jobs"] = len(molrepos_names)
@@ -274,3 +314,143 @@ class Molrepo(Base):
         cluster = HPC(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
+
+
+@logged
+class MolrepoHasMolecule(Base):
+    """The Molrepo table.
+
+    This table offer a mapping between inchikeys and different external
+    compound ids (e.g. chembl, bindigdb, etc.).
+
+    Fields:
+        id(str): primary key, src_id + "_" + molrepo_name.
+        molrepo_name(str): the molrepo name.
+        src_id(str): the download id as in the source file.
+        smiles(str): simplified molecular-input line-entry system (SMILES).
+        inchikey(bool): hashed version of the full InChI (SHA-256 algorithm).
+        inchi(bool): International Chemical Identifier (InChI).
+    """
+
+    __tablename__ = 'molrepo_has_molecule'
+    id = Column(Text, primary_key=True)
+    molrepo_name = Column(Text, index=True)
+    src_id = Column(Text)
+    smiles = Column(Text)  # It means the source smiles
+    inchikey = Column(VARCHAR(27), ForeignKey("molecule.inchikey"), index=True)
+
+    def __repr__(self):
+        """String representation."""
+        return str(self.inchikey)
+
+    @staticmethod
+    def _create_table():
+        engine = get_engine()
+        Base.metadata.create_all(engine, tables=[MolrepoHasMolecule.__table__])
+
+    @staticmethod
+    def _drop_table():
+        engine = get_engine()
+        MolrepoHasMolecule.__table__.drop(engine)
+
+    @staticmethod
+    def _table_exists():
+        engine = get_engine()
+        return engine.dialect.has_table(engine, MolrepoHasMolecule.__tablename__)
+
+    @staticmethod
+    def _table_attributes():
+        attrs = [a for a in class_mapper(
+            MolrepoHasMolecule).iterate_properties]
+        col_attrs = [a.key for a in attrs if isinstance(a, ColumnProperty)]
+        input_attrs = [a for a in col_attrs if a != 'id']
+        return input_attrs
+
+    @staticmethod
+    def get(inchikey):
+        """Get Molrepo entries associated to the given inchikey.
+
+        Args:
+            inchikey(str): The inchikey to search for.
+        """
+        session = get_session()
+        query = session.query(MolrepoHasMolecule).filter_by(inchikey=inchikey)
+        res = query.all()
+        session.close()
+        return res
+
+
+@logged
+class MolrepoHasDatasource(Base):
+    """Dataset-Datasource have Many-to-Many relationship."""
+
+    __tablename__ = 'molrepo_has_datasource'
+    molrepo_name = Column(Text,
+                          ForeignKey("molrepo.molrepo_name"), primary_key=True)
+    datasource_name = Column(Text,
+                             ForeignKey("datasource.datasource_name"), primary_key=True)
+
+    def __repr__(self):
+        """String representation."""
+        return self.molrepo_name + " maps to " + self.datasource_name
+
+    @staticmethod
+    def _create_table():
+        engine = get_engine()
+        Base.metadata.create_all(
+            engine, tables=[MolrepoHasDatasource.__table__])
+
+    @staticmethod
+    def _drop_table():
+        engine = get_engine()
+        MolrepoHasDatasource.__table__.drop(engine)
+
+    @staticmethod
+    def _table_exists():
+        engine = get_engine()
+        return engine.dialect.has_table(engine,
+                                        MolrepoHasDatasource.__tablename__)
+
+    @staticmethod
+    def _table_attributes():
+        attrs = [a for a in class_mapper(
+            MolrepoHasDatasource).iterate_properties]
+        col_attrs = [a.key for a in attrs if isinstance(a, ColumnProperty)]
+        input_attrs = [a for a in col_attrs if a != 'id']
+        return input_attrs
+
+    @staticmethod
+    def add(kwargs):
+        """Add a new row to the table.
+
+        Args:
+            kwargs(dict):The data in dictionary format.
+        """
+        if type(kwargs) is dict:
+            entry = MolrepoHasDatasource(**kwargs)
+        MolrepoHasDatasource.__log.debug(entry)
+        session = get_session()
+        session.add(entry)
+        session.commit()
+        session.close()
+
+    @staticmethod
+    def from_csv(filename):
+        """Add entries from CSV file.
+
+        Args:
+            filename(str): Path to a CSV file.
+        """
+        import pandas as pd
+        df = pd.read_csv(filename)
+        # check columns
+        needed_cols = MolrepoHasDatasource._table_attributes()
+        if needed_cols != list(df.columns):
+            raise Exception("Input missing columns: %s", ' '.join(needed_cols))
+        # add them
+        for row_nr, row in df.iterrows():
+            try:
+                MolrepoHasDatasource.add(row.dropna().to_dict())
+            except Exception as err:
+                MolrepoHasDatasource.__log.error(
+                    "Error in line %s: %s", row_nr, str(err))

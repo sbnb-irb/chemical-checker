@@ -8,29 +8,28 @@ import h5py
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 from chemicalchecker.util.hpc import HPC
-from chemicalchecker.util.parser import PropCalculator
+from chemicalchecker.util.parser import DataCalculator
 from .database import Base, get_session, get_engine
-from .structure import Structure
+from .molecule import Molecule
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Text
 from sqlalchemy.dialects import postgresql
 from chemicalchecker.database import GeneralProp
 
 
-def Molprop(table_name):
+def Calcdata(table_name):
 
     DynamicBase = declarative_base(class_registry=dict())
     config = Config()
 
-
     @logged
-    class GenericMolprop(DynamicBase):
+    class GenericCalcdata(DynamicBase):
         """The Mol Properties class for the table of the same name."""
 
         __tablename__ = table_name
         inchikey = Column(Text, primary_key=True)
         raw = Column(Text)
-        dbname = config.DB.molprop_dbname
+        dbname = config.DB.calcdata_dbname
 
         @staticmethod
         def add(kwargs):
@@ -39,12 +38,12 @@ def Molprop(table_name):
             Args:
                 kwargs(dict):The data in dictionary format .
             """
-            GenericMolprop.__log.debug(type(kwargs))
+            GenericCalcdata.__log.debug(type(kwargs))
             if type(kwargs) is dict:
-                prop = GenericMolprop(**kwargs)
+                prop = GenericCalcdata(**kwargs)
 
-            GenericMolprop.__log.debug(prop.inchikey)
-            session = get_session(GenericMolprop.dbname)
+            GenericCalcdata.__log.debug(prop.inchikey)
+            session = get_session(GenericCalcdata.dbname)
             session.add(prop)
             session.commit()
             session.close()
@@ -52,8 +51,8 @@ def Molprop(table_name):
         @staticmethod
         def get(key):
             """Method to query general_properties table."""
-            session = get_session(GenericMolprop.dbname)
-            query = session.query(GenericMolprop).filter_by(inchikey=key)
+            session = get_session(GenericCalcdata.dbname)
+            query = session.query(GenericCalcdata).filter_by(inchikey=key)
             res = query.one_or_none()
 
             session.close()
@@ -62,7 +61,7 @@ def Molprop(table_name):
 
         @staticmethod
         def _create_table():
-            engine = get_engine(GenericMolprop.dbname)
+            engine = get_engine(GenericCalcdata.dbname)
             DynamicBase.metadata.create_all(engine)
 
         @staticmethod
@@ -70,12 +69,12 @@ def Molprop(table_name):
             size = 1000
             props = set()
 
-            session = get_session(GenericMolprop.dbname)
+            session = get_session(GenericCalcdata.dbname)
             for pos in range(0, len(keys), size):
-                query = session.query(GenericMolprop).filter(
-                    GenericMolprop.inchikey.in_(keys[pos:pos + size]), GenericMolprop.raw.isnot(None))
+                query = session.query(GenericCalcdata).filter(
+                    GenericCalcdata.inchikey.in_(keys[pos:pos + size]), GenericCalcdata.raw.isnot(None))
                 res = query.with_entities(
-                    GenericMolprop.inchikey, GenericMolprop.raw).all()
+                    GenericCalcdata.inchikey, GenericCalcdata.raw).all()
                 props.update(res)
 
             session.close()
@@ -89,17 +88,17 @@ def Molprop(table_name):
 
             vec = list(keys)
 
-            session = get_session(GenericMolprop.dbname)
+            session = get_session(GenericCalcdata.dbname)
             for pos in range(0, len(keys), size):
-                query = session.query(GenericMolprop).filter(
-                    GenericMolprop.inchikey.in_(vec[pos:pos + size]))
-                res = query.with_entities(GenericMolprop.inchikey).all()
+                query = session.query(GenericCalcdata).filter(
+                    GenericCalcdata.inchikey.in_(vec[pos:pos + size]))
+                res = query.with_entities(GenericCalcdata.inchikey).all()
                 for ele in res:
                     present.add(ele[0])
 
             session.close()
 
-            GenericMolprop.__log.debug(
+            GenericCalcdata.__log.debug(
                 "Found already present: " + str(len(present)))
 
             return keys.difference(present)
@@ -113,12 +112,12 @@ def Molprop(table_name):
             if missing_only:
                 set_inks = set(inchikey_inchi.keys())
 
-                GenericMolprop.__log.debug(
+                GenericCalcdata.__log.debug(
                     "Size initial data to add: " + str(len(set_inks)))
 
-                todo_iks = GenericMolprop.get_missing_from_set(set_inks)
+                todo_iks = GenericCalcdata.get_missing_from_set(set_inks)
 
-                GenericMolprop.__log.debug(
+                GenericCalcdata.__log.debug(
                     "Size final data to add: " + str(len(todo_iks)))
 
                 dict_inchikey_inchi = {k: inchikey_inchi[k] for k in todo_iks}
@@ -126,30 +125,28 @@ def Molprop(table_name):
             else:
                 dict_inchikey_inchi = inchikey_inchi
 
-            Structure.add_missing_only(inchikey_inchi)
+            Molecule.add_missing_only(inchikey_inchi)
 
-            parse_fn = PropCalculator.calc_fn(GenericMolprop.__tablename__)
+            parse_fn = DataCalculator.calc_fn(GenericCalcdata.__tablename__)
             # profile time
             t_start = time()
-            engine = get_engine(GenericMolprop.dbname)
+            engine = get_engine(GenericCalcdata.dbname)
             for chunk in parse_fn(dict_inchikey_inchi, 1000):
                 if len(chunk) == 0:
                     continue
-                GenericMolprop.__log.debug(
+                GenericCalcdata.__log.debug(
                     "Loading chunk of size: " + str(len(chunk)))
-                if GenericMolprop.__tablename__ == GeneralProp.__tablename__:
-                    GeneralProp.add_bulk(chunk)
-                else:
-                    engine.execute(postgresql.insert(GenericMolprop.__table__).values(
-                        chunk).on_conflict_do_nothing(index_elements=[GenericMolprop.inchikey]))
+
+                engine.execute(postgresql.insert(GenericCalcdata.__table__).values(
+                    chunk).on_conflict_do_nothing(index_elements=[GenericCalcdata.inchikey]))
             t_end = time()
             t_delta = str(datetime.timedelta(seconds=t_end - t_start))
-            GenericMolprop.__log.info(
-                "Loading Mol properties Name %s took %s", GenericMolprop.__tablename__, t_delta)
+            GenericCalcdata.__log.info(
+                "Loading Mol properties Name %s took %s", GenericCalcdata.__tablename__, t_delta)
 
         @staticmethod
-        def molprop_hpc(job_path, inchikey_inchi, **kwargs):
-            """Run HPC jobs to calculate molecular properties from inchikey_inchi data.
+        def calcdata_hpc(job_path, inchikey_inchi, **kwargs):
+            """Run HPC jobs to calculate data from inchikey_inchi data.
 
             job_path(str): Path (usually in scratch) where the script files are
                 generated.
@@ -178,7 +175,7 @@ def Molprop(table_name):
                 # cc_config location
                 "os.environ['CC_CONFIG'] = '%s'" % cc_config,
                 "sys.path.append('%s')" % cc_package,  # allow package import
-                "from chemicalchecker.database import Molprop",
+                "from chemicalchecker.database import Calcdata",
                 "task_id = sys.argv[1]",  # <TASK_ID>
                 "filename = sys.argv[2]",  # <FILE>
                 "h5_file = sys.argv[3]",  # <H5 FILE>
@@ -190,7 +187,7 @@ def Molprop(table_name):
                 "    inchikey_inchi = dict(hf['ik_inchi'][start_index:start_index+" + str(
                     chunk) + "])",
                 # elements are indexes
-                "mol = Molprop('" + GenericMolprop.__tablename__ + "')",
+                "mol = Calcdata('" + GenericCalcdata.__tablename__ + "')",
                 # start import
                 'mol.from_inchikey_inchi(inchikey_inchi,missing_only=False)',
                 "print('JOB DONE')"
@@ -208,12 +205,12 @@ def Molprop(table_name):
                     continue
                 set_inks.add(ele[0])
 
-            GenericMolprop.__log.debug(
+            GenericCalcdata.__log.debug(
                 "Size initial data to add: " + str(len(set_inks)))
 
-            todo_iks = GenericMolprop.get_missing_from_set(set_inks)
+            todo_iks = GenericCalcdata.get_missing_from_set(set_inks)
 
-            GenericMolprop.__log.debug(
+            GenericCalcdata.__log.debug(
                 "Size final data to add: " + str(len(todo_iks)))
 
             if len(todo_iks) == 0:
@@ -236,7 +233,7 @@ def Molprop(table_name):
 
             params["num_jobs"] = len(indices)
             params["jobdir"] = job_path
-            params["job_name"] = "CC_MLP_" + GenericMolprop.__tablename__
+            params["job_name"] = "CC_MLP_" + GenericCalcdata.__tablename__
             params["elements"] = indices
             params["wait"] = wait
             params["cpu"] = cpu
@@ -249,4 +246,4 @@ def Molprop(table_name):
             cluster = HPC(Config())
             cluster.submitMultiJob(command, **params)
 
-    return GenericMolprop
+    return GenericCalcdata

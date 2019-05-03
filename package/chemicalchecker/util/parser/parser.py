@@ -27,12 +27,10 @@ class Parser():
             raise ex
 
     @staticmethod
-    def bindingdb(file_path, molrepo_name, chunks=1000):
+    def bindingdb(map_paths, molrepo_name, chunks=1000):
         converter = Converter()
-        # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
+
+        file_path = map_paths[molrepo_name]
         fh = open(os.path.join(file_path), "r")
         # skip header
         header = fh.readline()
@@ -80,17 +78,15 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def chebi(file_path, molrepo_name, chunks=1000):
+    def chebi(map_paths, molrepo_name, chunks=1000):
         try:
             import rdkit.Chem as Chem
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
         converter = Converter()
-        # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
+
+        file_path = map_paths["chebi_lite"]
         suppl = Chem.SDMolSupplier(file_path)
         chunk = list()
         for idx, line in enumerate(suppl):
@@ -122,12 +118,10 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def ctd(file_path, molrepo_name, chunks=1000):
+    def ctd(map_paths, molrepo_name, chunks=1000):
         converter = Converter()
-        # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
+
+        file_path = map_paths["CTD_chemicals_diseases"]
         fh = open(os.path.join(file_path), "r")
         done = set()
         chunk = list()
@@ -184,7 +178,7 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def chembl(file_path, molrepo_name, chunks=1000):
+    def chembl(map_paths, molrepo_name, chunks=1000):
         converter = Converter()
         # no file to parse here, but querying the chembl database
         query = "SELECT md.chembl_id, cs.canonical_smiles " +\
@@ -220,12 +214,10 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def drugbank(file_path, molrepo_name, chunks=1000):
+    def drugbank(map_paths, molrepo_name, chunks=1000):
         converter = Converter()
-        # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
+
+        file_path = map_paths[molrepo_name]
         # parse XML
         prefix = "{http://www.drugbank.ca}"
         tree = ET.parse(file_path)
@@ -274,7 +266,7 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def kegg(file_path, molrepo_name, chunks=1000):
+    def kegg(map_paths, molrepo_name, chunks=1000):
         try:
             import pybel
         except ImportError:
@@ -286,10 +278,8 @@ class Parser():
             raise ImportError("requires wget " +
                               "http://bitbucket.org/techtonik/python-wget/src")
         converter = Converter()
-        # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
+
+        file_path = map_paths["kegg_br"]
         fh = open(os.path.join(file_path), "r")
         # kegg molecules will be downloaded to following dir
         kegg_download = os.path.join(os.path.dirname(file_path), 'mols')
@@ -343,15 +333,12 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def lincs(file_path, molrepo_name, chunks=1000):
+    def lincs(map_paths, molrepo_name, chunks=1000):
         converter = Converter()
-        # check input size
-        if len(file_path) != 2:
-            raise Exception("This parser expect 2 input files.")
         # skip header
         chunk = list()
 
-        for file in file_path:
+        for file in map_paths.values():
             col = -1
             if "GSE92742" in file:
                 col = 6
@@ -391,7 +378,7 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def mosaic(file_path, molrepo_name, chunks=1000):
+    def mosaic(map_paths, molrepo_name, chunks=1000):
         try:
             import pybel
         except ImportError:
@@ -401,9 +388,8 @@ class Parser():
         # FIXME find source (hint:/aloy/home/mduran/myscripts/mosaic/D/D3/data)
         # eventually add All_collection to local
         # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
+
+        file_path = map_paths["mosaic_all_collections"]
         chunk = list()
         for mol in pybel.readfile("sdf", file_path):
             if not mol:
@@ -432,12 +418,11 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def morphlincs(file_path, molrepo_name, chunks=1000):
+    def morphlincs(map_paths, molrepo_name, chunks=1000):
         converter = Converter()
-        # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
+
+        file_path = os.path.join(
+            map_paths["morphlincs_LDS-1195"], "LDS-1195/Metadata/Small_Molecule_Metadata.txt")
         g = open(file_path, "r")
         g.readline()
         chunk = list()
@@ -469,12 +454,11 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def nci60(file_path, molrepo_name, chunks=1000):
+    def nci60(map_paths, molrepo_name, chunks=1000):
         converter = Converter()
-        # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
+
+        file_path = os.path.join(
+            map_paths["DTP_NCI60_ZSCORE"], "output/DTP_NCI60_ZSCORE.xls")
         Parser.__log.info("Converting Zscore xls file to csv")
         data_xls = pd.read_excel(file_path, index_col=0)
         csv_path = file_path[:-4] + ".csv"
@@ -507,12 +491,10 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def pdb(file_path, molrepo_name, chunks=1000):
+    def pdb(map_paths, molrepo_name, chunks=1000):
         converter = Converter()
-        # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
+
+        file_path = map_paths["pdb_components"]
         chunk = list()
         f = open(file_path, "r")
         for l in f:
@@ -544,15 +526,13 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def sider(file_path, molrepo_name, chunks=1000):
+    def sider(map_paths, molrepo_name, chunks=1000):
         converter = Converter()
-        # check input size
-        if len(file_path) != 2:
-            raise Exception("This parser expect 2 input files.")
+
         sider_file = ""
         stitch_file = ""
         chunk = list()
-        for file in file_path:
+        for file in map_paths.values():
             if "meddra_all_se" in file:
                 sider_file = file
                 continue
@@ -602,17 +582,16 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def smpdb(file_path, molrepo_name, chunks=1000):
+    def smpdb(map_paths, molrepo_name, chunks=1000):
         try:
             import pybel
         except ImportError:
             raise ImportError("requires pybel " +
                               "http://openbabel.org")
         converter = Converter()
-        # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
+
+        file_path = os.path.join(
+            map_paths["smpdb_structures"], "smpdb_structures")
         S = set()
         L = os.listdir(file_path)
         chunk = list()
@@ -649,17 +628,15 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def biur_real(file_path, molrepo_name, chunks=1000):
+    def biur_real(map_paths, molrepo_name, chunks=1000):
         try:
             import rdkit.Chem as Chem
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
         converter = Converter()
-        # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
+
+        file_path = map_paths[molrepo_name]
         chunk = list()
         suppl = Chem.SDMolSupplier(file_path)
         for mol in suppl:
@@ -690,17 +667,16 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def biur_virtual(file_path, molrepo_name, chunks=1000):
+    def biur_virtual(map_paths, molrepo_name, chunks=1000):
         try:
             import rdkit.Chem as Chem
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
         converter = Converter()
-        # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
+
+        file_path = os.path.join(
+            str(map_paths[molrepo_name]), "VIRTUAL_BIUR_POR_MW")
         chunk = list()
         sdf_files = [f for f in os.listdir(file_path) if f[-4:] == ".sdf"]
         for sdf_file in sdf_files:
@@ -735,17 +711,15 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def cmaup(file_path, molrepo_name, chunks=1000):
+    def cmaup(map_paths, molrepo_name, chunks=1000):
         try:
             import rdkit.Chem as Chem
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
         converter = Converter()
-        # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
+
+        file_path = map_paths[molrepo_name]
         chunk = list()
         f = open(file_path, "r")
         for l in f:
@@ -777,17 +751,15 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def repohub(file_path, molrepo_name, chunks=1000):
+    def repohub(map_paths, molrepo_name, chunks=1000):
         try:
             import rdkit.Chem as Chem
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
         converter = Converter()
-        # check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
+
+        file_path = map_paths[molrepo_name]
         chunk = list()
         f = open(file_path, "r")
         for l in f:
@@ -795,7 +767,7 @@ class Parser():
             if len(l) < 2:
                 continue
             src_ids = l[7].split(", ")
-            smis    = l[8].split(", ")
+            smis = l[8].split(", ")
             for (src_id, smi) in zip(src_ids, smis):
                 try:
                     inchikey, inchi = converter.smiles_to_inchi(smi)
@@ -820,10 +792,11 @@ class Parser():
         yield chunk
 
     @staticmethod
-    def hmdb(file_path, molrepo_name, chunks=1000):
+    def hmdb(map_paths, molrepo_name, chunks=1000):
         from lxml import etree as ET
         converter = Converter()
         # Functions
+
         def fast_iter(context, func):
             for event, elem in context:
                 yield func(elem)
@@ -832,22 +805,24 @@ class Parser():
                     while ancestor.getprevious() is not None:
                         del ancestor.getparent()[0]
             del context
+
         def process_elem(elem):
-            src_id = elem.find(ns+"accession")
-            smiles = elem.find(ns+"smiles")
-            if src_id is None or smiles is None: return None, None
+            src_id = elem.find(ns + "accession")
+            smiles = elem.find(ns + "smiles")
+            if src_id is None or smiles is None:
+                return None, None
             return src_id.text, smiles.text
-        # Check input size
-        if len(file_path) != 1:
-            raise Exception("This parser expect a single input file.")
-        file_path = file_path[0]
-        ns        = "{http://www.hmdb.ca}"
-        chunk     = list()
-        idx       = 0
+
+        file_path = map_paths["hmdb_metabolites"]
+        ns = "{http://www.hmdb.ca}"
+        chunk = list()
+        idx = 0
         # parse XML
-        context = ET.iterparse(file_path, events = ("end", ), tag = ns+"metabolite")
+        context = ET.iterparse(file_path, events=(
+            "end", ), tag=ns + "metabolite")
         for src_id, smiles in fast_iter(context, process_elem):
-            if src_id is None or smiles is None: continue
+            if src_id is None or smiles is None:
+                continue
             # the following is always the same
             try:
                 inchikey, inchi = converter.smiles_to_inchi(smiles)
@@ -865,7 +840,7 @@ class Parser():
                 "inchikey": inchikey,
                 "inchi": inchi
             }
-            idx += 1            
+            idx += 1
             chunk.append(result)
             if len(chunk) == chunks:
                 yield chunk

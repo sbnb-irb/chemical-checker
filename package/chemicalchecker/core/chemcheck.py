@@ -44,7 +44,7 @@ class ChemicalChecker():
             self.__log.warning("Empty root directory, creating dataset dirs")
             for molset in self._basic_molsets:
                 for dataset in Dataset.get():
-                    ds = dataset.code
+                    ds = dataset.dataset_code
                     new_dir = os.path.join(
                         self.cc_root, molset, ds[:1], ds[:2], ds)
                     self._datasets.add(ds)

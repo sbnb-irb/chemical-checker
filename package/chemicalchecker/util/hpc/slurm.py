@@ -146,7 +146,7 @@ fi
         if num_jobs == 0:
             raise("Number of specified jobs is zero")
 
-        if num_jobs > 1:
+        if num_jobs > 1 or command.find("<TASK_ID>") != -1:
             jobParams.append("#SBATCH --array=1-" + str(num_jobs))
             tmpname = command.replace("<TASK_ID>", "$SLURM_ARRAY_TASK_ID")
             command = tmpname
