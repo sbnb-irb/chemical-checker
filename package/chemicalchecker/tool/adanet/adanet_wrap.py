@@ -377,13 +377,13 @@ class AdaNetWrapper(object):
 
     @staticmethod
     def iteration_epoch_heuristic(nr_samples, min_it=3, max_it=10, min_ep=30,
-                                  max_ep=300, sigmoind_midpoint=100000,
+                                  max_ep=300, sigmoid_midpoint=100000,
                                   steepness=1):
         # logistic function of nr of samples
         adanet_it = np.int32(min_it + (max_it - min_it) /
-                             (1 + np.exp(steepness * (nr_samples - sigmoind_midpoint))))
+                             (1 + np.exp(steepness * (nr_samples - sigmoid_midpoint))))
         epoch_it = np.int32(min_ep + (max_ep - min_ep) /
-                            (1 + np.exp(steepness * (nr_samples - sigmoind_midpoint))))
+                            (1 + np.exp(steepness * (nr_samples - sigmoid_midpoint))))
         return adanet_it, epoch_it
 
     def train_and_evaluate(self, evaluate=True):
@@ -540,8 +540,7 @@ class AdaNetWrapper(object):
                 for idx in range(samples):
                     mask_pred = predict_fn({'x': mask_fn(features[:])})
                     results[:, :, idx] = mask_pred['predictions']
-                return results
-                pass
+                return np.std(results, axis=2)
             else:
                 return pred['predictions']
         else:
