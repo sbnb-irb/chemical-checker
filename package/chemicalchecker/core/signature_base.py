@@ -89,14 +89,14 @@ class BaseSignature(object):
         if os.path.exists(os.path.join(self.model_path, self.readyfile)):
             os.remove(os.path.join(self.model_path, self.readyfile))
 
-    def fit_hpc(self, *args, **kwargs):
-        """Execute the fit method on the configured HPC.
+    def func_hpc(self, func_name, *args, **kwargs):
+        """Execute the *any* method on the configured HPC.
 
         Args:
             args(tuple): the arguments for of the fit method
             kwargs(dict): arguments for the HPC method.
         """
-        # read config file
+                # read config file
         cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
         cfg = Config(cc_config)
         # create job directory if not available
@@ -113,16 +113,16 @@ class BaseSignature(object):
             "os.environ['OMP_NUM_THREADS'] = str(%s)" % cpu,
             "import pickle",
             "sign, args = pickle.load(open(sys.argv[1], 'rb'))",
-            "sign.fit(*args)",
+            "sign.%s(*args)" % func_name,
             "print('JOB DONE')"
         ]
-        script_name = '%s_fit_hpc.py' % self.__class__.__name__
+        script_name = '%s_%s_hpc.py' % (self.__class__.__name__, func_name)
         script_path = os.path.join(job_path, script_name)
         with open(script_path, 'w') as fh:
             for line in script_lines:
                 fh.write(line + '\n')
         # pickle self and fit args
-        pickle_file = '%s_fit_hpc.pkl' % self.__class__.__name__
+        pickle_file = '%s_%s_hpc.pkl' % (self.__class__.__name__, func_name)
         pickle_path = os.path.join(job_path, pickle_file)
         pickle.dump((self, args), open(pickle_path, 'w'))
         # hpc parameters
@@ -142,6 +142,15 @@ class BaseSignature(object):
         cluster = HPC(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
+
+    def fit_hpc(self, *args, **kwargs):
+        """Execute the fit method on the configured HPC.
+
+        Args:
+            args(tuple): the arguments for of the fit method
+            kwargs(dict): arguments for the HPC method.
+        """
+        return self.func_hpc("fit", *args, **kwargs)
 
     @abstractmethod
     def predict(self):
