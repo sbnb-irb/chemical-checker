@@ -56,7 +56,8 @@ class Converter():
 
     def inchi_to_smiles(self, inchi):
         try:
-            mol = self.Chem.rdinchi.InchiToMol(inchi)[0]
+            inchi_ascii = inchi.encode('ascii', 'ignore')
+            mol = self.Chem.rdinchi.InchiToMol(inchi_ascii)[0]
         except Exception as ex:
             raise ConversionError("'InchiToMol' exception:", ex.message)
         return self.Chem.MolToSmiles(mol)
