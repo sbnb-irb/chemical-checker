@@ -5,7 +5,9 @@ value, compared to signatures type 2, is that they can be derived for
 virtually *any* molecule in *any* dataset.
 """
 import os
+import h5py
 import numpy as np
+from tqdm import tqdm
 from functools import partial
 
 from .signature_base import BaseSignature
@@ -138,13 +140,54 @@ class sign3(BaseSignature):
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
         self.mark_ready()
 
-    def predict(self, sign1):
+    def predict(self, chemchecker, all_sign2, inchikeys=None, confidence=True):
         """Use the learned model to predict the signature."""
         try:
             from chemicalchecker.tool.adanet import AdaNet
         except ImportError as err:
             raise err
-        pass
+
+        # get signatures
+        ds_sign = dict()
+        for ds in chemchecker.datasets:
+            ds_sign[ds] = chemchecker.get_signature('sign2',
+                                                    'full_map', ds)
+        # get universe molecules
+        if not inchikeys:
+            keys = list()
+            for ds in chemchecker.datasets:
+                keys.append(ds_sign[ds].unique_keys)
+            inchikeys = sorted(set.union(*keys))
+        # build input matrix if not provided
+        if not os.path.isfile(all_sign2):
+            with h5py.File(all_sign2, "w") as fh:
+                fh.create_dataset('x_test',
+                                  (len(inchikeys), 128 * len(ds_sign)),
+                                  dtype=np.float32)
+            with h5py.File(all_sign2, "a") as fh:
+                for idx, ds in enumerate(chemchecker.datasets):
+                    _, sign = ds_sign[ds].get_vectors(
+                        inchikeys, include_nan=True)
+                    fh['x_test'][:, idx * 128:(idx + 1) * 128] = sign
+                    del sign
+
+        # read the final model
+        adanet_path = os.path.join(self.model_path, 'adanet_final',
+                                   'savedmodel')
+        predict_fn = AdaNet.predict_fn(adanet_path)
+        # perform prediction
+        with h5py.File(self.data_path, "w") as results:
+            results.create_dataset(
+                'V', (len(inchikeys), 128), dtype=np.float32)
+            results.create_dataset('keys', (len(inchikeys),), dtype='|S27')
+            with h5py.File(all_sign2, "r") as features:
+                for idx in tqdm(range(0, len(inchikeys), 10000)):
+                    chunk = slice(idx, idx + 10000)
+                    results['V'][chunk] = AdaNet.predict(adanet_path,
+                                                         features['x_test'][
+                                                             chunk],
+                                                         predict_fn)
+                    results['keys'][chunk] = inchikeys[chunk]
 
     @staticmethod
     def cross_fit(chemchecker, model_path, ds_from, ds_to, reuse=True):
@@ -512,11 +555,9 @@ class sign3(BaseSignature):
         cluster = HPC(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
-
+    """
     @staticmethod
     def fit_hpc(cc_root, job_path, elements, evaluate=True, suffix='final', cpu=1):
-        """Perform a grid search.
-        """
         from chemicalchecker.util.hpc import HPC
         from chemicalchecker.util import Config
 
@@ -566,6 +607,7 @@ class sign3(BaseSignature):
         cluster = HPC(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
+    """
 
 
 def subsample(tensor, label):
