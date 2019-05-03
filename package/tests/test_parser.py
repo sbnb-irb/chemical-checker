@@ -34,9 +34,9 @@ class TestParser(unittest.TestCase):
 
     @skip_if_import_exception
     def test_bindingdb(self):
-        file_path = os.path.join(self.data_dir, 'BindingDB_All.tsv')
-        self.assertTrue(os.path.isfile(file_path))
-        chunks = list(Parser.bindingdb([file_path], 'bindingdb'))
+        file_path = {"bindingdb": os.path.join(
+            self.data_dir, 'BindingDB_All.tsv')}
+        chunks = list(Parser.bindingdb(file_path, 'bindingdb'))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
         self.assertEqual(len(results), 99)
@@ -50,9 +50,9 @@ class TestParser(unittest.TestCase):
 
     @skip_if_import_exception
     def test_chebi(self):
-        file_path = os.path.join(self.data_dir, 'ChEBI_lite_3star.sdf')
-        self.assertTrue(os.path.isfile(file_path))
-        chunks = list(Parser.chebi([file_path], 'chebi'))
+        file_path = {"chebi_lite": os.path.join(
+            self.data_dir, 'ChEBI_lite_3star.sdf')}
+        chunks = list(Parser.chebi(file_path, 'chebi'))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
         self.assertEqual(len(results), 2)
@@ -82,9 +82,8 @@ class TestParser(unittest.TestCase):
 
     @skip_if_import_exception
     def test_drugbank(self):
-        file_path = os.path.join(self.data_dir, 'drugbank.xml')
-        self.assertTrue(os.path.isfile(file_path))
-        chunks = list(Parser.drugbank([file_path], 'drugbank'))
+        file_path = {"drugbank": os.path.join(self.data_dir, 'drugbank.xml')}
+        chunks = list(Parser.drugbank(file_path, 'drugbank'))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
         self.assertEqual(len(results), 1)
@@ -98,11 +97,10 @@ class TestParser(unittest.TestCase):
 
     @skip_if_import_exception
     def test_kegg(self):
-        file_path = os.path.join(self.data_dir, 'kegg.br')
-        self.assertTrue(os.path.isfile(file_path))
+        file_path = {"kegg_br": os.path.join(self.data_dir, 'kegg.br')}
 
         self.assertFalse(os.path.isdir(self.mol_dir))
-        chunks = list(Parser.kegg([file_path], 'kegg'))
+        chunks = list(Parser.kegg(file_path, 'kegg'))
         self.assertTrue(os.path.isdir(self.mol_dir))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
@@ -118,11 +116,13 @@ class TestParser(unittest.TestCase):
 
     @skip_if_import_exception
     def test_lincs(self):
+
         file_path1 = os.path.join(self.data_dir, 'lincs_GSE70138.txt')
         self.assertTrue(os.path.isfile(file_path1))
         file_path2 = os.path.join(self.data_dir, 'lincs_GSE92742.txt')
         self.assertTrue(os.path.isfile(file_path2))
-        chunks = list(Parser.lincs([file_path1, file_path2], 'lincs'))
+        data = {"lincs_GSE70138" : file_path1 , "lincs_GSE92742" : file_path2}
+        chunks = list(Parser.lincs(data, 'lincs'))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
         self.assertEqual(len(results), 20)
@@ -137,8 +137,8 @@ class TestParser(unittest.TestCase):
 
     @skip_if_import_exception
     def test_smpdb(self):
-        file_path = os.path.join(self.data_dir, 'smpdb_structures')
-        chunks = list(Parser.smpdb([file_path], 'smpdb'))
+        file_path = {"smpdb_structures": self.data_dir}
+        chunks = list(Parser.smpdb(file_path, 'smpdb'))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
         self.assertEqual(len(results), 2)

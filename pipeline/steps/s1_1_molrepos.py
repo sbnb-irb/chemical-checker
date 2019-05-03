@@ -20,8 +20,4 @@ class Molrepos(BaseStep):
         # start molrepo jobs (one per Datasource), job will wait until finished
         Molrepo.molrepo_hpc(job_path, only_updatable=True)
 
-        # check if the molrepos are really done
-        if not Molrepo.test_all_available():
-            self.__log.error("Something went WRONG while MOLREPO, should retry")
-        else:
-            self.mark_ready()
+        self.mark_ready()

@@ -1,3 +1,3 @@
 from .parser import Parser
 from .converter import Converter
-from .prop_calculator import PropCalculator
+from .data_calculator import DataCalculator

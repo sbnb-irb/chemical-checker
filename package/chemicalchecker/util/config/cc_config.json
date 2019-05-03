@@ -13,7 +13,7 @@
         "user": "'cc_user'",
         "password": "'checker'",
         "database": "'mosaic'",
-        "molprop_dbname": "'mosaic'"
+        "calcdata_dbname": "'mosaic'"
     },
     "HPC": {
         "system" : "'sge'",

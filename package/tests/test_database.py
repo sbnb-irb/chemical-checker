@@ -3,9 +3,7 @@ import unittest
 from chemicalchecker.util import Config
 from chemicalchecker.database import GeneralProp
 from chemicalchecker.database import Dataset
-from chemicalchecker.database import Pubchem
-from chemicalchecker.database import Libraries
-from chemicalchecker.database import Structure
+from chemicalchecker.database import Molecule
 
 
 class TestDatabase(unittest.TestCase):
@@ -22,12 +20,8 @@ class TestDatabase(unittest.TestCase):
         GeneralProp._create_table()
         self.Dataset = Dataset
         Dataset._create_table()
-        self.Libraries = Libraries
-        Libraries._create_table()
-        self.Pubchem = Pubchem
-        Pubchem._create_table()
-        self.Structure = Structure
-        Structure._create_table()
+        self.Molecule = Molecule
+        Molecule._create_table()
 
     def tearDown(self):
         if os.path.exists(self.cfg.DB.file):
@@ -52,31 +46,17 @@ class TestDatabase(unittest.TestCase):
         self.assertTrue(hasattr(res, 'mw'))
         self.assertTrue(res.heavy == 22)
 
-        res = self.Pubchem.get()
+        res = self.Molecule.get('test2')
         self.assertIsNone(res)
 
-        self.Pubchem.add_bulk([[1, "t1", "t2", "t3", "t4"],
-                               [2, "z1", "z2", "z3", "z4"]])
+        self.Molecule.add_bulk([["test1", "ttt"],
+                                ["test2", "zzz"]], on_conflict_do_nothing=False)
 
-        res = self.Pubchem.get(cid=1)
-        self.assertTrue(hasattr(res[0], 'name'))
-        self.assertTrue(res[0].name == "t3")
-
-        res = self.Pubchem.get(cid=2)
-        self.assertTrue(hasattr(res[0], 'name'))
-        self.assertTrue(res[0].name == "z3")
-
-        res = self.Structure.get('test2')
-        self.assertIsNone(res)
-
-        self.Structure.add_bulk([["test1", "ttt"],
-                                 ["test2", "zzz"]], on_conflict_do_nothing=False)
-
-        res = self.Structure.get('test1')
+        res = self.Molecule.get('test1')
         self.assertTrue(hasattr(res, 'inchi'))
         self.assertTrue(res.inchi == "ttt")
 
-        res = self.Structure.get('test2')
+        res = self.Molecule.get('test2')
         self.assertTrue(hasattr(res, 'inchi'))
         self.assertTrue(res.inchi == "zzz")
 
@@ -85,7 +65,7 @@ class TestDatabase(unittest.TestCase):
         res = self.Dataset.get('test2')
         self.assertIsNone(res)
 
-        self.Dataset.add({"code": "A1.001", "level": "A", "unknowns": True})
+        self.Dataset.add({"dataset_code": "A1.001", "level": "A", "unknowns": True})
 
         res = self.Dataset.get('A1.001')
         self.assertTrue(hasattr(res, 'level'))
@@ -94,17 +74,3 @@ class TestDatabase(unittest.TestCase):
         res = self.Dataset.get('A1.001')
         self.assertTrue(hasattr(res, 'unknowns'))
         self.assertTrue(res.unknowns)
-
-        res = self.Libraries.get('test1')
-        self.assertIsNone(res)
-
-        self.Libraries.add({"lib": "test1", "files": "A", "name": "test",
-                            "description": "A", "urls": "True", "rank": 6})
-
-        res = self.Libraries.get('test1')
-        self.assertTrue(hasattr(res, 'files'))
-        self.assertTrue(res.files == "A")
-
-        res = self.Libraries.get('test1')
-        self.assertTrue(hasattr(res, 'rank'))
-        self.assertTrue(res.rank == 6)

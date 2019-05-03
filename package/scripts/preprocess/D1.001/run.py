@@ -2,6 +2,7 @@ import os
 import sys
 import argparse
 import h5py
+import tempfile
 import numpy as np
 from scipy.stats import rankdata
 import collections
@@ -226,6 +227,7 @@ def do_consensus(ik_matrices, consensus):
                  for ik in os.listdir(ik_matrices) if ik.endswith(".h5")]
 
     def consensus_signature(ik):
+        print ik
         with h5py.File("%s/%s.h5" % (ik_matrices, ik), "r") as hf:
             X = hf["X"][:]
         # It could be max, min...
@@ -301,22 +303,22 @@ def main(args):
     mini_sig_info_file = os.path.join(
         args.models_path, 'mini_sig_info.tsv')
 
+    dataset = Dataset.get(dataset_code)
+
+    map_files = {}
+
+    for ds in dataset.datasources:
+        map_files[ds.name] = ds.data_path
+
+    main._log.debug(
+        "Running preprocess fit method for dataset " + dataset_code + ". Saving output in " + args.output_file)
+
+    signaturesdir = os.path.join(args.models_path, "signatures")
+
+    if os.path.exists(signaturesdir) is False:
+        os.makedirs(signaturesdir)
+
     if args.method == 'fit':
-
-        dataset = Dataset.get(dataset_code)
-
-        map_files = {}
-
-        for ds in dataset.datasources:
-            map_files[ds.name] = ds.data_path
-
-        main._log.debug(
-            "Running preprocess fit method for dataset " + dataset_code + ". Saving output in " + args.output_file)
-
-        signaturesdir = os.path.join(args.models_path, "signatures")
-
-        if os.path.exists(signaturesdir) is False:
-            os.makedirs(signaturesdir)
 
         main._log.info("Parsing")
         parse_level(mini_sig_info_file, map_files, signaturesdir)
@@ -345,31 +347,34 @@ def main(args):
         sig_map = {}
 
         for SIG in cp_sigs:
-            sig_map[SIG] = {"file": "%s/%s.h5" % (signaturesdir, SIG)}
+            sig_map[(SIG,)] = {"file": "%s/%s.h5" % (signaturesdir, SIG)}
 
     if args.method == 'predict':
 
-        ik_matrices = os.path.join(args.models_path, 'ik_matrices_predict')
+        ik_matrices = tempfile.mkdtemp(
+            prefix='ik_matrices_', dir=args.models_path)
 
-        if os.path.exists(ik_matrices) is False:
-            os.makedirs(ik_matrices, 0o775)
-
-        connectivitydir = os.path.join(
-            args.models_path, 'connectivity_predict')
-
-        if os.path.exists(connectivitydir) is False:
-            os.makedirs(connectivitydir, 0o775)
+        connectivitydir = tempfile.mkdtemp(
+            prefix='connectivity_', dir=args.models_path)
 
         consensus = os.path.join(args.models_path, "consensus_predict.h5")
 
         min_idxs = 1
 
         sig_map = {}
+        inchikey_inchi = {}
+
+        inchikey_sigid = collections.defaultdict(list)
 
         with open(args.input_file) as f:
             for l in f:
                 items = l.split('\t')
-                sig_map[items[0]] = {"up": items[2].split(
+                if items[1] == '':
+                    ik = items[0]
+                else:
+                    ik = items[1]
+                inchikey_sigid[ik] += [items[0]]
+                sig_map[items[0] + "---" + ik] = {"up": items[2].split(
                     ","), "down": items[3].split(",")}
 
     WD = os.path.dirname(os.path.realpath(__file__))
@@ -414,16 +419,18 @@ def main(args):
                 "Connectivity job produced some errors. The preprocess script can't continue")
             sys.exit(1)
 
-        with open(os.path.join(connectivitydir, readyfile), "w") as f:
-            f.write("")
+        if args.method == 'fit':
+            with open(os.path.join(connectivitydir, readyfile), "w") as f:
+                f.write("")
 
     readyfile = "agg_matrices.ready"
 
     if not os.path.exists(os.path.join(ik_matrices, readyfile)):
 
-        main._log.info("Reading L1000")
-        inchikey_sigid, inchikey_inchi, siginfo = read_l1000(
-            mini_sig_info_file, connectivitydir)
+        if args.method == 'fit':
+            main._log.info("Reading L1000")
+            inchikey_sigid, inchikey_inchi, siginfo = read_l1000(
+                mini_sig_info_file, connectivitydir)
 
         main._log.info("Doing aggregation matrices")
 
@@ -442,8 +449,8 @@ def main(args):
         params["memory"] = 10
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
-        command = "singularity exec {} python {} <TASK_ID> <FILE> {} {} {}".format(
-            singularity_image, ikmatrices_script, mini_sig_info_file, connectivitydir, ik_matrices)
+        command = "singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {}".format(
+            singularity_image, ikmatrices_script, mini_sig_info_file, connectivitydir, ik_matrices, args.method)
         # submit jobs
         cluster = HPC(Config())
         cluster.submitMultiJob(command, **params)
@@ -453,8 +460,9 @@ def main(args):
                 "Agg_matrices job produced some errors. The preprocess script can't continue")
             sys.exit(1)
 
-        with open(os.path.join(ik_matrices, readyfile), "w") as f:
-            f.write("")
+        if args.method == 'fit':
+            with open(os.path.join(ik_matrices, readyfile), "w") as f:
+                f.write("")
 
     main._log.info("Doing consensus")
     X, inchikeys = do_consensus(ik_matrices, consensus)

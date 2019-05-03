@@ -1,11 +1,11 @@
 {
     "STEPS": {
         "Downloads": {"datasources" : "'all'"},
-        "Molproperties" : {"molprops": "['fp2d', 'fp3d', 'subskeys', 'scaffolds', 'physchem']"},
+        "Calculatedata" : {"data": "['morgan_fp_r2_2048', 'e3fp_3conf_1024', 'murcko_1024_cframe_1024', 'maccs_keys_166', 'general_physchem_properties', 'chembl_target_predictions_v23_10um']"},
         "Validations" : {"sets" : "['moa','atc']"}
 
     },
-    "RUN": "['Downloads','Molrepos','Molproperties','Validations']",
-    "PATH": "'/aloy/scratch/oguitart/cc_pipeline'"
+    "RUN": "['Downloads','Molrepos','Calculatedata','Validations']",
+    "PATH": "'/aloy/scratch/sbnb-adm/cc_pipeline'"
 
 }

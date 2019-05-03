@@ -2,7 +2,7 @@
     "PATH": {
         "CC_ROOT": "'/aloy/web_checker/'",
         "CC_DATA": "'/aloy/scratch/oguitart/download/'",
-        "CC_TMP": "'/tmp/'",
+        "CC_TMP": "'/local/sbnb-adm/'",
         "CC_REPO": "'/aloy/home/oguitart/projects/source/chemical_checker'",
         "SINGULARITY_IMAGE": "'/aloy/home/oguitart/sing-images/cc.simg'"
     },
@@ -12,8 +12,8 @@
     	"host": "'10.5.4.240'",
     	"user": "'sbnb-adm'",
     	"password": "'db_adm'",
-    	"database": "'mosaic'",
-        "molprop_dbname": "'mosaic'"
+    	"database": "'cc_package'",
+        "calcdata_dbname": "'cc_calcdata'"
     },
     "HPC": {
     	"system" : "'sge'",

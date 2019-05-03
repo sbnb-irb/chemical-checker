@@ -4,7 +4,7 @@ import pickle
 import unittest
 import functools
 
-from chemicalchecker.util.parser import PropCalculator
+from chemicalchecker.util.parser import DataCalculator
 
 
 def skip_if_import_exception(function):
@@ -18,7 +18,7 @@ def skip_if_import_exception(function):
     return wrapper
 
 
-class TestPropCalculator(unittest.TestCase):
+class TestDataCalculator(unittest.TestCase):
 
     def setUp(self):
         # path for test data
@@ -29,9 +29,9 @@ class TestPropCalculator(unittest.TestCase):
         os.environ["CC_CONFIG"] = os.path.join(self.data_dir, 'config.json')
 
     @skip_if_import_exception
-    def test_fp2d(self):
+    def test_morgan_fp_r2_2048(self):
 
-        chunks = list(PropCalculator.fp2d(self.inchikey_inchi))
+        chunks = list(DataCalculator.morgan_fp_r2_2048(self.inchikey_inchi))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
         self.assertEqual(len(results), 99)
@@ -43,9 +43,9 @@ class TestPropCalculator(unittest.TestCase):
         self.assertDictEqual(expected, output)
 
     @pytest.mark.skip(reason="It is too slow")
-    def test_fp3d(self):
+    def test_e3fp_3conf_1024(self):
 
-        chunks = list(PropCalculator.fp3d(
+        chunks = list(DataCalculator.e3fp_3conf_1024(
             {k: self.inchikey_inchi[k] for k in list(self.inchikey_inchi)[:2]}))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
@@ -58,9 +58,9 @@ class TestPropCalculator(unittest.TestCase):
         self.assertDictEqual(expected, output)
 
     @skip_if_import_exception
-    def test_scaffolds(self):
+    def test_murcko_1024_cframe_1024(self):
 
-        chunks = list(PropCalculator.scaffolds(self.inchikey_inchi))
+        chunks = list(DataCalculator.murcko_1024_cframe_1024(self.inchikey_inchi))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
         self.assertEqual(len(results), 99)
@@ -72,9 +72,9 @@ class TestPropCalculator(unittest.TestCase):
         self.assertDictEqual(expected, output)
 
     @skip_if_import_exception
-    def test_subskeys(self):
+    def test_maccs_keys_166(self):
 
-        chunks = list(PropCalculator.subskeys(self.inchikey_inchi))
+        chunks = list(DataCalculator.maccs_keys_166(self.inchikey_inchi))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
         self.assertEqual(len(results), 99)
@@ -86,15 +86,15 @@ class TestPropCalculator(unittest.TestCase):
         self.assertDictEqual(expected, output)
 
     @skip_if_import_exception
-    def test_physchem(self):
+    def test_general_physchem_properties(self):
 
-        chunks = list(PropCalculator.physchem(self.inchikey_inchi))
+        chunks = list(DataCalculator.general_physchem_properties(self.inchikey_inchi))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
         self.assertEqual(len(results), 99)
 
-        expected = {'heavy': 41, 'inchikey': 'YXKFPFQIDHAWAU-XAZDILKDSA-N', 'mr': 155.31259999999978, 'alerts_qed': 2, 'qed': 0.28857643000451316, 'hba': 5, 'hetero': 8, 'rings': 5, 'psa': 101.38999999999999,
-                    'raw': '553.66,41,8,5,2,3,3.541,155.313,5,2,101.390,10,2,4,1,4,0.289', 'mw': 553.6590000000003, 'rotb': 10, 'ro3': 4, 'alogp': 3.5407000000000037, 'ringarom': 3, 'alerts_chembl': 4, 'hbd': 2, 'ro5': 1, 'ringaliph': 2}
+        expected = {'inchikey': 'YXKFPFQIDHAWAU-XAZDILKDSA-N',
+                    'raw': 'mw(553.66),heavy(41),hetero(8),rings(5),ringaliph(2),ringarom(3),alogp(3.541),mr(155.313),hba(5),hbd(2),psa(101.390),rotb(10),alerts_qed(2),alerts_chembl(4),ro5(1),ro3(4),qed(0.289)'}
         output = next(item for item in results if item[
                       "inchikey"] == "YXKFPFQIDHAWAU-XAZDILKDSA-N")
         self.assertDictEqual(expected, output)
