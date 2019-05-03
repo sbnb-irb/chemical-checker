@@ -6,7 +6,7 @@ from chemicalchecker.util import logged
 
 
 @logged
-class PropCalculator():
+class DataCalculator():
     """Container for static parsing methods.
 
     A parsing function here is iterating on an input file. It has to define
@@ -18,14 +18,14 @@ class PropCalculator():
     @staticmethod
     def calc_fn(function):
         try:
-            return eval('PropCalculator.' + function)
+            return eval('DataCalculator.' + function)
         except Exception as ex:
-            PropCalculator.__log.error(
+            DataCalculator.__log.error(
                 "Cannot find calculator function %s", function)
             raise ex
 
     @staticmethod
-    def fp2d(inchikey_inchi, chunks=1000):
+    def morgan_fp_r2_2048(inchikey_inchi, chunks=1000):
         try:
             from rdkit.Chem import AllChem as Chem
         except ImportError:
@@ -39,7 +39,7 @@ class PropCalculator():
             if ik is None:
                 continue
             v = str(inchikey_inchi[ik])
-            # PropCalculator.__log.info( ik)
+            # DataCalculator.__log.info( ik)
             mol = Chem.rdinchi.InchiToMol(v)[0]
             info = {}
             # print mol
@@ -58,7 +58,7 @@ class PropCalculator():
         yield chunk
 
     @staticmethod
-    def fp3d(inchikey_inchi, chunks=1000):
+    def e3fp_3conf_1024(inchikey_inchi, chunks=1000):
         try:
             from rdkit.Chem import AllChem as Chem
             from rdkit.Chem import Descriptors, rdMolDescriptors
@@ -98,7 +98,7 @@ class PropCalculator():
                 fps = fprints_from_inchi(
                     str(inchikey_inchi[k]), str(k), params[0], params[1])
             except Exception:
-                PropCalculator.__log.warning('Timeout inchikey: ' + k)
+                DataCalculator.__log.warning('Timeout inchikey: ' + k)
                 fps = None
             if not fps:
                 result = {
@@ -118,7 +118,7 @@ class PropCalculator():
         yield chunk
 
     @staticmethod
-    def scaffolds(inchikey_inchi, chunks=1000):
+    def murcko_1024_cframe_1024(inchikey_inchi, chunks=1000):
         try:
             from rdkit.Chem import AllChem as Chem
             from rdkit.Chem.Scaffolds import MurckoScaffold
@@ -165,7 +165,7 @@ class PropCalculator():
         yield chunk
 
     @staticmethod
-    def subskeys(inchikey_inchi, chunks=1000):
+    def maccs_keys_166(inchikey_inchi, chunks=1000):
         try:
             from rdkit.Chem import AllChem as Chem
             from rdkit.Chem import MACCSkeys
@@ -194,7 +194,7 @@ class PropCalculator():
         yield chunk
 
     @staticmethod
-    def physchem(inchikey_inchi, chunks=1000):
+    def general_physchem_properties(inchikey_inchi, chunks=1000):
         try:
             from rdkit.Chem import AllChem as Chem
             from rdkit.Chem import Descriptors, ChemicalFeatures
@@ -275,8 +275,8 @@ class PropCalculator():
             v = str(inchikey_inchi[k])
             mol = Chem.rdinchi.InchiToMol(v)[0]
             P = descriptors(mol)
-            raw = "%.2f,%d,%d,%d,%d,%d,%.3f,%.3f" + \
-                ",%d,%d,%.3f,%d,%d,%d,%d,%d,%.3f"
+            raw = "mw(%.2f),heavy(%d),hetero(%d),rings(%d),ringaliph(%d),ringarom(%d),alogp(%.3f),mr(%.3f)" + \
+                ",hba(%d),hbd(%d),psa(%.3f),rotb(%d),alerts_qed(%d),alerts_chembl(%d),ro5(%d),ro3(%d),qed(%.3f)"
             raw = raw % (P['mw'], P['heavy'], P['hetero'],
                          P['rings'], P['ringaliph'], P['ringarom'],
                          P['alogp'], P['mr'], P['hba'], P['hbd'], P['psa'],
@@ -284,23 +284,6 @@ class PropCalculator():
                          P['ro5'], P['ro3'], P['qed'])
             result = {
                 "inchikey": k,
-                "mw": P['mw'],
-                "heavy": P['heavy'],
-                "hetero": P['hetero'],
-                "rings": P['rings'],
-                "ringaliph": P["ringaliph"],
-                "ringarom": P["ringarom"],
-                "alogp": P["alogp"],
-                "mr": P['mr'],
-                "hba": P['hba'],
-                "hbd": P['hbd'],
-                "psa": P['psa'],
-                "rotb": P["rotb"],
-                "alerts_qed": P['alerts_qed'],
-                "alerts_chembl": P['alerts_chembl'],
-                "ro5": P['ro5'],
-                "ro3": P['ro3'],
-                "qed": P['qed'],
                 "raw": raw
             }
             chunk.append(result)
@@ -310,10 +293,10 @@ class PropCalculator():
         yield chunk
 
     @staticmethod
-    def chembl_target_predictions(inchikey_inchi, chunks=1000):
+    def chembl_target_predictions_v23_10um(inchikey_inchi, chunks=1000):
         try:
             from rdkit.Chem import AllChem as Chem
-            from rdkit import DataStructs            
+            from rdkit import DataStructs
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
@@ -325,35 +308,43 @@ class PropCalculator():
         # Variables
         max_targets = 20
         min_targets = 1
-        min_proba   = 0.5
+        min_proba = 0.5
         # Paths
-        models_path          = Datasource.get("chembl_target_predictions")[0].data_path
-        uniprot_mapping_path = Datasource.get("chembl_uniprot_mapping")[0].data_path
+        models_path = Datasource.get("chembl_target_predictions")[0].data_path
+        uniprot_mapping_path = Datasource.get(
+            "chembl_uniprot_mapping")[0].data_path
         # Load models
-        morgan_nb = joblib.load(models_path + "/models_23/10uM/mNB_10uM_all.pkl")
-        classes   = list(morgan_nb.targets)
+        morgan_nb = joblib.load(
+            models_path + "/models_23/10uM/mNB_10uM_all.pkl")
+        classes = list(morgan_nb.targets)
         # Read target-to-uniprot mapping
         chembltarg2prot = collections.defaultdict(set)
         with open(uniprot_mapping_path + "/chembl_uniprot_mapping.txt", "r") as f:
             for l in f:
-                if l[0] == "#": continue
+                if l[0] == "#":
+                    continue
                 l = l.rstrip("\n").split("\t")
                 chembltarg2prot[l[1]].update([l[0]])
         # Fuction for target prediction
+
         def predict_targets(inchi):
             mol = Chem.rdinchi.InchiToMol(inchi)[0]
-            fp = Chem.GetMorganFingerprintAsBitVect(mol, 2, nBits=2048, bitInfo={})
+            fp = Chem.GetMorganFingerprintAsBitVect(
+                mol, 2, nBits=2048, bitInfo={})
             res = np.zeros(len(fp), np.int32)
             DataStructs.ConvertToNumpyArray(fp, res)
-            probas = list(morgan_nb.predict_proba(res.reshape(1,-1))[0])
-            predictions = pd.DataFrame(zip(classes, probas), columns=['id','proba'])
-            top_preds = predictions.sort_values(by='proba', ascending=False).head(max_targets)
+            probas = list(morgan_nb.predict_proba(res.reshape(1, -1))[0])
+            predictions = pd.DataFrame(
+                zip(classes, probas), columns=['id', 'proba'])
+            top_preds = predictions.sort_values(
+                by='proba', ascending=False).head(max_targets)
             top_preds = top_preds[top_preds["proba"] >= min_proba]
             prots = []
             for r in np.array(top_preds):
-                if r[0] not in chembltarg2prot: continue
+                if r[0] not in chembltarg2prot:
+                    continue
                 for p in chembltarg2prot[r[0]]:
-                    prots += [(p, int(r[1]*10))]
+                    prots += [(p, int(r[1] * 10))]
             if len(prots) < min_targets:
                 return None
             return prots
@@ -364,7 +355,7 @@ class PropCalculator():
             if ik is None:
                 continue
             v = str(inchikey_inchi[ik])
-            # PropCalculator.__log.info( ik)
+            # DataCalculator.__log.info( ik)
             targs = predict_targets(v)
             if not targs:
                 result = {
@@ -375,8 +366,8 @@ class PropCalculator():
                 targs_ = collections.defaultdict(list)
                 for t in targs:
                     targs_[t[0]] += [t[1]]
-                targs_ = dict((k, np.max(v)) for k,v in targs_.iteritems())
-                targs  = sorted(targs_.items(), key=lambda x: -x[1])
+                targs_ = dict((k, np.max(v)) for k, v in targs_.iteritems())
+                targs = sorted(targs_.items(), key=lambda x: -x[1])
                 dense = ",".join("%s(%d)" % x for x in targs)
                 result = {
                     "inchikey": ik,

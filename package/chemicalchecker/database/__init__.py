@@ -1,9 +1,8 @@
 from .database import get_engine, get_session
 from .general_prop import GeneralProp
-from .dataset import Dataset, MapDatasetDatasource
+from .dataset import Dataset, DatasetHasDatasource
 from .pubchem import Pubchem
-from .libraries import Libraries
-from .structure import Structure
+from .molecule import Molecule
 from .datasource import Datasource
-from .molrepo import Molrepo
-from .molprop import Molprop
+from .molrepo import Molrepo, MolrepoHasDatasource
+from .calcdata import Calcdata

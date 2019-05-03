@@ -1,4 +1,4 @@
-code;level;coordinate;name;technical_name;description;unknowns;discrete;keys;features;exemplary;public
+dataset_code;level;coordinate;name;technical_name;description;unknowns;discrete;keys;features;exemplary;public
 A1.001;A;A1;2D fingerprints;2048-bit Morgan fingerprints;Binary representation of the 2D structure of a molecule. The neighborhood of every atom is encoded using circular topology hashing.;False;True;CPD;;True;True
 A2.001;A;A2;3D fingerprints;1024-bit E3FP fingerprints;The 3D structures of the three best conformers after energy minimization are hashed into a binary representation without the need for structural alignment.;False;True;CPD;;True;True
 A3.001;A;A3;Scaffolds;Morgan scaffolds and 1024-bit Morgan fingerprints;Largest molecular scaffold (usually a ring system) remaining after applying Murcko's pruning rules. Additionally, we keep the corresponding framework, i.e. a version of the scaffold where all atoms are carbons and all bonds are single. The scaffold and the framework are encoded with path-based 1024-bit fingerprints, suitable for capturing substructures in similarity searches.;False;True;CPD;;True;True

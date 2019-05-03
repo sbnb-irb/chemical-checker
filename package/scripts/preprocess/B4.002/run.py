@@ -5,7 +5,7 @@ import h5py
 
 from chemicalchecker.util import logged, get_parser, save_output, features_file
 from chemicalchecker.database import Dataset, Molrepo, Datasource, Molprop
-from chemicalchecker.util.parser import PropCalculator
+from chemicalchecker.util.parser import DataCalculator
 from chemicalchecker.util.parser import Converter
 
 features_file        = "features.h5"
@@ -139,7 +139,7 @@ def main(args):
 
             else:
 
-                parse_fn = PropCalculator.calc_fn(name)
+                parse_fn = DataCalculator.calc_fn(name)
 
                 for chunk in parse_fn(inchikey_inchi, 1000):
 

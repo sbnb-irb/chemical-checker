@@ -47,7 +47,33 @@ def read_l1000(connectivitydir, mini_sig_info_file):
             ik = pertid_inchikey[pert_id]
             inchikey_sigid[ik] += [sig_id]
 
-    return inchikey_sigid, inchikey_inchi, siginfo
+    return inchikey_sigid, siginfo
+
+
+def read_l1000_predict(connectivitydir, mini_sig_info_file):
+
+    # Read signature data
+
+    touchstones = set()
+    siginfo = {}
+    with open(mini_sig_info_file, "r") as f:
+        for l in f:
+            l = l.rstrip("\n").split("\t")
+            if int(l[4]) == 1:
+                touchstones.update([l[1]])
+            siginfo[l[0]] = l[1]
+
+    pertid_sigid = collections.defaultdict(list)
+
+    PATH = connectivitydir
+    for r in os.listdir(PATH):
+        if ".h5" not in r:
+            continue
+        sig_id = r.split(".h5")[0]
+        sig, pert_id = sig_id.split("---")
+        pertid_sigid[pert_id] += [sig]
+
+    return pertid_sigid, siginfo
 
 
 def get_summary(v):
@@ -68,12 +94,20 @@ if __name__ == '__main__':
     mini_sig_info_file = sys.argv[3]
     connectivitydir = sys.argv[4]
     agg_matrices = sys.argv[5]
+    method = sys.argv[6]
 
     inputs = pickle.load(open(filename, 'rb'))
     iks = inputs[task_id]
 
-    inchikey_sigid, inchikey_inchi, siginfo = read_l1000(
-        connectivitydir, mini_sig_info_file)
+    if method == "fit":
+
+        inchikey_sigid, siginfo = read_l1000(
+            connectivitydir, mini_sig_info_file)
+
+    else:
+
+        inchikey_sigid, siginfo = read_l1000_predict(
+            connectivitydir, mini_sig_info_file)
 
     with open("%s/signatures.tsv" % connectivitydir, "r") as f:
         signatures = [l.rstrip("\n") for l in f]
@@ -85,7 +119,10 @@ if __name__ == '__main__':
         v = inchikey_sigid[ik]
         neses = collections.defaultdict(list)
         for sigid in v:
-            with h5py.File("%s/%s.h5" % (connectivitydir, sigid), "r") as hf:
+            filename = sigid
+            if method == "predict":
+                filename = sigid + "---" + ik
+            with h5py.File("%s/%s.h5" % (connectivitydir, filename), "r") as hf:
                 nes = hf["nes"][:]
             for i in xrange(len(signatures)):
                 neses[(sigid, siginfo[signatures[i]])] += [nes[i]]

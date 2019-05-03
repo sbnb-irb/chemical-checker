@@ -20,6 +20,7 @@ def get_connection(dbname=None):
     config = Config()
     conn_dict = config.DB.asdict()
     conn_dict.pop('dialect')
+    conn_dict.pop('calcdata_dbname')
     conn_dict.update({"database": dbname})
     datab = psycopg2.connect(**conn_dict)
     return datab

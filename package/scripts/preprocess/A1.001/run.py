@@ -9,7 +9,7 @@ import numpy as np
 from chemicalchecker.util import logged
 from chemicalchecker.database import Molprop
 from chemicalchecker.database import Molrepo, Datasource
-from chemicalchecker.util import PropCalculator
+from chemicalchecker.util import DataCalculator
 from chemicalchecker.util import Converter
 
 
@@ -114,7 +114,7 @@ def main(args):
 
         if args.entry_point != entry_point_keys:
 
-            parse_fn = PropCalculator.calc_fn(name)
+            parse_fn = DataCalculator.calc_fn(name)
 
             for chunk in parse_fn(inchikey_inchi, 1000):
 

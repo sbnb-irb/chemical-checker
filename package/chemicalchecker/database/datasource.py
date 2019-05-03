@@ -22,44 +22,39 @@ class Datasource(Base):
     Parameters:
         name(str): primary key, simple unique name for the Datasource.
         url(str): the download link.
-        permanent(bool): whether the download is permanent (not updated).
-        enabled(bool): flag that allow us to keep historical records.
+        updatable(bool): whether the download is updatable .
         user(str): few downloads require credentials.
         password(str): few downloads require credentials.
         description(str): free text description of the resource.
-        molrepo_name(str): optional, a `molrepo` name. NB this name is the
+        filename(str): optional, a `molrepo` name. NB this name is the
             value of `Molrepo.molrepo_name`  also is defininf the `Parser`
             that will be used.
-        molrepo_file(str): optional, a specific file in the Datasource that
-            will be used to fill the `molrepo` table. Can also be a directory.
+        calcdata(bool): the datasource is actually from one of the calculated data.
     """
 
     __tablename__ = 'datasource'
-    name = Column(Text, primary_key=True)
-    url = Column(Text)
-    permanent = Column(Boolean)
-    enabled = Column(Boolean)
-    user = Column(Text)
-    password = Column(Text)
+    datasource_name = Column(Text, primary_key=True)
     description = Column(Text)
-    molrepo_name = Column(Text)
-    molrepo_file = Column(Text)
-    is_db = Column(Boolean)
-    is_universe = Column(Boolean)
     updatable = Column(Boolean)
+    is_db = Column(Boolean)
+    url = Column(Text)
+    username = Column(Text)
+    password = Column(Text)
+    filename = Column(Text)
+    calcdata = Column(Boolean)
 
     datasets = relationship("Dataset",
-                            secondary="map_dataset_datasource",
+                            secondary="dataset_has_datasource",
                             lazy='joined')
 
     def __repr__(self):
         """String representation."""
-        return self.name
+        return self.datasource_name
 
     @staticmethod
     def _create_table():
         engine = get_engine()
-        Datasource.metadata.create_all(engine)
+        Base.metadata.create_all(engine, tables=[Datasource.__table__])
 
     @staticmethod
     def _drop_table():
@@ -125,12 +120,13 @@ class Datasource(Base):
         if updatable is not None:
             params["updatable"] = updatable
         if name is not None:
-            params["name"] = name
+            params["datasource_name"] = name
 
         session = get_session()
 
         if len(params) == 0:
-            query = session.query(Datasource).distinct(Datasource.name)
+            query = session.query(Datasource).distinct(
+                Datasource.datasource_name)
         else:
             query = session.query(Datasource).filter_by(**params)
 
@@ -139,42 +135,9 @@ class Datasource(Base):
         return res
 
     @staticmethod
-    def get_molrepos(molrepo_name=None, only_updatable=False):
-        """Get Datasources associated to a molrepo."""
-        session = get_session()
-        if molrepo_name is None:
-            if only_updatable:
-                query = session.query(Datasource).filter(
-                    ~(Datasource.molrepo_name == ''), Datasource.updatable == only_updatable).distinct(
-                    Datasource.molrepo_name)
-            else:
-                query = session.query(Datasource).filter(
-                    ~(Datasource.molrepo_name == '')).distinct(
-                    Datasource.molrepo_name)
-        else:
-            query = session.query(Datasource).filter(
-                (Datasource.molrepo_name == molrepo_name)).distinct(
-                Datasource.url)
-        res = query.all()
-        session.close()
-        return res
-
-    @staticmethod
-    def get_universe_molrepos():
-        """Get Molrepo names that are considered universe."""
-        session = get_session()
-
-        query = session.query(Datasource.molrepo_name).filter(
-            (Datasource.is_universe)).distinct(
-            Datasource.molrepo_name)
-        res = query.all()
-        session.close()
-        return res
-
-    @staticmethod
     def test_all_valid_url():
         """Check if all Datasources urls are valid."""
-        testable_ds = [ds for ds in Datasource.get() if not ds.user]
+        testable_ds = [ds for ds in Datasource.get() if not ds.username]
         return all([ds.valid_url for ds in testable_ds])
 
     @staticmethod
@@ -189,43 +152,10 @@ class Datasource(Base):
         else:
             return all([ds.available for ds in Datasource.get()])
 
-    @staticmethod
-    def test_all_molrepo():
-        """Check if all molrepo files are available."""
-        molrepo_ds = [ds for ds in Datasource.get() if ds.molrepo_file]
-        return all([ds.available_molrepo for ds in molrepo_ds])
-
     @property
     def data_path(self):
         """Check if Datasource is available."""
-        return os.path.join(Config().PATH.CC_DATA, self.name)
-
-    @property
-    def molrepo_path(self):
-        """Build path to molrepo file or directory."""
-        if not self.molrepo_file:
-            self.__log.warning("Datasource %s has no molrepo file.", self)
-            return None
-        repo_path = os.path.join(self.data_path, self.molrepo_file)
-        if '*' in self.molrepo_file:
-            # resolve the path
-            paths = glob(repo_path)
-            if len(paths) > 1:
-                raise Exception("`*` in %s molrepo_file is ambiguous.", self)
-            repo_path = paths[0]
-        return repo_path.encode('ascii', 'ignore')
-
-    @property
-    def available_molrepo(self):
-        """Check if Datasource molrepo is available."""
-        self.__log.debug("Checking %s", self.molrepo_path)
-        if os.path.isfile(self.molrepo_path) or \
-                os.path.isdir(self.molrepo_path):
-            self.__log.info("%s AVAILABLE", self)
-            return True
-        else:
-            self.__log.warning("%s FAILED", self)
-            return False
+        return os.path.join(Config().PATH.CC_DATA, self.datasource_name)
 
     @property
     def available(self):
@@ -234,7 +164,7 @@ class Datasource(Base):
             self.__log.info("%s AVAILABLE", self)
             return True
         else:
-            self.__log.warning("%s FAILED", self)
+            self.__log.warning("%s NOT AVAILABLE", self)
             return False
 
     @property
@@ -258,20 +188,20 @@ class Datasource(Base):
             self.__log.warning("Datasource available, skipping download.")
             return
         # create download string
-        if self.user and self.password:
+        if self.username and self.password:
             protocol, address = self.url.split('//')
             url = "{}//{}:{}@{}".format(protocol,
-                                        self.user.replace('@', '%40'),
+                                        self.username.replace('@', '%40'),
                                         self.password, address)
         else:
             url = self.url
         # call the downloader
         if self.is_db:
-            dbname = self.name
+            dbname = self.datasource_name
         else:
             dbname = None
         down = Downloader(url, self.data_path, dbname=dbname,
-                          dbfile=self.molrepo_file)
+                          file=self.filename)
         down.download()
 
     @staticmethod
@@ -321,7 +251,7 @@ class Datasource(Base):
 
         ds_names = []
         for ds in all_datasources:
-            ds_names.append(ds.name)
+            ds_names.append(ds.datasource_name)
 
         params = {}
         params["num_jobs"] = len(ds_names)

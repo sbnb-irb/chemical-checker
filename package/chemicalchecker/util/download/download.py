@@ -30,7 +30,7 @@ from chemicalchecker.util import psql
 class Downloader():
     """Systematize download and decompression from external repositories."""
 
-    def __init__(self, url, data_path, tmp_dir=None, dbname=None, dbfile=None):
+    def __init__(self, url, data_path, tmp_dir=None, dbname=None, file=None):
         """Initialize the download object.
 
         Download from url, unpack in tmp_dir, and copy to data_path.
@@ -45,7 +45,7 @@ class Downloader():
         self.__log.debug('%s to %s', url, data_path)
         self.data_path = data_path
         self.dbname = dbname
-        self.dbfile = dbfile
+        self.file = file
         if not tmp_dir:
             tmp_dir = Config().PATH.CC_TMP
         self.tmp_dir = tmp_dir
@@ -154,8 +154,8 @@ class Downloader():
                 self.__log.error('error was: %s', str(err))
                 raise err
         if self.dbname is not None:
-            file_path = os.path.join(tmp_unzip_dir, self.dbfile)
-            if '*' in self.dbfile:
+            file_path = os.path.join(tmp_unzip_dir, self.file)
+            if '*' in self.file:
                 # resolve the path
                 paths = glob(file_path)
                 if len(paths) > 1:
@@ -163,7 +163,8 @@ class Downloader():
                 file_path = paths[0]
             cmd2run = 'PGPASSWORD=' + Config().DB.password + ' dropdb --if-exists -h ' + Config().DB.host + ' -U ' + \
                 Config().DB.user + ' ' + self.dbname + ' && '
-            cmd2run += 'PGPASSWORD=' + Config().DB.password + " createdb -h " + Config().DB.host + " -U " + Config().DB.user + ' ' + self.dbname + " && "
+            cmd2run += 'PGPASSWORD=' + Config().DB.password + " createdb -h " + Config().DB.host + \
+                " -U " + Config().DB.user + ' ' + self.dbname + " && "
             cmd2run += 'PGPASSWORD=' + Config().DB.password + ' pg_restore -h ' + Config().DB.host + " -U " + Config().DB.user + '  -d ' + self.dbname + \
                 ' ' + file_path
 
@@ -182,14 +183,21 @@ class Downloader():
 
             size = R[0][0].split(" ")
 
-            self.__log.debug("Size of the new DB in: " + size[1])
+            self.__log.debug("Size of the new DB in: " + size[0])
 
             if size[1] == 'kB':
                 raise RuntimeError(
                     'DB created seems to be empty. Please check.')
 
         # move to final destination
-        shutil.move(tmp_unzip_dir, self.data_path)
+        source = tmp_unzip_dir
+        destination = self.data_path
+        if self.file is not None and self.dbname is None and len(os.listdir(source)) == 1:
+            source = os.path.join(source, os.listdir(source)[0])
+            os.makedirs(self.data_path, 0o775)
+            destination = os.path.join(self.data_path, self.file)
+
+        shutil.move(source, destination)
         self.__log.debug('downloaded to  %s', self.data_path)
         # remove temp dir
         shutil.rmtree(tmp_dir)
