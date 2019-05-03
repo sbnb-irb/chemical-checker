@@ -425,3 +425,26 @@ class BaseSignature(object):
         a, self_matrix = self.get_vectors(shared_keys)
         b, sign_matrix = sign.get_vectors(shared_keys)
         return a, self_matrix, sign_matrix
+
+    def add_smiles(self):
+        """Write smiles to h5.
+
+        At the moment this is done quering the `Structure` table for inchikey
+        inchi mapping and then converting via `Converter`.
+        """
+        from chemicalchecker.database import Structure
+        from chemicalchecker.util.parser import Converter
+        # fetch inchi
+        ink_inchi = Structure.get_inchikey_inchi_mapping(self.keys)
+        if len(ink_inchi) != len(self.keys):
+            raise Exception("Not same number of inchi found for given keys!")
+        # convert inchi to smiles (sorted)
+        smiles = list()
+        for ink in tqdm(self.keys):
+            smiles.append(converter.inchi_to_smiles(ink_inchi[ink]))
+        if len(smiles) != len(self.keys):
+            raise Exception(
+                "Not same number of smiles converted for given keys!")
+        # write to disk
+        with h5py.File(self.data_path, 'a') as hf:
+            hf.create_dataset('smiles', data=smiles)
