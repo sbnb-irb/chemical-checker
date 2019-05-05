@@ -22,7 +22,8 @@
     	"username": "'cc_user'"
     },
     "TOOLS": {
-        "node2vec_exec" : "'/aloy/home/mbertoni/code/snap/examples/node2vec/node2vec'"
+        "node2vec_exec" : "'/aloy/home/mbertoni/code/snap/examples/node2vec/node2vec'",
+        "pidgin_dir": "'/aloy/web_checker/repo_data/PIDGINv3'"
     }
 
 }
