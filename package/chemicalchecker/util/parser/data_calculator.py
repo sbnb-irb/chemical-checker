@@ -380,7 +380,7 @@ class DataCalculator():
         yield chunk
 
     @staticmethod
-    def pidginv3_orthologs(inchikey_inchi, chunks=1000):
+    def pidgin3_ortho(inchikey_inchi, chunks=1000):
         try:
             from rdkit.Chem import AllChem as Chem
             from rdkit import DataStructs            
