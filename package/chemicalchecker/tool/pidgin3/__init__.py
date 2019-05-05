@@ -1,0 +1,1 @@
+from .pidgin import Pidgin
