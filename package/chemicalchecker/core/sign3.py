@@ -251,7 +251,7 @@ class sign3(BaseSignature):
                         stddevs = AdaNet.predict(adanet_path,
                                                  feat,
                                                  predict_fn, subsample_x_only,
-                                                 True)
+                                                 True, samples=10)
                         results['uncertainty'][chunk] = np.std(stddevs, axis=1)
                         del stddevs
 
