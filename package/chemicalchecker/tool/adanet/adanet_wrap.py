@@ -534,7 +534,7 @@ class AdaNetWrapper(object):
         pred = predict_fn({'x': features[:]})
         if 'predictions' in pred:
             if probs:
-                samples = 100
+                samples = 10
                 pred_shape = pred['predictions'].shape
                 results = np.ndarray((pred_shape[0], pred_shape[1], samples))
                 for idx in range(samples):
