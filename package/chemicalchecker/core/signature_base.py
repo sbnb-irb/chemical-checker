@@ -436,16 +436,16 @@ class BaseSignature(object):
         b, sign_matrix = sign.get_vectors(shared_keys)
         return a, self_matrix, sign_matrix
 
-    def add_smiles(self):
+    def _add_smiles(self):
         """Write smiles to h5.
 
         At the moment this is done quering the `Structure` table for inchikey
         inchi mapping and then converting via `Converter`.
         """
-        from chemicalchecker.database import Structure
+        from chemicalchecker.database import Molecule
         from chemicalchecker.util.parser import Converter
         # fetch inchi
-        ink_inchi = Structure.get_inchikey_inchi_mapping(self.keys)
+        ink_inchi = Molecule.get_inchikey_inchi_mapping(self.keys)
         if len(ink_inchi) != len(self.keys):
             raise Exception("Not same number of inchi found for given keys!")
         # convert inchi to smiles (sorted)
