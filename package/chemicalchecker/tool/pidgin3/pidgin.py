@@ -181,7 +181,7 @@ def importQuerySmiles(pdg, inchikey_inchi):
         percent = int((float(i)/float(len(query)))*10)
         if percent != percent0:
             importQuerySmiles._log.info('Processing molecules: %d%%' % (percent*10))
-        percent = percent0
+        percent0 = percent
         if result[0]:
             matrix.append(result[0])
             processed_mol.append(result[1])
@@ -346,15 +346,15 @@ def assembleResults(results_prediction, results_percentile, query_id, mid_unipro
         for uniprot_rows in mid_uniprots[mid]:
             uniprot_ac = uniprot_rows[0]
             for q, p in zip(query_id, preds):
-                pairs[(q, uniprot_ac, float(uniprot_rows[8]))] += [("pred", p)]
+                pairs[(q, uniprot_ac, float(uniprot_rows[8]))] += [("pred", round(p,2))]
     for mid, preds in results_percentile:
         for uniprot_rows in mid_uniprots[mid]:
             uniprot_ac = uniprot_rows[0]
             for q, p in zip(query_id, preds):
-                pairs[(q, uniprot_ac, float(uniprot_rows[8]))] += [("ad", p)]
+                pairs[(q, uniprot_ac, float(uniprot_rows[8]))] += [("ad", round(p,2))]
     results = collections.defaultdict(list)
     for k,v in pairs.iteritems():
-        results[k[0]] += [(("prot", k[1]), ("bioact", k[2]), v[0], v[1])]
+        results[k[0]] += [dict(x for x in (("prot", k[1]), ("act", k[2]), v[0], v[1]))]
     return results
     
 #nt (Windows) compatibility initializer for the pool
