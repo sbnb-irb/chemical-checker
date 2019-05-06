@@ -381,17 +381,26 @@ class DataCalculator():
 
     @staticmethod
     def pidgin3_ortho(inchikey_inchi, chunks=1000):
-        try:
-            from rdkit.Chem import AllChem as Chem
-            from rdkit import DataStructs            
-        except ImportError:
-            raise ImportError("requires rdkit " +
-                              "https://www.rdkit.org/")
-        
+        from chemicalchecker.tool import Pidgin
+        import numpy as np
+        import json
+        pdg = Pidgin()
+        #pdg = Pidgin(ortho = False, organism = ["Homo sapiens"], bioactivity = [10, 1], targetclass = "Lipase")        
         # Start iterating
-        iks = inchikey_inchi.keys()
         chunk = list()
-        for ik in iks:
-            ""
-
-
+        keys = inchikey_inchi.keys()
+        for i in np.array_split(keys, int(len(keys)/chunks) + 1):
+            _inchikey_inchi = {k: inchikey_inchi[k] for k in i}
+            res = pdg.predict(_inchikey_inchi)
+            for k, r in res.items():
+                if r:
+                    dense = json.dumps(r)
+                else:
+                    dense = None
+                result = {
+                    "inchikey": k,
+                    "raw": dense
+                }
+                chunk.append(result)
+            yield chunk
+            chunk = list()
