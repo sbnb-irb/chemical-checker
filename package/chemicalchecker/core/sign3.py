@@ -7,6 +7,7 @@ virtually *any* molecule in *any* dataset.
 import os
 import h5py
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 from functools import partial
 
@@ -140,8 +141,22 @@ class sign3(BaseSignature):
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
         self.mark_ready()
 
-    def predict(self, chemchecker, all_sign2, inchikeys=None, uncertainty=True):
-        """Use the learned model to predict the signature."""
+    def predict(self, chemchecker, all_sign2, inchikeys=None,
+                uncertainty=False, dataset_support=True,
+                dataset_correlations=True):
+        """Use the learned model to predict the signature 3.
+
+        chemchecker(ChemicalChecker): the CC instance.
+        all_sign2(str): Path where to save the h5 union of all signature 2
+        inchikeys(list): Predict only for these inchikeys, if None use the CC
+            universe.
+        uncertainty(bool): Whether to predict uncertanty. That is the standard
+            deviation on 100 samples predicted with dropout.
+        dataset_support(bool): Whether to save the number of dataset used for
+            a prediction.
+        dataset_correlations(bool) Whether to save the correlation (average,
+            tertile, max) for the given input dataset (based on evaluation).
+        """
         try:
             from chemicalchecker.tool.adanet import AdaNet
         except ImportError as err:
@@ -183,17 +198,58 @@ class sign3(BaseSignature):
             if uncertainty:
                 results.create_dataset(
                     'uncertainty', (len(inchikeys),), dtype=np.float32)
+            if dataset_support:
+                results.create_dataset(
+                    'dataset_support', (len(inchikeys),), dtype=np.float32)
+            if dataset_correlations:
+                # read the correlations on the evaluation
+                eval_stats = os.path.join(
+                    self.model_path, 'adanet_final_eval', 'stats.pkl')
+                if not os.path.isfile(eval_stats):
+                    raise Exception(
+                        "Cannot get correlations: %s missing." % eval_stats)
+                df = pd.read_pickle(eval_stats)
+                test_eval = df[(df.split != 'train') & (
+                    df.algo == 'AdaNet_final_eval')]
+                avg_pearsons = np.ndarray(len(list(chemchecker.datasets)))
+                for idx, ds in enumerate(chemchecker.datasets):
+                    ds_df = test_eval[test_eval['from'] == ds]
+                    ds_pearson = np.mean(ds_df['pearson'])
+                    if np.isnan(ds_pearson):
+                        ds_pearson = 0.0
+                    avg_pearsons[idx] = ds_pearson
+                # Average/tertile/maximum pearson correlations of eval
+                results.create_dataset(
+                    'dataset_correlations', (len(inchikeys), 3),
+                    dtype=np.float32)
             with h5py.File(all_sign2, "r") as features:
                 for idx in tqdm(range(0, len(inchikeys), 1000)):
                     chunk = slice(idx, idx + 1000)
+                    feat = features['x_test'][chunk]
                     results['V'][chunk] = AdaNet.predict(adanet_path,
-                                                         features['x_test'][
-                                                             chunk],
+                                                         feat,
                                                          predict_fn)
                     results['keys'][chunk] = inchikeys[chunk]
+                    if dataset_support:
+                        support = np.sum(~np.isnan(feat[:, 0::128]), axis=1)
+                        results['dataset_support'][chunk] = support
+                    if dataset_correlations:
+                        presence = ~np.isnan(feat[:, 0::128])
+                        ds_corrs = np.zeros(
+                            (presence.shape[0], 3), dtype=np.float32)
+                        for row_id, row in enumerate(presence):
+                            available_pearsons = avg_pearsons[row]
+                            ds_corrs[row_id] = [
+                                np.mean(available_pearsons),
+                                np.percentile(
+                                    available_pearsons, 2 * 100 / 3.),
+                                np.max(available_pearsons)
+                            ]
+                        results['dataset_correlations'][chunk] = ds_corrs
+                        del ds_corrs
                     if uncertainty:
                         stddevs = AdaNet.predict(adanet_path,
-                                                 features['x_test'][chunk],
+                                                 feat,
                                                  predict_fn, subsample_x_only,
                                                  True)
                         results['uncertainty'][chunk] = np.std(stddevs, axis=1)
