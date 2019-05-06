@@ -13,6 +13,7 @@ import h5py
 import pickle
 import tempfile
 import numpy as np
+from tqdm import tqdm
 from datetime import datetime
 from bisect import bisect_left
 from abc import ABCMeta, abstractmethod
@@ -96,7 +97,7 @@ class BaseSignature(object):
             args(tuple): the arguments for of the fit method
             kwargs(dict): arguments for the HPC method.
         """
-                # read config file
+        # read config file
         cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
         cfg = Config(cc_config)
         # create job directory if not available
@@ -448,6 +449,7 @@ class BaseSignature(object):
         if len(ink_inchi) != len(self.keys):
             raise Exception("Not same number of inchi found for given keys!")
         # convert inchi to smiles (sorted)
+        converter = Converter()
         smiles = list()
         for ink in tqdm(self.keys):
             smiles.append(converter.inchi_to_smiles(ink_inchi[ink]))
