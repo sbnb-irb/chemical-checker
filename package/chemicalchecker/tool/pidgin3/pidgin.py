@@ -30,6 +30,7 @@ import zipfile
 from multiprocessing import Pool
 from optparse import OptionParser
 from os import path
+import collections
 
 #third-party libraries
 import numpy as np
@@ -247,6 +248,15 @@ def doPercentileCalculation(inp):
 #prediction runner for percentile calculation
 @logged
 def performPercentileCalculation(pdg, models, rdkit_mols):
+    # If not percentile calculation, return nans
+    if not pdg.percentile:
+        empty_array = np.full(len(rdkit_mols), np.nan)
+        empty_array = zip(empty_array, empty_array)
+        percentile_results = []
+        for model in models:
+            percentile_results += [(model, empty_array)]
+        return percentile_results
+    # Otherwise, do the percentile calculations
     performPercentileCalculation._log.info('Starting percentile calculation...')
     input_len = len(models)
     percentile_results = np.empty(input_len, dtype=object)
@@ -266,6 +276,7 @@ def performPercentileCalculation(pdg, models, rdkit_mols):
     pool.join()
     performPercentileCalculation._log.info('Performing percentile calculation: ' + progress + ', 100%')
     performPercentileCalculation._log.info('Percentile calculation completed!')
+    print percentile_results
     return percentile_results
 
 #calculate standard deviation for an input compound
@@ -327,42 +338,23 @@ def performTargetPrediction(pdg, models, rdkit_mols, querymatrix):
     return prediction_results
 
 #write out results
-def assembleSResults(results_predictions, results_percentiles):
-    
-
-def writeOutResults(results, mode='predictions'):
-
+def assembleResults(results_prediction, results_percentile, query_id, mid_uniprots):
+    pairs = collections.defaultdict(list)
+    for mid, preds in results_prediction:
+        for uniprot_rows in mid_uniprots[mid]:
+            uniprot_ac = uniprot_rows[0]
+            for q, p in zip(query_id, preds):
+                pairs[(q, uniprot_ac)] += [("pred", p)]
+    for mid, preds in results_percentile:
+        for uniprot_rows in mid_uniprots[mid]:
+            uniprot_ac = uniprot_rows[0]
+            for q, p in zip(query_id, preds):
+                pairs[(q, uniprot_ac)] += [("ad", p)]
+    results = collections.defaultdict(list)
+    for k,v in pairs.iteritems():
+        results[k[0]] += [(("prot", k[1]), v[0], v[1])]
     return results
-
-    out_desc = ''
-    if mode == 'ad-percentiles':
-        out_desc += 'applicability domain percentiles '
-    elif mode == 'ad-smiles':
-        out_desc += 'applicability domain SMILES '
-    else:
-        out_desc += 'predictions '
-    if self.off: prefix = self.off
-    else: prefix = self.inf
-    timestr = time.strftime('%Y%m%d-%H%M%S')
-    output_name = prefix + '_out_' + mode + '_' + timestr + '.txt'
-    with open(output_name, 'wb') as out_file:
-        out_writer = csv.writer(out_file, delimiter='\t')
-        # rows are targets (at a threshold), columns are compounds
-        out_data = []
-        for mid, preds in results:
-            for uniprot_rows in mid_uniprots[mid]:
-                out_data += [uniprot_rows + list(preds)]
-        header = ['Uniprot', 'Name', 'Gene_ID', 'Protein_Classification',
-                  'Organism', 'PDB_IDs', 'DisGeNET_0.06',
-                  'ChEMBL_First_Publication', 'Activity_Threshold',
-                  'Actives', 'Orthologue_Actives', 'Inactives',
-                  'Orthologue_Inactives', 'Sphere_Exclusion_Inactives',
-                  'Ratio', 'Model_ID']
-        header.extend(query_id)
-        out_writer.writerow(header)
-        for row in out_data: out_writer.writerow(row)
-    return
-
+    
 #nt (Windows) compatibility initializer for the pool
 def initPool(querymatrix_, threshold_=None):
     global querymatrix, threshold
@@ -374,13 +366,14 @@ def initPool(querymatrix_, threshold_=None):
 @logged
 class Pidgin:
 
-    def __init__(self, pidgin_dir = None, ncores = 1, bioactivity = [100, 10, 1, 0.1], proba = None, ad = 0, ortho = True, organism = None, targetclass = None, minsize = 10, p_filt = None, ntrees = None):
+    def __init__(self, pidgin_dir = None, ncores = 1, bioactivity = [100, 10, 1, 0.1], percentile = True, proba = None, ad = 0, ortho = True, organism = None, targetclass = None, minsize = 10, p_filt = None, ntrees = None):
         """Initialize the PIDGIN v3 predictor.
 
         Args:
             pidgin_dir(srt): Path to the PIDGINv3 directory where models are stored.
             ncores(str): Number of cores, (default: 1).
             bioactivity(list or float): Bioactivity thresholds to use. Valid values are [100, 10, 1, 0.1] (all by default).
+            percentile(bool): Perform calculation of percentiles for the applicability domain, (default = True).
             proba(float): RF probability threshold (default: None)
             ad(int): Applicability Domain (AD) filter using percentile of weights. Default: 0 (integer for percentile)'
             ortho(str): Set to use orthologue bioactivity data in model generation.
@@ -399,6 +392,7 @@ class Pidgin:
             self.bioactivity = bioactivity
         else:
             self.bioactivity = [bioactivity]
+        self.percentile = percentile
         assert len(set(self.bioactivity)) == len(self.bioactivity), "Repeated bioactivity values..."
         assert len(set(self.bioactivity)) == len(set(self.bioactivity).intersection([100, 10, 1, 0.1])), "Bioactivities contain values different than 100, 10, 1, 0.1"
         self.proba = proba
@@ -427,7 +421,7 @@ class Pidgin:
             self.mod_dir = os.path.join(self.pidgin_dir, "no_ortho")
         
     def predict(self, inchikey_inchi):
-        """Make predictions. Returns a dictionary of the applicability domain predicted for every protein.
+        """Make target predictions. Returns a dictionary of the applicability domain predicted for every protein.
         
         Args:
             inchikey_inchi: A dictionary containing the molecules to be predicted.
@@ -456,7 +450,4 @@ class Pidgin:
         #assemble output
         results_percentile = [(mid, [cresult[0] for cresult in mresult]) for (mid, mresult) in results_percentile]
         self.__log.info("Assembling results")
-        yield
-        A = writeOutResults(results_percentile, 'ad-percentiles')
-        B = writeOutResults(results_prediction)
-        return A, B
+        return assembleResults(results_prediction, results_percentile, query_id, mid_uniprots)
