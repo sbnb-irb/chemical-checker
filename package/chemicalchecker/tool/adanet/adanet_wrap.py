@@ -584,12 +584,12 @@ class AdaNetWrapper(object):
         x_shape, y_shape = shapes
         x_dtype, y_dtype = dtypes
         # tha max size of the return prediction is at most same size as input
-        y_pred = np.zeros(y_shape, dtype=x_dtype) * np.nan
+        y_pred = np.full(y_shape, np.nan, dtype=x_dtype)
         if probs:
             if n_classes is None:
                 raise Exception("Specify number of classes.")
-            y_pred = np.zeros((y_shape[0], n_classes), dtype=x_dtype) * np.nan
-        y_true = np.zeros(y_shape, dtype=y_dtype) * np.nan
+            y_pred = np.full((y_shape[0], n_classes), np.nan, dtype=x_dtype)
+        y_true = np.full(y_shape, np.nan, dtype=y_dtype)
         last_idx = 0
         if y_shape[0] < limit:
             limit = y_shape[0]
