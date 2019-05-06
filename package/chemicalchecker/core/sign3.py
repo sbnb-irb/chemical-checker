@@ -184,8 +184,8 @@ class sign3(BaseSignature):
                 results.create_dataset(
                     'uncertainty', (len(inchikeys),), dtype=np.float32)
             with h5py.File(all_sign2, "r") as features:
-                for idx in tqdm(range(0, len(inchikeys), 10000)):
-                    chunk = slice(idx, idx + 10000)
+                for idx in tqdm(range(0, len(inchikeys), 1000)):
+                    chunk = slice(idx, idx + 1000)
                     results['V'][chunk] = AdaNet.predict(adanet_path,
                                                          features['x_test'][
                                                              chunk],
