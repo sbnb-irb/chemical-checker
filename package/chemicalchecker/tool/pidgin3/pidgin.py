@@ -1,20 +1,19 @@
 '''
 A wrapper for PIDGIN v3 adapted to work within the Chemical Checker.
-'''
-#Author : Lewis Mervin lhm30@cam.ac.uk
-#Supervisor : Dr. A. Bender
-#All rights reserved 2018
-#Protein Target Prediction using on SAR data from PubChem and ChEMBL_24
-#Molecular Descriptors : 2048bit circular Binary Fingerprints (Rdkit) - ECFP_4
-#Dependencies : rdkit, sklearn, standardiser
 
-### predict.py ###
-#Output a matrix of probabilities [computed as the mean predicted class probabilities of
-#the trees in the forest (where the class probability of a single tree is the fraction of
-#samples of the same class in a leaf)], or user-specified Random probability thresholds to
-#produce binary predictions for an input list of smiles/sdfs. Predictions are generated
-#for the [filtered] models using a reliability-density neighbourhood Applicability Domain
-#(AD) analysis from: doi.org/10.1186/s13321-016-0182-y
+Author : Lewis Mervin lhm30@cam.ac.uk
+Supervisor : Dr. A. Bender
+All rights reserved 2018
+Protein Target Prediction using on SAR data from PubChem and ChEMBL_24
+Molecular Descriptors : 2048bit circular Binary Fingerprints (Rdkit) - ECFP_4
+
+Output a matrix of probabilities [computed as the mean predicted class probabilities of
+the trees in the forest (where the class probability of a single tree is the fraction of
+samples of the same class in a leaf)], or user-specified Random probability thresholds to
+produce binary predictions for an input list of smiles/sdfs. Predictions are generated
+for the [filtered] models using a reliability-density neighbourhood Applicability Domain
+(AD) analysis from: doi.org/10.1186/s13321-016-0182-y
+'''
 
 #standard libraries
 import bz2
@@ -166,7 +165,10 @@ def importQuerySmiles(pdg, inchikey_inchi):
     conv = Converter()
     query = []
     for ik, inch in inchikey_inchi.iteritems():
-        query += ["%s %s" % (conv.inchi_to_smiles(inch), ik)]
+        try:
+            query += ["%s %s" % (conv.inchi_to_smiles(inch), ik)]
+        except:
+            query += ["%s %s" % ("NA", ik)]
     query = zip(range(len(query)), query)
     chunksize = max(1, int(len(query) / (pdg.ncores)))
     pool = Pool(processes=pdg.ncores)  # set up resources
@@ -174,9 +176,12 @@ def importQuerySmiles(pdg, inchikey_inchi):
     matrix = []
     processed_mol = []
     processed_id = []
+    percent0 = 0
     for i, result in enumerate(jobs):
-        percent = (float(i)/float(len(query)))*100 + 1
-        importQuerySmiles._log.info('Processing molecules: %3d%%\r' % percent)
+        percent = int((float(i)/float(len(query)))*10)
+        if percent != percent0:
+            importQuerySmiles._log.info('Processing molecules: %d%%' % (percent*10))
+        percent = percent0
         if result[0]:
             matrix.append(result[0])
             processed_mol.append(result[1])
@@ -264,19 +269,17 @@ def performPercentileCalculation(pdg, models, rdkit_mols):
     chunksize = max(1, int(input_len / (10 * pdg.ncores)))
     inputs = [(model, rdkit_mols, pdg.ad, pdg.mod_dir) for model in models]
     jobs = pool.imap_unordered(doPercentileCalculation, inputs, chunksize)
-    percent0 = None
+    percent0 = 0
     for i, result in enumerate(jobs):
-        progress = str(i+1) + '/' + str(input_len)
-        percent = '%3d%%\r' % (float(i)/float(input_len)*100 + 1)
-        if percent is None or percent != percent0:
-            performPercentileCalculation._log.info('Performing percentile calculation: ' + progress + ', ' + percent)
+        percent = int((float(i)/float(input_len))*10)
+        if percent != percent0:
+            performPercentileCalculation._log.info('Performing percentile calculation: %d%%' % (percent*10))
         percent0 = percent
         if result is not None: percentile_results[i] = result
     pool.close()
     pool.join()
-    performPercentileCalculation._log.info('Performing percentile calculation: ' + progress + ', 100%')
+    performPercentileCalculation._log.info('Performing percentile calculation: 100%')
     performPercentileCalculation._log.info('Percentile calculation completed!')
-    print percentile_results
     return percentile_results
 
 #calculate standard deviation for an input compound
@@ -323,17 +326,16 @@ def performTargetPrediction(pdg, models, rdkit_mols, querymatrix):
     chunksize = max(1, int(input_len / (10 * pdg.ncores)))
     inputs = [(model_name, rdkit_mols, pdg.mod_dir, pdg.ad, pdg.std, querymatrix, pdg.ntrees, pdg.known) for model_name in models]
     jobs = pool.imap_unordered(doTargetPrediction, inputs, chunksize)
-    percent0 = None
+    percent0 = 0
     for i, result in enumerate(jobs):
-        progress = str(i+1) + '/' + str(input_len)
-        percent = '%3d%%\r' % ((float(i)/float(input_len))*100 + 1)
-        if percent is None or percent != percent0:
-            performTargetPrediction._log.info('Performing classification on query molecules: ' + progress + ', ' + percent)
+        percent = int((float(i)/float(input_len))*10)
+        if percent != percent0:
+            performTargetPrediction._log.info('Performing classification on query molecules: %d%%' % (percent*10))
         percent0 = percent
         if result is not None: prediction_results.append(result)
     pool.close()
     pool.join()
-    performTargetPrediction._log.info('Performing classification on query molecules: ' + progress + ', 100%')
+    performTargetPrediction._log.info('Performing classification on query molecules: 100%')
     performTargetPrediction._log.info('Classification completed!')
     return prediction_results
 
@@ -344,15 +346,15 @@ def assembleResults(results_prediction, results_percentile, query_id, mid_unipro
         for uniprot_rows in mid_uniprots[mid]:
             uniprot_ac = uniprot_rows[0]
             for q, p in zip(query_id, preds):
-                pairs[(q, uniprot_ac)] += [("pred", p)]
+                pairs[(q, uniprot_ac, float(uniprot_rows[8]))] += [("pred", p)]
     for mid, preds in results_percentile:
         for uniprot_rows in mid_uniprots[mid]:
             uniprot_ac = uniprot_rows[0]
             for q, p in zip(query_id, preds):
-                pairs[(q, uniprot_ac)] += [("ad", p)]
+                pairs[(q, uniprot_ac, float(uniprot_rows[8]))] += [("ad", p)]
     results = collections.defaultdict(list)
     for k,v in pairs.iteritems():
-        results[k[0]] += [(("prot", k[1]), v[0], v[1])]
+        results[k[0]] += [(("prot", k[1]), ("bioact", k[2]), v[0], v[1])]
     return results
     
 #nt (Windows) compatibility initializer for the pool
@@ -450,4 +452,11 @@ class Pidgin:
         #assemble output
         results_percentile = [(mid, [cresult[0] for cresult in mresult]) for (mid, mresult) in results_percentile]
         self.__log.info("Assembling results")
-        return assembleResults(results_prediction, results_percentile, query_id, mid_uniprots)
+        results_ = assembleResults(results_prediction, results_percentile, query_id, mid_uniprots)
+        results = collections.defaultdict(list)
+        for ik in inchikey_inchi.keys():
+            if ik not in results_:
+                results[ik] = None
+            else:
+                results[ik] = results_[ik]
+        return dict((k,v) for k,v in results.iteritems())
