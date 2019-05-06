@@ -513,7 +513,8 @@ class AdaNetWrapper(object):
         return _input_fn
 
     @staticmethod
-    def predict(model_dir, features, predict_fn=None, mask_fn=None, probs=False):
+    def predict(model_dir, features, predict_fn=None, mask_fn=None,
+                probs=False, samples=10):
         """Load model and return predictions.
 
         Args:
@@ -534,7 +535,6 @@ class AdaNetWrapper(object):
         pred = predict_fn({'x': features[:]})
         if 'predictions' in pred:
             if probs:
-                samples = 10
                 pred_shape = pred['predictions'].shape
                 results = np.ndarray((pred_shape[0], pred_shape[1], samples))
                 for idx in range(samples):
