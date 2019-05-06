@@ -140,7 +140,7 @@ class sign3(BaseSignature):
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
         self.mark_ready()
 
-    def predict(self, chemchecker, all_sign2, inchikeys=None, confidence=True):
+    def predict(self, chemchecker, all_sign2, inchikeys=None, uncertainty=True):
         """Use the learned model to predict the signature."""
         try:
             from chemicalchecker.tool.adanet import AdaNet
@@ -180,7 +180,9 @@ class sign3(BaseSignature):
             results.create_dataset(
                 'V', (len(inchikeys), 128), dtype=np.float32)
             results.create_dataset('keys', (len(inchikeys),), dtype='|S27')
-            results.create_dataset('uncertanty', (len(inchikeys),), dtype=np.float32)
+            if uncertainty:
+                results.create_dataset(
+                    'uncertainty', (len(inchikeys),), dtype=np.float32)
             with h5py.File(all_sign2, "r") as features:
                 for idx in tqdm(range(0, len(inchikeys), 10000)):
                     chunk = slice(idx, idx + 10000)
@@ -189,11 +191,13 @@ class sign3(BaseSignature):
                                                              chunk],
                                                          predict_fn)
                     results['keys'][chunk] = inchikeys[chunk]
-                    stddevs = AdaNet.predict(adanet_path, 
-                                             features['x_test'][chunk],
-                                             predict_fn, subsample_x_only,
-                                             True)
-                    results['uncertanty'][chunk] = np.std(stddevs, axis=1)
+                    if uncertainty:
+                        stddevs = AdaNet.predict(adanet_path,
+                                                 features['x_test'][chunk],
+                                                 predict_fn, subsample_x_only,
+                                                 True)
+                        results['uncertainty'][chunk] = np.std(stddevs, axis=1)
+                        del stddevs
 
     @staticmethod
     def cross_fit(chemchecker, model_path, ds_from, ds_to, reuse=True):
@@ -615,8 +619,10 @@ class sign3(BaseSignature):
         return cluster
     """
 
+
 def subsample_x_only(tensor, label=None):
     return subsample(tensor, label=None)[0]
+
 
 def subsample(tensor, label):
     """Function to subsample stacked data."""
