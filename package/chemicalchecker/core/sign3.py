@@ -84,8 +84,19 @@ class sign3(BaseSignature):
                             sum(available), self.dataset, ds)
         return sign2_matrix, my_sign2[:]
 
-    def fit(self, chemchecker, reuse=True, suffix=None, evaluate=True):
-        """Learn a model."""
+    def _learn(self, chemchecker, reuse=True, suffix=None, evaluate=True):
+        """Learn the signature 3 model.
+
+        chemchecker(ChemmChecker): The CC instance which allow fetching all
+            signature 2.
+        reuse(bool): Whether to reuse intermediate files (e.g. the aggregated
+            signature 2 matrix).
+        suffix(str): a suffis for the adanet model path (e.g.
+            'sign3/models/adanet_<suffix>').
+        evaluate(bool): Whether we are performing a train-test split and
+            evaluating the performances (N.B. this is required for complete
+            confidence scores)
+        """
         try:
             from chemicalchecker.tool.adanet import AdaNet, Traintest
         except ImportError as err:
@@ -139,22 +150,18 @@ class sign3(BaseSignature):
             # save AdaNet performances and plots
             sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
-        self.mark_ready()
 
-    def predict(self, chemchecker, all_sign2, inchikeys=None,
-                uncertainty=False, dataset_support=True,
-                dataset_correlations=True):
+    def fit(self, chemchecker, sign2_universe=None, model_confidence=True,
+            save_support=True, save_correlations=True):
         """Use the learned model to predict the signature 3.
 
-        chemchecker(ChemicalChecker): the CC instance.
-        all_sign2(str): Path where to save the h5 union of all signature 2
-        inchikeys(list): Predict only for these inchikeys, if None use the CC
-            universe.
-        uncertainty(bool): Whether to predict uncertanty. That is the standard
-            deviation on 100 samples predicted with dropout.
-        dataset_support(bool): Whether to save the number of dataset used for
+        chemchecker(ChemicalChecker): the CC instance for fetching signatures.
+        sign2_universe(str): Path where to save the union of all signatures 2.
+        model_confidence(bool): Whether to model confidence. That is  based on
+            standard deviation of 10 samples predicted with dropout.
+        save_support(bool): Whether to save the number of dataset used for
             a prediction.
-        dataset_correlations(bool) Whether to save the correlation (average,
+        save_correlations(bool) Whether to save the correlation (average,
             tertile, max) for the given input dataset (based on evaluation).
         """
         try:
@@ -162,52 +169,58 @@ class sign3(BaseSignature):
         except ImportError as err:
             raise err
 
-        # get signatures
+        # check if have performance evaluations
+        eval_stats = os.path.join(
+            self.model_path, 'adanet_final_eval', 'stats.pkl')
+        if not os.path.isfile(eval_stats):
+            self._learn(chemchecker, suffix='final_eval', evaluate=True)
+
+        # check if we have the final trained model
+        final_adanet_path = os.path.join(self.model_path, 'adanet_final',
+                                         'savedmodel')
+        if not os.path.isdir(final_adanet_path):
+            self._learn(chemchecker, suffix='final', evaluate=False)
+
+        # get sorted universe inchikeys and CC signatures
+        inchikeys = set()
         ds_sign = dict()
         for ds in chemchecker.datasets:
-            ds_sign[ds] = chemchecker.get_signature('sign2',
-                                                    'full_map', ds)
-        # get universe molecules
-        if not inchikeys:
-            keys = list()
-            for ds in chemchecker.datasets:
-                keys.append(ds_sign[ds].unique_keys)
-            inchikeys = sorted(set.union(*keys))
+            sign = chemchecker.get_signature('sign2', 'full_map', ds)
+            inchikeys.update(sign.unique_keys)
+            ds_sign[ds] = sign
+        inchikeys = sorted(list(inchikeys))
+
         # build input matrix if not provided
-        if not os.path.isfile(all_sign2):
-            with h5py.File(all_sign2, "w") as fh:
+        if not os.path.isfile(sign2_universe):
+            with h5py.File(sign2_universe, "w") as fh:
                 fh.create_dataset('x_test',
                                   (len(inchikeys), 128 * len(ds_sign)),
                                   dtype=np.float32)
-            with h5py.File(all_sign2, "a") as fh:
-                for idx, ds in enumerate(chemchecker.datasets):
-                    _, sign = ds_sign[ds].get_vectors(
-                        inchikeys, include_nan=True)
-                    fh['x_test'][:, idx * 128:(idx + 1) * 128] = sign
-                    del sign
+                for idx, (ds, sign) in enumerate(ds_sign.items()):
+                    vectors = sign.get_vectors(inchikeys, include_nan=True)
+                    fh['x_test'][:, idx * 128:(idx + 1) * 128] = vectors
+                    del vectors
 
-        # read the final model
-        adanet_path = os.path.join(self.model_path, 'adanet_final',
-                                   'savedmodel')
-        predict_fn = AdaNet.predict_fn(adanet_path)
-        # perform prediction
+        # save universe sign3
+        predict_fn = AdaNet.predict_fn(final_adanet_path)
         with h5py.File(self.data_path, "w") as results:
+            # initialize V and keys datasets
             results.create_dataset(
                 'V', (len(inchikeys), 128), dtype=np.float32)
             results.create_dataset('keys', (len(inchikeys),), dtype='|S27')
-            if uncertainty:
+            if model_confidence:
+                # the actual confidence value will be stored here
                 results.create_dataset(
-                    'uncertainty', (len(inchikeys),), dtype=np.float32)
-            if dataset_support:
+                    'confidence', (len(inchikeys),), dtype=np.float32)
+                # this is to store standard deviations
                 results.create_dataset(
-                    'dataset_support', (len(inchikeys),), dtype=np.float32)
-            if dataset_correlations:
-                # read the correlations on the evaluation
-                eval_stats = os.path.join(
-                    self.model_path, 'adanet_final_eval', 'stats.pkl')
-                if not os.path.isfile(eval_stats):
-                    raise Exception(
-                        "Cannot get correlations: %s missing." % eval_stats)
+                    'stddev', (len(inchikeys),), dtype=np.float32)
+            if save_support:
+                # this will e number of available sign2 for given molecules
+                results.create_dataset(
+                    'support', (len(inchikeys),), dtype=np.float32)
+            if save_correlations:
+                # read the correlations obtained evaluating on single spaces
                 df = pd.read_pickle(eval_stats)
                 test_eval = df[(df.split != 'train') & (
                     df.algo == 'AdaNet_final_eval')]
@@ -218,48 +231,191 @@ class sign3(BaseSignature):
                     if np.isnan(ds_pearson):
                         ds_pearson = 0.0
                     avg_pearsons[idx] = ds_pearson
-                # Average/tertile/maximum pearson correlations of eval
-                results.create_dataset(
-                    'dataset_correlations', (len(inchikeys), 3),
-                    dtype=np.float32)
-            with h5py.File(all_sign2, "r") as features:
+                # this is to lookup correlations
+                results.create_dataset('dataset_correlation',
+                                       data=avg_pearsons, dtype=np.float32)
+                # Average/tertile/maximum Pearson correlations will be saved
+                results.create_dataset('pred_correlation', (len(inchikeys), 3),
+                                       dtype=np.float32)
+
+            # predict signature 3 for universe molecules
+            with h5py.File(sign2_universe, "r") as features:
+                # read input in chunks
                 for idx in tqdm(range(0, len(inchikeys), 1000)):
                     chunk = slice(idx, idx + 1000)
                     feat = features['x_test'][chunk]
-                    results['V'][chunk] = AdaNet.predict(adanet_path,
-                                                         feat,
-                                                         predict_fn)
+                    # predict with final model
+                    results['V'][chunk] = AdaNet.predict(feat, predict_fn)
                     results['keys'][chunk] = inchikeys[chunk]
-                    if dataset_support:
+                    # compute support
+                    if save_support:
                         support = np.sum(~np.isnan(feat[:, 0::128]), axis=1)
-                        results['dataset_support'][chunk] = support
-                    if dataset_correlations:
+                        results['support'][chunk] = support
+                    # lookup correlations
+                    if save_correlations:
                         presence = ~np.isnan(feat[:, 0::128])
-                        ds_corrs = np.zeros(
+                        chunk_corr = np.zeros(
                             (presence.shape[0], 3), dtype=np.float32)
                         for row_id, row in enumerate(presence):
                             available_pearsons = avg_pearsons[row]
-                            ds_corrs[row_id] = [
+                            chunk_corr[row_id] = [
                                 np.mean(available_pearsons),
                                 np.percentile(
                                     available_pearsons, 2 * 100 / 3.),
                                 np.max(available_pearsons)
                             ]
-                        results['dataset_correlations'][chunk] = ds_corrs
-                        del ds_corrs
-                    if uncertainty:
-                        stddevs = AdaNet.predict(adanet_path,
-                                                 feat,
-                                                 predict_fn, subsample_x_only,
-                                                 True, samples=10)
-                        results['uncertainty'][chunk] = np.std(stddevs, axis=1)
+                        results['pred_correlation'][chunk] = chunk_corr
+                        del chunk_corr
+                    # save stddevs needed for confidence model and prediction
+                    if model_confidence:
+                        stddevs = AdaNet.predict(feat, predict_fn,
+                                                 subsample_x_only,
+                                                 probs=True, samples=10)
+                        results['stddev'][chunk] = np.mean(stddevs, axis=1)
                         del stddevs
 
+            # create the confidence estimator
+            if model_confidence:
+                confidence_file = os.path.join(self.model_path, 'conf.h5')
+                # get current space inchikeys (max 10^5)
+                dataset_inks = ds_sign[self.dataset].keys
+                if len(dataset_inks) > 1e5:
+                    dataset_inks = np.random.choice(dataset_inks, 1e5)
+                # get molecules stddev distribution
+                stddevs = self.get_vectors(dataset_inks, dataset_name='stddev')
+                stddevs = np.array(stddevs)
+                # save the confidence model
+                with h5py.File(confidence_file, "w") as confidence_model:
+                    confidence_model.create_dataset(
+                        'stddev_dist', stddevs, dtype=np.float32)
+                # predict confidence in chunks
+                for idx in tqdm(range(0, len(inchikeys), 1000)):
+                    chunk = slice(idx, idx + 1000)
+                    pred_stds = results['stddev'][chunk]
+                    pred_stds = pred_stds.reshape((len(pred_stds), 1))
+                    # how's is the stddev compared to out distribution?
+                    conf_pred = np.count_nonzero(pred_stds < stddevs, axis=1)
+                    conf_pred /= float(len(stddevs))
+                    results['confidence'][chunk] = conf_pred
+        self.mark_ready()
+
+    def predict(self, chemchecker, output_file, sign2_molset=None,
+                inchikeys=None, save_confidence=True, save_support=True,
+                save_correlations=True):
+        """Use the learned model to predict the signature 3.
+
+        chemchecker(ChemicalChecker): the CC instance for fetching signatures.
+        sign2_molset(str): Path where to save the union of all signatures 2.
+        model_confidence(bool): Whether to model confidence. That is  based on
+            standard deviation of 10 samples predicted with dropout.
+        save_support(bool): Whether to save the number of dataset used for
+            a prediction.
+        save_correlations(bool) Whether to save the correlation (average,
+            tertile, max) for the given input dataset (based on evaluation).
+        """
+        try:
+            from chemicalchecker.tool.adanet import AdaNet
+        except ImportError as err:
+            raise err
+
+        # get sorted universe inchikeys and CC signatures
+        if inchikeys is None:
+            inchikeys = set()
+            ds_sign = dict()
+            for ds in chemchecker.datasets:
+                sign = chemchecker.get_signature('sign2', 'full_map', ds)
+                inchikeys.update(sign.unique_keys)
+                ds_sign[ds] = sign
+            inchikeys = sorted(list(inchikeys))
+
+        # build input matrix if not provided
+        if not os.path.isfile(sign2_molset):
+            with h5py.File(sign2_molset, "w") as fh:
+                fh.create_dataset('x_test',
+                                  (len(inchikeys), 128 * len(ds_sign)),
+                                  dtype=np.float32)
+                for idx, (ds, sign) in enumerate(ds_sign.items()):
+                    vectors = sign.get_vectors(inchikeys, include_nan=True)
+                    fh['x_test'][:, idx * 128:(idx + 1) * 128] = vectors
+                    del vectors
+
+        # load confidence model if needed
+        if save_confidence:
+            confidence_file = os.path.join(self.model_path, 'conf.h5')
+            with h5py.File(confidence_file, "r") as confidence_model:
+                stddevs = confidence_model['stddev_dist'][:]
+
+        # save sign3 predictions
+        final_adanet_path = os.path.join(self.model_path, 'adanet_final',
+                                         'savedmodel')
+        predict_fn = AdaNet.predict_fn(final_adanet_path)
+        with h5py.File(output_file, "w") as results:
+            # initialize V and keys datasets
+            results.create_dataset(
+                'V', (len(inchikeys), 128), dtype=np.float32)
+            results.create_dataset('keys', (len(inchikeys),), dtype='|S27')
+            if save_confidence:
+                # the actual confidence value will be stored here
+                results.create_dataset(
+                    'confidence', (len(inchikeys),), dtype=np.float32)
+            if save_support:
+                # this will e number of available sign2 for given molecules
+                results.create_dataset(
+                    'support', (len(inchikeys),), dtype=np.float32)
+            if save_correlations:
+                # this is to lookup correlations
+                with h5py.File(self.data_path, "r") as hf:
+                    avg_pearsons = hf['dataset_correlation']
+                # Average/tertile/maximum Pearson correlations will be saved
+                results.create_dataset('pred_correlation', (len(inchikeys), 3),
+                                       dtype=np.float32)
+
+            # predict signature 3 for universe molecules
+            with h5py.File(sign2_molset, "r") as features:
+                # read input in chunks
+                for idx in tqdm(range(0, len(inchikeys), 1000)):
+                    chunk = slice(idx, idx + 1000)
+                    feat = features['x_test'][chunk]
+                    # predict with final model
+                    results['V'][chunk] = AdaNet.predict(feat, predict_fn)
+                    results['keys'][chunk] = inchikeys[chunk]
+                    # compute support
+                    if save_support:
+                        support = np.sum(~np.isnan(feat[:, 0::128]), axis=1)
+                        results['support'][chunk] = support
+                    # lookup correlations
+                    if save_correlations:
+                        presence = ~np.isnan(feat[:, 0::128])
+                        chunk_corr = np.zeros(
+                            (presence.shape[0], 3), dtype=np.float32)
+                        for row_id, row in enumerate(presence):
+                            available_pearsons = avg_pearsons[row]
+                            chunk_corr[row_id] = [
+                                np.mean(available_pearsons),
+                                np.percentile(
+                                    available_pearsons, 2 * 100 / 3.),
+                                np.max(available_pearsons)
+                            ]
+                        results['pred_correlation'][chunk] = chunk_corr
+                        del chunk_corr
+                    # save stddevs needed for confidence model and prediction
+                    if save_confidence:
+                        stddevs = AdaNet.predict(feat, predict_fn,
+                                                 subsample_x_only,
+                                                 probs=True, samples=10)
+                        pred_stds = np.mean(stddevs, axis=1)
+                        # how's is the stddev compared to our distribution?
+                        conf_pred = np.count_nonzero(
+                            pred_stds < stddevs, axis=1)
+                        conf_pred /= float(len(stddevs))
+                        results['confidence'][chunk] = conf_pred
+                        del stddevs
+    '''
     @staticmethod
     def cross_fit(chemchecker, model_path, ds_from, ds_to, reuse=True):
         """Learn a predictor between sign_from and sign_to.
 
-        Signatures should be `full` to maximize the intersaction, that's the
+        Signatures should be `full` to maximize the intersection, that's the
         training input.
         """
         try:
@@ -411,6 +567,7 @@ class sign3(BaseSignature):
                     pickle.dump(df, fh)
                 output_csv = os.path.join(output_dir, 'stats.csv')
                 df.to_csv(output_csv)
+    '''
 
     def adanet_single_spaces(self, chemchecker, adanet_path, traintest_file, suffix):
         """Prediction of adanet using single space signatures.
@@ -549,6 +706,7 @@ class sign3(BaseSignature):
                                                     adanet_path, total_size)
         return results
 
+    '''
     @staticmethod
     def test_params(cc_root, job_path, dataset, parameters, cpu=1):
         """Perform a grid search.
@@ -621,7 +779,9 @@ class sign3(BaseSignature):
         cluster = HPC(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
-    """
+    '''
+
+    '''
     @staticmethod
     def fit_hpc(cc_root, job_path, elements, evaluate=True, suffix='final', cpu=1):
         from chemicalchecker.util.hpc import HPC
@@ -673,7 +833,7 @@ class sign3(BaseSignature):
         cluster = HPC(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
-    """
+    '''
 
 
 def subsample_x_only(tensor, label=None):
