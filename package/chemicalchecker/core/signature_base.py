@@ -21,6 +21,7 @@ from abc import ABCMeta, abstractmethod
 from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util import Config
 from chemicalchecker.util import logged
+from chemicalchecker.util.plot import Plot
 
 
 class cached_property(object):
@@ -163,6 +164,18 @@ class BaseSignature(object):
         if not self.is_fit():
             raise Exception(
                 "Before calling predict method, fit method needs to be called.")
+
+    def validate(self):
+        """Perform validations.
+
+        On Mode Of Action (MOA) and Anatomical Therapeutic Chemical (ATC).
+        """
+        plot = Plot(self.dataset, self.stats_path, self.validation_path)
+        ks_moa, auc_moa = plot.vector_validation(
+            self, self.__class__.__name__, prefix="moa", h5_input=True)
+        ks_atc, auc_atc = plot.vector_validation(
+            self, self.__class__.__name__, prefix="atc", h5_input=True)
+        plot.matrix_plot(self.data_path)
 
     def mark_ready(self):
         filename = os.path.join(self.model_path, self.readyfile)
