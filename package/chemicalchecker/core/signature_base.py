@@ -323,14 +323,16 @@ class BaseSignature(object):
         """Get the keys of the signature as a set."""
         return set(self.keys)
 
-    def get_vectors(self, keys, include_nan=False):
-        """Get vectors for a list of keys, sorted by defaults.
+    def get_vectors(self, keys, include_nan=False, dataset_name='V'):
+        """Get vectors for a list of keys, sorted by default.
 
         Args:
             keys(list): a List of string, only the overlapping subset to the
                 signature keys is considered.
             include_nan(bool): whether to include requested but absent
                 molecule signatures as NaNs.
+            dataset_name(str): return any dataset in the h5 which is organized
+                by sorted keys.
         """
         str_keys = set(k for k in keys if isinstance(k, str))
         valid_keys = list(self.unique_keys & str_keys)
@@ -338,7 +340,8 @@ class BaseSignature(object):
             np.isin(self.keys, list(valid_keys), assume_unique=True))
         inks, signs = list(), list()
         with h5py.File(self.data_path, 'r') as hf:
-            dset = hf['V']
+            dset = hf[dataset_name]
+            dset_shape = dset.shape
             for idx in sorted(idxs.flatten()):
                 inks.append(self.keys[idx])
                 signs.append(dset[idx])
@@ -346,7 +349,7 @@ class BaseSignature(object):
         # if missing signatures are requested add NaNs
         if include_nan:
             inks.extend(list(missed_inks))
-            dimensions = (len(missed_inks), self.shape[1])
+            dimensions = (len(missed_inks), dset_shape[1])
             nan_matrix = np.zeros(dimensions) * np.nan
             signs.append(nan_matrix)
         elif missed_inks:
