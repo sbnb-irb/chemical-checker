@@ -247,6 +247,41 @@ class Plot():
 
         return S, D, d
 
+    def _for_the_validation_h5(self, sign, prefix,
+                               inchikey_mappings=None):
+
+        f = open(self.validation_path + "/%s_validation.tsv" % prefix, "r")
+        S = set()
+        D = set()
+        validation_inks = set()
+        for l in f:
+            l = l.rstrip("\n").split("\t")
+            l0 = l[0]
+            l1 = l[1]
+            if inchikey_mappings is not None:
+                if l0 in inchikey_mappings:
+                    l0 = inchikey_mappings[l0]
+                if l1 in inchikey_mappings:
+                    l1 = inchikey_mappings[l1]
+            validation_inks.update([l0, l1])
+            if int(l[2]) == 1:
+                S.update([(l0, l1)])
+            else:
+                if len(D) < 100000:
+                    D.update([(l0, l1)])
+                else:
+                    pass
+        f.close()
+
+        # get shared inchikeys
+        inchikeys = set.intersection(sign.unique_keys, validation_inks)
+        d = {k: v for k, v in zip(*sign.get_vectors(inchikeys))}
+        S = set([x for x in S if x[0] in inchikeys and x[1] in inchikeys])
+        D = set([x for x in D if x[0] in inchikeys and x[1] in inchikeys])
+        d = dict((k, d[k]) for k in inchikeys)
+
+        return S, D, d
+
     def label_validation(self, inchikey_lab, label_type, prefix="moa", inchikey_mappings=None):
 
         S, D, d = self._for_the_validation(
@@ -303,10 +338,17 @@ class Plot():
 
         return odds, pval
 
-    def vector_validation(self, inchikey_vec, vector_type, prefix="moa", distance="cosine", inchikey_mappings=None):
+    def vector_validation(self, inchikey_vec, vector_type, prefix="moa",
+                          distance="cosine", inchikey_mappings=None,
+                          h5_input=False):
 
-        S, D, d = self._for_the_validation(
-            inchikey_vec, prefix, inchikey_mappings)
+        self.__log.info("%s Validation" % prefix.upper())
+        if not h5_input:
+            S, D, d = self._for_the_validation(
+                inchikey_vec, prefix, inchikey_mappings)
+        else:
+            S, D, d = self._for_the_validation_h5(
+                inchikey_vec, prefix, inchikey_mappings)
 
         if distance == "euclidean":
             distance_metric = euclidean
