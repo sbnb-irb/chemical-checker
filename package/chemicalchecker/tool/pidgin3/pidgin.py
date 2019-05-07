@@ -170,24 +170,36 @@ def importQuerySmiles(pdg, inchikey_inchi):
         except:
             query += ["%s %s" % ("NA", ik)]
     query = zip(range(len(query)), query)
-    chunksize = max(1, int(len(query) / (pdg.ncores)))
-    pool = Pool(processes=pdg.ncores)  # set up resources
-    jobs = pool.imap(arrayFP, query, chunksize)
     matrix = []
     processed_mol = []
     processed_id = []
     percent0 = 0
-    for i, result in enumerate(jobs):
-        percent = int((float(i)/float(len(query)))*10)
-        if percent != percent0:
-            importQuerySmiles._log.info('Processing molecules: %d%%' % (percent*10))
-        percent0 = percent
-        if result[0]:
-            matrix.append(result[0])
-            processed_mol.append(result[1])
-            processed_id.append(result[2])
-    pool.close()
-    pool.join()
+    if pdg.ncores == 1:
+        for i, inp in enumerate(query):
+            percent = int((float(i)/float(len(query)))*10)
+            if percent != percent0:
+                importQuerySmiles._log.info('Processing molecules: %d%%' % (percent*10))
+            percent0 = percent
+            result = arrayFP(inp)
+            if result[0]:
+                matrix.append(result[0])
+                processed_mol.append(result[1])
+                processed_id.append(result[2])
+    else:
+        chunksize = max(1, int(len(query) / (pdg.ncores)))
+        pool = Pool(processes=pdg.ncores)  # set up resources
+        jobs = pool.imap(arrayFP, query, chunksize)
+        for i, result in enumerate(jobs):
+            percent = int((float(i)/float(len(query)))*10)
+            if percent != percent0:
+                importQuerySmiles._log.info('Processing molecules: %d%%' % (percent*10))
+            percent0 = percent
+            if result[0]:
+                matrix.append(result[0])
+                processed_mol.append(result[1])
+                processed_id.append(result[2])
+        pool.close()
+        pool.join()
     importQuerySmiles._log.info('Processing molecules: 100%')
     matrix = np.array(matrix)
     return matrix, processed_mol, processed_id
@@ -250,7 +262,6 @@ def doPercentileCalculation(inp):
     ret = [calcPercentile(x) for x in rdkit_mols]
     return model_name, ret
 
-#prediction runner for percentile calculation
 @logged
 def performPercentileCalculation(pdg, models, rdkit_mols):
     # If not percentile calculation, return nans
@@ -265,22 +276,33 @@ def performPercentileCalculation(pdg, models, rdkit_mols):
     performPercentileCalculation._log.info('Starting percentile calculation...')
     input_len = len(models)
     percentile_results = np.empty(input_len, dtype=object)
-    pool = Pool(processes=pdg.ncores)
-    chunksize = max(1, int(input_len / (10 * pdg.ncores)))
     inputs = [(model, rdkit_mols, pdg.ad, pdg.mod_dir) for model in models]
-    jobs = pool.imap_unordered(doPercentileCalculation, inputs, chunksize)
     percent0 = 0
-    for i, result in enumerate(jobs):
-        percent = int((float(i)/float(input_len))*10)
-        if percent != percent0:
-            performPercentileCalculation._log.info('Performing percentile calculation: %d%%' % (percent*10))
-        percent0 = percent
-        if result is not None: percentile_results[i] = result
-    pool.close()
-    pool.join()
+    if pdg.ncores == 1:
+        for i, inp in enumerate(inputs):
+            percent = int((float(i)/float(input_len))*100)
+            if percent != percent0:
+                performPercentileCalculation._log.info('Performing percentile calculation: %d%%' % (percent))
+            percent0 = percent
+            result = doPercentileCalculation(inp)
+            if result is not None: percentile_results[i] = result
+    else:
+        pool = Pool(processes=pdg.ncores)
+        chunksize = max(1, int(input_len / (10 * pdg.ncores)))
+        jobs = pool.imap_unordered(doPercentileCalculation, inputs, chunksize)
+        percent0 = 0
+        for i, result in enumerate(jobs):
+            percent = int((float(i)/float(input_len))*10)
+            if percent != percent0:
+                performPercentileCalculation._log.info('Performing percentile calculation: %d%%' % (percent*10))
+            percent0 = percent
+            if result is not None: percentile_results[i] = result
+        pool.close()
+        pool.join()
     performPercentileCalculation._log.info('Performing percentile calculation: 100%')
     performPercentileCalculation._log.info('Percentile calculation completed!')
-    return percentile_results
+    return percentile_results        
+
 
 #calculate standard deviation for an input compound
 def getStdDev(clf, querymatrix):
@@ -322,19 +344,28 @@ def performTargetPrediction(pdg, models, rdkit_mols, querymatrix):
     performTargetPrediction._log.info('Starting classification...')
     input_len = len(models)
     prediction_results = []
-    pool = Pool(processes=pdg.ncores, initializer=initPool, initargs=(querymatrix,pdg.proba,))
-    chunksize = max(1, int(input_len / (10 * pdg.ncores)))
     inputs = [(model_name, rdkit_mols, pdg.mod_dir, pdg.ad, pdg.std, querymatrix, pdg.ntrees, pdg.known) for model_name in models]
-    jobs = pool.imap_unordered(doTargetPrediction, inputs, chunksize)
     percent0 = 0
-    for i, result in enumerate(jobs):
-        percent = int((float(i)/float(input_len))*10)
-        if percent != percent0:
-            performTargetPrediction._log.info('Performing classification on query molecules: %d%%' % (percent*10))
-        percent0 = percent
-        if result is not None: prediction_results.append(result)
-    pool.close()
-    pool.join()
+    if pdg.ncores == 1:
+        for i, inp in enumerate(inputs):
+            percent = int((float(i)/float(input_len))*100)
+            if percent != percent0:
+                performTargetPrediction._log.info('Performing classification on query molecules: %d%%' % (percent))
+            percent0 = percent
+            result = doTargetPrediction(inp)
+            prediction_results.append(result)
+    else:
+        pool = Pool(processes=pdg.ncores, initializer=initPool, initargs=(querymatrix,pdg.proba,))
+        chunksize = max(1, int(input_len / (10 * pdg.ncores)))
+        jobs = pool.imap_unordered(doTargetPrediction, inputs, chunksize)
+        for i, result in enumerate(jobs):
+            percent = int((float(i)/float(input_len))*10)
+            if percent != percent0:
+                performTargetPrediction._log.info('Performing classification on query molecules: %d%%' % (percent*10))
+            percent0 = percent
+            if result is not None: prediction_results.append(result)
+        pool.close()
+        pool.join()
     performTargetPrediction._log.info('Performing classification on query molecules: 100%')
     performTargetPrediction._log.info('Classification completed!')
     return prediction_results
@@ -390,6 +421,7 @@ class Pidgin:
         else:
             self.pidgin_dir = os.path.abspath(pidgin_dir)
         self.ncores = ncores
+        os.environ['OMP_NUM_THREADS'] = str(self.ncores)
         if type(bioactivity) is list:
             self.bioactivity = bioactivity
         else:

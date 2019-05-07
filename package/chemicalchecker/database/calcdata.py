@@ -104,7 +104,7 @@ def Calcdata(table_name):
             return keys.difference(present)
 
         @staticmethod
-        def from_inchikey_inchi(inchikey_inchi, missing_only=True):
+        def from_inchikey_inchi(inchikey_inchi, missing_only=True, chunksize=1000):
             """Method to fill the property table from an inchikey to inchi map."""
             # calc_fn yield a list of dictionaries with keys as a molprop
             # entry
@@ -131,7 +131,7 @@ def Calcdata(table_name):
             # profile time
             t_start = time()
             engine = get_engine(GenericCalcdata.dbname)
-            for chunk in parse_fn(dict_inchikey_inchi, 1000):
+            for chunk in parse_fn(dict_inchikey_inchi, chunksize):
                 if len(chunk) == 0:
                     continue
                 GenericCalcdata.__log.debug(
