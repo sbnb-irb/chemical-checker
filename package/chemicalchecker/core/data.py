@@ -27,8 +27,8 @@ class DataFactory():
             DataFactory.__log.debug("initializing object %s", cctype)
             args = (signature_path, validation_path, dataset_code)
             return eval(cctype)(*args, **params)
-        except Exception:
-            raise Exception("Data type %s not available" % cctype)
+        except Exception as ex:
+            raise Exception("Data type %s not available: %s" % (cctype, ex))
 
     @staticmethod
     def signaturize(cctype, signature_path, matrix, keys=None, dataset_code=None):
@@ -56,5 +56,5 @@ class DataFactory():
             hf.create_dataset("shape", data=matrix.shape)
         try:
             return eval(cctype)(signature_path, signature_path, dataset_code)
-        except Exception:
-            raise Exception("Data type %s not available" % cctype)
+        except Exception as ex:
+            raise Exception("Data type %s not available: %s" % (cctype, ex))
