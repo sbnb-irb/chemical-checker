@@ -513,8 +513,8 @@ class AdaNetWrapper(object):
         return _input_fn
 
     @staticmethod
-    def predict(model_dir, features, predict_fn=None, mask_fn=None,
-                probs=False, samples=10):
+    def predict(features, predict_fn=None, mask_fn=None, probs=False,
+                samples=10, model_dir=None):
         """Load model and return predictions.
 
         Args:
@@ -561,9 +561,9 @@ class AdaNetWrapper(object):
         return predict_fn
 
     @staticmethod
-    def predict_online(model_dir, h5_file, split, predict_fn=None,
+    def predict_online(h5_file, split, predict_fn=None,
                        mask_fn=None, batch_size=10000, limit=10000,
-                       probs=False, n_classes=None):
+                       probs=False, n_classes=None, model_dir=None):
         """Predict on given testset without killing the memory.
 
         Args:
@@ -600,8 +600,7 @@ class AdaNetWrapper(object):
             x_m, y_m = mask_fn(x_data, y_data)
             if x_m.shape[0] == 0:
                 continue
-            y_m_pred = AdaNetWrapper.predict(
-                model_dir, x_m, predict_fn, probs=probs)
+            y_m_pred = AdaNetWrapper.predict(x_m, predict_fn, probs=probs)
             y_true[last_idx:last_idx + len(y_m)] = y_m
             y_pred[last_idx:last_idx + len(y_m)] = y_m_pred
             last_idx += len(y_m)
