@@ -152,7 +152,7 @@ class sign3(BaseSignature):
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
 
     def fit(self, chemchecker, sign2_universe=None, model_confidence=True,
-            save_support=True, save_correlations=True):
+            save_support=True, save_correlations=True, update_preds=True):
         """Use the learned model to predict the signature 3.
 
         chemchecker(ChemicalChecker): the CC instance for fetching signatures.
@@ -201,24 +201,39 @@ class sign3(BaseSignature):
                     fh['x_test'][:, idx * 128:(idx + 1) * 128] = vectors
                     del vectors
 
+        def safe_create(h5file, *args, **kwargs):
+            if args[0] not in h5file:
+                h5file.create_dataset(*args, **kwargs)
+
         # save universe sign3
         predict_fn = AdaNet.predict_fn(final_adanet_path)
-        with h5py.File(self.data_path, "w") as results:
+        with h5py.File(self.data_path, "r+") as results:
             # initialize V and keys datasets
-            results.create_dataset(
-                'V', (len(inchikeys), 128), dtype=np.float32)
-            results.create_dataset('keys', (len(inchikeys),), dtype='|S27')
+            safe_create(results, 'V', (len(inchikeys), 128), dtype=np.float32)
+            safe_create(results, 'keys', (len(inchikeys),), dtype='|S27')
             if model_confidence:
                 # the actual confidence value will be stored here
-                results.create_dataset(
-                    'confidence', (len(inchikeys),), dtype=np.float32)
+                safe_create(results, 'confidence',
+                            (len(inchikeys),), dtype=np.float32)
                 # this is to store standard deviations
-                results.create_dataset(
-                    'stddev', (len(inchikeys),), dtype=np.float32)
+                safe_create(results, 'stddev',
+                            (len(inchikeys),), dtype=np.float32)
+                # and the normalized one
+                safe_create(results, 'stddev_norm',
+                            (len(inchikeys),), dtype=np.float32)
+                # this is to store intensity
+                safe_create(results, 'intensity',
+                            (len(inchikeys),), dtype=np.float32)
+                # and the normalized one
+                safe_create(results, 'intensity_norm',
+                            (len(inchikeys),), dtype=np.float32)
+                # consensus prediction
+                safe_create(results, 'consensus',
+                            (len(inchikeys),), dtype=np.float32)
             if save_support:
                 # this will e number of available sign2 for given molecules
-                results.create_dataset(
-                    'support', (len(inchikeys),), dtype=np.float32)
+                safe_create(results, 'support',
+                            (len(inchikeys),), dtype=np.float32)
             if save_correlations:
                 # read the correlations obtained evaluating on single spaces
                 df = pd.read_pickle(eval_stats)
@@ -232,11 +247,11 @@ class sign3(BaseSignature):
                         ds_pearson = 0.0
                     avg_pearsons[idx] = ds_pearson
                 # this is to lookup correlations
-                results.create_dataset('dataset_correlation',
-                                       data=avg_pearsons, dtype=np.float32)
+                safe_create(results, 'dataset_correlation', data=avg_pearsons,
+                            dtype=np.float32)
                 # Average/tertile/maximum Pearson correlations will be saved
-                results.create_dataset('pred_correlation', (len(inchikeys), 3),
-                                       dtype=np.float32)
+                safe_create(results, 'pred_correlation', (len(inchikeys), 3),
+                            dtype=np.float32)
 
             # predict signature 3 for universe molecules
             with h5py.File(sign2_universe, "r") as features:
@@ -245,7 +260,8 @@ class sign3(BaseSignature):
                     chunk = slice(idx, idx + 1000)
                     feat = features['x_test'][chunk]
                     # predict with final model
-                    results['V'][chunk] = AdaNet.predict(feat, predict_fn)
+                    if update_preds:
+                        results['V'][chunk] = AdaNet.predict(feat, predict_fn)
                     results['keys'][chunk] = inchikeys[chunk]
                     # compute support
                     if save_support:
@@ -261,44 +277,86 @@ class sign3(BaseSignature):
                             chunk_corr[row_id] = [
                                 np.mean(available_pearsons),
                                 np.percentile(
-                                    available_pearsons, 2 * 100 / 3.),
+                                    available_pearsons, 100 * (2 / 3.)),
                                 np.max(available_pearsons)
                             ]
                         results['pred_correlation'][chunk] = chunk_corr
                         del chunk_corr
                     # save stddevs needed for confidence model and prediction
                     if model_confidence:
-                        stddevs = AdaNet.predict(feat, predict_fn,
-                                                 subsample_x_only,
-                                                 probs=True, samples=10)
-                        results['stddev'][chunk] = np.mean(stddevs, axis=1)
-                        del stddevs
+                        if update_preds:
+                            # draw prediction with sub-sampling (dropout)
+                            samples = AdaNet.predict(feat, predict_fn,
+                                                     subsample_x_only,
+                                                     probs=True, samples=10)
+                            # summarize the predictions as consensus
+                            consensus = np.mean(samples, axis=2)
+                            results['consensus'][chunk] = consensus
+                            # summarize the standard deviation of components
+                            stddevs = np.std(samples, axis=2)
+                            # just save the average stddev over the components
+                            results['stddev'][chunk] = np.mean(stddevs, axis=1)
+                            # measure the intensity (absolute sum of comps)
+                            abs_sum = np.sum(np.abs(consensus), axis=1)
+                            results['intensity'][chunk] = abs_sum / 128.
 
             # create the confidence estimator
             if model_confidence:
-                # get current space inchikeys (max 10^5)
+                # get current space inchikeys (max 20^4)
                 dataset_inks = ds_sign[self.dataset].keys
-                if len(dataset_inks) > 1e5:
-                    dataset_inks = np.random.choice(dataset_inks, int(1e5))
-                # get molecules stddev distribution
-                dataset_inks, stddev_dist = self.get_vectors(
-                    dataset_inks, dataset_name='stddev')
-                stddev_dist = stddev_dist.reshape((1, len(stddev_dist)))
+                if len(dataset_inks) > 2 * 1e4:
+                    dataset_inks = np.random.choice(dataset_inks, int(2 * 1e4))
                 # save the confidence model
                 confidence_file = os.path.join(self.model_path, 'conf.h5')
+                # so the train molecules stddev distribution
+                _, stddev_dist = self.get_vectors(
+                    dataset_inks, dataset_name='stddev')
+                stddev_dist = stddev_dist.reshape((1, len(stddev_dist)))
+                # save train molecules intensity distribution
+                _, intensity_dist = self.get_vectors(
+                    dataset_inks, dataset_name='intensity')
+                intensity_dist = intensity_dist.reshape(
+                    (1, len(intensity_dist)))
+                # also save the consensus and actual sign2
+                _, consensus_pred = self.get_vectors(
+                    dataset_inks, dataset_name='consensus')
+                _, actual_sign2 = ds_sign[self.dataset].get_vectors(
+                    dataset_inks)
                 with h5py.File(confidence_file, "w") as confidence_model:
                     confidence_model.create_dataset(
                         'stddev_dist', data=stddev_dist, dtype=np.float32)
+                    confidence_model.create_dataset(
+                        'intensity_dist', data=intensity_dist,
+                        dtype=np.float32)
+                    confidence_model.create_dataset(
+                        'consensus_pred', data=consensus_pred,
+                        dtype=np.float32)
+                    confidence_model.create_dataset(
+                        'actual_sign2', data=actual_sign2,
+                        dtype=np.float32)
                 # predict confidence in chunks
                 for idx in tqdm(range(0, len(inchikeys), 1000)):
                     chunk = slice(idx, idx + 1000)
+                    # how's is the stddev compared to reference distribution?
                     pred_stds = results['stddev'][chunk]
                     pred_stds = pred_stds.reshape((len(pred_stds), 1))
-                    # how's is the stddev compared to out distribution?
-                    conf_pred = np.count_nonzero(
-                        pred_stds > stddev_dist, axis=1)
-                    conf_pred = conf_pred / float(stddev_dist.shape[1])
-                    results['confidence'][chunk] = conf_pred
+                    # the lower the better (will be closer to 1)
+                    stddev_norm = np.count_nonzero(
+                        pred_stds < stddev_dist, axis=1)
+                    stddev_norm = stddev_norm / float(stddev_dist.shape[1])
+                    results['stddev_norm'][chunk] = stddev_norm
+                    # how's the intensity?
+                    pred_inte = results['intensity'][chunk]
+                    pred_inte = pred_inte.reshape((len(pred_inte), 1))
+                    # the higher the better (will be closer to 1)
+                    intensity_norm = np.count_nonzero(
+                        pred_inte > intensity_dist, axis=1)
+                    intensity_norm = intensity_norm / \
+                        float(intensity_dist.shape[1])
+                    results['intensity_norm'][chunk] = intensity_norm
+                    # confidence definition
+                    results['confidence'][chunk] = stddev_norm * \
+                        intensity_norm * results['pred_correlation'][chunk, 0]
         self.mark_ready()
 
     def predict(self, chemchecker, output_file, sign2_molset=None,
@@ -871,6 +929,7 @@ def subsample(tensor, label):
     # make masked dataset NaN
     new_data[~mask] = np.nan
     return new_data, label
+
 
 """
 import tensorflow as tf
