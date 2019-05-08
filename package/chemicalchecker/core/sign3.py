@@ -276,26 +276,28 @@ class sign3(BaseSignature):
 
             # create the confidence estimator
             if model_confidence:
-                confidence_file = os.path.join(self.model_path, 'conf.h5')
                 # get current space inchikeys (max 10^5)
                 dataset_inks = ds_sign[self.dataset].keys
                 if len(dataset_inks) > 1e5:
-                    dataset_inks = np.random.choice(dataset_inks, 1e5)
+                    dataset_inks = np.random.choice(dataset_inks, int(1e5))
                 # get molecules stddev distribution
-                stddevs = self.get_vectors(dataset_inks, dataset_name='stddev')
-                stddevs = np.array(stddevs)
+                dataset_inks, stddev_dist = self.get_vectors(
+                    dataset_inks, dataset_name='stddev')
+                stddev_dist = stddev_dist.reshape((1, len(stddev_dist)))
                 # save the confidence model
+                confidence_file = os.path.join(self.model_path, 'conf.h5')
                 with h5py.File(confidence_file, "w") as confidence_model:
                     confidence_model.create_dataset(
-                        'stddev_dist', stddevs, dtype=np.float32)
+                        'stddev_dist', data=stddev_dist, dtype=np.float32)
                 # predict confidence in chunks
                 for idx in tqdm(range(0, len(inchikeys), 1000)):
                     chunk = slice(idx, idx + 1000)
                     pred_stds = results['stddev'][chunk]
                     pred_stds = pred_stds.reshape((len(pred_stds), 1))
                     # how's is the stddev compared to out distribution?
-                    conf_pred = np.count_nonzero(pred_stds < stddevs, axis=1)
-                    conf_pred /= float(len(stddevs))
+                    conf_pred = np.count_nonzero(
+                        pred_stds > stddev_dist, axis=1)
+                    conf_pred = conf_pred / float(stddev_dist.shape[1])
                     results['confidence'][chunk] = conf_pred
         self.mark_ready()
 
@@ -343,7 +345,7 @@ class sign3(BaseSignature):
         if save_confidence:
             confidence_file = os.path.join(self.model_path, 'conf.h5')
             with h5py.File(confidence_file, "r") as confidence_model:
-                stddevs = confidence_model['stddev_dist'][:]
+                stddev_dist = confidence_model['stddev_dist'][:]
 
         # save sign3 predictions
         final_adanet_path = os.path.join(self.model_path, 'adanet_final',
@@ -406,8 +408,8 @@ class sign3(BaseSignature):
                         pred_stds = np.mean(stddevs, axis=1)
                         # how's is the stddev compared to our distribution?
                         conf_pred = np.count_nonzero(
-                            pred_stds < stddevs, axis=1)
-                        conf_pred /= float(len(stddevs))
+                            pred_stds < stddev_dist, axis=1)
+                        conf_pred = conf_pred / float(stddev_dist.shape[1])
                         results['confidence'][chunk] = conf_pred
                         del stddevs
     '''
