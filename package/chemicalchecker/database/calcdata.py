@@ -14,7 +14,6 @@ from .molecule import Molecule
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Text
 from sqlalchemy.dialects import postgresql
-from chemicalchecker.database import GeneralProp
 
 
 def Calcdata(table_name):
@@ -41,6 +40,11 @@ def Calcdata(table_name):
             GenericCalcdata.__log.debug(type(kwargs))
             if type(kwargs) is dict:
                 prop = GenericCalcdata(**kwargs)
+            else:
+                raise Exception("Input data is not a dictionary.")
+
+            if Molecule.get(prop.inchikey) is None:
+                raise Exception("The inchikey " + str(prop.inchikey) + " is not present in table molecule.")
 
             GenericCalcdata.__log.debug(prop.inchikey)
             session = get_session(GenericCalcdata.dbname)
@@ -109,8 +113,15 @@ def Calcdata(table_name):
             # calc_fn yield a list of dictionaries with keys as a molprop
             # entry
 
+            if isinstance(inchikey_inchi, list):
+                if len(inchikey_inchi[0]) != 2:
+                    raise Exception("Inchikey_inchi variable is not a list of tuples (inchikey,inchi)")
+                inchikey_inchi_final = dict(inchikey_inchi)
+            else:
+                inchikey_inchi_final = inchikey_inchi
+
             if missing_only:
-                set_inks = set(inchikey_inchi.keys())
+                set_inks = set(inchikey_inchi_final.keys())
 
                 GenericCalcdata.__log.debug(
                     "Size initial data to add: " + str(len(set_inks)))
@@ -120,12 +131,12 @@ def Calcdata(table_name):
                 GenericCalcdata.__log.debug(
                     "Size final data to add: " + str(len(todo_iks)))
 
-                dict_inchikey_inchi = {k: inchikey_inchi[k] for k in todo_iks}
+                dict_inchikey_inchi = {k: inchikey_inchi_final[k] for k in todo_iks}
 
             else:
-                dict_inchikey_inchi = inchikey_inchi
+                dict_inchikey_inchi = inchikey_inchi_final
 
-            Molecule.add_missing_only(inchikey_inchi)
+            Molecule.add_missing_only(inchikey_inchi_final)
 
             parse_fn = DataCalculator.calc_fn(GenericCalcdata.__tablename__)
             # profile time

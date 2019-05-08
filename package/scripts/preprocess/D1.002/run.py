@@ -13,7 +13,7 @@ import sys
 import os
 import collections
 import h5py
-
+import logging
 from chemicalchecker.util import logged, get_parser, save_output, features_file
 from chemicalchecker.database import Dataset, Molrepo
 
@@ -22,7 +22,7 @@ import numpy as np
 
 # Variables
 
-features_file = "features.h5"
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 
 # Entry points
 
@@ -30,15 +30,17 @@ entry_point_full = "proteins"
 
 # Functions
 
+
 def dcx_to_pertid(map_files):
     filename = map_files["deepcodex_map"] + "/dcx_map.csv"
     dcx_pertid = collections.defaultdict(list)
     with open(filename, "r") as f:
-        reader = csv.reader(f, delimiter = ",")
+        reader = csv.reader(f, delimiter=",")
         next(reader)
         for r in reader:
             dcx_pertid[r[0]] += [r[1]]
     return dcx_pertid
+
 
 def pertid_to_meta(map_files):
     filenames = [map_files["GSE70138_Broad_LINCS_pert_info"] + "/GSE70138_Broad_LINCS_pert_info.txt",
@@ -46,14 +48,16 @@ def pertid_to_meta(map_files):
     pertid_meta = collections.defaultdict(set)
     for filename in filenames:
         with open(filename, "r") as f:
-            reader = csv.reader(f, delimiter = "\t")
+            reader = csv.reader(f, delimiter="\t")
             h = next(reader)
             pert_id_idx = h.index("pert_id")
             pert_iname_idx = h.index("pert_iname")
-            pert_type_idx  = h.index("pert_type")
+            pert_type_idx = h.index("pert_type")
             for r in reader:
-                pertid_meta[r[pert_id_idx]].update([(r[pert_iname_idx], r[pert_type_idx])])
+                pertid_meta[r[pert_id_idx]].update(
+                    [(r[pert_iname_idx], r[pert_type_idx])])
     return pertid_meta
+
 
 def parse_molrepo():
     lincs_inchikey = {}
@@ -64,10 +68,11 @@ def parse_molrepo():
         lincs_inchikey[molrepo.src_id] = molrepo.inchikey
     return lincs_inchikey
 
+
 def dcx_to_cc_dicts(map_files):
     lincs_inchikey = parse_molrepo()
-    dcx_pertid     = dcx_to_pertid(map_files)
-    pertid_meta    = pertid_to_meta(map_files)
+    dcx_pertid = dcx_to_pertid(map_files)
+    pertid_meta = pertid_to_meta(map_files)
     dcx_cc = collections.defaultdict(set)
     cc_dcx = collections.defaultdict(set)
     for dcx, pertids in dcx_pertid.iteritems():
@@ -89,24 +94,26 @@ def dcx_to_cc_dicts(map_files):
                         cc_dcx[k].update([dcx])
     return dcx_cc, cc_dcx
 
+
 def accession_to_genename(map_files):
     prot2gene = collections.defaultdict(set)
-    with open(map_files["human_proteome"]+"/download.wget", "r") as f:
-        reader = csv.reader(f, delimiter = "\t")
+    with open(map_files["human_proteome"] + "/download.wget", "r") as f:
+        reader = csv.reader(f, delimiter="\t")
         header = next(reader)
         entry_idx = header.index("Entry")
         genenames_idx = header.index("Gene names")
         for r in reader:
             prot = r[entry_idx]
-            gns  = r[genenames_idx].split(" ")
+            gns = r[genenames_idx].split(" ")
             for gn in gns:
                 prot2gene[prot].update([gn])
     return prot2gene
 
+
 def parse_deepcodex(dcx, dcx_cc, map_files):
     foldername = map_files["deepcodex_download"] + "/download/"
     with open(foldername + "/" + dcx, "r") as f:
-        reader  = csv.reader(f)
+        reader = csv.reader(f)
         next(reader)
         hits = []
         for r in reader:
@@ -115,26 +122,29 @@ def parse_deepcodex(dcx, dcx_cc, map_files):
         hits = [(x, n - i) for i, x in enumerate(hits)]
         hits_cc = []
         for x, n in hits:
-            if x[0] not in dcx_cc: continue
+            if x[0] not in dcx_cc:
+                continue
             for y in dcx_cc[x[0]]:
-                hits_cc += [(y, int(n/10.) + 1)]
+                hits_cc += [(y, int(n / 10.) + 1)]
         return hits_cc
 
 # Main
 
-@logged
+
+@logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
     args = get_parser().parse_args(args)
-
-    dataset_code = 'D1.002'
 
     dataset = Dataset.get(dataset_code)
 
     map_files = {}
 
+    # Data sources associated to this dataset are stored in map_files
+    # Keys are the datasources names and values the file paths.
+    # If no datasources are necessary, the list is just empty.
     for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path
 
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
@@ -148,18 +158,20 @@ def main(args):
         main._log.info("Fitting")
 
         # Read the data from the datasources
-        key_pairs = collections.defaultdict(list) 
+        key_pairs = collections.defaultdict(list)
         for dcx in os.listdir(map_files["deepcodex_download"] + "/download/"):
-            if dcx not in dcx_cc: continue
+            if dcx not in dcx_cc:
+                continue
             for cc in dcx_cc[dcx]:
-                if cc[1] != "cp": continue
+                if cc[1] != "cp":
+                    continue
                 hits = parse_deepcodex(dcx, dcx_cc, map_files)
                 for hit in hits:
                     key_pairs[(cc, hit[0])] += [hit[1]]
-        key_pairs = dict((k, np.max(v)) for k,v in key_pairs.iteritems())
+        key_pairs = dict((k, np.max(v)) for k, v in key_pairs.iteritems())
         key_raw = collections.defaultdict(list)
         for k, v in key_pairs.iteritems():
-            key_raw[str(k[0][0])] += [(str(k[1][0]+"_"+k[1][1]), v)]
+            key_raw[str(k[0][0])] += [(str(k[1][0] + "_" + k[1][1]), v)]
         features = sorted(set([x[0] for v in key_raw.values() for x in v]))
 
     if args.method == "predict":
@@ -174,13 +186,13 @@ def main(args):
 
         # Read the data from the args.input_file
         # The entry point is available through the variable args.entry_point
-        
+
         if args.entry_point is None:
             args.entry_point = entry_point_full
 
         key_pairs = collections.defaultdict(list)
-        with open(args.input_file, "r") as f:    
-            for r in csv.reader(f, delimiter = "\t"):
+        with open(args.input_file, "r") as f:
+            for r in csv.reader(f, delimiter="\t"):
                 # Get the key
                 key = r[0]
                 # Get the direction
@@ -192,19 +204,23 @@ def main(args):
                     continue
                 # Get the genenames
                 prot = r[1]
-                if prot not in prot2gene: continue
+                if prot not in prot2gene:
+                    continue
                 for gn in prot2gene[prot]:
-                    if (gn, direction) not in cc_dcx: continue
+                    if (gn, direction) not in cc_dcx:
+                        continue
                     for dcx in cc_dcx[(gn, direction)]:
-                        if dcx not in dcx_cc: continue
+                        if dcx not in dcx_cc:
+                            continue
                         hits = parse_deepcodex(dcx, dcx_cc, map_files)
                         for hit in hits:
                             key_pairs[((key, direction), hit[0])] += [hit[1]]
-        key_pairs = dict((k, np.max(v)) for k,v in key_pairs.iteritems())
+        key_pairs = dict((k, np.max(v)) for k, v in key_pairs.iteritems())
         key_raw = collections.defaultdict(list)
         for k, v in key_pairs.iteritems():
-            feat = str(k[1][0]+"_"+k[1][1])
-            if feat not in features_set: continue
+            feat = str(k[1][0] + "_" + k[1][1])
+            if feat not in features_set:
+                continue
             key_raw[str(k[0][0])] += [(feat, v)]
 
     main._log.info("Saving raw data")

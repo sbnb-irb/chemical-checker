@@ -6,15 +6,15 @@ import h5py
 import numpy as np
 import pickle
 import shutil
-
+import logging
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
-from chemicalchecker.util import gaussian_scale_impute
+from chemicalchecker.util.performance import gaussian_scale_impute
 import random
 from cmapPy.pandasGEXpress import parse
 # Variables
-
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 entry_point_full = "measure"
 cell_headers_file = "cell_names.pcl"
 features_file = "features.h5"
@@ -129,19 +129,20 @@ def filter_data(X, rownames, pertid_inchikey=None):
 # Parse arguments
 
 
-@logged
+@logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
     args = get_parser().parse_args(args)
-
-    dataset_code = 'D4.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
     dataset = Dataset.get(dataset_code)
 
     map_files = {}
 
+    # Data sources associated to this dataset are stored in map_files
+    # Keys are the datasources names and values the file paths.
+    # If no datasources are necessary, the list is just empty.
     for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path
 
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)

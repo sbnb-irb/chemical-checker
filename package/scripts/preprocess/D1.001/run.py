@@ -9,7 +9,7 @@ import collections
 import shutil
 from cmapPy.pandasGEXpress import parse
 import glob
-
+import logging
 
 from chemicalchecker.util import logged, Config, profile
 from chemicalchecker.util.hpc import HPC
@@ -17,6 +17,7 @@ from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
 from chemicalchecker.util.performance import gaussianize as g
 # Variables
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 
 
 def parse_level(mini_sig_info_file, map_files, signaturesdir):
@@ -292,13 +293,11 @@ def get_parser():
     return parser
 
 
-@logged
+@logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 @profile
 def main(args):
 
     args = get_parser().parse_args(args)
-
-    dataset_code = 'D1.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
     mini_sig_info_file = os.path.join(
         args.models_path, 'mini_sig_info.tsv')
@@ -307,8 +306,11 @@ def main(args):
 
     map_files = {}
 
+    # Data sources associated to this dataset are stored in map_files
+    # Keys are the datasources names and values the file paths.
+    # If no datasources are necessary, the list is just empty.
     for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path
 
     main._log.debug(
         "Running preprocess fit method for dataset " + dataset_code + ". Saving output in " + args.output_file)

@@ -7,7 +7,7 @@ import h5py
 import numpy as np
 import shutil
 import math
-
+import logging
 from chemicalchecker.util import logged, Config
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import HPC
@@ -15,7 +15,7 @@ from chemicalchecker.util import psql
 from chemicalchecker.database import Molrepo
 
 # Variables
-
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 chembl_dbname = 'chembl'
 entry_point_full = "proteins"
 entry_point_process = "processes"
@@ -385,19 +385,20 @@ def fetch_binding(any_human, ACTS, prot_allgos_dir):
 # Parse arguments
 
 
-@logged
+@logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
     args = get_parser().parse_args(args)
 
-    dataset_code = 'B4.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
-
-    dataset = Dataset.get(dataset_code)
+    dataset = Dataset.get('B4.001')
 
     map_files = {}
 
+    # Data sources associated to this dataset are stored in map_files
+    # Keys are the datasources names and values the file paths.
+    # If no datasources are necessary, the list is just empty.
     for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path
 
     bindingdb_file = os.path.join(
         map_files["bindingdb"], "BindingDB_All.tsv")
@@ -407,14 +408,12 @@ def main(args):
 
     features = None
 
-    dataset_code = 'C4.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
-
     dataset = Dataset.get(dataset_code)
 
     map_files = {}
 
     for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path
 
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
@@ -484,7 +483,7 @@ def main(args):
             uniprots.update([l[1]])
         f.close()
 
-        job_path = os.path.join(Config().PATH.CC_TMP, "job_bpan")
+        job_path = os.path.join(args.models_path, "job_bpan")
 
         if not os.path.exists(prot_allgos_dir):
             os.makedirs(prot_allgos_dir, 0o775)

@@ -31,13 +31,14 @@ class RNDuplicates():
         self.cpu = cpu
         self.__log.debug('RNDuplicates to use ' + str(self.nbits) + " bits")
 
-    def remove(self, data, keys=None):
+    def remove(self, data, keys=None, save_dest=None):
         """Remove near duplicates from data.
 
         Args:
             data(array): The data to remove duplicates from. It can be a numpy array
                          or a file path to a .h5 file
             keys(array): Array of keys for the input data
+            save_dest(str): If the resulyt needs to be saved in a file, the path to the file( default: None)
         Returns:
             keys(array):
             data(array):
@@ -141,7 +142,10 @@ class RNDuplicates():
         self.final_ids.sort()
 
         self.__log.info("Size after removing: " + str(len(self.final_ids)))
-        return self.keys[np.array(self.final_ids)], np.array(self.data[np.array(self.final_ids)], dtype=self.data_type), self.mappings
+        if save_dest is not None:
+            self.save(save_dest)
+        else:
+            return self.keys[np.array(self.final_ids)], np.array(self.data[np.array(self.final_ids)], dtype=self.data_type), self.mappings
 
     def save(self, destination):
         """Save data after removing to a h5 file.
@@ -157,7 +161,7 @@ class RNDuplicates():
 
         self.__log.info("Saving removed duplicates to : " + destination)
         list_maps = collections.OrderedDict(sorted(self.mappings.items()))
-
+        self.__log.info("Starting to write to : " + destination)
         with h5py.File(destination, 'w') as hf:
             hf.create_dataset("keys", data=self.keys[np.array(self.final_ids)])
             V = np.array(
@@ -165,6 +169,6 @@ class RNDuplicates():
             hf.create_dataset("V", data=V)
             hf.create_dataset("shape", data=V.shape)
             hf.create_dataset("mappings", data=np.array(list_maps.items()))
-
+        self.__log.info("Writing mappings to " + dirpath)
         with open(os.path.join(dirpath, "mappings"), 'wb') as fh:
             pickle.dump(self.mappings, fh)

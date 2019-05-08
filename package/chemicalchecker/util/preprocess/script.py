@@ -50,8 +50,8 @@ def save_output(output_file, inchikey_raw, method, models_path, discrete, featur
                 break
 
         words = set()
-        for k in sorted(inchikey_raw.keys()):
-            keys.append(str(k))
+        keys = sorted(inchikey_raw.keys())
+        for k in keys:
             if categ:
                 for word in inchikey_raw[k]:
                     words.add(word[0])
@@ -62,6 +62,7 @@ def save_output(output_file, inchikey_raw, method, models_path, discrete, featur
             orderwords = features
         else:
             orderwords = list(words)
+            del words
             orderwords.sort()
 
         with h5py.File(output_file, "w") as hf:

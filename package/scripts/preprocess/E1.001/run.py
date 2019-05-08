@@ -13,7 +13,7 @@ from chemicalchecker.database import Molrepo
 
 
 # Variables
-dataset_code = 'E1.001'
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 features_file = "features.h5"
 # Parse arguments
 entry_point_full = "atc"
@@ -144,12 +144,17 @@ def break_atcs(inchikey_atc):
 def main(args):
     # Reading arguments and getting datasource
     args = get_parser().parse_args(args)
-    dataset = Dataset.get(dataset_code)
     main._log.debug("Running preprocess. Saving output to %s",
                     args.output_file)
+    dataset = Dataset.get(dataset_code)
+
     map_files = {}
+
+    # Data sources associated to this dataset are stored in map_files
+    # Keys are the datasources names and values the file paths.
+    # If no datasources are necessary, the list is just empty.
     for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path
 
     # decide entry point, if None use default
     if args.entry_point is None:

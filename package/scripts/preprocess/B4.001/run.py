@@ -7,14 +7,14 @@ import collections
 import h5py
 import math
 import pickle
-
+import logging
 
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import psql
 from chemicalchecker.database import Molrepo
 # Variables
-
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 chembl_dbname = 'chembl'
 graph_file = "graph.gpickle"
 features_file = "features.h5"
@@ -312,19 +312,20 @@ def process_activity_according_to_pharos(ACTS, class_prot, protein_cutoffs, clas
     return classACTS, prots
 
 
-@logged
+@logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
     args = get_parser().parse_args(args)
-
-    dataset_code = 'B4.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
     dataset = Dataset.get(dataset_code)
 
     map_files = {}
 
+    # Data sources associated to this dataset are stored in map_files
+    # Keys are the datasources names and values the file paths.
+    # If no datasources are necessary, the list is just empty.
     for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path
 
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)

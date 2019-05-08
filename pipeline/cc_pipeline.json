@@ -2,10 +2,11 @@
     "STEPS": {
         "Downloads": {"datasources" : "'all'"},
         "Calculatedata" : {"data": "['morgan_fp_r2_2048', 'e3fp_3conf_1024', 'murcko_1024_cframe_1024', 'maccs_keys_166', 'general_physchem_properties', 'chembl_target_predictions_v23_10um']"},
-        "Validations" : {"sets" : "['moa','atc']"}
+        "Validations" : {"sets" : "['moa','atc']"},
+        "Signature1" : {"A1.001" : "1600", "A2.001" : "1000", "A3.001": "1500", "A4.001" : "70", "B1.001" : "200", "B2.001": "200", "B3.001": "500", "B4.001": "800", "B5.001": "800", "C1.001": "600", "C2.001": "500", "C3.001": "200", "C4.001": "500", "C5.001": "500", "D1.001": "4600", "D3.001": "800", "D5.001": "100", "E1.001": "250", "E2.001" : "600", "E3.001": "700", "E4.001": "800", "E5.001": "250" }
 
     },
-    "RUN": "['Downloads','Molrepos','Calculatedata','Validations']",
+    "RUN": "['Downloads','Molrepos','Calculatedata','Validations','Signature0', 'Signature1']",
     "PATH": "'/aloy/scratch/sbnb-adm/cc_pipeline'"
 
 }
