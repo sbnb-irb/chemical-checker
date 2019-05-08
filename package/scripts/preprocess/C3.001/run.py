@@ -6,14 +6,14 @@ import h5py
 import numpy as np
 import networkx as nx
 import math
-
+import logging
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import psql
 from chemicalchecker.database import Molrepo
 
 # Variables
-
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 chembl_dbname = 'chembl'
 features_file = "features.h5"
 entry_point_full = "proteins"
@@ -366,16 +366,20 @@ def fetch_binding(any_human, ACTS, uniprot2reactome):
     return PWYS
 
 
-@logged
+@logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
     args = get_parser().parse_args(args)
 
-    dataset_code = 'B4.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
-
-    dataset = Dataset.get(dataset_code)
+    dataset = Dataset.get('B4.001')
 
     map_files = {}
+
+    # Data sources associated to this dataset are stored in map_files
+    # Keys are the datasources names and values the file paths.
+    # If no datasources are necessary, the list is just empty.
+    for ds in dataset.datasources:
+        map_files[ds.datasource_name] = ds.data_path
 
     if args.entry_point is None:
         args.entry_point = entry_point_full
@@ -383,9 +387,6 @@ def main(args):
     features = None
 
     if args.method == "fit":
-
-        for ds in dataset.datasources:
-            map_files[ds.name] = ds.data_path
 
         bindingdb_file = os.path.join(
             map_files["bindingdb"], "BindingDB_All.tsv")
@@ -421,9 +422,6 @@ def main(args):
                 else:
                     ACTS[(items[0], items[1])] = int(items[2])
 
-    # os.path.dirname(os.path.abspath(__file__))[-6:]
-    dataset_code = 'C3.001'
-
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
@@ -432,7 +430,7 @@ def main(args):
     map_files = {}
 
     for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path
 
     if args.entry_point == entry_point_full:
         id_conversion = os.path.join(

@@ -4,7 +4,7 @@ import argparse
 import collections
 import h5py
 import numpy as np
-
+import logging
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
@@ -12,7 +12,7 @@ from chemicalchecker.database import Molrepo
 features_file = "features.h5"
 
 entry_point_full = "strain"
-
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 pval_01 = 3.37
 pval_001 = 7.12
 
@@ -77,19 +77,20 @@ def read_mosaic_predictions(all_conditions, comb_gt_preds):
     return sig
 
 
-@logged
+@logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
     args = get_parser().parse_args(args)
-
-    dataset_code = 'D3.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
     dataset = Dataset.get(dataset_code)
 
     map_files = {}
 
+    # Data sources associated to this dataset are stored in map_files
+    # Keys are the datasources names and values the file paths.
+    # If no datasources are necessary, the list is just empty.
     for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path
 
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)

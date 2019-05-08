@@ -271,13 +271,14 @@ def put_hierarchy(ACTS, class_prot, G):
 def main(args):
     # Reading arguments and getting datasource
     args = get_parser().parse_args(args)
-    dataset = Dataset.get(dataset_code)
     main._log.debug("Running preprocess. Saving output to %s",
                     args.output_file)
-    map_files = {}
-    for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+    dataset = Dataset.get(dataset_code)
 
+    map_files = {}
+
+    for ds in dataset.datasources:
+        map_files[ds.datasource_name] = ds.data_path
     # decide entry point, if None use default
     if args.entry_point is None:
         args.entry_point = entry_point_full

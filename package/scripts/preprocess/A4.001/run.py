@@ -4,23 +4,23 @@ import argparse
 import collections
 import h5py
 import numpy as np
-
+import logging
 
 from chemicalchecker.util import logged
-from chemicalchecker.database import Molprop, Datasource
+from chemicalchecker.database import Calcdata, Datasource
 from chemicalchecker.database import Molrepo
-from chemicalchecker.util import DataCalculator
-from chemicalchecker.util import Converter
+from chemicalchecker.util.parser import DataCalculator
+from chemicalchecker.util.parser import Converter
 
 
 # Variables
-
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 features_file = "features.h5"
 entry_point_keys = "inchikey"
 entry_point_inchi = "inchi"
 entry_point_smiles = "smiles"
 
-name = "subskeys"
+name = "maccs_keys_166"
 
 
 def get_parser():
@@ -39,15 +39,10 @@ def get_parser():
     return parser
 
 
-# Parse arguments
-
-
-@logged
+@logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
     args = get_parser().parse_args(args)
-
-    dataset_code = 'A4.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
@@ -59,14 +54,14 @@ def main(args):
 
     if args.method == "fit":
 
-        molrepos = Datasource.get_universe_molrepos()
+        molrepos = Molrepo.get_universe_molrepos()
 
         main._log.info("Querying molrepos")
 
         ACTS = []
         inchikeys = set()
 
-        molprop = Molprop(name)
+        molprop = Calcdata(name)
 
         for molrepo in molrepos:
 
@@ -123,13 +118,15 @@ def main(args):
 
         else:
 
-            molprop = Molprop(name)
+            molprop = Calcdata(name)
             props = molprop.get_properties_from_list([i[0] for i in data])
             ACTS.extend(props)
 
     main._log.info("Saving raws")
     RAW = collections.defaultdict(list)
     for k in ACTS:
+        if k[1] == '' or k[1] is None or k[0] is None:
+            continue
         if features is None:
             vals = [str(t) for t in k[1].split(",")]
         else:

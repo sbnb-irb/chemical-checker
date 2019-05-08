@@ -21,6 +21,7 @@ def get_connection(dbname=None):
     conn_dict = config.DB.asdict()
     conn_dict.pop('dialect')
     conn_dict.pop('calcdata_dbname')
+    conn_dict.pop('uniprot_db_version')
     conn_dict.update({"database": dbname})
     datab = psycopg2.connect(**conn_dict)
     return datab

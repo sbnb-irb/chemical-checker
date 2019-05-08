@@ -4,7 +4,7 @@ import glob
 import numpy as np
 
 from chemicalchecker.util import logged
-from chemicalchecker.util import HotnetNetwork
+from chemicalchecker.util.network import HotnetNetwork
 from chemicalchecker.database import Dataset
 
 
@@ -62,7 +62,7 @@ class inbiomap():
         dataset = Dataset.get(dataset_code)
         map_files = {}
         for ds in dataset.datasources:
-            map_files[ds.name] = ds.data_path
+            map_files[ds.datasource_name] = ds.data_path
 
         inweb = glob.glob(map_files["inBio_Map_core"] +
                           '/InBio_Map_core_*/core.psimitab')[0]

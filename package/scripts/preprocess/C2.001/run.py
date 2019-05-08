@@ -6,15 +6,16 @@ import collections
 import h5py
 import numpy as np
 from sklearn.preprocessing import normalize
-
-from chemicalchecker.util import logged, HotnetNetwork
+import logging
+from chemicalchecker.util import logged
+from chemicalchecker.util.network import HotnetNetwork
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
 
 features_file = "features.h5"
 pcomms_file = "pcomms.tsv"
 entry_point_full = "metabolites_neighbors"
-
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 
 def get_parser():
     description = 'Run preprocess script.'
@@ -127,19 +128,20 @@ def read_hotnet_output(outdir):
 # Parse arguments
 
 
-@logged
+@logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
     args = get_parser().parse_args(args)
-
-    dataset_code = 'C2.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
     dataset = Dataset.get(dataset_code)
 
     map_files = {}
 
+    # Data sources associated to this dataset are stored in map_files
+    # Keys are the datasources names and values the file paths.
+    # If no datasources are necessary, the list is just empty.
     for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path
 
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
@@ -148,7 +150,8 @@ def main(args):
 
     if args.method == "fit":
 
-        all_binary_sif = os.path.join(map_files["molpathways"], "PathwayCommons11.All.hgnc.sif")
+        all_binary_sif = os.path.join(
+            map_files["molpathways"], "PathwayCommons11.All.hgnc.sif")
         main._log.info("Preparing HotNet input")
 
         prepare_hotnet_input(args.models_path, all_binary_sif)
