@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 import operator
 from chemicalchecker.util import logged
-from chemicalchecker.util import HotnetNetwork
+from chemicalchecker.util.network import HotnetNetwork
 from chemicalchecker.util import psql
 from chemicalchecker.database import Dataset
 
@@ -227,7 +227,7 @@ class recon():
         dataset = Dataset.get(dataset_code)
         map_files = {}
         for ds in dataset.datasources:
-            map_files[ds.name] = ds.data_path
+            map_files[ds.datasource_name] = ds.data_path
 
         hgnc_mapping_file = os.path.join(
             map_files["hgnc_complete"], "hgnc_complete_set.txt")

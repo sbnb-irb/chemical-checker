@@ -1,7 +1,7 @@
 import os
 
 from chemicalchecker.util import logged
-from chemicalchecker.util import HotnetNetwork
+from chemicalchecker.util.network import HotnetNetwork
 from chemicalchecker.util import psql
 
 

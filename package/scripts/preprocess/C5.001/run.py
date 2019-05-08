@@ -8,8 +8,8 @@ import math
 import numpy as np
 import shutil
 from sklearn.preprocessing import normalize
-
-from chemicalchecker.util import logged, Config
+import logging
+from chemicalchecker.util import logged, Config, save_output
 from chemicalchecker.util import HPC
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import psql
@@ -20,18 +20,21 @@ features_file = "features.h5"
 entry_point_full = "proteins"
 entry_point_neigh = "protein_neighbors"
 entry_point_neigh_networks = "protein_neighbors_network"
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 
 networks = ["string_net", "inbiomap", "ppidb", "pathwaycommons", "recon"]
 
+config = Config()
 WD = os.path.dirname(os.path.realpath(__file__))
 cc_config = os.environ['CC_CONFIG']
-
+cc_package = os.path.join(config.PATH.CC_REPO, 'package')
 cpu = 10
 
 script_lines = [
     "import sys, os",
     "import pickle",
     "sys.path.append('" + WD + "')",
+    "sys.path.append('%s')" % cc_package,  # allow package import
     "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
     "from ppidb import ppidb",
     "from inbiomap import inbiomap",
@@ -399,7 +402,7 @@ def load_matrix(net_folder):
     names = [l.rstrip("\n").split("\t")[1] for l in f]
     f.close()
     f = h5py.File(net_folder + "/similarity_matrix.h5")
-    A = f['PPR'].value
+    A = f['PPR'][:]
     f.close()
     return Sm(A, names)
 
@@ -466,19 +469,21 @@ def read_hotnet_output(outdir, ACTS):
 # Parse arguments
 
 
-@logged
+@logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
     args = get_parser().parse_args(args)
 
     features = None
 
+    os.environ["MKL_NUM_THREADS"] = str(cpu)
+
     if args.entry_point is None:
         args.entry_point = entry_point_full
 
     if args.method == "fit":
 
-        job_path = os.path.join(Config().PATH.CC_TMP, "job_nets")
+        job_path = os.path.join(args.models_path, "job_nets")
 
         if os.path.isdir(job_path):
             shutil.rmtree(job_path)
@@ -492,12 +497,16 @@ def main(args):
 
         tasks = []
 
+        config = Config()
+
+        uniprot_version = config.DB.uniprot_db_version
+
         for net in networks:
 
             readyfile = net + ".ready"
             if not os.path.exists(os.path.join(args.models_path, net, readyfile)):
                 tasks.append(
-                    (net, os.path.join(args.models_path, net), "2019_01"))
+                    (net, os.path.join(args.models_path, net), uniprot_version))
                 if not os.path.exists(os.path.join(args.models_path, net)):
                     os.makedirs(os.path.join(args.models_path, net), 0o775)
 
@@ -523,13 +532,15 @@ def main(args):
                     "Networks job produced some errors. The preprocess script can't continue")
                 sys.exit(1)
 
-        # os.path.dirname(os.path.abspath(__file__))[-6:]
-        dataset_code = 'B4.001'
-        dataset = Dataset.get(dataset_code)
+        dataset = Dataset.get('B4.001')
+
         map_files = {}
 
+        # Data sources associated to this dataset are stored in map_files
+        # Keys are the datasources names and values the file paths.
+        # If no datasources are necessary, the list is just empty.
         for ds in dataset.datasources:
-            map_files[ds.name] = ds.data_path
+            map_files[ds.datasource_name] = ds.data_path
 
         bindingdb_file = os.path.join(
             map_files["bindingdb"], "BindingDB_All.tsv")
@@ -571,14 +582,17 @@ def main(args):
                     else:
                         ACTS[(items[0], items[1])] = int(items[2])
 
+    dataset = Dataset.get(dataset_code)
+
     if args.entry_point == entry_point_full:
 
-        # os.path.dirname(os.path.abspath(__file__))[-6:]
-        dataset_code = 'C5.001'
-        dataset = Dataset.get(dataset_code)
         map_files = {}
+
+        # Data sources associated to this dataset are stored in map_files
+        # Keys are the datasources names and values the file paths.
+        # If no datasources are necessary, the list is just empty.
         for ds in dataset.datasources:
-            map_files[ds.name] = ds.data_path
+            map_files[ds.datasource_name] = ds.data_path
 
         main._log.debug(
             "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
@@ -626,33 +640,8 @@ def main(args):
 
     main._log.info("Saving raws")
 
-    keys = []
-    words = set()
-    for k in sorted(inchikey_raw.keys()):
-
-        keys.append(str(k))
-        words.update([x[0] for x in inchikey_raw[k]])
-
-    if features is not None:
-        orderwords = features_list
-    else:
-        orderwords = list(words)
-        orderwords.sort()
-    raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
-    wordspos = {k: v for v, k in enumerate(orderwords)}
-
-    for i, k in enumerate(keys):
-        for word in inchikey_raw[k]:
-            raws[i][wordspos[word[0]]] += word[1]
-
-    with h5py.File(args.output_file, "w") as hf:
-        hf.create_dataset("keys", data=np.array(keys))
-        hf.create_dataset("V", data=raws)
-        hf.create_dataset("features", data=np.array(orderwords))
-
-    if args.method == "fit":
-        with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
-            hf.create_dataset("features", data=np.array(orderwords))
+    save_output(args.output_file, inchikey_raw, args.method,
+                args.models_path, dataset.discrete, features)
 
 if __name__ == '__main__':
     main(sys.argv[1:])

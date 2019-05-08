@@ -7,13 +7,13 @@ import numpy as np
 import csv
 import pickle
 import shutil
-
+import logging
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
-from chemicalchecker.util import gaussian_scale_impute
+from chemicalchecker.util.performance import gaussian_scale_impute
 # Variables
-
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 entry_point_full = "profile"
 features_file = "features.h5"
 cell_headers_file = "cell_names.pcl"
@@ -84,19 +84,20 @@ def parse_nci60(sigs, models_path=None, up=None, dw=None):
 # Parse arguments
 
 
-@logged
+@logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
     args = get_parser().parse_args(args)
-
-    dataset_code = 'D2.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
     dataset = Dataset.get(dataset_code)
 
     map_files = {}
 
+    # Data sources associated to this dataset are stored in map_files
+    # Keys are the datasources names and values the file paths.
+    # If no datasources are necessary, the list is just empty.
     for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path
 
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)

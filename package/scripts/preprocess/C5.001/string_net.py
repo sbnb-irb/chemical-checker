@@ -3,7 +3,7 @@ import collections
 import itertools as itt
 
 from chemicalchecker.util import logged
-from chemicalchecker.util import HotnetNetwork
+from chemicalchecker.util.network import HotnetNetwork
 from chemicalchecker.util import psql
 from chemicalchecker.database import Dataset
 
@@ -120,10 +120,10 @@ class string_net():
         dataset = Dataset.get(dataset_code)
         map_files = {}
         for ds in dataset.datasources:
-            map_files[ds.name] = ds.data_path
+            map_files[ds.datasource_name] = ds.data_path
 
         string_file = os.path.join(
-            map_files["string"], "9606.protein.links.v11.0.txt")
+            map_files["string"], "9606.protein.links.txt")
         map_file = os.path.join(
             map_files["uniprot_HUMAN_9606"], "HUMAN_9606_idmapping_selected.tab")
 

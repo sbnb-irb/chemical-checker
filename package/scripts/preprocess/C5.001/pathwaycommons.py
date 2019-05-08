@@ -4,7 +4,7 @@ import collections
 from subprocess import call
 
 from chemicalchecker.util import logged
-from chemicalchecker.util import HotnetNetwork
+from chemicalchecker.util.network import HotnetNetwork
 from chemicalchecker.util import psql
 from chemicalchecker.database import Dataset
 
@@ -120,7 +120,7 @@ class pathwaycommons():
         dataset = Dataset.get(dataset_code)
         map_files = {}
         for ds in dataset.datasources:
-            map_files[ds.name] = ds.data_path
+            map_files[ds.datasource_name] = ds.data_path
 
         DATA = os.path.join(
             map_files["pathwaycommons_hgnc"], "PathwayCommons9.All.hgnc.txt")

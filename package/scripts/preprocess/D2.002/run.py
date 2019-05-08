@@ -10,7 +10,7 @@ import os
 import collections
 import h5py
 import csv
-
+import logging
 from chemicalchecker.util import logged, get_parser, save_output, features_file
 from chemicalchecker.database import Dataset, Molrepo
 
@@ -19,15 +19,16 @@ from chemicalchecker.util import psql
 # Variables
 
 db_name = "pharmacodb"
-
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 min_pvalue = 0.01
-top_genes  = 250
+top_genes = 250
 
 # Entry points
 
 entry_point_full = "genesets"
 
 # Functions
+
 
 def fetch_drug_gene_correlations():
     cmd = '''
@@ -40,6 +41,7 @@ def fetch_drug_gene_correlations():
     R = psql.qstring(cmd, db_name)
     return R
 
+
 def parse_molrepo():
     pharmacodb_inchikey = {}
     molrepos = Molrepo.get_by_molrepo_name("pharmacodb")
@@ -51,12 +53,11 @@ def parse_molrepo():
 
 # Main
 
-@logged
+
+@logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
     args = get_parser().parse_args(args)
-
-    dataset_code = 'D2.002'
 
     dataset = Dataset.get(dataset_code)
 
@@ -81,10 +82,12 @@ def main(args):
             else:
                 direction = "1"
             feat = "%s(%s)" % (r[1], direction)
-            if src_id not in pharmacodb_inchikey: continue
+            if src_id not in pharmacodb_inchikey:
+                continue
             key_raw[pharmacodb_inchikey[src_id]].update([(feat, r[3])])
-        
-        key_raw = dict((k, [y[0] for y in sorted(v, key = lambda x: x[1])[:top_genes]]) for k,v in key_raw.iteritems())
+
+        key_raw = dict((k, [y[0] for y in sorted(v, key=lambda x: x[1])[
+                       :top_genes]]) for k, v in key_raw.iteritems())
         features = sorted(set([x for v in key_raw.itervalues() for x in v]))
 
     if args.method == "predict":
@@ -97,21 +100,21 @@ def main(args):
 
         if args.entry_point is None:
             args.entry_point = entry_point_full
-        
+
         key_raw = collections.defaultdict(set)
         with open(args.input_file, "r") as f:
-            for r in csv.reader(f, delimiter = "\t"):
+            for r in csv.reader(f, delimiter="\t"):
                 if not r[1]:
                     key = r[0]
-                else:      
+                else:
                     key = r[1]
                 up = r[2].split(",")
                 dw = r[3].split(",")
                 feats = ["%s(1)" % x for x in up] + ["%s(-1)" % x for x in dw]
                 feats = [x for x in feats if x in features_set]
                 key_raw[key].update(feats)
-        key_raw = dict((k, list(v)) for k,v in key_raw.iteritems())
-        
+        key_raw = dict((k, list(v)) for k, v in key_raw.iteritems())
+
     main._log.info("Saving raw data")
 
     save_output(args.output_file, key_raw, args.method,

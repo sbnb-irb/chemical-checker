@@ -7,7 +7,7 @@ import h5py
 import numpy as np
 import pickle
 import xml.etree.ElementTree as ET
-
+import logging
 
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
@@ -16,7 +16,7 @@ from chemicalchecker.database import Molrepo
 
 
 # Variables
-
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 chembl_dbname = 'chembl'
 graph_file = "graph.gpickle"
 features_file = "features.h5"
@@ -223,19 +223,17 @@ def put_hierarchy(ACTS, class_prot, G):
     return classACTS
 
 
-@logged
+@logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
     args = get_parser().parse_args(args)
-
-    dataset_code = 'B2.001'  # os.path.dirname(os.path.abspath(__file__))[-6:]
 
     dataset = Dataset.get(dataset_code)
 
     map_files = {}
 
     for ds in dataset.datasources:
-        map_files[ds.name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path
 
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
