@@ -49,6 +49,7 @@ class Dataset(Base):
     features = Column(VARCHAR(3))
     exemplary = Column(Boolean)
     public = Column(Boolean)
+    essential = Column(Boolean)
 
     datasources = relationship("Datasource",
                                secondary="dataset_has_datasource",

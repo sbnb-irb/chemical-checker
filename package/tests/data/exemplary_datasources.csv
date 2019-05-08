@@ -1,53 +1,53 @@
-datasource_name,description,updatable,is_db,url,username,password,filename,calcdata
-chembl_uniprot_mapping,Mapping between ChEMBL target IDs and Uniprot ACs.,True,False,ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_uniprot_mapping.txt,,,chembl_uniprot_mapping.txt,False
-kegg_br,,True,False,http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=,,,br08303.keg,False
-bindingdb,,True,False,file:///aloy/scratch/sbnb-adm/checker/local_downloads/BindingDB_All.tsv.zip,,,BindingDB_All.tsv,False
-chebi_lite,,True,False,ftp://ftp.ebi.ac.uk/pub/databases/chebi/SDF/ChEBI_lite_3star.sdf.gz,,,ChEBI_lite_3star.sdf,False
-chembl,,True,True,ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*_postgresql.tar.gz,,,chembl_*/chembl_*_postgresql/chembl_*_postgresql.dmp,False
-CTD_chemicals_diseases,,True,False,http://ctdbase.org/reports/CTD_chemicals_diseases.tsv.gz,,,CTD_chemicals_diseases.tsv,False
-drugbank,,True,False,https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database,oriol.guitart@irbbarcelona.org,sbnbAloy,full database.xml,False
-GSE70138_Broad_LINCS_pert_info_date,,True,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_pert_info_*.txt.gz,,,GSE70138_Broad_LINCS_pert_info_*.txt,False
-GSE92742_Broad_LINCS_pert_info,,True,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_pert_info.txt.gz,,,GSE92742_Broad_LINCS_pert_info.txt,False
-morphlincs_LDS-1195,,True,False,http://lincsportal.ccs.miami.edu/dcic/api/download?path=LINCS_Data/Broad_Therapeutics&file=LDS-1195.tar.gz,,,LDS-1195/Metadata/Small_Molecule_Metadata.txt,False
-mosaic_all_collections,,True,False,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/compound_information/sdf/Structural_Data_Files_combined.zip,,,All_Collections.sdf,False
-DTP_NCI60_ZSCORE,,True,False,https://discover.nci.nih.gov/cellminerdata/normalizedArchives/DTP_NCI60_ZSCORE.zip,,,output/DTP_NCI60_ZSCORE.xls,False
-pdb_components,,True,False,http://ligand-expo.rcsb.org/dictionaries/Components-smiles-stereo-oe.smi,,,Components-smiles-stereo-oe.smi,False
-chemicals,,True,False,http://stitch4.embl.de/download/chemicals.v4.0.tsv.gz,,,chemicals.v4.0.tsv,False
-meddra_all_se,,True,False,http://sideeffects.embl.de/media/download/meddra_all_se.tsv.gz,,,meddra_all_se.tsv,False
-smpdb_structures,,True,False,http://smpdb.ca/downloads/smpdb_structures.zip,,,,False
-cellosaurus,,True,False,ftp://ftp.expasy.org/databases/cellosaurus/cellosaurus.obo,,,,False
-chebi,,True,False,ftp://ftp.ebi.ac.uk/pub/databases/chebi/ontology/chebi.obo,,,,False
-gobasic,,True,False,http://snapshot.geneontology.org/ontology/go-basic.obo,,,,False
-GSE70138_Broad_LINCS_gene_info,,True,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_gene_info*.txt.gz,,,,False
-GSE70138_Broad_LINCS_inst_info,,True,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_inst_info*.txt.gz,,,,False
-GSE70138_Broad_LINCS_Level5_COMPZ,,True,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_Level5_COMPZ_n118050x12328*.gctx.gz,,,,False
-GSE70138_Broad_LINCS_pert_info,,True,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_pert_info.txt.gz,,,,False
-GSE70138_Broad_LINCS_sig_info,,True,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_sig_info*.txt.gz,,,,False
-GSE70138_Broad_LINCS_sig_metrics,,True,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_sig_metrics*.txt.gz,,,,False
-GSE92742_Broad_LINCS_gene_info,,True,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_gene_info.txt.gz,,,,False
-GSE92742_Broad_LINCS_Level5_COMPZ,,True,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_Level5_COMPZ.MODZ_n473647x12328.gctx.gz,,,,False
-GSE92742_Broad_LINCS_pert_metrics,,True,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_pert_metrics.txt.gz,,,,False
-GSE92742_Broad_LINCS_sig_info,,True,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_sig_info.txt.gz,,,,False
-GSE92742_Broad_LINCS_sig_metrics,,True,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_sig_metrics.txt.gz,,,,False
-hgnc_complete,,True,False,ftp://ftp.ebi.ac.uk/pub/databases/genenames/new/tsv/hgnc_complete_set.txt,,,,False
-disease_mappings,,True,False,http://www.disgenet.org/static/disgenet_ap1/files/downloads/disease_mappings.tsv.gz,,,,False
-deepcodex_download,DeepCodex uses a deep-learned embedding of gene expression profiles to find chemical and genetic perturbations with similar biological effects.,True,False,file:///aloy/web_checker/repo_data/deepcodex/download.zip,,,,False
-chembl_drugtargets,,True,False,https://www.ebi.ac.uk/chembl/download_helper/drugstore_txt,,,,False
-chembl_indications,,True,False,https://www.ebi.ac.uk/chembl/download_helper/indications_txt,,,,False
-CTD_chemicals,,True,False,http://ctdbase.org/reports/CTD_chemicals.tsv.gz,,,,False
-CTD_diseases,,True,False,http://ctdbase.org/reports/CTD_diseases.tsv.gz,,,,False
-ecod,,True,False,http://prodata.swmed.edu/ecod/distributions/ecod.latest.domains.txt,,,,False
-goa_human,,True,False,ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz,,,,False
-inBio_Map_core,,True,False,file:///aloy/scratch/sbnb-adm/checker/local_downloads/inBio_Map_core_2016_09_12.tar.gz,,,,False
-metaphors_9606,,True,False,ftp://phylomedb.org/metaphors/latest/orthologs/9606.txt.gz,,,,False
-metaphors_id_conversion,,True,False,ftp://phylomedb.org/metaphors/latest/id_conversion.txt.gz,,,,False
-mosaic,,True,False,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/tables/combined/combined_gene-target-predictions.zip,,,,False
-mosaic_all_conditions,,True,False,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/matrices_and_cdts/matrices/All_conditions.txt,,,,False
-pathwaycommons_hgnc,,True,False,http://www.pathwaycommons.org/archives/PC2/v9/PathwayCommons9.All.hgnc.txt.gz,,,,False
-repodb,,True,False,file:///aloy/scratch/sbnb-adm/checker/local_downloads/repodb.csv,,,,False
-uniprot_HUMAN_9606,,True,False,ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/idmapping/by_organism/HUMAN_9606_idmapping_selected.tab.gz,,,,False
-uniprot2reatome,,True,False,https://reactome.org/download/current/UniProt2Reactome_All_Levels.txt,,,,False
-human_proteome,,True,False,https://www.uniprot.org/uniprot/?query=proteome:UP000005640&format=tab,,,human_proteome.tab,False
-molpathways,Molpathways ,True,False,http://www.pathwaycommons.org/archives/PC2/v11/PathwayCommons11.All.hgnc.sif,,,PathwayCommons11.All.hgnc.sif,False
-string,String network ,True,False,https://stringdb-static.org/download/protein.links.v11.0/9606.protein.links.v11.0.txt.gz,,,9606.protein.links.txt,False
-chembl_target_predictions,Target prediction multitask naive bayes models trained by ChEMBL team.,True,False,ftp://ftp.ebi.ac.uk/pub/databases/chembl/target_predictions/chembl_23_models.tar.gz,,,,False
+datasource_name,description,is_db,url,username,password,filename,calcdata
+chembl_uniprot_mapping,Mapping between ChEMBL target IDs and Uniprot ACs.,False,ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_uniprot_mapping.txt,,,chembl_uniprot_mapping.txt,False
+kegg_br,,False,http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=,,,br08303.keg,False
+bindingdb,,False,file:///aloy/scratch/sbnb-adm/checker/local_downloads/BindingDB_All.tsv.zip,,,BindingDB_All.tsv,False
+chebi_lite,,False,ftp://ftp.ebi.ac.uk/pub/databases/chebi/SDF/ChEBI_lite_3star.sdf.gz,,,ChEBI_lite_3star.sdf,False
+chembl,,True,ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*_postgresql.tar.gz,,,chembl_*/chembl_*_postgresql/chembl_*_postgresql.dmp,False
+CTD_chemicals_diseases,,False,http://ctdbase.org/reports/CTD_chemicals_diseases.tsv.gz,,,CTD_chemicals_diseases.tsv,False
+drugbank,,False,https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database,oriol.guitart@irbbarcelona.org,sbnbAloy,full database.xml,False
+GSE70138_Broad_LINCS_pert_info_date,,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_pert_info_*.txt.gz,,,GSE70138_Broad_LINCS_pert_info_*.txt,False
+GSE92742_Broad_LINCS_pert_info,,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_pert_info.txt.gz,,,GSE92742_Broad_LINCS_pert_info.txt,False
+morphlincs_LDS-1195,,False,http://lincsportal.ccs.miami.edu/dcic/api/download?path=LINCS_Data/Broad_Therapeutics&file=LDS-1195.tar.gz,,,LDS-1195/Metadata/Small_Molecule_Metadata.txt,False
+mosaic_all_collections,,False,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/compound_information/sdf/Structural_Data_Files_combined.zip,,,All_Collections.sdf,False
+DTP_NCI60_ZSCORE,,False,https://discover.nci.nih.gov/cellminerdata/normalizedArchives/DTP_NCI60_ZSCORE.zip,,,output/DTP_NCI60_ZSCORE.xls,False
+pdb_components,,False,http://ligand-expo.rcsb.org/dictionaries/Components-smiles-stereo-oe.smi,,,Components-smiles-stereo-oe.smi,False
+chemicals,,False,http://stitch4.embl.de/download/chemicals.v4.0.tsv.gz,,,chemicals.v4.0.tsv,False
+meddra_all_se,,False,http://sideeffects.embl.de/media/download/meddra_all_se.tsv.gz,,,meddra_all_se.tsv,False
+smpdb_structures,,False,http://smpdb.ca/downloads/smpdb_structures.zip,,,,False
+cellosaurus,,False,ftp://ftp.expasy.org/databases/cellosaurus/cellosaurus.obo,,,,False
+chebi,,False,ftp://ftp.ebi.ac.uk/pub/databases/chebi/ontology/chebi.obo,,,,False
+gobasic,,False,http://snapshot.geneontology.org/ontology/go-basic.obo,,,,False
+GSE70138_Broad_LINCS_gene_info,,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_gene_info*.txt.gz,,,,False
+GSE70138_Broad_LINCS_inst_info,,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_inst_info*.txt.gz,,,,False
+GSE70138_Broad_LINCS_Level5_COMPZ,,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_Level5_COMPZ_n118050x12328*.gctx.gz,,,,False
+GSE70138_Broad_LINCS_pert_info,,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_pert_info.txt.gz,,,,False
+GSE70138_Broad_LINCS_sig_info,,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_sig_info*.txt.gz,,,,False
+GSE70138_Broad_LINCS_sig_metrics,,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_sig_metrics*.txt.gz,,,,False
+GSE92742_Broad_LINCS_gene_info,,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_gene_info.txt.gz,,,,False
+GSE92742_Broad_LINCS_Level5_COMPZ,,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_Level5_COMPZ.MODZ_n473647x12328.gctx.gz,,,,False
+GSE92742_Broad_LINCS_pert_metrics,,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_pert_metrics.txt.gz,,,,False
+GSE92742_Broad_LINCS_sig_info,,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_sig_info.txt.gz,,,,False
+GSE92742_Broad_LINCS_sig_metrics,,False,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_sig_metrics.txt.gz,,,,False
+hgnc_complete,,False,ftp://ftp.ebi.ac.uk/pub/databases/genenames/new/tsv/hgnc_complete_set.txt,,,,False
+disease_mappings,,False,http://www.disgenet.org/static/disgenet_ap1/files/downloads/disease_mappings.tsv.gz,,,,False
+deepcodex_download,DeepCodex uses a deep-learned embedding of gene expression profiles to find chemical and genetic perturbations with similar biological effects.,False,file:///aloy/web_checker/repo_data/deepcodex/download.zip,,,,False
+chembl_drugtargets,,False,https://www.ebi.ac.uk/chembl/download_helper/drugstore_txt,,,,False
+chembl_indications,,False,https://www.ebi.ac.uk/chembl/download_helper/indications_txt,,,,False
+CTD_chemicals,,False,http://ctdbase.org/reports/CTD_chemicals.tsv.gz,,,,False
+CTD_diseases,,False,http://ctdbase.org/reports/CTD_diseases.tsv.gz,,,,False
+ecod,,False,http://prodata.swmed.edu/ecod/distributions/ecod.latest.domains.txt,,,,False
+goa_human,,False,ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz,,,,False
+inBio_Map_core,,False,file:///aloy/scratch/sbnb-adm/checker/local_downloads/inBio_Map_core_2016_09_12.tar.gz,,,,False
+metaphors_9606,,False,ftp://phylomedb.org/metaphors/latest/orthologs/9606.txt.gz,,,,False
+metaphors_id_conversion,,False,ftp://phylomedb.org/metaphors/latest/id_conversion.txt.gz,,,,False
+mosaic,,False,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/tables/combined/combined_gene-target-predictions.zip,,,,False
+mosaic_all_conditions,,False,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/matrices_and_cdts/matrices/All_conditions.txt,,,,False
+pathwaycommons_hgnc,,False,http://www.pathwaycommons.org/archives/PC2/v9/PathwayCommons9.All.hgnc.txt.gz,,,,False
+repodb,,False,file:///aloy/scratch/sbnb-adm/checker/local_downloads/repodb.csv,,,,False
+uniprot_HUMAN_9606,,False,ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/idmapping/by_organism/HUMAN_9606_idmapping_selected.tab.gz,,,,False
+uniprot2reatome,,False,https://reactome.org/download/current/UniProt2Reactome_All_Levels.txt,,,,False
+human_proteome,,False,https://www.uniprot.org/uniprot/?query=proteome:UP000005640&format=tab,,,human_proteome.tab,False
+molpathways,Molpathways ,False,http://www.pathwaycommons.org/archives/PC2/v11/PathwayCommons11.All.hgnc.sif,,,PathwayCommons11.All.hgnc.sif,False
+string,String network ,False,https://stringdb-static.org/download/protein.links.v11.0/9606.protein.links.v11.0.txt.gz,,,9606.protein.links.txt,False
+chembl_target_predictions,Target prediction multitask naive bayes models trained by ChEMBL team.,False,ftp://ftp.ebi.ac.uk/pub/databases/chembl/target_predictions/chembl_23_models.tar.gz,,,,False
