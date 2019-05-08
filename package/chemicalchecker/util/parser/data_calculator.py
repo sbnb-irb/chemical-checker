@@ -384,8 +384,8 @@ class DataCalculator():
         from chemicalchecker.tool import Pidgin
         import numpy as np
         import json
-        #pdg = Pidgin()
-        pdg = Pidgin(ortho = False, organism = ["Homo sapiens"], bioactivity = [10, 1], targetclass = "Lipase", ncores = 1)        
+        pdg = Pidgin()
+        #pdg = Pidgin(ortho = False, organism = ["Homo sapiens"], bioactivity = [10, 1], targetclass = "Lipase", ncores = 1)        
         # Start iterating
         chunk = list()
         keys = inchikey_inchi.keys()
