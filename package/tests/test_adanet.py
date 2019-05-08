@@ -56,14 +56,13 @@ class TestAdanet(unittest.TestCase):
         self.assertAlmostEqual(res['precision'], 0.9770343)
         self.assertAlmostEqual(res['recall'], 0.986014)
         # check persistency and predict
-        predit_fn = AdaNet.predict_fn(ada.save_dir)
-        y_pred, y_true = AdaNet.predict_online(
-            ada.save_dir, file_path, 'test', predict_fn=predit_fn)
+        predict_fn = AdaNet.predict_fn(ada.save_dir)
+        y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn)
         self.assertEqual(y_pred.shape, (10000, ada.label_dimension))
         self.assertEqual(y_true.shape, (10000, ada.label_dimension))
-        y_pred, y_true = AdaNet.predict_online(
-            ada.save_dir, file_path, 'test', predict_fn=predit_fn,
-            probs=True, n_classes=ada.n_classes)
+        y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn,
+                                               probs=True,
+                                               n_classes=ada.n_classes)
         self.assertEqual(y_pred.shape, (10000, ada.n_classes))
         self.assertEqual(y_true.shape, (10000, ada.label_dimension))
 
@@ -91,14 +90,13 @@ class TestAdanet(unittest.TestCase):
         self.assertAlmostEqual(res['accuracy'], 0.965)
         self.assertAlmostEqual(res['loss'], 0.1333767)
         # check persistency
-        predit_fn = AdaNet.predict_fn(ada.save_dir)
-        y_pred, y_true = AdaNet.predict_online(
-            ada.save_dir, file_path, 'test', predict_fn=predit_fn)
+        predict_fn = AdaNet.predict_fn(ada.save_dir)
+        y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn)
         self.assertEqual(y_pred.shape, (10000, ada.label_dimension))
         self.assertEqual(y_true.shape, (10000, ada.label_dimension))
-        y_pred, y_true = AdaNet.predict_online(
-            ada.save_dir, file_path, 'test', predict_fn=predit_fn,
-            probs=True, n_classes=ada.n_classes)
+        y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn,
+                                               probs=True,
+                                               n_classes=ada.n_classes)
         self.assertEqual(y_pred.shape, (10000, ada.n_classes))
         self.assertEqual(y_true.shape, (10000, ada.label_dimension))
 
@@ -124,9 +122,8 @@ class TestAdanet(unittest.TestCase):
         _, (res, _) = ada.train_and_evaluate()
         self.assertAlmostEqual(res['loss'], 4.4554377)
         # check persistency and predict
-        predit_fn = AdaNet.predict_fn(ada.save_dir)
-        y_pred, y_true = AdaNet.predict_online(
-            ada.save_dir, file_path, 'test', predict_fn=predit_fn)
+        predict_fn = AdaNet.predict_fn(ada.save_dir)
+        y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn)
         self.assertEqual(y_pred.shape, (10000, ada.label_dimension))
         self.assertEqual(y_true.shape, (10000, ada.label_dimension))
 
@@ -152,8 +149,7 @@ class TestAdanet(unittest.TestCase):
         _, (res, _) = ada.train_and_evaluate()
         self.assertAlmostEqual(res['loss'], 230.59375)
         # check persistency and predict
-        predit_fn = AdaNet.predict_fn(ada.save_dir)
-        y_pred, y_true = AdaNet.predict_online(
-            ada.save_dir, file_path, 'test', predict_fn=predit_fn)
+        predict_fn = AdaNet.predict_fn(ada.save_dir)
+        y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn)
         self.assertEqual(y_pred.shape, (10000, ada.label_dimension))
         self.assertEqual(y_true.shape, (10000, ada.label_dimension))
