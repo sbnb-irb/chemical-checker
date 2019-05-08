@@ -22,7 +22,6 @@ class Datasource(Base):
     Parameters:
         name(str): primary key, simple unique name for the Datasource.
         url(str): the download link.
-        updatable(bool): whether the download is updatable .
         user(str): few downloads require credentials.
         password(str): few downloads require credentials.
         description(str): free text description of the resource.
@@ -35,7 +34,6 @@ class Datasource(Base):
     __tablename__ = 'datasource'
     datasource_name = Column(Text, primary_key=True)
     description = Column(Text)
-    updatable = Column(Boolean)
     is_db = Column(Boolean)
     url = Column(Text)
     username = Column(Text)
@@ -45,6 +43,10 @@ class Datasource(Base):
 
     datasets = relationship("Dataset",
                             secondary="dataset_has_datasource",
+                            lazy='joined')
+
+    molrepos = relationship("Molrepo",
+                            secondary="molrepo_has_datasource",
                             lazy='joined')
 
     def __repr__(self):
@@ -110,15 +112,14 @@ class Datasource(Base):
                     "Error in line %s: %s", row_nr, str(err))
 
     @staticmethod
-    def get(name=None, updatable=None):
+    def get(name=None):
         """Get Datasources associated to the given dataset.
 
         Args:
             name(str):The Datasource name, e.g "chebi"
         """
         params = {}
-        if updatable is not None:
-            params["updatable"] = updatable
+
         if name is not None:
             params["datasource_name"] = name
 
@@ -141,14 +142,24 @@ class Datasource(Base):
         return all([ds.valid_url for ds in testable_ds])
 
     @staticmethod
-    def test_all_downloaded(only_updatable=False):
+    def test_all_downloaded(only_essential=False):
         """Check if all Datasources have been downloaded.
 
         Args:
-            only_updatable(bool):Test for only the updatable datasources(default: False).
+            only_essential(bool): Check only datasources that are essential
         """
-        if only_updatable:
-            return all([ds.available for ds in Datasource.get(updatable=True)])
+        if only_essential:
+            datasources = set()
+            for ds in Datasource.get():
+                for dset in ds.datasets:
+                    if dset.essential:
+                        datasources.add(ds)
+                        break
+                for molrepo in ds.molrepos:
+                    if molrepo.essential:
+                        datasources.add(ds)
+                        break
+            return all([ds.available for ds in datasources])
         else:
             return all([ds.available for ds in Datasource.get()])
 
@@ -205,13 +216,13 @@ class Datasource(Base):
         down.download()
 
     @staticmethod
-    def download_hpc(job_path, only_updatable=False):
+    def download_hpc(job_path, only_essential=False):
         """Run HPC jobs downloading the resources.
 
         Args:
             job_path(str): Path (usually in scratch) where the script files are
                 generated.
-            only_updatable(bool):Download only the updatable datasources(default: False).
+            only_essential(bool):Download only the essential datasources(default: False).
         """
         import chemicalchecker
         # create job directory if not available
@@ -240,12 +251,17 @@ class Datasource(Base):
             for line in script_lines:
                 fh.write(line + '\n')
         # hpc parameters
-        if only_updatable:
-            all_datasources = []
-            datasources = Datasource.get(updatable=True)
-            for ds in datasources:
-                if ds.updatable:
-                    all_datasources.append(ds)
+        if only_essential:
+            all_datasources = set()
+            for ds in Datasource.get():
+                for dset in ds.datasets:
+                    if dset.essential:
+                        all_datasources.add(ds)
+                        break
+                for molrepo in ds.molrepos:
+                    if molrepo.essential:
+                        all_datasources.add(ds)
+                        break
         else:
             all_datasources = Datasource.get()
 
