@@ -50,6 +50,21 @@ def skip_on_exception(function):
     return wrapper
 
 
+def coord_color(coordinate):
+    def _rgb2hex(r, g, b):
+        return '#%02x%02x%02x' % (r, g, b)
+    if coordinate[0] == 'A':
+        return _rgb2hex(250, 100, 80)
+    if coordinate[0] == 'B':
+        return _rgb2hex(200, 100, 225)
+    if coordinate[0] == 'C':
+        return _rgb2hex(80, 120, 220)
+    if coordinate[0] == 'D':
+        return _rgb2hex(120, 180, 60)
+    if coordinate[0] == 'E':
+        return _rgb2hex(250, 150, 50)
+
+
 @logged
 class Plot():
     """Produce different kind of plots."""
@@ -957,5 +972,64 @@ class Plot():
         else:
             qual = "_".join([self.dataset_code, metric])
         filename = os.path.join(self.plot_path, "sign3_%s.png" % qual)
+        plt.savefig(filename, dpi=100)
+        plt.close()
+
+    def sign3_confidences(self, sign3):
+
+        confidence_file = os.path.join(sign3.model_path, 'conf.h5')
+        with h5py.File(confidence_file, "r") as confidence_model:
+            stddev_dist = confidence_model['stddev_dist'][:]
+            intensity_dist = confidence_model['intensity_dist'][:]
+
+        sns.set_style("whitegrid")
+        fig, axes = plt.subplots(3, 2, sharey=False, sharex=False,
+                                 figsize=(10, 15), dpi=100)
+        axes = axes.flatten()
+        color = coord_color(self.dataset_code)
+        idx = 0
+
+        sns.distplot(stddev_dist,
+                     ax=axes[idx], kde=False, norm_hist=True, color='grey')
+        sns.distplot(sign3.get_h5_dataset('stddev'),
+                     ax=axes[idx], kde=False, norm_hist=True, color=color)
+        axes[idx].set_xlabel('stddev')
+        axes[idx].set_xlim(0, 0.15)
+        idx += 1
+
+        sns.distplot(sign3.get_h5_dataset('stddev_norm'),
+                     ax=axes[idx], kde=False, norm_hist=False, color=color)
+        axes[idx].set_xlabel('stddev_norm')
+        idx += 1
+
+        sns.distplot(intensity_dist,
+                     ax=axes[idx], kde=False, norm_hist=True, color='grey')
+        sns.distplot(sign3.get_h5_dataset('intensity'),
+                     ax=axes[idx], kde=False, norm_hist=True, color=color)
+        axes[idx].set_xlabel('intensity')
+        #axes[idx].set_xlim(0, 0.5)
+        idx += 1
+
+        sns.distplot(sign3.get_h5_dataset('intensity_norm'),
+                     ax=axes[idx], kde=False, norm_hist=False, color=color)
+        axes[idx].set_xlabel('intensity_norm')
+        idx += 1
+
+        corr = sign3.get_h5_dataset('pred_correlation')
+        sns.distplot(corr[:, 0], ax=axes[idx], kde=False,
+                     norm_hist=False, color=color)
+        axes[idx].set_xlabel('dataset avg pearson')
+        axes[idx].set_xlim(0, 1)
+        idx += 1
+
+        sns.distplot(sign3.get_h5_dataset('confidence'),
+                     ax=axes[idx], kde=False, norm_hist=False, color=color)
+        axes[idx].set_xlabel('confidence')
+        axes[idx].set_xlim(0, 1)
+        idx += 1
+
+        plt.tight_layout()
+        filename = os.path.join(
+            self.plot_path, "sign3_confidences_%s.png" % self.dataset_code)
         plt.savefig(filename, dpi=100)
         plt.close()
