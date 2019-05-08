@@ -540,7 +540,7 @@ class AdaNetWrapper(object):
                 for idx in range(samples):
                     mask_pred = predict_fn({'x': mask_fn(features[:])})
                     results[:, :, idx] = mask_pred['predictions']
-                return np.std(results, axis=2)
+                return results
             else:
                 return pred['predictions']
         else:
