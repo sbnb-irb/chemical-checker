@@ -70,7 +70,7 @@ def get_Models(pdg):
             validation, metric, perf_threshold = [str(x) for x in pdg.p_filt]
             train_row_idx = val_dict[validation] + metric_dict[metric]
             perf_threshold = float(perf_threshold)
-            get_Models._log.info(' Filtering models for a minimum ' + metric + ' performance of ' \
+            get_Models._log.debug(' Filtering models for a minimum ' + metric + ' performance of ' \
              + str(perf_threshold) + ' during ' + validation + ' validaiton')
         except (KeyError,ValueError):
             get_Models._log.debug(' Input Error [--performance_filter]: Use format ' \
@@ -178,7 +178,7 @@ def importQuerySmiles(pdg, inchikey_inchi):
         for i, inp in enumerate(query):
             percent = int((float(i)/float(len(query)))*10)
             if percent != percent0:
-                importQuerySmiles._log.info('Processing molecules: %d%%' % (percent*10))
+                importQuerySmiles._log.debug('Processing molecules: %d%%' % (percent*10))
             percent0 = percent
             result = arrayFP(inp)
             if result[0]:
@@ -192,7 +192,7 @@ def importQuerySmiles(pdg, inchikey_inchi):
         for i, result in enumerate(jobs):
             percent = int((float(i)/float(len(query)))*10)
             if percent != percent0:
-                importQuerySmiles._log.info('Processing molecules: %d%%' % (percent*10))
+                importQuerySmiles._log.debug('Processing molecules: %d%%' % (percent*10))
             percent0 = percent
             if result[0]:
                 matrix.append(result[0])
@@ -200,7 +200,7 @@ def importQuerySmiles(pdg, inchikey_inchi):
                 processed_id.append(result[2])
         pool.close()
         pool.join()
-    importQuerySmiles._log.info('Processing molecules: 100%')
+    importQuerySmiles._log.debug('Processing molecules: 100%')
     matrix = np.array(matrix)
     return matrix, processed_mol, processed_id
 
@@ -273,7 +273,7 @@ def performPercentileCalculation(pdg, models, rdkit_mols):
             percentile_results += [(model, empty_array)]
         return percentile_results
     # Otherwise, do the percentile calculations
-    performPercentileCalculation._log.info('Starting percentile calculation...')
+    performPercentileCalculation._log.debug('Starting percentile calculation...')
     input_len = len(models)
     percentile_results = np.empty(input_len, dtype=object)
     inputs = [(model, rdkit_mols, pdg.ad, pdg.mod_dir) for model in models]
@@ -282,7 +282,7 @@ def performPercentileCalculation(pdg, models, rdkit_mols):
         for i, inp in enumerate(inputs):
             percent = int((float(i)/float(input_len))*100)
             if percent != percent0:
-                performPercentileCalculation._log.info('Performing percentile calculation: %d%%' % (percent))
+                performPercentileCalculation._log.debug('Performing percentile calculation: %d%%' % (percent))
             percent0 = percent
             result = doPercentileCalculation(inp)
             if result is not None: percentile_results[i] = result
@@ -294,15 +294,15 @@ def performPercentileCalculation(pdg, models, rdkit_mols):
         for i, result in enumerate(jobs):
             percent = int((float(i)/float(input_len))*10)
             if percent != percent0:
-                performPercentileCalculation._log.info('Performing percentile calculation: %d%%' % (percent*10))
+                performPercentileCalculation._log.debug('Performing percentile calculation: %d%%' % (percent*10))
             percent0 = percent
             if result is not None: percentile_results[i] = result
         pool.close()
         pool.join()
-    performPercentileCalculation._log.info('Performing percentile calculation: 100%')
-    performPercentileCalculation._log.info('Percentile calculation completed!')
-    return percentile_results        
-
+    performPercentileCalculation._log.debug('Performing percentile calculation: 100%')
+    performPercentileCalculation._log.debug('Percentile calculation completed!')
+    percentile_results = [(mid, [cresult[0] for cresult in mresult]) for (mid, mresult) in percentile_results]
+    return dict((x[0], x[1]) for x in percentile_results)        
 
 #calculate standard deviation for an input compound
 def getStdDev(clf, querymatrix):
@@ -341,7 +341,7 @@ def doTargetPrediction(inp):
 #prediction runner for prediction or standard deviation calculation
 @logged
 def performTargetPrediction(pdg, models, rdkit_mols, querymatrix):
-    performTargetPrediction._log.info('Starting classification...')
+    performTargetPrediction._log.debug('Starting classification...')
     input_len = len(models)
     prediction_results = []
     inputs = [(model_name, rdkit_mols, pdg.mod_dir, pdg.ad, pdg.std, querymatrix, pdg.ntrees, pdg.known) for model_name in models]
@@ -350,7 +350,7 @@ def performTargetPrediction(pdg, models, rdkit_mols, querymatrix):
         for i, inp in enumerate(inputs):
             percent = int((float(i)/float(input_len))*100)
             if percent != percent0:
-                performTargetPrediction._log.info('Performing classification on query molecules: %d%%' % (percent))
+                performTargetPrediction._log.debug('Performing classification on query molecules: %d%%' % (percent))
             percent0 = percent
             result = doTargetPrediction(inp)
             prediction_results.append(result)
@@ -361,31 +361,24 @@ def performTargetPrediction(pdg, models, rdkit_mols, querymatrix):
         for i, result in enumerate(jobs):
             percent = int((float(i)/float(input_len))*10)
             if percent != percent0:
-                performTargetPrediction._log.info('Performing classification on query molecules: %d%%' % (percent*10))
+                performTargetPrediction._log.debug('Performing classification on query molecules: %d%%' % (percent*10))
             percent0 = percent
             if result is not None: prediction_results.append(result)
         pool.close()
         pool.join()
-    performTargetPrediction._log.info('Performing classification on query molecules: 100%')
-    performTargetPrediction._log.info('Classification completed!')
-    return prediction_results
+    performTargetPrediction._log.debug('Performing classification on query molecules: 100%')
+    performTargetPrediction._log.debug('Classification completed!')
+    return dict((x[0], x[1]) for x in prediction_results)
 
 #write out results
-def assembleResults(results_prediction, results_percentile, query_id, mid_uniprots):
-    pairs = collections.defaultdict(list)
-    for mid, preds in results_prediction:
-        for uniprot_rows in mid_uniprots[mid]:
-            uniprot_ac = uniprot_rows[0]
-            for q, p in zip(query_id, preds):
-                pairs[(q, uniprot_ac, float(uniprot_rows[8]))] += [("pred", round(p,2))]
-    for mid, preds in results_percentile:
-        for uniprot_rows in mid_uniprots[mid]:
-            uniprot_ac = uniprot_rows[0]
-            for q, p in zip(query_id, preds):
-                pairs[(q, uniprot_ac, float(uniprot_rows[8]))] += [("ad", round(p,2))]
+def assembleResults(results_prediction, results_percentile, query_id):
+    mids = set(results_percentile.keys()).intersection(results_prediction.keys())
     results = collections.defaultdict(list)
-    for k,v in pairs.iteritems():
-        results[k[0]] += [dict(x for x in (("prot", k[1]), ("act", k[2]), v[0], v[1]))]
+    for mid in mids:
+        preds = results_prediction[mid]
+        percs = results_percentile[mid]
+        for qy, pd, pc in zip(query_id, preds, percs):
+            results[qy] += [(mid, round(pd,1), int(pc))]
     return results
     
 #nt (Windows) compatibility initializer for the pool
@@ -482,9 +475,8 @@ class Pidgin:
         results_percentile = performPercentileCalculation(self, mid_uniprots.keys(), rdkit_mols)
         results_prediction = performTargetPrediction(self, mid_uniprots.keys(), rdkit_mols, querymatrix)
         #assemble output
-        results_percentile = [(mid, [cresult[0] for cresult in mresult]) for (mid, mresult) in results_percentile]
         self.__log.info("Assembling results")
-        results_ = assembleResults(results_prediction, results_percentile, query_id, mid_uniprots)
+        results_ = assembleResults(results_prediction, results_percentile, query_id)
         results = collections.defaultdict(list)
         for ik in inchikey_inchi.keys():
             if ik not in results_:
