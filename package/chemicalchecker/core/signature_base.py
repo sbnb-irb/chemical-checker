@@ -452,7 +452,7 @@ class BaseSignature(object):
         b, sign_matrix = sign.get_vectors(shared_keys)
         return a, self_matrix, sign_matrix
 
-    def _add_smiles(self):
+    def to_csv(self, filename):
         """Write smiles to h5.
 
         At the moment this is done quering the `Structure` table for inchikey
@@ -473,5 +473,12 @@ class BaseSignature(object):
             raise Exception(
                 "Not same number of smiles converted for given keys!")
         # write to disk
-        with h5py.File(self.data_path, 'a') as hf:
-            hf.create_dataset('smiles', data=smiles)
+        with open(filename, 'w') as fh:
+            header = ['c%s' % c for c in range(128)] + ['smiles']
+            fh.write(','.join(header) + '\n')
+            for chunk in tqdm(self.chunker):
+                V_chunk = self[chunk]
+                smiles_chunk = smiles[chunk]
+                for comps, smiles in zip(V_chunk, smiles_chunk):
+                    fh.write(','.join(comps))
+                    fh.write(',%s\n' % smiles)
