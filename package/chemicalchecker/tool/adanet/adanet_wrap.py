@@ -514,7 +514,7 @@ class AdaNetWrapper(object):
 
     @staticmethod
     def predict(features, predict_fn=None, mask_fn=None, probs=False,
-                samples=10, model_dir=None, center_to_zero=True):
+                samples=10, model_dir=None, zero_centered=True):
         """Load model and return predictions.
 
         Args:
@@ -522,7 +522,7 @@ class AdaNetWrapper(object):
             features(matrix): a numpy matrix of Xs.
             predict_fn(func): the predict function returned by `predict_fn`.
             probs(bool): if this is a classifier return the probabilities.
-            center_to_zero(bool): all 0s as input result in 0s output
+            zero_centered(bool): all 0s as input result in 0s output
                 (regression only).
         """
         if predict_fn is None:
@@ -535,21 +535,22 @@ class AdaNetWrapper(object):
                 return data
         pred = predict_fn({'x': features[:]})
         if 'predictions' in pred:
-            if center_to_zero:
+            if zero_centered:
                 zero_feat = np.zeros((1, features.shape[1]), dtype=np.float32)
                 zero_pred = predict_fn({'x': zero_feat})['predictions']
             if probs:
                 pred_shape = pred['predictions'].shape
+                # axis are 0=molecules, 1=components, 2=samples
                 results = np.ndarray((pred_shape[0], pred_shape[1], samples))
                 for idx in range(samples):
                     mask_pred = predict_fn({'x': mask_fn(features[:])})
                     results[:, :, idx] = mask_pred['predictions']
-                if center_to_zero:
-                    return results - zero_pred
+                if zero_centered:
+                    return results - np.expand_dims(zero_pred, axis=2)
                 else:
                     return results
             else:
-                if center_to_zero:
+                if zero_centered:
                     return pred['predictions'] - zero_pred
                 else:
                     return pred['predictions']
