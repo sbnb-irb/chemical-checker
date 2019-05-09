@@ -514,7 +514,7 @@ class AdaNetWrapper(object):
 
     @staticmethod
     def predict(features, predict_fn=None, mask_fn=None, probs=False,
-                samples=10, model_dir=None):
+                samples=10, model_dir=None, center_to_zero=True):
         """Load model and return predictions.
 
         Args:
@@ -522,6 +522,8 @@ class AdaNetWrapper(object):
             features(matrix): a numpy matrix of Xs.
             predict_fn(func): the predict function returned by `predict_fn`.
             probs(bool): if this is a classifier return the probabilities.
+            center_to_zero(bool): all 0s as input result in 0s output
+                (regression only).
         """
         if predict_fn is None:
             predict_fn = predictor.from_saved_model(
@@ -531,18 +533,26 @@ class AdaNetWrapper(object):
             # TODO if no subsampling is provided we can apply some noise
             def mask_fn(data):
                 return data
-
         pred = predict_fn({'x': features[:]})
         if 'predictions' in pred:
+            if center_to_zero:
+                zero_feat = np.zeros((1, features.shape[1]), dtype=np.float32)
+                zero_pred = predict_fn({'x': zero_feat})['predictions']
             if probs:
                 pred_shape = pred['predictions'].shape
                 results = np.ndarray((pred_shape[0], pred_shape[1], samples))
                 for idx in range(samples):
                     mask_pred = predict_fn({'x': mask_fn(features[:])})
                     results[:, :, idx] = mask_pred['predictions']
-                return results
+                if center_to_zero:
+                    return results - zero_pred
+                else:
+                    return results
             else:
-                return pred['predictions']
+                if center_to_zero:
+                    return pred['predictions'] - zero_pred
+                else:
+                    return pred['predictions']
         else:
             if probs:
                 return pred['probabilities']
