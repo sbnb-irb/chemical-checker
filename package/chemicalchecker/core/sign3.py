@@ -189,12 +189,14 @@ class sign3(BaseSignature):
             inchikeys.update(sign.unique_keys)
             ds_sign[ds] = sign
         inchikeys = sorted(list(inchikeys))
+        tot_inks = len(inchikeys)
+        tot_ds = len(ds_sign)
 
         # build input matrix if not provided
         if not os.path.isfile(sign2_universe):
             with h5py.File(sign2_universe, "w") as fh:
                 fh.create_dataset('x_test',
-                                  (len(inchikeys), 128 * len(ds_sign)),
+                                  (tot_inks, 128 * tot_ds),
                                   dtype=np.float32)
                 for idx, (ds, sign) in enumerate(ds_sign.items()):
                     vectors = sign.get_vectors(inchikeys, include_nan=True)
@@ -209,37 +211,35 @@ class sign3(BaseSignature):
         predict_fn = AdaNet.predict_fn(final_adanet_path)
         with h5py.File(self.data_path, "r+") as results:
             # initialize V and keys datasets
-            safe_create(results, 'V', (len(inchikeys), 128), dtype=np.float32)
-            safe_create(results, 'keys', (len(inchikeys),), dtype='|S27')
+            safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
+            safe_create(results, 'keys', (tot_inks,), dtype='|S27')
             if model_confidence:
                 # the actual confidence value will be stored here
                 safe_create(results, 'confidence',
-                            (len(inchikeys),), dtype=np.float32)
+                            (tot_inks,), dtype=np.float32)
                 # this is to store standard deviations
-                safe_create(results, 'stddev',
-                            (len(inchikeys),), dtype=np.float32)
+                safe_create(results, 'stddev', (tot_inks,), dtype=np.float32)
                 # and the normalized one
                 safe_create(results, 'stddev_norm',
-                            (len(inchikeys),), dtype=np.float32)
+                            (tot_inks,), dtype=np.float32)
                 # this is to store intensity
                 safe_create(results, 'intensity',
-                            (len(inchikeys),), dtype=np.float32)
+                            (tot_inks,), dtype=np.float32)
                 # and the normalized one
                 safe_create(results, 'intensity_norm',
-                            (len(inchikeys),), dtype=np.float32)
+                            (tot_inks,), dtype=np.float32)
                 # consensus prediction
                 safe_create(results, 'consensus',
-                            (len(inchikeys),), dtype=np.float32)
+                            (tot_inks, 128), dtype=np.float32)
             if save_support:
                 # this will e number of available sign2 for given molecules
-                safe_create(results, 'support',
-                            (len(inchikeys),), dtype=np.float32)
+                safe_create(results, 'support', (tot_inks,), dtype=np.float32)
             if save_correlations:
                 # read the correlations obtained evaluating on single spaces
                 df = pd.read_pickle(eval_stats)
                 test_eval = df[(df.split != 'train') & (
                     df.algo == 'AdaNet_final_eval')]
-                avg_pearsons = np.ndarray(len(list(chemchecker.datasets)))
+                avg_pearsons = np.zeros(tot_ds, dtype=np.float32)
                 for idx, ds in enumerate(chemchecker.datasets):
                     ds_df = test_eval[test_eval['from'] == ds]
                     ds_pearson = np.mean(ds_df['pearson'])
@@ -247,16 +247,15 @@ class sign3(BaseSignature):
                         ds_pearson = 0.0
                     avg_pearsons[idx] = ds_pearson
                 # this is to lookup correlations
-                safe_create(results, 'dataset_correlation', data=avg_pearsons,
-                            dtype=np.float32)
+                safe_create(results, 'dataset_correlation', data=avg_pearsons)
                 # Average/tertile/maximum Pearson correlations will be saved
-                safe_create(results, 'pred_correlation', (len(inchikeys), 3),
+                safe_create(results, 'pred_correlation', (tot_inks, 3),
                             dtype=np.float32)
 
             # predict signature 3 for universe molecules
             with h5py.File(sign2_universe, "r") as features:
                 # read input in chunks
-                for idx in tqdm(range(0, len(inchikeys), 1000)):
+                for idx in tqdm(range(0, tot_inks, 1000)):
                     chunk = slice(idx, idx + 1000)
                     feat = features['x_test'][chunk]
                     # predict with final model
@@ -335,7 +334,7 @@ class sign3(BaseSignature):
                         'actual_sign2', data=actual_sign2,
                         dtype=np.float32)
                 # predict confidence in chunks
-                for idx in tqdm(range(0, len(inchikeys), 1000)):
+                for idx in tqdm(range(0, tot_inks, 1000)):
                     chunk = slice(idx, idx + 1000)
                     # how's is the stddev compared to reference distribution?
                     pred_stds = results['stddev'][chunk]
