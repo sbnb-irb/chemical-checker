@@ -209,7 +209,7 @@ class sign3(BaseSignature):
 
         # save universe sign3
         predict_fn = AdaNet.predict_fn(final_adanet_path)
-        with h5py.File(self.data_path, "r+") as results:
+        with h5py.File(self.data_path, "w") as results:
             # initialize V and keys datasets
             safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
             safe_create(results, 'keys', (tot_inks,), dtype='|S27')
