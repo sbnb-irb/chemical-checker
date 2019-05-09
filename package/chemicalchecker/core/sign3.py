@@ -254,6 +254,10 @@ class sign3(BaseSignature):
 
             # predict signature 3 for universe molecules
             with h5py.File(sign2_universe, "r") as features:
+                # reference no information prediction
+                zero_feat = np.zeros(
+                    (1, features['x_test'].shape[1]), dtype=np.float32)
+                zero_pred = predict_fn({'x': zero_feat})['predictions']
                 # read input in chunks
                 for idx in tqdm(range(0, tot_inks, 1000)):
                     chunk = slice(idx, idx + 1000)
@@ -295,8 +299,10 @@ class sign3(BaseSignature):
                             stddevs = np.std(samples, axis=2)
                             # just save the average stddev over the components
                             results['stddev'][chunk] = np.mean(stddevs, axis=1)
+                            # zeros input (no info) as intensity reference
+                            centered = consensus - zero_pred
                             # measure the intensity (absolute sum of comps)
-                            abs_sum = np.sum(np.abs(consensus), axis=1)
+                            abs_sum = np.sum(np.abs(centered), axis=1)
                             results['intensity'][chunk] = abs_sum / 128.
 
             # create the confidence estimator

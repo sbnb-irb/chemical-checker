@@ -514,7 +514,7 @@ class AdaNetWrapper(object):
 
     @staticmethod
     def predict(features, predict_fn=None, mask_fn=None, probs=False,
-                samples=10, model_dir=None, zero_centered=True):
+                samples=10, model_dir=None, zero_centered=False):
         """Load model and return predictions.
 
         Args:
