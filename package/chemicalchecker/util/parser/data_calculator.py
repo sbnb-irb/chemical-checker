@@ -7,12 +7,11 @@ from chemicalchecker.util import logged
 
 @logged
 class DataCalculator():
-    """Container for static parsing methods.
+    """Container for static data calculation methods.
 
-    A parsing function here is iterating on an input file. It has to define
-    on each input line the source id and the smile of  a molecule. Then the
-    smile is converted to inchi and inchikey. The lines are appended as
-    dictionaies and yielded in chunks.
+    A calculating data function here is iterating on a list of inchikey, inchi tuples.
+    The calculated raw data for each tuple is saved in a dictionary along with the inchikey.
+    The dictionary is appended in a list and yielded in chunks.
     """
 
     @staticmethod
