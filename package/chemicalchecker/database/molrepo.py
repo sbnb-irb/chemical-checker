@@ -81,6 +81,8 @@ class Molrepo(Base):
         """
         if type(kwargs) is dict:
             molrepo = Molrepo(**kwargs)
+        else:
+            raise Exception("Input data for add method is not a dictionary")
         Molrepo.__log.debug(molrepo)
         session = get_session()
         session.add(molrepo)
