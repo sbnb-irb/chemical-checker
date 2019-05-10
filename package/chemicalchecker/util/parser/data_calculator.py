@@ -384,8 +384,8 @@ class DataCalculator():
         from chemicalchecker.tool import Pidgin
         import numpy as np
         import json
-        pdg = Pidgin()
-        #pdg = Pidgin(ortho = False, organism = ["Homo sapiens"], bioactivity = [10, 1], targetclass = "Lipase", ncores = 1)        
+        pdg = Pidgin(proba = 0.25, ad = 25) # Saving everything would cause a lot of memory issues in the database. I store (conservatively, the first quartile in terms of prediction (0.25) ane percentile (25%))
+        #pdg = Pidgin(ortho = False, organism = ["Homo sapiens"], bioactivity = [10, 1], targetclass = "Lipase", ncores = 1, proba = 0.25, ad = 25)        
         # Start iterating
         chunk = list()
         keys = inchikey_inchi.keys()
@@ -393,7 +393,7 @@ class DataCalculator():
             _inchikey_inchi = {k: inchikey_inchi[k] for k in i}
             res = pdg.predict(_inchikey_inchi)
             for k, r in res.items():
-                if r:
+                if r is not None:
                     dense = json.dumps(r)
                 else:
                     dense = None

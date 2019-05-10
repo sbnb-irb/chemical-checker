@@ -276,7 +276,7 @@ def performPercentileCalculation(pdg, models, rdkit_mols):
     performPercentileCalculation._log.debug('Starting percentile calculation...')
     input_len = len(models)
     percentile_results = np.empty(input_len, dtype=object)
-    inputs = [(model, rdkit_mols, pdg.ad, pdg.mod_dir) for model in models]
+    inputs = [(model, rdkit_mols, 0, pdg.mod_dir) for model in models] # The 0 accounts for the percentile ad, otherwhise we put pdg.ad
     percent0 = 0
     if pdg.ncores == 1:
         for i, inp in enumerate(inputs):
@@ -344,7 +344,7 @@ def performTargetPrediction(pdg, models, rdkit_mols, querymatrix):
     performTargetPrediction._log.debug('Starting classification...')
     input_len = len(models)
     prediction_results = []
-    inputs = [(model_name, rdkit_mols, pdg.mod_dir, pdg.ad, pdg.std, querymatrix, pdg.ntrees, pdg.known) for model_name in models]
+    inputs = [(model_name, rdkit_mols, pdg.mod_dir, 0, pdg.std, querymatrix, pdg.ntrees, pdg.known) for model_name in models] # The 0 accounts for the percentile, otherwise put pdg.ad
     percent0 = 0
     if pdg.ncores == 1:
         for i, inp in enumerate(inputs):
@@ -371,13 +371,19 @@ def performTargetPrediction(pdg, models, rdkit_mols, querymatrix):
     return dict((x[0], x[1]) for x in prediction_results)
 
 #write out results
-def assembleResults(results_prediction, results_percentile, query_id):
+def assembleResults(results_prediction, results_percentile, query_id, proba, ad):
     mids = set(results_percentile.keys()).intersection(results_prediction.keys())
     results = collections.defaultdict(list)
     for mid in mids:
         preds = results_prediction[mid]
         percs = results_percentile[mid]
         for qy, pd, pc in zip(query_id, preds, percs):
+            if proba is not None and pd < proba:
+                results[qy] += []
+                continue
+            if ad > pc:
+                results[qy] += []
+                continue
             results[qy] += [(mid, round(pd,1), int(pc))]
     return results
     
@@ -476,7 +482,7 @@ class Pidgin:
         results_prediction = performTargetPrediction(self, mid_uniprots.keys(), rdkit_mols, querymatrix)
         #assemble output
         self.__log.info("Assembling results")
-        results_ = assembleResults(results_prediction, results_percentile, query_id)
+        results_ = assembleResults(results_prediction, results_percentile, query_id, self.proba, self.ad)
         results = collections.defaultdict(list)
         for ik in inchikey_inchi.keys():
             if ik not in results_:
