@@ -24,6 +24,7 @@ def get_parser():
                         required=False, default=None, help='The predict entry point')
     return parser
 
+
 def get_datasources(dataset_code):
 
     dataset = Dataset.get(dataset_code)
@@ -34,6 +35,7 @@ def get_datasources(dataset_code):
         map_files[ds.name] = ds.data_path
 
     return map_files
+
 
 def save_output(output_file, inchikey_raw, method, models_path, discrete, features, chunk=2000):
 
@@ -48,10 +50,9 @@ def save_output(output_file, inchikey_raw, method, models_path, discrete, featur
                 if isinstance(v[0], tuple):
                     categ = True
                 break
-
         words = set()
-        keys = sorted(inchikey_raw.keys())
-        for k in keys:
+        for k in sorted(inchikey_raw.keys()):
+            keys.append(str(k))
             if categ:
                 for word in inchikey_raw[k]:
                     words.add(word[0])
@@ -67,7 +68,7 @@ def save_output(output_file, inchikey_raw, method, models_path, discrete, featur
 
         with h5py.File(output_file, "w") as hf:
             hf.create_dataset("keys", data=np.array(keys))
-            hf.create_dataset("V", (len(keys), len(orderwords)), dtype='i8')
+            hf.create_dataset("V", (len(keys), len(orderwords)), dtype=np.int8)
             hf.create_dataset("features", data=np.array(orderwords))
 
         raws = np.zeros((chunk, len(orderwords)), dtype=np.int8)
