@@ -18,6 +18,6 @@ class Molrepos(BaseStep):
         job_path = tempfile.mkdtemp(
             prefix='jobs_molrepos_', dir=self.tmpdir)
         # start molrepo jobs (one per Datasource), job will wait until finished
-        Molrepo.molrepo_hpc(job_path, only_updatable=True)
+        Molrepo.molrepo_hpc(job_path, only_essential=True)
 
         self.mark_ready()

@@ -40,7 +40,7 @@ class Signature1(BaseStep):
 
         for ds_code in dataset_codes:
             if ds_code in ds_data_params:
-                dataset_params.append((ds_code, ds_data_params[ds_code]))
+                dataset_params.append((ds_code, ds_data_params[ds_code].asdict()))
             else:
                 dataset_params.append((ds_code, None))
 
@@ -61,14 +61,14 @@ class Signature1(BaseStep):
             "filename = sys.argv[2]",  # <FILE>
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
             "data = inputs[task_id][0][0]",  # elements for current job
-            "topics = inputs[task_id][0][1]",  # elements for current job
+            "pars = inputs[task_id][0][1]",  # elements for current job
             # elements are indexes
             'cc = ChemicalChecker(config.PATH.CC_ROOT )',
             # start import
             'sign0_full = cc.get_signature("sign0","full",data)',
             # start import
             'sign0_ref = cc.get_signature("sign0","reference",data)',
-            'pars = {"num_topics": topics, "max_freq": 0.9}',
+            'if pars is None: pars = {}',
             # start import
             'sign1_ref = cc.get_signature("sign1", "reference", data,**pars)',
             "sign1_ref.fit(sign0_ref)",
