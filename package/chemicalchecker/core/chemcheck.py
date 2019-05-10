@@ -7,6 +7,7 @@ Main tasks of this class are:
 """
 
 import os
+import shutil
 import itertools
 from glob import glob
 
@@ -117,6 +118,40 @@ class ChemicalChecker():
         data = DataFactory.make_data(
             cctype, signature_path, validation_path, dataset_code, **params)
         return data
+
+    def copy_signature_from(self, source_cc, cctype, molset, dataset_code,
+                            overwrite=False):
+        """Copy a signature file from another CC instance.
+
+        Args:
+            source_cc(ChemicalChecker): A different CC instance.
+            cctype(str): The Chemical Checker datatype (i.e. one of the sign*).
+            molset(str): The molecule set name.
+            dataset_code(str): The dataset code of the Chemical Checker.
+        """
+        # initialize destination
+        dst_signature_path = self.get_signature_path(
+            cctype, molset, dataset_code)
+        dst_validation_path = self.get_validation_path()
+        dst_sign = DataFactory.make_data(
+            cctype, dst_signature_path, dst_validation_path, dataset_code)
+        # initializa source
+        src_signature_path = source_cc.get_signature_path(
+            cctype, molset, dataset_code)
+        src_validation_path = source_cc.get_validation_path()
+        src_sign = DataFactory.make_data(
+            cctype, src_signature_path, src_validation_path, dataset_code)
+        # copy data
+        src = src_sign.data_path
+        dst = dst_sign.data_path
+        self.__log.info("Copying signature from %s to %s", src, dst)
+        if not os.path.isfile(src):
+            raise Exception("Source file %s does not exists.", src)
+        if os.path.isfile(dst):
+            self.__log.info("File %s exists already.", dst)
+            if not overwrite:
+                raise Exception("File %s exists already.", dst)
+        shutil.copyfile(src, dst)
 
     @staticmethod
     def remove_near_duplicates_hpc(job_path, cc_root, cctype):
