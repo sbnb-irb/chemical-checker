@@ -25,6 +25,8 @@ class Signature0(BaseStep):
         cc = ChemicalChecker(config.PATH.CC_ROOT)
         dataset_codes = list()
         for ds in all_datasets:
+            if not ds.essential:
+                continue
             sign0 = cc.get_signature("sign0", "reference", ds.dataset_code)
             if sign0.is_fit():
                 continue
@@ -80,7 +82,7 @@ class Signature0(BaseStep):
         params["elements"] = dataset_codes
         params["wait"] = True
         # config.HPC.queue = "all.q@pac-one301"
-        params["memory"] = 30
+        params["memory"] = 40
         params["cpu"] = 10
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
