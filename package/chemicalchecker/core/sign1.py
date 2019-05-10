@@ -389,7 +389,7 @@ class sign1(BaseSignature):
 
             # Validation
 
-            self.__log.info("MOA and ATC Validations")
+            self.__log.info("Doing validations based on similarity")
 
             if mappings is not None:
                 inchikey_mappings = dict(mappings)
