@@ -170,7 +170,7 @@ class sign1(BaseSignature):
             corpora.MmCorpus.serialize(tfidf_corpus, c_tfidf)
 
             if self.num_topics is None:
-                num_topics = np.min([int(0.67*len(dictionary)), 5000])
+                num_topics = np.min([int(0.67 * len(dictionary)), 5000])
             else:
                 num_topics = self.num_topics
 
@@ -264,16 +264,17 @@ class sign1(BaseSignature):
 
             with h5py.File(input_data, "r") as hf:
                 keys = hf["keys"][:]
-                V = hf["V"][:]
+                V = hf["V"]
                 if "mappings" in hf.keys():
                     mappings = hf["mappings"][:]
 
             RowNames = []
             X = []
 
-            for r in V:
-                RowNames += [r[0]]
-                X += [[float(x) for x in r[1].split(",")]]
+            for i in range(0, V.shape[0]):
+                    r = V[i]
+                    RowNames += [keys[i]]
+                    X += [r]
             X = np.array(X)
 
             if self.dataset[:2] == 'A5':
@@ -460,24 +461,24 @@ class sign1(BaseSignature):
 
             with h5py.File(input_data, "r") as hf:
                 keys = hf["keys"][:]
-                V = hf["V"][:]
+                V = hf["V"]
                 features = hf["features"][:]
                 if "mappings" in hf.keys():
                     mappings = hf["mappings"][:]
 
-            plain_corpus = os.path.join(tmp_dir, "sign1.corpus.txt")
-            tfidf_corpus = os.path.join(tmp_dir, "sign1.mm")
+                plain_corpus = os.path.join(tmp_dir, "sign1.corpus.txt")
+                tfidf_corpus = os.path.join(tmp_dir, "sign1.mm")
 
-            f = open(plain_corpus, "w")
+                f = open(plain_corpus, "w")
 
-            for i in range(0, len(keys)):
-                row = V[i]
-                mask = np.where(row > 0)
-                val = ",".join([",".join([features[x]] * row[x])
-                                for x in mask[0]])
-                f.write("%s %s\n" % (keys[i], val))
+                for i in range(0, len(keys)):
+                    row = V[i]
+                    mask = np.where(row > 0)
+                    val = ",".join([",".join([features[x]] * row[x])
+                                    for x in mask[0]])
+                    f.write("%s %s\n" % (keys[i], val))
 
-            f.close()
+                f.close()
 
             self.__log.info("Getting dictionary")
 
@@ -574,16 +575,17 @@ class sign1(BaseSignature):
 
             with h5py.File(input_data, "r") as hf:
                 keys = hf["keys"][:]
-                V = hf["V"][:]
+                V = hf["V"]
                 if "mappings" in hf.keys():
                     mappings = hf["mappings"][:]
 
-            RowNames = []
-            X = []
+                RowNames = []
+                X = []
 
-            for r in V:
-                RowNames += [r[0]]
-                X += [[float(x) for x in r[1].split(",")]]
+                for i in range(0, V.shape[0]):
+                    r = V[i]
+                    RowNames += [keys[i]]
+                    X += [r]
             X = np.array(X)
 
             if self.dataset[:2] == 'A5':
