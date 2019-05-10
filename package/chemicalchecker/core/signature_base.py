@@ -452,7 +452,7 @@ class BaseSignature(object):
         b, sign_matrix = sign.get_vectors(shared_keys)
         return a, self_matrix, sign_matrix
 
-    def to_csv(self, filename):
+    def to_csv(self, filename, smiles=None):
         """Write smiles to h5.
 
         At the moment this is done quering the `Structure` table for inchikey
@@ -460,25 +460,27 @@ class BaseSignature(object):
         """
         from chemicalchecker.database import Molecule
         from chemicalchecker.util.parser import Converter
-        # fetch inchi
-        ink_inchi = Molecule.get_inchikey_inchi_mapping(self.keys)
-        if len(ink_inchi) != len(self.keys):
-            raise Exception("Not same number of inchi found for given keys!")
-        # convert inchi to smiles (sorted)
-        converter = Converter()
-        smiles = list()
-        for ink in tqdm(self.keys):
-            smiles.append(converter.inchi_to_smiles(ink_inchi[ink]))
-        if len(smiles) != len(self.keys):
-            raise Exception(
-                "Not same number of smiles converted for given keys!")
+        if not smiles:
+            # fetch inchi
+            ink_inchi = Molecule.get_inchikey_inchi_mapping(self.keys)
+            if len(ink_inchi) != len(self.keys):
+                raise Exception(
+                    "Not same number of inchi found for given keys!")
+            # convert inchi to smiles (sorted)
+            converter = Converter()
+            smiles = list()
+            for ink in tqdm(self.keys):
+                smiles.append(converter.inchi_to_smiles(ink_inchi[ink]))
+            if len(smiles) != len(self.keys):
+                raise Exception(
+                    "Not same number of smiles converted for given keys!")
         # write to disk
         with open(filename, 'w') as fh:
             header = ['c%s' % c for c in range(128)] + ['smiles']
             fh.write(','.join(header) + '\n')
-            for chunk in tqdm(self.chunker):
+            for chunk in tqdm(self.chunker()):
                 V_chunk = self[chunk]
                 smiles_chunk = smiles[chunk]
-                for comps, smiles in zip(V_chunk, smiles_chunk):
-                    fh.write(','.join(comps))
-                    fh.write(',%s\n' % smiles)
+                for comps, sml in zip(V_chunk, smiles_chunk):
+                    fh.write(','.join(comps.astype(str)))
+                    fh.write(',%s\n' % sml)
