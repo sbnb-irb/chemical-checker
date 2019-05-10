@@ -29,6 +29,9 @@ class RNDuplicates():
         self.nbits = nbits
         self.only_duplicates = only_duplicates
         self.cpu = cpu
+        self.threshold = 100000
+        self.chunk = 1000
+        self.data_file = ''
         self.__log.debug('RNDuplicates to use ' + str(self.nbits) + " bits")
 
     def remove(self, data, keys=None, save_dest=None):
@@ -59,7 +62,12 @@ class RNDuplicates():
                 if "keys" not in dh5.keys() or "V" not in dh5.keys():
                     raise Exception(
                         "H5 file " + data + " does not contain datasets 'keys' and 'V'")
-                self.data = np.array(dh5["V"][:], dtype=np.float32)
+                data_size = dh5["V"].shape
+                if data_size[0] < self.threshold or self.only_duplicates:
+                    self.data = np.array(dh5["V"][:], dtype=np.float32)
+                else:
+                    self.data = None
+                    self.data_file = data
                 self.data_type = dh5["V"].dtype
                 self.keys = dh5["keys"][:]
                 dh5.close()
@@ -69,13 +77,14 @@ class RNDuplicates():
 
         else:
             self.data = data
+            data_size = self.data.shape
             self.data_type = data.dtype
             if keys is None:
                 self.keys = np.array(range(len(data)))
             else:
                 self.keys = np.array(keys)
 
-        self.__log.info("Size before removing: " + str(self.data.shape[0]))
+        self.__log.info("Size before removing: " + str(data_size[0]))
 
         self.final_ids = list()
         self.mappings = dict()
@@ -117,9 +126,23 @@ class RNDuplicates():
 
         else:
 
-            indexlsh = faiss.IndexLSH(self.data.shape[1], self.nbits)
+            indexlsh = faiss.IndexLSH(data_size[1], self.nbits)
 
-            indexlsh.add(self.data)
+            if data_size[0] > self.threshold:
+
+                starts = range(0, data_size[0], self.chunk)
+
+                dh5 = h5py.File(data)
+
+                for start in starts:
+
+                    indexlsh.add(
+                        np.array(dh5["V"][start:start + self.chunk], dtype=np.float32))
+                dh5.close()
+
+            else:
+
+                indexlsh.add(self.data)
 
             indexes = faiss.vector_to_array(
                 indexlsh.codes).reshape(-1, int(indexlsh.nbits / 8))
@@ -164,8 +187,13 @@ class RNDuplicates():
         self.__log.info("Starting to write to : " + destination)
         with h5py.File(destination, 'w') as hf:
             hf.create_dataset("keys", data=self.keys[np.array(self.final_ids)])
-            V = np.array(
-                self.data[np.array(self.final_ids)], dtype=self.data_type)
+            if self.data is None:
+                dh5 = h5py.File(self.data_file)
+                V = np.array(
+                    [dh5["V"][i] for i in self.final_ids], dtype=self.data_type)
+            else:
+                V = np.array(
+                    self.data[np.array(self.final_ids)], dtype=self.data_type)
             hf.create_dataset("V", data=V)
             hf.create_dataset("shape", data=V.shape)
             hf.create_dataset("mappings", data=np.array(list_maps.items()))
