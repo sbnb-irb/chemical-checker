@@ -975,57 +975,104 @@ class Plot():
         plt.savefig(filename, dpi=100)
         plt.close()
 
-    def sign3_confidences(self, sign3):
+    def sign3_confidences(self, sign3, sign2):
 
         confidence_file = os.path.join(sign3.model_path, 'conf.h5')
         with h5py.File(confidence_file, "r") as confidence_model:
-            stddev_dist = confidence_model['stddev_dist'][:]
-            intensity_dist = confidence_model['intensity_dist'][:]
+            stddev_dist = confidence_model['stddev_dist'][:][0]
+            intensity_dist = confidence_model['intensity_dist'][:][0]
+
+        # compute error where we have sign2
+        actual_s2 = sign2[:]
+        _, pred_cons = sign3.get_vectors(sign2.keys, dataset_name='consensus')
+        mse = np.average(((actual_s2 - pred_cons)**2), axis=1)
 
         sns.set_style("whitegrid")
-        fig, axes = plt.subplots(3, 2, sharey=False, sharex=False,
-                                 figsize=(10, 15), dpi=100)
+        fig, axes = plt.subplots(3, 3, sharey=False, sharex=False,
+                                 figsize=(15, 15), dpi=100)
         axes = axes.flatten()
         color = coord_color(self.dataset_code)
         idx = 0
 
-        sns.distplot(stddev_dist,
-                     ax=axes[idx], kde=False, norm_hist=True, color='grey')
         sns.distplot(sign3.get_h5_dataset('stddev'),
-                     ax=axes[idx], kde=False, norm_hist=True, color=color)
+                     ax=axes[idx], kde=False, norm_hist=False, color=color)
+        sns.distplot(stddev_dist,
+                     ax=axes[idx], kde=False, norm_hist=False, color='grey')
         axes[idx].set_xlabel('stddev')
         axes[idx].set_xlim(0, 0.15)
+        axes[idx].set_yscale('log')
+        idx += 1
+
+        c = gaussian_kde(np.vstack([stddev_dist, mse]))(
+            np.vstack([stddev_dist, mse]))
+        order = c.argsort()
+        axes[idx].scatter(stddev_dist[order], mse[order],
+                          c=c[order], s=5, edgecolor='')
+        axes[idx].set_xlabel('stddev')
+        axes[idx].set_ylabel('log(mse)')
+        axes[idx].set_yscale('log')
+        axes[idx].set_ylim(1e-5, 1e-1)
         idx += 1
 
         sns.distplot(sign3.get_h5_dataset('stddev_norm'),
                      ax=axes[idx], kde=False, norm_hist=False, color=color)
         axes[idx].set_xlabel('stddev_norm')
+        axes[idx].set_yscale('log')
         idx += 1
 
-        sns.distplot(intensity_dist,
-                     ax=axes[idx], kde=False, norm_hist=True, color='grey')
         sns.distplot(sign3.get_h5_dataset('intensity'),
-                     ax=axes[idx], kde=False, norm_hist=True, color=color)
+                     ax=axes[idx], kde=False, norm_hist=False, color=color)
+        sns.distplot(intensity_dist,
+                     ax=axes[idx], kde=False, norm_hist=False, color='grey')
         axes[idx].set_xlabel('intensity')
-        #axes[idx].set_xlim(0, 0.5)
+        # axes[idx].set_xlim(0, 0.5)
+        axes[idx].set_yscale('log')
+        idx += 1
+
+        c = gaussian_kde(np.vstack([intensity_dist, mse]))(
+            np.vstack([intensity_dist, mse]))
+        order = c.argsort()
+        axes[idx].scatter(intensity_dist[order], mse[order],
+                          c=c[order], s=5, edgecolor='')
+        axes[idx].set_xlabel('intensity')
+        axes[idx].set_ylabel('log(mse)')
+        axes[idx].set_yscale('log')
+        axes[idx].set_ylim(1e-5, 1e-1)
         idx += 1
 
         sns.distplot(sign3.get_h5_dataset('intensity_norm'),
                      ax=axes[idx], kde=False, norm_hist=False, color=color)
         axes[idx].set_xlabel('intensity_norm')
+        axes[idx].set_yscale('log')
         idx += 1
 
         corr = sign3.get_h5_dataset('pred_correlation')
+        _, corr_dist = sign3.get_vectors(
+            sign2.keys, dataset_name='pred_correlation')
         sns.distplot(corr[:, 0], ax=axes[idx], kde=False,
                      norm_hist=False, color=color)
+        sns.distplot(corr_dist[:, 1],
+                     ax=axes[idx], kde=False, norm_hist=False, color='grey')
         axes[idx].set_xlabel('dataset avg pearson')
         axes[idx].set_xlim(0, 1)
+        axes[idx].set_yscale('log')
         idx += 1
 
-        sns.distplot(sign3.get_h5_dataset('confidence'),
+        _, a = sign3.get_vectors(
+            sign2.keys, dataset_name='stddev_norm')
+        _, b = sign3.get_vectors(
+            sign2.keys, dataset_name='intensity_norm')
+        sns.regplot(a * b, mse,
+                    ax=axes[idx], color='grey')
+        axes[idx].set_xlabel('dataset avg pearson')
+        axes[idx].set_ylabel('mse')
+        idx += 1
+
+        sns.distplot(sign3.get_h5_dataset('stddev_norm') * sign3.get_h5_dataset('intensity_norm'),
                      ax=axes[idx], kde=False, norm_hist=False, color=color)
         axes[idx].set_xlabel('confidence')
         axes[idx].set_xlim(0, 1)
+        axes[idx].set_yscale('log')
         idx += 1
 
         plt.tight_layout()
