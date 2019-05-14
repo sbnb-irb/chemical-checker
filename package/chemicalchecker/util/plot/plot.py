@@ -975,108 +975,174 @@ class Plot():
         plt.savefig(filename, dpi=100)
         plt.close()
 
-    def sign3_confidences(self, sign3, sign2):
+    def sign3_confidences(self, sign3, suffix=None):
 
-        confidence_file = os.path.join(sign3.model_path, 'conf.h5')
-        with h5py.File(confidence_file, "r") as confidence_model:
-            stddev_dist = confidence_model['stddev_dist'][:][0]
-            intensity_dist = confidence_model['intensity_dist'][:][0]
+        # load data
+        self.__log.info("loading data")
+        error_file = os.path.join(sign3.model_path, 'error.h5')
+        with h5py.File(error_file, "r") as hf:
+            keys = hf['keys'][:]
+            train_log_mse = hf['log_mse'][:]
+            self.__log.info("train_log_mse %s", train_log_mse.shape)
+        test_keys = list(sign3.unique_keys - set(keys))
+        test_idxs = np.where(np.isin(sign3.keys, test_keys))[0]
+        train_idxs = np.where(~np.isin(sign3.keys, test_keys))[0]
 
-        # compute error where we have sign2
-        actual_s2 = sign2[:]
-        _, pred_cons = sign3.get_vectors(sign2.keys, dataset_name='consensus')
-        mse = np.average(((actual_s2 - pred_cons)**2), axis=1)
+        pred_mse = sign3.get_h5_dataset('pred_mse')
+        test_pred_mse = pred_mse.T[0][test_idxs]
+        self.__log.info("test_pred_mse %s", test_pred_mse.shape)
+        train_pred_mse = pred_mse.T[0][train_idxs]
+        self.__log.info("train_pred_mse %s", train_pred_mse.shape)
 
+        stddev = sign3.get_h5_dataset('stddev')
+        test_std = stddev[test_idxs]
+        self.__log.info("test_std %s", test_std.shape)
+        train_std = stddev[train_idxs]
+        self.__log.info("train_std %s", train_std.shape)
+
+        intensity = sign3.get_h5_dataset('intensity')
+        test_inte = intensity[test_idxs]
+        self.__log.info("test_inte %s", test_inte.shape)
+        train_inte = intensity[train_idxs]
+        self.__log.info("train_inte %s", train_inte.shape)
+
+        confidence = sign3.get_h5_dataset('confidence')
+        computed_conf = confidence[test_idxs]
+        self.__log.info("computed_conf %s", test_inte.shape)
+        #train_conf = confidence[train_idxs]
+        #self.__log.info("train_conf %s", train_inte.shape)
+
+        def quick_gaussian_kde(x, y, limit=10000):
+            xl = x[:limit]
+            yl = y[:limit]
+            xy = np.vstack([xl, yl])
+            c = gaussian_kde(xy)(xy)
+            order = c.argsort()
+            return xl, yl, c, order
+
+        # prepare plot space
         sns.set_style("whitegrid")
-        fig, axes = plt.subplots(3, 3, sharey=False, sharex=False,
-                                 figsize=(15, 15), dpi=100)
-        axes = axes.flatten()
+        fig = plt.figure(figsize=(16, 14))
+        grid = plt.GridSpec(3, 3, hspace=0.2, wspace=0.2)
         color = coord_color(self.dataset_code)
-        idx = 0
 
-        sns.distplot(sign3.get_h5_dataset('stddev'),
-                     ax=axes[idx], kde=False, norm_hist=False, color=color)
-        sns.distplot(stddev_dist,
-                     ax=axes[idx], kde=False, norm_hist=False, color='grey')
-        axes[idx].set_xlabel('stddev')
-        axes[idx].set_xlim(0, 0.15)
-        axes[idx].set_yscale('log')
-        idx += 1
+        # stddev row
+        # train test distributions
+        self.__log.info("plotting stddev distribution")
+        ax = fig.add_subplot(grid[0, 0])
+        sns.distplot(test_std,
+                     ax=ax, kde=False, norm_hist=False, color=color)
+        sns.distplot(train_std,
+                     ax=ax, kde=False, norm_hist=False, color='grey')
+        ax.set_xlabel('stddev')
+        ax.set_xlim(0)
+        ax.set_yscale('log')
+        ax.set_ylabel('molecules')
 
-        c = gaussian_kde(np.vstack([stddev_dist, mse]))(
-            np.vstack([stddev_dist, mse]))
-        order = c.argsort()
-        axes[idx].scatter(stddev_dist[order], mse[order],
-                          c=c[order], s=5, edgecolor='')
-        axes[idx].set_xlabel('stddev')
-        axes[idx].set_ylabel('log(mse)')
-        axes[idx].set_yscale('log')
-        axes[idx].set_ylim(1e-5, 1e-1)
-        idx += 1
+        # train mse correlation
+        self.__log.info("plotting stddev vs log mse")
+        ax = fig.add_subplot(grid[0, 1])
+        x, y, c, order = quick_gaussian_kde(train_std, train_log_mse)
+        ax.scatter(x[order], y[order], c=c[order], s=5, edgecolor='')
+        ax.set_xlabel('stddev')
+        ax.set_ylabel('log mse')
+        pearson_coeff = stats.pearsonr(train_std, train_log_mse)[0]
+        txt = ax.text(0.85, 0.05, "p: {:.2f}".format(pearson_coeff),
+                      transform=ax.transAxes, size=10)
 
-        sns.distplot(sign3.get_h5_dataset('stddev_norm'),
-                     ax=axes[idx], kde=False, norm_hist=False, color=color)
-        axes[idx].set_xlabel('stddev_norm')
-        axes[idx].set_yscale('log')
-        idx += 1
+        # test normalized distributions
+        self.__log.info("plotting stddev norm distribution")
+        test_std_norm = np.count_nonzero(
+            np.expand_dims(test_std[:100000], axis=1) < train_std, axis=1)
+        test_std_norm = test_std_norm / float(train_std.shape[0])
+        ax = fig.add_subplot(grid[0, 2])
+        sns.distplot(test_std_norm,
+                     ax=ax, kde=False, norm_hist=False, color=color)
+        ax.set_xlabel('test stddev norm')
+        ax.set_xlim(0)
+        ax.set_yscale('log')
+        ax.set_ylabel('molecules')
 
-        sns.distplot(sign3.get_h5_dataset('intensity'),
-                     ax=axes[idx], kde=False, norm_hist=False, color=color)
-        sns.distplot(intensity_dist,
-                     ax=axes[idx], kde=False, norm_hist=False, color='grey')
-        axes[idx].set_xlabel('intensity')
-        # axes[idx].set_xlim(0, 0.5)
-        axes[idx].set_yscale('log')
-        idx += 1
+        # intensity row
+        # train test distributions
+        self.__log.info("plotting intensity distribution")
+        ax = fig.add_subplot(grid[1, 0])
+        sns.distplot(test_inte,
+                     ax=ax, kde=False, norm_hist=False, color=color)
+        sns.distplot(train_inte,
+                     ax=ax, kde=False, norm_hist=False, color='grey')
+        ax.set_xlabel('intensity')
+        ax.set_xlim(0)
+        ax.set_yscale('log')
+        ax.set_ylabel('molecules')
 
-        c = gaussian_kde(np.vstack([intensity_dist, mse]))(
-            np.vstack([intensity_dist, mse]))
-        order = c.argsort()
-        axes[idx].scatter(intensity_dist[order], mse[order],
-                          c=c[order], s=5, edgecolor='')
-        axes[idx].set_xlabel('intensity')
-        axes[idx].set_ylabel('log(mse)')
-        axes[idx].set_yscale('log')
-        axes[idx].set_ylim(1e-5, 1e-1)
-        idx += 1
+        # train mse correlation
+        self.__log.info("plotting intensity vs log mse")
+        ax = fig.add_subplot(grid[1, 1])
+        x, y, c, order = quick_gaussian_kde(train_inte, train_log_mse)
+        ax.scatter(x[order], y[order], c=c[order], s=5, edgecolor='')
+        ax.set_xlabel('intensity')
+        ax.set_ylabel('log mse')
+        pearson_coeff = stats.pearsonr(train_inte, train_log_mse)[0]
+        txt = ax.text(0.85, 0.05, "p: {:.2f}".format(pearson_coeff),
+                      transform=ax.transAxes, size=10)
 
-        sns.distplot(sign3.get_h5_dataset('intensity_norm'),
-                     ax=axes[idx], kde=False, norm_hist=False, color=color)
-        axes[idx].set_xlabel('intensity_norm')
-        axes[idx].set_yscale('log')
-        idx += 1
+        # test normalized distributions
+        self.__log.info("plotting intensity norm distribution")
+        test_inte_norm = np.count_nonzero(
+            np.expand_dims(test_inte[:100000], axis=1) < train_inte, axis=1)
+        test_inte_norm = test_inte_norm / float(train_inte.shape[0])
+        ax = fig.add_subplot(grid[1, 2])
+        sns.distplot(test_inte_norm,
+                     ax=ax, kde=False, norm_hist=False, color=color)
+        ax.set_xlabel('test intensity norm')
+        ax.set_xlim(0)
+        ax.set_yscale('log')
+        ax.set_ylabel('molecules')
 
-        corr = sign3.get_h5_dataset('pred_correlation')
-        _, corr_dist = sign3.get_vectors(
-            sign2.keys, dataset_name='pred_correlation')
-        sns.distplot(corr[:, 0], ax=axes[idx], kde=False,
-                     norm_hist=False, color=color)
-        sns.distplot(corr_dist[:, 1],
-                     ax=axes[idx], kde=False, norm_hist=False, color='grey')
-        axes[idx].set_xlabel('dataset avg pearson')
-        axes[idx].set_xlim(0, 1)
-        axes[idx].set_yscale('log')
-        idx += 1
+        # confidence row
+        # prediction train test distributions
+        self.__log.info("plotting pred mse distribution")
+        ax = fig.add_subplot(grid[2, 0])
+        sns.distplot(test_pred_mse,
+                     ax=ax, kde=False, norm_hist=False, color=color)
+        sns.distplot(train_pred_mse,
+                     ax=ax, kde=False, norm_hist=False, color='grey')
+        ax.set_xlabel('pred log mse')
+        ax.set_yscale('log')
+        ax.set_ylabel('molecules')
 
-        _, a = sign3.get_vectors(
-            sign2.keys, dataset_name='stddev_norm')
-        _, b = sign3.get_vectors(
-            sign2.keys, dataset_name='intensity_norm')
-        sns.regplot(a * b, mse,
-                    ax=axes[idx], color='grey')
-        axes[idx].set_xlabel('dataset avg pearson')
-        axes[idx].set_ylabel('mse')
-        idx += 1
+        # predicted mse vs mse
+        self.__log.info("plotting pred vs true mse")
+        ax = fig.add_subplot(grid[2, 1])
+        x, y, c, order = quick_gaussian_kde(train_pred_mse, train_log_mse)
+        ax.scatter(x[order], y[order], c=c[order], s=5, edgecolor='')
+        ax.set_xlabel('pred log mse')
+        ax.set_ylabel('log mse')
+        pearson_coeff = stats.pearsonr(train_pred_mse, train_log_mse)[0]
+        txt = ax.text(0.85, 0.05, "p: {:.2f}".format(pearson_coeff),
+                      transform=ax.transAxes, size=10)
 
-        sns.distplot(sign3.get_h5_dataset('stddev_norm') * sign3.get_h5_dataset('intensity_norm'),
-                     ax=axes[idx], kde=False, norm_hist=False, color=color)
-        axes[idx].set_xlabel('confidence')
-        axes[idx].set_xlim(0, 1)
-        axes[idx].set_yscale('log')
-        idx += 1
+        # confidence
+        self.__log.info("plotting confidence distribution")
+        test_conf = np.count_nonzero(
+            np.expand_dims(test_pred_mse[:100000], axis=1) < train_pred_mse, axis=1)
+        test_conf = test_conf / float(train_pred_mse.shape[0])
+        ax = fig.add_subplot(grid[2, 2])
+        sns.distplot(test_conf,
+                     ax=ax, kde=False, norm_hist=False, color=color)
+        ax.set_xlabel('pred log mse norm = confidence')
+        ax.set_xlim(0)
+        ax.set_yscale('log')
+        ax.set_ylabel('molecules')
 
+        # save
         plt.tight_layout()
-        filename = os.path.join(
-            self.plot_path, "sign3_confidences_%s.png" % self.dataset_code)
-        plt.savefig(filename, dpi=100)
+        if suffix is None:
+            filename = os.path.join(
+                self.plot_path, "sign3_error_%s.png" % self.dataset_code)
+        else:
+            filename = os.path.join(
+                self.plot_path, "sign3_error_%s_%s.png" % (self.dataset_code, suffix))
+        plt.savefig(filename, dpi=150)
         plt.close()
