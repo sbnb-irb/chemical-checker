@@ -265,7 +265,6 @@ class sign3(BaseSignature):
                 zero_feat = np.zeros(
                     (1, features['x_test'].shape[1]), dtype=np.float32)
                 zero_pred = predict_fn({'x': zero_feat})['predictions']
-                self_idx = list(chemchecker.datasets).index(self.dataset)
                 # read input in chunks
                 for idx in tqdm(range(0, tot_inks, 1000)):
                     chunk = slice(idx, idx + 1000)
@@ -284,8 +283,6 @@ class sign3(BaseSignature):
                         chunk_corr = np.zeros(
                             (presence.shape[0], 3), dtype=np.float32)
                         for row_id, row in enumerate(presence):
-                            # exclude self
-                            row[self_idx] = False
                             available_pearsons = avg_pearsons[row]
                             chunk_corr[row_id] = [
                                 np.mean(available_pearsons),
