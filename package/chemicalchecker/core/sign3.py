@@ -6,6 +6,7 @@ virtually *any* molecule in *any* dataset.
 """
 import os
 import h5py
+import pickle
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -91,7 +92,7 @@ class sign3(BaseSignature):
             signature 2.
         reuse(bool): Whether to reuse intermediate files (e.g. the aggregated
             signature 2 matrix).
-        suffix(str): a suffis for the adanet model path (e.g.
+        suffix(str): a suffix for the adanet model path (e.g.
             'sign3/models/adanet_<suffix>').
         evaluate(bool): Whether we are performing a train-test split and
             evaluating the performances (N.B. this is required for complete
@@ -219,14 +220,8 @@ class sign3(BaseSignature):
                             (tot_inks,), dtype=np.float32)
                 # this is to store standard deviations
                 safe_create(results, 'stddev', (tot_inks,), dtype=np.float32)
-                # and the normalized one
-                safe_create(results, 'stddev_norm',
-                            (tot_inks,), dtype=np.float32)
                 # this is to store intensity
                 safe_create(results, 'intensity',
-                            (tot_inks,), dtype=np.float32)
-                # and the normalized one
-                safe_create(results, 'intensity_norm',
                             (tot_inks,), dtype=np.float32)
                 # consensus prediction
                 safe_create(results, 'consensus',
@@ -236,16 +231,28 @@ class sign3(BaseSignature):
                 safe_create(results, 'support', (tot_inks,), dtype=np.float32)
             if save_correlations:
                 # read the correlations obtained evaluating on single spaces
+                # the ration between test and train gives me an idea of how
+                # well we can generalize
                 df = pd.read_pickle(eval_stats)
                 test_eval = df[(df.split != 'train') & (
                     df.algo == 'AdaNet_final_eval')]
+                train_eval = df[(df.split == 'train') & (
+                    df.algo == 'AdaNet_final_eval')]
                 avg_pearsons = np.zeros(tot_ds, dtype=np.float32)
+                avg_pearsons_test = np.zeros(tot_ds, dtype=np.float32)
+                avg_pearsons_train = np.zeros(tot_ds, dtype=np.float32)
                 for idx, ds in enumerate(chemchecker.datasets):
                     ds_df = test_eval[test_eval['from'] == ds]
                     ds_pearson = np.mean(ds_df['pearson'])
                     if np.isnan(ds_pearson):
                         ds_pearson = 0.0
-                    avg_pearsons[idx] = ds_pearson
+                    avg_pearsons_test[idx] = ds_pearson
+                    ds_df = train_eval[train_eval['from'] == ds]
+                    ds_pearson = np.mean(ds_df['pearson'])
+                    if np.isnan(ds_pearson):
+                        ds_pearson = 0.0
+                    avg_pearsons_train[idx] = ds_pearson
+                avg_pearsons = avg_pearsons_test / avg_pearsons_train
                 # this is to lookup correlations
                 safe_create(results, 'dataset_correlation', data=avg_pearsons)
                 # Average/tertile/maximum Pearson correlations will be saved
@@ -258,6 +265,7 @@ class sign3(BaseSignature):
                 zero_feat = np.zeros(
                     (1, features['x_test'].shape[1]), dtype=np.float32)
                 zero_pred = predict_fn({'x': zero_feat})['predictions']
+                self_idx = list(chemchecker.datasets).index(self.dataset)
                 # read input in chunks
                 for idx in tqdm(range(0, tot_inks, 1000)):
                     chunk = slice(idx, idx + 1000)
@@ -276,6 +284,8 @@ class sign3(BaseSignature):
                         chunk_corr = np.zeros(
                             (presence.shape[0], 3), dtype=np.float32)
                         for row_id, row in enumerate(presence):
+                            # exclude self
+                            row[self_idx] = False
                             available_pearsons = avg_pearsons[row]
                             chunk_corr[row_id] = [
                                 np.mean(available_pearsons),
@@ -304,65 +314,81 @@ class sign3(BaseSignature):
                             # measure the intensity (absolute sum of comps)
                             abs_sum = np.sum(np.abs(centered), axis=1)
                             results['intensity'][chunk] = abs_sum / 128.
-
-            # create the confidence estimator
-            if model_confidence:
-                # get current space inchikeys (max 20^4)
-                dataset_inks = ds_sign[self.dataset].keys
-                if len(dataset_inks) > 2 * 1e4:
-                    dataset_inks = np.random.choice(dataset_inks, int(2 * 1e4))
-                # save the confidence model
-                confidence_file = os.path.join(self.model_path, 'conf.h5')
-                # so the train molecules stddev distribution
-                _, stddev_dist = self.get_vectors(
-                    dataset_inks, dataset_name='stddev')
-                stddev_dist = stddev_dist.reshape((1, len(stddev_dist)))
-                # save train molecules intensity distribution
-                _, intensity_dist = self.get_vectors(
-                    dataset_inks, dataset_name='intensity')
-                intensity_dist = intensity_dist.reshape(
-                    (1, len(intensity_dist)))
-                # also save the consensus and actual sign2
-                _, consensus_pred = self.get_vectors(
-                    dataset_inks, dataset_name='consensus')
-                _, actual_sign2 = ds_sign[self.dataset].get_vectors(
-                    dataset_inks)
-                with h5py.File(confidence_file, "w") as confidence_model:
-                    confidence_model.create_dataset(
-                        'stddev_dist', data=stddev_dist, dtype=np.float32)
-                    confidence_model.create_dataset(
-                        'intensity_dist', data=intensity_dist,
-                        dtype=np.float32)
-                    confidence_model.create_dataset(
-                        'consensus_pred', data=consensus_pred,
-                        dtype=np.float32)
-                    confidence_model.create_dataset(
-                        'actual_sign2', data=actual_sign2,
-                        dtype=np.float32)
-                # predict confidence in chunks
-                for idx in tqdm(range(0, tot_inks, 1000)):
-                    chunk = slice(idx, idx + 1000)
-                    # how's is the stddev compared to reference distribution?
-                    pred_stds = results['stddev'][chunk]
-                    pred_stds = pred_stds.reshape((len(pred_stds), 1))
-                    # the lower the better (will be closer to 1)
-                    stddev_norm = np.count_nonzero(
-                        pred_stds < stddev_dist, axis=1)
-                    stddev_norm = stddev_norm / float(stddev_dist.shape[1])
-                    results['stddev_norm'][chunk] = stddev_norm
-                    # how's the intensity?
-                    pred_inte = results['intensity'][chunk]
-                    pred_inte = pred_inte.reshape((len(pred_inte), 1))
-                    # the higher the better (will be closer to 1)
-                    intensity_norm = np.count_nonzero(
-                        pred_inte > intensity_dist, axis=1)
-                    intensity_norm = intensity_norm / \
-                        float(intensity_dist.shape[1])
-                    results['intensity_norm'][chunk] = intensity_norm
-                    # confidence definition
-                    results['confidence'][chunk] = stddev_norm * \
-                        intensity_norm * results['pred_correlation'][chunk, 0]
+        # train error estimator as save prediction
+        mdl, train_dist = self.train_error_estimator(ds_sign[self.dataset])
+        with h5py.File(self.data_path, "r+") as results:
+            safe_create(results, 'pred_mse', (tot_inks, 1), dtype=np.float32)
+            safe_create(results, 'confidence', (tot_inks, 1), dtype=np.float32)
+            for idx in tqdm(range(0, tot_inks, 1000)):
+                chunk = slice(idx, idx + 1000)
+                stddev = np.expand_dims(results['stddev'][chunk], axis=1)
+                intensity = np.expand_dims(results['intensity'][chunk], axis=1)
+                corr = results['pred_correlation'][chunk, :2]
+                supp = np.expand_dims(results['support'][chunk], axis=1)
+                features = np.concatenate(
+                    (stddev, intensity, corr, supp), axis=1)
+                pred_mse = np.expand_dims(mdl.predict(features), axis=1)
+                results['pred_mse'][chunk] = pred_mse
+                # the lower the better (will be closer to 1)
+                pred_mse_norm = np.count_nonzero(
+                    pred_mse < train_dist, axis=1)
+                pred_mse_norm = pred_mse_norm / float(train_dist.shape[0])
+                results['confidence'][chunk] = pred_mse_norm
         self.mark_ready()
+
+    def train_error_estimator(self, sign2_self):
+        """Train a error estimator."""
+        from sklearn.linear_model import LinearRegression
+        from sklearn.gaussian_process import GaussianProcessRegressor
+        from sklearn.ensemble import RandomForestRegressor
+        from sklearn.svm import SVR
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.pipeline import make_pipeline
+        from sklearn.metrics import r2_score
+        from chemicalchecker.tool.adanet import Traintest
+        # get current space inchikeys (limit to 20^4)
+        dataset_inks = sign2_self.keys
+        if len(dataset_inks) > 2 * 1e4:
+            dataset_inks = np.random.choice(dataset_inks, int(2 * 1e4))
+        # get the features to train the estimator on
+        _, stddev = self.get_vectors(dataset_inks, dataset_name='stddev')
+        _, intensity = self.get_vectors(dataset_inks, dataset_name='intensity')
+        _, corr = self.get_vectors(
+            dataset_inks, dataset_name='pred_correlation')
+        _, supp = self.get_vectors(dataset_inks, dataset_name='support')
+        # also get the consensus and actual sign2
+        _, consensus = self.get_vectors(dataset_inks, dataset_name='consensus')
+        _, actual = sign2_self.get_vectors(dataset_inks)
+        # calculate the error (what we want to predict)
+        log_mse = np.log10(np.average(((actual - consensus)**2), axis=1))
+        features = np.concatenate(
+            (stddev, intensity, corr[:, :2], supp), axis=1)
+        # save data in the confidence model
+        error_file = os.path.join(self.model_path, 'error.h5')
+        with h5py.File(error_file, "w") as hf:
+            hf.create_dataset('keys', data=dataset_inks)
+            hf.create_dataset('features', data=features, dtype=np.float32)
+            hf.create_dataset('log_mse', data=log_mse, dtype=np.float32)
+        # train test split
+        train_idx, test_idx = Traintest.get_split_indeces(features, [.8, .2])
+        self.__log.info("Training on TRAIN %s TEST %s", features[train_idx].shape,
+                        features[test_idx].shape)
+        # evaluate model
+        eval_mdl = make_pipeline(StandardScaler(), SVR())
+        eval_mdl.fit(features[train_idx], log_mse[train_idx])
+        # simple performance printout
+        train_pred = eval_mdl.predict(features[train_idx])
+        train_r2 = r2_score(log_mse[train_idx], train_pred)
+        test_pred = eval_mdl.predict(features[test_idx])
+        test_r2 = r2_score(log_mse[test_idx], test_pred)
+        self.__log.info("Error estimator r2: TRAIN %.2f TEST %.2f", train_r2,
+                        test_r2)
+        # save final model
+        mdl = make_pipeline(StandardScaler(), SVR())
+        mdl.fit(features, log_mse)
+        error_pkl = os.path.join(self.model_path, 'error.pkl')
+        pickle.dump(mdl, open(error_pkl, 'w'))
+        return mdl, mdl.predict(features)
 
     def predict(self, chemchecker, output_file, sign2_molset=None,
                 inchikeys=None, save_confidence=True, save_support=True,
