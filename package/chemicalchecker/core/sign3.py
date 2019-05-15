@@ -171,9 +171,9 @@ class sign3(BaseSignature):
             common_keys, features = s0.get_vectors(self.keys)
             _, labels = self.get_vectors(common_keys)
             Traintest.create(features, labels, sign0_traintest)
-        self.params['adanet'].update(
-            {'traintest_file': sign0_traintest,
-             'augmentation': False})
+        self.params['adanet'] = {
+            'traintest_file': sign0_traintest,
+            'augmentation': False}
         self._learn(chemchecker, suffix='sign0_%s_final_eval' %
                     ds, evaluate=True, single_spaces_performances=False)
 
