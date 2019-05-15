@@ -85,7 +85,8 @@ class sign3(BaseSignature):
                             sum(available), self.dataset, ds)
         return sign2_matrix, my_sign2[:]
 
-    def _learn(self, chemchecker, reuse=True, suffix=None, evaluate=True):
+    def _learn(self, chemchecker, reuse=True, suffix=None, evaluate=True,
+               single_spaces_performances=True):
         """Learn the signature 3 model.
 
         chemchecker(ChemmChecker): The CC instance which allow fetching all
@@ -146,14 +147,39 @@ class sign3(BaseSignature):
         self.__log.debug('model saved to %s' % adanet_path)
         if evaluate:
             # compare performance with cross predictors
-            singles = self.adanet_single_spaces(chemchecker, adanet_path,
-                                                traintest_file, suffix)
+            if single_spaces_performances:
+                singles = self.adanet_single_spaces(chemchecker, adanet_path,
+                                                    traintest_file, suffix)
+            else:
+                singles = None
             # save AdaNet performances and plots
             sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
 
+    def fit_sign0(self, chemchecker, ds='A1.001', sign0_traintest=None):
+        try:
+            from chemicalchecker.tool.adanet import AdaNet, Traintest
+        except ImportError as err:
+            raise err
+
+        # build input matrix if not provided
+        if sign0_traintest is None:
+            sign0_traintest = os.path.join(
+                self.model_path, 'traintest_sign0_%s.h5' % ds)
+        if not os.path.isfile(sign0_traintest):
+            s0 = chemchecker.get_signature('sign0', 'full_map', ds)
+            common_keys, features = s0.get_vectors(self.keys)
+            _, labels = self.get_vectors(common_keys)
+            Traintest.create(features, labels, sign0_traintest)
+        self.params['adanet'].update(
+            {'traintest_file': sign0_traintest,
+             'augmentation': False})
+        self._learn(chemchecker, suffix='sign0_%s_final_eval' %
+                    ds, evaluate=True, single_spaces_performances=False)
+
     def fit(self, chemchecker, sign2_universe=None, model_confidence=True,
-            save_support=True, save_correlations=True, update_preds=True):
+            save_support=True, save_correlations=True, update_preds=True,
+            subsample_fn=None):
         """Use the learned model to predict the signature 3.
 
         chemchecker(ChemicalChecker): the CC instance for fetching signatures.
@@ -296,8 +322,10 @@ class sign3(BaseSignature):
                     if model_confidence:
                         if update_preds:
                             # draw prediction with sub-sampling (dropout)
+                            if subsample_fn is None:
+                                subsample_fn = subsample_x_only
                             samples = AdaNet.predict(feat, predict_fn,
-                                                     subsample_x_only,
+                                                     subsample_fn,
                                                      probs=True, samples=10)
                             # summarize the predictions as consensus
                             consensus = np.mean(samples, axis=2)
