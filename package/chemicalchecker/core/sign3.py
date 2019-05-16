@@ -197,24 +197,35 @@ class sign3(BaseSignature):
         pred_s3 = sign3(dest_dir, dest_dir, self.dataset)
         with h5py.File(pred_s3.data_path, "w") as results:
             # initialize V (with NaN in case of failing rdkit) and smiles keys
-            results.create_dataset('V', data=np.full(
-                (len(smiles), 128), np.nan), dtype=np.float32)
+            results.create_dataset('V', (len(smiles), 128), dtype=np.float32)
             results.create_dataset('keys', data=np.array(smiles))
             # compute sign0
             nBits = 2048
             radius = 2
             for chunk in tqdm(list(pred_s3.chunker())):
                 sign0s = list()
-                for mol_smiles in smiles[chunk]:
-                    mol = Chem.MolFromSmiles(mol_smiles)
-                    info = {}
-                    fp = AllChem.GetMorganFingerprintAsBitVect(
-                        mol, radius, nBits=nBits, bitInfo=info)
-                    bin_s0 = [fp.GetBit(i) for i in range(fp.GetNumBits())]
-                    calc_s0 = np.array(bin_s0).astype(np.float32)
-                    sign0s.append(calc_s0)
+                failed = list()
+                for idx, mol_smiles in enumerate(smiles[chunk]):
+                    try:
+                        mol = Chem.MolFromSmiles(mol_smiles)
+                        if mol is None:
+                            raise Exception("Cannot get molecule from smiles.")
+                        info = {}
+                        fp = AllChem.GetMorganFingerprintAsBitVect(
+                            mol, radius, nBits=nBits, bitInfo=info)
+                        bin_s0 = [fp.GetBit(i) for i in range(fp.GetNumBits())]
+                        calc_s0 = np.array(bin_s0).astype(np.float32)
+                    except Exception as err:
+                        self.__log.warn("%s: %s", mol_smiles, str(err))
+                        failed.append(idx)
+                        calc_s0 = np.full((nBits, ),  np.nan)
+                    finally:
+                        sign0s.append(calc_s0)
                 sign0s = np.vstack(sign0s)
-                results['V'][chunk] = predict_fn({'x': sign0s})['predictions']
+                preds = predict_fn({'x': sign0s})['predictions']
+                if failed:
+                    preds[np.array(failed)] = np.full((128, ),  np.nan)
+                results['V'][chunk] = preds
         return pred_s3
 
     def fit(self, chemchecker, sign2_universe=None, model_confidence=True,
