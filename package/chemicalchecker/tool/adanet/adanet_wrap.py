@@ -714,8 +714,7 @@ class AdaNetWrapper(object):
         for split in splits:
             self.__log.info("Performances for AdaNet on %s" % split)
             y_pred, y_true = AdaNetWrapper.predict_online(
-                self.save_dir, self.traintest_file, split,
-                predict_fn=predict_fn)
+                self.traintest_file, split, predict_fn=predict_fn)
             if suffix:
                 name = "AdaNet_%s" % suffix
             else:
