@@ -27,6 +27,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.patheffects as path_effects
+import matplotlib.gridspec as gridspec
 
 from chemicalchecker.util import logged
 
@@ -662,6 +663,36 @@ class Plot():
         plt.savefig(filename, dpi=100)
         plt.close()
 
+    def quick_sign_pred_vs_true_scatter(self, y_true, y_pred):
+
+        def quick_gaussian_kde(x, y, limit=5000):
+            xl = x[:limit]
+            yl = y[:limit]
+            xy = np.vstack([xl, yl])
+            c = gaussian_kde(xy)(xy)
+            order = c.argsort()
+            return xl, yl, c, order
+
+        fig = plt.figure(figsize=(40, 80))
+        gs1 = gridspec.GridSpec(16, 8)
+        gs1.update(wspace=0.0, hspace=0.0)  # set the spacing between axes.
+        for i in range(128):
+            # i = i + 1 # grid spec indexes from 0
+            ax = plt.subplot(gs1[i])
+            plt.axis('on')
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+            ax.set_aspect('equal')
+            x, y, c, order = quick_gaussian_kde(y_true[:, i], y_pred[:, i])
+            ax.scatter(x[order], y[order], c=c[order], s=5, edgecolor='')
+            ax.set_xlim(-1.5, 1.5)
+            ax.set_ylim(-1.5, 1.5)
+        fig.tight_layout()
+        filename = os.path.join(
+            self.plot_path, "pred_vs_true.png")
+        plt.savefig(filename, dpi=60)
+        plt.close()
+
     @skip_on_exception
     def sign2_prediction_plot(self, y_true, y_pred, predictor_name, max_samples=1000):
 
@@ -988,11 +1019,11 @@ class Plot():
         test_idxs = np.where(np.isin(sign3.keys, test_keys))[0]
         train_idxs = np.where(~np.isin(sign3.keys, test_keys))[0]
 
-        pred_mse = sign3.get_h5_dataset('pred_mse')
-        test_pred_mse = pred_mse.T[0][test_idxs]
-        self.__log.info("test_pred_mse %s", test_pred_mse.shape)
-        train_pred_mse = pred_mse.T[0][train_idxs]
-        self.__log.info("train_pred_mse %s", train_pred_mse.shape)
+        confidence = sign3.get_h5_dataset('confidence')
+        test_confidence = confidence[test_idxs]
+        self.__log.info("test_confidence %s", test_confidence.shape)
+        train_confidence = confidence[train_idxs]
+        self.__log.info("train_confidence %s", train_confidence.shape)
 
         stddev = sign3.get_h5_dataset('stddev')
         test_std = stddev[test_idxs]
@@ -1006,11 +1037,6 @@ class Plot():
         train_inte = intensity[train_idxs]
         self.__log.info("train_inte %s", train_inte.shape)
 
-        confidence = sign3.get_h5_dataset('confidence')
-        computed_conf = confidence[test_idxs]
-        self.__log.info("computed_conf %s", test_inte.shape)
-        #train_conf = confidence[train_idxs]
-        #self.__log.info("train_conf %s", train_inte.shape)
 
         def quick_gaussian_kde(x, y, limit=10000):
             xl = x[:limit]
@@ -1028,7 +1054,7 @@ class Plot():
 
         # stddev row
         # train test distributions
-        self.__log.info("plotting stddev distribution")
+        self.__log.info("plotting stddev distributions")
         ax = fig.add_subplot(grid[0, 0])
         sns.distplot(test_std,
                      ax=ax, kde=False, norm_hist=False, color=color)
@@ -1047,13 +1073,13 @@ class Plot():
         ax.set_xlabel('stddev')
         ax.set_ylabel('log mse')
         pearson_coeff = stats.pearsonr(train_std, train_log_mse)[0]
-        txt = ax.text(0.85, 0.05, "p: {:.2f}".format(pearson_coeff),
+        txt = ax.text(0.85, 0.85, "p: {:.2f}".format(pearson_coeff),
                       transform=ax.transAxes, size=10)
 
         # test normalized distributions
         self.__log.info("plotting stddev norm distribution")
         test_std_norm = np.count_nonzero(
-            np.expand_dims(test_std[:100000], axis=1) < train_std, axis=1)
+            np.expand_dims(test_std[:100000], axis=1) > train_std, axis=1)
         test_std_norm = test_std_norm / float(train_std.shape[0])
         ax = fig.add_subplot(grid[0, 2])
         sns.distplot(test_std_norm,
@@ -1065,7 +1091,7 @@ class Plot():
 
         # intensity row
         # train test distributions
-        self.__log.info("plotting intensity distribution")
+        self.__log.info("plotting intensity distributions")
         ax = fig.add_subplot(grid[1, 0])
         sns.distplot(test_inte,
                      ax=ax, kde=False, norm_hist=False, color=color)
@@ -1084,13 +1110,13 @@ class Plot():
         ax.set_xlabel('intensity')
         ax.set_ylabel('log mse')
         pearson_coeff = stats.pearsonr(train_inte, train_log_mse)[0]
-        txt = ax.text(0.85, 0.05, "p: {:.2f}".format(pearson_coeff),
+        txt = ax.text(0.85, 0.85, "p: {:.2f}".format(pearson_coeff),
                       transform=ax.transAxes, size=10)
 
         # test normalized distributions
         self.__log.info("plotting intensity norm distribution")
         test_inte_norm = np.count_nonzero(
-            np.expand_dims(test_inte[:100000], axis=1) < train_inte, axis=1)
+            np.expand_dims(test_inte[:100000], axis=1) > train_inte, axis=1)
         test_inte_norm = test_inte_norm / float(train_inte.shape[0])
         ax = fig.add_subplot(grid[1, 2])
         sns.distplot(test_inte_norm,
@@ -1104,9 +1130,9 @@ class Plot():
         # prediction train test distributions
         self.__log.info("plotting pred mse distribution")
         ax = fig.add_subplot(grid[2, 0])
-        sns.distplot(test_pred_mse,
+        sns.distplot(test_confidence,
                      ax=ax, kde=False, norm_hist=False, color=color)
-        sns.distplot(train_pred_mse,
+        sns.distplot(train_confidence,
                      ax=ax, kde=False, norm_hist=False, color='grey')
         ax.set_xlabel('pred log mse')
         ax.set_yscale('log')
@@ -1115,26 +1141,13 @@ class Plot():
         # predicted mse vs mse
         self.__log.info("plotting pred vs true mse")
         ax = fig.add_subplot(grid[2, 1])
-        x, y, c, order = quick_gaussian_kde(train_pred_mse, train_log_mse)
+        x, y, c, order = quick_gaussian_kde(train_confidence, train_log_mse)
         ax.scatter(x[order], y[order], c=c[order], s=5, edgecolor='')
         ax.set_xlabel('pred log mse')
         ax.set_ylabel('log mse')
-        pearson_coeff = stats.pearsonr(train_pred_mse, train_log_mse)[0]
-        txt = ax.text(0.85, 0.05, "p: {:.2f}".format(pearson_coeff),
+        pearson_coeff = stats.pearsonr(train_confidence, train_log_mse)[0]
+        txt = ax.text(0.85, 0.85, "p: {:.2f}".format(pearson_coeff),
                       transform=ax.transAxes, size=10)
-
-        # confidence
-        self.__log.info("plotting confidence distribution")
-        test_conf = np.count_nonzero(
-            np.expand_dims(test_pred_mse[:100000], axis=1) < train_pred_mse, axis=1)
-        test_conf = test_conf / float(train_pred_mse.shape[0])
-        ax = fig.add_subplot(grid[2, 2])
-        sns.distplot(test_conf,
-                     ax=ax, kde=False, norm_hist=False, color=color)
-        ax.set_xlabel('pred log mse norm = confidence')
-        ax.set_xlim(0)
-        ax.set_yscale('log')
-        ax.set_ylabel('molecules')
 
         # save
         plt.tight_layout()
