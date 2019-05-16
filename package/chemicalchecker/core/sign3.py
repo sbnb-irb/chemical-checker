@@ -178,7 +178,14 @@ class sign3(BaseSignature):
                     ds, evaluate=True, single_spaces_performances=False)
 
     def predict_from_smiles(self, smiles, dest_dir, ds='A1.001'):
-        """Given smiles generate sign0 and predict sign3."""
+        """Given smiles generate sign0 and predict sign3.
+
+        Args:
+            smiles(list): A list of SMILES strings.
+            dest_dir(str): the path where to save the predictions.
+        Returns:
+            pred_s3(sign3): The signature 3 created with predictions.
+        """
         try:
             from chemicalchecker.tool.adanet import AdaNet
             from rdkit import Chem
@@ -231,6 +238,7 @@ class sign3(BaseSignature):
             save_support=True, save_correlations=True, update_preds=True):
         """Use the learned model to predict the signature 3.
 
+        Args:
         chemchecker(ChemicalChecker): the CC instance for fetching signatures.
         sign2_universe(str): Path where to save the union of all signatures 2.
         model_confidence(bool): Whether to model confidence. That is  based on
@@ -407,7 +415,18 @@ class sign3(BaseSignature):
         self.mark_ready()
 
     def train_error_estimator(self, sign2_self):
-        """Train a error estimator."""
+        """Train a error estimator.
+
+        After some testing we realized that training a regressor does not
+        accurately capture indefinite prediction (low intensity). We just
+        save the distributions of stddevs and intensities.
+
+        Args:
+            sign2_self(sign2): The signature that we are training for.
+        Returns:
+            stddev(np.array): Distribution of standard deviations.
+            intensity(np.array): Distribution of intensity.
+        """
         # get current space inchikeys (limit to 20^4)
         dataset_inks = sign2_self.keys
         if len(dataset_inks) > 2 * 1e4:
