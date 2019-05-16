@@ -293,7 +293,7 @@ class sign3(BaseSignature):
 
         # save universe sign3
         predict_fn = AdaNet.predict_fn(final_adanet_path)
-        with h5py.File(self.data_path, "r+") as results:
+        with h5py.File(self.data_path, "w") as results:
             # initialize V and keys datasets
             safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
             safe_create(results, 'keys', (tot_inks,), dtype='|S27')
@@ -303,8 +303,11 @@ class sign3(BaseSignature):
                             (tot_inks,), dtype=np.float32)
                 # this is to store standard deviations
                 safe_create(results, 'stddev', (tot_inks,), dtype=np.float32)
+                safe_create(results, 'stddev_norm', (tot_inks,), dtype=np.float32)
                 # this is to store intensity
                 safe_create(results, 'intensity',
+                            (tot_inks,), dtype=np.float32)
+                safe_create(results, 'intensity_norm',
                             (tot_inks,), dtype=np.float32)
                 # consensus prediction
                 safe_create(results, 'consensus',
@@ -403,10 +406,12 @@ class sign3(BaseSignature):
                 stddev = np.expand_dims(results['stddev'][chunk], axis=1)
                 stddev_norm = np.count_nonzero(stddev > std_dist.T, axis=1)
                 stddev_norm = stddev_norm / float(std_dist.shape[0])
+                results['stddev_norm'][chunk] = stddev_norm
                 # get intensity and normalize wrt train distribution
                 intensity = np.expand_dims(results['intensity'][chunk], axis=1)
                 inten_norm = np.count_nonzero(intensity > int_dist.T, axis=1)
                 inten_norm = inten_norm / float(int_dist.shape[0])
+                results['intensity_norm'][chunk] = inten_norm
                 # confidence and intensity are equally important
                 # high intensity imply low error, high stddev imply high error
                 confidence = np.sqrt(inten_norm * (1 - stddev_norm))
