@@ -157,6 +157,7 @@ class sign3(BaseSignature):
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
 
     def fit_sign0(self, chemchecker, ds='A1.001', sign0_traintest=None):
+        """Train an AdaNet model to predict sign3 from sign0."""
         try:
             from chemicalchecker.tool.adanet import AdaNet, Traintest
         except ImportError as err:
@@ -176,6 +177,45 @@ class sign3(BaseSignature):
             'augmentation': False}
         self._learn(chemchecker, suffix='sign0_%s_final_eval' %
                     ds, evaluate=True, single_spaces_performances=False)
+
+    def predict_from_smiles(self, smiles, dest_dir, ds='A1.001'):
+        """Given smiles generate sign0 and predict sign3."""
+        try:
+            from chemicalchecker.tool.adanet import AdaNet
+            from rdkit import Chem
+            from rdkit.Chem import AllChem
+        except ImportError as err:
+            raise err
+        # load NN
+        sign0_adanet_path = os.path.join(self.model_path,
+                                         'adanet_sign0_%s_final_eval' % ds,
+                                         'savedmodel')
+        predict_fn = AdaNet.predict_fn(sign0_adanet_path)
+        # create a sign3 in the destination dir
+        if not os.path.isdir(dest_dir):
+            os.mkdir(dest_dir)
+        pred_s3 = sign3(dest_dir, dest_dir, self.dataset)
+        with h5py.File(pred_s3.data_path, "w") as results:
+            # initialize V (with NaN in case of failing rdkit) and smiles keys
+            results.create_dataset('V', data=np.full(
+                (len(smiles), 128), np.nan), dtype=np.float32)
+            results.create_dataset('keys', data=np.array(smiles))
+            # compute sign0
+            nBits = 2048
+            radius = 2
+            for chunk in tqdm(list(pred_s3.chunker())):
+                sign0s = list()
+                for mol_smiles in smiles[chunk]:
+                    mol = Chem.MolFromSmiles(mol_smiles)
+                    info = {}
+                    fp = AllChem.GetMorganFingerprintAsBitVect(
+                        mol, radius, nBits=nBits, bitInfo=info)
+                    bin_s0 = [fp.GetBit(i) for i in range(fp.GetNumBits())]
+                    calc_s0 = np.array(bin_s0).astype(np.float32)
+                    sign0s.append(calc_s0)
+                sign0s = np.vstack(sign0s)
+                results['V'][chunk] = predict_fn({'x': sign0s})['predictions']
+        return pred_s3
 
     def fit(self, chemchecker, sign2_universe=None, model_confidence=True,
             save_support=True, save_correlations=True, update_preds=True,
