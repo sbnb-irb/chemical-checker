@@ -6,7 +6,6 @@ virtually *any* molecule in *any* dataset.
 """
 import os
 import h5py
-import pickle
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -229,8 +228,7 @@ class sign3(BaseSignature):
         return pred_s3
 
     def fit(self, chemchecker, sign2_universe=None, model_confidence=True,
-            save_support=True, save_correlations=True, update_preds=True,
-            subsample_fn=None):
+            save_support=True, save_correlations=True, update_preds=True):
         """Use the learned model to predict the signature 3.
 
         chemchecker(ChemicalChecker): the CC instance for fetching signatures.
@@ -287,7 +285,7 @@ class sign3(BaseSignature):
 
         # save universe sign3
         predict_fn = AdaNet.predict_fn(final_adanet_path)
-        with h5py.File(self.data_path, "w") as results:
+        with h5py.File(self.data_path, "r+") as results:
             # initialize V and keys datasets
             safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
             safe_create(results, 'keys', (tot_inks,), dtype='|S27')
@@ -370,58 +368,46 @@ class sign3(BaseSignature):
                         results['pred_correlation'][chunk] = chunk_corr
                         del chunk_corr
                     # save stddevs needed for confidence model and prediction
-                    if model_confidence:
-                        if update_preds:
-                            # draw prediction with sub-sampling (dropout)
-                            if subsample_fn is None:
-                                subsample_fn = subsample_x_only
-                            samples = AdaNet.predict(feat, predict_fn,
-                                                     subsample_fn,
-                                                     probs=True, samples=10)
-                            # summarize the predictions as consensus
-                            consensus = np.mean(samples, axis=2)
-                            results['consensus'][chunk] = consensus
-                            # summarize the standard deviation of components
-                            stddevs = np.std(samples, axis=2)
-                            # just save the average stddev over the components
-                            results['stddev'][chunk] = np.mean(stddevs, axis=1)
-                            # zeros input (no info) as intensity reference
-                            centered = consensus - zero_pred
-                            # measure the intensity (absolute sum of comps)
-                            abs_sum = np.sum(np.abs(centered), axis=1)
-                            results['intensity'][chunk] = abs_sum / 128.
+                    if model_confidence and update_preds:
+                        # draw prediction with sub-sampling (dropout)
+                        samples = AdaNet.predict(feat, predict_fn,
+                                                 subsample_x_only,
+                                                 probs=True, samples=10)
+                        # summarize the predictions as consensus
+                        consensus = np.mean(samples, axis=2)
+                        results['consensus'][chunk] = consensus
+                        # summarize the standard deviation of components
+                        stddevs = np.std(samples, axis=2)
+                        # just save the average stddev over the components
+                        results['stddev'][chunk] = np.mean(stddevs, axis=1)
+                        # zeros input (no info) as intensity reference
+                        centered = consensus - zero_pred
+                        # measure the intensity (absolute sum of comps)
+                        abs_sum = np.sum(np.abs(centered), axis=1)
+                        results['intensity'][chunk] = abs_sum / 128.
         # train error estimator as save prediction
-        mdl, train_dist = self.train_error_estimator(ds_sign[self.dataset])
+        std_dist, int_dist = self.train_error_estimator(ds_sign[self.dataset])
         with h5py.File(self.data_path, "r+") as results:
-            safe_create(results, 'pred_mse', (tot_inks, 1), dtype=np.float32)
             safe_create(results, 'confidence', (tot_inks, 1), dtype=np.float32)
             for idx in tqdm(range(0, tot_inks, 1000)):
                 chunk = slice(idx, idx + 1000)
+                # get stddev and normalize wrt train distribution
                 stddev = np.expand_dims(results['stddev'][chunk], axis=1)
+                stddev_norm = np.count_nonzero(stddev > std_dist.T, axis=1)
+                stddev_norm = stddev_norm / float(std_dist.shape[0])
+                # get intensity and normalize wrt train distribution
                 intensity = np.expand_dims(results['intensity'][chunk], axis=1)
-                corr = results['pred_correlation'][chunk, :2]
-                supp = np.expand_dims(results['support'][chunk], axis=1)
-                features = np.concatenate(
-                    (stddev, intensity, corr, supp), axis=1)
-                pred_mse = np.expand_dims(mdl.predict(features), axis=1)
-                results['pred_mse'][chunk] = pred_mse
-                # the lower the better (will be closer to 1)
-                pred_mse_norm = np.count_nonzero(
-                    pred_mse < train_dist, axis=1)
-                pred_mse_norm = pred_mse_norm / float(train_dist.shape[0])
-                results['confidence'][chunk] = pred_mse_norm
+                inten_norm = np.count_nonzero(intensity > int_dist.T, axis=1)
+                inten_norm = inten_norm / float(int_dist.shape[0])
+                # confidence and intensity are equally important
+                # high intensity imply low error, high stddev imply high error
+                confidence = np.sqrt(inten_norm * (1 - stddev_norm))
+                # the higher the better
+                results['confidence'][chunk] = confidence
         self.mark_ready()
 
     def train_error_estimator(self, sign2_self):
         """Train a error estimator."""
-        from sklearn.linear_model import LinearRegression
-        from sklearn.gaussian_process import GaussianProcessRegressor
-        from sklearn.ensemble import RandomForestRegressor
-        from sklearn.svm import SVR
-        from sklearn.preprocessing import StandardScaler
-        from sklearn.pipeline import make_pipeline
-        from sklearn.metrics import r2_score
-        from chemicalchecker.tool.adanet import Traintest
         # get current space inchikeys (limit to 20^4)
         dataset_inks = sign2_self.keys
         if len(dataset_inks) > 2 * 1e4:
@@ -429,42 +415,19 @@ class sign3(BaseSignature):
         # get the features to train the estimator on
         _, stddev = self.get_vectors(dataset_inks, dataset_name='stddev')
         _, intensity = self.get_vectors(dataset_inks, dataset_name='intensity')
-        _, corr = self.get_vectors(
-            dataset_inks, dataset_name='pred_correlation')
-        _, supp = self.get_vectors(dataset_inks, dataset_name='support')
         # also get the consensus and actual sign2
         _, consensus = self.get_vectors(dataset_inks, dataset_name='consensus')
         _, actual = sign2_self.get_vectors(dataset_inks)
         # calculate the error (what we want to predict)
         log_mse = np.log10(np.average(((actual - consensus)**2), axis=1))
-        features = np.concatenate(
-            (stddev, intensity, corr[:, :2], supp), axis=1)
         # save data in the confidence model
         error_file = os.path.join(self.model_path, 'error.h5')
         with h5py.File(error_file, "w") as hf:
             hf.create_dataset('keys', data=dataset_inks)
-            hf.create_dataset('features', data=features, dtype=np.float32)
+            hf.create_dataset('stddev', data=stddev, dtype=np.float32)
+            hf.create_dataset('intensity', data=intensity, dtype=np.float32)
             hf.create_dataset('log_mse', data=log_mse, dtype=np.float32)
-        # train test split
-        train_idx, test_idx = Traintest.get_split_indeces(features, [.8, .2])
-        self.__log.info("Training on TRAIN %s TEST %s", features[train_idx].shape,
-                        features[test_idx].shape)
-        # evaluate model
-        eval_mdl = make_pipeline(StandardScaler(), SVR())
-        eval_mdl.fit(features[train_idx], log_mse[train_idx])
-        # simple performance printout
-        train_pred = eval_mdl.predict(features[train_idx])
-        train_r2 = r2_score(log_mse[train_idx], train_pred)
-        test_pred = eval_mdl.predict(features[test_idx])
-        test_r2 = r2_score(log_mse[test_idx], test_pred)
-        self.__log.info("Error estimator r2: TRAIN %.2f TEST %.2f", train_r2,
-                        test_r2)
-        # save final model
-        mdl = make_pipeline(StandardScaler(), SVR())
-        mdl.fit(features, log_mse)
-        error_pkl = os.path.join(self.model_path, 'error.pkl')
-        pickle.dump(mdl, open(error_pkl, 'w'))
-        return mdl, mdl.predict(features)
+        return stddev, intensity
 
     def predict(self, chemchecker, output_file, sign2_molset=None,
                 inchikeys=None, save_confidence=True, save_support=True,
