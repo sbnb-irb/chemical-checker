@@ -761,9 +761,9 @@ class MultiPlot():
 
     def sign3_adanet_performance_plot(self, metric="pearson", suffix=None):
 
+        sns.set_style("whitegrid")
         fig, axes = plt.subplots(25, 1, sharey=True, sharex=False,
                                  figsize=(20, 80), dpi=100)
-        sns.set_style("whitegrid")
         adanet_dir = 'adanet_eval'
         if suffix is not None:
             adanet_dir = 'adanet_%s' % suffix
@@ -806,11 +806,12 @@ class MultiPlot():
         plt.savefig(filename, dpi=100)
         plt.close('all')
 
-    def sign3_adanet_performance_overall(self, metric="pearson", suffix=None):
+    def sign3_adanet_performance_overall(self, metric="pearson", suffix=None,
+                                         not_self=True):
 
+        sns.set_style("whitegrid")
         fig, axes = plt.subplots(5, 5, sharey=True, sharex=False,
                                  figsize=(10, 10), dpi=100)
-        sns.set_style("whitegrid")
         adanet_dir = 'adanet_eval'
         if suffix is not None:
             adanet_dir = 'adanet_%s' % suffix
@@ -821,10 +822,11 @@ class MultiPlot():
             if not os.path.isfile(perf_file):
                 continue
             df = pd.read_pickle(perf_file)
-            if ds in ['B4.001', 'C3.001', 'C4.001', 'C5.001']:
-                df = df[df['from'] == 'not-BX|CX']
-            else:
-                df = df[df['from'] == 'not-%s' % ds]
+            if not_self:
+                if ds in ['B4.001', 'C3.001', 'C4.001', 'C5.001']:
+                    df = df[df['from'] == 'not-BX|CX']
+                else:
+                    df = df[df['from'] == 'not-%s' % ds]
             sns.barplot(x='from', y=metric, data=df, hue="split",
                         hue_order=['train', 'test'], alpha=.8,
                         ax=ax, color=self.cc_palette([ds])[0])
@@ -832,7 +834,7 @@ class MultiPlot():
             ax.get_legend().remove()
             ax.set_xlabel('')
             ax.set_ylabel('')
-            #ax.set_xticklabels([ds])
+            # ax.set_xticklabels([ds])
             for idx, p in enumerate(ax.patches):
                 if "%.2f" % p.get_height() == 'nan':
                     continue
@@ -851,6 +853,10 @@ class MultiPlot():
             """
         ax.legend(loc='upper right', fontsize='small')
         plt.tight_layout()
-        filename = os.path.join(self.plot_path, "adanet_performance2.png")
+        if suffix is not None:
+            filename = os.path.join(
+                self.plot_path, "adanet_performance_%s.png" % suffix)
+        else:
+            filename = os.path.join(self.plot_path, "adanet_performance2.png")
         plt.savefig(filename, dpi=100)
         plt.close('all')
