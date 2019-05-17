@@ -7,11 +7,12 @@ from chemicalchecker.util import logged
 
 @logged
 class DataCalculator():
-    """Container for static data calculation methods.
+    """Container for static parsing methods.
 
-    A calculating data function here is iterating on a list of inchikey, inchi tuples.
-    The calculated raw data for each tuple is saved in a dictionary along with the inchikey.
-    The dictionary is appended in a list and yielded in chunks.
+    A parsing function here is iterating on an input file. It has to define
+    on each input line the source id and the smile of  a molecule. Then the
+    smile is converted to inchi and inchikey. The lines are appended as
+    dictionaies and yielded in chunks.
     """
 
     @staticmethod
@@ -379,7 +380,7 @@ class DataCalculator():
         yield chunk
 
     @staticmethod
-    def pidgin3_ortho(inchikey_inchi, chunks=100):
+    def pidgin3_ortho(inchikey_inchi, chunks=1000):
         from chemicalchecker.tool import Pidgin
         import numpy as np
         import json
@@ -388,9 +389,7 @@ class DataCalculator():
         # Start iterating
         chunk = list()
         keys = inchikey_inchi.keys()
-        print "A", len(keys)
         for i in np.array_split(keys, int(len(keys)/chunks) + 1):
-            print "B", len(i)
             _inchikey_inchi = {k: inchikey_inchi[k] for k in i}
             res = pdg.predict(_inchikey_inchi)
             for k, r in res.items():
