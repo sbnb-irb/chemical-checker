@@ -17,6 +17,7 @@ predict() capabilities. This is done using the AdaNet framework for for
 automatically learning high-quality models with minimal expert intervention.
 """
 import os
+import h5py
 import shutil
 import numpy as np
 from time import time
@@ -179,9 +180,10 @@ class sign2(BaseSignature):
         ada.save_performances(adanet_path, sign2_plot, extra_preditors)
         self.__log.debug('model saved to %s' % adanet_path)
 
+        self.validate()
         self.mark_ready()
 
-    def predict(self, sign1):
+    def predict(self, sign1, destination):
         """Use the learned model to predict the signature."""
         try:
             from chemicalchecker.tool.adanet import AdaNet
@@ -190,7 +192,15 @@ class sign2(BaseSignature):
         # load AdaNet model
         adanet_path = os.path.join(self.model_path, 'adanet', 'savedmodel')
         self.__log.debug('loading model from %s' % adanet_path)
-        return AdaNet.predict_signature(adanet_path, sign1)
+        predict_fn = AdaNet.predict_fn(adanet_path)
+        tot_inks = len(sign1.keys)
+        with h5py.File(destination, "w") as results:
+            # initialize V and keys datasets
+            results.create_dataset('V', (tot_inks, 128), dtype=np.float32)
+            results.create_dataset('keys', data=sign1.keys)
+            # predict signature 2
+            for chunk in sign1.chunker():
+                results['V'][chunk] = AdaNet.predict(sign1[chunk], predict_fn)
 
     @staticmethod
     def predict_nearest_neighbor(destination_path, traintest_file):
