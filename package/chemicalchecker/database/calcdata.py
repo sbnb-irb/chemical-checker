@@ -166,6 +166,7 @@ def Calcdata(table_name):
             wait: Wait for the job to finish (default:True)
             memory: Maximum memory the job can take in Gigabytes(default: 5)
             chunk: Number of elements per HPC job(default: 200)
+            chunk_dbload: Number of elements loaded to the database(default: 1000)
             """
             # create job directory if not available
             if not os.path.isdir(job_path):
@@ -175,6 +176,7 @@ def Calcdata(table_name):
             wait = kwargs.get("wait", True)
             memory = kwargs.get("memory", 5)
             chunk = kwargs.get("chunk", 200)
+            chunk_dbload = kwargs.get("chunk_dbload", 1000)
 
             # create script file
             cc_config = os.environ['CC_CONFIG']
@@ -200,7 +202,7 @@ def Calcdata(table_name):
                 # elements are indexes
                 "mol = Calcdata('" + GenericCalcdata.__tablename__ + "')",
                 # start import
-                'mol.from_inchikey_inchi(inchikey_inchi,missing_only=False)',
+                'mol.from_inchikey_inchi(inchikey_inchi,missing_only=False,chunksize=%d)' % chunk_dbload,
                 "print('JOB DONE')"
             ]
             script_name = os.path.join(job_path, 'molprop_script.py')
