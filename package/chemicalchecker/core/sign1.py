@@ -399,9 +399,9 @@ class sign1(BaseSignature):
 
             inchikey_sig = shelve.open(
                 os.path.join(tmp_dir, "sign1.dict"), "r")
-            ks_moa, auc_moa = plot.vector_validation(
+            ks_moa, auc_moa, frac_moa = plot.vector_validation(
                 inchikey_sig, "sign1", prefix="moa", inchikey_mappings=inchikey_mappings)
-            ks_atc, auc_atc = plot.vector_validation(
+            ks_atc, auc_atc, frac_atc = plot.vector_validation(
                 inchikey_sig, "sign1", prefix="atc", inchikey_mappings=inchikey_mappings)
             inchikey_sig.close()
 
@@ -669,9 +669,9 @@ class sign1(BaseSignature):
 
             inchikey_sig = shelve.open(
                 os.path.join(tmp_dir, "sign1.dict"), "r")
-            ks_moa, auc_moa = plot.vector_validation(
+            ks_moa, auc_moa, frac_moa = plot.vector_validation(
                 inchikey_sig, "sign1", prefix="moa", inchikey_mappings=inchikey_mappings)
-            ks_atc, auc_atc = plot.vector_validation(
+            ks_atc, auc_atc, frac_atc = plot.vector_validation(
                 inchikey_sig, "sign1", prefix="atc", inchikey_mappings=inchikey_mappings)
             inchikey_sig.close()
 

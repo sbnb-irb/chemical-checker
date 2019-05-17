@@ -171,11 +171,13 @@ class BaseSignature(object):
         On Mode Of Action (MOA) and Anatomical Therapeutic Chemical (ATC).
         """
         plot = Plot(self.dataset, self.stats_path, self.validation_path)
-        ks_moa, auc_moa = plot.vector_validation(
-            self, self.__class__.__name__, prefix="moa", h5_input=True)
-        ks_atc, auc_atc = plot.vector_validation(
-            self, self.__class__.__name__, prefix="atc", h5_input=True)
+        results = dict()
+        for validation_set in ['moa', 'atc']:
+            res = plot.vector_validation(self, self.__class__.__name__,
+                                         prefix=validation_set, h5_input=True)
+            results[validation_set] = res
         plot.matrix_plot(self.data_path)
+        return results
 
     def mark_ready(self):
         filename = os.path.join(self.model_path, self.readyfile)

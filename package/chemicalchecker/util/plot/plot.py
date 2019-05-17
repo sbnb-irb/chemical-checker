@@ -230,7 +230,7 @@ class Plot():
         f = open(self.validation_path + "/%s_validation.tsv" % prefix, "r")
         S = set()
         D = set()
-        inchikeys = set()
+        validation_inks = set()
         for l in f:
             l = l.rstrip("\n").split("\t")
             l0 = l[0]
@@ -240,7 +240,7 @@ class Plot():
                     l0 = inchikey_mappings[l0]
                 if l1 in inchikey_mappings:
                     l1 = inchikey_mappings[l1]
-            inchikeys.update([l0, l1])
+            validation_inks.update([l0, l1])
             if int(l[2]) == 1:
                 S.update([(l0, l1)])
             else:
@@ -251,17 +251,18 @@ class Plot():
         f.close()
 
         d = {}
-        for inchikey in inchikeys:
+        for inchikey in validation_inks:
             try:
                 d[inchikey] = inchikey_dict[inchikey]
             except:
                 continue
-        inchikeys = inchikeys.intersection(d.keys())
+        inchikeys = validation_inks.intersection(d.keys())
+        frac_shared = 100 * len(inchikeys) / float(len(validation_inks))
         S = set([x for x in S if x[0] in inchikeys and x[1] in inchikeys])
         D = set([x for x in D if x[0] in inchikeys and x[1] in inchikeys])
         d = dict((k, d[k]) for k in inchikeys)
 
-        return S, D, d
+        return S, D, d, frac_shared
 
     def _for_the_validation_h5(self, sign, prefix,
                                inchikey_mappings=None):
@@ -291,12 +292,13 @@ class Plot():
 
         # get shared inchikeys
         inchikeys = set.intersection(sign.unique_keys, validation_inks)
+        frac_shared = 100 * len(inchikeys) / float(len(validation_inks))
         d = {k: v for k, v in zip(*sign.get_vectors(inchikeys))}
         S = set([x for x in S if x[0] in inchikeys and x[1] in inchikeys])
         D = set([x for x in D if x[0] in inchikeys and x[1] in inchikeys])
         d = dict((k, d[k]) for k in inchikeys)
 
-        return S, D, d
+        return S, D, d, frac_shared
 
     def label_validation(self, inchikey_lab, label_type, prefix="moa", inchikey_mappings=None):
 
@@ -360,10 +362,10 @@ class Plot():
 
         self.__log.info("%s Validation" % prefix.upper())
         if not h5_input:
-            S, D, d = self._for_the_validation(
+            S, D, d, frac = self._for_the_validation(
                 inchikey_vec, prefix, inchikey_mappings)
         else:
-            S, D, d = self._for_the_validation_h5(
+            S, D, d, frac = self._for_the_validation_h5(
                 inchikey_vec, prefix, inchikey_mappings)
 
         if distance == "euclidean":
@@ -413,7 +415,8 @@ class Plot():
         plt.xlabel("Distance")
         plt.ylabel("Cumulative proportion")
 
-        plt.title("D: %.2f, P-val: %.2g, N: %d" % (ks[0], ks[1], N))
+        plt.title("D: %.2f, P-val: %.2g, N: %d (%.1f%%)" %
+                  (ks[0], ks[1], N, frac))
 
         fig.axes.spines["bottom"].set_color(self.color)
         fig.axes.spines["top"].set_color(self.color)
@@ -453,7 +456,7 @@ class Plot():
         plt.xlabel("False positive rate")
         plt.ylabel("True positive rate")
 
-        plt.title("AUC: %.2f, N: %d" % (auc_score, N))
+        plt.title("AUC: %.2f, N: %d (%.1f%%)" % (auc_score, N, frac))
 
         fig.axes.spines["bottom"].set_color(self.color)
         fig.axes.spines["top"].set_color(self.color)
@@ -467,7 +470,7 @@ class Plot():
             for i in range(len(fpr)):
                 f.write("%f\t%f\n" % (fpr[i], tpr[i]))
 
-        return ks, auc_score
+        return ks, auc_score, frac
 
     # Matrix plot
 
@@ -1036,7 +1039,6 @@ class Plot():
         self.__log.info("test_inte %s", test_inte.shape)
         train_inte = intensity[train_idxs]
         self.__log.info("train_inte %s", train_inte.shape)
-
 
         def quick_gaussian_kde(x, y, limit=10000):
             xl = x[:limit]
