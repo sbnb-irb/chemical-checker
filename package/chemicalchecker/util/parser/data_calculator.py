@@ -379,7 +379,7 @@ class DataCalculator():
         yield chunk
 
     @staticmethod
-    def pidgin3_ortho(inchikey_inchi, chunks=1000):
+    def pidgin3_ortho(inchikey_inchi, chunks=100):
         from chemicalchecker.tool import Pidgin
         import numpy as np
         import json
@@ -388,7 +388,9 @@ class DataCalculator():
         # Start iterating
         chunk = list()
         keys = inchikey_inchi.keys()
+        print "A", len(keys)
         for i in np.array_split(keys, int(len(keys)/chunks) + 1):
+            print "B", len(i)
             _inchikey_inchi = {k: inchikey_inchi[k] for k in i}
             res = pdg.predict(_inchikey_inchi)
             for k, r in res.items():
