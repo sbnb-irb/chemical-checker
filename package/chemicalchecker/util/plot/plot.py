@@ -302,7 +302,7 @@ class Plot():
 
     def label_validation(self, inchikey_lab, label_type, prefix="moa", inchikey_mappings=None):
 
-        S, D, d = self._for_the_validation(
+        S, D, d, frac = self._for_the_validation(
             inchikey_lab, prefix, inchikey_mappings)
 
         yy, yn, ny, nn = 0, 0, 0, 0
