@@ -476,7 +476,8 @@ class Pidgin:
         self.__log.info('Importing query (calculating ECFP_4 fingerprints)')
         #import user query files
         querymatrix, rdkit_mols, query_id = importQuerySmiles(self, inchikey_inchi)
-        self.__log.info('Total number of query molecules: ' + str(len(querymatrix)))
+        self.__log.info('Total number of query molecules: ' + str(len(inchikey_inchi)))
+        #self.__log.info('Total number of query molecules: ' + str(len(querymatrix)))
         #perform target prediction on (filtered) models (using model ids)
         results_percentile = performPercentileCalculation(self, mid_uniprots.keys(), rdkit_mols)
         results_prediction = performTargetPrediction(self, mid_uniprots.keys(), rdkit_mols, querymatrix)
