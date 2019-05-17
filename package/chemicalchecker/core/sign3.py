@@ -418,6 +418,8 @@ class sign3(BaseSignature):
                 confidence = np.sqrt(inten_norm * (1 - stddev_norm))
                 # the higher the better
                 results['confidence'][chunk] = confidence
+
+        self.validate()
         self.mark_ready()
 
     def train_error_estimator(self, sign2_self):
