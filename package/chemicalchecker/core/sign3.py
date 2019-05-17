@@ -64,7 +64,7 @@ class sign3(BaseSignature):
         # get current space on which we'll train (using reference set to
         # limit redundancy)
         my_sign2 = chemchecker.get_signature(
-            'sign2', 'full_map', self.dataset)
+            'sign2', 'full', self.dataset)
         # get other space signature 2 for molecule in current space (allow nan)
         other_spaces = list(chemchecker.datasets)
         if not include_self:
@@ -74,7 +74,7 @@ class sign3(BaseSignature):
             (my_sign2.shape[0], ref_dimension * len(other_spaces)),
             dtype=np.float32)
         for idx, ds in enumerate(other_spaces):
-            sign2_ds = chemchecker.get_signature('sign2', 'full_map', ds)
+            sign2_ds = chemchecker.get_signature('sign2', 'full', ds)
             _, signs = sign2_ds.get_vectors(my_sign2.keys, include_nan=True)
             start_idx = ref_dimension * idx
             end_idx = ref_dimension * (idx + 1)
@@ -167,7 +167,7 @@ class sign3(BaseSignature):
             sign0_traintest = os.path.join(
                 self.model_path, 'traintest_sign0_%s.h5' % ds)
         if not os.path.isfile(sign0_traintest):
-            s0 = chemchecker.get_signature('sign0', 'full_map', ds)
+            s0 = chemchecker.get_signature('sign0', 'full', ds)
             common_keys, features = s0.get_vectors(self.keys)
             _, labels = self.get_vectors(common_keys)
             Traintest.create(features, labels, sign0_traintest)
@@ -269,7 +269,7 @@ class sign3(BaseSignature):
         inchikeys = set()
         ds_sign = dict()
         for ds in chemchecker.datasets:
-            sign = chemchecker.get_signature('sign2', 'full_map', ds)
+            sign = chemchecker.get_signature('sign2', 'full', ds)
             inchikeys.update(sign.unique_keys)
             ds_sign[ds] = sign
         inchikeys = sorted(list(inchikeys))
@@ -303,7 +303,8 @@ class sign3(BaseSignature):
                             (tot_inks,), dtype=np.float32)
                 # this is to store standard deviations
                 safe_create(results, 'stddev', (tot_inks,), dtype=np.float32)
-                safe_create(results, 'stddev_norm', (tot_inks,), dtype=np.float32)
+                safe_create(results, 'stddev_norm',
+                            (tot_inks,), dtype=np.float32)
                 # this is to store intensity
                 safe_create(results, 'intensity',
                             (tot_inks,), dtype=np.float32)
@@ -477,7 +478,7 @@ class sign3(BaseSignature):
             inchikeys = set()
             ds_sign = dict()
             for ds in chemchecker.datasets:
-                sign = chemchecker.get_signature('sign2', 'full_map', ds)
+                sign = chemchecker.get_signature('sign2', 'full', ds)
                 inchikeys.update(sign.unique_keys)
                 ds_sign[ds] = sign
             inchikeys = sorted(list(inchikeys))
@@ -584,8 +585,8 @@ class sign3(BaseSignature):
             os.makedirs(cross_pred_path)
         # create traintest file (simple intersection)
         ds_traintest_file = os.path.join(cross_pred_path, 'traintest.h5')
-        sign_from = chemchecker.get_signature('sign2', 'full_map', ds_from)
-        sign_to = chemchecker.get_signature('sign2', 'full_map', ds_to)
+        sign_from = chemchecker.get_signature('sign2', 'full', ds_from)
+        sign_to = chemchecker.get_signature('sign2', 'full', ds_to)
         if not reuse or not os.path.isfile(ds_traintest_file):
             _, X, Y = sign_from.get_intersection(sign_to)
             Traintest.create(X, Y, ds_traintest_file)
@@ -896,7 +897,7 @@ class sign3(BaseSignature):
             "data = inputs[task_id]",  # elements for current job
             "for params in data:",  # elements are indexes
             "    ds = '%s'" % dataset,
-            "    s3 = cc.get_signature('sign3', 'full_map', ds, adanet=params['init'])",
+            "    s3 = cc.get_signature('sign3', 'full', ds, adanet=params['init'])",
             "    s3.fit(cc, **params['fit'])",
             "print('JOB DONE')"
         ]
@@ -962,7 +963,7 @@ class sign3(BaseSignature):
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
             "data = inputs[task_id]",  # elements for current job
             "for ds in data:",  # elements are indexes
-            "    s3 = cc.get_signature('sign3', 'full_map', ds)",
+            "    s3 = cc.get_signature('sign3', 'full', ds)",
             "    s3.fit(cc, evaluate=%s, suffix='%s')" % (evaluate, suffix),
             "print('JOB DONE')"
         ]
