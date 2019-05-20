@@ -228,7 +228,6 @@ def do_consensus(ik_matrices, consensus):
                  for ik in os.listdir(ik_matrices) if ik.endswith(".h5")]
 
     def consensus_signature(ik):
-        print ik
         with h5py.File("%s/%s.h5" % (ik_matrices, ik), "r") as hf:
             X = hf["X"][:]
         # It could be max, min...
@@ -349,7 +348,7 @@ def main(args):
         sig_map = {}
 
         for SIG in cp_sigs:
-            sig_map[(SIG,)] = {"file": "%s/%s.h5" % (signaturesdir, SIG)}
+            sig_map[SIG] = {"file": "%s/%s.h5" % (signaturesdir, SIG)}
 
     if args.method == 'predict':
 
@@ -371,6 +370,8 @@ def main(args):
         with open(args.input_file) as f:
             for l in f:
                 items = l.split('\t')
+                if len(items) != 4:
+                    raise Exception("Input data not in the right format. Expected 4 columns only " + str(len(items)))
                 if items[1] == '':
                     ik = items[0]
                 else:
@@ -387,11 +388,13 @@ def main(args):
 
     readyfile = "conn.ready"
 
+    config = Config()
+
     if not os.path.exists(os.path.join(connectivitydir, readyfile)):
 
         main._log.info("Getting signature files...")
 
-        job_path = os.path.join(Config().PATH.CC_TMP, "job_conn")
+        job_path = os.path.join(args.models_path, "job_conn")
 
         if os.path.isdir(job_path):
             shutil.rmtree(job_path)
@@ -408,12 +411,12 @@ def main(args):
         params["elements"] = sig_map
         params["memory"] = 10
         # job command
-        singularity_image = Config().PATH.SINGULARITY_IMAGE
+        singularity_image = config.PATH.SINGULARITY_IMAGE
         command = "MKL_NUM_THREADS=1 singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {}".format(
             singularity_image, connectivity_script, mini_sig_info_file, signaturesdir,
             connectivitydir, GSE92742_Broad_LINCS_pert_info, min_idxs)
         # submit jobs
-        cluster = HPC(Config())
+        cluster = HPC(config)
         cluster.submitMultiJob(command, **params)
 
         if cluster.status() == 'error':
@@ -436,7 +439,7 @@ def main(args):
 
         main._log.info("Doing aggregation matrices")
 
-        job_path = os.path.join(Config().PATH.CC_TMP, "job_agg_matrices")
+        job_path = os.path.join(args.models_path, "job_agg_matrices")
 
         if os.path.isdir(job_path):
             shutil.rmtree(job_path)
@@ -449,12 +452,13 @@ def main(args):
         params["job_name"] = "CC_D1_agg_mat"
         params["elements"] = inchikey_sigid.keys()
         params["memory"] = 10
+        cc_package = os.path.join(config.PATH.CC_REPO, 'package')
         # job command
-        singularity_image = Config().PATH.SINGULARITY_IMAGE
-        command = "singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {}".format(
-            singularity_image, ikmatrices_script, mini_sig_info_file, connectivitydir, ik_matrices, args.method)
+        singularity_image = config.PATH.SINGULARITY_IMAGE
+        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {}".format(
+            cc_package, os.environ['CC_CONFIG'], singularity_image, ikmatrices_script, mini_sig_info_file, connectivitydir, ik_matrices, args.method)
         # submit jobs
-        cluster = HPC(Config())
+        cluster = HPC(config)
         cluster.submitMultiJob(command, **params)
 
         if cluster.status() == 'error':
@@ -500,6 +504,9 @@ def main(args):
         hf.create_dataset("V", data=raws)
         hf.create_dataset("features", data=np.array(orderwords))
 
+    if args.method == 'predict':
+        shutil.rmtree(ik_matrices)
+        shutil.rmtree(connectivitydir)
 
 if __name__ == '__main__':
     main(sys.argv[1:])

@@ -41,14 +41,14 @@ def connectivity_score(up, dw, signature_file, signatures_dir, min_idxs):
     with h5py.File("%s/%s" % (signatures_dir, signature_file), "r") as hf:
         expr = hf["expr"][:]
         gene = hf["gene"][:]
-        up_idxs, dw_idxs = [], []
-        i = 0
-        for g in gene:
-            if g in up:
-                up_idxs += [i]
-            elif g in dw:
-                dw_idxs += [i]
-            i += 1
+    up_idxs, dw_idxs = [], []
+    i = 0
+    for g in gene:
+        if g in up:
+            up_idxs += [i]
+        elif g in dw:
+            dw_idxs += [i]
+        i += 1
     es_up = es_score(up_idxs, expr, min_idxs)
     es_dw = es_score(dw_idxs, expr, min_idxs)
     if np.sign(es_up) == np.sign(es_dw):
@@ -155,11 +155,11 @@ if __name__ == '__main__':
             with h5py.File(v["file"], "r") as hf:
                 expr = hf["expr"][:]
                 gene = hf["gene"][:]
-                R = np.array(sorted(zip(gene, expr), key=lambda tup: -
-                                    tup[1]), dtype=np.dtype([('gene', '|S300'), ('expr', np.float)]))
-                up = R[:250]
-                dw = R[-250:]
-                up = set(up['gene'][up['expr'] > 2])
-                dw = set(dw['gene'][dw['expr'] < -2])
-                main(k, up, dw, mini_sig_info_file,
-                     signatures_dir, connectivity_dir, touch, min_idxs)
+            R = np.array(sorted(zip(gene, expr), key=lambda tup: -
+                                tup[1]), dtype=np.dtype([('gene', '|S300'), ('expr', np.float)]))
+            up = R[:250]
+            dw = R[-250:]
+            up = set(up['gene'][up['expr'] > 2])
+            dw = set(dw['gene'][dw['expr'] < -2])
+            main(k, up, dw, mini_sig_info_file,
+                 signatures_dir, connectivity_dir, touch, min_idxs)
