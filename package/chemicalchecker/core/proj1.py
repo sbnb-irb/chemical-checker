@@ -150,7 +150,7 @@ class proj1(BaseSignature):
             if len(X) <= self.start_k:
                 min_size = 5
 
-            if len(X) > self.start_k and len(X) < self.start_k:
+            if len(X) > self.start_k:
                 min_size = int(
                     np.interp(len(X), [self.start_k, 10000], [5, 15]))
 
