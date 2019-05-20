@@ -268,13 +268,13 @@ class sign1(BaseSignature):
                 if "mappings" in hf.keys():
                     mappings = hf["mappings"][:]
 
-            RowNames = []
-            X = []
+                RowNames = []
+                X = []
 
-            for i in range(0, V.shape[0]):
-                    r = V[i]
-                    RowNames += [keys[i]]
-                    X += [r]
+                for i in range(0, V.shape[0]):
+                        r = V[i]
+                        RowNames += [keys[i]]
+                        X += [r]
             X = np.array(X)
 
             if self.dataset[:2] == 'A5':
