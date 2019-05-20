@@ -115,7 +115,7 @@ class clus1(BaseSignature):
             if "keys" not in dh5.keys() or "V" not in dh5.keys():
                 raise Exception(
                     "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
-            self.data = np.array(dh5["V"][:], dtype=np.float32)
+            self.data = np.float32(np.array(dh5["V"][:], dtype=np.float32))
             self.data_type = dh5["V"].dtype
             self.keys = dh5["keys"][:]
             if "mappings" in dh5.keys():
@@ -196,11 +196,11 @@ class clus1(BaseSignature):
                 Vn, Vm = self.data.shape[0], dh5["elbow"][0]
 
             if self.metric == "cosine":
-                self.data = self._normalizer(self.data, False)
+                self.data = np.float32(self._normalizer(self.data, False))
 
             if self.data.shape[1] < self.num_subdim:
-                self.data = np.hstack((self.data, np.zeros(
-                    (self.data.shape[0], self.num_subdim - self.data.shape[1]))))
+                self.data = np.float32(np.hstack((self.data, np.zeros(
+                    (self.data.shape[0], self.num_subdim - self.data.shape[1])))))
 
             self.__log.info("Calculating k...")
             # Do reference distributions for the gap statistic
@@ -212,6 +212,7 @@ class clus1(BaseSignature):
 
                 cluster_range = np.arange(self.min_k, self.max_k, step=np.max(
                     [int((self.max_k - self.min_k) / self.n_points), 1]))
+
                 inertias = []
                 disps = []
                 bg_distances = sign1.background_distances(self.metric)
@@ -442,7 +443,11 @@ class clus1(BaseSignature):
                     "There is not cluster info. Please run fit method.")
 
             if self.metric == "cosine":
-                self.data = self._normalizer(self.data, False)
+                self.data = np.float32(self._normalizer(self.data, True))
+
+            if self.data.shape[1] < self.num_subdim:
+                self.data = np.float32(np.hstack((self.data, np.zeros(
+                    (self.data.shape[0], self.num_subdim - self.data.shape[1])))))
 
             index = faiss.read_index(os.path.join(
                 self.model_path, "kmeans.index"))
@@ -501,9 +506,13 @@ class clus1(BaseSignature):
             window_len = int(max_k / 10) + 1
         if window_len % 2 == 0:
             window_len += 1
-        if x.size < window_len:
-            raise ValueError(
-                "Input vector needs to be bigger than window size.")
+        if x.size <= window_len:
+            self.__log.warning(
+                "Input vector was smaller or equal than window size.")
+            window_len = x.size - 1
+            if window_len % 2 == 0:
+                window_len += 1
+
         if window_len < 3:
             return x
         if window not in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
