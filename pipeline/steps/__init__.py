@@ -5,3 +5,6 @@ from s1_2_calcdata import Calculatedata
 from s1_3_validations import Validations
 from s2_signature0 import Signature0
 from s3_signature1 import Signature1
+from s4_clustering1 import Clustering1
+from s5_neigh1 import Neigh1
+from s6_projection1 import Projection1
