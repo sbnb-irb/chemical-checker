@@ -134,6 +134,8 @@ if __name__ == '__main__':
             i = rows_d[x[0]]
             j = cols_d[x[1]]
             X[i, j] = y
+        if len(rows) == 0:
+            continue
         with h5py.File("%s/%s.h5" % (agg_matrices, ik), "w") as hf:
             hf.create_dataset("X", data=X)
             hf.create_dataset("rows", data=rows)
