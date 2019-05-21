@@ -11,6 +11,7 @@ import matplotlib
 matplotlib.use('Agg')
 import seaborn as sns
 from matplotlib import pyplot as plt
+import matplotlib.gridspec as gridspec
 
 from chemicalchecker.util import logged
 
@@ -737,12 +738,13 @@ class MultiPlot():
         plt.close()
 
     def spy_matrix(self, matrix):
-        present = (~np.isnan(matrix)).astype(int)
-        fig, ax = plt.subplots()
-        ax.spy(present)
-        ax.set_xticks(np.arange(0, 3200, 128))
-        ax.set_xticklabels([ds[:2] for ds in list(self.cc.datasets)])
-        filename = os.path.join(self.plot_path, "spy.png")
+        present = (np.isnan(matrix[:,0::128])).astype(int)
+        fig, ax = plt.subplots(figsize=(20, 20))
+        ax.spy(np.repeat(present, 50, axis=1))
+        ax.set_xticks(np.arange(0, present.shape[1]*50, 50))
+        ax.set_xticklabels([ds[:2] for ds in list(cc.datasets)])
+        plt.tight_layout()
+        filename = os.path.join("spy.svg")
         plt.savefig(filename, dpi=100)
         plt.close()
 
@@ -759,16 +761,16 @@ class MultiPlot():
         plt.savefig(filename, dpi=100)
         plt.close()
 
-    def sign3_adanet_performance_plot(self, metric="pearson", suffix=None):
+    def sign3_adanet_performance_all_plot(self, metric="pearson", suffix=None):
 
         sns.set_style("whitegrid")
         fig, axes = plt.subplots(25, 1, sharey=True, sharex=False,
-                                 figsize=(20, 80), dpi=100)
-        adanet_dir = 'adanet_eval'
+                                 figsize=(20, 70), dpi=100)
+        adanet_dir = 'adanet_final_eval'
         if suffix is not None:
             adanet_dir = 'adanet_%s' % suffix
         for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
-            s3 = self.cc.get_signature('sign3', 'full_map', ds)
+            s3 = self.cc.get_signature('sign3', 'full', ds)
             perf_file = os.path.join(
                 s3.model_path, adanet_dir, 'stats.pkl')
             if not os.path.isfile(perf_file):
@@ -795,15 +797,15 @@ class MultiPlot():
                             color='k', rotation=90, xytext=(0, 20),
                             textcoords='offset points')
 
-            """
-            ax.set_ylim(-1, 1)
-            ax.set_xlim(-2, 130)
-            ax.set_xticks([])
-            sns.despine(bottom=True)
-            """
+            ax.grid(axis='y', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
+            ax.spines["top"].set_color(self.cc_palette([ds])[0])
+            ax.spines["right"].set_color(self.cc_palette([ds])[0])
+            ax.spines["left"].set_color(self.cc_palette([ds])[0])
         plt.tight_layout()
-        filename = os.path.join(self.plot_path, "adanet_performance.png")
-        plt.savefig(filename, dpi=100)
+        filename = os.path.join(self.plot_path, "adanet_performance_all.png")
+        plt.savefig(filename, dpi=200)
         plt.close('all')
 
     def sign3_adanet_performance_overall(self, metric="pearson", suffix=None,
@@ -812,11 +814,11 @@ class MultiPlot():
         sns.set_style("whitegrid")
         fig, axes = plt.subplots(5, 5, sharey=True, sharex=False,
                                  figsize=(10, 10), dpi=100)
-        adanet_dir = 'adanet_eval'
+        adanet_dir = 'adanet_final_eval'
         if suffix is not None:
             adanet_dir = 'adanet_%s' % suffix
         for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
-            s3 = self.cc.get_signature('sign3', 'full_map', ds)
+            s3 = self.cc.get_signature('sign3', 'full', ds)
             perf_file = os.path.join(
                 s3.model_path, adanet_dir, 'stats.pkl')
             if not os.path.isfile(perf_file):
@@ -845,18 +847,119 @@ class MultiPlot():
                             color='k', rotation=90, xytext=(0, 20),
                             textcoords='offset points')
 
-            """
-            ax.set_ylim(-1, 1)
-            ax.set_xlim(-2, 130)
-            ax.set_xticks([])
-            sns.despine(bottom=True)
-            """
+            ax.grid(axis='y', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
+            ax.spines["top"].set_color(self.cc_palette([ds])[0])
+            ax.spines["right"].set_color(self.cc_palette([ds])[0])
+            ax.spines["left"].set_color(self.cc_palette([ds])[0])
         ax.legend(loc='upper right', fontsize='small')
         plt.tight_layout()
         if suffix is not None:
             filename = os.path.join(
                 self.plot_path, "adanet_performance_%s.png" % suffix)
         else:
-            filename = os.path.join(self.plot_path, "adanet_performance2.png")
+            filename = os.path.join(self.plot_path, "adanet_performance_overall.png")
         plt.savefig(filename, dpi=100)
         plt.close('all')
+
+    def all_sign_validations(self):
+
+        metrics = ['atc_auc', 'atc_cov', 'atc_ks_d', 'atc_ks_p',
+                   'moa_auc', 'moa_cov', 'moa_ks_d', 'moa_ks_p']
+        sign_types = ['sign1', 'sign2', 'sign3']
+        df = pd.DataFrame(
+            columns=['sign_type', 'dataset', 'molecules'] + metrics)
+        for ds in self.cc.datasets:
+            for sign_type in sign_types:
+                sign = self.cc.get_signature(sign_type, 'full', ds)
+                stat_file = os.path.join(
+                    sign.stats_path, 'validation_stats.json')
+                row = json.load(open(stat_file, 'r'))
+                row.update({
+                    'sign_type': sign_type,
+                    'dataset': ds,
+                })
+                df.loc[len(df)] = pd.Series(row)
+
+        for metric in metrics:
+            sns.set_style("whitegrid")
+            fig, axes = plt.subplots(5, 5, sharey=True, sharex=False,
+                                     figsize=(10, 10), dpi=100)
+            for ds, ax in tqdm(zip(self.cc.datasets, axes.flatten())):
+                sns.barplot(x='sign_type', y=metric, data=df[df.dataset == ds],
+                            ax=ax, alpha=.8, color=self.cc_palette([ds])[0])
+                ax.set_xlabel('')
+                ax.set_ylabel('')
+                # ax.set_xticklabels([ds])
+                for idx, p in enumerate(ax.patches):
+                    if "%.2f" % p.get_height() == 'nan':
+                        continue
+                    val = p.get_height()
+                    if val > 1.0:
+                        val = "%.1f" % p.get_height()
+                    else:
+                        val = "%.2f" % p.get_height()
+                    ax.annotate(val,
+                                (p.get_x() + p.get_width() / 2., 0),
+                                ha='center', va='center', fontsize=11,
+                                color='k', rotation=90, xytext=(0, 20),
+                                textcoords='offset points')
+                if "cov" in metric:
+                    ax.set_ylim(0, 100)
+                else:
+                    ax.set_ylim(0, 1)
+                ax.grid(axis='y', linestyle="-",
+                        color=self.cc_palette([ds])[0], lw=0.3)
+                ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
+                ax.spines["top"].set_color(self.cc_palette([ds])[0])
+                ax.spines["right"].set_color(self.cc_palette([ds])[0])
+                ax.spines["left"].set_color(self.cc_palette([ds])[0])
+            plt.tight_layout()
+            filename = os.path.join(self.plot_path,
+                                    "sign_validation_%s.png" % metric)
+            plt.savefig(filename, dpi=100)
+            plt.close('all')
+        """
+        for metric in metrics:
+            sns.set_style("whitegrid")
+            fig, axes = plt.subplots(5, 5, sharey=True, sharex=False,
+                                     figsize=(10, 10), dpi=100)
+            for ds, ax in tqdm(zip(self.cc.datasets, axes.flatten())):
+
+                cdf = df[df.dataset == ds][metric]
+                s1v = cdf[df.sign_type == 'sign1'].iloc[0]
+                s2v = cdf[df.sign_type == 'sign2'].iloc[0]
+                s3v = cdf[df.sign_type == 'sign3'].iloc[0]
+
+                sns.barplot(x=['s2-s1', 's3-s1'], y=[100 * (s2v - s1v) / s1v, 100 * (s3v - s1v) / s1v],
+                            ax=ax, alpha=.8, color=self.cc_palette([ds])[0])
+                ax.set_xlabel('')
+                ax.set_ylabel('')
+                # ax.set_xticklabels([ds])
+                for idx, p in enumerate(ax.patches):
+                    if "%.2f" % p.get_height() == 'nan':
+                        continue
+                    val = p.get_height()
+                    if val > 1.0:
+                        val = "%.1f" % p.get_height()
+                    else:
+                        val = "%.2f" % p.get_height()
+                    ax.annotate(val,
+                                (p.get_x() + p.get_width() / 2., 0),
+                                ha='center', va='center', fontsize=11,
+                                color='k', rotation=90, xytext=(0, 20),
+                                textcoords='offset points')
+
+                ax.grid(axis='y', linestyle="-",
+                        color=self.cc_palette([ds])[0], lw=0.3)
+                ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
+                ax.spines["top"].set_color(self.cc_palette([ds])[0])
+                ax.spines["right"].set_color(self.cc_palette([ds])[0])
+                ax.spines["left"].set_color(self.cc_palette([ds])[0])
+            plt.tight_layout()
+            filename = os.path.join(self.plot_path,
+                                    "sign_validation_deltas_%s.png" % metric)
+            plt.savefig(filename, dpi=100)
+            plt.close('all')
+        """
