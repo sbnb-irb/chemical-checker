@@ -325,14 +325,18 @@ class BaseSignature(object):
                 raise Exception("HDF5 file has no 'keys' field.")
             return hf['keys'][:]
 
-    def get_h5_dataset(self, h5_dataset_name):
+    def get_h5_dataset(self, h5_dataset_name, mask=None):
         """Get a specific dataset in the signature."""
+        self.__log.debug("Fetching dataset %s" % h5_dataset_name)
         if not os.path.isfile(self.data_path):
             raise Exception("Data file %s not available." % self.data_path)
         with h5py.File(self.data_path, 'r') as hf:
             if h5_dataset_name not in hf.keys():
                 raise Exception("HDF5 file has no '%s'." % h5_dataset_name)
-            return hf[h5_dataset_name][:]
+            if mask is None:
+                return hf[h5_dataset_name][:]
+            else:
+                return hf[h5_dataset_name][mask]
 
     @cached_property
     def unique_keys(self):
@@ -350,6 +354,8 @@ class BaseSignature(object):
             dataset_name(str): return any dataset in the h5 which is organized
                 by sorted keys.
         """
+        self.__log.debug("Fetching %s rows from dataset %s" % \
+            (len(keys), dataset_name))
         str_keys = set(k for k in keys if isinstance(k, str))
         valid_keys = list(self.unique_keys & str_keys)
         idxs = np.argwhere(
