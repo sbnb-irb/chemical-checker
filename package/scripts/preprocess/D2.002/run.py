@@ -29,7 +29,6 @@ entry_point_full = "genesets"
 
 # Functions
 
-
 def fetch_drug_gene_correlations():
     cmd = '''
           SELECT t1.drug_id, t2.gene_name, t1.estimate, t1.pvalue
