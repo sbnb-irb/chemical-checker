@@ -22,6 +22,7 @@ class DataFactory():
         from .sign2 import sign2
         from .sign3 import sign3
         from .proj1 import proj1
+        from .proj3 import proj3
 
         try:
             DataFactory.__log.debug("initializing object %s", cctype)
@@ -44,6 +45,7 @@ class DataFactory():
         from .sign2 import sign2
         from .sign3 import sign3
         from .proj1 import proj1
+        from .proj3 import proj3
 
         data_path = os.path.join(signature_path, '%s.h5' % cctype)
         if not keys:
