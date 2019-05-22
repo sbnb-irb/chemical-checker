@@ -1,6 +1,6 @@
 """Signature type 3.
 
-Network embedding of observed *and* inferred similarity networks. Their added
+Network embedding inferred similarity networks. Their added
 value, compared to signatures type 2, is that they can be derived for
 virtually *any* molecule in *any* dataset.
 """
@@ -97,6 +97,8 @@ class sign3(BaseSignature):
         evaluate(bool): Whether we are performing a train-test split and
             evaluating the performances (N.B. this is required for complete
             confidence scores)
+        single_spaces_performances(bool): Whether to check performance of the
+            trained network with incomplete input.
         """
         try:
             from chemicalchecker.tool.adanet import AdaNet, Traintest
@@ -170,6 +172,16 @@ class sign3(BaseSignature):
             s0 = chemchecker.get_signature('sign0', 'full', ds)
             common_keys, features = s0.get_vectors(self.keys)
             _, labels = self.get_vectors(common_keys)
+            # we also want to learn how to predict confidence scores
+            mask = np.isin(self.keys, list(common_keys), assume_unique=True)
+            stddev = self.get_h5_dataset('stddev_norm', mask)
+            stddev = np.expand_dims(stddev, 1)
+            intensity = self.get_h5_dataset('intensity_norm', mask)
+            intensity = np.expand_dims(intensity, 1)
+            confidence = self.get_h5_dataset('confidence', mask)
+            confidence = np.expand_dims(confidence, 1)
+            # so they become part of the supervised learning
+            labels = np.hstack((labels, stddev, intensity, confidence))
             Traintest.create(features, labels, sign0_traintest)
         self.params['adanet'] = {
             'traintest_file': sign0_traintest,
@@ -203,8 +215,11 @@ class sign3(BaseSignature):
         pred_s3 = sign3(dest_dir, dest_dir, self.dataset)
         with h5py.File(pred_s3.data_path, "w") as results:
             # initialize V (with NaN in case of failing rdkit) and smiles keys
-            results.create_dataset('V', (len(smiles), 128), dtype=np.float32)
             results.create_dataset('keys', data=np.array(smiles))
+            results.create_dataset('V', (len(smiles), 128), dtype=np.float32)
+            results.create_dataset('stddev_norm', (len(smiles), ), dtype=np.float32)
+            results.create_dataset('intensity_norm', (len(smiles), ), dtype=np.float32)
+            results.create_dataset('confidence', (len(smiles), ), dtype=np.float32)
             # compute sign0
             nBits = 2048
             radius = 2
@@ -231,7 +246,10 @@ class sign3(BaseSignature):
                 preds = predict_fn({'x': sign0s})['predictions']
                 if failed:
                     preds[np.array(failed)] = np.full((128, ),  np.nan)
-                results['V'][chunk] = preds
+                results['V'][chunk] = preds[:, :128]
+                results['stddev_norm'][chunk] = preds[:, 129]
+                results['intensity_norm'][chunk] = preds[:, 130]
+                results['confidence'][chunk] = preds[:, 131]
         return pred_s3
 
     def fit(self, chemchecker, sign2_universe=None, model_confidence=True,
