@@ -638,6 +638,70 @@ class Plot():
 
         return xlim, ylim
 
+    def projection_plot_other(self, reference, library, bw_bg=0.2, bw_lib=0.15,
+                              perc_bg=95, perc_lib=99, jitter=True):
+
+        def projection_plot_preprocess(reference, bw, levels, lim=None, perc=95):
+            if lim is None:
+                margin = 0.1
+                xmin, xmax = np.min(reference[:, 0]), np.max(reference[:, 0])
+                ymin, ymax = np.min(reference[:, 1]), np.max(reference[:, 1])
+                xran = xmax - xmin
+                xmin = xmin - margin * xran
+                xmax = xmax + margin * xran
+                yran = ymax - ymin
+                ymin = ymin - margin * yran
+                ymax = ymax + margin * yran
+            else:
+                xmin, xmax, ymin, ymax = lim
+            lim = (xmin, xmax, ymin, ymax)
+            # Peform the kernel density estimate
+            xx, yy = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
+            positions = np.vstack([xx.ravel(), yy.ravel()])
+            reference = np.vstack({tuple(row) for row in reference})
+            values = np.vstack([reference[:, 0], reference[:, 1]])
+            kernel = gaussian_kde(values, bw_method=bw)
+            f = np.reshape(kernel(positions).T, xx.shape)
+            # Plot
+            cut = np.percentile(f, perc)
+            f[f > cut] = cut
+            levels = np.linspace(0, cut, num=levels)
+            f[f == np.min(f)] = 0
+            return xx, yy, f, list(levels), lim
+
+        def projection_plot(ax, reference, X, bw_bg=0.2, bw_lib=0.1,
+                            levels_=15, title=None, perc_bg=95, perc_lib=99):
+            sns.set_style("white")
+            xx_1, yy_1, f_1, levels_1, lim = projection_plot_preprocess(
+                reference, bw_bg, levels_, perc=perc_bg)
+            ax.contour(xx_1, yy_1, f_1, levels_1,
+                       colors="white", linewidths=0.5)
+            xx_2, yy_2, f_2, levels_2, _ = projection_plot_preprocess(
+                X, bw_lib, levels_, lim, perc=perc_lib)
+            ax.contourf(xx_2, yy_2, f_2, levels_2, cmap="Spectral_r")
+            ax.scatter(X[:, 0], X[:, 1], color="black", s=0.2)
+            ax.grid(False)
+            xmin, xmax, ymin, ymax = lim
+            ax.axes.get_xaxis().set_visible(False)
+            ax.axes.get_yaxis().set_visible(False)
+            ax.set_xlim([xmin, xmax])
+            ax.set_ylim([ymin, ymax])
+            if title:
+                ax.set_title(title, fontname="Courier New", fontsize=20)
+            return xx_1, yy_1, f_1, levels_1, lim
+
+        fig, ax = plt.subplots(1, 1, figsize=(7, 7))
+        if jitter:
+            noise = np.random.normal(0, .5, library.shape)
+            lib = library + noise
+        else:
+            lib = library
+        projection_plot(ax, reference, lib, bw_bg=bw_bg,
+                        bw_lib=bw_lib, perc_bg=perc_bg, perc_lib=perc_lib)
+        filename = os.path.join(self.plot_path, "projections.png")
+        plt.savefig(filename, dpi=200)
+        plt.close()
+
     def sign2_feature_distribution_plot(self, sign2):
         if sign2.shape[0] > 10000:
             keys = np.random.choice(sign2.keys, 10000, replace=False)
