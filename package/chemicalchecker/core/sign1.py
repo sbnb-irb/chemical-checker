@@ -755,12 +755,12 @@ class sign1(BaseSignature):
         FILE = self.model_path + "/normalizer.pkl"
 
         if not recycle or not os.path.exists(FILE):
-            nlz = Normalizer(copy=True, norm="l2")
-            V = nlz.fit_transform(V)
+            nlz = Normalizer(copy=False, norm="l2")
+            nlz.fit_transform(V)
             joblib.dump(nlz, FILE)
         else:
             nlz = joblib.load(FILE)
-            V = nlz.transform(V)
+            nlz.transform(V)
 
         return V.astype(np.float32)
 
