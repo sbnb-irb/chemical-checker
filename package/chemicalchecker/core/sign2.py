@@ -179,7 +179,11 @@ class sign2(BaseSignature):
         ada.save_performances(adanet_path, sign2_plot, extra_preditors)
         self.__log.debug('model saved to %s' % adanet_path)
 
-        self.validate()
+        if 'mappings' in self.info_h5:
+            inchikey_mappings = dict(self.get_h5_dataset('mappings'))
+        else:
+            inchikey_mappings = None
+        self.validate(inchikey_mappings)
         self.mark_ready()
 
     def predict(self, sign1, destination):
