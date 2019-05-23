@@ -217,9 +217,12 @@ class sign3(BaseSignature):
             # initialize V (with NaN in case of failing rdkit) and smiles keys
             results.create_dataset('keys', data=np.array(smiles))
             results.create_dataset('V', (len(smiles), 128), dtype=np.float32)
-            results.create_dataset('stddev_norm', (len(smiles), ), dtype=np.float32)
-            results.create_dataset('intensity_norm', (len(smiles), ), dtype=np.float32)
-            results.create_dataset('confidence', (len(smiles), ), dtype=np.float32)
+            results.create_dataset(
+                'stddev_norm', (len(smiles), ), dtype=np.float32)
+            results.create_dataset(
+                'intensity_norm', (len(smiles), ), dtype=np.float32)
+            results.create_dataset(
+                'confidence', (len(smiles), ), dtype=np.float32)
             # compute sign0
             nBits = 2048
             radius = 2
@@ -251,6 +254,31 @@ class sign3(BaseSignature):
                 results['intensity_norm'][chunk] = preds[:, 130]
                 results['confidence'][chunk] = preds[:, 131]
         return pred_s3
+
+    @staticmethod
+    def save_sign2_universe(chemchecker, destination):
+        """Create a file with all signatures 2 for each molecule in the CC."""
+        # get sorted universe inchikeys and CC signatures
+        inchikeys = set()
+        ds_sign = dict()
+        for ds in chemchecker.datasets:
+            sign = chemchecker.get_signature('sign2', 'full', ds)
+            inchikeys.update(sign.unique_keys)
+            ds_sign[ds] = sign
+        inchikeys = sorted(list(inchikeys))
+        tot_inks = len(inchikeys)
+        tot_ds = len(ds_sign)
+
+        # build input matrix if not provided
+        if not os.path.isfile(destination):
+            with h5py.File(destination, "w") as fh:
+                fh.create_dataset('x_test',
+                                  (tot_inks, 128 * tot_ds),
+                                  dtype=np.float32)
+                for idx, (ds, sign) in enumerate(ds_sign.items()):
+                    vectors = sign.get_vectors(inchikeys, include_nan=True)
+                    fh['x_test'][:, idx * 128:(idx + 1) * 128] = vectors
+                    del vectors
 
     def fit(self, chemchecker, sign2_universe=None, model_confidence=True,
             save_support=True, save_correlations=True, update_preds=True):
@@ -296,14 +324,7 @@ class sign3(BaseSignature):
 
         # build input matrix if not provided
         if not os.path.isfile(sign2_universe):
-            with h5py.File(sign2_universe, "w") as fh:
-                fh.create_dataset('x_test',
-                                  (tot_inks, 128 * tot_ds),
-                                  dtype=np.float32)
-                for idx, (ds, sign) in enumerate(ds_sign.items()):
-                    vectors = sign.get_vectors(inchikeys, include_nan=True)
-                    fh['x_test'][:, idx * 128:(idx + 1) * 128] = vectors
-                    del vectors
+            sign3.save_sign2_universe(chemchecker, sign2_universe)
 
         def safe_create(h5file, *args, **kwargs):
             if args[0] not in h5file:
