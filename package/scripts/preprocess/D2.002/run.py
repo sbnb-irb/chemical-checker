@@ -40,7 +40,6 @@ def fetch_drug_gene_correlations():
     R = psql.qstring(cmd, db_name)
     return R
 
-
 def parse_molrepo():
     pharmacodb_inchikey = {}
     molrepos = Molrepo.get_by_molrepo_name("pharmacodb")
@@ -51,7 +50,6 @@ def parse_molrepo():
     return pharmacodb_inchikey
 
 # Main
-
 
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
