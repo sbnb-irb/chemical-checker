@@ -52,7 +52,7 @@ For an advanced usage of the CC package capabilities, we recomend creating the C
 
 2. [Install Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 
-        apt-get install git
+        sudo apt-get install git
 
 3. Download the [setup_chemicalchecker.sh](setup_chemicalchecker.sh) script to your home folder:
 
