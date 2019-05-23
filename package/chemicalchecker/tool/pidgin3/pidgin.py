@@ -354,6 +354,7 @@ def performTargetPrediction(pdg, models, rdkit_mols, querymatrix):
             percent0 = percent
             result = doTargetPrediction(inp)
             prediction_results.append(result)
+            performTargetPrediction._log.debug(str(i))
     else:
         pool = Pool(processes=pdg.ncores, initializer=initPool, initargs=(querymatrix,pdg.proba,))
         chunksize = max(1, int(input_len / (10 * pdg.ncores)))
