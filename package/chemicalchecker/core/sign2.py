@@ -156,9 +156,8 @@ class sign2(BaseSignature):
         # prepare train-test file
         traintest_file = os.path.join(adanet_path, 'traintest.h5')
         if adanet_params:
-            traintest_file = adanet_params.get(
+            traintest_file = adanet_params.pop(
                 'traintest_file', traintest_file)
-            adanet_params.pop('traintest_file')
         if not reuse or not os.path.isfile(traintest_file):
             Traintest.create_signature_file(
                 sign1.data_path, self.data_path, traintest_file)
