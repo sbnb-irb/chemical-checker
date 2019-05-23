@@ -48,6 +48,8 @@ For an advanced usage of the CC package capabilities, we recomend creating the C
         make
         sudo make install
 
+> In case of errors during this step, check Singularity [prerequisites](https://www.sylabs.io/guides/2.6/user-guide/installation.html#before-you-begin)!
+
 2. [Install Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 
         apt-get install git
