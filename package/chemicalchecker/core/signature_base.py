@@ -166,10 +166,21 @@ class BaseSignature(object):
             raise Exception(
                 "Before calling predict method, fit method needs to be called.")
 
-    def validate(self):
+    def validate(self, inchikey_mappings=None):
         """Perform validations.
 
-        On Mode Of Action (MOA) and Anatomical Therapeutic Chemical (ATC).
+        A validation file is an external resource basically presenting pairs of
+        molecules and whether they share or not a given property (i.e the file
+        format is inchikey inchikey 0/1).
+        Current test are performed on MOA (Mode Of Action) and ATC (Anatomical
+        Therapeutic Chemical) corresponding to B1.001 and E1.001 dataset.
+
+        Args:
+            inchikey_mappings(dict): A dictionary mapping molecules to the full
+                molecule set. Signature which have been redundancy-reduced
+                (i.e. `reference`) have fewer molecules. The key are moleules
+                from the `full` signature and values are moleules from the
+                `reference` set.
         """
         plot = Plot(self.dataset, self.stats_path, self.validation_path)
         stats = {"molecules": len(self.keys)}
@@ -177,7 +188,8 @@ class BaseSignature(object):
         for validation_file in os.listdir(self.validation_path):
             vset = validation_file.split('_')[0]
             res = plot.vector_validation(self, self.__class__.__name__,
-                                         prefix=vset, h5_input=True)
+                                         prefix=vset, h5_input=True,
+                                         inchikey_mappings=inchikey_mappings)
             results[vset] = res
             stats.update({
                 "%s_ks_d" % vset: res[0][0],
