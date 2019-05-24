@@ -5,6 +5,9 @@
     individually. A meta-prediction is then provided based on individual predictions,
     together with a measure of confidence for each prediction.
     In the predictions, known data is provided as 1/0 predictions. The rest of probabilities are clipped between 0.001 and 0.999.
+    In order to make results more interpretable, in the applicability domain we use chemical similarity for now.
+    The basis for the applicability domain application can be found: https://jcheminf.biomedcentral.com/articles/10.1186/s13321-016-0182-y
+    Obviously, CC signature similarities could be used in the future.
     The classifier is greatly inspired by PidginV3: https://pidginv3.readthedocs.io/en/latest/usage/index.html
 """
 import os
@@ -61,7 +64,7 @@ def performances(yt, yp):
 class TargetMate:
     """TargetMate class"""
 
-    def __init__(self, base_clf = None, cv = 5, datasets = None, models_path = None):
+    def __init__(self, base_clf = None, cv = 5, datasets = None, metric = "auroc", models_path = None):
         """Initialize the TargetMate class
 
         Args:
@@ -73,6 +76,7 @@ class TargetMate:
                 list of possible cross-validation objects.
             datasets(list): CC datasets (A1.001-E5.999).
                 By default, all datasets having a SMILES-to-sign3 predictor are used.
+            metric(str): Metric to use in the meta-prediction (auroc or aupr) (default="auroc").
             models_path(str): Directorty where models will be stored. 
         """
         # Set the base classifier
@@ -85,18 +89,45 @@ class TargetMate:
         self.cv = cv
         # Store the paths to the sign3 (only the ones that have been already trained)
         if not datasets:
-            self.datasets = ["%s%d.001" for x in ["A","B","C","D","E"] for i in [1,2,3,4,5]] # TO-DO: Martino, is there a way to just check how many signatures are available?
+            self.datasets = ["%s%d.001" % (x, i) for x in ["A","B","C","D","E"] for i in [1,2,3,4,5]] # TO-DO: Martino, is there a way to just check how many signatures are available?
         else:
             self.datasets = datasets
+        # Metric to use
+        self.metric = metric
         # XXX
         if models_path is None:
-            self.models_path = "./" # TO-DO: Martino, can you please help me with the default here?
+            self.models_path = "/home/mduran/Desktop/targetmate_models/" # TO-DO: Martino, can you please help me with the default here?
         else:
             self.models_path = os.path.abspath(models_path)
-        # XXX
-        self.datasets
         # Initialize the ChemicalChecker
         self.cc = ChemicalChecker() # TO-DO: Martino, can you please help me with the arguments here?
+    
+    def _metapredict(self, yp_dict, perfs):
+        M = []
+        w = []
+        for dataset in self.datasets:
+            w += [perfs[dataset]["perf_test"][1]] # Get the weight
+            M += [yp_dict[dataset]]
+        M = np.array(M)
+        w = np.array(w)
+        prds = []
+        stds = []
+        for j in xrange(M.shape[1]):
+            avg, std = avg_and_std(M[:,j], w)
+            prds += [avg]
+            stds += [std]
+        return prds, stds
+
+    def _nearest_neighbors(self, smiles):
+        "TO-DO: I need to check the pidgin script and do exactly the same thing they do in the calcPercentile (I guess)."
+        from rdkit.Chem import AllChem
+        from rdkit import Chem
+        nBits = 2048
+        V = np.zeros((len(smiles), nBits))
+        for i, smi in enumerate(smiles):
+            m = Chem.MolFromSmiles(input)
+            fp = AllChem.GetMorganFingerprintAsBitVect(m, 2, nBits=nBits)
+            V[i,:] = fp.ToBitString()
         
     def fit(self, data, standardize = True):
         """
@@ -117,11 +148,11 @@ class TargetMate:
         y = [d[1] for d in data]
         # Get signatures
         self.__log.info("Calculating sign3 for every molecule. Invalid SMILES will be removed.")
-        for dataset in datasets:
+        for dataset in self.datasets:
             self.__log.debug("Calculating sign3 for %s" % dataset)
-            s3 = cc.get_signature("sign3", "full_map", dataset) # TO-DO: martino, what does "full_map" mean?
+            s3 = self.cc.get_signature("sign3", "full_map", dataset) # TO-DO: martino, what does "full_map" mean?
             destination_dir = os.path.join(self.models_path, dataset)
-            s3.predict_from_smiles([d[0] for d in data], destination_dir, self.standardize) # TO-DO
+            s3.predict_from_smiles([d[0] for d in data], destination_dir, standardize) # TO-DO
         # Initialize cross-validation generator
         cv = check_cv(self.cv, y, classifier = True)
         folds = list(cv.split(smiles, y))
@@ -133,10 +164,10 @@ class TargetMate:
         yts_test  = []        
         i = 0
         for smi_train, y_train, smi_test, y_test in folds:
-            for dataset in datasets:
+            for dataset in self.datasets:
                 self.__log.debug("CV fold %d, dataset %s" % (i, dataset))
                 destination_dir = os.path.join(self.models_path, dataset)
-                s3 = cc.get_signature("sign3", destination_dir) # TO-DO: Help with this.
+                s3 = cc.get_signature("sign3", destination_dir) # TO-DO: Martino help with this.
                 # Fit the classifier
                 clf = clone(self.clf)
                 X_train = s3.get_values(smi_train) # TO-DO: martino, we may have mapping problems here, due to invalid smiles.
@@ -150,36 +181,43 @@ class TargetMate:
             yts_test += list(y_test) 
             i += 1
         # Evaluate individual performances
-        self.__log.info("Evaluating dataset-specific performances based on the CV and getting weights correspondingly.")
-        perfs = [] 
-        for dataset in datasets:
+        self.__log.info("Evaluating dataset-specific performances based on the CV and getting weights correspondingly")
+        perfs = {}
+        for dataset in self.datasets:
             ptrain = performances(yts_train, yps_train[dataset])
             ptest  = performances(yts_test, yts_test[dataset])
-            perfs += [{"dataset": dataset, "perf_train": ptrain, "perf_test": ptest}]
+            perfs[dataset] = {"perf_train": ptrain, "perf_test": ptest}
         # Meta-predictor on train and test data
         self.__log.info("Meta-predictions on train and test data")
         self.__log.debug("Assembling for train set")
-        mp_train = []
-        for dataset in datasets:
-            mp_train += [yps_train[dataset]]
+        mps_train, std_train = self._metapredict(yp_train, perfs)
         self.__log.debug("Assembling for test set")
-        mp_test = []
-        for dataset in datasets:
-            mp_test += [yps_test[dataset]]
-        
-        with open(self.models_path + "/individual_perfs.json", "w") as f:
+        mps_test, std_test = self._metapredict(yp_test, perfs)
+        # Assess meta-predictor performance
+        self.__log.debug("Assessing meta-predictor performance")
+        ptrain = performances(yts_train, mps_train)
+        ptest  = performances(yts_test, mps_test)
+        perfs["MetaPred"] = {"perf_train": ptrain, "perf_test": ptest}
+        # Save performances
+        with open(self.models_path + "/perfs.json", "w") as f:
             json.dump(perfs, f)
-
         # Fit final predictors (trained on full data) and save them
         self.__log.info("Fitting full final classifiers")
-        for dataset in datasets:
-            self.__log.debug("Working on ")
+        clf_ensemble = []
+        for dataset in self.datasets:
+            self.__log.debug("Working on %s" % dataset)
             destination_dir = os.path.join(self.models_path, dataset)
+            s3 = cc.get_signature("sign3", destination_dir) # TO-DO: Martino help with this.
+            # Fit the classifier
+            clf = clone(self.clf)
+            X = s3.get_values(smiles)
+            clf.fit(X, y)
+            clf_ensemble += [(dataset, clf)]
+        # Save ensemble
+        with open(self.models_path + "/ensemble.pkl", "w") as f:
+            pickle.dump(clf_ensemble, f)
         # Nearest neighbors
-
-    def predict(self, data):
-        "XXX"
+        self.__log.info("Saving nearest-neighbors model to be used in the applicability domain.")
         
-
     def predict_proba(self, data):
         "XXX"
