@@ -13,6 +13,8 @@ from sklearn.model_selection import check_cv
 from sklearn import metrics
 from sklearn.base import clone
 from chemicalchecker.core import ChemicalChecker
+from chemicalchecker.util import logged
+from chemicalchecker.util import Config
 
 # Utils
 
@@ -73,30 +75,30 @@ class TargetMate:
                 By default, all datasets having a SMILES-to-sign3 predictor are used.
             models_path(str): Directorty where models will be stored. 
         """
-    	# Set the base classifier
+        # Set the base classifier
         if not base_clf:
-        	from sklearn.linear_model import LogisticRegressionCV
-        	self.base_clf = LogisticRegressionCV(class_weight = "balanced")
+            from sklearn.linear_model import LogisticRegressionCV
+            self.base_clf = LogisticRegressionCV(class_weight = "balanced")
         else:
-        	self.base_clf = base_clf
+            self.base_clf = base_clf
         # Crossvalidation to determine the performances of the individual predictors
         self.cv = cv
         # Store the paths to the sign3 (only the ones that have been already trained)
-        if datasets not datasets:
-            self.datasets = ["%s%d.001" for x in ["A","B","C","D","E"] for i in [1,2,3,4,5]] # TO-DO: @Martino, is there a way to just check how many signatures are available?
+        if not datasets:
+            self.datasets = ["%s%d.001" for x in ["A","B","C","D","E"] for i in [1,2,3,4,5]] # TO-DO: Martino, is there a way to just check how many signatures are available?
         else:
             self.datasets = datasets
         # XXX
-        if models_path is None
-            self.models_path = "./" # TO-DO: @Martino, can you please help me with the default here?
+        if models_path is None:
+            self.models_path = "./" # TO-DO: Martino, can you please help me with the default here?
         else:
-        	self.models_path = os.path.abspath(models_path)
+            self.models_path = os.path.abspath(models_path)
         # XXX
         self.datasets
         # Initialize the ChemicalChecker
-        self.cc = ChemicalChecker() # TO-DO: @Martino, can you please help me with the arguments here?
+        self.cc = ChemicalChecker() # TO-DO: Martino, can you please help me with the arguments here?
         
-	def fit(self, data, standardize = True):
+    def fit(self, data, standardize = True):
         """
         Fit SMILES-activity data.
         Invalid SMILES are removed from the prediction.
@@ -110,14 +112,14 @@ class TargetMate:
             with open(data, "r") as f:
                 data = []
                 for r in csv.reader(f, delimiter = "\t"):
-                	data += [(r[0], int(r[1]))]
+                    data += [(r[0], int(r[1]))]
         smiles = [d[0] for d in data]
         y = [d[1] for d in data]
         # Get signatures
         self.__log.info("Calculating sign3 for every molecule. Invalid SMILES will be removed.")
         for dataset in datasets:
             self.__log.debug("Calculating sign3 for %s" % dataset)
-            s3 = cc.get_signature("sign3", "full_map", dataset) # TO-DO: @martino, what does "full_map" mean?
+            s3 = cc.get_signature("sign3", "full_map", dataset) # TO-DO: martino, what does "full_map" mean?
             destination_dir = os.path.join(self.models_path, dataset)
             s3.predict_from_smiles([d[0] for d in data], destination_dir, self.standardize) # TO-DO
         # Initialize cross-validation generator
@@ -137,12 +139,12 @@ class TargetMate:
                 s3 = cc.get_signature("sign3", destination_dir) # TO-DO: Help with this.
                 # Fit the classifier
                 clf = clone(self.clf)
-                X_train = s3.get_values(smi_train) # TO-DO: @martino, we may have mapping problems here, due to invalid smiles.
+                X_train = s3.get_values(smi_train) # TO-DO: martino, we may have mapping problems here, due to invalid smiles.
                 clf.fit(X_train, y_train)
                 # Make predictions on train set itself
-                yps_train[dataset] += [p for p in clf.predict(X_train])
+                yps_train[dataset] += [p for p in clf.predict(X_train)]
                 # Make predictions on test set itself
-                X_test  = s3.get_values(smi_test) # TO-DO: @martino, idem.
+                X_test = s3.get_values(smi_test) 
                 yps_test[dataset] += [p for p in clf.predict(X_test)]
             yts_train += list(y_train)
             yts_test += list(y_test) 
@@ -154,8 +156,6 @@ class TargetMate:
             ptrain = performances(yts_train, yps_train[dataset])
             ptest  = performances(yts_test, yts_test[dataset])
             perfs += [{"dataset": dataset, "perf_train": ptrain, "perf_test": ptest}]
-        with open(self.models_path + "/.json", "w") as f:
-            json.dump(perfs, f)
         # Meta-predictor on train and test data
         self.__log.info("Meta-predictions on train and test data")
         self.__log.debug("Assembling for train set")
@@ -166,6 +166,10 @@ class TargetMate:
         mp_test = []
         for dataset in datasets:
             mp_test += [yps_test[dataset]]
+        
+        with open(self.models_path + "/individual_perfs.json", "w") as f:
+            json.dump(perfs, f)
+
         # Fit final predictors (trained on full data) and save them
         self.__log.info("Fitting full final classifiers")
         for dataset in datasets:
@@ -177,5 +181,5 @@ class TargetMate:
         "XXX"
         
 
-	def predict_proba(self, data):
+    def predict_proba(self, data):
         "XXX"
