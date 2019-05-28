@@ -201,6 +201,7 @@ class sign2(BaseSignature):
             # initialize V and keys datasets
             results.create_dataset('V', (tot_inks, 128), dtype=np.float32)
             results.create_dataset('keys', data=sign1.keys)
+            results.create_dataset("shape", data=(tot_inks, 128))
             # predict signature 2
             for chunk in sign1.chunker():
                 results['V'][chunk] = AdaNet.predict(sign1[chunk], predict_fn)
