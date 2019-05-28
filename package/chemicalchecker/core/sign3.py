@@ -653,7 +653,7 @@ class sign3(BaseSignature):
             # call predict
             self.__log.info("Predicting for: %s", name)
             y_pred, y_true = AdaNet.predict_online(
-                save_dir, traintest_file, split,
+                traintest_file, split,
                 predict_fn=predict_fn,
                 mask_fn=partial(mask_fn, idxs))
             self.__log.info("%s Y: %s", name, y_pred.shape)
