@@ -301,7 +301,7 @@ class sign3(BaseSignature):
             raise err
 
         if meshed_datasets is None:
-            self.meshed_datasets = chemchecker.datasets
+            self.meshed_datasets = list(chemchecker.datasets)
         # check if have performance evaluations
         eval_stats = os.path.join(
             self.model_path, 'adanet_final_eval', 'stats.pkl')
