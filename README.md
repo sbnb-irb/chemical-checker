@@ -50,15 +50,27 @@ For an advanced usage of the CC package capabilities, we recomend creating the C
 
 > In case of errors during this step, check Singularity [prerequisites](https://www.sylabs.io/guides/2.6/user-guide/installation.html#before-you-begin)!
 
-2. [Install Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+2. Add bind paths to singulairty config file:
+
+        sudo echo "bind path = /aloy/web_checker" >> /etc/singularity/singularity.conf
+
+
+    2.1. Make sure that `/aloy/web_checker` is available on your workstation (e.g. `ls /aloy/web_checker` should give a list of directories) if **not**:
+
+        mkdir /aloy/web_checker
+        sudo echo "fs-paloy.irbbarcelona.pcb.ub.es:/pa_webchecker /aloy/web_checker       nfs     defaults,_netdev 0 0" >> /etc/fstab
+        sudo mount -a
+
+
+3. [Install Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 
         sudo apt-get install git
 
-3. Download the [setup_chemicalchecker.sh](setup_chemicalchecker.sh) script to your home folder:
+4. Download the [setup_chemicalchecker.sh](setup_chemicalchecker.sh) script to your home folder:
 
         wget http://gitlab.sbnb.org/project-specific-repositories/chemical_checker/raw/master/setup_chemicalchecker.sh
 
-4. Run the script (this script will require sudo access and it will request to type your password) with:
+5. Run the script (this script will require sudo access and it will request to type your password) with:
 
         sh setup_chemicalchecker.sh
 
@@ -73,7 +85,7 @@ After the first run of this script you can **update** the Chemical Checker packa
 
         sh setup_chemicalchecker.sh -u
         
-If you only want to change the config file, run the script with the -e argument:
+If you only want to change the *default* config file, run the script with the -e argument:
 
         sh setup_chemicalchecker.sh -e
     
