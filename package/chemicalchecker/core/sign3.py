@@ -276,7 +276,7 @@ class sign3(BaseSignature):
                                   (tot_inks, 128 * tot_ds),
                                   dtype=np.float32)
                 for idx, (ds, sign) in enumerate(ds_sign.items()):
-                    vectors = sign.get_vectors(inchikeys, include_nan=True)
+                    _, vectors = sign.get_vectors(inchikeys, include_nan=True)
                     fh['x_test'][:, idx * 128:(idx + 1) * 128] = vectors
                     del vectors
 
