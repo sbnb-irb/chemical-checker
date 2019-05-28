@@ -250,9 +250,9 @@ class sign3(BaseSignature):
                 if failed:
                     preds[np.array(failed)] = np.full((128, ),  np.nan)
                 results['V'][chunk] = preds[:, :128]
-                results['stddev_norm'][chunk] = preds[:, 129]
-                results['intensity_norm'][chunk] = preds[:, 130]
-                results['confidence'][chunk] = preds[:, 131]
+                results['stddev_norm'][chunk] = preds[:, 128]
+                results['intensity_norm'][chunk] = preds[:, 129]
+                results['confidence'][chunk] = preds[:, 130]
         return pred_s3
 
     @staticmethod
