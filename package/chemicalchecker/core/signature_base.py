@@ -313,7 +313,8 @@ class BaseSignature(object):
             raise Exception("Data file %s not available." % self.data_path)
         with h5py.File(self.data_path, 'r') as hf:
             if 'shape' not in hf.keys():
-                raise Exception("HDF5 file has no 'shape' field.")
+                self.__log.warn("HDF5 file has no 'shape' dataset.")
+                return hf['V'].shape
             return hf['shape'][:]
 
     @cached_property
@@ -366,8 +367,8 @@ class BaseSignature(object):
             dataset_name(str): return any dataset in the h5 which is organized
                 by sorted keys.
         """
-        self.__log.debug("Fetching %s rows from dataset %s" % \
-            (len(keys), dataset_name))
+        self.__log.debug("Fetching %s rows from dataset %s" %
+                         (len(keys), dataset_name))
         str_keys = set(k for k in keys if isinstance(k, str))
         valid_keys = list(self.unique_keys & str_keys)
         idxs = np.argwhere(
