@@ -157,7 +157,7 @@ class Traintest(object):
     @staticmethod
     def create(X, Y, out_filename, split_names=['train', 'test', 'validation'],
                split_fractions=[.8, .1, .1], x_dtype=np.float32,
-               y_dtype=np.float32):
+               y_dtype=np.float32, chunk_size=10000):
         """Create the HDF5 file with validation splits for both X and Y.
 
         Args:
@@ -190,12 +190,20 @@ class Traintest(object):
             fh.create_dataset('split_fractions', data=split_fractions)
             for name, idxs in zip(split_names, split_idxs):
                 ds_name = "x_%s" % name
-                fh.create_dataset(ds_name, data=X[idxs], dtype=x_dtype)
-                Traintest.__log.debug("{:<20} shape: {:>10}".format(
+                fh.create_dataset(ds_name, (len(idxs), X.shape[1]),
+                                  dtype=x_dtype)
+                for i in range(0, len(idxs), chunk_size):
+                    chunk = slice(i, i + chunk_size)
+                    fh[ds_name][chunk] = X[idxs[chunk]]
+                Traintest.__log.debug("Written: {:<20} shape: {:>10}".format(
                     ds_name, fh[ds_name].shape))
                 ds_name = "y_%s" % name
-                fh.create_dataset(ds_name, data=Y[idxs], dtype=y_dtype)
-                Traintest.__log.debug("{:<20} shape: {:>10}".format(
+                fh.create_dataset(ds_name, (len(idxs), Y.shape[1]),
+                                  dtype=y_dtype)
+                for i in range(0, len(idxs), chunk_size):
+                    chunk = slice(i, i + chunk_size)
+                    fh[ds_name][chunk] = Y[idxs[chunk]]
+                Traintest.__log.debug("Written: {:<20} shape: {:>10}".format(
                     ds_name, fh[ds_name].shape))
         fh.close()
         Traintest.__log.info('Traintest saved to %s', out_filename)
