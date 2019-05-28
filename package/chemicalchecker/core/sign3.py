@@ -382,7 +382,7 @@ class sign3(BaseSignature):
                     if np.isnan(ds_pearson):
                         ds_pearson = 0.0
                     avg_pearsons_train[idx] = ds_pearson
-                avg_pearsons = avg_pearsons_test / avg_pearsons_train
+                avg_pearsons = avg_pearsons_test
                 # this is to lookup correlations
                 safe_create(results, 'dataset_correlation', data=avg_pearsons)
                 # Average/tertile/maximum Pearson correlations will be saved
