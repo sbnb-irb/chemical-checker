@@ -51,34 +51,26 @@ class sign3(BaseSignature):
         self.__log.debug('stats_path: %s', self.stats_path)
         # get parameters or default values
         self.params = dict()
-        self.params['graph'] = params.get('graph', None)
-        self.params['node2vec'] = params.get('node2vec', None)
         default_adanet = {
             "augmentation": subsample,
             "initial_architecture": [9, 1]
         }
         self.params['adanet'] = params.get('adanet', default_adanet)
 
-    def get_sign2_matrix(self, chemchecker, include_self=True):
+    def get_sign2_matrix(self, chemchecker):
         """Get combined matrix of stacked signature 2."""
         # get current space on which we'll train (using reference set to
         # limit redundancy)
-        my_sign2 = chemchecker.get_signature(
-            'sign2', 'full', self.dataset)
-        # get other space signature 2 for molecule in current space (allow nan)
-        other_spaces = list(chemchecker.datasets)
-        if not include_self:
-            other_spaces.remove(self.dataset)
+        my_sign2 = chemchecker.get_signature('sign2', 'full', self.dataset)
         ref_dimension = my_sign2.shape[1]
         sign2_matrix = np.zeros(
-            (my_sign2.shape[0], ref_dimension * len(other_spaces)),
+            (my_sign2.shape[0], ref_dimension * len(self.meshed_datasets)),
             dtype=np.float32)
-        for idx, ds in enumerate(other_spaces):
+        for idx, ds in enumerate(self.meshed_datasets):
             sign2_ds = chemchecker.get_signature('sign2', 'full', ds)
             _, signs = sign2_ds.get_vectors(my_sign2.keys, include_nan=True)
-            start_idx = ref_dimension * idx
-            end_idx = ref_dimension * (idx + 1)
-            sign2_matrix[:, start_idx:end_idx] = signs
+            col_slice = slice(ref_dimension * idx, ref_dimension * (idx + 1))
+            sign2_matrix[:, col_slice] = signs
             available = np.isin(my_sign2.keys, sign2_ds.keys)
             self.__log.info('%s shared molecules between %s and %s',
                             sum(available), self.dataset, ds)
@@ -256,19 +248,27 @@ class sign3(BaseSignature):
         return pred_s3
 
     @staticmethod
-    def save_sign2_universe(chemchecker, destination):
-        """Create a file with all signatures 2 for each molecule in the CC."""
+    def save_sign2_universe(chemchecker, destination, datasets=None):
+        """Create a file with all signatures 2 for each molecule in the CC.
+
+        Args:
+            chemchecker(ChemicalChecker): The CC object where to fetch
+                signature 2.
+            destination(str): Path where the H5 is saved.
+            datasets(list): List of datasets to join.
+        """
         # get sorted universe inchikeys and CC signatures
         inchikeys = set()
         ds_sign = dict()
-        for ds in chemchecker.datasets:
+        if datasets is None:
+            datasets = chemchecker.datasets
+        for ds in datasets:
             sign = chemchecker.get_signature('sign2', 'full', ds)
             inchikeys.update(sign.unique_keys)
             ds_sign[ds] = sign
         inchikeys = sorted(list(inchikeys))
         tot_inks = len(inchikeys)
         tot_ds = len(ds_sign)
-
         # build input matrix if not provided
         if not os.path.isfile(destination):
             with h5py.File(destination, "w") as fh:
@@ -281,7 +281,8 @@ class sign3(BaseSignature):
                     del vectors
 
     def fit(self, chemchecker, sign2_universe=None, model_confidence=True,
-            save_support=True, save_correlations=True, update_preds=True):
+            save_support=True, save_correlations=True, update_preds=True,
+            meshed_datasets=None):
         """Use the learned model to predict the signature 3.
 
         Args:
@@ -299,6 +300,8 @@ class sign3(BaseSignature):
         except ImportError as err:
             raise err
 
+        if meshed_datasets is None:
+            self.meshed_datasets = chemchecker.datasets
         # check if have performance evaluations
         eval_stats = os.path.join(
             self.model_path, 'adanet_final_eval', 'stats.pkl')
@@ -314,7 +317,7 @@ class sign3(BaseSignature):
         # get sorted universe inchikeys and CC signatures
         inchikeys = set()
         ds_sign = dict()
-        for ds in chemchecker.datasets:
+        for ds in self.meshed_datasets:
             sign = chemchecker.get_signature('sign2', 'full', ds)
             inchikeys.update(sign.unique_keys)
             ds_sign[ds] = sign
@@ -324,7 +327,8 @@ class sign3(BaseSignature):
 
         # build input matrix if not provided
         if not os.path.isfile(sign2_universe):
-            sign3.save_sign2_universe(chemchecker, sign2_universe)
+            sign3.save_sign2_universe(
+                chemchecker, sign2_universe, self.meshed_datasets)
 
         def safe_create(h5file, *args, **kwargs):
             if args[0] not in h5file:
@@ -367,7 +371,7 @@ class sign3(BaseSignature):
                 avg_pearsons = np.zeros(tot_ds, dtype=np.float32)
                 avg_pearsons_test = np.zeros(tot_ds, dtype=np.float32)
                 avg_pearsons_train = np.zeros(tot_ds, dtype=np.float32)
-                for idx, ds in enumerate(chemchecker.datasets):
+                for idx, ds in enumerate(self.meshed_datasets):
                     ds_df = test_eval[test_eval['from'] == ds]
                     ds_pearson = np.mean(ds_df['pearson'])
                     if np.isnan(ds_pearson):
@@ -518,7 +522,7 @@ class sign3(BaseSignature):
         if inchikeys is None:
             inchikeys = set()
             ds_sign = dict()
-            for ds in chemchecker.datasets:
+            for ds in self.meshed_datasets:
                 sign = chemchecker.get_signature('sign2', 'full', ds)
                 inchikeys.update(sign.unique_keys)
                 ds_sign[ds] = sign
@@ -677,7 +681,7 @@ class sign3(BaseSignature):
         predict_fn = AdaNet.predict_fn(save_dir)
         # get results for each split
         results = dict()
-        all_dss = list(chemchecker.datasets)
+        all_dss = list(self.meshed_datasets)
         for split in ['train', 'test', 'validation']:
             traintest = Traintest(traintest_file, split)
             x_shape, y_shape = traintest.get_xy_shapes()
