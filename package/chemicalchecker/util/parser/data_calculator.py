@@ -380,12 +380,14 @@ class DataCalculator():
         yield chunk
 
     @staticmethod
-    def pidgin3_ortho(inchikey_inchi, chunks=1000):
+    def pidgin3_ortho(inchikey_inchi, chunks=1000, test=False):
         from chemicalchecker.tool import Pidgin
         import numpy as np
         import json
-        pdg = Pidgin(proba = 0.25, ad = 25) # Saving everything would cause a lot of memory issues in the database. I store (conservatively, the first quartile in terms of prediction (0.25) ane percentile (25%))
-        #pdg = Pidgin(ortho = False, organism = ["Homo sapiens"], bioactivity = [10, 1], targetclass = "Lipase", ncores = 1, proba = 0.25, ad = 25)        
+        if not test:
+            pdg = Pidgin(proba = 0.25, ad = 25) # Saving everything would cause a lot of memory issues in the database. I store (conservatively, the first quartile in terms of prediction (0.25) ane percentile (25%))
+        else:
+            pdg = Pidgin(ortho = False, organism = ["Homo sapiens"], bioactivity = [10, 1], targetclass = "Lipase", ncores = 1, proba = 0.25, ad = 25)        
         # Start iterating
         chunk = list()
         keys = inchikey_inchi.keys()
