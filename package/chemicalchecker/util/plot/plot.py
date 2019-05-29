@@ -716,7 +716,7 @@ class Plot():
         sns.pointplot(x='variable', y='value', data=df,
                       ax=ax, ci='sd', join=False, markers='.',
                       color=self._coord_color(coord))
-        ax.set_ylim(-1, 1)
+        ax.set_ylim(-2, 2)
         ax.set_xlim(-2, 130)
         ax.set_xticks([])
         ax.set_xlabel('')
