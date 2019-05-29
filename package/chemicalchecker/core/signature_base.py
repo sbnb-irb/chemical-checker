@@ -82,6 +82,7 @@ class BaseSignature(object):
             original_umask = os.umask(0)
             os.makedirs(self.stats_path, 0o775)
             os.umask(original_umask)
+        self.consistency_check()
 
     @abstractmethod
     def fit(self):
@@ -260,7 +261,7 @@ class BaseSignature(object):
             if len(self.keys) < nr_signatures:
                 raise Exception("Inconsistent: more signatures than Keys.")
             # check that keys are sorted
-            if not sorted(self.keys) == list(self.keys):
+            if not np.all(self.keys[:-1] <= self.keys[1:]):
                 raise Exception("Inconsistent: Keys are not sorted.")
 
     def map(self, out_file):
