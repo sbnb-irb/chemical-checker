@@ -212,6 +212,8 @@ class sign3(BaseSignature):
         # create a sign3 in the destination dir
         if not os.path.isdir(dest_dir):
             os.mkdir(dest_dir)
+        # we force sorting of smiles for signature style consistency
+        smiles = sorted(smiles)
         pred_s3 = sign3(dest_dir, dest_dir, self.dataset)
         with h5py.File(pred_s3.data_path, "w") as results:
             # initialize V (with NaN in case of failing rdkit) and smiles keys
