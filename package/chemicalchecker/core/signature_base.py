@@ -82,7 +82,6 @@ class BaseSignature(object):
             original_umask = os.umask(0)
             os.makedirs(self.stats_path, 0o775)
             os.umask(original_umask)
-        self.consistency_check()
 
     @abstractmethod
     def fit(self):
