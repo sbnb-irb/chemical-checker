@@ -66,6 +66,7 @@ class sign2(BaseSignature):
         self.params['graph'] = params.get('graph', None)
         self.params['node2vec'] = params.get('node2vec', None)
         self.params['adanet'] = params.get('adanet', None)
+        self.consistency_check()
 
     def fit(self, sign1, neig1, reuse=True):
         """Learn a model.

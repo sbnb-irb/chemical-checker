@@ -56,6 +56,7 @@ class sign3(BaseSignature):
             "initial_architecture": [9, 1]
         }
         self.params['adanet'] = params.get('adanet', default_adanet)
+        self.consistency_check()
 
     def save_sign2_matrix(self, chemchecker, destination):
         """Save combined matrix of stacked signature 2.
