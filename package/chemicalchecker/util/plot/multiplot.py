@@ -237,14 +237,20 @@ class MultiPlot():
             ax.yaxis.grid(True)
 
         g.axes.flat[0].set_xscale("log")
-        g.axes.flat[0].set_xlim(1e2, 1e7)
+        g.axes.flat[0].set_xlim(1e3, 3 * 1e6)
         g.axes.flat[0].set_xlabel("Nodes")
         g.axes.flat[1].set_xscale("log")
-        g.axes.flat[1].set_xlim(1e3, 1e8)
+        g.axes.flat[1].set_xlim(1e4, 1e8)
         g.axes.flat[1].set_xlabel("Edges")
-        g.axes.flat[3].set_xlim(min(df["Connected Components"].dropna()), 1.0)
-        g.axes.flat[-4].set_xscale("log")
-        g.axes.flat[-4].set_xlim(1)
+        g.axes.flat[2].set_xlim(0, 5000)
+        g.axes.flat[2].set_xlabel("0 In Nodes")
+        g.axes.flat[3].set_xlim(0, 1.0)
+        g.axes.flat[4].set_xscale("log")
+        g.axes.flat[4].set_xlim(10, 1e3)
+        g.axes.flat[4].set_xlabel("Degree %tiles")
+        g.axes.flat[5].set_xlim(0, 1)
+        g.axes.flat[6].set_xlim(0.5, 1)
+        g.axes.flat[7].set_xlim(0, 1)
         # g.axes.flat[-1].set_xlim(1e1,1e3)
         sns.despine(left=True, bottom=True)
 
@@ -252,7 +258,7 @@ class MultiPlot():
         plt.savefig(outfile, dpi=100)
         plt.close('all')
 
-    def sign2_feature_distribution_plot(self, sample_size=10000):
+    def sign2_feature_distribution_plot(self, sample_size=1000, sort=False):
         fig, axes = plt.subplots(25, 1, sharey=True, sharex=True,
                                  figsize=(10, 40), dpi=100)
         for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
@@ -263,10 +269,18 @@ class MultiPlot():
             else:
                 matrix = sign2[:]
             df = pd.DataFrame(matrix).melt()
-            sns.pointplot(x='variable', y='value', data=df,
+            all_df = df.copy()
+            all_df['variable'] = 130
+            df = df.append(all_df, ignore_index=True)
+            if not sort:
+                order = [130, -1] + range(matrix.shape[1])
+            else:
+                order = [130, -1] + \
+                    list(np.argsort(np.mean(matrix, axis=0))[::-1])
+            sns.pointplot(x='variable', y='value', data=df, order=order,
                           ax=ax, ci='sd', join=False, markers='.',
                           color=self.cc_palette([ds])[0])
-            ax.set_ylim(-1, 1)
+            ax.set_ylim(-2, 2)
             ax.set_xlim(-2, 130)
             ax.set_xticks([])
             ax.set_xlabel('')
@@ -285,7 +299,10 @@ class MultiPlot():
                             zorder=0)
             sns.despine(bottom=True)
         plt.tight_layout()
-        filename = os.path.join(self.plot_path, "feat_distrib.png")
+        if not sort:
+            filename = os.path.join(self.plot_path, "feat_distrib.png")
+        else:
+            filename = os.path.join(self.plot_path, "feat_distrib_sort.png")
         plt.savefig(filename, dpi=100)
         plt.close()
 
@@ -738,10 +755,10 @@ class MultiPlot():
         plt.close()
 
     def spy_matrix(self, matrix):
-        present = (np.isnan(matrix[:,0::128])).astype(int)
+        present = (np.isnan(matrix[:, 0::128])).astype(int)
         fig, ax = plt.subplots(figsize=(20, 20))
         ax.spy(np.repeat(present, 50, axis=1))
-        ax.set_xticks(np.arange(0, present.shape[1]*50, 50))
+        ax.set_xticks(np.arange(0, present.shape[1] * 50, 50))
         ax.set_xticklabels([ds[:2] for ds in list(cc.datasets)])
         plt.tight_layout()
         filename = os.path.join("spy.svg")
@@ -859,7 +876,8 @@ class MultiPlot():
             filename = os.path.join(
                 self.plot_path, "adanet_performance_%s.png" % suffix)
         else:
-            filename = os.path.join(self.plot_path, "adanet_performance_overall.png")
+            filename = os.path.join(
+                self.plot_path, "adanet_performance_overall.png")
         plt.savefig(filename, dpi=100)
         plt.close('all')
 
@@ -869,28 +887,38 @@ class MultiPlot():
                    'moa_auc', 'moa_cov', 'moa_ks_d', 'moa_ks_p']
         sign_types = ['sign1', 'sign2', 'sign3']
         df = pd.DataFrame(
-            columns=['sign_type', 'dataset', 'molecules'] + metrics)
-        for ds in self.cc.datasets:
-            for sign_type in sign_types:
-                sign = self.cc.get_signature(sign_type, 'full', ds)
-                stat_file = os.path.join(
-                    sign.stats_path, 'validation_stats.json')
-                row = json.load(open(stat_file, 'r'))
-                row.update({
-                    'sign_type': sign_type,
-                    'dataset': ds,
-                })
-                df.loc[len(df)] = pd.Series(row)
+            columns=['sign_type', 'molset', 'dataset', 'molecules'] + metrics)
+        for ds in self.datasets:
+            for molset in ['reference', 'full']:
+                for sign_type in sign_types:
+                    sign = self.cc.get_signature(sign_type, molset, ds)
+                    stat_file = os.path.join(
+                        sign.stats_path, 'validation_stats.json')
+                    if not os.path.isfile(stat_file):
+                        continue
+                    row = json.load(open(stat_file, 'r'))
+                    row.update({
+                        'sign_type': sign_type,
+                        'dataset': ds,
+                        'molset': molset,
+                    })
+                    df.loc[len(df)] = pd.Series(row)
 
         for metric in metrics:
             sns.set_style("whitegrid")
             fig, axes = plt.subplots(5, 5, sharey=True, sharex=False,
                                      figsize=(10, 10), dpi=100)
-            for ds, ax in tqdm(zip(self.cc.datasets, axes.flatten())):
-                sns.barplot(x='sign_type', y=metric, data=df[df.dataset == ds],
-                            ax=ax, alpha=.8, color=self.cc_palette([ds])[0])
+            for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
+                ds_color = self.cc_palette([ds])[0]
+                sns.barplot(x='sign_type', y=metric, hue='molset',
+                            hue_order=['reference', 'full'],
+                            data=df[df.dataset == ds],
+                            ax=ax, alpha=.8,
+                            palette=sns.light_palette(ds_color)[1::2])
                 ax.set_xlabel('')
                 ax.set_ylabel('')
+                ax.get_legend().remove()
+
                 # ax.set_xticklabels([ds])
                 for idx, p in enumerate(ax.patches):
                     if "%.2f" % p.get_height() == 'nan':
@@ -910,11 +938,11 @@ class MultiPlot():
                 else:
                     ax.set_ylim(0, 1)
                 ax.grid(axis='y', linestyle="-",
-                        color=self.cc_palette([ds])[0], lw=0.3)
-                ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
-                ax.spines["top"].set_color(self.cc_palette([ds])[0])
-                ax.spines["right"].set_color(self.cc_palette([ds])[0])
-                ax.spines["left"].set_color(self.cc_palette([ds])[0])
+                        color=ds_color, lw=0.3)
+                ax.spines["bottom"].set_color(ds_color)
+                ax.spines["top"].set_color(ds_color)
+                ax.spines["right"].set_color(ds_color)
+                ax.spines["left"].set_color(ds_color)
             plt.tight_layout()
             filename = os.path.join(self.plot_path,
                                     "sign_validation_%s.png" % metric)
