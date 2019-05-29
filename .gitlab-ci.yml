@@ -20,6 +20,10 @@ build_singularity_image_py27:
   cache:
     paths:
       - images
+  artifacts:
+    paths:
+    - images/cc_py27.simg
+    expire_in: 1 week
   only:
     changes:
       - container/singularity/cc_py27.def
@@ -34,6 +38,10 @@ build_singularity_image_py36:
   cache:
     paths:
       - images
+  artifacts:
+    paths:
+    - images/cc_py36.simg
+    expire_in: 1 week
   only:
     changes:
       - container/singularity/cc_py36.def
@@ -48,6 +56,10 @@ build_singularity_image_py27_lite:
   cache:
     paths:
       - images
+  artifacts:
+    paths:
+    - images/cc_py27_lite.simg
+    expire_in: 1 week
   only:
     changes:
       - container/singularity/cc_py27_lite.def
