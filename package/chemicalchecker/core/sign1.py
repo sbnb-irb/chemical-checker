@@ -80,6 +80,7 @@ class sign1(BaseSignature):
                 self.not_normalized = params["not_normalized"]
             if "discrete" in params:
                 self.discrete = params["discrete"]
+        self.consistency_check()
 
     def fit(self, sign0, validations=True):
         """Take `sign0` and learn an unsupervised `sign1` predictor.

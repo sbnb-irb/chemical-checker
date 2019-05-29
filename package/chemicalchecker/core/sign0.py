@@ -54,6 +54,7 @@ class sign0(BaseSignature):
                             self.preprocess_script)
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
+        self.consistency_check()
 
     def call_preprocess(self, output, method, infile=None, entry=None):
         """Call the external pre-process script."""
