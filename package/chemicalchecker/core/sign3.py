@@ -57,24 +57,35 @@ class sign3(BaseSignature):
         }
         self.params['adanet'] = params.get('adanet', default_adanet)
 
-    def get_sign2_matrix(self, chemchecker):
-        """Get combined matrix of stacked signature 2."""
+    def save_sign2_matrix(self, chemchecker, destination):
+        """Save combined matrix of stacked signature 2.
+
+        Args:
+            chemchecker(ChemicalChecker): The CC instance where to fetch
+                signatures.
+            destination(str): Path to the H5 destination file.
+        """
         # get current space on which we'll train (using reference set to
         # limit redundancy)
         my_sign2 = chemchecker.get_signature('sign2', 'full', self.dataset)
         ref_dimension = my_sign2.shape[1]
-        sign2_matrix = np.zeros(
-            (my_sign2.shape[0], ref_dimension * len(self.meshed_datasets)),
-            dtype=np.float32)
-        for idx, ds in enumerate(self.meshed_datasets):
-            sign2_ds = chemchecker.get_signature('sign2', 'full', ds)
-            _, signs = sign2_ds.get_vectors(my_sign2.keys, include_nan=True)
-            col_slice = slice(ref_dimension * idx, ref_dimension * (idx + 1))
-            sign2_matrix[:, col_slice] = signs
-            available = np.isin(my_sign2.keys, sign2_ds.keys)
-            self.__log.info('%s shared molecules between %s and %s',
-                            sum(available), self.dataset, ds)
-        return sign2_matrix, my_sign2[:]
+        feat_shape = (my_sign2.shape[0],
+                      ref_dimension * len(self.meshed_datasets)
+                      dtype=np.float32)
+        with h5py.File(destination, 'w') as hf:
+            hf.create_dataset('y', data=my_sign2[:], dtype=np.float32)
+            hf.create_dataset('x', feat_shape, dtype=np.float32)
+            for idx, ds in enumerate(self.meshed_datasets):
+                sign2_ds = chemchecker.get_signature('sign2', 'full', ds)
+                _, signs = sign2_ds.get_vectors(
+                    my_sign2.keys, include_nan=True)
+                col_slice = slice(ref_dimension * idx,
+                                  ref_dimension * (idx + 1))
+                hf['x_train'][:, col_slice] = signs
+                available = np.isin(my_sign2.keys, sign2_ds.keys)
+                self.__log.info('%s shared molecules between %s and %s',
+                                sum(available), self.dataset, ds)
+                del signs
 
     def _learn(self, chemchecker, reuse=True, suffix=None, evaluate=True,
                single_spaces_performances=True):
@@ -110,23 +121,21 @@ class sign3(BaseSignature):
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
         # prepare train-test file
+        sign2_matrix = os.path.join(self.model_path, 'train.h5')
+        if not reuse or os.path.isfile(sign2_matrix):
+            self.save_sign2_matrix(chemchecker, sign2_matrix)
         if evaluate:
             traintest_file = os.path.join(self.model_path, 'traintest.h5')
             if adanet_params:
                 traintest_file = adanet_params.pop(
                     'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
-                features, labels = self.get_sign2_matrix(chemchecker)
-                Traintest.create(features, labels, traintest_file)
+                Traintest.split_h5(sign2_matrix, traintest_file)
         else:
-            traintest_file = os.path.join(self.model_path, 'train.h5')
+            traintest_file = sign2_matrix
             if adanet_params:
                 traintest_file = adanet_params.pop(
                     'traintest_file', traintest_file)
-            if not reuse or not os.path.isfile(traintest_file):
-                features, labels = self.get_sign2_matrix(chemchecker)
-                Traintest.create(features, labels, traintest_file,
-                                 split_fractions=[1.0, .0, .0])
         # initialize adanet
         if adanet_params:
             ada = AdaNet(model_dir=adanet_path,
