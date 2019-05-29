@@ -70,8 +70,7 @@ class sign3(BaseSignature):
         my_sign2 = chemchecker.get_signature('sign2', 'full', self.dataset)
         ref_dimension = my_sign2.shape[1]
         feat_shape = (my_sign2.shape[0],
-                      ref_dimension * len(self.meshed_datasets)
-                      dtype=np.float32)
+                      ref_dimension * len(self.meshed_datasets))
         with h5py.File(destination, 'w') as hf:
             hf.create_dataset('y', data=my_sign2[:], dtype=np.float32)
             hf.create_dataset('x', feat_shape, dtype=np.float32)
