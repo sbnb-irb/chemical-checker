@@ -44,11 +44,15 @@ class Traintest(object):
         """
         self._file = hdf5_file
         self._f = None
-        self.x_name = "x_%s" % split
-        self.y_name = "y_%s" % split
         self.replace_nan = replace_nan
-        if split not in self.get_split_names():
-            raise Exception("Specified split name not found!")
+        if split is None:
+            self.x_name = "x"
+            self.y_name = "y"
+        else:
+            self.x_name = "x_%s" % split
+            self.y_name = "y_%s" % split
+            if split not in self.get_split_names():
+                raise Exception("Specified split name not found!")
 
     def get_xy_shapes(self):
         """Return the shpaes of X an Y."""
@@ -140,12 +144,12 @@ class Traintest(object):
         Traintest.create(X, Y, out_filename)
 
     @staticmethod
-    def get_split_indeces(matrix, fractions):
+    def get_split_indeces(rows, fractions):
         """Get random indeces for different splits."""
         if not sum(fractions) == 1.0:
             raise Exception("Split fractions should sum to 1.0")
         # shuffle indeces
-        idxs = range(matrix.shape[0])
+        idxs = range(rows)
         np.random.shuffle(idxs)
         # from frequs to indices
         splits = np.cumsum(fractions)
@@ -155,7 +159,7 @@ class Traintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def create(X, Y, out_filename, split_names=['train', 'test', 'validation'],
+    def create(X, Y, out_file, split_names=['train', 'test', 'validation'],
                split_fractions=[.8, .1, .1], x_dtype=np.float32,
                y_dtype=np.float32, chunk_size=10000):
         """Create the HDF5 file with validation splits for both X and Y.
@@ -163,7 +167,7 @@ class Traintest(object):
         Args:
             X(numpy.ndarray): features to train from.
             Y(numpy.ndarray): labels to predict.
-            out_filename(Str): path of the h5 file to write.
+            out_file(str): path of the h5 file to write.
             split_names(list(str)): names for the split of data.
             split_fractions(list(float)): fraction of data in each split.
             x_dtype(type): numpy data type for X.
@@ -181,11 +185,12 @@ class Traintest(object):
         # train test validation splits
         if len(split_names) != len(split_fractions):
             raise Exception("Split names and fraction should be same amount.")
-        split_idxs = Traintest.get_split_indeces(X, split_fractions)
+        split_idxs = Traintest.get_split_indeces(
+            Y.shape[0], split_fractions)
 
         # create dataset
-        Traintest.__log.info('Traintest saving to %s', out_filename)
-        with h5py.File(out_filename, "w") as fh:
+        Traintest.__log.info('Traintest saving to %s', out_file)
+        with h5py.File(out_file, "w") as fh:
             fh.create_dataset('split_names', data=split_names)
             fh.create_dataset('split_fractions', data=split_fractions)
             for name, idxs in zip(split_names, split_idxs):
@@ -205,8 +210,56 @@ class Traintest(object):
                     fh[ds_name][chunk] = Y[idxs[chunk]]
                 Traintest.__log.debug("Written: {:<20} shape: {:>10}".format(
                     ds_name, fh[ds_name].shape))
-        fh.close()
-        Traintest.__log.info('Traintest saved to %s', out_filename)
+        Traintest.__log.info('Traintest saved to %s', out_file)
+
+    @staticmethod
+    def split_h5(in_file, out_file,
+                 split_names=['train', 'test', 'validation'],
+                 split_fractions=[.8, .1, .1], chunk_size=1000):
+        """Create the HDF5 file with validation splits from an input file.
+
+        Args:
+            in_file(str): path of the h5 file to read from.
+            out_file(str): path of the h5 file to write.
+            split_names(list(str)): names for the split of data.
+            split_fractions(list(float)): fraction of data in each split.
+        """
+        with h5py.File(in_file, 'r') as hf_in:
+            # log input datasets and shapes
+            for k in hf_in.keys():
+                Traintest.__log.debug(
+                    "{:<20} shape: {:>10}".format(k, hf_in[k].shape))
+                rows = hf_in[k].shape[0]
+
+            # train test validation splits
+            if len(split_names) != len(split_fractions):
+                raise Exception(
+                    "Split names and fraction should be same amount.")
+            split_idxs = Traintest.get_split_indeces(rows, split_fractions)
+
+            Traintest.__log.info('Traintest saving to %s', out_file)
+            with h5py.File(out_file, "w") as hf_out:
+                # create fixed datasets
+                hf_out.create_dataset('split_names', data=split_names)
+                hf_out.create_dataset('split_fractions', data=split_fractions)
+
+                for name, idxs in zip(split_names, split_idxs):
+                    # for each original dataset
+                    for k in hf_in.keys():
+                        # create all splits
+                        ds_name = "%s_%s" % (k, name)
+                        hf_out.create_dataset(ds_name,
+                                              (len(idxs), hf_in[k].shape[1]),
+                                              dtype=hf_in[k].dtype)
+                        # fill-in by chunks
+                        for i in range(0, len(idxs), chunk_size):
+                            chunk = slice(i, i + chunk_size)
+                            sorted_idxs = sorted(list(idxs[chunk]))
+                            hf_out[ds_name][chunk] = hf_in[k][sorted_idxs]
+                        Traintest.__log.debug(
+                            "Written: {:<20} shape: {:>10}".format(
+                                ds_name, hf_out[ds_name].shape))
+        Traintest.__log.info('Traintest saved to %s', out_file)
 
     @staticmethod
     def generator_fn(file_name, split, batch_size=None, only_x=False):
@@ -452,7 +505,7 @@ class AdaNetWrapper(object):
                 throttle_secs=1)
         else:
             eval_spec = tf.estimator.EvalSpec(
-                input_fn=self.input_fn("train", training=False),
+                input_fn=self.input_fn(None, training=False),
                 steps=None,
                 start_delay_secs=1,
                 throttle_secs=1)
