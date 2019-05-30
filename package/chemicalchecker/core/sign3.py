@@ -251,7 +251,7 @@ class sign3(BaseSignature):
                 sign0s = np.vstack(sign0s)
                 preds = predict_fn({'x': sign0s})['predictions']
                 if failed:
-                    preds[np.array(failed)] = np.full((128, ),  np.nan)
+                    preds[np.array(failed)] = np.full((131, ),  np.nan)
                 results['V'][chunk] = preds[:, :128]
                 results['stddev_norm'][chunk] = preds[:, 128]
                 results['intensity_norm'][chunk] = preds[:, 129]
