@@ -29,7 +29,7 @@ class DataFactory():
             args = (signature_path, validation_path, dataset_code)
             return eval(cctype)(*args, **params)
         except Exception as ex:
-            raise Exception("Data type %s not available: %s" % (cctype, ex))
+            raise Exception("Error initializing %s: %s" % (cctype, ex))
 
     @staticmethod
     def signaturize(cctype, signature_path, matrix, keys=None, dataset_code=None):
@@ -59,4 +59,4 @@ class DataFactory():
         try:
             return eval(cctype)(signature_path, signature_path, dataset_code)
         except Exception as ex:
-            raise Exception("Data type %s not available: %s" % (cctype, ex))
+            raise Exception("Error initializing %s: %s" % (cctype, ex))
