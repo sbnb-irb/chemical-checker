@@ -81,7 +81,7 @@ class sign3(BaseSignature):
                     my_sign2.keys, include_nan=True)
                 col_slice = slice(ref_dimension * idx,
                                   ref_dimension * (idx + 1))
-                hf['x_train'][:, col_slice] = signs
+                hf['x'][:, col_slice] = signs
                 available = np.isin(my_sign2.keys, sign2_ds.keys)
                 self.__log.info('%s shared molecules between %s and %s',
                                 sum(available), self.dataset, ds)
