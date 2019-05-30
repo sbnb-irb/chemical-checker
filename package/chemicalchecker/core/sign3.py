@@ -122,7 +122,7 @@ class sign3(BaseSignature):
             os.makedirs(adanet_path)
         # prepare train-test file
         sign2_matrix = os.path.join(self.model_path, 'train.h5')
-        if not reuse or os.path.isfile(sign2_matrix):
+        if not reuse or not os.path.isfile(sign2_matrix):
             self.save_sign2_matrix(chemchecker, sign2_matrix)
         if evaluate:
             traintest_file = os.path.join(self.model_path, 'traintest.h5')
