@@ -64,7 +64,7 @@ class TargetMate:
         self.cc = ChemicalChecker(cc_root)
         # Store the paths to the sign3 (only the ones that have been already trained)
         if not datasets:
-            self.datasets = ["%s%d.001" % (x, i) for x in ["A","B","C","D","E"] for i in [1,2,3,4,5]] # TO-DO: Martino, is there a way to just check how many signatures are available?
+            self.datasets = ["%s%d.001" % (x, i) for x in ["A","B","C","D","E"] for i in [1,2,3,4,5] if ("%s%d" % (x, i)) != "A1"] # TO-DO: Martino, is there a way to just check how many signatures are available?
         else:
             self.datasets = datasets
         # Metric to use
@@ -206,7 +206,7 @@ class TargetMate:
                 s3s[dataset] = s3.predict_from_smiles([d[2] for d in data], destination_dir)
         # Initialize cross-validation generator
         y = np.array([d[-1] for d in data])
-        skf = StratifiedKFold(n_splits=self.cv, shuffle = True, random_state = 42)
+        skf = StratifiedKFold(n_splits=self.cv, shuffle=True, random_state=42)
         # Do the individual predictors
         self.__log.info("Training individual predictors with cross-validation")
         yps_train = collections.defaultdict(list)
@@ -226,14 +226,14 @@ class TargetMate:
                 y_train = y[train_idx]
                 clf.fit(X_train, y_train)
                 # Make predictions on train set itself
-                yps_train[dataset] += [p for p in clf.predict(X_train)]
+                yps_train[dataset] += [p[1] for p in clf.predict_proba(X_train)]
                 # Make predictions on test set itself
                 X_test = s3[:][test_idx]
                 y_test = y[test_idx]
-                yps_test[dataset] += [p for p in clf.predict(X_test)]
+                yps_test[dataset] += [p[1] for p in clf.predict_proba(X_test)]
             yts_train += list(y_train)
-            yts_test += list(y_test)
-            smi_test += list(smiles[test_idx])
+            yts_test  += list(y_test)
+            smi_test  += list(smiles[test_idx])
         # Evaluate individual performances
         self.__log.info("Evaluating dataset-specific performances based on the CV and getting weights correspondingly")
         perfs = {}
@@ -337,7 +337,7 @@ class TargetMate:
         yps  = {}
         for dataset, clf in clf_ensemble:
             X = s3s[dataset][:]
-            yps[dataset] = [p for p in clf.predict(X)]
+            yps[dataset] = [p[1] for p in clf.predict_proba(X)]
         # Read performances
         self.__log.debug("Reading performances")
         with open(self.models_path + "/perfs.json", "r") as f:
@@ -357,7 +357,7 @@ class TargetMate:
             ad_data = pickle.load(f)
         # Calculate weights
         self.__log.debug("Calculating weights")
-        fps = ## GET FINGERPRINTS
+        fps = "x" ## GET FINGERPRINTS
         weights = self.calculate_weights(kneigh, fps, ad_data[:,0], ad_data[:,1])
         # Get percentiles
         train_weights = ad_data[:,2]
