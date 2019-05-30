@@ -912,6 +912,7 @@ class MultiPlot():
                 ds_color = self.cc_palette([ds])[0]
                 sns.barplot(x='sign_type', y=metric, hue='molset',
                             hue_order=['reference', 'full'],
+                            order=['sign1', 'sign2', 'sign3'],
                             data=df[df.dataset == ds],
                             ax=ax, alpha=.8,
                             palette=sns.light_palette(ds_color)[1::2])
