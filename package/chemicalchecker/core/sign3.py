@@ -494,6 +494,9 @@ class sign3(BaseSignature, DataSignature):
         self.validate()
         self.mark_ready()
 
+    def predict(self):
+        pass
+
     def train_error_estimator(self, sign2_self):
         """Train an error estimator.
 
