@@ -454,8 +454,14 @@ class AdaNetWrapper(object):
 
     def train_and_evaluate(self, evaluate=True):
         """Train and evaluate AdaNet."""
-
-        """Define the `adanet.Estimator`."""
+        # Define the `adanet.Evaluator`
+        if evaluate:
+            self.evaluator = adanet.Evaluator(
+                input_fn=self.input_fn("train", training=False))
+        else:
+            self.evaluator = adanet.Evaluator(
+                input_fn=self.input_fn(None, training=False))
+        # Define the `adanet.Estimator`
         self.estimator = adanet.Estimator(
             # We'll use a regression head defined during initialization.
             head=self._estimator_head,
@@ -486,8 +492,7 @@ class AdaNetWrapper(object):
             # compute the overall AdaNet loss (train loss + complexity
             # regularization) to select the best candidate to include in the
             # final AdaNet model.
-            evaluator=adanet.Evaluator(
-                input_fn=self.input_fn("train", training=False)),
+            evaluator=self.evaluator,
 
             # Configuration for Estimators.
             config=tf.estimator.RunConfig(
@@ -498,27 +503,29 @@ class AdaNetWrapper(object):
             model_dir=self.model_dir
         )
         # Train and evaluate using using the tf.estimator tooling.
-        train_spec = tf.estimator.TrainSpec(
-            input_fn=self.input_fn("train", training=True,
-                                   augmentation=self.augmentation),
-            max_steps=self.total_steps)
         if evaluate:
+            train_spec = tf.estimator.TrainSpec(
+                input_fn=self.input_fn("train", training=True,
+                                       augmentation=self.augmentation),
+                max_steps=self.total_steps)
             eval_spec = tf.estimator.EvalSpec(
                 input_fn=self.input_fn("test", training=False),
                 steps=None,
                 start_delay_secs=1,
                 throttle_secs=1)
+            # call train and evaluate collecting time stats
+            t0 = time()
+            self.results = tf.estimator.train_and_evaluate(
+                self.estimator, train_spec, eval_spec)
+            self.time = time() - t0
         else:
-            eval_spec = tf.estimator.EvalSpec(
-                input_fn=self.input_fn(None, training=False),
-                steps=None,
-                start_delay_secs=1,
-                throttle_secs=1)
-        # call train and evaluate collecting time stats
-        t0 = time()
-        self.results = tf.estimator.train_and_evaluate(
-            self.estimator, train_spec, eval_spec)
-        self.time = time() - t0
+            # call train and train only collecting time stats
+            t0 = time()
+            self.results = self.estimator.train(
+                input_fn=self.input_fn(None, training=True,
+                                       augmentation=self.augmentation),
+                max_steps=self.total_steps)
+            self.time = time() - t0
         # save persistent model
         self.save_dir = os.path.join(self.model_dir, 'savedmodel')
         self.__log.info("SAVING MODEL TO: %s", self.save_dir)
