@@ -200,8 +200,7 @@ class sign3(BaseSignature, DataSignature):
         self.params['adanet'] = {
             'traintest_file': sign0_traintest,
             'augmentation': False}
-        self._learn(chemchecker, suffix='sign0_A1.001_final_eval',
-                    evaluate=False)
+        self._learn(chemchecker, suffix='sign0_A1.001_final', evaluate=False)
 
     def predict_from_smiles(self, smiles, dest_file, chunk_size=1000):
         """Given SMILES generate sign0 and predict sign3.
@@ -221,8 +220,7 @@ class sign3(BaseSignature, DataSignature):
         except ImportError as err:
             raise err
         # load NN
-        sign0_adanet_path = os.path.join(self.model_path,
-                                         'sign0_A1.001_final_eval',
+        sign0_adanet_path = os.path.join(self.model_path, 'sign0_A1.001_final',
                                          'savedmodel')
         predict_fn = AdaNet.predict_fn(sign0_adanet_path)
         # we return a simple DataSignature object (basic HDF5 access)
@@ -277,22 +275,18 @@ class sign3(BaseSignature, DataSignature):
         return pred_s3
 
     @staticmethod
-    def save_sign2_universe(chemchecker, destination, datasets=None):
+    def save_sign2_universe(sign2_list, destination):
         """Create a file with all signatures 2 for each molecule in the CC.
 
         Args:
-            chemchecker(ChemicalChecker): The CC object where to fetch
-                signature 2.
+            sign2_list(list): List of signature 2 objects to learn from.
             destination(str): Path where the H5 is saved.
-            datasets(list): List of datasets to include.
         """
         # get sorted universe inchikeys and CC signatures
         inchikeys = set()
         ds_sign = dict()
-        if datasets is None:
-            datasets = chemchecker.datasets
-        for ds in datasets:
-            sign = chemchecker.get_signature('sign2', 'full', ds)
+        for sign in sign2_list:
+            ds = sign.dataset
             inchikeys.update(sign.unique_keys)
             ds_sign[ds] = sign
         inchikeys = sorted(list(inchikeys))
@@ -311,7 +305,7 @@ class sign3(BaseSignature, DataSignature):
 
     def fit(self, sign2_list, sign2_self, sign2_universe=None,
             model_confidence=True, save_support=True, save_correlations=True,
-            update_preds=True):
+            update_preds=True, validations=True):
         """Fit the model to predict the signature 3.
 
         Args:
@@ -337,9 +331,9 @@ class sign3(BaseSignature, DataSignature):
         self.sign2_self = sign2_self
         # check if performance evaluations need to be done
         eval_stats = os.path.join(
-            self.model_path, 'adanet_final_eval', 'stats.pkl')
+            self.model_path, 'adanet_eval', 'stats.pkl')
         if not os.path.isfile(eval_stats):
-            self._learn(sign2_list, suffix='final_eval', evaluate=True)
+            self._learn(sign2_list, suffix='eval', evaluate=True)
 
         # check if we have the final trained model
         final_adanet_path = os.path.join(self.model_path, 'adanet_final',
@@ -358,9 +352,10 @@ class sign3(BaseSignature, DataSignature):
         tot_ds = len(ds_sign)
 
         # build input matrix if not provided
+        if sign2_universe is None:
+            sign2_universe = os.path.join(self.model_path, 'all_sign2.h5')
         if not os.path.isfile(sign2_universe):
-            sign3.save_sign2_universe(
-                sign2_list, sign2_universe, self.src_datasets)
+            sign3.save_sign2_universe(sign2_list, sign2_universe)
 
         def safe_create(h5file, *args, **kwargs):
             if args[0] not in h5file:
@@ -395,9 +390,9 @@ class sign3(BaseSignature, DataSignature):
                 # read the correlations obtained evaluating on single spaces
                 df = pd.read_pickle(eval_stats)
                 test_eval = df[(df.split != 'train') & (
-                    df.algo == 'AdaNet_final_eval')]
+                    df.algo == 'AdaNet_eval')]
                 train_eval = df[(df.split == 'train') & (
-                    df.algo == 'AdaNet_final_eval')]
+                    df.algo == 'AdaNet_eval')]
                 avg_pearsons = np.zeros(tot_ds, dtype=np.float32)
                 avg_pearsons_test = np.zeros(tot_ds, dtype=np.float32)
                 avg_pearsons_train = np.zeros(tot_ds, dtype=np.float32)
@@ -491,7 +486,8 @@ class sign3(BaseSignature, DataSignature):
                 confidence = np.sqrt(inten_norm * (1 - stddev_norm))
                 # the higher the better
                 results['confidence'][chunk] = confidence
-        self.validate()
+        if validations:
+            self.validate()
         self.mark_ready()
 
     def predict(self):
