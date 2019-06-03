@@ -367,6 +367,7 @@ class sign3(BaseSignature, DataSignature):
             # initialize V and keys datasets
             safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
             safe_create(results, 'keys', (tot_inks,), dtype='|S27')
+            safe_create(results, 'datasets', data=self.src_datasets)
             if model_confidence:
                 # the actual confidence value will be stored here
                 safe_create(results, 'confidence',
@@ -409,7 +410,7 @@ class sign3(BaseSignature, DataSignature):
                     avg_pearsons_train[idx] = ds_pearson
                 avg_pearsons = avg_pearsons_test
                 # this is to lookup correlations
-                safe_create(results, 'dataset_correlation', data=avg_pearsons)
+                safe_create(results, 'datasets_correlation', data=avg_pearsons)
                 # Average/tertile/maximum Pearson correlations will be saved
                 safe_create(results, 'pred_correlation', (tot_inks, 3),
                             dtype=np.float32)
