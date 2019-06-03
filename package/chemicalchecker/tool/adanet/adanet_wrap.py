@@ -228,7 +228,7 @@ class Traintest(object):
             # log input datasets and shapes
             for k in hf_in.keys():
                 Traintest.__log.debug(
-                    "{:<20} shape: {:>10}".format(k, hf_in[k].shape))
+                    "{:<20} shape: {:>10}".format(k, str(hf_in[k].shape)))
                 rows = hf_in[k].shape[0]
 
             # train test validation splits
