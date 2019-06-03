@@ -23,6 +23,7 @@ import numpy as np
 from time import time
 
 from .signature_base import BaseSignature
+from .signature_data import DataSignature
 
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
@@ -30,7 +31,7 @@ from chemicalchecker.util import Config
 
 
 @logged
-class sign2(BaseSignature):
+class sign2(BaseSignature, DataSignature):
     """Signature type 2 class."""
 
     def __init__(self, signature_path, validation_path, dataset, **params):
@@ -48,6 +49,7 @@ class sign2(BaseSignature):
         self.validation_path = validation_path
         # generate needed paths
         self.data_path = os.path.join(self.signature_path, 'sign2.h5')
+        DataSignature.__init__(self, self.data_path)
         self.model_path = os.path.join(self.signature_path, 'models')
         if not os.path.isdir(self.model_path):
             os.makedirs(self.model_path)
