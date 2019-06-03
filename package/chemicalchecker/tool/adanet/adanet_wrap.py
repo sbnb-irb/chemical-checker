@@ -324,17 +324,22 @@ class AdaNetWrapper(object):
         # read input shape
         self.traintest_file = traintest_file
         with h5py.File(traintest_file, 'r') as hf:
-            self.input_dimension = hf['x_train'].shape[1]
-            if len(hf['y_train'].shape) == 1:
+            x_ds = 'x'
+            y_ds = 'y'
+            if 'x_train' in hf.keys():
+                x_ds = 'x_train'
+                y_ds = 'y_train'
+            self.input_dimension = hf[x_ds].shape[1]
+            if len(hf[y_ds].shape) == 1:
                 self.label_dimension = 1
             else:
-                self.label_dimension = hf['y_train'].shape[1]
-            self.train_size = hf['x_train'].shape[0]
+                self.label_dimension = hf[y_ds].shape[1]
+            self.train_size = hf[x_ds].shape[0]
             self.total_size = 0
-            for split in [i for i in hf.keys() if i.startswith('x_')]:
+            for split in [i for i in hf.keys() if i.startswith('x')]:
                 self.total_size += hf[split].shape[0]
             # derive number of classes from train data
-            self.n_classes = np.unique(hf['y_train'][:100000]).shape[0]
+            self.n_classes = np.unique(hf[y_ds][:100000]).shape[0]
         # override number of classes if specified
         self.n_classes = kwargs.get("n_classes", self.n_classes)
         # layer size heuristic
@@ -355,7 +360,7 @@ class AdaNetWrapper(object):
             self.epoch_per_iteration = int(
                 np.ceil(float(self.min_train_step) * self.batch_size /
                         self.train_size))
-            self.__log.warn("Given input size (%s) would reslt in few train" +
+            self.__log.warn("Given input size (%s) would result in few train" +
                             " steps, increasing epoch per iterations to %s",
                             self.train_size, self.epoch_per_iteration)
             self.train_step = int(np.ceil(self.train_size / self.batch_size *

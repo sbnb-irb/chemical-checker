@@ -210,17 +210,6 @@ class BaseSignature(object):
         with open(filename, 'w') as fh:
             pass
 
-    @property
-    def info_h5(self):
-        """Get the dictionary of dataset and shapes."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
-        infos = dict()
-        with h5py.File(self.data_path, 'r') as hf:
-            for key in hf.keys():
-                infos[key] = hf[key].shape
-        return infos
-
     def is_fit(self):
         """The fit method was already called for this signature."""
         if os.path.exists(os.path.join(self.model_path, self.readyfile)):
@@ -228,23 +217,12 @@ class BaseSignature(object):
         else:
             return False
 
-    def copy_from(self, sign, key):
-        """Copy dataset 'key' to current signature.
-
-        Args:
-            sign(SignatureBase): The source signature.
-            key(str): The dataset to copy from.
-        """
-        if key not in sign.info_h5:
-            raise Exception("Data file %s has no dataset named '%s'." %
-                            (sign.data_path, key))
-        with h5py.File(sign.data_path, 'r') as hf:
-            src = hf[key][:]
-        with h5py.File(self.data_path, 'a') as hf:
-            # delete if already there
-            if key in hf:
-                del hf[key]
-            hf[key] = src
+    def chunker(self, size=2000):
+        """Iterate on signatures."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        for i in range(0, self.shape[0], size):
+            yield slice(i, i + size)
 
     def consistency_check(self):
         """Check that signature is valid."""
@@ -338,19 +316,6 @@ class BaseSignature(object):
                 raise Exception("HDF5 file has no 'keys' field.")
             return hf['keys'][:]
 
-    def get_h5_dataset(self, h5_dataset_name, mask=None):
-        """Get a specific dataset in the signature."""
-        self.__log.debug("Fetching dataset %s" % h5_dataset_name)
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
-        with h5py.File(self.data_path, 'r') as hf:
-            if h5_dataset_name not in hf.keys():
-                raise Exception("HDF5 file has no '%s'." % h5_dataset_name)
-            if mask is None:
-                return hf[h5_dataset_name][:]
-            else:
-                return hf[h5_dataset_name][mask]
-
     @cached_property
     def unique_keys(self):
         """Get the keys of the signature as a set."""
@@ -405,37 +370,6 @@ class BaseSignature(object):
         with h5py.File(self.data_path, 'r') as hf:
             for i in range(self.shape[0]):
                 yield hf['V'][i]
-
-    def chunker(self, size=2000):
-        """Iterate on signatures."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
-        for i in range(0, len(self.keys), size):
-            yield slice(i, i + size)
-
-    def __getitem__(self, key):
-        """Return the vector corresponding to the key.
-
-        The key can be a string (then it's mapped though self.keys) or and
-        int.
-        Works fast with bisect, but should return None if the key is not in
-        keys (ideally, keep a set to do this)."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file not available.")
-        if isinstance(key, slice):
-            with h5py.File(self.data_path, 'r') as hf:
-                return hf['V'][key]
-        elif isinstance(key, str):
-            if key not in self.unique_keys:
-                raise Exception("Key '%s' not found." % key)
-            idx = bisect_left(self.keys, key)
-            with h5py.File(self.data_path, 'r') as hf:
-                return hf['V'][idx]
-        elif isinstance(key, int):
-            with h5py.File(self.data_path, 'r') as hf:
-                return hf['V'][key]
-        else:
-            raise Exception("Key type %s not recognized." % type(key))
 
     def __repr__(self):
         """String representig the signature."""
