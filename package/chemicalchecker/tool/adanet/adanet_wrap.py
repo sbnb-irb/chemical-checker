@@ -149,7 +149,7 @@ class Traintest(object):
         if not sum(fractions) == 1.0:
             raise Exception("Split fractions should sum to 1.0")
         # shuffle indeces
-        idxs = range(rows)
+        idxs = list(range(rows))
         np.random.shuffle(idxs)
         # from frequs to indices
         splits = np.cumsum(fractions)
