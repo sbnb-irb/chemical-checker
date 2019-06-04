@@ -262,7 +262,7 @@ class Traintest(object):
                             hf_out[ds_name][chunk] = hf_in[k][sorted_idxs]
                         Traintest.__log.debug(
                             "Written: {:<20} shape: {:>10}".format(
-                                ds_name, hf_out[ds_name].shape))
+                                ds_name, str(hf_out[ds_name].shape)))
         Traintest.__log.info('Traintest saved to %s', out_file)
 
     @staticmethod
