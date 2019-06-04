@@ -216,7 +216,7 @@ class sign2(BaseSignature, DataSignature):
         Find nearest neighbor in sign 1 and mapping it to known sign 2.
         """
         from .data import DataFactory
-        from .neig1 import neig1
+        from .neig import neig
         from chemicalchecker.tool.adanet import Traintest
         sign2.__log.info('Performing Nearest Neighbor prediction.')
         # create directory to save neig and sign (delete if exists)
@@ -256,7 +256,7 @@ class sign2(BaseSignature, DataSignature):
                 # create temporary neig1 and call fit
                 neig1_dest = os.path.join(nn_path, "neig1")
                 os.makedirs(neig1_dest)
-                nn_neig1 = neig1(neig1_dest, neig1_dest, "NN.001")
+                nn_neig1 = neig(neig1_dest, neig1_dest, "NN.001")
                 nn_neig1.fit(nn_sign1)
             # save nearest neighbor signatures as predictions
             nn_pred[ds] = dict()
