@@ -64,6 +64,7 @@ From: centos
     pip install sklearn
     pip install csvsort
     pip install seaborn
+    pip install tqdm
     # unittest utils
     pip install pytest
     pip install mock
