@@ -22,6 +22,7 @@ class neig(BaseSignature):
             metric(str): The metric used in the KNN algorithm: euclidean or cosine (default: cosine)
             k_neig(int): The number of k neighbours to search for (default:1000)
             cpu(int): The number of cores to use (default:1)
+            chunk(int): The size of the chunk to read the data (default:1000)
         """
         # Calling init on the base class to trigger file existance checks
         BaseSignature.__init__(
@@ -31,6 +32,7 @@ class neig(BaseSignature):
         self.__log.debug('data_path: %s', self.data_path)
         self.metric = "cosine"
         self.cpu = 1
+        self.chunk = 1000
         self.k_neig = 1000
         self.norms_file = os.path.join(self.model_path, "norms.h5")
         for param, value in params.items():
@@ -41,6 +43,8 @@ class neig(BaseSignature):
                 self.cpu = params["cpu"]
             if "k_neig" in params:
                 self.k_neig = params["k_neig"]
+            if "chunk" in params:
+                self.chunk = params["chunk"]
 
     def fit(self, sign1):
         """Take an input and learns to produce an output."""
@@ -53,73 +57,85 @@ class neig(BaseSignature):
 
         faiss.omp_set_num_threads(self.cpu)
 
-        mappings = None
-
         if os.path.isfile(sign1.data_path):
-            dh5 = h5py.File(sign1.data_path)
-            if "keys" not in dh5.keys() or "V" not in dh5.keys():
-                raise Exception(
-                    "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
-            self.data = np.array(dh5["V"][:], dtype=np.float32)
-            self.data_type = dh5["V"].dtype
-            self.keys = dh5["keys"][:]
-            if "mappings" in dh5.keys():
-                mappings = dh5["mappings"][:]
-            dh5.close()
+            with h5py.File(sign1.data_path) as dh5, h5py.File(self.data_path, 'w') as dh5out:
+                if "keys" not in dh5.keys() or "V" not in dh5.keys():
+                    raise Exception(
+                        "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
 
+                self.datasize = dh5["V"].shape
+                self.data_type = dh5["V"].dtype
+
+                k = min(self.datasize[0], self.k_neig)
+
+                dh5out.create_dataset("row_keys", data=dh5["keys"][:])
+                dh5out["col_keys"] = h5py.SoftLink('/row_keys')
+                dh5out.create_dataset(
+                    "indices", (self.datasize[0], k), dtype=np.int32)
+                dh5out.create_dataset(
+                    "distances", (self.datasize[0], k), dtype=np.float32)
+                dh5out.create_dataset("shape", data=(self.datasize[0], k))
+                dh5out.create_dataset(
+                    "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
+                dh5out.create_dataset(
+                    "metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
+
+                if self.metric == "euclidean":
+                    index = faiss.IndexFlatL2(self.datasize[1])
+                else:
+                    index = faiss.IndexFlatIP(self.datasize[1])
+
+                norms = None
+
+                for chunk in sign1.chunker():
+                    data_temp = dh5["V"][chunk]
+                    index.add(data_temp)
+
+                for chunk in sign1.chunker():
+                    data_temp = np.array(dh5["V"][chunk], dtype=np.float32)
+                    Dt, It = index.search(data_temp, k)
+
+                    if self.metric == "cosine":
+                        normst = LA.norm(data_temp, axis=1)
+
+                        if norms is None:
+                            norms = normst
+                        else:
+                            norms = np.concatenate((norms, normst))
+
+                    dh5out["indices"][chunk] = It
+                    dh5out["distances"][chunk] = Dt
+
+            if self.metric == "cosine":
+
+                with h5py.File(self.data_path, "r+") as hw:
+                    t_start = time()
+                    mat = np.ones((self.datasize[0], k))
+                    for chunk in sign1.chunker():
+                        mat[chunk] = mat[chunk] / norms[chunk, None]
+                    # We load all to make it faster, if memory issue then we need
+                    # to get each element one by one
+                    I = hw["indices"][:]
+                    for i in range(0, self.datasize[0]):
+                        for j in range(0, k):
+                            mat[i, j] = mat[i, j] / norms[I[i, j]]
+                    del I
+                    for chunk in sign1.chunker():
+                        hw["distances"][chunk] = np.maximum(
+                            0.0, 1.0 - (hw["distances"][chunk] * mat[chunk]))
+                    t_end = time()
+                    t_delta = str(datetime.timedelta(seconds=t_end - t_start))
+                    self.__log.info(
+                        "Converting to cosine distance took %s", t_delta)
+
+                with h5py.File(self.norms_file, "w") as hw:
+                    hw.create_dataset("norms", data=norms)
         else:
             raise Exception("The file " + sign1.data_path + " does not exist")
-
-        if self.metric == "euclidean":
-            index = faiss.IndexFlatL2(self.data.shape[1])
-        else:
-            index = faiss.IndexFlatIP(self.data.shape[1])
-
-        k = min(self.data.shape[0], self.k_neig)
-
-        index.add(self.data)
-
-        D, I = index.search(self.data, k)
-
-        norms = LA.norm(self.data, axis=1)
-
-        if self.metric == "cosine":
-
-            t_start = time()
-            mat = np.ones((self.data.shape[0], k))
-            mat = mat / norms[:, None]
-            for i in range(0, self.data.shape[0]):
-                for j in range(0, k):
-                    mat[i, j] = mat[i, j] / norms[I[i, j]]
-            D = np.maximum(0.0, 1.0 - (D * mat))
-            t_end = time()
-            t_delta = str(datetime.timedelta(seconds=t_end - t_start))
-            self.__log.info("Converting to cosine distance took %s", t_delta)
-
-            # print D[0, 4], D1[0, 4]
-
-        fout = h5py.File(self.data_path, 'w')
-
-        fout.create_dataset("row_keys", data=self.keys)
-        fout["col_keys"] = h5py.SoftLink('/row_keys')
-        fout.create_dataset("indices", data=I)
-        fout.create_dataset("distances", data=D)
-        fout.create_dataset("shape", data=D.shape)
-        fout.create_dataset(
-            "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
-        fout.create_dataset(
-            "metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
-        if mappings is not None:
-            fout.create_dataset("mappings", data=mappings)
-
-        fout.close()
 
         index_filename = os.path.join(self.model_path, 'faiss_neig.index')
         faiss.write_index(index, index_filename)
 
-        with h5py.File(self.norms_file, "w") as hw:
-            hw.create_dataset("norms", data=norms)
-        
         self.mark_ready()
 
     def predict(self, sign1, destination=None):
@@ -137,57 +153,77 @@ class neig(BaseSignature):
         faiss.omp_set_num_threads(self.cpu)
 
         if os.path.isfile(sign1.data_path):
-            dh5 = h5py.File(sign1.data_path)
-            if "keys" not in dh5.keys() or "V" not in dh5.keys():
-                raise Exception(
-                    "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
-            self.data = np.array(dh5["V"][:], dtype=np.float32)
-            self.data_type = dh5["V"].dtype
-            self.keys = dh5["keys"][:]
-            dh5.close()
+            with h5py.File(sign1.data_path) as dh5, h5py.File(destination, 'w') as dh5out:
+                if "keys" not in dh5.keys() or "V" not in dh5.keys():
+                    raise Exception(
+                        "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
+
+                self.datasize = dh5["V"].shape
+                self.data_type = dh5["V"].dtype
+
+                k = min(self.datasize[0], self.k_neig)
+
+                dh5out.create_dataset("row_keys", data=dh5["keys"][:])
+                with h5py.File(self.data_path) as hr5:
+                    dh5out.create_dataset("col_keys", data=hr5["row_keys"][:])
+                dh5out.create_dataset(
+                    "indices", (self.datasize[0], k), dtype=np.int32)
+                dh5out.create_dataset(
+                    "distances", (self.datasize[0], k), dtype=np.float32)
+                dh5out.create_dataset("shape", data=(self.datasize[0], k))
+                dh5out.create_dataset(
+                    "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
+                dh5out.create_dataset(
+                    "metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
+
+                norms = None
+
+                index_filename = os.path.join(
+                    self.model_path, 'faiss_neig.index')
+                index = faiss.read_index(index_filename)
+
+                for chunk in sign1.chunker():
+                    data_temp = np.array(dh5["V"][chunk], dtype=np.float32)
+                    Dt, It = index.search(data_temp, k)
+
+                    if self.metric == "cosine":
+                        normst = LA.norm(data_temp, axis=1)
+
+                        if norms is None:
+                            norms = normst
+                        else:
+                            norms = np.concatenate((norms, normst))
+
+                    dh5out["indices"][chunk] = It
+                    dh5out["distances"][chunk] = Dt
 
         else:
             raise Exception("The file " + sign1.data_path + " does not exist")
 
-        index_filename = os.path.join(self.model_path, 'faiss_neig.index')
-        index = faiss.read_index(index_filename)
-
-        k = min(self.data.shape[0], self.k_neig)
-
-        D, I = index.search(self.data, k)
-
         if self.metric == "cosine":
-            norms = LA.norm(self.data, axis=1)
 
             with h5py.File(self.norms_file, "r") as hw:
                 norms_fit = hw["norms"][:]
 
-            t_start = time()
-            mat = np.ones((self.data.shape[0], k))
-            mat = mat / norms[:, None]
-            for i in range(0, self.data.shape[0]):
-                for j in range(0, k):
-                    mat[i, j] = mat[i, j] / norms_fit[I[i, j]]
-            D = np.maximum(0.0, 1.0 - (D * mat))
-            t_end = time()
-            t_delta = str(datetime.timedelta(seconds=t_end - t_start))
-            self.__log.info("Converting to cosine distance took %s", t_delta)
-
-        with h5py.File(self.data_path) as hr5:
-            col_keys = hr5["row_keys"][:]
-
-        fout = h5py.File(destination, 'w')
-
-        fout.create_dataset("row_keys", data=self.keys)
-        fout.create_dataset("col_keys", data=col_keys)
-        fout.create_dataset("indices", data=I)
-        fout.create_dataset("distances", data=D)
-        fout.create_dataset("shape", data=D.shape)
-        fout.create_dataset(
-            "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
-        fout.create_dataset(
-            "metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
-        fout.close()
+            with h5py.File(destination, "r+") as hw:
+                t_start = time()
+                mat = np.ones((self.datasize[0], k))
+                for chunk in sign1.chunker():
+                    mat[chunk] = mat[chunk] / norms[chunk, None]
+                # We load all to make it faster, if memory issue then we need
+                # to get each element one by one
+                I = hw["indices"][:]
+                for i in range(0, self.datasize[0]):
+                    for j in range(0, k):
+                        mat[i, j] = mat[i, j] / norms_fit[I[i, j]]
+                del I
+                for chunk in sign1.chunker():
+                    hw["distances"][chunk] = np.maximum(
+                        0.0, 1.0 - (hw["distances"][chunk] * mat[chunk]))
+                t_end = time()
+                t_delta = str(datetime.timedelta(seconds=t_end - t_start))
+                self.__log.info(
+                    "Converting to cosine distance took %s", t_delta)
 
     def get_kth_nearest(self, signatures, k=1):
         """Return the k-th nearest neighbor.
