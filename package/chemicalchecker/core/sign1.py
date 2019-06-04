@@ -273,9 +273,9 @@ class sign1(BaseSignature):
                 X = []
 
                 for i in range(0, V.shape[0]):
-                        r = V[i]
-                        RowNames += [keys[i]]
-                        X += [r]
+                    r = V[i]
+                    RowNames += [keys[i]]
+                    X += [r]
             X = np.array(X)
 
             if self.dataset[:2] == 'A5':
@@ -815,8 +815,6 @@ class sign1(BaseSignature):
     def distance_background(self, inchikey_vec, inchikeys=None, B=100000, metric=cosine, unflat=True):
 
         # Check if it is a numpy array
-        PVALRANGES = np.array([0, 0.001, 0.01, 0.1] +
-                              list(np.arange(1, 100)) + [100]) / 100.
 
         if type(inchikey_vec).__module__ == np.__name__:
             idxs = [i for i in xrange(inchikey_vec.shape[0])]
@@ -838,7 +836,7 @@ class sign1(BaseSignature):
         i = 0
         PVALS = [(0, 0., i)]  # DISTANCE, RANK, INTEGER
         i += 1
-        percs = PVALRANGES[1:-1] * 100
+        percs = self.PVALRANGES[1:-1] * 100
         for perc in percs:
             PVALS += [(np.percentile(bg, perc), perc / 100., i)]
             i += 1
