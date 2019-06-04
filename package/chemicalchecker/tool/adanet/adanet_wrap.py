@@ -251,7 +251,7 @@ class Traintest(object):
                     # for each original dataset
                     for k in hf_in.keys():
                         # create all splits
-                        ds_name = "%s_%s" % (k, name)
+                        ds_name = "%s_%s" % (k, name.decode())
                         hf_out.create_dataset(ds_name,
                                               (len(idxs), hf_in[k].shape[1]),
                                               dtype=hf_in[k].dtype)
