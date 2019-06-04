@@ -22,7 +22,7 @@ def skip_if_import_exception(function):
     return wrapper
 
 
-class TestNeigh1(unittest.TestCase):
+class TestNeigh(unittest.TestCase):
 
     def setUp(self):
         # path for test data
@@ -59,9 +59,9 @@ class TestNeigh1(unittest.TestCase):
         with h5py.File(sign1.data_path) as hf:
             ini_data = hf["V"][:]
 
-        self.assertTrue(os.path.isfile(os.path.join(path_test1, "neig1.h5")))
+        self.assertTrue(os.path.isfile(os.path.join(path_test1, "neig.h5")))
 
-        with h5py.File(os.path.join(path_test1, "neig1.h5")) as hf:
+        with h5py.File(os.path.join(path_test1, "neig.h5")) as hf:
             indices = hf["indices"][:]
             distances = hf["distances"][:]
 

@@ -15,7 +15,7 @@ from chemicalchecker.util.plot import Plot
 
 
 @logged
-class proj1(BaseSignature):
+class proj(BaseSignature):
     """A Signature bla bla."""
 
     def __init__(self, signature_path, validation_path, dataset, **params):
@@ -35,10 +35,10 @@ class proj1(BaseSignature):
         BaseSignature.__init__(
             self, signature_path, validation_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
-        self.data_path = os.path.join(signature_path, "proj1.h5")
+        self.data_path = os.path.join(signature_path, "proj.h5")
         self.__log.debug('data_path: %s', self.data_path)
 
-        self.index_file = "faiss_proj1.index"
+        self.index_file = "faiss_proj.index"
         self.projections_file = "centroids.h5"
         self.start_k = 1000
 
@@ -221,7 +221,7 @@ class proj1(BaseSignature):
                 inchikey_proj[k] = projections[i]
             hf.create_dataset("V", data=projections)
             hf.create_dataset("keys", data=self.keys)
-            name = str(self.dataset) + "_proj1"
+            name = str(self.dataset) + "_proj"
             hf.create_dataset(
                 "name", data=[name.encode(encoding='UTF-8', errors='strict')])
             hf.create_dataset(
@@ -247,9 +247,9 @@ class proj1(BaseSignature):
                 inchikey_mappings = None
 
             ks_moa, auc_moa, frac_moa = plot.vector_validation(
-                inchikey_proj, "proj1", prefix="moa", inchikey_mappings=inchikey_mappings)
+                inchikey_proj, "proj", prefix="moa", inchikey_mappings=inchikey_mappings)
             ks_atc, auc_atc, frac_atc = plot.vector_validation(
-                inchikey_proj, "proj1", prefix="atc", inchikey_mappings=inchikey_mappings)
+                inchikey_proj, "proj", prefix="atc", inchikey_mappings=inchikey_mappings)
 
             # Saving results
 
@@ -336,7 +336,7 @@ class proj1(BaseSignature):
                 inchikey_proj[k] = projections[i]
             hf.create_dataset("V", data=projections)
             hf.create_dataset("keys", data=self.keys)
-            name = str(self.dataset) + "_proj1"
+            name = str(self.dataset) + "_proj"
             hf.create_dataset(
                 "name", data=[name.encode(encoding='UTF-8', errors='strict')])
             hf.create_dataset(

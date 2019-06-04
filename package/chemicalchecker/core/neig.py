@@ -11,7 +11,7 @@ from chemicalchecker.util import logged
 
 
 @logged
-class neig1(BaseSignature):
+class neig(BaseSignature):
     """A Signature bla bla."""
 
     def __init__(self, signature_path, validation_path, dataset, **params):
@@ -27,7 +27,7 @@ class neig1(BaseSignature):
         BaseSignature.__init__(
             self, signature_path, validation_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
-        self.data_path = os.path.join(signature_path, "neig1.h5")
+        self.data_path = os.path.join(signature_path, "neig.h5")
         self.__log.debug('data_path: %s', self.data_path)
         self.metric = "cosine"
         self.cpu = 1
@@ -114,7 +114,7 @@ class neig1(BaseSignature):
 
         fout.close()
 
-        index_filename = os.path.join(self.model_path, 'faiss_neig1.index')
+        index_filename = os.path.join(self.model_path, 'faiss_neig.index')
         faiss.write_index(index, index_filename)
 
         with h5py.File(self.norms_file, "w") as hw:
@@ -149,7 +149,7 @@ class neig1(BaseSignature):
         else:
             raise Exception("The file " + sign1.data_path + " does not exist")
 
-        index_filename = os.path.join(self.model_path, 'faiss_neig1.index')
+        index_filename = os.path.join(self.model_path, 'faiss_neig.index')
         index = faiss.read_index(index_filename)
 
         k = min(self.data.shape[0], self.k_neig)
@@ -204,7 +204,7 @@ class neig1(BaseSignature):
                               "https://github.com/facebookresearch/faiss")
         # open faiss model
         faiss.omp_set_num_threads(self.cpu)
-        index_filename = os.path.join(self.model_path, 'faiss_neig1.index')
+        index_filename = os.path.join(self.model_path, 'faiss_neig.index')
         index = faiss.read_index(index_filename)
         # convert signatures to float32 as faiss is very picky
         data = np.array(signatures, dtype=np.float32)
