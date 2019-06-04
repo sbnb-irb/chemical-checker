@@ -68,7 +68,7 @@ class Traintest(object):
         """Return the name of the splits."""
         self.open()
         if "split_names" in self._f:
-            split_names = list(self._f["split_names"])
+            split_names = [a.decode() for a in self._f["split_names"]]
         else:
             split_names = ['train', 'test', 'validation']
         self.close()
@@ -187,6 +187,7 @@ class Traintest(object):
         # train test validation splits
         if len(split_names) != len(split_fractions):
             raise Exception("Split names and fraction should be same amount.")
+        split_names = [s.encode() for s in split_names]
         split_idxs = Traintest.get_split_indeces(
             Y.shape[0], split_fractions)
 
@@ -237,8 +238,7 @@ class Traintest(object):
             if len(split_names) != len(split_fractions):
                 raise Exception(
                     "Split names and fraction should be same amount.")
-            split_names = [s.encode(encoding='UTF-8', errors='strict')
-                           for s in split_names]
+            split_names = [s.decode() for s in split_names]
             split_idxs = Traintest.get_split_indeces(rows, split_fractions)
 
             Traintest.__log.info('Traintest saving to %s', out_file)
