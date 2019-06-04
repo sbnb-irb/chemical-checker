@@ -55,7 +55,8 @@ class sign3(BaseSignature, DataSignature):
         self.params = dict()
         default_adanet = {
             "augmentation": subsample,
-            "initial_architecture": [9, 1]
+            "initial_architecture": [9, 1],
+            "cpu": params.get('cpu', 4)
         }
         self.params['adanet'] = params.get('adanet', default_adanet)
         self.consistency_check()
