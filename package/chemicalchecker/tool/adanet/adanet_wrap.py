@@ -49,8 +49,8 @@ class Traintest(object):
             self.x_name = "x"
             self.y_name = "y"
         else:
-            self.x_name = "x_%s" % split
-            self.y_name = "y_%s" % split
+            self.x_name = "x_%s" % split.decode()
+            self.y_name = "y_%s" % split.decode()
             if split not in self.get_split_names():
                 raise Exception("Specified split name not found!")
 
