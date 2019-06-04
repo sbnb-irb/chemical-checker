@@ -21,7 +21,7 @@ from chemicalchecker.util.plot import Plot
 
 
 @logged
-class clus1(BaseSignature):
+class clus(BaseSignature):
     """A Signature bla bla."""
 
     def __init__(self, signature_path, validation_path, dataset, **params):
@@ -47,7 +47,7 @@ class clus1(BaseSignature):
         BaseSignature.__init__(
             self, signature_path, validation_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
-        self.data_path = os.path.join(signature_path, "clus1.h5")
+        self.data_path = os.path.join(signature_path, "clus.h5")
         self.__log.debug('data_path: %s', self.data_path)
         self.clustencoder_file = "clustencoder.h5"
         self.clustcentroids_file = "clustcentroids.h5"
@@ -126,7 +126,7 @@ class clus1(BaseSignature):
             raise Exception("The file " + sign1.data_path + " does not exist")
 
         tmp_dir = tempfile.mkdtemp(
-            prefix='clus1_' + self.dataset + "_", dir=Config().PATH.CC_TMP)
+            prefix='clus_' + self.dataset + "_", dir=Config().PATH.CC_TMP)
 
         self.__log.debug("Temporary files saved in " + tmp_dir)
 
@@ -165,20 +165,20 @@ class clus1(BaseSignature):
                     inchikey_mappings = None
 
                 inchikey_clust = shelve.open(
-                    os.path.join(tmp_dir, "clus1.dict"), "n")
+                    os.path.join(tmp_dir, "clus.dict"), "n")
                 for i in range(len(self.keys)):
                     lab = labels[i]
                     if lab == -1:
                         continue
                     inchikey_clust[str(self.keys[i])] = lab
                 odds_moa, pval_moa = plot.label_validation(
-                    inchikey_clust, "clus1", prefix="moa", inchikey_mappings=inchikey_mappings)
+                    inchikey_clust, "clus", prefix="moa", inchikey_mappings=inchikey_mappings)
                 odds_atc, pval_atc = plot.label_validation(
-                    inchikey_clust, "clus1", prefix="atc", inchikey_mappings=inchikey_mappings)
+                    inchikey_clust, "clus", prefix="atc", inchikey_mappings=inchikey_mappings)
                 inchikey_clust.close()
 
             self.__log.info("Cleaning")
-            for filename in glob.glob(os.path.join(tmp_dir, "clus1.dict*")):
+            for filename in glob.glob(os.path.join(tmp_dir, "clus.dict*")):
                 os.remove(filename)
 
             os.rmdir(tmp_dir)
@@ -286,17 +286,17 @@ class clus1(BaseSignature):
                     inchikey_mappings = None
 
                 inchikey_clust = shelve.open(
-                    os.path.join(tmp_dir, "clus1.dict"), "n")
+                    os.path.join(tmp_dir, "clus.dict"), "n")
                 for i in range(len(self.keys)):
                     inchikey_clust[str(self.keys[i])] = labels[i]
                 odds_moa, pval_moa = plot.label_validation(
-                    inchikey_clust, "clus1", prefix="moa", inchikey_mappings=inchikey_mappings)
+                    inchikey_clust, "clus", prefix="moa", inchikey_mappings=inchikey_mappings)
                 odds_atc, pval_atc = plot.label_validation(
-                    inchikey_clust, "clus1", prefix="atc", inchikey_mappings=inchikey_mappings)
+                    inchikey_clust, "clus", prefix="atc", inchikey_mappings=inchikey_mappings)
                 inchikey_clust.close()
 
             self.__log.info("Cleaning")
-            for filename in glob.glob(os.path.join(tmp_dir, "clus1.dict*")):
+            for filename in glob.glob(os.path.join(tmp_dir, "clus.dict*")):
                 os.remove(filename)
 
             os.rmdir(tmp_dir)
@@ -317,7 +317,7 @@ class clus1(BaseSignature):
                     json.dump(INFO, fp)
 
         with h5py.File(self.data_path, "a") as hf:
-            name = str(self.dataset) + "_clus1"
+            name = str(self.dataset) + "_clus"
             hf.create_dataset(
                 "name", data=[name.encode(encoding='UTF-8', errors='strict')])
             hf.create_dataset(
@@ -403,26 +403,26 @@ class clus1(BaseSignature):
                     inchikey_mappings = None
 
                 inchikey_clust = shelve.open(
-                    os.path.join(tmp_dir, "clus1.dict"), "n")
+                    os.path.join(tmp_dir, "clus.dict"), "n")
                 for i in range(len(self.keys)):
                     lab = labels[i]
                     if lab == -1:
                         continue
                     inchikey_clust[str(self.keys[i])] = lab
                 odds_moa, pval_moa = plot.label_validation(
-                    inchikey_clust, "clus1", prefix="moa", inchikey_mappings=inchikey_mappings)
+                    inchikey_clust, "clus", prefix="moa", inchikey_mappings=inchikey_mappings)
                 odds_atc, pval_atc = plot.label_validation(
-                    inchikey_clust, "clus1", prefix="atc", inchikey_mappings=inchikey_mappings)
+                    inchikey_clust, "clus", prefix="atc", inchikey_mappings=inchikey_mappings)
                 inchikey_clust.close()
 
             self.__log.info("Cleaning")
-            for filename in glob.glob(os.path.join(tmp_dir, "clus1.dict*")):
+            for filename in glob.glob(os.path.join(tmp_dir, "clus.dict*")):
                 os.remove(filename)
 
             os.rmdir(tmp_dir)
 
             with h5py.File(destination, "a") as hf:
-                name = str(self.dataset) + "_clus1"
+                name = str(self.dataset) + "_clus"
                 hf.create_dataset(
                     "name", data=[name.encode(encoding='UTF-8', errors='strict')])
                 hf.create_dataset(
@@ -472,23 +472,23 @@ class clus1(BaseSignature):
                     inchikey_mappings = None
 
                 inchikey_clust = shelve.open(
-                    os.path.join(tmp_dir, "clus1.dict"), "n")
+                    os.path.join(tmp_dir, "clus.dict"), "n")
                 for i in range(len(self.keys)):
                     inchikey_clust[str(self.keys[i])] = labels[i]
                 odds_moa, pval_moa = plot.label_validation(
-                    inchikey_clust, "clus1", prefix="moa", inchikey_mappings=inchikey_mappings)
+                    inchikey_clust, "clus", prefix="moa", inchikey_mappings=inchikey_mappings)
                 odds_atc, pval_atc = plot.label_validation(
-                    inchikey_clust, "clus1", prefix="atc", inchikey_mappings=inchikey_mappings)
+                    inchikey_clust, "clus", prefix="atc", inchikey_mappings=inchikey_mappings)
                 inchikey_clust.close()
 
             self.__log.info("Cleaning")
-            for filename in glob.glob(os.path.join(tmp_dir, "clus1.dict*")):
+            for filename in glob.glob(os.path.join(tmp_dir, "clus.dict*")):
                 os.remove(filename)
 
             os.rmdir(tmp_dir)
 
             with h5py.File(destination, "a") as hf:
-                name = str(self.dataset) + "_clus1"
+                name = str(self.dataset) + "_clus"
                 hf.create_dataset(
                     "name", data=[name.encode(encoding='UTF-8', errors='strict')])
                 hf.create_dataset(
@@ -565,7 +565,7 @@ class clus1(BaseSignature):
         clusts = [None] * V_pqcode.shape[0]
         counts = [0] * k
 
-        tmpfile = os.path.join(tmp, "clus1_dists.csv")
+        tmpfile = os.path.join(tmp, "clus_dists.csv")
 
         with open(tmpfile, "w") as f:
 

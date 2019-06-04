@@ -21,7 +21,7 @@ def skip_if_import_exception(function):
     return wrapper
 
 
-class TestClus1(unittest.TestCase):
+class TestClus(unittest.TestCase):
 
     def setUp(self):
         # path for test data
@@ -37,7 +37,7 @@ class TestClus1(unittest.TestCase):
             os.remove(os.path.join(self.data_dir, "test_clus1.h5"))
 
     @skip_if_import_exception
-    def test_clus1(self):
+    def test_clus(self):
         cc_root = os.path.join(self.data_dir, 'alpha')
         self.cc_root = cc_root
         self.assertFalse(os.path.isdir(cc_root))
@@ -68,9 +68,9 @@ class TestClus1(unittest.TestCase):
         with h5py.File(os.path.join(self.data_dir, "test_clus1.h5")) as hf:
             labels_pred = hf["labels"][:]
 
-        self.assertTrue(os.path.isfile(os.path.join(path_test1, "clus1.h5")))
+        self.assertTrue(os.path.isfile(os.path.join(path_test1, "clus.h5")))
 
-        with h5py.File(os.path.join(path_test1, "clus1.h5")) as hf:
+        with h5py.File(os.path.join(path_test1, "clus.h5")) as hf:
             labels = hf["labels"][:]
 
         self.assertTrue(np.array_equal(labels, labels_pred))

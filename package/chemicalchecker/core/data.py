@@ -17,17 +17,20 @@ class DataFactory():
     def make_data(cctype, signature_path, validation_path, dataset_code, **params):
         from .sign0 import sign0
         from .sign1 import sign1
-        from .clus1 import clus1
-        from .neig1 import neig1
         from .sign2 import sign2
         from .sign3 import sign3
-        from .proj1 import proj1
-        from .proj3 import proj3
+
+        from .clus import clus
+        from .neig import neig
+        from .proj import proj
 
         try:
             DataFactory.__log.debug("initializing object %s", cctype)
             args = (signature_path, validation_path, dataset_code)
-            return eval(cctype)(*args, **params)
+            if cctype[:4] in ['clus', 'neig', 'proj']:
+                return eval(cctype[:4])(*args, **params)
+            else:
+                return eval(cctype)(*args, **params)
         except Exception as ex:
             raise Exception("Error initializing %s: %s" % (cctype, ex))
 
@@ -40,12 +43,12 @@ class DataFactory():
         """
         from .sign0 import sign0
         from .sign1 import sign1
-        from .clus1 import clus1
-        from .neig1 import neig1
         from .sign2 import sign2
         from .sign3 import sign3
-        from .proj1 import proj1
-        from .proj3 import proj3
+
+        from .clus import clus
+        from .neig import neig
+        from .proj import proj
 
         data_path = os.path.join(signature_path, '%s.h5' % cctype)
         if not keys:
@@ -57,6 +60,9 @@ class DataFactory():
             hf.create_dataset("V", data=matrix)
             hf.create_dataset("shape", data=matrix.shape)
         try:
-            return eval(cctype)(signature_path, signature_path, dataset_code)
+            if cctype[:4] in ['clus', 'neig', 'proj']:
+                return eval(cctype[:4])(signature_path, signature_path, dataset_code)
+            else:
+                return eval(cctype)(signature_path, signature_path, dataset_code)
         except Exception as ex:
             raise Exception("Error initializing %s: %s" % (cctype, ex))

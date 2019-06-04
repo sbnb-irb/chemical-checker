@@ -21,7 +21,7 @@ def skip_if_import_exception(function):
     return wrapper
 
 
-class TestProj1(unittest.TestCase):
+class TestProj(unittest.TestCase):
 
     def setUp(self):
         # path for test data
@@ -67,9 +67,9 @@ class TestProj1(unittest.TestCase):
         with h5py.File(os.path.join(self.data_dir, "test_proj1.h5")) as hf:
             proj_pred = hf["V"][:]
 
-        self.assertTrue(os.path.isfile(os.path.join(path_test1, "proj1.h5")))
+        self.assertTrue(os.path.isfile(os.path.join(path_test1, "proj.h5")))
 
-        with h5py.File(os.path.join(path_test1, "proj1.h5")) as hf:
+        with h5py.File(os.path.join(path_test1, "proj.h5")) as hf:
             proj = hf["V"][:]
 
         np.testing.assert_array_almost_equal(proj, proj_pred, decimal=5)
