@@ -325,6 +325,7 @@ class AdaNetWrapper(object):
         self.subnetwork_generator = eval(kwargs.get(
             "subnetwork_generator", "ExtendDNNGenerator"))
         self.initial_architecture = kwargs.get("initial_architecture", [])
+        self.cpu = kwargs.get("cpu", 4)
         # read input shape
         self.traintest_file = traintest_file
         with h5py.File(traintest_file, 'r') as hf:
@@ -388,6 +389,13 @@ class AdaNetWrapper(object):
         else:
             raise Exception("Prediction task '%s' not recognized.",
                             self.prediction_task)
+        # tensorflow session_config
+        self.session_config = tf.ConfigProto(
+            intra_op_parallelism_threads=self.cpu,
+            inter_op_parallelism_threads=self.cpu,
+            allow_soft_placement=True,
+            device_count={'CPU': self.cpu})
+
         # log parameters
         self.__log.info("**** AdaNet Parameters: ***")
         self.__log.info("{:<22}: {:>12}".format(
@@ -435,6 +443,7 @@ class AdaNetWrapper(object):
             "nan_mask_value", str(self.nan_mask_value)))
         self.__log.info("{:<22}: {:>12}".format(
             "initial_architecture", str(self.initial_architecture)))
+        self.__log.info("{:<22}: {:>12}".format("cpu", str(self.cpu)))
         self.__log.info("**** AdaNet Parameters: ***")
 
     @staticmethod
@@ -503,7 +512,8 @@ class AdaNetWrapper(object):
                 save_checkpoints_secs=18000,  # save checkpoints every 5 hours
                 save_summary_steps=50000,
                 tf_random_seed=self.random_seed,
-                model_dir=self.model_dir),
+                model_dir=self.model_dir,
+                session_config=self.session_config),
             model_dir=self.model_dir
         )
         # Train and evaluate using using the tf.estimator tooling.
