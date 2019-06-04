@@ -367,7 +367,7 @@ class sign3(BaseSignature, DataSignature):
             # initialize V and keys datasets
             safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
             safe_create(results, 'keys', (tot_inks,), dtype='|S27')
-            safe_create(results, 'datasets', data=self.src_datasets)
+            safe_create(results, 'datasets', data=np.array(self.src_datasets))
             if model_confidence:
                 # the actual confidence value will be stored here
                 safe_create(results, 'confidence',

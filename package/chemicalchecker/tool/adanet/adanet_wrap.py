@@ -240,8 +240,10 @@ class Traintest(object):
             Traintest.__log.info('Traintest saving to %s', out_file)
             with h5py.File(out_file, "w") as hf_out:
                 # create fixed datasets
-                hf_out.create_dataset('split_names', data=split_names)
-                hf_out.create_dataset('split_fractions', data=split_fractions)
+                hf_out.create_dataset(
+                    'split_names', data=np.array(split_names))
+                hf_out.create_dataset(
+                    'split_fractions', data=np.array(split_fractions))
 
                 for name, idxs in zip(split_names, split_idxs):
                     # for each original dataset
