@@ -43,6 +43,10 @@ class TestNeigh(unittest.TestCase):
 
         sign1 = mock.Mock()
         sign1.data_path = os.path.join(self.data_dir, "mock_sign1.h5")
+        self.data_path = sign1.data_path
+        with h5py.File(sign1.data_path) as hf:
+            self.shape = hf["V"].shape
+        sign1.chunker = self.chunker
         cc = ChemicalChecker(cc_root)
         self.assertTrue(os.path.isdir(cc_root))
         coords = "B1.001"
@@ -78,3 +82,10 @@ class TestNeigh(unittest.TestCase):
 
             self.assertAlmostEqual(distances[2, 10], val, places=5)
             self.assertTrue(a == b)
+
+    def chunker(self, size=2000):
+        """Iterate on signatures."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        for i in range(0, self.shape[0], size):
+            yield slice(i, i + size)
