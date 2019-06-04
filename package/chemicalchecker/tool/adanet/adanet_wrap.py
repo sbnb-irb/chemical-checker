@@ -49,10 +49,12 @@ class Traintest(object):
             self.x_name = "x"
             self.y_name = "y"
         else:
-            self.x_name = "x_%s" % split.decode()
-            self.y_name = "y_%s" % split.decode()
-            if split not in self.get_split_names():
-                raise Exception("Specified split name not found!")
+            self.x_name = "x_%s" % split
+            self.y_name = "y_%s" % split
+            available_splits = self.get_split_names()
+            if split not in available_splits:
+                raise Exception("Split '%s' not found in %s!" %
+                                (split, str(available_splits)))
 
     def get_xy_shapes(self):
         """Return the shpaes of X an Y."""
