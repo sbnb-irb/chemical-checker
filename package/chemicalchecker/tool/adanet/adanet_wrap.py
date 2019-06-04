@@ -238,7 +238,7 @@ class Traintest(object):
             if len(split_names) != len(split_fractions):
                 raise Exception(
                     "Split names and fraction should be same amount.")
-            split_names = [s.decode() for s in split_names]
+            split_names = [s.encode() for s in split_names]
             split_idxs = Traintest.get_split_indeces(rows, split_fractions)
 
             Traintest.__log.info('Traintest saving to %s', out_file)
