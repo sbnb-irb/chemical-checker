@@ -311,13 +311,18 @@ class BaseSignature(object):
 
     @cached_property
     def keys(self):
-        """Get the list of features in the signature."""
+        """Get the list of keys (usually inchikeys) in the signature."""
         if not os.path.isfile(self.data_path):
             raise Exception("Data file %s not available." % self.data_path)
         with h5py.File(self.data_path, 'r') as hf:
             if 'keys' not in hf.keys():
                 raise Exception("HDF5 file has no 'keys' field.")
-            return hf['keys'][:]
+            # if keys have a decode attriute they have been generated in py2
+            # for compatibility with new format we decode them
+            if hasattr(hf['keys'][0], 'decode'):
+                return [k.decode() for k in hf['keys'][:]]
+            else:
+                return hf['keys'][:]
 
     @cached_property
     def unique_keys(self):
