@@ -261,7 +261,7 @@ class sign2(BaseSignature, DataSignature):
             # save nearest neighbor signatures as predictions
             nn_pred[ds] = dict()
             # get nearest neighbor indices and keys
-            nn_idxs = nn_neig1.get_kth_nearest(x_data, 1)
+            nn_idxs = nn_neig1.get_kth_nearest(x_data, 1)[:, 0]
             nn_pred[ds]['true'] = y_data
             nn_pred[ds]['pred'] = list()
             for idx in nn_idxs:
