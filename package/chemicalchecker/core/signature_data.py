@@ -1,4 +1,5 @@
 import os
+import sys
 import h5py
 from bisect import bisect_left
 
@@ -40,6 +41,15 @@ class DataSignature(object):
             for key in hf.keys():
                 infos[key] = hf[key].shape
         return infos
+
+    @staticmethod
+    def string_dtype():
+        if sys.version_info[0] == 2:
+            # this works in py2 and fails in py3
+            return h5py.special_dtype(vlen=unicode)
+        else:
+            # because str is the new unicode in py3
+            return h5py.special_dtype(vlen=str)
 
     def copy_from(self, sign, key):
         """Copy dataset 'key' to current signature.
