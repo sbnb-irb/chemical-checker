@@ -73,6 +73,21 @@ class ChemicalChecker():
         for dataset in self._datasets:
             yield dataset
 
+    def report_available(self, molset='*', dataset='*', sign='*'):
+        paths = glob(os.path.join(self.cc_root, molset, '*', '*', dataset,
+                                  sign + '/*.h5',))
+        molset_dataset_sign = dict()
+        for path in paths:
+            molset = path.split('/')[-6]
+            dataset = path.split('/')[-3]
+            sign = path.split('/')[-2]
+            if molset not in molset_dataset_sign:
+                molset_dataset_sign[molset] = dict()
+            if dataset not in molset_dataset_sign[molset]:
+                molset_dataset_sign[molset][dataset] = list()
+            molset_dataset_sign[molset][dataset].append(sign)
+        return molset_dataset_sign
+
     def get_validation_path(self):
         """Return the validation path."""
         validation_path = os.path.join(
