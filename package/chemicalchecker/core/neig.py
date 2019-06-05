@@ -226,7 +226,7 @@ class neig(BaseSignature):
                     "Converting to cosine distance took %s", t_delta)
 
     def get_kth_nearest(self, signatures, k=1):
-        """Return the k-th nearest neighbor.
+        """Return up to the k-th nearest neighbor.
 
         This function returns the k-th closest neighbor.
         A k>1 is useful when we expect and want to exclude a perfect match,
@@ -245,7 +245,26 @@ class neig(BaseSignature):
         # convert signatures to float32 as faiss is very picky
         data = np.array(signatures, dtype=np.float32)
         dists, idx = index.search(data, k)
-        return idx[:, k - 1]
+        return idx[:, :k]
+
+    @staticmethod
+    def jaccard_similarity(n1, n2):
+        """Compute Jaccard similarity.
+
+        Args:
+            n1(np.array): First set of neighbors, row are molecule each
+                column the idx of a neighbor
+            n1(np.array): Second set of neighbors, row are molecule each
+                column the idx of a neighbor
+        """
+        res = list()
+        for r1, r2 in zip(n1, n2):
+            s1 = set(r1)
+            s2 = set(r2)
+            inter = len(set.intersection(s1, s2))
+            uni = len(set.union(s1, s2))
+            res.append(inter / float(uni))
+        return np.array(res)
 
     def __iter__(self):
         """Iterate on neighbours indeces and distances."""
