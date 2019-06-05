@@ -142,12 +142,14 @@ class Node2Vec():
         # get sign1 background distances thresholds
         try:
             thresholds = sign1.background_distances('cosine')
+            thr_pvals = thresholds['pvalue']
+            thr_dists = thresholds['distance']
         except Exception:
             # if not available compute
             self.__log.warn("background distances not available, computing")
             thresholds = sign1.distance_background(sign1[:])
-        thr_pvals = thresholds['pvalue']
-        thr_dists = thresholds['distance']
+            thr_dists = np.array([p[0] for p in thresholds])
+            thr_pvals = np.array([p[1] for p in thresholds])
         # derive max_degree
         mem_max_degree = Node2Vec.heuristic_max_degree(sign1.shape[0])
         self.max_degree = params.get("max_degree", mem_max_degree)
