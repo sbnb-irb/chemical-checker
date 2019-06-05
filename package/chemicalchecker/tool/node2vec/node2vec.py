@@ -28,6 +28,7 @@ from datetime import datetime
 from bisect import bisect_left
 from chemicalchecker.util import logged
 
+from chemicalchecker.core.signature_data import DataSignature
 
 @logged
 class Node2Vec():
@@ -117,7 +118,9 @@ class Node2Vec():
         # get them sorted
         sorted_idx = np.argsort(words)
         with h5py.File(out_file, "w") as hf:
-            hf.create_dataset('keys', data=words[sorted_idx])
+            hf.create_dataset('keys',
+                              data=np.array(words[sorted_idx],
+                                            DataSignature.string_dtype()))
             hf.create_dataset('V', data=matrix[sorted_idx], dtype=np.float32)
             hf.create_dataset("shape", data=matrix.shape)
             hf.create_dataset(
