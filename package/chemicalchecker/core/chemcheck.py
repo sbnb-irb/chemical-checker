@@ -73,9 +73,20 @@ class ChemicalChecker():
         for dataset in self._datasets:
             yield dataset
 
-    def report_available(self, molset='*', dataset='*', sign='*'):
+    def report_available(self, molset='*', dataset='*', signature='*'):
+        """Report available signatures in the CC.
+
+        Get the moleculeset/dataset combination where signatures are available.
+        Use arguments to apply filters.
+        Args:
+            molset(str): Filter for the moleculeset e.g. 'full' or 'reference'
+            dataset(str) Filter for the dataset e.g. A1.001
+            signature(str): Filter for signature type e.g. 'sign1'
+        Returns:
+            Nested dictionary with molset, dataset and list of signatures
+        """
         paths = glob(os.path.join(self.cc_root, molset, '*', '*', dataset,
-                                  sign + '/*.h5',))
+                                  signature + '/*.h5'))
         molset_dataset_sign = dict()
         for path in paths:
             molset = path.split('/')[-6]
