@@ -140,7 +140,12 @@ class Node2Vec():
         self.range_pvalue = self.max_pvalue - self.min_pvalue
         self.range_weight = self.max_weight - self.min_weight
         # get sign1 background distances thresholds
-        thresholds = sign1.background_distances('cosine')
+        try:
+            thresholds = sign1.background_distances('cosine')
+        except Exception:
+            # if not available compute
+            self.__log.warn("background distances not available, computing")
+            thresholds = sign1.distance_background(sign1[:], metric='cosine')
         thr_pvals = thresholds['pvalue']
         thr_dists = thresholds['distance']
         # derive max_degree
