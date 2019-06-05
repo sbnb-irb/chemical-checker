@@ -203,7 +203,9 @@ class sign2(BaseSignature, DataSignature):
         with h5py.File(destination, "w") as results:
             # initialize V and keys datasets
             results.create_dataset('V', (tot_inks, 128), dtype=np.float32)
-            results.create_dataset('keys', data=sign1.keys)
+            results.create_dataset('keys',
+                                   data=np.array(sign1.keys,
+                                                 DataSignature.string_dtype()))
             results.create_dataset("shape", data=(tot_inks, 128))
             # predict signature 2
             for chunk in sign1.chunker():
