@@ -342,8 +342,7 @@ class BaseSignature(object):
         """
         self.__log.debug("Fetching %s rows from dataset %s" %
                          (len(keys), dataset_name))
-        str_keys = set(k for k in keys if isinstance(k, str))
-        valid_keys = list(self.unique_keys & str_keys)
+        valid_keys = list(self.unique_keys & set(keys))
         idxs = np.argwhere(
             np.isin(self.keys, list(valid_keys), assume_unique=True))
         inks, signs = list(), list()
@@ -360,6 +359,8 @@ class BaseSignature(object):
             dimensions = (len(missed_inks), dset_shape[1])
             nan_matrix = np.zeros(dimensions) * np.nan
             signs.append(nan_matrix)
+            self.__log.info("NaN for %s requested keys as are not available.",
+                            len(missed_inks))
         elif missed_inks:
             self.__log.warn("Following %s requested keys are not available:",
                             len(missed_inks))
