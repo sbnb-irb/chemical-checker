@@ -228,7 +228,8 @@ class sign3(BaseSignature, DataSignature):
         pred_s3 = DataSignature(dest_file)
         with h5py.File(dest_file, "w") as results:
             # initialize V (with NaN in case of failing rdkit) and smiles keys
-            results.create_dataset('keys', data=np.array(smiles))
+            results.create_dataset('keys', data=np.array(
+                smiles, DataSignature.string_dtype()))
             results.create_dataset('V', (len(smiles), 128), dtype=np.float32)
             results.create_dataset(
                 'stddev_norm', (len(smiles), ), dtype=np.float32)
@@ -367,8 +368,11 @@ class sign3(BaseSignature, DataSignature):
         with h5py.File(self.data_path, "w") as results:
             # initialize V and keys datasets
             safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
-            safe_create(results, 'keys', (tot_inks,), dtype='|S27')
-            safe_create(results, 'datasets', data=np.array(self.src_datasets))
+            safe_create(results, 'keys', (tot_inks,),
+                        dtype=DataSignature.string_dtype())
+            safe_create(results, 'datasets',
+                        data=np.array(self.src_datasets,
+                                      DataSignature.string_dtype()))
             if model_confidence:
                 # the actual confidence value will be stored here
                 safe_create(results, 'confidence',
@@ -429,7 +433,8 @@ class sign3(BaseSignature, DataSignature):
                     # predict with final model
                     if update_preds:
                         results['V'][chunk] = AdaNet.predict(feat, predict_fn)
-                    results['keys'][chunk] = inchikeys[chunk]
+                    results['keys'][chunk] = np.array(
+                        inchikeys[chunk], DataSignature.string_dtype())
                     # compute support
                     if save_support:
                         support = np.sum(~np.isnan(feat[:, 0::128]), axis=1)
@@ -523,7 +528,9 @@ class sign3(BaseSignature, DataSignature):
         # save data in the confidence model
         error_file = os.path.join(self.model_path, 'error.h5')
         with h5py.File(error_file, "w") as hf:
-            hf.create_dataset('keys', data=dataset_inks)
+            hf.create_dataset('keys',
+                              data=np.array(dataset_inks,
+                                            DataSignature.string_dtype()))
             hf.create_dataset('stddev', data=stddev, dtype=np.float32)
             hf.create_dataset('intensity', data=intensity, dtype=np.float32)
             hf.create_dataset('log_mse', data=log_mse, dtype=np.float32)
