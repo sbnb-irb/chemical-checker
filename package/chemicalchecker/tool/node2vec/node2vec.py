@@ -145,7 +145,7 @@ class Node2Vec():
         except Exception:
             # if not available compute
             self.__log.warn("background distances not available, computing")
-            thresholds = sign1.distance_background(sign1[:], metric='cosine')
+            thresholds = sign1.distance_background(sign1[:])
         thr_pvals = thresholds['pvalue']
         thr_dists = thresholds['distance']
         # derive max_degree
