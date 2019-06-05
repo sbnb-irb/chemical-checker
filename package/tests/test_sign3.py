@@ -60,8 +60,8 @@ class TestSign3(unittest.TestCase):
         self.assertEqual(s3.shape, (3563, 128))
         ds_corr = list(s3.get_h5_dataset('datasets_correlation'))
         real_ds_corr = [0.9458095, 0.5965613]
-        self.assertAlmostEqual(ds_corr[0], real_ds_corr[0], 3)
-        self.assertAlmostEqual(ds_corr[1], real_ds_corr[1], 3)
+        self.assertAlmostEqual(ds_corr[0], real_ds_corr[0], 2)
+        self.assertAlmostEqual(ds_corr[1], real_ds_corr[1], 2)
         info_h5 = {'V': (3563, 128),
                    'confidence': (3563,),
                    'consensus': (3563, 128),
