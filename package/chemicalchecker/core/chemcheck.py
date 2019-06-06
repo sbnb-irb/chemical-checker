@@ -170,7 +170,7 @@ class ChemicalChecker():
         shutil.copyfile(src, dst)
 
     @staticmethod
-    def remove_near_duplicates_hpc(job_path, cc_root, cctype):
+    def remove_near_duplicates_hpc(job_path, cc_root, cctype, datasets):
         """Run HPC jobs to remove near duplicates of a signature.
 
         Args:
@@ -181,18 +181,15 @@ class ChemicalChecker():
                 for which duplicates will be removed.
         """
         # create job directory if not available
-        import chemicalchecker
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         # create script file
-        cc_config = os.environ['CC_CONFIG']
-        cc_package = os.path.join(chemicalchecker.__path__[0], '../')
         script_lines = [
             "import sys, os",
             "import pickle",
-            "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
-            "sys.path.append('%s')" % cc_package,  # allow package import
-            "from chemicalchecker.util import RNDuplicates",
+            "sys.path.append('%s')" % os.path.join(
+                Config().PATH.CC_REPO, 'package'),  # allow package import
+            "from chemicalchecker.util.remove_near_duplicates import RNDuplicates",
             "from chemicalchecker.core import ChemicalChecker",
             "cc = ChemicalChecker('%s')" % cc_root,
             "task_id = sys.argv[1]",  # <TASK_ID>
@@ -203,8 +200,7 @@ class ChemicalChecker():
             "    sign_full = cc.get_signature('%s', 'full', ds)" % cctype,
             "    sign_ref = cc.get_signature('%s', 'reference', ds)" % cctype,
             "    rnd = RNDuplicates()",
-            "    rnd.remove(sign_full.data_path.encode('ascii'))",
-            "    rnd.save(sign_ref.data_path)",
+            "    rnd.remove(sign_full.data_path, save_dest=sign_ref.data_path)",
             "print('JOB DONE')"
         ]
         script_name = os.path.join(job_path, 'remove_near_duplicates.py')
@@ -212,7 +208,7 @@ class ChemicalChecker():
             for line in script_lines:
                 fh.write(line + '\n')
         # hpc parameters
-        all_datasets = [ds.code for ds in Dataset.get()]
+        all_datasets = datasets
         params = {}
         params["num_jobs"] = len(all_datasets)
         params["jobdir"] = job_path
