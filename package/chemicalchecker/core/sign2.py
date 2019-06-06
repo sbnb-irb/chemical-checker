@@ -69,7 +69,7 @@ class sign2(BaseSignature, DataSignature):
         self.params['adanet'] = params.get('adanet', None)
         self.consistency_check()
 
-    def fit(self, sign1, neig1, reuse=True):
+    def fit(self, sign1, neig1, reuse=True, validations=True):
         """Learn a model.
 
         Node2vec embeddings are computed using the graph derived from sign1.
@@ -181,11 +181,8 @@ class sign2(BaseSignature, DataSignature):
         ada.save_performances(adanet_path, sign2_plot, extra_preditors)
         self.__log.debug('model saved to %s' % adanet_path)
 
-        if 'mappings' in self.info_h5:
-            inchikey_mappings = dict(self.get_h5_dataset('mappings'))
-        else:
-            inchikey_mappings = None
-        self.validate(inchikey_mappings)
+        if validations:
+            self.validate()
         self.mark_ready()
 
     def predict(self, sign1, destination):

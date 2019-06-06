@@ -246,9 +246,9 @@ class proj(BaseSignature):
                 inchikey_mappings = None
 
             ks_moa, auc_moa, frac_moa = plot.vector_validation(
-                inchikey_proj, "proj", prefix="moa", inchikey_mappings=inchikey_mappings)
+                self, "proj", prefix="moa", mappings=inchikey_mappings)
             ks_atc, auc_atc, frac_atc = plot.vector_validation(
-                inchikey_proj, "proj", prefix="atc", inchikey_mappings=inchikey_mappings)
+                self, "proj", prefix="atc", mappings=inchikey_mappings)
 
             # Saving results
 
