@@ -30,6 +30,7 @@ import matplotlib.patheffects as path_effects
 import matplotlib.gridspec as gridspec
 
 from chemicalchecker.util import logged
+from chemicalchecker.util import Config
 
 random.seed(42)
 np.random.seed(42)
@@ -89,7 +90,10 @@ class Plot():
         self.__log.debug('Plots for %s saved to %s',
                          dataset_code, plot_path)
         self.plot_path = plot_path
-        self.validation_path = validation_path
+        if validation_path is None:
+            self.validation_path = Config().PATH.validation_path
+        else:
+            self.validation_path = validation_path
         self.dataset_code = dataset_code
         self.color = self._coord_color(dataset_code)
 

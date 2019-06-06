@@ -49,7 +49,6 @@ class TestClus(unittest.TestCase):
         self.assertTrue(os.path.isdir(cc_root))
         coords = "B1.001"
         clus1_ref = cc.get_signature("clus1", "reference", coords)
-        clus1_ref.validation_path = os.path.join(self.data_dir, "validation_sets")
         path_test1 = os.path.join(cc_root, 'reference', coords[
             :1], coords[:2], coords, "clus1")
         self.assertTrue(os.path.isdir(path_test1))
