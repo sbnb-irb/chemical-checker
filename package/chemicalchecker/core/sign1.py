@@ -390,29 +390,7 @@ class sign1(BaseSignature, DataSignature):
         gc.collect()
 
         if validations:
-
-            # Validation
-
-            self.__log.info("Doing validations based on similarity")
-
-            if mappings is not None:
-                inchikey_mappings = dict(mappings)
-            else:
-                inchikey_mappings = None
-
-            inchikey_sig = shelve.open(
-                os.path.join(tmp_dir, "sign1.dict"), "r")
-            ks_moa, auc_moa, frac_moa = plot.vector_validation(
-                inchikey_sig, "sign1", prefix="moa", inchikey_mappings=inchikey_mappings)
-            ks_atc, auc_atc, frac_atc = plot.vector_validation(
-                inchikey_sig, "sign1", prefix="atc", inchikey_mappings=inchikey_mappings)
-            inchikey_sig.close()
-
-            # Cleaning
-
-            self.__log.info("Matrix plot")
-
-            plot.matrix_plot(self.data_path)
+            self.validate()
 
         for filename in glob.glob(os.path.join(tmp_dir, "sign1.dict*")):
             os.remove(filename)
@@ -673,9 +651,9 @@ class sign1(BaseSignature, DataSignature):
             inchikey_sig = shelve.open(
                 os.path.join(tmp_dir, "sign1.dict"), "r")
             ks_moa, auc_moa, frac_moa = plot.vector_validation(
-                inchikey_sig, "sign1", prefix="moa", inchikey_mappings=inchikey_mappings)
+                self, "sign1", prefix="moa", mappings=inchikey_mappings)
             ks_atc, auc_atc, frac_atc = plot.vector_validation(
-                inchikey_sig, "sign1", prefix="atc", inchikey_mappings=inchikey_mappings)
+                self, "sign1", prefix="atc", mappings=inchikey_mappings)
             inchikey_sig.close()
 
             # Cleaning

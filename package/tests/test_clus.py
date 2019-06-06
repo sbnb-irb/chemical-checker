@@ -55,11 +55,12 @@ class TestClus(unittest.TestCase):
         path_test2 = os.path.join(cc_root, 'reference', coords[:1], coords[
             :2], coords, "clus1", "models")
         self.assertTrue(os.path.isdir(path_test2))
-        clus1_ref.fit(sign1)
+        clus1_ref.fit(sign1, validations=False)
         self.assertTrue(os.path.isfile(
             os.path.join(path_test2, "clustcentroids.h5")))
 
-        clus1_ref.predict(sign1, os.path.join(self.data_dir, "test_clus1.h5"))
+        clus1_ref.predict(sign1, os.path.join(self.data_dir, "test_clus1.h5"),
+                          validations=False)
 
         self.assertTrue(os.path.isfile(
             os.path.join(self.data_dir, "test_clus1.h5")))
