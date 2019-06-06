@@ -99,13 +99,6 @@ class ChemicalChecker():
             molset_dataset_sign[molset][dataset].append(sign)
         return molset_dataset_sign
 
-    def get_validation_path(self):
-        """Return the validation path."""
-        validation_path = os.path.join(
-            self.cc_root, "tests", "validation_sets")
-        self.__log.debug("validation path: %s", validation_path)
-        return validation_path
-
     def get_signature_path(self, cctype, molset, dataset_code):
         """Return the signature path for the given dataset code.
 
@@ -139,10 +132,9 @@ class ChemicalChecker():
                 on the cctype passed.
         """
         signature_path = self.get_signature_path(cctype, molset, dataset_code)
-        validation_path = self.get_validation_path()
         # the factory will return the signature with the right class
         data = DataFactory.make_data(
-            cctype, signature_path, validation_path, dataset_code, **params)
+            cctype, signature_path, dataset_code, **params)
         return data
 
     def copy_signature_from(self, source_cc, cctype, molset, dataset_code,
@@ -158,15 +150,13 @@ class ChemicalChecker():
         # initialize destination
         dst_signature_path = self.get_signature_path(
             cctype, molset, dataset_code)
-        dst_validation_path = self.get_validation_path()
         dst_sign = DataFactory.make_data(
-            cctype, dst_signature_path, dst_validation_path, dataset_code)
+            cctype, dst_signature_path, dataset_code)
         # initializa source
         src_signature_path = source_cc.get_signature_path(
             cctype, molset, dataset_code)
-        src_validation_path = source_cc.get_validation_path()
         src_sign = DataFactory.make_data(
-            cctype, src_signature_path, src_validation_path, dataset_code)
+            cctype, src_signature_path, dataset_code)
         # copy data
         src = src_sign.data_path
         dst = dst_sign.data_path

@@ -30,6 +30,7 @@ from chemicalchecker.util import logged
 
 from chemicalchecker.core.signature_data import DataSignature
 
+
 @logged
 class Node2Vec():
     """Wrapper to run SNAP's node2vec."""

@@ -14,7 +14,7 @@ from chemicalchecker.util import logged
 class neig(BaseSignature):
     """A Signature bla bla."""
 
-    def __init__(self, signature_path, validation_path, dataset, **params):
+    def __init__(self, signature_path, dataset, **params):
         """Initialize the signature.
 
         Args:
@@ -26,7 +26,7 @@ class neig(BaseSignature):
         """
         # Calling init on the base class to trigger file existance checks
         BaseSignature.__init__(
-            self, signature_path, validation_path, dataset, **params)
+            self, signature_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(signature_path, "neig.h5")
         self.__log.debug('data_path: %s', self.data_path)

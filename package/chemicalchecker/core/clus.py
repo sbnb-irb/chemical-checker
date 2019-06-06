@@ -24,12 +24,11 @@ from chemicalchecker.util.plot import Plot
 class clus(BaseSignature):
     """A Signature bla bla."""
 
-    def __init__(self, signature_path, validation_path, dataset, **params):
+    def __init__(self, signature_path, dataset, **params):
         """Initialize the signature.
 
         Args:
             signature_path(str): the path to the signature directory.
-            validation_path(str): the path to the validation sets.
             dataset(object): The dataset object with all info related
             type(str): The type of clustering between kmeans and hdbscan. (default:kmeans)
             metric(str): The metric used in the KNN algorithm: euclidean or cosine (default: cosine)
@@ -44,8 +43,7 @@ class clus(BaseSignature):
             significance(float): Distance significance cutoff (kmeans) (default:0.05)
         """
         # Calling init on the base class to trigger file existance checks
-        BaseSignature.__init__(
-            self, signature_path, validation_path, dataset, **params)
+        BaseSignature.__init__(self, signature_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(signature_path, "clus.h5")
         self.__log.debug('data_path: %s', self.data_path)
@@ -106,7 +104,7 @@ class clus(BaseSignature):
                               "https://hdbscan.readthedocs.io/en/latest/")
         BaseSignature.fit(self)
 
-        plot = Plot(self.dataset, self.stats_path, self.validation_path)
+        plot = Plot(self.dataset, self.stats_path)
 
         mappings = None
 
@@ -345,7 +343,7 @@ class clus(BaseSignature):
             raise ImportError("requires hdbscan " +
                               "https://hdbscan.readthedocs.io/en/latest/")
         BaseSignature.predict(self)
-        plot = Plot(self.dataset, self.stats_path, self.validation_path)
+        plot = Plot(self.dataset, self.stats_path)
 
         mappings = None
 
