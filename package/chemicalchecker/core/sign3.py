@@ -22,7 +22,7 @@ from chemicalchecker.util import logged
 class sign3(BaseSignature, DataSignature):
     """Signature type 3 class."""
 
-    def __init__(self, signature_path, validation_path, dataset, **params):
+    def __init__(self, signature_path, dataset, **params):
         """Initialize the signature.
 
         Args:
@@ -33,8 +33,7 @@ class sign3(BaseSignature, DataSignature):
         """
         # Calling init on the base class to trigger file existence checks
         BaseSignature.__init__(self, signature_path,
-                               validation_path, dataset, **params)
-        self.validation_path = validation_path
+                               dataset, **params)
         # generate needed paths
         self.data_path = os.path.join(self.signature_path, 'sign3.h5')
         DataSignature.__init__(self, self.data_path)
@@ -159,7 +158,7 @@ class sign3(BaseSignature, DataSignature):
             singles = self.adanet_single_spaces(adanet_path, traintest_file,
                                                 suffix)
             # save AdaNet performances and plots
-            sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
+            sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
 
     def fit_sign0(self, chemchecker, sign0_traintest=None):

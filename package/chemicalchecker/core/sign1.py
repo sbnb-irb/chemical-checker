@@ -29,7 +29,7 @@ class sign1(BaseSignature, DataSignature):
     Signature type 1 is...
     """
 
-    def __init__(self, signature_path, validation_path, dataset, **params):
+    def __init__(self, signature_path, dataset, **params):
         """Initialize the signature.
 
         Args:
@@ -38,7 +38,7 @@ class sign1(BaseSignature, DataSignature):
         """
         # Calling init on the base class to trigger file existance checks
         BaseSignature.__init__(
-            self, signature_path, validation_path, dataset, **params)
+            self, signature_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(self.signature_path, "sign1.h5")
         DataSignature.__init__(self, self.data_path)
@@ -100,7 +100,7 @@ class sign1(BaseSignature, DataSignature):
         BaseSignature.fit(self)
         # if not isinstance(sign0, Sign0.__class__):
         #     raise Exception("Fit method expects an instance of signature0")
-        plot = Plot(self.dataset, self.stats_path, self.validation_path)
+        plot = Plot(self.dataset, self.stats_path)
         self.__log.debug('LSI/PCA fit %s' % sign0)
         FILE = os.path.join(self.model_path, "procs.txt")
         with open(FILE, "w") as f:
@@ -436,7 +436,7 @@ class sign1(BaseSignature, DataSignature):
                               "https://radimrehurek.com/gensim/")
         # Calling base class to trigger file existence checks
         BaseSignature.predict(self)
-        plot = Plot(self.dataset, self.stats_path, self.validation_path)
+        plot = Plot(self.dataset, self.stats_path)
         self.__log.debug('loading model from %s' % self.model_path)
         self.__log.debug('LSI/PCA predict %s' % sign0)
         FILE = os.path.join(self.model_path, "procs.txt")

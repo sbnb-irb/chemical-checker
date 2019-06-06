@@ -34,7 +34,7 @@ from chemicalchecker.util import Config
 class sign2(BaseSignature, DataSignature):
     """Signature type 2 class."""
 
-    def __init__(self, signature_path, validation_path, dataset, **params):
+    def __init__(self, signature_path, dataset, **params):
         """Initialize the signature.
 
         Args:
@@ -45,8 +45,7 @@ class sign2(BaseSignature, DataSignature):
         """
         # Calling init on the base class to trigger file existence checks
         BaseSignature.__init__(self, signature_path,
-                               validation_path, dataset, **params)
-        self.validation_path = validation_path
+                               dataset, **params)
         # generate needed paths
         self.data_path = os.path.join(self.signature_path, 'sign2.h5')
         DataSignature.__init__(self, self.data_path)
@@ -142,7 +141,7 @@ class sign2(BaseSignature, DataSignature):
             self.copy_from(sign1, "mappings")
         else:
             self.__log.warn("Cannot copy 'mappings' from sign1.")
-        sign2_plot = Plot(self.dataset, self.stats_path, self.validation_path)
+        sign2_plot = Plot(self.dataset, self.stats_path)
         sign2_plot.sign2_feature_distribution_plot(self)
         #########
         # step 2: AdaNet (learn to predict sign2 from sign1 without Node2Vec)
@@ -174,7 +173,7 @@ class sign2(BaseSignature, DataSignature):
         self.__log.debug('AdaNet training on %s' % traintest_file)
         ada.train_and_evaluate()
         # save AdaNet performances and plots
-        sign2_plot = Plot(self.dataset, adanet_path, self.validation_path)
+        sign2_plot = Plot(self.dataset, adanet_path)
         nearest_neighbor_pred = sign2.predict_nearest_neighbor(
             self.model_path, traintest_file)
         extra_preditors = dict()

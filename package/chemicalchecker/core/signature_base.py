@@ -47,18 +47,14 @@ class BaseSignature(object):
     """
 
     @abstractmethod
-    def __init__(self, signature_path, validation_path, dataset, **params):
+    def __init__(self, signature_path, dataset, **params):
         """Initialize or load the signature at the given path."""
         self.dataset = dataset
         self.signature_path = os.path.abspath(signature_path)
-        self.validation_path = os.path.abspath(validation_path)
         if sys.version_info[0] == 2:
             if isinstance(self.signature_path, unicode):
                 self.signature_path = self.signature_path.encode('ascii',
                                                                  'ignore')
-            if isinstance(self.validation_path, unicode):
-                self.validation_path = self.validation_path.encode(
-                    'ascii', 'ignore')
         self.readyfile = "fit.ready"
 
         self.PVALRANGES = np.array([0, 0.001, 0.01, 0.1] +
@@ -185,10 +181,14 @@ class BaseSignature(object):
                 from the `full` signature and values are moleules from the
                 `reference` set.
         """
-        plot = Plot(self.dataset, self.stats_path, self.validation_path)
+        plot = Plot(self.dataset, self.stats_path)
         stats = {"molecules": len(self.keys)}
         results = dict()
-        for validation_file in os.listdir(self.validation_path):
+        validation_path = Config().PATH.validation_path
+        validation_files = os.listdir(validation_path)
+        if len(validation_files) == 0:
+            raise Exception("Validation dir %s is empty." % validation_path)
+        for validation_file in validation_files:
             vset = validation_file.split('_')[0]
             res = plot.vector_validation(self, self.__class__.__name__,
                                          prefix=vset, h5_input=True,

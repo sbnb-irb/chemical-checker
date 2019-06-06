@@ -40,8 +40,8 @@ class TestSign3(unittest.TestCase):
         sign2_list = list()
         for ds in ['E1.001', 'E2.001']:
             sign2_dir = os.path.join(self.data_dir, 'sign3', ds)
-            sign2_list.append(sign2(sign2_dir, sign2_dir, ds))
-        s3 = sign3(self.sign_dir, self.sign_dir, 'E1.001')
+            sign2_list.append(sign2(sign2_dir, ds))
+        s3 = sign3(self.sign_dir, 'E1.001')
         s3.params = dict()
         s3.params['adanet'] = dict()
         s3.params['adanet']['epoch_per_iteration'] = 15
@@ -49,7 +49,7 @@ class TestSign3(unittest.TestCase):
         s3.params['adanet']['min_train_step'] = 0
         s3.params['adanet']['initial_architecture'] = [9, 1]
         s3.params['adanet']['augmentation'] = subsample
-        s3.fit(sign2_list, sign2_list[0], validations=False)
+        s3.fit(sign2_list, sign2_list[0])
 
         self.assertTrue(os.path.isfile(s3.data_path))
         self.assertTrue(os.path.isdir(s3.model_path))
