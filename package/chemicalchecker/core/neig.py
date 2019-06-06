@@ -35,6 +35,7 @@ class neig(BaseSignature):
         self.chunk = 1000
         self.k_neig = 1000
         self.norms_file = os.path.join(self.model_path, "norms.h5")
+        self.index_filename = os.path.join(self.model_path, 'faiss_neig.index')
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
             if "metric" in params:
@@ -133,8 +134,7 @@ class neig(BaseSignature):
         else:
             raise Exception("The file " + sign1.data_path + " does not exist")
 
-        index_filename = os.path.join(self.model_path, 'faiss_neig.index')
-        faiss.write_index(index, index_filename)
+        faiss.write_index(index, self.index_filename)
 
         self.mark_ready()
 
@@ -178,9 +178,7 @@ class neig(BaseSignature):
 
                 norms = None
 
-                index_filename = os.path.join(
-                    self.model_path, 'faiss_neig.index')
-                index = faiss.read_index(index_filename)
+                index = faiss.read_index(self.index_filename)
 
                 for chunk in sign1.chunker():
                     data_temp = np.array(dh5["V"][chunk], dtype=np.float32)
