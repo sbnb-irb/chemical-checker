@@ -227,86 +227,88 @@ class Plot():
 
         return i90, ielb
 
-    # Validate using moa and KS test
-
-    def _for_the_validation(self, inchikey_dict, prefix, inchikey_mappings=None):
-
-        f = open(self.validation_path + "/%s_validation.tsv" % prefix, "r")
-        S = set()
-        D = set()
+    def get_same_different(self, sign, prefix, mappings=None, max_diff=1e5):
+        """Return pairs of SAME and DIFFERENT molecules from validation set."""
+        # read validation sets
+        # entry are pairs of inchikeys that can be same (1) or not (0)
+        filename = os.path.join(self.validation_path,
+                                "%s_validation.tsv" % prefix)
+        same = set()
+        different = set()
         validation_inks = set()
-        for l in f:
-            l = l.rstrip("\n").split("\t")
-            l0 = l[0]
-            l1 = l[1]
-            if inchikey_mappings is not None:
-                if l0 in inchikey_mappings:
-                    l0 = inchikey_mappings[l0]
-                if l1 in inchikey_mappings:
-                    l1 = inchikey_mappings[l1]
-            validation_inks.update([l0, l1])
-            if int(l[2]) == 1:
-                S.update([(l0, l1)])
-            else:
-                if len(D) < 100000:
-                    D.update([(l0, l1)])
-                else:
-                    pass
-        f.close()
-
-        d = {}
-        for inchikey in validation_inks:
-            try:
-                d[inchikey] = inchikey_dict[inchikey]
-            except:
-                continue
-        inchikeys = validation_inks.intersection(d.keys())
-        frac_shared = 100 * len(inchikeys) / float(len(validation_inks))
-        S = set([x for x in S if x[0] in inchikeys and x[1] in inchikeys])
-        D = set([x for x in D if x[0] in inchikeys and x[1] in inchikeys])
-        d = dict((k, d[k]) for k in inchikeys)
-
-        return S, D, d, frac_shared
-
-    def _for_the_validation_h5(self, sign, prefix,
-                               inchikey_mappings=None):
-
-        f = open(self.validation_path + "/%s_validation.tsv" % prefix, "r")
-        S = set()
-        D = set()
-        validation_inks = set()
-        for l in f:
-            l = l.rstrip("\n").split("\t")
-            l0 = l[0]
-            l1 = l[1]
-            if inchikey_mappings is not None:
-                if l0 in inchikey_mappings:
-                    l0 = inchikey_mappings[l0]
-                if l1 in inchikey_mappings:
-                    l1 = inchikey_mappings[l1]
-            validation_inks.update([l0, l1])
-            if int(l[2]) == 1:
-                S.update([(l0, l1)])
-            else:
-                if len(D) < 100000:
-                    D.update([(l0, l1)])
-                else:
-                    pass
-        f.close()
-
-        # get shared inchikeys
-        inchikeys = set.intersection(sign.unique_keys, validation_inks)
-        frac_shared = 100 * len(inchikeys) / float(len(validation_inks))
-        d = {k: v for k, v in zip(*sign.get_vectors(inchikeys))}
-        S = set([x for x in S if x[0] in inchikeys and x[1] in inchikeys])
-        D = set([x for x in D if x[0] in inchikeys and x[1] in inchikeys])
-        d = dict((k, d[k]) for k in inchikeys)
-
-        return S, D, d, frac_shared
+        with open(filename, 'r') as fh:
+            for line in fh:
+                line = line.rstrip("\n").split("\t")
+                ink0 = line[0]
+                ink1 = line[1]
+                validation_inks.add(ink0)
+                validation_inks.add(ink1)
+                if int(line[2]) == 1:
+                    same.add((ink0, ink1))
+                    continue
+                different.add((ink0, ink1))
+        # log validations set composition
+        self.__log.info("%s concerns %s molecules", prefix.upper(),
+                        len(validation_inks))
+        self.__log.info("%s pairs with SAME %s", len(same),
+                        prefix.upper())
+        self.__log.info("%s pairs with DIFFERENT %s", len(different),
+                        prefix.upper())
+        # if there's no mapping it's faster
+        if mappings is None:
+            # find shared molecules between signature and validation set
+            shared_inks = validation_inks & sign.unique_keys
+            self.__log.info("shares with signature %s molecules",
+                            len(shared_inks))
+            # get signature for all shared molecule
+            all_signs_dict = dict(zip(*sign.get_vectors(shared_inks)))
+            # only consider pairs for available molecules
+            same_shared = list()
+            for ink0, ink1 in same:
+                if ink0 in shared_inks and ink1 in shared_inks:
+                    same_shared.append((ink0, ink1))
+            different_shared = list()
+            for ink0, ink1 in different:
+                if ink0 in shared_inks and ink1 in shared_inks:
+                    different_shared.append((ink0, ink1))
+        else:
+            # find shared molecules between signature and validation set
+            shared_inks = validation_inks & set(mappings.keys())
+            self.__log.info("shares with signature %s molecules (mappings)",
+                            len(shared_inks))
+            # no shortcut, let's go one by one
+            all_signs_dict = dict()
+            # only consider pairs for available molecules
+            same_shared = list()
+            for ink0, ink1 in same:
+                if ink0 in shared_inks and ink1 in shared_inks:
+                    same_shared.append((ink0, ink1))
+                    if ink0 not in all_signs_dict:
+                        all_signs_dict[ink0] = sign[mappings[ink0]]
+                    if ink1 not in all_signs_dict:
+                        all_signs_dict[ink1] = sign[mappings[ink1]]
+            different_shared = list()
+            for ink0, ink1 in different:
+                if ink0 in shared_inks and ink1 in shared_inks:
+                    different_shared.append((ink0, ink1))
+                    if ink0 not in all_signs_dict:
+                        all_signs_dict[ink0] = sign[mappings[ink0]]
+                    if ink1 not in all_signs_dict:
+                        all_signs_dict[ink1] = sign[mappings[ink1]]
+        self.__log.info("%s shared pairs with SAME %s", len(same_shared),
+                        prefix.upper())
+        self.__log.info("%s shared pairs with DIFFERENT %s",
+                        len(different_shared), prefix.upper())
+        # cap set of different molecules
+        if len(different_shared) > max_diff:
+            self.__log.info("limiting DIFFERENT pairs at %s", int(max_diff))
+            different_shared = set(list(different_shared)[:int(max_diff)])
+        frac_shared = 100 * len(shared_inks) / float(len(validation_inks))
+        return same_shared, different_shared, all_signs_dict, frac_shared
 
     def label_validation(self, inchikey_lab, label_type, prefix="moa", inchikey_mappings=None):
 
-        S, D, d, frac = self._for_the_validation(
+        S, D, d, frac = self.get_same_different(
             inchikey_lab, prefix, inchikey_mappings)
 
         yy, yn, ny, nn = 0, 0, 0, 0
@@ -360,24 +362,19 @@ class Plot():
 
         return odds, pval
 
-    def vector_validation(self, inchikey_vec, vector_type, prefix="moa",
-                          distance="cosine", inchikey_mappings=None,
-                          h5_input=False):
+    def vector_validation(self, sign, cctype, prefix="moa", distance="cosine",
+                          mappings=None):
 
         self.__log.info("%s Validation" % prefix.upper())
-        if not h5_input:
-            S, D, d, frac = self._for_the_validation(
-                inchikey_vec, prefix, inchikey_mappings)
-        else:
-            S, D, d, frac = self._for_the_validation_h5(
-                inchikey_vec, prefix, inchikey_mappings)
+        S, D, d, frac = self.get_same_different(
+            sign, prefix, mappings)
 
         if distance == "euclidean":
             distance_metric = euclidean
         elif distance == "cosine":
             distance_metric = cosine
         else:
-            sys.exit("Unrecognized distance %s" % distance)
+            raise Exception("Unrecognized distance %s" % distance)
 
         S = np.array(sorted([distance_metric(d[k[0]], d[k[1]]) for k in S]))
         D = np.array(sorted([distance_metric(d[k[0]], d[k[1]]) for k in D]))
@@ -428,13 +425,13 @@ class Plot():
         fig.axes.spines["left"].set_color(self.color)
 
         plt.savefig("%s/%s_%s_ks_validation.png" %
-                    (self.plot_path, prefix, vector_type))
+                    (self.plot_path, prefix, cctype))
 
-        with open("%s/%s_%s_ks_validation_D.tsv" % (self.plot_path, prefix, vector_type), "w") as f:
+        with open("%s/%s_%s_ks_validation_D.tsv" % (self.plot_path, prefix, cctype), "w") as f:
             for i in range(len(D)):
                 f.write("%f\t%f\n" % (D[i], cD[i]))
 
-        with open("%s/%s_%s_ks_validation_S.tsv" % (self.plot_path, prefix, vector_type), "w") as f:
+        with open("%s/%s_%s_ks_validation_S.tsv" % (self.plot_path, prefix, cctype), "w") as f:
             for i in range(len(S)):
                 f.write("%f\t%f\n" % (S[i], cS[i]))
 
@@ -468,9 +465,9 @@ class Plot():
         fig.axes.spines["left"].set_color(self.color)
 
         plt.savefig("%s/%s_%s_auc_validation.png" %
-                    (self.plot_path, prefix, vector_type))
+                    (self.plot_path, prefix, cctype))
 
-        with open("%s/%s_%s_auc_validation.tsv" % (self.plot_path, prefix, vector_type), "w") as f:
+        with open("%s/%s_%s_auc_validation.tsv" % (self.plot_path, prefix, cctype), "w") as f:
             for i in range(len(fpr)):
                 f.write("%f\t%f\n" % (fpr[i], tpr[i]))
 

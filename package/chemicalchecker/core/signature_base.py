@@ -165,7 +165,7 @@ class BaseSignature(object):
             raise Exception(
                 "Before calling predict method, fit method needs to be called.")
 
-    def validate(self, inchikey_mappings=None):
+    def validate(self, apply_mappings=True):
         """Perform validations.
 
         A validation file is an external resource basically presenting pairs of
@@ -175,12 +175,22 @@ class BaseSignature(object):
         Therapeutic Chemical) corresponding to B1.001 and E1.001 dataset.
 
         Args:
-            inchikey_mappings(dict): A dictionary mapping molecules to the full
-                molecule set. Signature which have been redundancy-reduced
+            apply_mappings(bool): Whether to use mappings to compute
+                validation. Signature which have been redundancy-reduced
                 (i.e. `reference`) have fewer molecules. The key are moleules
                 from the `full` signature and values are moleules from the
                 `reference` set.
         """
+        # check if we apply mapping (i.e. the signature is a 'reference')
+        if apply_mappings:
+            if 'mappings' not in self.info_h5:
+                self.__log.warning("Cannot apply mappings in validation. " +
+                                   "Expect lower coverage.")
+                inchikey_mappings = None
+            else:
+                inchikey_mappings = dict(self.get_h5_dataset('mappings'))
+        else:
+            inchikey_mappings = None
         plot = Plot(self.dataset, self.stats_path)
         stats = {"molecules": len(self.keys)}
         results = dict()
@@ -191,7 +201,7 @@ class BaseSignature(object):
         for validation_file in validation_files:
             vset = validation_file.split('_')[0]
             res = plot.vector_validation(self, self.__class__.__name__,
-                                         prefix=vset, h5_input=True,
+                                         prefix=vset,
                                          inchikey_mappings=inchikey_mappings)
             results[vset] = res
             stats.update({
