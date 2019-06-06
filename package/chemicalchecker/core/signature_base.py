@@ -184,8 +184,7 @@ class BaseSignature(object):
         # check if we apply mapping (i.e. the signature is a 'reference')
         if apply_mappings:
             if 'mappings' not in self.info_h5:
-                self.__log.warning("Cannot apply mappings in validation. " +
-                                   "Expect lower coverage.")
+                self.__log.warning("Cannot apply mappings in validation.")
                 inchikey_mappings = None
             else:
                 inchikey_mappings = dict(self.get_h5_dataset('mappings'))
@@ -200,9 +199,9 @@ class BaseSignature(object):
             raise Exception("Validation dir %s is empty." % validation_path)
         for validation_file in validation_files:
             vset = validation_file.split('_')[0]
-            res = plot.vector_validation(self, self.__class__.__name__,
-                                         prefix=vset,
-                                         inchikey_mappings=inchikey_mappings)
+            cctype = self.__class__.__name__
+            res = plot.vector_validation(self, cctype, prefix=vset,
+                                         mappings=inchikey_mappings)
             results[vset] = res
             stats.update({
                 "%s_ks_d" % vset: res[0][0],
