@@ -219,7 +219,7 @@ def main(args):
 
         inchikey_raw = collections.defaultdict(dict)
         for k, v in classIND.iteritems():
-            inchikey_raw[k[0]][k[1]] = v
+            inchikey_raw[k[0]][k[1] + "(" + str(v) + ")"] = 1
 
         # features will be calculated later
         features = None
@@ -241,7 +241,7 @@ def main(args):
                     val = 2  # default value
                 else:
                     val = int(items[2])
-                inchikey_raw[items[0]][items[1]] = val
+                inchikey_raw[items[0]][items[1] + "(" + str(val) + ")"] = 1
 
     # save raw values
     main._log.info("Saving raw data.")

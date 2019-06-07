@@ -80,6 +80,8 @@ def find_paths(CHEBI, inchikey_chebi):
             path.update([str(n) for p in nx.all_simple_paths(
                 CHEBI, chebi_id, Role) for n in p])
         path = sorted(path)
+        if not path:
+            continue
         inchikey_paths[k] = path
 
     return inchikey_paths

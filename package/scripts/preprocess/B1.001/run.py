@@ -341,7 +341,7 @@ def main(args):
     main._log.info("Saving raws.")
     inchikey_raw = collections.defaultdict(list)
     for k, v in ACTS.items():
-        inchikey_raw[k[0]] += [(k[1], v)]
+        inchikey_raw[k[0]] += [(k[1] + "(" + str(v) + ")", 1)]
 
     save_output(args.output_file, inchikey_raw, args.method,
                 args.models_path, dataset.discrete, features)
