@@ -61,8 +61,8 @@ class DataFactory():
             hf.create_dataset("shape", data=matrix.shape)
         try:
             if cctype[:4] in ['clus', 'neig', 'proj']:
-                return eval(cctype[:4])(signature_path, signature_path, dataset_code)
+                return eval(cctype[:4])(signature_path, dataset_code)
             else:
-                return eval(cctype)(signature_path, signature_path, dataset_code)
+                return eval(cctype)(signature_path, dataset_code)
         except Exception as ex:
             raise Exception("Error initializing %s: %s" % (cctype, ex))
