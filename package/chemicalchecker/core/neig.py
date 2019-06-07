@@ -89,7 +89,7 @@ class neig(BaseSignature):
                 norms = None
 
                 for chunk in sign1.chunker():
-                    data_temp = dh5["V"][chunk]
+                    data_temp = np.array(dh5["V"][chunk], dtype=np.float32)
                     index.add(data_temp)
 
                 for chunk in sign1.chunker():
