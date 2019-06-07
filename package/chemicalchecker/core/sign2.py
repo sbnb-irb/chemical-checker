@@ -244,17 +244,17 @@ class sign2(BaseSignature, DataSignature):
                 sign1_dest = os.path.join(nn_path, "sign1")
                 os.makedirs(sign1_dest)
                 nn_sign1 = DataFactory.signaturize(
-                    "sign1", sign1_dest, x_data)
+                    "sign1", x_data)
                 # sign2 is needed just to get the default keys
                 # as neig1.get_kth_nearest is returning keys of sign1
                 sign2_dest = os.path.join(nn_path, "sign2")
                 os.makedirs(sign2_dest)
                 nn_sign2 = DataFactory.signaturize(
-                    "sign2", sign2_dest, y_data)
+                    "sign2", y_data)
                 # create temporary neig1 and call fit
                 neig1_dest = os.path.join(nn_path, "neig1")
                 os.makedirs(neig1_dest)
-                nn_neig1 = neig(neig1_dest, neig1_dest, "NN.001")
+                nn_neig1 = neig(neig1_dest, "NN.001")
                 nn_neig1.fit(nn_sign1)
             # save nearest neighbor signatures as predictions
             nn_pred[ds] = dict()
@@ -403,7 +403,7 @@ class sign2(BaseSignature, DataSignature):
             else:
                 n2v.run(graph_train, emb_file)
         # create evaluation sign2
-        eval_s2 = sign2(node2vec_path, node2vec_path, self.dataset)
+        eval_s2 = sign2(node2vec_path, self.dataset)
         # convert to signature h5 format
         if not reuse or not os.path.isfile(eval_s2.data_path):
             n2v.emb_to_h5(sign1, emb_file, eval_s2.data_path)
