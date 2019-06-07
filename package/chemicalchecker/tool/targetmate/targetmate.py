@@ -201,7 +201,7 @@ class TargetMate:
             s3 = self.cc.get_signature("sign3", "full", dataset)
             destination_dir = os.path.join(self.models_path, dataset)
             if os.path.exists(destination_dir):
-                s3s[dataset] = sign3(destination_dir, destination_dir, dataset)
+                s3s[dataset] = sign3(destination_dir, dataset)
             else:
                 s3s[dataset] = s3.predict_from_smiles([d[2] for d in data], destination_dir)
         # Initialize cross-validation generator
@@ -325,7 +325,7 @@ class TargetMate:
             s3 = self.cc.get_signature("sign3", "full", dataset)
             destination_dir = os.path.join(self.models_path, dataset + "_test")
             if os.path.exists(destination_dir): # TO-DO: This is useless here, remove after debugging!
-                s3s[dataset] = sign3(destination_dir, destination_dir, dataset)
+                s3s[dataset] = sign3(destination_dir, dataset)
             else:
                 s3s[dataset] = s3.predict_from_smiles([d[2] for d in data], destination_dir)
         # Read ensemble of models
