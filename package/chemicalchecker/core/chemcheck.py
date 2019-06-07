@@ -215,7 +215,7 @@ class ChemicalChecker():
         params["job_name"] = "CC_REFERENCE"
         params["elements"] = all_datasets
         params["wait"] = True
-        params["memory"] = 1  # this avoids singularity segfault on some nodes
+        params["memory"] = 20 # writing to disk takes forever without enought
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
