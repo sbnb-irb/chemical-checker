@@ -285,22 +285,22 @@ class sign3(BaseSignature, DataSignature):
             destination(str): Path where the H5 is saved.
         """
         # get sorted universe inchikeys and CC signatures
+        sign3.__log.info("Generating signature 2 universe matrix.")
         inchikeys = set()
-        ds_sign = dict()
         for sign in sign2_list:
-            ds = sign.dataset
             inchikeys.update(sign.unique_keys)
-            ds_sign[ds] = sign
         inchikeys = sorted(list(inchikeys))
         tot_inks = len(inchikeys)
-        tot_ds = len(ds_sign)
-        # build input matrix if not provided
+        tot_ds = len(sign2_list)
+        # build matrix stacking horizontally signature
         if not os.path.isfile(destination):
             with h5py.File(destination, "w") as fh:
                 fh.create_dataset('x_test',
                                   (tot_inks, 128 * tot_ds),
                                   dtype=np.float32)
-                for idx, (ds, sign) in enumerate(ds_sign.items()):
+                for idx, sign in enumerate(sign2_list):
+                    sign3.__log.info("Fetching from %s" % sign.data_path)
+                    # including NaN we have the correct number of molecules
                     _, vectors = sign.get_vectors(inchikeys, include_nan=True)
                     fh['x_test'][:, idx * 128:(idx + 1) * 128] = vectors
                     del vectors
