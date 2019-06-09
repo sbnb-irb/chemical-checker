@@ -249,8 +249,8 @@ class MultiPlot():
         g.axes.flat[4].set_xlim(10, 1e3)
         g.axes.flat[4].set_xlabel("Degree %tiles")
         g.axes.flat[5].set_xlim(0, 1)
-        g.axes.flat[6].set_xlim(0.5, 1)
-        g.axes.flat[7].set_xlim(0, 1)
+        g.axes.flat[6].set_xlim(0.9, 1)
+        g.axes.flat[7].set_xlim(0.5, 1)
         # g.axes.flat[-1].set_xlim(1e1,1e3)
         sns.despine(left=True, bottom=True)
 
@@ -263,6 +263,8 @@ class MultiPlot():
                                  figsize=(10, 40), dpi=100)
         for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
             sign2 = self.cc.get_signature('sign2', 'reference', ds)
+            if not os.path.isfile(sign2.data_path):
+                continue
             if sign2.shape[0] > sample_size:
                 keys = np.random.choice(sign2.keys, sample_size, replace=False)
                 matrix = sign2.get_vectors(keys)[1]
@@ -280,7 +282,7 @@ class MultiPlot():
             sns.pointplot(x='variable', y='value', data=df, order=order,
                           ax=ax, ci='sd', join=False, markers='.',
                           color=self.cc_palette([ds])[0])
-            ax.set_ylim(-2, 2)
+            ax.set_ylim(-1, 1)
             ax.set_xlim(-2, 130)
             ax.set_xticks([])
             ax.set_xlabel('')
@@ -907,7 +909,7 @@ class MultiPlot():
         for metric in metrics:
             sns.set_style("whitegrid")
             fig, axes = plt.subplots(5, 5, sharey=True, sharex=False,
-                                     figsize=(10, 10), dpi=100)
+                                     figsize=(15, 15), dpi=100)
             for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
                 ds_color = self.cc_palette([ds])[0]
                 sns.barplot(x='sign_type', y=metric, hue='molset',
