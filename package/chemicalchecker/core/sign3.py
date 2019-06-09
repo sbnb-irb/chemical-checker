@@ -220,7 +220,8 @@ class sign3(BaseSignature, DataSignature):
         except ImportError as err:
             raise err
         # load NN
-        sign0_adanet_path = os.path.join(self.model_path, 'sign0_A1.001_final',
+        sign0_adanet_path = os.path.join(self.model_path,
+                                         'adanet_sign0_A1.001_final',
                                          'savedmodel')
         predict_fn = AdaNet.predict_fn(sign0_adanet_path)
         # we return a simple DataSignature object (basic HDF5 access)
