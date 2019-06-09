@@ -255,6 +255,7 @@ class TargetMate:
         # Save performances
         with open(self.models_path + "/perfs.json", "w") as f:
             json.dump(perfs, f)
+        return 
         # Fit final predictors (trained on full data) and save them
         self.__log.info("Fitting full final classifiers")
         clf_ensemble = []
