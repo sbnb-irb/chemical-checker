@@ -191,7 +191,7 @@ class TargetMate:
         for i, d in enumerate(data):
             m = self.read_smiles(d[0], standardize)
             if not m: continue
-            data_ += [(i, m[0], m[1], int(d[1]))] # TO-DO: Martino, we might want to make sure that there is more flexibility in the input type.
+            data_ += [(i, m[0], m[1], int(d[1]))]
         data = data_
         # Get signatures
         self.__log.info("Calculating sign3 for every molecule.")
@@ -283,8 +283,11 @@ class TargetMate:
             pickle.dump(kneigh, f)
         # Save AD data
         self.__log.info("Calculating applicability domain weights")
+        self.__log.debug("Working on the bias")
         bias_test    = self.calculate_bias(yts_test, mps_test)
+        self.__log.debug("Working on the weights")
         weights_test = self.calculate_weights(kneigh, fps_test, std_test, bias_test) ### TO-DO: FPS TRAIN!!
+        self.__log.debug("Stacking AD data")
         ad_data      = np.vstack((std_test, bias_test, weights_test)).T
         self.__log.info("Saving applicability domain weights")
         with open(self.models_path + "/ad_data.pkl", "w") as f:
