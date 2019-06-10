@@ -10,8 +10,9 @@
     Obviously, CC signature similarities could be used in the future.
     The classifier is greatly inspired by PidginV3: https://pidginv3.readthedocs.io/en/latest/usage/index.html
 """
-import os
+import os, shutil
 import json
+import h5py
 import collections
 import numpy as np
 import pickle
@@ -27,20 +28,25 @@ from standardiser import standardise
 from rdkit import Chem
 import math
 from scipy.stats import percentileofscore
+import chemfp
 
 @logged
 class TargetMate:
     """TargetMate class"""
 
-    def __init__(self, models_path, base_clf = None, cv = 5, k = 3, datasets = None, metric = "auroc", cc_root = None):
+    def __init__(self, models_path, base_clf = "tpot", cv = 5, k = 3, min_sim = 0.3, min_class_size = 10, datasets = None,
+                 metric = "auroc", cc_root = None):
         """Initialize the TargetMate class
 
         Args:
             models_path(str): Directorty where models will be stored. 
-            base_clf(clf): Classifier instance, containing fit and predict_proba methods (default=None)
+            base_clf(clf): Classifier instance, containing fit and predict_proba methods (default="tpot")
+                The following strings are also accepted: "logistic_regression", "random_forest", "naive_bayes" and "tpot"
                 By default, sklearn LogisticRegressionCV is used.
             cv(int): Number of cv folds. The default cv generator used is Stratified K-Folds (default=5).
             k(int): Number of molecules to look across when doing the applicability domain (default=5).
+            min_sim(float): Minimum Tanimoto chemical similarity to consider in the applicability domain determination (default=0.3).
+            min_class_size(int): Minimum class size acceptable to train the classifier (default=10).
             datasets(list): CC datasets (A1.001-E5.999).
                 By default, all datasets having a SMILES-to-sign3 predictor are used.
             metric(str): Metric to use in the meta-prediction (auroc or aupr) (default="auroc").
@@ -51,24 +57,57 @@ class TargetMate:
         if not os.path.exists(models_path):
             raise Exception("Specified models directory does not exist: %s" % self.models_path)
         # Set the base classifier
-        if not base_clf:
-            from sklearn.linear_model import LogisticRegressionCV
-            self.base_clf = LogisticRegressionCV(cv = 3, class_weight = "balanced", max_iter = 100)
+        if type(base_clf) == str:
+            if base_clf == "logistic_regression":
+                from sklearn.linear_model import LogisticRegressionCV
+                self.base_clf = LogisticRegressionCV(cv = 3, class_weight = "balanced", max_iter = 100)
+            if base_clf == "random_forest":
+                from sklearn.ensemble import RandomForestClassifier
+                self.base_clf = RandomForestClassifier(n_estimators = 100, class_weight = "balanced", n_jobs = 1)
+            if base_clf == "naive_bayes":
+                from sklearn.naive_bayes import BernoulliNB
+                self.base_clf = BernoulliNB()
+            if base_clf == "tpot":
+                from tpot import TPOTClassifier # @mbertoni: install TPOT please in the Chemical Checker...
+                self.base_clf = TPOTClassifier(generations = 100, scoring = "roc_auc",
+                                     config_dict = "TPOT light", verbosity = 0, n_jobs = 1)
+                #self.base_clf = TPOTClassifier(generations = 100, scoring = "roc_auc",
+                #                               verbosity = 0, n_jobs = 1)
+                self._is_tpot = True
+            else:
+                self._is_tpot = False
         else:
             self.base_clf = base_clf
         # Crossvalidation to determine the performances of the individual predictors
         self.cv = cv
         # K-neighbors to search
         self.k = k
+        # Minimal chemical similarity to consider
+        self.min_sim = min_sim
+        # Minimum size of the minority class
+        self.min_class_size = min_class_size
         # Initialize the ChemicalChecker
         self.cc = ChemicalChecker(cc_root)
         # Store the paths to the sign3 (only the ones that have been already trained)
         if not datasets:
-            self.datasets = ["%s%d.001" % (x, i) for x in ["A","B","C","D","E"] for i in [1,2,3,4,5] if ("%s%d" % (x, i)) != "A1"] # TO-DO: Martino, is there a way to just check how many signatures are available?
+            self.datasets = ["%s%d.001" % (x, i) for x in ["A","B","C","D","E"] for i in [1,2,3,4,5]]
         else:
             self.datasets = datasets
         # Metric to use
-        self.metric = metric            
+        self.metric = metric
+        # Others
+        self._is_fitted = False
+
+    def _read_sign3(self, dataset, idxs = None, is_prd = False):
+        h5file = os.path.join(self.models_path, dataset)
+        if is_prd:
+            h5file = h5file + "_prd"
+        with h5py.File(h5file, "r") as hf:
+            if idxs is None:
+                V = hf["V"][:]
+            else:
+                V = hf["V"][:][idxs]
+        return V
 
     @staticmethod
     def avg_and_std(values, weights=None):
@@ -129,22 +168,39 @@ class TargetMate:
             stds += [std]
         return np.clip(prds, 0.001, 0.999), np.clip(stds, 0.001, None)
 
+    def fingerprint_arena(self, smiles):
+        """Read smiles string"""
+        self.__log.debug("Writing SMILES")
+        smi_file = os.path.join(self.models_path, "arena.smi")
+        with open(smi_file, "w") as f:
+            for i, smi in enumerate(smiles):
+                f.write("%s\t%i\n" % (smi, i))
+        self.__log.debug("Writing Fingerprints")
+        reader = chemfp.read_molecule_fingerprints(type = "RDKit-Morgan", source = smi_file, format = "smi")
+        fps_file = os.path.join(self.models_path, "arena.fps")
+        writer = chemfp.open_fingerprint_writer(fps_file, reader.metadata)
+        writer.write_fingerprints(reader)
+        writer.close()
+        reader.close()
+        arena = chemfp.load_fingerprints(fps_file)
+        return arena
+
     @staticmethod
     def calculate_bias(yt, yp):
         """Calculate the bias of the QSAR model"""
         return np.array([np.abs(t-p) for t,p in zip(yt, yp)])
 
-    @staticmethod
-    def fpmatrix(smiles):
-        from rdkit.Chem import AllChem
-        from rdkit import Chem
-        nBits  = 2048
-        radius = 2
-        V = np.zeros((len(smiles), nBits), dtype = np.int8)
-        for i, smi in enumerate(smiles):
-            m = Chem.MolFromSmiles(smi)
-            V[i,:] = AllChem.GetMorganFingerprintAsBitVect(m, radius, nBits=nBits)
-        return V
+    #@staticmethod
+    #def fpmatrix(smiles):
+    #    from rdkit.Chem import AllChem
+    #    from rdkit import Chem
+    #    nBits  = 2048
+    #    radius = 2
+    #    V = np.zeros((len(smiles), nBits), dtype = np.int8)
+    #    for i, smi in enumerate(smiles):
+    #        m = Chem.MolFromSmiles(smi)
+    #        V[i,:] = AllChem.GetMorganFingerprintAsBitVect(m, radius, nBits=nBits)
+    #    return V
     
     @staticmethod
     def read_smiles(smi, standardize):
@@ -158,17 +214,33 @@ class TargetMate:
         smi = Chem.MolToSmiles(mol)
         return ik, smi
 
-    @staticmethod
-    def calculate_weights(kneigh, fps, stds, bias):
-        sims, idxs = kneigh.kneighbors(fps)
-        sims = 1 - sims
-        weights = []
-        for i, idxs_ in enumerate(idxs):
-            ws = sims[i]/(stds[idxs_]*bias[idxs_]) # Adapted from Aniceto et al. 2016. and PidginV3
-            weights += [np.max(ws)]
-        return np.array(weights)
+    #def calculate_weights(self, kneigh, fps, stds, bias, accepted_idxs = None):
+    #    """Calculate weights using adaptation of Aniceto et al 2016; 'accepted_idxs' refers to train indices at fit time"""
+    #    self.__log.debug("Finding nearest neighbors")
+    #    dists, idxs = kneigh.kneighbors(fps)
+    #    self.__log.debug("Calculating biases")
+    #    sims = 1 - dists
+    #    #if accepted_idxs is not None:
+    #    #    for i, idxs_ in enumerate
+    #    #else:
+    #    #    sims = sims[:,:self.k]
+    #    #    idxs = idxs[:,:self.k]
+    #    weights = []
+    #    for i, idxs_ in enumerate(idxs):
+    #        if accepted_idxs is not None:
+    #            "x"
+    #        else:
+    #            "y"
+    #        ws = sims[i]/(stds[idxs_]*bias[idxs_]) # Adapted from Aniceto et al. 2016. and PidginV3
+    #        weights += [np.max(ws)]
+    #    return np.array(weights)
 
-    def fit(self, data, standardize = True):
+    def calculate_weights(self, query_fps, target_fps, stds, bias):
+        """Calculate weights using adaptation of Aniceto et al 2016."""
+        neighs = chemfp.query_fps, target_fps
+
+
+    def fit(self, data, standardize = True, use_checkpoints = True):
         """
         Fit SMILES-activity data.
         Invalid SMILES are removed from the prediction.
@@ -177,6 +249,11 @@ class TargetMate:
             data(str or list of tuples): 
             standardize(bool): If True, SMILES strings will be standardized.
         """
+        if not use_checkpoints:
+            # Cleaning models directory
+            self.__log.debug("Cleaning previous checkpoints")
+            shutil.rmtree(self.models_path)
+            os.mkdir(self.models_path)
         # Read data
         self.__log.info("Reading data")
         # Read data if it is a file
@@ -193,42 +270,59 @@ class TargetMate:
             if not m: continue
             data_ += [(i, m[0], m[1], int(d[1]))]
         data = data_
+        y      = np.array([d[-1] for d in data])
+        smiles = np.array([d[2] for d in data])
+        # Check that there are enough molecules for training.
+        ny = np.sum(y)
+        if ny < self.min_class_size or (len(y) - ny) < self.min_class_size:
+            raise Exception("Not enough valid molecules in the minority class")
         # Get signatures
         self.__log.info("Calculating sign3 for every molecule.")
-        s3s = {}
         for dataset in self.datasets:
-            self.__log.debug("Calculating sign3 for %s" % dataset)
-            s3 = self.cc.get_signature("sign3", "full", dataset)
             destination_dir = os.path.join(self.models_path, dataset)
-            if os.path.exists(destination_dir):
-                s3s[dataset] = sign3(destination_dir, dataset)
+            if os.path.exists(destination_dir) and use_checkpoints:
+                continue
             else:
-                s3s[dataset] = s3.predict_from_smiles([d[2] for d in data], destination_dir)
+                self.__log.debug("Calculating sign3 for %s" % dataset)
+                s3 = self.cc.get_signature("sign3", "full", dataset)
+                s3.predict_from_smiles([d[2] for d in data], destination_dir)
+        # Fitting the global predictor
+        self.__log.info("Fitting individual classifiers trained on full data")
+        clf_ensemble = []
+        if self._is_tpot:
+            pipes = []
+        for dataset in self.datasets:
+            self.__log.debug("Working on %s" % dataset)
+            clf = clone(self.base_clf)
+            X = self._read_sign3(dataset)
+            clf.fit(X, y)
+            if self._is_tpot:
+                pipes += [clf.fitted_pipeline_]
+            clf_ensemble += [(dataset, clf)]
         # Initialize cross-validation generator
-        y = np.array([d[-1] for d in data])
-        skf = StratifiedKFold(n_splits=self.cv, shuffle=True, random_state=42)
+        skf = StratifiedKFold(n_splits=np.min([self.cv, ny]), shuffle=True, random_state=42)
         # Do the individual predictors
         self.__log.info("Training individual predictors with cross-validation")
         yps_train = collections.defaultdict(list)
         yps_test  = collections.defaultdict(list)
         yts_train = []
         yts_test  = []
-        smiles    = np.array([d[2] for d in data])
         smi_test  = []
         for train_idx, test_idx in skf.split(smiles, y):
             self.__log.debug("CV fold")
-            for dataset in self.datasets:
-                destination_dir = os.path.join(self.models_path, dataset)
-                s3 = s3s[dataset]
+            for i, dataset in enumerate(self.datasets):
                 # Fit the classifier
-                clf = clone(self.base_clf)
-                X_train = s3[:][train_idx]
+                if self._is_tpot:
+                    clf = pipes[i]
+                else:
+                    clf = clone(self.base_clf)
+                X_train = self._read_sign3(dataset, train_idx)
                 y_train = y[train_idx]
                 clf.fit(X_train, y_train)
                 # Make predictions on train set itself
                 yps_train[dataset] += [p[1] for p in clf.predict_proba(X_train)]
                 # Make predictions on test set itself
-                X_test = s3[:][test_idx]
+                X_test = self._read_sign3(dataset, test_idx)
                 y_test = y[test_idx]
                 yps_test[dataset] += [p[1] for p in clf.predict_proba(X_test)]
             yts_train += list(y_train)
@@ -255,19 +349,6 @@ class TargetMate:
         # Save performances
         with open(self.models_path + "/perfs.json", "w") as f:
             json.dump(perfs, f)
-        return 
-        # Fit final predictors (trained on full data) and save them
-        self.__log.info("Fitting full final classifiers")
-        clf_ensemble = []
-        for dataset in self.datasets:
-            self.__log.debug("Working on %s" % dataset)
-            destination_dir = os.path.join(self.models_path, dataset)
-            s3 = s3s[dataset]
-            # Fit the classifier
-            clf = clone(self.base_clf)
-            X = s3[:]
-            clf.fit(X, y)
-            clf_ensemble += [(dataset, clf)]
         # Save ensemble
         with open(self.models_path + "/ensemble.pkl", "w") as f:
             pickle.dump(clf_ensemble, f)
@@ -276,35 +357,51 @@ class TargetMate:
             pickle.dump(data, f)
         # Nearest neighbors
         self.__log.info("Calculating nearest-neighbors model to be used in the applicability domain.")
-        kneigh = NearestNeighbors(n_neighbors=self.k, metric="jaccard")
-        fps_test = self.fpmatrix(smi_test)
-        kneigh.fit(fps_test)
-        self.__log.info("Saving nearest-neighbors model")
-        with open(self.models_path + "/kneigh.pkl", "w") as f:
-            pickle.dump(kneigh, f)
+        self.__log.debug("Getting fingerprint arena")
+        fps_test = self.fingerprint_arena(smi_test)
+        return fps_test
+        #kneigh   = NearestNeighbors(n_neighbors=np.max([self.k, np.min([self.k*2, 20])]), metric="jaccard") # More neighbors to catch train data.
+        #fps_test = self.fpmatrix(smi_test)
+        #kneigh.fit(fps_test) 
+        #self.__log.info("Saving nearest-neighbors model")
+        #with open(self.models_path + "/kneigh.pkl", "w") as f:
+        #    pickle.dump(kneigh, f)
         # Save AD data
         self.__log.info("Calculating applicability domain weights")
         self.__log.debug("Working on the bias")
         bias_test    = self.calculate_bias(yts_test, mps_test)
         self.__log.debug("Working on the weights")
-        weights_test = self.calculate_weights(kneigh, fps_test, std_test, bias_test) ### TO-DO: FPS TRAIN!!
+        #weights_test = self.calculate_weights(kneigh, fps_test, std_test, bias_test) ### TO-DO: FPS TRAIN!!
         self.__log.debug("Stacking AD data")
         ad_data      = np.vstack((std_test, bias_test, weights_test)).T
         self.__log.info("Saving applicability domain weights")
         with open(self.models_path + "/ad_data.pkl", "w") as f:
             pickle.dump(ad_data, f)
+        # Finish
+        self._is_fitted = True
         
-    def predict(self, data, standardize = True, known = True):
+    def predict(self, data, datasets = None, standardize = True, known = True, use_checkpoints = False):
         '''
         Predict SMILES-activity data.
         Invalid SMILES are given no prediction.
         We provide the ouptut probability, the applicability domain and the precision of the model (1 - std).
 
         Args:
-            data(str or list): SMILES strings 
-            standardize(bool): If True, SMILES strings will be standardized (default=True).
-            known(bool): Look for exact matches based on InChIKey (default=True).
+            data(str or list): SMILES strings
+            datasets(list): Subset of datasets to use in the metaprediction. All by default (default=None)
+            standardize(bool): If True, SMILES strings will be standardized (default=True)
+            known(bool): Look for exact matches based on InChIKey (default=True)
+            use_checkpoints(bool): Signature type 3 checkpoints, useful when different subsets of data are explored. Use with caution (default=False)
         '''
+        if not self._is_fitted:
+            raise Exception("TargetMate instance needs to be fitted first")
+        # Dataset subset
+        if not datasets:
+            my_datasets = set(self.datasets)
+        else:
+            my_datasets = set(datasets)
+        if len(my_datasets.intersection(self.datasets)) < 1:
+            raise Exception("At least one valid dataset is necessary")
         self.__log.info("Reading data")
         # Read data if it is a file
         if type(data) == str:
@@ -323,15 +420,16 @@ class TargetMate:
         data = data_
         # Get signatures
         self.__log.info("Calculating sign3 for every molecule.")
-        s3s = {}
         for dataset in self.datasets:
-            self.__log.debug("Calculating sign3 for %s" % dataset)
-            s3 = self.cc.get_signature("sign3", "full", dataset)
-            destination_dir = os.path.join(self.models_path, dataset + "_test")
-            if os.path.exists(destination_dir): # TO-DO: This is useless here, remove after debugging!
-                s3s[dataset] = sign3(destination_dir, dataset)
+            if dataset not in my_datasets: continue
+            destination_dir = os.path.join(self.models_path, dataset + "_prd")
+            if os.path.exists(destination_dir) and use_checkpoints:
+                continue
             else:
-                s3s[dataset] = s3.predict_from_smiles([d[2] for d in data], destination_dir)
+                if os.path.exists(destination_dir): os.remove(destination_dir)
+                self.__log.debug("Calculating sign3 for %s" % dataset)
+                s3 = self.cc.get_signature("sign3", "full", dataset)
+                s3.predict_from_smiles([d[2] for d in data], destination_dir)
         # Read ensemble of models
         self.__log.debug("Reading ensemble of models")
         with open(self.models_path + "/ensemble.pkl", "r") as f:
@@ -340,7 +438,8 @@ class TargetMate:
         self.__log.info("Doing individual predictions")
         yps  = {}
         for dataset, clf in clf_ensemble:
-            X = s3s[dataset][:]
+            if dataset not in my_datasets: continue
+            X = self._read_sign3(dataset, is_prd = True)
             yps[dataset] = [p[1] for p in clf.predict_proba(X)]
         # Read performances
         self.__log.debug("Reading performances")
@@ -354,19 +453,20 @@ class TargetMate:
         # Nearest neighbors
         self.__log.debug("Loading nearest neighbors")
         with open(self.models_path + "/kneigh.pkl", "r") as f:
-            kneigh = pickle.load(f) ## TO-DO: NN model on full dataset!!!
+            kneigh = pickle.load(f)
         # Applicability domain data
         self.__log.debug("Loading applicability domain data")
         with open(self.models_path + "/ad_data.pkl", "r") as f:
             ad_data = pickle.load(f)
         # Calculate weights
         self.__log.debug("Calculating weights")
-        fps = "x" ## GET FINGERPRINTS
+        fps     = self.fpmatrix([d[2] for d in data])
         weights = self.calculate_weights(kneigh, fps, ad_data[:,0], ad_data[:,1])
         # Get percentiles
+        self.__log.debug("Calculating percentiles of the weight (i.e. AD)")
         train_weights = ad_data[:,2]
-        ad = np.array([percentileofscore(w) for w in weights]/100)
-        # Over-write with the actual value if known is True
+        ad = np.array([percentileofscore(train_weights, w) for w in weights]/100)
+        # Over-write with the actual value if known is True. This just uses the InChIKey to match.
         if known:
             self.__log.info("Overwriting with known data")
             with open(self.models_path + "/trained_data.pkl", "r") as f:
@@ -379,7 +479,7 @@ class TargetMate:
                     mps[i] = tr_data[idx][-1]
                     std[i] = 0
                     ad[i]  = 1
-        self.__log.debut("Done!")
+        self.__log.debug("Done. Mapping results to original data")
         # Map results to original data and return
         mps_ = np.full(N, np.nan)
         ad_  = np.full(N, np.nan)
