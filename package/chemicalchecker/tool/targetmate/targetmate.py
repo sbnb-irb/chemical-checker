@@ -19,22 +19,20 @@ import pickle
 from sklearn.model_selection import StratifiedKFold
 from sklearn import metrics
 from sklearn.base import clone
-from sklearn.neighbors import NearestNeighbors
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
-from chemicalchecker.core.sign3 import sign3 # TO-DO: We might want to remove this after debugging!
 from standardiser import standardise
 from rdkit import Chem
+import chemfp
 import math
 from scipy.stats import percentileofscore
-import chemfp
 
 @logged
 class TargetMate:
     """TargetMate class"""
 
-    def __init__(self, models_path, base_clf = "tpot", cv = 5, k = 3, min_sim = 0.3, min_class_size = 10, datasets = None,
+    def __init__(self, models_path, base_clf = "tpot", cv = 5, k = 5, min_sim = 0.25, min_class_size = 10, datasets = None,
                  metric = "auroc", cc_root = None):
         """Initialize the TargetMate class
 
@@ -120,7 +118,6 @@ class TargetMate:
         if weights is None:
             weights = np.ones(len(values))
         average = np.average(values, weights=weights)
-        # Fast and numerically precise:
         variance = np.average((values-average)**2, weights=weights)
         return (average, math.sqrt(variance))
 
@@ -168,20 +165,24 @@ class TargetMate:
             stds += [std]
         return np.clip(prds, 0.001, 0.999), np.clip(stds, 0.001, None)
 
-    def fingerprint_arena(self, smiles):
+    def fingerprint_arena(self, smiles, use_checkpoints = False, is_prd = False):
         """Read smiles string"""
-        self.__log.debug("Writing SMILES")
         smi_file = os.path.join(self.models_path, "arena.smi")
-        with open(smi_file, "w") as f:
-            for i, smi in enumerate(smiles):
-                f.write("%s\t%i\n" % (smi, i))
-        self.__log.debug("Writing Fingerprints")
-        reader = chemfp.read_molecule_fingerprints(type = "RDKit-Morgan", source = smi_file, format = "smi")
         fps_file = os.path.join(self.models_path, "arena.fps")
-        writer = chemfp.open_fingerprint_writer(fps_file, reader.metadata)
-        writer.write_fingerprints(reader)
-        writer.close()
-        reader.close()
+        if is_prd:
+            smi_file = smi_file[:-4] + "_prd.smi"
+            fps_file = fps_file[:-4] + "_prd.fps"
+        if not use_checkpoints or not os.path.exists(fps_file):
+            self.__log.debug("Writing SMILES")
+            with open(smi_file, "w") as f:
+                for i, smi in enumerate(smiles):
+                    f.write("%s\t%i\n" % (smi, i))
+            self.__log.debug("Writing Fingerprints")
+            reader = chemfp.read_molecule_fingerprints(type = "RDKit-Morgan", source = smi_file, format = "smi")
+            writer = chemfp.open_fingerprint_writer(fps_file, reader.metadata)
+            writer.write_fingerprints(reader)
+            writer.close()
+            reader.close()
         arena = chemfp.load_fingerprints(fps_file)
         return arena
 
@@ -189,18 +190,6 @@ class TargetMate:
     def calculate_bias(yt, yp):
         """Calculate the bias of the QSAR model"""
         return np.array([np.abs(t-p) for t,p in zip(yt, yp)])
-
-    #@staticmethod
-    #def fpmatrix(smiles):
-    #    from rdkit.Chem import AllChem
-    #    from rdkit import Chem
-    #    nBits  = 2048
-    #    radius = 2
-    #    V = np.zeros((len(smiles), nBits), dtype = np.int8)
-    #    for i, smi in enumerate(smiles):
-    #        m = Chem.MolFromSmiles(smi)
-    #        V[i,:] = AllChem.GetMorganFingerprintAsBitVect(m, radius, nBits=nBits)
-    #    return V
     
     @staticmethod
     def read_smiles(smi, standardize):
@@ -214,31 +203,39 @@ class TargetMate:
         smi = Chem.MolToSmiles(mol)
         return ik, smi
 
-    #def calculate_weights(self, kneigh, fps, stds, bias, accepted_idxs = None):
-    #    """Calculate weights using adaptation of Aniceto et al 2016; 'accepted_idxs' refers to train indices at fit time"""
-    #    self.__log.debug("Finding nearest neighbors")
-    #    dists, idxs = kneigh.kneighbors(fps)
-    #    self.__log.debug("Calculating biases")
-    #    sims = 1 - dists
-    #    #if accepted_idxs is not None:
-    #    #    for i, idxs_ in enumerate
-    #    #else:
-    #    #    sims = sims[:,:self.k]
-    #    #    idxs = idxs[:,:self.k]
-    #    weights = []
-    #    for i, idxs_ in enumerate(idxs):
-    #        if accepted_idxs is not None:
-    #            "x"
-    #        else:
-    #            "y"
-    #        ws = sims[i]/(stds[idxs_]*bias[idxs_]) # Adapted from Aniceto et al. 2016. and PidginV3
-    #        weights += [np.max(ws)]
-    #    return np.array(weights)
-
-    def calculate_weights(self, query_fps, target_fps, stds, bias):
+    def knearest_search(self, query_fps, target_fps, N = None):
+        """Nearest neighbors search using chemical fingerprints"""
+        if target_fps is None:
+            k = np.min([self.k, len(query_fps)-1])
+            neighs = chemfp.knearest_tanimoto_search_symmetric(query_fps, k = k, threshold = self.min_sim)
+        else:
+            k = np.min([self.k, len(target_fps)])
+            neighs = chemfp.knearest_tanimoto_search(query_fps, target_fps, k = k, threshold = self.min_sim)
+        if N is None: N = len(query_fps)
+        sims = np.zeros((N, k), dtype = np.float32)
+        idxs = np.zeros((N, k), dtype = np.int)
+        for query_id, hits in neighs:
+            q_idx = int(query_id)
+            hits  = hits.get_ids_and_scores()
+            sims_ = []
+            idxs_ = []
+            for h in hits:
+                sims_ += [h[1]]
+                idxs_ += [int(h[0])]
+            sims[q_idx,:len(sims_)] = sims_
+            idxs[q_idx,:len(idxs_)] = idxs_
+        return sims, idxs
+ 
+    def calculate_weights(self, query_fps, target_fps, stds, bias, N = None):
         """Calculate weights using adaptation of Aniceto et al 2016."""
-        neighs = chemfp.query_fps, target_fps
-
+        self.__log.debug("Finding nearest neighbors")
+        sims, idxs = self.knearest_search(query_fps, target_fps, N)
+        self.__log.debug("Calculating weights from std and bias")
+        weights = []
+        for i, idxs_ in enumerate(idxs):
+            ws = sims[i]/(stds[idxs_]*bias[idxs_])
+            weights += [np.max(ws)]
+        return np.array(weights)
 
     def fit(self, data, standardize = True, use_checkpoints = True):
         """
@@ -359,19 +356,12 @@ class TargetMate:
         self.__log.info("Calculating nearest-neighbors model to be used in the applicability domain.")
         self.__log.debug("Getting fingerprint arena")
         fps_test = self.fingerprint_arena(smi_test)
-        return fps_test
-        #kneigh   = NearestNeighbors(n_neighbors=np.max([self.k, np.min([self.k*2, 20])]), metric="jaccard") # More neighbors to catch train data.
-        #fps_test = self.fpmatrix(smi_test)
-        #kneigh.fit(fps_test) 
-        #self.__log.info("Saving nearest-neighbors model")
-        #with open(self.models_path + "/kneigh.pkl", "w") as f:
-        #    pickle.dump(kneigh, f)
         # Save AD data
         self.__log.info("Calculating applicability domain weights")
         self.__log.debug("Working on the bias")
         bias_test    = self.calculate_bias(yts_test, mps_test)
         self.__log.debug("Working on the weights")
-        #weights_test = self.calculate_weights(kneigh, fps_test, std_test, bias_test) ### TO-DO: FPS TRAIN!!
+        weights_test = self.calculate_weights(fps_test, None, std_test, bias_test)
         self.__log.debug("Stacking AD data")
         ad_data      = np.vstack((std_test, bias_test, weights_test)).T
         self.__log.info("Saving applicability domain weights")
@@ -414,7 +404,7 @@ class TargetMate:
         data_ = []
         N = len(data)
         for i, d in enumerate(data):
-            m = self.read_smiles(d[0], standardize)
+            m = self.read_smiles(d, standardize)
             if not m: continue
             data_ += [(i, m[0], m[1])]
         data = data_
@@ -451,21 +441,20 @@ class TargetMate:
         # Do applicability domain
         self.__log.info("Calculating applicability domain")
         # Nearest neighbors
-        self.__log.debug("Loading nearest neighbors")
-        with open(self.models_path + "/kneigh.pkl", "r") as f:
-            kneigh = pickle.load(f)
+        self.__log.debug("Loading fit-time fingerprint arena")
+        fps_fit = chemfp.load_fingerprints(os.path.join(self.models_path, "arena.fps"))
         # Applicability domain data
         self.__log.debug("Loading applicability domain data")
         with open(self.models_path + "/ad_data.pkl", "r") as f:
             ad_data = pickle.load(f)
         # Calculate weights
         self.__log.debug("Calculating weights")
-        fps     = self.fpmatrix([d[2] for d in data])
-        weights = self.calculate_weights(kneigh, fps, ad_data[:,0], ad_data[:,1])
+        fps     = self.fingerprint_arena([d[2] for d in data], use_checkpoints = use_checkpoints, is_prd = True)
+        weights = self.calculate_weights(fps, fps_fit, ad_data[:,0], ad_data[:,1], N)
         # Get percentiles
         self.__log.debug("Calculating percentiles of the weight (i.e. AD)")
         train_weights = ad_data[:,2]
-        ad = np.array([percentileofscore(train_weights, w) for w in weights]/100)
+        ad = np.array([percentileofscore(train_weights, w) for w in weights])/100.
         # Over-write with the actual value if known is True. This just uses the InChIKey to match.
         if known:
             self.__log.info("Overwriting with known data")
