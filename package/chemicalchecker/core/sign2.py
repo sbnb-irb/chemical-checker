@@ -181,6 +181,13 @@ class sign2(BaseSignature, DataSignature):
         ada.save_performances(adanet_path, sign2_plot, extra_preditors)
         self.__log.debug('model saved to %s' % adanet_path)
 
+        bg_distances = self.background_distances("cosine", self[:])
+
+        with h5py.File(self.model_path + "/bg_cosine_distances.h5", "w") as hf:
+
+            hf.create_dataset("distance", data=bg_distances["distance"])
+            hf.create_dataset("pvalue", data=bg_distances["pvalue"])
+
         if validations:
             self.validate()
         self.mark_ready()
@@ -259,7 +266,8 @@ class sign2(BaseSignature, DataSignature):
             # save nearest neighbor signatures as predictions
             nn_pred[ds] = dict()
             # get nearest neighbor indices and keys
-            nn_idxs = nn_neig1.get_kth_nearest(x_data, 1)[:, 0]
+            nn_neig1_idxs, _ = nn_neig1.get_kth_nearest(x_data, 1)
+            nn_idxs = nn_neig1_idxs[:, 0]
             nn_pred[ds]['true'] = y_data
             nn_pred[ds]['pred'] = list()
             for idx in nn_idxs:

@@ -2,8 +2,10 @@ import os
 import sys
 import h5py
 from bisect import bisect_left
-
+import numpy as np
+import random
 from chemicalchecker.util import logged
+from scipy.spatial.distance import euclidean, cosine
 
 
 class cached_property(object):
@@ -30,6 +32,8 @@ class DataSignature(object):
     def __init__(self, data_path):
         """Initialize or load the signature at the given path."""
         self.data_path = os.path.abspath(data_path)
+        self.PVALRANGES = np.array([0, 0.001, 0.01, 0.1] +
+                                   list(np.arange(1, 100)) + [100]) / 100.
 
     @property
     def info_h5(self):
@@ -105,3 +109,97 @@ class DataSignature(object):
                 return hf['V'][key]
         else:
             raise Exception("Key type %s not recognized." % type(key))
+
+    def background_distances(self, metric, inchikey_vec=None, inchikeys=None, B=100000, unflat=True):
+        """Give the background distances according to the selected metric.
+
+        Args:
+            metric(str): the metric name (cosine or euclidean).
+            inchikey_vec(): the vectors to calculate the background distances.
+        Returns:
+            bg_distances(dict): Dictionary with distances and Pvalues
+        """
+
+        bg_distances = {}
+        if inchikey_vec is None:
+
+            if metric == "cosine":
+                bg_file = os.path.join(
+                    self.model_path, "bg_cosine_distances.h5")
+                if not os.path.isfile(bg_file):
+                    raise Exception(
+                        "The background distances for metric " + metric + " are not available.")
+                f5 = h5py.File(bg_file)
+                bg_distances["distance"] = f5["distance"][:]
+                bg_distances["pvalue"] = f5["pvalue"][:]
+
+            if metric == "euclidean":
+                bg_file = os.path.join(
+                    self.model_path, "bg_euclidean_distances.h5")
+                if not os.path.isfile(bg_file):
+                    raise Exception(
+                        "The background distances for metric " + metric + " are not available.")
+                f5 = h5py.File(bg_file)
+                bg_distances["distance"] = f5["distance"][:]
+                bg_distances["pvalue"] = f5["pvalue"][:]
+
+            if len(bg_distances) == 0:
+                raise Exception(
+                    "The background distances for metric " + metric + " are not available.")
+
+        else:
+
+            if metric == "cosine":
+                metric_fn = cosine
+
+            if metric == "euclidean":
+                metric_fn = euclidean
+
+            # Check if it is a numpy array
+
+            if type(inchikey_vec).__module__ == np.__name__:
+                idxs = [i for i in xrange(inchikey_vec.shape[0])]
+                bg = []
+                for _ in xrange(B):
+                    i, j = random.sample(idxs, 2)
+                    bg += [metric_fn(inchikey_vec[i, :], inchikey_vec[j, :])]
+
+            else:
+
+                if inchikeys is None:
+                    inchikeys = np.array(
+                        [k for k, v in inchikey_vec.iteritems()])
+
+                bg = []
+                for _ in xrange(B):
+                    ik1, ik2 = random.sample(inchikeys, 2)
+                    bg += [metric_fn(inchikey_vec[ik1], inchikey_vec[ik2])]
+
+            i = 0
+            PVALS = [(0, 0., i)]  # DISTANCE, RANK, INTEGER
+            i += 1
+            percs = self.PVALRANGES[1:-1] * 100
+            for perc in percs:
+                PVALS += [(np.percentile(bg, perc), perc / 100., i)]
+                i += 1
+            PVALS += [(np.max(bg), 1., i)]
+
+            if not unflat:
+                bg_distances["distance"] = np.array([p[0] for p in PVALS])
+                bg_distances["pvalue"] = np.array([p[1] for p in PVALS])
+            else:
+                # Remove flat regions whenever we observe them
+                dists = [p[0] for p in PVALS]
+                pvals = np.array([p[1] for p in PVALS])
+                top_pval = np.min([1. / B, np.min(pvals[pvals > 0]) / 10.])
+                pvals[pvals == 0] = top_pval
+                pvals = np.log10(pvals)
+                dists_ = sorted(set(dists))
+                pvals_ = [pvals[dists.index(d)] for d in dists_]
+                dists = np.interp(pvals, pvals_, dists_)
+                thrs = [(dists[t], PVALS[t][1], PVALS[t][2])
+                        for t in xrange(len(PVALS))]
+                bg_distances["distance"] = np.array([p[0] for p in thrs])
+                bg_distances["pvalue"] = np.array([p[1] for p in thrs])
+
+        return bg_distances

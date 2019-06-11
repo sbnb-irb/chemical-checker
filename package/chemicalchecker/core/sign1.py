@@ -363,8 +363,8 @@ class sign1(BaseSignature, DataSignature):
 
                 inchikey_sig = shelve.open(
                     os.path.join(tmp_dir, "sign1.dict"), "r")
-                pvals = self.distance_background(
-                    inchikey_sig, inchikeys, B=self.B_distances)
+                pvals = self.background_distances("cosine",
+                                                  inchikey_sig, inchikeys, B=self.B_distances)
                 inchikey_sig.close()
 
                 hf.create_dataset(
@@ -380,8 +380,8 @@ class sign1(BaseSignature, DataSignature):
 
                 inchikey_sig = shelve.open(
                     os.path.join(tmp_dir, "sign1.dict"), "r")
-                pvals = self.distance_background(
-                    inchikey_sig, inchikeys, B=self.B_distances, metric=euclidean)
+                pvals = self.background_distances("euclidean",
+                                                  inchikey_sig, inchikeys, B=self.B_distances)
                 inchikey_sig.close()
 
                 hf.create_dataset(
@@ -672,43 +672,6 @@ class sign1(BaseSignature, DataSignature):
             os.remove(filename)
         os.rmdir(tmp_dir)
 
-    def background_distances(self, metric=None):
-        """Give the background distances according to the selected metric.
-
-        Args:
-            metric(str): the metric name (cosine or euclidean).
-        Returns:
-            bg_distances(dict): Dictionary with distances and Pvalues
-        """
-        if metric is None:
-            raise Exception("Need a metric to return background distances")
-
-        bg_distances = {}
-        if metric == "cosine":
-            bg_file = os.path.join(self.model_path, "bg_cosine_distances.h5")
-            if not os.path.isfile(bg_file):
-                raise Exception(
-                    "The background distances for metric " + metric + " are not available.")
-            f5 = h5py.File(bg_file)
-            bg_distances["distance"] = f5["distance"][:]
-            bg_distances["pvalue"] = f5["pvalue"][:]
-
-        if metric == "euclidean":
-            bg_file = os.path.join(
-                self.model_path, "bg_euclidean_distances.h5")
-            if not os.path.isfile(bg_file):
-                raise Exception(
-                    "The background distances for metric " + metric + " are not available.")
-            f5 = h5py.File(bg_file)
-            bg_distances["distance"] = f5["distance"][:]
-            bg_distances["pvalue"] = f5["pvalue"][:]
-
-        if len(bg_distances) == 0:
-            raise Exception(
-                "The background distances for metric " + metric + " are not available.")
-        else:
-            return bg_distances
-
     def _integerize(self, V, recycle):
 
         FILE = self.model_path + "/integerizer_ab.txt"
@@ -796,54 +759,8 @@ class sign1(BaseSignature, DataSignature):
 
         return exp_var_ratios
 
-    # Background distribution of distances
-
-    def distance_background(self, inchikey_vec, inchikeys=None, B=100000, metric=cosine, unflat=True):
-
-        # Check if it is a numpy array
-
-        if type(inchikey_vec).__module__ == np.__name__:
-            idxs = [i for i in xrange(inchikey_vec.shape[0])]
-            bg = []
-            for _ in xrange(B):
-                i, j = random.sample(idxs, 2)
-                bg += [metric(inchikey_vec[i, :], inchikey_vec[j, :])]
-
-        else:
-
-            if inchikeys is None:
-                inchikeys = np.array([k for k, v in inchikey_vec.iteritems()])
-
-            bg = []
-            for _ in xrange(B):
-                ik1, ik2 = random.sample(inchikeys, 2)
-                bg += [metric(inchikey_vec[ik1], inchikey_vec[ik2])]
-
-        i = 0
-        PVALS = [(0, 0., i)]  # DISTANCE, RANK, INTEGER
-        i += 1
-        percs = self.PVALRANGES[1:-1] * 100
-        for perc in percs:
-            PVALS += [(np.percentile(bg, perc), perc / 100., i)]
-            i += 1
-        PVALS += [(np.max(bg), 1., i)]
-
-        if not unflat:
-            return PVALS
-        else:
-            # Remove flat regions whenever we observe them
-            dists = [p[0] for p in PVALS]
-            pvals = np.array([p[1] for p in PVALS])
-            top_pval = np.min([1. / B, np.min(pvals[pvals > 0]) / 10.])
-            pvals[pvals == 0] = top_pval
-            pvals = np.log10(pvals)
-            dists_ = sorted(set(dists))
-            pvals_ = [pvals[dists.index(d)] for d in dists_]
-            dists = np.interp(pvals, pvals_, dists_)
-            return [(dists[t], PVALS[t][1], PVALS[t][2]) for t in xrange(len(PVALS))]
-
-
 # Corpus class
+
 
 class MyCorpus(object):
 
