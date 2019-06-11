@@ -230,6 +230,17 @@ class neig(BaseSignature):
         A k>1 is useful when we expect and want to exclude a perfect match,
         i.e. when the signature we query for are the same that have been used
         to generate the neighbors.
+
+        Args:
+            signatures(array): Matrix or list of signatures for which we want
+                to find neighbors.
+            k(int): Amount of neigbors to find, if None return the maximum
+                possible.
+        Returns:
+            dict with keys: 
+                1. 'indeces' the indeces of neighbors 
+                2. 'keys' the inchikey of neighbors
+                3. 'distances' the cosine distances.
         """
         try:
             import faiss
@@ -238,51 +249,41 @@ class neig(BaseSignature):
                               "https://github.com/facebookresearch/faiss")
         # open faiss model
         faiss.omp_set_num_threads(self.cpu)
-
-        if not isinstance(signatures, list):
-            raise Exception(
-                "Signatures parameter needs to be a list for predict_online method")
-
-        predictions = {}
-
-        datasize = len(signatures)
-
-        if k is None:
-            k = min(datasize, self.k_neig)
-
         index = faiss.read_index(self.index_filename)
-
+        # decide K
+        max_k = index.ntotal
+        if k is None:
+            k = max_k
+        if k > max_k:
+            self.__log.warning("Maximum k is %s.", max_k)
+            k = max_k
         # convert signatures to float32 as faiss is very picky
         data = np.array(signatures, dtype=np.float32)
+        # get neighbors idx and distances 
         dists, idx = index.search(data, k)
-
-        if self.metric == "cosine":
-            norms = LA.norm(data, axis=1)
-
-        predictions["indices"] = idx
+        predictions = dict()
         predictions["distances"] = dists
-
-        if self.metric == "cosine":
-
-            with h5py.File(self.norms_file, "r") as hw:
-                norms_fit = hw["norms"][:]
-
-            t_start = time()
-            mat = np.ones((datasize, k))
-            mat = mat / norms[:, None]
-
-            I = predictions["indices"]
-            for i in range(0, datasize):
-                for j in range(0, k):
-                    mat[i, j] = mat[i, j] / norms_fit[I[i, j]]
-                predictions["distances"] = np.maximum(
-                    0.0, 1.0 - (predictions["distances"] * mat))
-            t_end = time()
-            t_delta = str(datetime.timedelta(seconds=t_end - t_start))
-            self.__log.info(
-                "Converting to cosine distance took %s", t_delta)
-
-        return predictions["indices"], predictions["distances"]
+        predictions["indices"] = idx
+        with h5py.File(self.data_path, 'r') as hf:
+            keys = hf['col_keys'][:]
+        predictions["keys"] = keys[idx]
+        # convert distances to cosine
+        norms = LA.norm(data, axis=1)
+        with h5py.File(self.norms_file, "r") as hw:
+            norms_fit = hw["norms"][:]
+        t_start = time()
+        mat = np.ones((len(signatures), k))
+        mat = mat / norms[:, None]
+        I = predictions["indices"]
+        for i in range(0, len(signatures)):
+            for j in range(0, k):
+                mat[i, j] = mat[i, j] / norms_fit[I[i, j]]
+            predictions["distances"] = np.maximum(
+                0.0, 1.0 - (predictions["distances"] * mat))
+        t_delta = str(datetime.timedelta(seconds=time() - t_start))
+        self.__log.info(
+            "Converting to cosine distance took %s", t_delta)
+        return predictions
 
     @staticmethod
     def jaccard_similarity(n1, n2):
