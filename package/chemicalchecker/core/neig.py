@@ -223,7 +223,7 @@ class neig(BaseSignature):
                 self.__log.info(
                     "Converting to cosine distance took %s", t_delta)
 
-    def get_kth_nearest(self, signatures, k=1):
+    def get_kth_nearest(self, signatures, k=None):
         """Return up to the k-th nearest neighbor.
 
         This function returns the k-th closest neighbor.
@@ -238,12 +238,51 @@ class neig(BaseSignature):
                               "https://github.com/facebookresearch/faiss")
         # open faiss model
         faiss.omp_set_num_threads(self.cpu)
-        index_filename = os.path.join(self.model_path, 'faiss_neig.index')
-        index = faiss.read_index(index_filename)
+
+        if not isinstance(signatures, list):
+            raise Exception(
+                "Signatures parameter needs to be a list for predict_online method")
+
+        predictions = {}
+
+        datasize = len(signatures)
+
+        if k is None:
+            k = min(datasize, self.k_neig)
+
+        index = faiss.read_index(self.index_filename)
+
         # convert signatures to float32 as faiss is very picky
         data = np.array(signatures, dtype=np.float32)
         dists, idx = index.search(data, k)
-        return idx[:, :k]
+
+        if self.metric == "cosine":
+            norms = LA.norm(data, axis=1)
+
+        predictions["indices"] = idx
+        predictions["distances"] = dists
+
+        if self.metric == "cosine":
+
+            with h5py.File(self.norms_file, "r") as hw:
+                norms_fit = hw["norms"][:]
+
+            t_start = time()
+            mat = np.ones((datasize, k))
+            mat = mat / norms[:, None]
+
+            I = predictions["indices"]
+            for i in range(0, datasize):
+                for j in range(0, k):
+                    mat[i, j] = mat[i, j] / norms_fit[I[i, j]]
+                predictions["distances"] = np.maximum(
+                    0.0, 1.0 - (predictions["distances"] * mat))
+            t_end = time()
+            t_delta = str(datetime.timedelta(seconds=t_end - t_start))
+            self.__log.info(
+                "Converting to cosine distance took %s", t_delta)
+
+        return predictions["indices"], predictions["distances"]
 
     @staticmethod
     def jaccard_similarity(n1, n2):
