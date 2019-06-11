@@ -351,7 +351,10 @@ class sign1(BaseSignature, DataSignature):
             hf.create_dataset("integerized", data=[self.integerize])
             hf.create_dataset("principal_components", data=[True])
             if mappings is not None:
-                hf.create_dataset("mappings", data=np.array(mappings))
+                # Sometimes sign1 might reduce the number of output signatures
+                # If so, we should update the mappings in the sign1.h5 file
+                mask = np.isin(mappings[:, 1], hf["keys"][:])
+                hf.create_dataset("mappings", data=mappings[mask])
 
         with h5py.File(self.model_path + "/bg_cosine_distances.h5", "a") as hf:
 
@@ -632,7 +635,10 @@ class sign1(BaseSignature, DataSignature):
             hf.create_dataset("integerized", data=[self.integerize])
             hf.create_dataset("principal_components", data=[True])
             if mappings is not None:
-                hf.create_dataset("mappings", data=mappings)
+                # Sometimes sign1 reduce the number of output signatures
+                # If so, we should update the mappings in the sign1.h5 file
+                mask = np.isin(mappings[:, 1], hf["keys"][:])
+                hf.create_dataset("mappings", data=mappings[mask])
 
         self.__log.info("Cleaning")
         gc.collect()
