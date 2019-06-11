@@ -7,6 +7,7 @@ Main tasks of this class are:
 """
 
 import os
+import h5py
 import shutil
 import itertools
 from glob import glob
@@ -97,6 +98,36 @@ class ChemicalChecker():
             if dataset not in molset_dataset_sign[molset]:
                 molset_dataset_sign[molset][dataset] = list()
             molset_dataset_sign[molset][dataset].append(sign)
+        return molset_dataset_sign
+
+    def report_sizes(self, molset='*', dataset='*', signature='*', matrix='V'):
+        """Report sizes of available signatures in the CC.
+
+        Get the moleculeset/dataset combination where signatures are available.
+        Report the size of the 'V' matrix.
+        Use arguments to apply filters.
+        Args:
+            molset(str): Filter for the moleculeset e.g. 'full' or 'reference'
+            dataset(str) Filter for the dataset e.g. A1.001
+            signature(str): Filter for signature type e.g. 'sign1'
+        Returns:
+            Nested dictionary with molset, dataset and list of signatures
+        """
+        paths = glob(os.path.join(self.cc_root, molset, '*', '*', dataset,
+                                  signature + '/*.h5'))
+        molset_dataset_sign = dict()
+        for path in paths:
+            molset = path.split('/')[-6]
+            dataset = path.split('/')[-3]
+            sign = path.split('/')[-2]
+            if molset not in molset_dataset_sign:
+                molset_dataset_sign[molset] = dict()
+            if dataset not in molset_dataset_sign[molset]:
+                molset_dataset_sign[molset][dataset] = dict()
+            with h5py.File(path, 'r') as fh:
+                if matrix not in fh.keys():
+                    continue
+                molset_dataset_sign[molset][dataset][sign] = fh[matrix].shape
         return molset_dataset_sign
 
     def get_signature_path(self, cctype, molset, dataset_code):
