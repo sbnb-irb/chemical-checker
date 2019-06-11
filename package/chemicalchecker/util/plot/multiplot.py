@@ -893,7 +893,11 @@ class MultiPlot():
         for ds in self.datasets:
             for molset in ['reference', 'full']:
                 for sign_type in sign_types:
-                    sign = self.cc.get_signature(sign_type, molset, ds)
+                    try:
+                        sign = self.cc.get_signature(sign_type, molset, ds)
+                    except Exception as err:
+                        self.__log.warning("Skippin %s: %s",str(sign), str(err))
+                        continue
                     stat_file = os.path.join(
                         sign.stats_path, 'validation_stats.json')
                     if not os.path.isfile(stat_file):
