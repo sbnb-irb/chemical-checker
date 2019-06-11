@@ -57,9 +57,6 @@ class BaseSignature(object):
                                                                  'ignore')
         self.readyfile = "fit.ready"
 
-        self.PVALRANGES = np.array([0, 0.001, 0.01, 0.1] +
-                                   list(np.arange(1, 100)) + [100]) / 100.
-
         if not os.path.isdir(self.signature_path):
             BaseSignature.__log.info(
                 "Initializing new signature in: %s" % self.signature_path)
