@@ -223,7 +223,7 @@ class neig(BaseSignature):
                 self.__log.info(
                     "Converting to cosine distance took %s", t_delta)
 
-    def get_kth_nearest(self, signatures, k=None):
+    def get_kth_nearest(self, signatures, k=None, distances=True, keys=True):
         """Return up to the k-th nearest neighbor.
 
         This function returns the k-th closest neighbor.
@@ -238,7 +238,7 @@ class neig(BaseSignature):
                 possible.
         Returns:
             dict with keys: 
-                1. 'indeces' the indeces of neighbors 
+                1. 'indices' the indices of neighbors 
                 2. 'keys' the inchikey of neighbors
                 3. 'distances' the cosine distances.
         """
@@ -262,27 +262,29 @@ class neig(BaseSignature):
         # get neighbors idx and distances 
         dists, idx = index.search(data, k)
         predictions = dict()
-        predictions["distances"] = dists
         predictions["indices"] = idx
-        with h5py.File(self.data_path, 'r') as hf:
-            keys = hf['col_keys'][:]
-        predictions["keys"] = keys[idx]
-        # convert distances to cosine
-        norms = LA.norm(data, axis=1)
-        with h5py.File(self.norms_file, "r") as hw:
-            norms_fit = hw["norms"][:]
-        t_start = time()
-        mat = np.ones((len(signatures), k))
-        mat = mat / norms[:, None]
-        I = predictions["indices"]
-        for i in range(0, len(signatures)):
-            for j in range(0, k):
-                mat[i, j] = mat[i, j] / norms_fit[I[i, j]]
-            predictions["distances"] = np.maximum(
-                0.0, 1.0 - (predictions["distances"] * mat))
-        t_delta = str(datetime.timedelta(seconds=time() - t_start))
-        self.__log.info(
-            "Converting to cosine distance took %s", t_delta)
+        if keys:
+            with h5py.File(self.data_path, 'r') as hf:
+                keys = hf['col_keys'][:]
+            predictions["keys"] = keys[idx]
+        if distances:
+            predictions["distances"] = dists
+            # convert distances to cosine
+            norms = LA.norm(data, axis=1)
+            with h5py.File(self.norms_file, "r") as hw:
+                norms_fit = hw["norms"][:]
+            t_start = time()
+            mat = np.ones((len(signatures), k))
+            mat = mat / norms[:, None]
+            I = predictions["indices"]
+            for i in range(0, len(signatures)):
+                for j in range(0, k):
+                    mat[i, j] = mat[i, j] / norms_fit[I[i, j]]
+                predictions["distances"] = np.maximum(
+                    0.0, 1.0 - (predictions["distances"] * mat))
+            t_delta = str(datetime.timedelta(seconds=time() - t_start))
+            self.__log.info(
+                "Converting to cosine distance took %s", t_delta)
         return predictions
 
     @staticmethod
