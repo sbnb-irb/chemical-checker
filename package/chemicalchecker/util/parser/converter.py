@@ -32,7 +32,7 @@ class Converter():
             raise ImportError("requires rdkit " +
                               "https://wwwdev.ebi.ac.uk/chembl/extra/" +
                               "francis/standardiser/")
-    
+
     def smiles_to_inchi(self, smiles):
         """From SMILES to InChIKey and InChI."""
         mol = self.standardise.Chem.MolFromSmiles(smiles)
@@ -61,6 +61,14 @@ class Converter():
         except Exception as ex:
             raise ConversionError("'InchiToMol' exception:", ex.message)
         return self.Chem.MolToSmiles(mol)
+
+    def inchi_to_inchikey(self, inchi):
+        try:
+            inchi_ascii = inchi.encode('ascii', 'ignore')
+            inchikey = self.Chem.rdinchi.InchiToInchiKey(inchi_ascii)
+        except Exception as ex:
+            raise ConversionError("'InchiToInchiKey' exception:", ex.message)
+        return inchikey
 
     @staticmethod
     def ctd_to_smiles(ctdid):
