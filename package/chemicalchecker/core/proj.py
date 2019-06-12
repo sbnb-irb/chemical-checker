@@ -9,13 +9,14 @@ from numpy import linalg as LA
 from sklearn.manifold import MDS
 
 from .signature_base import BaseSignature
+from .signature_data import DataSignature
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.plot import Plot
 
 
 @logged
-class proj(BaseSignature):
+class proj(BaseSignature, DataSignature):
     """A Signature bla bla."""
 
     def __init__(self, signature_path, dataset, **params):
@@ -35,6 +36,7 @@ class proj(BaseSignature):
             self, signature_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(signature_path, "proj.h5")
+        DataSignature.__init__(self, self.data_path)
         self.__log.debug('data_path: %s', self.data_path)
 
         self.index_file = "faiss_proj.index"
