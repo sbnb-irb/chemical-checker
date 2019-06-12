@@ -896,7 +896,8 @@ class MultiPlot():
                     try:
                         sign = self.cc.get_signature(sign_type, molset, ds)
                     except Exception as err:
-                        self.__log.warning("Skippin %s: %s",str(sign), str(err))
+                        self.__log.warning(
+                            "Skippin %s: %s", str(sign), str(err))
                         continue
                     stat_file = os.path.join(
                         sign.stats_path, 'validation_stats.json')
@@ -998,3 +999,61 @@ class MultiPlot():
             plt.savefig(filename, dpi=100)
             plt.close('all')
         """
+
+    def sign3_neig2_jaccard(self):
+
+        df = pd.DataFrame(columns=['dataset', 'k', 'confidence', 'jaccard'])
+
+        for ds in self.datasets:
+            try:
+                s2 = self.cc.get_signature('sign2', 'reference', ds)
+                n2 = self.cc.get_signature('neig2', 'reference', ds)
+                s3 = self.cc.get_signature('sign3', 'full', ds)
+            except:
+                continue
+            if not os.path.isfile(s2.data_path):
+                continue
+            if not os.path.isfile(n2.data_path):
+                continue
+            if not os.path.isfile(s3.data_path):
+                continue
+            # decide sample molecules
+            inks = s2.keys
+            if len(inks) > 2 * 1e4:
+                inks = np.random.choice(s2.keys, int(2 * 1e4))
+            # get sign2 and sign3
+            _, s2_data = s2.get_vectors(inks)
+            _, s3_data = s3.get_vectors(inks)
+            _, s3_data_conf = s3.get_vectors(inks, dataset_name='confidence')
+            s3_data_conf = s3_data_conf.T[0]
+            # get idx of nearest neighbors of s2
+            row = dict()
+            row['dataset'] = ds
+            for k in [5, 10, 50]:
+                row['k'] = k
+                n2_s2 = n2.get_kth_nearest(
+                    list(s2_data), k=k, distances=False, keys=False)
+                n2_s3 = n2.get_kth_nearest(
+                    list(s3_data), k=k, distances=False, keys=False)
+
+                for confidence in np.arange(0, .9, .1):
+                    row['confidence'] = confidence
+                    mask = s3_data_conf > confidence
+                    row['jaccard'] = n2.jaccard_similarity(
+                        n2_s2['indices'][mask],
+                        n2_s3['indices'][mask])
+                    df = df.append(pd.DataFrame(row), ignore_index=True)
+
+        self.__log.info('Plotting')
+        sns.set_style("whitegrid")
+        g = sns.catplot(data=df, kind='point', x='confidence', y='jaccard',
+                        hue="k", col="dataset", col_wrap=5,
+                        col_order=self.datasets,
+                        palette="Blues_d",
+                        aspect=.8, height=3, dodge=True)
+        g.set(xticklabels=[("%.1f" % f)[1:] for f in np.arange(0, .9, .1)])
+        outfile = os.path.join(
+            self.plot_path, 'sign3_neig2_jaccard.png')
+        plt.savefig(outfile, dpi=200)
+        plt.close('all')
+        return df
