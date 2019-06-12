@@ -1000,14 +1000,14 @@ class MultiPlot():
             plt.close('all')
         """
 
-    def sign3_neig2_jaccard(self):
+    def sign3_neig2_jaccard(self, max_sample=2000):
 
         df = pd.DataFrame(columns=['dataset', 'k', 'confidence', 'jaccard'])
 
         for ds in self.datasets:
             try:
-                s2 = self.cc.get_signature('sign2', 'reference', ds)
-                n2 = self.cc.get_signature('neig2', 'reference', ds)
+                s2 = self.cc.get_signature('sign2', 'full', ds)
+                n2 = self.cc.get_signature('neig2', 'full', ds)
                 s3 = self.cc.get_signature('sign3', 'full', ds)
             except:
                 continue
@@ -1019,8 +1019,8 @@ class MultiPlot():
                 continue
             # decide sample molecules
             inks = s2.keys
-            if len(inks) > 2 * 1e4:
-                inks = np.random.choice(s2.keys, int(2 * 1e4))
+            if len(inks) > max_sample:
+                inks = np.random.choice(s2.keys, int(max_sample))
             # get sign2 and sign3
             _, s2_data = s2.get_vectors(inks)
             _, s3_data = s3.get_vectors(inks)
