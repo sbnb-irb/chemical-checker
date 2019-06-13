@@ -4,6 +4,7 @@ import shutil
 import pickle
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from time import time
 from scipy.stats import pearsonr
 from sklearn.metrics import r2_score, mean_squared_error
@@ -262,6 +263,61 @@ class Traintest(object):
                             chunk = slice(i, i + chunk_size)
                             sorted_idxs = sorted(list(idxs[chunk]))
                             hf_out[ds_name][chunk] = hf_in[k][sorted_idxs]
+                        Traintest.__log.debug(
+                            "Written: {:<20} shape: {:>10}".format(
+                                ds_name, str(hf_out[ds_name].shape)))
+        Traintest.__log.info('Traintest saved to %s', out_file)
+
+    @staticmethod
+    def split_h5_blocks(in_file, out_file,
+                        split_names=['train', 'test', 'validation'],
+                        split_fractions=[.8, .1, .1], block_size=1000):
+        """Create the HDF5 file with validation splits from an input file.
+
+        Args:
+            in_file(str): path of the h5 file to read from.
+            out_file(str): path of the h5 file to write.
+            split_names(list(str)): names for the split of data.
+            split_fractions(list(float)): fraction of data in each split.
+        """
+        with h5py.File(in_file, 'r') as hf_in:
+            # log input datasets and shapes
+            for k in hf_in.keys():
+                Traintest.__log.debug(
+                    "{:<20} shape: {:>10}".format(k, str(hf_in[k].shape)))
+                rows = hf_in[k].shape[0]
+
+            # train test validation splits
+            if len(split_names) != len(split_fractions):
+                raise Exception(
+                    "Split names and fraction should be same amount.")
+            split_names = [s.encode() for s in split_names]
+            split_block = Traintest.get_split_indeces(
+                int(np.ceil(rows / block_size)) + 1,
+                split_fractions)
+
+            Traintest.__log.info('Traintest saving to %s', out_file)
+            with h5py.File(out_file, "w") as hf_out:
+                # create fixed datasets
+                hf_out.create_dataset(
+                    'split_names', data=np.array(split_names))
+                hf_out.create_dataset(
+                    'split_fractions', data=np.array(split_fractions))
+
+                for name, blocks in zip(split_names, split_block):
+                    # for each original dataset
+                    for k in hf_in.keys():
+                        # create all splits
+                        ds_name = "%s_%s" % (k, name.decode())
+                        # create block matrix
+                        block_mat = list()
+                        for block in tqdm(blocks):
+                            chunk = slice(block * block_size,
+                                          (block * block_size) + block_size)
+                            block_mat.append(hf_in[k][chunk])
+                        hf_out.create_dataset(ds_name,
+                                              data=np.vstack(block_mat),
+                                              dtype=hf_in[k].dtype)
                         Traintest.__log.debug(
                             "Written: {:<20} shape: {:>10}".format(
                                 ds_name, str(hf_out[ds_name].shape)))
