@@ -161,7 +161,99 @@ class sign3(BaseSignature, DataSignature):
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
 
-    def fit_sign0(self, chemchecker, sign0_traintest=None):
+    def save_sign0_matrix(self, sign0, destination):
+        """Save matrix of signature 0 and confidence values.
+
+        Args:
+            sign0(list): Signature 0 to learn from.
+            destination(str): Path where to save the matrix (HDF5 file).
+        """
+        common_keys, features = sign0.get_vectors(self.keys)
+        _, labels = self.get_vectors(common_keys)
+        # generate mask for shared keys
+        mask = np.isin(self.keys, list(common_keys), assume_unique=True)
+        stddev = self.get_h5_dataset('stddev_norm', mask)
+        stddev = np.expand_dims(stddev, 1)
+        intensity = self.get_h5_dataset('intensity_norm', mask)
+        intensity = np.expand_dims(intensity, 1)
+        confidence = self.get_h5_dataset('confidence', mask)
+        confidence = np.expand_dims(confidence, 1)
+        # we also want to learn how to predict confidence scores
+        # so they become part of the supervised learning input
+        labels = np.hstack((labels, stddev, intensity, confidence))
+        with h5py.File(destination, 'w') as hf:
+            hf.create_dataset('y', data=labels, dtype=np.float32)
+            hf.create_dataset('x', data=features, dtype=np.float32)
+
+    def _learn_sign0(self, sign0, reuse=True, suffix=None, evaluate=True):
+        """Learn the signature 3 from sign0.
+
+        This method is used twice. First to evaluate the performances of the
+        AdaNet model. Second to train the final model on the full set of data.
+
+        Args:
+            sign0(list): Signature 0 object to learn from.
+            reuse(bool): Whether to reuse intermediate files (e.g. the
+                aggregated signature 2 matrix).
+            suffix(str): A suffix for the AdaNet model path (e.g.
+                'sign3/models/adanet_<suffix>').
+            evaluate(bool): Whether we are performing a train-test split and
+                evaluating the performances (N.B. this is required for complete
+                confidence scores)
+        """
+        try:
+            from chemicalchecker.tool.adanet import AdaNet, Traintest
+        except ImportError as err:
+            raise err
+        # adanet parameters
+        self.__log.debug('AdaNet fit sign0 %s based on %s', self.dataset,
+                         sign0.dataset)
+        # get params and set folder
+        adanet_params = self.params['adanet']
+        if suffix:
+            adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
+        else:
+            adanet_path = os.path.join(self.model_path, 'adanet')
+        if adanet_params:
+            if 'model_dir' in adanet_params:
+                adanet_path = adanet_params.pop('model_dir')
+        if not reuse or not os.path.isdir(adanet_path):
+            os.makedirs(adanet_path)
+        # generate input matrix
+        sign0_matrix = os.path.join(self.model_path, 'train_sign0.h5')
+        if not reuse or not os.path.isfile(sign0_matrix):
+            self.save_sign0_matrix(sign0, sign0_matrix)
+        # if evaluating, perform the train-test split
+        if evaluate:
+            traintest_file = os.path.join(self.model_path,
+                                          'traintest_sign0.h5')
+            if adanet_params:
+                traintest_file = adanet_params.pop(
+                    'traintest_file', traintest_file)
+            if not reuse or not os.path.isfile(traintest_file):
+                Traintest.split_h5(sign0_matrix, traintest_file)
+        else:
+            traintest_file = sign0_matrix
+            if adanet_params:
+                traintest_file = adanet_params.pop(
+                    'traintest_file', traintest_file)
+        # initialize adanet and start learning
+        if adanet_params:
+            ada = AdaNet(model_dir=adanet_path,
+                         traintest_file=traintest_file,
+                         **adanet_params)
+        else:
+            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
+        self.__log.debug('AdaNet training on %s' % traintest_file)
+        ada.train_and_evaluate(evaluate=evaluate)
+        self.__log.debug('model saved to %s' % adanet_path)
+        # when evaluating also save the performances
+        if evaluate:
+            # save AdaNet performances and plots
+            sign2_plot = Plot(self.dataset, adanet_path)
+            ada.save_performances(adanet_path, sign2_plot, suffix)
+
+    def fit_sign0(self, sign0):
         """Train an AdaNet model to predict sign3 from sign0.
 
         This method is fitting a model that uses Morgan fingerprint as features
@@ -173,34 +265,24 @@ class sign3(BaseSignature, DataSignature):
                 signature 0.
             sign0_traintest(str): Path to the train file.
         """
-        try:
-            from chemicalchecker.tool.adanet import AdaNet, Traintest
-        except ImportError as err:
-            raise err
-
-        # build input matrix if not provided
-        if sign0_traintest is None:
-            sign0_traintest = os.path.join(
-                self.model_path, 'traintest_sign0_A1.001.h5')
-        if not os.path.isfile(sign0_traintest):
-            s0 = chemchecker.get_signature('sign0', 'full', 'A1.001')
-            common_keys, features = s0.get_vectors(self.keys)
-            _, labels = self.get_vectors(common_keys)
-            # we also want to learn how to predict confidence scores
-            mask = np.isin(self.keys, list(common_keys), assume_unique=True)
-            stddev = self.get_h5_dataset('stddev_norm', mask)
-            stddev = np.expand_dims(stddev, 1)
-            intensity = self.get_h5_dataset('intensity_norm', mask)
-            intensity = np.expand_dims(intensity, 1)
-            confidence = self.get_h5_dataset('confidence', mask)
-            confidence = np.expand_dims(confidence, 1)
-            # so they become part of the supervised learning input
-            labels = np.hstack((labels, stddev, intensity, confidence))
-            Traintest.create(features, labels, sign0_traintest)
+        # here there's no augmentation, mask default param
         self.params['adanet'] = {
-            'traintest_file': sign0_traintest,
             'augmentation': False}
-        self._learn(chemchecker, suffix='sign0_A1.001_final', evaluate=False)
+        # check if performance evaluations need to be done
+        s0_code = sign0.dataset
+        eval_stats = os.path.join(
+            self.model_path, 'adanet_sign0_%s_eval' % s0_code, 'stats.pkl')
+        if not os.path.isfile(eval_stats):
+            self._learn_sign0(sign0, suffix='sign0_%s_eval' % s0_code,
+                              evaluate=True)
+
+        # check if we have the final trained model
+        final_adanet_path = os.path.join(self.model_path,
+                                         'adanet_sign0_%s_final' % s0_code,
+                                         'savedmodel')
+        if not os.path.isdir(final_adanet_path):
+            self._learn_sign0(
+                sign0, suffix='sign0_%s_final' % s0_code, evaluate=False)
 
     def predict_from_smiles(self, smiles, dest_file, chunk_size=1000):
         """Given SMILES generate sign0 and predict sign3.
