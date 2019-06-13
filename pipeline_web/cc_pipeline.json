@@ -1,0 +1,20 @@
+{
+    "STEPS": {
+        "Libraries": {"apd" : "['Approved drugs','Approved drug molecules from DrugBank','http://zinc15.docking.org/catalogs/dbap/items.smi?count=all','zinc']", 
+                    "exd" : "['Experimental drugs','Experimental and investigational drug molecules from DrugBank','http://zinc15.docking.org/catalogs/dbex/items.smi?count=all;http://zinc15.docking.org/catalogs/dbin/items.smi?count=all','zinc']",
+                    "met" : "['Human metabolites','Endogenous human metabolites from Human Metabolome Database (HMDb)','http://zinc15.docking.org/catalogs/hmdbendo/items.smi?count=all','zinc']",
+                    "tcm" : "['Tradicional Chinese medicines','Compounds extracted from traditional Chinese medicinal plants','http://zinc15.docking.org/catalogs/tcmnp/items.smi?count=all','zinc']",
+                    "lincs" : "['LINCS compounds','Collection of compounds of the LINCS initiative','http://zinc15.docking.org/catalogs/lincs/items.smi?count=all','zinc']",
+                    "pwck" : "['Prestwick chemical library','Prestwick commercial collection','http://zinc15.docking.org/catalogs/prestwick/items.smi?count=all','zinc']",
+                    "nihcc" : "['NIH clinical collection','NIH clinical collection','http://zinc15.docking.org/catalogs/nihcc/items.smi?count=all','zinc']",
+                    "ncidiv" : "['NCI diversity collection','NCI diversity collection','http://zinc15.docking.org/catalogs/ncidiv/items.smi?count=all','zinc']",
+                    "tool" : "['Tool compounds','Tool compounds','http://zinc15.docking.org/toolcompounds.smi?count=all','zinc']"}
+        
+    },
+    "RUN": "['DB_universe','Pubchem','ShowTargets', 'Coordinates','Projections', 'Plots','MolecularInfo', 'Libraries', 'Similars']",
+    "PATH": "'/aloy/scratch/sbnb-adm/cc_pipeline_web'",
+    "MOLECULES_PATH": "'/aloy/web_checker/molecules/'",
+    "DB": "'cc_web_2019_05'",
+    "OLD_DB": "'mosaic'"
+
+}
