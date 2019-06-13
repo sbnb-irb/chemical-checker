@@ -98,6 +98,7 @@ class ChemicalChecker():
             if dataset not in molset_dataset_sign[molset]:
                 molset_dataset_sign[molset][dataset] = list()
             molset_dataset_sign[molset][dataset].append(sign)
+            molset_dataset_sign[molset][dataset].sort()
         return molset_dataset_sign
 
     def report_sizes(self, molset='*', dataset='*', signature='*', matrix='V'):
