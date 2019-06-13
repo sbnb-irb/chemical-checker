@@ -785,7 +785,7 @@ class MultiPlot():
         sns.set_style("whitegrid")
         fig, axes = plt.subplots(25, 1, sharey=True, sharex=False,
                                  figsize=(20, 70), dpi=100)
-        adanet_dir = 'adanet_final_eval'
+        adanet_dir = 'adanet_eval'
         if suffix is not None:
             adanet_dir = 'adanet_%s' % suffix
         for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
@@ -833,7 +833,7 @@ class MultiPlot():
         sns.set_style("whitegrid")
         fig, axes = plt.subplots(5, 5, sharey=True, sharex=False,
                                  figsize=(10, 10), dpi=100)
-        adanet_dir = 'adanet_final_eval'
+        adanet_dir = 'adanet_eval'
         if suffix is not None:
             adanet_dir = 'adanet_%s' % suffix
         for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
@@ -1007,7 +1007,7 @@ class MultiPlot():
         for ds in self.datasets:
             try:
                 s2 = self.cc.get_signature('sign2', 'full', ds)
-                n2 = self.cc.get_signature('neig2', 'full', ds)
+                n2 = self.cc.get_signature('neig2', 'reference', ds)
                 s3 = self.cc.get_signature('sign3', 'full', ds)
             except:
                 continue
