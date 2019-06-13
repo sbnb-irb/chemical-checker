@@ -194,7 +194,8 @@ class Downloader():
         destination = self.data_path
         if self.file is not None and self.dbname is None and len(os.listdir(source)) == 1:
             source = os.path.join(source, os.listdir(source)[0])
-            os.makedirs(self.data_path, 0o775)
+            if not os.path.exists(self.data_path):
+                os.makedirs(self.data_path, 0o775)
             destination = os.path.join(self.data_path, self.file)
 
         shutil.move(source, destination)
