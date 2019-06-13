@@ -267,6 +267,8 @@ class sign3(BaseSignature, DataSignature):
         """
         # here there's no augmentation, mask default param
         self.params['adanet'] = {
+            'epoch_per_iteration': 1,
+            'adanet_iterations': 10,
             'augmentation': False}
         # check if performance evaluations need to be done
         s0_code = sign0.dataset
