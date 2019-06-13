@@ -4,6 +4,7 @@ import datetime
 import numpy as np
 from time import time
 from numpy import linalg as LA
+from bisect import bisect_left
 
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
@@ -223,6 +224,50 @@ class neig(BaseSignature, DataSignature):
                 t_delta = str(datetime.timedelta(seconds=t_end - t_start))
                 self.__log.info(
                     "Converting to cosine distance took %s", t_delta)
+
+    def __getitem__(self, key):
+        """Return the neighbours corresponding to the key.
+
+        The key can be a string (then it's mapped though self.keys) or and
+        int.
+        Works fast with bisect, but should return None if the key is not in
+        keys (ideally, keep a set to do this).
+
+        Returns:
+            dict with keys:
+                1. 'indices' the indices of neighbors
+                2. 'keys' the inchikey of neighbors
+                3. 'distances' the cosine distances.
+        """
+        predictions = dict()
+
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file not available.")
+        if isinstance(key, slice):
+            with h5py.File(self.data_path, 'r') as hf:
+                predictions["indices"] = hf['indices'][key]
+                predictions["distances"] = hf['distances'][key]
+                keys = hf['col_keys'][:]
+                predictions["keys"] = keys[predictions["indices"]]
+        elif isinstance(key, str):
+            if key not in self.unique_keys:
+                raise Exception("Key '%s' not found." % key)
+            idx = bisect_left(self.keys, key)
+            with h5py.File(self.data_path, 'r') as hf:
+                predictions["indices"] = hf['indices'][idx]
+                predictions["distances"] = hf['distances'][idx]
+                keys = hf['col_keys'][:]
+                predictions["keys"] = keys[predictions["indices"]]
+        elif isinstance(key, int):
+            with h5py.File(self.data_path, 'r') as hf:
+                predictions["indices"] = hf['indices'][key]
+                predictions["distances"] = hf['distances'][key]
+                keys = hf['col_keys'][:]
+                predictions["keys"] = keys[predictions["indices"]]
+        else:
+            raise Exception("Key type %s not recognized." % type(key))
+
+        return predictions
 
     def get_kth_nearest(self, signatures, k=None, distances=True, keys=True):
         """Return up to the k-th nearest neighbor.
