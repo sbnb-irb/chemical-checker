@@ -14,6 +14,7 @@ from sklearn.preprocessing import Normalizer
 from scipy.spatial.distance import euclidean, pdist
 
 from .signature_base import BaseSignature
+from .signature_data import DataSignature
 
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
@@ -21,7 +22,7 @@ from chemicalchecker.util.plot import Plot
 
 
 @logged
-class clus(BaseSignature):
+class clus(BaseSignature, DataSignature):
     """A Signature bla bla."""
 
     def __init__(self, signature_path, dataset, **params):
