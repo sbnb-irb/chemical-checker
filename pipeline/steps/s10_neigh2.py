@@ -11,7 +11,7 @@ from chemicalchecker.util import HPC
 
 
 @logged
-class Neigh1(BaseStep):
+class Neigh2(BaseStep):
 
     def __init__(self, config, name, **params):
 
@@ -28,14 +28,14 @@ class Neigh1(BaseStep):
         for ds in all_datasets:
             if not ds.essential:
                 continue
-            sign1 = cc.get_signature("neig1", "full", ds.dataset_code)
+            sign1 = cc.get_signature("neig2", "full", ds.dataset_code)
             if sign1.is_fit():
                 continue
 
             dataset_codes.append(ds.dataset_code)
 
         job_path = tempfile.mkdtemp(
-            prefix='jobs_neig1_', dir=self.tmpdir)
+            prefix='jobs_neig2_', dir=self.tmpdir)
 
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
@@ -58,20 +58,20 @@ class Neigh1(BaseStep):
             # elements are indexes
             'cc = ChemicalChecker(config.PATH.CC_ROOT )',
             # start import
-            'sign1_full = cc.get_signature("sign1","full",data)',
+            'sign2_full = cc.get_signature("sign2","full",data)',
             # start import
-            'sign1_ref = cc.get_signature("sign1","reference",data)',
+            'sign2_ref = cc.get_signature("sign2","reference",data)',
             "pars = {'cpu': 10}",
             # start import
-            'neig1_ref = cc.get_signature("neig1", "reference", data,**pars)',
-            "neig1_ref.fit(sign1_ref)",
-            "neig1_full = cc.get_signature('neig1', 'full', data,**pars)",
-            "neig1_ref.predict(sign1_full, destination=neig1_full.data_path)",
-            "neig1_full.mark_ready()",
+            'neig2_ref = cc.get_signature("neig2", "reference", data,**pars)',
+            "neig2_ref.fit(sign1_ref)",
+            "neig2_full = cc.get_signature('neig2', 'full', data,**pars)",
+            "neig2_ref.predict(sign2_full, destination=neig2_full.data_path)",
+            "neig2_full.mark_ready()",
             "print('JOB DONE')"
         ]
 
-        script_name = os.path.join(job_path, 'neig1_script.py')
+        script_name = os.path.join(job_path, 'neig2_script.py')
         with open(script_name, 'w') as fh:
             for line in script_lines:
                 fh.write(line + '\n')
@@ -80,7 +80,7 @@ class Neigh1(BaseStep):
         params = {}
         params["num_jobs"] = len(dataset_codes)
         params["jobdir"] = job_path
-        params["job_name"] = "CC_NEIG1"
+        params["job_name"] = "CC_NEIG2"
         params["elements"] = dataset_codes
         params["wait"] = True
         params["memory"] = 34
@@ -97,13 +97,13 @@ class Neigh1(BaseStep):
 
         for code in dataset_codes:
 
-            sign0 = cc.get_signature("neig1", "full", code)
-            if sign0.is_fit():
+            neig2 = cc.get_signature("neig2", "full", code)
+            if neig2.is_fit():
                 continue
 
             dataset_not_done.append(code)
             self.__log.warning(
-                "Neigh1 fit failed for dataset code: " + code)
+                "Neigh2 fit failed for dataset code: " + code)
 
         if len(dataset_not_done) == 0:
             self.mark_ready()

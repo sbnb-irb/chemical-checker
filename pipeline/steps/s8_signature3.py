@@ -11,7 +11,7 @@ from chemicalchecker.util import HPC
 
 
 @logged
-class Neigh1(BaseStep):
+class Signature3(BaseStep):
 
     def __init__(self, config, name, **params):
 
@@ -24,21 +24,31 @@ class Neigh1(BaseStep):
         config_cc = Config()
 
         cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
+
         dataset_codes = list()
         for ds in all_datasets:
             if not ds.essential:
                 continue
-            sign1 = cc.get_signature("neig1", "full", ds.dataset_code)
-            if sign1.is_fit():
+            sign3 = cc.get_signature("sign3", "full", ds.dataset_code)
+            if sign3.is_fit():
                 continue
+
+            if os.path.exists(sign3.signature_path):
+                shutil.rmtree(sign3.signature_path)
 
             dataset_codes.append(ds.dataset_code)
 
         job_path = tempfile.mkdtemp(
-            prefix='jobs_neig1_', dir=self.tmpdir)
+            prefix='jobs_sign3_', dir=self.tmpdir)
 
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
+
+        sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in cc.datasets]
+        full_universe = os.path.join(self.tmpdir, "universe_full")
+        sign3_full = cc.get_signature('sign3', 'full', "A1.001")
+        sign3_full.save_sign2_universe(sign2_list, full_universe)
+
         # create script file
         cc_config_path = os.environ['CC_CONFIG']
         cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
@@ -58,20 +68,16 @@ class Neigh1(BaseStep):
             # elements are indexes
             'cc = ChemicalChecker(config.PATH.CC_ROOT )',
             # start import
-            'sign1_full = cc.get_signature("sign1","full",data)',
-            # start import
-            'sign1_ref = cc.get_signature("sign1","reference",data)',
             "pars = {'cpu': 10}",
             # start import
-            'neig1_ref = cc.get_signature("neig1", "reference", data,**pars)',
-            "neig1_ref.fit(sign1_ref)",
-            "neig1_full = cc.get_signature('neig1', 'full', data,**pars)",
-            "neig1_ref.predict(sign1_full, destination=neig1_full.data_path)",
-            "neig1_full.mark_ready()",
+            "sign3_full = cc.get_signature('sign3', 'full', data,**pars)",
+            "sign2_full = cc.get_signature('sign2', 'full', data)",
+            "sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in cc.datasets]",
+            "sign3_full.fit(sign2_list,sign2_full,sign2_universe='%s')" % full_universe,
             "print('JOB DONE')"
         ]
 
-        script_name = os.path.join(job_path, 'neig1_script.py')
+        script_name = os.path.join(job_path, 'sign3_script.py')
         with open(script_name, 'w') as fh:
             for line in script_lines:
                 fh.write(line + '\n')
@@ -80,10 +86,10 @@ class Neigh1(BaseStep):
         params = {}
         params["num_jobs"] = len(dataset_codes)
         params["jobdir"] = job_path
-        params["job_name"] = "CC_NEIG1"
+        params["job_name"] = "CC_SIGN3"
         params["elements"] = dataset_codes
         params["wait"] = True
-        params["memory"] = 34
+        params["memory"] = 20
         params["cpu"] = 10
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
@@ -97,13 +103,13 @@ class Neigh1(BaseStep):
 
         for code in dataset_codes:
 
-            sign0 = cc.get_signature("neig1", "full", code)
-            if sign0.is_fit():
+            sign3 = cc.get_signature("sign3", "full", code)
+            if sign3.is_fit():
                 continue
 
             dataset_not_done.append(code)
             self.__log.warning(
-                "Neigh1 fit failed for dataset code: " + code)
+                "Signature3 fit failed for dataset code: " + code)
 
         if len(dataset_not_done) == 0:
             self.mark_ready()
