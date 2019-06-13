@@ -6,12 +6,13 @@ from time import time
 from numpy import linalg as LA
 
 from .signature_base import BaseSignature
+from .signature_data import DataSignature
 
 from chemicalchecker.util import logged
 
 
 @logged
-class neig(BaseSignature):
+class neig(BaseSignature, DataSignature):
     """A Signature bla bla."""
 
     def __init__(self, signature_path, dataset, **params):
@@ -237,8 +238,8 @@ class neig(BaseSignature):
             k(int): Amount of neigbors to find, if None return the maximum
                 possible.
         Returns:
-            dict with keys: 
-                1. 'indices' the indices of neighbors 
+            dict with keys:
+                1. 'indices' the indices of neighbors
                 2. 'keys' the inchikey of neighbors
                 3. 'distances' the cosine distances.
         """
@@ -247,6 +248,9 @@ class neig(BaseSignature):
         except ImportError:
             raise ImportError("requires faiss " +
                               "https://github.com/facebookresearch/faiss")
+
+        with h5py.File(self.data_path, "r") as hw:
+            metric_orig = hw["metric"][0]
         # open faiss model
         faiss.omp_set_num_threads(self.cpu)
         index = faiss.read_index(self.index_filename)
@@ -259,7 +263,7 @@ class neig(BaseSignature):
             k = max_k
         # convert signatures to float32 as faiss is very picky
         data = np.array(signatures, dtype=np.float32)
-        # get neighbors idx and distances 
+        # get neighbors idx and distances
         dists, idx = index.search(data, k)
         predictions = dict()
         predictions["indices"] = idx
@@ -268,23 +272,30 @@ class neig(BaseSignature):
                 keys = hf['col_keys'][:]
             predictions["keys"] = keys[idx]
         if distances:
+
             predictions["distances"] = dists
-            # convert distances to cosine
-            norms = LA.norm(data, axis=1)
-            with h5py.File(self.norms_file, "r") as hw:
-                norms_fit = hw["norms"][:]
-            t_start = time()
-            mat = np.ones((len(signatures), k))
-            mat = mat / norms[:, None]
-            I = predictions["indices"]
-            for i in range(0, len(signatures)):
-                for j in range(0, k):
-                    mat[i, j] = mat[i, j] / norms_fit[I[i, j]]
-                predictions["distances"] = np.maximum(
-                    0.0, 1.0 - (predictions["distances"] * mat))
-            t_delta = str(datetime.timedelta(seconds=time() - t_start))
-            self.__log.info(
-                "Converting to cosine distance took %s", t_delta)
+            if metric_orig == "cosine":
+
+                norms = LA.norm(data, axis=1)
+                datasize = len(signatures)
+
+                with h5py.File(self.norms_file, "r") as hw:
+                    norms_fit = hw["norms"][:]
+
+                t_start = time()
+                mat = np.ones((datasize, k))
+                mat = mat / norms[:, None]
+
+                I = predictions["indices"]
+                for i in range(0, datasize):
+                    for j in range(0, k):
+                        mat[i, j] = mat[i, j] / norms_fit[I[i, j]]
+                    predictions["distances"] = np.maximum(
+                        0.0, 1.0 - (predictions["distances"] * mat))
+                t_end = time()
+                t_delta = str(datetime.timedelta(seconds=t_end - t_start))
+                self.__log.info(
+                    "Converting to cosine distance took %s", t_delta)
         return predictions
 
     @staticmethod
