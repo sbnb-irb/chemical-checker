@@ -857,15 +857,16 @@ class Parser():
         cur = psql.qstring_cur(query, molrepo_name)
         chunk = list()
         for idx, row in enumerate(cur):
-            src_id  = "pharmacodb_%d" % row[0]
-            smiles  = row[1]
+            src_id = "pharmacodb_%d" % row[0]
+            smiles = row[1]
             pubchem = row[2]
             if (smiles is None or smiles == "-666") and pubchem is not None:
                 try:
                     smiles = Compound.from_cid(pubchem).isomeric_smiles
                 except:
                     continue
-            if smiles is None or smiles == "-666": continue
+            if smiles is None or smiles == "-666":
+                continue
             # the following is always the same
             try:
                 inchikey, inchi = converter.smiles_to_inchi(smiles)
@@ -900,12 +901,12 @@ class Parser():
         file_path = map_paths["GSE92742_Broad_LINCS_pert_info"]
         chunk = list()
         f = open(file_path, "r")
-        reader = csv.reader(f, delimiter = "\t")
+        reader = csv.reader(f, delimiter="\t")
         header = next(reader)
-        istouch_idx  = header.index("is_touchstone")
-        pertid_idx   = header.index("pert_id")
-        pertype_idx  = header.index("pert_type")
-        smiles_idx   = header.index("canonical_smiles")
+        istouch_idx = header.index("is_touchstone")
+        pertid_idx = header.index("pert_id")
+        pertype_idx = header.index("pert_type")
+        smiles_idx = header.index("canonical_smiles")
         for r in reader:
             if r[istouch_idx] != "1":
                 continue
@@ -913,7 +914,8 @@ class Parser():
                 continue
             src_id = r[pertid_idx]
             smi = r[smiles_idx]
-            if smi == "-666": continue
+            if smi == "-666":
+                continue
             try:
                 inchikey, inchi = converter.smiles_to_inchi(smi)
             except Exception as ex:
@@ -936,3 +938,39 @@ class Parser():
                 chunk = list()
         yield chunk
 
+    @staticmethod
+    def zinc(map_paths, molrepo_name, chunks=1000):
+
+        converter = Converter()
+
+        file_path = map_paths[molrepo_name]
+        chunk = list()
+        f = open(file_path, "r")
+        f.next()
+        for l in f:
+            l = l.rstrip("\n").split(" ")
+            if len(l) < 3:
+                continue
+            src_id = l[2]
+            smi = l[0]
+            try:
+                inchikey, inchi = converter.smiles_to_inchi(smi)
+            except Exception as ex:
+                Parser.__log.warning("ZINC ID %s: %s", src_id, str(ex))
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
+            result = {
+                "id": id_text,
+                "molrepo_name": molrepo_name,
+                "src_id": src_id,
+                "smiles": smi,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
+        yield chunk
