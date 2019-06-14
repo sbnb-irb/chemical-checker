@@ -12,6 +12,7 @@ import collections
 from collections import defaultdict
 
 from chemicalchecker.util import logged
+from chemicalchecker.core.signature_data import DataSignature
 
 
 @logged
@@ -196,7 +197,9 @@ class RNDuplicates():
                     self.data[np.array(self.final_ids)], dtype=self.data_type)
             hf.create_dataset("V", data=V)
             hf.create_dataset("shape", data=V.shape)
-            hf.create_dataset("mappings", data=np.array(list_maps.items()))
+            hf.create_dataset("mappings",
+                              data=np.array(list_maps.items(),
+                                            DataSignature.string_dtype()))
         self.__log.info("Writing mappings to " + dirpath)
         with open(os.path.join(dirpath, "mappings"), 'wb') as fh:
             pickle.dump(self.mappings, fh)
