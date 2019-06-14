@@ -82,9 +82,19 @@ class DataSignature(object):
             if h5_dataset_name not in hf.keys():
                 raise Exception("HDF5 file has no '%s'." % h5_dataset_name)
             if mask is None:
-                return hf[h5_dataset_name][:]
+                ndim = hf[h5_dataset_name].ndim
+                if hasattr(hf[h5_dataset_name][(0,)*ndim], 'encode'):
+                    encoder = np.vectorize(lambda x: x.encode())
+                    return encoder(hf[h5_dataset_name][:])
+                else:
+                    return hf[h5_dataset_name][:]
             else:
-                return hf[h5_dataset_name][mask]
+                ndim = hf[h5_dataset_name].ndim
+                if hasattr(hf[h5_dataset_name][(0,)*ndim], 'encode'):
+                    encoder = np.vectorize(lambda x: x.encode())
+                    return encoder(hf[h5_dataset_name][mask])
+                else:
+                    return hf[h5_dataset_name][mask]
 
     def __getitem__(self, key):
         """Return the vector corresponding to the key.
