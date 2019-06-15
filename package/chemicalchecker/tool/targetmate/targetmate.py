@@ -32,12 +32,13 @@ from scipy.stats import percentileofscore
 class TargetMate:
     """TargetMate class"""
 
-    def __init__(self, models_path, base_clf = "tpot", cv = 5, k = 5, min_sim = 0.25, min_class_size = 10, datasets = None,
-                 metric = "auroc", cc_root = None):
+    def __init__(self, models_path, tmp_path = None, base_clf = "tpot", cv = 5, k = 5, min_sim = 0.25, min_class_size = 10,
+                 datasets = None, metric = "auroc", cc_root = None):
         """Initialize the TargetMate class
 
         Args:
-            models_path(str): Directorty where models will be stored. 
+            models_path(str): Directorty where models will be stored.
+            tmp_path(str): Directory where temporary data will be stored (relevant at predict time) (default=None)
             base_clf(clf): Classifier instance, containing fit and predict_proba methods (default="tpot")
                 The following strings are also accepted: "logistic_regression", "random_forest", "naive_bayes" and "tpot"
                 By default, sklearn LogisticRegressionCV is used.
@@ -54,6 +55,14 @@ class TargetMate:
         self.models_path = os.path.abspath(models_path)
         if not os.path.exists(models_path):
             raise Exception("Specified models directory does not exist: %s" % self.models_path)
+        # Temporary path
+        if not tmp_path:
+            import uuid
+            self.tmp_path = os.path.join(Config().PATH.CC_TMP, str(uuid.uuid4()))
+        else:
+            self.tmp_path = os.path.abspath(tmp_path)
+        if not os.path.exists(tmp_path):
+            raise Exception("Specified temporary directory does not exist: %s" % self.tmp_path)
         # Set the base classifier
         if type(base_clf) == str:
             if base_clf == "logistic_regression":
@@ -94,14 +103,21 @@ class TargetMate:
         # Metric to use
         self.metric = metric
         # Others
-        self._is_fitted = False
+        self._is_fitted  = False
+        self._is_trained = False
 
-    def _read_sign3(self, dataset, idxs = None, is_prd = False):
-        h5file = os.path.join(self.models_path, dataset)
-        if is_prd:
-            h5file = h5file + "_prd"
+    def _read_sign3(self, dataset, idxs = None, sign_folder = None, is_prd = False):
+        # Identify HDF5 file
+        if not sign_folder:
+            if is_prd:
+                h5file = os.path.join(self.tmp_path, dataset)
+            else:
+                h5file = os.path.join(self.models_path, dataset)
+        else:
+            h5file = os.path.join(sign_folder, dataset)        
+        # Read the file
         with h5py.File(h5file, "r") as hf:
-            if idxs is None:
+            if not idxs:
                 V = hf["V"][:]
             else:
                 V = hf["V"][:][idxs]
@@ -167,11 +183,12 @@ class TargetMate:
 
     def fingerprint_arena(self, smiles, use_checkpoints = False, is_prd = False):
         """Read smiles string"""
-        smi_file = os.path.join(self.models_path, "arena.smi")
-        fps_file = os.path.join(self.models_path, "arena.fps")
         if is_prd:
-            smi_file = smi_file[:-4] + "_prd.smi"
-            fps_file = fps_file[:-4] + "_prd.fps"
+            smi_file = os.path.join(self.tmp_path, "arena.smi")
+            fps_file = os.path.join(self.tmp_path, "arena.fps")
+        else:
+            smi_file = os.path.join(self.models_path, "arena.smi")
+            fps_file = os.path.join(self.models_path, "arena.fps")
         if not use_checkpoints or not os.path.exists(fps_file):
             self.__log.debug("Writing SMILES")
             with open(smi_file, "w") as f:
@@ -237,14 +254,15 @@ class TargetMate:
             weights += [np.max(ws)]
         return np.array(weights)
 
-    def fit(self, data, standardize = True, use_checkpoints = True):
+    def fit(self, data, standardize = True, use_checkpoints = False):
         """
         Fit SMILES-activity data.
         Invalid SMILES are removed from the prediction.
 
         Args:
             data(str or list of tuples): 
-            standardize(bool): If True, SMILES strings will be standardized.
+            standardize(bool): If True, SMILES strings will be standardized (default=True)
+            use_checkpoints(bool): Store signature files and others that can be reutilized (default=False)
         """
         if not use_checkpoints:
             # Cleaning models directory
@@ -269,10 +287,15 @@ class TargetMate:
         data = data_
         y      = np.array([d[-1] for d in data])
         smiles = np.array([d[2] for d in data])
+        # Save training data
+        with open(self.models_path + "/trained_data.pkl", "w") as f:
+            pickle.dump(data, f)
         # Check that there are enough molecules for training.
         ny = np.sum(y)
         if ny < self.min_class_size or (len(y) - ny) < self.min_class_size:
-            raise Exception("Not enough valid molecules in the minority class")
+            self.__log.warning("Not enough valid molecules in the minority class... Just keeping training data")
+            self._is_fitted = True
+            return
         # Get signatures
         self.__log.info("Calculating sign3 for every molecule.")
         for dataset in self.datasets:
@@ -349,13 +372,10 @@ class TargetMate:
         # Save ensemble
         with open(self.models_path + "/ensemble.pkl", "w") as f:
             pickle.dump(clf_ensemble, f)
-        # Save training data
-        with open(self.models_path + "/trained_data.pkl", "w") as f:
-            pickle.dump(data, f)
         # Nearest neighbors
         self.__log.info("Calculating nearest-neighbors model to be used in the applicability domain.")
         self.__log.debug("Getting fingerprint arena")
-        fps_test = self.fingerprint_arena(smi_test)
+        fps_test = self.fingerprint_arena(smi_test, use_checkpoints = use_checkpoints, is_prd = False)
         # Save AD data
         self.__log.info("Calculating applicability domain weights")
         self.__log.debug("Working on the bias")
@@ -367,21 +387,27 @@ class TargetMate:
         self.__log.info("Saving applicability domain weights")
         with open(self.models_path + "/ad_data.pkl", "w") as f:
             pickle.dump(ad_data, f)
+        # Cleaning up, if necessary
+        if not use_checkpoints:
+            self.__log.debug("Removing signature files")
+            for dataset in datasets:
+                os.remove(os.path.join(self.models_path, dataset))
         # Finish
-        self._is_fitted = True
-        
-    def predict(self, data, datasets = None, standardize = True, known = True, use_checkpoints = False):
+        self._is_fitted  = True
+        self._is_trained = True
+
+    def predict(self, data, datasets = None, standardize = True, known = True):
         '''
         Predict SMILES-activity data.
         Invalid SMILES are given no prediction.
         We provide the ouptut probability, the applicability domain and the precision of the model (1 - std).
 
         Args:
-            data(str or list): SMILES strings
-            datasets(list): Subset of datasets to use in the metaprediction. All by default (default=None)
+            data(str or list): SMILES strings expressed as a list or a file.
+                If a folder name is given, then TargetMate assumes that signatures are provided (use with caution).
+            datasets(list): Subset of datasets to use in the metaprediction. All by default (default=None) 
             standardize(bool): If True, SMILES strings will be standardized (default=True)
             known(bool): Look for exact matches based on InChIKey (default=True)
-            use_checkpoints(bool): Signature type 3 checkpoints, useful when different subsets of data are explored. Use with caution (default=False)
         '''
         if not self._is_fitted:
             raise Exception("TargetMate instance needs to be fitted first")
@@ -392,30 +418,46 @@ class TargetMate:
             my_datasets = set(datasets)
         if len(my_datasets.intersection(self.datasets)) < 1:
             raise Exception("At least one valid dataset is necessary")
-        self.__log.info("Reading data")
-        # Read data if it is a file
+        sign_folder = None
         if type(data) == str:
-            with open(data, "r") as f:
+            data = os.path.abspath(data)
+            if os.path.isfolder(data):
+                # When data is a folder, we assume it contains signatures
+                self.__log.debug("Signature folder found")
+                sign_folder = os.path.abspath(data)
+                # We need to get the SMILES strings from these signatures, and make sure everything is in the same order.
                 data = []
-                for r in csv.reader(f, delimiter = "\t"):
-                    data += [r[0]]
-        # Get only valid SMILES strings
-        self.__log.info("Parsing SMILES strings, keeping only valid ones for training.")
-        data_ = []
-        N = len(data)
-        for i, d in enumerate(data):
-            m = self.read_smiles(d, standardize)
-            if not m: continue
-            data_ += [(i, m[0], m[1])]
-        data = data_
-        # Get signatures
-        self.__log.info("Calculating sign3 for every molecule.")
-        for dataset in self.datasets:
-            if dataset not in my_datasets: continue
-            destination_dir = os.path.join(self.models_path, dataset + "_prd")
-            if os.path.exists(destination_dir) and use_checkpoints:
-                continue
+                # @mduran: Do this.
+            elif os.path.ifile(data):
+                self.__log.info("Reading data from file")
+                # Read data if it is a file
+                if type(data) == str:
+                    if not os.path.isfile(data):
+                        raise Exception("File %d does not exist" % data)
+                    with open(data, "r") as f:
+                        data = []
+                        for r in csv.reader(f, delimiter = "\t"):
+                            data += [r[0]]
             else:
+                raise Exception("%s does not exist" % data)
+        if not sign_folder:
+            # If signatures were not provided, then we work with the temporary directory
+            if os.path.exists(self.tmp_path): shutil.rmtree(self.tmp_path) 
+            os.mkdir(self.tmp_path)
+            # Get only valid SMILES strings
+            self.__log.info("Parsing SMILES strings, keeping only valid ones for training.")
+            data_ = []
+            N = len(data)
+            for i, d in enumerate(data):
+                m = self.read_smiles(d, standardize)
+                if not m: continue
+                data_ += [(i, m[0], m[1])]
+            data = data_
+            # Get signatures
+            self.__log.info("Calculating sign3 for every molecule.")
+            for dataset in self.datasets:
+                if dataset not in my_datasets: continue
+                destination_dir = os.path.join(self.tmp_path, dataset)
                 if os.path.exists(destination_dir): os.remove(destination_dir)
                 self.__log.debug("Calculating sign3 for %s" % dataset)
                 s3 = self.cc.get_signature("sign3", "full", dataset)
@@ -429,7 +471,7 @@ class TargetMate:
         yps  = {}
         for dataset, clf in clf_ensemble:
             if dataset not in my_datasets: continue
-            X = self._read_sign3(dataset, is_prd = True)
+            X = self._read_sign3(dataset, sign_folder = sign_folder, is_prd = True)
             yps[dataset] = [p[1] for p in clf.predict_proba(X)]
         # Read performances
         self.__log.debug("Reading performances")
@@ -449,7 +491,7 @@ class TargetMate:
             ad_data = pickle.load(f)
         # Calculate weights
         self.__log.debug("Calculating weights")
-        fps     = self.fingerprint_arena([d[2] for d in data], use_checkpoints = use_checkpoints, is_prd = True)
+        fps     = self.fingerprint_arena([d[2] for d in data], is_prd = True)
         weights = self.calculate_weights(fps, fps_fit, ad_data[:,0], ad_data[:,1], N)
         # Get percentiles
         self.__log.debug("Calculating percentiles of the weight (i.e. AD)")
