@@ -13,9 +13,11 @@
 import os, shutil
 import json
 import h5py
+import csv
 import collections
 import numpy as np
 import pickle
+from sklearn.externals import joblib
 from sklearn.model_selection import StratifiedKFold
 from sklearn import metrics
 from sklearn.base import clone
@@ -54,15 +56,14 @@ class TargetMate:
         # Models path
         self.models_path = os.path.abspath(models_path)
         if not os.path.exists(models_path):
-            raise Exception("Specified models directory does not exist: %s" % self.models_path)
+            self.__log.warning("Specified models directory does not exist: %s" % self.models_path)
+            os.mkdir(self.models_path)
         # Temporary path
         if not tmp_path:
             import uuid
             self.tmp_path = os.path.join(Config().PATH.CC_TMP, str(uuid.uuid4()))
         else:
             self.tmp_path = os.path.abspath(tmp_path)
-        if not os.path.exists(tmp_path):
-            raise Exception("Specified temporary directory does not exist: %s" % self.tmp_path)
         # Set the base classifier
         if type(base_clf) == str:
             if base_clf == "logistic_regression":
@@ -72,14 +73,13 @@ class TargetMate:
                 from sklearn.ensemble import RandomForestClassifier
                 self.base_clf = RandomForestClassifier(n_estimators = 100, class_weight = "balanced", n_jobs = 1)
             if base_clf == "naive_bayes":
-                from sklearn.naive_bayes import BernoulliNB
-                self.base_clf = BernoulliNB()
+                from sklearn.naive_bayes import GaussianNB
+                self.base_clf = GaussianNB()
             if base_clf == "tpot":
                 from tpot import TPOTClassifier # @mbertoni: install TPOT please in the Chemical Checker...
-                self.base_clf = TPOTClassifier(generations = 100, scoring = "roc_auc",
-                                     config_dict = "TPOT light", verbosity = 0, n_jobs = 1)
-                #self.base_clf = TPOTClassifier(generations = 100, scoring = "roc_auc",
-                #                               verbosity = 0, n_jobs = 1)
+                from models import tpotconfigs
+                self.base_clf = TPOTClassifier(generations = 5, cv = 3, scoring = "roc_auc",
+                                     config_dict = tpotconfigs.naive, verbosity = 2, n_jobs = 1)
                 self._is_tpot = True
             else:
                 self._is_tpot = False
@@ -117,11 +117,33 @@ class TargetMate:
             h5file = os.path.join(sign_folder, dataset)        
         # Read the file
         with h5py.File(h5file, "r") as hf:
-            if not idxs:
+            if idxs is None:
                 V = hf["V"][:]
             else:
                 V = hf["V"][:][idxs]
         return V
+
+    def _save_ensemble(self, clf_ensemble):
+        if self._is_tpot:
+            ensdir = os.path.join(self.models_path, "ensemble")
+            if os.path.exists(ensdir): shutil.rmtree(ensdir)
+            os.mkdir(ensdir)
+            for dataset, clf in clf_ensemble:
+                joblib.dump(clf, ensdir + "/" + dataset + ".sav")
+        else:
+            with open(self.models_path + "/ensemble.pkl", "w") as f:
+                pickle.dump(clf_ensemble, f)
+
+    def _load_ensemble(self):
+        if self._is_tpot:
+            clf_ensemble = []
+            ensdir = os.path.join(self.models_path, "ensemble")
+            for dataset, clf in clf_ensemble:
+                clf_ensemble += [(dataset, joblib.load(ensdir + "/" + dataset + ".sav"))]  
+        else:
+            with open(self.models_path + "/ensemble.pkl", "r") as f:
+                clf_ensemble = pickle.load(f)
+        return clf_ensemble
 
     @staticmethod
     def avg_and_std(values, weights=None):
@@ -161,14 +183,17 @@ class TargetMate:
         perfs["aupr"] = (aupr, aupr_w + 1e-6)
         return perfs
 
-    def metapredict(self, yp_dict, perfs):
+    def metapredict(self, yp_dict, perfs, dataset_universe = None):
         """Do meta-prediciton based on dataset-specific predictions.
         Weights are given according to the performance of the individual predictors.
         Standard deviation across predictions is kept to estimate applicability domain.
         """
+        if dataset_universe is None:
+            dataset_universe = set(self.datasets)
         M = []
         w = []
         for dataset in self.datasets:
+            if dataset not in dataset_universe: continue
             w += [perfs[dataset]["perf_test"][self.metric][1]] # Get the weight
             M += [yp_dict[dataset]]
         M = np.array(M)
@@ -315,10 +340,12 @@ class TargetMate:
             self.__log.debug("Working on %s" % dataset)
             clf = clone(self.base_clf)
             X = self._read_sign3(dataset)
-            clf.fit(X, y)
+            clf.fit(X,y)
             if self._is_tpot:
                 pipes += [clf.fitted_pipeline_]
-            clf_ensemble += [(dataset, clf)]
+                clf_ensemble += [(dataset, pipes[-1].fit(X,y))]
+            else:
+                clf_ensemble += [(dataset, clf)]
         # Initialize cross-validation generator
         skf = StratifiedKFold(n_splits=np.min([self.cv, ny]), shuffle=True, random_state=42)
         # Do the individual predictors
@@ -370,8 +397,7 @@ class TargetMate:
         with open(self.models_path + "/perfs.json", "w") as f:
             json.dump(perfs, f)
         # Save ensemble
-        with open(self.models_path + "/ensemble.pkl", "w") as f:
-            pickle.dump(clf_ensemble, f)
+        self._save_ensemble(clf_ensemble)
         # Nearest neighbors
         self.__log.info("Calculating nearest-neighbors model to be used in the applicability domain.")
         self.__log.debug("Getting fingerprint arena")
@@ -390,7 +416,7 @@ class TargetMate:
         # Cleaning up, if necessary
         if not use_checkpoints:
             self.__log.debug("Removing signature files")
-            for dataset in datasets:
+            for dataset in self.datasets:
                 os.remove(os.path.join(self.models_path, dataset))
         # Finish
         self._is_fitted  = True
@@ -421,13 +447,22 @@ class TargetMate:
         sign_folder = None
         if type(data) == str:
             data = os.path.abspath(data)
-            if os.path.isfolder(data):
+            if os.path.isdir(data):
                 # When data is a folder, we assume it contains signatures
                 self.__log.debug("Signature folder found")
                 sign_folder = os.path.abspath(data)
                 # We need to get the SMILES strings from these signatures, and make sure everything is in the same order.
-                data = []
-                # @mduran: Do this.
+                self.__log.debug("Making sure SMILES are correct")
+                sorted_datasets = sorted(my_datasets.intersection(self.datasets))
+                with h5py.File(os.path.join(sign_folder, sorted_datasets[0]), "r") as hf:
+                    previous = hf["keys"][:]
+                for dataset in sorted_datasets[1:]:
+                    with h5py.File(os.path.join(sign_folder, dataset), "r") as hf:
+                        current = hf["keys"][:]
+                    if not np.array_equal(previous, current):
+                        raise Exception("All signatures provided do not have the same keys!")
+                    previous = current
+                data = list(previous)
             elif os.path.ifile(data):
                 self.__log.info("Reading data from file")
                 # Read data if it is a file
@@ -440,19 +475,19 @@ class TargetMate:
                             data += [r[0]]
             else:
                 raise Exception("%s does not exist" % data)
+        # If signatures were not provided, then we work with the temporary directory
+        if os.path.exists(self.tmp_path): shutil.rmtree(self.tmp_path) 
+        os.mkdir(self.tmp_path)
+        # Get only valid SMILES strings
+        self.__log.info("Parsing SMILES strings, keeping only valid ones for training.")
+        data_ = []
+        N = len(data)
+        for i, d in enumerate(data):
+            m = self.read_smiles(d, standardize)
+            if not m: continue
+            data_ += [(i, m[0], m[1])]
+        data = data_
         if not sign_folder:
-            # If signatures were not provided, then we work with the temporary directory
-            if os.path.exists(self.tmp_path): shutil.rmtree(self.tmp_path) 
-            os.mkdir(self.tmp_path)
-            # Get only valid SMILES strings
-            self.__log.info("Parsing SMILES strings, keeping only valid ones for training.")
-            data_ = []
-            N = len(data)
-            for i, d in enumerate(data):
-                m = self.read_smiles(d, standardize)
-                if not m: continue
-                data_ += [(i, m[0], m[1])]
-            data = data_
             # Get signatures
             self.__log.info("Calculating sign3 for every molecule.")
             for dataset in self.datasets:
@@ -464,8 +499,7 @@ class TargetMate:
                 s3.predict_from_smiles([d[2] for d in data], destination_dir)
         # Read ensemble of models
         self.__log.debug("Reading ensemble of models")
-        with open(self.models_path + "/ensemble.pkl", "r") as f:
-            clf_ensemble = pickle.load(f)
+        clf_ensemble = self._load_ensemble()
         # Make predictions
         self.__log.info("Doing individual predictions")
         yps  = {}
@@ -479,7 +513,7 @@ class TargetMate:
             perfs = json.load(f)
         # Do the metaprediction
         self.__log.info("Metaprediction")
-        mps, std = self.metapredict(yps, perfs)
+        mps, std = self.metapredict(yps, perfs, dataset_universe = my_datasets)
         # Do applicability domain
         self.__log.info("Calculating applicability domain")
         # Nearest neighbors
@@ -520,4 +554,8 @@ class TargetMate:
             mps_[idx] = mps[i]
             ad_[idx]  = ad[i]
             prc_[idx] = 1-std[i]
+        # Finish
+        self.__log.debug("Remove temporary directory")
+        shutil.rmtree(self.tmp_path)
+        # Return
         return mps_, ad_, prc_
