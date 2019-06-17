@@ -58,7 +58,6 @@ class sign3(BaseSignature, DataSignature):
             "cpu": params.get('cpu', 4)
         }
         self.params['adanet'] = params.get('adanet', default_adanet)
-        self.consistency_check()
 
     def save_sign2_matrix(self, sign2_list, destination):
         """Save matrix of horizontally stacked signature 2.
