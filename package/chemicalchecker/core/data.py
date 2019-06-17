@@ -24,15 +24,12 @@ class DataFactory():
         from .neig import neig
         from .proj import proj
 
-        try:
-            DataFactory.__log.debug("initializing object %s", cctype)
-            args = (signature_path, dataset_code)
-            if cctype[:4] in ['clus', 'neig', 'proj']:
-                return eval(cctype[:4])(*args, **params)
-            else:
-                return eval(cctype)(*args, **params)
-        except Exception as ex:
-            raise Exception("Error initializing %s: %s" % (cctype, ex))
+        DataFactory.__log.debug("initializing object %s", cctype)
+        args = (signature_path, dataset_code)
+        if cctype[:4] in ['clus', 'neig', 'proj']:
+            return eval(cctype[:4])(*args, **params)
+        else:
+            return eval(cctype)(*args, **params)
 
     @staticmethod
     def signaturize(cctype, signature_path, matrix, keys=None, dataset_code=None):
@@ -59,10 +56,7 @@ class DataFactory():
             hf.create_dataset("keys", data=keys)
             hf.create_dataset("V", data=matrix)
             hf.create_dataset("shape", data=matrix.shape)
-        try:
-            if cctype[:4] in ['clus', 'neig', 'proj']:
-                return eval(cctype[:4])(signature_path, dataset_code)
-            else:
-                return eval(cctype)(signature_path, dataset_code)
-        except Exception as ex:
-            raise Exception("Error initializing %s: %s" % (cctype, ex))
+        if cctype[:4] in ['clus', 'neig', 'proj']:
+            return eval(cctype[:4])(signature_path, dataset_code)
+        else:
+            return eval(cctype)(signature_path, dataset_code)
