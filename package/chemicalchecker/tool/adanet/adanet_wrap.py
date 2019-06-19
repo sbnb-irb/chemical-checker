@@ -279,14 +279,19 @@ class Traintest(object):
             out_file(str): path of the h5 file to write.
             split_names(list(str)): names for the split of data.
             split_fractions(list(float)): fraction of data in each split.
+            block_size(int): size of the block to be used.
         """
         with h5py.File(in_file, 'r') as hf_in:
-            # log input datasets and shapes
+            # log input datasets and get shapes
             for k in hf_in.keys():
                 Traintest.__log.debug(
                     "{:<20} shape: {:>10}".format(k, str(hf_in[k].shape)))
                 rows = hf_in[k].shape[0]
-
+            # reduce block size if it is not adequate
+            while rows / (float(block_size) * 10) <= 1:
+                block_size /= 10
+                Traintest.__log.warning(
+                    "Reducing block_size to: %s", block_size)
             # train test validation splits
             if len(split_names) != len(split_fractions):
                 raise Exception(
@@ -295,7 +300,7 @@ class Traintest(object):
             split_block = Traintest.get_split_indeces(
                 int(np.ceil(rows / block_size)) + 1,
                 split_fractions)
-
+            # save to output file
             Traintest.__log.info('Traintest saving to %s', out_file)
             with h5py.File(out_file, "w") as hf_out:
                 # create fixed datasets
