@@ -23,6 +23,7 @@ import collections
 import numpy as np
 import pickle
 import random
+import tempfile
 from sklearn.externals import joblib
 from sklearn.model_selection import StratifiedKFold
 from sklearn import metrics
@@ -44,8 +45,10 @@ from scipy.stats import percentileofscore
 class TargetMate:
     """TargetMate class"""
 
-    def __init__(self, models_path, tmp_path=None, base_clf="logistic_regression", cv=5, k=5, min_sim=0.25, min_class_size=10,
-                 datasets=None, metric="auroc", cc_root=None):
+    def __init__(self, models_path, tmp_path=None,
+                 base_clf="logistic_regression", cv=5, k=5, min_sim=0.25,
+                 min_class_size=10, datasets=None, metric="auroc",
+                 cc_root=None, sign3=None, sign3_predict_fn=None):
         """Initialize the TargetMate class
 
         Args:
@@ -71,6 +74,8 @@ class TargetMate:
             metric(str): Metric to use in the meta-prediction (auroc or aupr)
                 (default="auroc").
             cc_root(str): CC root folder (default=None).
+            sign3_predict_fn(dict): pre-loaded predict_fn, keys are dataset
+                codes, values are tuples of (sign3, predict_fn).
         """
         # Models path
         self.models_path = os.path.abspath(models_path)
@@ -136,6 +141,14 @@ class TargetMate:
             self.datasets = list(self.cc.datasets)
         else:
             self.datasets = datasets
+        # preloaded neural netoworks
+        if sign3_predict_fn is None:
+            for ds in self.datasets:
+                self.__log.debug("Loading sign3 predictor for %s" % ds)
+                s3 = self.cc.get_signature("sign3", "full", ds)
+                self.sign3_predict_fn[ds] = (s3, s3.get_predict_fn())
+        else:
+            self.sign3_predict_fn = sign3_predict_fn
         # Metric to use
         self.metric = metric
         # Others
@@ -333,6 +346,8 @@ class TargetMate:
         return np.array(weights)
 
     def save(self):
+        # we avoid saving signature 3 objects
+        self.sign3_predict_fn = None
         with open(self.models_path + "/TargetMate.pkl", "w") as f:
             pickle.dump(self, f)
 
@@ -395,8 +410,9 @@ class TargetMate:
                 continue
             else:
                 self.__log.debug("Calculating sign3 for %s" % dataset)
-                s3 = self.cc.get_signature("sign3", "full", dataset)
-                s3.predict_from_smiles([d[2] for d in data], destination_dir)
+                s3, predict_fn = self.sign3_predict_fn[dataset]
+                s3.predict_from_smiles([d[2] for d in data],
+                                       destination_dir, predict_fn=predict_fn)
         # Fitting the global predictor
         self.__log.info("Fitting individual classifiers trained on full data")
         clf_ensemble = []
@@ -608,9 +624,10 @@ class TargetMate:
                     if os.path.exists(destination_dir):
                         os.remove(destination_dir)
                     self.__log.debug("Calculating sign3 for %s" % dataset)
-                    s3 = self.cc.get_signature("sign3", "full", dataset)
-                    s3.predict_from_smiles([d[2]
-                                            for d in data], destination_dir)
+                    s3, predict_fn = self.sign3_predict_fn[dataset]
+                    s3.predict_from_smiles([d[2] for d in data],
+                                           destination_dir,
+                                           predict_fn=predict_fn)
             # Read ensemble of models
             self.__log.debug("Reading ensemble of models")
             clf_ensemble = self._load_ensemble()
@@ -684,7 +701,7 @@ class TargetMate:
         return mps_, ad_, prc_
 
     @staticmethod
-    def fit_all_hpc(activity_path, models_path, job_path):
+    def fit_all_hpc(activity_path, models_path, **kwargs):
         """Run HPC jobs to fit all models for each activity file.
 
         Args:
@@ -693,24 +710,38 @@ class TargetMate:
             job_path(str): Path (usually in scratch) where the script files are
                 generated.
         """
+        # read config file
+        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
+        cfg = Config(cc_config)
         # create job directory if not available
+        job_base_path = cfg.PATH.CC_TMP
+        tmp_dir = tempfile.mktemp(prefix='tmp_', dir=job_base_path)
+        job_path = kwargs.get("job_path", tmp_dir)
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
+        # check cpus
+        cpu = kwargs.get("cpu", 4)
         # create script file
         script_lines = [
             "import sys, os",
+            "from tqdm import tqdm",
             "import pickle",
-            "sys.path.append('%s')" % os.path.join(
-                Config().PATH.CC_REPO, 'package'),  # allow package import
             "from chemicalchecker.tool.targetmate import TargetMate",
+            "from chemicalchecker.core import ChemicalChecker",
+            "cc = ChemicalChecker()",
             "task_id = sys.argv[1]",  # <TASK_ID>
             "filename = sys.argv[2]",  # <FILE>
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
-            "act_file = str(inputs[task_id][0])",  # elements for current job
-            "act_name = os.path.splitext(os.path.basename(act_file))[0]",
-            "model_path = os.path.join('%s', act_name)" % models_path,
-            "tm = TargetMate(model_path)",
-            "tm.fit(act_file)",
+            "s3_pred_fn = dict()",
+            "for ds in cc.datasets:",
+            "    s3 = cc.get_signature('sign3', 'full', ds)",
+            "    s3_pred_fn[ds] = (s3, s3.get_predict_fn())",
+            "for act_file in tqdm(inputs[task_id]):",
+            "    act_file = str(act_file)",  # elements for current job
+            "    act_name = os.path.splitext(os.path.basename(act_file))[0]",
+            "    model_path = os.path.join('%s', act_name)" % models_path,
+            "    tm = TargetMate(model_path, sign3_predict_fn=s3_pred_fn)",
+            "    tm.fit(act_file)",
             "print('JOB DONE')"
         ]
         script_name = os.path.join(job_path, 'fit_all_targetmate.py')
@@ -721,16 +752,19 @@ class TargetMate:
         elements = [os.path.join(activity_path, f)
                     for f in os.listdir(activity_path)]
         params = {}
-        params["num_jobs"] = len(elements)
+        params["num_jobs"] = len(elements) / 200
         params["jobdir"] = job_path
         params["job_name"] = "TARGETMATE"
         params["elements"] = elements
         params["wait"] = False
-        params["memory"] = 5
-        params["cpu"] = 4
+        params["memory"] = 8
+        params["cpu"] = cpu
         # job command
-        singularity_image = Config().PATH.SINGULARITY_IMAGE
-        command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+        singularity_image = cfg.PATH.SINGULARITY_IMAGE
+        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
+            " OMP_NUM_THREADS={} singularity exec {} python {} <TASK_ID> <FILE>"
+        command = command.format(
+            os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config, str(cpu),
             singularity_image, script_name)
         # submit jobs
         cluster = HPC(Config())
