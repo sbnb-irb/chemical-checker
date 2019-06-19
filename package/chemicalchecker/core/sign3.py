@@ -400,9 +400,9 @@ class sign3(BaseSignature, DataSignature):
                     fh['x_test'][:, idx * 128:(idx + 1) * 128] = vectors
                     del vectors
 
-    def fit(self, sign2_list, sign2_self, sign2_universe=None,
+    def fit(self, sign2_list, sign2_self, sign2_universe=None, sign0=None,
             model_confidence=True, save_support=True, save_correlations=True,
-            update_preds=True, validations=True, sign0=None):
+            update_preds=True, validations=True):
         """Fit the model to predict the signature 3.
 
         Args:
