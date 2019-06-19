@@ -402,7 +402,7 @@ class sign3(BaseSignature, DataSignature):
 
     def fit(self, sign2_list, sign2_self, sign2_universe=None,
             model_confidence=True, save_support=True, save_correlations=True,
-            update_preds=True, validations=True):
+            update_preds=True, validations=True, sign0=None):
         """Fit the model to predict the signature 3.
 
         Args:
@@ -590,6 +590,10 @@ class sign3(BaseSignature, DataSignature):
                 results['confidence'][chunk] = confidence
         if validations:
             self.validate()
+        # at the very end we learn how to get from A1 sign0 to sign3 directly
+        # in order to enable SMILES to sign3 predictions
+        if sign0 is not None:
+            self.fit_sign0(sign0)
         self.mark_ready()
 
     def predict(self):
