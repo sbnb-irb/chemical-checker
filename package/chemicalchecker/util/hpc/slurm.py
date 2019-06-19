@@ -152,6 +152,7 @@ fi
             command = tmpname
 
         if cpu > 1:
+            jobParams.append("#SBATCH --nodes=1")
             jobParams.append("#SBATCH --ntasks=" + str(cpu))
 
         if memory > 1:
