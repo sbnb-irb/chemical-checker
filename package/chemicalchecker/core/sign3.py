@@ -136,7 +136,7 @@ class sign3(BaseSignature, DataSignature):
                 traintest_file = adanet_params.pop(
                     'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
-                Traintest.split_h5(sign2_matrix, traintest_file)
+                Traintest.split_h5_blocks(sign2_matrix, traintest_file)
         else:
             traintest_file = sign2_matrix
             if adanet_params:
