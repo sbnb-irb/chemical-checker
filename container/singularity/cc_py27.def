@@ -63,6 +63,7 @@ From: centos
     pip install ipython
     pip install six                               # py2/py3 compatibility
     pip install pytest                            # unit-testing
+    pip install mock                              # mocking for unit-testing
     pip install autologging                       # logging handler
     pip install paramiko                          # ssh client
     pip install termcolor                         # terminal output with colors
