@@ -285,7 +285,18 @@ class sign3(BaseSignature, DataSignature):
             self._learn_sign0(
                 sign0, suffix='sign0_%s_final' % s0_code, evaluate=False)
 
-    def predict_from_smiles(self, smiles, dest_file, chunk_size=1000):
+    def get_predict_fn(self):
+        try:
+            from chemicalchecker.tool.adanet import AdaNet
+        except ImportError as err:
+            raise err
+        sign0_adanet_path = os.path.join(self.model_path,
+                                         'adanet_sign0_A1.001_final',
+                                         'savedmodel')
+        return AdaNet.predict_fn(sign0_adanet_path)
+
+    def predict_from_smiles(self, smiles, dest_file, chunk_size=1000,
+                            predict_fn=None):
         """Given SMILES generate sign0 and predict sign3.
 
         Args:
@@ -306,7 +317,8 @@ class sign3(BaseSignature, DataSignature):
         sign0_adanet_path = os.path.join(self.model_path,
                                          'adanet_sign0_A1.001_final',
                                          'savedmodel')
-        predict_fn = AdaNet.predict_fn(sign0_adanet_path)
+        if predict_fn is None:
+            predict_fn = AdaNet.predict_fn(sign0_adanet_path)
         # we return a simple DataSignature object (basic HDF5 access)
         pred_s3 = DataSignature(dest_file)
         with h5py.File(dest_file, "w") as results:
