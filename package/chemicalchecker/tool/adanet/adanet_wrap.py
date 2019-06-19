@@ -289,7 +289,7 @@ class Traintest(object):
                 rows = hf_in[k].shape[0]
             # reduce block size if it is not adequate
             while rows / (float(block_size) * 10) <= 1:
-                block_size /= 10
+                block_size = int(block_size / 10)
                 Traintest.__log.warning(
                     "Reducing block_size to: %s", block_size)
             # train test validation splits
