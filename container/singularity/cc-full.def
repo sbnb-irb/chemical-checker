@@ -105,6 +105,7 @@ From: centos
     # visualization packages
     pip install matplotlib                        # chart library :)
     pip install seaborn                           # prettier graph built on top of matplotlib
+    pip install datashader                        # plot huge 2D datasets (projetions)
     # ML packages
     pip install scikit-learn                      # entry level ML in python
     pip install gensim                            # topic modelling word2vec
