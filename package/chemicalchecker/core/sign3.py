@@ -265,10 +265,12 @@ class sign3(BaseSignature, DataSignature):
             sign0_traintest(str): Path to the train file.
         """
         # here there's no augmentation, mask default param
-        self.params['adanet'] = {
+        if not self.params['adanet']:
+            self.params['adanet'] = dict()
+        self.params['adanet'].update({
             'epoch_per_iteration': 1,
             'adanet_iterations': 10,
-            'augmentation': False}
+            'augmentation': False})
         # check if performance evaluations need to be done
         s0_code = sign0.dataset
         eval_stats = os.path.join(
