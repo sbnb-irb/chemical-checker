@@ -246,8 +246,8 @@ class ChemicalChecker():
         params["jobdir"] = job_path
         params["job_name"] = "CC_REFERENCE"
         params["elements"] = all_datasets
-        params["wait"] = True
-        params["memory"] = 20 # writing to disk takes forever without enought
+        params["wait"] = False
+        params["memory"] = 20  # writing to disk takes forever without enought
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
