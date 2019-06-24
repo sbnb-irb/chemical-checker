@@ -48,7 +48,7 @@ class TargetMate:
     def __init__(self, models_path, tmp_path=None,
                  base_clf="logistic_regression", cv=5, k=5, min_sim=0.25,
                  min_class_size=10, datasets=None, metric="auroc",
-                 cc_root=None, sign3=None, sign3_predict_fn=None):
+                 cc_root=None, sign3=None, sign3_predict_fn=None, n_jobs=1):
         """Initialize the TargetMate class
 
         Args:
@@ -96,11 +96,12 @@ class TargetMate:
             if base_clf == "logistic_regression":
                 from sklearn.linear_model import LogisticRegressionCV
                 self.base_clf = LogisticRegressionCV(
-                    cv=3, class_weight="balanced", max_iter=1000)
+                    cv=3, class_weight="balanced", max_iter=1000, 
+                    n_jobs=n_jobs)
             if base_clf == "random_forest":
                 from sklearn.ensemble import RandomForestClassifier
                 self.base_clf = RandomForestClassifier(
-                    n_estimators=100, class_weight="balanced", n_jobs=1)
+                    n_estimators=100, class_weight="balanced", n_jobs=n_jobs)
             if base_clf == "naive_bayes":
                 from sklearn.naive_bayes import GaussianNB
                 self.base_clf = Pipeline(
@@ -113,7 +114,7 @@ class TargetMate:
                     config_dict=tpotconfigs.minimal,
                     generations=10, population_size=30,
                     cv=3, scoring="balanced_accuracy",
-                    verbosity=2, n_jobs=1,
+                    verbosity=2, n_jobs=n_jobs,
                     max_time_mins=5, max_eval_time_mins=0.5,
                     random_state=42,
                     early_stop=3,
@@ -740,7 +741,9 @@ class TargetMate:
             "    act_file = str(act_file)",  # elements for current job
             "    act_name = os.path.splitext(os.path.basename(act_file))[0]",
             "    model_path = os.path.join('%s', act_name)" % models_path,
-            "    tm = TargetMate(model_path, sign3_predict_fn=s3_pred_fn)",
+            "    if os.path.isfile(os.path.join(model_path,'ad_data.pkl')):",
+            "        continue",
+            "    tm = TargetMate(model_path, sign3_predict_fn=s3_pred_fn, n_jobs=%s)" % cpu,
             "    tm.fit(act_file)",
             "print('JOB DONE')"
         ]
@@ -752,7 +755,7 @@ class TargetMate:
         elements = [os.path.join(activity_path, f)
                     for f in os.listdir(activity_path)]
         params = {}
-        params["num_jobs"] = len(elements) / 200
+        params["num_jobs"] = len(elements) / 100
         params["jobdir"] = job_path
         params["job_name"] = "TARGETMATE"
         params["elements"] = elements
