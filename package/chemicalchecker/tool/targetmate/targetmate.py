@@ -755,7 +755,7 @@ class TargetMate:
         elements = [os.path.join(activity_path, f)
                     for f in os.listdir(activity_path)]
         params = {}
-        params["num_jobs"] = len(elements) / 100
+        params["num_jobs"] = kwargs.get("num_jobs", len(elements) / 100)
         params["jobdir"] = job_path
         params["job_name"] = "TARGETMATE"
         params["elements"] = elements
