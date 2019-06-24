@@ -1057,3 +1057,29 @@ class MultiPlot():
         plt.savefig(outfile, dpi=200)
         plt.close('all')
         return df
+
+    def sign_property_distribution(self, cctype, molset, prop):
+
+        sns.set_style("whitegrid")
+        f, axes = plt.subplots(5, 5, figsize=(9, 9), sharex=True, sharey=True)
+
+        for ds, ax in zip(self.datasets, axes.flat):
+            try:
+                s3 = self.cc.get_signature(cctype, molset, ds)
+            except:
+                continue
+            if not os.path.isfile(s3.data_path):
+                continue
+            # decide sample molecules
+            s3_data_conf = s3.get_h5_dataset(prop)
+            # get idx of nearest neighbors of s2
+            sns.distplot(s3_data_conf, color=self.cc_palette([ds])[0],
+                         kde=False, norm_hist=False, ax=ax, bins=20,
+                         hist_kws={'range': (0, 1)})
+            ax.set_yscale('log')
+            ax.set_xlim(0, 1)
+
+        outfile = os.path.join(
+            self.plot_path, '%s.png' % '_'.join([cctype, molset, prop]))
+        plt.savefig(outfile, dpi=200)
+        plt.close('all')
