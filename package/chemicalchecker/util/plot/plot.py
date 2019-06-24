@@ -520,6 +520,83 @@ class Plot():
 
     # Projection plot
 
+    def datashader_projection(self, proj, cctype, noise_scale=3., how='log',
+                              cmap=None, plot_size=(1000, 1000),
+                              x_range=(-100, 100), y_range=(-100, 100),
+                              spread=None, weigth=None):
+        import datashader as ds
+        import datashader.transfer_functions as tf
+
+        def make_cmap(colors, position=None, bit=False):
+            bit_rgb = np.linspace(0, 1, 256)
+            if position is None:
+                position = np.linspace(0, 1, len(colors))
+            else:
+                if len(position) != len(colors):
+                    sys.exit("position length must be the same as colors")
+                elif position[0] != 0 or position[-1] != 1:
+                    sys.exit("position must start with 0 and end with 1")
+            if bit:
+                for i in range(len(colors)):
+                    colors[i] = (bit_rgb[colors[i][0]],
+                                 bit_rgb[colors[i][1]],
+                                 bit_rgb[colors[i][2]])
+            cdict = {'red': [], 'green': [], 'blue': []}
+            for pos, color in zip(position, colors):
+                cdict['red'].append((pos, color[0], color[0]))
+                cdict['green'].append((pos, color[1], color[1]))
+                cdict['blue'].append((pos, color[2], color[2]))
+
+            cmap = matplotlib.colors.LinearSegmentedColormap(
+                'my_colormap', cdict, 256)
+            return cmap
+
+        def hex_to_rgb(value):
+            value = value.lstrip('#')
+            lv = len(value)
+            return tuple(int(value[i:i + int(lv / 3)], 16) for i in range(0, lv, int(lv / 3)))
+
+        def get_cmap(color):
+            gray = self._rgb2hex(220, 218, 219)
+            white = self._rgb2hex(250, 250, 250)
+            black = self._rgb2hex(0, 0, 0)
+            colors = [hex_to_rgb(c) for c in [black, white]]
+            return make_cmap(colors, bit=True)
+
+        if cmap is None:
+            cmap = get_cmap(self.color)
+        else:
+            cmap = plt.cm.get_cmap(cmap)
+        proj = proj[:]
+        if noise_scale is None:
+            noise = np.zeros_like(proj)
+        else:
+            noise = np.random.normal(size=proj.shape) / noise_scale
+        if weigth is not None:
+            df = pd.DataFrame(data=np.hstack((proj + noise,
+                                              np.expand_dims(weigth, 1))),
+                              columns=['x', 'y', 'w'])
+        else:
+            df = pd.DataFrame(data=proj + noise, columns=['x', 'y'])
+
+        plot_height, plot_width = plot_size
+        canvas = ds.Canvas(plot_height=plot_height, plot_width=plot_width,
+                           x_range=x_range, y_range=y_range)
+        if weigth is not None:
+            points = canvas.points(df, 'x', 'y', ds.mean('w'))
+        else:
+            points = canvas.points(df, 'x', 'y')
+        raster = canvas.raster(points, interpolate='nearest')
+        shade = tf.shade(raster, cmap=cmap, how=how)
+        if spread is not None:
+            shade = tf.spread(shade, px=spread)
+        img = tf.set_background(shade, self.color)
+
+        dst_file = os.path.join(self.plot_path, 'shaded_%s_%s' %
+                                (cctype, self.dataset_code))
+        ds.utils.export_image(img=img, filename=dst_file, fmt=".png")
+
+
     def projection_plot(self, Proj, bw=None, levels=5, dev=None, s=None, transparency=0.5):
 
         if dev:
