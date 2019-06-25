@@ -108,7 +108,7 @@ From: centos
     pip install seaborn                           # prettier graph built on top of matplotlib
     pip install datashader                        # plot huge 2D datasets (projetions)
     # ML packages
-    pip install scikit-learn                      # entry level ML in python
+    pip install scikit-learn==0.21.2              # entry level ML in python
     pip install gensim                            # topic modelling word2vec
     pip install tensorflow                        # neural network library
     pip install adanet==0.5.0                     # automl for NN
