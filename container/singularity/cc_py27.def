@@ -8,12 +8,12 @@ From: centos
 
 %post
     # bind paths
-    mkdir -p /aloy
-    mkdir -p /aloy/home
-    mkdir -p /aloy/data
-    mkdir -p /aloy/scratch
-    mkdir -p /aloy/web_checker
-    mkdir -p /slgpfs
+    mkdir /aloy
+    mkdir /aloy/home
+    mkdir /aloy/data
+    mkdir /aloy/scratch
+    mkdir /aloy/web_checker
+    mkdir /slgpfs
     
     # update yum
     yum update -y
@@ -40,7 +40,7 @@ From: centos
                    postgresql-contrib
 
     # conda
-    mkdir -p /opt/miniconda2
+    mkdir /opt/miniconda2 
     cd /opt/miniconda2 
     wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
     bash Miniconda2-latest-Linux-x86_64.sh -p /opt/miniconda2 -b -f
@@ -52,18 +52,17 @@ From: centos
     source activate py27
 
     # conda-specific packages
-    conda install -y rdkit -c rdkit               # Open-Source Cheminformatics Software
-    conda install -y openbabel -c openbabel       # chemical toolbox
+    conda install -y -c rdkit rdkit               # Open-Source Cheminformatics Software
+    conda install -y -c openbabel openbabel       # chemical toolbox
     conda install -y mkl-service                  # change the number of CPU’s MKL is using
     conda install -y anaconda-client              # client that provides an interface to Anaconda Cloud
     conda install -y faiss-cpu -c pytorch         # facebook trick for sparsity
-    conda install -y hdbscan -c conda-forge       # clustering
+    conda install -y -c conda-forge hdbscan       # clustering
 
     # utility packages
     pip install ipython
     pip install six                               # py2/py3 compatibility
     pip install pytest                            # unit-testing
-    pip install mock                              # mocking for unit-testing
     pip install autologging                       # logging handler
     pip install paramiko                          # ssh client
     pip install termcolor                         # terminal output with colors
@@ -84,13 +83,13 @@ From: centos
     pip install tqdm                              # handy progress-bar
     pip install lxml                              # xml parser
     pip install pubchempy                         # Pubchem rest api
-    pip install chemfp                            # fast fingerprint search (used in TargetMate)
     # data packages
     pip install numpy                             # best numerical library ever
     pip install pandas                            # handles table-like datastracture
     pip install scipy                             # scientific python
     pip install theano                            # Optimize evaluate math expressions
     pip install h5py                              # HDF5 via python
+    pip install fancyimpute==0.4.3                       # matrix completion and imputation algorithms
     # graph packages
     pip install networkx                          # graph data stracture and algos
     pip install protobuf==3.6.1
@@ -106,15 +105,13 @@ From: centos
     # visualization packages
     pip install matplotlib                        # chart library :)
     pip install seaborn                           # prettier graph built on top of matplotlib
-    pip install datashader                        # plot huge 2D datasets (projetions)
     # ML packages
-    pip install scikit-learn==0.21.2              # entry level ML in python
+    pip install scikit-learn                      # entry level ML in python
     pip install gensim                            # topic modelling word2vec
     pip install tensorflow                        # neural network library
     pip install adanet==0.5.0                     # automl for NN
     pip install keras                             # NN API
     pip install MulticoreTSNE                     # tSNA algo
-    pip install fancyimpute                       # matrix completion and imputation algorithms
 
     # install local SBNB devpi packages
     DEVPI_HOST=10.7.108.15
