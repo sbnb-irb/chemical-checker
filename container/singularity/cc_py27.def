@@ -91,7 +91,6 @@ From: centos
     pip install scipy                             # scientific python
     pip install theano                            # Optimize evaluate math expressions
     pip install h5py                              # HDF5 via python
-    pip install fancyimpute                       # matrix completion and imputation algorithms
     # graph packages
     pip install networkx                          # graph data stracture and algos
     pip install protobuf==3.6.1
@@ -115,6 +114,7 @@ From: centos
     pip install adanet==0.5.0                     # automl for NN
     pip install keras                             # NN API
     pip install MulticoreTSNE                     # tSNA algo
+    pip install fancyimpute                       # matrix completion and imputation algorithms
 
     # install local SBNB devpi packages
     DEVPI_HOST=10.7.108.15
