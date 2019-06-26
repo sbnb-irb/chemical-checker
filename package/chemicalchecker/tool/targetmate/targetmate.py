@@ -96,7 +96,7 @@ class TargetMate:
             if base_clf == "logistic_regression":
                 from sklearn.linear_model import LogisticRegressionCV
                 self.base_clf = LogisticRegressionCV(
-                    cv=3, class_weight="balanced", max_iter=1000, 
+                    cv=3, class_weight="balanced", max_iter=1000,
                     n_jobs=n_jobs)
             if base_clf == "random_forest":
                 from sklearn.ensemble import RandomForestClassifier
@@ -517,7 +517,8 @@ class TargetMate:
         # Save the class
         self.save()
 
-    def predict(self, data, datasets=None, standardize=False, known=True):
+    def predict(self, data, datasets=None, standardize=False, known=True,
+                sign_folder=None):
         '''
         Predict SMILES-activity data.
         Invalid SMILES are given no prediction.
@@ -534,6 +535,7 @@ class TargetMate:
                 (default=False)
             known(bool): Look for exact matches based on InChIKey
                 (default=True)
+            sign_folder(str): Path to a folder containing sign3.
 
         Returns:
             mps(list): Metapredictions, expressed as probabilities (range: 0-1)
@@ -541,6 +543,7 @@ class TargetMate:
             prc(list): Precision of the prediction, based on the standard
                 deviation across the ensemble of predictors (range: 0-1)
         '''
+        self.__log.info("Predicting with model: %s" % self.models_path)
         if not self._is_fitted:
             raise Exception("TargetMate instance needs to be fitted first")
         # Dataset subset
@@ -550,7 +553,6 @@ class TargetMate:
             my_datasets = set(datasets)
         if len(my_datasets.intersection(self.datasets)) < 1:
             raise Exception("At least one valid dataset is necessary")
-        sign_folder = None
         if type(data) == str:
             data = os.path.abspath(data)
             if os.path.isdir(data):
@@ -588,17 +590,20 @@ class TargetMate:
                             data += [r[0]]
             else:
                 raise Exception("%s does not exist" % data)
-        # Get only valid SMILES strings
-        self.__log.info(
-            "Parsing SMILES strings, keeping only valid ones for training.")
-        data_ = []
-        N = len(data)
-        for i, d in enumerate(data):
-            m = self.read_smiles(d, standardize)
-            if not m:
-                continue
-            data_ += [(i, m[0], m[1])]
-        data = data_
+            # Get only valid SMILES strings
+            self.__log.info(
+                "Parsing SMILES strings, keeping only valid ones for training.")
+            data_ = []
+            N = len(data)
+            for i, d in enumerate(data):
+                m = self.read_smiles(d, standardize)
+                if not m:
+                    continue
+                data_ += [(i, m[0], m[1])]
+            data = data_
+        # if a list is passed we assume it's a set of already parsed SMILES
+        if type(data) == list:
+            self.__log.info("%s SMILES strings parsed." % len(data))
         # Check if the model has been trained
         if not self._is_trained:
             self.__log.warning(
@@ -807,13 +812,19 @@ class TargetMate:
             "task_id = sys.argv[1]",  # <TASK_ID>
             "filename = sys.argv[2]",  # <FILE>
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
+            "tm = None",
             "for mdl_dir in tqdm(inputs[task_id]):",
             "    mdl_dir = str(mdl_dir)",  # elements for current job
             "    mdl_name = os.path.normpath(mdl_dir).split('/')[-1]",
             "    result_file = os.path.join('%s', mdl_name)" % results_path,
-            "    if os.path.isfile(result_file): continue",
+            "    if os.path.isfile(result_file):",
+            "        continue",
+            "    if tm is not None:",  # trick to avoid re-parsing SMILES
+            "        data = tm.data",
+            "    else:",
+            "        data = '%s'" % signature_path,
             "    tm = pickle.load(open(os.path.join(mdl_dir,'TargetMate.pkl'),'r'))",
-            "    results = tm.predict('%s')" % signature_path,
+            "    results = tm.predict(data=data,sign_folder='%s')" % signature_path,
             "    pickle.dump(results, open(result_file,'w'))",
             "print('JOB DONE')"
         ]
