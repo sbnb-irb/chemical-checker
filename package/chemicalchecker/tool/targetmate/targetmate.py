@@ -705,7 +705,7 @@ class TargetMate:
         if os.path.exists(self.tmp_path):
             shutil.rmtree(self.tmp_path)
         # Return
-        return mps_, ad_, prc_
+        return mps_, ad_, prc_, data
 
     @staticmethod
     def fit_all_hpc(activity_path, models_path, **kwargs):
@@ -812,19 +812,18 @@ class TargetMate:
             "task_id = sys.argv[1]",  # <TASK_ID>
             "filename = sys.argv[2]",  # <FILE>
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
-            "tm = None",
+            "data = None",
             "for mdl_dir in tqdm(inputs[task_id]):",
             "    mdl_dir = str(mdl_dir)",  # elements for current job
             "    mdl_name = os.path.normpath(mdl_dir).split('/')[-1]",
             "    result_file = os.path.join('%s', mdl_name)" % results_path,
             "    if os.path.isfile(result_file):",
             "        continue",
-            "    if tm is not None:",  # trick to avoid re-parsing SMILES
-            "        data = tm.data",
-            "    else:",
+            "    if data is None:",  # trick to avoid re-parsing SMILES
             "        data = '%s'" % signature_path,
             "    tm = pickle.load(open(os.path.join(mdl_dir,'TargetMate.pkl'),'r'))",
-            "    results = tm.predict(data=data,sign_folder='%s')" % signature_path,
+            "    mps, ad, prc, data = tm.predict(data=data,sign_folder='%s')" % signature_path,
+            "    results = mps, ad, prc",
             "    pickle.dump(results, open(result_file,'w'))",
             "print('JOB DONE')"
         ]
