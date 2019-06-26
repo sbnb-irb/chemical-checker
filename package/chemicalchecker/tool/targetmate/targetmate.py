@@ -594,7 +594,6 @@ class TargetMate:
             self.__log.info(
                 "Parsing SMILES strings, keeping only valid ones for training.")
             data_ = []
-            N = len(data)
             for i, d in enumerate(data):
                 m = self.read_smiles(d, standardize)
                 if not m:
@@ -602,8 +601,10 @@ class TargetMate:
                 data_ += [(i, m[0], m[1])]
             data = data_
         # if a list is passed we assume it's a set of already parsed SMILES
-        if type(data) == list:
-            self.__log.info("%s SMILES strings parsed." % len(data))
+        N = len(data)
+        self.__log.info("%s SMILES strings parsed." % N)
+        if type(data) != list:
+            raise Exception("Unexpected 'data' type: %s" % type(data))
         # Check if the model has been trained
         if not self._is_trained:
             self.__log.warning(
