@@ -523,7 +523,7 @@ class Plot():
     def datashader_projection(self, proj, cctype, noise_scale=3., how='log',
                               cmap=None, plot_size=(1000, 1000),
                               x_range=(-100, 100), y_range=(-100, 100),
-                              spread=None, weigth=None):
+                              spread=None, weigth=None, transparent=False):
         import datashader as ds
         import datashader.transfer_functions as tf
 
@@ -590,12 +590,14 @@ class Plot():
         shade = tf.shade(raster, cmap=cmap, how=how)
         if spread is not None:
             shade = tf.spread(shade, px=spread)
-        img = tf.set_background(shade, self.color)
+        if transparent:
+            img = shade
+        else:
+            img = tf.set_background(shade, self.color)
 
         dst_file = os.path.join(self.plot_path, 'shaded_%s_%s' %
                                 (cctype, self.dataset_code))
         ds.utils.export_image(img=img, filename=dst_file, fmt=".png")
-
 
     def projection_plot(self, Proj, bw=None, levels=5, dev=None, s=None, transparency=0.5):
 
