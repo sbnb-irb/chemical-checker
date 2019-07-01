@@ -160,7 +160,7 @@ class sign3(BaseSignature, DataSignature):
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
 
-    def save_sign0_matrix(self, sign0, destination):
+    def save_sign0_matrix(self, sign0, destination, include_confidence=True):
         """Save matrix of signature 0 and confidence values.
 
         Args:
@@ -169,22 +169,24 @@ class sign3(BaseSignature, DataSignature):
         """
         common_keys, features = sign0.get_vectors(self.keys)
         _, labels = self.get_vectors(common_keys)
-        # generate mask for shared keys
-        mask = np.isin(self.keys, list(common_keys), assume_unique=True)
-        stddev = self.get_h5_dataset('stddev_norm', mask)
-        stddev = np.expand_dims(stddev, 1)
-        intensity = self.get_h5_dataset('intensity_norm', mask)
-        intensity = np.expand_dims(intensity, 1)
-        confidence = self.get_h5_dataset('confidence', mask)
-        confidence = np.expand_dims(confidence, 1)
-        # we also want to learn how to predict confidence scores
-        # so they become part of the supervised learning input
-        labels = np.hstack((labels, stddev, intensity, confidence))
+        if include_confidence:
+            # generate mask for shared keys
+            mask = np.isin(self.keys, list(common_keys), assume_unique=True)
+            stddev = self.get_h5_dataset('stddev_norm', mask)
+            stddev = np.expand_dims(stddev, 1)
+            intensity = self.get_h5_dataset('intensity_norm', mask)
+            intensity = np.expand_dims(intensity, 1)
+            confidence = self.get_h5_dataset('confidence', mask)
+            confidence = np.expand_dims(confidence, 1)
+            # we also want to learn how to predict confidence scores
+            # so they become part of the supervised learning input
+            labels = np.hstack((labels, stddev, intensity, confidence))
         with h5py.File(destination, 'w') as hf:
             hf.create_dataset('y', data=labels, dtype=np.float32)
             hf.create_dataset('x', data=features, dtype=np.float32)
 
-    def _learn_sign0(self, sign0, reuse=True, suffix=None, evaluate=True):
+    def _learn_sign0(self, sign0, reuse=True, suffix=None, evaluate=True,
+                     include_confidence=True):
         """Learn the signature 3 from sign0.
 
         This method is used twice. First to evaluate the performances of the
@@ -221,7 +223,7 @@ class sign3(BaseSignature, DataSignature):
         # generate input matrix
         sign0_matrix = os.path.join(self.model_path, 'train_sign0.h5')
         if not reuse or not os.path.isfile(sign0_matrix):
-            self.save_sign0_matrix(sign0, sign0_matrix)
+            self.save_sign0_matrix(sign0, sign0_matrix, include_confidence)
         # if evaluating, perform the train-test split
         if evaluate:
             traintest_file = os.path.join(self.model_path,
@@ -252,7 +254,7 @@ class sign3(BaseSignature, DataSignature):
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix)
 
-    def fit_sign0(self, sign0):
+    def fit_sign0(self, sign0, include_confidence=True):
         """Train an AdaNet model to predict sign3 from sign0.
 
         This method is fitting a model that uses Morgan fingerprint as features
@@ -277,7 +279,8 @@ class sign3(BaseSignature, DataSignature):
             self.model_path, 'adanet_sign0_%s_eval' % s0_code, 'stats.pkl')
         if not os.path.isfile(eval_stats):
             self._learn_sign0(sign0, suffix='sign0_%s_eval' % s0_code,
-                              evaluate=True)
+                              evaluate=True,
+                              include_confidence=include_confidence)
 
         # check if we have the final trained model
         final_adanet_path = os.path.join(self.model_path,
@@ -285,7 +288,8 @@ class sign3(BaseSignature, DataSignature):
                                          'savedmodel')
         if not os.path.isdir(final_adanet_path):
             self._learn_sign0(
-                sign0, suffix='sign0_%s_final' % s0_code, evaluate=False)
+                sign0, suffix='sign0_%s_final' % s0_code, evaluate=False,
+                include_confidence=include_confidence)
 
     def get_predict_fn(self):
         try:
