@@ -22,6 +22,7 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 
+from .signature_data import DataSignature
 from .signature_base import BaseSignature
 
 from chemicalchecker.util import logged
@@ -29,7 +30,7 @@ from chemicalchecker.util import Config
 
 
 @logged
-class sign0(BaseSignature):
+class sign0(BaseSignature, DataSignature):
     """Signature type 0 class."""
 
     def __init__(self, signature_path, dataset, **params):
