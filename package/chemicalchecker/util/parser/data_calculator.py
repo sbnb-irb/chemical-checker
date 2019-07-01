@@ -378,31 +378,3 @@ class DataCalculator():
                 yield chunk
                 chunk = list()
         yield chunk
-
-    @staticmethod
-    def pidgin3_ortho(inchikey_inchi, chunks=1000, test=False):
-        from chemicalchecker.tool import Pidgin
-        import numpy as np
-        import json
-        if not test:
-            pdg = Pidgin(proba = 0.25, ad = 25) # Saving everything would cause a lot of memory issues in the database. I store (conservatively, the first quartile in terms of prediction (0.25) ane percentile (25%))
-        else:
-            pdg = Pidgin(ortho = False, organism = ["Homo sapiens"], bioactivity = [10, 1], targetclass = "Lipase", ncores = 1, proba = 0.25, ad = 25)        
-        # Start iterating
-        chunk = list()
-        keys = inchikey_inchi.keys()
-        for i in np.array_split(keys, int(len(keys)/chunks) + 1):
-            _inchikey_inchi = {k: inchikey_inchi[k] for k in i}
-            res = pdg.predict(_inchikey_inchi)
-            for k, r in res.items():
-                if r is not None:
-                    dense = json.dumps(r)
-                else:
-                    dense = None
-                result = {
-                    "inchikey": k,
-                    "raw": dense
-                }
-                chunk.append(result)
-            yield chunk
-            chunk = list()
