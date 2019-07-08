@@ -1,7 +1,7 @@
 import tempfile
 import os
 import shutil
-
+import h5py
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
@@ -44,10 +44,19 @@ class Signature3(BaseStep):
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
 
-        sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in cc.datasets]
+        sign2_list = [cc.get_signature('sign2', 'full', ds)
+                      for ds in cc.datasets]
         full_universe = os.path.join(self.tmpdir, "universe_full")
         sign3_full = cc.get_signature('sign3', 'full', "A1.001")
         sign3_full.save_sign2_universe(sign2_list, full_universe)
+
+        try:
+            with h5py.File(full_universe, 'r') as hf:
+                keys = hf.keys()
+        except Exception, e:
+
+            self.__log.error(e)
+            raise Exception("Universe full file is corrupted")
 
         # create script file
         cc_config_path = os.environ['CC_CONFIG']
@@ -68,7 +77,7 @@ class Signature3(BaseStep):
             # elements are indexes
             'cc = ChemicalChecker(config.PATH.CC_ROOT )',
             # start import
-            "pars = {'cpu': 10}",
+            "pars = {'cpu': 32}",
             # start import
             "sign3_full = cc.get_signature('sign3', 'full', data,**pars)",
             "sign2_full = cc.get_signature('sign2', 'full', data)",
@@ -83,14 +92,16 @@ class Signature3(BaseStep):
                 fh.write(line + '\n')
         # hpc parameters
 
+        dataset_codes.sort()
+
         params = {}
         params["num_jobs"] = len(dataset_codes)
         params["jobdir"] = job_path
         params["job_name"] = "CC_SIGN3"
         params["elements"] = dataset_codes
         params["wait"] = True
-        params["memory"] = 20
-        params["cpu"] = 10
+        params["memory"] = 50
+        params["cpu"] = 32
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
