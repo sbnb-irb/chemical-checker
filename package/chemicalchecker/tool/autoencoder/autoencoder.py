@@ -8,6 +8,8 @@ from tensorflow.keras.layers import Input, Dense, Masking, Dropout, Activation
 from tensorflow.keras.models import load_model
 from chemicalchecker.util import logged
 from chemicalchecker.tool.adanet import Traintest
+from chemicalchecker.core.signature_data import DataSignature
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -106,11 +108,16 @@ class AutoEncoder:
             Traintest.split_h5_blocks(self.data_path, self.traintest_file, split_names=[
                 'train', 'test'], split_fractions=[.8, .2], datasets=['x'])
 
-        with h5py.File(self.traintest_file, 'r+') as hf:
+            with h5py.File(self.traintest_file, 'r+') as hf:
+                x_ds = 'x'
+                y_ds = 'y'
+                hf["y_train"] = h5py.SoftLink('/x_train')
+                hf["y_test"] = h5py.SoftLink('/x_test')
+
+        with h5py.File(self.traintest_file, 'r') as hf:
             x_ds = 'x'
             y_ds = 'y'
-            hf["y_train"] = h5py.SoftLink('/x_train')
-            hf["y_test"] = h5py.SoftLink('/x_test')
+
             if 'x_train' in hf.keys():
                 x_ds = 'x_train'
                 y_ds = 'y_train'
@@ -183,7 +190,7 @@ class AutoEncoder:
         self._plot_history(history, os.path.join(
             self.models_path, "ae_validation_plot.png"))
 
-    def encode(self, data_path, dataset='V'):
+    def encode(self, data_path, dest_file, chunk_size=1000, input_dataset='V'):
         """Take data .h5 and produce an encoded data.
 
         Args:
@@ -205,12 +212,22 @@ class AutoEncoder:
 
         self.encoder.summary()
 
-        with h5py.File(data_path, 'r') as hf:
-            data = hf[dataset][:]
+        encoded_data = DataSignature(dest_file)
 
-        coded_data = self.encoder.predict(data)
+        with h5py.File(dest_file, "w") as results, h5py.File(data_path, 'r') as hf:
+            input_size = hf[input_dataset].shape[0]
+            if "keys" in hf.keys():
+                results.create_dataset('keys', data=hf["keys"][:])
+            results.create_dataset('V', (input_size, self.autoencoder_model.layers[
+                                   index].output_shape[1]), dtype=np.float32)
 
-        return coded_data
+            for i in range(0, input_size, chunk_size):
+                chunk = slice(i, i + chunk_size)
+
+                results['V'][chunk] = self.encoder.predict(
+                    hf[input_dataset][chunk])
+
+        return encoded_data
 
     def generator_fn(self, split):
         """Generate an input function for the Estimator.
