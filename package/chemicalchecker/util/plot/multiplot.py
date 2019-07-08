@@ -1058,7 +1058,7 @@ class MultiPlot():
         plt.close('all')
         return df
 
-    def sign_property_distribution(self, cctype, molset, prop):
+    def sign_property_distribution(self, cctype, molset, prop, weight_perf=False, eval_cc=None):
 
         sns.set_style("whitegrid")
         f, axes = plt.subplots(5, 5, figsize=(9, 9), sharex=True, sharey=True)
@@ -1072,6 +1072,13 @@ class MultiPlot():
                 continue
             # decide sample molecules
             s3_data_conf = s3.get_h5_dataset(prop)
+            if weight_perf:
+                s3_w = eval_cc.get_signature(cctype, 'full', ds)
+                stat_file = os.path.join(s3_w.model_path,
+                                         'adanet_sign0_A1.001_eval/stats.pkl')
+                df = pd.read_pickle(stat_file)
+                w = df[df.dataset != 'train'].pearson.mean()
+                s3_data_conf = s3_data_conf * w
             # get idx of nearest neighbors of s2
             sns.distplot(s3_data_conf, color=self.cc_palette([ds])[0],
                          kde=False, norm_hist=False, ax=ax, bins=20,
