@@ -271,7 +271,8 @@ class Traintest(object):
     @staticmethod
     def split_h5_blocks(in_file, out_file,
                         split_names=['train', 'test', 'validation'],
-                        split_fractions=[.8, .1, .1], block_size=1000):
+                        split_fractions=[.8, .1, .1], block_size=1000,
+                        datasets=None):
         """Create the HDF5 file with validation splits from an input file.
 
         Args:
@@ -280,6 +281,7 @@ class Traintest(object):
             split_names(list(str)): names for the split of data.
             split_fractions(list(float)): fraction of data in each split.
             block_size(int): size of the block to be used.
+            dataset(list): only split the given dataset and ignore others.
         """
         with h5py.File(in_file, 'r') as hf_in:
             # log input datasets and get shapes
@@ -300,6 +302,12 @@ class Traintest(object):
             split_block = Traintest.get_split_indeces(
                 int(np.ceil(rows / block_size)) + 1,
                 split_fractions)
+            if datasets is None:
+                datasets = hf_in.keys()
+            for dataset_name in datasets:
+                if dataset_name not in hf_in.keys():
+                    raise Exception(
+                        "Dataset %s not found in source file." % dataset_name)
             # save to output file
             Traintest.__log.info('Traintest saving to %s', out_file)
             with h5py.File(out_file, "w") as hf_out:
@@ -311,7 +319,7 @@ class Traintest(object):
 
                 for name, blocks in zip(split_names, split_block):
                     # for each original dataset
-                    for k in hf_in.keys():
+                    for k in datasets:
                         # create all splits
                         ds_name = "%s_%s" % (k, name.decode())
                         # create block matrix
