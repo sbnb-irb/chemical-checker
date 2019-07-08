@@ -573,9 +573,12 @@ class Plot():
         else:
             noise = np.random.normal(size=proj.shape) / noise_scale
         if weigth is not None:
-            df = pd.DataFrame(data=np.hstack((proj + noise,
-                                              np.expand_dims(weigth, 1))),
-                              columns=['x', 'y', 'w'])
+            if not isinstance(weigth, list):
+                weigth = [weigth] * len(proj)
+            df = pd.DataFrame(
+                data=np.hstack((proj + noise, np.expand_dims(weigth, 1))),
+                columns=['x', 'y', 'w'])
+
         else:
             df = pd.DataFrame(data=proj + noise, columns=['x', 'y'])
 
@@ -583,11 +586,10 @@ class Plot():
         canvas = ds.Canvas(plot_height=plot_height, plot_width=plot_width,
                            x_range=x_range, y_range=y_range)
         if weigth is not None:
-            points = canvas.points(df, 'x', 'y', ds.mean('w'))
+            points = canvas.points(df, 'x', 'y', ds.min('w'))
         else:
             points = canvas.points(df, 'x', 'y')
-        raster = canvas.raster(points, interpolate='nearest')
-        shade = tf.shade(raster, cmap=cmap, how=how)
+        shade = tf.shade(points, cmap=cmap, how=how)
         if spread is not None:
             shade = tf.spread(shade, px=spread)
         if transparent:
