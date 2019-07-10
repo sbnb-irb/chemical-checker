@@ -70,7 +70,7 @@ For an advanced usage of the CC package capabilities, we recomend creating the C
 
         wget http://gitlab.sbnb.org/project-specific-repositories/chemical_checker/raw/master/setup_chemicalchecker.sh
 
-5. Run the script (this script will require sudo access and it will request to type your password) with:
+5. Run the script (this script will require to type your password) with:
 
         sh setup_chemicalchecker.sh
 
