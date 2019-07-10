@@ -17,12 +17,14 @@ build_singularity_image_py27:
     - mkdir images -p
     - rm -f images/cc_py27.simg
     - singularity build images/cc_py27.simg container/singularity/cc_py27.def
+    - singularity exec images/cc_py27.simg pip freeze > images/py27_freeze.txt
   cache:
     paths:
       - images
   artifacts:
     paths:
     - images/cc_py27.simg
+    - images/py27_freeze.txt
     expire_in: 1 week
   only:
     changes:
