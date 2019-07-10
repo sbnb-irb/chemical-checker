@@ -8,12 +8,12 @@ From: centos
 
 %post
     # bind paths
-    mkdir -p /aloy
-    mkdir -p /aloy/home
-    mkdir -p /aloy/data
-    mkdir -p /aloy/scratch
-    mkdir -p /aloy/web_checker
-    mkdir -p /slgpfs
+    mkdir /aloy
+    mkdir /aloy/home
+    mkdir /aloy/data
+    mkdir /aloy/scratch
+    mkdir /aloy/web_checker
+    mkdir /slgpfs
     
     # update yum
     yum update -y
@@ -40,24 +40,24 @@ From: centos
                    postgresql-contrib
 
     # conda
-    mkdir -p /opt/miniconda2
+    mkdir /opt/miniconda2 
     cd /opt/miniconda2 
     wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
     bash Miniconda2-latest-Linux-x86_64.sh -p /opt/miniconda2 -b -f
     rm Miniconda2-latest-Linux-x86_64.sh
     export PATH=/opt/miniconda2/bin:$PATH
 
-    # create and activate conda enviroment
+    # create and activate conda enviroments
     conda create --name=py27 python=2.7.10 -y
     source activate py27
 
     # conda-specific packages
-    conda install -y rdkit -c rdkit               # Open-Source Cheminformatics Software
-    conda install -y openbabel -c openbabel       # chemical toolbox
+    conda install -y -c rdkit rdkit               # Open-Source Cheminformatics Software
+    conda install -y -c openbabel openbabel       # chemical toolbox
     conda install -y mkl-service                  # change the number of CPU’s MKL is using
     conda install -y anaconda-client              # client that provides an interface to Anaconda Cloud
     conda install -y faiss-cpu -c pytorch         # facebook trick for sparsity
-    conda install -y hdbscan -c conda-forge       # clustering
+    conda install -y -c conda-forge hdbscan       # clustering
 
     # utility packages
     pip install ipython
@@ -90,9 +90,10 @@ From: centos
     pip install scipy                             # scientific python
     pip install theano                            # Optimize evaluate math expressions
     pip install h5py                              # HDF5 via python
-    pip install fancyimpute                       # matrix completion and imputation algorithms
+    pip install fancyimpute==0.4.3                       # matrix completion and imputation algorithms
     # graph packages
     pip install networkx                          # graph data stracture and algos
+    pip install protobuf==3.6.1
 
     ## install SNAP.py
     wget  https://snap.stanford.edu/snappy/release/snap-4.1.0-4.1-centos6.5-x64-py2.6.tar.gz
