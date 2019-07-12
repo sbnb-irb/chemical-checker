@@ -523,7 +523,8 @@ class Plot():
     def datashader_projection(self, proj, cctype, noise_scale=3., how='log',
                               cmap=None, plot_size=(1000, 1000),
                               x_range=(-100, 100), y_range=(-100, 100),
-                              spread=None, weigth=None, transparent=False):
+                              spread=None, weigth=None, transparent=False,
+                              marginals=True):
         import datashader as ds
         import datashader.transfer_functions as tf
 
@@ -600,6 +601,58 @@ class Plot():
         dst_file = os.path.join(self.plot_path, 'shaded_%s_%s' %
                                 (cctype, self.dataset_code))
         ds.utils.export_image(img=img, filename=dst_file, fmt=".png")
+
+        if marginals:
+            f = plt.figure(figsize=(10, 10))
+            gs = plt.GridSpec(6, 6)
+
+            ax_joint = f.add_subplot(gs[1:, :-1])
+            ax_marg_x = f.add_subplot(gs[0, :-1])
+            ax_marg_y = f.add_subplot(gs[1:, -1])
+
+            # Turn off tick visibility for the measure axis on the marginal
+            # plots
+            plt.setp(ax_marg_x.get_xticklabels(), visible=False)
+            plt.setp(ax_marg_y.get_yticklabels(), visible=False)
+
+            # Turn off the ticks on the density axis for the marginal plots
+            plt.setp(ax_marg_x.yaxis.get_majorticklines(), visible=False)
+            plt.setp(ax_marg_x.yaxis.get_minorticklines(), visible=False)
+            plt.setp(ax_marg_y.xaxis.get_majorticklines(), visible=False)
+            plt.setp(ax_marg_y.xaxis.get_minorticklines(), visible=False)
+            plt.setp(ax_marg_x.get_yticklabels(), visible=False)
+            plt.setp(ax_marg_y.get_xticklabels(), visible=False)
+            plt.setp(ax_joint.xaxis.get_majorticklines(), visible=False)
+            plt.setp(ax_joint.xaxis.get_minorticklines(), visible=False)
+            plt.setp(ax_joint.yaxis.get_majorticklines(), visible=False)
+            plt.setp(ax_joint.yaxis.get_minorticklines(), visible=False)
+            plt.setp(ax_joint.get_yticklabels(), visible=False)
+            plt.setp(ax_joint.get_xticklabels(), visible=False)
+
+            ax_marg_x.yaxis.grid(False)
+            ax_marg_x.set_xlim(x_range)
+            ax_marg_y.xaxis.grid(False)
+            ax_marg_y.set_ylim(x_range)
+
+            sns.despine(ax=ax_marg_x, left=True)
+            sns.despine(ax=ax_marg_y, bottom=True)
+            f.tight_layout()
+            f.subplots_adjust(hspace=0, wspace=0)
+
+            color = plt.cm.get_cmap(cmap)(0)
+            sns.kdeplot(proj[:, 0], ax=ax_marg_x, shade=True, color=color)
+            sns.kdeplot(proj[:, 1], ax=ax_marg_y, vertical=True, shade=True,
+                        color=color)
+
+            with open(dst_file + ".png", 'r') as image_file:
+                image = plt.imread(image_file)
+                ax_joint.imshow(image)
+            # g.ax_joint.set_axis_off()
+            #sns.despine(top=True, right=True, left=True, bottom=True)
+            dst_file = os.path.join(self.plot_path, 'proj_margin_%s_%s.png' %
+                                    (cctype, self.dataset_code))
+
+            plt.savefig(dst_file, dpi=100, transparent=True)
 
     def projection_plot(self, Proj, bw=None, levels=5, dev=None, s=None, transparency=0.5):
 
