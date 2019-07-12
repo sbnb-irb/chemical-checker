@@ -823,6 +823,7 @@ class TargetMate:
             "    if data is None:",  # trick to avoid re-parsing SMILES
             "        data = '%s'" % signature_path,
             "    tm = pickle.load(open(os.path.join(mdl_dir,'TargetMate.pkl'),'r'))",
+            "    tm.models_path = mdl_dir",
             "    mps, ad, prc, data = tm.predict(data=data,sign_folder='%s')" % signature_path,
             "    results = mps, ad, prc",
             "    pickle.dump(results, open(result_file,'w'))",
