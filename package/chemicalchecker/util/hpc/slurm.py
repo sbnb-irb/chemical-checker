@@ -141,10 +141,10 @@ fi
         jobParams.append("#SBATCH --chdir=" + self.jobdir)
 
         if (len(elements) == 0 and num_jobs > 1):
-            raise("Number of specified jobs does not match to the number of elements")
+            raise Exception("Number of specified jobs does not match to the number of elements")
 
         if num_jobs == 0:
-            raise("Number of specified jobs is zero")
+            raise Exception("Number of specified jobs is zero")
 
         if num_jobs > 1 or command.find("<TASK_ID>") != -1:
             jobParams.append("#SBATCH --array=1-" + str(num_jobs))
