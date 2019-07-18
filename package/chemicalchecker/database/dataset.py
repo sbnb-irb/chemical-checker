@@ -134,6 +134,16 @@ class Dataset(Base):
         session.close()
         return res
 
+    @staticmethod
+    def get_coordinates():
+        """Get Dataset list of possible coordinates."""
+        session = get_session()
+
+        query = session.query(Dataset).distinct(Dataset.coordinate)
+        res = query.all()
+        session.close()
+        return res
+
 
 @logged
 class DatasetHasDatasource(Base):
@@ -152,7 +162,8 @@ class DatasetHasDatasource(Base):
     @staticmethod
     def _create_table():
         engine = get_engine()
-        Base.metadata.create_all(engine, tables=[DatasetHasDatasource.__table__])
+        Base.metadata.create_all(
+            engine, tables=[DatasetHasDatasource.__table__])
 
     @staticmethod
     def _drop_table():
