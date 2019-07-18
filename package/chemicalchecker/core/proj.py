@@ -362,8 +362,8 @@ class proj(BaseSignature, DataSignature):
             for i in range(0, data.shape[0]):
                 for j in range(0, neigh):
                     mat[i, j] = mat[i, j] / norms[I[i, j]]
-            D = np.maximum(0.0, D * mat)
-            D = np.minimum(1.0, D)
+            # Convert to [0,1]
+            D = np.maximum(0.0, (1.0 + D * mat) / 2.0)
             t_end = time()
             t_delta = str(datetime.timedelta(seconds=t_end - t_start))
             self.__log.info("Converting to cosine distance took %s", t_delta)
