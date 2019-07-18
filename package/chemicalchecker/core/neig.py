@@ -294,6 +294,7 @@ class neig(BaseSignature, DataSignature):
             raise ImportError("requires faiss " +
                               "https://github.com/facebookresearch/faiss")
 
+        self.__log.info("Reading index file")
         with h5py.File(self.data_path, "r") as hw:
             metric_orig = hw["metric"][0]
         # open faiss model
@@ -308,6 +309,7 @@ class neig(BaseSignature, DataSignature):
             k = max_k
         # convert signatures to float32 as faiss is very picky
         data = np.array(signatures, dtype=np.float32)
+        self.__log.info("Searching neighbors")
         # get neighbors idx and distances
         dists, idx = index.search(data, k)
         predictions = dict()
