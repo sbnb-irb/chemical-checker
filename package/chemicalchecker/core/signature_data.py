@@ -133,15 +133,16 @@ class DataSignature(object):
         bg_distances = {}
         if inchikey_vec is None:
 
+            self.__log.info("Reading bg_distances file for metric: " + metric)
             if metric == "cosine":
                 bg_file = os.path.join(
                     self.model_path, "bg_cosine_distances.h5")
                 if not os.path.isfile(bg_file):
                     raise Exception(
                         "The background distances for metric " + metric + " are not available.")
-                f5 = h5py.File(bg_file)
-                bg_distances["distance"] = f5["distance"][:]
-                bg_distances["pvalue"] = f5["pvalue"][:]
+                with h5py.File(bg_file, 'r') as f5:
+                    bg_distances["distance"] = f5["distance"][:]
+                    bg_distances["pvalue"] = f5["pvalue"][:]
 
             if metric == "euclidean":
                 bg_file = os.path.join(
@@ -149,9 +150,9 @@ class DataSignature(object):
                 if not os.path.isfile(bg_file):
                     raise Exception(
                         "The background distances for metric " + metric + " are not available.")
-                f5 = h5py.File(bg_file)
-                bg_distances["distance"] = f5["distance"][:]
-                bg_distances["pvalue"] = f5["pvalue"][:]
+                with h5py.File(bg_file, 'r') as f5:
+                    bg_distances["distance"] = f5["distance"][:]
+                    bg_distances["pvalue"] = f5["pvalue"][:]
 
             if len(bg_distances) == 0:
                 raise Exception(
