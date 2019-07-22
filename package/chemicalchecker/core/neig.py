@@ -32,6 +32,8 @@ class neig(BaseSignature, DataSignature):
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(signature_path, "neig.h5")
         self.__log.debug('data_path: %s', self.data_path)
+        DataSignature.__init__(self, self.data_path,
+                               ds_data='distances', keys_name='row_keys')
         self.metric = "cosine"
         self.cpu = 1
         self.chunk = 1000
