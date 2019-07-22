@@ -29,31 +29,28 @@ class DataSignature(object):
     data in HDF5 format.
     """
 
-    def __init__(self, data_path, ds_data='V'):
+    def __init__(self, data_path, ds_data='V', keys_name='keys'):
         """Initialize or load the signature at the given path."""
         self.data_path = os.path.abspath(data_path)
         self.ds_data = ds_data
+        self.keys_name = keys_name
         self.PVALRANGES = np.array([0, 0.001, 0.01, 0.1] +
                                    list(np.arange(1, 100)) + [100]) / 100.
 
     @cached_property
     def keys(self):
-        keys_name = 'keys'
         """Get the list of keys (usually inchikeys) in the signature."""
         if not os.path.isfile(self.data_path):
             raise Exception("Data file %s not available." % self.data_path)
         with h5py.File(self.data_path, 'r') as hf:
-            if 'keys' not in hf.keys():
-                if 'row_keys' in hf.keys():
-                    keys_name = 'row_keys'
-                else:
-                    raise Exception("HDF5 file has no 'keys' field.")
+            if self.keys_name not in hf.keys():
+                raise Exception("HDF5 file has no 'keys' field.")
             # if keys have a decode attriute they have been generated in py2
             # for compatibility with new format we decode them
-            if hasattr(hf[keys_name][0], 'decode'):
-                return [k.decode() for k in hf[keys_name][:]]
+            if hasattr(hf[self.keys_name][0], 'decode'):
+                return [k.decode() for k in hf[self.keys_name][:]]
             else:
-                return hf[keys_name][:]
+                return hf[self.keys_name][:]
 
     @cached_property
     def unique_keys(self):
