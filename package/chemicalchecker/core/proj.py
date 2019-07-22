@@ -176,7 +176,13 @@ class proj(BaseSignature, DataSignature):
                 index = faiss.IndexFlatIP(
                     kmeans.centroids[final_indexes].shape[1])
 
-            index.add(kmeans.centroids[final_indexes])
+            if self.metric == "cosine":
+
+                norms = LA.norm(kmeans.centroids[final_indexes], axis=1)
+
+                index.add(kmeans.centroids[final_indexes] / norms[:, None])
+            else:
+                index.add(kmeans.centroids[final_indexes])
 
             points_proj = {}
 
@@ -206,10 +212,13 @@ class proj(BaseSignature, DataSignature):
 
             if self.metric == "euclidean":
                 index = faiss.IndexFlatL2(self.data.shape[1])
+                index.add(self.data)
             else:
                 index = faiss.IndexFlatIP(self.data.shape[1])
 
-            index.add(self.data)
+                norms = LA.norm(self.data, axis=1)
+
+                index.add(self.data / norms[:, None])
 
             xlim, ylim = plot.projection_plot(final_Proj, bw=0.1, levels=10)
 
@@ -352,21 +361,12 @@ class proj(BaseSignature, DataSignature):
 
         if self.metric == "cosine":
 
-            D, I = index.search(data, neigh)
-
             norms = LA.norm(data, axis=1)
 
-            t_start = time()
-            mat = np.ones((data.shape[0], neigh))
-            mat = mat / norms[:, None]
-            for i in range(0, data.shape[0]):
-                for j in range(0, neigh):
-                    mat[i, j] = mat[i, j] / norms[I[i, j]]
+            D, I = index.search(data / norms[:, None], neigh)
+
             # Convert to [0,1]
-            D = np.maximum(0.0, (1.0 + D * mat) / 2.0)
-            t_end = time()
-            t_delta = str(datetime.timedelta(seconds=t_end - t_start))
-            self.__log.info("Converting to cosine distance took %s", t_delta)
+            D = np.maximum(0.0, (1.0 + D) / 2.0)
 
         else:
 
