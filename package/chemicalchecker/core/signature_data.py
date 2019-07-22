@@ -29,11 +29,36 @@ class DataSignature(object):
     data in HDF5 format.
     """
 
-    def __init__(self, data_path):
+    def __init__(self, data_path, ds_data='V'):
         """Initialize or load the signature at the given path."""
         self.data_path = os.path.abspath(data_path)
+        self.ds_data = ds_data
         self.PVALRANGES = np.array([0, 0.001, 0.01, 0.1] +
                                    list(np.arange(1, 100)) + [100]) / 100.
+
+    @cached_property
+    def keys(self):
+        keys_name = 'keys'
+        """Get the list of keys (usually inchikeys) in the signature."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if 'keys' not in hf.keys():
+                if 'row_keys' in hf.keys():
+                    keys_name = 'row_keys'
+                else:
+                    raise Exception("HDF5 file has no 'keys' field.")
+            # if keys have a decode attriute they have been generated in py2
+            # for compatibility with new format we decode them
+            if hasattr(hf[keys_name][0], 'decode'):
+                return [k.decode() for k in hf[keys_name][:]]
+            else:
+                return hf[keys_name][:]
+
+    @cached_property
+    def unique_keys(self):
+        """Get the keys of the signature as a set."""
+        return set(self.keys)
 
     @property
     def info_h5(self):
@@ -96,6 +121,62 @@ class DataSignature(object):
                 else:
                     return hf[h5_dataset_name][mask, :]
 
+    def get_vectors(self, keys, include_nan=False, dataset_name='V'):
+        """Get vectors for a list of keys, sorted by default.
+
+        Args:
+            keys(list): a List of string, only the overlapping subset to the
+                signature keys is considered.
+            include_nan(bool): whether to include requested but absent
+                molecule signatures as NaNs.
+            dataset_name(str): return any dataset in the h5 which is organized
+                by sorted keys.
+        """
+        self.__log.debug("Fetching %s rows from dataset %s" %
+                         (len(keys), dataset_name))
+        valid_keys = list(self.unique_keys & set(keys))
+        idxs = np.argwhere(
+            np.isin(self.keys, list(valid_keys), assume_unique=True))
+        inks, signs = list(), list()
+        with h5py.File(self.data_path, 'r') as hf:
+            dset = hf[dataset_name]
+            dset_shape = dset.shape
+            for idx in sorted(idxs.flatten()):
+                inks.append(self.keys[idx])
+                signs.append(dset[idx])
+        missed_inks = set(keys) - set(inks)
+        # if missing signatures are requested add NaNs
+        if include_nan:
+            inks.extend(list(missed_inks))
+            dimensions = (len(missed_inks), dset_shape[1])
+            nan_matrix = np.zeros(dimensions) * np.nan
+            signs.append(nan_matrix)
+            self.__log.info("NaN for %s requested keys as are not available.",
+                            len(missed_inks))
+        elif missed_inks:
+            self.__log.warn("Following %s requested keys are not available:",
+                            len(missed_inks))
+            self.__log.warn(" ".join(list(missed_inks)[:10]) + "...")
+        if len(inks) == 0:
+            self.__log.warn("No requested keys available!")
+            return None, None
+        inks, signs = np.stack(inks), np.vstack(signs)
+        sort_idx = np.argsort(inks)
+        return inks[sort_idx], signs[sort_idx]
+
+    def index(self, key):
+        """Give the index according to the key.
+
+        Args:
+            key(str): the key to search index in the matrix.
+        Returns:
+            index(int): Index in the matrix
+        """
+        if key not in self.unique_keys:
+            raise Exception("Key '%s' not found." % key)
+        idx = bisect_left(self.keys, key)
+        return idx
+
     def __getitem__(self, key):
         """Return the vector corresponding to the key.
 
@@ -107,16 +188,16 @@ class DataSignature(object):
             raise Exception("Data file not available.")
         if isinstance(key, slice):
             with h5py.File(self.data_path, 'r') as hf:
-                return hf['V'][key]
+                return hf[self.ds_data][key]
         elif isinstance(key, str):
             if key not in self.unique_keys:
                 raise Exception("Key '%s' not found." % key)
             idx = bisect_left(self.keys, key)
             with h5py.File(self.data_path, 'r') as hf:
-                return hf['V'][idx]
+                return hf[self.ds_data][idx]
         elif isinstance(key, int):
             with h5py.File(self.data_path, 'r') as hf:
-                return hf['V'][key]
+                return hf[self.ds_data][key]
         else:
             raise Exception("Key type %s not recognized." % type(key))
 
