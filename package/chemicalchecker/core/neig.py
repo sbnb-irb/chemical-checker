@@ -88,51 +88,28 @@ class neig(BaseSignature, DataSignature):
                 else:
                     index = faiss.IndexFlatIP(self.datasize[1])
 
-                norms = None
-
                 for chunk in sign1.chunker():
                     data_temp = np.array(dh5["V"][chunk], dtype=np.float32)
-                    index.add(data_temp)
-
-                for chunk in sign1.chunker():
-                    data_temp = np.array(dh5["V"][chunk], dtype=np.float32)
-                    Dt, It = index.search(data_temp, k)
-
                     if self.metric == "cosine":
                         normst = LA.norm(data_temp, axis=1)
+                        index.add(data_temp / normst[:, None])
+                    else:
+                        index.add(data_temp)
 
-                        if norms is None:
-                            norms = normst
-                        else:
-                            norms = np.concatenate((norms, normst))
+                for chunk in sign1.chunker():
+                    data_temp = np.array(dh5["V"][chunk], dtype=np.float32)
+                    if self.metric == "cosine":
+                        normst = LA.norm(data_temp, axis=1)
+                        Dt, It = index.search(data_temp / normst[:, None], k)
+                    else:
+                        Dt, It = index.search(data_temp, k)
 
                     dh5out["indices"][chunk] = It
-                    dh5out["distances"][chunk] = Dt
+                    if self.metric == "cosine":
+                        dh5out["distances"][chunk] = np.maximum(0.0, 1.0 - Dt)
+                    else:
+                        dh5out["distances"][chunk] = Dt
 
-            if self.metric == "cosine":
-
-                with h5py.File(self.data_path, "r+") as hw:
-                    t_start = time()
-                    mat = np.ones((self.datasize[0], k))
-                    for chunk in sign1.chunker():
-                        mat[chunk] = mat[chunk] / norms[chunk, None]
-                    # We load all to make it faster, if memory issue then we need
-                    # to get each element one by one
-                    I = hw["indices"][:]
-                    for i in range(0, self.datasize[0]):
-                        for j in range(0, k):
-                            mat[i, j] = mat[i, j] / norms[I[i, j]]
-                    del I
-                    for chunk in sign1.chunker():
-                        hw["distances"][chunk] = np.maximum(
-                            0.0, 1.0 - (hw["distances"][chunk] * mat[chunk]))
-                    t_end = time()
-                    t_delta = str(datetime.timedelta(seconds=t_end - t_start))
-                    self.__log.info(
-                        "Converting to cosine distance took %s", t_delta)
-
-                with h5py.File(self.norms_file, "w") as hw:
-                    hw.create_dataset("norms", data=norms)
         else:
             raise Exception("The file " + sign1.data_path + " does not exist")
 
@@ -163,7 +140,9 @@ class neig(BaseSignature, DataSignature):
                 self.datasize = dh5["V"].shape
                 self.data_type = dh5["V"].dtype
 
-                k = min(self.datasize[0], self.k_neig)
+                index = faiss.read_index(self.index_filename)
+
+                k = min(self.k_neig, index.ntotal)
 
                 dh5out.create_dataset("row_keys", data=dh5["keys"][:])
                 with h5py.File(self.data_path) as hr5:
@@ -178,52 +157,23 @@ class neig(BaseSignature, DataSignature):
                 dh5out.create_dataset(
                     "metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
 
-                norms = None
-
-                index = faiss.read_index(self.index_filename)
-
                 for chunk in sign1.chunker():
                     data_temp = np.array(dh5["V"][chunk], dtype=np.float32)
-                    Dt, It = index.search(data_temp, k)
 
                     if self.metric == "cosine":
                         normst = LA.norm(data_temp, axis=1)
-
-                        if norms is None:
-                            norms = normst
-                        else:
-                            norms = np.concatenate((norms, normst))
+                        Dt, It = index.search(data_temp / normst[:, None], k)
+                    else:
+                        Dt, It = index.search(data_temp, k)
 
                     dh5out["indices"][chunk] = It
-                    dh5out["distances"][chunk] = Dt
+                    if self.metric == "cosine":
+                        dh5out["distances"][chunk] = np.maximum(0.0, 1.0 - Dt)
+                    else:
+                        dh5out["distances"][chunk] = Dt
 
         else:
             raise Exception("The file " + sign1.data_path + " does not exist")
-
-        if self.metric == "cosine":
-
-            with h5py.File(self.norms_file, "r") as hw:
-                norms_fit = hw["norms"][:]
-
-            with h5py.File(destination, "r+") as hw:
-                t_start = time()
-                mat = np.ones((self.datasize[0], k))
-                for chunk in sign1.chunker():
-                    mat[chunk] = mat[chunk] / norms[chunk, None]
-                # We load all to make it faster, if memory issue then we need
-                # to get each element one by one
-                I = hw["indices"][:]
-                for i in range(0, self.datasize[0]):
-                    for j in range(0, k):
-                        mat[i, j] = mat[i, j] / norms_fit[I[i, j]]
-                del I
-                for chunk in sign1.chunker():
-                    hw["distances"][chunk] = np.maximum(
-                        0.0, 1.0 - (hw["distances"][chunk] * mat[chunk]))
-                t_end = time()
-                t_delta = str(datetime.timedelta(seconds=t_end - t_start))
-                self.__log.info(
-                    "Converting to cosine distance took %s", t_delta)
 
     def __getitem__(self, key):
         """Return the neighbours corresponding to the key.
@@ -311,7 +261,12 @@ class neig(BaseSignature, DataSignature):
         data = np.array(signatures, dtype=np.float32)
         self.__log.info("Searching neighbors")
         # get neighbors idx and distances
-        dists, idx = index.search(data, k)
+        if metric_orig == "cosine":
+            normst = LA.norm(data, axis=1)
+            dists, idx = index.search(data / normst[:, None], k)
+        else:
+            dists, idx = index.search(data, k)
+
         predictions = dict()
         predictions["indices"] = idx
         if keys:
@@ -323,26 +278,9 @@ class neig(BaseSignature, DataSignature):
             predictions["distances"] = dists
             if metric_orig == "cosine":
 
-                norms = LA.norm(data, axis=1)
-                datasize = len(signatures)
+                predictions["distances"] = np.maximum(
+                    0.0, 1.0 - predictions["distances"])
 
-                with h5py.File(self.norms_file, "r") as hw:
-                    norms_fit = hw["norms"][:]
-
-                t_start = time()
-                mat = np.ones((datasize, k))
-                mat = mat / norms[:, None]
-
-                I = predictions["indices"]
-                for i in range(0, datasize):
-                    for j in range(0, k):
-                        mat[i, j] = mat[i, j] / norms_fit[I[i, j]]
-                    predictions["distances"] = np.maximum(
-                        0.0, 1.0 - (predictions["distances"] * mat))
-                t_end = time()
-                t_delta = str(datetime.timedelta(seconds=t_end - t_start))
-                self.__log.info(
-                    "Converting to cosine distance took %s", t_delta)
         return predictions
 
     @staticmethod
