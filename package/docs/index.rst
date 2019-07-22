@@ -48,7 +48,7 @@ This will install the *lite* version of the package
 
 .. code-block:: python
 
-    from chemicachecker.core import ChemicalChecker
+    from chemicalchecker import ChemicalChecker
 
     cc = ChemicalChecker()
 
