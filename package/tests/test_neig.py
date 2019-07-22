@@ -58,7 +58,6 @@ class TestNeigh(unittest.TestCase):
             :2], coords, "neig1", "models")
         self.assertTrue(os.path.isdir(path_test2))
         neig1_ref.fit(sign1)
-        self.assertTrue(os.path.isfile(os.path.join(path_test2, "norms.h5")))
 
         with h5py.File(sign1.data_path) as hf:
             ini_data = hf["V"][:]
