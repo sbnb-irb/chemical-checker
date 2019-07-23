@@ -188,11 +188,11 @@ class clus(BaseSignature, DataSignature):
 
             faiss.omp_set_num_threads(self.cpu)
 
-            dh5 = h5py.File(sign1.data_path)
-            if "elbow" not in dh5.keys():
-                Vn, Vm = self.data.shape[0], self.data.shape[1] / 2
-            else:
-                Vn, Vm = self.data.shape[0], dh5["elbow"][0]
+            with h5py.File(sign1.data_path) as dh5:
+                if "elbow" not in dh5.keys():
+                    Vn, Vm = self.data.shape[0], self.data.shape[1] / 2
+                else:
+                    Vn, Vm = self.data.shape[0], dh5["elbow"][0]
 
             if self.metric == "cosine":
                 self.data = np.float32(self._normalizer(self.data, False))
@@ -230,7 +230,8 @@ class clus(BaseSignature, DataSignature):
                     D, labels = kmeans.index.search(self.data, 1)
                     inertias += [self._inertia(self.data,
                                                labels, kmeans.centroids)]
-                    disps += [self._dispersion(kmeans.centroids, sig_dist)]
+                    disps += [self._dispersion(kmeans.centroids, sig_dist, self.metric)]
+
                 disps[0] = disps[1]
 
                 # Smooting, monotonizing, and combining the scores
@@ -532,10 +533,10 @@ class clus(BaseSignature, DataSignature):
             ines += euclidean(V_pqcode[i], centroids[labels[i]])
         return ines
 
-    def _dispersion(self, centroids, sig_dist):
+    def _dispersion(self, centroids, sig_dist, metric):
         if len(centroids) == 1:
             return None
-        return np.sum(pdist(centroids, metric=euclidean) < sig_dist)
+        return np.sum(pdist(centroids, metric=metric) < sig_dist)
 
     def _monotonize(self, v, up=True):
         if up:
