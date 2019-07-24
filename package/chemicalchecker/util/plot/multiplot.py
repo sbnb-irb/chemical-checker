@@ -155,7 +155,8 @@ class MultiPlot():
             "Degree",
             "Weights",
             "AUC-ROC",
-            "MCC"]
+            "MCC",
+            "Sign Range"]
         # the following are aggregated
         conncompo = [
             "SccSz",
@@ -220,6 +221,16 @@ class MultiPlot():
                 row.update({"dataset": ds})
                 row.update({"Weights": graph_stat[wei]})
                 df.loc[len(df)] = pd.Series(row)
+            maxss = list()
+            minss = list()
+            for s in sign2.chunker(size=10000):
+                curr = sign2[s]
+                maxss.append(np.percentile(curr, 99))
+                minss.append(np.percentile(curr, 1))
+            row = {"dataset": ds, "Sign Range": np.mean(maxss)}
+            df.loc[len(df)] = pd.Series(row)
+            row = {"dataset": ds, "Sign Range": np.mean(minss)}
+            df.loc[len(df)] = pd.Series(row)
 
         df = df.infer_objects()
         sns.set(style="ticks")
@@ -251,6 +262,7 @@ class MultiPlot():
         g.axes.flat[5].set_xlim(0, 1)
         g.axes.flat[6].set_xlim(0.9, 1)
         g.axes.flat[7].set_xlim(0.5, 1)
+        g.axes.flat[8].set_xlim(-1, 1)
         # g.axes.flat[-1].set_xlim(1e1,1e3)
         sns.despine(left=True, bottom=True)
 
@@ -831,6 +843,7 @@ class MultiPlot():
                                          not_self=True):
 
         sns.set_style("whitegrid")
+        sns.set_context("talk")
         fig, axes = plt.subplots(5, 5, sharey=True, sharex=False,
                                  figsize=(10, 10), dpi=100)
         adanet_dir = 'adanet_eval'
