@@ -1,0 +1,274 @@
+import os
+import pytest
+import unittest
+import functools
+import numpy as np
+
+
+__author__ = "Han Altae-Tran and Bharath Ramsundar"
+__copyright__ = "Copyright 2016, Stanford University"
+__license__ = "MIT"
+
+
+def skip_if_import_exception(function):
+    """Assist in skipping tests failing because of missing dependencies."""
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except ImportError as err:
+            pytest.skip(str(err))
+    return wrapper
+
+
+class TestConverter(unittest.TestCase):
+
+    def setUp(self):
+        # path for test data
+        test_dir = os.path.dirname(os.path.realpath(__file__))
+        self.data_dir = os.path.join(test_dir, 'data')
+        os.environ["CC_CONFIG"] = os.path.join(
+            self.data_dir, 'config.json')
+
+    @skip_if_import_exception
+    def test_carbon_nitrogen(self):
+        """Test on carbon nitrogen molecule"""
+        from chemicalchecker.tool.deepchem.feat import ConvMolFeaturizer, ConvMol
+        # Note there is a central nitrogen of degree 4, with 4 carbons
+        # of degree 1 (connected only to central nitrogen).
+        raw_smiles = ['C[N+](C)(C)C']
+        import rdkit
+        mols = [rdkit.Chem.MolFromSmiles(s) for s in raw_smiles]
+        featurizer = ConvMolFeaturizer()
+        mols = featurizer.featurize(mols)
+        mol = mols[0]
+
+        # 5 atoms in compound
+        assert mol.get_num_atoms() == 5
+
+        # Get the adjacency lists grouped by degree
+        deg_adj_lists = mol.get_deg_adjacency_lists()
+        assert np.array_equal(
+            deg_adj_lists[0], np.zeros([0, 0], dtype=np.int32))
+        # The 4 outer atoms connected to central nitrogen
+        assert np.array_equal(deg_adj_lists[1],
+                              np.array([[4], [4], [4], [4]], dtype=np.int32))
+        assert np.array_equal(
+            deg_adj_lists[2], np.zeros([0, 2], dtype=np.int32))
+        assert np.array_equal(
+            deg_adj_lists[3], np.zeros([0, 3], dtype=np.int32))
+        # Central nitrogen connected to everything else.
+        assert np.array_equal(deg_adj_lists[4],
+                              np.array([[0, 1, 2, 3]], dtype=np.int32))
+        assert np.array_equal(
+            deg_adj_lists[5], np.zeros([0, 5], dtype=np.int32))
+        assert np.array_equal(
+            deg_adj_lists[6], np.zeros([0, 6], dtype=np.int32))
+
+    @skip_if_import_exception
+    def test_single_carbon(self):
+        """Test that single carbon atom is featurized properly."""
+        from chemicalchecker.tool.deepchem.feat import ConvMolFeaturizer, ConvMol
+        raw_smiles = ['C']
+        import rdkit
+        mols = [rdkit.Chem.MolFromSmiles(s) for s in raw_smiles]
+        featurizer = ConvMolFeaturizer()
+        mol_list = featurizer.featurize(mols)
+        mol = mol_list[0]
+
+        # Only one carbon
+        assert mol.get_num_atoms() == 1
+
+        # No bonds, so degree adjacency lists are empty
+        deg_adj_lists = mol.get_deg_adjacency_lists()
+        assert np.array_equal(
+            deg_adj_lists[0], np.zeros([1, 0], dtype=np.int32))
+        assert np.array_equal(
+            deg_adj_lists[1], np.zeros([0, 1], dtype=np.int32))
+        assert np.array_equal(
+            deg_adj_lists[2], np.zeros([0, 2], dtype=np.int32))
+        assert np.array_equal(
+            deg_adj_lists[3], np.zeros([0, 3], dtype=np.int32))
+        assert np.array_equal(
+            deg_adj_lists[4], np.zeros([0, 4], dtype=np.int32))
+        assert np.array_equal(
+            deg_adj_lists[5], np.zeros([0, 5], dtype=np.int32))
+        assert np.array_equal(
+            deg_adj_lists[6], np.zeros([0, 6], dtype=np.int32))
+
+    @skip_if_import_exception
+    def test_alkane(self):
+        """Test on simple alkane"""
+        from chemicalchecker.tool.deepchem.feat import ConvMolFeaturizer, ConvMol
+        raw_smiles = ['CCC']
+        import rdkit
+        mols = [rdkit.Chem.MolFromSmiles(s) for s in raw_smiles]
+        featurizer = ConvMolFeaturizer()
+        mol_list = featurizer.featurize(mols)
+        mol = mol_list[0]
+
+        # 3 carbonds in alkane
+        assert mol.get_num_atoms() == 3
+
+        deg_adj_lists = mol.get_deg_adjacency_lists()
+        assert np.array_equal(
+            deg_adj_lists[0], np.zeros([0, 0], dtype=np.int32))
+        # Outer two carbonds are connected to central carbon
+        assert np.array_equal(deg_adj_lists[1], np.array(
+            [[2], [2]], dtype=np.int32))
+        # Central carbon connected to outer two
+        assert np.array_equal(
+            deg_adj_lists[2], np.array([[0, 1]], dtype=np.int32))
+        assert np.array_equal(
+            deg_adj_lists[3], np.zeros([0, 3], dtype=np.int32))
+        assert np.array_equal(
+            deg_adj_lists[4], np.zeros([0, 4], dtype=np.int32))
+        assert np.array_equal(
+            deg_adj_lists[5], np.zeros([0, 5], dtype=np.int32))
+        assert np.array_equal(
+            deg_adj_lists[6], np.zeros([0, 6], dtype=np.int32))
+
+    @skip_if_import_exception
+    def test_construct_conv_mol(self):
+        """Tests that ConvMols can be constructed without crash."""
+        from chemicalchecker.tool.deepchem.feat import ConvMolFeaturizer, ConvMol
+        N_feat = 4
+        # Artificial feature array.
+        atom_features = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]])
+        adj_list = [[1], [0, 2], [1]]
+        mol = ConvMol(atom_features, adj_list)
+
+    @skip_if_import_exception
+    def test_conv_mol_deg_slice(self):
+        """Tests that deg_slice works properly."""
+        from chemicalchecker.tool.deepchem.feat import ConvMolFeaturizer, ConvMol
+        atom_features = np.array([[20, 21, 22, 23], [24, 25, 26, 27],
+                                  [28, 29, 30, 31], [32, 33, 34, 35]])
+        adj_list = [[1, 2], [0, 3], [0, 3], [1, 2]]
+        mol = ConvMol(atom_features, adj_list)
+
+        assert np.array_equal(
+            mol.get_deg_slice(),
+            # 0 atoms of degree 0
+            # 0 atoms of degree 1
+            # 4 atoms of degree 2
+            # 0 atoms of degree 3
+            # 0 atoms of degree 4
+            # 0 atoms of degree 5
+            # 0 atoms of degree 6
+            # 0 atoms of degree 7
+            # 0 atoms of degree 8
+            # 0 atoms of degree 9
+            # 0 atoms of degree 10
+            np.array([[0, 0], [0, 0], [0, 4], [0, 0], [0, 0], [0, 0], [0, 0],
+                      [0, 0], [0, 0], [0, 0], [0, 0]]))
+
+    @skip_if_import_exception
+    def test_get_atom_features(self):
+        """Test that the atom features are computed properly."""
+        from chemicalchecker.tool.deepchem.feat import ConvMolFeaturizer, ConvMol
+        atom_features = np.array([[40, 41, 42, 43], [44, 45, 46, 47],
+                                  [48, 49, 50, 51], [52, 53, 54,
+                                                     55], [56, 57, 58, 59]])
+        canon_adj_list = [[1, 2], [0, 3], [0, 3], [1, 2, 4], [3]]
+        mol = ConvMol(atom_features, canon_adj_list)
+        # atom 4 has 0 neighbors
+        # atom 0 has 2 neighbors
+        # atom 1 has 2 neighbors
+        # atom 2 has 2 neighbors
+        # atom 3 has 3 neighbors.
+        # Verify that atom features have been sorted by atom degree.
+        assert np.array_equal(
+            mol.get_atom_features(),
+            np.array([[56, 57, 58, 59], [40, 41, 42, 43], [44, 45, 46, 47],
+                      [48, 49, 50, 51], [52, 53, 54, 55]]))
+
+    @skip_if_import_exception
+    def test_get_adjacency_list(self):
+        """Tests that adj-list is canonicalized properly."""
+        from chemicalchecker.tool.deepchem.feat import ConvMolFeaturizer, ConvMol
+        atom_features = np.array([[40, 41, 42, 43], [44, 45, 46, 47],
+                                  [48, 49, 50, 51], [52, 53, 54,
+                                                     55], [56, 57, 58, 59]])
+        canon_adj_list = [[1, 2], [0, 3], [0, 3], [1, 2, 4], [3]]
+        mol = ConvMol(atom_features, canon_adj_list)
+        # Sorting is done by atom degree as before. So the ordering goes
+        # 4, 0, 1, 2, 3 now in terms of the original ordering. The mapping
+        # from new position to old position is
+        # {(4, 0), (0, 1), (1, 2), (2, 3), (3, 4)}. Check that adjacency
+        # list respects this reordering and returns correct adjacency list.
+        assert (mol.get_adjacency_list() == [[4], [2, 3], [1, 4], [1, 4], [2, 3,
+                                                                           0]])
+
+    @skip_if_import_exception
+    def test_agglomerate_molecules(self):
+        """Test AggrMol.agglomerate_mols."""
+        from chemicalchecker.tool.deepchem.feat import ConvMolFeaturizer, ConvMol
+        molecules = []
+
+        # First example molecule
+        N_feat = 4
+        # Artificial feature array.
+        atom_features = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]])
+        adj_list = [[1], [0, 2], [1]]
+        molecules.append(ConvMol(atom_features, adj_list))
+
+        # Second example molecule
+        atom_features = np.array([[20, 21, 22, 23], [24, 25, 26, 27],
+                                  [28, 29, 30, 31], [32, 33, 34, 35]])
+        adj_list = [[1, 2], [0, 3], [0, 3], [1, 2]]
+        molecules.append(ConvMol(atom_features, adj_list))
+
+        # Third example molecule
+        atom_features = np.array([[40, 41, 42, 43], [44, 45, 46, 47],
+                                  [48, 49, 50, 51], [52, 53, 54,
+                                                     55], [56, 57, 58, 59]])
+        adj_list = [[1, 2], [0, 3], [0, 3], [1, 2, 4], [3]]
+        molecules.append(ConvMol(atom_features, adj_list))
+
+        # Test agglomerate molecule method
+        concat_mol = ConvMol.agglomerate_mols(molecules)
+
+        assert concat_mol.get_num_atoms() == 12
+        assert concat_mol.get_num_molecules() == 3
+
+        atom_features = concat_mol.get_atom_features()
+        assert np.array_equal(atom_features[0, :], [1, 2, 3, 4])
+        assert np.array_equal(atom_features[2, :], [56, 57, 58, 59])
+        assert np.array_equal(atom_features[11, :], [52, 53, 54, 55])
+        assert np.array_equal(atom_features[4, :], [20, 21, 22, 23])
+
+        deg_adj_lists = concat_mol.get_deg_adjacency_lists()
+        # No atoms of degree 0
+        assert np.array_equal(deg_adj_lists[0], np.zeros([0, 0]))
+        # 3 atoms of degree 1
+        assert np.array_equal(deg_adj_lists[1], [[3], [3], [11]])
+        # 8 atoms of degree 2
+        assert np.array_equal(
+            deg_adj_lists[2],
+            [[0, 1], [5, 6], [4, 7], [4, 7], [5, 6], [9, 10], [8, 11], [8, 11]])
+        # 1 atom of degree 3
+        assert np.array_equal(deg_adj_lists[3], [[9, 10, 2]])
+        # 0 atoms of degree 4
+        assert np.array_equal(deg_adj_lists[4], np.zeros([0, 4]))
+        # 0 atoms of degree 5
+        assert np.array_equal(deg_adj_lists[5], np.zeros([0, 5]))
+
+    @skip_if_import_exception
+    def test_null_conv_mol(self):
+        """Running Null AggrMol Test. Only works when max_deg=6 and min_deg=0"""
+        from chemicalchecker.tool.deepchem.feat import ConvMolFeaturizer, ConvMol
+        num_feat = 4
+        min_deg = 0
+        null_mol = ConvMol.get_null_mol(num_feat)
+
+        deg_adj_lists = null_mol.get_deg_adjacency_lists()
+
+        # Check that atoms are only connected to themselves.
+        assert np.array_equal(deg_adj_lists[10],
+                              [[10, 10, 10, 10, 10, 10, 10, 10, 10, 10]])
+        assert np.array_equal(deg_adj_lists[1], [[1]])
+        # Check that there's one atom of each degree.
+        assert np.array_equal(null_mol.get_deg_slice(),
+                              [[0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1],
+                               [6, 1], [7, 1], [8, 1], [9, 1], [10, 1]])
