@@ -11,6 +11,7 @@ import h5py
 import shutil
 import itertools
 from glob import glob
+import pprint
 
 from .data import DataFactory
 from chemicalchecker.util import logged
@@ -258,17 +259,30 @@ class ChemicalChecker():
         return cluster
 
     @staticmethod
-    def sign1_to_neig1_hpc(job_path, cc_root, molset):
-        """Run HPC jobs to get nearest neighbor.
+    def generate_ref_full_hpc(job_path, cc_root, datasets, from_data, to_data, **params):
+        """Run HPC jobs to get new types of data.
 
         Args:
             job_path(str): Path (usually in scratch) where the script files are
                 generated.
             cc_root(str): The Chemical Checker root directory.
-            molset(str): The Chemical Checker molset (eg. 'reference', 'full').
+            datasets(list): The list of datasets to run the scripts on.
+            from_data(str): The type of data that we want to transform(e.g. sign1,sign2)
+            to_data(str): The type of data that we want to create(e.g. clus1,sign2)
+            cpu(int): Number of cores to use per dataset calculation. (default:10)
+            memory(int): Number of G in RAM memory per dataset calculation. (default:24)
         """
-        # create job directory if not available
         import chemicalchecker
+
+        memory = 24
+        cpu = 10
+        for param, value in params.items():
+            if "memory" in params:
+                memory = params["memory"]
+            if "cpu" in params:
+                cpu = params["cpu"]
+
+        # create job directory if not available
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         # create script file
@@ -284,26 +298,41 @@ class ChemicalChecker():
             "task_id = sys.argv[1]",  # <TASK_ID>
             "filename = sys.argv[2]",  # <FILE>
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
-            "data = inputs[task_id]",  # elements for current job
-            "for ds in data:",  # elements are indexes
-            "    sign1_ref = cc.get_signature('sign1', '%s', ds)" % molset,
-            "    neig1_ref = cc.get_signature('neig1', '%s', ds)" % molset,
-            "    neig1_ref.fit(sign1_ref)",
+            "data = str(inputs[task_id][0])",  # elements for current job
+            # start import
+            '%s_full = cc.get_signature("%s","full",data)' % (
+                from_data, from_data),
+            # start import
+            '%s_ref = cc.get_signature("%s","reference",data)' % (
+                from_data, from_data),
+            "pars = %s" % pprint.pformat(params),
+            # start import
+            '%s_ref = cc.get_signature("%s", "reference", data,**pars)' % (
+                to_data, to_data),
+            "%s_ref.fit(%s_ref)" % (to_data, from_data),
+            "%s_full = cc.get_signature('%s', 'full', data,**pars)" % (
+                to_data, to_data),
+            "%s_ref.predict(%s_full, destination=%s_full.data_path)" % (
+                to_data, from_data, to_data),
+            "%s_full.mark_ready()" % to_data,
             "print('JOB DONE')"
         ]
-        script_name = os.path.join(job_path, 'sign1_to_neig1.py')
+        script_name = os.path.join(
+            job_path, from_data + '_to_' + to_data + '.py')
         with open(script_name, 'w') as fh:
             for line in script_lines:
                 fh.write(line + '\n')
+
+        datasets.sort()
         # hpc parameters
-        all_datasets = [ds.code for ds in Dataset.get()]
         params = {}
-        params["num_jobs"] = len(all_datasets)
+        params["num_jobs"] = len(datasets)
         params["jobdir"] = job_path
-        params["job_name"] = "CC_SIGN1_TO_NEIG1"
-        params["elements"] = all_datasets
+        params["job_name"] = "CC_" + from_data + "_" + to_data
+        params["elements"] = datasets
         params["wait"] = True
-        params["memory"] = 1  # this avoids singularity segfault on some nodes
+        params["memory"] = memory
+        params["cpu"] = cpu
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
