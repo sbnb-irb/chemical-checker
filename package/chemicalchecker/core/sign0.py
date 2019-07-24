@@ -44,6 +44,7 @@ class sign0(BaseSignature, DataSignature):
             self, signature_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(self.signature_path, "sign0.h5")
+        DataSignature.__init__(self, self.data_path)
         self.__log.debug('data_path: %s', self.data_path)
         self.preprocess_script = os.path.join(
             Config().PATH.CC_REPO,
@@ -114,22 +115,17 @@ class sign0(BaseSignature, DataSignature):
             list of dict: 1 dictionary per signature where keys are
                 feature_name and value as values.
         """
-        # if no features file is available then the signature is just an array
-        feature_file = os.path.join(self.model_path, "features.h5")
-        if not os.path.isfile(feature_file):
-            self.__log.warn("No feature file found.")
-            result = list()
-            for sign in signatures:
-                keys = list(enumerate(sign))
-                values = list(sign)
-                result.append(dict(zip(keys, values)))
-            return result
-        # read features names from file
-        with h5py.File(feature_file) as hf:
-            features = hf["features"][:]
         # handle single signature
         if len(signatures.shape) == 1:
             signatures = [signatures]
+        # if no features file is available then the signature is just an array
+        feature_file = os.path.join(self.model_path, "features.h5")
+        if not os.path.isfile(feature_file):
+            features = np.arange(len(signatures[0]))
+        else:
+            # read features names from file
+            with h5py.File(feature_file) as hf:
+                features = hf["features"][:]
         # return list of dicts with feature_name as key and value as value
         result = list()
         for sign in signatures:
@@ -170,19 +166,17 @@ class sign0(BaseSignature, DataSignature):
 
     @staticmethod
     def _feat_key_values(res_dict):
-        """Suited for discrete spaces."""
+        """Suited for discrete spaces with values."""
         strings = list()
         for k in sorted(res_dict.keys()):
             strings.append("%s(%s)" % (k, res_dict[k]))
         return ','.join(strings)
 
-    def _compare_to_old(self, old_dbname, string_func, to_sample=1000):
+    def _compare_to_old(self, old_dbname, to_sample=1000):
         """Compare current signature 0 to previous format.
 
         Args:
             old_dbname(str): the name of the old db (e.g. 'mosaic').
-            string_func(func): A function taking a dictionary as input and
-                returning a single string.
             to_sample(int): Number of signatures to compare in the set of
                 shared moleules.
 
@@ -219,23 +213,57 @@ class sign0(BaseSignature, DataSignature):
             'E4': 'phenotypes',
             'E5': 'ddis'
         }
-        # get old keys
         table_name = old_table_names[self.dataset[:2]]
-        res = psql.qstring('SELECT inchikey FROM %s;' % table_name, old_dbname)
-        old_keys = set(r[0] for r in res)
-        # compare to new
-        old_only_keys = old_keys - self.unique_keys
-        new_only_keys = self.unique_keys - old_keys
-        shared_keys = self.unique_keys & old_keys
-        self.__log.info("Among %s OLD molecules %.2f%% are still present:",
-                        len(old_keys),
-                        100 * len(shared_keys) / float(len(old_keys)))
-        self.__log.info("Old keys: %s", len(old_keys))
-        self.__log.info("New keys: %s", len(self.unique_keys))
-        self.__log.info("Shared keys: %s", len(shared_keys))
-        self.__log.info("Old only keys: %s", len(old_only_keys))
-        self.__log.info("New only keys: %s", len(new_only_keys))
-
+        string_funcs = {
+            'A1': sign0._feat_key_only,
+            'A2': sign0._feat_key_only,
+            'A3': sign0._feat_key_only,
+            'A4': sign0._feat_key_only,
+            'A5': sign0._feat_value_only,
+            'B1': sign0._feat_key_only,
+            'B2': sign0._feat_key_only,
+            'B3': sign0._feat_key_only,
+            'B4': sign0._feat_key_values,
+            'B5': sign0._feat_key_only,
+            'C1': sign0._feat_key_only,
+            'C2': sign0._feat_key_values,
+            'C3': sign0._feat_key_values,
+            'C4': sign0._feat_key_values,
+            'C5': sign0._feat_key_values,
+            'D1': sign0._feat_key_values,
+            'D2': sign0._feat_value_only,
+            'D3': sign0._feat_key_values,
+            'D4': sign0._feat_value_only,
+            'D5': sign0._feat_key_only,
+            'E1': sign0._feat_key_only,
+            'E2': sign0._feat_key_only,
+            'E3': sign0._feat_key_only,
+            'E4': sign0._feat_key_only,
+            'E5': sign0._feat_key_only
+        }
+        continuous = ["A5", "D2", "D4"]
+        string_func = string_funcs[self.dataset[:2]]
+        if not self.dataset.startswith("A"):
+            # get old keys
+            res = psql.qstring('SELECT inchikey FROM %s;' %
+                               table_name, old_dbname)
+            old_keys = set(r[0] for r in res)
+            # compare to new
+            old_only_keys = old_keys - self.unique_keys
+            new_only_keys = self.unique_keys - old_keys
+            shared_keys = self.unique_keys & old_keys
+            frac_present = len(shared_keys) / float(len(old_keys))
+            self.__log.info("Among %s OLD molecules %.2f%% are still present:",
+                            len(old_keys),
+                            100 * frac_present)
+            self.__log.info("Old keys: %s", len(old_keys))
+            self.__log.info("New keys: %s", len(self.unique_keys))
+            self.__log.info("Shared keys: %s", len(shared_keys))
+            self.__log.info("Old only keys: %s", len(old_only_keys))
+            self.__log.info("New only keys: %s", len(new_only_keys))
+        else:
+            shared_keys = self.keys
+            frac_present = 1.0
         # randomly check sample entries
         total = 0.0
         shared = 0.0
@@ -255,8 +283,10 @@ class sign0(BaseSignature, DataSignature):
         res = dict(res)
         for ink in tqdm(sample):
             feat_old = set(res[ink].split(','))
+            if self.dataset[:2] in continuous:
+                feat_old = set(["%.3f" % float(x) for x in res[ink].split(',')])
             feat_new = set(self.to_feature_string(
-                self[ink], string_func)[0].split(','))
+                self[ink.encode()], string_func)[0].split(','))
             if feat_new == feat_old:
                 not_changed += 1
             else:
@@ -269,17 +299,19 @@ class sign0(BaseSignature, DataSignature):
                     most_diff['old_sign'] = feat_old
                     most_diff['new_sign'] = feat_new
                 total += len(feat_old)
+        frac_equal = not_changed / float(to_sample)
         self.__log.info("Among %s shared sampled signatures %.2f%% are equal:",
-                        to_sample, 100 * not_changed / float(to_sample))
+                        to_sample, 100 * frac_equal)
         self.__log.info("Equal: %s Changed: %s", not_changed, changed)
         if changed == 0:
-            return
+            return frac_present, frac_equal, 1.0
         if total == 0.:
-            perc_changed = 0.0
+            frac_equal_feat = 0.0
         else:
-            perc_changed = 100 * shared / total
+            frac_equal_feat = shared / float(total)
         self.__log.info("Among changed %.2f%% of features are equal to old",
-                        perc_changed)
+                        100 * frac_equal_feat)
         self.__log.info("Most different signature %s" % most_diff['key'])
         self.__log.info("OLD: %s" % sorted(list(most_diff['old_sign'])))
         self.__log.info("NEW: %s" % sorted(list(most_diff['new_sign'])))
+        return frac_present, frac_equal, frac_equal_feat
