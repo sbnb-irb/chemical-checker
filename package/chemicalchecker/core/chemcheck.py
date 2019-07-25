@@ -312,7 +312,7 @@ class ChemicalChecker():
         script_lines3 = [
             "%s_full = cc.get_signature('%s', 'full', data,**pars)" % (
                 to_data, to_data),
-            "%s_ref.predict(%s_full, destination=%s_full.data_path)" % (
+            "%s_ref.predict(%s_full, destination=%s_full.data_path, validations=True)" % (
                 to_data, from_data, to_data),
             "%s_full.mark_ready()" % to_data,
             "print('JOB DONE')"

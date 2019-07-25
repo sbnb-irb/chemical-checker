@@ -191,7 +191,7 @@ class sign2(BaseSignature, DataSignature):
             self.validate()
         self.mark_ready()
 
-    def predict(self, sign1, destination):
+    def predict(self, sign1, destination,  validations=False):
         """Use the learned model to predict the signature."""
         try:
             from chemicalchecker.tool.adanet import AdaNet
@@ -212,6 +212,9 @@ class sign2(BaseSignature, DataSignature):
             # predict signature 2
             for chunk in sign1.chunker():
                 results['V'][chunk] = AdaNet.predict(sign1[chunk], predict_fn)
+
+        if validations:
+            self.validate()
 
     @staticmethod
     def predict_nearest_neighbor(destination_path, traintest_file):
