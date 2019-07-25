@@ -110,7 +110,7 @@ class clus(BaseSignature, DataSignature):
         mappings = None
 
         if os.path.isfile(sign1.data_path):
-            dh5 = h5py.File(sign1.data_path)
+            dh5 = h5py.File(sign1.data_path, 'r')
             if "keys" not in dh5.keys() or "V" not in dh5.keys():
                 raise Exception(
                     "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
@@ -188,7 +188,7 @@ class clus(BaseSignature, DataSignature):
 
             faiss.omp_set_num_threads(self.cpu)
 
-            with h5py.File(sign1.data_path) as dh5:
+            with h5py.File(sign1.data_path, 'r') as dh5:
                 if "elbow" not in dh5.keys():
                     Vn, Vm = self.data.shape[0], self.data.shape[1] / 2
                 else:
@@ -350,7 +350,7 @@ class clus(BaseSignature, DataSignature):
         mappings = None
 
         if os.path.isfile(sign1.data_path):
-            dh5 = h5py.File(sign1.data_path)
+            dh5 = h5py.File(sign1.data_path, 'r')
             if "keys" not in dh5.keys() or "V" not in dh5.keys():
                 raise Exception(
                     "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
