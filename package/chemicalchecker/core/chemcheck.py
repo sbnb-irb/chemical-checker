@@ -57,11 +57,13 @@ class ChemicalChecker():
                     os.umask(original_umask)
         else:
             # if the directory exists get molsets and datasets
-            paths = glob(os.path.join(self.cc_root, '*', '*', '*', '*'))
-            self._molsets = set(x.split('/')[-4] for x in paths)
-            self._datasets = set(x.split('/')[-1] for x in paths)
+            paths = glob(os.path.join(self.cc_root, '*', '*', '*', '*', '*',
+                                      'sign*.h5'))
+            self._molsets = set(x.split('/')[-6] for x in paths)
+            self._datasets = set(x.split('/')[-3] for x in paths)
         self._molsets = sorted(list(self._molsets))
-        self._datasets = sorted(list(self._datasets))
+        self._datasets = [x for x in sorted(
+            list(self._datasets)) if not x.endswith('000')]
 
     @property
     def coordinates(self):
