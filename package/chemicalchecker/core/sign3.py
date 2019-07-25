@@ -338,6 +338,7 @@ class sign3(BaseSignature, DataSignature):
                 'intensity_norm', (len(smiles), ), dtype=np.float32)
             results.create_dataset(
                 'confidence', (len(smiles), ), dtype=np.float32)
+            results.create_dataset("shape", data=(len(smiles), 128))
             # compute sign0 (i.e. Morgan fingerprint)
             nBits = 2048
             radius = 2
@@ -474,6 +475,7 @@ class sign3(BaseSignature, DataSignature):
             safe_create(results, 'datasets',
                         data=np.array(self.src_datasets,
                                       DataSignature.string_dtype()))
+            safe_create(results, 'shape', data=(tot_inks, 128))
             if model_confidence:
                 # the actual confidence value will be stored here
                 safe_create(results, 'confidence',

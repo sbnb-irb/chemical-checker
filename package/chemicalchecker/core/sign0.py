@@ -124,7 +124,7 @@ class sign0(BaseSignature, DataSignature):
             features = np.arange(len(signatures[0]))
         else:
             # read features names from file
-            with h5py.File(feature_file) as hf:
+            with h5py.File(feature_file, 'r') as hf:
                 features = hf["features"][:]
         # return list of dicts with feature_name as key and value as value
         result = list()
