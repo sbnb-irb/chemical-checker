@@ -36,7 +36,7 @@ class MultiCCPlot():
         self.ccs = chemcheckers
         self.names = names
         if not limit_dataset:
-            self.datasets = list(self.cc.datasets)
+            self.datasets = list(self.ccs[0].datasets)
         else:
             self.datasets = limit_dataset
 
@@ -129,6 +129,7 @@ class MultiCCPlot():
                 graph_file = os.path.join(sign2.stats_path, "graph_stats.json")
                 if not os.path.isfile(graph_file):
                     self.__log.warn('Graph stats %s not found', graph_file)
+                    df.loc[len(df)] = pd.Series({"dataset": ds, "CC": name})
                     continue
                 graph_stat = json.load(open(graph_file, 'r'))
                 linkpred_file = os.path.join(sign2.stats_path, "linkpred.json")
@@ -173,7 +174,7 @@ class MultiCCPlot():
                 try:
                     maxss = list()
                     minss = list()
-                    for s in sign2.chunker(size=10000):
+                    for s in sign2.chunker(size=100000):
                         curr = sign2[s]
                         maxss.append(np.percentile(curr, 99))
                         minss.append(np.percentile(curr, 1))
