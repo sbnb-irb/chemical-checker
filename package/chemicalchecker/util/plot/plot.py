@@ -20,6 +20,7 @@ from scipy.stats import ks_2samp, fisher_exact, gaussian_kde
 from scipy.spatial.distance import euclidean, cosine
 from sklearn.metrics import roc_curve, roc_auc_score, r2_score
 from sklearn.metrics.pairwise import cosine_distances
+from scipy.spatial.distance import cdist
 
 import matplotlib
 matplotlib.use('Agg')
@@ -1359,4 +1360,29 @@ class Plot():
             filename = os.path.join(
                 self.plot_path, "sign3_error_%s_%s.png" % (self.dataset_code, suffix))
         plt.savefig(filename, dpi=150)
+        plt.close()
+
+    def sign_component_correlation(self, sign, sample_size=10000):
+        whole_sign = sign[:sample_size]
+        corr = abs(1 - cdist(whole_sign.T, whole_sign.T, metric='correlation'))
+        nr_vars = corr.shape[0]
+        corr = corr[~np.eye(nr_vars, dtype=bool)].reshape(nr_vars, -1)
+
+        df = pd.DataFrame(corr).melt()
+
+        coord = self.dataset_code
+
+        sns.set_style("whitegrid")
+        fig = plt.figure(figsize=(10, 3), dpi=100)
+        ax = fig.add_subplot(111)
+        order = list(np.argsort(np.mean(corr, axis=0))[::-1])
+        sns.boxplot(x='variable', y='value', data=df, order=order,
+                    ax=ax, color=self._coord_color(coord),
+                    linewidth=1)
+        ax.set_ylim(0, 1)
+        ax.set_xlim(-2, 130)
+        ax.set_xticks([])
+        ax.set_xlabel('')
+        filename = os.path.join(self.plot_path, "feat_corr_%s.png" % coord)
+        plt.savefig(filename, dpi=100)
         plt.close()
