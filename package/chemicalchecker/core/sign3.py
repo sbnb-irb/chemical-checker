@@ -54,7 +54,7 @@ class sign3(BaseSignature, DataSignature):
         self.params = dict()
         default_adanet = {
             "augmentation": subsample,
-            "initial_architecture": [9, 1],
+            #"initial_architecture": [9, 1],
             "cpu": params.get('cpu', 4)
         }
         self.params['adanet'] = params.get('adanet', default_adanet)
@@ -136,7 +136,8 @@ class sign3(BaseSignature, DataSignature):
                 traintest_file = adanet_params.pop(
                     'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
-                Traintest.split_h5_blocks(sign2_matrix, traintest_file)
+                Traintest.split_h5_blocks(sign2_matrix, traintest_file,
+                                          split_fractions=[.5, .4, .1])
         else:
             traintest_file = sign2_matrix
             if adanet_params:
@@ -438,6 +439,18 @@ class sign3(BaseSignature, DataSignature):
             self.model_path, 'adanet_eval', 'stats.pkl')
         if not os.path.isfile(eval_stats):
             self._learn(sign2_list, suffix='eval', evaluate=True)
+        
+        # get resulting architechture and change params
+        df = pd.read_pickle(eval_stats)
+        eval_architechture = df.iloc[0].architecture_block
+        self.params['adanet'].update({
+            'adanet_iterations': 1,
+            'initial_architecture': eval_architechture})
+        # test learning quickly with final architechture
+        test_adanet_path = os.path.join(self.model_path, 'adanet_test',
+                                         'savedmodel')
+        if not os.path.isdir(test_adanet_path):
+            self._learn(sign2_list, suffix='test', evaluate=True)
 
         # check if we have the final trained model
         final_adanet_path = os.path.join(self.model_path, 'adanet_final',
