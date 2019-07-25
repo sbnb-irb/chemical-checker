@@ -830,9 +830,9 @@ class AdaNetWrapper(object):
         # save in pandas
         df = pd.DataFrame(columns=[
             'dataset', 'split', 'component', 'r2', 'pearson', 'algo', 'mse',
-            'explained_variance', 'time', 'architecture', 'nr_variables',
-            'nn_layers', 'layer_size', 'architecture_history', 'from',
-            'dataset_size', 'coverage'])
+            'explained_variance', 'time', 'architecture', 'architecture_block',
+            'nr_variables', 'nn_layers', 'layer_size', 'architecture_history',
+            'from','dataset_size', 'coverage'])
 
         def _stats_row(y_true, y_pred, algo, split, dataset):
             rows = list()
@@ -897,6 +897,7 @@ class AdaNetWrapper(object):
             nn_layers = (len(model_vars) / 2) - 1
             architecture = [model_vars[i].shape[1]
                             for i in range(0, len(model_vars), 2)]
+            architecture_block = [x/self.layer_size for x in architecture]
 
         # save rows
         for split in splits:
@@ -905,6 +906,8 @@ class AdaNetWrapper(object):
             rows[split] = _update_row(rows[split], "nn_layers", nn_layers)
             rows[split] = _update_row(
                 rows[split], "architecture", architecture)
+            rows[split] = _update_row(
+                rows[split], "architecture_block", architecture_block)
             rows[split] = _update_row(rows[split], "coverage", 1.0)
             df = df.append(pd.DataFrame(rows[split]), ignore_index=True)
         output_pkl = os.path.join(output_dir, 'stats.pkl')
