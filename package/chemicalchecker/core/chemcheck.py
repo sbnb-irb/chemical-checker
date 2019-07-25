@@ -288,7 +288,7 @@ class ChemicalChecker():
         # create script file
         cc_config = os.environ['CC_CONFIG']
         cc_package = os.path.join(chemicalchecker.__path__[0], '../')
-        script_lines = [
+        script_lines1 = [
             "import sys, os",
             "import pickle",
             "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
@@ -308,8 +308,8 @@ class ChemicalChecker():
             "pars = %s" % pprint.pformat(params),
             # start import
             '%s_ref = cc.get_signature("%s", "reference", data,**pars)' % (
-                to_data, to_data),
-            "%s_ref.fit(%s_ref)" % (to_data, from_data),
+                to_data, to_data)]
+        script_lines3 = [
             "%s_full = cc.get_signature('%s', 'full', data,**pars)" % (
                 to_data, to_data),
             "%s_ref.predict(%s_full, destination=%s_full.data_path)" % (
@@ -317,6 +317,17 @@ class ChemicalChecker():
             "%s_full.mark_ready()" % to_data,
             "print('JOB DONE')"
         ]
+
+        if from_data == 'sign1' and to_data == 'sign2':
+
+            script_lines2 = ['neig1_ref = cc.get_signature("neig1", "reference", data)',
+                             "sign2_ref.fit(sign1_ref, neig1_ref, reuse=False)"]
+        else:
+            script_lines2 = [
+                "%s_ref.fit(%s_ref)" % (to_data, from_data)]
+
+        script_lines = script_lines1 + script_lines2 + script_lines3
+
         script_name = os.path.join(
             job_path, from_data + '_to_' + to_data + '.py')
         with open(script_name, 'w') as fh:
