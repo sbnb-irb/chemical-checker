@@ -119,7 +119,7 @@ class neig(BaseSignature, DataSignature):
 
         self.mark_ready()
 
-    def predict(self, sign1, destination=None):
+    def predict(self, sign1, destination=None, validations=False):
         """Use the fitted models to go from input to output."""
         try:
             import faiss
