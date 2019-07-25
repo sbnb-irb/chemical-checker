@@ -54,7 +54,6 @@ class sign3(BaseSignature, DataSignature):
         self.params = dict()
         default_adanet = {
             "augmentation": subsample,
-            #"initial_architecture": [9, 1],
             "cpu": params.get('cpu', 4)
         }
         self.params['adanet'] = params.get('adanet', default_adanet)
@@ -136,8 +135,7 @@ class sign3(BaseSignature, DataSignature):
                 traintest_file = adanet_params.pop(
                     'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
-                Traintest.split_h5_blocks(sign2_matrix, traintest_file,
-                                          split_fractions=[.5, .4, .1])
+                Traintest.split_h5_blocks(sign2_matrix, traintest_file)
         else:
             traintest_file = sign2_matrix
             if adanet_params:
@@ -431,6 +429,15 @@ class sign3(BaseSignature, DataSignature):
         except ImportError as err:
             raise err
 
+        # this initial quick adanet run will find optimal network architecture
+        if not self.params['adanet']:
+            self.params['adanet'] = dict()
+        # one single epoch is very low for exploiting subsampling, but might
+        # be enought to guess the compleity of data
+        self.params['adanet'].update({
+            'epoch_per_iteration': 1,
+            'adanet_iterations': 10})
+
         # define dataset that will be used
         self.src_datasets = [sign.dataset for sign in sign2_list]
         self.sign2_self = sign2_self
@@ -439,16 +446,17 @@ class sign3(BaseSignature, DataSignature):
             self.model_path, 'adanet_eval', 'stats.pkl')
         if not os.path.isfile(eval_stats):
             self._learn(sign2_list, suffix='eval', evaluate=True)
-        
+
         # get resulting architechture and change params
         df = pd.read_pickle(eval_stats)
         eval_architechture = df.iloc[0].architecture_block
+        self.params['adanet'].pop('epoch_per_iteration', None)
         self.params['adanet'].update({
             'adanet_iterations': 1,
             'initial_architecture': eval_architechture})
         # test learning quickly with final architechture
         test_adanet_path = os.path.join(self.model_path, 'adanet_test',
-                                         'savedmodel')
+                                        'savedmodel')
         if not os.path.isdir(test_adanet_path):
             self._learn(sign2_list, suffix='test', evaluate=True)
 
