@@ -63,7 +63,7 @@ class neig(BaseSignature, DataSignature):
         faiss.omp_set_num_threads(self.cpu)
 
         if os.path.isfile(sign1.data_path):
-            with h5py.File(sign1.data_path) as dh5, h5py.File(self.data_path, 'w') as dh5out:
+            with h5py.File(sign1.data_path, 'r') as dh5, h5py.File(self.data_path, 'w') as dh5out:
                 if "keys" not in dh5.keys() or "V" not in dh5.keys():
                     raise Exception(
                         "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
@@ -134,7 +134,7 @@ class neig(BaseSignature, DataSignature):
         faiss.omp_set_num_threads(self.cpu)
 
         if os.path.isfile(sign1.data_path):
-            with h5py.File(sign1.data_path) as dh5, h5py.File(destination, 'w') as dh5out:
+            with h5py.File(sign1.data_path, 'r') as dh5, h5py.File(destination, 'w') as dh5out:
                 if "keys" not in dh5.keys() or "V" not in dh5.keys():
                     raise Exception(
                         "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
@@ -147,7 +147,7 @@ class neig(BaseSignature, DataSignature):
                 k = min(self.k_neig, index.ntotal)
 
                 dh5out.create_dataset("row_keys", data=dh5["keys"][:])
-                with h5py.File(self.data_path) as hr5:
+                with h5py.File(self.data_path, 'r') as hr5:
                     dh5out.create_dataset("col_keys", data=hr5["row_keys"][:])
                 dh5out.create_dataset(
                     "indices", (self.datasize[0], k), dtype=np.int32)

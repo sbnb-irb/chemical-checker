@@ -383,7 +383,7 @@ class sign2(BaseSignature, DataSignature):
         n2v = Node2Vec(executable=Config().TOOLS.node2vec_exec)
         # define the n2v model path
         node2vec_params = self.params['node2vec']
-        node2vec_path = os.path.join(self.model_path, 'node2vec')
+        node2vec_path = os.path.join(self.model_path, 'node2vec_eval')
         if node2vec_params:
             if 'model_dir' in node2vec_params:
                 node2vec_path = node2vec_params.pop('model_dir')
