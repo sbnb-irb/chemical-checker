@@ -51,10 +51,10 @@ class TestAdanet(unittest.TestCase):
         self.assertEqual(ada.model_dir, self.adanet_path)
         # check results
         _, (res, _) = ada.train_and_evaluate()
-        self.assertAlmostEqual(res['accuracy'], 0.981, 3)
+        self.assertAlmostEqual(res['accuracy'], 0.981, 2)
         self.assertAlmostEqual(res['auc'], 0.994, 3)
-        self.assertAlmostEqual(res['precision'], 0.977, 3)
-        self.assertAlmostEqual(res['recall'], 0.986, 3)
+        self.assertAlmostEqual(res['precision'], 0.981, 3)
+        self.assertAlmostEqual(res['recall'], 0.982, 3)
         # check persistency and predict
         predict_fn = AdaNet.predict_fn(ada.save_dir)
         y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn)
@@ -87,8 +87,8 @@ class TestAdanet(unittest.TestCase):
         self.assertEqual(ada.model_dir, self.adanet_path)
         # check results
         _, (res, _) = ada.train_and_evaluate()
-        self.assertAlmostEqual(res['accuracy'], 0.965, 3)
-        self.assertAlmostEqual(res['loss'], 0.133, 3)
+        self.assertAlmostEqual(res['accuracy'], 0.977, 3)
+        self.assertAlmostEqual(res['loss'], 0.107, 3)
         # check persistency
         predict_fn = AdaNet.predict_fn(ada.save_dir)
         y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn)
@@ -120,7 +120,7 @@ class TestAdanet(unittest.TestCase):
         self.assertEqual(ada.model_dir, self.adanet_path)
         # check results
         _, (res, _) = ada.train_and_evaluate()
-        self.assertAlmostEqual(res['loss'], 4.455, 3)
+        self.assertAlmostEqual(res['loss'], 2.752, 3)
         # check persistency and predict
         predict_fn = AdaNet.predict_fn(ada.save_dir)
         y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn)
@@ -147,7 +147,7 @@ class TestAdanet(unittest.TestCase):
         self.assertEqual(ada.model_dir, self.adanet_path)
         # check results
         _, (res, _) = ada.train_and_evaluate()
-        self.assertAlmostEqual(res['loss'], 230.593, 2)
+        self.assertAlmostEqual(res['loss'], 84.952, 3)
         # check persistency and predict
         predict_fn = AdaNet.predict_fn(ada.save_dir)
         y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn)

@@ -77,7 +77,8 @@ class TestSign3(unittest.TestCase):
         self.assertTrue(os.path.isdir(test_dir))
         final_dir = os.path.join(s3.model_path, 'adanet_final')
         self.assertTrue(os.path.isdir(final_dir))
-        self.assertEqual(s3.shape, (3563, 128))
+        self.assertEqual(s3.shape[0], 3563)
+        self.assertEqual(s3.shape[1], 128)
         ds_corr = list(s3.get_h5_dataset('datasets_correlation'))
         real_ds_corr = [0.98518413, 0.5811032]
         self.assertAlmostEqual(ds_corr[0], real_ds_corr[0], 1)
