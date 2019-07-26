@@ -396,7 +396,7 @@ class AdaNetWrapper(object):
         self.subnetwork_generator = eval(kwargs.get(
             "subnetwork_generator", "ExtendDNNGenerator"))
         self.extension_step = kwargs.get("extension_step", 1)
-        self.initial_architecture = kwargs.get("initial_architecture", [])
+        self.initial_architecture = kwargs.get("initial_architecture", [1])
         self.cpu = kwargs.get("cpu", 4)
         # read input shape
         self.traintest_file = traintest_file
