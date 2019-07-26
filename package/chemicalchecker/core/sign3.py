@@ -617,6 +617,7 @@ class sign3(BaseSignature, DataSignature):
                 confidence = np.sqrt(inten_norm * (1 - stddev_norm))
                 # the higher the better
                 results['confidence'][chunk] = confidence
+        self.background_distances("cosine")
         if validations:
             self.validate()
         # at the very end we learn how to get from A1 sign0 to sign3 directly

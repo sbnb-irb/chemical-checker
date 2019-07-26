@@ -355,39 +355,8 @@ class sign1(BaseSignature, DataSignature):
                 mask = np.isin(mappings[:, 1], hf["keys"][:])
                 hf.create_dataset("mappings", data=mappings[mask])
 
-        with h5py.File(self.model_path + "/bg_cosine_distances.h5", "a") as hf:
-
-            if "distance" not in hf.keys() or "pvalue" not in hf.keys():
-                self.__log.info("Computing cosine distance empirical P-values")
-
-                inchikey_sig = shelve.open(
-                    os.path.join(tmp_dir, "sign1.dict"), "r")
-                pvals = self.background_distances("cosine",
-                                                  inchikey_sig, inchikeys, B=self.B_distances)
-                inchikey_sig.close()
-
-                hf.create_dataset(
-                    "distance", data=np.array([p[0] for p in pvals]))
-                hf.create_dataset(
-                    "pvalue", data=np.array([p[1] for p in pvals]))
-
-        with h5py.File(self.model_path + "/bg_euclidean_distances.h5", "a") as hf:
-
-            if "distance" not in hf.keys() or "pvalue" not in hf.keys():
-                self.__log.info(
-                    "Computing euclidean distance empirical P-values")
-
-                inchikey_sig = shelve.open(
-                    os.path.join(tmp_dir, "sign1.dict"), "r")
-                pvals = self.background_distances("euclidean",
-                                                  inchikey_sig, inchikeys, B=self.B_distances)
-                inchikey_sig.close()
-
-                hf.create_dataset(
-                    "distance", data=np.array([p[0] for p in pvals]))
-                hf.create_dataset(
-                    "pvalue", data=np.array([p[1] for p in pvals]))
-
+        self.background_distances("cosine")
+        self.background_distances("euclidean")
         self.__log.info("Cleaning")
         gc.collect()
 
