@@ -435,6 +435,7 @@ class sign3(BaseSignature, DataSignature):
         # one single epoch is very low for exploiting subsampling, but might
         # be enought to guess the compleity of data
         self.params['adanet'].update({
+            'extension_step': 3,
             'epoch_per_iteration': 1,
             'adanet_iterations': 10})
 

@@ -148,7 +148,8 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
                  dropout=0.0,
                  activation=tf.nn.relu,
                  seed=None,
-                 initial_architecture=[]):
+                 initial_architecture=[],
+                 extension_step=1):
         """Initializes a DNN `Generator`.
 
         Args:
@@ -173,6 +174,7 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
         self._seed = seed
         self._layer_block_size = layer_size
         self._layer_sizes = initial_architecture
+        self._extension_step = extension_step
         self._num_layers = len(initial_architecture) - 1
         if self._num_layers == -1:
             self._num_layers = 0
@@ -207,7 +209,7 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
         candidates = list()
         for extend_layer in range(num_layers):
             new_sizes = layer_sizes[:]
-            new_sizes[extend_layer] += 1
+            new_sizes[extend_layer] += self._extension_step
             candidates.append(
                 self._dnn_builder_fn(
                     num_layers=num_layers,
@@ -217,8 +219,8 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
         # try adding a new layer (depth)
         candidates.append(
             self._dnn_builder_fn(
-                num_layers=num_layers + 1,
-                layer_sizes=layer_sizes + [1],
+                num_layers=num_layers + self._extension_step,
+                layer_sizes=layer_sizes + [1] * self._extension_step,
                 seed=seed,
                 previous_ensemble=previous_ensemble))
         # keep the un-extended candidate

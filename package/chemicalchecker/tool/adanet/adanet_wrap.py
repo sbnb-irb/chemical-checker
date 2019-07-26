@@ -395,6 +395,7 @@ class AdaNetWrapper(object):
         self.nan_mask_value = kwargs.get("nan_mask_value", 0.0)
         self.subnetwork_generator = eval(kwargs.get(
             "subnetwork_generator", "ExtendDNNGenerator"))
+        self.extension_step = eval(kwargs.get("extension_step", 1))
         self.initial_architecture = kwargs.get("initial_architecture", [])
         self.cpu = kwargs.get("cpu", 4)
         # read input shape
@@ -514,6 +515,8 @@ class AdaNetWrapper(object):
             "nan_mask_value", str(self.nan_mask_value)))
         self.__log.info("{:<22}: {:>12}".format(
             "initial_architecture", str(self.initial_architecture)))
+        self.__log.info("{:<22}: {:>12}".format(
+            "extension_step", str(self.extension_step)))
         self.__log.info("{:<22}: {:>12}".format("cpu", str(self.cpu)))
         self.__log.info("**** AdaNet Parameters: ***")
 
@@ -563,7 +566,8 @@ class AdaNetWrapper(object):
                 dropout=self.dropout_rate,
                 activation=self.activation,
                 seed=self.random_seed,
-                initial_architecture=self.initial_architecture),
+                initial_architecture=self.initial_architecture,
+                extension_step=self.extension_step),
 
             # Lambda is a the strength of complexity regularization. A larger
             # value will penalize more complex subnetworks.
@@ -832,7 +836,7 @@ class AdaNetWrapper(object):
             'dataset', 'split', 'component', 'r2', 'pearson', 'algo', 'mse',
             'explained_variance', 'time', 'architecture', 'architecture_block',
             'nr_variables', 'nn_layers', 'layer_size', 'architecture_history',
-            'from','dataset_size', 'coverage'])
+            'from', 'dataset_size', 'coverage'])
 
         def _stats_row(y_true, y_pred, algo, split, dataset):
             rows = list()
