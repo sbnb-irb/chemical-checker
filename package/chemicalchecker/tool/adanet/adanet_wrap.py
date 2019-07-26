@@ -395,7 +395,7 @@ class AdaNetWrapper(object):
         self.nan_mask_value = kwargs.get("nan_mask_value", 0.0)
         self.subnetwork_generator = eval(kwargs.get(
             "subnetwork_generator", "ExtendDNNGenerator"))
-        self.extension_step = eval(kwargs.get("extension_step", 1))
+        self.extension_step = kwargs.get("extension_step", 1)
         self.initial_architecture = kwargs.get("initial_architecture", [])
         self.cpu = kwargs.get("cpu", 4)
         # read input shape
