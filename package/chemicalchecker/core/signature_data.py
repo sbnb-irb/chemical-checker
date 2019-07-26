@@ -261,7 +261,7 @@ class DataSignature(object):
             pvals_ = [pvals[dists.index(d)] for d in dists_]
             dists = np.interp(pvals, pvals_, dists_)
             thrs = [(dists[t], PVALS[t][1], PVALS[t][2])
-                    for t in xrange(len(PVALS))]
+                    for t in range(len(PVALS))]
             bg_distances["distance"] = np.array([p[0] for p in thrs])
             bg_distances["pvalue"] = np.array([p[1] for p in thrs])
         # save to file
