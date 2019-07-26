@@ -25,6 +25,8 @@ class Similars(BaseStep):
 
         config_cc = Config()
 
+        db_name = self.config.DB
+
         cc_config_path = os.environ['CC_CONFIG']
         cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
         script_path = os.path.join(
@@ -40,7 +42,7 @@ class Similars(BaseStep):
         for input_data in self.__chunker(universe_keys):
 
             data = psql.qstring("select inchikey_pubchem as inchikey,name from pubchem INNER JOIN( VALUES " +
-                                ', '.join('(\'{0}\')'.format(w) for w in input_data) + ") vals(v) ON (inchikey_pubchem = v)")
+                                ', '.join('(\'{0}\')'.format(w) for w in input_data) + ") vals(v) ON (inchikey_pubchem = v)", db_name)
 
             for i in range(0, len(data)):
 

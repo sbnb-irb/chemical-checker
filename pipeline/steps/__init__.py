@@ -12,3 +12,6 @@ from s7_signature2 import Signature2
 from s8_signature3 import Signature3
 from s9_link_exemplary import ExemplaryLinks
 from s10_neigh2 import Neigh2
+from s11_merge_signatures2 import MergeSignatures2
+from s12_projection2 import Projection2
+from s13_similars_sign3 import SimilarsSign3

@@ -42,8 +42,8 @@ class Plots(BaseStep):
             if not ds.exemplary:
                 continue
 
-            proj1 = cc.get_signature('proj1', 'reference', ds.dataset_code)
-            src_plot_file = os.path.join(proj1.stats_path, "largevis.png")
+            proj2 = cc.get_signature('proj2', 'reference', ds.dataset_code)
+            src_plot_file = os.path.join(proj2.stats_path, "largevis.png")
             dest_plot_file = os.path.join(
                 plots_dir, ds.coordinate + "_largevis.png")
 
