@@ -53,8 +53,28 @@ class sign3(BaseSignature, DataSignature):
         # get parameters or default values
         self.params = dict()
         default_adanet = {
-            "augmentation": subsample,
-            "cpu": params.get('cpu', 4)
+            "eval": {
+                'extension_step': 3,
+                'epoch_per_iteration': 1,
+                'adanet_iterations': 10,
+                "augmentation": subsample,
+                "cpu": params.get('cpu', 4)
+            },
+            "test": {
+                "augmentation": subsample,
+                "cpu": params.get('cpu', 4)
+            },
+            "sign0_eval": {
+                'extension_step': 3,
+                'epoch_per_iteration': 1,
+                'adanet_iterations': 10,
+                'augmentation': False,
+                "cpu": params.get('cpu', 4)
+            },
+            "sign0_test": {
+                'augmentation': False,
+                "cpu": params.get('cpu', 4)
+            }
         }
         self.params['adanet'] = params.get('adanet', default_adanet)
 
@@ -90,7 +110,8 @@ class sign3(BaseSignature, DataSignature):
                                 sum(available), self.dataset, ds)
                 del signs
 
-    def _learn(self, sign2_list, reuse=True, suffix=None, evaluate=True):
+    def _learn(self, sign2_list, adanet_params, reuse=True, suffix=None,
+               evaluate=True):
         """Learn the signature 3 model.
 
         This method is used twice. First to evaluate the performances of the
@@ -114,7 +135,6 @@ class sign3(BaseSignature, DataSignature):
         self.__log.debug('AdaNet fit %s based on %s', self.dataset,
                          str(self.src_datasets))
         # get params and set folder
-        adanet_params = self.params['adanet']
         if suffix:
             adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
         else:
@@ -184,8 +204,8 @@ class sign3(BaseSignature, DataSignature):
             hf.create_dataset('y', data=labels, dtype=np.float32)
             hf.create_dataset('x', data=features, dtype=np.float32)
 
-    def _learn_sign0(self, sign0, reuse=True, suffix=None, evaluate=True,
-                     include_confidence=True):
+    def _learn_sign0(self, sign0, adanet_params, reuse=True, suffix=None,
+                     evaluate=True, include_confidence=True):
         """Learn the signature 3 from sign0.
 
         This method is used twice. First to evaluate the performances of the
@@ -209,7 +229,6 @@ class sign3(BaseSignature, DataSignature):
         self.__log.debug('AdaNet fit sign0 %s based on %s', self.dataset,
                          sign0.dataset)
         # get params and set folder
-        adanet_params = self.params['adanet']
         if suffix:
             adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
         else:
@@ -265,20 +284,30 @@ class sign3(BaseSignature, DataSignature):
                 signature 0.
             sign0_traintest(str): Path to the train file.
         """
-        # here there's no augmentation, mask default param
-        if not self.params['adanet']:
-            self.params['adanet'] = dict()
-        self.params['adanet'].update({
-            'epoch_per_iteration': 1,
-            'adanet_iterations': 10,
-            'augmentation': False})
+
         # check if performance evaluations need to be done
         s0_code = sign0.dataset
         eval_stats = os.path.join(
             self.model_path, 'adanet_sign0_%s_eval' % s0_code, 'stats.pkl')
         if not os.path.isfile(eval_stats):
-            self._learn_sign0(sign0, suffix='sign0_%s_eval' % s0_code,
+            self._learn_sign0(sign0, self.params['adanet']['sign0_eval'],
+                              suffix='sign0_%s_eval' % s0_code,
                               evaluate=True,
+                              include_confidence=include_confidence)
+
+        # get resulting architechture and update params
+        df = pd.read_pickle(eval_stats)
+        eval_architechture = df.iloc[0].architecture_block
+        self.params['adanet']['sign0_test'].update({
+            'initial_architecture': eval_architechture})
+        # test learning quickly with final architechture
+        test_adanet_path = os.path.join(self.model_path,
+                                        'adanet_sign0_%s_test' % s0_code,
+                                        'savedmodel')
+        if not os.path.isdir(test_adanet_path):
+            self._learn_sign0(sign0, self.params['adanet']['sign0_test'],
+                              suffix='sign0_%s_final' % s0_code,
+                              evaluate=False,
                               include_confidence=include_confidence)
 
         # check if we have the final trained model
@@ -286,9 +315,10 @@ class sign3(BaseSignature, DataSignature):
                                          'adanet_sign0_%s_final' % s0_code,
                                          'savedmodel')
         if not os.path.isdir(final_adanet_path):
-            self._learn_sign0(
-                sign0, suffix='sign0_%s_final' % s0_code, evaluate=False,
-                include_confidence=include_confidence)
+            self._learn_sign0(sign0, self.params['adanet']['sign0_test'],
+                              suffix='sign0_%s_final' % s0_code,
+                              evaluate=False,
+                              include_confidence=include_confidence)
 
     def get_predict_fn(self):
         try:
@@ -429,16 +459,6 @@ class sign3(BaseSignature, DataSignature):
         except ImportError as err:
             raise err
 
-        # this initial quick adanet run will find optimal network architecture
-        if not self.params['adanet']:
-            self.params['adanet'] = dict()
-        # one single epoch is very low for exploiting subsampling, but might
-        # be enought to guess the compleity of data
-        self.params['adanet'].update({
-            'extension_step': 3,
-            'epoch_per_iteration': 1,
-            'adanet_iterations': 10})
-
         # define dataset that will be used
         self.src_datasets = [sign.dataset for sign in sign2_list]
         self.sign2_self = sign2_self
@@ -446,26 +466,27 @@ class sign3(BaseSignature, DataSignature):
         eval_stats = os.path.join(
             self.model_path, 'adanet_eval', 'stats.pkl')
         if not os.path.isfile(eval_stats):
-            self._learn(sign2_list, suffix='eval', evaluate=True)
+            self._learn(sign2_list, self.params['adanet']['eval'],
+                        suffix='eval', evaluate=True)
 
-        # get resulting architechture and change params
+        # get resulting architechture and update params
         df = pd.read_pickle(eval_stats)
         eval_architechture = df.iloc[0].architecture_block
-        self.params['adanet'].pop('epoch_per_iteration', None)
-        self.params['adanet'].update({
-            'adanet_iterations': 1,
+        self.params['adanet']['test'].update({
             'initial_architecture': eval_architechture})
         # test learning quickly with final architechture
         test_adanet_path = os.path.join(self.model_path, 'adanet_test',
                                         'savedmodel')
         if not os.path.isdir(test_adanet_path):
-            self._learn(sign2_list, suffix='test', evaluate=True)
+            self._learn(sign2_list, self.params['adanet']['test'],
+                        suffix='test', evaluate=True)
 
         # check if we have the final trained model
         final_adanet_path = os.path.join(self.model_path, 'adanet_final',
                                          'savedmodel')
         if not os.path.isdir(final_adanet_path):
-            self._learn(sign2_list, suffix='final', evaluate=False)
+            self._learn(sign2_list, self.params['adanet']['test'],
+                        suffix='final', evaluate=False)
 
         # get sorted universe inchikeys and signatures
         inchikeys = set()

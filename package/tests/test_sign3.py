@@ -43,23 +43,43 @@ class TestSign3(unittest.TestCase):
             sign2_list.append(sign2(sign2_dir, ds))
         s3 = sign3(self.sign_dir, 'E1.001')
         s3.params = dict()
-        s3.params['adanet'] = dict()
-        s3.params['adanet']['epoch_per_iteration'] = 15
-        s3.params['adanet']['adanet_iterations'] = 1
-        s3.params['adanet']['min_train_step'] = 0
-        s3.params['adanet']['initial_architecture'] = [9, 1]
-        s3.params['adanet']['augmentation'] = subsample
+        s3.params['adanet'] = {
+            "eval": {
+                'extension_step': 3,
+                'epoch_per_iteration': 1,
+                'adanet_iterations': 2,
+                "augmentation": subsample,
+            },
+            "test": {
+                'epoch_per_iteration': 1,
+                'adanet_iterations': 1,
+                "augmentation": subsample,
+            },
+            "sign0_eval": {
+                'extension_step': 3,
+                'epoch_per_iteration': 1,
+                'adanet_iterations': 2,
+                'augmentation': False,
+            },
+            "sign0_test": {
+                'epoch_per_iteration': 1,
+                'adanet_iterations': 1,
+                'augmentation': False,
+            }
+        }
         s3.fit(sign2_list, sign2_list[0])
 
         self.assertTrue(os.path.isfile(s3.data_path))
         self.assertTrue(os.path.isdir(s3.model_path))
         eval_dir = os.path.join(s3.model_path, 'adanet_eval')
         self.assertTrue(os.path.isdir(eval_dir))
+        test_dir = os.path.join(s3.model_path, 'adanet_test')
+        self.assertTrue(os.path.isdir(test_dir))
         final_dir = os.path.join(s3.model_path, 'adanet_final')
         self.assertTrue(os.path.isdir(final_dir))
         self.assertEqual(s3.shape, (3563, 128))
         ds_corr = list(s3.get_h5_dataset('datasets_correlation'))
-        real_ds_corr = [0.9458095, 0.5965613]
+        real_ds_corr = [0.98518413, 0.5811032]
         self.assertAlmostEqual(ds_corr[0], real_ds_corr[0], 1)
         self.assertAlmostEqual(ds_corr[1], real_ds_corr[1], 1)
         info_h5 = {'V': (3563, 128),
