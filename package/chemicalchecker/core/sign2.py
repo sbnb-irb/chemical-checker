@@ -68,7 +68,7 @@ class sign2(BaseSignature, DataSignature):
         self.params['node2vec'] = params.get('node2vec', None)
         self.params['adanet'] = params.get('adanet', None)
 
-    def fit(self, sign1, neig1, reuse=True, validations=True):
+    def fit(self, sign1, neig1, reuse=True, validations=True, compare_nn=False):
         """Learn a model.
 
         Node2vec embeddings are computed using the graph derived from sign1.
@@ -173,20 +173,15 @@ class sign2(BaseSignature, DataSignature):
         ada.train_and_evaluate()
         # save AdaNet performances and plots
         sign2_plot = Plot(self.dataset, adanet_path)
-        nearest_neighbor_pred = sign2.predict_nearest_neighbor(
-            self.model_path, traintest_file)
         extra_preditors = dict()
-        extra_preditors['NearestNeighbor'] = nearest_neighbor_pred
+        if compare_nn:
+            nearest_neighbor_pred = sign2.predict_nearest_neighbor(
+                self.model_path, traintest_file)
+            extra_preditors['NearestNeighbor'] = nearest_neighbor_pred
         ada.save_performances(adanet_path, sign2_plot, extra_preditors)
         self.__log.debug('model saved to %s' % adanet_path)
-
-        bg_distances = self.background_distances("cosine", self[:])
-
-        with h5py.File(self.model_path + "/bg_cosine_distances.h5", "w") as hf:
-
-            hf.create_dataset("distance", data=bg_distances["distance"])
-            hf.create_dataset("pvalue", data=bg_distances["pvalue"])
-
+        # save background distances, validate and mark ready
+        self.background_distances("cosine")
         if validations:
             self.validate()
         self.mark_ready()
