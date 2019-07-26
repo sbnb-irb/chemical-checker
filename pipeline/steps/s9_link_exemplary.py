@@ -30,7 +30,7 @@ class ExemplaryLinks(BaseStep):
             if not ds.exemplary:
                 continue
 
-            dataset_codes.append(ds.dataset_code)
+            dataset_codes.append(str(ds.dataset_code))
 
         target_path = os.path.join(config_cc.PATH.CC_ROOT, "exemplary")
 
@@ -39,9 +39,9 @@ class ExemplaryLinks(BaseStep):
 
         for code in dataset_codes:
 
-            sign1 = cc.get_signature_path("sign1", "full", code)
+            signature_path = cc.get_signature_path("sign1", "full", code)
 
-            source_path = sign1.signature_path[-5]
+            source_path = signature_path[:-6]
 
             target_dir = os.path.join(target_path, code[:1])
 

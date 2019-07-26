@@ -79,7 +79,7 @@ class MolecularInfo(BaseStep):
                 continue
             s3 = cc.get_signature('sign3', 'full', ds.dataset_code)
             coords.append(str(ds.coordinate))
-            matrix.append(s3.get_h5_dataset('dataset_correlation'))
+            matrix.append(s3.get_h5_dataset('datasets_correlation'))
         matrix = np.vstack(matrix)
 
         with h5py.File(consensus_file, "w") as h5:
@@ -102,14 +102,16 @@ class MolecularInfo(BaseStep):
             prefix='molinfo_data_', dir=self.tmpdir)
 
         params = {}
-        params["num_jobs"] = datasize / 100
+        params["num_jobs"] = datasize / 1000
         params["jobdir"] = job_path
         params["job_name"] = "CC_MOLINFO"
         params["elements"] = keys
         params["wait"] = True
+        params["memory"] = 4
+        params["cpu"] = 1
         # job command
         singularity_image = config_cc.PATH.SINGULARITY_IMAGE
-        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {}"
+        command = "OMP_NUM_THREADS=1 SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {}"
         command = command.format(
             cc_package, cc_config_path, singularity_image, script_path, consensus_file, data_files_path)
         # submit jobs

@@ -67,7 +67,7 @@ class Signature2(BaseStep):
             'sign1_full = cc.get_signature("sign1","full",data)',
             # start import
             'sign1_ref = cc.get_signature("sign1","reference",data)',
-            "pars = {'adanet':{'cpu': 10},'node2vec': {'cpu': 10}}",
+            "pars = {'adanet':{'cpu': 16},'node2vec': {'cpu': 16}}",
             # start import
             'neig1_ref = cc.get_signature("neig1", "reference", data)',
             'sign2_ref = cc.get_signature("sign2", "reference", data,**pars)',
@@ -92,7 +92,7 @@ class Signature2(BaseStep):
         params["elements"] = dataset_codes
         params["wait"] = True
         params["memory"] = 20
-        params["cpu"] = 10
+        params["cpu"] = 16
         # job command
         singularity_image = Config().PATH.SINGULARITY_IMAGE
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(

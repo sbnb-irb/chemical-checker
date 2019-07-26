@@ -1,6 +1,7 @@
 # only basic imports here
 from s0_db_universe import DB_universe
 from s1_pubchem import Pubchem
+from s2_molecular_info import MolecularInfo
 from s3_showtargets import ShowTargets
 from s4_coordinates import Coordinates
 from s5_projections import Projections

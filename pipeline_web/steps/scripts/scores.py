@@ -6,10 +6,12 @@ import numpy as np
 import bisect
 import pickle
 import uuid
+import collections
 
 from chemicalchecker.database import Dataset, Molecule
 from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
+from chemicalchecker.core import DataSignature
 
 # Variables
 
@@ -18,33 +20,29 @@ cutoff = 0.001
 # Functions
 
 
-def weights(coords):
+def weights(coords, coord_idxs):
     idxs = [coord_idxs[c] for c in coords]
     return np.mean(W[idxs, :][:, idxs], axis=1) + 1e-6
 
 
 def get_props(cc, iks):
 
-    sign0 = cc.get_signature("sign1", "full", "A5.001")
+    sign0 = cc.get_signature("sign0", "full", "A5.001")
 
     _, props = sign0.get_vectors(iks)
 
     return props
 
 
-def get_scores(ik, cc, dataset_keys, dataset_pairs, cut_idx):
+def get_scores(i, cc, coords_obs, vals_obs, vals_pred, dataset_pairs, cut_idx, coord_idxs):
 
     # Fetch data
-    coords_obs = []
-    for dataset_code in dataset_keys.keys():
-        if ik in dataset_keys[dataset_code]:
-            coords_obs += [dataset_code]
-    w_obs = weights(coords_obs)
 
-    coords_prd = []
-    for dataset_code in dataset_keys.keys():
-        coords_prd += [dataset_code]
-    w_prd = weights(coords_prd)
+    w_obs = weights(coords_obs, coord_idxs)
+
+    coords_prd = coord_idxs.keys()
+
+    w_prd = weights(coords_prd, coord_idxs)
 
     # Popularity
     popu = (np.sum(w_obs) - min_popu) / (max_popu - min_popu)
@@ -57,35 +55,21 @@ def get_scores(ik, cc, dataset_keys, dataset_pairs, cut_idx):
     # Singularity
     v = []
     for c in coords_obs:
-        similars = cc.get_signature("neig1", "full", dataset_pairs[c])
-        sign1 = cc.get_signature("sign1", "reference", dataset_pairs[c])
-        metric = sign1.get_h5_dataset('metric')
-        bg_vals = sign1.background_distances(metric[0])
-        values = similars[ik]
-        sums = max(0, np.sum(values["distances"] <= bg_vals["distance"][cut_idx]) - 1)
-        v += [sums / (values["distances"] - 1)]
+        v += [max(0, vals_obs[c][i])]
     if np.sum(v) == 0:
         sing = 0.
     else:
-        sing = np.average(v, weights=w_obs)
+        sing = np.average(np.array(v), weights=w_obs)
 
     # Mappability
     v = []
     for c in coords_prd:
-        neig2_ref = cc.get_signature("neig2", "reference", dataset_pairs[c])
-        sign3 = cc.get_signature("sign3", "full", dataset_pairs[c])
-        sign2 = cc.get_signature("sign2", "reference", dataset_pairs[c])
-        bg_vals = sign2.background_distances("cosine")
-        signature = sign3[ik]
-        neig_predictions_distances = neig2_ref.get_kth_nearest([signature])
-        sums = max(0, np.sum(neig_predictions_distances[
-                   "distances"] <= bg_vals["distance"][cut_idx]) - 1)
-        v += [sums / (len(neig_predictions_distances["distances"]) - 1)]
+        v += [max(0, vals_pred[c][i])]
 
     if np.sum(v) == 0:
         mapp = 0.
     else:
-        mapp = np.average(v, weights=w_prd)
+        mapp = np.average(np.array(v), weights=w_prd)
 
     return popu, sing, mapp
 
@@ -96,13 +80,6 @@ output_path = sys.argv[4]
 inputs = pickle.load(open(filename, 'rb'))
 iks = inputs[task_id]
 
-max_popu = np.sum(weights(
-    ["%s%d" % (j, i) for j in ["A", "B", "C", "D", "E"] for i in [1, 2, 3, 4, 5]]))
-min_popu = np.sum(weights(["A%d" % i for i in [1, 2, 3, 4, 5]]))
-
-
-# Read generic data
-
 cut_idx = None
 
 with h5py.File(consensus, "r") as hf:
@@ -110,32 +87,70 @@ with h5py.File(consensus, "r") as hf:
     W[np.diag_indices(W.shape[0])] = 0.
     coord_idxs = dict((c, i) for i, c in enumerate(hf["coords"][:]))
 
+max_popu = np.sum(weights(
+    ["%s%d" % (j, i) for j in ["A", "B", "C", "D", "E"] for i in [1, 2, 3, 4, 5]], coord_idxs))
+min_popu = np.sum(weights(["A%d" % i for i in [1, 2, 3, 4, 5]], coord_idxs))
+
+
+# Read generic data
+
 all_datasets = Dataset.get()
 config_cc = Config()
 
 cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
 
 dataset_pairs = dict()
-dataset_codes = list()
-dataset_keys = dict()
+map_coords_obs = collections.defaultdict(list)
+metric_obs = None
 for ds in all_datasets:
     if not ds.exemplary:
         continue
     dataset_pairs[ds.coordinate] = ds.dataset_code
-    dataset_codes.append(ds.coordinate)
+    if metric_obs is None:
+        sign1 = cc.get_signature("sign1", "reference", ds.dataset_code)
+        metric_obs = sign1.get_h5_dataset('metric')
 
-    sign1 = cc.get_signature("sign1", "full", str(ds.dataset_code))
-
+    sign1 = cc.get_signature("sign1", "full", ds.dataset_code)
     if cut_idx is None:
         cut_idx = bisect.bisect_left(sign1.PVALRANGES, cutoff)
 
-    dataset_keys[ds.coordinate] = sign1.unique_keys
+    keys = sign1.unique_keys
+    for ik in iks:
+        if ik in keys:
+            map_coords_obs[ik] += [ds.coordinate]
+
+vals_obs = dict()
+vals_pred = dict()
+
+for coord in coord_idxs.keys():
+    sign1 = cc.get_signature("sign1", "reference", dataset_pairs[coord])
+    bg_vals_obs = sign1.background_distances(
+        metric_obs[0])["distance"][cut_idx]
+    similars = cc.get_signature("neig1", "full", dataset_pairs[coord])
+    _, distances = similars.get_vectors(
+        iks, include_nan=True, dataset_name='distances')
+    masked = np.where(distances <= bg_vals_obs, distances, 0.0)
+
+    sums = np.sum(masked, axis=1) - 1
+
+    vals_obs[coord] = sums / (len(distances[0]) - 1)
+
+    sign2 = cc.get_signature("sign2", "reference", dataset_pairs[coord])
+    sign3 = cc.get_signature("sign3", "full", dataset_pairs[coord])
+    bg_vals_pred = sign2.background_distances("cosine")["distance"][cut_idx]
+    similars = DataSignature(os.path.join(
+        sign3.signature_path, "similars.h5"), ds_data='distances')
+
+    _, distances = similars.get_vectors(
+        iks, include_nan=True, dataset_name='distances')
+    masked = np.where(distances <= bg_vals_pred, distances, 0.0)
+
+    sums = np.sum(masked, axis=1) - 1
+
+    vals_pred[coord] = sums / (len(distances[0]) - 1)
 
 
-dataset_codes.sort()
-
-
-outfile = os.path.join(output_path, uuid.uuid4())
+outfile = os.path.join(output_path, str(uuid.uuid4()))
 
 mappings_inchi = Molecule.get_inchikey_inchi_mapping(iks)
 
@@ -143,7 +158,9 @@ props = get_props(cc, iks)
 
 with open(outfile, "w") as f:
     for i, ik in enumerate(iks):
-        s = get_scores(ik, cc, dataset_keys, dataset_pairs, cut_idx)
+        print(i, ik)
+        s = get_scores(i, cc, map_coords_obs[
+                       ik], vals_obs, vals_pred, dataset_pairs, cut_idx, coord_idxs)
         inchi = mappings_inchi[ik]
         start_pos = inchi.find('/') + 1
         end_pos = inchi.find('/', start_pos)

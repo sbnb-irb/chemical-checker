@@ -8,6 +8,7 @@ from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util import BaseStep
 from chemicalchecker.util import HPC
+from chemicalchecker.util.plot import MultiPlot
 
 
 @logged
@@ -24,74 +25,83 @@ class Neigh2(BaseStep):
         config_cc = Config()
 
         cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
+        datasets = list()
         dataset_codes = list()
         for ds in all_datasets:
             if not ds.essential:
                 continue
-            sign1 = cc.get_signature("neig2", "full", ds.dataset_code)
-            if sign1.is_fit():
+            datasets.append(ds.dataset_code)
+            neig2 = cc.get_signature("neig2", "full", ds.dataset_code)
+            if neig2.is_fit():
                 continue
 
             dataset_codes.append(ds.dataset_code)
+
+        dataset_codes.sort()
+        datasets.sort()
 
         job_path = tempfile.mkdtemp(
             prefix='jobs_neig2_', dir=self.tmpdir)
 
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
-        # create script file
-        cc_config_path = os.environ['CC_CONFIG']
-        cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
-        script_lines = [
-            "import sys, os",
-            "import pickle",
-            # cc_config location
-            "os.environ['CC_CONFIG'] = '%s'" % cc_config_path,
-            "sys.path.append('%s')" % cc_package,  # allow package import
-            "from chemicalchecker.util import Config",
-            "from chemicalchecker.core import ChemicalChecker",
-            "config = Config()",
-            "task_id = sys.argv[1]",  # <TASK_ID>
-            "filename = sys.argv[2]",  # <FILE>
-            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
-            "data = str(inputs[task_id][0])",  # elements for current job
-            # elements are indexes
-            'cc = ChemicalChecker(config.PATH.CC_ROOT )',
-            # start import
-            'sign2_full = cc.get_signature("sign2","full",data)',
-            # start import
-            'sign2_ref = cc.get_signature("sign2","reference",data)',
-            "pars = {'cpu': 10}",
-            # start import
-            'neig2_ref = cc.get_signature("neig2", "reference", data,**pars)',
-            "neig2_ref.fit(sign1_ref)",
-            "neig2_full = cc.get_signature('neig2', 'full', data,**pars)",
-            "neig2_ref.predict(sign2_full, destination=neig2_full.data_path)",
-            "neig2_full.mark_ready()",
-            "print('JOB DONE')"
-        ]
 
-        script_name = os.path.join(job_path, 'neig2_script.py')
-        with open(script_name, 'w') as fh:
-            for line in script_lines:
-                fh.write(line + '\n')
-        # hpc parameters
+        if len(dataset_codes) > 0:
 
-        params = {}
-        params["num_jobs"] = len(dataset_codes)
-        params["jobdir"] = job_path
-        params["job_name"] = "CC_NEIG2"
-        params["elements"] = dataset_codes
-        params["wait"] = True
-        params["memory"] = 34
-        params["cpu"] = 10
-        # job command
-        singularity_image = Config().PATH.SINGULARITY_IMAGE
-        command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
-            singularity_image, script_name)
-        # submit jobs
-        cluster = HPC(config_cc)
-        jobs = cluster.submitMultiJob(command, **params)
+            # create script file
+            cc_config_path = os.environ['CC_CONFIG']
+            cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
+            script_lines = [
+                "import sys, os",
+                "import pickle",
+                # cc_config location
+                "os.environ['CC_CONFIG'] = '%s'" % cc_config_path,
+                "sys.path.append('%s')" % cc_package,  # allow package import
+                "from chemicalchecker.util import Config",
+                "from chemicalchecker.core import ChemicalChecker",
+                "config = Config()",
+                "task_id = sys.argv[1]",  # <TASK_ID>
+                "filename = sys.argv[2]",  # <FILE>
+                # load pickled data
+                "inputs = pickle.load(open(filename, 'rb'))",
+                "data = str(inputs[task_id][0])",  # elements for current job
+                # elements are indexes
+                'cc = ChemicalChecker(config.PATH.CC_ROOT )',
+                # start import
+                'sign2_full = cc.get_signature("sign2","full",data)',
+                # start import
+                'sign2_ref = cc.get_signature("sign2","reference",data)',
+                "pars = {'cpu': 10}",
+                # start import
+                'neig2_ref = cc.get_signature("neig2", "reference", data,**pars)',
+                "neig2_ref.fit(sign2_ref)",
+                "neig2_full = cc.get_signature('neig2', 'full', data,**pars)",
+                "neig2_ref.predict(sign2_full, destination=neig2_full.data_path)",
+                "neig2_full.mark_ready()",
+                "print('JOB DONE')"
+            ]
+
+            script_name = os.path.join(job_path, 'neig2_script.py')
+            with open(script_name, 'w') as fh:
+                for line in script_lines:
+                    fh.write(line + '\n')
+            # hpc parameters
+
+            params = {}
+            params["num_jobs"] = len(dataset_codes)
+            params["jobdir"] = job_path
+            params["job_name"] = "CC_NEIG2"
+            params["elements"] = dataset_codes
+            params["wait"] = True
+            params["memory"] = 34
+            params["cpu"] = 10
+            # job command
+            singularity_image = Config().PATH.SINGULARITY_IMAGE
+            command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+                singularity_image, script_name)
+            # submit jobs
+            cluster = HPC(config_cc)
+            jobs = cluster.submitMultiJob(command, **params)
 
         dataset_not_done = []
 
@@ -106,5 +116,7 @@ class Neigh2(BaseStep):
                 "Neigh2 fit failed for dataset code: " + code)
 
         if len(dataset_not_done) == 0:
+            mplot = MultiPlot(cc, config_cc.PATH.CC_ROOT, datasets)
+            mplot.sign3_neig2_jaccard()
             self.mark_ready()
             shutil.rmtree(job_path)
