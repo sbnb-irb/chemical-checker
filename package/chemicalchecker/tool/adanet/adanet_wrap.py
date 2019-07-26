@@ -900,8 +900,8 @@ class AdaNetWrapper(object):
             nr_variables = np.sum([np.prod(v.shape) for v in model_vars])
             nn_layers = (len(model_vars) / 2) - 1
             architecture = [model_vars[i].shape[1]
-                            for i in range(0, len(model_vars), 2)]
-            architecture_block = [x/self.layer_size for x in architecture]
+                            for i in range(0, len(model_vars) - 2, 2)]
+            architecture_block = [x / self.layer_size for x in architecture]
 
         # save rows
         for split in splits:
