@@ -55,7 +55,6 @@ version = sys.argv[6]
 inputs = pickle.load(open(filename, 'rb'))
 inchikeys = inputs[task_id]
 
-iks_coord = {}
 references = {}
 ref_bioactive = {}
 iks_coord_set = {}
@@ -75,7 +74,6 @@ for ds in all_datasets:
     sign1 = cc.get_signature('sign1', 'reference', ds.dataset_code)
 
     iks = sign1.keys
-    iks_coord[ds.coordinate] = iks
     iks_coord_set[ds.coordinate] = set(list(iks))
     dataset_pairs[ds.coordinate] = ds.dataset_code
 
@@ -103,7 +101,7 @@ with open(names_jason) as json_data:
     inchies_names = json.load(json_data)
 # UNTIL HERE
 
-for inchikey in inchikeys:
+for index, inchikey in enumerate(inchikeys):
     t0 = time.time()
     PATH = save_file_path + "/%s/%s/%s/" % (
         inchikey[:2], inchikey[2:4], inchikey)

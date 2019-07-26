@@ -74,12 +74,12 @@ class Projections(BaseStep):
         D = {}
         for coord in spaces:
             wh = ijk[coord]
-            proj1_full = cc.get_signature(
-                'proj1', 'full', map_coord_code[coord])
-            if not os.path.exists(proj1_full.data_path):
+            proj2_full = cc.get_signature(
+                'proj2', 'full', map_coord_code[coord])
+            if not os.path.exists(proj2_full.data_path):
                 raise Exception("Projection point for dataset " +
                                 map_coord_code[coord] + " is not available.")
-            with h5py.File(proj1_full.data_path, "r") as hf:
+            with h5py.File(proj2_full.data_path, "r") as hf:
                 inchikeys = hf["keys"][:]
                 V = hf["V"][:]
             for w in xrange(len(inchikeys)):

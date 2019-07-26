@@ -31,7 +31,7 @@ def select_landmarks(inchikeys, N, dbname):
     done_clusts = set()
     square_mols = dict((k, 0) for k in sqiks_.keys())
     s = "(%s)" % ",".join(["'%s'" % ik for ik in inchikeys])
-    pop = np.array([r for r in psql.qstring("SELECT inchikey, popularity FROM scores WHERE inchikey IN %s" %
+    pop = np.array([r for r in psql.qstring("SELECT inchikey, popularity FROM molecular_info WHERE inchikey IN %s" %
                                             s, dbname)], dtype=np.dtype([('ik', '|S300'), ('pop', np.float)]))
     pop = np.sort(pop, order="pop")[::-1]
     ik = pop['ik'][0]
@@ -147,9 +147,9 @@ parse_fn = Parser.parse_fn(lib_parser)
 
 keys = set()
 for fpath in files:
-    map_files[lib_name] = fpath
+    map_files[lib_id] = fpath
     print fpath
-    for chunk in parse_fn(map_files, lib_name, 1000):
+    for chunk in parse_fn(map_files, lib_id, 1000):
         for data in chunk:
             if data["inchikey"] is not None:
                 keys.add(data["inchikey"])

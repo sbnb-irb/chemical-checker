@@ -92,13 +92,13 @@ class Coordinates(BaseStep):
             if not ds.exemplary:
                 continue
 
-            proj1 = cc.get_signature('proj1', 'reference', ds.dataset_code)
-            proj1_full = cc.get_signature('proj1', 'full', ds.dataset_code)
-            size = proj1_full.shape[0]
+            proj2 = cc.get_signature('proj2', 'reference', ds.dataset_code)
+            proj2_full = cc.get_signature('proj2', 'full', ds.dataset_code)
+            size = proj2_full.shape[0]
             try:
                 coord = str(ds.coordinate)
                 d = json.loads(
-                    open(os.path.join(proj1.stats_path, "proj_stats.json")).read())
+                    open(os.path.join(proj2.stats_path, "proj_stats.json")).read())
                 psql.query(INSERT_STATS % (coord, size, d["xlim"][1], d[
                            "xlim"][0], d["ylim"][1], d["ylim"][0]), self.config.DB)
 
