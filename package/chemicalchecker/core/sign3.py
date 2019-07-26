@@ -61,6 +61,7 @@ class sign3(BaseSignature, DataSignature):
                 "cpu": params.get('cpu', 4)
             },
             "test": {
+                'adanet_iterations': 1,
                 "augmentation": subsample,
                 "cpu": params.get('cpu', 4)
             },
