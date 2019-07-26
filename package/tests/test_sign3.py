@@ -83,16 +83,3 @@ class TestSign3(unittest.TestCase):
         real_ds_corr = [0.98518413, 0.5811032]
         self.assertAlmostEqual(ds_corr[0], real_ds_corr[0], 1)
         self.assertAlmostEqual(ds_corr[1], real_ds_corr[1], 1)
-        info_h5 = {'V': (3563, 128),
-                   'confidence': (3563,),
-                   'consensus': (3563, 128),
-                   'datasets_correlation': (2,),
-                   'datasets': (2,),
-                   'intensity': (3563,),
-                   'intensity_norm': (3563,),
-                   'keys': (3563,),
-                   'pred_correlation': (3563, 3),
-                   'stddev': (3563,),
-                   'stddev_norm': (3563,),
-                   'support': (3563,)}
-        self.assertDictEqual(info_h5, s3.info_h5)
