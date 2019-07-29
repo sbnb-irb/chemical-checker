@@ -2,12 +2,28 @@ import functools
 import adanet
 import tensorflow as tf
 
+from chemicalchecker.util import logged
 
+
+class NanMaskingLayer(tf.keras.layers.Layer):
+
+    def __init__(self, mask_value=0.0):
+        super(NanMaskingLayer, self).__init__()
+        self.mask_value = mask_value
+
+    def call(self, input):
+        nan_idxs = tf.is_nan(input)
+        replace = tf.ones_like(input) * self.mask_value
+        return tf.where(nan_idxs, replace, input)
+
+
+@logged
 class StackDNNBuilder(adanet.subnetwork.Builder):
     """Builds a DNN subnetwork for AdaNet."""
 
     def __init__(self, optimizer, layer_size, num_layers,
-                 learn_mixture_weights, dropout, seed, activation):
+                 learn_mixture_weights, dropout, seed, activation,
+                 nan_mask_value=0.0):
         """Initializes a `_DNNBuilder`.
 
         Args:
@@ -45,9 +61,13 @@ class StackDNNBuilder(adanet.subnetwork.Builder):
                          previous_ensemble=None):
         """See `adanet.subnetwork.Builder`."""
 
-        input_layer = tf.to_float(features['x'])
+        input_layer = tf.cast(features['x'], tf.float32)
+        # forcing to input shape as dataset uses tf.py_func (loosing shape)
+        input_layer = tf.reshape(features['x'], [-1, self._input_shape])
         kernel_initializer = tf.glorot_uniform_initializer(seed=self._seed)
         last_layer = input_layer
+        if self._nan_mask_value is not None:
+            last_layer = NanMaskingLayer(self._nan_mask_value)(last_layer)
         for _ in range(self._num_layers):
             last_layer = tf.layers.dense(
                 last_layer,
