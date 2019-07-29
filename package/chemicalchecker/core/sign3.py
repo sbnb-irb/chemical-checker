@@ -180,6 +180,7 @@ class sign3(BaseSignature, DataSignature):
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
         self.__log.debug('AdaNet final training on %s' % traintest_file)
         ada.total_steps = ada.total_steps * 2
+        ada.train_step = ada.total_steps
         ada.train_and_evaluate(evaluate=evaluate)
         if evaluate:
             singles = self.adanet_single_spaces(adanet_path, traintest_file,
