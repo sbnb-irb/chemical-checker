@@ -52,6 +52,7 @@ class StackDNNBuilder(adanet.subnetwork.Builder):
         self._dropout = dropout
         self._input_shape = input_shape
         self._activation = activation
+        self._nan_mask_value = nan_mask_value
 
     def build_subnetwork(self,
                          features,
@@ -133,6 +134,7 @@ class StackDNNGenerator(adanet.subnetwork.Generator):
     def __init__(self,
                  optimizer,
                  input_shape,
+                 nan_mask_value=0.0,
                  layer_size=32,
                  learn_mixture_weights=False,
                  dropout=0.0,
@@ -167,6 +169,7 @@ class StackDNNGenerator(adanet.subnetwork.Generator):
             layer_size=layer_size,
             dropout=dropout,
             input_shape=input_shape,
+            nan_mask_value=nan_mask_value,
             activation=activation,
             learn_mixture_weights=learn_mixture_weights)
 
