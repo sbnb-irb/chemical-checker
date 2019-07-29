@@ -6,6 +6,7 @@ virtually *any* molecule in *any* dataset.
 """
 import os
 import h5py
+import shutil
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -53,28 +54,26 @@ class sign3(BaseSignature, DataSignature):
         # get parameters or default values
         self.params = dict()
         default_adanet = {
-            "eval": {
+            'eval': {
                 'extension_step': 3,
                 'epoch_per_iteration': 1,
                 'adanet_iterations': 10,
-                "augmentation": subsample,
-                "cpu": params.get('cpu', 4)
+                'augmentation': subsample,
+                'subnetwork_generator': 'StackDNNGenerator',
+                'cpu': params.get('cpu', 4)
             },
-            "test": {
-                'adanet_iterations': 1,
-                "augmentation": subsample,
-                "cpu": params.get('cpu', 4)
-            },
-            "sign0_eval": {
+            'sign0_eval': {
                 'extension_step': 3,
                 'epoch_per_iteration': 1,
                 'adanet_iterations': 10,
                 'augmentation': False,
-                "cpu": params.get('cpu', 4)
+                'subnetwork_generator': 'StackDNNGenerator',
+                'cpu': params.get('cpu', 4)
             },
-            "sign0_test": {
+            'sign0_test': {
                 'augmentation': False,
-                "cpu": params.get('cpu', 4)
+                'subnetwork_generator': 'StackDNNGenerator',
+                'cpu': params.get('cpu', 4)
             }
         }
         self.params['adanet'] = params.get('adanet', default_adanet)
@@ -179,6 +178,16 @@ class sign3(BaseSignature, DataSignature):
             # save AdaNet performances and plots
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
+        self.__log.debug('AdaNet final training on %s' % traintest_file)
+        ada.total_steps = ada.total_steps * 2
+        ada.train_and_evaluate(evaluate=evaluate)
+        if evaluate:
+            singles = self.adanet_single_spaces(adanet_path, traintest_file,
+                                                suffix + "_test")
+            # save AdaNet performances and plots
+            sign2_plot = Plot(self.dataset, adanet_path)
+            ada.save_performances(adanet_path, sign2_plot, suffix + "_test",
+                                  singles)
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True):
         """Save matrix of signature 0 and confidence values.
@@ -464,27 +473,14 @@ class sign3(BaseSignature, DataSignature):
         self.src_datasets = [sign.dataset for sign in sign2_list]
         self.sign2_self = sign2_self
         # check if performance evaluations need to be done
-        eval_stats = os.path.join(
-            self.model_path, 'adanet_eval', 'stats.pkl')
+        eval_adanet_path = os.path.join(self.model_path, 'adanet_eval')
+        eval_stats = os.path.join(eval_adanet_path, 'stats.pkl')
         if not os.path.isfile(eval_stats):
             self._learn(sign2_list, self.params['adanet']['eval'],
                         suffix='eval', evaluate=True)
 
-        # get resulting architechture and update params
-        df = pd.read_pickle(eval_stats)
-        eval_architechture = df.iloc[0].architecture_block
-        self.params['adanet']['test'].update({
-            'initial_architecture': eval_architechture})
-        # test learning quickly with final architechture
-        test_adanet_path = os.path.join(self.model_path, 'adanet_test',
-                                        'savedmodel')
-        if not os.path.isdir(test_adanet_path):
-            self._learn(sign2_list, self.params['adanet']['test'],
-                        suffix='test', evaluate=True)
-
         # check if we have the final trained model
-        final_adanet_path = os.path.join(self.model_path, 'adanet_final',
-                                         'savedmodel')
+        final_adanet_path = os.path.join(self.model_path, 'adanet_final')
         if not os.path.isdir(final_adanet_path):
             self._learn(sign2_list, self.params['adanet']['test'],
                         suffix='final', evaluate=False)
