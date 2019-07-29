@@ -115,7 +115,8 @@ class StackDNNGenerator(adanet.subnetwork.Generator):
                  learn_mixture_weights=False,
                  dropout=0.0,
                  activation=tf.nn.relu,
-                 seed=None):
+                 seed=None,
+                 **kwargs):
         """Initializes a DNN `Generator`.
 
         Args:
