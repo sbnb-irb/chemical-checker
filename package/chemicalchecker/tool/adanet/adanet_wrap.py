@@ -998,8 +998,14 @@ class AdaNetWrapper(object):
             # save rows
             for split in rows:
                 df = df.append(pd.DataFrame(rows[split]), ignore_index=True)
-            output_pkl = os.path.join(output_dir, 'stats.pkl')
+            if suffix:
+                output_pkl = os.path.join(output_dir, 'stats.pkl')
+            else:
+                output_pkl = os.path.join(output_dir, 'stats_%s.pkl' % suffix)
             with open(output_pkl, 'wb') as fh:
                 pickle.dump(df, fh)
-            output_csv = os.path.join(output_dir, 'stats.csv')
+            if suffix:
+                output_csv = os.path.join(output_dir, 'stats.csv')
+            else:
+                output_csv = os.path.join(output_dir, 'stats_%s.csv' % suffix)
             df.to_csv(output_csv)
