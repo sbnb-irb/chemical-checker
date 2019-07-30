@@ -536,9 +536,9 @@ class sign3(BaseSignature, DataSignature):
                 # read the correlations obtained evaluating on single spaces
                 df = pd.read_pickle(eval_stats)
                 test_eval = df[(df.split != 'train') & (
-                    df.algo == 'AdaNet_eval')]
+                    df.algo == 'AdaNet_eval_boost')]
                 train_eval = df[(df.split == 'train') & (
-                    df.algo == 'AdaNet_eval')]
+                    df.algo == 'AdaNet_eval_boost')]
                 avg_pearsons = np.zeros(tot_ds, dtype=np.float32)
                 avg_pearsons_test = np.zeros(tot_ds, dtype=np.float32)
                 avg_pearsons_train = np.zeros(tot_ds, dtype=np.float32)
