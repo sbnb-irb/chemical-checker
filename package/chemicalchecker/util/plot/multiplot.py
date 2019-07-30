@@ -270,11 +270,11 @@ class MultiPlot():
         plt.savefig(outfile, dpi=100)
         plt.close('all')
 
-    def sign2_feature_distribution_plot(self, sample_size=1000, sort=False):
+    def sign_feature_distribution_plot(self, cctype='sign2', molset='reference', sample_size=1000, sort=False):
         fig, axes = plt.subplots(25, 1, sharey=True, sharex=True,
                                  figsize=(10, 40), dpi=100)
         for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
-            sign2 = self.cc.get_signature('sign2', 'reference', ds)
+            sign2 = self.cc.get_signature(cctype, molset, ds)
             if not os.path.isfile(sign2.data_path):
                 continue
             if sign2.shape[0] > sample_size:
