@@ -69,8 +69,8 @@ class sign3(BaseSignature, DataSignature):
             'subnetwork_generator': 'StackDNNGenerator',
             'cpu': params.get('cpu', 4)
         }
-        self.params['adanet'] = params.get('adanet', default_adanet)
-        self.params['sign0'] = params.get('sign0', default_sign0)
+        self.params['adanet'] = default_adanet.update(params.get('adanet', {}))
+        self.params['sign0'] = default_sign0.update(params.get('sign0', {}))
 
     def save_sign2_matrix(self, sign2_list, destination):
         """Save matrix of horizontally stacked signature 2.
