@@ -44,28 +44,9 @@ class TestSign3(unittest.TestCase):
         s3 = sign3(self.sign_dir, 'E1.001')
         s3.params = dict()
         s3.params['adanet'] = {
-            "eval": {
-                'extension_step': 3,
-                'epoch_per_iteration': 1,
-                'adanet_iterations': 2,
-                "augmentation": subsample,
-            },
-            "test": {
-                'epoch_per_iteration': 1,
-                'adanet_iterations': 1,
-                "augmentation": subsample,
-            },
-            "sign0_eval": {
-                'extension_step': 3,
-                'epoch_per_iteration': 1,
-                'adanet_iterations': 2,
-                'augmentation': False,
-            },
-            "sign0_test": {
-                'epoch_per_iteration': 1,
-                'adanet_iterations': 1,
-                'augmentation': False,
-            }
+            'final_step_boost': 1,
+            'adanet_iterations': 2,
+            "augmentation": subsample,
         }
         s3.fit(sign2_list, sign2_list[0])
 
@@ -73,8 +54,6 @@ class TestSign3(unittest.TestCase):
         self.assertTrue(os.path.isdir(s3.model_path))
         eval_dir = os.path.join(s3.model_path, 'adanet_eval')
         self.assertTrue(os.path.isdir(eval_dir))
-        test_dir = os.path.join(s3.model_path, 'adanet_test')
-        self.assertTrue(os.path.isdir(test_dir))
         final_dir = os.path.join(s3.model_path, 'adanet_final')
         self.assertTrue(os.path.isdir(final_dir))
         self.assertEqual(s3.shape[0], 3563)
