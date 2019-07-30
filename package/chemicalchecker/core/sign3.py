@@ -502,7 +502,8 @@ class sign3(BaseSignature, DataSignature):
                 h5file.create_dataset(*args, **kwargs)
 
         # save universe sign3
-        predict_fn = AdaNet.predict_fn(final_adanet_path)
+        predict_fn = AdaNet.predict_fn(os.path.join(final_adanet_path,
+                                                    'savedmodel'))
         with h5py.File(self.data_path, "w") as results:
             # initialize V and keys datasets
             safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
