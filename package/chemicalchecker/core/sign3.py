@@ -54,24 +54,23 @@ class sign3(BaseSignature, DataSignature):
         # get parameters or default values
         self.params = dict()
         default_adanet = {
-            'eval': {
-                'epoch_per_iteration': 1,
-                'final_step_boost': 3,
-                'adanet_iterations': 30,
-                'augmentation': subsample,
-                'subnetwork_generator': 'StackDNNGenerator',
-                'cpu': params.get('cpu', 4)
-            },
-            'sign0_eval': {
-                'epoch_per_iteration': 1,
-                'final_step_boost': 3,
-                'adanet_iterations': 30,
-                'augmentation': False,
-                'subnetwork_generator': 'StackDNNGenerator',
-                'cpu': params.get('cpu', 4)
-            }
+            'epoch_per_iteration': 1,
+            'final_step_boost': 3,
+            'adanet_iterations': 30,
+            'augmentation': subsample,
+            'subnetwork_generator': 'StackDNNGenerator',
+            'cpu': params.get('cpu', 4)
+        }
+        default_sign0 = {
+            'epoch_per_iteration': 1,
+            'final_step_boost': 3,
+            'adanet_iterations': 30,
+            'augmentation': False,
+            'subnetwork_generator': 'StackDNNGenerator',
+            'cpu': params.get('cpu', 4)
         }
         self.params['adanet'] = params.get('adanet', default_adanet)
+        self.params['sign0'] = params.get('sign0', default_sign0)
 
     def save_sign2_matrix(self, sign2_list, destination):
         """Save matrix of horizontally stacked signature 2.
@@ -90,7 +89,8 @@ class sign3(BaseSignature, DataSignature):
         feat_shape = (self.sign2_self.shape[0],
                       ref_dimension * len(self.src_datasets))
         with h5py.File(destination, 'w') as hf:
-            hf.create_dataset('y', data=self.sign2_self[:], dtype=np.float32)
+            hf.create_dataset('y', data=self.sign2_self[
+                              :], dtype=np.float32)
             hf.create_dataset('x', feat_shape, dtype=np.float32)
             # for each dataset fetch signatures for the molecules of current
             # space, if missing we add NaN.
@@ -279,6 +279,16 @@ class sign3(BaseSignature, DataSignature):
             # save AdaNet performances and plots
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix)
+        self.__log.debug('AdaNet final training on %s' % traintest_file)
+        # at this point we have defined the architecture
+        # repeat the last step with many more epochs
+        ada.total_steps = ada.total_steps * adanet_params['final_step_boost']
+        ada.train_step = ada.total_steps
+        ada.train_and_evaluate(evaluate=evaluate)
+        if evaluate:
+            # save AdaNet performances and plots
+            sign2_plot = Plot(self.dataset, adanet_path)
+            ada.save_performances(adanet_path, sign2_plot, suffix + "_boost")
 
     def fit_sign0(self, sign0, include_confidence=True):
         """Train an AdaNet model to predict sign3 from sign0.
@@ -295,27 +305,13 @@ class sign3(BaseSignature, DataSignature):
 
         # check if performance evaluations need to be done
         s0_code = sign0.dataset
-        eval_stats = os.path.join(
-            self.model_path, 'adanet_sign0_%s_eval' % s0_code, 'stats.pkl')
+        eval_adanet_path = os.path.join(self.model_path,
+                                        'adanet_sign0_%s_eval' % s0_code)
+        eval_stats = os.path.join(eval_adanet_path, 'stats_eval_boost.pkl')
         if not os.path.isfile(eval_stats):
-            self._learn_sign0(sign0, self.params['adanet']['sign0_eval'],
+            self._learn_sign0(sign0, self.params['sign0'],
                               suffix='sign0_%s_eval' % s0_code,
                               evaluate=True,
-                              include_confidence=include_confidence)
-
-        # get resulting architechture and update params
-        df = pd.read_pickle(eval_stats)
-        eval_architechture = df.iloc[0].architecture_block
-        self.params['adanet']['sign0_test'].update({
-            'initial_architecture': eval_architechture})
-        # test learning quickly with final architechture
-        test_adanet_path = os.path.join(self.model_path,
-                                        'adanet_sign0_%s_test' % s0_code,
-                                        'savedmodel')
-        if not os.path.isdir(test_adanet_path):
-            self._learn_sign0(sign0, self.params['adanet']['sign0_test'],
-                              suffix='sign0_%s_final' % s0_code,
-                              evaluate=False,
                               include_confidence=include_confidence)
 
         # check if we have the final trained model
@@ -323,7 +319,7 @@ class sign3(BaseSignature, DataSignature):
                                          'adanet_sign0_%s_final' % s0_code,
                                          'savedmodel')
         if not os.path.isdir(final_adanet_path):
-            self._learn_sign0(sign0, self.params['adanet']['sign0_test'],
+            self._learn_sign0(sign0, self.params['sign0'],
                               suffix='sign0_%s_final' % s0_code,
                               evaluate=False,
                               include_confidence=include_confidence)
