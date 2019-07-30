@@ -857,7 +857,7 @@ class AdaNetWrapper(object):
                 # self.__log.debug("comp: %s p: %.2f", comp, row['pearson'])
                 rows.append(row)
             self.__log.info("Performances for: %s\t%s\t%s\t%.2f" % (
-                algo, dataset, split, np.mean(r['pearson'] for r in rows)))
+                algo, dataset, split, np.mean([r['pearson'] for r in rows])))
             return rows
 
         def _update_row(rows, key, value):
