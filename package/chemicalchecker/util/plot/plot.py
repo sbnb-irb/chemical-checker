@@ -838,12 +838,12 @@ class Plot():
         plt.savefig(filename, dpi=200)
         plt.close()
 
-    def sign2_feature_distribution_plot(self, sign2):
-        if sign2.shape[0] > 10000:
-            keys = np.random.choice(sign2.keys, 10000, replace=False)
-            matrix = sign2.get_vectors(keys)[1]
+    def sign_feature_distribution_plot(self, sign, max_samples=10000):
+        if sign.shape[0] > max_samples:
+            keys = np.random.choice(sign.keys, max_samples, replace=False)
+            matrix = sign.get_vectors(keys)[1]
         else:
-            matrix = sign2[:]
+            matrix = sign[:]
         df = pd.DataFrame(matrix).melt()
 
         coord = self.dataset_code
