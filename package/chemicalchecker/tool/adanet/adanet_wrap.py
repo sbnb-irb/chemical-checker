@@ -856,8 +856,8 @@ class AdaNetWrapper(object):
                 row['from'] = dataset
                 # self.__log.debug("comp: %s p: %.2f", comp, row['pearson'])
                 rows.append(row)
-            self.__log.info("Performances for: %s\t%s\t%s\t%.2f" % (
-                algo, dataset, split, np.mean([r['pearson'] for r in rows])))
+            self.__log.info("Performances %s\t%s\t%.2f\t%s" % (
+                algo, dataset, np.mean([r['pearson'] for r in rows]), split))
             return rows
 
         def _update_row(rows, key, value):
@@ -935,7 +935,6 @@ class AdaNetWrapper(object):
                 if preds[split] is None:
                     self.__log.info("Skipping %s on %s", name, split)
                     continue
-                self.__log.info("Performances for %s on %s", name, split)
                 algo, dataset = name
                 y_pred = np.load(preds[split]['pred'] + ".npy")
                 y_true = np.load(preds[split]['true'] + ".npy")
