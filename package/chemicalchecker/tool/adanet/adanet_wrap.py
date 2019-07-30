@@ -394,7 +394,7 @@ class AdaNetWrapper(object):
         self.min_train_step = kwargs.get("min_train_step", 1000)
         self.nan_mask_value = kwargs.get("nan_mask_value", 0.0)
         self.subnetwork_generator = eval(kwargs.get(
-            "subnetwork_generator", "ExtendDNNGenerator"))
+            "subnetwork_generator", "StackDNNGenerator"))
         self.extension_step = kwargs.get("extension_step", 1)
         self.initial_architecture = kwargs.get("initial_architecture", [1])
         self.cpu = kwargs.get("cpu", 4)
@@ -634,7 +634,8 @@ class AdaNetWrapper(object):
             architecture = self.results[0]["architecture/adanet/ensembles"]
             # The architecture is a serialized Summary proto for TensorBoard.
             summary_proto = tf.summary.Summary.FromString(architecture)
-            return summary_proto.value[0].tensor.string_val[0]
+            arch_txt = summary_proto.value[0].tensor.string_val[0]
+            return [x.strip().split('_')[0] for x in arch_txt.split('|')[1:-1]]
         except Exception:
             return None
 
@@ -834,8 +835,8 @@ class AdaNetWrapper(object):
         # save in pandas
         df = pd.DataFrame(columns=[
             'dataset', 'split', 'component', 'r2', 'pearson', 'algo', 'mse',
-            'explained_variance', 'time', 'architecture', 'architecture_block',
-            'nr_variables', 'nn_layers', 'layer_size', 'architecture_history',
+            'explained_variance', 'time', 'architecture',
+            'nr_variables', 'nn_layers', 'layer_size',
             'from', 'dataset_size', 'coverage'])
 
         def _stats_row(y_true, y_pred, algo, split, dataset):
@@ -855,6 +856,8 @@ class AdaNetWrapper(object):
                 row['from'] = dataset
                 # self.__log.debug("comp: %s p: %.2f", comp, row['pearson'])
                 rows.append(row)
+            self.__log.info("Performances for: %s\t%s\t%s\t%.2f" % (
+                algo, dataset, split, np.mean(r['pearson'] for r in rows)))
             return rows
 
         def _update_row(rows, key, value):
@@ -869,22 +872,27 @@ class AdaNetWrapper(object):
                 else:
                     self.__log.debug("{:<24} {}".format(k, v))
 
+        # output files
+        if suffix is None:
+            output_pkl = os.path.join(output_dir, 'stats.pkl')
+            output_csv = os.path.join(output_dir, 'stats.csv')
+            algo_name = 'AdaNet'
+        else:
+            output_pkl = os.path.join(output_dir, 'stats_%s.pkl' % suffix)
+            output_csv = os.path.join(output_dir, 'stats_%s.csv' % suffix)
+            algo_name = "AdaNet_%s" % suffix
         # Performances for AdaNet
         rows = dict()
-        # load network
         predict_fn = AdaNetWrapper.predict_fn(self.save_dir)
         for split in splits:
-            self.__log.info("Performances for AdaNet on %s" % split)
             y_pred, y_true = AdaNetWrapper.predict_online(
                 self.traintest_file, split, predict_fn=predict_fn)
-            if suffix:
-                name = "AdaNet_%s" % suffix
-            else:
-                name = 'AdaNet'
-            rows[split] = _stats_row(y_true, y_pred, name, split, "ALL")
+            rows[split] = _stats_row(y_true, y_pred, algo_name, split, "ALL")
             rows[split] = _update_row(rows[split], "time", self.time)
             rows[split] = _update_row(
-                rows[split], "architecture_history", self.architecture())
+                rows[split], "architecture", self.architecture())
+            rows[split] = _update_row(
+                rows[split], "layer_size", self.layer_size)
             # log and save plot
             # _log_row(rows[split])
             if do_plot:
@@ -899,9 +907,6 @@ class AdaNetWrapper(object):
                 model_vars.append(var.eval())
             nr_variables = np.sum([np.prod(v.shape) for v in model_vars])
             nn_layers = (len(model_vars) / 2) - 1
-            architecture = [model_vars[i].shape[1]
-                            for i in range(0, len(model_vars) - 2, 2)]
-            architecture_block = [x / self.layer_size for x in architecture]
 
         # save rows
         for split in splits:
@@ -909,56 +914,14 @@ class AdaNetWrapper(object):
                 rows[split], "nr_variables", nr_variables)
             rows[split] = _update_row(rows[split], "nn_layers", nn_layers)
             rows[split] = _update_row(
-                rows[split], "architecture", architecture)
-            rows[split] = _update_row(
-                rows[split], "architecture_block", architecture_block)
+                rows[split], "architecture", self.architecture())
             rows[split] = _update_row(rows[split], "coverage", 1.0)
             df = df.append(pd.DataFrame(rows[split]), ignore_index=True)
-        output_pkl = os.path.join(output_dir, 'stats.pkl')
         with open(output_pkl, 'wb') as fh:
             pickle.dump(df, fh)
-        output_csv = os.path.join(output_dir, 'stats.csv')
         df.to_csv(output_csv)
 
-        '''
-        # TODO use out-of-core linear regression
-        # compare to baseline Linear Regression
-        linreg_start = time()
-        linreg = LinearRegression().fit(x['train'], y['train'])
-        linreg_stop = time()
-        rows = dict()
-        for split in splits:
-            self.__log.info("Performances for LinearRegression on %s" % split)
-            y_pred = linreg.predict(x[split])
-            rows[split] = _stats_row(
-                y[split], y_pred, 'LinearRegression', split, "ALL")
-            rows[split] = _update_row(
-                rows[split], "time", linreg_stop - linreg_start)
-            rows[split] = _update_row(
-                rows[split], "architecture_history", '| linear |')
-            rows[split] = _update_row(
-                rows[split], "architecture", [y[split].shape[1]])
-            rows[split] = _update_row(rows[split], "layer_size", 0)
-            rows[split] = _update_row(
-                rows[split], "nr_variables", [y[split].shape[1]])
-            rows[split] = _update_row(rows[split], "nn_layers", 0)
-            rows[split] = _update_row(rows[split], "coverage", 1.0)
-            # log and save plot
-            #_log_row(rows[split])if do_plot:
-            #    plot.sign2_prediction_plot(
-            #    y[split], y_pred, "LinearRegression_%s" % split)
-
-        # save rows
-        for split in splits:
-            df = df.append(pd.DataFrame(rows[split]), ignore_index=True)
-        output_pkl = os.path.join(output_dir, 'stats.pkl')
-        with open(output_pkl, 'wb') as fh:
-            pickle.dump(df, fh)
-        output_csv = os.path.join(output_dir, 'stats.csv')
-        df.to_csv(output_csv)
-        '''
-
-        # compare to other predictors
+        # other predictors to compare?
         if not extra_predictors:
             return
 
@@ -981,31 +944,14 @@ class AdaNetWrapper(object):
                 rows[split] = _stats_row(y_true, y_pred, algo, split, dataset)
                 rows[split] = _update_row(rows[split], "coverage", coverage)
                 rows[split] = _update_row(rows[split], "time", runtime)
-                rows[split] = _update_row(
-                    rows[split], "architecture_history", '| linear |')
-                rows[split] = _update_row(
-                    rows[split], "architecture", [y_true.shape[1]])
-                rows[split] = _update_row(rows[split], "layer_size", 0)
-                rows[split] = _update_row(
-                    rows[split], "nr_variables", [y_true.shape[1]])
-                rows[split] = _update_row(rows[split], "nn_layers", 0)
                 # log and save plot
                 # _log_row(rows[split])
                 if do_plot:
                     plot.sign2_prediction_plot(
                         y_true, y_pred, "_".join(list(name) + [split]))
-
             # save rows
             for split in rows:
                 df = df.append(pd.DataFrame(rows[split]), ignore_index=True)
-            if suffix:
-                output_pkl = os.path.join(output_dir, 'stats.pkl')
-            else:
-                output_pkl = os.path.join(output_dir, 'stats_%s.pkl' % suffix)
             with open(output_pkl, 'wb') as fh:
                 pickle.dump(df, fh)
-            if suffix:
-                output_csv = os.path.join(output_dir, 'stats.csv')
-            else:
-                output_csv = os.path.join(output_dir, 'stats_%s.csv' % suffix)
             df.to_csv(output_csv)
