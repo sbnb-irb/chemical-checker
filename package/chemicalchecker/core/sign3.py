@@ -55,22 +55,17 @@ class sign3(BaseSignature, DataSignature):
         self.params = dict()
         default_adanet = {
             'eval': {
-                'extension_step': 3,
                 'epoch_per_iteration': 1,
-                'adanet_iterations': 10,
+                'final_step_boost': 3,
+                'adanet_iterations': 30,
                 'augmentation': subsample,
                 'subnetwork_generator': 'StackDNNGenerator',
                 'cpu': params.get('cpu', 4)
             },
             'sign0_eval': {
-                'extension_step': 3,
                 'epoch_per_iteration': 1,
-                'adanet_iterations': 10,
-                'augmentation': False,
-                'subnetwork_generator': 'StackDNNGenerator',
-                'cpu': params.get('cpu', 4)
-            },
-            'sign0_test': {
+                'final_step_boost': 3,
+                'adanet_iterations': 30,
                 'augmentation': False,
                 'subnetwork_generator': 'StackDNNGenerator',
                 'cpu': params.get('cpu', 4)
@@ -179,15 +174,17 @@ class sign3(BaseSignature, DataSignature):
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
         self.__log.debug('AdaNet final training on %s' % traintest_file)
-        ada.total_steps = ada.total_steps * 2
+        # at this point we have defined the architecture
+        # repeat the last step with many more epochs
+        ada.total_steps = ada.total_steps * adanet_params['final_step_boost']
         ada.train_step = ada.total_steps
         ada.train_and_evaluate(evaluate=evaluate)
         if evaluate:
             singles = self.adanet_single_spaces(adanet_path, traintest_file,
-                                                suffix + "_test")
+                                                suffix + "_boost")
             # save AdaNet performances and plots
             sign2_plot = Plot(self.dataset, adanet_path)
-            ada.save_performances(adanet_path, sign2_plot, suffix + "_test",
+            ada.save_performances(adanet_path, sign2_plot, suffix + "_boost",
                                   singles)
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True):
@@ -475,15 +472,15 @@ class sign3(BaseSignature, DataSignature):
         self.sign2_self = sign2_self
         # check if performance evaluations need to be done
         eval_adanet_path = os.path.join(self.model_path, 'adanet_eval')
-        eval_stats = os.path.join(eval_adanet_path, 'stats.pkl')
-        if not os.path.isfile(eval_stats):
-            self._learn(sign2_list, self.params['adanet']['eval'],
+        eval_stats = os.path.join(eval_adanet_path, 'stats_eval_boost.pkl')
+        if not os.path.isfile(eval_adanet_path):
+            self._learn(sign2_list, self.params['adanet'],
                         suffix='eval', evaluate=True)
 
         # check if we have the final trained model
         final_adanet_path = os.path.join(self.model_path, 'adanet_final')
         if not os.path.isdir(final_adanet_path):
-            self._learn(sign2_list, self.params['adanet']['test'],
+            self._learn(sign2_list, self.params['adanet'],
                         suffix='final', evaluate=False)
 
         # get sorted universe inchikeys and signatures
