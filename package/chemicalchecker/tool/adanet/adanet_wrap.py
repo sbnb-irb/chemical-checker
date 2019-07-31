@@ -521,7 +521,7 @@ class AdaNetWrapper(object):
         self.__log.info("**** AdaNet Parameters: ***")
 
     @staticmethod
-    def layer_size_heuristic(nr_samples, nr_features, nr_out=128, s_fact=7.):
+    def layer_size_heuristic(nr_samples, nr_features, nr_out=128, s_fact=3.):
         heu_layer_size = (
             1 / s_fact) * (np.sqrt(nr_samples) / .3 + ((nr_features + nr_out) / 5.))
         heu_layer_size = np.power(2, np.ceil(np.log2(heu_layer_size)))

@@ -55,7 +55,7 @@ class sign3(BaseSignature, DataSignature):
         self.params = dict()
         default_adanet = {
             'epoch_per_iteration': 1,
-            'final_step_boost': 3,
+            'final_step_boost': 4,
             'adanet_iterations': 30,
             'augmentation': subsample,
             'subnetwork_generator': 'StackDNNGenerator',
@@ -65,7 +65,7 @@ class sign3(BaseSignature, DataSignature):
         self.params['adanet'] = default_adanet
         default_sign0 = {
             'epoch_per_iteration': 1,
-            'final_step_boost': 3,
+            'final_step_boost': 4,
             'adanet_iterations': 30,
             'augmentation': False,
             'subnetwork_generator': 'StackDNNGenerator',
@@ -603,15 +603,15 @@ class sign3(BaseSignature, DataSignature):
                         # summarize the predictions as consensus
                         consensus = np.mean(samples, axis=2)
                         results['consensus'][chunk] = consensus
+                        # zeros input (no info) as intensity reference
+                        centered = consensus - zero_pred
+                        # measure the intensity (mean of absolute comps)
+                        abs_sum = np.abs(centered)
+                        results['intensity'][chunk] = np.mean(abs_sum, axis=1)
                         # summarize the standard deviation of components
                         stddevs = np.std(samples, axis=2)
                         # just save the average stddev over the components
                         results['stddev'][chunk] = np.mean(stddevs, axis=1)
-                        # zeros input (no info) as intensity reference
-                        centered = consensus - zero_pred
-                        # measure the intensity (absolute sum of comps)
-                        abs_sum = np.sum(np.abs(centered), axis=1)
-                        results['intensity'][chunk] = abs_sum / 128.
         # train error estimator
         std_dist, int_dist = self.train_error_estimator(ds_sign[self.dataset])
         with h5py.File(self.data_path, "r+") as results:
@@ -631,8 +631,8 @@ class sign3(BaseSignature, DataSignature):
                 # confidence and intensity are equally important
                 # high intensity imply low error, high stddev imply high error
                 confidence = np.sqrt(inten_norm * (1 - stddev_norm))
-                # the higher the better
-                results['confidence'][chunk] = confidence
+                # the higher the better, clip at .999
+                results['confidence'][chunk] = np.clip(confidence, .0, 0.999)
         self.background_distances("cosine")
         if validations:
             self.validate()
@@ -833,7 +833,7 @@ def subsample(tensor, label):
         # the following assume the stacked signature to have a fixed width
         presence = ~np.isnan(row[0::128])
         # low probability of keeping the original sample
-        if np.random.rand() > 0.95:
+        if np.random.rand() > 0.90:
             presence_add = presence
         else:
             # present datasets
