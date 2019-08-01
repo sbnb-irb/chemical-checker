@@ -845,7 +845,7 @@ class sign3(BaseSignature, DataSignature):
             "data = inputs[task_id]",  # elements for current job
             "for s3, params in data:",  # elements are indexes
             "    params['cpu'] = %s" % cpu,
-            "    s3._learn(None, params)",
+            "    s3._learn(params)",
             "print('JOB DONE')"
         ]
         script_name = os.path.join(job_path, 'sign3_grid_search_adanet.py')
