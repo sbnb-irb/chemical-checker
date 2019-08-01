@@ -15,7 +15,6 @@ try:
     logging.root.removeHandler(absl.logging._absl_handler)
     absl.logging._warn_preinit_stderr = False
 except Exception as e:
-    print("Failed to fix absl logging bug", e)
     pass
 from .logging.our_logging import *
 from autologging import logged
