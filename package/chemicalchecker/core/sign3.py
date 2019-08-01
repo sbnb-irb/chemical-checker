@@ -55,7 +55,6 @@ class sign3(BaseSignature, DataSignature):
         self.params = dict()
         default_adanet = {
             'epoch_per_iteration': 1,
-            'final_step_boost': 4,
             'adanet_iterations': 30,
             'augmentation': subsample,
             'subnetwork_generator': 'StackDNNGenerator',
@@ -65,7 +64,6 @@ class sign3(BaseSignature, DataSignature):
         self.params['adanet'] = default_adanet
         default_sign0 = {
             'epoch_per_iteration': 1,
-            'final_step_boost': 4,
             'adanet_iterations': 30,
             'augmentation': False,
             'subnetwork_generator': 'StackDNNGenerator',
@@ -107,7 +105,7 @@ class sign3(BaseSignature, DataSignature):
                                 sum(available), self.dataset, ds)
                 del signs
 
-    def _learn(self, sign2_list, adanet_params, reuse=True, suffix=None,
+    def _learn(self, adanet_params, reuse=True, suffix=None,
                evaluate=True):
         """Learn the signature 3 model.
 
@@ -128,9 +126,6 @@ class sign3(BaseSignature, DataSignature):
             from chemicalchecker.tool.adanet import AdaNet, Traintest
         except ImportError as err:
             raise err
-        # adanet parameters
-        self.__log.debug('AdaNet fit %s based on %s', self.dataset,
-                         str(self.src_datasets))
         # get params and set folder
         if suffix:
             adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
@@ -144,7 +139,7 @@ class sign3(BaseSignature, DataSignature):
         # generate input matrix
         sign2_matrix = os.path.join(self.model_path, 'train.h5')
         if not reuse or not os.path.isfile(sign2_matrix):
-            self.save_sign2_matrix(sign2_list, sign2_matrix)
+            self.save_sign2_matrix(self.sign2_list, sign2_matrix)
         # if evaluating, perform the train-test split
         if evaluate:
             traintest_file = os.path.join(self.model_path, 'traintest.h5')
@@ -175,19 +170,6 @@ class sign3(BaseSignature, DataSignature):
             # save AdaNet performances and plots
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
-        self.__log.debug('AdaNet final training on %s' % traintest_file)
-        # at this point we have defined the architecture
-        # repeat the last step with many more epochs
-        ada.total_steps = ada.total_steps * adanet_params['final_step_boost']
-        ada.train_step = ada.total_steps
-        ada.train_and_evaluate(evaluate=evaluate)
-        if evaluate:
-            singles = self.adanet_single_spaces(adanet_path, traintest_file,
-                                                suffix + "_boost")
-            # save AdaNet performances and plots
-            sign2_plot = Plot(self.dataset, adanet_path)
-            ada.save_performances(adanet_path, sign2_plot, suffix + "_boost",
-                                  singles)
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True):
         """Save matrix of signature 0 and confidence values.
@@ -281,16 +263,6 @@ class sign3(BaseSignature, DataSignature):
             # save AdaNet performances and plots
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix)
-        self.__log.debug('AdaNet final training on %s' % traintest_file)
-        # at this point we have defined the architecture
-        # repeat the last step with many more epochs
-        ada.total_steps = ada.total_steps * adanet_params['final_step_boost']
-        ada.train_step = ada.total_steps
-        ada.train_and_evaluate(evaluate=evaluate)
-        if evaluate:
-            # save AdaNet performances and plots
-            sign2_plot = Plot(self.dataset, adanet_path)
-            ada.save_performances(adanet_path, sign2_plot, suffix + "_boost")
 
     def fit_sign0(self, sign0, include_confidence=True):
         """Train an AdaNet model to predict sign3 from sign0.
@@ -309,7 +281,7 @@ class sign3(BaseSignature, DataSignature):
         s0_code = sign0.dataset
         eval_adanet_path = os.path.join(self.model_path,
                                         'adanet_sign0_%s_eval' % s0_code)
-        eval_stats = os.path.join(eval_adanet_path, 'stats_eval_boost.pkl')
+        eval_stats = os.path.join(eval_adanet_path, 'stats_eval.pkl')
         if not os.path.isfile(eval_stats):
             self._learn_sign0(sign0, self.params['sign0'],
                               suffix='sign0_%s_eval' % s0_code,
@@ -468,17 +440,20 @@ class sign3(BaseSignature, DataSignature):
         # define dataset that will be used
         self.src_datasets = [sign.dataset for sign in sign2_list]
         self.sign2_self = sign2_self
+        self.sign2_list = sign2_list
+        self.__log.debug('AdaNet fit %s based on %s', self.dataset,
+                         str(self.src_datasets))
         # check if performance evaluations need to be done
         eval_adanet_path = os.path.join(self.model_path, 'adanet_eval')
-        eval_stats = os.path.join(eval_adanet_path, 'stats_eval_boost.pkl')
+        eval_stats = os.path.join(eval_adanet_path, 'stats_eval.pkl')
         if not os.path.isfile(eval_adanet_path):
-            self._learn(sign2_list, self.params['adanet'],
+            self._learn(self.params['adanet'],
                         suffix='eval', evaluate=True)
 
         # check if we have the final trained model
         final_adanet_path = os.path.join(self.model_path, 'adanet_final')
         if not os.path.isdir(final_adanet_path):
-            self._learn(sign2_list, self.params['adanet'],
+            self._learn(self.params['adanet'],
                         suffix='final', evaluate=False)
 
         # get sorted universe inchikeys and signatures
@@ -536,9 +511,9 @@ class sign3(BaseSignature, DataSignature):
                 # read the correlations obtained evaluating on single spaces
                 df = pd.read_pickle(eval_stats)
                 test_eval = df[(df.split != 'train') & (
-                    df.algo == 'AdaNet_eval_boost')]
+                    df.algo == 'AdaNet_eval')]
                 train_eval = df[(df.split == 'train') & (
-                    df.algo == 'AdaNet_eval_boost')]
+                    df.algo == 'AdaNet_eval')]
                 avg_pearsons = np.zeros(tot_ds, dtype=np.float32)
                 avg_pearsons_test = np.zeros(tot_ds, dtype=np.float32)
                 avg_pearsons_train = np.zeros(tot_ds, dtype=np.float32)
@@ -817,6 +792,85 @@ class sign3(BaseSignature, DataSignature):
                                                     predict_fn, mask_exclude,
                                                     adanet_path, total_size)
         return results
+
+    def grid_search_adanet(self, job_path, parameters, **kwargs):
+        """Perform a grid search.
+
+        parameters = {
+            'boosting_iterations': [10, 25, 50],
+            'adanet_lambda': [1e-3, 5 * 1e-3, 1e-2],
+            'layer_size': [8, 128, 512, 1024]
+        }
+        """
+        from chemicalchecker.util.hpc import HPC
+        from sklearn.model_selection import ParameterGrid
+        from chemicalchecker.util import Config
+
+        # read config file
+        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
+        cfg = Config(cc_config)
+
+        # root grid search directory
+        grid_search_path = kwargs.get("grid_search_path", 'adanet_grid_search')
+        grid_search_root = os.path.join(self.model_path, grid_search_path)
+        if not os.path.isdir(grid_search_root):
+            os.makedirs(grid_search_root)
+
+        # cpus
+        cpu = kwargs.get("cpu", 1)
+
+        # create job directory if not available
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+
+        # elements to parallelize on are parameters combinations
+        elements = list()
+        for params in ParameterGrid(parameters):
+            model_dir = '-'.join("%s_%s" % kv for kv in params.items())
+            params.update(
+                {'model_dir': os.path.join(grid_search_root, model_dir)})
+            elements.append((self, params))
+
+        # create script file
+        cc_package_path = os.path.join(cfg.PATH.CC_REPO, 'package')
+        script_lines = [
+            "import sys, os",
+            "import pickle",
+            "sys.path.append('%s')" % cc_package_path,
+            "from chemicalchecker.core import ChemicalChecker",
+            "cc = ChemicalChecker()",
+            "task_id = sys.argv[1]",  # <TASK_ID>
+            "filename = sys.argv[2]",  # <FILE>
+            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
+            "data = inputs[task_id]",  # elements for current job
+            "for s3, params in data:",  # elements are indexes
+            "    params['cpu'] = %s" % cpu,
+            "    s3._learn(None, params)",
+            "print('JOB DONE')"
+        ]
+        script_name = os.path.join(job_path, 'sign3_grid_search_adanet.py')
+        with open(script_name, 'w') as fh:
+            for line in script_lines:
+                fh.write(line + '\n')
+        # hpc parameters
+        params = {}
+        params["num_jobs"] = len(elements)
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_SIGN3_GRID_SEARCH_ADANET"
+        params["elements"] = elements
+        params["wait"] = False
+        params["memory"] = 32
+        # job command
+        singularity_image = cfg.PATH.SINGULARITY_IMAGE
+        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
+            " singularity exec {} python {} <TASK_ID> <FILE>"
+        command = command.format(
+            os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
+            singularity_image, script_name)
+        # submit jobs
+        cluster = HPC(Config())
+        cluster.submitMultiJob(command, **params)
+        return cluster
 
 
 def subsample_x_only(tensor, label=None):
