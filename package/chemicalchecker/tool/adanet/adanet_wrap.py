@@ -666,9 +666,12 @@ class AdaNetWrapper(object):
                     self.shuffles * self.batch_size,
                     seed=self.random_seed).repeat()
                 if augmentation:
+                    dataset = dataset.prefetch(
+                        buffer_size=self.batch_size * self.cpu)
                     dataset = dataset.map(lambda x, y: tuple(
                         tf.py_function(augmentation, [x, y],
-                                       [x.dtype, y.dtype])))
+                                       [x.dtype, y.dtype])),
+                        num_parallel_calls=self.cpu)
             iterator = dataset.make_one_shot_iterator()
             features, labels = iterator.get_next()
             return {'x': features}, labels
