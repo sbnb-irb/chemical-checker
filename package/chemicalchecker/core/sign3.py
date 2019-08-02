@@ -54,8 +54,7 @@ class sign3(BaseSignature, DataSignature):
         # get parameters or default values
         self.params = dict()
         default_adanet = {
-            'epoch_per_iteration': 1,
-            'adanet_iterations': 30,
+            'adanet_iterations': 10,
             'augmentation': subsample,
             'subnetwork_generator': 'StackDNNGenerator',
             'cpu': params.get('cpu', 4)
@@ -63,8 +62,7 @@ class sign3(BaseSignature, DataSignature):
         default_adanet.update(params.get('adanet', {}))
         self.params['adanet'] = default_adanet
         default_sign0 = {
-            'epoch_per_iteration': 1,
-            'adanet_iterations': 30,
+            'adanet_iterations': 10,
             'augmentation': False,
             'subnetwork_generator': 'StackDNNGenerator',
             'cpu': params.get('cpu', 4)
@@ -155,6 +153,13 @@ class sign3(BaseSignature, DataSignature):
                     'traintest_file', traintest_file)
         # initialize adanet and start learning
         if adanet_params:
+            # parameter heuristics
+            with h5py.File(sign2_matrix, 'r') as hf:
+                mat_shape = hf['x'].shape
+            adanet_params['layer_size'] = layer_size_heuristic(*mat_shape)
+            adanet_params['batch_size'] = batch_size_heuristic(*mat_shape)
+            adanet_params['epoch_per_iteration'] = epoch_per_iteration_heuristic(
+                *mat_shape)
             ada = AdaNet(model_dir=adanet_path,
                          traintest_file=traintest_file,
                          **adanet_params)
@@ -871,6 +876,34 @@ class sign3(BaseSignature, DataSignature):
         cluster = HPC(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
+
+
+def linear_pow2(val, slope=0.33, intercept=4.):
+    flat_log_size = int(np.floor(val * slope))
+    return np.power(2, int(flat_log_size + intercept))
+
+
+def inverse_linear_pow2(val, slope=100, intercept=4.):
+    flat_log_size = int(np.floor(slope / val))
+    return np.power(2, int(flat_log_size + intercept))
+
+
+def layer_size_heuristic(samples, features, clip=(512, 2048)):
+    log_size = np.log(samples * features)
+    pow2 = linear_pow2(log_size, slope=0.3, intercept=5.)
+    return np.clip(pow2, *clip)
+
+
+def batch_size_heuristic(samples, features, clip=(32, 512)):
+    log_size = np.log(samples * features)
+    pow2 = linear_pow2(log_size, slope=0.69, intercept=-5.)
+    return np.clip(pow2, *clip)
+
+
+def epoch_per_iteration_heuristic(samples, features, clip=(16, 1024)):
+    log_size = np.log(samples * features)
+    pow2 = inverse_linear_pow2(log_size, slope=270, intercept=-8)
+    return np.clip(pow2, *clip)
 
 
 def subsample_x_only(tensor, label=None):
