@@ -391,7 +391,6 @@ class AdaNetWrapper(object):
         self.shuffles = int(kwargs.get("shuffles", 10))
         self.dropout_rate = float(kwargs.get("dropout_rate", 0.2))
         self.augmentation = kwargs.get("augmentation", False)
-        self.min_train_step = kwargs.get("min_train_step", 1000)
         self.nan_mask_value = kwargs.get("nan_mask_value", 0.0)
         self.subnetwork_generator = eval(kwargs.get(
             "subnetwork_generator", "StackDNNGenerator"))
@@ -419,31 +418,14 @@ class AdaNetWrapper(object):
             self.n_classes = np.unique(hf[y_ds][:100000]).shape[0]
         # override number of classes if specified
         self.n_classes = kwargs.get("n_classes", self.n_classes)
-        # layer size heuristic
-        heu_layer_size = AdaNetWrapper.layer_size_heuristic(
-            self.total_size, self.input_dimension, self.label_dimension)
-        self.layer_size = int(kwargs.get("layer_size", heu_layer_size))
+        # layer size
+        self.layer_size = int(kwargs.get("layer_size", 1024))
         # make adanet iteration proportional to input size (with lower bound)
-        adanet_it, epoch_it = AdaNetWrapper.iteration_epoch_heuristic(
-            self.total_size)
-        self.epoch_per_iteration = int(
-            kwargs.get("epoch_per_iteration", epoch_it))
-        self.adanet_iterations = int(
-            kwargs.get("adanet_iterations", adanet_it))
-        # howevere we want to guarantee one epoch per adanet iteration
+        self.epoch_per_iteration = int(kwargs.get("epoch_per_iteration", 8))
+        self.adanet_iterations = int(kwargs.get("adanet_iterations", 10))
+        # however we want to guarantee one epoch per adanet iteration
         self.train_step = int(np.ceil(self.train_size / self.batch_size *
                                       float(self.epoch_per_iteration)))
-        if self.train_step < self.min_train_step:
-            self.epoch_per_iteration = int(
-                np.ceil(float(self.min_train_step) * self.batch_size /
-                        self.train_size))
-            self.__log.warn("Given input size (%s) would result in few train" +
-                            " steps, increasing epoch per iterations to %s",
-                            self.train_size, self.epoch_per_iteration)
-            self.train_step = int(np.ceil(self.train_size / self.batch_size *
-                                          float(self.epoch_per_iteration)))
-
-        self.train_step = max(self.train_step, self.min_train_step)
         self.total_steps = self.train_step * self.adanet_iterations
         self.results = None
         self.estimator = None
@@ -519,25 +501,6 @@ class AdaNetWrapper(object):
             "extension_step", str(self.extension_step)))
         self.__log.info("{:<22}: {:>12}".format("cpu", str(self.cpu)))
         self.__log.info("**** AdaNet Parameters: ***")
-
-    @staticmethod
-    def layer_size_heuristic(nr_samples, nr_features, nr_out=128, s_fact=3.):
-        heu_layer_size = (
-            1 / s_fact) * (np.sqrt(nr_samples) / .3 + ((nr_features + nr_out) / 5.))
-        heu_layer_size = np.power(2, np.ceil(np.log2(heu_layer_size)))
-        heu_layer_size = np.maximum(heu_layer_size, 32)
-        return heu_layer_size
-
-    @staticmethod
-    def iteration_epoch_heuristic(nr_samples, min_it=3, max_it=10, min_ep=30,
-                                  max_ep=300, sigmoid_midpoint=100000,
-                                  steepness=1):
-        # logistic function of nr of samples
-        adanet_it = np.int32(min_it + (max_it - min_it) /
-                             (1 + np.exp(steepness * (nr_samples - sigmoid_midpoint))))
-        epoch_it = np.int32(min_ep + (max_ep - min_ep) /
-                            (1 + np.exp(steepness * (nr_samples - sigmoid_midpoint))))
-        return adanet_it, epoch_it
 
     def train_and_evaluate(self, evaluate=True):
         """Train and evaluate AdaNet."""
