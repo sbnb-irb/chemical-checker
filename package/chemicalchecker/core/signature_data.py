@@ -198,7 +198,7 @@ class DataSignature(object):
         else:
             raise Exception("Key type %s not recognized." % type(key))
 
-    def background_distances(self, metric, sample_pairs=1000000, unflat=True,
+    def background_distances(self, metric, sample_pairs=100000, unflat=True,
                              memory_safe=False):
         """Give the background distances according to the selected metric.
 
@@ -231,10 +231,21 @@ class DataSignature(object):
             matrix = self
         else:
             matrix = self[:]
+        if matrix.shape[0]**2 < sample_pairs:
+            self.__log.warn("Requested more pairs then possible combinations")
+            sample_pairs = matrix.shape[0]**2 - matrix.shape[0]
+
         bg = list()
+        done = set()
         while len(bg) < sample_pairs:
-            i, j = np.random.randint(0, matrix.shape[0], 2)
-            bg.append(metric_fn(matrix[i], matrix[j]))
+            i = np.random.randint(0, matrix.shape[0] - 1)
+            j = np.random.randint(i + 1, matrix.shape[0])
+            if (i, j) not in done:
+                dist = metric_fn(matrix[i], matrix[j])
+                if dist == 0.0:
+                    self.__log.warn("Identical signatures for %s %s" % (i, j))
+                bg.append(dist)
+                done.add((i, j))
         # pavalues as percentiles
         i = 0
         PVALS = [(0, 0., i)]  # DISTANCE, RANK, INTEGER
