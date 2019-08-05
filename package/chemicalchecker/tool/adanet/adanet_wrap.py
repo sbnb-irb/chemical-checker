@@ -629,8 +629,6 @@ class AdaNetWrapper(object):
                     self.shuffles * self.batch_size,
                     seed=self.random_seed).repeat()
                 if augmentation:
-                    dataset = dataset.prefetch(
-                        buffer_size=self.batch_size * self.cpu)
                     dataset = dataset.map(lambda x, y: tuple(
                         tf.py_function(augmentation, [x, y],
                                        [x.dtype, y.dtype])),
