@@ -42,8 +42,7 @@ class TestSign3(unittest.TestCase):
             sign2_dir = os.path.join(self.data_dir, 'sign3', ds)
             sign2_list.append(sign2(sign2_dir, ds))
         adanet_params = {
-            'epoch_per_iteration': 1,
-            'final_step_boost': 1,
+            'epoch_per_iteration': 10,
             'adanet_iterations': 2,
             'augmentation': subsample,
         }
@@ -59,6 +58,6 @@ class TestSign3(unittest.TestCase):
         self.assertEqual(s3.shape[0], 3563)
         self.assertEqual(s3.shape[1], 128)
         ds_corr = list(s3.get_h5_dataset('datasets_correlation'))
-        real_ds_corr = [0.9887012, 0.5003336]
+        real_ds_corr = [0.9887012, 0.5370423]
         self.assertAlmostEqual(ds_corr[0], real_ds_corr[0], 1)
         self.assertAlmostEqual(ds_corr[1], real_ds_corr[1], 1)
