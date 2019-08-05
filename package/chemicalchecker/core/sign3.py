@@ -156,10 +156,13 @@ class sign3(BaseSignature, DataSignature):
             # parameter heuristics
             with h5py.File(sign2_matrix, 'r') as hf:
                 mat_shape = hf['x'].shape
-            adanet_params['layer_size'] = layer_size_heuristic(*mat_shape)
-            adanet_params['batch_size'] = batch_size_heuristic(*mat_shape)
-            adanet_params['epoch_per_iteration'] = epoch_per_iteration_heuristic(
-                *mat_shape)
+            if 'layer_size' not in adanet_params:
+                adanet_params['layer_size'] = layer_size_heuristic(*mat_shape)
+            if 'batch_size' not in adanet_params:
+                adanet_params['batch_size'] = batch_size_heuristic(*mat_shape)
+            if 'epoch_per_iteration' not in adanet_params:
+                adanet_params['epoch_per_iteration'] = epoch_per_iteration_heuristic(
+                    *mat_shape)
             ada = AdaNet(model_dir=adanet_path,
                          traintest_file=traintest_file,
                          **adanet_params)
@@ -894,9 +897,9 @@ def layer_size_heuristic(samples, features, clip=(512, 2048)):
     return np.clip(pow2, *clip)
 
 
-def batch_size_heuristic(samples, features, clip=(32, 512)):
+def batch_size_heuristic(samples, features, clip=(32, 256)):
     log_size = np.log(samples * features)
-    pow2 = linear_pow2(log_size, slope=0.69, intercept=-5.)
+    pow2 = linear_pow2(log_size, slope=0.5, intercept=-2.)
     return np.clip(pow2, *clip)
 
 
