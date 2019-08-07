@@ -6,6 +6,7 @@ import json
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from scipy import interpolate
 
 import matplotlib
 matplotlib.use('Agg')
@@ -768,14 +769,71 @@ class MultiPlot():
         plt.savefig(filename, dpi=300)
         plt.close()
 
-    def spy_matrix(self, matrix):
-        present = (np.isnan(matrix[:, 0::128])).astype(int)
-        fig, ax = plt.subplots(figsize=(20, 20))
-        ax.spy(np.repeat(present, 50, axis=1))
-        ax.set_xticks(np.arange(0, present.shape[1] * 50, 50))
-        ax.set_xticklabels([ds[:2] for ds in list(cc.datasets)])
+    @staticmethod
+    def spy_sign2_universe_matrix(self, universe_h5, datasets,
+                                  chunk_size=1000):
+
+        # the matrix is too big for any plotting attempt
+        # we go by density bins
+        bins = list()
+        with h5py.File(universe_h5, 'r') as hf:
+            for i in tqdm(range(0, hf['x_test'].shape[0], chunk_size)):
+                chunk = slice(i, i + chunk_size)
+                matrix = hf['x_test'][chunk]
+                presence = (~np.isnan(matrix[:, 0::128])).astype(int)
+                curr_bin = np.sum(presence, axis=0) / float(presence.shape[0])
+                bins.append(curr_bin)
+        binned = np.vstack(bins)
+
+        # do some column-wise smoothing
+        def smooth_fn(r):
+            s = interpolate.interp1d(np.arange(len(r)), r)
+            xnew = np.arange(0, len(r) - 1, .1)
+            return s(xnew)
+
+        smooth = np.vstack([smooth_fn(c) for c in binned.T]).T
+
+        # plot
+        sns.set_context('talk')
+        sns.set_style("white")
+        fig, ax = plt.subplots(figsize=(14, 12))
+        cmap = matplotlib.cm.viridis
+        cmap.set_bad(cmap.colors[0])
+        im = ax.imshow(smooth * 100, aspect='auto',
+                       norm=matplotlib.colors.LogNorm(),
+                       cmap=cmap)
+        # ax.yaxis.set_xticklabels(
+        #    np.arange(0, binned.shape[0] * chunk_size, chunk_size))
+        ax.set_xlabel("Bioativity Spaces")
+        ax.xaxis.set_label_position('top')
+        ax.set_xticks(np.arange(binned.shape[1]))
+        ax.set_xticklabels([ds[:2] for ds in datasets])
+        ax.tick_params(labelbottom='off', labeltop='on')
+        ax.xaxis.labelpad = 20
+        ax.set_yticklabels([])
+        thousands = binned.shape[0] * chunk_size / 1000.
+        ax.set_ylabel("%ik Molecules" % thousands)
+
+        # colorbar
+        cbar = plt.colorbar(im, ax=ax)
+        cbar.ax.set_ylabel('Coverage')
+        cbar.ax.yaxis.set_label_position('left')
+        cbar.set_ticks([0.01, 0.1, 1., 10, 100])
+        cbar.set_ticklabels(['0.01%', '0.1%', '1%', '10%', '100%'])
+        '''
+        # also mark dataset medians
+        ds_avg = np.median(binned, axis=0) * 100
+        cbar2 = plt.colorbar(im, ax=ax)
+        cbar2.ax.set_ylabel('Coverage')
+        cbar2.ax.yaxis.set_label_position('left')
+        cbar2.set_ticks(ds_avg[np.argsort(ds_avg)])
+        cbar2.set_ticklabels(
+            np.array([ds[:2] for ds in datasets])[np.argsort(ds_avg)])
+        '''
+
+        # save
         plt.tight_layout()
-        filename = os.path.join("spy.svg")
+        filename = os.path.join("sign2_universe.png")
         plt.savefig(filename, dpi=100)
         plt.close()
 
@@ -792,7 +850,8 @@ class MultiPlot():
         plt.savefig(filename, dpi=100)
         plt.close()
 
-    def sign3_adanet_performance_all_plot(self, metric="pearson", suffix=None):
+    def sign3_adanet_performance_all_plot(self, metric="pearson", suffix=None,
+                                          stat_filename="stats_eval.pkl"):
 
         sns.set_style("whitegrid")
         fig, axes = plt.subplots(25, 1, sharey=True, sharex=False,
@@ -803,7 +862,7 @@ class MultiPlot():
         for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
             s3 = self.cc.get_signature('sign3', 'full', ds)
             perf_file = os.path.join(
-                s3.model_path, adanet_dir, 'stats.pkl')
+                s3.model_path, adanet_dir, stat_filename)
             if not os.path.isfile(perf_file):
                 continue
             df = pd.read_pickle(perf_file)
