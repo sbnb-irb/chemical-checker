@@ -355,7 +355,7 @@ class Node2Vec():
         q = kwargs.get("q", 1)
         v = kwargs.get("v", True)
         ow = kwargs.get("ow", False)
-        dr = kwargs.get("dr", True)
+        dr = kwargs.get("dr", False)
         w = kwargs.get("w", True)
         cpu = kwargs.get("cpu", 1)
 
