@@ -1041,7 +1041,32 @@ class Plot():
         plt.savefig(filename, dpi=60)
         plt.close()
 
-    def sign2_grid_search_plot(self, grid_root=None):
+    @staticmethod
+    def _get_grid_search_df(grid_root):
+        dir_names = [name for name in os.listdir(
+            grid_root) if os.path.isdir(os.path.join(grid_root, name))]
+        for dir_name in dir_names:
+            params = {n.rsplit("_", 1)[0]: n.rsplit("_", 1)[1]
+                      for n in dir_name.split("-")}
+            tmpdf_file = os.path.join(grid_root, dir_name, 'stats.pkl')
+            if os.path.isfile(tmpdf_file):
+                break
+        cols = list(pd.read_pickle(tmpdf_file).columns)
+        df = pd.DataFrame(columns=set(cols) | set(params.keys()))
+        for dir_name in dir_names:
+            tmpdf_file = os.path.join(grid_root, dir_name, 'stats.pkl')
+            if not os.path.isfile(tmpdf_file):
+                print("File not found: %s", tmpdf_file)
+                continue
+            params = {n.rsplit("_", 1)[0]: n.rsplit("_", 1)[1]
+                      for n in dir_name.split("-")}
+            tmpdf = pd.read_pickle(tmpdf_file)
+            for k, v in params.items():
+                tmpdf[k] = pd.Series([v] * len(tmpdf))
+            df = df.append(tmpdf, ignore_index=True)
+        return df
+
+    def sign2_grid_search_plot(self, grid_root):
         dir_names = [name for name in os.listdir(
             grid_root) if os.path.isdir(os.path.join(grid_root, name))]
         for dir_name in dir_names:
