@@ -57,8 +57,7 @@ class TestProj(unittest.TestCase):
         self.assertTrue(os.path.isdir(path_test2))
         proj1_ref.fit(sign1, validations=False)
 
-        proj1_ref.predict(sign1, os.path.join(self.data_dir, "test_proj1.h5"),
-                          validations=False)
+        proj1_ref.predict(sign1, os.path.join(self.data_dir, "test_proj1.h5"))
 
         self.assertTrue(os.path.isfile(
             os.path.join(self.data_dir, "test_proj1.h5")))
@@ -66,9 +65,10 @@ class TestProj(unittest.TestCase):
         with h5py.File(os.path.join(self.data_dir, "test_proj1.h5")) as hf:
             proj_pred = hf["V"][:]
 
-        self.assertTrue(os.path.isfile(os.path.join(path_test1, "proj.h5")))
+        self.assertTrue(os.path.isfile(os.path.join(path_test1,
+                                                    "proj_Default.h5")))
 
-        with h5py.File(os.path.join(path_test1, "proj.h5")) as hf:
+        with h5py.File(os.path.join(path_test1, "proj_Default.h5")) as hf:
             proj = hf["V"][:]
 
         np.testing.assert_array_almost_equal(proj, proj_pred, decimal=5)
