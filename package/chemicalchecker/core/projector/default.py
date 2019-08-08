@@ -80,7 +80,7 @@ class Default(BaseSignature, DataSignature):
             if "angle" in params:
                 self.angle = params["angle"]
 
-    def fit(self, sign1, validations=True):
+    def fit(self, signature, validations=True):
         """Take an input and learns to produce an output."""
         try:
             import faiss
@@ -105,11 +105,11 @@ class Default(BaseSignature, DataSignature):
 
         faiss.omp_set_num_threads(self.cpu)
 
-        if os.path.isfile(sign1.data_path):
-            dh5 = h5py.File(sign1.data_path, 'r')
+        if os.path.isfile(signature.data_path):
+            dh5 = h5py.File(signature.data_path, 'r')
             if "keys" not in dh5.keys() or "V" not in dh5.keys():
                 raise Exception(
-                    "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
+                    "H5 file " + signature.data_path + " does not contain datasets 'keys' and 'V'")
             self.data = np.array(dh5["V"][:], dtype=np.float32)
             self.data_type = dh5["V"].dtype
             self.keys = dh5["keys"][:]
@@ -118,7 +118,8 @@ class Default(BaseSignature, DataSignature):
             dh5.close()
 
         else:
-            raise Exception("The file " + sign1.data_path + " does not exist")
+            raise Exception(
+                "The file " + signature.data_path + " does not exist")
 
         self.__log.info("Applying kmeans")
 
@@ -291,7 +292,7 @@ class Default(BaseSignature, DataSignature):
 
         self.mark_ready()
 
-    def predict(self, sign1, destination):
+    def predict(self, signature, destination):
         """Use the fitted models to go from input to output."""
         try:
             import faiss
@@ -305,16 +306,17 @@ class Default(BaseSignature, DataSignature):
 
         input_data_file = ''
 
-        if isinstance(sign1, str):
-            input_data_file = sign1
+        if isinstance(signature, str):
+            input_data_file = signature
         else:
-            input_data_file = sign1.data_path
+            input_data_file = signature.data_path
 
         if os.path.isfile(input_data_file):
             dh5 = h5py.File(input_data_file, 'r')
             if "keys" not in dh5.keys() or "V" not in dh5.keys():
                 raise Exception(
-                    "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
+                    "H5 file %s does not contain datasets 'keys' and 'V'"
+                    % signature.data_path)
             self.data = np.array(dh5["V"][:], dtype=np.float32)
             self.data_type = dh5["V"].dtype
             self.keys = dh5["keys"][:]
