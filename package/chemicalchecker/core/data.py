@@ -14,7 +14,7 @@ from chemicalchecker.util import logged
 class DataFactory():
 
     @staticmethod
-    def make_data(cctype, signature_path, dataset_code, **params):
+    def make_data(cctype, *args, **kwargs):
         from .sign0 import sign0
         from .sign1 import sign1
         from .sign2 import sign2
@@ -25,11 +25,10 @@ class DataFactory():
         from .proj import proj
 
         DataFactory.__log.debug("initializing object %s", cctype)
-        args = (signature_path, dataset_code)
         if cctype[:4] in ['clus', 'neig', 'proj']:
-            return eval(cctype[:4])(*args, **params)
+            return eval(cctype[:4])(*args, **kwargs)
         else:
-            return eval(cctype)(*args, **params)
+            return eval(cctype)(*args, **kwargs)
 
     @staticmethod
     def signaturize(cctype, signature_path, matrix, keys=None, dataset_code=None):
