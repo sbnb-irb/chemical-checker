@@ -152,7 +152,7 @@ class ChemicalChecker():
         self.__log.debug("signature path: %s", signature_path)
         return signature_path
 
-    def get_signature(self, cctype, molset, dataset_code, **params):
+    def get_signature(self, cctype, molset, dataset_code, *args, **kwargs):
         """Return the signature for the given dataset code.
 
         Args:
@@ -169,7 +169,7 @@ class ChemicalChecker():
         signature_path = self.get_signature_path(cctype, molset, dataset_code)
         # the factory will return the signature with the right class
         data = DataFactory.make_data(
-            cctype, signature_path, dataset_code, **params)
+            cctype, signature_path, dataset_code, *args, **kwargs)
         return data
 
     def copy_signature_from(self, source_cc, cctype, molset, dataset_code,
