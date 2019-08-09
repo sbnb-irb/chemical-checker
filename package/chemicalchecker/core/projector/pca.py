@@ -93,50 +93,20 @@ class PCA(BaseSignature, DataSignature):
             for i in tqdm(range(0, src_len, chunk_size), 'write'):
                 chunk = slice(i, i + chunk_size)
                 dst['V'][chunk] = self.algo.transform(src['V'][chunk])
-        # generate plot
-        self.plot()
         # run validation
         if validations:
             self.validate()
         self.mark_ready()
 
-    def plot(self, *args, **kwargs):
-        # check if data is already loaded
-        if self.proj_data is None:
-            self.proj_data = self[:]
-        # plot projection
-        range_x = max(abs(np.min(self.proj_data[:, 0])),
-                      abs(np.max(self.proj_data[:, 0])))
-        range_y = max(abs(np.min(self.proj_data[:, 1])),
-                      abs(np.max(self.proj_data[:, 1])))
-        range_max = max(range_y, range_x)
-        frame = range_max / 10.
-        range_max += frame
-        cmap = kwargs.pop('cmap', 'viridis')
-        x_range = kwargs.pop('x_range', (-range_max, range_max))
-        y_range = kwargs.pop('y_range', (-range_max, range_max))
-        plot_size = kwargs.pop('plot_size', (1000, 1000))
-        noise_scale = kwargs.pop('noise_scale', None)
-        self.__log.info("Plot range x: %s y: %s" % (x_range, y_range))
-        plot = Plot(self.dataset, self.stats_path)
-        plot.datashader_projection(
-            self.proj_data,
-            self.name,
-            cmap=cmap,
-            x_range=x_range,
-            y_range=y_range,
-            plot_size=plot_size,
-            noise_scale=noise_scale,
-            **kwargs)
-
     def predict(self, signature, destination, chunk_size=100):
+        """Predict new projections."""
         # create destination file
         sdtype = DataSignature.string_dtype()
         with h5py.File(signature.data_path, "r") as src, \
                 h5py.File(destination, "w") as dst:
             dst.create_dataset("keys", data=src['keys'][:], dtype=sdtype)
             dst.create_dataset("name", data=[self.name], dtype=sdtype)
-            date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             dst.create_dataset("date", data=[date_str], dtype=sdtype)
             if 'mappings' in src.keys():
                 dst.create_dataset("mappings", data=src['mappings'][:],
