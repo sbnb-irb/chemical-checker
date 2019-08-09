@@ -5,7 +5,7 @@ import datetime
 import numpy as np
 from tqdm import tqdm
 from time import time
-from sklearn.decomposition import IncrementalPCA
+import umap
 
 from chemicalchecker.core.signature_base import BaseSignature
 from chemicalchecker.core.signature_data import DataSignature
@@ -14,8 +14,8 @@ from chemicalchecker.util import logged
 
 
 @logged
-class PCA(BaseSignature, DataSignature):
-    """A 2D PCA."""
+class UMAP(BaseSignature, DataSignature):
+    """A 2D UMAP."""
 
     def __init__(self, signature_path, dataset, **params):
         """Initialize the projection class.
@@ -50,7 +50,7 @@ class PCA(BaseSignature, DataSignature):
         if self.is_fit():
             self.algo = pickle.load(open(self.algo_path))
         else:
-            self.algo = IncrementalPCA(n_components=2, **params)
+            self.algo = umap.UMAP(n_components=2, **params)
 
     def fit(self, signature, validations=True, chunk_size=100):
         """Fit to signature data."""
@@ -58,22 +58,12 @@ class PCA(BaseSignature, DataSignature):
         self.__log.info("Projecting with %s..." % self.__class__.__name__)
         t_start = time()
         with h5py.File(signature.data_path, "r") as src:
-            src_len = src["V"].shape[0]
-            for i in tqdm(range(0, src_len, chunk_size), 'fit'):
-                chunk = slice(i, i + chunk_size)
-                self.algo.partial_fit(src["V"][chunk])
-        proj_data = list()
-        with h5py.File(signature.data_path, "r") as src:
-            src_len = src["V"].shape[0]
-            for i in tqdm(range(0, src_len, chunk_size), 'transform'):
-                chunk = slice(i, i + chunk_size)
-                proj_data.append(self.algo.transform(src["V"][chunk]))
-        proj_data = np.vstack(proj_data)
+            proj_data = self.algo.fit_transform(src["V"][:])
         t_end = time()
         t_delta = datetime.timedelta(seconds=t_end - t_start)
         self.__log.info("Projecting took %s" % t_delta)
         # save model
-        pickle.dump(self.algo, open(self.algo_path, 'w'))
+        pickle.dump(self.algo, open(self.algo_path, 'wb'), -1)
         # save h5
         sdtype = DataSignature.string_dtype()
         with h5py.File(signature.data_path, "r") as src, \
