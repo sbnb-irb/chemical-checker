@@ -1,12 +1,15 @@
 import os
-
+import numpy as np
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
 
 from .projector import Default
 from .projector import PCA
+from .projector import UMAP
+from .projector import TSNE
 
 from chemicalchecker.util import logged
+from chemicalchecker.util.plot import Plot
 
 
 @logged
