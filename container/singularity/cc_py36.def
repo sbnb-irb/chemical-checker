@@ -109,7 +109,7 @@ From: centos
     pip install adanet==0.5.0                     # automl for NN
     pip install keras                             # NN API
     pip install MulticoreTSNE                     # tSNA algo
-    pip install umap                              # UMAP algo
+    pip install umap-learn                        # UMAP algo
 
     # install local SBNB devpi packages
     DEVPI_HOST=10.7.108.15
