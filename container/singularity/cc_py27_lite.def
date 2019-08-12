@@ -48,7 +48,7 @@ From: centos
     export PATH=/opt/miniconda2/bin:$PATH
 
     # create and activate conda enviroment
-    conda create --name=py27 python=2.7.10 -y
+    conda create --name=py27 python=2.7 -y
     source activate py27
 
     # basic requirements
