@@ -5,7 +5,6 @@ import datetime
 import numpy as np
 from tqdm import tqdm
 from time import time
-from MulticoreTSNE import MulticoreTSNE
 from sklearn.linear_model import LinearRegression
 
 from chemicalchecker.core.signature_base import BaseSignature
@@ -26,6 +25,11 @@ class TSNE(BaseSignature, DataSignature):
             dataset(object): The dataset object with all info related.
         """
         # Calling init on the base class to trigger file existance checks
+        try:
+            from MulticoreTSNE import MulticoreTSNE as TSNE
+        except ImportError:
+            raise ImportError("requires MulticoreTSNE " +
+                              "http://github.com/DmitryUlyanov/Multicore-TSNE")
         BaseSignature.__init__(
             self, signature_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
