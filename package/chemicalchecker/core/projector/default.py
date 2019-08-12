@@ -95,7 +95,7 @@ class Default(BaseSignature, DataSignature):
         try:
             from MulticoreTSNE import MulticoreTSNE as TSNE
         except ImportError:
-            raise ImportError("requires hdbscan " +
+            raise ImportError("requires MulticoreTSNE " +
                               "http://github.com/DmitryUlyanov/Multicore-TSNE")
         BaseSignature.fit(self)
 
