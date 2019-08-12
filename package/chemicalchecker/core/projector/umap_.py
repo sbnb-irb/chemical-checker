@@ -5,7 +5,6 @@ import datetime
 import numpy as np
 from tqdm import tqdm
 from time import time
-import umap
 
 from chemicalchecker.core.signature_base import BaseSignature
 from chemicalchecker.core.signature_data import DataSignature
@@ -24,6 +23,11 @@ class UMAP(BaseSignature, DataSignature):
             signature_path(str): the path to the signature directory.
             dataset(object): The dataset object with all info related.
         """
+        try:
+            import umap
+        except ImportError:
+            raise ImportError("requires umap " +
+                              "https://umap-learn.readthedocs.io/en/latest/")
         # Calling init on the base class to trigger file existance checks
         BaseSignature.__init__(
             self, signature_path, dataset, **params)
