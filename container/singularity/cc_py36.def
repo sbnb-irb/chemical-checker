@@ -48,7 +48,7 @@ From: centos
     export PATH=/opt/miniconda3/bin:$PATH
 
     # create and activate conda enviroment
-    conda create --name=py36 python=3.6.8 -y
+    conda create --name=py36 python=3.6 -y
     source activate py36
 
     # conda-specific packages
