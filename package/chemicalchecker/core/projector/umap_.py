@@ -49,12 +49,15 @@ class UMAP(BaseSignature, DataSignature):
         DataSignature.__init__(self, self.data_path)
         self.__log.debug('data_path: %s', self.data_path)
         self.name = "_".join([str(self.dataset), "proj", self.proj_name])
+        # get default parameters
+        self.params = dict(metric='cosine', init='random')
+        self.params.update(params)
         # if already fitted load the model and projetions
         self.algo_path = os.path.join(self.model_path, 'algo.pkl')
         if self.is_fit():
             self.algo = pickle.load(open(self.algo_path))
         else:
-            self.algo = umap.UMAP(n_components=2, **params)
+            self.algo = umap.UMAP(n_components=2, **self.params)
 
     def fit(self, signature, validations=True, chunk_size=100):
         """Fit to signature data."""
@@ -83,7 +86,7 @@ class UMAP(BaseSignature, DataSignature):
             dst.create_dataset("V", (src_len, 2), dtype=np.float32)
             for i in tqdm(range(0, src_len, chunk_size), 'write'):
                 chunk = slice(i, i + chunk_size)
-                dst['V'][chunk] = self.algo.transform(src['V'][chunk])
+                dst['V'][chunk] = proj_data[chunk]
         # run validation
         if validations:
             self.validate()
