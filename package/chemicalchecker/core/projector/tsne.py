@@ -26,7 +26,7 @@ class TSNE(BaseSignature, DataSignature):
         """
         # Calling init on the base class to trigger file existance checks
         try:
-            from MulticoreTSNE import MulticoreTSNE as TSNE
+            from MulticoreTSNE import MulticoreTSNE
         except ImportError:
             raise ImportError("requires MulticoreTSNE " +
                               "http://github.com/DmitryUlyanov/Multicore-TSNE")
