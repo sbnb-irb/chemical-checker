@@ -72,10 +72,25 @@ class ChemicalChecker():
             yield name + code
 
     @property
-    def datasets(self, exemplary_only=False):
+    def datasets(self):
         """Iterator on Chemical Checker datasets."""
         for dataset in self._datasets:
             yield dataset
+
+    def datasets_exemplary(self):
+        """Iterator on Chemical Checker datasets."""
+        for dataset in self._datasets:
+            if '001' not in dataset:
+                continue
+            yield dataset
+
+    @property
+    def sign3_full_map_dataset(self):
+        return self.ds_sign3_full_map
+
+    @property
+    def sign3_full_map_short_dataset(self):
+        return self.ds_sign3_full_map_short
 
     def report_available(self, molset='*', dataset='*', signature='*'):
         """Report available signatures in the CC.
