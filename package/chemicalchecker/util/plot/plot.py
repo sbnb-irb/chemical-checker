@@ -67,6 +67,8 @@ def coord_color(coordinate):
     if coordinate[0] == 'E':
         return _rgb2hex(250, 150, 50)
 
+    return _rgb2hex(250, 100, 80)
+
 
 @logged
 class Plot():
@@ -133,6 +135,8 @@ class Plot():
             return D
         if coordinate[0] == 'E':
             return E
+
+        return A
 
     def clustering_plot(self, Nc, A, B, C):
 
