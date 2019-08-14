@@ -221,6 +221,54 @@ class neig(BaseSignature, DataSignature):
 
         return predictions
 
+    def get_vectors(self, keys, include_nan=False, dataset_name='V'):
+        """Get vectors for a list of keys, sorted by default.
+
+        Args:
+            keys(list): a List of string, only the overlapping subset to the
+                signature keys is considered.
+            include_nan(bool): whether to include requested but absent
+                molecule signatures as NaNs.
+            dataset_name(str): return any dataset in the h5 which is organized
+                by sorted keys.
+        """
+        self.__log.debug("Fetching %s rows from dataset %s" %
+                         (len(keys), dataset_name))
+        valid_keys = list(self.unique_keys & set(keys))
+        idxs = np.argwhere(
+            np.isin(self.keys, list(valid_keys), assume_unique=True))
+        inks, signs = list(), list()
+        with h5py.File(self.data_path, 'r') as hf:
+            dset = hf[dataset_name]
+            col_keys = hf['col_keys'][:]
+            dset_shape = dset.shape
+            for idx in sorted(idxs.flatten()):
+                inks.append(self.keys[idx])
+                if dataset_name == 'indices':
+                    signs.append(col_keys[dset[idx]])
+                else:
+                    signs.append(dset[idx])
+        missed_inks = set(keys) - set(inks)
+        # if missing signatures are requested add NaNs
+        if include_nan:
+            inks.extend(list(missed_inks))
+            dimensions = (len(missed_inks), dset_shape[1])
+            nan_matrix = np.zeros(dimensions) * np.nan
+            signs.append(nan_matrix)
+            if missed_inks:
+                self.__log.info("NaN for %s requested keys as are not available.",
+                                len(missed_inks))
+        elif missed_inks:
+            self.__log.warn("Following %s requested keys are not available:",
+                            len(missed_inks))
+            self.__log.warn(" ".join(list(missed_inks)[:10]) + "...")
+        if len(inks) == 0:
+            self.__log.warn("No requested keys available!")
+            return None, None
+        inks, signs = np.stack(inks), np.vstack(signs)
+        sort_idx = np.argsort(inks)
+        return inks[sort_idx], signs[sort_idx]
+
     def get_kth_nearest(self, signatures, k=None, distances=True, keys=True):
         """Return up to the k-th nearest neighbor.
 
