@@ -47,6 +47,7 @@ class ChemicalChecker():
         self._molsets = set(self._basic_molsets)
         self.ds_sign3_full_map = "ZZ.001"
         self.ds_sign3_full_map_short = "ZZ.000"
+        self.reference_code = "001"
         self.__log.debug("ChemicalChecker with root: %s", self.cc_root)
         if not os.path.isdir(self.cc_root):
             self.__log.warning("Empty root directory, creating dataset dirs")
@@ -191,6 +192,31 @@ class ChemicalChecker():
         data = DataFactory.make_data(
             cctype, signature_path, dataset_code, *args, **kwargs)
         return data
+
+    def get_data_signature(self, cctype, dataset_code):
+        """Return the data signature for the given dataset code.
+
+        Args:
+            cctype(str): The Chemical Checker datatype (i.e. one of the sign*).
+            dataset_code(str): The dataset code of the Chemical Checker.
+        Returns:
+            data(Signature): A `DataSignature` object, the specific type depends
+                on the cctype passed. It only allows access to the sign data.
+        """
+        args = ()
+        kwargs = {}
+        molset = "full"
+        if len(dataset_code) == 2:
+            dataset_code = dataset_code + "." + self.reference_code
+        signature_path = self.get_signature_path(cctype, molset, dataset_code)
+        # the factory will return the signature with the right class
+        data = DataFactory.make_data(
+            cctype, signature_path, dataset_code, *args, **kwargs)
+        if not os.path.exists(data.data_path):
+            self.__log.error(
+                "There is no data for %s and dataset code %s" % (cctype, dataset_code))
+            return None
+        return DataSignature(data.data_path)
 
     def copy_signature_from(self, source_cc, cctype, molset, dataset_code,
                             overwrite=False):
