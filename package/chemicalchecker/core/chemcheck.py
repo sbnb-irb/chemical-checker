@@ -12,12 +12,15 @@ import shutil
 import itertools
 from glob import glob
 import pprint
+import numpy as np
 
 from .data import DataFactory
+from .signature_data import DataSignature
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
 from chemicalchecker.util.hpc import HPC
+from chemicalchecker.tool.autoencoder import AutoEncoder
 
 
 @logged
@@ -42,6 +45,8 @@ class ChemicalChecker():
         self._basic_molsets = ['reference', 'full']
         self._datasets = set()
         self._molsets = set(self._basic_molsets)
+        self.ds_sign3_full_map = "ZZ.001"
+        self.ds_sign3_full_map_short = "ZZ.000"
         self.__log.debug("ChemicalChecker with root: %s", self.cc_root)
         if not os.path.isdir(self.cc_root):
             self.__log.warning("Empty root directory, creating dataset dirs")
@@ -218,6 +223,99 @@ class ChemicalChecker():
             if not overwrite:
                 raise Exception("File %s exists already.", dst)
         shutil.copyfile(src, dst)
+
+    def get_sign3_short_from_smiles(self, smiles, dest_file, chunk_size=1000):
+        """Get the full signature3 short for a list of smiles.
+
+        Args:
+            smiles(list): A list of SMILES strings. We assume the user already
+                standardized the SMILES string.
+            dest_file(str): File where to save the short sign3.
+        Returns:
+            pred_s3(DataSignature): The predicted signatures as DataSignature
+                object.
+        """
+        # initialize destination
+        try:
+            from chemicalchecker.tool.adanet import AdaNet
+            from rdkit import Chem
+            from rdkit.Chem import AllChem
+        except ImportError as err:
+            raise err
+        ds_code_suffix = '001'
+        predict_fn = {}
+
+        sign3_short = self.get_signature(
+            "sign3", "full", self.sign3_full_map_short_dataset)
+
+        for coord in self.coordinates:
+            sign3 = self.get_signature(
+                "sign3", "full", coord + "." + ds_code_suffix)
+
+            sign0_adanet_path = os.path.join(sign3.model_path,
+                                             'adanet_sign0_A1.001_final',
+                                             'savedmodel')
+
+            predict_fn[coord + "." +
+                       ds_code_suffix] = AdaNet.predict_fn(sign0_adanet_path)
+
+        ds_codes = predict_fn.keys()
+        ds_codes.sort()
+        dest_dir = os.path.dirname(dest_file)
+        # we return a simple DataSignature object (basic HDF5 access)
+        temp_full_sign3 = os.path.join(dest_dir, "temp_sign3_full.h5")
+        with h5py.File(temp_full_sign3, "w") as results:
+            # initialize V (with NaN in case of failing rdkit) and smiles keys
+            results.create_dataset('keys', data=np.array(
+                smiles, DataSignature.string_dtype()))
+            results.create_dataset(
+                'V', (len(smiles), 128 * len(ds_codes)), dtype=np.float32)
+            results.create_dataset("shape", data=(
+                len(smiles), 128 * len(ds_codes)))
+            # compute sign0 (i.e. Morgan fingerprint)
+            nBits = 2048
+            radius = 2
+            # predict by chunk
+            for i in range(0, len(smiles), chunk_size):
+                chunk = slice(i, i + chunk_size)
+                sign0s = list()
+                sign3s = list()
+                failed = list()
+                for idx, mol_smiles in enumerate(smiles[chunk]):
+                    try:
+                        # read SMILES as molecules
+                        mol = Chem.MolFromSmiles(mol_smiles)
+                        if mol is None:
+                            raise Exception("Cannot get molecule from smiles.")
+                        info = {}
+                        fp = AllChem.GetMorganFingerprintAsBitVect(
+                            mol, radius, nBits=nBits, bitInfo=info)
+                        bin_s0 = [fp.GetBit(i) for i in range(fp.GetNumBits())]
+                        calc_s0 = np.array(bin_s0).astype(np.float32)
+                    except Exception as err:
+                        # in case of failure append a NaN vector
+                        self.__log.warn("%s: %s", mol_smiles, str(err))
+                        failed.append(idx)
+                        calc_s0 = np.full((nBits, ), np.nan)
+                    finally:
+                        sign0s.append(calc_s0)
+                # stack input signatures and generate predictions
+                sign0s = np.vstack(sign0s)
+                for ds in ds_codes:
+
+                    preds = predict_fn[ds]({'x': sign0s})['predictions']
+                    # add NaN when SMILES conversion failed
+                    if failed:
+                        preds[np.array(failed)] = np.full((128, ), np.nan)
+                    sign3s.append(preds)
+                # save chunk to H5
+                results['V'][chunk] = np.hstack(sign3s)
+
+        ae = AutoEncoder(sign3_short.model_path)
+
+        pred_s3 = ae.encode(temp_full_sign3, dest_file)
+
+        return pred_s3
 
     @staticmethod
     def remove_near_duplicates_hpc(job_path, cc_root, cctype, datasets):
