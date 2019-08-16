@@ -338,14 +338,6 @@ class BaseSignature(object):
     # def unique_keys(self):
     #     """Get the keys of the signature as a set."""
     #     return set(self.keys)
-    
-    def __iter__(self):
-        """Iterate on signatures."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
-        with h5py.File(self.data_path, 'r') as hf:
-            for i in range(self.shape[0]):
-                yield hf['V'][i]
 
     def __repr__(self):
         """String representig the signature."""

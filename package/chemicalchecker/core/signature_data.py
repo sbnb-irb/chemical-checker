@@ -198,6 +198,14 @@ class DataSignature(object):
         else:
             raise Exception("Key type %s not recognized." % type(key))
 
+    def __iter__(self):
+        """Iterate on signatures."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            for i in range(self.shape[0]):
+                yield hf['V'][i]
+
     def background_distances(self, metric, sample_pairs=100000, unflat=True,
                              memory_safe=False):
         """Give the background distances according to the selected metric.
