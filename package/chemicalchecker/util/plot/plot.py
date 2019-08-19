@@ -525,11 +525,11 @@ class Plot():
 
     # Projection plot
 
-    def datashader_projection(self, proj, cctype, noise_scale=3., how='log',
+    def datashader_projection(self, proj, name, noise_scale=3., how='log',
                               cmap=None, plot_size=(1000, 1000),
                               x_range=(-100, 100), y_range=(-100, 100),
                               spread=None, weigth=None, transparent=False,
-                              marginals=True):
+                              marginals=True, small=True, category=None):
         import datashader as ds
         import datashader.transfer_functions as tf
 
@@ -574,27 +574,40 @@ class Plot():
         else:
             cmap = plt.cm.get_cmap(cmap)
         proj = proj[:]
+        # apply noise?
         if noise_scale is None:
             noise = np.zeros_like(proj)
         else:
             noise = np.random.normal(size=proj.shape) / noise_scale
+        # weight or categories?
         if weigth is not None:
             if not isinstance(weigth, list):
                 weigth = [weigth] * len(proj)
             df = pd.DataFrame(
                 data=np.hstack((proj + noise, np.expand_dims(weigth, 1))),
                 columns=['x', 'y', 'w'])
-
+        elif category is not None:
+            if not len(category) == len(proj):
+                raise Exception("Category list must have same" +
+                                " dimensions as projection.")
+            df = pd.DataFrame(
+                data=np.hstack((proj + noise, np.expand_dims(category, 1))),
+                columns=['x', 'y', 'cat'])
+            df['cat'] = df['cat'].astype('category')
         else:
             df = pd.DataFrame(data=proj + noise, columns=['x', 'y'])
-
+        # set canvas
         plot_height, plot_width = plot_size
         canvas = ds.Canvas(plot_height=plot_height, plot_width=plot_width,
                            x_range=x_range, y_range=y_range)
+        # aggregate
         if weigth is not None:
             points = canvas.points(df, 'x', 'y', ds.min('w'))
+        elif category is not None:
+            points = canvas.points(df, 'x', 'y', ds.count_cat('cat'))
         else:
             points = canvas.points(df, 'x', 'y')
+        # shading
         shade = tf.shade(points, cmap=cmap, how=how)
         if spread is not None:
             shade = tf.spread(shade, px=spread)
@@ -602,9 +615,9 @@ class Plot():
             img = shade
         else:
             img = tf.set_background(shade, self.color)
-
+        # export
         dst_file = os.path.join(self.plot_path, 'shaded_%s_%s' %
-                                (cctype, self.dataset_code))
+                                (name, self.dataset_code))
         ds.utils.export_image(img=img, filename=dst_file, fmt=".png")
 
         if marginals:
@@ -654,10 +667,30 @@ class Plot():
                 ax_joint.imshow(image)
             # g.ax_joint.set_axis_off()
             #sns.despine(top=True, right=True, left=True, bottom=True)
-            dst_file = os.path.join(self.plot_path, 'proj_margin_%s_%s.png' %
-                                    (cctype, self.dataset_code))
+            dst_file = os.path.join(self.plot_path, 'shaded_margin_%s_%s.png' %
+                                    (name, self.dataset_code))
 
             plt.savefig(dst_file, dpi=100, transparent=True)
+
+        if small:
+            plot_height, plot_width = (200, 200)
+            canvas = ds.Canvas(plot_height=plot_height, plot_width=plot_width,
+                               x_range=x_range, y_range=y_range)
+            if weigth is not None:
+                points = canvas.points(df, 'x', 'y', ds.min('w'))
+            else:
+                points = canvas.points(df, 'x', 'y')
+            shade = tf.shade(points, cmap=cmap, how=how)
+            if spread is not None:
+                shade = tf.spread(shade, px=spread)
+            if transparent:
+                img = shade
+            else:
+                img = tf.set_background(shade, self.color)
+
+            dst_file = os.path.join(self.plot_path, 'shaded_%s_small_%s' %
+                                    (name, self.dataset_code))
+            ds.utils.export_image(img=img, filename=dst_file, fmt=".png")
 
     def projection_plot(self, Proj, bw=None, levels=5, dev=None, s=None, transparency=0.5):
 
