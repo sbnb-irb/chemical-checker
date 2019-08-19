@@ -20,23 +20,24 @@ class Signature3(BaseStep):
     def run(self):
         """Run the molprops step."""
 
-        all_datasets = Dataset.get()
+        #all_datasets = Dataset.get()
         config_cc = Config()
 
         cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
 
         dataset_codes = list()
-        for ds in all_datasets:
-            if not ds.essential:
+        for ds in cc.datasets:
+            #if not ds.exemplary:
+            if "001" not in ds:
                 continue
-            sign3 = cc.get_signature("sign3", "full", ds.dataset_code)
+            sign3 = cc.get_signature("sign3", "full", ds)
             if sign3.is_fit():
                 continue
 
             if os.path.exists(sign3.signature_path):
                 shutil.rmtree(sign3.signature_path)
 
-            dataset_codes.append(ds.dataset_code)
+            dataset_codes.append(ds)
 
         job_path = tempfile.mkdtemp(
             prefix='jobs_sign3_', dir=self.tmpdir)
@@ -44,10 +45,12 @@ class Signature3(BaseStep):
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
 
+        dataset_codes.sort()
+
         if len(dataset_codes) > 0:
 
             sign2_list = [cc.get_signature('sign2', 'full', ds)
-                          for ds in cc.datasets]
+                          for ds in dataset_codes]
             full_universe = os.path.join(self.tmpdir, "universe_full")
             sign3_full = cc.get_signature('sign3', 'full', "A1.001")
             sign3_full.save_sign2_universe(sign2_list, full_universe)
@@ -84,7 +87,7 @@ class Signature3(BaseStep):
                 # start import
                 "sign3_full = cc.get_signature('sign3', 'full', data,**pars)",
                 "sign2_full = cc.get_signature('sign2', 'full', data)",
-                "sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in cc.datasets]",
+                "sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in cc.datasets_exemplary()]",
                 "sign3_full.fit(sign2_list,sign2_full,sign2_universe='%s')" % full_universe,
                 "print('JOB DONE')"
             ]
@@ -110,7 +113,7 @@ class Signature3(BaseStep):
             command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
                 singularity_image, script_name)
             # submit jobs
-            cluster = HPC(config_cc)
+            cluster = HPC.from_config(config_cc)
             jobs = cluster.submitMultiJob(command, **params)
 
         dataset_not_done = []
@@ -127,4 +130,4 @@ class Signature3(BaseStep):
 
         if len(dataset_not_done) == 0:
             self.mark_ready()
-            shutil.rmtree(job_path)
+            # shutil.rmtree(job_path)

@@ -89,7 +89,7 @@ class Signature0(BaseStep):
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
             singularity_image, script_name)
         # submit jobs
-        cluster = HPC(config)
+        cluster = HPC.from_config(config)
         jobs = cluster.submitMultiJob(command, **params)
 
         dataset_not_done = []
