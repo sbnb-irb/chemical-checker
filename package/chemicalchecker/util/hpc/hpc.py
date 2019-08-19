@@ -1,4 +1,4 @@
-"""Utility for sending tasks to and HPC cluster
+"""Utility for sending tasks to a HPC cluster
 
 A lot of processes in this package are very computationally intensive.
 This class allows to send any task to any HPC environmment.
@@ -22,18 +22,39 @@ class HPC():
     READY = "ready"
     ERROR = "error"
 
-    def __init__(self, config, dry_run=False):
+    def __init__(self, **kwargs):
         """Initialize the HPC object.
 
+        Args:
+            system:Queuing HPC system (default:'')
+            host:Name of the HPC host master(default:'')
+            queue:Name of the queue (default:'')
+            username:Username to connect to the host (default:'')
+            password:Password to connect (default:'')
+            error_finder: Method to search errors in HPC jobs log(default:None)
+            dry_run:Only for test checks (default=False)
+
         """
-        self.__log.debug('HPC system to use: %s', config.HPC.system)
+        self.system = kwargs.get("system", '')
+
+        self.__log.debug('HPC system to use: %s', self.system)
         self.job_id = None
 
-        if config.HPC.system in globals():
-            self.__log.debug("initializing object %s", config.HPC.system)
-            self.hpc = eval(config.HPC.system)(config, dry_run)
+        if self.system == '':
+            raise Exception('HPC system not specified')
+
+        if self.system in globals():
+            self.__log.debug("initializing object %s", self.system)
+            self.hpc = eval(self.system)(**kwargs)
         else:
-            raise Exception("HPC system %s not available" % config.HPC.system)
+            raise Exception("HPC system %s not available" % self.system)
+
+    @classmethod
+    def from_config(cls, config):
+        if "HPC" in config.keys():
+            return cls(**config.HPC.asdict())
+        else:
+            raise Exception("Config does not contain HPC fields")
 
     def submitMultiJob(self, command, **kwargs):
         """Submit a multi job/task.

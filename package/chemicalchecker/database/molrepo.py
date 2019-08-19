@@ -315,7 +315,7 @@ class Molrepo(Base):
         command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
             singularity_image, script_name)
         # submit jobs
-        cluster = HPC(Config())
+        cluster = HPC.from_config(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
 

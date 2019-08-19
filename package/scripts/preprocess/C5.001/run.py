@@ -524,7 +524,7 @@ def main(args):
             command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
                 singularity_image, script_name)
             # submit jobs
-            cluster = HPC(Config())
+            cluster = HPC.from_config(Config())
             cluster.submitMultiJob(command, **params)
 
             if cluster.status() == 'error':

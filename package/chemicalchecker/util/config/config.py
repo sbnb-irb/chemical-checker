@@ -64,6 +64,9 @@ class Config():
         self.__dict__.update(eval_obj_dict)
         #os.environ["CC_CONFIG"] = json_file
 
+    def keys(self):
+        return self.__dict__.keys()
+
 
 __all__ = [
     "Config"
