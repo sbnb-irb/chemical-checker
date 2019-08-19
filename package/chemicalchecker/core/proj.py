@@ -79,3 +79,38 @@ class proj(BaseSignature, DataSignature):
                 **kwargs)
         elif kind == 'largevis':
             plot.projection_plot(proj_data, **kwargs)
+
+    def plot_over(self, data, name, *args, **kwargs):
+        """Load projected data and plot it."""
+        # base of the plot
+        proj_data = np.vstack((self[:], data[:]))
+        category = np.hstack((np.ones(self.shape[0]), np.zeros(len(data))))
+        # plot projection
+        range_x = max(abs(np.min(proj_data[:, 0])),
+                      abs(np.max(proj_data[:, 0])))
+        range_y = max(abs(np.min(proj_data[:, 1])),
+                      abs(np.max(proj_data[:, 1])))
+        range_max = max(range_y, range_x)
+        frame = range_max / 10.
+        range_max += frame
+        cmap = kwargs.pop('cmap', 'viridis')
+        x_range = kwargs.pop('x_range', (-range_max, range_max))
+        y_range = kwargs.pop('y_range', (-range_max, range_max))
+        plot_size = kwargs.pop('plot_size', (1000, 1000))
+        noise_scale = kwargs.pop('noise_scale', None)
+        self.__log.info("Plot range x: %s y: %s" % (x_range, y_range))
+        plot_path = os.path.join(self.stats_path,
+                                 self.projector.__class__.__name__)
+        if not os.path.isdir(plot_path):
+            os.mkdir(plot_path)
+        plot = Plot(self.dataset, plot_path)
+        plot.datashader_projection(
+            proj_data,
+            name,
+            cmap=cmap,
+            x_range=x_range,
+            y_range=y_range,
+            plot_size=plot_size,
+            noise_scale=noise_scale,
+            category=category,
+            **kwargs)
