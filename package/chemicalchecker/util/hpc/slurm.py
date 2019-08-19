@@ -129,6 +129,7 @@ fi
         check_error = kwargs.get("check_error", True)
         memory = kwargs.get("memory", 2)
         maxtime = kwargs.get("time", None)
+        cpusafe = kwargs.get("cpusafe", True)
 
         submit_string = 'sbatch --parsable '
 
@@ -176,6 +177,19 @@ fi
             with open(input_path, 'wb') as fh:
                 pickle.dump(input_dict, fh)
             command = command.replace("<FILE>", input_path)
+
+        if cpusafe:
+            # set environment variable that limit common libraries cpu
+            # ubscription for the command
+            env_vars = [
+                'OMP_NUM_THREADS',
+                'OPENBLAS_NUM_THREADS',
+                'MKL_NUM_THREADS',
+                'VECLIB_MAXIMUM_THREADS',
+                'NUMEXPR_NUM_THREADS'
+            ]
+            command = ' '.join(["%s=%s" % (v, str(cpu))
+                                for v in env_vars] + [command])
 
         # Creates the final job.sh
         paramsText = str("\n").join(jobParams)
