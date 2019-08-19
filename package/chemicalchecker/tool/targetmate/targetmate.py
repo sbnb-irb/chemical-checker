@@ -777,7 +777,7 @@ class TargetMate:
             os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config, str(cpu),
             singularity_image, script_name)
         # submit jobs
-        cluster = HPC(Config())
+        cluster = HPC.from_config(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
 
@@ -852,6 +852,6 @@ class TargetMate:
             os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config, str(cpu),
             singularity_image, script_name)
         # submit jobs
-        cluster = HPC(Config())
+        cluster = HPC.from_config(Config())
         cluster.submitMultiJob(command, **params)
         return cluster

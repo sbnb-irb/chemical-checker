@@ -512,7 +512,7 @@ def main(args):
             command = "singularity exec {} python {} <TASK_ID> <FILE> {} {} {}".format(
                 singularity_image, prot2allgos_script, args.models_path, prot_allgos_dir, goa_human)
             # submit jobs
-            cluster = HPC(Config())
+            cluster = HPC.from_config(Config())
             cluster.submitMultiJob(command, **params)
 
             if cluster.status() == 'error':

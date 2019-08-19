@@ -416,7 +416,7 @@ def main(args):
             singularity_image, connectivity_script, mini_sig_info_file, signaturesdir,
             connectivitydir, GSE92742_Broad_LINCS_pert_info, min_idxs)
         # submit jobs
-        cluster = HPC(config)
+        cluster = HPC.from_config(config)
         cluster.submitMultiJob(command, **params)
 
         if cluster.status() == 'error':
@@ -458,7 +458,7 @@ def main(args):
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {}".format(
             cc_package, os.environ['CC_CONFIG'], singularity_image, ikmatrices_script, mini_sig_info_file, connectivitydir, ik_matrices, args.method)
         # submit jobs
-        cluster = HPC(config)
+        cluster = HPC.from_config(config)
         cluster.submitMultiJob(command, **params)
 
         if cluster.status() == 'error':
