@@ -271,18 +271,27 @@ class MultiPlot():
         plt.savefig(outfile, dpi=100)
         plt.close('all')
 
-    def sign_feature_distribution_plot(self, cctype='sign2', molset='reference', sample_size=1000, sort=False):
+    def sign_feature_distribution_plot(self, cctype, molset, block_size=1000,
+                                       block_nr=10, sort=False):
+        sample_size = block_size * block_nr
         fig, axes = plt.subplots(25, 1, sharey=True, sharex=True,
                                  figsize=(10, 40), dpi=100)
         for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
-            sign2 = self.cc.get_signature(cctype, molset, ds)
-            if not os.path.isfile(sign2.data_path):
+            sign = self.cc.get_signature(cctype, molset, ds)
+            if not os.path.isfile(sign.data_path):
                 continue
-            if sign2.shape[0] > sample_size:
-                keys = np.random.choice(sign2.keys, sample_size, replace=False)
-                matrix = sign2.get_vectors(keys)[1]
+            if sign.shape[0] > sample_size:
+                blocks = np.random.choice(
+                    int(np.ceil(sample_size / block_size)) + 1,
+                    block_nr, replace=False)
+                block_mat = list()
+                for block in tqdm(blocks):
+                    chunk = slice(block * block_size,
+                                  (block * block_size) + block_size)
+                    block_mat.append(sign[chunk])
+                matrix = np.vstack(block_mat)
             else:
-                matrix = sign2[:]
+                matrix = sign[:]
             df = pd.DataFrame(matrix).melt()
             all_df = df.copy()
             all_df['variable'] = 130
@@ -300,8 +309,8 @@ class MultiPlot():
             ax.set_xticks([])
             ax.set_xlabel('')
             ax.set_ylabel(ds)
-            min_mean = min(np.mean(matrix, axis=0))
-            max_mean = max(np.mean(matrix, axis=0))
+            min_mean = np.min(np.mean(matrix, axis=0))
+            max_mean = np.max(np.mean(matrix, axis=0))
             ax.fill_between([-2, 130], [max_mean, max_mean],
                             [min_mean, min_mean],
                             facecolor=self.cc_palette([ds])[0], alpha=0.3,
@@ -315,9 +324,13 @@ class MultiPlot():
             sns.despine(bottom=True)
         plt.tight_layout()
         if not sort:
-            filename = os.path.join(self.plot_path, "feat_distrib.png")
+            filename = os.path.join(
+                self.plot_path,
+                "%s_%s_feat_distrib.png" % (cctype, molset))
         else:
-            filename = os.path.join(self.plot_path, "feat_distrib_sort.png")
+            filename = os.path.join(
+                self.plot_path,
+                "%s_%s_feat_distrib_sort.png" % (cctype, molset))
         plt.savefig(filename, dpi=100)
         plt.close()
 
