@@ -63,7 +63,7 @@ class AutoEncoder:
         self.optimizer = kwargs.get("optimizer", 'adadelta')
         self.encoding_dim = kwargs.get("encoding_dim", 512)
         self.loss = kwargs.get("loss", 'mean_squared_error')
-        self.activation = kwargs.get("activation", tf.nn.relu)
+        self.activation = kwargs.get("activation", tf.nn.tanh)
         self.activation_last = kwargs.get("activation_last", tf.nn.tanh)
         self.epochs = int(kwargs.get("epochs", 200))
         self.dropout_rate = float(kwargs.get("dropout_rate", 0.2))
