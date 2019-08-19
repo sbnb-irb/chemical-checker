@@ -15,3 +15,4 @@ from s10_neigh2 import Neigh2
 from s11_merge_signatures2 import MergeSignatures2
 from s12_projection2 import Projection2
 from s13_similars_sign3 import SimilarsSign3
+from s14_full_short_sign3 import Sign3FullShort
