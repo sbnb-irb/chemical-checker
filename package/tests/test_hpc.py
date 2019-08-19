@@ -30,5 +30,7 @@ class TestHPC(unittest.TestCase):
     @skip_if_import_exception
     def test_hpc(self):
         config = Config()
-        cluster = HPC(config, True)
+        conf_dict = config.HPC.asdict()
+        conf_dict["dry_run"] = True
+        cluster = HPC(**conf_dict)
         self.assertTrue(cluster.status() is None)

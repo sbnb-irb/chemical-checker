@@ -876,7 +876,7 @@ class sign3(BaseSignature, DataSignature):
             os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
             singularity_image, script_name)
         # submit jobs
-        cluster = HPC(Config())
+        cluster = HPC.from_config(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
 

@@ -52,20 +52,23 @@ fi
 #$ -j yes
 """
 
-    def __init__(self, config, dry_run=False):
+    def __init__(self, **kwargs):
         """Initialize the SGE object.
 
         """
-        self.host = config.HPC.host
-        self.queue = None
+        self.host = kwargs.get("host", '')
+        self.queue = kwargs.get("queue", None)
+        self.username = kwargs.get("username", '')
+        self.password = kwargs.get("password", '')
+        self.error_finder = kwargs.get("error_finder", self.__find_error)
+        dry_run = kwargs.get("dry_run", False)
         self.statusFile = None
         self.status_id = None
         self.conn_params = {}
-        if "queue" in config.HPC.asdict():
-            self.queue = config.HPC.queue
-        if "username" in config.HPC.asdict() and "password" in config.HPC.asdict():
-            self.conn_params["username"] = config.HPC.username
-            self.conn_params["password"] = config.HPC.password
+
+        if self.username != '' and self.password != '':
+            self.conn_params["username"] = self.username
+            self.conn_params["password"] = self.password
         if not dry_run:
             try:
                 ssh = paramiko.SSHClient()
@@ -139,7 +142,8 @@ fi
         jobParams.append("#$ -wd " + self.jobdir)
 
         if (len(elements) == 0 and num_jobs > 1):
-            raise Exception("Number of specified jobs does not match to the number of elements")
+            raise Exception(
+                "Number of specified jobs does not match to the number of elements")
 
         if num_jobs == 0:
             raise Exception("Number of specified jobs is zero")
@@ -233,6 +237,23 @@ fi
 
         return self.job_id
 
+    def __find_error(self, files):
+
+        errors = ''
+
+        for file_name in files:
+            with open(file_name) as f:
+                num = 1
+                for line in f:
+                    if re.search(r'(?i)error', line):
+                        errors += file_name + " " + str(num) + " " + line
+                    if 'Traceback (most recent call last)' in line:
+                        errors += file_name + " " + str(num) + " " + line
+
+                    num += 1
+
+        return errors
+
     def check_errors(self):
         """Check for errors in the output logs of the jobs.
 
@@ -248,16 +269,13 @@ fi
         errors = ''
         self.__log.debug("Checking errors in job")
 
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.o*')):
-            with open(file_name) as f:
-                num = 1
-                for line in f:
-                    if re.search(r'(?i)error', line):
-                        errors += file_name + " " + str(num) + " " + line
-                    if 'Traceback (most recent call last)' in line:
-                        errors += file_name + " " + str(num) + " " + line
+        files = []
 
-                    num += 1
+        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.o*')):
+
+            files.append(file_name)
+
+        errors = self.error_finder(files)
 
         if len(errors) > 0:
             self.__log.debug("Found errors in job")
