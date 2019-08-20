@@ -153,7 +153,7 @@ class AutoEncoder:
         layer_sizes = np.linspace(
             self.input_dimension, self.encoding_dim, self.num_middle_layers + 1)[1:]
 
-        print layer_sizes
+        self.__log.debug("Num of layers: %d" % layer_sizes)
 
         for layer_size in layer_sizes:
             last_layer = Dense(
@@ -176,8 +176,6 @@ class AutoEncoder:
             optimizer=self.optimizer, loss=self.loss)
 
         self.autoencoder_model.summary()
-
-        print self.train_size, self.test_size
 
         history = self.autoencoder_model.fit(self.generator_fn("train"), epochs=self.epochs,
                                              shuffle=self.shuffle, steps_per_epoch=self.train_size / self.batch_size,
@@ -203,7 +201,8 @@ class AutoEncoder:
 
         self.autoencoder_model.summary()
 
-        print len(self.autoencoder_model.layers)
+        self.__log.debug("Number of layers in model: %d" %
+                         len(self.autoencoder_model.layers))
 
         index = int(len(self.autoencoder_model.layers) / 2)
 
@@ -251,12 +250,10 @@ class AutoEncoder:
 
     def masked_mse(self, mask_value):
         def f(y_true, y_pred):
-            print mask_value
             mask_true = K.cast(K.not_equal(y_true, mask_value), K.floatx())
             masked_squared_error = K.square(mask_true * (y_true - y_pred))
             masked_mse = K.sum(masked_squared_error, axis=-
                                1) / K.maximum(K.sum(mask_true, axis=-1), 1)
-            print masked_mse
             return masked_mse
         return f
 
