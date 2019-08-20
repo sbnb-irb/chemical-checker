@@ -21,7 +21,7 @@ class Sign3FullShort(BaseStep):
     def run(self):
         """Run the molprops step."""
 
-        #all_datasets = Dataset.get()
+        all_datasets = Dataset.get()
         config_cc = Config()
 
         dataset_sign3_full = "ZZ.001"
@@ -30,9 +30,8 @@ class Sign3FullShort(BaseStep):
 
         cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
         dataset_codes = list()
-        for ds in cc.datasets:
-            #if not ds.exemplary:
-            if "001" not in ds or "ZZ" in ds:
+        for ds in all_datasets:
+            if not ds.exemplary:
                 continue
 
             dataset_codes.append(ds)
