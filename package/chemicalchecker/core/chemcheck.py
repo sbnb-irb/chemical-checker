@@ -20,7 +20,6 @@ from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
 from chemicalchecker.util.hpc import HPC
-from chemicalchecker.tool.autoencoder import AutoEncoder
 
 
 @logged
@@ -264,6 +263,7 @@ class ChemicalChecker():
         # initialize destination
         try:
             from chemicalchecker.tool.adanet import AdaNet
+            from chemicalchecker.tool.autoencoder import AutoEncoder
             from rdkit import Chem
             from rdkit.Chem import AllChem
         except ImportError as err:
