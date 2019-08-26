@@ -299,7 +299,8 @@ class Traintest(object):
                 raise Exception(
                     "Split names and fraction should be same amount.")
             split_names = [s.encode() for s in split_names]
-            split_block = Traintest.get_split_indeces(
+            # get indeces of blocks for each split
+            split_block_idx = Traintest.get_split_indeces(
                 int(np.ceil(rows / block_size)) + 1,
                 split_fractions)
             if datasets is None:
@@ -317,20 +318,50 @@ class Traintest(object):
                 hf_out.create_dataset(
                     'split_fractions', data=np.array(split_fractions))
 
-                for name, blocks in zip(split_names, split_block):
+                for name, blocks in zip(split_names, split_block_idx):
                     # for each original dataset
                     for k in datasets:
                         # create all splits
                         ds_name = "%s_%s" % (k, name.decode())
+                        # need total size and mapping of blocks
+                        src_dst = list()
+                        total_size = 0
+                        offset = 0
+                        for dst, src in enumerate(blocks):
+                            # source block start-end
+                            src_start = src * block_size
+                            src_end = (src * block_size) + block_size
+                            src_start -= offset
+                            src_end -= offset
+                            # check current block size to avoid overflowing
+                            curr_block_size = block_size
+                            if src_end > hf_in[k].shape[0]:
+                                src_end = hf_in[k].shape[0]
+                                curr_block_size = src_end - src_start
+                                offset = block_size - curr_block_size
+                            # update total size
+                            total_size += curr_block_size
+                            # destination start-end
+                            dst_start = dst * block_size
+                            dst_end = (dst * block_size) + curr_block_size
+                            src_slice = (src_start, src_end)
+                            dst_slice = (dst_start, dst_end)
+                            src_dst.append((src_slice, dst_slice))
+                            Traintest.__log.debug(
+                                "src: %s  dst: %s" % src_dst[-1])
+                            Traintest.__log.debug(
+                                "block_size: %s" % curr_block_size)
                         # create block matrix
-                        block_mat = list()
-                        for block in tqdm(blocks):
-                            chunk = slice(block * block_size,
-                                          (block * block_size) + block_size)
-                            block_mat.append(hf_in[k][chunk])
                         hf_out.create_dataset(ds_name,
-                                              data=np.vstack(block_mat),
+                                              (total_size, hf_in[k].shape[1]),
                                               dtype=hf_in[k].dtype)
+                        for src_slice, dst_slice in tqdm(src_dst):
+                            src_chunk = slice(*src_slice)
+                            dst_chunk = slice(*dst_slice)
+                            Traintest.__log.debug(
+                                "writing src: %s  to dst: %s" %
+                                (src_slice, dst_slice))
+                            hf_out[ds_name][dst_chunk] = hf_in[k][src_chunk]
                         Traintest.__log.debug(
                             "Written: {:<20} shape: {:>10}".format(
                                 ds_name, str(hf_out[ds_name].shape)))
