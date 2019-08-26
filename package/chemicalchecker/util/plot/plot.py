@@ -653,7 +653,6 @@ class Plot():
         if category is not None and save_each:
             for cat, col in zip(np.unique(category), category_colors):
                 cat_points = points.sel(cat=cat)
-                print cat, cat_points.to_dataframe('prova').prova.sum()
                 shade = tf.shade(cat_points,
                                  cmap=[col], how=how)
                 if spread is not None:
