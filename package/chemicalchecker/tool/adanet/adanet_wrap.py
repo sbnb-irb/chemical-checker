@@ -326,19 +326,15 @@ class Traintest(object):
                         # need total size and mapping of blocks
                         src_dst = list()
                         total_size = 0
-                        offset = 0
-                        for dst, src in enumerate(blocks):
+                        for dst, src in enumerate(sorted(blocks)):
                             # source block start-end
                             src_start = src * block_size
                             src_end = (src * block_size) + block_size
-                            src_start -= offset
-                            src_end -= offset
                             # check current block size to avoid overflowing
                             curr_block_size = block_size
                             if src_end > hf_in[k].shape[0]:
                                 src_end = hf_in[k].shape[0]
                                 curr_block_size = src_end - src_start
-                                offset = block_size - curr_block_size
                             # update total size
                             total_size += curr_block_size
                             # destination start-end
