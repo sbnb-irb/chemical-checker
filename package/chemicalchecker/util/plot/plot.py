@@ -11,6 +11,7 @@ import sys
 import math
 import h5py
 import random
+import inspect
 import functools
 import numpy as np
 import pandas as pd
@@ -53,9 +54,11 @@ def skip_on_exception(function):
     return wrapper
 
 
+def _rgb2hex(r, g, b):
+    return '#%02x%02x%02x' % (r, g, b)
+
+
 def coord_color(coordinate):
-    def _rgb2hex(r, g, b):
-        return '#%02x%02x%02x' % (r, g, b)
     if coordinate[0] == 'A':
         return _rgb2hex(250, 100, 80)
     if coordinate[0] == 'B':
@@ -68,6 +71,17 @@ def coord_color(coordinate):
         return _rgb2hex(250, 150, 50)
 
     return _rgb2hex(250, 100, 80)
+
+
+def lighten_color(color, amount=0.5):
+    import matplotlib.colors as mc
+    import colorsys
+    try:
+        c = mc.cnames[color]
+    except Exception:
+        c = color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    return colorsys.hls_to_rgb(c[0], 1 - amount * (1 - c[1]), c[2])
 
 
 @logged
@@ -525,11 +539,7 @@ class Plot():
 
     # Projection plot
 
-    def datashader_projection(self, proj, name, noise_scale=3., how='log',
-                              cmap=None, plot_size=(1000, 1000),
-                              x_range=(-100, 100), y_range=(-100, 100),
-                              spread=None, weigth=None, transparent=False,
-                              marginals=True, small=True, category=None):
+    def datashader_projection(self, proj, name, **kwargs):
         import datashader as ds
         import datashader.transfer_functions as tf
 
@@ -569,6 +579,21 @@ class Plot():
             colors = [hex_to_rgb(c) for c in [black, white]]
             return make_cmap(colors, bit=True)
 
+        # get kwargs
+        cmap = kwargs.get('cmap', None)
+        noise_scale = kwargs.get('noise_scale', 3.)
+        how = kwargs.get('how', 'log')
+        plot_size = kwargs.get('plot_size', (1000, 1000))
+        x_range = kwargs.get('x_range', (-100, 100))
+        y_range = kwargs.get('y_range', (-100, 100))
+        spread = kwargs.get('spread', None)
+        weigth = kwargs.get('weigth', None)
+        transparent = kwargs.get('transparent', False)
+        marginals = kwargs.get('marginals', True)
+        small = kwargs.get('small', True)
+        category = kwargs.get('category', None)
+        category_colors = kwargs.get('category_colors', None)
+        save_each = kwargs.get('save_each', False)
         if cmap is None:
             cmap = get_cmap(self.color)
         else:
@@ -599,7 +624,8 @@ class Plot():
         # set canvas
         plot_height, plot_width = plot_size
         canvas = ds.Canvas(plot_height=plot_height, plot_width=plot_width,
-                           x_range=x_range, y_range=y_range)
+                           x_range=x_range, y_range=y_range,
+                           x_axis_type='linear', y_axis_type='linear')
         # aggregate
         if weigth is not None:
             points = canvas.points(df, 'x', 'y', ds.min('w'))
@@ -608,17 +634,39 @@ class Plot():
         else:
             points = canvas.points(df, 'x', 'y')
         # shading
-        shade = tf.shade(points, cmap=cmap, how=how)
+        if category_colors:
+            shade = tf.shade(points, color_key=category_colors, how=how)
+        else:
+            shade = tf.shade(points, cmap=cmap, how=how)
         if spread is not None:
             shade = tf.spread(shade, px=spread)
         if transparent:
             img = shade
         else:
-            img = tf.set_background(shade, self.color)
+            background_color = kwargs.get('background_color', self.color)
+            img = tf.set_background(shade, background_color)
         # export
         dst_file = os.path.join(self.plot_path, 'shaded_%s_%s' %
                                 (name, self.dataset_code))
         ds.utils.export_image(img=img, filename=dst_file, fmt=".png")
+        # save each category
+        if category is not None and save_each:
+            for cat, col in zip(np.unique(category), category_colors):
+                cat_points = points.sel(cat=cat)
+                print cat, cat_points.to_dataframe('prova').prova.sum()
+                shade = tf.shade(cat_points,
+                                 cmap=[col], how=how)
+                if spread is not None:
+                    shade = tf.spread(shade, px=spread)
+                if transparent:
+                    img = shade
+                else:
+                    # background_color = kwargs.get('background_color',
+                    #                              self.color)
+                    img = tf.set_background(shade, background_color)
+                dst_file = os.path.join(self.plot_path, 'shaded_%s_%s_%s' %
+                                        (name, self.dataset_code, cat))
+                ds.utils.export_image(img=img, filename=dst_file, fmt=".png")
 
         if marginals:
             f = plt.figure(figsize=(10, 10))
@@ -673,24 +721,17 @@ class Plot():
             plt.savefig(dst_file, dpi=100, transparent=True)
 
         if small:
-            plot_height, plot_width = (200, 200)
-            canvas = ds.Canvas(plot_height=plot_height, plot_width=plot_width,
-                               x_range=x_range, y_range=y_range)
-            if weigth is not None:
-                points = canvas.points(df, 'x', 'y', ds.min('w'))
-            else:
-                points = canvas.points(df, 'x', 'y')
-            shade = tf.shade(points, cmap=cmap, how=how)
-            if spread is not None:
-                shade = tf.spread(shade, px=spread)
-            if transparent:
-                img = shade
-            else:
-                img = tf.set_background(shade, self.color)
+            frame = inspect.currentframe()
+            args, _, _, values = inspect.getargvalues(frame)
+            values.pop('frame', None)
+            values.pop('self', None)
+            args = dict(values)
+            args.update({'plot_size': (200, 200)})
+            args.update({'small': False})
+            args.update({'name': name + "_small"})
+            self.datashader_projection(**args)
 
-            dst_file = os.path.join(self.plot_path, 'shaded_%s_small_%s' %
-                                    (name, self.dataset_code))
-            ds.utils.export_image(img=img, filename=dst_file, fmt=".png")
+        return df
 
     def projection_plot(self, Proj, bw=None, levels=5, dev=None, s=None, transparency=0.5):
 
