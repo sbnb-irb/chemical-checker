@@ -277,7 +277,7 @@ class Traintest(object):
             split_names = [s.encode() for s in split_names]
             # get indeces of blocks for each split
             split_block_idx = Traintest.get_split_indeces(
-                int(np.ceil(rows / block_size)) + 1,
+                int(np.floor(rows / block_size)) + 1,
                 split_fractions)
             if datasets is None:
                 datasets = hf_in.keys()
