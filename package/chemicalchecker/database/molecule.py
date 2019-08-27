@@ -71,14 +71,13 @@ class Molecule(Base):
         for ink in inchikeys:
             mapping[ink] = None
 
-        engine = get_engine()
-        table = Molecule.__table__
+        session = get_session()
         for idx in range(0, len(inchikeys), batch):
-            conditions = [table.columns.inchikey ==
-                          ink for ink in inchikeys[idx:idx + batch]]
-            query = table.select(or_(*conditions))
-            res = engine.execute(query).fetchall()
+            query = session.query(Molecule).filter(
+                Molecule.inchikey.in_(inchikeys[idx:idx + batch]))
+            res = query.with_entities(Molecule.inchikey, Molecule.inchi).all()
             mapping.update(dict(res))
+            print (idx)
 
         return mapping
 
