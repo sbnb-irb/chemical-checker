@@ -7,7 +7,7 @@ from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.layers import Input, Dense, Masking, Dropout, Activation
 from tensorflow.keras.models import load_model
 from chemicalchecker.util import logged
-from chemicalchecker.tool.adanet import Traintest
+from chemicalchecker.util.splitter import Traintest
 from chemicalchecker.core.signature_data import DataSignature
 
 import matplotlib
@@ -153,7 +153,7 @@ class AutoEncoder:
         layer_sizes = np.linspace(
             self.input_dimension, self.encoding_dim, self.num_middle_layers + 1)[1:]
 
-        self.__log.debug("Num of layers: %d" % layer_sizes)
+        self.__log.debug("Num of layers: %d" % len(layer_sizes))
 
         for layer_size in layer_sizes:
             last_layer = Dense(
