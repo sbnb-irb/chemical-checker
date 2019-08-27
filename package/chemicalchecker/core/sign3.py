@@ -6,7 +6,6 @@ virtually *any* molecule in *any* dataset.
 """
 import os
 import h5py
-import shutil
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -17,6 +16,7 @@ from .signature_data import DataSignature
 
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
+from chemicalchecker.util.splitter import Traintest
 
 
 @logged
@@ -122,7 +122,6 @@ class sign3(BaseSignature, DataSignature):
         """
         try:
             from chemicalchecker.tool.adanet import AdaNet
-            from chemicalchecker.util.splitter import Traintest
         except ImportError as err:
             raise err
         # get params and set folder
@@ -224,7 +223,6 @@ class sign3(BaseSignature, DataSignature):
         """
         try:
             from chemicalchecker.tool.adanet import AdaNet
-            from chemicalchecker.util.splitter import Traintest
         except ImportError as err:
             raise err
         # adanet parameters
@@ -675,7 +673,6 @@ class sign3(BaseSignature, DataSignature):
         """
         try:
             from chemicalchecker.tool.adanet import AdaNet
-            from chemicalchecker.util.splitter import Traintest
         except ImportError as err:
             raise err
 
