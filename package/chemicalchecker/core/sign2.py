@@ -86,7 +86,8 @@ class sign2(BaseSignature, DataSignature):
         try:
             from chemicalchecker.util.network import SNAPNetwork
             from chemicalchecker.util.performance import LinkPrediction
-            from chemicalchecker.tool.adanet import AdaNet, Traintest
+            from chemicalchecker.tool.adanet import AdaNet
+            from chemicalchecker.util.splitter import Traintest
             from chemicalchecker.tool.node2vec import Node2Vec
         except ImportError as err:
             raise err
@@ -219,7 +220,7 @@ class sign2(BaseSignature, DataSignature):
         """
         from .data import DataFactory
         from .neig import neig
-        from chemicalchecker.tool.adanet import Traintest
+        from chemicalchecker.util.splitter import Traintest
         sign2.__log.info('Performing Nearest Neighbor prediction.')
         # create directory to save neig and sign (delete if exists)
         nn_path = os.path.join(destination_path, "nearest_neighbor")
@@ -278,7 +279,8 @@ class sign2(BaseSignature, DataSignature):
     @staticmethod
     def predict_adanet(destination_path, traintest_file, params):
         """Prediction with adanet."""
-        from chemicalchecker.tool.adanet import Traintest, AdaNet
+        from chemicalchecker.tool.adanet import AdaNet
+        from chemicalchecker.util.splitter import Traintest
         sign2.__log.info('Performing AdaNet prediction.')
         # create directory to save neig and sign (delete if exists)
         ada_path = os.path.join(destination_path, "adanet")
@@ -316,7 +318,7 @@ class sign2(BaseSignature, DataSignature):
     @staticmethod
     def predict_linear_regression(destination_path, traintest_file):
         """Prediction with adanet."""
-        from chemicalchecker.tool.adanet import Traintest
+        from chemicalchecker.util.splitter import Traintest
         from sklearn.linear_model import LinearRegression
         sign2.__log.info('Performing LinearRegression prediction.')
         # create directory to save neig and sign (delete if exists)
@@ -431,7 +433,7 @@ class sign2(BaseSignature, DataSignature):
         """
         import chemicalchecker
         from chemicalchecker.util.hpc import HPC
-        from chemicalchecker.tool.adanet import Traintest
+        from chemicalchecker.util.splitter import Traintest
         from sklearn.model_selection import ParameterGrid
 
         gridsearch_path = os.path.join(

@@ -121,7 +121,8 @@ class sign3(BaseSignature, DataSignature):
                 confidence scores)
         """
         try:
-            from chemicalchecker.tool.adanet import AdaNet, Traintest
+            from chemicalchecker.tool.adanet import AdaNet
+            from chemicalchecker.util.splitter import Traintest
         except ImportError as err:
             raise err
         # get params and set folder
@@ -222,7 +223,8 @@ class sign3(BaseSignature, DataSignature):
                 confidence scores)
         """
         try:
-            from chemicalchecker.tool.adanet import AdaNet, Traintest
+            from chemicalchecker.tool.adanet import AdaNet
+            from chemicalchecker.util.splitter import Traintest
         except ImportError as err:
             raise err
         # adanet parameters
@@ -672,7 +674,8 @@ class sign3(BaseSignature, DataSignature):
         This is done filling the matrix with zeros in other spaces.
         """
         try:
-            from chemicalchecker.tool.adanet import AdaNet, Traintest
+            from chemicalchecker.tool.adanet import AdaNet
+            from chemicalchecker.util.splitter import Traintest
         except ImportError as err:
             raise err
 
