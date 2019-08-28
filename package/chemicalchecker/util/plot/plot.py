@@ -581,7 +581,7 @@ class Plot():
 
         # get kwargs
         cmap = kwargs.get('cmap', None)
-        noise_scale = kwargs.get('noise_scale', 3.)
+        noise_scale = kwargs.get('noise_scale', None)
         how = kwargs.get('how', 'log')
         plot_size = kwargs.get('plot_size', (1000, 1000))
         x_range = kwargs.get('x_range', (-100, 100))
@@ -589,12 +589,11 @@ class Plot():
         spread = kwargs.get('spread', None)
         weigth = kwargs.get('weigth', None)
         transparent = kwargs.get('transparent', False)
-        marginals = kwargs.get('marginals', True)
+        marginals = kwargs.get('marginals', False)
         small = kwargs.get('small', True)
         category = kwargs.get('category', None)
         category_colors = kwargs.get('category_colors', None)
         save_each = kwargs.get('save_each', False)
-        overplot = kwargs.get('overplot', None)
         if cmap is None:
             cmap = get_cmap(self.color)
         else:
@@ -651,14 +650,6 @@ class Plot():
                                 (name, self.dataset_code))
         ds.utils.export_image(img=img, filename=dst_file, fmt=".png")
 
-        if overplot:
-            with open(dst_file + ".png", 'r') as image_file:
-                image = plt.imread(image_file)
-                plt.imshow(image)
-            plt.scatter(overplot['data'][:, 0], overplot['data'][:, 1])
-            dst_file = os.path.join(self.plot_path, 'shaded_over_%s_%s.png' %
-                                    (overplot['name'], self.dataset_code))
-            plt.savefig(dst_file, dpi=100, transparent=True)
         # save each category
         if category is not None and save_each:
             for cat, col in zip(np.unique(category), category_colors):
