@@ -47,7 +47,7 @@ class proj(BaseSignature, DataSignature):
     def plot(self, kind='shaded', *args, **kwargs):
         """Load projected data and plot it."""
         # load data in memory
-        proj_data = self.projector[:]
+        proj_data = self[:]
         # plot projection
         range_x = max(abs(np.min(proj_data[:, 0])),
                       abs(np.max(proj_data[:, 0])))
@@ -60,7 +60,6 @@ class proj(BaseSignature, DataSignature):
         x_range = kwargs.pop('x_range', (-range_max, range_max))
         y_range = kwargs.pop('y_range', (-range_max, range_max))
         plot_size = kwargs.pop('plot_size', (1000, 1000))
-        noise_scale = kwargs.pop('noise_scale', None)
         self.__log.info("Plot %s range x: %s y: %s" % (kind, x_range, y_range))
         plot_path = os.path.join(self.stats_path,
                                  self.projector.__class__.__name__)
@@ -75,16 +74,43 @@ class proj(BaseSignature, DataSignature):
                 x_range=x_range,
                 y_range=y_range,
                 plot_size=plot_size,
-                noise_scale=noise_scale,
                 **kwargs)
         elif kind == 'largevis':
             plot.projection_plot(proj_data, **kwargs)
 
-    def plot_over(self, data, name, *args, **kwargs):
+    def plot_over(self, data, name, kind='shaded', **kwargs):
         """Load projected data and plot it."""
-        kwargs.update({'marginals':False})
-        self.plot(kind='shaded', overplot={'name': name, 'data': data[:]},
-                  *args, **kwargs)
+        proj_data = self[:]
+        # plot projection
+        range_x = max(abs(np.min(proj_data[:, 0])),
+                      abs(np.max(proj_data[:, 0])))
+        range_y = max(abs(np.min(proj_data[:, 1])),
+                      abs(np.max(proj_data[:, 1])))
+        range_max = max(range_y, range_x)
+        frame = range_max / 10.
+        range_max += frame
+        cmap = kwargs.pop('cmap', 'viridis')
+        x_range = (-range_max, range_max)
+        y_range = (-range_max, range_max)
+        plot_size = kwargs.pop('plot_size', (1000, 1000))
+        self.__log.info("Plot range x: %s y: %s" % (x_range, y_range))
+        plot_path = os.path.join(self.stats_path,
+                                 self.projector.__class__.__name__)
+        if not os.path.isdir(plot_path):
+            os.mkdir(plot_path)
+        plot = Plot(self.dataset, plot_path)
+        if kind == 'shaded':
+            plot.datashader_projection(
+                data,
+                self.projector.__class__.__name__ + '_%s' % name,
+                cmap=cmap,
+                x_range=x_range,
+                y_range=y_range,
+                plot_size=plot_size,
+                transparent=True,
+                **kwargs)
+        else:
+            raise NotImplementedError
 
     def plot_category(self, data, name, *args, **kwargs):
         """Load projected data and plot it."""
