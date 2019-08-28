@@ -42,7 +42,7 @@ class proj(BaseSignature, DataSignature):
 
     def predict(self, signature, destination, *args, **kwargs):
         """Predict projection for new data."""
-        self.projector.predict(signature, destination, *args, **kwargs)
+        return self.projector.predict(signature, destination, *args, **kwargs)
 
     def plot(self, kind='shaded', *args, **kwargs):
         """Load projected data and plot it."""
@@ -81,6 +81,12 @@ class proj(BaseSignature, DataSignature):
             plot.projection_plot(proj_data, **kwargs)
 
     def plot_over(self, data, name, *args, **kwargs):
+        """Load projected data and plot it."""
+        kwargs.update({'marginals':False})
+        self.plot(kind='shaded', overplot={'name': name, 'data': data[:]},
+                  *args, **kwargs)
+
+    def plot_category(self, data, name, *args, **kwargs):
         """Load projected data and plot it."""
         # data can be a list of numpy array hence plotting multiple categories
         if isinstance(data, list):
