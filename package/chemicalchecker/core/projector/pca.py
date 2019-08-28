@@ -99,6 +99,7 @@ class PCA(BaseSignature, DataSignature):
         """Predict new projections."""
         # create destination file
         sdtype = DataSignature.string_dtype()
+        pred_proj = DataSignature(destination)
         with h5py.File(signature.data_path, "r") as src, \
                 h5py.File(destination, "w") as dst:
             dst.create_dataset("keys", data=src['keys'][:], dtype=sdtype)
@@ -113,3 +114,4 @@ class PCA(BaseSignature, DataSignature):
             for i in tqdm(range(0, src_len, chunk_size), 'transform'):
                 chunk = slice(i, i + chunk_size)
                 dst['V'][chunk] = self.algo.transform(src['V'][chunk])
+        return pred_proj
