@@ -55,6 +55,7 @@ class sign3(BaseSignature, DataSignature):
         self.params = dict()
         default_adanet = {
             'adanet_iterations': 10,
+            'shuffles': 5,
             'augmentation': subsample,
             'subnetwork_generator': 'StackDNNGenerator',
             'cpu': params.get('cpu', 4)
