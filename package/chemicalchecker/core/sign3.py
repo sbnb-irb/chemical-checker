@@ -891,6 +891,7 @@ class sign3(BaseSignature, DataSignature):
             np.save(file_pred, y_pred)
             result['true'] = file_true
             result['pred'] = file_pred
+            result['coverage'] = 1.0
             return result
 
         # get results for each split
