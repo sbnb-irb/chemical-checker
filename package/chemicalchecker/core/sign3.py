@@ -6,10 +6,15 @@ virtually *any* molecule in *any* dataset.
 """
 import os
 import h5py
+import pickle
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from time import time
 from functools import partial
+
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
 
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
@@ -70,6 +75,15 @@ class sign3(BaseSignature, DataSignature):
         }
         default_sign0.update(params.get('sign0', {}))
         self.params['sign0'] = default_sign0
+        default_err = {
+            'adanet_iterations': 1,
+            'augmentation': False,
+            'initial_architecture': [3, 2],
+            'subnetwork_generator': 'StackDNNGenerator',
+            'cpu': params.get('cpu', 4)
+        }
+        default_err.update(params.get('error', {}))
+        self.params['error'] = default_err
 
     def save_sign2_matrix(self, sign2_list, destination):
         """Save matrix of horizontally stacked signature 2.
@@ -273,6 +287,127 @@ class sign3(BaseSignature, DataSignature):
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix)
 
+    def save_error_matrix(self, sign3_train_file, predict_fn, destination,
+                          max_total=1000000, chunk_size=1000):
+        """Save matrix of error in sign3 prediction.
+
+        This is the matrix for training the signature 3 error estimator
+        based on sign2 presence/absence.
+
+        Args:
+            sign3_train_file(list): The original train file with sign2s.
+            predict_fn(func): Trained Adanet predict function.
+            destination(str): Path where to save the matrix (HDF5 file).
+            sampling(int): How much subsampling per molecule.
+        """
+        # get current space shape
+        self_len = self.sign2_self.shape[0]
+        # we calculate the sampling to fill a maximum total
+        sampling = int(np.floor(max_total / float(self_len)))
+        feat_shape = (self_len * sampling, len(self.src_datasets))
+        # create a new file with x and y
+        with h5py.File(destination, 'w') as hf_out:
+            hf_out.create_dataset('x', feat_shape, dtype=np.float32)
+            hf_out.create_dataset('y', (feat_shape[0], 1), dtype=np.float32)
+            # perform sampling for each input and measure distance
+            with h5py.File(sign3_train_file, 'r') as hf_in:
+                for i in range(0, self_len, chunk_size):
+                    # source input is repeated sampling times
+                    for r in tqdm(range(sampling)):
+                        # last chunk has different size
+                        if i + chunk_size > hf_in['x'].shape[0]:
+                            chunk_size = hf_in['x'].shape[0] - i
+                        src_chunk = slice(i, i + chunk_size)
+                        # destination chunk is shifted by input length
+                        dst_chunk = slice(i + (r * chunk_size), i +
+                                          chunk_size + (r * chunk_size))
+                        x, y = subsample(hf_in['x'][src_chunk],
+                                         hf_in['y'][src_chunk])
+                        presence = ~np.isnan(x[:, 0::128])
+                        assert(min(np.count_nonzero(presence, axis=1)) > 0)
+                        # save presence as X
+                        hf_out['x'][dst_chunk] = presence
+                        # run prediction on subsampled input
+                        y_pred = predict_fn({'x': x})['predictions']
+                        # save mean squared error as Y
+                        log_mse = np.log10(np.average(
+                            ((y - y_pred)**2), axis=1))
+                        hf_out['y'][dst_chunk] = np.expand_dims(log_mse, 1)
+
+    def _learn_error(self, predict_fn, adanet_params, reuse=True, suffix=None,
+                     evaluate=True):
+        """Learn the signature 3 prediction error.
+
+        This method is used twice. First to evaluate the performances of the
+        model. Second to train the final model on the full set of data.
+
+        Args:
+            sign2_list(list): List of signature 2 objects to learn from.
+            reuse(bool): Whether to reuse intermediate files (e.g. the
+                aggregated signature 2 matrix).
+            suffix(str): A suffix for the AdaNet model path (e.g.
+                'sign3/models/adanet_<suffix>').
+            evaluate(bool): Whether we are performing a train-test split and
+                evaluating the performances (N.B. this is required for complete
+                confidence scores)
+        """
+        try:
+            from chemicalchecker.tool.adanet import AdaNet
+        except ImportError as err:
+            raise err
+        # get params and set folder
+        if suffix:
+            adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
+        else:
+            adanet_path = os.path.join(self.model_path, 'adanet')
+        if adanet_params:
+            if 'model_dir' in adanet_params:
+                adanet_path = adanet_params.pop('model_dir')
+        if not reuse or not os.path.isdir(adanet_path):
+            os.makedirs(adanet_path)
+        # generate input matrix
+        sign3_train_file = os.path.join(self.model_path, 'train.h5')
+        error_matrix = os.path.join(self.model_path, 'train_error.h5')
+        if not reuse or not os.path.isfile(error_matrix):
+            self.save_error_matrix(sign3_train_file, predict_fn, error_matrix)
+        # if evaluating, perform the train-test split
+        if evaluate:
+            traintest_file = os.path.join(
+                self.model_path, 'traintest_error.h5')
+            if adanet_params:
+                traintest_file = adanet_params.pop(
+                    'traintest_file', traintest_file)
+            if not reuse or not os.path.isfile(traintest_file):
+                Traintest.split_h5_blocks(error_matrix, traintest_file)
+        else:
+            traintest_file = error_matrix
+            if adanet_params:
+                traintest_file = adanet_params.pop(
+                    'traintest_file', traintest_file)
+        # initialize adanet and start learning
+        if adanet_params:
+            # parameter heuristics
+            ada = AdaNet(model_dir=adanet_path,
+                         traintest_file=traintest_file,
+                         **adanet_params)
+        else:
+            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
+        self.__log.debug('AdaNet training on %s' % traintest_file)
+        ada.train_and_evaluate(evaluate=evaluate)
+        self.__log.debug('model saved to %s' % adanet_path)
+        # when evaluating also save the performances
+        if evaluate:
+            predictors = {
+                'LinearRegression': LinearRegression(
+                    n_jobs=adanet_params['cpu']),
+                'RandomForest': RandomForestRegressor(
+                    n_jobs=adanet_params['cpu'])
+            }
+            self.compare_other(self, predictors, adanet_path, traintest_file)
+            # save AdaNet performances and plots
+            sign2_plot = Plot(self.dataset, adanet_path)
+            ada.save_performances(adanet_path, sign2_plot, suffix)
+
     def fit_sign0(self, sign0, include_confidence=True):
         """Train an AdaNet model to predict sign3 from sign0.
 
@@ -424,8 +559,8 @@ class sign3(BaseSignature, DataSignature):
                     del vectors
 
     def fit(self, sign2_list, sign2_self, sign2_universe=None, sign0=None,
-            model_confidence=True, save_support=True, save_correlations=True,
-            update_preds=True, validations=True):
+            model_confidence=True, save_correlations=True,
+            update_preds=True, validations=True, chunk_size=10000):
         """Fit the model to predict the signature 3.
 
         Args:
@@ -435,8 +570,6 @@ class sign3(BaseSignature, DataSignature):
                 molecules in the CC universe.
             model_confidence(bool): Whether to model confidence. That is based
                 on standard deviation of prediction with dropout.
-            save_support(bool): Whether to save the number of dataset used for
-                a prediction.
             save_correlations(bool) Whether to save the correlation (average,
                 tertile, max) for the given input dataset (result of the
                 evaluation).
@@ -455,7 +588,7 @@ class sign3(BaseSignature, DataSignature):
         # check if performance evaluations need to be done
         eval_adanet_path = os.path.join(self.model_path, 'adanet_eval')
         eval_stats = os.path.join(eval_adanet_path, 'stats_eval.pkl')
-        if not os.path.isfile(eval_adanet_path):
+        if not os.path.isfile(eval_stats):
             self._learn(self.params['adanet'],
                         suffix='eval', evaluate=True)
 
@@ -464,6 +597,26 @@ class sign3(BaseSignature, DataSignature):
         if not os.path.isdir(final_adanet_path):
             self._learn(self.params['adanet'],
                         suffix='final', evaluate=False)
+
+        # part of confidence is the expected error
+        if model_confidence:
+            predict_fn = AdaNet.predict_fn(os.path.join(final_adanet_path,
+                                                        'savedmodel'))
+            # generate prediction, measure error, fit regressor
+            eval_err_path = os.path.join(self.model_path, 'adanet_error_eval')
+            if not os.path.isdir(eval_err_path):
+                # step1 learn dataset availability to error predictor
+                self._learn_error(predict_fn, self.params['error'],
+                                  suffix='error_eval', evaluate=True)
+
+            # final error predictor
+            final_err_path = os.path.join(
+                self.model_path, 'adanet_error_final')
+            if not os.path.isdir(final_err_path):
+                self._learn_error(predict_fn, self.params['error'],
+                                  suffix='error_final', evaluate=False)
+            error_pred_fn = AdaNet.predict_fn(os.path.join(final_err_path,
+                                                           'savedmodel'))
 
         # get sorted universe inchikeys and signatures
         inchikeys = set()
@@ -475,7 +628,7 @@ class sign3(BaseSignature, DataSignature):
         tot_inks = len(inchikeys)
         tot_ds = len(ds_sign)
 
-        # build input matrix if not provided
+        # build input matrix if not provided (should be since is shared)
         if sign2_universe is None:
             sign2_universe = os.path.join(self.model_path, 'all_sign2.h5')
         if not os.path.isfile(sign2_universe):
@@ -510,12 +663,14 @@ class sign3(BaseSignature, DataSignature):
                             (tot_inks,), dtype=np.float32)
                 safe_create(results, 'intensity_norm',
                             (tot_inks,), dtype=np.float32)
-                # consensus prediction
+                # this is to store error prediction
+                safe_create(results, 'pred_error',
+                            (tot_inks,), dtype=np.float32)
+                safe_create(results, 'pred_error_norm',
+                            (tot_inks,), dtype=np.float32)
+                # this is to store the consensus prediction
                 safe_create(results, 'consensus',
                             (tot_inks, 128), dtype=np.float32)
-            if save_support:
-                # this is the number of available sign2 for given molecules
-                safe_create(results, 'support', (tot_inks,), dtype=np.float32)
             if save_correlations:
                 # read the correlations obtained evaluating on single spaces
                 df = pd.read_pickle(eval_stats)
@@ -540,9 +695,6 @@ class sign3(BaseSignature, DataSignature):
                 avg_pearsons = avg_pearsons_test
                 # this is to lookup correlations
                 safe_create(results, 'datasets_correlation', data=avg_pearsons)
-                # Average/tertile/maximum Pearson correlations will be saved
-                safe_create(results, 'pred_correlation', (tot_inks, 3),
-                            dtype=np.float32)
 
             # predict signature 3 for universe molecules
             with h5py.File(sign2_universe, "r") as features:
@@ -551,35 +703,20 @@ class sign3(BaseSignature, DataSignature):
                     (1, features['x_test'].shape[1]), dtype=np.float32)
                 zero_pred = predict_fn({'x': zero_feat})['predictions']
                 # read input in chunks
-                for idx in tqdm(range(0, tot_inks, 1000)):
-                    chunk = slice(idx, idx + 1000)
+                for idx in tqdm(range(0, tot_inks, chunk_size)):
+                    chunk = slice(idx, idx + chunk_size)
                     feat = features['x_test'][chunk]
                     # predict with final model
                     if update_preds:
                         results['V'][chunk] = AdaNet.predict(feat, predict_fn)
                     results['keys'][chunk] = np.array(
                         inchikeys[chunk], DataSignature.string_dtype())
-                    # compute support
-                    if save_support:
-                        support = np.sum(~np.isnan(feat[:, 0::128]), axis=1)
-                        results['support'][chunk] = support
-                    # lookup correlations
-                    if save_correlations:
-                        presence = ~np.isnan(feat[:, 0::128])
-                        chunk_corr = np.zeros(
-                            (presence.shape[0], 3), dtype=np.float32)
-                        for row_id, row in enumerate(presence):
-                            available_pearsons = avg_pearsons[row]
-                            chunk_corr[row_id] = [
-                                np.mean(available_pearsons),
-                                np.percentile(
-                                    available_pearsons, 100 * (2 / 3.)),
-                                np.max(available_pearsons)
-                            ]
-                        results['pred_correlation'][chunk] = chunk_corr
-                        del chunk_corr
                     # save stddevs needed for confidence model and prediction
                     if model_confidence and update_preds:
+                        # compute predicted error
+                        support = ~np.isnan(feat[:, 0::128])
+                        pred_error = AdaNet.predict(support, error_pred_fn)
+                        results['pred_error'][chunk] = pred_error[0]
                         # draw prediction with sub-sampling (dropout)
                         samples = AdaNet.predict(feat, predict_fn,
                                                  subsample_x_only,
@@ -596,12 +733,13 @@ class sign3(BaseSignature, DataSignature):
                         stddevs = np.std(samples, axis=2)
                         # just save the average stddev over the components
                         results['stddev'][chunk] = np.mean(stddevs, axis=1)
-        # train error estimator
-        std_dist, int_dist = self.train_error_estimator(ds_sign[self.dataset])
+        # normalize scores based on sampled distribution
+        distributions = self.confidence_distributions(ds_sign[self.dataset])
+        std_dist, int_dist, err_dist = distributions
         with h5py.File(self.data_path, "r+") as results:
             safe_create(results, 'confidence', (tot_inks, 1), dtype=np.float32)
-            for idx in tqdm(range(0, tot_inks, 1000)):
-                chunk = slice(idx, idx + 1000)
+            for idx in tqdm(range(0, tot_inks, chunk_size)):
+                chunk = slice(idx, idx + chunk_size)
                 # get stddev and normalize wrt train distribution
                 stddev = np.expand_dims(results['stddev'][chunk], axis=1)
                 stddev_norm = np.count_nonzero(stddev > std_dist.T, axis=1)
@@ -612,9 +750,15 @@ class sign3(BaseSignature, DataSignature):
                 inten_norm = np.count_nonzero(intensity > int_dist.T, axis=1)
                 inten_norm = inten_norm / float(int_dist.shape[0])
                 results['intensity_norm'][chunk] = inten_norm
-                # confidence and intensity are equally important
-                # high intensity imply low error, high stddev imply high error
-                confidence = np.sqrt(inten_norm * (1 - stddev_norm))
+                # get predicted error and normalize wrt train distribution
+                error = np.expand_dims(results['pred_error'][chunk], axis=1)
+                error_norm = np.count_nonzero(error > err_dist.T, axis=1)
+                error_norm = error_norm / float(err_dist.shape[0])
+                results['pred_error_norm'][chunk] = error_norm
+                # stddev, intensity and estimated error equally contribute
+                # to the final confidence score which is a geometric mean
+                confidence = (inten_norm * (1 - stddev_norm)
+                              * (1 - error_norm))**(1.0 / 3)
                 # the higher the better, clip at .999
                 results['confidence'][chunk] = np.clip(confidence, .0, 0.999)
         self.background_distances("cosine")
@@ -629,8 +773,8 @@ class sign3(BaseSignature, DataSignature):
     def predict(self):
         pass
 
-    def train_error_estimator(self, sign2_self):
-        """Train an error estimator.
+    def confidence_distributions(self, sign2_self):
+        """Get distributions for confidence scores normalization.
 
         N.B.: After some testing we realized that training a regressor does not
         accurately capture indefinite prediction (low intensity). We just
@@ -644,16 +788,21 @@ class sign3(BaseSignature, DataSignature):
         """
         # get current space inchikeys (limit to 20^4)
         dataset_inks = sign2_self.keys
-        if len(dataset_inks) > 2 * 1e4:
+        if len(dataset_inks) > 5 * 1e4:
             dataset_inks = np.random.choice(dataset_inks, int(2 * 1e4))
         # get the features to train the estimator on
         _, stddev = self.get_vectors(dataset_inks, dataset_name='stddev')
         _, intensity = self.get_vectors(dataset_inks, dataset_name='intensity')
-        # also get the consensus and actual sign2
+        _, pred_error = self.get_vectors(
+            dataset_inks, dataset_name='pred_error')
+        # also get the predicted and actual sign2
+        _, predicted = self.get_vectors(dataset_inks, dataset_name='V')
         _, consensus = self.get_vectors(dataset_inks, dataset_name='consensus')
         _, actual = sign2_self.get_vectors(dataset_inks)
         # calculate the error (what we want to predict)
-        log_mse = np.log10(np.average(((actual - consensus)**2), axis=1))
+        log_mse = np.log10(np.average(((actual - predicted)**2), axis=1))
+        log_mse_consensus = np.log10(
+            np.average(((actual - consensus)**2), axis=1))
         # save data in the confidence model
         error_file = os.path.join(self.model_path, 'error.h5')
         with h5py.File(error_file, "w") as hf:
@@ -662,8 +811,58 @@ class sign3(BaseSignature, DataSignature):
                                             DataSignature.string_dtype()))
             hf.create_dataset('stddev', data=stddev, dtype=np.float32)
             hf.create_dataset('intensity', data=intensity, dtype=np.float32)
+            hf.create_dataset('pred_error', data=pred_error, dtype=np.float32)
             hf.create_dataset('log_mse', data=log_mse, dtype=np.float32)
-        return stddev, intensity
+            hf.create_dataset('log_mse_consensus',
+                              data=log_mse_consensus, dtype=np.float32)
+        return stddev, intensity, pred_error
+
+    def compare_other(self, predictors, save_path, traintest_file):
+
+        def train_predict_save(name, model, x_true, y_true, split, save_path):
+            result = dict()
+            result['time'] = 0.
+            # train and save
+            if split == 'train':
+                self.__log.info('Training model: %s' % name)
+                t0 = time()
+                model.fit(x_true, y_true)
+                model_path = os.path.join(save_path, '%s.pkl' % name)
+                pickle.dump(model, open(model_path, 'w'))
+                result['time'] = time() - t0
+            # call predict
+            self.__log.info("Predicting for: %s", name)
+            y_pred = model.predict(x_true)
+            self.__log.info("%s Y: %s", name, y_pred.shape)
+            if y_pred.shape[0] < 4:
+                return
+            file_true = os.path.join(
+                save_path, "_".join(list(name) + [split, 'true']))
+            np.save(file_true, y_true)
+            file_pred = os.path.join(
+                save_path, "_".join(list(name) + [split, 'pred']))
+            np.save(file_pred, y_pred)
+            result['true'] = file_true
+            result['pred'] = file_pred
+            return result
+
+        # get results for each split
+        results = dict()
+        for split in ['train', 'test', 'validation']:
+            traintest = Traintest(traintest_file, split)
+            x_shape, y_shape = traintest.get_xy_shapes()
+            self.__log.info("%s X: %s Y: %s", split, x_shape, y_shape)
+            self.__log.info("%s Y: %s", split, y_shape)
+            traintest.open()
+            x_data = traintest.get_all_x()
+            y_data = traintest.get_all_y()
+            traintest.close()
+            for name, model in predictors.items():
+                if name not in results:
+                    results[name] = dict()
+                # predict and save
+                results[name][split] = train_predict_save(
+                    name, model, x_data, y_data, split, save_path)
 
     def adanet_single_spaces(self, adanet_path, traintest_file, suffix):
         """Prediction of adanet using single space signatures.
@@ -910,11 +1109,11 @@ def epoch_per_iteration_heuristic(samples, features, clip=(16, 1024)):
     return np.clip(pow2, *clip)
 
 
-def subsample_x_only(tensor, label=None):
-    return subsample(tensor, label=None)[0]
+def subsample_x_only(tensor, label=None, prob_original=0.05):
+    return subsample(tensor, label=None, prob_original=prob_original)[0]
 
 
-def subsample(tensor, label):
+def subsample(tensor, label, prob_original=0.05):
     """Function to subsample stacked data."""
     # it is safe to make a local copy of the input matrix
     new_data = np.copy(tensor)
@@ -924,7 +1123,7 @@ def subsample(tensor, label):
         # the following assume the stacked signature to have a fixed width
         presence = ~np.isnan(row[0::128])
         # low probability of keeping the original sample
-        if np.random.rand() > 0.90:
+        if np.random.rand() < prob_original:
             presence_add = presence
         else:
             # present datasets
