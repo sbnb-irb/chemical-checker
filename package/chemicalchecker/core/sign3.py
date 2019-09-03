@@ -98,6 +98,7 @@ class sign3(BaseSignature, DataSignature):
             sign2_list(list): List of signature 2 objects to learn from.
             destination(str): Path where to save the matrix (HDF5 file).
         """
+        self.__log.debug('Saving sign2 traintest to: %s' % destination)
         # get current space on which we'll train
         ref_dimension = self.sign2_self.shape[1]
         feat_shape = (self.sign2_self.shape[0],
@@ -202,6 +203,7 @@ class sign3(BaseSignature, DataSignature):
             sign0(list): Signature 0 to learn from.
             destination(str): Path where to save the matrix (HDF5 file).
         """
+        self.__log.debug('Saving sign0 traintest to: %s' % destination)
         common_keys, features = sign0.get_vectors(self.keys)
         _, labels = self.get_vectors(common_keys)
         if include_confidence:
@@ -301,6 +303,7 @@ class sign3(BaseSignature, DataSignature):
             destination(str): Path where to save the matrix (HDF5 file).
             sampling(int): How much subsampling per molecule.
         """
+        self.__log.debug('Saving error traintest to: %s' % destination)
         # get current space shape
         self_len = self.sign2_self.shape[0]
         # we calculate the sampling to fill a maximum total
@@ -404,10 +407,10 @@ class sign3(BaseSignature, DataSignature):
                 'RandomForest': RandomForestRegressor(
                     n_jobs=adanet_params['cpu'])
             }
-            self.compare_other(self, predictors, adanet_path, traintest_file)
+            others = self.compare_other(predictors, adanet_path, traintest_file)
             # save AdaNet performances and plots
             sign2_plot = Plot(self.dataset, adanet_path)
-            ada.save_performances(adanet_path, sign2_plot, suffix)
+            ada.save_performances(adanet_path, sign2_plot, suffix, others)
 
     def fit_sign0(self, sign0, include_confidence=True):
         """Train an AdaNet model to predict sign3 from sign0.
@@ -605,10 +608,10 @@ class sign3(BaseSignature, DataSignature):
                                                         'savedmodel'))
             # generate prediction, measure error, fit regressor
             eval_err_path = os.path.join(self.model_path, 'adanet_error_eval')
-            if not os.path.isdir(eval_err_path):
-                # step1 learn dataset availability to error predictor
-                self._learn_error(predict_fn, self.params['error'],
-                                  suffix='error_eval', evaluate=True)
+            #if not os.path.isdir(eval_err_path):
+            # step1 learn dataset availability to error predictor
+            self._learn_error(predict_fn, self.params['error'],
+                              suffix='error_eval', evaluate=True)
 
             # final error predictor
             final_err_path = os.path.join(
