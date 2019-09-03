@@ -319,10 +319,10 @@ class Traintest(object):
                             src_slice = (src_start, src_end)
                             dst_slice = (dst_start, dst_end)
                             src_dst.append((src_slice, dst_slice))
-                            Traintest.__log.debug(
-                                "src: %s  dst: %s" % src_dst[-1])
-                            Traintest.__log.debug(
-                                "block_size: %s" % curr_block_size)
+                            # Traintest.__log.debug(
+                            #    "src: %s  dst: %s" % src_dst[-1])
+                            # Traintest.__log.debug(
+                            #    "block_size: %s" % curr_block_size)
                         # create block matrix
                         reshape = False
                         if len(hf_in[k].shape) == 1:
@@ -336,16 +336,18 @@ class Traintest(object):
                         for src_slice, dst_slice in tqdm(src_dst):
                             src_chunk = slice(*src_slice)
                             dst_chunk = slice(*dst_slice)
-                            Traintest.__log.debug(
-                                "writing src: %s  to dst: %s" %
-                                (src_slice, dst_slice))
+                            # Traintest.__log.debug(
+                            #    "writing src: %s  to dst: %s" %
+                            #    (src_slice, dst_slice))
                             if reshape:
-                                hf_out[ds_name][dst_chunk] = np.expand_dims(hf_in[k][src_chunk], 2)
+                                hf_out[ds_name][dst_chunk] = np.expand_dims(
+                                    hf_in[k][src_chunk], 1)
                             else:
-                                hf_out[ds_name][dst_chunk] = hf_in[k][src_chunk]
-                        Traintest.__log.debug(
-                            "Written: {:<20} shape: {:>10}".format(
-                                ds_name, str(hf_out[ds_name].shape)))
+                                hf_out[ds_name][dst_chunk] = hf_in[
+                                    k][src_chunk]
+                        # Traintest.__log.debug(
+                        #    "Written: {:<20} shape: {:>10}".format(
+                        #        ds_name, str(hf_out[ds_name].shape)))
         Traintest.__log.info('Traintest saved to %s', out_file)
 
     @staticmethod
