@@ -12,6 +12,7 @@ import pandas as pd
 from tqdm import tqdm
 from time import time
 from functools import partial
+from operator import itemgetter
 
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
@@ -404,9 +405,9 @@ class sign3(BaseSignature, DataSignature):
         # when evaluating also save the performances
         if evaluate:
             predictors = {
-                'LinearRegression': LinearRegression(
+                ('LinearRegression', 'ALL'): LinearRegression(
                     n_jobs=adanet_params['cpu']),
-                'RandomForest': RandomForestRegressor(
+                ('RandomForest', 'ALL'): RandomForestRegressor(
                     n_jobs=adanet_params['cpu'])
             }
             others = self.compare_other(
@@ -776,17 +777,36 @@ class sign3(BaseSignature, DataSignature):
             if not os.path.isdir(novelty_path):
                 os.mkdir(novelty_path)
             novelty_model = os.path.join(novelty_path, 'lof.pkl')
-            dataset_inks = sign2_self.keys
+            s2_inks = sign2_self.keys
             if not os.path.isfile(novelty_model):
                 self.__log.debug('Training novelty score predictor')
-                _, predicted = self.get_vectors(dataset_inks, dataset_name='V')
+                # fit on molecules available in sign2
+                _, predicted = self.get_vectors(s2_inks, dataset_name='V')
                 t0 = time()
                 model = LocalOutlierFactor(novelty=True, metric='cosine',
                                            n_jobs=self.params['error']['cpu'])
                 model.fit(predicted)
                 delta = time() - t0
                 self.__log.debug('Training took: %s' % delta)
+                # serialize for later
                 pickle.dump(model, open(novelty_model, 'w'))
+                # get scores for known molecules and pair with indexes
+                s2_idxs = np.argwhere(np.isin(s2_inks, self.keys,
+                                              assume_unique=True))
+                s2_novelty = model.negative_outlier_factor_
+                assert(s2_idxs.shape[0] == s2_novelty.shape[0])
+                # predict scores for other molecules and pair with indexes
+                s3_idxs = np.argwhere(~np.isin(s2_inks, self.keys,
+                                               assume_unique=True))
+                s3_inks = itemgetter(*s3_idxs)(self.keys)
+                s3_pred_sign = self.get_vectors(s3_inks)
+                s3_novelty = model.score_samples(s3_pred_sign)
+                assert(s3_inks.shape[0] == s3_novelty.shape[0])
+                ordered_novelty = np.array(sorted(
+                    zip(s2_idxs, s2_novelty) + zip(s3_idxs, s3_novelty)))[:, 1]
+                with h5py.File(self.data_path, "r+") as results:
+                    safe_create(results, 'novelty',
+                                data=ordered_novelty, dtype=np.float32)
 
         self.background_distances("cosine")
         if validations:
@@ -850,24 +870,24 @@ class sign3(BaseSignature, DataSignature):
             result['time'] = 0.
             # train and save
             if split == 'train':
-                self.__log.info('Training model: %s' % name)
+                self.__log.info('Training model: %s' % name[0])
                 t0 = time()
                 model.fit(x_true, y_true)
-                model_path = os.path.join(save_path, '%s.pkl' % name)
+                model_path = os.path.join(save_path, '%s.pkl' % name[0])
                 pickle.dump(model, open(model_path, 'w'))
                 result['time'] = time() - t0
                 self.__log.info('Training took: %s' % result['time'])
             # call predict
-            self.__log.info("Predicting for: %s", name)
+            self.__log.info("Predicting for: %s", name[0])
             y_pred = model.predict(x_true)
-            self.__log.info("%s Y: %s", name, y_pred.shape)
+            self.__log.info("%s Y: %s", name[0], y_pred.shape)
             if y_pred.shape[0] < 4:
                 return
             file_true = os.path.join(
-                save_path, "_".join(list(name) + [split, 'true']))
+                save_path, "_".join([name[0]] + [split, 'true']))
             np.save(file_true, y_true)
             file_pred = os.path.join(
-                save_path, "_".join(list(name) + [split, 'pred']))
+                save_path, "_".join([name[0]] + [split, 'pred']))
             np.save(file_pred, y_pred)
             result['true'] = file_true
             result['pred'] = file_pred
