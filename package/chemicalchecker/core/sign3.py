@@ -80,7 +80,8 @@ class sign3(BaseSignature, DataSignature):
         default_err = {
             'adanet_iterations': 1,
             'augmentation': False,
-            'initial_architecture': [3, 2],
+            'layer_size': 50,
+            'initial_architecture': [5, 4, 3, 2],
             'subnetwork_generator': 'ExtendDNNGenerator',
             'cpu': params.get('cpu', 4)
         }
