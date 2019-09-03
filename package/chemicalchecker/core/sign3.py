@@ -291,7 +291,7 @@ class sign3(BaseSignature, DataSignature):
             ada.save_performances(adanet_path, sign2_plot, suffix)
 
     def save_error_matrix(self, sign3_train_file, predict_fn, destination,
-                          max_total=1000000, chunk_size=1000):
+                          max_total=1000000, chunk_size=100):
         """Save matrix of error in sign3 prediction.
 
         This is the matrix for training the signature 3 error estimator
@@ -307,7 +307,11 @@ class sign3(BaseSignature, DataSignature):
         # get current space shape
         self_len = self.sign2_self.shape[0]
         # we calculate the sampling to fill a maximum total
-        sampling = int(np.floor(max_total / float(self_len)))
+        if self_len > max_total:
+            # lower it can be is 1
+            sampling = 1
+        else:
+            sampling = int(np.floor(max_total / float(self_len)))
         feat_shape = (self_len * sampling, len(self.src_datasets))
         # create a new file with x and y
         with h5py.File(destination, 'w') as hf_out:
@@ -315,25 +319,24 @@ class sign3(BaseSignature, DataSignature):
             hf_out.create_dataset('y', (feat_shape[0], 1), dtype=np.float32)
             # perform sampling for each input and measure distance
             with h5py.File(sign3_train_file, 'r') as hf_in:
-                for i in range(0, self_len, chunk_size):
+                for i in tqdm(range(0, self_len, chunk_size)):
                     # source input is repeated sampling times
-                    for r in tqdm(range(sampling)):
+                    for r in range(sampling):
                         # last chunk has different size
                         if i + chunk_size > hf_in['x'].shape[0]:
                             chunk_size = hf_in['x'].shape[0] - i
                         src_chunk = slice(i, i + chunk_size)
                         # destination chunk is shifted by input length
-                        dst_chunk = slice(i + (r * chunk_size), i +
-                                          chunk_size + (r * chunk_size))
+                        dst_chunk = slice(i + (i + r * chunk_size), i +
+                                          chunk_size + (i + r * chunk_size))
                         x, y = subsample(hf_in['x'][src_chunk],
                                          hf_in['y'][src_chunk])
                         presence = ~np.isnan(x[:, 0::128])
-                        assert(min(np.count_nonzero(presence, axis=1)) > 0)
                         # save presence as X
                         hf_out['x'][dst_chunk] = presence
                         # run prediction on subsampled input
                         y_pred = predict_fn({'x': x})['predictions']
-                        # save mean squared error as Y
+                        # save log mean squared error as Y
                         log_mse = np.log10(np.average(
                             ((y - y_pred)**2), axis=1))
                         hf_out['y'][dst_chunk] = np.expand_dims(log_mse, 1)
