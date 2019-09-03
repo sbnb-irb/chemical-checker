@@ -205,22 +205,23 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
                 shared_tensors["layer_sizes"]))
         # at each iteration try exdending any of the existing layers (width)
         candidates = list()
-        for extend_layer in range(num_layers):
-            new_sizes = layer_sizes[:]
-            new_sizes[extend_layer] += self._extension_step
+        if iteration_number != 0:
+            for extend_layer in range(num_layers):
+                new_sizes = layer_sizes[:]
+                new_sizes[extend_layer] += self._extension_step
+                candidates.append(
+                    self._dnn_builder_fn(
+                        num_layers=num_layers,
+                        layer_sizes=new_sizes,
+                        seed=seed,
+                        previous_ensemble=previous_ensemble))
+            # try adding a new layer (depth)
             candidates.append(
                 self._dnn_builder_fn(
-                    num_layers=num_layers,
-                    layer_sizes=new_sizes,
+                    num_layers=num_layers + self._extension_step,
+                    layer_sizes=layer_sizes + [1] * self._extension_step,
                     seed=seed,
                     previous_ensemble=previous_ensemble))
-        # try adding a new layer (depth)
-        candidates.append(
-            self._dnn_builder_fn(
-                num_layers=num_layers + self._extension_step,
-                layer_sizes=layer_sizes + [1] * self._extension_step,
-                seed=seed,
-                previous_ensemble=previous_ensemble))
         # keep the un-extended candidate
         candidates.append(
             self._dnn_builder_fn(
