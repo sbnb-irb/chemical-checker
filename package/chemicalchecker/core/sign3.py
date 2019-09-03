@@ -410,7 +410,8 @@ class sign3(BaseSignature, DataSignature):
                 'RandomForest': RandomForestRegressor(
                     n_jobs=adanet_params['cpu'])
             }
-            others = self.compare_other(predictors, adanet_path, traintest_file)
+            others = self.compare_other(
+                predictors, adanet_path, traintest_file)
             # save AdaNet performances and plots
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix, others)
@@ -611,10 +612,10 @@ class sign3(BaseSignature, DataSignature):
                                                         'savedmodel'))
             # generate prediction, measure error, fit regressor
             eval_err_path = os.path.join(self.model_path, 'adanet_error_eval')
-            #if not os.path.isdir(eval_err_path):
-            # step1 learn dataset availability to error predictor
-            self._learn_error(predict_fn, self.params['error'],
-                              suffix='error_eval', evaluate=True)
+            if not os.path.isdir(eval_err_path):
+                # step1 learn dataset availability to error predictor
+                self._learn_error(predict_fn, self.params['error'],
+                                  suffix='error_eval', evaluate=True)
 
             # final error predictor
             final_err_path = os.path.join(
@@ -857,6 +858,7 @@ class sign3(BaseSignature, DataSignature):
                 model_path = os.path.join(save_path, '%s.pkl' % name)
                 pickle.dump(model, open(model_path, 'w'))
                 result['time'] = time() - t0
+                self.__log.info('Training took: %s' % result['time'])
             # call predict
             self.__log.info("Predicting for: %s", name)
             y_pred = model.predict(x_true)
