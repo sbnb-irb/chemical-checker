@@ -612,7 +612,9 @@ class sign3(BaseSignature, DataSignature):
                                                         'savedmodel'))
             # generate prediction, measure error, fit regressor
             eval_err_path = os.path.join(self.model_path, 'adanet_error_eval')
-            if not os.path.isdir(eval_err_path):
+            eval_err_stats = os.path.join(
+                eval_err_path, 'stats_error_eval.pkl')
+            if not os.path.isfile(eval_err_stats):
                 # step1 learn dataset availability to error predictor
                 self._learn_error(predict_fn, self.params['error'],
                                   suffix='error_eval', evaluate=True)
