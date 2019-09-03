@@ -1312,7 +1312,7 @@ class Plot():
         plt.savefig(filename, dpi=100)
         plt.close()
 
-    def sign3_confidences(self, sign3, suffix=None):
+    def sign3_confidences(self, sign3, suffix=None, skip_pred_error=True):
 
         # load data
         self.__log.info("loading data")
@@ -1343,6 +1343,13 @@ class Plot():
         train_inte = intensity[train_idxs]
         self.__log.info("train_inte %s", train_inte.shape)
 
+        if not skip_pred_error:
+            pred_error = sign3.get_h5_dataset('pred_error')
+            test_err = pred_error[test_idxs]
+            self.__log.info("test_err %s", test_err.shape)
+            train_err = pred_error[train_idxs]
+            self.__log.info("train_err %s", train_err.shape)
+
         def quick_gaussian_kde(x, y, limit=10000):
             xl = x[:limit]
             yl = y[:limit]
@@ -1354,7 +1361,7 @@ class Plot():
         # prepare plot space
         sns.set_style("whitegrid")
         fig = plt.figure(figsize=(16, 14))
-        grid = plt.GridSpec(3, 3, hspace=0.2, wspace=0.2)
+        grid = plt.GridSpec(4, 3, hspace=0.2, wspace=0.2)
         color = coord_color(self.dataset_code)
 
         # stddev row
@@ -1431,24 +1438,63 @@ class Plot():
         ax.set_yscale('log')
         ax.set_ylabel('molecules')
 
+        if not skip_pred_error:
+
+            # pred_err row
+            # train test distributions
+            self.__log.info("plotting pred_err distributions")
+            ax = fig.add_subplot(grid[2, 0])
+            sns.distplot(test_err,
+                         ax=ax, kde=False, norm_hist=False, color=color)
+            sns.distplot(train_err,
+                         ax=ax, kde=False, norm_hist=False, color='grey')
+            ax.set_xlabel('pred_err')
+            ax.set_xlim(0)
+            ax.set_yscale('log')
+            ax.set_ylabel('molecules')
+
+            # train mse correlation
+            self.__log.info("plotting pred_err vs log mse")
+            ax = fig.add_subplot(grid[2, 1])
+            x, y, c, order = quick_gaussian_kde(train_err, train_log_mse)
+            ax.scatter(x[order], y[order], c=c[order], s=5, edgecolor='')
+            ax.set_xlabel('pred_err')
+            ax.set_ylabel('log mse')
+            pearson_coeff = stats.pearsonr(train_err, train_log_mse)[0]
+            txt = ax.text(0.85, 0.85, "p: {:.2f}".format(pearson_coeff),
+                          transform=ax.transAxes, size=10)
+
+            # test normalized distributions
+            self.__log.info("plotting pred_err norm distribution")
+            test_err_norm = np.count_nonzero(
+                np.expand_dims(test_err[:100000], axis=1) > train_err, axis=1)
+            test_err_norm = test_err_norm / float(train_err.shape[0])
+            ax = fig.add_subplot(grid[2, 2])
+            sns.distplot(test_err_norm,
+                         ax=ax, kde=False, norm_hist=False, color=color)
+            ax.set_xlabel('test pred_err norm')
+            ax.set_xlim(0)
+            ax.set_yscale('log')
+            ax.set_ylabel('molecules')
+
         # confidence row
         # prediction train test distributions
-        self.__log.info("plotting pred mse distribution")
-        ax = fig.add_subplot(grid[2, 0])
+        self.__log.info("plotting confidence distribution")
+        ax = fig.add_subplot(grid[3, 0])
         sns.distplot(test_confidence,
                      ax=ax, kde=False, norm_hist=False, color=color)
         sns.distplot(train_confidence,
                      ax=ax, kde=False, norm_hist=False, color='grey')
-        ax.set_xlabel('pred log mse')
+        ax.set_xlabel('confidence')
         ax.set_yscale('log')
         ax.set_ylabel('molecules')
 
         # predicted mse vs mse
         self.__log.info("plotting pred vs true mse")
-        ax = fig.add_subplot(grid[2, 1])
+        ax = fig.add_subplot(grid[3, 1])
         x, y, c, order = quick_gaussian_kde(train_confidence, train_log_mse)
         ax.scatter(x[order], y[order], c=c[order], s=5, edgecolor='')
-        ax.set_xlabel('pred log mse')
+        ax.set_xlabel('confidence')
         ax.set_ylabel('log mse')
         pearson_coeff = stats.pearsonr(train_confidence, train_log_mse)[0]
         txt = ax.text(0.85, 0.85, "p: {:.2f}".format(pearson_coeff),
