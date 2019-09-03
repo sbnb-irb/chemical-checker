@@ -787,7 +787,6 @@ class sign3(BaseSignature, DataSignature):
                 delta = time() - t0
                 self.__log.debug('Training took: %s' % delta)
                 pickle.dump(model, open(novelty_model, 'w'))
-            # get scores
 
         self.background_distances("cosine")
         if validations:
@@ -891,6 +890,7 @@ class sign3(BaseSignature, DataSignature):
                 # predict and save
                 results[name][split] = train_predict_save(
                     name, model, x_data, y_data, split, save_path)
+        return results
 
     def adanet_single_spaces(self, adanet_path, traintest_file, suffix):
         """Prediction of adanet using single space signatures.
