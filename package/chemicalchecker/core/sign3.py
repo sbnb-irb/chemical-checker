@@ -80,7 +80,7 @@ class sign3(BaseSignature, DataSignature):
             'adanet_iterations': 1,
             'augmentation': False,
             'initial_architecture': [3, 2],
-            'subnetwork_generator': 'StackDNNGenerator',
+            'subnetwork_generator': 'ExtendDNNGenerator',
             'cpu': params.get('cpu', 4)
         }
         default_err.update(params.get('error', {}))
@@ -337,8 +337,7 @@ class sign3(BaseSignature, DataSignature):
                         # run prediction on subsampled input
                         y_pred = predict_fn({'x': x})['predictions']
                         # save log mean squared error as Y
-                        log_mse = np.log10(np.average(
-                            ((y - y_pred)**2), axis=1))
+                        log_mse = np.log10(np.mean(((y - y_pred)**2), axis=1))
                         hf_out['y'][dst_chunk] = np.expand_dims(log_mse, 1)
 
     def _learn_error(self, predict_fn, adanet_params, reuse=True, suffix=None,
@@ -568,7 +567,7 @@ class sign3(BaseSignature, DataSignature):
 
     def fit(self, sign2_list, sign2_self, sign2_universe=None, sign0=None,
             model_confidence=True, save_correlations=True, model_novelty=True,
-            update_preds=True, validations=True, chunk_size=10000):
+            update_preds=True, validations=True, chunk_size=1000):
         """Fit the model to predict the signature 3.
 
         Args:
@@ -728,7 +727,7 @@ class sign3(BaseSignature, DataSignature):
                         # draw prediction with sub-sampling (dropout)
                         samples = AdaNet.predict(feat, predict_fn,
                                                  subsample_x_only,
-                                                 probs=True, samples=10)
+                                                 probs=True, samples=5)
                         # summarize the predictions as consensus
                         consensus = np.mean(samples, axis=2)
                         results['consensus'][chunk] = consensus
@@ -777,9 +776,9 @@ class sign3(BaseSignature, DataSignature):
             if not os.path.isdir(novelty_path):
                 os.mkdir(novelty_path)
             novelty_model = os.path.join(novelty_path, 'lof.pkl')
+            dataset_inks = sign2_self.keys
             if not os.path.isfile(novelty_model):
                 self.__log.debug('Training novelty score predictor')
-                dataset_inks = sign2_self.keys
                 _, predicted = self.get_vectors(dataset_inks, dataset_name='V')
                 t0 = time()
                 model = LocalOutlierFactor(novelty=True, metric='cosine',
@@ -788,6 +787,7 @@ class sign3(BaseSignature, DataSignature):
                 delta = time() - t0
                 self.__log.debug('Training took: %s' % delta)
                 pickle.dump(model, open(novelty_model, 'w'))
+            # get scores
 
         self.background_distances("cosine")
         if validations:
@@ -799,36 +799,35 @@ class sign3(BaseSignature, DataSignature):
         self.mark_ready()
 
     def predict(self):
+        # TODO decide default prediction mode.
         pass
 
-    def confidence_distributions(self, sign2_self):
+    def confidence_distributions(self, sign2_self, max_sample=50000):
         """Get distributions for confidence scores normalization.
-
-        N.B.: After some testing we realized that training a regressor does not
-        accurately capture indefinite prediction (low intensity). We just
-        save the distributions of stddevs and intensities.
 
         Args:
             sign2_self(sign2): The signature that we are training for.
+            max_sample(int): The maximum number of molecule to sample.
         Returns:
             stddev(np.array): Distribution of standard deviations.
             intensity(np.array): Distribution of intensity.
+            pred_error(np.array): Distribution of predicted errors.
         """
         # get current space inchikeys (limit to 20^4)
         dataset_inks = sign2_self.keys
-        if len(dataset_inks) > 5 * 1e4:
-            dataset_inks = np.random.choice(dataset_inks, int(2 * 1e4))
+        if len(dataset_inks) > max_sample:
+            dataset_inks = np.random.choice(dataset_inks, max_sample)
         # get the features to train the estimator on
         _, stddev = self.get_vectors(dataset_inks, dataset_name='stddev')
         _, intensity = self.get_vectors(dataset_inks, dataset_name='intensity')
         _, pred_error = self.get_vectors(
             dataset_inks, dataset_name='pred_error')
         # also get the predicted and actual sign2
-        _, predicted = self.get_vectors(dataset_inks, dataset_name='V')
         _, consensus = self.get_vectors(dataset_inks, dataset_name='consensus')
+        _, predicted = self.get_vectors(dataset_inks)
         _, actual = sign2_self.get_vectors(dataset_inks)
         # calculate the error (what we want to predict)
-        log_mse = np.log10(np.average(((actual - predicted)**2), axis=1))
+        log_mse = np.log10(np.mean(((actual - predicted)**2), axis=1))
         log_mse_consensus = np.log10(
             np.average(((actual - consensus)**2), axis=1))
         # save data in the confidence model
@@ -897,8 +896,14 @@ class sign3(BaseSignature, DataSignature):
         """Prediction of adanet using single space signatures.
 
         We want to compare the performances of trained adanet to those of
-        predictors based on single space.
-        This is done filling the matrix with zeros in other spaces.
+        predictors based on single space. This is done filling the matrix
+        with NaNs spaces not being evaluated. Also particular combinations
+        can be assesses (e.g. excluding all spaces from level A).
+
+        Args:
+            adanet_path(str): Path to the AdaNet SavedModel.
+            traintest_file(str): Path to the traintest file.
+            suffix(str): Suffix string for the predictor name.
         """
         try:
             from chemicalchecker.tool.adanet import AdaNet
