@@ -870,6 +870,7 @@ class sign3(BaseSignature, DataSignature):
         def train_predict_save(name, model, x_true, y_true, split, save_path):
             result = dict()
             result['time'] = 0.
+            y_true = np.expand_dims(y_true, 1)
             # train and save
             if split == 'train':
                 self.__log.info('Training model: %s' % name[0])
@@ -882,6 +883,7 @@ class sign3(BaseSignature, DataSignature):
             # call predict
             self.__log.info("Predicting for: %s", name[0])
             y_pred = model.predict(x_true)
+            y_pred = np.expand_dims(y_pred, 1)
             self.__log.info("%s Y: %s", name[0], y_pred.shape)
             if y_pred.shape[0] < 4:
                 return
