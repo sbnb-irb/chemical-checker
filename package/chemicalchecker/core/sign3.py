@@ -15,6 +15,7 @@ from functools import partial
 
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.neighbors import LocalOutlierFactor
 
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
@@ -559,7 +560,7 @@ class sign3(BaseSignature, DataSignature):
                     del vectors
 
     def fit(self, sign2_list, sign2_self, sign2_universe=None, sign0=None,
-            model_confidence=True, save_correlations=True,
+            model_confidence=True, save_correlations=True, model_novelty=True,
             update_preds=True, validations=True, chunk_size=10000):
         """Fit the model to predict the signature 3.
 
@@ -733,6 +734,7 @@ class sign3(BaseSignature, DataSignature):
                         stddevs = np.std(samples, axis=2)
                         # just save the average stddev over the components
                         results['stddev'][chunk] = np.mean(stddevs, axis=1)
+
         # normalize scores based on sampled distribution
         distributions = self.confidence_distributions(ds_sign[self.dataset])
         std_dist, int_dist, err_dist = distributions
@@ -761,6 +763,25 @@ class sign3(BaseSignature, DataSignature):
                               * (1 - error_norm))**(1.0 / 3)
                 # the higher the better, clip at .999
                 results['confidence'][chunk] = np.clip(confidence, .0, 0.999)
+
+        # use semi-supervised anomaly detection algorithm to predict novelty
+        if model_novelty:
+            novelty_path = os.path.join(self.model_path, 'novelty')
+            if not os.path.isdir(novelty_path):
+                os.mkdir(novelty_path)
+            novelty_model = os.path.join(novelty_path, 'lof.pkl')
+            if not os.path.isfile(novelty_model):
+                self.__log.debug('Training novelty score predictor')
+                dataset_inks = sign2_self.keys
+                _, predicted = self.get_vectors(dataset_inks, dataset_name='V')
+                t0 = time()
+                model = LocalOutlierFactor(novelty=True, metric='cosine',
+                                           n_jobs=self.params['error']['cpu'])
+                model.fit(predicted)
+                delta = time() - t0
+                self.__log.debug('Training took: %s' % delta)
+                pickle.dump(model, open(novelty_model, 'w'))
+
         self.background_distances("cosine")
         if validations:
             self.validate()
