@@ -1319,7 +1319,7 @@ class Plot():
         error_file = os.path.join(sign3.model_path, 'error.h5')
         with h5py.File(error_file, "r") as hf:
             keys = hf['keys'][:]
-            train_log_mse = hf['log_mse'][:]
+            train_log_mse = hf['log_mse_consensus'][:]
             self.__log.info("train_log_mse %s", train_log_mse.shape)
         test_keys = list(sign3.unique_keys - set(keys))
         test_idxs = np.where(np.isin(sign3.keys, test_keys))[0]
@@ -1449,7 +1449,7 @@ class Plot():
             sns.distplot(train_err,
                          ax=ax, kde=False, norm_hist=False, color='grey')
             ax.set_xlabel('pred_err')
-            ax.set_xlim(0)
+            #ax.set_xlim(0)
             ax.set_yscale('log')
             ax.set_ylabel('molecules')
 
@@ -1473,7 +1473,7 @@ class Plot():
             sns.distplot(test_err_norm,
                          ax=ax, kde=False, norm_hist=False, color=color)
             ax.set_xlabel('test pred_err norm')
-            ax.set_xlim(0)
+            #ax.set_xlim(0)
             ax.set_yscale('log')
             ax.set_ylabel('molecules')
 
