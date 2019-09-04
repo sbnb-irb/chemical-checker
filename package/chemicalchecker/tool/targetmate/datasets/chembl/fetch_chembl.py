@@ -2,6 +2,7 @@
 """
 import os
 import pandas as pd
+from ..universes import load_universe
 from ..utils.chemistry import read_smiles
 
 from chemicalchecker.util import psql
@@ -87,33 +88,33 @@ class ChemblDb:
 
 class Chembl(ChemblDb):
 
-    def __init__(self, output_folder="tmp", universe_model_path=None,
-                 min_actives=10,
-                 inactives_per_active=None,
-                 pchembl_values=[5, 6, 7],
-                 only_pchembl=True,
+    def __init__(self, output_folder="tmp", universe_path=None,
+                 min_actives=10, inactives_per_active=None,
+                 pchembl_values=[5, 6, 7], only_pchembl=True,
                  standardize=True):
         """Query ChEMBL and produce a hierarchy of active/inactive data.
 
         Args:
-            universe_model_path (str): Universe path (default=None)
-            min_actives (int): Minimum number of actives for an training set to be considered (default=10).
-            inactives_per_active (int): Number of inactives to sample for each active. If not specified, no sampling is done (default=None).
-            pchembl_cuts (list): Chosen pchembl scores to divide actives and inactives (default=[5,6,7]).
-            only_pchembl (bool): Keep values without a pchembl score and assume they are positives (default=True).
+            universe_path (str): Universe path (default=None)
+            min_actives (int): Minimum number of actives for an training set to
+                be considered (default=10).
+            inactives_per_active (int): Number of inactives to sample for each
+                active. If not specified, no sampling is done (default=None).
+            pchembl_cuts (list): Chosen pchembl scores to divide actives and
+                inactives (default=[5,6,7]).
+            only_pchembl (bool): Keep values without a pchembl score and assume
+                they are positives (default=True).
             standardize (bool): Standardize molecules (default=True).
         """
         ChemblDb.__init__(self)
         self.output_folder = output_folder
-        if universe_model_path is None:
-            self.universe_model_path = CONFIG["PATH"]["UNIVERSE"]
-        else:
-            self.universe_model_path = universe_model_path
-        if inactives_per_active:
-            from targetmate.universes import load_universe
-            self.universe = load_universe(self.universe_model_path)
-        else:
+        if universe_path is None:
             self.universe = None
+            if inactives_per_active is None:
+                raise ValueError('`universe_path` must be specified when ' +
+                                 '`inactives_per_active` is requested.')
+        else:
+            self.universe = load_universe(universe_path)
         self.min_actives = min_actives
         self.inactives_per_active = inactives_per_active
         self.only_pchembl = only_pchembl
@@ -163,7 +164,8 @@ class Chembl(ChemblDb):
         return self._process_smiles(df)
 
     def get_assay_activities(self, assay_chembl_id):
-        df = super().get_assay_activities(chembl_target_id, only_pchembl=self.only_pchembl)
+        df = super().get_assay_activities(
+            assay_chembl_id, only_pchembl=self.only_pchembl)
         return self._process_smiles(df)
 
     def no_universe_predict(self, actives, inactives):
@@ -185,11 +187,12 @@ class Chembl(ChemblDb):
             dfi = df[df["pchembl_value"] < -666]
         actives = self._to_set(dfa)
         inactives = self._to_set(dfi)
-        if not self.universe:
+        if self.universe is None:
             results = self.no_universe_predict(actives, inactives)
         else:
-            results = self.universe.predict(
-                actives, inactives, self.inactives_per_active, self.min_actives)
+            results = self.universe.predict(actives, inactives,
+                                            self.inactives_per_active,
+                                            self.min_actives)
         if not results:
             return None
         actives, inactives, putative_inactives = results
@@ -223,8 +226,8 @@ class Chembl(ChemblDb):
             df_ = self.get_activities(df, pchembl_value=pchembl_value)
             if df_ is None:
                 continue
-            to_write += [(df_, os.path.join(folder,
-                                            self.pchembl_filename(pchembl_value)))]
+            to_write += [(df_, os.path.join(
+                folder, self.pchembl_filename(pchembl_value)))]
             done += [pchembl_value]
         if not to_write:
             return done
@@ -265,8 +268,8 @@ class Chembl(ChemblDb):
                     sumr = [[target_chembl_id, assay_type, assay_id]]
                     sump = self.write_every_pchembl(df_b, folder_b)
                     summary = self._summary_update(summary, sumr, sump)
-        summary = pd.DataFrame(
-            summary, columns=["target_id", "assay_type", "assay_id", "pchembl_value"])
+        col_names = ["target_id", "assay_type", "assay_id", "pchembl_value"]
+        summary = pd.DataFrame(summary, columns=col_names)
         summary.to_csv(os.path.join(self.output_folder, "summary.csv"),
                        sep="\t", na_rep="NA", header=True, index=False)
 
