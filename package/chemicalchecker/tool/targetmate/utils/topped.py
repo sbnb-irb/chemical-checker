@@ -1,18 +1,20 @@
-from sklearn.base import clone
-from sklearn.model_selection import StratifiedShuffleSplit
-import math
 import numpy as np
 from scipy.stats import mode
+from sklearn.base import clone
+from sklearn.model_selection import ShuffleSplit, StratifiedShuffleSplit
+
 
 class ToppedClassifier:
 
-    def __init__(self, clf, max_samples = 10000, max_ensemble_size = 30, chance = 0.95):
+    def __init__(self, clf, max_samples=10000, max_ensemble_size=30,
+                 chance=0.95):
         """Top the training of a classifier to a limited number of samples.
-        
+
         Args:
             clf: A classifier instance.
             max_samples (int): Maximum number of samples (default=10000).
-            max_ensemble_size (int): Maximum size of the ensemble, i.e. maximum number or runs (default=30).
+            max_ensemble_size (int): Maximum size of the ensemble,
+                i.e. maximum number or runs (default=30).
             chance (float): Chance of seing the sample (default = 0.95).
         """
         self.max_samples = max_samples
@@ -33,9 +35,10 @@ class ToppedClassifier:
             self.ensemble_size = 1
         else:
             self.samples = self.max_samples
-            self.ensemble_size = int(np.ceil(self.get_resamp(self.samples, N, self.chance)))
+            self.ensemble_size = int(
+                np.ceil(self.get_resamp(self.samples, N, self.chance)))
 
-    def fit(self, X, y = None):
+    def fit(self, X, y=None):
         self.calc_ensemble_size(X, y)
         if self.ensemble_size == 1:
             clf = clone(self.clf)
@@ -46,9 +49,11 @@ class ToppedClassifier:
             self.clfs += [clf]
         else:
             if y is None:
-                splits = ShuffleSplit(n_splits = self.ensemble_size, train_size = self.samples)
+                splits = ShuffleSplit(
+                    n_splits=self.ensemble_size, train_size=self.samples)
             else:
-                splits = StratifiedShuffleSplit(n_splits = self.ensemble_size, train_size = self.samples)
+                splits = StratifiedShuffleSplit(
+                    n_splits=self.ensemble_size, train_size=self.samples)
             for train_idxs, _ in splits.split(X, y):
                 clf = clone(self.clf)
                 X_train = X[train_idxs]
@@ -63,13 +68,12 @@ class ToppedClassifier:
         y = np.zeros((X.shape[0], len(self.clfs)))
         for j, clf in enumerate(self.clfs):
             y[:, j] = clf.predict(X)
-        y = mode(y, axis = 1)[0].ravel()
+        y = mode(y, axis=1)[0].ravel()
         return y
 
     def predict_proba(self, X):
         y = np.zeros((X.shape[0], len(self.clfs)))
         for j, clf in enumerate(self.clfs):
             y[:, j] = clf.predict_proba(X)[:, 1]
-        y = np.mean(y, axis = 1)
+        y = np.mean(y, axis=1)
         return y
-
