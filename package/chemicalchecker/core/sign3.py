@@ -12,7 +12,6 @@ import pandas as pd
 from tqdm import tqdm
 from time import time
 from functools import partial
-from operator import itemgetter
 
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
@@ -776,40 +775,7 @@ class sign3(BaseSignature, DataSignature):
 
         # use semi-supervised anomaly detection algorithm to predict novelty
         if model_novelty:
-            novelty_path = os.path.join(self.model_path, 'novelty')
-            if not os.path.isdir(novelty_path):
-                os.mkdir(novelty_path)
-            novelty_model = os.path.join(novelty_path, 'lof.pkl')
-            s2_inks = sign2_self.keys
-            if not os.path.isfile(novelty_model):
-                self.__log.debug('Training novelty score predictor')
-                # fit on molecules available in sign2
-                _, predicted = self.get_vectors(s2_inks, dataset_name='V')
-                t0 = time()
-                model = LocalOutlierFactor(novelty=True, metric='cosine',
-                                           n_jobs=self.params['error']['cpu'])
-                model.fit(predicted)
-                delta = time() - t0
-                self.__log.debug('Training took: %s' % delta)
-                # serialize for later
-                pickle.dump(model, open(novelty_model, 'w'))
-                # get scores for known molecules and pair with indexes
-                s2_idxs = np.argwhere(np.isin(s2_inks, self.keys,
-                                              assume_unique=True))
-                s2_novelty = model.negative_outlier_factor_
-                assert(s2_idxs.shape[0] == s2_novelty.shape[0])
-                # predict scores for other molecules and pair with indexes
-                s3_idxs = np.argwhere(~np.isin(s2_inks, self.keys,
-                                               assume_unique=True))
-                s3_inks = itemgetter(*s3_idxs)(self.keys)
-                s3_pred_sign = self.get_vectors(s3_inks)
-                s3_novelty = model.score_samples(s3_pred_sign)
-                assert(s3_inks.shape[0] == s3_novelty.shape[0])
-                ordered_novelty = np.array(sorted(
-                    zip(s2_idxs, s2_novelty) + zip(s3_idxs, s3_novelty)))[:, 1]
-                with h5py.File(self.data_path, "r+") as results:
-                    safe_create(results, 'novelty',
-                                data=ordered_novelty, dtype=np.float32)
+            self.model_novelty(self.sign2_self)
 
         self.background_distances("cosine")
         if validations:
@@ -819,6 +785,55 @@ class sign3(BaseSignature, DataSignature):
         if sign0 is not None:
             self.fit_sign0(sign0)
         self.mark_ready()
+
+    def model_novelty(self, sign2_self, retrain=False):
+        novelty_path = os.path.join(self.model_path, 'novelty')
+        if not os.path.isdir(novelty_path):
+            os.mkdir(novelty_path)
+        novelty_model = os.path.join(novelty_path, 'lof.pkl')
+        s2_inks = sign2_self.keys
+        if not os.path.isfile(novelty_model) or retrain:
+            self.__log.debug('Training novelty score predictor')
+            # fit on molecules available in sign2
+            _, predicted = self.get_vectors(s2_inks, dataset_name='V')
+            t0 = time()
+            model = LocalOutlierFactor(novelty=True, metric='cosine',
+                                       n_jobs=self.params['error']['cpu'])
+            model.fit(predicted)
+            delta = time() - t0
+            self.__log.debug('Training took: %s' % delta)
+            # serialize for later
+            pickle.dump(model, open(novelty_model, 'w'))
+            # get scores for known molecules and pair with indexes
+            s2_idxs = np.argwhere(np.isin(s2_inks, self.keys,
+                                          assume_unique=True))
+            s2_novelty = model.negative_outlier_factor_
+            s0_outlier = [0] * s2_novelty.shape[0]
+            assert(s2_idxs.shape[0] == s2_novelty.shape[0])
+            # predict scores for other molecules and pair with indexes
+            s3_inks = sorted(self.unique_keys - set(s2_inks))
+            s3_idxs = np.argwhere(np.isin(s3_inks, self.keys,
+                                          assume_unique=True))
+            _, s3_pred_sign = self.get_vectors(s3_inks)
+            s3_novelty = model.score_samples(s3_pred_sign)
+            s3_outlier = model.predict(s3_pred_sign)
+            assert(len(s3_inks) == s3_novelty.shape[0])
+            ordered_scores = np.array(sorted(
+                zip(s2_idxs, s2_novelty, s0_outlier) +
+                zip(s3_idxs, s3_novelty, s3_outlier)))
+            ordered_novelty = ordered_scores[:, 1]
+            ordered_outlier = ordered_scores[:, 2]
+            with h5py.File(self.data_path, "r+") as results:
+                if 'novelty' not in results:
+                    results.create_dataset('novelty', data=ordered_novelty,
+                                           dtype=np.float32)
+                else:
+                    results['novelty'] = ordered_novelty
+                if 'outlier' not in results:
+                    results.create_dataset('outlier', data=ordered_outlier,
+                                           dtype=np.float32)
+                else:
+                    results['outlier'] = ordered_outlier
 
     def predict(self):
         # TODO decide default prediction mode.
