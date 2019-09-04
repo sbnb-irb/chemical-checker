@@ -1,40 +1,21 @@
 """Get target data from a local PostGreSQL ChEMBL database.
 """
-import psycopg2
-from targetmate.utils.chemistry import read_smiles
-import pandas as pd
 import os
-from targetmate import CONFIG
+import pandas as pd
+from ..utils.chemistry import read_smiles
+
+from chemicalchecker.util import psql
+
 
 class ChemblDb:
 
-    def __init__(self):
+    def __init__(self, dbname='chembl_25'):
         """Class to fetch data from a local ChEMBL database.
 
         Args:
-            dbname (str): ChEMBL database name. If none specified, the database in the config.json file is used (default=None).
-            host (str): Host (default=None).
-            port (str): Port (default=None).
-            user (str): User name (default=None).
-            password (str): Password (default=None).
+            dbname (str): ChEMBL database name (default='chembl_25').
         """
-        self.dbname   = CONFIG["DB"]["dbname"]
-        self.host     = CONFIG["DB"]["host"]
-        self.port     = CONFIG["DB"]["port"]
-        self.user     = CONFIG["DB"]["user"]
-        self.password = CONFIG["DB"]["password"]
-
-    def connect(self):
-        return psycopg2.connect(dbname = self.dbname, user = self.user, password = self.password, host = self.host, port = self.port)
-
-    def query(self, query):
-        con = self.connect()
-        con.set_isolation_level(0)
-        cur = con.cursor()
-        cur.execute(query)
-        R = cur.fetchall()
-        con.close()
-        return R
+        self.dbname = dbname
 
     def get_universe(self):
         query = '''
@@ -45,66 +26,73 @@ class ChemblDb:
                     AND s.canonical_smiles IS NOT NULL
                     AND m.chembl_id IS NOT NULL;
         '''
-        return self.query(query)
+        return psql.qstring(query, self.dbname)
 
     def get_targets(self):
         query = '''
-        SELECT chembl_id, target_type, pref_name, tax_id, organism
-            FROM target_dictionary;
+            SELECT chembl_id, target_type, pref_name, tax_id, organism
+                FROM target_dictionary;
         '''
-        R = self.query(query)
-        return pd.DataFrame(R, columns = ["target_id", "target_type", "pref_name", "tax_id", "organism"])
-        
+        results = psql.qstring(query, self.dbname)
+        col_names = ["target_id", "target_type",
+                     "pref_name", "tax_id", "organism"]
+        return pd.DataFrame(results, columns=col_names)
+
     def _get_activities(self, chembl_ids, entity, only_pchembl):
         query = '''
-        SELECT
-            a.chembl_id,
-            a.assay_type,
-            t.chembl_id,
-            m.chembl_id,
-            s.canonical_smiles,
-            act.pchembl_value
-        FROM
-            molecule_dictionary m,
-            compound_structures s,
-            activities act,
-            assays a,
-            target_dictionary t
-        WHERE
-            m.molregno = s.molregno
-            AND m.molregno = act.molregno
-            AND act.assay_id = a.assay_id
-            AND a.tid = t.tid
-            AND s.canonical_smiles IS NOT NULL
+            SELECT
+                a.chembl_id,
+                a.assay_type,
+                t.chembl_id,
+                m.chembl_id,
+                s.canonical_smiles,
+                act.pchembl_value
+            FROM
+                molecule_dictionary m,
+                compound_structures s,
+                activities act,
+                assays a,
+                target_dictionary t
+            WHERE
+                m.molregno = s.molregno
+                AND m.molregno = act.molregno
+                AND act.assay_id = a.assay_id
+                AND a.tid = t.tid
+                AND s.canonical_smiles IS NOT NULL
         '''
         if only_pchembl:
             query += " AND act.pchembl_value IS NOT NULL"
         if type(chembl_ids) is str:
             query += " AND %s.chembl_id = '%s'" % (entity, chembl_ids)
         else:
-            s = ",".join(["'%s'" % t for t in chembl_ids])
-            query += " AND %s.chembl_id IN (%s)" % (entity, s)
-        R = self.query(query)
-        return pd.DataFrame(R, columns = ["assay_id", "assay_type", "target_id", "molecule_id", "canonical_smiles", "pchembl_value"])
+            chembl_ids_list = ",".join(["'%s'" % t for t in chembl_ids])
+            query += " AND %s.chembl_id IN (%s)" % (entity, chembl_ids_list)
+        results = psql.qstring(query, self.dbname)
+        col_names = ["assay_id", "assay_type", "target_id", "molecule_id",
+                     "canonical_smiles", "pchembl_value"]
+        return pd.DataFrame(results, columns=col_names)
 
-    def get_molecule_activities(self, molecule_chembl_ids, only_pchembl = False):
-        return self._get_activities(molecule_chembl_ids, entity = "m", only_pchembl = only_pchembl)
+    def get_molecule_activities(self, molecule_chembl_ids, only_pchembl=False):
+        return self._get_activities(molecule_chembl_ids, entity="m",
+                                    only_pchembl=only_pchembl)
 
-    def get_target_activities(self, target_chembl_ids, only_pchembl = False):
-        return self._get_activities(target_chembl_ids, entity = "t", only_pchembl = only_pchembl)
+    def get_target_activities(self, target_chembl_ids, only_pchembl=False):
+        return self._get_activities(target_chembl_ids, entity="t",
+                                    only_pchembl=only_pchembl)
 
-    def get_assay_activities(self, assay_chembl_ids, only_pchembl = False):
-        return self._get_activities(assay_chembl_ids, entity = "a", only_pchembl = only_pchembl)
+    def get_assay_activities(self, assay_chembl_ids, only_pchembl=False):
+        return self._get_activities(assay_chembl_ids, entity="a",
+                                    only_pchembl=only_pchembl)
 
 
 class Chembl(ChemblDb):
 
-    def __init__(self, output_folder = "tmp", universe_model_path = None,
-                 min_actives = 10,
-                 inactives_per_active = None,
-                 pchembl_values = [5, 6, 7],
-                 only_pchembl = True,
-                 standardize = True):
+    def __init__(self, output_folder="tmp", universe_model_path=None,
+                 min_actives=10,
+                 inactives_per_active=None,
+                 pchembl_values=[5, 6, 7],
+                 only_pchembl=True,
+                 standardize=True):
         """Query ChEMBL and produce a hierarchy of active/inactive data.
 
         Args:
@@ -129,7 +117,8 @@ class Chembl(ChemblDb):
         self.min_actives = min_actives
         self.inactives_per_active = inactives_per_active
         self.only_pchembl = only_pchembl
-        self.pchembl_values = sorted(set([round(x, 2) for x in pchembl_values]))
+        self.pchembl_values = sorted(
+            set([round(x, 2) for x in pchembl_values]))
         if not self.only_pchembl:
             self.pchembl_values += [None]
         self.standardize = standardize
@@ -140,20 +129,23 @@ class Chembl(ChemblDb):
         smiles = []
         idxs = []
         for idx, smi in df["canonical_smiles"].items():
-            smi = read_smiles(smi, standardize = self.standardize)
-            if not smi: continue
+            smi = read_smiles(smi, standardize=self.standardize)
+            if not smi:
+                continue
             inchikeys += [smi[0]]
             smiles += [smi[1]]
             idxs += [idx]
         df = df.loc[idxs]
         df["inchikey"] = inchikeys
         df["smiles"] = smiles
-        df = df[["assay_id", "assay_type", "target_id", "molecule_id", "smiles", "inchikey", "pchembl_value"]]
+        df = df[["assay_id", "assay_type", "target_id",
+                 "molecule_id", "smiles", "inchikey", "pchembl_value"]]
         return df
 
     @staticmethod
     def _to_set(df):
-        values = [tuple(x) for x in df[["smiles", "molecule_id", "inchikey"]].values]
+        values = [tuple(x)
+                  for x in df[["smiles", "molecule_id", "inchikey"]].values]
         d = {}
         for v in values:
             d[v[-1]] = v
@@ -161,37 +153,43 @@ class Chembl(ChemblDb):
         return values
 
     def get_molecule_activities(self, molecule_chembl_ids):
-        df = super().get_molecule_activities(molecule_chembl_ids, only_pchembl = self.only_pchembl)
+        df = super().get_molecule_activities(
+            molecule_chembl_ids, only_pchembl=self.only_pchembl)
         return self._process_smiles(df)
 
     def get_target_activities(self, target_chembl_ids):
-        df = super().get_target_activities(target_chembl_ids, only_pchembl = self.only_pchembl)
+        df = super().get_target_activities(
+            target_chembl_ids, only_pchembl=self.only_pchembl)
         return self._process_smiles(df)
-        
+
     def get_assay_activities(self, assay_chembl_id):
-        df = super().get_assay_activities(chembl_target_id, only_pchembl = self.only_pchembl)
+        df = super().get_assay_activities(chembl_target_id, only_pchembl=self.only_pchembl)
         return self._process_smiles(df)
 
     def no_universe_predict(self, actives, inactives):
-        common_iks = set([smi[-1] for smi in actives]).intersection([smi[-1] for smi in inactives])
+        common_iks = set([smi[-1] for smi in actives]
+                         ).intersection([smi[-1] for smi in inactives])
         actives = set([smi for smi in actives if smi[-1] not in common_iks])
-        if len(actives) < self.min_actives: return None
-        inactives = set([smi for smi in inactives if smi[-1] not in common_iks])
+        if len(actives) < self.min_actives:
+            return None
+        inactives = set(
+            [smi for smi in inactives if smi[-1] not in common_iks])
         return actives, inactives, set()
 
-    def get_activities(self, df, pchembl_value = None):
+    def get_activities(self, df, pchembl_value=None):
         if pchembl_value:
             dfa = df[df["pchembl_value"] >= pchembl_value]
-            dfi = df[df["pchembl_value"]  < pchembl_value]
+            dfi = df[df["pchembl_value"] < pchembl_value]
         else:
             dfa = df
-            dfi = df[df["pchembl_value"]  < -666]
-        actives   = self._to_set(dfa)
+            dfi = df[df["pchembl_value"] < -666]
+        actives = self._to_set(dfa)
         inactives = self._to_set(dfi)
         if not self.universe:
             results = self.no_universe_predict(actives, inactives)
         else:
-            results = self.universe.predict(actives, inactives, self.inactives_per_active, self.min_actives)
+            results = self.universe.predict(
+                actives, inactives, self.inactives_per_active, self.min_actives)
         if not results:
             return None
         actives, inactives, putative_inactives = results
@@ -202,29 +200,31 @@ class Chembl(ChemblDb):
             R += [(-1, r[0], r[1], r[2])]
         for r in putative_inactives:
             R += [(0, r[0], r[1], r[2])]
-        df_ = pd.DataFrame(R, columns = ["activity", "smiles", "id", "inchikey"])
-        df_ = df_.sample(frac=1).reset_index(drop = True)
+        df_ = pd.DataFrame(R, columns=["activity", "smiles", "id", "inchikey"])
+        df_ = df_.sample(frac=1).reset_index(drop=True)
         return df_
 
     @staticmethod
     def to_csv(df, file_name):
         file_name = os.path.abspath(file_name)
-        df.to_csv(file_name, sep = "\t", header = False, index = False)
+        df.to_csv(file_name, sep="\t", header=False, index=False)
 
     @staticmethod
     def pchembl_filename(pchembl_value):
         if not pchembl_value:
             return "pchembl_NA.csv"
         else:
-            return "pchembl_%d.csv" % (pchembl_value*100)
+            return "pchembl_%d.csv" % (pchembl_value * 100)
 
     def write_every_pchembl(self, df, folder):
         to_write = []
-        done  = []
+        done = []
         for pchembl_value in self.pchembl_values:
-            df_ = self.get_activities(df, pchembl_value = pchembl_value)
-            if df_ is None: continue
-            to_write += [(df_, os.path.join(folder, self.pchembl_filename(pchembl_value)))]
+            df_ = self.get_activities(df, pchembl_value=pchembl_value)
+            if df_ is None:
+                continue
+            to_write += [(df_, os.path.join(folder,
+                                            self.pchembl_filename(pchembl_value)))]
             done += [pchembl_value]
         if not to_write:
             return done
@@ -265,8 +265,10 @@ class Chembl(ChemblDb):
                     sumr = [[target_chembl_id, assay_type, assay_id]]
                     sump = self.write_every_pchembl(df_b, folder_b)
                     summary = self._summary_update(summary, sumr, sump)
-        summary = pd.DataFrame(summary, columns = ["target_id", "assay_type", "assay_id", "pchembl_value"])
-        summary.to_csv(os.path.join(self.output_folder, "summary.csv"), sep = "\t", na_rep = "NA", header = True, index = False)
+        summary = pd.DataFrame(
+            summary, columns=["target_id", "assay_type", "assay_id", "pchembl_value"])
+        summary.to_csv(os.path.join(self.output_folder, "summary.csv"),
+                       sep="\t", na_rep="NA", header=True, index=False)
 
 
 if __name__ == "__main__":
