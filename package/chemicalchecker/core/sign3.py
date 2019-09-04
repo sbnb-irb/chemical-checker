@@ -320,16 +320,18 @@ class sign3(BaseSignature, DataSignature):
             hf_out.create_dataset('y', (feat_shape[0], 1), dtype=np.float32)
             # perform sampling for each input and measure distance
             with h5py.File(sign3_train_file, 'r') as hf_in:
+                offset = 0
                 for i in tqdm(range(0, self_len, chunk_size)):
                     # source input is repeated sampling times
                     for r in range(sampling):
                         # last chunk has different size
-                        if i + chunk_size > hf_in['x'].shape[0]:
-                            chunk_size = hf_in['x'].shape[0] - i
-                        src_chunk = slice(i, i + chunk_size)
+                        csize = chunk_size
+                        if i + csize > hf_in['x'].shape[0]:
+                            csize = hf_in['x'].shape[0] - i
+                        src_chunk = slice(i, i + csize)
                         # destination chunk is shifted by input length
-                        dst_chunk = slice(i + (i + r * chunk_size), i +
-                                          chunk_size + (i + r * chunk_size))
+                        dst_chunk = slice(offset + (r * csize),
+                                          offset + csize + (r * csize))
                         x, y = subsample(hf_in['x'][src_chunk],
                                          hf_in['y'][src_chunk])
                         presence = ~np.isnan(x[:, 0::128])
@@ -340,6 +342,8 @@ class sign3(BaseSignature, DataSignature):
                         # save log mean squared error as Y
                         log_mse = np.log10(np.mean(((y - y_pred)**2), axis=1))
                         hf_out['y'][dst_chunk] = np.expand_dims(log_mse, 1)
+                    offset = dst_chunk.stop
+                assert(offset == feat_shape[0])
 
     def _learn_error(self, predict_fn, adanet_params, reuse=True, suffix=None,
                      evaluate=True):
@@ -853,7 +857,8 @@ class sign3(BaseSignature, DataSignature):
         # get current space inchikeys (limit to 20^4)
         dataset_inks = sign2_self.keys
         if len(dataset_inks) > max_sample:
-            dataset_inks = np.random.choice(dataset_inks, max_sample)
+            dataset_inks = np.random.choice(dataset_inks, max_sample,
+                                            replace=False)
         # get the features to train the estimator on
         _, stddev = self.get_vectors(dataset_inks, dataset_name='stddev')
         _, intensity = self.get_vectors(dataset_inks, dataset_name='intensity')
