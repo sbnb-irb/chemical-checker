@@ -729,8 +729,11 @@ class sign3(BaseSignature, DataSignature):
                     if model_confidence and update_preds:
                         # compute predicted error
                         support = ~np.isnan(feat[:, 0::128])
-                        pred_error = AdaNet.predict(support, error_pred_fn)
-                        results['pred_error'][chunk] = pred_error[0]
+                        pred_error = AdaNet.predict(support, error_pred_fn,
+                                                    subsample_coverage,
+                                                    probs=True, samples=5)
+                        results['pred_error'][chunk] = np.mean(
+                            pred_error, axis=2)
                         # draw prediction with sub-sampling (dropout)
                         samples = AdaNet.predict(feat, predict_fn,
                                                  subsample_x_only,
@@ -1225,3 +1228,30 @@ def subsample(tensor, label, prob_original=0.05):
     # make masked dataset NaN
     new_data[~mask] = np.nan
     return new_data, label
+
+
+def subsample_coverage(tensor, prob_original=0.05):
+    """Function to subsample stacked data."""
+    # it is safe to make a local copy of the input matrix
+    new_data = np.copy(tensor)
+    # we will have a masking matrix at the end
+    mask = np.zeros_like(new_data).astype(bool)
+    for idx, presence in enumerate(new_data):
+        # low probability of keeping the original sample
+        if np.random.rand() < prob_original:
+            presence_add = presence
+        else:
+            # present datasets
+            present_idxs = np.argwhere(presence).flatten()
+            # how many dataset in this subsampling?
+            max_add = present_idxs.shape[0]
+            n_to_add = np.random.choice(max_add) + 1
+            # which ones?
+            to_add = np.random.choice(
+                present_idxs, n_to_add, replace=False)
+            # dataset mask
+            presence_add = np.zeros(presence.shape).astype(bool)
+            presence_add[to_add] = True
+        # from dataset mask to signature mask
+        mask[idx] = presence_add
+    return mask
