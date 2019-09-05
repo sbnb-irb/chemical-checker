@@ -1320,6 +1320,7 @@ class Plot():
         with h5py.File(error_file, "r") as hf:
             keys = hf['keys'][:]
             train_log_mse = hf['log_mse_consensus'][:]
+            train_log_mse_real = hf['log_mse'][:]
             self.__log.info("train_log_mse %s", train_log_mse.shape)
         test_keys = list(sign3.unique_keys - set(keys))
         test_idxs = np.where(np.isin(sign3.keys, test_keys))[0]
@@ -1383,7 +1384,7 @@ class Plot():
         x, y, c, order = quick_gaussian_kde(train_std, train_log_mse)
         ax.scatter(x[order], y[order], c=c[order], s=5, edgecolor='')
         ax.set_xlabel('stddev')
-        ax.set_ylabel('log mse')
+        ax.set_ylabel('consensus log mse')
         pearson_coeff = stats.pearsonr(train_std, train_log_mse)[0]
         txt = ax.text(0.85, 0.85, "p: {:.2f}".format(pearson_coeff),
                       transform=ax.transAxes, size=10)
@@ -1420,7 +1421,7 @@ class Plot():
         x, y, c, order = quick_gaussian_kde(train_inte, train_log_mse)
         ax.scatter(x[order], y[order], c=c[order], s=5, edgecolor='')
         ax.set_xlabel('intensity')
-        ax.set_ylabel('log mse')
+        ax.set_ylabel('consensus log mse')
         pearson_coeff = stats.pearsonr(train_inte, train_log_mse)[0]
         txt = ax.text(0.85, 0.85, "p: {:.2f}".format(pearson_coeff),
                       transform=ax.transAxes, size=10)
@@ -1449,18 +1450,18 @@ class Plot():
             sns.distplot(train_err,
                          ax=ax, kde=False, norm_hist=False, color='grey')
             ax.set_xlabel('pred_err')
-            #ax.set_xlim(0)
+            # ax.set_xlim(0)
             ax.set_yscale('log')
             ax.set_ylabel('molecules')
 
             # train mse correlation
             self.__log.info("plotting pred_err vs log mse")
             ax = fig.add_subplot(grid[2, 1])
-            x, y, c, order = quick_gaussian_kde(train_err, train_log_mse)
+            x, y, c, order = quick_gaussian_kde(train_err, train_log_mse_real)
             ax.scatter(x[order], y[order], c=c[order], s=5, edgecolor='')
             ax.set_xlabel('pred_err')
             ax.set_ylabel('log mse')
-            pearson_coeff = stats.pearsonr(train_err, train_log_mse)[0]
+            pearson_coeff = stats.pearsonr(train_err, train_log_mse_real)[0]
             txt = ax.text(0.85, 0.85, "p: {:.2f}".format(pearson_coeff),
                           transform=ax.transAxes, size=10)
 
@@ -1473,7 +1474,7 @@ class Plot():
             sns.distplot(test_err_norm,
                          ax=ax, kde=False, norm_hist=False, color=color)
             ax.set_xlabel('test pred_err norm')
-            #ax.set_xlim(0)
+            # ax.set_xlim(0)
             ax.set_yscale('log')
             ax.set_ylabel('molecules')
 
@@ -1533,5 +1534,37 @@ class Plot():
         ax.set_xticks([])
         ax.set_xlabel('')
         filename = os.path.join(self.plot_path, "feat_corr_%s.png" % coord)
+        plt.savefig(filename, dpi=100)
+        plt.close()
+
+    def pred_error(self, sign3, sign2_universe_presence):
+        from chemicalchecker.tool.adanet import AdaNet
+        with h5py.File(sign2_universe_presence, 'r') as hf:
+            presence = hf['V'][:]
+        final_err_path = os.path.join(sign3.model_path, 'adanet_error_final')
+        error_pred_fn = AdaNet.predict_fn(
+            os.path.join(final_err_path, 'savedmodel'))
+        pred_error = error_pred_fn({'x': presence})['predictions']
+        datasets = [a + b for a in 'ABCDE' for b in '12345']
+        df = pd.DataFrame(presence.astype(bool), columns=datasets)
+        df['pred_error'] = pred_error
+
+        sns.set_style("whitegrid")
+        fig, (ax1, ax2) = plt.subplots(2, 1, sharey=True, sharex=False,
+                                       figsize=(10, 10), dpi=100)
+
+        known_df = df[df[sign3.dataset[:2]] == True]
+        ax1.boxplot([known_df[known_df[ds] == True].pred_error.to_list()
+                     for ds in datasets], labels=datasets)
+        ax1.set_ylabel('pred log MSE')
+        ax1.set_xlabel('with sign2 (%s)' % len(known_df))
+        unkno_df = df[df[sign3.dataset[:2]] == False]
+        ax2.boxplot([unkno_df[unkno_df[ds] == True].pred_error.to_list()
+                     for ds in datasets], labels=datasets)
+        ax2.set_ylabel('pred log MSE')
+        ax2.set_xlabel('w/o  sign2 (%s)' % len(unkno_df))
+
+        filename = os.path.join(self.plot_path,
+                                "pred_error_%s.png" % sign3.dataset[:2])
         plt.savefig(filename, dpi=100)
         plt.close()
