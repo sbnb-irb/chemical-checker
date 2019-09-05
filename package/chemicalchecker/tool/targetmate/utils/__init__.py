@@ -1,1 +1,1 @@
-from targetmate.utils.topped import ToppedClassifier
+from .topped import ToppedClassifier
