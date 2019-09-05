@@ -790,12 +790,13 @@ class sign3(BaseSignature, DataSignature):
             self.fit_sign0(sign0)
         self.mark_ready()
 
-    def model_novelty(self, sign2_self, retrain=False):
+    def model_novelty(self, sign2_self, retrain=False, update_sign3=True):
         novelty_path = os.path.join(self.model_path, 'novelty')
         if not os.path.isdir(novelty_path):
             os.mkdir(novelty_path)
         novelty_model = os.path.join(novelty_path, 'lof.pkl')
         s2_inks = sign2_self.keys
+        model = None
         if not os.path.isfile(novelty_model) or retrain:
             self.__log.debug('Training novelty score predictor')
             # fit on molecules available in sign2
@@ -808,6 +809,9 @@ class sign3(BaseSignature, DataSignature):
             self.__log.debug('Training took: %s' % delta)
             # serialize for later
             pickle.dump(model, open(novelty_model, 'w'))
+        if update_sign3:
+            if model is None:
+                model = pickle.load(open(novelty_model, 'r'))
             # get scores for known molecules and pair with indexes
             s2_idxs = np.argwhere(np.isin(s2_inks, self.keys,
                                           assume_unique=True))
