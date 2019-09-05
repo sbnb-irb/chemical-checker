@@ -1,38 +1,38 @@
 # Chemical Checker
 
-The Chemical Checker (CC) is a resource of small molecule signatures. In the CC, the realms of chemoinformatics and bioinformatics are unified and compounds are described from multiple viewpoints, spanning every aspect of the drug discovery process, from chemical properties to clinical outcomes.
+The Chemical Checker (CC) is a resource of small molecule signatures. In the CC, compounds are described from multiple viewpoints, spanning every aspect of the drug discovery process, from chemical properties to clinical outcomes.
 
 * For more information about this repositiory, please refer to our [Wiki page](http://gitlab.sbnb.org/project-specific-repositories/chemical_checker/wikis/home).
 * For a quick exploration of the resource, please visit the [CC web app](http://chemicalchecker.org).
-* For full API documentation of the python package [API Doc](http://project-specific-repositories.sbnb-pages.irbbarcelona.pcb.ub.es/chemical_checker)
-* Concepts and methods are best described in the original CC publication, [Duran-Frigola et al. 2019](https://www.dropbox.com/s/x2rqszfdfpqdqdy/duranfrigola_etal_ms_current.pdf?dl=0).
-
-## Working from a laptop
-
-1. Check that you are connected to the local network
-
-        ping coelho.irb.pcb.ub.es
-
-2. Mount the remote filesystem
-
-        sudo mkdir /aloy
-        chown <laptop_username>:<laptop_username> /aloy
-        sshfs <sbnb_username>@pac-one-head.irb.pcb.ub.es:/aloy /aloy
-
-You can unmount the filesystem with:
-
-        fusermount -u /aloy
-
+* For full documentation of the python package, please see the [API doc](http://project-specific-repositories.sbnb-pages.irbbarcelona.pcb.ub.es/chemical_checker).
+* Concepts and methods are best described in the original CC publication, [Duran-Frigola et al. 2019](https://biorxiv.org/content/10.1101/745703v1).
 
 ## Quick start
 
 To fetch signatures (without fancy CC package capabilities) the package can be installed directly via `pip` from our local PyPI server:
 
-```shell
+```bash
 sudo pip install --index http://coelho.irbbarcelona.pcb.ub.es:3141/root/dev/ --trusted-host coelho.irbbarcelona.pcb.ub.es chemicalchecker
 ```
 
 _N.B. Only bare minimum dependencies are installed along with the package_
+
+## Working from a laptop
+
+Firtst, check that you are connected to the SB&NB local network:
+```bash
+ping coelho.irb.pcb.ub.es
+```
+Then, mount the remote filesystem
+```bash
+sudo mkdir /aloy
+chown <laptop_username>:<laptop_username> /aloy
+sshfs <sbnb_username>@pac-one-head.irb.pcb.ub.es:/aloy /aloy
+```
+You can unmount the filesystem with:
+```bash
+fusermount -u /aloy
+```
 
 ## Complete Installation 
 
