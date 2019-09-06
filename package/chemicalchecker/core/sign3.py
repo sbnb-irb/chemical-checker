@@ -658,8 +658,9 @@ class sign3(BaseSignature, DataSignature):
         with h5py.File(self.data_path, "w") as results:
             # initialize V and keys datasets
             safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
-            safe_create(results, 'keys', (tot_inks,),
-                        dtype=DataSignature.string_dtype())
+            safe_create(results, 'keys',
+                        data=np.array(inchikeys,
+                                      DataSignature.string_dtype()))
             safe_create(results, 'datasets',
                         data=np.array(self.src_datasets,
                                       DataSignature.string_dtype()))
@@ -678,9 +679,9 @@ class sign3(BaseSignature, DataSignature):
                 safe_create(results, 'intensity_norm',
                             (tot_inks,), dtype=np.float32)
                 # this is to store error prediction
-                safe_create(results, 'pred_error',
+                safe_create(results, 'exp_error',
                             (tot_inks,), dtype=np.float32)
-                safe_create(results, 'pred_error_norm',
+                safe_create(results, 'exp_error_norm',
                             (tot_inks,), dtype=np.float32)
                 # this is to store the consensus prediction
                 safe_create(results, 'consensus',
@@ -713,43 +714,46 @@ class sign3(BaseSignature, DataSignature):
             # predict signature 3 for universe molecules
             with h5py.File(sign2_universe, "r") as features:
                 # reference prediction (based on no information)
-                zero_feat = np.zeros(
-                    (1, features['x_test'].shape[1]), dtype=np.float32)
-                zero_pred = predict_fn({'x': zero_feat})['predictions']
+                nan_feat = np.full(
+                    (1, features['x_test'].shape[1]), np.nan, dtype=np.float32)
+                nan_pred = predict_fn({'x': nan_feat})['predictions']
                 # read input in chunks
                 for idx in tqdm(range(0, tot_inks, chunk_size)):
                     chunk = slice(idx, idx + chunk_size)
                     feat = features['x_test'][chunk]
                     # predict with final model
-                    if update_preds:
+                    if not model_confidence:
                         results['V'][chunk] = AdaNet.predict(feat, predict_fn)
-                    results['keys'][chunk] = np.array(
-                        inchikeys[chunk], DataSignature.string_dtype())
-                    # save stddevs needed for confidence model and prediction
-                    if model_confidence and update_preds:
+                    # also save confidence natural scores
+                    else:
                         # compute predicted error
-                        support = ~np.isnan(feat[:, 0::128])
-                        pred_error = AdaNet.predict(support, error_pred_fn,
-                                                    subsample_coverage,
-                                                    probs=True, samples=5)
-                        results['pred_error'][chunk] = np.mean(
-                            pred_error, axis=1).flatten()
+                        coverage = ~np.isnan(feat[:, 0::128])
+                        _, exp_error = AdaNet.predict(coverage, error_pred_fn,
+                                                      subsample_coverage,
+                                                      consensus=True,
+                                                      samples=5)
+                        results['exp_error'][chunk] = np.mean(
+                            exp_error, axis=1).flatten()
                         # draw prediction with sub-sampling (dropout)
-                        samples = AdaNet.predict(feat, predict_fn,
-                                                 subsample_x_only,
-                                                 probs=True, samples=5)
+                        pred, samples = AdaNet.predict(feat, predict_fn,
+                                                       subsample_x_only,
+                                                       consensus=True,
+                                                       samples=5)
+                        results['V'][chunk] = pred
                         # summarize the predictions as consensus
                         consensus = np.mean(samples, axis=1)
                         results['consensus'][chunk] = consensus
                         # zeros input (no info) as intensity reference
-                        centered = consensus - zero_pred
+                        centered = consensus - nan_pred
                         # measure the intensity (mean of absolute comps)
-                        abs_sum = np.abs(centered)
-                        results['intensity'][chunk] = np.mean(abs_sum, axis=1)
+                        intensities = np.abs(centered)
+                        results['intensity'][chunk] = np.mean(
+                            intensities, axis=1).flatten()
                         # summarize the standard deviation of components
-                        stddevs = np.std(samples, axis=2)
+                        stddevs = np.std(samples, axis=1)
                         # just save the average stddev over the components
-                        results['stddev'][chunk] = np.mean(stddevs, axis=1)
+                        results['stddev'][chunk] = np.mean(
+                            stddevs, axis=1).flatten()
 
         # normalize scores based on sampled distribution
         distributions = self.confidence_distributions(ds_sign[self.dataset])
@@ -769,10 +773,10 @@ class sign3(BaseSignature, DataSignature):
                 inten_norm = inten_norm / float(int_dist.shape[0])
                 results['intensity_norm'][chunk] = inten_norm
                 # get predicted error and normalize wrt train distribution
-                error = np.expand_dims(results['pred_error'][chunk], axis=1)
+                error = np.expand_dims(results['exp_error'][chunk], axis=1)
                 error_norm = np.count_nonzero(error > err_dist.T, axis=1)
                 error_norm = error_norm / float(err_dist.shape[0])
-                results['pred_error_norm'][chunk] = error_norm
+                results['exp_error_norm'][chunk] = error_norm
                 # stddev, intensity and estimated error equally contribute
                 # to the final confidence score which is a geometric mean
                 confidence = (inten_norm * (1 - stddev_norm)
@@ -859,7 +863,7 @@ class sign3(BaseSignature, DataSignature):
         Returns:
             stddev(np.array): Distribution of standard deviations.
             intensity(np.array): Distribution of intensity.
-            pred_error(np.array): Distribution of predicted errors.
+            exp_error(np.array): Distribution of predicted errors.
         """
         # get current space inchikeys (limit to 20^4)
         dataset_inks = sign2_self.keys
@@ -869,8 +873,8 @@ class sign3(BaseSignature, DataSignature):
         # get the features to train the estimator on
         _, stddev = self.get_vectors(dataset_inks, dataset_name='stddev')
         _, intensity = self.get_vectors(dataset_inks, dataset_name='intensity')
-        _, pred_error = self.get_vectors(
-            dataset_inks, dataset_name='pred_error')
+        _, exp_error = self.get_vectors(
+            dataset_inks, dataset_name='exp_error')
         # also get the predicted and actual sign2
         _, consensus = self.get_vectors(dataset_inks, dataset_name='consensus')
         _, predicted = self.get_vectors(dataset_inks)
@@ -887,11 +891,11 @@ class sign3(BaseSignature, DataSignature):
                                             DataSignature.string_dtype()))
             hf.create_dataset('stddev', data=stddev, dtype=np.float32)
             hf.create_dataset('intensity', data=intensity, dtype=np.float32)
-            hf.create_dataset('pred_error', data=pred_error, dtype=np.float32)
+            hf.create_dataset('exp_error', data=exp_error, dtype=np.float32)
             hf.create_dataset('log_mse', data=log_mse, dtype=np.float32)
             hf.create_dataset('log_mse_consensus',
                               data=log_mse_consensus, dtype=np.float32)
-        return stddev, intensity, pred_error
+        return stddev, intensity, exp_error
 
     def compare_other(self, predictors, save_path, traintest_file):
 

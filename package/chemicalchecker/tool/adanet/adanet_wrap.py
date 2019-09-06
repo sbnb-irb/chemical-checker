@@ -300,7 +300,7 @@ class AdaNetWrapper(object):
 
     @staticmethod
     def predict(features, predict_fn=None, mask_fn=None, probs=False,
-                samples=10, model_dir=None, zero_centered=False):
+                samples=10, model_dir=None, consensus=False):
         """Load model and return predictions.
 
         Args:
@@ -308,7 +308,7 @@ class AdaNetWrapper(object):
             features(matrix): a numpy matrix of Xs.
             predict_fn(func): the predict function returned by `predict_fn`.
             probs(bool): if this is a classifier return the probabilities.
-            zero_centered(bool): all 0s as input result in 0s output
+            consensus(bool): return also a sampling for consensus calculation.
                 (regression only).
         """
         if predict_fn is None:
@@ -321,25 +321,16 @@ class AdaNetWrapper(object):
                 return data
         pred = predict_fn({'x': features[:]})
         if 'predictions' in pred:
-            if zero_centered:
-                zero_feat = np.zeros((1, features.shape[1]), dtype=np.float32)
-                zero_pred = predict_fn({'x': zero_feat})['predictions']
-            if probs:
+            if consensus:
                 pred_shape = pred['predictions'].shape
                 # axis are 0=molecules, 1=samples, 2=components
                 repeat = features[:].repeat(samples, axis=0)
-                results = predict_fn({'x': mask_fn(repeat)})['predictions']
-                results = results.reshape(
+                sampling = predict_fn({'x': mask_fn(repeat)})['predictions']
+                sampling = sampling.reshape(
                     pred_shape[0], samples, pred_shape[1])
-                if zero_centered:
-                    return results - np.expand_dims(zero_pred, axis=1)
-                else:
-                    return results
+                return pred['predictions'], sampling
             else:
-                if zero_centered:
-                    return pred['predictions'] - zero_pred
-                else:
-                    return pred['predictions']
+                return pred['predictions']
         else:
             if probs:
                 return pred['probabilities']
