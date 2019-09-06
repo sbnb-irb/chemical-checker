@@ -326,13 +326,13 @@ class AdaNetWrapper(object):
                 zero_pred = predict_fn({'x': zero_feat})['predictions']
             if probs:
                 pred_shape = pred['predictions'].shape
-                # axis are 0=molecules, 1=components, 2=samples
-                results = np.ndarray((pred_shape[0], pred_shape[1], samples))
-                for idx in range(samples):
-                    mask_pred = predict_fn({'x': mask_fn(features[:])})
-                    results[:, :, idx] = mask_pred['predictions']
+                # axis are 0=molecules, 1=samples, 2=components
+                repeat = features[:].repeat(samples, axis=0)
+                results = predict_fn({'x': mask_fn(repeat)})['predictions']
+                results = results.reshape(
+                    pred_shape[0], samples, pred_shape[1])
                 if zero_centered:
-                    return results - np.expand_dims(zero_pred, axis=2)
+                    return results - np.expand_dims(zero_pred, axis=1)
                 else:
                     return results
             else:
