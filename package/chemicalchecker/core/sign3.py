@@ -733,13 +733,13 @@ class sign3(BaseSignature, DataSignature):
                                                     subsample_coverage,
                                                     probs=True, samples=5)
                         results['pred_error'][chunk] = np.mean(
-                            pred_error, axis=2).flatten()
+                            pred_error, axis=1).flatten()
                         # draw prediction with sub-sampling (dropout)
                         samples = AdaNet.predict(feat, predict_fn,
                                                  subsample_x_only,
                                                  probs=True, samples=5)
                         # summarize the predictions as consensus
-                        consensus = np.mean(samples, axis=2)
+                        consensus = np.mean(samples, axis=1)
                         results['consensus'][chunk] = consensus
                         # zeros input (no info) as intensity reference
                         centered = consensus - zero_pred
