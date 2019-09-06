@@ -733,7 +733,7 @@ class sign3(BaseSignature, DataSignature):
                                                     subsample_coverage,
                                                     probs=True, samples=5)
                         results['pred_error'][chunk] = np.mean(
-                            pred_error, axis=2)
+                            pred_error, axis=2).flatten()
                         # draw prediction with sub-sampling (dropout)
                         samples = AdaNet.predict(feat, predict_fn,
                                                  subsample_x_only,
