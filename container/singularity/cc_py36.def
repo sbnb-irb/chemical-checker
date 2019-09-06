@@ -58,7 +58,7 @@ From: centos
     conda install -y anaconda-client              # client that provides an interface to Anaconda Cloud
     conda install -y faiss-cpu -c pytorch         # facebook trick for sparsity
     conda install -y hdbscan -c conda-forge       # clustering
-    conda install -c efelix fpsim2                # fast chemical similarity search developed at ChEMBL
+    conda install -y fpsim2 -c efelix             # fast chemical similarity search developed at ChEMBL
 
     # utility packages
     pip install ipython
@@ -129,8 +129,3 @@ From: centos
 
     #Install jupyter to use notebooks
     pip install jupyter
-    
-    # install unittest suite
-    pip install pytest
-    
-    
