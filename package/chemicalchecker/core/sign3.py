@@ -318,6 +318,7 @@ class sign3(BaseSignature, DataSignature):
         with h5py.File(destination, 'w') as hf_out:
             hf_out.create_dataset('x', feat_shape, dtype=np.float32)
             hf_out.create_dataset('y', (feat_shape[0], 1), dtype=np.float32)
+            hf_out.create_dataset('y_log', (feat_shape[0], 1), dtype=np.float32)
             # perform sampling for each input and measure distance
             with h5py.File(sign3_train_file, 'r') as hf_in:
                 offset = 0
@@ -332,16 +333,18 @@ class sign3(BaseSignature, DataSignature):
                         # destination chunk is shifted by input length
                         dst_chunk = slice(offset + (r * csize),
                                           offset + csize + (r * csize))
-                        x, y = subsample(hf_in['x'][src_chunk],
-                                         hf_in['y'][src_chunk])
-                        presence = ~np.isnan(x[:, 0::128])
+                        coverage = ~np.isnan(hf_in['x'][src_chunk][:, 0::128])
+                        x = subsample_coverage(coverage)
+                        y = hf_in['y'][src_chunk]
                         # save presence as X
-                        hf_out['x'][dst_chunk] = presence
+                        hf_out['x'][dst_chunk] = coverage
                         # run prediction on subsampled input
                         y_pred = predict_fn({'x': x})['predictions']
                         # save log mean squared error as Y
-                        log_mse = np.log10(np.mean(((y - y_pred)**2), axis=1))
-                        hf_out['y'][dst_chunk] = np.expand_dims(log_mse, 1)
+                        mse = np.mean(((y - y_pred)**2), axis=1)
+                        hf_out['y'][dst_chunk] = np.expand_dims(mse, 1)
+                        log_mse = np.log10(mse)
+                        hf_out['y_log'][dst_chunk] = np.expand_dims(log_mse, 1)
                     offset = dst_chunk.stop
                 assert(offset == feat_shape[0])
 
@@ -865,6 +868,7 @@ class sign3(BaseSignature, DataSignature):
             intensity(np.array): Distribution of intensity.
             exp_error(np.array): Distribution of predicted errors.
         """
+        self.__log.debug('Generating confidence score distributions')
         # get current space inchikeys (limit to 20^4)
         dataset_inks = sign2_self.keys
         if len(dataset_inks) > max_sample:
