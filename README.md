@@ -1,3 +1,13 @@
+# :warning: Note for Editors and Reviewers
+
+This repository is the one currently being used to develop the Chemical Checker (CC) in our SB&NB laboratory. As such, the repository contains a significant number of functionalities and data not presented in the primary CC manuscript.
+
+Due to the strong computational requirements of our pipeline, the code has been written and optimized to work in our local HPC facilities. Installation guides found below are for SB&NB users only. As stated in the manuscript, the main deliverable of our resource are the CC _signatures_, which can be accessed easily through a [REST API](https://chemicalchecker.com/help) or downloaded as [data files](https://chemicalchecker.com/downloads).
+
+Please feel free to explore any of the scripts inside this repository. The most relevant to the paper being revised are found under:
+* Data pre-processing: `packages/scripts/preprocess/`.
+* Signature production: `package/chemicalchecker/core/{sign1.py sign2.py}`.
+
 # Chemical Checker
 
 The Chemical Checker (CC) is a resource of small molecule signatures. In the CC, compounds are described from multiple viewpoints, spanning every aspect of the drug discovery process, from chemical properties to clinical outcomes.
@@ -144,8 +154,3 @@ To do so you can add a `pip install <package_of_your_dreams>` line to the follow
 * cc_py36.def (unit-testing Python 3 environment)
 
 Don't forget to also add a short comment on why and where this new dependency is used, also in the commit message. E.g. "Added dependency used in preprocessing for space B5.003". The idea is that whenever B5.003 is obsoleted we can also safely remove the dependency.
-
-
-## Examples
-
-For use case examples, please see notebooks in this repository.
