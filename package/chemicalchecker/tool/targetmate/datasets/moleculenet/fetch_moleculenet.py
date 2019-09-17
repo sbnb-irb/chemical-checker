@@ -1,4 +1,7 @@
+"""Fetch data from MoleculeNet.
 
+For the moment, only binary (classification exercise) data are stored.
+"""
 
 class MoleculeNet:
 
@@ -15,4 +18,9 @@ class MoleculeNet:
 	    pass
 
 
+if __name__ == '__main__':
+	moleculenet = MoleculeNet()
+	moleculenet.parse_tox21()
+	moleculenet.parse_toxcast()
+	moleculenet.parse_sider()
 	

@@ -4,7 +4,6 @@ import os
 import pandas as pd
 from ..universes import load_universe
 from ..utils.chemistry import read_smiles
-
 from chemicalchecker.util import psql
 
 
@@ -17,17 +16,6 @@ class ChemblDb:
             dbname (str): ChEMBL database name (default='chembl_25').
         """
         self.dbname = dbname
-
-    def get_universe(self):
-        query = '''
-            SELECT s.canonical_smiles, m.chembl_id
-                FROM compound_structures s, molecule_dictionary m
-                WHERE
-                    s.molregno = m.molregno
-                    AND s.canonical_smiles IS NOT NULL
-                    AND m.chembl_id IS NOT NULL;
-        '''
-        return psql.qstring(query, self.dbname)
 
     def get_targets(self):
         query = '''
@@ -88,18 +76,16 @@ class ChemblDb:
 
 class Chembl(ChemblDb):
 
-    def __init__(self, output_folder=".", universe_path=None,
-                 min_actives=10, inactives_per_active=None,
+    def __init__(self, output_folder=".",
+                 min_actives=10,
                  pchembl_values=[5, 6, 7], only_pchembl=True,
                  standardize=True):
         """Query ChEMBL and produce a hierarchy of active/inactive data.
 
         Args:
-            universe_path (str): Universe path (default=None)
+            output_folder (str): Output folder where to put the hierarchy.
             min_actives (int): Minimum number of actives for an training set to
                 be considered (default=10).
-            inactives_per_active (int): Number of inactives to sample for each
-                active. If not specified, no sampling is done (default=None).
             pchembl_cuts (list): Chosen pchembl scores to divide actives and
                 inactives (default=[5,6,7]).
             only_pchembl (bool): Keep values without a pchembl score and assume
@@ -108,15 +94,7 @@ class Chembl(ChemblDb):
         """
         ChemblDb.__init__(self)
         self.output_folder = output_folder
-        if universe_path is None:
-            self.universe = None
-            if inactives_per_active is None:
-                raise ValueError('`universe_path` must be specified when ' +
-                                 '`inactives_per_active` is requested.')
-        else:
-            self.universe = load_universe(universe_path)
         self.min_actives = min_actives
-        self.inactives_per_active = inactives_per_active
         self.only_pchembl = only_pchembl
         self.pchembl_values = sorted(
             set([round(x, 2) for x in pchembl_values]))
@@ -168,7 +146,7 @@ class Chembl(ChemblDb):
             assay_chembl_id, only_pchembl=self.only_pchembl)
         return self._process_smiles(df)
 
-    def no_universe_predict(self, actives, inactives):
+    def decide_actives_inactives(self, actives, inactives):
         common_iks = set([smi[-1] for smi in actives]
                          ).intersection([smi[-1] for smi in inactives])
         actives = set([smi for smi in actives if smi[-1] not in common_iks])
@@ -187,22 +165,15 @@ class Chembl(ChemblDb):
             dfi = df[df["pchembl_value"] < -666]
         actives = self._to_set(dfa)
         inactives = self._to_set(dfi)
-        if self.universe is None:
-            results = self.no_universe_predict(actives, inactives)
-        else:
-            results = self.universe.predict(actives, inactives,
-                                            self.inactives_per_active,
-                                            self.min_actives)
+        results = self.decide_actives_inactives(actives, inactives)
         if not results:
             return None
-        actives, inactives, putative_inactives = results
+        actives, inactives = results
         R = []
         for r in actives:
             R += [[1, r[0], r[1], r[2]]]
         for r in inactives:
             R += [(-1, r[0], r[1], r[2])]
-        for r in putative_inactives:
-            R += [(0, r[0], r[1], r[2])]
         df_ = pd.DataFrame(R, columns=["activity", "smiles", "id", "inchikey"])
         df_ = df_.sample(frac=1).reset_index(drop=True)
         return df_

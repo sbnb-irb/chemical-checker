@@ -1,4 +1,7 @@
 """Universe of molecules to be used for the sampling of negative data.
+
+For now, only the CC universe is accepted. This is convenient, since for the CC universe we have all signatures
+pre-computed.
 """
 import os
 import uuid
@@ -35,7 +38,7 @@ def load_universe(model_path):
 
 class Universe:
 
-    def __init__(self, smiles='chembl', standardize=True, k=None,
+    def __init__(self, molrepo='chembl', standardize=True, k=None,
                  model_path='/tmp/tm/universe',
                  tmp_path='/tmp/tm/tmp_universe',
                  signaturizers_path='/aloy/web_checker/sign3_tfhub',
@@ -46,10 +49,7 @@ class Universe:
         """Initialize the Universe class.
 
         Args:
-            smiles(list or str): A [smiles] list or [(smiles, id)] list, or a
-                small molecule repository name. Currently, we only accept
-                'chembl' as a repository name (default="chembl").
-            standardize(bool): Standardize molecules (default=True).
+            molrepo(str): A molrepo name.
             k(int): Number of partitions for the k-Means clustering
                 (default=sqrt(N/2)).
             model_path(str): Folder where the universe should be stored
@@ -67,21 +67,7 @@ class Universe:
                 universe. If not specified, all are considered (default=None).
             datasets(list): Chemical Checker datasets to use. If not specified,
                 all are used (default=None).
-
-        Example:
-            univ = Universe()
-            univ.smiles = pickle.load(open("smiles.pkl", "rb"))
-            univ.clusters_dict = pickle.load(open("clusters_dict.pkl", "rb"))
-            univ.representative_smiles = pickle.load(
-                open("representative_smiles.pkl", "rb"))
-            univ.calculate_arena()
-            univ.signaturize()
-            univ.save()
-
-            universe = Universe(max_universe_size = 1000)
-            universe.fit()
-            universe.save()
-        """
+       """
         self.smiles_argument = smiles
         self.standardize = standardize
         self.k = k
@@ -106,42 +92,6 @@ class Universe:
         with open(pkl_file, "wb") as f:
             pickle.dump(self, f)
 
-    def _fetch_chembl(self):
-        chembl = ChemblDb()
-        return chembl.get_universe()
-
-    def process_smiles(self):
-        if type(self.smiles_argument) is str:
-            if self.smiles_argument == "chembl":
-                smiles_list = self._fetch_chembl()
-        else:
-            smiles_list = self.smiles_argument
-        if self.max_universe_size:
-            if len(smiles_list) > self.max_universe_size:
-                smiles_list = random.sample(
-                    smiles_list, self.max_universe_size)
-        smiles = []
-        for i, smi_id in enumerate(smiles_list):
-            if type(smi_id) is tuple:
-                smi = smi_id[0]
-                ide = smi_id[1]
-            else:
-                smi = smi_id
-                ide = "univ_%d" % i
-            smi = read_smiles(smi, self.standardize)
-            if not smi:
-                continue
-            ik, smi = smi
-            smiles += [(smi, ide, ik)]
-        smiles_dict = {}
-        for smi in smiles:
-            smiles_dict[smi[-1]] = smi
-        self.smiles = []
-        self.inchikeys = set()
-        for k in sorted(smiles_dict.keys()):
-            self.smiles += [smiles_dict[k]]
-            self.inchikeys.update([k])
-
     def cluster(self):
         maccs = maccs_matrix(self.smiles)
         if not self.k:
@@ -165,17 +115,6 @@ class Universe:
         morgan_arena([smi[1][0]
                       for smi in self.representative_smiles], fps_file)
         self.arena_file = fps_file
-
-    def signaturize(self):
-        self.sign_files = []
-        smiles = [smi[0] for smi in self.smiles]
-        for dataset in self.datasets:
-            sign = Signaturizer(dataset, cc_url=self.signaturizers_path,
-                                compressed=False)
-            sign_file = os.path.join(
-                self.model_path, "sign_" + dataset + ".h5")
-            sign.predict(smiles, destination=sign_file)
-            self.sign_files.append(sign_file)
 
     def fit_oneclass_svm(self, actives):
         tag = str(uuid.uuid4())
