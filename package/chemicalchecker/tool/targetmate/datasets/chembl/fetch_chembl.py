@@ -2,11 +2,13 @@
 """
 import os
 import pandas as pd
-from ..universes import load_universe
-from ..utils.chemistry import read_smiles
+from chemicalchecker.util.targetmate.universes import load_universe
+from chemicalchecker.util.targetmate.utils.chemistry import read_smiles
 from chemicalchecker.util import psql
+from chemicalchecker.util import logged
 
 
+@logged
 class ChemblDb:
 
     def __init__(self, dbname='chembl_25'):
@@ -18,6 +20,7 @@ class ChemblDb:
         self.dbname = dbname
 
     def get_targets(self):
+        self.__log.info("Getting targets")
         query = '''
             SELECT chembl_id, target_type, pref_name, tax_id, organism
                 FROM target_dictionary;
@@ -28,6 +31,7 @@ class ChemblDb:
         return pd.DataFrame(results, columns=col_names)
 
     def _get_activities(self, chembl_ids, entity, only_pchembl):
+        self.__log.debug("Getting activities")
         query = '''
             SELECT
                 a.chembl_id,
@@ -74,6 +78,7 @@ class ChemblDb:
                                     only_pchembl=only_pchembl)
 
 
+@logged
 class Chembl(ChemblDb):
 
     def __init__(self, output_folder=".",
@@ -216,10 +221,11 @@ class Chembl(ChemblDb):
         return summary
 
     def write_folder_hierarchy(self):
+        self.__log.info("Writing folder dictionary")
         summary = []
-        from tqdm import tqdm
         dft = self.get_targets()
-        for idx, target_chembl_id in tqdm(dft["target_id"][:2].items()):
+        for idx, target_chembl_id in dft["target_id"][:2].items():
+            self.__log.debug("Working on %s" % target_chembl_id)
             df = self.get_target_activities(target_chembl_id)
             folder = os.path.join(self.output_folder, target_chembl_id)
             sumr = [[target_chembl_id, None, None]]

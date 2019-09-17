@@ -10,14 +10,14 @@ import random
 import numpy as np
 import collections
 
-from signaturizer import Signaturizer
-
 from sklearn.svm import OneClassSVM
 from sklearn.cluster import MiniBatchKMeans
 
 from ..utils.chemistry import maccs_matrix, morgan_arena, load_morgan_arena
 from ..utils.chemistry import similarity_matrix, read_smiles
 from ..datasets.chembl import ChemblDb
+
+from chemicalchecker.util import logged
 
 
 class UniverseLoader(pickle.Unpickler):
@@ -36,16 +36,16 @@ def load_universe(model_path):
     return univ
 
 
+@logged
 class Universe:
 
     def __init__(self, molrepo='chembl', standardize=True, k=None,
                  model_path='/tmp/tm/universe',
                  tmp_path='/tmp/tm/tmp_universe',
-                 signaturizers_path='/aloy/web_checker/sign3_tfhub',
                  min_actives_oneclass=10, max_actives_oneclass=1000,
                  representative_mols_per_cluster=10,
                  max_universe_size=None,
-                 datasets=None):
+                 trials = 1000000):
         """Initialize the Universe class.
 
         Args:
@@ -65,8 +65,7 @@ class Universe:
                 samples for each cluster (default=10).
             max_universe_size(int): Maximum number of molecules in the
                 universe. If not specified, all are considered (default=None).
-            datasets(list): Chemical Checker datasets to use. If not specified,
-                all are used (default=None).
+            trials(int): Number of sampling trials before stop trying (default=1000000)
        """
         self.smiles_argument = smiles
         self.standardize = standardize
@@ -77,15 +76,11 @@ class Universe:
         self.model_path = os.path.abspath(model_path)
         if not os.path.isdir(self.model_path):
             os.makedirs(self.model_path)
-        self.signaturizers_path = os.path.abspath(signaturizers_path)
         self.min_actives_oneclass = min_actives_oneclass
         self.max_actives_oneclass = max_actives_oneclass
         self.representative_mols_per_cluster = representative_mols_per_cluster
         self.max_universe_size = max_universe_size
-        if datasets is None:
-            self.datasets = [a + b for a in 'ABCDE' for b in '12345']
-        else:
-            self.datasets = datasets
+        self.trials = trials
 
     def save(self):
         pkl_file = os.path.join(self.model_path, "universe.pkl")
@@ -135,10 +130,12 @@ class Universe:
         return clf, actives_list_smiles
 
     def fit(self):
+        self.__log.info("Processing molecules")
         self.process_smiles()
+        self.__log.info("Clustering")
         self.cluster()
+        self.__log.info("Calculating arena")
         self.calculate_arena()
-        self.signaturize()
 
     def predict(self, actives, inactives, inactives_per_active=100,
                 min_actives=10):
@@ -150,6 +147,7 @@ class Universe:
                 universe. Can be None (default=100).
             min_actives(int): Minimum number of actives (default=10).
         """
+        self.__log.info("Sampling candidate inactives")
         common_iks = set([smi[-1] for smi in actives]
                          ).intersection([smi[-1] for smi in inactives])
         actives = set([smi for smi in actives if smi[-1] not in common_iks])
@@ -185,7 +183,7 @@ class Universe:
         candidate_clusters = sorted(weight_dict.keys())
         candidate_weights = [weight_dict[k] for k in candidate_clusters]
         # Sample from candidates
-        trials = 1000000
+        trials = self.trials
         t = 0
         candidates = set()
         while len(candidates) < N and t < trials:
@@ -210,6 +208,6 @@ class Universe:
 
 
 if __name__ == "__main__":
-    universe = Universe(max_universe_size=100, datasets=["A1", "B4"])
+    universe = Universe(max_universe_size=100)
     universe.fit()
     universe.save()
