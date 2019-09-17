@@ -88,7 +88,7 @@ class ChemblDb:
 
 class Chembl(ChemblDb):
 
-    def __init__(self, output_folder="tmp", universe_path=None,
+    def __init__(self, output_folder=".", universe_path=None,
                  min_actives=10, inactives_per_active=None,
                  pchembl_values=[5, 6, 7], only_pchembl=True,
                  standardize=True):
