@@ -11,7 +11,7 @@ from FPSim2.io import create_db_file
 
 
 def maccs_matrix(smiles):
-    fps = np.zeros((len(smiles), 166)).astype(np.int8)
+    fps = np.zeros((len(smiles), 167)).astype(np.int8)
     for i, smi in enumerate(smiles):
         mol = Chem.MolFromSmiles(smi[0])
         fpon = sorted(MACCSkeys.GenMACCSKeys(mol).GetOnBits())
