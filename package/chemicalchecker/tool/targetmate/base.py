@@ -1,18 +1,11 @@
 """TargetMate Classifier.
-
 An ensemble-based classifier based on CC signatures of different types.
 A base classifier is specified, and predictions are made for each dataset
-individually. A meta-prediction is then provided based on individual
+individually.
+A meta-prediction is then provided based on individual
 predictions, together with a measure of confidence for each prediction.
 In the predictions, known data is provided as 1/0 predictions. The rest of
 probabilities are clipped between 0.001 and 0.999.
-In order to make results more interpretable, in the applicability domain we
-use chemical similarity for now.
-The basis for the applicability domain application can be found:
-https://jcheminf.biomedcentral.com/articles/10.1186/s13321-016-0182-y
-Obviously, CC signature similarities could be used in the future.
-The classifier is greatly inspired by PidginV3:
-https://pidginv3.readthedocs.io/en/latest/usage/index.html
 """
 import os
 import shutil
@@ -39,6 +32,8 @@ from rdkit import Chem
 import chemfp
 import math
 from scipy.stats import percentileofscore
+from .utils import metrics
+from .utils.chemistry import read_smiles
 
 
 @logged
@@ -47,7 +42,7 @@ class TargetMate:
 
     def __init__(self, models_path, tmp_path=None,
                  base_clf="logistic_regression", cv=5, k=5, min_sim=0.25,
-                 min_class_size=10, datasets=None, metric="auroc",
+                 min_class_size=10, datasets=None, metric="bedroc",
                  cc_root=None, sign3=None, sign3_predict_fn=None, n_jobs=1):
         """Initialize the TargetMate class
 
@@ -71,8 +66,8 @@ class TargetMate:
             datasets(list): CC datasets (A1.001-E5.999).
                 By default, all datasets having a SMILES-to-sign3 predictor are
                 used.
-            metric(str): Metric to use in the meta-prediction (auroc or aupr)
-                (default="auroc").
+            metric(str): Metric to use in the meta-prediction (bedroc, auroc or aupr)
+                (default="bedroc").
             cc_root(str): CC root folder (default=None).
             sign3_predict_fn(dict): pre-loaded predict_fn, keys are dataset
                 codes, values are tuples of (sign3, predict_fn).
@@ -139,7 +134,8 @@ class TargetMate:
         # Store the paths to the sign3 (only the ones that have been already
         # trained)
         if not datasets:
-            self.datasets = list(self.cc.datasets)
+            #self.datasets = list(self.cc.datasets)
+            self.datasets = ["%s%s.001" % (x,y) for x in "ABCDE" for y in "12345"]
         else:
             self.datasets = datasets
         # preloaded neural netoworks
@@ -224,7 +220,6 @@ class TargetMate:
         """Calculate standard prediction performance metrics.
         In addition, it calculates the corresponding weights.
         For the moment, AUPR and AUROC are used.
-
         Args:
             yt(list): Truth data (binary).
             yp(list): Prediction scores (probabilities).
@@ -232,15 +227,9 @@ class TargetMate:
         perfs = {}
         yt = list(yt)
         yp = list(yp)
-        # AUROC
-        auroc = metrics.roc_auc_score(yt, yp)
-        auroc_w = (max(auroc, 0.5) - 0.5) / (1. - 0.5)
-        perfs["auroc"] = (auroc, auroc_w + 1e-6)
-        # AUPR
-        prec, rec, _ = metrics.precision_recall_curve(yt, yp)
-        aupr = metrics.auc(rec, prec)
-        aupr_w = (aupr - 0.) / (1. - 0.)
-        perfs["aupr"] = (aupr, aupr_w + 1e-6)
+        perfs["auroc"] = metrics.roc_score(yt, yp)
+        perfs["aupr"] = metrics.pr_score(yt, yp)
+        perfs["bedroc"] = metrics.bedroc_score(yt, yp)
         return perfs
 
     def metapredict(self, yp_dict, perfs, dataset_universe=None):
@@ -300,15 +289,7 @@ class TargetMate:
 
     @staticmethod
     def read_smiles(smi, standardize):
-        try:
-            mol = Chem.MolFromSmiles(smi)
-            if standardize:
-                mol = standardise.run(mol)
-        except:
-            return None
-        ik = Chem.rdinchi.InchiToInchiKey(Chem.rdinchi.MolToInchi(mol)[0])
-        smi = Chem.MolToSmiles(mol)
-        return ik, smi
+        return read_smiles(smi, standardize)
 
     def knearest_search(self, query_fps, target_fps, N=None):
         """Nearest neighbors search using chemical fingerprints"""
@@ -347,6 +328,18 @@ class TargetMate:
             weights += [np.max(ws)]
         return np.array(weights)
 
+    @staticmethod
+    def _reassemble_activity_sets(act, inact, putinact):
+        data = []
+        for x in list(act):
+            data += [(x[1], 1, x[0], x[-1])]
+        for x in list(inact):
+            data += [(x[1], -1, x[0], x[-1])]
+        n = np.max([x[0] for x in data]) + 1
+        for i, x in enumerate(list(putinact)):
+            data += [(i+n, 0, x[0], x[-1])]
+        return data
+
     def save(self):
         # we avoid saving signature 3 objects
         self.sign3_predict_fn = None
@@ -378,22 +371,42 @@ class TargetMate:
             with open(data, "r") as f:
                 data = []
                 for r in csv.reader(f, delimiter="\t"):
-                    data += [(r[0], int(r[1]))]
+                    data += [[int(r[0])] + r[1:]]
         # Get only valid SMILES strings
         self.__log.info(
             "Parsing SMILES strings, keeping only valid ones for training.")
         data_ = []
         for i, d in enumerate(data):
-            m = self.read_smiles(d[0], standardize)
+            m = self.read_smiles(d[1], standardize)
             if not m:
                 continue
-            data_ += [(i, m[0], m[1], int(d[1]))]
+            # data is always of [(initial index, activity, ..., smiles, inchikey)]
+            data_ += [[i, int(d[0])] + [m[1], m[0]]]
         data = data_
-        y = np.array([d[-1] for d in data])
-        smiles = np.array([d[2] for d in data])
+        # y = np.array([d[-1] for d in data])
+        # smiles = np.array([d[2] for d in data])
         # Save training data
-        with open(self.models_path + "/trained_data.pkl", "w") as f:
+        self.__log.debug("Saving training data (only evidence)")
+        with open(self.models_path + "/trained_data.pkl", "wb") as f:
             pickle.dump(data, f)
+        # Sample inactives, if necessariy
+        if self.inactives_per_active:
+            self.__log.info("Sampling putative inactives")
+        actives   = set([(d[-2], d[0], d[-1]) for d in data if d[1] ==  1])
+        inactives = set([(d[-2], d[0], d[-1]) for d in data if d[1] == -1])
+        act, inact, putinact = self.universe.predict(actives, inactives,
+                                                     inactives_per_active = self.inactives_per_active,
+                                                     min_actives = self.min_class_size)
+        self.__log.debug("Assembling and shuffling")
+        data = self._reassemble_activity_sets(act, inact, putinact)
+        random.shuffle(data)
+        self.__log.debug("Prepare for machine learning")
+        y = np.array([d[1] for d in data])
+        # Consider putative inactives as inactives (i.e. set -1 to 0)
+        self.__log.debug("Considering putative inactives as inactives for training")
+        y[y <= 0] = 0
+        molecules = np.array([(d[-2], d[-1]) for d in data])
+        smiles = np.array([m[0] for m in molecules])
         # Check that there are enough molecules for training.
         ny = np.sum(y)
         if ny < self.min_class_size or (len(y) - ny) < self.min_class_size:

@@ -2,8 +2,7 @@
 """
 import os
 import pandas as pd
-from chemicalchecker.util.targetmate.universes import load_universe
-from chemicalchecker.util.targetmate.utils.chemistry import read_smiles
+from chemicalchecker.tool.targetmate.utils.chemistry import read_smiles
 from chemicalchecker.util import psql
 from chemicalchecker.util import logged
 
@@ -19,12 +18,21 @@ class ChemblDb:
         """
         self.dbname = dbname
 
-    def get_targets(self):
+    def get_targets(self, target_chembl_ids):
         self.__log.info("Getting targets")
-        query = '''
-            SELECT chembl_id, target_type, pref_name, tax_id, organism
-                FROM target_dictionary;
-        '''
+        if not target_chembl_ids:
+            query = '''
+                SELECT chembl_id, target_type, pref_name, tax_id, organism
+                    FROM target_dictionary;
+            '''
+        else:
+            s = "(%s)" % ",".join(["'%s'" % t for t in target_chembl_ids])
+            query = '''
+                SELECT chembl_id, target_type, pref_name, tax_id, organism
+                    FROM target_dictionary
+                    WHERE
+                        chembl_id IN %s
+            ''' % s
         results = psql.qstring(query, self.dbname)
         col_names = ["target_id", "target_type",
                      "pref_name", "tax_id", "organism"]
@@ -81,7 +89,7 @@ class ChemblDb:
 @logged
 class Chembl(ChemblDb):
 
-    def __init__(self, output_folder=".",
+    def __init__(self, output_folder,
                  min_actives=10,
                  pchembl_values=[5, 6, 7], only_pchembl=True,
                  standardize=True):
@@ -159,7 +167,7 @@ class Chembl(ChemblDb):
             return None
         inactives = set(
             [smi for smi in inactives if smi[-1] not in common_iks])
-        return actives, inactives, set()
+        return actives, inactives
 
     def get_activities(self, df, pchembl_value=None):
         if pchembl_value:
@@ -208,7 +216,7 @@ class Chembl(ChemblDb):
         if not to_write:
             return done
         if not os.path.exists(folder):
-            os.mkdir(folder)
+            os.makedirs(folder)
         for tw in to_write:
             self.to_csv(tw[0], tw[1])
         return done
@@ -220,11 +228,20 @@ class Chembl(ChemblDb):
                 summary += [sr + [sp]]
         return summary
 
-    def write_folder_hierarchy(self):
+    def write_folder_flat(self, target_chembl_ids = None):
+        self.__log.info("Writing ")
+        dft = self.get_targets(target_chembl_ids)
+        for idx, target_chembl_id in dft["target_id"].items():
+            self.__log.debug("Working on %s" % target_chembl_id)
+            df = self.get_target_activities(target_chembl_id)
+            folder = os.path.join(self.output_folder, target_chembl_id)
+            self.write_every_pchembl(df, folder)
+
+    def write_folder_hierarchy(self, target_chembl_ids = None):
         self.__log.info("Writing folder dictionary")
         summary = []
-        dft = self.get_targets()
-        for idx, target_chembl_id in dft["target_id"][:2].items():
+        dft = self.get_targets(target_chembl_ids)
+        for idx, target_chembl_id in dft["target_id"].items():
             self.__log.debug("Working on %s" % target_chembl_id)
             df = self.get_target_activities(target_chembl_id)
             folder = os.path.join(self.output_folder, target_chembl_id)

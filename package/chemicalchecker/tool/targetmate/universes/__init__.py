@@ -1,1 +1,1 @@
-from .univs import Universe, load_universe
+from .univs import Universe
