@@ -31,7 +31,7 @@ class Universe:
 
     def __init__(self,
                  cc_root=None,
-                 molrepo="default",
+                 molrepo=None,
                  k=None,
                  model_path=None,
                  tmp_path='/tmp/tm/tmp_universe',
@@ -150,7 +150,7 @@ class Universe:
         self.calculate_arena()
 
     def predict(self, actives, inactives, inactives_per_active=100,
-                min_actives=10, naive = False):
+                min_actives=10, naive=False):
         """
         Args:
             actives(list or set): Should include (smiles, id, inchikey).
@@ -184,9 +184,9 @@ class Universe:
             candidates_iks = set([smi[-1] for smi in self.smiles]).difference(actives_iks.union(inactives_iks))
             if not candidates_iks:
                 return actives, inactives, set()
-            candidates_dict = dict((smi[-1], smi[0]) for smi in self.smiles)
+            candidates_dict = dict((smi[-1], (smi[0], smi[1])) for smi in self.smiles)
             candidates_iks = random.sample(candidates_iks, int(np.min([N, len(candidates_iks)])))
-            candidates = set([candidates_dict[ik] for ik in candidates_iks])
+            candidates = set([(candidates_dict[ik][0], candidates_dict[ik][1], ik) for ik in candidates_iks])
             return actives, inactives, candidates
         else:
             self.__log.debug("Sampling candidates based on OneClassSVM and clusters")
