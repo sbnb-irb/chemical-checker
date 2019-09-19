@@ -350,7 +350,7 @@ class AdaNetWrapper(object):
 
     @staticmethod
     def predict_online(h5_file, split, predict_fn=None,
-                       mask_fn=None, batch_size=10000, limit=10000,
+                       mask_fn=None, batch_size=10000, limit=None,
                        probs=False, n_classes=None, model_dir=None):
         """Predict on given testset without killing the memory.
 
@@ -379,7 +379,7 @@ class AdaNetWrapper(object):
             y_pred = np.full((y_shape[0], n_classes), np.nan, dtype=x_dtype)
         y_true = np.full(y_shape, np.nan, dtype=y_dtype)
         last_idx = 0
-        if y_shape[0] < limit:
+        if limit is None:
             limit = y_shape[0]
         if mask_fn is None:
             def mask_fn(x, y):
@@ -500,7 +500,7 @@ class AdaNetWrapper(object):
         predict_fn = AdaNetWrapper.predict_fn(self.save_dir)
         for split in splits:
             y_pred, y_true = AdaNetWrapper.predict_online(
-                self.traintest_file, split, predict_fn=predict_fn)
+                self.traintest_file, split, predict_fn=predict_fn, limit=1000)
             rows[split] = _stats_row(y_true, y_pred, algo_name, split, "ALL")
             rows[split] = _update_row(rows[split], "time", self.time)
             rows[split] = _update_row(
