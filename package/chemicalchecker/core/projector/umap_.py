@@ -76,7 +76,7 @@ class UMAP(BaseSignature, DataSignature):
             dst.create_dataset("keys", data=src['keys'][:], dtype=sdtype)
             dst.create_dataset("name", data=np.array([self.name], sdtype))
             date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            dst.create_dataset("date", data=[date_str], dtype=sdtype)
+            dst.create_dataset("date", data=np.array([date_str], sdtype))
             if 'mappings' in src.keys():
                 dst.create_dataset("mappings", data=src['mappings'][:],
                                    dtype=sdtype)
@@ -104,7 +104,7 @@ class UMAP(BaseSignature, DataSignature):
             dst.create_dataset("keys", data=src['keys'][:], dtype=sdtype)
             dst.create_dataset("name", data=np.array([self.name], sdtype))
             date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            dst.create_dataset("date", data=[date_str], dtype=sdtype)
+            dst.create_dataset("date", data=np.array([date_str], sdtype))
             if 'mappings' in src.keys():
                 dst.create_dataset("mappings", data=src['mappings'][:],
                                    dtype=sdtype)
