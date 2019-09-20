@@ -266,8 +266,3 @@ class Chembl(ChemblDb):
         summary = pd.DataFrame(summary, columns=col_names)
         summary.to_csv(os.path.join(self.output_folder, "summary.csv"),
                        sep="\t", na_rep="NA", header=True, index=False)
-
-
-if __name__ == "__main__":
-    chembl = Chembl()
-    chembl.write_folder_hierarchy()

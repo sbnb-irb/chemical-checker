@@ -29,9 +29,9 @@ _N.B. Only bare minimum dependencies are installed along with the package_
 
 ## Working from a laptop
 
-Firtst, check that you are connected to the SB&NB local network:
+First, check that you are connected to the SB&NB local network:
 ```bash
-ping coelho.irb.pcb.ub.es
+ping pac-one-head.irb.pcb.ub.es
 ```
 Then, mount the remote filesystem
 ```bash
