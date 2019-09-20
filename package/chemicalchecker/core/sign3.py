@@ -12,10 +12,12 @@ import pandas as pd
 from tqdm import tqdm
 from time import time
 from functools import partial
+from scipy.stats import pearsonr, norm, rankdata
 
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import LocalOutlierFactor
+from sklearn.preprocessing import QuantileTransformer
 
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
@@ -71,6 +73,7 @@ class sign3(BaseSignature, DataSignature):
         default_sign0 = {
             'adanet_iterations': 10,
             'augmentation': False,
+            'initial_architecture': [3, 2],
             'subnetwork_generator': 'StackDNNGenerator',
             'cpu': params.get('cpu', 4)
         }
@@ -86,6 +89,35 @@ class sign3(BaseSignature, DataSignature):
         }
         default_err.update(params.get('error', {}))
         self.params['error'] = default_err
+
+    @staticmethod
+    def save_sign2_universe(sign2_list, destination):
+        """Create a file with all signatures 2 for each molecule in the CC.
+
+        Args:
+            sign2_list(list): List of signature 2 objects to learn from.
+            destination(str): Path where the H5 is saved.
+        """
+        # get sorted universe inchikeys and CC signatures
+        sign3.__log.info("Generating signature 2 universe matrix.")
+        inchikeys = set()
+        for sign in sign2_list:
+            inchikeys.update(sign.unique_keys)
+        inchikeys = sorted(list(inchikeys))
+        tot_inks = len(inchikeys)
+        tot_ds = len(sign2_list)
+        # build matrix stacking horizontally signature
+        if not os.path.isfile(destination):
+            with h5py.File(destination, "w") as fh:
+                fh.create_dataset('x_test',
+                                  (tot_inks, 128 * tot_ds),
+                                  dtype=np.float32)
+                for idx, sign in enumerate(sign2_list):
+                    sign3.__log.info("Fetching from %s" % sign.data_path)
+                    # including NaN we have the correct number of molecules
+                    _, vectors = sign.get_vectors(inchikeys, include_nan=True)
+                    fh['x_test'][:, idx * 128:(idx + 1) * 128] = vectors
+                    del vectors
 
     def save_sign2_matrix(self, sign2_list, destination):
         """Save matrix of horizontally stacked signature 2.
@@ -121,15 +153,15 @@ class sign3(BaseSignature, DataSignature):
                                 sum(available), self.dataset, ds)
                 del signs
 
-    def _learn(self, adanet_params, reuse=True, suffix=None,
-               evaluate=True):
+    def learn_sign2(self, adanet_params, reuse=True, suffix=None,
+                    evaluate=True):
         """Learn the signature 3 model.
 
         This method is used twice. First to evaluate the performances of the
         AdaNet model. Second to train the final model on the full set of data.
 
         Args:
-            sign2_list(list): List of signature 2 objects to learn from.
+            adanet_params(dict): Dictionary with algorithm parameters.
             reuse(bool): Whether to reuse intermediate files (e.g. the
                 aggregated signature 2 matrix).
             suffix(str): A suffix for the AdaNet model path (e.g.
@@ -147,9 +179,8 @@ class sign3(BaseSignature, DataSignature):
             adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
         else:
             adanet_path = os.path.join(self.model_path, 'adanet')
-        if adanet_params:
-            if 'model_dir' in adanet_params:
-                adanet_path = adanet_params.pop('model_dir')
+        if 'model_dir' in adanet_params:
+            adanet_path = adanet_params.pop('model_dir')
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
         # generate input matrix
@@ -159,9 +190,8 @@ class sign3(BaseSignature, DataSignature):
         # if evaluating, perform the train-test split
         if evaluate:
             traintest_file = os.path.join(self.model_path, 'traintest.h5')
-            if adanet_params:
-                traintest_file = adanet_params.pop(
-                    'traintest_file', traintest_file)
+            traintest_file = adanet_params.pop(
+                'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
                 Traintest.split_h5_blocks(sign2_matrix, traintest_file)
         else:
@@ -169,23 +199,19 @@ class sign3(BaseSignature, DataSignature):
             if adanet_params:
                 traintest_file = adanet_params.pop(
                     'traintest_file', traintest_file)
-        # initialize adanet and start learning
-        if adanet_params:
-            # parameter heuristics
-            with h5py.File(sign2_matrix, 'r') as hf:
-                mat_shape = hf['x'].shape
-            if 'layer_size' not in adanet_params:
-                adanet_params['layer_size'] = layer_size_heuristic(*mat_shape)
-            if 'batch_size' not in adanet_params:
-                adanet_params['batch_size'] = batch_size_heuristic(*mat_shape)
-            if 'epoch_per_iteration' not in adanet_params:
-                adanet_params['epoch_per_iteration'] = epoch_per_iteration_heuristic(
-                    *mat_shape)
-            ada = AdaNet(model_dir=adanet_path,
-                         traintest_file=traintest_file,
-                         **adanet_params)
-        else:
-            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
+        # parameter heuristics
+        with h5py.File(sign2_matrix, 'r') as hf:
+            mat_shape = hf['x'].shape
+        if 'layer_size' not in adanet_params:
+            adanet_params['layer_size'] = layer_size_heuristic(*mat_shape)
+        if 'batch_size' not in adanet_params:
+            adanet_params['batch_size'] = batch_size_heuristic(*mat_shape)
+        if 'epoch_per_iteration' not in adanet_params:
+            adanet_params['epoch_per_iteration'] = epoch_per_iteration_heuristic(
+                *mat_shape)
+        ada = AdaNet(model_dir=adanet_path,
+                     traintest_file=traintest_file,
+                     **adanet_params)
         self.__log.debug('AdaNet training on %s' % traintest_file)
         ada.train_and_evaluate(evaluate=evaluate)
         self.__log.debug('model saved to %s' % adanet_path)
@@ -203,6 +229,7 @@ class sign3(BaseSignature, DataSignature):
         Args:
             sign0(list): Signature 0 to learn from.
             destination(str): Path where to save the matrix (HDF5 file).
+            include_confidence(bool): whether to include confidences.
         """
         self.__log.debug('Saving sign0 traintest to: %s' % destination)
         common_keys, features = sign0.get_vectors(self.keys)
@@ -214,17 +241,20 @@ class sign3(BaseSignature, DataSignature):
             stddev = np.expand_dims(stddev, 1)
             intensity = self.get_h5_dataset('intensity_norm', mask)
             intensity = np.expand_dims(intensity, 1)
+            exp_error = self.get_h5_dataset('exp_error_norm', mask)
+            exp_error = np.expand_dims(intensity, 1)
             confidence = self.get_h5_dataset('confidence', mask)
             confidence = np.expand_dims(confidence, 1)
             # we also want to learn how to predict confidence scores
             # so they become part of the supervised learning input
-            labels = np.hstack((labels, stddev, intensity, confidence))
+            labels = np.hstack(
+                (labels, stddev, intensity, exp_error, confidence))
         with h5py.File(destination, 'w') as hf:
             hf.create_dataset('y', data=labels, dtype=np.float32)
             hf.create_dataset('x', data=features, dtype=np.float32)
 
-    def _learn_sign0(self, sign0, adanet_params, reuse=True, suffix=None,
-                     evaluate=True, include_confidence=True):
+    def learn_sign0(self, sign0, adanet_params, reuse=True, suffix=None,
+                    evaluate=True, include_confidence=True):
         """Learn the signature 3 from sign0.
 
         This method is used twice. First to evaluate the performances of the
@@ -232,6 +262,7 @@ class sign3(BaseSignature, DataSignature):
 
         Args:
             sign0(list): Signature 0 object to learn from.
+            adanet_params(dict): Dictionary with algorithm parameters.
             reuse(bool): Whether to reuse intermediate files (e.g. the
                 aggregated signature 2 matrix).
             suffix(str): A suffix for the AdaNet model path (e.g.
@@ -239,6 +270,7 @@ class sign3(BaseSignature, DataSignature):
             evaluate(bool): Whether we are performing a train-test split and
                 evaluating the performances (N.B. this is required for complete
                 confidence scores)
+            include_confidence(bool): whether to include confidences.
         """
         try:
             from chemicalchecker.tool.adanet import AdaNet
@@ -252,9 +284,8 @@ class sign3(BaseSignature, DataSignature):
             adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
         else:
             adanet_path = os.path.join(self.model_path, 'adanet')
-        if adanet_params:
-            if 'model_dir' in adanet_params:
-                adanet_path = adanet_params.pop('model_dir')
+        if 'model_dir' in adanet_params:
+            adanet_path = adanet_params.pop('model_dir')
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
         # generate input matrix
@@ -265,23 +296,18 @@ class sign3(BaseSignature, DataSignature):
         if evaluate:
             traintest_file = os.path.join(self.model_path,
                                           'traintest_sign0.h5')
-            if adanet_params:
-                traintest_file = adanet_params.pop(
-                    'traintest_file', traintest_file)
+            traintest_file = adanet_params.pop(
+                'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
                 Traintest.split_h5_blocks(sign0_matrix, traintest_file)
         else:
             traintest_file = sign0_matrix
-            if adanet_params:
-                traintest_file = adanet_params.pop(
-                    'traintest_file', traintest_file)
+            traintest_file = adanet_params.pop(
+                'traintest_file', traintest_file)
         # initialize adanet and start learning
-        if adanet_params:
-            ada = AdaNet(model_dir=adanet_path,
-                         traintest_file=traintest_file,
-                         **adanet_params)
-        else:
-            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
+        ada = AdaNet(model_dir=adanet_path,
+                     traintest_file=traintest_file,
+                     **adanet_params)
         self.__log.debug('AdaNet training on %s' % traintest_file)
         ada.train_and_evaluate(evaluate=evaluate)
         self.__log.debug('model saved to %s' % adanet_path)
@@ -347,8 +373,8 @@ class sign3(BaseSignature, DataSignature):
                     offset = dst_chunk.stop
                 assert(offset == feat_shape[0])
 
-    def _learn_error(self, predict_fn, adanet_params, reuse=True, suffix=None,
-                     evaluate=True):
+    def learn_error(self, predict_fn, adanet_params, reuse=True, suffix=None,
+                    evaluate=True):
         """Learn the signature 3 prediction error.
 
         This method is used twice. First to evaluate the performances of the
@@ -446,30 +472,28 @@ class sign3(BaseSignature, DataSignature):
                                         'adanet_sign0_%s_eval' % s0_code)
         eval_stats = os.path.join(eval_adanet_path, 'stats_eval.pkl')
         if not os.path.isfile(eval_stats):
-            self._learn_sign0(sign0, self.params['sign0'],
-                              suffix='sign0_%s_eval' % s0_code,
-                              evaluate=True,
-                              include_confidence=include_confidence)
+            self.learn_sign0(sign0, self.params['sign0'],
+                             suffix='sign0_%s_eval' % s0_code,
+                             evaluate=True,
+                             include_confidence=include_confidence)
 
         # check if we have the final trained model
         final_adanet_path = os.path.join(self.model_path,
                                          'adanet_sign0_%s_final' % s0_code,
                                          'savedmodel')
         if not os.path.isdir(final_adanet_path):
-            self._learn_sign0(sign0, self.params['sign0'],
-                              suffix='sign0_%s_final' % s0_code,
-                              evaluate=False,
-                              include_confidence=include_confidence)
+            self.learn_sign0(sign0, self.params['sign0'],
+                             suffix='sign0_%s_final' % s0_code,
+                             evaluate=False,
+                             include_confidence=include_confidence)
 
-    def get_predict_fn(self):
+    def get_predict_fn(self, model='adanet_sign0_A1.001_final'):
         try:
             from chemicalchecker.tool.adanet import AdaNet
         except ImportError as err:
             raise err
-        sign0_adanet_path = os.path.join(self.model_path,
-                                         'adanet_sign0_A1.001_final',
-                                         'savedmodel')
-        return AdaNet.predict_fn(sign0_adanet_path)
+        modelpath = os.path.join(self.model_path, model, 'savedmodel')
+        return AdaNet.predict_fn(modelpath)
 
     def predict_from_smiles(self, smiles, dest_file, chunk_size=1000,
                             predict_fn=None):
@@ -484,17 +508,13 @@ class sign3(BaseSignature, DataSignature):
                 object.
         """
         try:
-            from chemicalchecker.tool.adanet import AdaNet
             from rdkit import Chem
             from rdkit.Chem import AllChem
         except ImportError as err:
             raise err
         # load NN
-        sign0_adanet_path = os.path.join(self.model_path,
-                                         'adanet_sign0_A1.001_final',
-                                         'savedmodel')
         if predict_fn is None:
-            predict_fn = AdaNet.predict_fn(sign0_adanet_path)
+            predict_fn = self.get_predict_fn('adanet_sign0_A1.001_final')
         # we return a simple DataSignature object (basic HDF5 access)
         pred_s3 = DataSignature(dest_file)
         with h5py.File(dest_file, "w") as results:
@@ -548,51 +568,33 @@ class sign3(BaseSignature, DataSignature):
                 results['confidence'][chunk] = preds[:, 130]
         return pred_s3
 
-    @staticmethod
-    def save_sign2_universe(sign2_list, destination):
-        """Create a file with all signatures 2 for each molecule in the CC.
-
-        Args:
-            sign2_list(list): List of signature 2 objects to learn from.
-            destination(str): Path where the H5 is saved.
-        """
-        # get sorted universe inchikeys and CC signatures
-        sign3.__log.info("Generating signature 2 universe matrix.")
-        inchikeys = set()
-        for sign in sign2_list:
-            inchikeys.update(sign.unique_keys)
-        inchikeys = sorted(list(inchikeys))
-        tot_inks = len(inchikeys)
-        tot_ds = len(sign2_list)
-        # build matrix stacking horizontally signature
-        if not os.path.isfile(destination):
-            with h5py.File(destination, "w") as fh:
-                fh.create_dataset('x_test',
-                                  (tot_inks, 128 * tot_ds),
-                                  dtype=np.float32)
-                for idx, sign in enumerate(sign2_list):
-                    sign3.__log.info("Fetching from %s" % sign.data_path)
-                    # including NaN we have the correct number of molecules
-                    _, vectors = sign.get_vectors(inchikeys, include_nan=True)
-                    fh['x_test'][:, idx * 128:(idx + 1) * 128] = vectors
-                    del vectors
-
-    def fit(self, sign2_list, sign2_self, sign2_universe=None, sign0=None,
-            model_confidence=True, save_correlations=True, model_novelty=True,
-            update_preds=True, normalize_scores=True, validations=True,
-            chunk_size=1000):
+    def fit(self, sign2_list, sign2_self, sign2_universe=None,
+            sign2_coverage=None, sign0=None,
+            model_confidence=True, save_correlations=True,
+            predict_novelty=True, update_preds=True, normalize_scores=True,
+            validations=True, chunk_size=1000):
         """Fit the model to predict the signature 3.
 
         Args:
             sign2_list(list): List of signature 2 objects to learn from.
             sign2_self(sign2): Signature 2 of the current space.
             sign2_universe(str): Path to the union of all signatures 2 for all
-                molecules in the CC universe.
+                molecules in the CC universe. (800k x 3200)
+            sign2_coverage(str): Path to the coverage of all signatures 2 for
+                all molecules in the CC universe. (800k x 25)
+            sign0(sign): The signature 0 or any direct vector representation
+                of the molecule used to train a sign2 independendent sign3
+                predictor.
             model_confidence(bool): Whether to model confidence. That is based
                 on standard deviation of prediction with dropout.
             save_correlations(bool) Whether to save the correlation (average,
                 tertile, max) for the given input dataset (result of the
                 evaluation).
+            predict_novelty(bool) Whether to predict molecule novelty score.
+            update_preds(bool): Whether to write or update the sign3.h5
+            normalize_scores(bool): Whether to normalize confidence scores.
+            validations(bool): Whether to perform validation.
+            chunk_size(int): Chunk size when writing to sign3.h5
         """
         try:
             from chemicalchecker.tool.adanet import AdaNet
@@ -609,14 +611,14 @@ class sign3(BaseSignature, DataSignature):
         eval_adanet_path = os.path.join(self.model_path, 'adanet_eval')
         eval_stats = os.path.join(eval_adanet_path, 'stats_eval.pkl')
         if not os.path.isfile(eval_stats):
-            self._learn(self.params['adanet'],
-                        suffix='eval', evaluate=True)
+            self.learn_sign2(self.params['adanet'],
+                             suffix='eval', evaluate=True)
 
         # check if we have the final trained model
         final_adanet_path = os.path.join(self.model_path, 'adanet_final')
         if not os.path.isdir(final_adanet_path):
-            self._learn(self.params['adanet'],
-                        suffix='final', evaluate=False)
+            self.learn_sign2(self.params['adanet'],
+                             suffix='final', evaluate=False)
 
         # part of confidence is the expected error
         if model_confidence:
@@ -625,49 +627,46 @@ class sign3(BaseSignature, DataSignature):
             eval_err_stats = os.path.join(
                 eval_err_path, 'stats_error_eval.pkl')
             if not os.path.isfile(eval_err_stats):
-                predict_fn = AdaNet.predict_fn(os.path.join(final_adanet_path,
-                                                            'savedmodel'))
+                predict_fn = self.get_predict_fn('adanet_error_eval')
                 # step1 learn dataset availability to error predictor
-                self._learn_error(predict_fn, self.params['error'],
-                                  suffix='error_eval', evaluate=True)
+                self.learn_error(predict_fn, self.params['error'],
+                                 suffix='error_eval', evaluate=True)
 
             # final error predictor
             final_err_path = os.path.join(
                 self.model_path, 'adanet_error_final')
             if not os.path.isdir(final_err_path):
-                predict_fn = AdaNet.predict_fn(os.path.join(final_adanet_path,
-                                                            'savedmodel'))
-                self._learn_error(predict_fn, self.params['error'],
-                                  suffix='error_final', evaluate=False)
+                predict_fn = self.predict_fn('adanet_error_final')
+                self.learn_error(predict_fn, self.params['error'],
+                                 suffix='error_final', evaluate=False)
             self.__log.debug('Loading model for error prediction')
             rf = pickle.load(
                 open(os.path.join(final_err_path, 'RandomForest.pkl')))
 
-        # get sorted universe inchikeys and signatures
+        # get sorted universe inchikeys
         inchikeys = set()
-        ds_sign = dict()
         for ds, sign in zip(self.src_datasets, sign2_list):
             inchikeys.update(sign.unique_keys)
-            ds_sign[ds] = sign
         inchikeys = sorted(list(inchikeys))
         tot_inks = len(inchikeys)
-        tot_ds = len(ds_sign)
+        self.tot_inks = tot_inks
+        tot_ds = len(self.src_datasets)
 
         # build input matrix if not provided (should be since is shared)
         if sign2_universe is None:
             sign2_universe = os.path.join(self.model_path, 'all_sign2.h5')
         if not os.path.isfile(sign2_universe):
             sign3.save_sign2_universe(sign2_list, sign2_universe)
-
-        def safe_create(h5file, *args, **kwargs):
-            if args[0] not in h5file:
-                h5file.create_dataset(*args, **kwargs)
+        if sign2_coverage is None:
+            sign2_coverage = os.path.join(self.model_path,
+                                          'all_sign2_coverage.h5')
+        if not os.path.isfile(sign2_coverage):
+            sign3.save_sign2_coverage(sign2_list, sign2_coverage)
 
         # save universe sign3
         if update_preds:
-            predict_fn = AdaNet.predict_fn(os.path.join(final_adanet_path,
-                                                        'savedmodel'))
-            with h5py.File(self.data_path, "w") as results:
+            predict_fn = self.get_predict_fn('adanet_final')
+            with h5py.File(self.data_path, "r+") as results:
                 # initialize V and keys datasets
                 safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
                 safe_create(results, 'keys',
@@ -680,6 +679,8 @@ class sign3(BaseSignature, DataSignature):
                 if model_confidence:
                     # the actual confidence value will be stored here
                     safe_create(results, 'confidence',
+                                (tot_inks,), dtype=np.float32)
+                    safe_create(results, 'confidence_raw',
                                 (tot_inks,), dtype=np.float32)
                     # this is to store standard deviation
                     safe_create(results, 'stddev',
@@ -699,8 +700,12 @@ class sign3(BaseSignature, DataSignature):
                     # this is to store the consensus prediction
                     safe_create(results, 'consensus',
                                 (tot_inks, 128), dtype=np.float32)
-                if model_novelty:
+                if predict_novelty:
+                    safe_create(results, 'novelty',
+                                (tot_inks, ), dtype=np.float32)
                     safe_create(results, 'novelty_norm',
+                                (tot_inks, ), dtype=np.float32)
+                    safe_create(results, 'outlier',
                                 (tot_inks, ), dtype=np.float32)
                 if save_correlations:
                     # read the correlations obtained evaluating on single
@@ -732,8 +737,8 @@ class sign3(BaseSignature, DataSignature):
                 # predict signature 3 for universe molecules
                 with h5py.File(sign2_universe, "r") as features:
                     # reference prediction (based on no information)
-                    nan_feat = np.full(
-                        (1, features['x_test'].shape[1]), np.nan, dtype=np.float32)
+                    nan_feat = np.full((1, features['x_test'].shape[1]),
+                                       np.nan, dtype=np.float32)
                     nan_pred = predict_fn({'x': nan_feat})['predictions']
                     # read input in chunks
                     for idx in tqdm(range(0, tot_inks, chunk_size)):
@@ -744,15 +749,15 @@ class sign3(BaseSignature, DataSignature):
                             results['V'][chunk] = AdaNet.predict(
                                 feat, predict_fn)
                             continue
-                        # also save confidence natural scores
-                        # compute predicted error
+                        # save confidence natural scores
+                        # compute estimated error from coverage
                         coverage = ~np.isnan(feat[:, 0::128])
                         results['exp_error'][chunk] = rf.predict(coverage)
                         # draw prediction with sub-sampling (dropout)
                         pred, samples = AdaNet.predict(feat, predict_fn,
                                                        subsample_x_only,
                                                        consensus=True,
-                                                       samples=5)
+                                                       samples=10)
                         results['V'][chunk] = pred
                         # summarize the predictions as consensus
                         consensus = np.mean(samples, axis=1)
@@ -769,51 +774,13 @@ class sign3(BaseSignature, DataSignature):
                         results['stddev'][chunk] = np.mean(
                             stddevs, axis=1).flatten()
 
-        # use semi-supervised anomaly detection algorithm to predict novelty
-        if model_novelty:
-            self.model_novelty(self.sign2_self)
-
-        # normalize scores sampling distribution of known signatures
+        # normalize consensus scores sampling distribution of known signatures
         if normalize_scores:
-            distributions = self.confidence_distributions(
-                ds_sign[self.dataset], model_novelty)
-            std_dist, int_dist, err_dist, nov_dist = distributions
-            with h5py.File(self.data_path, "r+") as results:
-                safe_create(results, 'confidence',
-                            (tot_inks, 1), dtype=np.float32)
-                for idx in tqdm(range(0, tot_inks, chunk_size)):
-                    chunk = slice(idx, idx + chunk_size)
-                    # get stddev and normalize wrt train distribution
-                    stddev = np.expand_dims(results['stddev'][chunk], axis=1)
-                    stddev_norm = np.count_nonzero(stddev > std_dist.T, axis=1)
-                    stddev_norm = stddev_norm / float(std_dist.shape[0])
-                    results['stddev_norm'][chunk] = stddev_norm
-                    # get intensity and normalize wrt train distribution
-                    intensity = np.expand_dims(
-                        results['intensity'][chunk], axis=1)
-                    inten_norm = np.count_nonzero(
-                        intensity > int_dist.T, axis=1)
-                    inten_norm = inten_norm / float(int_dist.shape[0])
-                    results['intensity_norm'][chunk] = inten_norm
-                    # get predicted error and normalize wrt train distribution
-                    error = np.expand_dims(results['exp_error'][chunk], axis=1)
-                    error_norm = np.count_nonzero(error > err_dist.T, axis=1)
-                    error_norm = error_norm / float(err_dist.shape[0])
-                    results['exp_error_norm'][chunk] = error_norm
-                    if model_novelty:
-                        novelty = np.expand_dims(
-                            results['novelty'][chunk], axis=1)
-                        novelty_norm = np.count_nonzero(
-                            novelty > nov_dist.T, axis=1)
-                        novelty_norm = novelty_norm / float(nov_dist.shape[0])
-                        results['novelty_norm'][chunk] = novelty_norm
-                    # stddev, intensity and estimated error equally contribute
-                    # to the final confidence score which is a geometric mean
-                    confidence = (inten_norm * (1 - stddev_norm)
-                                  * (1 - error_norm))**(1.0 / 3)
-                    # the higher the better, clip at .999
-                    results['confidence'][chunk] = np.clip(
-                        confidence, .0, 0.999)
+            self.normalize_scores(sign2_coverage)
+
+        # use semi-supervised anomaly detection algorithm to predict novelty
+        if predict_novelty:
+            self.predict_novelty(self.sign2_self)
 
         self.background_distances("cosine")
         if validations:
@@ -824,12 +791,187 @@ class sign3(BaseSignature, DataSignature):
             self.fit_sign0(sign0)
         self.mark_ready()
 
-    def model_novelty(self, sign2_self, retrain=False, update_sign3=True):
+    def normalize_scores(self, sign2_coverage, chunk_size=10000):
+        """Normalize confidence scores."""
+        try:
+            from chemicalchecker.tool.adanet import AdaNet
+        except ImportError as err:
+            raise err
+
+        # get distribution for normalization
+        distributions = self.confidence_distributions(self.sign2_self)
+        std_dist, int_dist, err_dist, correlation = distributions
+        weights = [abs(correlation['intensity']),
+                   abs(correlation['stddev']),
+                   abs(correlation['exp_error'])]
+        # fit quantile transformers for normalization
+        self.__log.info('Quatile transformation...')
+        std_qtr = QuantileTransformer(n_quantiles=len(std_dist)).fit(std_dist)
+        int_qtr = QuantileTransformer(n_quantiles=len(int_dist)).fit(int_dist)
+        err_qtr = QuantileTransformer(n_quantiles=len(err_dist)).fit(err_dist)
+        # add confidence scores and the normalized values
+        with h5py.File(self.data_path, "r+") as results:
+            safe_create(results, 'confidence_raw',
+                        (self.tot_inks,), dtype=np.float32)
+            for idx in tqdm(range(0, self.tot_inks, chunk_size)):
+                chunk = slice(idx, idx + chunk_size)
+                # get intensity and normalize wrt train distribution
+                intensity = np.expand_dims(results['intensity'][chunk], axis=1)
+                inten_norm = int_qtr.transform(intensity)
+                results['intensity_norm'][chunk] = inten_norm.flatten()
+                # get stddev and normalize wrt train distribution
+                stddev = np.expand_dims(results['stddev'][chunk], axis=1)
+                stddev_norm = std_qtr.transform(stddev)
+                results['stddev_norm'][chunk] = stddev_norm.flatten()
+                # get predicted error and normalize wrt train distribution
+                error = np.expand_dims(results['exp_error'][chunk], axis=1)
+                error_norm = err_qtr.transform(error)
+                results['exp_error_norm'][chunk] = error_norm.flatten()
+                # stddev, intensity and estimated error contribute
+                # to the raw confidence score based on error correlation
+                confidence_raw = np.average(
+                    [inten_norm, (1 - stddev_norm), (1 - error_norm)],
+                    weights=weights, axis=0)
+                # range [0,1] the higher the confidence the lower the error
+                results['confidence_raw'][chunk] = np.clip(
+                    confidence_raw, 0.0, 1.0).flatten()
+        self.__log.info('Confidence performance scaling...')
+        # final scaling according to performance on unseen data
+        ds_corr = self.get_h5_dataset('datasets_correlation')
+        # load adanet_eval and its test data
+        traintest_file = os.path.join(self.model_path, 'traintest.h5')
+        predict_fn = self.get_predict_fn('adanet_eval')
+        # get various 'difficulty' level correlations
+        dist_pars = list()
+        for corr_thr in [.7, .9, 1.0]:
+            # mask highly correlated spaces
+            corr_mask = ds_corr > corr_thr
+            corr_spaces = np.array(self.src_datasets)[corr_mask].tolist()
+            self.__log.debug('Masking %s' % str(corr_spaces))
+            corr_idxs = np.argwhere(corr_mask).flatten().tolist()
+            mask_fn = partial(mask_exclude, corr_idxs)
+            # predict and compute component correlations (using unseen data)
+            y_pred_test, y_true_test = AdaNet.predict_online(
+                traintest_file, 'test', predict_fn, mask_fn)
+            y_pred_val, y_true_val = AdaNet.predict_online(
+                traintest_file, 'validation', predict_fn, mask_fn)
+            y_pred = np.vstack([y_pred_test, y_pred_val])
+            y_true = np.vstack([y_true_test, y_true_val])
+            correlations = col_wise_correlation(y_pred, y_true)
+            dist_pars.append(
+                (corr_mask, np.mean(correlations), np.std(correlations)))
+            self.__log.debug('Distribution N(%.2f,%.2f)' % (dist_pars[-1][1:]))
+        # get mol indexes where to apply the different transformations
+        full_coverage = DataSignature(sign2_coverage)[:].astype(bool)
+        confidence_raw = self.get_h5_dataset('confidence_raw')
+        done = np.full(full_coverage.shape[0], False)
+        confidence = list()
+        for mask, mu, std in dist_pars:
+            # get molecules without any of the spaces in the mask
+            molmask = np.argwhere(
+                ~np.any(full_coverage & mask, axis=1)).flatten()
+            # exclude aready done molecules
+            molmask = molmask[~done[molmask]]
+            self.__log.debug('Scaling %s mols. to N(%.2f,%.2f)' %
+                             (molmask.shape[0], mu, std))
+            # get confidences
+            dist = confidence_raw[molmask]
+            # gaussianize the confidences
+            scaled = norm.ppf((rankdata(dist) - 0.5) / len(dist), mu, std)
+            # append to list for later sorting
+            confidence.extend(zip(molmask, scaled))
+            # these molecules are done, do include them in following
+            done[molmask] = True
+        confidence = np.array(sorted(confidence))
+        with h5py.File(self.data_path, "r+") as results:
+            if 'confidence' in results:
+                del results['confidence']
+            results['confidence'] = np.clip(
+                confidence[:, 1], 0.0, 1.0).flatten()
+
+    def confidence_distributions(self, sign2_self, max_sample=100000):
+        """Get distributions for confidence scores normalization.
+
+        Args:
+            sign2_self(sign2): The signature that we are training for.
+            max_sample(int): The maximum number of molecule to sample.
+        Returns:
+            stddev(np.array): Distribution of standard deviations.
+            intensity(np.array): Distribution of intensity.
+            exp_error(np.array): Distribution of predicted errors.
+            correlation(dict): Error correlation coefficients.
+        """
+        self.__log.debug('Generating confidence scores distributions')
+        # get current space inchikeys (limit to 20^4)
+        dataset_inks = sign2_self.keys
+        if len(dataset_inks) > max_sample:
+            dataset_inks = np.random.choice(dataset_inks, max_sample,
+                                            replace=False)
+        # get the features to train the estimator on
+        _, stddev = self.get_vectors(dataset_inks, dataset_name='stddev')
+        _, intensity = self.get_vectors(dataset_inks, dataset_name='intensity')
+        _, exp_error = self.get_vectors(
+            dataset_inks, dataset_name='exp_error')
+        # also get the predicted and actual sign2
+        _, consensus = self.get_vectors(dataset_inks, dataset_name='consensus')
+        _, predicted = self.get_vectors(dataset_inks)
+        _, actual = sign2_self.get_vectors(dataset_inks)
+        # calculate the error (what we want to predict)
+        log_mse = np.log10(np.mean(((actual - predicted)**2), axis=1))
+        log_mse_consensus = np.log10(
+            np.average(((actual - consensus)**2), axis=1))
+        # calculate correlations for scaling
+        correlation = dict()
+        corr_stddev_cons = pearsonr(stddev.flatten(), log_mse_consensus)[0]
+        self.__log.debug('stddev score correlation to consensus error:' +
+                         ' %.2f' % corr_stddev_cons)
+        corr_stddev = pearsonr(stddev.flatten(), log_mse)[0]
+        self.__log.debug('stddev score correlation to error:' +
+                         ' %.2f' % corr_stddev)
+        correlation['stddev'] = corr_stddev_cons
+        corr_intensity_cons = pearsonr(
+            intensity.flatten(), log_mse_consensus)[0]
+        self.__log.debug('intensity score correlation to consensus error:' +
+                         ' %.2f' % corr_intensity_cons)
+        corr_intensity = pearsonr(intensity.flatten(), log_mse)[0]
+        self.__log.debug('intensity score correlation to error:' +
+                         ' %.2f' % corr_intensity)
+        correlation['intensity'] = corr_intensity_cons
+        corr_exp_error_cons = pearsonr(
+            exp_error.flatten(), log_mse_consensus)[0]
+        self.__log.debug('exp_error score correlation to consensus error:' +
+                         ' %.2f' % corr_exp_error_cons)
+        corr_exp_error = pearsonr(exp_error.flatten(), log_mse)[0]
+        self.__log.debug('exp_error score correlation to error:' +
+                         ' %.2f' % corr_exp_error)
+        correlation['exp_error'] = corr_exp_error
+        # save data in the confidence model
+        error_file = os.path.join(self.model_path, 'error.h5')
+        with h5py.File(error_file, "w") as hf:
+            hf.create_dataset('keys',
+                              data=np.array(dataset_inks,
+                                            DataSignature.string_dtype()))
+            hf.create_dataset('stddev', data=stddev, dtype=np.float32)
+            hf.create_dataset('intensity', data=intensity, dtype=np.float32)
+            hf.create_dataset('exp_error', data=exp_error, dtype=np.float32)
+            hf.create_dataset('log_mse', data=log_mse, dtype=np.float32)
+            hf.create_dataset('log_mse_consensus',
+                              data=log_mse_consensus, dtype=np.float32)
+        return stddev, intensity, exp_error, correlation
+
+    def predict_novelty(self, retrain=False, update_sign3=True):
+        """Model novelty score via LocalOutlierFactor (semi-supervised).
+
+        Args:
+            retrain(bool): Drop old model and train again. (default: False)
+            update_sign3(bool): Write novelty scores in h5. (default: True)
+
+        """
         novelty_path = os.path.join(self.model_path, 'novelty')
         if not os.path.isdir(novelty_path):
             os.mkdir(novelty_path)
         novelty_model = os.path.join(novelty_path, 'lof.pkl')
-        s2_inks = sign2_self.keys
+        s2_inks = self.sign2_self.keys
         model = None
         if not os.path.isfile(novelty_model) or retrain:
             self.__log.debug('Training novelty score predictor')
@@ -867,74 +1009,16 @@ class sign3(BaseSignature, DataSignature):
             ordered_novelty = ordered_scores[:, 1]
             ordered_outlier = ordered_scores[:, 2]
             with h5py.File(self.data_path, "r+") as results:
-                if 'novelty' not in results:
-                    results.create_dataset('novelty', data=ordered_novelty,
-                                           dtype=np.float32)
-                else:
-                    results['novelty'] = ordered_novelty
-                if 'outlier' not in results:
-                    results.create_dataset('outlier', data=ordered_outlier,
-                                           dtype=np.float32)
-                else:
-                    results['outlier'] = ordered_outlier
+                results['novelty'] = ordered_novelty
+                results['outlier'] = ordered_outlier
 
     def predict(self):
         # TODO decide default prediction mode.
         pass
 
-    def confidence_distributions(self, sign2_self, model_novelty,
-                                 max_sample=100000):
-        """Get distributions for confidence scores normalization.
-
-        Args:
-            sign2_self(sign2): The signature that we are training for.
-            max_sample(int): The maximum number of molecule to sample.
-        Returns:
-            stddev(np.array): Distribution of standard deviations.
-            intensity(np.array): Distribution of intensity.
-            exp_error(np.array): Distribution of predicted errors.
-        """
-        self.__log.debug('Generating confidence scores distributions')
-        # get current space inchikeys (limit to 20^4)
-        dataset_inks = sign2_self.keys
-        if len(dataset_inks) > max_sample:
-            dataset_inks = np.random.choice(dataset_inks, max_sample,
-                                            replace=False)
-        # get the features to train the estimator on
-        _, stddev = self.get_vectors(dataset_inks, dataset_name='stddev')
-        _, intensity = self.get_vectors(dataset_inks, dataset_name='intensity')
-        _, exp_error = self.get_vectors(
-            dataset_inks, dataset_name='exp_error')
-        if model_novelty:
-            _, novelty = self.get_vectors(dataset_inks, dataset_name='novelty')
-        # also get the predicted and actual sign2
-        _, consensus = self.get_vectors(dataset_inks, dataset_name='consensus')
-        _, predicted = self.get_vectors(dataset_inks)
-        _, actual = sign2_self.get_vectors(dataset_inks)
-        # calculate the error (what we want to predict)
-        log_mse = np.log10(np.mean(((actual - predicted)**2), axis=1))
-        log_mse_consensus = np.log10(
-            np.average(((actual - consensus)**2), axis=1))
-        # save data in the confidence model
-        error_file = os.path.join(self.model_path, 'error.h5')
-        with h5py.File(error_file, "w") as hf:
-            hf.create_dataset('keys',
-                              data=np.array(dataset_inks,
-                                            DataSignature.string_dtype()))
-            hf.create_dataset('stddev', data=stddev, dtype=np.float32)
-            hf.create_dataset('intensity', data=intensity, dtype=np.float32)
-            hf.create_dataset('exp_error', data=exp_error, dtype=np.float32)
-            if model_novelty:
-                hf.create_dataset('novelty', data=novelty, dtype=np.float32)
-            hf.create_dataset('log_mse', data=log_mse, dtype=np.float32)
-            hf.create_dataset('log_mse_consensus',
-                              data=log_mse_consensus, dtype=np.float32)
-        if not model_novelty:
-            novelty = None
-        return stddev, intensity, exp_error, novelty
-
     def train_other(self, predictors, save_path, traintest_file,
                     train_only=False):
+        """Train other predictors for comparison."""
 
         def train_predict_save(name, model, x_true, y_true, split, save_path):
             result = dict()
@@ -1007,31 +1091,6 @@ class sign3(BaseSignature, DataSignature):
             from chemicalchecker.tool.adanet import AdaNet
         except ImportError as err:
             raise err
-
-        def mask_keep(idxs, x_data, y_data):
-            # we will fill an array of NaN with values we want to keep
-            x_data_transf = np.zeros_like(x_data, dtype=np.float32) * np.nan
-            for idx in idxs:
-                # copy column from original data
-                col_slice = slice(idx * 128, (idx + 1) * 128)
-                x_data_transf[:, col_slice] = x_data[:, col_slice]
-            # keep rows containing at least one not-NaN value
-            not_nan = np.isfinite(x_data_transf).any(axis=1)
-            x_data_transf = x_data_transf[not_nan]
-            y_data_transf = y_data[not_nan]
-            return x_data_transf, y_data_transf
-
-        def mask_exclude(idxs, x_data, y_data):
-            x_data_transf = np.copy(x_data)
-            for idx in idxs:
-                # set current space to nan
-                col_slice = slice(idx * 128, (idx + 1) * 128)
-                x_data_transf[:, col_slice] = np.nan
-            # drop rows that only contain NaNs
-            not_nan = np.isfinite(x_data_transf).any(axis=1)
-            x_data_transf = x_data_transf[not_nan]
-            y_data_transf = y_data[not_nan]
-            return x_data_transf, y_data_transf
 
         def predict_and_save(name, idxs, save_dir, traintest_file, split,
                              predict_fn, mask_fn, adanet_path, total_size):
@@ -1186,7 +1245,7 @@ class sign3(BaseSignature, DataSignature):
             "data = inputs[task_id]",  # elements for current job
             "for s3, params in data:",  # elements are indexes
             "    params['cpu'] = %s" % cpu,
-            "    s3._learn(params)",
+            "    s3.learn_sign2(params)",
             "print('JOB DONE')"
         ]
         script_name = os.path.join(job_path, 'sign3_grid_search_adanet.py')
@@ -1212,6 +1271,49 @@ class sign3(BaseSignature, DataSignature):
         cluster = HPC.from_config(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
+
+
+def safe_create(h5file, *args, **kwargs):
+    if args[0] not in h5file:
+        h5file.create_dataset(*args, **kwargs)
+
+
+def mask_keep(idxs, x_data, y_data):
+    # we will fill an array of NaN with values we want to keep
+    x_data_transf = np.zeros_like(x_data, dtype=np.float32) * np.nan
+    for idx in idxs:
+        # copy column from original data
+        col_slice = slice(idx * 128, (idx + 1) * 128)
+        x_data_transf[:, col_slice] = x_data[:, col_slice]
+    # keep rows containing at least one not-NaN value
+    not_nan = np.isfinite(x_data_transf).any(axis=1)
+    x_data_transf = x_data_transf[not_nan]
+    y_data_transf = y_data[not_nan]
+    return x_data_transf, y_data_transf
+
+
+def mask_exclude(idxs, x_data, y_data):
+    x_data_transf = np.copy(x_data)
+    for idx in idxs:
+        # set current space to nan
+        col_slice = slice(idx * 128, (idx + 1) * 128)
+        x_data_transf[:, col_slice] = np.nan
+    # drop rows that only contain NaNs
+    not_nan = np.isfinite(x_data_transf).any(axis=1)
+    x_data_transf = x_data_transf[not_nan]
+    y_data_transf = y_data[not_nan]
+    return x_data_transf, y_data_transf
+
+
+def col_wise_correlation(X, Y):
+    return row_wise_correlation(X.T, Y.T)
+
+
+def row_wise_correlation(X, Y):
+    var1 = (X.T - np.mean(X, axis=1)).T
+    var2 = (Y.T - np.mean(Y, axis=1)).T
+    cov = np.mean(var1 * var2, axis=1)
+    return cov / (np.std(X, axis=1) * np.std(Y, axis=1))
 
 
 def linear_pow2(val, slope=0.33, intercept=4.):
