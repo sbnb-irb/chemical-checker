@@ -74,7 +74,7 @@ class UMAP(BaseSignature, DataSignature):
         with h5py.File(signature.data_path, "r") as src, \
                 h5py.File(self.data_path, "w") as dst:
             dst.create_dataset("keys", data=src['keys'][:], dtype=sdtype)
-            dst.create_dataset("name", data=[self.name], dtype=sdtype)
+            dst.create_dataset("name", data=np.array([self.name], sdtype))
             date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             dst.create_dataset("date", data=[date_str], dtype=sdtype)
             if 'mappings' in src.keys():
@@ -102,7 +102,7 @@ class UMAP(BaseSignature, DataSignature):
         with h5py.File(signature.data_path, "r") as src, \
                 h5py.File(destination, "w") as dst:
             dst.create_dataset("keys", data=src['keys'][:], dtype=sdtype)
-            dst.create_dataset("name", data=[self.name], dtype=sdtype)
+            dst.create_dataset("name", data=np.array([self.name], sdtype))
             date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             dst.create_dataset("date", data=[date_str], dtype=sdtype)
             if 'mappings' in src.keys():
