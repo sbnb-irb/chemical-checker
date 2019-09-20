@@ -230,9 +230,3 @@ class Universe:
                 else:
                     candidates.update(random.sample(remaining_universe, k=N))
         return actives, inactives, candidates
-
-
-if __name__ == "__main__":
-    universe = Universe()
-    universe.fit()
-    universe.save()

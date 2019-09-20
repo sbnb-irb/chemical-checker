@@ -284,29 +284,6 @@ class TargetMate:
             arena = load_morgan_arena(fps_file)
         return arena
 
-    # def fingerprint_arena(self, smiles, use_checkpoints=False, is_prd=False):
-    #     """Read smiles string"""
-    #     if is_prd:
-    #         smi_file = os.path.join(self.tmp_path, "arena.smi")
-    #         fps_file = os.path.join(self.tmp_path, "arena.fps")
-    #     else:
-    #         smi_file = os.path.join(self.models_path, "arena.smi")
-    #         fps_file = os.path.join(self.models_path, "arena.fps")
-    #     if not use_checkpoints or not os.path.exists(fps_file):
-    #         self.__log.debug("Writing SMILES")
-    #         with open(smi_file, "w") as f:
-    #             for i, smi in enumerate(smiles):
-    #                 f.write("%s\t%i\n" % (smi, i))
-    #         self.__log.debug("Writing Fingerprints")
-    #         reader = chemfp.read_molecule_fingerprints(
-    #             type="RDKit-Morgan", source=smi_file, format="smi")
-    #         writer = chemfp.open_fingerprint_writer(fps_file, reader.metadata)
-    #         writer.write_fingerprints(reader)
-    #         writer.close()
-    #         reader.close()
-    #     arena = chemfp.load_fingerprints(fps_file)
-    #     return arena
-
     @staticmethod
     def calculate_bias(yt, yp):
         """Calculate the bias of the QSAR model"""
@@ -347,43 +324,6 @@ class TargetMate:
             ws = sims[i] / (stds[idxs_] * bias[idxs_])
             weights += [np.max(ws)]
         return np.array(weights)
-
-    # def knearest_search(self, query_fps, target_fps, N=None):
-    #     """Nearest neighbors search using chemical fingerprints"""
-    #     if target_fps is None:
-    #         k = np.min([self.k, len(query_fps) - 1])
-    #         neighs = chemfp.knearest_tanimoto_search_symmetric(
-    #             query_fps, k=k, threshold=self.min_sim)
-    #     else:
-    #         k = np.min([self.k, len(target_fps)])
-    #         neighs = chemfp.knearest_tanimoto_search(
-    #             query_fps, target_fps, k=k, threshold=self.min_sim)
-    #     if N is None:
-    #         N = len(query_fps)
-    #     sims = np.zeros((N, k), dtype=np.float32)
-    #     idxs = np.zeros((N, k), dtype=np.int)
-    #     for query_id, hits in neighs:
-    #         q_idx = int(query_id)
-    #         hits = hits.get_ids_and_scores()
-    #         sims_ = []
-    #         idxs_ = []
-    #         for h in hits:
-    #             sims_ += [h[1]]
-    #             idxs_ += [int(h[0])]
-    #         sims[q_idx, :len(sims_)] = sims_
-    #         idxs[q_idx, :len(idxs_)] = idxs_
-    #     return sims, idxs
-
-    # def calculate_weights(self, query_fps, target_fps, stds, bias, N=None):
-    #     """Calculate weights using adaptation of Aniceto et al 2016."""
-    #     self.__log.debug("Finding nearest neighbors")
-    #     sims, idxs = self.knearest_search(query_fps, target_fps, N)
-    #     self.__log.debug("Calculating weights from std and bias")
-    #     weights = []
-    #     for i, idxs_ in enumerate(idxs):
-    #         ws = sims[i] / (stds[idxs_] * bias[idxs_])
-    #         weights += [np.max(ws)]
-    #     return np.array(weights)
 
     @staticmethod
     def _reassemble_activity_sets(act, inact, putinact):
@@ -731,7 +671,7 @@ class TargetMate:
             self.__log.info("Calculating applicability domain")
             # Nearest neighbors
             self.__log.debug("Loading fit-time fingerprint arena")
-            fps_fit = chemfp.load_fingerprints(
+            fps_fit = load_morgan_arena(
                 os.path.join(self.models_path, "arena.fps"))
             # Applicability domain data
             self.__log.debug("Loading applicability domain data")
@@ -739,9 +679,10 @@ class TargetMate:
                 ad_data = pickle.load(f)
             # Calculate weights
             self.__log.debug("Calculating weights")
-            fps = self.fingerprint_arena([d[2] for d in data], is_prd=True)
+            # fps = self.fingerprint_arena([d[2] for d in data], is_prd=True)
+            smiles = [d[-2] for d in data]
             weights = self.calculate_weights(
-                fps, fps_fit, ad_data[:, 0], ad_data[:, 1], N)
+                smiles, fps_fit, ad_data[:, 0], ad_data[:, 1], N)
             # Get percentiles
             self.__log.debug("Calculating percentiles of the weight (i.e. AD)")
             train_weights = ad_data[:, 2]

@@ -19,8 +19,8 @@ class MoleculeNet:
 
 
 if __name__ == '__main__':
-    moleculenet = MoleculeNet()
-    moleculenet.parse_tox21()
-    moleculenet.parse_toxcast()
-    moleculenet.parse_sider()
+    molnet = MoleculeNet()
+    molnet.parse_tox21()
+    molnet.parse_toxcast()
+    molnet.parse_sider()
     
