@@ -53,7 +53,7 @@ class TSNE(BaseSignature, DataSignature):
         # if already fitted load the model and projetions
         self.algo_path = os.path.join(self.model_path, 'algo.pkl')
         if self.is_fit():
-            self.algo = pickle.load(open(self.algo_path))
+            self.algo = pickle.load(open(self.algo_path, 'rb'))
         else:
             self.algo = MulticoreTSNE(n_components=2, **params)
 
@@ -72,7 +72,7 @@ class TSNE(BaseSignature, DataSignature):
         t_delta = datetime.timedelta(seconds=t_end - t_start)
         self.__log.info("Projecting took %s" % t_delta)
         # save model
-        pickle.dump(self.algo, open(self.algo_path, 'w'))
+        pickle.dump(self.algo, open(self.algo_path, 'wb'))
         # save h5
         sdtype = DataSignature.string_dtype()
         with h5py.File(signature.data_path, "r") as src, \
