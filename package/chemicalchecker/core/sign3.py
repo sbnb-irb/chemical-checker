@@ -242,13 +242,15 @@ class sign3(BaseSignature, DataSignature):
             intensity = self.get_h5_dataset('intensity_norm', mask)
             intensity = np.expand_dims(intensity, 1)
             exp_error = self.get_h5_dataset('exp_error_norm', mask)
-            exp_error = np.expand_dims(intensity, 1)
+            exp_error = np.expand_dims(exp_error, 1)
+            novelty = self.get_h5_dataset('novelty_norm', mask)
+            novelty = np.expand_dims(novelty, 1)
             confidence = self.get_h5_dataset('confidence', mask)
             confidence = np.expand_dims(confidence, 1)
             # we also want to learn how to predict confidence scores
             # so they become part of the supervised learning input
             labels = np.hstack(
-                (labels, stddev, intensity, exp_error, confidence))
+                (labels, stddev, intensity, exp_error, novelty, confidence))
         with h5py.File(destination, 'w') as hf:
             hf.create_dataset('y', data=labels, dtype=np.float32)
             hf.create_dataset('x', data=features, dtype=np.float32)
@@ -1008,8 +1010,11 @@ class sign3(BaseSignature, DataSignature):
                 zip(s3_idxs.flatten(), s3_novelty, s3_outlier)))
             ordered_novelty = ordered_scores[:, 1]
             ordered_outlier = ordered_scores[:, 2]
+            nov_qtr = QuantileTransformer(
+                n_quantiles=100000).fit(np.abs(ordered_novelty))
             with h5py.File(self.data_path, "r+") as results:
                 results['novelty'] = ordered_novelty
+                results['novelty_norm'] = nov_qtr.transform(ordered_novelty)
                 results['outlier'] = ordered_outlier
 
     def predict(self):
