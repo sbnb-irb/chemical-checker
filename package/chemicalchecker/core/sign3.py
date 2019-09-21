@@ -233,19 +233,20 @@ class sign3(BaseSignature, DataSignature):
         """
         self.__log.debug('Saving sign0 traintest to: %s' % destination)
         common_keys, features = sign0.get_vectors(self.keys)
-        _, labels = self.get_vectors(common_keys)
+        common_keys, labels = self.get_vectors(common_keys)
+        mask = np.isin(self.keys, list(common_keys), assume_unique=True)
         if include_confidence:
             # generate mask for shared keys
             mask = np.isin(self.keys, list(common_keys), assume_unique=True)
-            stddev = self.get_h5_dataset('stddev_norm', mask)
+            stddev = self.get_h5_dataset('stddev_norm')[mask]
             stddev = np.expand_dims(stddev, 1)
-            intensity = self.get_h5_dataset('intensity_norm', mask)
+            intensity = self.get_h5_dataset('intensity_norm')[mask]
             intensity = np.expand_dims(intensity, 1)
-            exp_error = self.get_h5_dataset('exp_error_norm', mask)
+            exp_error = self.get_h5_dataset('exp_error_norm')[mask]
             exp_error = np.expand_dims(exp_error, 1)
-            novelty = self.get_h5_dataset('novelty_norm', mask)
+            novelty = self.get_h5_dataset('novelty_norm')[mask]
             novelty = np.expand_dims(novelty, 1)
-            confidence = self.get_h5_dataset('confidence', mask)
+            confidence = self.get_h5_dataset('confidence')[mask]
             confidence = np.expand_dims(confidence, 1)
             # we also want to learn how to predict confidence scores
             # so they become part of the supervised learning input
@@ -1011,10 +1012,18 @@ class sign3(BaseSignature, DataSignature):
             ordered_novelty = ordered_scores[:, 1]
             ordered_outlier = ordered_scores[:, 2]
             nov_qtr = QuantileTransformer(
-                n_quantiles=100000).fit(np.abs(ordered_novelty))
+                n_quantiles=100000).fit(np.abs(
+                    np.expand_dims(ordered_novelty, 1)))
             with h5py.File(self.data_path, "r+") as results:
+                if 'novelty' in results:
+                    del results['novelty']
                 results['novelty'] = ordered_novelty
-                results['novelty_norm'] = nov_qtr.transform(ordered_novelty)
+                if 'novelty_norm' in results:
+                    del results['novelty_norm']
+                results['novelty_norm'] = nov_qtr.transform(
+                    np.expand_dims(ordered_novelty, 1))
+                if 'outlier' in results:
+                    del results['outlier']
                 results['outlier'] = ordered_outlier
 
     def predict(self):
