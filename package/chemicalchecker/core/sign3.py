@@ -1035,7 +1035,7 @@ class sign3(BaseSignature, DataSignature):
                 if 'novelty_norm' in results:
                     del results['novelty_norm']
                 results['novelty_norm'] = nov_qtr.transform(
-                    np.expand_dims(ordered_novelty, 1))
+                    np.expand_dims(ordered_novelty, 1)).flatten()
                 if 'outlier' in results:
                     del results['outlier']
                 results['outlier'] = ordered_outlier
