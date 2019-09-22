@@ -1027,7 +1027,7 @@ class sign3(BaseSignature, DataSignature):
             ordered_outlier = ordered_scores[:, 2]
             nov_qtr = QuantileTransformer(
                 n_quantiles=100000).fit(np.abs(
-                    np.expand_dims(ordered_novelty, 1)))
+                    np.expand_dims(ordered_novelty[:100000], 1)))
             with h5py.File(self.data_path, "r+") as results:
                 if 'novelty' in results:
                     del results['novelty']
