@@ -797,7 +797,7 @@ class sign3(BaseSignature, DataSignature):
 
         # use semi-supervised anomaly detection algorithm to predict novelty
         if predict_novelty:
-            self.predict_novelty(self.sign2_self)
+            self.predict_novelty()
 
         self.background_distances("cosine")
         if validations:
