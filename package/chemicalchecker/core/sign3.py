@@ -223,7 +223,8 @@ class sign3(BaseSignature, DataSignature):
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix, singles)
 
-    def save_sign0_matrix(self, sign0, destination, include_confidence=True):
+    def save_sign0_matrix(self, sign0, destination, include_confidence=True,
+                          chunk_size=1000):
         """Save matrix of signature 0 and confidence values.
 
         Args:
@@ -232,29 +233,42 @@ class sign3(BaseSignature, DataSignature):
             include_confidence(bool): whether to include confidences.
         """
         self.__log.debug('Saving sign0 traintest to: %s' % destination)
-        common_keys, features = sign0.get_vectors(self.keys)
-        common_keys, labels = self.get_vectors(common_keys)
-        mask = np.isin(self.keys, list(common_keys), assume_unique=True)
+        mask = np.isin(self.keys, sign0.keys, assume_unique=True)
+        # the following work only if sign0 keys is a subset (or ==) of sign3
+        assert(np.all(np.isin(sign0.keys, self.keys, assume_unique=True)))
+        # shapes?
+        common_keys = np.count_nonzero(mask)
+        x_shape = (common_keys, sign0.shape[1])
+        y_shape = (common_keys, self.shape[1])
         if include_confidence:
-            # generate mask for shared keys
-            mask = np.isin(self.keys, list(common_keys), assume_unique=True)
-            stddev = self.get_h5_dataset('stddev_norm')[mask]
-            stddev = np.expand_dims(stddev, 1)
-            intensity = self.get_h5_dataset('intensity_norm')[mask]
-            intensity = np.expand_dims(intensity, 1)
-            exp_error = self.get_h5_dataset('exp_error_norm')[mask]
-            exp_error = np.expand_dims(exp_error, 1)
-            novelty = self.get_h5_dataset('novelty_norm')[mask]
-            novelty = np.expand_dims(novelty, 1)
-            confidence = self.get_h5_dataset('confidence')[mask]
-            confidence = np.expand_dims(confidence, 1)
-            # we also want to learn how to predict confidence scores
-            # so they become part of the supervised learning input
-            labels = np.hstack(
-                (labels, stddev, intensity, exp_error, novelty, confidence))
-        with h5py.File(destination, 'w') as hf:
-            hf.create_dataset('y', data=labels, dtype=np.float32)
-            hf.create_dataset('x', data=features, dtype=np.float32)
+            y_shape = (common_keys, self.shape[1] + 5)
+        with h5py.File(destination, 'w') as hf_out:
+            hf_out.create_dataset('x', x_shape, dtype=np.float32)
+            hf_out.create_dataset('y', y_shape, dtype=np.float32)
+            with h5py.File(self.data_path, 'r') as hf_in:
+                out_start = 0
+                for i in tqdm(range(0, self.shape[0], chunk_size)):
+                    chunk = slice(i, i + chunk_size)
+                    labels = hf_in['V'][chunk][mask[chunk]]
+                    if include_confidence:
+                        stddev = hf_in['stddev_norm'][chunk][mask[chunk]]
+                        stddev = np.expand_dims(stddev, 1)
+                        intensity = hf_in['intensity_norm'][chunk][mask[chunk]]
+                        intensity = np.expand_dims(intensity, 1)
+                        exp_error = hf_in['exp_error_norm'][chunk][mask[chunk]]
+                        exp_error = np.expand_dims(exp_error, 1)
+                        novelty = hf_in['novelty_norm'][chunk][mask[chunk]]
+                        novelty = np.expand_dims(novelty, 1)
+                        confidence = hf_in['confidence'][chunk][mask[chunk]]
+                        confidence = np.expand_dims(confidence, 1)
+                        labels = np.hstack((labels, stddev, intensity,
+                                            exp_error, novelty, confidence))
+                    out_size = labels.shape[0]
+                    out_chunk = slice(out_start, out_start + out_size)
+                    hf_out['y'][out_chunk] = labels
+                    del labels
+                    hf_out['x'][out_chunk] = sign0[out_chunk]
+                    out_start += out_size
 
     def learn_sign0(self, sign0, adanet_params, reuse=True, suffix=None,
                     evaluate=True, include_confidence=True):
