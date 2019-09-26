@@ -10,7 +10,7 @@ Please feel free to explore any of the scripts inside this repository. The most 
 
 # Chemical Checker
 
-The Chemical Checker (CC) is a resource of small molecule signatures. In the CC, compounds are described from multiple viewpoints, spanning every aspect of the drug discovery process, from chemical properties to clinical outcomes.
+The Chemical Checker (CC) is a resource of small molecule signatures. In the CC, compounds are described from multiple viewpoints, spanning every aspect of the drug discovery pipeline, from chemical properties to clinical outcomes.
 
 * For more information about this repositiory, please refer to our [Wiki page](http://gitlab.sbnb.org/project-specific-repositories/chemical_checker/wikis/home).
 * For a quick exploration of the resource, please visit the [CC web app](http://chemicalchecker.org).
@@ -41,7 +41,10 @@ sshfs <sbnb_username>@pac-one-head.irb.pcb.ub.es:/aloy /aloy
 ```
 You can unmount the filesystem with:
 ```bash
+# Linux
 fusermount -u /aloy
+# MacOSX
+umount /aloy
 ```
 
 ## Complete Installation 
@@ -85,16 +88,18 @@ For an advanced usage of the CC package capabilities, we recomend creating the C
         sh setup_chemicalchecker.sh
 
 
-The setup_chemicalchecker script has created an alias in your ~/.bashrc so you can start the Chamical Checker with:
-
-        source ~/.bashrc
-        chemcheck
-
+The setup_chemicalchecker script has created an alias in your ~/.bashrc so you can start the Chemical Checker with:
+```bash
+source ~/.bashrc
+chemcheck
+```
 
 After the first run of this script you can **update** the Chemical Checker package with the following command:
 
-        sh setup_chemicalchecker.sh -u
-        
+```bash
+sh setup_chemicalchecker.sh -u
+```
+
 If you only want to change the *default* config file, run the script with the -e argument:
 
         sh setup_chemicalchecker.sh -e
