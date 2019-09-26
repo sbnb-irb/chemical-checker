@@ -1,6 +1,7 @@
 import numpy as np
 
 from rdkit.Chem import MACCSkeys
+from rdkit.Chem import DataStructs
 from rdkit.Chem import AllChem as Chem
 from rdkit.Chem.Descriptors import MolWt
 
@@ -13,11 +14,22 @@ from FPSim2.io import create_db_file
 def maccs_matrix(smiles):
     fps = np.zeros((len(smiles), 167)).astype(np.int8)
     for i, smi in enumerate(smiles):
-        mol = Chem.MolFromSmiles(smi[0])
+        mol = Chem.MolFromSmiles(smi)
         fpon = sorted(MACCSkeys.GenMACCSKeys(mol).GetOnBits())
         if not fpon:
             continue
         fps[i, fpon] = 1
+    return fps
+
+
+def morgan_matrix(smiles, radius = 2, nBits = 2048):
+    fps = np.zeros((len(smiles), nBits), dtype = np.int8)
+    for i, smi in enumerate(smiles):
+        arr = np.zeros((0,), dtype=np.int8)
+        mol = Chem.MolFromSmiles(smi)
+        fp  = Chem.GetMorganFingerprintAsBitVect(mol, radius, nBits)
+        DataStructs.ConvertToNumpyArray(fp, arr)
+        fps[i] = arr
     return fps
 
 

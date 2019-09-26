@@ -100,7 +100,7 @@ class Universe:
             self.smiles += [(smi, mol[1], mol[0])]
             
     def cluster(self):
-        maccs = maccs_matrix(self.smiles)
+        maccs = maccs_matrix([smi[0] for smi in self.smiles])
         if not self.k:
             self.k = int(np.sqrt(maccs.shape[0] / 2)) + 1
         kmeans = MiniBatchKMeans(

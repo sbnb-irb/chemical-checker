@@ -37,3 +37,23 @@ def bedroc_score(y_true, y_pred, alpha=20.0):
     score = s * fac / rand_sum + cte
     weight = (score - 0.) / (1. - 0.)
     return score, weight + ALPHA
+
+
+def performances(yt, yp):
+    """Calculate standard prediction performance metrics.
+    In addition, it calculates the corresponding weights.
+    For the moment, AUPR and AUROC are used.
+    Args:
+        yt(list): Truth data (binary).
+        yp(list): Prediction scores (probabilities).
+    """
+    perfs = {}
+    yt = list(yt)
+    yp = list(yp)
+    perfs["auroc"]  = roc_score(yt, yp)
+    perfs["aupr"]   = pr_score(yt, yp)
+    perfs["bedroc"] = bedroc_score(yt, yp)
+    perfs["y_true"] = [int(y) for y in yt]
+    perfs["y_pred"] = [float(y) for y in yp]
+    return perfs
+
