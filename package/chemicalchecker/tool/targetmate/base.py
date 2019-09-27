@@ -34,183 +34,11 @@ from .universes import Universe
 from .utils import hpc
 
 
-class ClassicalClassifier:
+class ClassicalFingerprintClassifier:
     """A simple fingerprint classifier"""
 
-    def __init__(self, models_path, tmp_path=None,
-                 base_clf = "logistic_regression", cv=5, k=5, min_sim=0.25,
-                 min_class_size=10,
-                 inactives_per_active = 100,
-                 metric="bedroc",
-                 cc_root=None, universe_path=None, n_jobs=1, naive_sampling=False):
-        """Initialize the TargetMateEnsembleClassifier class
-
-        Args:
-            models_path(str): Directorty where models will be stored.
-            tmp_path(str): Directory where temporary data will be stored
-                (relevant at predict time) (default=None)
-            base_clf(clf): Classifier instance, containing fit and
-                predict_proba methods (default="tpot")
-                The following strings are also accepted: "logistic_regression",
-                "random_forest", "naive_bayes" and "tpot"
-                By default, sklearn LogisticRegressionCV is used.
-            cv(int): Number of cv folds. The default cv generator used is
-                Stratified K-Folds (default=5).
-            k(int): Number of molecules to look across when doing the
-                applicability domain (default=5).
-            min_sim(float): Minimum Tanimoto chemical similarity to consider in
-                the applicability domain determination (default=0.3).
-            min_class_size(int): Minimum class size acceptable to train the
-                classifier (default=10).
-            inactives_per_active(int): Number of inactive to sample for each active.
-                If None, only experimental actives and inactives are considered (default=100).
-            datasets(list): CC datasets (A1.001-E5.999).
-                By default, all datasets having a SMILES-to-sign3 predictor are
-                used.
-            metric(str): Metric to use in the meta-prediction (bedroc, auroc or aupr)
-                (default="bedroc").
-            cc_root(str): CC root folder (default=None).
-            universe_path(str): Path to the universe. If not specified, the default one is used (default=None).
-            naive(bool): Sample naively (randomly), without using the OneClassSVM (default=False).
-        """
-        # Jobs
-        self.n_jobs = n_jobs
-        # Models path
-        self.models_path = os.path.abspath(models_path)
-        if not os.path.exists(models_path):
-            self.__log.warning(
-                "Specified models directory does not exist: %s",
-                self.models_path)
-            os.mkdir(self.models_path)
-        # Temporary path
-        if not tmp_path:
-            import uuid
-            self.tmp_path = os.path.join(
-                Config().PATH.CC_TMP, str(uuid.uuid4()))
-        else:
-            self.tmp_path = os.path.abspath(tmp_path)
-        # Set the base classifier
-        if type(base_clf) == str:
-            if base_clf == "logistic_regression":
-                from sklearn.linear_model import LogisticRegressionCV
-                self.base_clf = LogisticRegressionCV(
-                    cv=3, class_weight="balanced", max_iter=1000,
-                    n_jobs=self.n_jobs)
-            if base_clf == "random_forest":
-                from sklearn.ensemble import RandomForestClassifier
-                self.base_clf = RandomForestClassifier(
-                    n_estimators=100, class_weight="balanced", n_jobs=self.n_jobs)
-            if base_clf == "naive_bayes":
-                from sklearn.naive_bayes import GaussianNB
-                self.base_clf = Pipeline(
-                    [('feature_selection', VarianceThreshold()),
-                     ('classify', GaussianNB())])
-            if base_clf == "tpot":
-                from tpot import TPOTClassifier
-                from models import tpotconfigs
-                self.base_clf = TPOTClassifier(
-                    config_dict=tpotconfigs.minimal,
-                    generations=10, population_size=30,
-                    cv=3, scoring="balanced_accuracy",
-                    verbosity=2, n_jobs=self.n_jobs,
-                    max_time_mins=5, max_eval_time_mins=0.5,
-                    random_state=42,
-                    early_stop=3,
-                    disable_update_check=True
-                )
-                self._is_tpot = True
-            else:
-                self._is_tpot = False
-        else:
-            self.base_clf = base_clf
-        # Crossvalidation to determine the performances of the individual
-        # predictors
-        self.cv = cv
-        # K-neighbors to search
-        self.k = k
-        # Minimal chemical similarity to consider
-        self.min_sim = min_sim
-        # Minimum size of the minority class
-        self.min_class_size = min_class_size
-        # Inactives per active
-        self.inactives_per_active = inactives_per_active
-        # Initialize the ChemicalChecker
-        self.cc = ChemicalChecker(cc_root)
-        # Load universe
-        self.universe = Universe.load_universe(universe_path)
-        # Metric to use
-        self.metric = metric
-        # Naive sampling
-        self.naive = naive_sampling
-        # Others
-        self._is_fitted = False
-        self._is_trained = False
-
-
-    def fit(data, standardize=False, use_checkpoints=False):
-        """Fit classifier"""
-
-        if not use_checkpoints:
-            # Cleaning models directory
-            self.__log.debug("Cleaning previous checkpoints")
-            shutil.rmtree(self.models_path)
-            os.mkdir(self.models_path)
-        # Read data
-        self.__log.info("Reading data")
-        # Read data if it is a file
-        if type(data) == str:
-            self.__log.info("Reading file %s", data)
-            with open(data, "r") as f:
-                data = []
-                for r in csv.reader(f, delimiter="\t"):
-                    data += [[int(r[0])] + r[1:]]
-        # Get only valid SMILES strings
-        self.__log.info(
-            "Parsing SMILES strings, keeping only valid ones for training.")
-        data_ = []
-        for i, d in enumerate(data):
-            m = self.read_smiles(d[1], standardize)
-            if not m:
-                continue
-            # data is always of [(initial index, activity, ..., smiles, inchikey)]
-            data_ += [[i, int(d[0])] + [m[1], m[0]]]
-        data = data_
-        # Save training data
-        self.__log.debug("Saving training data (only evidence)")
-        with open(self.models_path + "/trained_data.pkl", "wb") as f:
-            pickle.dump(data, f)
-        # Sample inactives, if necessariy
-        if self.inactives_per_active:
-            self.__log.info("Sampling putative inactives")
-        actives   = set([(d[-2], d[0], d[-1]) for d in data if d[1] ==  1])
-        inactives = set([(d[-2], d[0], d[-1]) for d in data if d[1] == -1])
-        act, inact, putinact = self.universe.predict(actives, inactives,
-                                                     inactives_per_active = self.inactives_per_active,
-                                                     min_actives = self.min_class_size,
-                                                     naive = self.naive)
-        self.__log.info("Actives %d / Known inactives %d / Putative inactives %d" % (len(act), len(inact), len(putinact)))
-        self.__log.debug("Assembling and shuffling")
-        data = self._reassemble_activity_sets(act, inact, putinact)
-        random.shuffle(data)
-        self.__log.debug("Prepare for machine learning")
-        y = np.array([d[1] for d in data])
-        # Consider putative inactives as inactives (i.e. set -1 to 0)
-        self.__log.debug("Considering putative inactives as inactives for training")
-        y[y <= 0] = 0
-        molecules = np.array([(d[-2], d[-1]) for d in data])
-        smiles = np.array([m[0] for m in molecules])
-        # Check that there are enough molecules for training.
-        ny = np.sum(y)
-        if ny < self.min_class_size or (len(y) - ny) < self.min_class_size:
-            self.__log.warning(
-                "Not enough valid molecules in the minority class..." +
-                "Just keeping training data")
-            self._is_fitted = True
-            self.save()
-            return
-        self.__log.info("Actives %d / Merged inactives %d" % (ny, len(y) - ny))
-
-
+    def __init__(self):
+        pass
 
 
     def predict(self):
@@ -270,7 +98,7 @@ class TargetMateEnsembleClassifier:
                  min_class_size=10,
                  inactives_per_active = 100,
                  datasets=None, metric="bedroc",
-                 cc_root=None, universe_path=None, sign3=None, sign3_predict_fn=None, n_jobs=1, naive_sampling=False):
+                 cc_root=None, universe_path=None, sign3=None, sign3_predict_fn=None, n_jobs=1, naive_sampling=False, applicability = True):
         """Initialize the TargetMateEnsembleClassifier class
 
         Args:
@@ -375,27 +203,34 @@ class TargetMateEnsembleClassifier:
             self.datasets = ["%s%s.001" % (x,y) for x in "ABCDE" for y in "12345"]
         else:
             self.datasets = datasets
-        # preloaded neural netoworks
-        if sign3_predict_fn is None:
-            self.sign3_predict_fn = dict()
-            for ds in self.datasets:
-                self.__log.debug("Loading sign3 predictor for %s" % ds)
-                s3 = self.cc.get_signature("sign3", "full", ds)
-                self.sign3_predict_fn[ds] = (s3, s3.get_predict_fn())
-        else:
-            self.sign3_predict_fn = sign3_predict_fn
+        # preloaded neural networks
+        self.sign3_predict_fn = sign3_predict_fn
+        self.sign3_predict_fn = self._signature_predict_functions(self.datasets)
         # Metric to use
         self.metric = metric
         # Naive sampling
         self.naive = naive_sampling
+        # Do applicability domain
+        self._applicability = applicability
         # Others
         self._is_fitted = False
         self._is_trained = False
 
+    def _signature_predict_functions(self, datasets):
+        if self.sign3_predict_fn is None:
+            sign3_predict_fn = dict()
+            for ds in datasets:
+                self.__log.debug("Loading sign3 predictor for %s" % ds)
+                s3 = self.cc.get_signature("sign3", "full", ds)
+                sign3_predict_fn[ds] = (s3, s3.get_predict_fn())
+        else:
+            sign3_predict_fn = self.sign3_predict_fn
+        return sign3_predict_fn
+
     @staticmethod
     def load(models_path):
         """Load previously stored TargetMate instance."""
-        with open(models_path + "/TargetMate.pkl", "r") as f:
+        with open(models_path + "/TargetMate.pkl", "rb") as f:
             return pickle.load(f)
 
     def _read_sign3(self, dataset, idxs=None, sign_folder=None, is_prd=False):
@@ -436,7 +271,7 @@ class TargetMateEnsembleClassifier:
                                   joblib.load(
                                       ensdir + "/" + dataset + ".sav"))]
         else:
-            with open(self.models_path + "/ensemble.pkl", "r") as f:
+            with open(self.models_path + "/ensemble.pkl", "rb") as f:
                 clf_ensemble = pickle.load(f)
         return clf_ensemble
 
@@ -707,24 +542,25 @@ class TargetMateEnsembleClassifier:
             json.dump(perfs, f)
         # Save ensemble
         self._save_ensemble(clf_ensemble)
-        # Nearest neighbors
-        self.__log.info(
-            "Calculating nearest-neighbors model to be used in the applicability domain.")
-        self.__log.debug("Getting fingerprint arena")
-        fps_test = self.fingerprint_arena(
-            smi_test, use_checkpoints=use_checkpoints, is_prd=False)
-        # Save AD data
-        self.__log.info("Calculating applicability domain weights")
-        self.__log.debug("Working on the bias")
-        bias_test = self.calculate_bias(yts_test, mps_test)
-        self.__log.debug("Working on the weights")
-        weights_test = self.calculate_weights(
-            smi_test, fps_test, std_test, bias_test)
-        self.__log.debug("Stacking AD data")
-        ad_data = np.vstack((std_test, bias_test, weights_test)).T
-        self.__log.info("Saving applicability domain weights")
-        with open(self.models_path + "/ad_data.pkl", "wb") as f:
-            pickle.dump(ad_data, f)
+        if self._applicability:
+            # Nearest neighbors
+            self.__log.info(
+                "Calculating nearest-neighbors model to be used in the applicability domain.")
+            self.__log.debug("Getting fingerprint arena")
+            fps_test = self.fingerprint_arena(
+                smi_test, use_checkpoints=use_checkpoints, is_prd=False)
+            # Save AD data
+            self.__log.info("Calculating applicability domain weights")
+            self.__log.debug("Working on the bias")
+            bias_test = self.calculate_bias(yts_test, mps_test)
+            self.__log.debug("Working on the weights")
+            weights_test = self.calculate_weights(
+                smi_test, fps_test, std_test, bias_test)
+            self.__log.debug("Stacking AD data")
+            ad_data = np.vstack((std_test, bias_test, weights_test)).T
+            self.__log.info("Saving applicability domain weights")
+            with open(self.models_path + "/ad_data.pkl", "wb") as f:
+                pickle.dump(ad_data, f)
         # Cleaning up, if necessary
         if not use_checkpoints:
             self.__log.debug("Removing signature files")
@@ -780,7 +616,7 @@ class TargetMateEnsembleClassifier:
                 # When data is a folder, we assume it contains signatures
                 self.__log.debug("Signature folder found")
                 sign_folder = os.path.abspath(data)
-                # We need to get the SMILES strings from these signatures, and
+                # We need to get the keys (SMILES strings) from these signatures, and
                 # make sure everything is in the same order.
                 self.__log.debug("Making sure SMILES are correct")
                 sorted_datasets = sorted(
@@ -834,27 +670,26 @@ class TargetMateEnsembleClassifier:
             # Just putting NaN values
             mps = np.full(len(data), np.nan)
             std = np.full(len(data), np.nan)
-            ad = np.full(len(data), np.nan)
+            ad  = np.full(len(data), np.nan)
         else:
             self.__log.debug(
-                "Model trained before with enough data. Making predictions")
+                "Model trained previously with enough data. Making predictions")
             # If signatures were not provided, then we work with the temporary
             # directory
             if os.path.exists(self.tmp_path):
                 shutil.rmtree(self.tmp_path)
             os.mkdir(self.tmp_path)
             if not sign_folder:
+                sign3_predict_fn = self._signature_predict_functions(list(my_datasets))
                 # Get signatures
                 self.__log.info("Calculating sign3 for every molecule.")
-                for dataset in self.datasets:
-                    if dataset not in my_datasets:
-                        continue
+                for dataset in sorted(my_datasets):
                     destination_dir = os.path.join(self.tmp_path, dataset)
                     if os.path.exists(destination_dir):
                         os.remove(destination_dir)
                     self.__log.debug("Calculating sign3 for %s" % dataset)
-                    s3, predict_fn = self.sign3_predict_fn[dataset]
-                    s3.predict_from_smiles([d[2] for d in data],
+                    s3, predict_fn = sign3_predict_fn[dataset]
+                    s3.predict_from_smiles(data,
                                            destination_dir,
                                            predict_fn=predict_fn)
             # Read ensemble of models
@@ -877,6 +712,7 @@ class TargetMateEnsembleClassifier:
             self.__log.info("Metaprediction")
             mps, std = self.metapredict(
                 yps, perfs, dataset_universe=my_datasets)
+            return mps
             # Do applicability domain
             self.__log.info("Calculating applicability domain")
             # Nearest neighbors
@@ -885,7 +721,7 @@ class TargetMateEnsembleClassifier:
                 os.path.join(self.models_path, "arena.fps"))
             # Applicability domain data
             self.__log.debug("Loading applicability domain data")
-            with open(self.models_path + "/ad_data.pkl", "r") as f:
+            with open(self.models_path + "/ad_data.pkl", "rb") as f:
                 ad_data = pickle.load(f)
             # Calculate weights
             self.__log.debug("Calculating weights")
@@ -902,7 +738,7 @@ class TargetMateEnsembleClassifier:
         # InChIKey to match.
         if known:
             self.__log.info("Overwriting with known data")
-            with open(self.models_path + "/trained_data.pkl", "r") as f:
+            with open(self.models_path + "/trained_data.pkl", "rb") as f:
                 tr_data = pickle.load(f)
                 tr_iks = [d[1] for d in tr_data]
                 tr_iks_set = set(tr_iks)
