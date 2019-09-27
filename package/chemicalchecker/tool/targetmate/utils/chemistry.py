@@ -23,12 +23,17 @@ def maccs_matrix(smiles):
 
 
 def morgan_matrix(smiles, radius = 2, nBits = 2048):
+    smiles = list(smiles)
     fps = np.zeros((len(smiles), nBits), dtype = np.int8)
     for i, smi in enumerate(smiles):
-        arr = np.zeros((0,), dtype=np.int8)
-        mol = Chem.MolFromSmiles(smi)
-        fp  = Chem.GetMorganFingerprintAsBitVect(mol, radius, nBits)
-        DataStructs.ConvertToNumpyArray(fp, arr)
+        try:
+            arr = np.zeros((0,), dtype=np.int8)
+            mol = Chem.MolFromSmiles(smi)
+            fp  = Chem.GetMorganFingerprintAsBitVect(mol, radius, nBits)
+            DataStructs.ConvertToNumpyArray(fp, arr)
+        except:
+            print("ERROR", smi)
+            arr = np.full(nBits, np.nan)
         fps[i] = arr
     return fps
 
