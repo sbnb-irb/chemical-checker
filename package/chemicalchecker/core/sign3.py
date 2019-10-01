@@ -513,7 +513,7 @@ class sign3(BaseSignature, DataSignature):
         return AdaNet.predict_fn(modelpath)
 
     def predict_from_smiles(self, smiles, dest_file, chunk_size=1000,
-                            predict_fn=None):
+                            predict_fn=None, use_novelty_model=True):
         """Given SMILES generate sign0 and predict sign3.
 
         Args:
@@ -534,6 +534,12 @@ class sign3(BaseSignature, DataSignature):
             predict_fn = self.get_predict_fn('adanet_sign0_A1.001_final')
         # we return a simple DataSignature object (basic HDF5 access)
         pred_s3 = DataSignature(dest_file)
+        # load novelty model
+        if use_novelty_model:
+            novelty_path = os.path.join(self.model_path, 'novelty', 'lof.pkl')
+            novelty_model = pickle.load(open(novelty_path, 'r'))
+            nov_qtr_path = os.path.join(self.model_path, 'novelty', 'qtr.pkl')
+            nov_qtr = pickle.load(open(nov_qtr_path, 'r'))
         with h5py.File(dest_file, "w") as results:
             # initialize V (with NaN in case of failing rdkit) and smiles keys
             results.create_dataset('keys', data=np.array(
@@ -543,6 +549,10 @@ class sign3(BaseSignature, DataSignature):
                 'stddev_norm', (len(smiles), ), dtype=np.float32)
             results.create_dataset(
                 'intensity_norm', (len(smiles), ), dtype=np.float32)
+            results.create_dataset(
+                'exp_error_norm', (len(smiles), ), dtype=np.float32)
+            results.create_dataset(
+                'novelty_norm', (len(smiles), ), dtype=np.float32)
             results.create_dataset(
                 'confidence', (len(smiles), ), dtype=np.float32)
             results.create_dataset("shape", data=(len(smiles), 128))
@@ -582,7 +592,14 @@ class sign3(BaseSignature, DataSignature):
                 results['V'][chunk] = preds[:, :128]
                 results['stddev_norm'][chunk] = preds[:, 128]
                 results['intensity_norm'][chunk] = preds[:, 129]
-                results['confidence'][chunk] = preds[:, 130]
+                results['exp_error_norm'][chunk] = preds[:, 130]
+                results['novelty_norm'][chunk] = preds[:, 131]
+                results['confidence'][chunk] = preds[:, 132]
+                if use_novelty_model:
+                    novelty = novelty_model.score_samples(preds[:, :128])
+                    abs_novelty = np.abs(np.expand_dims(novelty, 1))
+                    results['novelty_norm'][chunk] = nov_qtr.transform(
+                        abs_novelty).flatten()
         return pred_s3
 
     def fit(self, sign2_list, sign2_self, sign2_universe=None,
@@ -1025,9 +1042,13 @@ class sign3(BaseSignature, DataSignature):
                 zip(s3_idxs.flatten(), s3_novelty, s3_outlier)))
             ordered_novelty = ordered_scores[:, 1]
             ordered_outlier = ordered_scores[:, 2]
+            # novelty goes from 0 to -inf, we take the absolute to have
+            # most novel molecules with score 1.
+            abs_novelty = np.abs(np.expand_dims(ordered_novelty, 1))
             nov_qtr = QuantileTransformer(
-                n_quantiles=100000).fit(np.abs(
-                    np.expand_dims(ordered_novelty[:100000], 1)))
+                n_quantiles=100000).fit(abs_novelty[:100000])
+            nov_qtr_path = os.path.join(novelty_path, 'qtr.pkl')
+            pickle.dump(nov_qtr, open(nov_qtr_path, 'w'))
             with h5py.File(self.data_path, "r+") as results:
                 if 'novelty' in results:
                     del results['novelty']
@@ -1035,7 +1056,7 @@ class sign3(BaseSignature, DataSignature):
                 if 'novelty_norm' in results:
                     del results['novelty_norm']
                 results['novelty_norm'] = nov_qtr.transform(
-                    np.expand_dims(ordered_novelty, 1)).flatten()
+                    abs_novelty).flatten()
                 if 'outlier' in results:
                     del results['outlier']
                 results['outlier'] = ordered_outlier
