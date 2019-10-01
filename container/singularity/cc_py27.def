@@ -96,12 +96,12 @@ From: centos
     pip install protobuf==3.6.1
 
     ## install SNAP.py
-    wget  https://snap.stanford.edu/snappy/release/snap-4.1.0-4.1-centos6.5-x64-py2.6.tar.gz
-    tar zxvf snap-4.1.0-4.1-centos6.5-x64-py2.6.tar.gz
-    cd snap-4.1.0-4.1-centos6.5-x64-py2.6
+    wget  https://snap.stanford.edu/snappy/release/snap-stanford-5.0.0-5.0-ubuntu18.04.2-x64-py2.7.tar.gz
+    tar zxvf snap-stanford-5.0.0-5.0-ubuntu18.04.2-x64-py2.7.tar.gz
+    cd snap-stanford-5.0.0-5.0-ubuntu18.04.2-x64-py2.7
     python setup.py install
     cd ..
-    rm snap-4.1.0-4.1-centos6.5-x64-py2.6 -rf
+    rm snap-stanford-5.0.0-5.0-ubuntu18.04.2-x64-py2.7
 
     # visualization packages
     pip install matplotlib                        # chart library :)
