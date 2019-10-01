@@ -97,14 +97,7 @@ From: centos
     # graph packages
     pip install networkx                          # graph data stracture and algos
     pip install protobuf==3.6.1
-
-    ## install SNAP.py
-    wget  https://snap.stanford.edu/snappy/release/snap-stanford-5.0.0-5.0-ubuntu18.04.2-x64-py3.6.tar.gz
-    tar zxvf snap-stanford-5.0.0-5.0-ubuntu18.04.2-x64-py3.6.tar.gz
-    cd snap-stanford-5.0.0-5.0-ubuntu18.04.2-x64-py3.6
-    python setup.py install
-    cd ..
-    rm snap-stanford-5.0.0-5.0-ubuntu18.04.2-x64-py3.6
+    pip install snap-stanford                     # Python interface for SNAP
 
     # visualization packages
     pip install matplotlib                        # chart library :)
