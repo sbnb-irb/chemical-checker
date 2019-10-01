@@ -599,6 +599,7 @@ class TargetMateEnsembleClassifier:
             ad(list): Applicability domain of the predictions (range: 0-1)
             prc(list): Precision of the prediction, based on the standard
                 deviation across the ensemble of predictors (range: 0-1)
+            data
         '''
         self.__log.info("Predicting with model: %s" % self.models_path)
         if not self._is_fitted:
