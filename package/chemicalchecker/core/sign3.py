@@ -537,9 +537,9 @@ class sign3(BaseSignature, DataSignature):
         # load novelty model
         if use_novelty_model:
             novelty_path = os.path.join(self.model_path, 'novelty', 'lof.pkl')
-            novelty_model = pickle.load(open(novelty_path, 'r'))
+            novelty_model = pickle.load(open(novelty_path, 'rb'))
             nov_qtr_path = os.path.join(self.model_path, 'novelty', 'qtr.pkl')
-            nov_qtr = pickle.load(open(nov_qtr_path, 'r'))
+            nov_qtr = pickle.load(open(nov_qtr_path, 'rb'))
         with h5py.File(dest_file, "w") as results:
             # initialize V (with NaN in case of failing rdkit) and smiles keys
             results.create_dataset('keys', data=np.array(
@@ -675,7 +675,7 @@ class sign3(BaseSignature, DataSignature):
                                  suffix='error_final', evaluate=False)
             self.__log.debug('Loading model for error prediction')
             rf = pickle.load(
-                open(os.path.join(final_err_path, 'RandomForest.pkl')))
+                open(os.path.join(final_err_path, 'RandomForest.pkl')), 'rb')
 
         # get sorted universe inchikeys
         inchikeys = set()
@@ -1018,11 +1018,11 @@ class sign3(BaseSignature, DataSignature):
             delta = time() - t0
             self.__log.debug('Training took: %s' % delta)
             # serialize for later
-            pickle.dump(model, open(novelty_model, 'w'))
+            pickle.dump(model, open(novelty_model, 'wb'))
         if update_sign3:
             self.__log.debug('Updating novelty scores')
             if model is None:
-                model = pickle.load(open(novelty_model, 'r'))
+                model = pickle.load(open(novelty_model, 'rb'))
             # get scores for known molecules and pair with indexes
             s2_idxs = np.argwhere(np.isin(self.keys, s2_inks,
                                           assume_unique=True))
@@ -1048,7 +1048,7 @@ class sign3(BaseSignature, DataSignature):
             nov_qtr = QuantileTransformer(
                 n_quantiles=100000).fit(abs_novelty[:100000])
             nov_qtr_path = os.path.join(novelty_path, 'qtr.pkl')
-            pickle.dump(nov_qtr, open(nov_qtr_path, 'w'))
+            pickle.dump(nov_qtr, open(nov_qtr_path, 'wb'))
             with h5py.File(self.data_path, "r+") as results:
                 if 'novelty' in results:
                     del results['novelty']
@@ -1078,7 +1078,7 @@ class sign3(BaseSignature, DataSignature):
                 t0 = time()
                 model.fit(x_true, y_true)
                 model_path = os.path.join(save_path, '%s.pkl' % name[0])
-                pickle.dump(model, open(model_path, 'w'))
+                pickle.dump(model, open(model_path, 'wb'))
                 result['time'] = time() - t0
                 self.__log.info('Training took: %s' % result['time'])
             # call predict
