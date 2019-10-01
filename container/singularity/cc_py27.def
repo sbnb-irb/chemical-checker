@@ -84,13 +84,15 @@ From: centos
     pip install lxml                              # xml parser
     pip install pubchempy                         # Pubchem rest api
     pip install chemfp                            # fast fingerprint search (used in TargetMate)
+    pip install jupyter                           # jupyter notebooks
+
     # data packages
     pip install numpy                             # best numerical library ever
     pip install pandas                            # handles table-like datastracture
     pip install scipy                             # scientific python
     pip install theano                            # Optimize evaluate math expressions
     pip install h5py                              # HDF5 via python
-    pip install fancyimpute==0.4.3                       # matrix completion and imputation algorithms
+
     # graph packages
     pip install networkx                          # graph data stracture and algos
     pip install protobuf==3.6.1
@@ -100,14 +102,16 @@ From: centos
     pip install matplotlib                        # chart library :)
     pip install seaborn                           # prettier graph built on top of matplotlib
     pip install datashader                        # plot huge 2D datasets (projetions)
+
     # ML packages
     pip install scikit-learn                      # entry level ML in python
     pip install gensim==3.7.3                     # topic modelling word2vec
-    pip install tensorflow                        # neural network library
+    pip install tensorflow==1.14.0                # neural network library
     pip install adanet==0.5.0                     # automl for NN
     pip install keras                             # NN API
     pip install MulticoreTSNE                     # tSNA algo
     pip install umap-learn                        # UMAP algo
+    pip install fancyimpute==0.4.3                # matrix completion and imputation algorithms
 
     # install local SBNB devpi packages
     DEVPI_HOST=gitlabsbnb.irbbarcelona.org
@@ -131,7 +135,3 @@ From: centos
 
     # APSW stands for Another Python SQLite Wrapper
     pip install https://github.com/rogerbinns/apsw/releases/download/3.24.0-r1/apsw-3.24.0-r1.zip --global-option=fetch --global-option=--version --global-option=3.24.0 --global-option=--all --global-option=build --global-option=--enable-all-extensions
-
-    #Install jupyter to use notebooks
-    pip install jupyter
-
