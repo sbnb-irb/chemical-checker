@@ -113,7 +113,7 @@ From: centos
     pip install umap-learn                        # UMAP algo
 
     # install local SBNB devpi packages
-    DEVPI_HOST=10.7.108.15
+    DEVPI_HOST=gitlabsbnb.irbbarcelona.org
     DEVPI_PORT=3141
     alias sbnb_pip='pip install --index http://$DEVPI_HOST:$DEVPI_PORT/root/dev/ --trusted-host $DEVPI_HOST'
     sbnb_pip pqkmeans==1.0.4                      # slighty modified pqkmeans
