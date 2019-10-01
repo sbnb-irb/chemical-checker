@@ -537,9 +537,22 @@ class sign3(BaseSignature, DataSignature):
         # load novelty model
         if use_novelty_model:
             novelty_path = os.path.join(self.model_path, 'novelty', 'lof.pkl')
-            novelty_model = pickle.load(open(novelty_path, 'rb'))
+            try:
+                novelty_model = pickle.load(open(novelty_path, 'rb'))
+            except Exception:
+                import dill
+                dill._dill._reverse_typemap["ObjectType"] = object
+                novelty_model = pickle.load(open(novelty_path, 'rb'),
+                                            encoding="bytes")
+
             nov_qtr_path = os.path.join(self.model_path, 'novelty', 'qtr.pkl')
-            nov_qtr = pickle.load(open(nov_qtr_path, 'rb'))
+            try:
+                nov_qtr = pickle.load(open(nov_qtr_path, 'rb'))
+            except Exception:
+                import dill
+                dill._dill._reverse_typemap["ObjectType"] = object
+                nov_qtr = pickle.load(open(nov_qtr_path, 'rb'),
+                                      encoding="bytes")
         with h5py.File(dest_file, "w") as results:
             # initialize V (with NaN in case of failing rdkit) and smiles keys
             results.create_dataset('keys', data=np.array(
