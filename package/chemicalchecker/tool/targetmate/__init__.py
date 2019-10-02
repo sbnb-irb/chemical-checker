@@ -1,2 +1,2 @@
-from .base import TargetMateEnsembleClassifier
-from .universes.univs import Universe
+from .targetmate import TargetMate
+#from .universes.univs import Universe

@@ -3,10 +3,13 @@
 import os
 import h5py
 import json
+import pickle
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from scipy import interpolate
+from scipy import stats
+from functools import partial
 
 import matplotlib
 matplotlib.use('Agg')
@@ -1143,7 +1146,7 @@ class MultiPlot():
         plt.close('all')
         return df
 
-    def sign_property_distribution(self, cctype, molset, prop, weight_perf=False, eval_cc=None):
+    def sign_property_distribution(self, cctype, molset, prop):
 
         sns.set_style("whitegrid")
         f, axes = plt.subplots(5, 5, figsize=(9, 9), sharex=True, sharey=True)
@@ -1151,27 +1154,401 @@ class MultiPlot():
         for ds, ax in zip(self.datasets, axes.flat):
             try:
                 s3 = self.cc.get_signature(cctype, molset, ds)
-            except:
+            except Exception:
                 continue
             if not os.path.isfile(s3.data_path):
                 continue
             # decide sample molecules
             s3_data_conf = s3.get_h5_dataset(prop)
-            if weight_perf:
-                s3_w = eval_cc.get_signature(cctype, 'full', ds)
-                stat_file = os.path.join(s3_w.model_path,
-                                         'adanet_sign0_A1.001_eval/stats.pkl')
-                df = pd.read_pickle(stat_file)
-                w = df[df.dataset != 'train'].pearson.mean()
-                s3_data_conf = s3_data_conf * w
             # get idx of nearest neighbors of s2
             sns.distplot(s3_data_conf, color=self.cc_palette([ds])[0],
                          kde=False, norm_hist=False, ax=ax, bins=20,
                          hist_kws={'range': (0, 1)})
             ax.set_yscale('log')
             ax.set_xlim(0, 1)
-
+            ax.grid(axis='y', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
+            ax.spines["top"].set_color(self.cc_palette([ds])[0])
+            ax.spines["right"].set_color(self.cc_palette([ds])[0])
+        f.text(0.5, 0.04, prop, ha='center', va='center')
+        f.text(0.06, 0.5, 'molecules', ha='center',
+               va='center', rotation='vertical')
         outfile = os.path.join(
             self.plot_path, '%s.png' % '_'.join([cctype, molset, prop]))
+        plt.savefig(outfile, dpi=200)
+        plt.close('all')
+
+    def sign3_error_predictors(self, sign2_universe_presence):
+        from chemicalchecker.tool.adanet import AdaNet
+        df = pd.DataFrame(columns=['dataset', 'sign2_count', 'algo', 'mse',
+                                   'pearson', 'mae'])
+        errors = dict()
+        for ds in self.cc.datasets:
+            # get real data
+            s3 = self.cc.get_signature('sign3', 'full', ds)
+            s2 = self.cc.get_signature('sign2', 'full', ds)
+            s2_idxs = np.argwhere(
+                np.isin(s3.keys, s2.keys, assume_unique=True)).flatten()
+            ss2 = s2[:100000]
+            s2_idxs = s2_idxs[:100000]
+            ss3 = s3[:][s2_idxs]
+            with h5py.File(sign2_universe_presence, 'r') as fh:
+                x_real = fh['V'][:][s2_idxs]
+            y_real = np.log10(np.expand_dims(
+                np.mean(((ss2 - ss3)**2), axis=1), 1))
+
+            row = {
+                'dataset': ds,
+                'sign2_count': len(x_real)
+            }
+            # load predictors
+            eval_err_path = os.path.join(s3.model_path, 'adanet_error_eval')
+            error_pred_fn = AdaNet.predict_fn(
+                os.path.join(eval_err_path, 'savedmodel'))
+            lr = pickle.load(
+                open(os.path.join(eval_err_path, 'LinearRegression.pkl')))
+            rf = pickle.load(
+                open(os.path.join(eval_err_path, 'RandomForest.pkl')))
+
+            predictions = {
+                'NeuralNetwork': AdaNet.predict(x_real, error_pred_fn)[:, 0],
+                'LinearRegression': lr.predict(x_real),
+                'RandomForest': rf.predict(x_real)
+            }
+            y_flat = y_real[:, 0]
+
+            errors[ds] = list()
+            for algo, pred in predictions.items():
+                errors[ds].append((algo, y_flat - pred))
+                row['algo'] = algo
+                row['mse'] = np.mean((y_flat - pred)**2)
+                row['mae'] = np.mean(y_flat - pred)
+                row['pearson'] = np.corrcoef(y_flat, pred)[0][1]
+                df.loc[len(df)] = pd.Series(row)
+                print(row)
+
+        df['algo'] = df.algo.map(
+            {'LinearRegression': 'LR', 'RandomForest': 'RF', 'NeuralNetwork': 'NN'})
+        sns.set_style("whitegrid")
+        sns.set_context("talk")
+        fig, axes = plt.subplots(5, 5, sharey=True, sharex=True,
+                                 figsize=(10, 15), dpi=100)
+
+        for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
+
+            sns.barplot(x=[x[0] for x in errors[ds]], y=[x[1]
+                                                         for x in errors[ds]], ax=ax)
+            # ax.set_ylim(-0.15, .15)
+            # ax.get_legend().remove()
+            ax.set_xlabel('')
+            ax.set_ylabel('')
+            # ax.set_xticklabels()
+
+            ax.grid(axis='y', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
+            ax.spines["top"].set_color(self.cc_palette([ds])[0])
+            ax.spines["right"].set_color(self.cc_palette([ds])[0])
+            ax.spines["left"].set_color(self.cc_palette([ds])[0])
+
+        # plt.tight_layout()
+        filename = os.path.join(self.plot_path, "sign3_error_predictors.png")
+        plt.savefig(filename, dpi=100)
+        plt.close('all')
+        return df
+
+    def sign_confidence_distribution(self):
+
+        sns.set_style("whitegrid")
+        fig, axes = plt.subplots(5, 5, sharey=True, sharex=True,
+                                 figsize=(10, 10), dpi=100)
+
+        for ds, ax in zip(self.datasets, axes.flat):
+            sign3 = self.cc.get_signature('sign3', 'full', ds)
+            error_file = os.path.join(sign3.model_path, 'error.h5')
+            with h5py.File(error_file, "r") as hf:
+                keys = hf['keys'][:]
+                train_log_mse = hf['log_mse_consensus'][:]
+                train_log_mse_real = hf['log_mse'][:]
+            # test is anything that wasn't in the confidence distribution
+            test_keys = list(sign3.unique_keys - set(keys))
+            test_idxs = np.where(np.isin(sign3.keys, test_keys))[0]
+            train_idxs = np.where(~np.isin(sign3.keys, test_keys))[0]
+
+            # decide sample molecules
+            s3_stddev = sign3.get_h5_dataset('stddev_norm')
+            s3_intensity = sign3.get_h5_dataset('intensity_norm')
+            s3_experr = sign3.get_h5_dataset('exp_error_norm')
+            s3_conf = (s3_intensity * (1 - s3_stddev))**(1 / 2.)
+            s3_conf_new = (s3_intensity * (1 - s3_stddev)
+                           * (1 - s3_experr))**(1 / 3.)
+            # s3_conf = s3.get_h5_dataset('confidence')
+            pc_inte = abs(stats.pearsonr(
+                s3_intensity[train_idxs], train_log_mse)[0])
+            pc_stddev = abs(stats.pearsonr(
+                s3_stddev[train_idxs], train_log_mse)[0])
+            pc_experr = abs(stats.pearsonr(
+                s3_experr[train_idxs], train_log_mse)[0])
+            s3_conf_new_w = np.average(
+                [s3_intensity, (1 - s3_stddev), (1 - s3_experr)], axis=0, weights=[1, 1, pc_experr])
+
+            df = pd.DataFrame({'train': True, 'confidence': 0[
+                              train_idxs], 'kind': 'old'})
+            df = df.append(pd.DataFrame({'train': False, 'confidence': s3_conf[
+                           test_idxs], 'kind': 'old'}), ignore_index=True)
+            df = df.append(pd.DataFrame({'train': True, 'confidence': s3_conf_new[
+                           train_idxs], 'kind': 'new'}), ignore_index=True)
+            df = df.append(pd.DataFrame({'train': False, 'confidence': s3_conf_new[
+                           test_idxs], 'kind': 'new'}), ignore_index=True)
+            df = df.append(pd.DataFrame({'train': True, 'confidence': s3_conf_new_w[
+                           train_idxs], 'kind': 'test'}), ignore_index=True)
+            df = df.append(pd.DataFrame({'train': False, 'confidence': s3_conf_new_w[
+                           test_idxs], 'kind': 'test'}), ignore_index=True)
+            # get idx of nearest neighbors of s2
+            sns.boxplot(data=df, y='confidence', x='kind', hue='train',
+                        order=['old', 'new', 'test'],
+                        hue_order=[True, False],
+                        color=self.cc_palette([ds])[0], ax=ax,)
+            # ax.set_yscale('log')
+            ax.get_legend().remove()
+            ax.set_ylim(0, 1)
+            ax.grid(axis='y', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
+            ax.spines["top"].set_color(self.cc_palette([ds])[0])
+            ax.spines["right"].set_color(self.cc_palette([ds])[0])
+            ax.spines["left"].set_color(self.cc_palette([ds])[0])
+
+            outfile = os.path.join(
+                self.plot_path, 'confidence_distribution_new.png')
+            plt.savefig(outfile, dpi=200)
+        plt.close('all')
+
+    def sign3_test_error_distribution(self):
+
+        from chemicalchecker.tool.adanet import AdaNet
+        from chemicalchecker.util.splitter import Traintest
+        from chemicalchecker.core.sign3 import subsample_x_only
+
+        def row_wise_correlation(X, Y):
+            var1 = (X.T - np.mean(X, axis=1)).T
+            var2 = (Y.T - np.mean(Y, axis=1)).T
+            cov = np.mean(var1 * var2, axis=1)
+            return cov / (np.std(X, axis=1) * np.std(Y, axis=1))
+
+        def mask_exclude(idxs, x_data, y_data):
+            x_data_transf = np.copy(x_data)
+            for idx in idxs:
+                # set current space to nan
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x_data_transf[:, col_slice] = np.nan
+            # drop rows that only contain NaNs
+            not_nan = np.isfinite(x_data_transf).any(axis=1)
+            x_data_transf = x_data_transf[not_nan]
+            y_data_transf = y_data[not_nan]
+            return x_data_transf, y_data_transf
+
+        sns.set_style("whitegrid")
+        fig, axes = plt.subplots(5, 5, sharey=True, sharex=True,
+                                 figsize=(10, 10), dpi=100)
+        all_dss = list(self.datasets)
+        for ds, ax in zip(all_dss, axes.flat):
+            s3 = self.cc.get_signature('sign3', 'full', ds)
+            # filter most correlated spaces
+            ds_corr = s3.get_h5_dataset('datasets_correlation')
+            corr_spaces = np.array(list(self.cc.datasets))[
+                ds_corr > .9].tolist()
+            self.__log.info('masking %s' % str(corr_spaces))
+            if ds in corr_spaces:
+                dss = corr_spaces
+            else:
+                dss = [ds]
+            idxs = [all_dss.index(d) for d in dss]
+            mask_fn = partial(mask_exclude, idxs)
+            # load DNN
+            predict_fn = AdaNet.predict_fn(os.path.join(
+                s3.model_path, 'adanet_eval', 'savedmodel'))
+            # load X Y data
+            traintest_file = os.path.join(s3.model_path, 'traintest.h5')
+            traintest = Traintest(traintest_file, 'test')
+            traintest.open()
+            x_test, y_test = traintest.get_xy(0, 1000)
+            y_pred_nomask = AdaNet.predict(x_test, predict_fn)
+            x_test, y_test = mask_fn(x_test, y_test)
+            traintest.close()
+
+            # get the predictions and consensus
+            self.__log.info('prediction consensus 5')
+            y_pred, samples = AdaNet.predict(x_test, predict_fn,
+                                             subsample_x_only,
+                                             consensus=True,
+                                             samples=5)
+            y_pred_consensus = np.mean(samples, axis=1)
+            self.__log.info('prediction consensus 10')
+            y_pred, samples = AdaNet.predict(x_test, predict_fn,
+                                             subsample_x_only,
+                                             consensus=True,
+                                             samples=10)
+            y_pred_consensus_10 = np.mean(samples, axis=1)
+            self.__log.info('prediction consensus 20')
+            y_pred, samples = AdaNet.predict(x_test, predict_fn,
+                                             subsample_x_only,
+                                             consensus=True,
+                                             samples=20)
+            y_pred_consensus_20 = np.mean(samples, axis=1)
+            self.__log.info('plotting')
+            mse = np.mean((y_pred - y_test)**2, axis=1)
+            mse_nomask = np.mean((y_pred_nomask - y_test)**2, axis=1)
+            mse_consensus = np.mean((y_pred_consensus - y_test)**2, axis=1)
+            mse_consensus_10 = np.mean(
+                (y_pred_consensus_10 - y_test)**2, axis=1)
+            mse_consensus_20 = np.mean(
+                (y_pred_consensus_20 - y_test)**2, axis=1)
+
+            sns.distplot(np.log10(mse_nomask), ax=ax,
+                         color='orange', label='cons. 1 nomask')
+            sns.distplot(np.log10(mse), ax=ax,
+                         color='red', label='cons. 1')
+            sns.distplot(np.log10(mse_consensus), ax=ax,
+                         color='green', label='cons. 5')
+            sns.distplot(np.log10(mse_consensus_10), ax=ax,
+                         color='blue', label='cons. 10')
+            sns.distplot(np.log10(mse_consensus_20), ax=ax,
+                         color='purple', label='cons. 20')
+            '''
+            corr_test = row_wise_correlation(y_pred_test, y_true_test)
+            sns.distplot(corr_test, ax=ax, bins=20, hist_kws={'range': (0, 1)},
+                         color='grey', label='%s mols.' % y_pred_test.shape[0])
+            corr_test_comp = row_wise_correlation(y_pred_test.T, y_true_test.T)
+            sns.distplot(corr_test_comp, ax=ax,
+                         color=self.cc_palette([ds])[0], label='128 comp.')
+            '''
+            # err_test = np.mean((y_pred_test - y_true_test)**2, axis=1)
+            # pc_corr_err = stats.pearsonr(corr_test, err_test)[0]
+            # ax.text(0.05, 0.85, "p: {:.2f}".format(pc_corr_err),
+            #        transform=ax.transAxes, size=10)
+            # ax.set_xlim(0, 1)
+            ax.legend(prop={'size': 3})
+            ax.grid(axis='y', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
+            ax.spines["top"].set_color(self.cc_palette([ds])[0])
+            ax.spines["right"].set_color(self.cc_palette([ds])[0])
+            ax.spines["left"].set_color(self.cc_palette([ds])[0])
+
+            outfile = os.path.join(
+                self.plot_path, 'sign3_test_error_distribution.png')
+            plt.savefig(outfile, dpi=200)
+        plt.close('all')
+
+    def sign3_correlation_distribution(self):
+
+        from chemicalchecker.tool.adanet import AdaNet
+        from chemicalchecker.util.splitter import Traintest
+
+        def row_wise_correlation(X, Y):
+            var1 = (X.T - np.mean(X, axis=1)).T
+            var2 = (Y.T - np.mean(Y, axis=1)).T
+            cov = np.mean(var1 * var2, axis=1)
+            return cov / (np.std(X, axis=1) * np.std(Y, axis=1))
+
+        def mask_exclude(idxs, x_data, y_data):
+            x_data_transf = np.copy(x_data)
+            for idx in idxs:
+                # set current space to nan
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x_data_transf[:, col_slice] = np.nan
+            # drop rows that only contain NaNs
+            not_nan = np.isfinite(x_data_transf).any(axis=1)
+            x_data_transf = x_data_transf[not_nan]
+            y_data_transf = y_data[not_nan]
+            return x_data_transf, y_data_transf
+
+        sns.set_style("whitegrid")
+        fig, axes = plt.subplots(5, 5, sharey=False, sharex=True,
+                                 figsize=(10, 10), dpi=100)
+        all_dss = list(self.datasets)
+        for ds, ax in zip(all_dss, axes.flat):
+            s3 = self.cc.get_signature('sign3', 'full', ds)
+            # filter most correlated spaces
+            ds_corr = s3.get_h5_dataset('datasets_correlation')
+            self.__log.info(str(zip(list(self.cc.datasets), list(ds_corr))))
+            # load X Y data
+            traintest_file = os.path.join(s3.model_path, 'traintest.h5')
+            traintest = Traintest(traintest_file, 'test')
+            traintest.open()
+            x_test, y_test = traintest.get_xy(0, 1000)
+            traintest.close()
+            # load DNN
+            predict_fn = AdaNet.predict_fn(os.path.join(
+                s3.model_path, 'adanet_eval', 'savedmodel'))
+            # check various correlations thresholds
+            colors = ['firebrick', 'gold', 'forestgreen']
+            for corr_thr, color in zip([.7, .9, 1.0], colors):
+                corr_spaces = np.array(list(self.cc.datasets))[
+                    ds_corr > corr_thr].tolist()
+                self.__log.info('masking %s' % str(corr_spaces))
+                idxs = [all_dss.index(d) for d in corr_spaces]
+                x_thr, y_true = mask_exclude(idxs, x_test, y_test)
+                y_pred = AdaNet.predict(x_thr, predict_fn)
+
+                corr_test_comp = row_wise_correlation(y_pred.T, y_true.T)
+                self.__log.info('%.2f N(%.2f,%.2f)' % (
+                    corr_thr, np.mean(corr_test_comp), np.std(corr_test_comp)))
+                sns.distplot(corr_test_comp, ax=ax,
+                             color=color, label='%.2f' % corr_thr)
+
+            ax.legend(prop={'size': 6})
+            ax.grid(axis='y', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
+            ax.spines["top"].set_color(self.cc_palette([ds])[0])
+            ax.spines["right"].set_color(self.cc_palette([ds])[0])
+            ax.spines["left"].set_color(self.cc_palette([ds])[0])
+
+            outfile = os.path.join(
+                self.plot_path, 'sign3_correlation_distribution.png')
+            plt.savefig(outfile, dpi=200)
+        plt.close('all')
+
+    def sign3_mfp_predictor(self):
+
+        sns.set_style("whitegrid")
+        f, axes = plt.subplots(5, 5, figsize=(9, 9), sharex=True, sharey=True)
+
+        for ds, ax in zip(self.datasets, axes.flat):
+            try:
+                s3 = self.cc.get_signature('sign3', 'full', ds)
+            except Exception:
+                continue
+            if not os.path.isfile(s3.data_path):
+                continue
+            stat_file = os.path.join(s3.model_path,
+                                     'adanet_sign0_A1.001_eval',
+                                     'stats_sign0_A1.001_eval.pkl')
+            df = pd.read_pickle(stat_file)
+            df['component_cat'] = pd.cut(
+                df.component,
+                bins=[-1, 127, 128, 129, 130, 131, 132],
+                labels=['signature', 'stddev', 'intensity', 'exp_error',
+                        'novelty', 'confidence'])
+            # get idx of nearest neighbors of s2
+            sns.barplot(x='component_cat', y='pearson', data=df, hue='split',
+                        hue_order=['train','test'],
+                        ax=ax, color=self.cc_palette([ds])[0])
+
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+            ax.legend(prop={'size': 6})
+            ax.get_legend().remove()
+            ax.grid(axis='y', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
+            ax.spines["top"].set_color(self.cc_palette([ds])[0])
+            ax.spines["right"].set_color(self.cc_palette([ds])[0])
+            ax.spines["left"].set_color(self.cc_palette([ds])[0])
+
+        outfile = os.path.join(
+            self.plot_path, 'sign3_mfp_predictor.png')
         plt.savefig(outfile, dpi=200)
         plt.close('all')
