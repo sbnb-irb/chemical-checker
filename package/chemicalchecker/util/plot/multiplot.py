@@ -1535,7 +1535,7 @@ class MultiPlot():
                         'novelty', 'confidence'])
             # get idx of nearest neighbors of s2
             sns.barplot(x='component_cat', y='pearson', data=df, hue='split',
-                        hue_order=['train','test'],
+                        hue_order=['train', 'test'],
                         ax=ax, color=self.cc_palette([ds])[0])
 
             ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
