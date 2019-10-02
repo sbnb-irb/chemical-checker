@@ -73,7 +73,6 @@ class sign3(BaseSignature, DataSignature):
         default_sign0 = {
             'adanet_iterations': 10,
             'augmentation': False,
-            'initial_architecture': [3, 2],
             'subnetwork_generator': 'StackDNNGenerator',
             'cpu': params.get('cpu', 4)
         }
@@ -573,7 +572,7 @@ class sign3(BaseSignature, DataSignature):
             nBits = 2048
             radius = 2
             # predict by chunk
-            for i in range(0, len(smiles), chunk_size):
+            for i in tqdm(range(0, len(smiles), chunk_size)):
                 chunk = slice(i, i + chunk_size)
                 sign0s = list()
                 failed = list()
