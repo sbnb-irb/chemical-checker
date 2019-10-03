@@ -599,7 +599,7 @@ class sign3(BaseSignature, DataSignature):
                 preds = predict_fn({'x': sign0s})['predictions']
                 # add NaN when SMILES conversion failed
                 if failed:
-                    preds[np.array(failed)] = np.full((131, ),  np.nan)
+                    preds[np.array(failed)] = np.full((133, ),  np.nan)
                 # save chunk to H5
                 results['V'][chunk] = preds[:, :128]
                 results['stddev_norm'][chunk] = preds[:, 128]
