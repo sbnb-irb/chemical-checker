@@ -61,6 +61,7 @@ class UMAP(BaseSignature, DataSignature):
         """Fit to signature data."""
         # perform fit
         self.__log.info("Projecting with %s..." % self.__class__.__name__)
+        self.__log.info("Input shape: %s" % str(signature.info_h5['V']))
         t_start = time()
         with h5py.File(signature.data_path, "r") as src:
             proj_data = self.algo.fit_transform(src["V"][:])
