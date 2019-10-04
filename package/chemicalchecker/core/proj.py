@@ -1,5 +1,10 @@
 import os
+import h5py
+import pickle
+import datetime
 import numpy as np
+from tqdm import tqdm
+
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
 
@@ -7,6 +12,8 @@ from .projector import Default
 from .projector import PCA
 from .projector import UMAP
 from .projector import TSNE
+
+from sklearn.decomposition import IncrementalPCA
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.plot import Plot
@@ -36,12 +43,73 @@ class proj(BaseSignature, DataSignature):
 
         self.projector = eval(proj_type)(signature_path, dataset, **kwargs)
 
-    def fit(self, signature, validations=True, *args, **kwargs):
+    def pre_fit_transform(self, signature, n_components=15, chunk_size=1000):
+        """Preprocess the input signature reducing by PCA."""
+        preprocess_algo = IncrementalPCA(n_components=n_components)
+        with h5py.File(signature.data_path, "r") as src:
+            src_len = src["V"].shape[0]
+            for i in tqdm(range(0, src_len, chunk_size), 'PRE fit'):
+                chunk = slice(i, i + chunk_size)
+                preprocess_algo.partial_fit(src["V"][chunk])
+        sdtype = DataSignature.string_dtype()
+        destination = self.data_path + '_tmp_preprocess'
+        pred_proj = DataSignature(destination)
+        with h5py.File(signature.data_path, "r") as src, \
+                h5py.File(destination, "w") as dst:
+            dst.create_dataset("keys", data=src['keys'][:], dtype=sdtype)
+            dst.create_dataset("name", data=np.array(
+                ['PCA preprocess'], sdtype))
+            date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            dst.create_dataset("date", data=np.array([date_str], sdtype))
+            if 'mappings' in src.keys():
+                dst.create_dataset("mappings", data=src['mappings'][:],
+                                   dtype=sdtype)
+            src_len = src["V"].shape[0]
+            dst.create_dataset("V", (src_len, 2), dtype=np.float32)
+            for i in tqdm(range(0, src_len, chunk_size), 'PRE transform'):
+                chunk = slice(i, i + chunk_size)
+                dst['V'][chunk] = preprocess_algo.transform(src['V'][chunk])
+        self.preprocess_algo_path = os.path.join(self.signature_path,
+                                                 'preprocess.pkl')
+        pickle.dump(preprocess_algo, open(self.preprocess_algo_path, 'wb'))
+        return pred_proj
+
+    def pre_predict(self, signature, chunk_size=1000):
+        """Preprocess the input signature reusing PCA transform."""
+        preprocess_algo = pickle.load(open(self.preprocess_algo_path, 'rb'))
+        sdtype = DataSignature.string_dtype()
+        destination = self.data_path + '_tmp_preprocess'
+        pred_proj = DataSignature(destination)
+        with h5py.File(signature.data_path, "r") as src, \
+                h5py.File(destination, "w") as dst:
+            dst.create_dataset("keys", data=src['keys'][:], dtype=sdtype)
+            dst.create_dataset("name", data=np.array(
+                ['PCA preprocess'], sdtype))
+            date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            dst.create_dataset("date", data=np.array([date_str], sdtype))
+            if 'mappings' in src.keys():
+                dst.create_dataset("mappings", data=src['mappings'][:],
+                                   dtype=sdtype)
+            src_len = src["V"].shape[0]
+            dst.create_dataset("V", (src_len, 2), dtype=np.float32)
+            for i in tqdm(range(0, src_len, chunk_size), 'transform'):
+                chunk = slice(i, i + chunk_size)
+                dst['V'][chunk] = preprocess_algo.transform(src['V'][chunk])
+        return pred_proj
+
+    def fit(self, signature, validations=True, preprocess_dims=False,
+            *args, **kwargs):
         """Take an input learn a 2D representation."""
+        self.__log.info("Input shape: %s" % signature.shape)
+        if preprocess_dims:
+            signature = self.pre_fit_transform(signature,
+                                               n_components=preprocess_dims)
         self.projector.fit(signature, validations, *args, **kwargs)
 
     def predict(self, signature, destination, *args, **kwargs):
         """Predict projection for new data."""
+        if hasattr(self, 'preprocess_algo_path'):
+            signature = self.pre_predict(signature)
         return self.projector.predict(signature, destination, *args, **kwargs)
 
     def plot(self, kind='shaded', *args, **kwargs):
