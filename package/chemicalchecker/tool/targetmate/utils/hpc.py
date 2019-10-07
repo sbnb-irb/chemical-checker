@@ -2,6 +2,11 @@ import os
 import tempfile
 from chemicalchecker.util import Config
 from chemicalchecker.util.hpc import HPC
+import multiprocessing
+
+
+def cpu_count():
+    return multiprocessing.cpu_count()
 
 
 def fit_all_hpc(activity_path, models_path, **kwargs):

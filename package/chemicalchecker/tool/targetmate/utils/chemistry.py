@@ -32,7 +32,6 @@ def morgan_matrix(smiles, radius = 2, nBits = 2048):
             fp  = Chem.GetMorganFingerprintAsBitVect(mol, radius, nBits)
             DataStructs.ConvertToNumpyArray(fp, arr)
         except:
-            print("ERROR", smi)
             arr = np.full(nBits, np.nan)
         fps[i] = arr
     return fps

@@ -46,11 +46,11 @@ class TargetMateEnsembleClassifier:
                  inactives_per_active=100,
                  datasets=None, metric="bedroc",
                  cc_root=None, universe_path=None, sign3=None, sign3_predict_fn=None,
-                 n_jobs=1, naive_sampling=False, applicability = True):
+                 n_jobs=None, naive_sampling=False, applicability=True):
         """Initialize the TargetMateEnsembleClassifier class
 
         Args:
-            models_path(str): Directorty where models will be stored.
+            models_path(str): Directory where models will be stored.
             tmp_path(str): Directory where temporary data will be stored
                 (relevant at predict time) (default=None)
             base_clf(clf): Classifier instance, containing fit and
@@ -80,7 +80,10 @@ class TargetMateEnsembleClassifier:
             naive(bool): Sample naively (randomly), without using the OneClassSVM (default=False).
         """
         # Jobs
-        self.n_jobs = n_jobs
+        if not n_jobs:
+            self.n_jobs = hpc.cpu_count()
+        else:
+            self.n_jobs = n_jobs
         # Models path
         self.models_path = os.path.abspath(models_path)
         if not os.path.exists(models_path):
@@ -132,7 +135,7 @@ class TargetMateEnsembleClassifier:
         # Crossvalidation to determine the performances of the individual
         # predictors
         self.cv = cv
-        # K-neighbors to search
+        # K-neighbors to search during the applicability domain calculation
         self.k = k
         # Minimal chemical similarity to consider
         self.min_sim = min_sim
@@ -152,7 +155,7 @@ class TargetMateEnsembleClassifier:
                              for x in "ABCDE" for y in "12345"]
         else:
             self.datasets = datasets
-        # preloaded neural netoworks
+        # preloaded neural networks
         if sign3_predict_fn is None:
             self.sign3_predict_fn = dict()
             for ds in self.datasets:
@@ -166,14 +169,28 @@ class TargetMateEnsembleClassifier:
         # Naive sampling
         self.naive = naive
         # Others
-        self._is_fitted = False
+        self._is_fitted  = False
         self._is_trained = False
 
     @staticmethod
     def load(models_path):
         """Load previously stored TargetMate instance."""
-        with open(models_path + "/TargetMate.pkl", "r") as f:
+        with open(os.path.join(models_path, "/TargetMate.pkl", "r")) as f:
             return pickle.load(f)
+
+    def load_performances(self):
+        """Load performance data"""
+        with open(os.path.join(self.models_path, "perfs.json"), "r") as f:
+            return json.load(f)
+
+    def load_ad_data(self):
+        """Load applicability domain data"""
+        with open(os.path.join(self.models_path, "ad_data.pkl"), "r") as f:
+            return pickle.load(f)
+
+    def plot(self):
+        """Plot model analytics"""
+        return plots.ensemble_classifier_grid(self.load_performances, self.load_ad_data)
 
     def _read_sign3(self, dataset, idxs=None, sign_folder=None, is_prd=False):
         # Identify HDF5 file
@@ -505,24 +522,25 @@ class TargetMateEnsembleClassifier:
             json.dump(perfs, f)
         # Save ensemble
         self._save_ensemble(clf_ensemble)
-        # Nearest neighbors
-        self.__log.info(
-            "Calculating nearest-neighbors model to be used in the applicability domain.")
-        self.__log.debug("Getting fingerprint arena")
-        fps_test = self.fingerprint_arena(
-            smi_test, use_checkpoints=use_checkpoints, is_prd=False)
-        # Save AD data
-        self.__log.info("Calculating applicability domain weights")
-        self.__log.debug("Working on the bias")
-        bias_test = self.calculate_bias(yts_test, mps_test)
-        self.__log.debug("Working on the weights")
-        weights_test = self.calculate_weights(
-            smi_test, fps_test, std_test, bias_test)
-        self.__log.debug("Stacking AD data")
-        ad_data = np.vstack((std_test, bias_test, weights_test)).T
-        self.__log.info("Saving applicability domain weights")
-        with open(self.models_path + "/ad_data.pkl", "wb") as f:
-            pickle.dump(ad_data, f)
+        if self.applicability:
+            # Nearest neighbors
+            self.__log.info(
+                "Calculating nearest-neighbors model to be used in the applicability domain.")
+            self.__log.debug("Getting fingerprint arena")
+            fps_test = self.fingerprint_arena(
+                smi_test, use_checkpoints=use_checkpoints, is_prd=False)
+            # Save AD data
+            self.__log.info("Calculating applicability domain weights")
+            self.__log.debug("Working on the bias")
+            bias_test = self.calculate_bias(yts_test, mps_test)
+            self.__log.debug("Working on the weights")
+            weights_test = self.calculate_weights(
+                smi_test, fps_test, std_test, bias_test)
+            self.__log.debug("Stacking AD data")
+            ad_data = np.vstack((std_test, bias_test, weights_test)).T
+            self.__log.info("Saving applicability domain weights")
+            with open(self.models_path + "/ad_data.pkl", "wb") as f:
+                pickle.dump(ad_data, f)
         # Cleaning up, if necessary
         if not use_checkpoints:
             self.__log.debug("Removing signature files")
@@ -674,27 +692,28 @@ class TargetMateEnsembleClassifier:
             self.__log.info("Metaprediction")
             mps, std = self.metapredict(
                 yps, perfs, dataset_universe=my_datasets)
-            # Do applicability domain
-            self.__log.info("Calculating applicability domain")
-            # Nearest neighbors
-            self.__log.debug("Loading fit-time fingerprint arena")
-            fps_fit = load_morgan_arena(
-                os.path.join(self.models_path, "arena.fps"))
-            # Applicability domain data
-            self.__log.debug("Loading applicability domain data")
-            with open(self.models_path + "/ad_data.pkl", "r") as f:
-                ad_data = pickle.load(f)
-            # Calculate weights
-            self.__log.debug("Calculating weights")
-            # fps = self.fingerprint_arena([d[2] for d in data], is_prd=True)
-            smiles = [d[-2] for d in data]
-            weights = self.calculate_weights(
-                smiles, fps_fit, ad_data[:, 0], ad_data[:, 1], N)
-            # Get percentiles
-            self.__log.debug("Calculating percentiles of the weight (i.e. AD)")
-            train_weights = ad_data[:, 2]
-            ad = np.array([percentileofscore(train_weights, w)
-                           for w in weights]) / 100.
+            if applicability:
+                # Do applicability domain
+                self.__log.info("Calculating applicability domain")
+                # Nearest neighbors
+                self.__log.debug("Loading fit-time fingerprint arena")
+                fps_fit = load_morgan_arena(
+                    os.path.join(self.models_path, "arena.fps"))
+                # Applicability domain data
+                self.__log.debug("Loading applicability domain data")
+                with open(self.models_path + "/ad_data.pkl", "r") as f:
+                    ad_data = pickle.load(f)
+                # Calculate weights
+                self.__log.debug("Calculating weights")
+                # fps = self.fingerprint_arena([d[2] for d in data], is_prd=True)
+                smiles = [d[-2] for d in data]
+                weights = self.calculate_weights(
+                    smiles, fps_fit, ad_data[:, 0], ad_data[:, 1], N)
+                # Get percentiles
+                self.__log.debug("Calculating percentiles of the weight (i.e. AD)")
+                train_weights = ad_data[:, 2]
+                ad = np.array([percentileofscore(train_weights, w)
+                               for w in weights]) / 100.
         # Over-write with the actual value if known is True. This just uses the
         # InChIKey to match.
         if known:
