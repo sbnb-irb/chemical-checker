@@ -44,8 +44,14 @@ class TargetMate:
                  min_class_size=10,
                  inactives_per_active=100,
                  datasets=None, metric="bedroc",
+<<<<<<< HEAD
                  cc_root=None, universe_path=None, sign3=None, sign3_predict_fn=None, n_jobs=1, naive=False):
         """Initialize the TargetMate class
+=======
+                 cc_root=None, universe_path=None, sign3=None, sign3_predict_fn=None,
+                 n_jobs=1, naive_sampling=False, applicability = True):
+        """Initialize the TargetMateEnsembleClassifier class
+>>>>>>> Targetmate plotting
 
         Args:
             models_path(str): Directorty where models will be stored.
@@ -429,7 +435,7 @@ class TargetMate:
                 self.__log.debug("Calculating sign3 for %s" % dataset)
                 s3, predict_fn = self.sign3_predict_fn[dataset]
                 s3.predict_from_smiles([d[2] for d in data],
-                                       destination_dir, predict_fn=predict_fn)
+                                       destination_dir, predict_fn=predict_fn, use_novelty_model=False)
         # Fitting the global predictor
         self.__log.info("Fitting individual classifiers trained on full data")
         clf_ensemble = []
