@@ -33,10 +33,11 @@ from scipy.stats import percentileofscore
 from .utils import metrics
 from .utils.chemistry import read_smiles, morgan_arena, load_morgan_arena
 from .universes import Universe
+from .utils import plots
 
 
 @logged
-class TargetMate:
+class TargetMateEnsembleClassifier:
     """TargetMate class"""
 
     def __init__(self, models_path, tmp_path=None,
@@ -44,14 +45,9 @@ class TargetMate:
                  min_class_size=10,
                  inactives_per_active=100,
                  datasets=None, metric="bedroc",
-<<<<<<< HEAD
-                 cc_root=None, universe_path=None, sign3=None, sign3_predict_fn=None, n_jobs=1, naive=False):
-        """Initialize the TargetMate class
-=======
                  cc_root=None, universe_path=None, sign3=None, sign3_predict_fn=None,
                  n_jobs=1, naive_sampling=False, applicability = True):
         """Initialize the TargetMateEnsembleClassifier class
->>>>>>> Targetmate plotting
 
         Args:
             models_path(str): Directorty where models will be stored.
