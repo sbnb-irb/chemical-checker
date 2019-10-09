@@ -1,11 +1,29 @@
-"""TargetMate Classifier.
+"""
+
+
+- TargetMate Stacked Classifier.
+
+XXX
+
+- TargetMate Ensemble Classifier.
+
 An ensemble-based classifier based on CC signatures of different types.
 A base classifier is specified, and predictions are made for each dataset
 individually.
+
 A meta-prediction is then provided based on individual
 predictions, together with a measure of confidence for each prediction.
 In the predictions, known data is provided as 1/0 predictions. The rest of
 probabilities are clipped between 0.001 and 0.999.
+
+- TargetMate Stacked Regressor.
+
+XXX
+
+- TargetMate Ensemble Regressor.
+
+XXX
+
 """
 import os
 import shutil
@@ -41,8 +59,10 @@ from .utils import hpc
 class TargetMateSetup:
     """Set up the basic TargetMate class"""
 
-    def __init__(self, models_path, tmp_path = None,
-                 cv = 5, k = 5, min_sim = 0.25,
+    def __init__(self,
+                 models_path,
+                 tmp_path = None,
+                 cv = 5,
                  datasets = None,
                  cc_root = None,
                  n_jobs = None,
@@ -71,15 +91,15 @@ class TargetMateSetup:
         # Crossvalidation to determine the performances of the individual
         # predictors
         self.cv = cv
-        # K-neighbors to search during the applicability domain calculation
-        self.k = k
-        # Minimal chemical similarity to consider
-        self.min_sim = min_sim
         # Initialize the ChemicalChecker
         self.cc = ChemicalChecker(cc_root)
         # Others
         self._is_fitted  = False
         self._is_trained = False
+
+    @staticmethod
+    def read_smiles(smi, standardize):
+        return read_smiles(smi, standardize)
 
     @staticmethod
     def load(models_path):
@@ -96,6 +116,55 @@ class TargetMateSetup:
         """Load applicability domain data"""
         with open(os.path.join(self.models_path, "ad_data.pkl"), "r") as f:
             return pickle.load(f)
+
+    def save(self):
+        # we avoid saving signature 3 objects
+        self.sign_predict_fn = None
+        with open(self.models_path + "/TargetMate.pkl", "wb") as f:
+            pickle.dump(self, f)
+
+   def read_data(self, use_checkpoints):
+        if not use_checkpoints:
+            # Cleaning models directory
+            self.__log.debug("Cleaning previous checkpoints")
+            shutil.rmtree(self.models_path)
+            os.mkdir(self.models_path)
+        # Read data
+        self.__log.info("Reading data")
+        # Read data if it is a file
+        if type(data) == str:
+            self.__log.info("Reading file %s", data)
+            with open(data, "r") as f:
+                data = []
+                for r in csv.reader(f, delimiter="\t"):
+                    data += [[r[0]] + r[1:]]
+        # Get only valid SMILES strings
+        self.__log.info(
+            "Parsing SMILES strings, keeping only valid ones for training.")
+        data_ = []
+        for i, d in enumerate(data):
+            m = self.read_smiles(d[1], standardize)
+            if not m:
+                continue
+            # data is always of [(initial index, activity, ..., smiles,
+            # inchikey)]
+            data_ += [[i, d[0]] + [m[1], m[0]]]
+        data = data_
+        return data
+
+    def save_data(self)
+        self.__log.debug("Saving training data (only evidence)")
+        with open(self.models_path + "/trained_data.pkl", "wb") as f:
+            pickle.dump(data, f)
+
+
+class ApplicabilityDomain(TargetMateSetup):
+
+    def __init__(self, k = 5, min_sim = 0.25, **kwargs):
+        # K-neighbors to search during the applicability domain calculation
+        self.k = k
+        # Minimal chemical similarity to consider
+        self.min_sim = min_sim
 
     @staticmethod
     def avg_and_std(values, weights=None):
@@ -127,10 +196,6 @@ class TargetMateSetup:
     def calculate_bias(yt, yp):
         """Calculate the bias of the QSAR model"""
         return np.array([np.abs(t - p) for t, p in zip(yt, yp)])
-
-    @staticmethod
-    def read_smiles(smi, standardize):
-        return read_smiles(smi, standardize)
 
     def knearest_search(self, query_smi, target_fps, N):
         """Nearest neighbors search using chemical fingerprints"""
@@ -164,12 +229,6 @@ class TargetMateSetup:
             ws = sims[i] / (stds[idxs_] * bias[idxs_])
             weights += [np.max(ws)]
         return np.array(weights)
-
-    def save(self):
-        # we avoid saving signature 3 objects
-        self.sign_predict_fn = None
-        with open(self.models_path + "/TargetMate.pkl", "wb") as f:
-            pickle.dump(self, f)
 
     
 @logged
@@ -251,6 +310,57 @@ class TargetMateClassifierSetup(TargetMateSetup):
         perfs["bedroc"] = metrics.bedroc_score(yt, yp)
         return perfs
 
+    def prepare_data(self, use_checkpoints):
+        # Read data
+        data = self.read_data(use_checkpoints)
+        # Convert activity data to integer
+        data = [[d[0] + [int(d[1])] + d[2:]] for d in data]
+        # Save training data
+        self.save_data(data)
+        # Sample inactives, if necessariy
+        if self.inactives_per_active:
+            self.__log.info("Sampling putative inactives")
+        actives = set([(d[-2], d[0], d[-1]) for d in data if d[1] == 1])
+        inactives = set([(d[-2], d[0], d[-1]) for d in data if d[1] == -1])
+        act, inact, putinact = self.universe.predict(actives, inactives,
+                                                     inactives_per_active=self.inactives_per_active,
+                                                     min_actives=self.min_class_size,
+                                                     naive=self.naive)
+        self.__log.info("Actives %d / Known inactives %d / Putative inactives %d" %
+                        (len(act), len(inact), len(putinact)))
+        self.__log.debug("Assembling and shuffling")
+        data = self._reassemble_activity_sets(act, inact, putinact)
+        random.shuffle(data)
+        return data
+
+    def prepare_for_ml(self, data):
+        self.__log.debug("Prepare for machine learning")
+        y = np.array([d[1] for d in data])
+        # Consider putative inactives as inactives (i.e. set -1 to 0)
+        self.__log.debug(
+            "Considering putative inactives as inactives for training")
+        y[y <= 0] = 0
+        molecules = np.array([(d[-2], d[-1]) for d in data])
+        smiles = np.array([m[0] for m in molecules])
+        # Check that there are enough molecules for training.
+        ny = np.sum(y)
+        if ny < self.min_class_size or (len(y) - ny) < self.min_class_size:
+            self.__log.warning(
+                "Not enough valid molecules in the minority class..." +
+                "Just keeping training data")
+            self._is_fitted = True
+            self.save()
+            return
+        self.__log.info("Actives %d / Merged inactives %d" % (ny, len(y) - ny))
+        # Results
+        results ={
+            "y": y,
+            "ny": ny,
+            "molecules": molecules,
+            "smiles": smiles
+        }
+        return results
+
 
 @logged
 class TargetMateRegressionSetup(TargetMateSetup):
@@ -267,19 +377,189 @@ class TargetMateRegressionSetup(TargetMateSetup):
         perfs = {}
         return perfs
 
+@logged
+class SignaturizerSetup(TargetMateSetup):
+
+    def __init__(self, datasets):
+
+        if not datasets:
+            # self.datasets = list(self.cc.datasets)
+            self.datasets = ["%s%s.001" % (x, y)
+                             for x in "ABCDE" for y in "12345"]
+        else:
+            self.datasets = datasets
+        # preloaded neural networks
+        if sign_predict_fn is None:
+            self.sign_predict_fn = dict()
+            for ds in self.datasets:
+                self.__log.debug("Loading sign predictor for %s" % ds)
+                s3 = self.cc.get_signature("sign", "full", ds)
+                self.sign_predict_fn[ds] = (s3, s3.get_predict_fn())
+        else:
+            self.sign_predict_fn = sign_predict_fn
+
+    def signaturize_local(self, data):
+        # Get signatures
+        self.__log.info("Calculating sign for every molecule.")
+        for dataset in self.datasets:
+            destination_dir = os.path.join(self.models_path, dataset)
+            if os.path.exists(destination_dir) and use_checkpoints:
+                continue
+            else:
+                self.__log.debug("Calculating sign for %s" % dataset)
+                s3, predict_fn = self.sign_predict_fn[dataset]
+                s3.predict_from_smiles([d[2] for d in data],
+                                       destination_dir, predict_fn=predict_fn,
+                                       use_novelty_model=False)
+
+    def signaturize_hpc(self, data):
+        pass
+
+    def signaturize(self, data, hpc):
+        if hpc:
+            self.signaturize_hpc(data)
+        else:
+            self.signaturize_local(data)
+
+    def read_signature(self, dataset, idxs=None, sign_folder=None, is_prd=False):
+        # Identify HDF5 file
+        if not sign_folder:
+            if is_prd:
+                h5file = os.path.join(self.tmp_path, dataset)
+            else:
+                h5file = os.path.join(self.models_path, dataset)
+        else:
+            h5file = os.path.join(sign_folder, dataset)
+        # Read the file
+        with h5py.File(h5file, "r") as hf:
+            if idxs is None:
+                V = hf["V"][:]
+            else:
+                V = hf["V"][:][idxs]
+        return V
+
+
+@logged
+class StackedSignaturizer:
+    pass
+
 
 @logged
 class TargetMateStackedClassifier(TargetMateClassifierSetup):
     pass
 
 
+@logged
+class EnsembleSignaturizer(Signaturizer)
+
+        # Get signatures
+        self.__log.info("Calculating sign for every molecule.")
+        for dataset in self.datasets:
+            destination_dir = os.path.join(self.models_path, dataset)
+            if os.path.exists(destination_dir) and use_checkpoints:
+                continue
+            else:
+                self.__log.debug("Calculating sign for %s" % dataset)
+                s3, predict_fn = self.sign_predict_fn[dataset]
+                s3.predict_from_smiles([d[2] for d in data],
+                                       destination_dir, predict_fn=predict_fn, use_novelty_model=False)
+
+
+
 
 @logged
 class TargetMateEnsembleClassifier(TargetMateClassifierSetup):
-    pass
+    
+    def __init__(self, datasets = None, sign_predict_fn, **kwargs):
+        
+        pass
+
+    def fit_ensemble(self)
+        self.__log.info("Fitting individual classifiers trained on full data")
+        clf_ensemble = []
+        if self._is_tpot:
+            pipes = []
+        for dataset in self.datasets:
+            self.__log.debug("Working on %s" % dataset)
+            clf = clone(self.base_mod)
+            X = self._read_sign(dataset)
+            shuff = np.array(range(len(y)))
+            random.shuffle(shuff)
+            clf.fit(X[shuff], y[shuff])
+            if self._is_tpot:
+                pipes += [clf.fitted_pipeline_]
+                clf_ensemble += [(dataset, pipes[-1].fit(X[shuff], y[shuff]))]
+            else:
+                clf_ensemble += [(dataset, clf)]
+        return clf_ensemble
+
+    def cross_validation(self)
+        # Initialize cross-validation generator
+        skf = StratifiedKFold(n_splits=np.min(
+            [self.cv, ny]), shuffle=True, random_state=42)
+        # Do the individual predictors
+        self.__log.info("Training individual predictors with cross-validation")
+        yps_train = collections.defaultdict(list)
+        yps_test = collections.defaultdict(list)
+        yts_train = []
+        yts_test = []
+        smi_test = []
+        for train_idx, test_idx in skf.split(smiles, y):
+            self.__log.debug("CV fold")
+            for i, dataset in enumerate(self.datasets):
+                # Fit the classifier
+                if self._is_tpot:
+                    clf = pipes[i]
+                else:
+                    clf = clone(self.base_mod)
+                X_train = self._read_sign(dataset, train_idx)
+                y_train = y[train_idx]
+                clf.fit(X_train, y_train)
+                # Make predictions on train set itself
+                yps_train[dataset] += [p[1] for p in clf.predict_proba(X_train)]
+                # Make predictions on test set itself
+                X_test = self._read_sign(dataset, test_idx)
+                y_test = y[test_idx]
+                yps_test[dataset] += [p[1] for p in clf.predict_proba(X_test)]
+            yts_train += list(y_train)
+            yts_test += list(y_test)
+            smi_test += list(smiles[test_idx])
+        results = {
+            "yps_train": yps_train,
+            "yps_test": yps_test,
+            "yts_train": yts_train,
+            "yts_test": yts_test,
+            "smi_test": smi_test
+        }
+        return results
+
+
+    def plot(self):
+        perfs = self.load_performances()
+        ad_data = self.load_ad_data()
+        plots.ensemble_classifier_grid(perfs, ad_data)
+
+    def fit(self, use_checkpoints, hpc):
+        # Read data
+        data = self.prepare_data(use_checkpoints)
+        # Prepare data for machine learning
+        data_ml = self.prepare_for_ml(data)
+        if not data_ml: return
+        # Signaturize
+        self.signaturize(data, hpc)
+        # Fit the global classifier
+        clf_ensemble = self.fit_ensemble()
+        # Cross-validation
+        cv_results = self.cross_validation()
+
+
+    def predict(self)
+
+
+
 
 @logged
-class TargetMateEnsembleClassifier:
+class Old:
     """TargetMate class"""
 
     def __init__(self, models_path, tmp_path=None,
