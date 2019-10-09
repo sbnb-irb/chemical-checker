@@ -246,7 +246,7 @@ class Plot():
 
         return i90, ielb
 
-    def get_same_different(self, sign, prefix, mappings=None, max_diff=1e5):
+    def get_same_different(self, sign, prefix, mappings=None, max_diff=5):
         """Return pairs of SAME and DIFFERENT molecules from validation set."""
         # read validation sets
         # entry are pairs of inchikeys that can be same (1) or not (0)
@@ -319,9 +319,11 @@ class Plot():
         self.__log.info("%s shared pairs with DIFFERENT %s",
                         len(different_shared), prefix.upper())
         # cap set of different molecules
-        if len(different_shared) > max_diff:
-            self.__log.info("limiting DIFFERENT pairs at %s", int(max_diff))
-            different_shared = set(list(different_shared)[:int(max_diff)])
+        if len(different_shared) > max_diff * len(same_shared):
+            self.__log.info("limiting DIFFERENT pairs at %s times SHARED",
+                            max_diff)
+            limit = max_diff * len(same_shared)
+            different_shared = set(list(different_shared)[:int(limit)])
         frac_shared = 100 * len(shared_inks) / float(len(validation_inks))
         return same_shared, different_shared, all_signs_dict, frac_shared
 
@@ -1682,7 +1684,6 @@ class Plot():
         test_idxs = np.where(np.isin(sign3.keys, test_keys))[0]
         train_idxs = np.where(~np.isin(sign3.keys, test_keys))[0]
 
-
         stddev = sign3.get_h5_dataset('stddev')
         test_std = stddev[test_idxs]
         self.__log.info("test_std %s", test_std.shape)
@@ -1727,8 +1728,8 @@ class Plot():
         stddev = sign3.get_h5_dataset('stddev')
         intensity = sign3.get_h5_dataset('intensity')
         experr = sign3.get_h5_dataset('exp_error')
-        s2_mask = sign3.get_h5_dataset('outlier')==0
-        
+        s2_mask = sign3.get_h5_dataset('outlier') == 0
+
         weights = [abs(pearson_coeff_inte), abs(
             pearson_coeff_stddev), abs(pearson_coeff_err)]
         confidence_new = np.average(
