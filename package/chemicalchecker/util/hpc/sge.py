@@ -205,7 +205,7 @@ fi
 
         self.__log.debug("HPC submission: " + submit_string)
 
-        time.sleep(15)
+        time.sleep(2)
 
         try:
             ssh = paramiko.SSHClient()
