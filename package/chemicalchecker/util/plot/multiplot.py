@@ -4,12 +4,14 @@ import os
 import h5py
 import json
 import pickle
+import itertools
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from scipy import interpolate
 from scipy import stats
 from functools import partial
+from scipy.stats import gaussian_kde
 
 import matplotlib
 matplotlib.use('Agg')
@@ -42,6 +44,9 @@ class MultiPlot():
             self.datasets = list(self.cc.datasets)
         else:
             self.datasets = limit_dataset
+
+    def _rgb2hex(self, r, g, b):
+        return '#%02x%02x%02x' % (r, g, b)
 
     def cc_palette(self, coords):
         """Return a list of colors a.k.a. a palette."""
@@ -971,15 +976,77 @@ class MultiPlot():
         plt.savefig(filename, dpi=100)
         plt.close('all')
 
-    def all_sign_validations(self):
+    def sign3_adanet_performance_overall_heatmap(self, metric="pearson",
+                                                 split='test',
+                                                 suffix=None, not_self=True):
+        adanet_dir = 'adanet_eval'
+        if suffix is not None:
+            adanet_dir = 'adanet_%s' % suffix
+        df = pd.DataFrame()
+        for ds in tqdm(self.datasets):
+            s3 = self.cc.get_signature('sign3', 'full', ds)
+            perf_file = os.path.join(s3.model_path, adanet_dir,
+                                     'stats_eval.pkl')
+            if not os.path.isfile(perf_file):
+                continue
+            sdf = pd.read_pickle(perf_file)
+            sel = sdf[(sdf['split'] == split)].groupby(
+                'from', as_index=False)[metric].mean()
+            sel['to'] = ds[:2]
+            df = df.append(sel, ignore_index=True)
 
-        metrics = ['atc_auc', 'atc_cov', 'atc_ks_d', 'atc_ks_p',
-                   'moa_auc', 'moa_cov', 'moa_ks_d', 'moa_ks_p']
-        sign_types = ['sign1', 'sign2', 'sign3']
+        df['from'] = df['from'].map({ds: ds[:2] for ds in self.cc.datasets})
+        df = df.dropna()
+
+        fig, ax = plt.subplots(1, 1, figsize=(6, 5), dpi=100)
+        cmap = plt.cm.get_cmap('plasma_r', 5)
+        sns.heatmap(df.pivot('from', 'to', metric), vmin=0, vmax=1,
+                    linewidths=.5, square=True, cmap=cmap)
+        plt.title('set: %s, metric: %s' % (split, metric))
+        plt.tight_layout()
+        filename = os.path.join(
+            self.plot_path, "adanet_perf_heatmap_%s_%s.png" % (split, metric))
+        plt.savefig(filename, dpi=100)
+        plt.close('all')
+
+    def sign3_coverage_heatmap(self, sign2_coverage):
+        cov = sign2_coverage.get_h5_dataset('V')
+        df = pd.DataFrame(columns=['from', 'to', 'coverage'])
+        for ds_from, ds_to in tqdm(itertools.product(self.datasets, self.datasets)):
+            idx_from = self.datasets.index(ds_from)
+            idx_to = self.datasets.index(ds_to)
+            mask_to = cov[:, idx_to].astype(bool)
+            tot_to = np.count_nonzero(mask_to)
+            having_from = np.count_nonzero(cov[mask_to, idx_from])
+            coverage = having_from / float(tot_to)
+            df.loc[len(df)] = pd.Series({
+                'from': ds_from[:2],
+                'to': ds_to[:2],
+                'coverage': coverage})
+
+        fig, ax = plt.subplots(1, 1, figsize=(6, 5), dpi=100)
+        cmap = plt.cm.get_cmap('plasma_r', 5)
+        sns.heatmap(df.pivot('from', 'to', 'coverage'), vmin=0, vmax=1,
+                    linewidths=.5, square=True, cmap=cmap)
+        plt.title('Coverage')
+        plt.tight_layout()
+        filename = os.path.join(
+            self.plot_path, "sign3_coverage_heatmap.png")
+        plt.savefig(filename, dpi=100)
+        plt.close('all')
+
+    def all_sign_validations(self, sign_types=None, molsets=None, valset='moa'):
+
+        if sign_types is None:
+            sign_types = ['sign1', 'sign2', 'sign3']
+        if molsets is None:
+            molsets = ['reference', 'full']
+            #['atc_auc', 'atc_cov', 'atc_ks_d', 'atc_ks_p',
+            #           'moa_auc', 'moa_cov', 'moa_ks_d', 'moa_ks_p']
         df = pd.DataFrame(
-            columns=['sign_type', 'molset', 'dataset', 'molecules'] + metrics)
+            columns=['sign_molset', 'dataset', 'metric', 'value'])
         for ds in self.datasets:
-            for molset in ['reference', 'full']:
+            for molset in molsets:
                 for sign_type in sign_types:
                     try:
                         sign = self.cc.get_signature(sign_type, molset, ds)
@@ -991,59 +1058,68 @@ class MultiPlot():
                         sign.stats_path, 'validation_stats.json')
                     if not os.path.isfile(stat_file):
                         continue
-                    row = json.load(open(stat_file, 'r'))
-                    row.update({
-                        'sign_type': sign_type,
-                        'dataset': ds,
-                        'molset': molset,
-                    })
-                    df.loc[len(df)] = pd.Series(row)
+                    stats = json.load(open(stat_file, 'r'))
+                    for k, v in stats.items():
+                        row = {
+                            'sign_molset': '_'.join([sign_type, molset]),
+                            'dataset': ds,
+                            'metric': k,
+                            'value': float(v),
+                        }
+                        if 'cov' in k:
+                            row['value'] /= 100.
+                        df.loc[len(df)] = pd.Series(row)
+        print(df)
+        sns.set_style("whitegrid")
+        fig, axes = plt.subplots(5, 5, sharey=True, sharex=True,
+                                 figsize=(15, 15), dpi=100)
+        for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
+            ds_color = self.cc_palette([ds])[0]
+            sns.barplot(x='sign_molset', y='value',
+                        data=df[(df.dataset == ds) & (
+                              df.metric == '%s_auc' % valset)],
+                        ax=ax, alpha=1,
+                        color=ds_color)
 
-        for metric in metrics:
-            sns.set_style("whitegrid")
-            fig, axes = plt.subplots(5, 5, sharey=True, sharex=False,
-                                     figsize=(15, 15), dpi=100)
-            for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
-                ds_color = self.cc_palette([ds])[0]
-                sns.barplot(x='sign_type', y=metric, hue='molset',
-                            hue_order=['reference', 'full'],
-                            order=['sign1', 'sign2', 'sign3'],
-                            data=df[df.dataset == ds],
-                            ax=ax, alpha=.8,
-                            palette=sns.light_palette(ds_color)[1::2])
-                ax.set_xlabel('')
-                ax.set_ylabel('')
-                ax.get_legend().remove()
-
-                # ax.set_xticklabels([ds])
-                for idx, p in enumerate(ax.patches):
-                    if "%.2f" % p.get_height() == 'nan':
-                        continue
-                    val = p.get_height()
-                    if val > 1.0:
-                        val = "%.1f" % p.get_height()
-                    else:
-                        val = "%.2f" % p.get_height()
-                    ax.annotate(val,
-                                (p.get_x() + p.get_width() / 2., 0),
-                                ha='center', va='center', fontsize=11,
-                                color='k', rotation=90, xytext=(0, 20),
-                                textcoords='offset points')
-                if "cov" in metric:
-                    ax.set_ylim(0, 100)
+            sns.stripplot(x='sign_molset', y='value',
+                          data=df[(df.dataset == ds) & (
+                              df.metric == '%s_cov' % valset)],
+                          size=10, marker="o", edgecolor='k',linewidth=2,
+                          ax=ax, jitter=False, alpha=1, color='w')
+            ax.set_xlabel('')
+            ax.set_ylabel('')
+            # ax.set_xticklabels([ds])
+            for idx, p in enumerate(ax.patches):
+                if "%.2f" % p.get_height() == 'nan':
+                    continue
+                val = p.get_height()
+                if val > 1.0:
+                    val = "%.1f" % p.get_height()
                 else:
-                    ax.set_ylim(0, 1)
-                ax.grid(axis='y', linestyle="-",
-                        color=ds_color, lw=0.3)
-                ax.spines["bottom"].set_color(ds_color)
-                ax.spines["top"].set_color(ds_color)
-                ax.spines["right"].set_color(ds_color)
-                ax.spines["left"].set_color(ds_color)
-            plt.tight_layout()
-            filename = os.path.join(self.plot_path,
-                                    "sign_validation_%s.png" % metric)
-            plt.savefig(filename, dpi=100)
-            plt.close('all')
+                    val = "%.2f" % p.get_height()
+                ax.annotate(val,
+                            (p.get_x() + p.get_width() / 2., 0),
+                            ha='center', va='center', fontsize=11,
+                            color='k', rotation=90, xytext=(0, 20),
+                            textcoords='offset points')
+            if ds.startswith('E'):
+                for label in ax.get_xticklabels():
+                    label.set_ha("right")
+                    label.set_rotation(45)
+            ax.set_ylim(0, 1)
+            ax.grid(axis='y', linestyle="-",
+                    color=ds_color, lw=0.3)
+            ax.spines["bottom"].set_color(ds_color)
+            ax.spines["top"].set_color(ds_color)
+            ax.spines["right"].set_color(ds_color)
+            ax.spines["left"].set_color(ds_color)
+        plt.tight_layout()
+        filename = os.path.join(self.plot_path,
+                                "sign_validation_%s_%s_%s.png"
+                                % (valset,'_'.join(sign_types),
+                                    '_'.join(molsets)))
+        plt.savefig(filename, dpi=100)
+        plt.close('all')
         """
         for metric in metrics:
             sns.set_style("whitegrid")
@@ -1550,5 +1626,94 @@ class MultiPlot():
 
         outfile = os.path.join(
             self.plot_path, 'sign3_mfp_predictor.png')
+        plt.savefig(outfile, dpi=200)
+        plt.close('all')
+
+    def sign3_confidence_summary(self, limit=100):
+
+        from chemicalchecker.core.signature_data import DataSignature
+
+        def quick_gaussian_kde(x, y, limit=1000):
+            xl = x[:limit]
+            yl = y[:limit]
+            xy = np.vstack([xl, yl])
+            c = gaussian_kde(xy)(xy)
+            order = c.argsort()
+            return xl, yl, c, order
+
+        sns.set_style("white")
+        sns.set_context("paper")
+        fig = plt.figure(figsize=(15, 10))
+        fig.text(0.5, 0.04, 'Error (Log10 MSE)', ha='center')
+        fig.text(0.04, 0.5, 'Correlation (Pearson)',
+                 va='center', rotation='vertical')
+        fig.text(0.96, 0.5, 'Confidence', va='center', rotation='vertical')
+        for idx, ds in enumerate(self.datasets):
+
+            s3 = self.cc.get_signature('sign3', 'full', ds)
+
+            error_dist = DataSignature(os.path.join(s3.model_path, 'error.h5'))
+            stddev = error_dist.get_h5_dataset('stddev').flatten()
+            intensity = error_dist.get_h5_dataset('intensity').flatten()
+            exp_error = error_dist.get_h5_dataset('exp_error').flatten()
+            log_mse = error_dist.get_h5_dataset('log_mse')
+            log_mse_consensus = error_dist.get_h5_dataset('log_mse_consensus')
+            keys = error_dist.get_h5_dataset('keys')
+            _, confidence = s3.get_vectors(keys, dataset_name='confidence_raw')
+            confidence = confidence.flatten()
+            pc_confidence = stats.pearsonr(log_mse_consensus, confidence)[0]
+            pc_stddev = abs(stats.pearsonr(log_mse_consensus, stddev)[0])
+            pc_intensity = abs(stats.pearsonr(log_mse_consensus, intensity)[0])
+            pc_exp_error = abs(stats.pearsonr(log_mse, exp_error)[0])
+            x, y, c, order = quick_gaussian_kde(log_mse_consensus, confidence)
+
+            row = idx / 5
+            col = idx % 5
+
+            scores_ax = plt.subplot2grid((5, 20), (row, col * 4))
+            scores_ax.bar([0, 1, 2], [pc_stddev, pc_intensity,
+                                      pc_exp_error], [1, 1, 1],
+                          tick_label=['stddev', 'intensity', 'exp.error'],
+                          color=self.cc_palette([ds])[0])
+            for label in scores_ax.get_xticklabels():
+                label.set_ha("right")
+                label.set_rotation(45)
+                if row != 4:
+                    label.set_visible(False)
+            scores_ax.set_ylim(0, 1)
+            scores_ax.set_ylabel('Correlation (Pearson)')
+            scores_ax.set_ylabel('')
+            sns.despine(ax=scores_ax, bottom=True)
+            scores_ax.set_yticks([0, 1])
+            scores_ax.set_yticklabels(['0', '1'])
+
+            conf_ax = plt.subplot2grid((5, 20), (row, 1 + col * 4), colspan=2)
+            white = self._rgb2hex(250, 250, 250)
+            black = self._rgb2hex(0, 0, 0)
+            colors = [black, self.cc_palette([ds])[0], white]
+            cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
+                '', colors)
+            conf_ax.scatter(x[order], y[order], c=c[order],
+                            cmap=cmap, s=5, edgecolor='')
+            conf_ax.text(0.05, 0.05, r"$\rho$: {:.2f}".format(pc_confidence),
+                         transform=conf_ax.transAxes, size=6)
+
+            conf_ax.set_ylim(0, 1)
+            conf_ax.set_xlim(-4.5, -0.5)
+            conf_ax.set_ylabel('Confidence')
+            conf_ax.set_ylabel('')
+            conf_ax.set_xlabel('Error (Log10 MSE)')
+            conf_ax.set_xlabel('')
+            sns.despine(ax=conf_ax, left=True, right=False)
+
+            conf_ax.yaxis.set_label_position("right")
+            conf_ax.set_yticks([0, 1])
+            conf_ax.set_yticklabels(['0', '1'])
+            conf_ax.set_xticks([-4, -1])
+            conf_ax.set_xticklabels(['-4', '-1'])
+
+            outfile = os.path.join(self.plot_path,
+                                   'sign3_confidence_summary.png')
+            plt.savefig(outfile, dpi=200)
         plt.savefig(outfile, dpi=200)
         plt.close('all')
