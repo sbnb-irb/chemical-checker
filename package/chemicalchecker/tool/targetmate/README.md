@@ -1,6 +1,14 @@
-# TargetMate classifier
+# TargetMate
 
-An ensemble-based classifier based on Chemical Checker signatures.
+TargetMate contains functionalities to do **supervised machine learning** with the Chemical Checker.
+
+| | Ensemble | Stacked |
+| Classifcation | 
+| Regression | ::tick:: |
+
+1. A stacked classifier based 
+
+1. An ensemble-based classifier based on Chemical Checker signatures.
 
 * A base classifier is specified, and predictions are made for each dataset individually.
 * An ensemble-based prediction is then given based on individual
