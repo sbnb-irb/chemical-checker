@@ -123,6 +123,10 @@ class TargetMateSetup:
         with open(self.models_path + "/TargetMate.pkl", "wb") as f:
             pickle.dump(self, f)
 
+    def save_performances(self, perfs):
+        with open(self.models_path + "/perfs.json", "w") as f:
+            json.dump(perfs, f)
+
    def read_data(self, use_checkpoints):
         if not use_checkpoints:
             # Cleaning models directory
@@ -156,6 +160,15 @@ class TargetMateSetup:
         self.__log.debug("Saving training data (only evidence)")
         with open(self.models_path + "/trained_data.pkl", "wb") as f:
             pickle.dump(data, f)
+
+    @staticmethod
+    def fit_all_hpc(activity_path, models_path, **kwargs):
+        hpc.fit_all_hpc(activity_path, models_path, **kwargs)
+
+    @staticmethod
+    def predict_all_hpc(models_path, signature_path, results_path,
+                        models_filter=None, **kwargs):
+        hpc.predict_all_hpc(models_path, signature_path, results_path, models_filter=None, **kwargs)
 
 
 class ApplicabilityDomain(TargetMateSetup):
@@ -533,6 +546,63 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup):
         }
         return results
 
+    def metapredict(self, yp_dict, perfs, dataset_universe=None):
+        """Do meta-prediction based on dataset-specific predictions.
+        Weights are given according to the performance of the individual
+        predictors.
+        Standard deviation across predictions is kept to estimate
+        applicability domain.
+        """
+        if dataset_universe is None:
+            dataset_universe = set(self.datasets)
+        M = []
+        w = []
+        for dataset in self.datasets:
+            if dataset not in dataset_universe:
+                continue
+            w += [perfs[dataset]["perf_test"]
+                  [self.metric][1]]  # Get the weight
+            M += [yp_dict[dataset]]
+        M = np.array(M)
+        w = np.array(w)
+        prds = []
+        stds = []
+        for j in range(0, M.shape[1]):
+            avg, std = self.avg_and_std(M[:, j], w)
+            prds += [avg]
+            stds += [std]
+        return np.clip(prds, 0.001, 0.999), np.clip(stds, 0.001, None)
+
+    def all_performances(self, cv_results):
+        yts_train = cv_results["yts_train"]
+        yps_train = cv_results["yps_train"]
+        yts_test  = cv_results["yts_test" ]
+        yps_test  = cv_results["yps_test" ]
+        # Evaluate individual performances
+        self.__log.info(
+            "Evaluating dataset-specific performances based on the CV and" +
+            "getting weights correspondingly")
+        perfs = {}
+        for dataset in self.datasets:
+            ptrain = self.performances(yts_train, yps_train[dataset])
+            ptest = self.performances(yts_test, yps_test[dataset])
+            perfs[dataset] = {"perf_train": ptrain, "perf_test": ptest}
+        # Meta-predictor on train and test data
+        self.__log.info("Meta-predictions on train and test data")
+        self.__log.debug("Assembling for train set")
+        mps_train, std_train = self.metapredict(yps_train, perfs)
+        self.__log.debug("Assembling for test set")
+        mps_test, std_test = self.metapredict(yps_test, perfs)
+        # Assess meta-predictor performance
+        self.__log.debug("Assessing meta-predictor performance")
+        ptrain = self.performances(yts_train, mps_train)
+        ptest = self.performances(yts_test, mps_test)
+        perfs["MetaPred"] = {"perf_train": ptrain, "perf_test": ptest}
+        results = {
+            "perfs": perfs,
+            "mps":
+        }
+        return results
 
     def plot(self):
         perfs = self.load_performances()
@@ -551,6 +621,9 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup):
         clf_ensemble = self.fit_ensemble()
         # Cross-validation
         cv_results = self.cross_validation()
+        # Get performances
+        ap_results = self.all_performances(cv_results)
+        # 
 
 
     def predict(self)
