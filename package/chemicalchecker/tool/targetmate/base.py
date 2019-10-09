@@ -16,36 +16,278 @@ import collections
 import numpy as np
 import pickle
 import random
-import tempfile
+import math
+
 from sklearn.externals import joblib
 from sklearn.model_selection import StratifiedKFold
 from sklearn import metrics
 from sklearn.base import clone
 from sklearn.pipeline import Pipeline
 from sklearn.feature_selection import VarianceThreshold
+from scipy.stats import percentileofscore
+
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
-from chemicalchecker.util.hpc import HPC
 
-import math
-from scipy.stats import percentileofscore
 from .utils import metrics
 from .utils.chemistry import read_smiles, morgan_arena, load_morgan_arena
 from .universes import Universe
 from .utils import plots
+from .utils import hpc
 
+
+@logged
+class TargetMateSetup:
+    """Set up the basic TargetMate class"""
+
+    def __init__(self, models_path, tmp_path = None,
+                 cv = 5, k = 5, min_sim = 0.25,
+                 datasets = None,
+                 cc_root = None,
+                 n_jobs = None,
+                 applicability = True)
+        """XXX
+        """
+        # Jobs
+        if not n_jobs:
+            self.n_jobs = hpc.cpu_count()
+        else:
+            self.n_jobs = n_jobs
+        # Models path
+        self.models_path = os.path.abspath(models_path)
+        if not os.path.exists(models_path):
+            self.__log.warning(
+                "Specified models directory does not exist: %s",
+                self.models_path)
+            os.mkdir(self.models_path)
+        # Temporary path
+        if not tmp_path:
+            import uuid
+            self.tmp_path = os.path.join(
+                Config().PATH.CC_TMP, str(uuid.uuid4()))
+        else:
+            self.tmp_path = os.path.abspath(tmp_path)
+        # Crossvalidation to determine the performances of the individual
+        # predictors
+        self.cv = cv
+        # K-neighbors to search during the applicability domain calculation
+        self.k = k
+        # Minimal chemical similarity to consider
+        self.min_sim = min_sim
+        # Initialize the ChemicalChecker
+        self.cc = ChemicalChecker(cc_root)
+        # Others
+        self._is_fitted  = False
+        self._is_trained = False
+
+    @staticmethod
+    def load(models_path):
+        """Load previously stored TargetMate instance."""
+        with open(os.path.join(models_path, "/TargetMate.pkl", "r")) as f:
+            return pickle.load(f)
+
+    def load_performances(self):
+        """Load performance data"""
+        with open(os.path.join(self.models_path, "perfs.json"), "r") as f:
+            return json.load(f)
+
+    def load_ad_data(self):
+        """Load applicability domain data"""
+        with open(os.path.join(self.models_path, "ad_data.pkl"), "r") as f:
+            return pickle.load(f)
+
+    @staticmethod
+    def avg_and_std(values, weights=None):
+        """Return the (weighted) average and standard deviation.
+
+        Args:
+            values(list or array): 1-d list or array of values
+            weights(list or array): By default, no weightening is applied
+        """
+        if weights is None:
+            weights = np.ones(len(values))
+        average = np.average(values, weights=weights)
+        variance = np.average((values - average)**2, weights=weights)
+        return (average, math.sqrt(variance))
+
+    def fingerprint_arena(self, smiles, use_checkpoints=False, is_prd=False):
+        if is_prd:
+            fps_file = os.path.join(self.tmp_path, "arena.fps")
+        else:
+            fps_file = os.path.join(self.models_path, "arena.fps")
+        if not use_checkpoints or not os.path.exists(fps_file):
+            self.__log.debug("Writing Fingerprints")
+            arena = morgan_arena(smiles, fps_file)
+        else:
+            arena = load_morgan_arena(fps_file)
+        return arena
+
+    @staticmethod
+    def calculate_bias(yt, yp):
+        """Calculate the bias of the QSAR model"""
+        return np.array([np.abs(t - p) for t, p in zip(yt, yp)])
+
+    @staticmethod
+    def read_smiles(smi, standardize):
+        return read_smiles(smi, standardize)
+
+    def knearest_search(self, query_smi, target_fps, N):
+        """Nearest neighbors search using chemical fingerprints"""
+        k = np.min([self.k, len(target_fps.fps[0]) - 1])
+        neighs = []
+        for smi in query_smi:
+            results = target_fps.similarity(
+                smi, self.min_sim, n_workers=self.n_jobs)
+            neighs += [results[:k]]
+        if N is None:
+            N = len(query_smi)
+        sims = np.zeros((N, k), dtype=np.float32)
+        idxs = np.zeros((N, k), dtype=np.int)
+        for q_idx, hits in enumerate(neighs):
+            sims_ = []
+            idxs_ = []
+            for h in hits:
+                sims_ += [h[1]]
+                idxs_ += [int(h[0])]
+            sims[q_idx, :len(sims_)] = sims_
+            idxs[q_idx, :len(idxs_)] = idxs_
+        return sims, idxs
+
+    def calculate_weights(self, query_smi, target_fps, stds, bias, N=None):
+        """Calculate weights using adaptation of Aniceto et al 2016."""
+        self.__log.debug("Finding nearest neighbors")
+        sims, idxs = self.knearest_search(query_smi, target_fps, N)
+        self.__log.debug("Calculating weights from std and bias")
+        weights = []
+        for i, idxs_ in enumerate(idxs):
+            ws = sims[i] / (stds[idxs_] * bias[idxs_])
+            weights += [np.max(ws)]
+        return np.array(weights)
+
+    def save(self):
+        # we avoid saving signature 3 objects
+        self.sign_predict_fn = None
+        with open(self.models_path + "/TargetMate.pkl", "wb") as f:
+            pickle.dump(self, f)
+
+    
+@logged
+class TargetMateClassifierSetup(TargetMateSetup):
+    """Set up a TargetMate classifier"""
+
+    def __init__(self, base_mod = "logistic_regression", min_class_size = 10,
+                 inactives_per_active = 100, metric = "bedroc",
+                 universe_path = None, naive_sampling = False):
+         # Set the base classifier
+        if type(base_mod) == str:
+            if base_mod == "logistic_regression":
+                from sklearn.linear_model import LogisticRegressionCV
+                self.base_mod = LogisticRegressionCV(
+                    cv=3, class_weight="balanced", max_iter=1000,
+                    n_jobs=self.n_jobs)
+            if base_mod == "random_forest":
+                from sklearn.ensemble import RandomForestClassifier
+                self.base_mod = RandomForestClassifier(
+                    n_estimators=100, class_weight="balanced", n_jobs=self.n_jobs)
+            if base_mod == "naive_bayes":
+                from sklearn.naive_bayes import GaussianNB
+                self.base_mod = Pipeline(
+                    [('feature_selection', VarianceThreshold()),
+                     ('classify', GaussianNB())])
+            if base_mod == "tpot":
+                from tpot import TPOTClassifier
+                from models import tpotconfigs
+                self.base_mod = TPOTClassifier(
+                    config_dict=tpotconfigs.minimal,
+                    generations=10, population_size=30,
+                    cv=3, scoring="balanced_accuracy",
+                    verbosity=2, n_jobs=self.n_jobs,
+                    max_time_mins=5, max_eval_time_mins=0.5,
+                    random_state=42,
+                    early_stop=3,
+                    disable_update_check=True
+                )
+                self._is_tpot = True
+            else:
+                self._is_tpot = False
+        else:
+            self.base_mod = base_mod
+        # Minimum size of the minority class
+        self.min_class_size = min_class_size
+        # Inactives per active
+        self.inactives_per_active = inactives_per_active
+        # Metric to use
+        self.metric = metric
+        # Naive sampling
+        self.naive = naive
+
+    @staticmethod
+    def _reassemble_activity_sets(act, inact, putinact):
+        data = []
+        for x in list(act):
+            data += [(x[1], 1, x[0], x[-1])]
+        for x in list(inact):
+            data += [(x[1], -1, x[0], x[-1])]
+        n = np.max([x[0] for x in data]) + 1
+        for i, x in enumerate(list(putinact)):
+            data += [(i + n, 0, x[0], x[-1])]
+        return data
+
+    @staticmethod
+    def performances(yt, yp):
+        """Calculate standard prediction performance metrics.
+        In addition, it calculates the corresponding weights.
+        For the moment, AUPR and AUROC are used.
+        Args:
+            yt(list): Truth data (binary).
+            yp(list): Prediction scores (probabilities).
+        """
+        perfs = {}
+        yt = list(yt)
+        yp = list(yp)
+        perfs["auroc"] = metrics.roc_score(yt, yp)
+        perfs["aupr"] = metrics.pr_score(yt, yp)
+        perfs["bedroc"] = metrics.bedroc_score(yt, yp)
+        return perfs
+
+
+@logged
+class TargetMateRegressionSetup(TargetMateSetup):
+    """Set up a TargetMate classifier"""
+
+    def __init__(self, base_mod = "", metric = ""):
+        # Configure the base regressor
+        self.base_mod = base_mod
+        # Metric to use
+        self.metric = metric
+
+    @staticmethod
+    def performances(yt, yp):
+        perfs = {}
+        return perfs
+
+
+@logged
+class TargetMateStackedClassifier(TargetMateClassifierSetup):
+    pass
+
+
+
+@logged
+class TargetMateEnsembleClassifier(TargetMateClassifierSetup):
+    pass
 
 @logged
 class TargetMateEnsembleClassifier:
     """TargetMate class"""
 
     def __init__(self, models_path, tmp_path=None,
-                 base_clf="logistic_regression", cv=5, k=5, min_sim=0.25,
+                 base_mod="logistic_regression", cv=5, k=5, min_sim=0.25,
                  min_class_size=10,
                  inactives_per_active=100,
                  datasets=None, metric="bedroc",
-                 cc_root=None, universe_path=None, sign3=None, sign3_predict_fn=None,
+                 cc_root=None, universe_path=None, sign=None, sign_predict_fn=None,
                  n_jobs=None, naive_sampling=False, applicability=True):
         """Initialize the TargetMateEnsembleClassifier class
 
@@ -53,7 +295,7 @@ class TargetMateEnsembleClassifier:
             models_path(str): Directory where models will be stored.
             tmp_path(str): Directory where temporary data will be stored
                 (relevant at predict time) (default=None)
-            base_clf(clf): Classifier instance, containing fit and
+            base_mod(clf): Classifier instance, containing fit and
                 predict_proba methods (default="tpot")
                 The following strings are also accepted: "logistic_regression",
                 "random_forest", "naive_bayes" and "tpot"
@@ -69,14 +311,14 @@ class TargetMateEnsembleClassifier:
             inactives_per_active(int): Number of inactive to sample for each active.
                 If None, only experimental actives and inactives are considered (default=100).
             datasets(list): CC datasets (A1.001-E5.999).
-                By default, all datasets having a SMILES-to-sign3 predictor are
+                By default, all datasets having a SMILES-to-sign predictor are
                 used.
             metric(str): Metric to use in the meta-prediction (bedroc, auroc or aupr)
                 (default="bedroc").
             cc_root(str): CC root folder (default=None).
             universe_path(str): Path to the universe. If not specified, the default one is used (default=None).
-            sign3_predict_fn(dict): pre-loaded predict_fn, keys are dataset
-                codes, values are tuples of (sign3, predict_fn).
+            sign_predict_fn(dict): pre-loaded predict_fn, keys are dataset
+                codes, values are tuples of (sign, predict_fn).
             naive(bool): Sample naively (randomly), without using the OneClassSVM (default=False).
         """
         # Jobs
@@ -99,25 +341,25 @@ class TargetMateEnsembleClassifier:
         else:
             self.tmp_path = os.path.abspath(tmp_path)
         # Set the base classifier
-        if type(base_clf) == str:
-            if base_clf == "logistic_regression":
+        if type(base_mod) == str:
+            if base_mod == "logistic_regression":
                 from sklearn.linear_model import LogisticRegressionCV
-                self.base_clf = LogisticRegressionCV(
+                self.base_mod = LogisticRegressionCV(
                     cv=3, class_weight="balanced", max_iter=1000,
                     n_jobs=self.n_jobs)
-            if base_clf == "random_forest":
+            if base_mod == "random_forest":
                 from sklearn.ensemble import RandomForestClassifier
-                self.base_clf = RandomForestClassifier(
+                self.base_mod = RandomForestClassifier(
                     n_estimators=100, class_weight="balanced", n_jobs=self.n_jobs)
-            if base_clf == "naive_bayes":
+            if base_mod == "naive_bayes":
                 from sklearn.naive_bayes import GaussianNB
-                self.base_clf = Pipeline(
+                self.base_mod = Pipeline(
                     [('feature_selection', VarianceThreshold()),
                      ('classify', GaussianNB())])
-            if base_clf == "tpot":
+            if base_mod == "tpot":
                 from tpot import TPOTClassifier
                 from models import tpotconfigs
-                self.base_clf = TPOTClassifier(
+                self.base_mod = TPOTClassifier(
                     config_dict=tpotconfigs.minimal,
                     generations=10, population_size=30,
                     cv=3, scoring="balanced_accuracy",
@@ -131,7 +373,7 @@ class TargetMateEnsembleClassifier:
             else:
                 self._is_tpot = False
         else:
-            self.base_clf = base_clf
+            self.base_mod = base_mod
         # Crossvalidation to determine the performances of the individual
         # predictors
         self.cv = cv
@@ -147,7 +389,7 @@ class TargetMateEnsembleClassifier:
         self.cc = ChemicalChecker(cc_root)
         # Load universe
         self.universe = Universe.load_universe(universe_path)
-        # Store the paths to the sign3 (only the ones that have been already
+        # Store the paths to the sign (only the ones that have been already
         # trained)
         if not datasets:
             #self.datasets = list(self.cc.datasets)
@@ -156,14 +398,14 @@ class TargetMateEnsembleClassifier:
         else:
             self.datasets = datasets
         # preloaded neural networks
-        if sign3_predict_fn is None:
-            self.sign3_predict_fn = dict()
+        if sign_predict_fn is None:
+            self.sign_predict_fn = dict()
             for ds in self.datasets:
-                self.__log.debug("Loading sign3 predictor for %s" % ds)
-                s3 = self.cc.get_signature("sign3", "full", ds)
-                self.sign3_predict_fn[ds] = (s3, s3.get_predict_fn())
+                self.__log.debug("Loading sign predictor for %s" % ds)
+                s3 = self.cc.get_signature("sign", "full", ds)
+                self.sign_predict_fn[ds] = (s3, s3.get_predict_fn())
         else:
-            self.sign3_predict_fn = sign3_predict_fn
+            self.sign_predict_fn = sign_predict_fn
         # Metric to use
         self.metric = metric
         # Naive sampling
@@ -192,7 +434,7 @@ class TargetMateEnsembleClassifier:
         """Plot model analytics"""
         return plots.ensemble_classifier_grid(self.load_performances, self.load_ad_data)
 
-    def _read_sign3(self, dataset, idxs=None, sign_folder=None, is_prd=False):
+    def _read_sign(self, dataset, idxs=None, sign_folder=None, is_prd=False):
         # Identify HDF5 file
         if not sign_folder:
             if is_prd:
@@ -360,7 +602,7 @@ class TargetMateEnsembleClassifier:
 
     def save(self):
         # we avoid saving signature 3 objects
-        self.sign3_predict_fn = None
+        self.sign_predict_fn = None
         with open(self.models_path + "/TargetMate.pkl", "wb") as f:
             pickle.dump(self, f)
 
@@ -439,14 +681,14 @@ class TargetMateEnsembleClassifier:
             return
         self.__log.info("Actives %d / Merged inactives %d" % (ny, len(y) - ny))
         # Get signatures
-        self.__log.info("Calculating sign3 for every molecule.")
+        self.__log.info("Calculating sign for every molecule.")
         for dataset in self.datasets:
             destination_dir = os.path.join(self.models_path, dataset)
             if os.path.exists(destination_dir) and use_checkpoints:
                 continue
             else:
-                self.__log.debug("Calculating sign3 for %s" % dataset)
-                s3, predict_fn = self.sign3_predict_fn[dataset]
+                self.__log.debug("Calculating sign for %s" % dataset)
+                s3, predict_fn = self.sign_predict_fn[dataset]
                 s3.predict_from_smiles([d[2] for d in data],
                                        destination_dir, predict_fn=predict_fn, use_novelty_model=False)
         # Fitting the global predictor
@@ -456,8 +698,8 @@ class TargetMateEnsembleClassifier:
             pipes = []
         for dataset in self.datasets:
             self.__log.debug("Working on %s" % dataset)
-            clf = clone(self.base_clf)
-            X = self._read_sign3(dataset)
+            clf = clone(self.base_mod)
+            X = self._read_sign(dataset)
             shuff = np.array(range(len(y)))
             random.shuffle(shuff)
             clf.fit(X[shuff], y[shuff])
@@ -483,15 +725,15 @@ class TargetMateEnsembleClassifier:
                 if self._is_tpot:
                     clf = pipes[i]
                 else:
-                    clf = clone(self.base_clf)
-                X_train = self._read_sign3(dataset, train_idx)
+                    clf = clone(self.base_mod)
+                X_train = self._read_sign(dataset, train_idx)
                 y_train = y[train_idx]
                 clf.fit(X_train, y_train)
                 # Make predictions on train set itself
                 yps_train[dataset] += [p[1]
                                        for p in clf.predict_proba(X_train)]
                 # Make predictions on test set itself
-                X_test = self._read_sign3(dataset, test_idx)
+                X_test = self._read_sign(dataset, test_idx)
                 y_test = y[test_idx]
                 yps_test[dataset] += [p[1] for p in clf.predict_proba(X_test)]
             yts_train += list(y_train)
@@ -571,7 +813,7 @@ class TargetMateEnsembleClassifier:
                 (default=False)
             known(bool): Look for exact matches based on InChIKey
                 (default=True)
-            sign_folder(str): Path to a folder containing sign3.
+            sign_folder(str): Path to a folder containing sign.
 
         Returns:
             mps(list): Metapredictions, expressed as probabilities (range: 0-1)
@@ -660,15 +902,15 @@ class TargetMateEnsembleClassifier:
             os.mkdir(self.tmp_path)
             if not sign_folder:
                 # Get signatures
-                self.__log.info("Calculating sign3 for every molecule.")
+                self.__log.info("Calculating sign for every molecule.")
                 for dataset in self.datasets:
                     if dataset not in my_datasets:
                         continue
                     destination_dir = os.path.join(self.tmp_path, dataset)
                     if os.path.exists(destination_dir):
                         os.remove(destination_dir)
-                    self.__log.debug("Calculating sign3 for %s" % dataset)
-                    s3, predict_fn = self.sign3_predict_fn[dataset]
+                    self.__log.debug("Calculating sign for %s" % dataset)
+                    s3, predict_fn = self.sign_predict_fn[dataset]
                     s3.predict_from_smiles([d[2] for d in data],
                                            destination_dir,
                                            predict_fn=predict_fn)
@@ -681,7 +923,7 @@ class TargetMateEnsembleClassifier:
             for dataset, clf in clf_ensemble:
                 if dataset not in my_datasets:
                     continue
-                X = self._read_sign3(
+                X = self._read_sign(
                     dataset, sign_folder=sign_folder, is_prd=True)
                 yps[dataset] = [p[1] for p in clf.predict_proba(X)]
             # Read performances
@@ -748,155 +990,9 @@ class TargetMateEnsembleClassifier:
 
     @staticmethod
     def fit_all_hpc(activity_path, models_path, **kwargs):
-        """Run HPC jobs to fit all models for each activity file.
-
-        Args:
-            activity_path(str): Where TSV activity files are saved.
-            models_path(str): Where models are saved.
-            job_path(str): Path (usually in scratch) where the script files are
-                generated.
-        """
-        # read config file
-        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
-        cfg = Config(cc_config)
-        # create job directory if not available
-        job_base_path = cfg.PATH.CC_TMP
-        tmp_dir = tempfile.mktemp(prefix='tmp_', dir=job_base_path)
-        job_path = kwargs.get("job_path", tmp_dir)
-        if not os.path.isdir(job_path):
-            os.mkdir(job_path)
-        # check cpus
-        cpu = kwargs.get("cpu", 4)
-        # create script file
-        script_lines = [
-            "import sys, os",
-            "from tqdm import tqdm",
-            "import pickle",
-            "from chemicalchecker.tool.targetmate import TargetMate",
-            "from chemicalchecker.core import ChemicalChecker",
-            "cc = ChemicalChecker()",
-            "task_id = sys.argv[1]",  # <TASK_ID>
-            "filename = sys.argv[2]",  # <FILE>
-            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
-            "s3_pred_fn = dict()",
-            "for ds in cc.datasets:",
-            "    s3 = cc.get_signature('sign3', 'full', ds)",
-            "    s3_pred_fn[ds] = (s3, s3.get_predict_fn())",
-            "for act_file in tqdm(inputs[task_id]):",
-            "    act_file = str(act_file)",  # elements for current job
-            "    act_name = os.path.splitext(os.path.basename(act_file))[0]",
-            "    model_path = os.path.join('%s', act_name)" % models_path,
-            "    if os.path.isfile(os.path.join(model_path,'ad_data.pkl')):",
-            "        continue",
-            "    tm = TargetMate(model_path, sign3_predict_fn=s3_pred_fn, n_jobs=%s)" % cpu,
-            "    tm.fit(act_file)",
-            "print('JOB DONE')"
-        ]
-        script_name = os.path.join(job_path, 'fit_all_targetmate.py')
-        with open(script_name, 'w') as fh:
-            for line in script_lines:
-                fh.write(line + '\n')
-        # hpc parameters
-        elements = [os.path.join(activity_path, f)
-                    for f in os.listdir(activity_path)]
-        params = {}
-        params["num_jobs"] = kwargs.get("num_jobs", len(elements) / 100)
-        params["jobdir"] = job_path
-        params["job_name"] = "TARGETMATE_fit"
-        params["elements"] = elements
-        params["wait"] = False
-        params["memory"] = 8
-        params["cpu"] = cpu
-        # job command
-        singularity_image = cfg.PATH.SINGULARITY_IMAGE
-        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
-            " OMP_NUM_THREADS={} singularity exec {} python {} <TASK_ID> <FILE>"
-        command = command.format(
-            os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config, str(cpu),
-            singularity_image, script_name)
-        # submit jobs
-        cluster = HPC.from_config(Config())
-        cluster.submitMultiJob(command, **params)
-        return cluster
+        hpc.fit_all_hpc(activity_path, models_path, **kwargs)
 
     @staticmethod
     def predict_all_hpc(models_path, signature_path, results_path,
                         models_filter=None, **kwargs):
-        """Run HPC jobs to predict with all models for input molecules.
-
-        Args:
-            models_path(str): Where models are saved.
-            signature_path(str): Directory with all sign3 for molecules to
-                predict.
-            job_path(str): Path (usually in scratch) where the script files are
-                generated.
-            results_path(str): Path where to save predictions.
-        """
-        # read config file
-        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
-        cfg = Config(cc_config)
-        # create job directory if not available
-        job_base_path = cfg.PATH.CC_TMP
-        tmp_dir = tempfile.mktemp(prefix='tmp_', dir=job_base_path)
-        job_path = kwargs.get("job_path", tmp_dir)
-        if not os.path.isdir(job_path):
-            os.mkdir(job_path)
-        # check cpus
-        cpu = kwargs.get("cpu", 4)
-        # create script file
-        script_lines = [
-            "import sys, os",
-            "from tqdm import tqdm",
-            "import pickle",
-            "from chemicalchecker.tool.targetmate import TargetMate",
-            "task_id = sys.argv[1]",  # <TASK_ID>
-            "filename = sys.argv[2]",  # <FILE>
-            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
-            "data = None",
-            "for mdl_dir in tqdm(inputs[task_id]):",
-            "    mdl_dir = str(mdl_dir)",  # elements for current job
-            "    mdl_name = os.path.normpath(mdl_dir).split('/')[-1]",
-            "    result_file = os.path.join('%s', mdl_name)" % results_path,
-            "    if os.path.isfile(result_file):",
-            "        continue",
-            "    if data is None:",  # trick to avoid re-parsing SMILES
-            "        data = '%s'" % signature_path,
-            "    tm = pickle.load(open(os.path.join(mdl_dir,'TargetMate.pkl'),'r'))",
-            "    tm.models_path = mdl_dir",
-            "    mps, ad, prc, data = tm.predict(data=data,sign_folder='%s')" % signature_path,
-            "    results = mps, ad, prc",
-            "    pickle.dump(results, open(result_file,'w'))",
-            "print('JOB DONE')"
-        ]
-        script_name = os.path.join(job_path, 'predict_all_targetmate.py')
-        with open(script_name, 'w') as fh:
-            for line in script_lines:
-                fh.write(line + '\n')
-        # get models path
-        sorted_models = sorted(os.listdir(models_path))
-        elements = [os.path.join(models_path, f) for f in sorted_models]
-        if models_filter is not None:
-            elements = list()
-            for model_name in sorted_models:
-                if any([x in model_name for x in models_filter]):
-                    elements.append(os.path.join(models_path, model_name))
-
-        params = {}
-        params["num_jobs"] = kwargs.get("num_jobs", len(elements) / 100)
-        params["jobdir"] = job_path
-        params["job_name"] = "TARGETMATE_predict"
-        params["elements"] = elements
-        params["wait"] = False
-        params["memory"] = 8
-        params["cpu"] = cpu
-        # job command
-        singularity_image = cfg.PATH.SINGULARITY_IMAGE
-        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
-            " OMP_NUM_THREADS={} singularity exec {} python {} <TASK_ID> <FILE>"
-        command = command.format(
-            os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config, str(cpu),
-            singularity_image, script_name)
-        # submit jobs
-        cluster = HPC.from_config(Config())
-        cluster.submitMultiJob(command, **params)
-        return cluster
+        hpc.predict_all_hpc(models_path, signature_path, results_path, models_filter=None, **kwargs)
