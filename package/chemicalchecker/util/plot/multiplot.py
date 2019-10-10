@@ -20,6 +20,7 @@ from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 
 from chemicalchecker.util import logged
+from chemicalchecker.util.decomposition import dataset_correlation
 
 
 @logged
@@ -1035,6 +1036,37 @@ class MultiPlot():
         plt.savefig(filename, dpi=100)
         plt.close('all')
 
+    def sign3_CCA_heatmap(self, limit=10000):
+        df = pd.DataFrame(columns=['from', 'to', 'CCA'])
+        for i in range(len(self.datasets)):
+            ds_from = self.datasets[i]
+            s3_from = self.cc.get_signature('sign3', 'full', ds_from)[:limit]
+            for j in range(i + 1):
+                ds_to = self.datasets[j]
+                s3_to = self.cc.get_signature('sign3', 'full', ds_to)[:limit]
+                res = dataset_correlation(s3_from, s3_to)
+
+                df.loc[len(df)] = pd.Series({
+                    'from': ds_from[:2],
+                    'to': ds_to[:2],
+                    'CCA': res[0]})
+                if ds_to != ds_from:
+                    df.loc[len(df)] = pd.Series({
+                        'from': ds_to[:2],
+                        'to': ds_from[:2],
+                        'CCA': res[3]})
+        fig, ax = plt.subplots(1, 1, figsize=(6, 5), dpi=100)
+        cmap = plt.cm.get_cmap('plasma_r', 5)
+        sns.heatmap(df.pivot('from', 'to', 'CCA'), vmin=0, vmax=1,
+                    linewidths=.5, square=True, cmap=cmap)
+        plt.title('Canonical Correlation Analysis')
+        plt.tight_layout()
+        filename = os.path.join(
+            self.plot_path, "sign3_CCA_heatmap.png")
+        df.to_pickle(filename[:-3] + ".pkl")
+        plt.savefig(filename, dpi=100)
+        plt.close('all')
+
     def all_sign_validations(self, sign_types=None, molsets=None, valset='moa'):
 
         if sign_types is None:
@@ -1077,14 +1109,14 @@ class MultiPlot():
             ds_color = self.cc_palette([ds])[0]
             sns.barplot(x='sign_molset', y='value',
                         data=df[(df.dataset == ds) & (
-                              df.metric == '%s_auc' % valset)],
+                            df.metric == '%s_auc' % valset)],
                         ax=ax, alpha=1,
                         color=ds_color)
 
             sns.stripplot(x='sign_molset', y='value',
                           data=df[(df.dataset == ds) & (
                               df.metric == '%s_cov' % valset)],
-                          size=10, marker="o", edgecolor='k',linewidth=2,
+                          size=10, marker="o", edgecolor='k', linewidth=2,
                           ax=ax, jitter=False, alpha=1, color='w')
             ax.set_xlabel('')
             ax.set_ylabel('')
@@ -1116,7 +1148,7 @@ class MultiPlot():
         plt.tight_layout()
         filename = os.path.join(self.plot_path,
                                 "sign_validation_%s_%s_%s.png"
-                                % (valset,'_'.join(sign_types),
+                                % (valset, '_'.join(sign_types),
                                     '_'.join(molsets)))
         plt.savefig(filename, dpi=100)
         plt.close('all')
