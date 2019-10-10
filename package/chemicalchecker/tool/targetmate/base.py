@@ -64,7 +64,7 @@ class TargetMateSetup:
                  tmp_path = None,
                  cc_root = None,
                  n_jobs = None,
-                 applicability = True)
+                 applicability = True):
         """Basic setup of the TargetMate
 
         Args:
@@ -125,7 +125,7 @@ class TargetMateSetup:
         with open(os.path.join(self.models_path, "ad_data.pkl"), "r") as f:
             return pickle.load(f)
 
-   def load_data(self, data, use_checkpoints):
+    def load_data(self, data, use_checkpoints):
         if not use_checkpoints:
             # Cleaning models directory
             self.__log.debug("Cleaning previous checkpoints")
@@ -166,7 +166,7 @@ class TargetMateSetup:
         with open(self.models_path + "/perfs.json", "w") as f:
             json.dump(perfs, f)
 
-    def save_data(self, data)
+    def save_data(self, data):
         self.__log.debug("Saving training data (only evidence)")
         with open(self.models_path + "/trained_data.pkl", "wb") as f:
             pickle.dump(data, f)
