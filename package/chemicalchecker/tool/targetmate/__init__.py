@@ -1,2 +1,3 @@
-from .targetmate import TargetMate
-#from .universes.univs import Universe
+from .base import TargetMateSetup
+from .base import Fingerprinter
+from .base import Signaturizer
