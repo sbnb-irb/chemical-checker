@@ -49,7 +49,7 @@ from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 
 from .utils import metrics
-from .utils.chemistry import read_smiles, morgan_arena, load_morgan_arena
+from .utils import chemistry
 from .universes import Universe
 from .utils import plots
 from .utils import hpc
@@ -57,17 +57,24 @@ from .utils import hpc
 
 @logged
 class TargetMateSetup:
-    """Set up the basic TargetMate class"""
+    """Set up the base TargetMate class"""
 
     def __init__(self,
                  models_path,
                  tmp_path = None,
-                 cv = 5,
-                 datasets = None,
                  cc_root = None,
                  n_jobs = None,
                  applicability = True)
-        """XXX
+        """Basic setup of the TargetMate
+
+        Args:
+            models_path(str): Directory where models will be stored.
+            tmp_path(str): Directory where temporary data will be stored
+                (relevant at predict time) (default=None)
+            cc_root(str): CC root folder (default=None)
+            n_jobs(int): Number of CPUs to use, all by default (default=None)
+            cv(int): Number of cv folds (default=5)
+            applicability(bool): Perform applicability domain calculation (default=True)
         """
         # Jobs
         if not n_jobs:
@@ -88,19 +95,20 @@ class TargetMateSetup:
                 Config().PATH.CC_TMP, str(uuid.uuid4()))
         else:
             self.tmp_path = os.path.abspath(tmp_path)
-        # Crossvalidation to determine the performances of the individual
-        # predictors
-        self.cv = cv
         # Initialize the ChemicalChecker
         self.cc = ChemicalChecker(cc_root)
+        # Do applicability
+        self.applicability = applicability
         # Others
         self._is_fitted  = False
         self._is_trained = False
 
+    # Chemistry functions
     @staticmethod
     def read_smiles(smi, standardize):
-        return read_smiles(smi, standardize)
+        return chemistry.read_smiles(smi, standardize)
 
+    # Loading functions
     @staticmethod
     def load(models_path):
         """Load previously stored TargetMate instance."""
@@ -117,17 +125,7 @@ class TargetMateSetup:
         with open(os.path.join(self.models_path, "ad_data.pkl"), "r") as f:
             return pickle.load(f)
 
-    def save(self):
-        # we avoid saving signature 3 objects
-        self.sign_predict_fn = None
-        with open(self.models_path + "/TargetMate.pkl", "wb") as f:
-            pickle.dump(self, f)
-
-    def save_performances(self, perfs):
-        with open(self.models_path + "/perfs.json", "w") as f:
-            json.dump(perfs, f)
-
-   def read_data(self, use_checkpoints):
+   def load_data(self, data, use_checkpoints):
         if not use_checkpoints:
             # Cleaning models directory
             self.__log.debug("Cleaning previous checkpoints")
@@ -156,10 +154,23 @@ class TargetMateSetup:
         data = data_
         return data
 
-    def save_data(self)
+    # Saving functions
+    def save(self):
+        """Save TargetMate instance"""
+        # we avoid saving signature instances
+        self.sign_predict_fn = None
+        with open(self.models_path + "/TargetMate.pkl", "wb") as f:
+            pickle.dump(self, f)
+
+    def save_performances(self, perfs):
+        with open(self.models_path + "/perfs.json", "w") as f:
+            json.dump(perfs, f)
+
+    def save_data(self, data)
         self.__log.debug("Saving training data (only evidence)")
         with open(self.models_path + "/trained_data.pkl", "wb") as f:
             pickle.dump(data, f)
+    
 
     @staticmethod
     def fit_all_hpc(activity_path, models_path, **kwargs):
@@ -171,9 +182,117 @@ class TargetMateSetup:
         hpc.predict_all_hpc(models_path, signature_path, results_path, models_filter=None, **kwargs)
 
 
+@logged
+class Signaturizer(TargetMateSetup):
+    """Set up a Signaturizer"""
+
+    def __init__(self, datasets=None, sign_predict_fn=None, **kwargs):
+        """Set up a Signaturizer
+        
+        Args:
+            datasets(list): CC datasets (A1.001-E5.999).
+                By default, all datasets having a SMILES-to-sign predictor are
+                used.
+            sign_predict_fn() XXX
+        """
+        # Inherit TargetMateSetup
+        TargetMateSetup.__init__(**kwargs)
+        # Datasets
+        if not datasets:
+            # self.datasets = list(self.cc.datasets)
+            self.datasets = ["%s%s.001" % (x, y)
+                             for x in "ABCDE" for y in "12345"]
+        else:
+            self.datasets = datasets
+        # preloaded neural networks
+        if sign_predict_fn is None:
+            self.sign_predict_fn = dict()
+            for ds in self.datasets:
+                self.__log.debug("Loading sign predictor for %s" % ds)
+                s3 = self.cc.get_signature("sign", "full", ds)
+                self.sign_predict_fn[ds] = (s3, s3.get_predict_fn())
+        else:
+            self.sign_predict_fn = sign_predict_fn
+
+    # Calculate signatures
+    def signaturize_local(self, smiles):
+        self.__log.info("Calculating sign for every molecule.")
+        for dataset in self.datasets:
+            destination_dir = os.path.join(self.models_path, dataset)
+            if os.path.exists(destination_dir) and use_checkpoints:
+                continue
+            else:
+                self.__log.debug("Calculating sign for %s" % dataset)
+                s3, predict_fn = self.sign_predict_fn[dataset]
+                s3.predict_from_smiles(smiles,
+                                       destination_dir, predict_fn=predict_fn,
+                                       use_novelty_model=False)
+
+    def signaturize_hpc(self, smiles, chunk_size):
+        self.__log.info("Calculating sign for every molecule.")
+        jobs  = []
+        for dataset in self.datasets:
+            destination_dir = os.path.join(self.models_path, dataset)
+            if os.path.exists(destination_dir) and use_checkpoints:
+                continue
+            else:
+                self.__log.debug("Calculating sign for %s" % dataset)
+                s3, predict_fn = self.sign_predict_fn[dataset]
+                job = s3.func_hpc("predict_from_smiles", smiles,
+                            destination_dir, chunk_size, predict_fn, False, wait = False)
+                jobs += [job]
+        while np.any([job.status != "done" for job in jobs]):
+            self.__log.info("Waiting for jobs to finish")
+            time.wait(5)
+
+    def signaturize(self, data, hpc, chunk_size=10000):
+        if hpc:
+            self.signaturize_hpc(data, chunk_size=chunk_size)
+        else:
+            self.signaturize_local(data)
+     
+    # Signature Handlers
+    def read_signature(self, dataset, idxs=None, sign_folder=None, is_prd=False):
+        # Identify HDF5 file
+        if not sign_folder:
+            if is_prd:
+                h5file = os.path.join(self.tmp_path, dataset)
+            else:
+                h5file = os.path.join(self.models_path, dataset)
+        else:
+            h5file = os.path.join(sign_folder, dataset)
+        # Read the file
+        with h5py.File(h5file, "r") as hf:
+            if idxs is None:
+                V = hf["V"][:]
+            else:
+                V = hf["V"][:][idxs]
+        return V
+
+    def ensemble_handler(self, datasets=None, **kwargs):
+        if not datsets: datasets = self.datasets
+        for ds in datasets:
+            yield read_signature(ds, **kwargs)
+
+    def stacked_handler(self, datasets=None, **kwargs):
+        
+
+
+
 class ApplicabilityDomain(TargetMateSetup):
+    """Applicability domain functionalities, inspired by conformal prediction methods"""
 
     def __init__(self, k = 5, min_sim = 0.25, **kwargs):
+        """Applicability domain parameters.
+        
+        Args:
+            k(int): Number of molecules to look across when doing the
+                applicability domain (default=5).
+            min_sim(float): Minimum Morgan Tanimoto similarity to consider in
+                the applicability domain determination (default=0.25).
+        """
+        # Inherit from TargetMateSetup
+        TargetMateSetup.__init__(self, **kwargs)       
         # K-neighbors to search during the applicability domain calculation
         self.k = k
         # Minimal chemical similarity to consider
@@ -200,9 +319,9 @@ class ApplicabilityDomain(TargetMateSetup):
             fps_file = os.path.join(self.models_path, "arena.fps")
         if not use_checkpoints or not os.path.exists(fps_file):
             self.__log.debug("Writing Fingerprints")
-            arena = morgan_arena(smiles, fps_file)
+            arena = chemistry.morgan_arena(smiles, fps_file)
         else:
-            arena = load_morgan_arena(fps_file)
+            arena = chemistry.load_morgan_arena(fps_file)
         return arena
 
     @staticmethod
@@ -246,12 +365,33 @@ class ApplicabilityDomain(TargetMateSetup):
     
 @logged
 class TargetMateClassifierSetup(TargetMateSetup):
-    """Set up a TargetMate classifier"""
+    """Set up a TargetMate classifier. It can sample negative from a universe of molecules (e.g. ChEMBL)"""
 
-    def __init__(self, base_mod = "logistic_regression", min_class_size = 10,
+    def __init__(self, base_mod = "logistic_regression", cv=5, min_class_size=10,
                  inactives_per_active = 100, metric = "bedroc",
-                 universe_path = None, naive_sampling = False):
-         # Set the base classifier
+                 universe_path = None, naive_sampling = False, **kwargs):
+        """Set up a TargetMate classifier
+
+        Args:
+            base_mod(clf): Classifier instance, containing fit and
+                predict_proba methods (default="logistic_regression")
+                The following strings are accepted: "logistic_regression",
+                "random_forest", "naive_bayes" and "tpot"
+                By default, sklearn LogisticRegressionCV is used.
+            cv(int): Number of cv folds. The default cv generator used is
+                Stratified K-Folds (default=5).
+            min_class_size(int): Minimum class size acceptable to train the
+                classifier (default=10).
+            inactives_per_active(int): Number of inactive to sample for each active.
+                If None, only experimental actives and inactives are considered (default=100).
+            metric(str): Metric to use in the meta-prediction (bedroc, auroc or aupr)
+                (default="bedroc").
+            universe_path(str): Path to the universe. If not specified, the default one is used (default=None).
+            naive_sampling(bool): Sample naively (randomly), without using the OneClassSVM (default=False).
+        """
+        # Inherit from TargetMateSetup
+        TargetMateSetup.__init__(**kwargs)
+        # Set the base classifier
         if type(base_mod) == str:
             if base_mod == "logistic_regression":
                 from sklearn.linear_model import LogisticRegressionCV
@@ -291,8 +431,8 @@ class TargetMateClassifierSetup(TargetMateSetup):
         self.inactives_per_active = inactives_per_active
         # Metric to use
         self.metric = metric
-        # Naive sampling
-        self.naive = naive
+        # naive_samplingsampling
+        self.naive_sampling = naive_sampling
 
     @staticmethod
     def _reassemble_activity_sets(act, inact, putinact):
@@ -325,7 +465,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
 
     def prepare_data(self, use_checkpoints):
         # Read data
-        data = self.read_data(use_checkpoints)
+        data = self.load_data(use_checkpoints)
         # Convert activity data to integer
         data = [[d[0] + [int(d[1])] + d[2:]] for d in data]
         # Save training data
@@ -390,66 +530,7 @@ class TargetMateRegressionSetup(TargetMateSetup):
         perfs = {}
         return perfs
 
-@logged
-class SignaturizerSetup(TargetMateSetup):
 
-    def __init__(self, datasets):
-
-        if not datasets:
-            # self.datasets = list(self.cc.datasets)
-            self.datasets = ["%s%s.001" % (x, y)
-                             for x in "ABCDE" for y in "12345"]
-        else:
-            self.datasets = datasets
-        # preloaded neural networks
-        if sign_predict_fn is None:
-            self.sign_predict_fn = dict()
-            for ds in self.datasets:
-                self.__log.debug("Loading sign predictor for %s" % ds)
-                s3 = self.cc.get_signature("sign", "full", ds)
-                self.sign_predict_fn[ds] = (s3, s3.get_predict_fn())
-        else:
-            self.sign_predict_fn = sign_predict_fn
-
-    def signaturize_local(self, data):
-        # Get signatures
-        self.__log.info("Calculating sign for every molecule.")
-        for dataset in self.datasets:
-            destination_dir = os.path.join(self.models_path, dataset)
-            if os.path.exists(destination_dir) and use_checkpoints:
-                continue
-            else:
-                self.__log.debug("Calculating sign for %s" % dataset)
-                s3, predict_fn = self.sign_predict_fn[dataset]
-                s3.predict_from_smiles([d[2] for d in data],
-                                       destination_dir, predict_fn=predict_fn,
-                                       use_novelty_model=False)
-
-    def signaturize_hpc(self, data):
-        pass
-
-    def signaturize(self, data, hpc):
-        if hpc:
-            self.signaturize_hpc(data)
-        else:
-            self.signaturize_local(data)
-
-    def read_signature(self, dataset, idxs=None, sign_folder=None, is_prd=False):
-        # Identify HDF5 file
-        if not sign_folder:
-            if is_prd:
-                h5file = os.path.join(self.tmp_path, dataset)
-            else:
-                h5file = os.path.join(self.models_path, dataset)
-        else:
-            h5file = os.path.join(sign_folder, dataset)
-        # Read the file
-        with h5py.File(h5file, "r") as hf:
-            if idxs is None:
-                V = hf["V"][:]
-            else:
-                V = hf["V"][:][idxs]
-        return V
 
 
 @logged
@@ -487,7 +568,7 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup):
         
         pass
 
-    def fit_ensemble(self)
+    def fit_ensemble_local(self)
         self.__log.info("Fitting individual classifiers trained on full data")
         clf_ensemble = []
         if self._is_tpot:
@@ -505,6 +586,27 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup):
             else:
                 clf_ensemble += [(dataset, clf)]
         return clf_ensemble
+
+    def fit_ensemble_hpc(self, n_jobs = 32)
+        self.__log.info("Fitting individual classifiers trained on full data")
+        clf_ensemble = []
+        if self._is_tpot:
+            pipes = []
+        for dataset in self.datasets:
+            self.__log.debug("Working on %s" % dataset)
+            clf = clone(self.base_mod)
+            clf.n_jobs = n_jobs
+            X = self._read_sign(dataset)
+            shuff = np.array(range(len(y)))
+            random.shuffle(shuff)
+            clf.fit(X[shuff], y[shuff])
+            if self._is_tpot:
+                pipes += [clf.fitted_pipeline_]
+                clf_ensemble += [(dataset, pipes[-1].fit(X[shuff], y[shuff]))]
+            else:
+                clf_ensemble += [(dataset, clf)]
+        return clf_ensemble
+
 
     def cross_validation(self)
         # Initialize cross-validation generator
@@ -761,8 +863,8 @@ class Old:
             self.sign_predict_fn = sign_predict_fn
         # Metric to use
         self.metric = metric
-        # Naive sampling
-        self.naive = naive
+        # naive_samplingsampling
+        self.naive_sampling = naive_sampling
         # Others
         self._is_fitted  = False
         self._is_trained = False
@@ -1009,7 +1111,7 @@ class Old:
         act, inact, putinact = self.universe.predict(actives, inactives,
                                                      inactives_per_active=self.inactives_per_active,
                                                      min_actives=self.min_class_size,
-                                                     naive=self.naive)
+                                                     naive=self.naive_sampling)
         self.__log.info("Actives %d / Known inactives %d / Putative inactives %d" %
                         (len(act), len(inact), len(putinact)))
         self.__log.debug("Assembling and shuffling")
