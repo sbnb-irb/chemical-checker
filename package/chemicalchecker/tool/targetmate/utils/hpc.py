@@ -9,7 +9,7 @@ def cpu_count():
     return multiprocessing.cpu_count()
 
 # HPC functions
-def func_hpc(self, func_name, *args, **kwargs):
+def func_hpc(object, func_name, *args, **kwargs):
     """Execute the *any* method on the configured HPC.
 
     Args:
@@ -36,15 +36,15 @@ def func_hpc(self, func_name, *args, **kwargs):
         "sign.%s(*args)" % func_name,
         "print('JOB DONE')"
     ]
-    script_name = '%s_%s_hpc.py' % (self.__class__.__name__, func_name)
+    script_name = '%s_%s_hpc.py' % (object.__class__.__name__, func_name)
     script_path = os.path.join(job_path, script_name)
     with open(script_path, 'w') as fh:
         for line in script_lines:
             fh.write(line + '\n')
     # pickle self and fit args
-    pickle_file = '%s_%s_hpc.pkl' % (self.__class__.__name__, func_name)
+    pickle_file = '%s_%s_hpc.pkl' % (object.__class__.__name__, func_name)
     pickle_path = os.path.join(job_path, pickle_file)
-    pickle.dump((self, args), open(pickle_path, 'w'))
+    pickle.dump((object, args), open(pickle_path, 'w'))
     # hpc parameters
     params = kwargs
     params["num_jobs"] = 1
