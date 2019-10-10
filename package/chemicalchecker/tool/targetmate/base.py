@@ -64,7 +64,8 @@ class TargetMateSetup:
                  tmp_path = None,
                  cc_root = None,
                  n_jobs = None,
-                 applicability = True):
+                 applicability = True,
+                 **kwargs):
         """Basic setup of the TargetMate
 
         Args:
@@ -186,8 +187,8 @@ class TargetMateSetup:
         with open(self.models_path + "/trained_data.pkl", "wb") as f:
             pickle.dump(data, f)
     
-    def func_hpc(self):
-        pass
+    def func_hpc(self, func_name, *args, **kwargs):
+        hpc.func_hpc(self, func_name, *args, **kwargs):
 
     @staticmethod
     def fit_all_hpc(activity_path, models_path, **kwargs):
