@@ -171,6 +171,8 @@ class TargetMateSetup:
         with open(self.models_path + "/trained_data.pkl", "wb") as f:
             pickle.dump(data, f)
     
+    def func_hpc(self):
+        pass
 
     @staticmethod
     def fit_all_hpc(activity_path, models_path, **kwargs):
@@ -180,6 +182,44 @@ class TargetMateSetup:
     def predict_all_hpc(models_path, signature_path, results_path,
                         models_filter=None, **kwargs):
         hpc.predict_all_hpc(models_path, signature_path, results_path, models_filter=None, **kwargs)
+
+
+@logged
+class Fingerprinter(TargetMateSetup):
+    """Set up a Fingerprinter. This is usually used as a baseline featurizer to compare with CC signatures."""
+
+    def __init__(self, **kwargs):
+        # Inherit TargetMateSetup
+        TargetMateSetup.__init__(**kwargs)
+        # Featurizer
+        self.featurizer = chemistry.morgan_matrix
+        self.dataset = "FP"
+
+    def featurize(self, smiles, **kwargs):
+        """Calculate fingerprints"""
+        destination_dir = os.path.join(self.models_path, self.dataset)
+        V = self.featurizer(smiles)
+        with h5.File(, "wb") as hf:
+            hf.create_dataset("V", data = V.astype(np.int8))
+            hf.create_dataset("keys", data = smiles)
+    
+    def read_fingerprint(self, idxs=None, fp_file=None, is_prd=False):
+        """Read a signature from an HDF5 file"""
+        # Identify HDF5 file
+        if not fp_file:
+            if is_prd:
+                h5file = os.path.join(self.tmp_path, self.dataset)
+            else:
+                h5file = os.path.join(self.models_path, self.dataset)
+        else:
+            h5file = os.path.join(fp_file)
+        # Read the file
+        with h5py.File(h5file, "r") as hf:
+            if idxs is None:
+                V = hf["V"][:]
+            else:
+                V = hf["V"][:][idxs]
+        return V
 
 
 @logged
@@ -193,7 +233,8 @@ class Signaturizer(TargetMateSetup):
             datasets(list): CC datasets (A1.001-E5.999).
                 By default, all datasets having a SMILES-to-sign predictor are
                 used.
-            sign_predict_fn() XXX
+            sign_predict_fn(dict): pre-loaded predict_fn, keys are dataset
+                codes, values are tuples of (sign, predict_fn)
         """
         # Inherit TargetMateSetup
         TargetMateSetup.__init__(**kwargs)
@@ -253,6 +294,7 @@ class Signaturizer(TargetMateSetup):
      
     # Signature Handlers
     def read_signature(self, dataset, idxs=None, sign_folder=None, is_prd=False):
+        """Read a signature from an HDF5 file"""
         # Identify HDF5 file
         if not sign_folder:
             if is_prd:
@@ -270,13 +312,18 @@ class Signaturizer(TargetMateSetup):
         return V
 
     def ensemble_handler(self, datasets=None, **kwargs):
+        """Return signatures as an ensemble"""
         if not datsets: datasets = self.datasets
         for ds in datasets:
             yield read_signature(ds, **kwargs)
 
     def stacked_handler(self, datasets=None, **kwargs):
-        
-
+        """Return signatures in a stacked form"""
+        if not datasets: datasets = self.datasets
+        V = []
+        for ds in datasets:
+            V += [read_signature(ds, **kwargs)]
+        return np.vstack(V)
 
 
 class ApplicabilityDomain(TargetMateSetup):
