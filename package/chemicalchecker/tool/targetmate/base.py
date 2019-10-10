@@ -108,6 +108,21 @@ class TargetMateSetup:
     def read_smiles(smi, standardize):
         return chemistry.read_smiles(smi, standardize)
 
+    # Customary functions
+    @staticmethod
+    def avg_and_std(values, weights=None):
+        """Return the (weighted) average and standard deviation.
+
+        Args:
+            values(list or array): 1-d list or array of values
+            weights(list or array): By default, no weightening is applied
+        """
+        if weights is None:
+            weights = np.ones(len(values))
+        average = np.average(values, weights=weights)
+        variance = np.average((values - average)**2, weights=weights)
+        return (average, math.sqrt(variance))
+
     # Loading functions
     @staticmethod
     def load(models_path):
@@ -344,20 +359,6 @@ class ApplicabilityDomain(TargetMateSetup):
         self.k = k
         # Minimal chemical similarity to consider
         self.min_sim = min_sim
-
-    @staticmethod
-    def avg_and_std(values, weights=None):
-        """Return the (weighted) average and standard deviation.
-
-        Args:
-            values(list or array): 1-d list or array of values
-            weights(list or array): By default, no weightening is applied
-        """
-        if weights is None:
-            weights = np.ones(len(values))
-        average = np.average(values, weights=weights)
-        variance = np.average((values - average)**2, weights=weights)
-        return (average, math.sqrt(variance))
 
     def fingerprint_arena(self, smiles, use_checkpoints=False, is_prd=False):
         if is_prd:
