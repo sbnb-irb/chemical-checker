@@ -1216,7 +1216,8 @@ class MultiPlot():
             # decide sample molecules
             inks = s2.keys
             if len(inks) > max_sample:
-                inks = np.random.choice(s2.keys, int(max_sample))
+                inks = np.random.choice(s2.keys, int(max_sample),
+                                        replace=False)
             # get sign2 and sign3
             _, s2_data = s2.get_vectors(inks)
             _, s3_data = s3.get_vectors(inks)
@@ -1225,29 +1226,33 @@ class MultiPlot():
             # get idx of nearest neighbors of s2
             row = dict()
             row['dataset'] = ds
-            for k in [5, 10, 50]:
-                row['k'] = k
-                n2_s2 = n2.get_kth_nearest(
-                    list(s2_data), k=k, distances=False, keys=False)
-                n2_s3 = n2.get_kth_nearest(
-                    list(s3_data), k=k, distances=False, keys=False)
+            k = int(s2.shape[0] * 0.005)
+            row['k'] = k
+            n2_s2 = n2.get_kth_nearest(
+                list(s2_data), k=k, distances=False, keys=False)
+            n2_s3 = n2.get_kth_nearest(
+                list(s3_data), k=k, distances=False, keys=False)
 
-                for confidence in np.arange(0, .9, .1):
-                    row['confidence'] = confidence
-                    mask = s3_data_conf > confidence
-                    row['jaccard'] = n2.jaccard_similarity(
-                        n2_s2['indices'][mask],
-                        n2_s3['indices'][mask])
-                    df = df.append(pd.DataFrame(row), ignore_index=True)
+            for low, upp in zip(np.arange(0, 100, 10), np.arange(10, 110, 10)):
+                row['confidence'] = '%s-%s' % (low, upp)
+                if low == 0:
+                    mask_low = s3_data_conf >= np.percentile(s3_data_conf, low)
+                else:
+                    mask_low = s3_data_conf > np.percentile(s3_data_conf, low)
+                mask_upp = s3_data_conf <= np.percentile(s3_data_conf, upp)
+                mask = mask_low & mask_upp
+                row['jaccard'] = n2.jaccard_similarity(
+                    n2_s2['indices'][mask],
+                    n2_s3['indices'][mask])
+                df = df.append(pd.DataFrame(row), ignore_index=True)
 
         self.__log.info('Plotting')
         sns.set_style("whitegrid")
         g = sns.catplot(data=df, kind='point', x='confidence', y='jaccard',
-                        hue="k", col="dataset", col_wrap=5,
+                        col="dataset", col_wrap=5,
                         col_order=self.datasets,
-                        palette="Blues_d",
                         aspect=.8, height=3, dodge=True)
-        g.set(xticklabels=[("%.1f" % f)[1:] for f in np.arange(0, .9, .1)])
+        g.set(xticklabels=[str(f) for f in np.arange(0, 100, 10)])
         outfile = os.path.join(
             self.plot_path, 'sign3_neig2_jaccard.png')
         plt.savefig(outfile, dpi=200)
