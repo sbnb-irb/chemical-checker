@@ -670,10 +670,8 @@ class sign3(BaseSignature, DataSignature):
         if model_confidence:
             # generate prediction, measure error, fit regressor
             eval_err_path = os.path.join(self.model_path, 'adanet_error_eval')
-            eval_err_stats = os.path.join(
-                eval_err_path, 'stats_error_eval.pkl')
-            if not os.path.isfile(eval_err_stats):
-                predict_fn = self.get_predict_fn('adanet_error_eval')
+            if not os.path.isdir(eval_err_path):
+                predict_fn = self.get_predict_fn('adanet_eval')
                 # step1 learn dataset availability to error predictor
                 self.learn_error(predict_fn, self.params['error'],
                                  suffix='error_eval', evaluate=True)
@@ -682,7 +680,7 @@ class sign3(BaseSignature, DataSignature):
             final_err_path = os.path.join(
                 self.model_path, 'adanet_error_final')
             if not os.path.isdir(final_err_path):
-                predict_fn = self.predict_fn('adanet_error_final')
+                predict_fn = self.get_predict_fn('adanet_final')
                 self.learn_error(predict_fn, self.params['error'],
                                  suffix='error_final', evaluate=False)
             self.__log.debug('Loading model for error prediction')
