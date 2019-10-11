@@ -35,8 +35,10 @@ import numpy as np
 import pickle
 import random
 import math
+import time
 
-from sklearn.externals import joblib
+#from sklearn.externals import joblib
+import joblib
 from sklearn.model_selection import StratifiedKFold
 from sklearn import metrics
 from sklearn.base import clone
@@ -45,6 +47,7 @@ from sklearn.feature_selection import VarianceThreshold
 from scipy.stats import percentileofscore
 
 from chemicalchecker.core import ChemicalChecker
+from chemicalchecker.core.signature_data import DataSignature
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 
@@ -103,6 +106,7 @@ class TargetMateSetup:
         # Others
         self._is_fitted  = False
         self._is_trained = False
+        self.pipes       = []
 
     # Chemistry functions
     @staticmethod
@@ -141,7 +145,7 @@ class TargetMateSetup:
         with open(os.path.join(self.models_path, "ad_data.pkl"), "r") as f:
             return pickle.load(f)
 
-    def load_data(self, data, use_checkpoints):
+    def load_data(self, data, standardize, use_checkpoints):
         if not use_checkpoints:
             # Cleaning models directory
             self.__log.debug("Cleaning previous checkpoints")
@@ -188,7 +192,7 @@ class TargetMateSetup:
             pickle.dump(data, f)
     
     def func_hpc(self, func_name, *args, **kwargs):
-        hpc.func_hpc(self, func_name, *args, **kwargs):
+        hpc.func_hpc(self, func_name, *args, **kwargs)
 
     @staticmethod
     def fit_all_hpc(activity_path, models_path, **kwargs):
@@ -215,9 +219,9 @@ class Fingerprinter(TargetMateSetup):
         """Calculate fingerprints"""
         destination_dir = os.path.join(self.models_path, self.dataset)
         V = self.featurizer(smiles)
-        with h5.File(, "wb") as hf:
+        with h5.File(destination_dir, "wb") as hf:
             hf.create_dataset("V", data = V.astype(np.int8))
-            hf.create_dataset("keys", data = smiles)
+            hf.create_dataset("keys", data = np.array(smiles, DataSignature.string_dtype()))
     
     def read_fingerprint(self, idxs=None, fp_file=None, is_prd=False):
         """Read a signature from an HDF5 file"""
@@ -242,7 +246,10 @@ class Fingerprinter(TargetMateSetup):
 class Signaturizer(TargetMateSetup):
     """Set up a Signaturizer"""
 
-    def __init__(self, datasets=None, sign_predict_fn=None, **kwargs):
+    def __init__(self,
+                 datasets=None,
+                 sign_predict_fn=None,
+                 **kwargs):
         """Set up a Signaturizer
         
         Args:
@@ -253,7 +260,7 @@ class Signaturizer(TargetMateSetup):
                 codes, values are tuples of (sign, predict_fn)
         """
         # Inherit TargetMateSetup
-        TargetMateSetup.__init__(**kwargs)
+        TargetMateSetup.__init__(self, **kwargs)
         # Datasets
         if not datasets:
             # self.datasets = list(self.cc.datasets)
@@ -266,13 +273,13 @@ class Signaturizer(TargetMateSetup):
             self.sign_predict_fn = dict()
             for ds in self.datasets:
                 self.__log.debug("Loading sign predictor for %s" % ds)
-                s3 = self.cc.get_signature("sign", "full", ds)
+                s3 = self.cc.get_signature("sign3", "full", ds)
                 self.sign_predict_fn[ds] = (s3, s3.get_predict_fn())
         else:
             self.sign_predict_fn = sign_predict_fn
 
     # Calculate signatures
-    def signaturize_local(self, smiles):
+    def signaturize_local(self, smiles, use_checkpoints):
         self.__log.info("Calculating sign for every molecule.")
         for dataset in self.datasets:
             destination_dir = os.path.join(self.models_path, dataset)
@@ -285,7 +292,7 @@ class Signaturizer(TargetMateSetup):
                                        destination_dir, predict_fn=predict_fn,
                                        use_novelty_model=False)
 
-    def signaturize_hpc(self, smiles, chunk_size):
+    def signaturize_hpc(self, smiles, chunk_size, use_checkpoints):
         self.__log.info("Calculating sign for every molecule.")
         jobs  = []
         for dataset in self.datasets:
@@ -296,17 +303,17 @@ class Signaturizer(TargetMateSetup):
                 self.__log.debug("Calculating sign for %s" % dataset)
                 s3, predict_fn = self.sign_predict_fn[dataset]
                 job = s3.func_hpc("predict_from_smiles", smiles,
-                            destination_dir, chunk_size, predict_fn, False, wait = False)
+                            destination_dir, chunk_size, None, False, wait = False)
                 jobs += [job]
         while np.any([job.status != "done" for job in jobs]):
             self.__log.info("Waiting for jobs to finish")
-            time.wait(5)
+            time.sleep(3)
 
-    def signaturize(self, data, hpc, chunk_size=10000):
+    def signaturize(self, data, hpc, chunk_size=1000, use_checkpoints=False):
         if hpc:
-            self.signaturize_hpc(data, chunk_size=chunk_size)
+            self.signaturize_hpc(data, chunk_size=chunk_size, use_checkpoints=use_checkpoints)
         else:
-            self.signaturize_local(data)
+            self.signaturize_local(data, use_checkpoints=use_checkpoints)
      
     # Signature Handlers
     def read_signature(self, dataset, idxs=None, sign_folder=None, is_prd=False):
@@ -329,23 +336,26 @@ class Signaturizer(TargetMateSetup):
 
     def ensemble_handler(self, datasets=None, **kwargs):
         """Return signatures as an ensemble"""
-        if not datsets: datasets = self.datasets
+        if not datasets: datasets = self.datasets
         for ds in datasets:
-            yield read_signature(ds, **kwargs)
+            yield self.read_signature(ds, **kwargs)
 
     def stacked_handler(self, datasets=None, **kwargs):
         """Return signatures in a stacked form"""
         if not datasets: datasets = self.datasets
         V = []
         for ds in datasets:
-            V += [read_signature(ds, **kwargs)]
-        return np.vstack(V)
+            V += [self.read_signature(ds, **kwargs)]
+        return np.hstack(V)
 
 
 class ApplicabilityDomain(TargetMateSetup):
     """Applicability domain functionalities, inspired by conformal prediction methods"""
 
-    def __init__(self, k = 5, min_sim = 0.25, **kwargs):
+    def __init__(self,
+                 k=5,
+                 min_sim=0.25,
+                 **kwargs):
         """Applicability domain parameters.
         
         Args:
@@ -411,14 +421,31 @@ class ApplicabilityDomain(TargetMateSetup):
             weights += [np.max(ws)]
         return np.array(weights)
 
-    
+
+@logged
+class TargetMate(TargetMateSetup, Signaturizer):
+
+    def __init__(self, **kwargs):
+        """XXX"""
+        TargetMateSetup.__init__(self, **kwargs)
+        Signaturizer.__init__(self, **kwargs)
+
+
+
+
 @logged
 class TargetMateClassifierSetup(TargetMateSetup):
     """Set up a TargetMate classifier. It can sample negative from a universe of molecules (e.g. ChEMBL)"""
 
-    def __init__(self, base_mod = "logistic_regression", cv=5, min_class_size=10,
-                 inactives_per_active = 100, metric = "bedroc",
-                 universe_path = None, naive_sampling = False, **kwargs):
+    def __init__(self,
+                 base_mod="logistic_regression",
+                 cv=5,
+                 min_class_size=10,
+                 inactives_per_active=100,
+                 metric="bedroc",
+                 universe_path=None,
+                 naive_sampling=False,
+                 **kwargs):
         """Set up a TargetMate classifier
 
         Args:
@@ -439,7 +466,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
             naive_sampling(bool): Sample naively (randomly), without using the OneClassSVM (default=False).
         """
         # Inherit from TargetMateSetup
-        TargetMateSetup.__init__(**kwargs)
+        TargetMateSetup.__init__(self, **kwargs)
         # Set the base classifier
         if type(base_mod) == str:
             if base_mod == "logistic_regression":
@@ -480,7 +507,9 @@ class TargetMateClassifierSetup(TargetMateSetup):
         self.inactives_per_active = inactives_per_active
         # Metric to use
         self.metric = metric
-        # naive_samplingsampling
+        # Load universe
+        self.universe = Universe.load_universe(universe_path)
+        # naive_sampling
         self.naive_sampling = naive_sampling
 
     @staticmethod
@@ -512,11 +541,11 @@ class TargetMateClassifierSetup(TargetMateSetup):
         perfs["bedroc"] = metrics.bedroc_score(yt, yp)
         return perfs
 
-    def prepare_data(self, use_checkpoints):
+    def prepare_data(self, data, standardize, use_checkpoints):
         # Read data
-        data = self.load_data(use_checkpoints)
+        data = self.load_data(data, standardize, use_checkpoints)
         # Convert activity data to integer
-        data = [[d[0] + [int(d[1])] + d[2:]] for d in data]
+        data = [[d[0]] + [int(d[1])] + list(d[2:]) for d in data]
         # Save training data
         self.save_data(data)
         # Sample inactives, if necessariy
@@ -527,7 +556,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
         act, inact, putinact = self.universe.predict(actives, inactives,
                                                      inactives_per_active=self.inactives_per_active,
                                                      min_actives=self.min_class_size,
-                                                     naive=self.naive)
+                                                     naive=self.naive_sampling)
         self.__log.info("Actives %d / Known inactives %d / Putative inactives %d" %
                         (len(act), len(inact), len(putinact)))
         self.__log.debug("Assembling and shuffling")
@@ -545,23 +574,49 @@ class TargetMateClassifierSetup(TargetMateSetup):
         molecules = np.array([(d[-2], d[-1]) for d in data])
         smiles = np.array([m[0] for m in molecules])
         # Check that there are enough molecules for training.
-        ny = np.sum(y)
-        if ny < self.min_class_size or (len(y) - ny) < self.min_class_size:
+        self.ny = np.sum(y)
+        if self.ny < self.min_class_size or (len(y) - self.ny) < self.min_class_size:
             self.__log.warning(
                 "Not enough valid molecules in the minority class..." +
                 "Just keeping training data")
             self._is_fitted = True
             self.save()
             return
-        self.__log.info("Actives %d / Merged inactives %d" % (ny, len(y) - ny))
+        self.__log.info("Actives %d / Merged inactives %d" % (self.ny, len(y) - self.ny))
         # Results
         results ={
             "y": y,
-            "ny": ny,
             "molecules": molecules,
             "smiles": smiles
         }
         return results
+
+    def fitter(self, X, y, is_cv, pipe, destination_dir):
+        """Fit a model"""
+        shuff = np.array(range(len(y)))
+        random.shuffle(shuff)
+        if not is_cv:  
+            mod = clone(self.base_mod)
+            mod.fit(X[shuff], y[shuff])
+            if self._is_tpot:
+                self.pipes += [mod.fitted_pipeline_]
+                mod  = self.pipes[-1].fit(X[shuff], y[shuff])
+            else:
+                self.pipes += [None]
+        else:
+            if not pipe:
+                mod = clone(self.base_mod)
+            else:
+                mod = pipe
+            mod.fit(X, y)
+        if destination_dir:
+            
+        else:
+            return mod
+
+    def predictor(self, mod, X):
+        """Make predictions"""
+        return [p[1] for p in mod.predict_proba(X_train)]
 
 
 @logged
@@ -580,68 +635,35 @@ class TargetMateRegressionSetup(TargetMateSetup):
         return perfs
 
 
-
-
-@logged
-class StackedSignaturizer:
-    pass
-
-
 @logged
 class TargetMateStackedClassifier(TargetMateClassifierSetup):
     pass
 
 
 @logged
-class EnsembleSignaturizer(Signaturizer)
+class TargetMateEnsembleClassifier(TargetMateClassifierSetup, Signaturizer):
+    """TargetMate ensemble classifier"""
 
-        # Get signatures
-        self.__log.info("Calculating sign for every molecule.")
-        for dataset in self.datasets:
-            destination_dir = os.path.join(self.models_path, dataset)
-            if os.path.exists(destination_dir) and use_checkpoints:
-                continue
-            else:
-                self.__log.debug("Calculating sign for %s" % dataset)
-                s3, predict_fn = self.sign_predict_fn[dataset]
-                s3.predict_from_smiles([d[2] for d in data],
-                                       destination_dir, predict_fn=predict_fn, use_novelty_model=False)
-
-
-
-
-@logged
-class TargetMateEnsembleClassifier(TargetMateClassifierSetup):
-    
-    def __init__(self, datasets = None, sign_predict_fn, **kwargs):
+    def __init__(self, **kwargs):
+        """TargetMate ensemble classifier"""
         
-        pass
+        TargetMateClassifierSetup.__init__(**kwargs)
+        Signaturizer.__init__(**kwargs)
 
-    def fit_ensemble_local(self)
+    def fit_ensemble_local(self, y):
         self.__log.info("Fitting individual classifiers trained on full data")
         clf_ensemble = []
-        if self._is_tpot:
-            pipes = []
-        for dataset in self.datasets:
-            self.__log.debug("Working on %s" % dataset)
-            clf = clone(self.base_mod)
-            X = self._read_sign(dataset)
-            shuff = np.array(range(len(y)))
-            random.shuffle(shuff)
-            clf.fit(X[shuff], y[shuff])
-            if self._is_tpot:
-                pipes += [clf.fitted_pipeline_]
-                clf_ensemble += [(dataset, pipes[-1].fit(X[shuff], y[shuff]))]
-            else:
-                clf_ensemble += [(dataset, clf)]
+        for i, X in enumerate(ensemble_handler(self, datasets=self.datasets)):
+            res = self.fitter(X, y)
+            clf_ensemble += [(self.datasets[i], res["mod"], res["pipe"])]
         return clf_ensemble
 
-    def fit_ensemble_hpc(self, n_jobs = 32)
+    def fit_ensemble_hpc(self, n_jobs = 32):
         self.__log.info("Fitting individual classifiers trained on full data")
         clf_ensemble = []
         if self._is_tpot:
             pipes = []
-        for dataset in self.datasets:
+        for X in ensemble_handler(self, datasets=self.datasets):
             self.__log.debug("Working on %s" % dataset)
             clf = clone(self.base_mod)
             clf.n_jobs = n_jobs
@@ -656,38 +678,39 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup):
                 clf_ensemble += [(dataset, clf)]
         return clf_ensemble
 
+    def fit_ensemble(self, y, hpc):
+        if hpc:
+            self.fit_ensemble_local(y, hpc = True)
+        else:
+            self.fit_ensemble_hpc(y, hpc = False)
 
-    def cross_validation(self)
+
+    def cross_validation_local(self, y):
         # Initialize cross-validation generator
         skf = StratifiedKFold(n_splits=np.min(
-            [self.cv, ny]), shuffle=True, random_state=42)
+            [self.cv, self.ny]), shuffle=True, random_state=42)
         # Do the individual predictors
         self.__log.info("Training individual predictors with cross-validation")
         yps_train = collections.defaultdict(list)
-        yps_test = collections.defaultdict(list)
+        yps_test  = collections.defaultdict(list)
         yts_train = []
-        yts_test = []
-        smi_test = []
+        yts_test  = []
+        smi_test  = []
         for train_idx, test_idx in skf.split(smiles, y):
             self.__log.debug("CV fold")
             for i, dataset in enumerate(self.datasets):
-                # Fit the classifier
-                if self._is_tpot:
-                    clf = pipes[i]
-                else:
-                    clf = clone(self.base_mod)
-                X_train = self._read_sign(dataset, train_idx)
+                X_train = self.read_signature(dataset, train_idx, is_prd = False)
                 y_train = y[train_idx]
-                clf.fit(X_train, y_train)
+                mod = self.fitter(X_train, y_train, is_cv = True, self.pipes[i])
                 # Make predictions on train set itself
-                yps_train[dataset] += [p[1] for p in clf.predict_proba(X_train)]
+                yps_train[dataset] += self.predictor(X_train)
                 # Make predictions on test set itself
-                X_test = self._read_sign(dataset, test_idx)
+                X_test = self.read_signature(dataset, test_idx, is_prd = False)
                 y_test = y[test_idx]
-                yps_test[dataset] += [p[1] for p in clf.predict_proba(X_test)]
+                yps_test[dataset] += self.predictor(X_test)
             yts_train += list(y_train)
-            yts_test += list(y_test)
-            smi_test += list(smiles[test_idx])
+            yts_test  += list(y_test)
+            smi_test  += list(smiles[test_idx])
         results = {
             "yps_train": yps_train,
             "yps_test": yps_test,
@@ -751,7 +774,7 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup):
         perfs["MetaPred"] = {"perf_train": ptrain, "perf_test": ptest}
         results = {
             "perfs": perfs,
-            "mps":
+            "mps": ""
         }
         return results
 
@@ -777,7 +800,8 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup):
         # 
 
 
-    def predict(self)
+    def predict(self):
+        pass
 
 
 

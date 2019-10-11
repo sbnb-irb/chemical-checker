@@ -123,7 +123,7 @@ class BaseSignature(object):
         # pickle self and fit args
         pickle_file = '%s_%s_hpc.pkl' % (self.__class__.__name__, func_name)
         pickle_path = os.path.join(job_path, pickle_file)
-        pickle.dump((self, args), open(pickle_path, 'w'))
+        pickle.dump((self, args), open(pickle_path, 'wb'))
         # hpc parameters
         params = kwargs
         params["num_jobs"] = 1
