@@ -106,17 +106,52 @@ class sign3(BaseSignature, DataSignature):
         tot_inks = len(inchikeys)
         tot_ds = len(sign2_list)
         # build matrix stacking horizontally signature
-        if not os.path.isfile(destination):
-            with h5py.File(destination, "w") as fh:
-                fh.create_dataset('x_test',
-                                  (tot_inks, 128 * tot_ds),
-                                  dtype=np.float32)
-                for idx, sign in enumerate(sign2_list):
-                    sign3.__log.info("Fetching from %s" % sign.data_path)
-                    # including NaN we have the correct number of molecules
-                    _, vectors = sign.get_vectors(inchikeys, include_nan=True)
-                    fh['x_test'][:, idx * 128:(idx + 1) * 128] = vectors
-                    del vectors
+        if os.path.isfile(destination):
+            sign3.__log.warning("Skipping as destination %s already exists." %
+                                destination)
+            return
+        with h5py.File(destination, "w") as fh:
+            fh.create_dataset('x_test', (tot_inks, 128 * tot_ds),
+                              dtype=np.float32)
+            for idx, sign in enumerate(sign2_list):
+                sign3.__log.info("Fetching from %s" % sign.data_path)
+                # including NaN we have the correct number of molecules
+                _, vectors = sign.get_vectors(inchikeys, include_nan=True)
+                fh['x_test'][:, idx * 128:(idx + 1) * 128] = vectors
+                del vectors
+
+    @staticmethod
+    def save_sign2_coverage(sign2_list, destination):
+        """Create a file with all signatures 2 coverage of molecule in the CC.
+
+        Args:
+            sign2_list(list): List of signature 2 objects to learn from.
+            destination(str): Path where the H5 is saved.
+        """
+        # get sorted universe inchikeys and CC signatures
+        sign3.__log.info("Generating signature 2 coverage matrix.")
+        inchikeys = set()
+        for sign in sign2_list:
+            inchikeys.update(sign.unique_keys)
+        inchikeys = sorted(list(inchikeys))
+        tot_inks = len(inchikeys)
+        tot_ds = len(sign2_list)
+        sign3.__log.info("Saving coverage for %s dataset and %s molecules." %
+                         (tot_ds, tot_inks))
+        # build matrix stacking horizontally signature
+        if os.path.isfile(destination):
+            sign3.__log.warning("Skipping as destination %s already exists." %
+                                destination)
+            return
+        with h5py.File(destination, "w") as fh:
+            fh.create_dataset('x_test', (tot_inks, tot_ds), dtype=np.float32)
+            for idx, sign in enumerate(sign2_list):
+                sign3.__log.info("Fetching from %s" % sign.data_path)
+                # including NaN we have the correct number of molecules
+                coverage = np.isin(inchikeys, sign.keys, assume_unique=True)
+                sign3.__log.info("%s has %s Signature 2." %
+                                 (sign.dataset, np.count_nonzero(coverage)))
+                fh['x_test'][:, idx:(idx + 1)] = np.expand_dims(coverage, 1)
 
     def save_sign2_matrix(self, sign2_list, destination):
         """Save matrix of horizontally stacked signature 2.
