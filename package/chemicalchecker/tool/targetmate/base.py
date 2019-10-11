@@ -67,6 +67,7 @@ class TargetMateSetup(HPCUtils):
                  tmp_path = None,
                  cc_root = None,
                  n_jobs = None,
+                 n_jobs_hpc = 8,
                  applicability = True,
                  **kwargs):
         """Basic setup of the TargetMate.
@@ -77,8 +78,10 @@ class TargetMateSetup(HPCUtils):
                 (relevant at predict time) (default=None)
             cc_root(str): CC root folder (default=None)
             n_jobs(int): Number of CPUs to use, all by default (default=None)
+            n_jobs(hpc): Number of CPUs to use in HPC (default=8)
             cv(int): Number of cv folds (default=5)
             applicability(bool): Perform applicability domain calculation (default=True)
+            hpc(bool): Use HPC (default=False)
         """
         HPCUtils.__init__(self, **kwargs)
         # Jobs
@@ -105,6 +108,9 @@ class TargetMateSetup(HPCUtils):
         self.cc = ChemicalChecker(cc_root)
         # Do applicability
         self.applicability = applicability
+        # Use HPC
+        self.n_jobs_hpc = n_jobs_hpc
+        self.hpc = hpc
         # Others
         self._is_fitted  = False
         self._is_trained = False
@@ -228,11 +234,11 @@ class Fingerprinter(TargetMateSetup):
             hf.create_dataset("V", data = V.astype(np.int8))
             hf.create_dataset("keys", data = np.array(smiles, DataSignature.string_dtype()))
     
-    def read_fingerprint(self, idxs=None, fp_file=None, is_prd=False):
+    def read_fingerprint(self, idxs=None, fp_file=None, is_tmp=False):
         """Read a signature from an HDF5 file"""
         # Identify HDF5 file
         if not fp_file:
-            if is_prd:
+            if is_tmp:
                 h5file = os.path.join(self.tmp_path, self.dataset)
             else:
                 h5file = os.path.join(self.models_path, self.dataset)
@@ -283,52 +289,39 @@ class Signaturizer(TargetMateSetup):
         else:
             self.sign_predict_fn = sign_predict_fn
 
-    def get_destination_dir(self, dataset, is_prd):
-        if is_prd:
+    def get_destination_dir(self, dataset, is_tmp):
+        if is_tmp:
             return os.path.join(self.signatures_tmp_path, dataset)
         else:
             return os.path.join(self.signatures_models_path, dataset)
 
     # Calculate signatures
-    def signaturize_local(self, smiles, use_checkpoints, is_prd):
-        self.__log.info("Calculating sign for every molecule.")
-        for dataset in self.datasets:
-            destination_dir = get_destination_dir(dataset, is_prd)
-            if os.path.exists(destination_dir) and use_checkpoints:
-                continue
-            else:
-                self.__log.debug("Calculating sign for %s" % dataset)
-                s3, predict_fn = self.sign_predict_fn[dataset]
-                s3.predict_from_smiles(smiles,
-                                       destination_dir, predict_fn=predict_fn,
-                                       use_novelty_model=False)
-
-    def signaturize_hpc(self, smiles, chunk_size, use_checkpoints, is_prd):
+    def signaturize(self, smiles, chunk_size=1000, use_checkpoints=False, is_tmp=True):
         self.__log.info("Calculating sign for every molecule.")
         jobs  = []
         for dataset in self.datasets:
-            destination_dir = os.path.join(self.models_path, dataset)
+            destination_dir = get_destination_dir(dataset, is_tmp)
             if os.path.exists(destination_dir) and use_checkpoints:
                 continue
             else:
                 self.__log.debug("Calculating sign for %s" % dataset)
                 s3, predict_fn = self.sign_predict_fn[dataset]
-                job = s3.func_hpc("predict_from_smiles", smiles,
-                            destination_dir, chunk_size, None, False, wait = False)
-                jobs += [job]
+                if not self.hpc:
+                    s3.predict_from_smiles(smiles, destination_dir,
+                                           predict_fn=predict_fn,
+                                           use_novelty_model=False)
+                else:    
+                    job = s3.func_hpc("predict_from_smiles", smiles,
+                                      destination_dir, chunk_size, None, False,
+                                      cpu=self.n_jobs_hpc, wait=False)
+                    jobs += [job]
         self.waiter(jobs)
-
-    def signaturize(self, data, hpc, chunk_size=1000, use_checkpoints=False):
-        if hpc:
-            self.signaturize_hpc(data, chunk_size=chunk_size, use_checkpoints=use_checkpoints)
-        else:
-            self.signaturize_local(data, use_checkpoints=use_checkpoints)
      
     # Signature readers
-    def read_signature(self, dataset, idxs=None, sign_folder=None, is_prd=False):
+    def read_signature(self, dataset, idxs=None, sign_folder=None, is_tmp=False):
         """Read a signature from an HDF5 file"""
         if not sign_folder:
-            destination_dir = self.get_destination_dir(dataset, is_prd)
+            destination_dir = self.get_destination_dir(dataset, is_tmp)
         else:
             destination_dir = os.path.join(sign_folder, dataset)
         with h5py.File(destination_dir, "r") as hf:
@@ -375,8 +368,8 @@ class ApplicabilityDomain(TargetMateSetup):
         # Minimal chemical similarity to consider
         self.min_sim = min_sim
 
-    def fingerprint_arena(self, smiles, use_checkpoints=False, is_prd=False):
-        if is_prd:
+    def fingerprint_arena(self, smiles, use_checkpoints=False, is_tmp=False):
+        if is_tmp:
             fps_file = os.path.join(self.tmp_path, "arena.fps")
         else:
             fps_file = os.path.join(self.models_path, "arena.fps")
@@ -678,53 +671,65 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup, Signaturizer):
         Signaturizer.__init__(**kwargs)
         self.ensemble = []
 
-    def fit_ensemble_local(self, y):
-        self.__log.info("Local fit of individual models (full data)")
-        for i, X in enumerate(self.read_signatures_ensemble(self, datasets=self.datasets)):
-            dest = os.path.join(self.bases_models_path, self.datasets[i])
-            self.ensemble += [(self.datasets[i], dest)]
-            self.fitter(X, y, destination_dir=dest, is_cv=False, pipe=None, n_jobs=None)
-
-    def fit_ensemble_hpc(self, y, n_jobs=16):
+    def fit_ensemble(self, y):
         self.__log.info("HPC fit of individual models (full data)")
         jobs  = []
         for i, X in enumerate(self.read_signatures_ensemble(self, datasets=self.datasets)):
-            dest = os.path.join(self.bases_tmp_path, self.datasets[i])
+            dest = os.path.join(self.bases_models_path, self.datasets[i])
             self.ensemble += [(self.datasets[i], dest)]
-            jobs  += [self.func_hpc("fitter", X, y, dest, False, None, cpu=n_jobs)]
+            if self.hpc:
+                jobs  += [self.func_hpc("fitter", X, y, dest, False, None, self.n_jobs_hpc, cpu=self.n_jobs_hpc)]
+            else:
+                self.fitter(X, y, destination_dir=dest, is_cv=False, pipe=None, n_jobs=None)
         self.waiter(jobs)
-
-    def fit_ensemble(self, y):
-        if not self.hpc:
-            fit_ensemble_local(y)
-        else:
-            fit_ensemble_hpc(y)
 
     def ensemble_iter(self):
         for ds, dest in self.ensemble:
             yield self.load_base_model(dest)
 
-    def cross_validation_local(self, y):
+    def cross_validation(self, y):
         # Initialize cross-validation generator
         skf = StratifiedKFold(n_splits=np.min(
             [self.cv, self.ny]), shuffle=True, random_state=42)
         # Do the individual predictors
         self.__log.info("Training individual predictors with cross-validation")
+        fold = 0
+        jobs = []
+        iter_info = []    
+        for train_idx, test_idx in skf.split(self.smiles, y):
+            self.__log.debug("CV fold %02d" % fold)
+            iter_info_ = []
+            for i, dataset in enumerate(self.datasets):
+                dest = os.path.join(self.bases_tmp_path, "%s-%d" % (self.datasets[i], fold))
+                X_train = self.read_signature(dataset, train_idx, is_tmp=False)
+                y_train = y[train_idx]
+                if self.hpc:
+                    jobs += [self.func_hpc("fitter", X_train, y_train, dest, True, self.pipes[i], cpu=self.n_jobs_hpc)]
+                else:
+                    self.fitter(X_train, y_train, dest, is_cv=True, self.pipes[i])
+                iter_info_ += [(dataset, dest)]
+            iter_info += [{"fold": fold,
+                           "train_idx": train_idx,
+                           "test_idx": test_idx,
+                           "iter_info_": iter_info_)]
+            fold += 1
+        self.waiter(jobs)
+        # Make predictions and store relevant arrays
         yps_train = collections.defaultdict(list)
         yps_test  = collections.defaultdict(list)
         yts_train = []
         yts_test  = []
         smi_test  = []
-        for train_idx, test_idx in skf.split(smiles, y):
-            self.__log.debug("CV fold")
-            for i, dataset in enumerate(self.datasets):
-                X_train = self.read_signature(dataset, train_idx, is_prd = False)
-                y_train = y[train_idx]
-                mod = self.fitter(X_train, y_train, is_cv = True, self.pipes[i])
+        for info in iter_info:
+            train_idx = info["train_idx"]
+            test_idx  = info["test_idx"]
+            
+
+
                 # Make predictions on train set itself
                 yps_train[dataset] += self.predictor(X_train)
                 # Make predictions on test set itself
-                X_test = self.read_signature(dataset, test_idx, is_prd = False)
+                X_test = self.read_signature(dataset, test_idx, is_tmp = False)
                 y_test = y[test_idx]
                 yps_test[dataset] += self.predictor(X_test)
             yts_train += list(y_train)

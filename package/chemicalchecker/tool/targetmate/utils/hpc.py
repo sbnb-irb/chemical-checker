@@ -18,6 +18,7 @@ class HPCUtils:
     def waiter(self, jobs, secs=3):
         """Wait for jobs to finish"""
         self.__log.debug("Waiting for jobs to finish...")
+        if not jobs: return
         while np.any([job.status != "done" for job in jobs]):
             time.sleep(secs)
         self.__log.debug("Jobs done.")        
