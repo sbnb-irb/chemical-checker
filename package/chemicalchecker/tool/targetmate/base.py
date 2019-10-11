@@ -283,11 +283,17 @@ class Signaturizer(TargetMateSetup):
         else:
             self.sign_predict_fn = sign_predict_fn
 
+    def get_destination_dir(self, dataset, is_prd):
+        if is_prd:
+            return os.path.join(self.signatures_tmp_path, dataset)
+        else:
+            return os.path.join(self.signatures_models_path, dataset)
+
     # Calculate signatures
-    def signaturize_local(self, smiles, use_checkpoints):
+    def signaturize_local(self, smiles, use_checkpoints, is_prd):
         self.__log.info("Calculating sign for every molecule.")
         for dataset in self.datasets:
-            destination_dir = os.path.join(self.models_path, dataset)
+            destination_dir = get_destination_dir(dataset, is_prd)
             if os.path.exists(destination_dir) and use_checkpoints:
                 continue
             else:
@@ -297,7 +303,7 @@ class Signaturizer(TargetMateSetup):
                                        destination_dir, predict_fn=predict_fn,
                                        use_novelty_model=False)
 
-    def signaturize_hpc(self, smiles, chunk_size, use_checkpoints):
+    def signaturize_hpc(self, smiles, chunk_size, use_checkpoints, is_prd):
         self.__log.info("Calculating sign for every molecule.")
         jobs  = []
         for dataset in self.datasets:
@@ -318,32 +324,27 @@ class Signaturizer(TargetMateSetup):
         else:
             self.signaturize_local(data, use_checkpoints=use_checkpoints)
      
-    # Signature Handlers
+    # Signature readers
     def read_signature(self, dataset, idxs=None, sign_folder=None, is_prd=False):
         """Read a signature from an HDF5 file"""
-        # Identify HDF5 file
         if not sign_folder:
-            if is_prd:
-                h5file = os.path.join(self.tmp_path, dataset)
-            else:
-                h5file = os.path.join(self.models_path, dataset)
+            destination_dir = self.get_destination_dir(dataset, is_prd)
         else:
-            h5file = os.path.join(sign_folder, dataset)
-        # Read the file
-        with h5py.File(h5file, "r") as hf:
+            destination_dir = os.path.join(sign_folder, dataset)
+        with h5py.File(destination_dir, "r") as hf:
             if idxs is None:
                 V = hf["V"][:]
             else:
                 V = hf["V"][:][idxs]
         return V
 
-    def ensemble_handler(self, datasets=None, **kwargs):
+    def read_signatures_ensemble(self, datasets=None, **kwargs):
         """Return signatures as an ensemble"""
         if not datasets: datasets = self.datasets
         for ds in datasets:
             yield self.read_signature(ds, **kwargs)
 
-    def stacked_handler(self, datasets=None, **kwargs):
+    def read_signatures_stacked(self, datasets=None, **kwargs):
         """Return signatures in a stacked form"""
         if not datasets: datasets = self.datasets
         V = []
@@ -675,50 +676,33 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup, Signaturizer):
         
         TargetMateClassifierSetup.__init__(**kwargs)
         Signaturizer.__init__(**kwargs)
+        self.ensemble = []
 
     def fit_ensemble_local(self, y):
         self.__log.info("Local fit of individual models (full data)")
-        for i, X in enumerate(self.ensemble_handler(self, datasets=self.datasets)):
-            dest = os.path.join(self.base_models_path, self.datasets[i])
+        for i, X in enumerate(self.read_signatures_ensemble(self, datasets=self.datasets)):
+            dest = os.path.join(self.bases_models_path, self.datasets[i])
+            self.ensemble += [(self.datasets[i], dest)]
             self.fitter(X, y, destination_dir=dest, is_cv=False, pipe=None, n_jobs=None)
 
-    def fit_ensemble_hpc(self, n_jobs=16):
+    def fit_ensemble_hpc(self, y, n_jobs=16):
         self.__log.info("HPC fit of individual models (full data)")
         jobs  = []
-        dests = []
-        for i, X in enumerate(self.ensemble_handler(self, datasets=self.datasets)):
-            dests += [os.path.join(self.tmp_path, self.datasets[i])]
-            jobs  += [self.func_hpc("fitter", X, y, dests[-1], False, None, cpu=n_jobs)]
+        for i, X in enumerate(self.read_signatures_ensemble(self, datasets=self.datasets)):
+            dest = os.path.join(self.bases_tmp_path, self.datasets[i])
+            self.ensemble += [(self.datasets[i], dest)]
+            jobs  += [self.func_hpc("fitter", X, y, dest, False, None, cpu=n_jobs)]
         self.waiter(jobs)
-        mod_ensemble = []
-        for i, dest in enumerate(destinations):
-            mod = self.load_base_model(dest, append_pipe=True)
-        
-        self.__log.info("")
-        clf_ensemble = []
 
-        if self._is_tpot:
-            pipes = []
-        for X in ensemble_handler(self, datasets=self.datasets):
-            self.__log.debug("Working on %s" % dataset)
-            clf = clone(self.base_mod)
-            clf.n_jobs = n_jobs
-            X = self._read_sign(dataset)
-            shuff = np.array(range(len(y)))
-            random.shuffle(shuff)
-            clf.fit(X[shuff], y[shuff])
-            if self._is_tpot:
-                pipes += [clf.fitted_pipeline_]
-                clf_ensemble += [(dataset, pipes[-1].fit(X[shuff], y[shuff]))]
-            else:
-                clf_ensemble += [(dataset, clf)]
-        return clf_ensemble
-
-    def fit_ensemble(self, y, hpc):
-        if hpc:
-            self.fit_ensemble_local(y, hpc = True)
+    def fit_ensemble(self, y):
+        if not self.hpc:
+            fit_ensemble_local(y)
         else:
-            self.fit_ensemble_hpc(y, hpc = False)
+            fit_ensemble_hpc(y)
+
+    def ensemble_iter(self):
+        for ds, dest in self.ensemble:
+            yield self.load_base_model(dest)
 
     def cross_validation_local(self, y):
         # Initialize cross-validation generator
