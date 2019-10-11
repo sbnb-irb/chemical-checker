@@ -309,7 +309,7 @@ class neig(BaseSignature, DataSignature):
             k = max_k
         # convert signatures to float32 as faiss is very picky
         data = np.array(signatures, dtype=np.float32)
-        self.__log.info("Searching neighbors")
+        self.__log.info("Searching %s neighbors" % k)
         # get neighbors idx and distances
         if metric_orig == "cosine":
             normst = LA.norm(data, axis=1)
