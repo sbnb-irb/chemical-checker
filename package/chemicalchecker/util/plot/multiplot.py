@@ -1215,9 +1215,27 @@ class MultiPlot():
                 continue
             # decide sample molecules
             inks = s2.keys
+            s3_conf = s3.get_h5_dataset('confidence')
             if len(inks) > max_sample:
-                inks = np.random.choice(s2.keys, int(max_sample),
-                                        replace=False)
+                inks = list()
+                s2_mask = np.isin(s3.keys, s2.keys)
+                s2_conf = s3_conf[s2_mask]
+                # make sure we sample a bit all confidences
+                conf_bins = np.arange(0, 100, 10)
+                for low in conf_bins:
+                    upp = low + 10
+                    if low == 0:
+                        mask_low = s2_conf >= np.percentile(s2_conf, low)
+                    else:
+                        mask_low = s2_conf > np.percentile(s2_conf, low)
+                    mask_upp = s2_conf <= np.percentile(s2_conf, upp)
+                    mask = mask_low & mask_upp
+                    inks_conf = np.random.choice(np.array(s2.keys)[mask],
+                                                 int(max_sample /
+                                                     len(conf_bins)),
+                                                 replace=False)
+                    inks.extend(inks_conf.tolist())
+                inks = sorted(inks)
             # get sign2 and sign3
             _, s2_data = s2.get_vectors(inks)
             _, s3_data = s3.get_vectors(inks)
@@ -1226,40 +1244,55 @@ class MultiPlot():
             # get idx of nearest neighbors of s2
             row = dict()
             row['dataset'] = ds
-            k = int(s2.shape[0] * 0.005)
+            k = int(s2.shape[0] * 0.0025)
+            k = max(k, 10)
             row['k'] = k
             n2_s2 = n2.get_kth_nearest(
                 list(s2_data), k=k, distances=False, keys=False)
             n2_s3 = n2.get_kth_nearest(
                 list(s3_data), k=k, distances=False, keys=False)
 
-            for low, upp in zip(np.arange(0, 100, 10), np.arange(10, 110, 10)):
-                row['confidence'] = '%s-%s' % (low, upp)
-                if low == 0:
-                    mask_low = s3_data_conf >= np.percentile(s3_data_conf, low)
-                else:
-                    mask_low = s3_data_conf > np.percentile(s3_data_conf, low)
-                mask_upp = s3_data_conf <= np.percentile(s3_data_conf, upp)
-                mask = mask_low & mask_upp
+            for low in np.arange(0, 100, 10):
+                mask = s3_data_conf >= np.percentile(s3_data_conf, low)
+                row['confidence'] = low
                 row['jaccard'] = n2.jaccard_similarity(
                     n2_s2['indices'][mask],
                     n2_s3['indices'][mask])
                 df = df.append(pd.DataFrame(row), ignore_index=True)
 
-        self.__log.info('Plotting')
+            print(df[df.dataset == ds].groupby('confidence').median())
+
         sns.set_style("whitegrid")
-        g = sns.catplot(data=df, kind='point', x='confidence', y='jaccard',
-                        col="dataset", col_wrap=5,
-                        col_order=self.datasets,
-                        aspect=.8, height=3, dodge=True)
-        g.set(xticklabels=[str(f) for f in np.arange(0, 100, 10)])
+        f, axes = plt.subplots(5, 5, figsize=(9, 9), sharex=True, sharey='row')
+        for ds, ax in zip(self.datasets, axes.flat):
+            sns.lineplot(data=df[df.dataset == ds],
+                         x='confidence', y='jaccard',
+                         style='dataset',
+                         markers=False, dashes=False,
+                         legend=False,
+                         color=self.cc_palette([ds])[0], ax=ax)
+            ax.set_xlim(0, 90)
+            #ax.set_ylim(0.4, 1)
+            ax.grid(axis='y', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.grid(axis='x', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
+            ax.spines["top"].set_color(self.cc_palette([ds])[0])
+            ax.spines["right"].set_color(self.cc_palette([ds])[0])
+            ax.spines["left"].set_color(self.cc_palette([ds])[0])
+            ax.set_xlabel('')
+            ax.set_ylabel('')
+        f.text(0.5, 0.04, 'Confidence', ha='center', va='center')
+        f.text(0.06, 0.5, 'Jaccard Neighbors Sign2/3', ha='center',
+               va='center', rotation='vertical')
         outfile = os.path.join(
             self.plot_path, 'sign3_neig2_jaccard.png')
         plt.savefig(outfile, dpi=200)
         plt.close('all')
         return df
 
-    def sign_property_distribution(self, cctype, molset, prop):
+    def sign_property_distribution(self, cctype, molset, prop, xlim=None):
 
         sns.set_style("whitegrid")
         f, axes = plt.subplots(5, 5, figsize=(9, 9), sharex=True, sharey=True)
@@ -1274,16 +1307,24 @@ class MultiPlot():
             # decide sample molecules
             s3_data_conf = s3.get_h5_dataset(prop)
             # get idx of nearest neighbors of s2
-            sns.distplot(s3_data_conf, color=self.cc_palette([ds])[0],
-                         kde=False, norm_hist=False, ax=ax, bins=20,
-                         hist_kws={'range': (0, 1)})
+            if xlim:
+                sns.distplot(s3_data_conf, color=self.cc_palette([ds])[0],
+                             kde=False, norm_hist=False, ax=ax, bins=20,
+                             hist_kws={'range': xlim})
+                ax.set_xlim(xlim)
+            else:
+                sns.distplot(s3_data_conf, color=self.cc_palette([ds])[0],
+                             kde=False, norm_hist=False, ax=ax)
             ax.set_yscale('log')
-            ax.set_xlim(0, 1)
+            ax.set_xscale('log')
             ax.grid(axis='y', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.grid(axis='x', linestyle="-",
                     color=self.cc_palette([ds])[0], lw=0.3)
             ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
             ax.spines["top"].set_color(self.cc_palette([ds])[0])
             ax.spines["right"].set_color(self.cc_palette([ds])[0])
+            ax.spines["left"].set_color(self.cc_palette([ds])[0])
         f.text(0.5, 0.04, prop, ha='center', va='center')
         f.text(0.06, 0.5, 'molecules', ha='center',
                va='center', rotation='vertical')
@@ -1650,8 +1691,9 @@ class MultiPlot():
             sns.barplot(x='component_cat', y='pearson', data=df, hue='split',
                         hue_order=['train', 'test'],
                         ax=ax, color=self.cc_palette([ds])[0])
-
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=90)
+            ax.set_xlabel('')
+            ax.set_ylabel('')
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
             ax.legend(prop={'size': 6})
             ax.get_legend().remove()
             ax.grid(axis='y', linestyle="-",
@@ -1661,6 +1703,8 @@ class MultiPlot():
             ax.spines["right"].set_color(self.cc_palette([ds])[0])
             ax.spines["left"].set_color(self.cc_palette([ds])[0])
 
+        f.text(0.06, 0.5, 'Correlation True/Pred. (Pearson)', ha='center',
+               va='center', rotation='vertical')
         outfile = os.path.join(
             self.plot_path, 'sign3_mfp_predictor.png')
         plt.savefig(outfile, dpi=200)
