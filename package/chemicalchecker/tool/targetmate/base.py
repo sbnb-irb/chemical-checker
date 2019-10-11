@@ -382,7 +382,12 @@ class ApplicabilityDomain(TargetMateSetup):
 
     @staticmethod
     def calculate_bias(yt, yp):
-        """Calculate the bias of the QSAR model"""
+        """Calculate the bias of the QSAR model
+        
+        Args:
+            yt(array): True values.
+            yp(array): Predicted values.
+        """
         return np.array([np.abs(t - p) for t, p in zip(yt, yp)])
 
     def knearest_search(self, query_smi, target_fps, N):
@@ -416,19 +421,8 @@ class ApplicabilityDomain(TargetMateSetup):
         for i, idxs_ in enumerate(idxs):
             ws = sims[i] / (stds[idxs_] * bias[idxs_])
             weights += [np.max(ws)]
+        # TO-DO: Do we want to use a weight scaler here?
         return np.array(weights)
-
-
-@logged
-class TargetMate(TargetMateSetup, Signaturizer):
-
-    def __init__(self, **kwargs):
-        """XXX"""
-        TargetMateSetup.__init__(self, **kwargs)
-        Signaturizer.__init__(self, **kwargs)
-
-
-
 
 @logged
 class TargetMateClassifierSetup(TargetMateSetup):
@@ -638,6 +632,11 @@ class TargetMateClassifierSetup(TargetMateSetup):
         """
         return [p[1] for p in mod.predict_proba(X_train)]
 
+    def kfolder(self):
+        """Cross-validation splits strategy"""
+        return StratifiedKFold(n_splits=np.min([self.cv, self.ny]),
+                               shuffle=True, random_state=42)
+
 
 @logged
 class TargetMateRegressionSetup(TargetMateSetup):
@@ -656,18 +655,20 @@ class TargetMateRegressionSetup(TargetMateSetup):
 
 
 @logged
-class TargetMateStackedClassifier(TargetMateClassifierSetup):
-    pass
+class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer):
+    """An ensemble of models"""
 
-
-@logged
-class TargetMateEnsembleClassifier(TargetMateClassifierSetup, Signaturizer):
-    """TargetMate ensemble classifier"""
-
-    def __init__(self, **kwargs):
-        """TargetMate ensemble classifier"""
+    def __init__(self, is_classifier, **kwargs):
+        """TargetMate ensemble classifier
         
-        TargetMateClassifierSetup.__init__(**kwargs)
+        Args:
+            predictor_func(fun): Predictor function (can be passed from a classifier or from a regressor).
+        
+        """
+        if is_classifier:
+            TargetMateClassifierSetup.__init__(**kwargs)
+        else:
+            TargetMateRegressorSetup.__init__(**kwargs)
         Signaturizer.__init__(**kwargs)
         self.ensemble = []
 
@@ -688,15 +689,15 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup, Signaturizer):
             yield self.load_base_model(dest)
 
     def cross_validation(self, y):
+        self.__log.debug("Initializing cross-validation scheme")
         # Initialize cross-validation generator
-        skf = StratifiedKFold(n_splits=np.min(
-            [self.cv, self.ny]), shuffle=True, random_state=42)
+        kf = self.kfolder()
         # Do the individual predictors
         self.__log.info("Training individual predictors with cross-validation")
         fold = 0
         jobs = []
         iter_info = []    
-        for train_idx, test_idx in skf.split(self.smiles, y):
+        for train_idx, test_idx in kf.split(self.smiles, y):
             self.__log.debug("CV fold %02d" % fold)
             iter_info_ = []
             for i, dataset in enumerate(self.datasets):
@@ -714,6 +715,7 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup, Signaturizer):
                            "iter_info_": iter_info_)]
             fold += 1
         self.waiter(jobs)
+        self.__log.debug("Making predictions over the cross-validation models")
         # Make predictions and store relevant arrays
         yps_train = collections.defaultdict(list)
         yps_test  = collections.defaultdict(list)
@@ -723,18 +725,15 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup, Signaturizer):
         for info in iter_info:
             train_idx = info["train_idx"]
             test_idx  = info["test_idx"]
-            
-
-
-                # Make predictions on train set itself
-                yps_train[dataset] += self.predictor(X_train)
-                # Make predictions on test set itself
-                X_test = self.read_signature(dataset, test_idx, is_tmp = False)
-                y_test = y[test_idx]
-                yps_test[dataset] += self.predictor(X_test)
-            yts_train += list(y_train)
-            yts_test  += list(y_test)
-            smi_test  += list(smiles[test_idx])
+            for dataset, dest in info["iter_info_"]:
+                mod = self.load_base_model(dest)
+                X_train = self.read_signature(dataset, train_idx, is_tmp=False)
+                X_test  = self.read_signature(dataset, test_idx,  is_tmp=False)
+                yps_train[dataset] += self.predictor(mod, X_train)
+                yps_test[dataset]  += self.predictor(mod, X_test)
+            yts_train += list(y[train_idx])
+            yts_test  += list(y[test_idx])
+            smi_test  += list(self.smiles[test_idx])
         results = {
             "yps_train": yps_train,
             "yps_test": yps_test,
@@ -744,34 +743,7 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup, Signaturizer):
         }
         return results
 
-    def metapredict(self, yp_dict, perfs, dataset_universe=None):
-        """Do meta-prediction based on dataset-specific predictions.
-        Weights are given according to the performance of the individual
-        predictors.
-        Standard deviation across predictions is kept to estimate
-        applicability domain.
-        """
-        if dataset_universe is None:
-            dataset_universe = set(self.datasets)
-        M = []
-        w = []
-        for dataset in self.datasets:
-            if dataset not in dataset_universe:
-                continue
-            w += [perfs[dataset]["perf_test"]
-                  [self.metric][1]]  # Get the weight
-            M += [yp_dict[dataset]]
-        M = np.array(M)
-        w = np.array(w)
-        prds = []
-        stds = []
-        for j in range(0, M.shape[1]):
-            avg, std = self.avg_and_std(M[:, j], w)
-            prds += [avg]
-            stds += [std]
-        return np.clip(prds, 0.001, 0.999), np.clip(stds, 0.001, None)
-
-    def all_performances(self, cv_results):
+    def individual_performances(self, cv_results):
         yts_train = cv_results["yts_train"]
         yps_train = cv_results["yps_train"]
         yts_test  = cv_results["yts_test" ]
@@ -783,8 +755,13 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup, Signaturizer):
         perfs = {}
         for dataset in self.datasets:
             ptrain = self.performances(yts_train, yps_train[dataset])
-            ptest = self.performances(yts_test, yps_test[dataset])
+            ptest  = self.performances(yts_test, yps_test[dataset])
             perfs[dataset] = {"perf_train": ptrain, "perf_test": ptest}
+        return perfs
+
+    def all_performances(self, cv_results):
+        yps_train = cv_results["yps_train"]
+        perfs = self.individual_performances(cv_results)
         # Meta-predictor on train and test data
         self.__log.info("Meta-predictions on train and test data")
         self.__log.debug("Assembling for train set")
@@ -798,23 +775,45 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup, Signaturizer):
         perfs["MetaPred"] = {"perf_train": ptrain, "perf_test": ptest}
         results = {
             "perfs": perfs,
-            "mps": ""
+            "mps_train": mps_train,
+            "std_train": std_train,
+            "mps_test": mps_test,
+            "std_test": std_test
         }
-        return results
+        return results                
+
+
+
+
+
+
+@logged
+class TargetMateStackedClassifier(TargetMateClassifierSetup):
+    pass
+
+
+@logged
+class TargetMateEnsembleClassifier(TargetMateEnsemble):
+    """TargetMate ensemble classifier"""
+
+    def __init__(self, **kwargs):
+        """TargetMate ensemble classifier"""
+        TargetMateEnsemble.__init__(is_classifier=True, **kwargs)
 
     def plot(self):
-        perfs = self.load_performances()
+        """Plot model statistics"""
+        perfs   = self.load_performances()
         ad_data = self.load_ad_data()
         plots.ensemble_classifier_grid(perfs, ad_data)
 
-    def fit(self, use_checkpoints, hpc):
+    def fit(self, data, use_checkpoints=False):
         # Read data
         data = self.prepare_data(use_checkpoints)
         # Prepare data for machine learning
         data_ml = self.prepare_for_ml(data)
         if not data_ml: return
         # Signaturize
-        self.signaturize(data, hpc)
+        self.signaturize(data)
         # Fit the global classifier
         clf_ensemble = self.fit_ensemble()
         # Cross-validation
@@ -823,7 +822,29 @@ class TargetMateEnsembleClassifier(TargetMateClassifierSetup, Signaturizer):
         ap_results = self.all_performances(cv_results)
         # 
 
+        # Finish
+        self._is_fitted = True
+        self._is_trained = True
+        # Save the class
+        self.__log.debug("Saving TargetMate instance")
+        self.save()
+
+
 
     def predict(self):
         pass
+
+
+@logged
+class TargetMateEnsembleRegressor(TargetMateEnsemble):
+    """TargetMate ensemble regressor"""
+    
+    def __init__(self, **kwargs):
+        TargetMateEnsemble.__init__(is_classifier=False, **kwargs)
+
+    def plot(self):
+        """Plot model statistics"""
+        perfs   = self.load_performances()
+        ad_data = self.load_ad_data()
+        plots.ensemble_regressor_grid(perfs, ad_data)
 
