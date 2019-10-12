@@ -225,6 +225,8 @@ class Old:
         perfs["auroc"] = metrics.roc_score(yt, yp)
         perfs["aupr"] = metrics.pr_score(yt, yp)
         perfs["bedroc"] = metrics.bedroc_score(yt, yp)
+        perfs["y_true"] = yt
+        perfs["y_pred"] = yp
         return perfs
 
     def metapredict(self, yp_dict, perfs, dataset_universe=None):

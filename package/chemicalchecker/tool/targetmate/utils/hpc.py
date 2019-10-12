@@ -8,7 +8,7 @@ import multiprocessing
 @logged
 class HPCUtils:
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         pass
 
     @staticmethod
@@ -17,8 +17,8 @@ class HPCUtils:
 
     def waiter(self, jobs, secs=3):
         """Wait for jobs to finish"""
-        self.__log.debug("Waiting for jobs to finish...")
         if not jobs: return
+        self.__log.debug("Waiting for jobs to finish...")
         while np.any([job.status != "done" for job in jobs]):
             time.sleep(secs)
         self.__log.debug("Jobs done.")        
