@@ -59,10 +59,9 @@ def precrecs(ax, perfs):
     y_pred_tr = p["perf_train"]["y_pred"]
     y_pred_ts = p["perf_test"]["y_pred"]
     pre, rec, _ = precision_recall_curve(y_true_tr, y_pred_tr)
-    idxs = np.argsort(rec)
-    ax.plot([0] + list(rec[idxs]) + [1], [1] + list(pre[idxs]) + [0], color = "black")
+    ax.plot(list(rec), list(pre), color = "black")
     pre, rec, _ = precision_recall_curve(y_true_ts, y_pred_ts)
-    ax.plot([0] + list(rec[idxs]) + [1], [1] + list(pre[idxs]) + [0], color = "red")
+    ax.plot(list(rec), list(pre), color = "red")
     ax.set_xlabel("Recall")
     ax.set_ylabel("Precision")
     ax.set_title("Train %.2f / Test %.2f" % (p["perf_train"]["aupr"][0], p["perf_test"]["aupr"][0]))
@@ -89,14 +88,16 @@ def applicability(ax, perfs, ad_data, col):
 def ensemble_classifier_plots(perfs, ad_data):
     fig, axs = plt.subplots(3, 3, figsize = (10, 10))
     axs = axs.flatten()
-    scores_distro(axs[0], perfs)
-    rocs(axs[1], perfs)    
-    precrecs(axs[2], perfs)
-    individual_performances(axs[3], perfs, "bedroc")
-    individual_performances(axs[4], perfs, "auroc")
-    individual_performances(axs[5], perfs, "aupr")
-    applicability(axs[6], perfs, ad_data, 0)
-    applicability(axs[7], perfs, ad_data, 1)
-    applicability(axs[8], perfs, ad_data, 2)
+    if perfs is not None:
+        scores_distro(axs[0], perfs)
+        rocs(axs[1], perfs)    
+        precrecs(axs[2], perfs)
+        individual_performances(axs[3], perfs, "bedroc")
+        individual_performances(axs[4], perfs, "auroc")
+        individual_performances(axs[5], perfs, "aupr")
+    if ad_data is not None:
+        applicability(axs[6], perfs, ad_data, 0)
+        applicability(axs[7], perfs, ad_data, 1)
+        applicability(axs[8], perfs, ad_data, 2)
     plt.tight_layout()
     return fig, axs
