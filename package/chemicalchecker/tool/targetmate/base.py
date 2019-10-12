@@ -32,7 +32,9 @@ import h5py
 import csv
 import collections
 import numpy as np
+import pandas as pd
 import pickle
+
 import random
 import math
 import time
@@ -59,6 +61,40 @@ from .utils import HPCUtils
 
 
 @logged
+class InputData:
+    """A simple input data class"""
+    
+    def __init__(self, data):
+        """Initialize input data class"""
+        self.idx       = np.array([d[0] for d in data])
+        self.activity  = np.array([float(d[1]) for d in data])
+        self.smiles    = np.array([d[2] for d in data])
+        self.inchikey  = np.array([d[3] for d in data])
+
+    def __iter__(self):
+        for idx, v in self.as_dataframe().iterrows():
+            yield v
+
+    def as_dataframe(self):
+        df = pd.DataFrame({
+            "idx": self.idx,
+            "activity": self.activity,
+            "smiles": self.smiles,
+            "inchikey": self.inchikey
+            })
+        return df        
+
+    def shuffle(self):
+        """Shuffle data"""
+        ridxs = [i for i in range(0, len(self.idx))]
+        random.shuffle(ridxs)
+        self.idx      = self.idx[ridxs]
+        self.activity = self.activity[ridxs]
+        self.smiles   = self.smiles[ridxs]
+        self.inchikey = self.inchikey[ridxs]
+
+
+@logged
 class TargetMateSetup(HPCUtils):
     """Set up the base TargetMate class"""
 
@@ -66,9 +102,12 @@ class TargetMateSetup(HPCUtils):
                  models_path,
                  tmp_path = None,
                  cc_root = None,
+                 overwrite = True,
                  n_jobs = None,
                  n_jobs_hpc = 8,
+                 standardize = True,
                  applicability = True,
+                 hpc = False,
                  **kwargs):
         """Basic setup of the TargetMate.
 
@@ -77,8 +116,10 @@ class TargetMateSetup(HPCUtils):
             tmp_path(str): Directory where temporary data will be stored
                 (relevant at predict time) (default=None)
             cc_root(str): CC root folder (default=None)
+            overwrite(bool): Clean models_path directory (default=True)
             n_jobs(int): Number of CPUs to use, all by default (default=None)
             n_jobs(hpc): Number of CPUs to use in HPC (default=8)
+            standardize(bool): Standardize small molecule structures (default=True)
             cv(int): Number of cv folds (default=5)
             applicability(bool): Perform applicability domain calculation (default=True)
             hpc(bool): Use HPC (default=False)
@@ -96,16 +137,25 @@ class TargetMateSetup(HPCUtils):
                 "Specified models directory does not exist: %s",
                 self.models_path)
             os.mkdir(self.models_path)
-        self.bases_models_path, self.signatures_models_path = directory_tree(self.models_path)
+        else:
+            if overwrite:
+                # Cleaning models directory
+                self.__log.debug("Cleaning %s" % self.models_path)
+                shutil.rmtree(self.models_path)
+                os.mkdir(self.models_path)
+        self.bases_models_path, self.signatures_models_path = self.directory_tree(self.models_path)
         # Temporary path
         if not tmp_path:
             self.tmp_path = os.path.join(
                 Config().PATH.CC_TMP, str(uuid.uuid4()))
         else:
             self.tmp_path = os.path.abspath(tmp_path)
-        self.bases_tmp_path, self.signatures_tmp_path = directory_tree(self.tmp_path)
+        if not os.path.exists(self.tmp_path): os.mkdir(self.tmp_path)
+        self.bases_tmp_path, self.signatures_tmp_path = self.directory_tree(self.tmp_path)
         # Initialize the ChemicalChecker
         self.cc = ChemicalChecker(cc_root)
+        # Standardize
+        self.standardize = standardize
         # Do applicability
         self.applicability = applicability
         # Use HPC
@@ -114,6 +164,7 @@ class TargetMateSetup(HPCUtils):
         # Others
         self._is_fitted  = False
         self._is_trained = False
+        self.is_tmp      = False
         self.pipes       = []
 
     # Chemistry functions
@@ -144,29 +195,10 @@ class TargetMateSetup(HPCUtils):
         variance = np.average((values - average)**2, weights=weights)
         return (average, math.sqrt(variance))
 
-    # Loading functions
-    @staticmethod
-    def load(models_path):
-        """Load previously stored TargetMate instance."""
-        with open(os.path.join(models_path, "/TargetMate.pkl", "r")) as f:
-            return pickle.load(f)
-
-    def load_performances(self):
-        """Load performance data"""
-        with open(os.path.join(self.models_path, "perfs.json"), "r") as f:
-            return json.load(f)
-
-    def load_ad_data(self):
-        """Load applicability domain data"""
-        with open(os.path.join(self.models_path, "ad_data.pkl"), "r") as f:
-            return pickle.load(f)
-
-    def load_data(self, data, standardize, use_checkpoints):
-        if not use_checkpoints:
-            # Cleaning models directory
-            self.__log.debug("Cleaning previous checkpoints")
-            shutil.rmtree(self.models_path)
-            os.mkdir(self.models_path)
+    # Read input data
+    def read_data(self, data, standardize=None):
+        if not standardize:
+            standardize = self.standardize
         # Read data
         self.__log.info("Reading data")
         # Read data if it is a file
@@ -184,11 +216,39 @@ class TargetMateSetup(HPCUtils):
             m = self.read_smiles(d[1], standardize)
             if not m:
                 continue
-            # data is always of [(initial index, activity, ..., smiles,
+            # data is always of [(initial index, activity, smiles,
             # inchikey)]
-            data_ += [[i, d[0]] + [m[1], m[0]]]
+            data_ += [[i, float(d[0])] + [m[1], m[0]]]
         data = data_
-        return data
+        return InputData(data)
+
+    # Loading functions
+    @staticmethod
+    def load(models_path):
+        """Load previously stored TargetMate instance."""
+        with open(os.path.join(models_path, "/TargetMate.pkl", "r")) as f:
+            return pickle.load(f)
+
+    def load_performances(self):
+        """Load performance data"""
+        fn = os.path.join(self.models_path, "perfs.json")
+        if not os.path.exists(fn): return
+        with open(fn, "r") as f:
+            return json.load(f)
+
+    def load_ad_data(self):
+        """Load applicability domain data"""
+        fn = os.path.join(self.models_path, "ad_data.pkl")
+        if not os.path.exists(fn): return
+        with open(fn, "rb") as f:
+            return pickle.load(f)
+
+    def load_data(self):
+        self.__log.debug("Loading training data (only evidence)")
+        fn = os.path.join(self.models_path, "trained_data.pkl")
+        if not os.path.exists(fn): return
+        with open(fn, "rb") as f:
+            return pickle.load(f)
 
     def load_base_model(self, destination_dir, append_pipe=False):
         """Load a base model"""
@@ -289,19 +349,19 @@ class Signaturizer(TargetMateSetup):
         else:
             self.sign_predict_fn = sign_predict_fn
 
-    def get_destination_dir(self, dataset, is_tmp):
-        if is_tmp:
+    def get_destination_dir(self, dataset):
+        if self.is_tmp:
             return os.path.join(self.signatures_tmp_path, dataset)
         else:
             return os.path.join(self.signatures_models_path, dataset)
 
     # Calculate signatures
-    def signaturize(self, smiles, chunk_size=1000, use_checkpoints=False, is_tmp=True):
+    def signaturize(self, smiles, chunk_size=1000):
         self.__log.info("Calculating sign for every molecule.")
         jobs  = []
         for dataset in self.datasets:
-            destination_dir = get_destination_dir(dataset, is_tmp)
-            if os.path.exists(destination_dir) and use_checkpoints:
+            destination_dir = self.get_destination_dir(dataset)
+            if os.path.exists(destination_dir):
                 continue
             else:
                 self.__log.debug("Calculating sign for %s" % dataset)
@@ -318,10 +378,10 @@ class Signaturizer(TargetMateSetup):
         self.waiter(jobs)
      
     # Signature readers
-    def read_signature(self, dataset, idxs=None, sign_folder=None, is_tmp=False):
+    def read_signature(self, dataset, idxs=None, sign_folder=None):
         """Read a signature from an HDF5 file"""
         if not sign_folder:
-            destination_dir = self.get_destination_dir(dataset, is_tmp)
+            destination_dir = self.get_destination_dir(dataset)
         else:
             destination_dir = os.path.join(sign_folder, dataset)
         with h5py.File(destination_dir, "r") as hf:
@@ -424,14 +484,17 @@ class ApplicabilityDomain(TargetMateSetup):
         # TO-DO: Do we want to use a weight scaler here?
         return np.array(weights)
 
+
 @logged
-class TargetMateClassifierSetup(TargetMateSetup):
+class TargetMateClassifier(TargetMateSetup):
     """Set up a TargetMate classifier. It can sample negative from a universe of molecules (e.g. ChEMBL)"""
 
     def __init__(self,
                  base_mod="logistic_regression",
                  cv=5,
                  min_class_size=10,
+                 active_value=1,
+                 inactive_value=None,
                  inactives_per_active=100,
                  metric="bedroc",
                  universe_path=None,
@@ -449,6 +512,9 @@ class TargetMateClassifierSetup(TargetMateSetup):
                 Stratified K-Folds (default=5).
             min_class_size(int): Minimum class size acceptable to train the
                 classifier (default=10).
+            active_value(int): When reading data, the activity value considered to be active (default=1).
+            inactive_value(int): When reading data, the activity value considered to be inactive. If none specified,
+                then any value different that active_value is considered to be inactive (default=None).
             inactives_per_active(int): Number of inactive to sample for each active.
                 If None, only experimental actives and inactives are considered (default=100).
             metric(str): Metric to use in the meta-prediction (bedroc, auroc or aupr)
@@ -492,8 +558,14 @@ class TargetMateClassifierSetup(TargetMateSetup):
                 self._is_tpot = False
         else:
             self.base_mod = base_mod
+        # Cross-validation folds
+        self.cv = cv
         # Minimum size of the minority class
         self.min_class_size = min_class_size
+        # Active value
+        self.active_value = active_value
+        # Inactive value
+        self.inactive_value = inactive_value
         # Inactives per active
         self.inactives_per_active = inactives_per_active
         # Metric to use
@@ -503,17 +575,17 @@ class TargetMateClassifierSetup(TargetMateSetup):
         # naive_sampling
         self.naive_sampling = naive_sampling
 
-    @staticmethod
-    def _reassemble_activity_sets(act, inact, putinact):
+    def _reassemble_activity_sets(self, act, inact, putinact):
+        self.__log.info("Reassembling activities. Convention: 1 = Active, -1 = Inactive, 0 = Sampled")
         data = []
         for x in list(act):
-            data += [(x[1], 1, x[0], x[-1])]
+            data += [(x[1],  1, x[0], x[-1])]
         for x in list(inact):
             data += [(x[1], -1, x[0], x[-1])]
         n = np.max([x[0] for x in data]) + 1
         for i, x in enumerate(list(putinact)):
             data += [(i + n, 0, x[0], x[-1])]
-        return data
+        return InputData(data)
 
     @staticmethod
     def performances(yt, yp):
@@ -527,23 +599,30 @@ class TargetMateClassifierSetup(TargetMateSetup):
         perfs = {}
         yt = list(yt)
         yp = list(yp)
-        perfs["auroc"] = metrics.roc_score(yt, yp)
-        perfs["aupr"] = metrics.pr_score(yt, yp)
+        perfs["auroc"]  = metrics.roc_score(yt, yp)
+        perfs["aupr"]   = metrics.pr_score(yt, yp)
         perfs["bedroc"] = metrics.bedroc_score(yt, yp)
+        perfs["y_true"] = yt
+        perfs["y_pred"] = yp
         return perfs
 
-    def prepare_data(self, data, standardize, use_checkpoints):
+    def prepare_data(self, data):
         # Read data
-        data = self.load_data(data, standardize, use_checkpoints)
-        # Convert activity data to integer
-        data = [[d[0]] + [int(d[1])] + list(d[2:]) for d in data]
+        data = self.read_data(data)
         # Save training data
         self.save_data(data)
-        # Sample inactives, if necessariy
-        if self.inactives_per_active:
-            self.__log.info("Sampling putative inactives")
-        actives = set([(d[-2], d[0], d[-1]) for d in data if d[1] == 1])
-        inactives = set([(d[-2], d[0], d[-1]) for d in data if d[1] == -1])
+        # Sample inactives, if necessary
+        actives   = set()
+        inactives = set()
+        for d in data:
+            if d.activity == self.active_value:
+                actives.update([(d.smiles, d.idx, d.inchikey)])
+            else:
+                if not self.inactive_value:
+                    inactives.update([(d.smiles, d.idx, d.inchikey)])
+                else:
+                    if d.activity == self.inactive_value:
+                        inactives.update([(d.smiles, d.idx, d.inchikey)])
         act, inact, putinact = self.universe.predict(actives, inactives,
                                                      inactives_per_active=self.inactives_per_active,
                                                      min_actives=self.min_class_size,
@@ -552,35 +631,26 @@ class TargetMateClassifierSetup(TargetMateSetup):
                         (len(act), len(inact), len(putinact)))
         self.__log.debug("Assembling and shuffling")
         data = self._reassemble_activity_sets(act, inact, putinact)
-        random.shuffle(data)
+        data.shuffle()
         return data
 
     def prepare_for_ml(self, data):
-        self.__log.debug("Prepare for machine learning")
-        y = np.array([d[1] for d in data])
-        # Consider putative inactives as inactives (i.e. set -1 to 0)
-        self.__log.debug(
-            "Considering putative inactives as inactives for training")
-        y[y <= 0] = 0
-        molecules = np.array([(d[-2], d[-1]) for d in data])
-        smiles = np.array([m[0] for m in molecules])
+        """Prepare data for ML, i.e. convert to 1/0 and check that there are enough samples for training"""
+        self.__log.debug("Prepare for machine learning (converting to 1/0")
+        # Consider putative inactives as inactives (e.g. set -1 to 0)
+        self.__log.debug("Considering putative inactives as inactives for training")
+        data.activity[data.activity <= 0] = 0   
         # Check that there are enough molecules for training.
-        self.ny = np.sum(y)
-        if self.ny < self.min_class_size or (len(y) - self.ny) < self.min_class_size:
+        self.ny = np.sum(data.activity)
+        if self.ny < self.min_class_size or (len(data.activity) - self.ny) < self.min_class_size:
             self.__log.warning(
                 "Not enough valid molecules in the minority class..." +
                 "Just keeping training data")
             self._is_fitted = True
             self.save()
             return
-        self.__log.info("Actives %d / Merged inactives %d" % (self.ny, len(y) - self.ny))
-        # Results
-        results ={
-            "y": y,
-            "molecules": molecules,
-            "smiles": smiles
-        }
-        return results
+        self.__log.info("Actives %d / Merged inactives %d" % (self.ny, len(data.activity) - self.ny))
+        return data
 
     def fitter(self, X, y, destination_dir=None, is_cv=False, pipe=None, n_jobs=None):
         """Fit a model.
@@ -630,16 +700,16 @@ class TargetMateClassifierSetup(TargetMateSetup):
             mod(model): Predictive model.
             X(array): Signatures.
         """
-        return [p[1] for p in mod.predict_proba(X_train)]
+        return [p[1] for p in mod.predict_proba(X)]
 
     def kfolder(self):
         """Cross-validation splits strategy"""
-        return StratifiedKFold(n_splits=np.min([self.cv, self.ny]),
+        return StratifiedKFold(n_splits=int(np.min([self.cv, self.ny])),
                                shuffle=True, random_state=42)
 
 
 @logged
-class TargetMateRegressionSetup(TargetMateSetup):
+class TargetMateRegressor(TargetMateSetup):
     """Set up a TargetMate classifier"""
 
     def __init__(self, base_mod = "", metric = ""):
@@ -662,20 +732,20 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
         """TargetMate ensemble classifier
         
         Args:
-            predictor_func(fun): Predictor function (can be passed from a classifier or from a regressor).
-        
+            is_classifier(bool): Determine if the ensemble class will we bo classifier type or regressor.
         """
         if is_classifier:
-            TargetMateClassifierSetup.__init__(**kwargs)
+            TargetMateClassifier.__init__(self, **kwargs)
         else:
-            TargetMateRegressorSetup.__init__(**kwargs)
-        Signaturizer.__init__(**kwargs)
+            TargetMateRegressorSetup.__init__(self, **kwargs)
+        Signaturizer.__init__(self, **kwargs)
         self.ensemble = []
 
-    def fit_ensemble(self, y):
-        self.__log.info("HPC fit of individual models (full data)")
+    def fit_ensemble(self, data):
+        y = data.activity
+        self.__log.info("Fitting individual models (full data)")
         jobs  = []
-        for i, X in enumerate(self.read_signatures_ensemble(self, datasets=self.datasets)):
+        for i, X in enumerate(self.read_signatures_ensemble(datasets=self.datasets)):
             dest = os.path.join(self.bases_models_path, self.datasets[i])
             self.ensemble += [(self.datasets[i], dest)]
             if self.hpc:
@@ -688,7 +758,8 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
         for ds, dest in self.ensemble:
             yield self.load_base_model(dest)
 
-    def cross_validation(self, y):
+    def cross_validation(self, data):
+        y = data.activity
         self.__log.debug("Initializing cross-validation scheme")
         # Initialize cross-validation generator
         kf = self.kfolder()
@@ -697,22 +768,22 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
         fold = 0
         jobs = []
         iter_info = []    
-        for train_idx, test_idx in kf.split(self.smiles, y):
-            self.__log.debug("CV fold %02d" % fold)
+        for train_idx, test_idx in kf.split(data.smiles, y):
+            self.__log.debug("CV fold %02d" % (fold+1))
             iter_info_ = []
             for i, dataset in enumerate(self.datasets):
                 dest = os.path.join(self.bases_tmp_path, "%s-%d" % (self.datasets[i], fold))
-                X_train = self.read_signature(dataset, train_idx, is_tmp=False)
+                X_train = self.read_signature(dataset, train_idx)
                 y_train = y[train_idx]
                 if self.hpc:
                     jobs += [self.func_hpc("fitter", X_train, y_train, dest, True, self.pipes[i], cpu=self.n_jobs_hpc)]
                 else:
-                    self.fitter(X_train, y_train, dest, is_cv=True, self.pipes[i])
+                    self.fitter(X_train, y_train, dest, is_cv=True, pipe=self.pipes[i], n_jobs=None)
                 iter_info_ += [(dataset, dest)]
             iter_info += [{"fold": fold,
                            "train_idx": train_idx,
                            "test_idx": test_idx,
-                           "iter_info_": iter_info_)]
+                           "iter_info_": iter_info_}]
             fold += 1
         self.waiter(jobs)
         self.__log.debug("Making predictions over the cross-validation models")
@@ -727,13 +798,13 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
             test_idx  = info["test_idx"]
             for dataset, dest in info["iter_info_"]:
                 mod = self.load_base_model(dest)
-                X_train = self.read_signature(dataset, train_idx, is_tmp=False)
-                X_test  = self.read_signature(dataset, test_idx,  is_tmp=False)
+                X_train = self.read_signature(dataset, train_idx)
+                X_test  = self.read_signature(dataset, test_idx)
                 yps_train[dataset] += self.predictor(mod, X_train)
                 yps_test[dataset]  += self.predictor(mod, X_test)
             yts_train += list(y[train_idx])
             yts_test  += list(y[test_idx])
-            smi_test  += list(self.smiles[test_idx])
+            smi_test  += list(data.smiles[test_idx])
         results = {
             "yps_train": yps_train,
             "yps_test": yps_test,
@@ -742,6 +813,33 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
             "smi_test": smi_test
         }
         return results
+
+    def metapredict(self, yp_dict, perfs, datasets=None):
+        """Do meta-prediction based on dataset-specific predictions.
+        Weights are given according to the performance of the individual
+        predictors.
+        Standard deviation across predictions is kept to estimate
+        applicability domain.
+        """
+        if datasets is None:
+            datasets = set(self.datasets)
+        else:
+            datasets = set(self.datasets).intersection(datasets)
+        M = []
+        w = []
+        for dataset in datasets:
+            w += [perfs[dataset]["perf_test"]
+                 [self.metric][1]]  # Get the weight
+            M += [yp_dict[dataset]]
+        M = np.array(M)
+        w = np.array(w)
+        prds = []
+        stds = []
+        for j in range(0, M.shape[1]):
+            avg, std = self.avg_and_std(M[:, j], w)
+            prds += [avg]
+            stds += [std]
+        return np.clip(prds, 0.001, 0.999), np.clip(stds, 0.001, None)
 
     def individual_performances(self, cv_results):
         yts_train = cv_results["yts_train"]
@@ -760,18 +858,22 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
         return perfs
 
     def all_performances(self, cv_results):
-        yps_train = cv_results["yps_train"]
+        """Get all performances, and do a meta-prediction.
+
+        Returns:
+            A results dictionary 
+        """
         perfs = self.individual_performances(cv_results)
         # Meta-predictor on train and test data
         self.__log.info("Meta-predictions on train and test data")
         self.__log.debug("Assembling for train set")
-        mps_train, std_train = self.metapredict(yps_train, perfs)
+        mps_train, std_train = self.metapredict(cv_results["yps_train"], perfs)
         self.__log.debug("Assembling for test set")
-        mps_test, std_test = self.metapredict(yps_test, perfs)
+        mps_test, std_test = self.metapredict(cv_results["yps_test"], perfs)
         # Assess meta-predictor performance
         self.__log.debug("Assessing meta-predictor performance")
-        ptrain = self.performances(yts_train, mps_train)
-        ptest = self.performances(yts_test, mps_test)
+        ptrain = self.performances(cv_results["yts_train"], mps_train)
+        ptest  = self.performances(cv_results["yts_test"], mps_test)
         perfs["MetaPred"] = {"perf_train": ptrain, "perf_test": ptest}
         results = {
             "perfs": perfs,
@@ -780,15 +882,46 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
             "mps_test": mps_test,
             "std_test": std_test
         }
+        self.save_performances(perfs)
         return results                
 
+    def fit(self, data):
+        # Use models folder
+        self.is_tmp = False
+        # Read data
+        data = self.prepare_data(data)
+        # Prepare data for machine learning
+        data = self.prepare_for_ml(data)
+        if not data: return
+        # Signaturize
+        self.signaturize(data.smiles)
+        # Fit the global classifier
+        clf_ensemble = self.fit_ensemble(data)
+        # Cross-validation
+        cv_results = self.cross_validation(data)
+        # Get performances
+        ap_results = self.all_performances(cv_results)
+        # 
+        return
+        # Finish
+        self._is_fitted = True
+        self._is_trained = True
+        # Save the class
+        self.__log.debug("Saving TargetMate instance")
+        self.save()
 
-
-
+    def predict(self, data):
+        # Use temporary folder
+        self.is_tmp = True
 
 
 @logged
-class TargetMateStackedClassifier(TargetMateClassifierSetup):
+class TargetMateStackedClassifier(TargetMateClassifier, Signaturizer):
+    pass
+
+
+@logged
+class TargetMateStackedRegressor(TargetMateRegressor, Signaturizer):
     pass
 
 
@@ -798,41 +931,13 @@ class TargetMateEnsembleClassifier(TargetMateEnsemble):
 
     def __init__(self, **kwargs):
         """TargetMate ensemble classifier"""
-        TargetMateEnsemble.__init__(is_classifier=True, **kwargs)
+        TargetMateEnsemble.__init__(self, is_classifier=True, **kwargs)
 
     def plot(self):
         """Plot model statistics"""
         perfs   = self.load_performances()
         ad_data = self.load_ad_data()
-        plots.ensemble_classifier_grid(perfs, ad_data)
-
-    def fit(self, data, use_checkpoints=False):
-        # Read data
-        data = self.prepare_data(use_checkpoints)
-        # Prepare data for machine learning
-        data_ml = self.prepare_for_ml(data)
-        if not data_ml: return
-        # Signaturize
-        self.signaturize(data)
-        # Fit the global classifier
-        clf_ensemble = self.fit_ensemble()
-        # Cross-validation
-        cv_results = self.cross_validation()
-        # Get performances
-        ap_results = self.all_performances(cv_results)
-        # 
-
-        # Finish
-        self._is_fitted = True
-        self._is_trained = True
-        # Save the class
-        self.__log.debug("Saving TargetMate instance")
-        self.save()
-
-
-
-    def predict(self):
-        pass
+        plots.ensemble_classifier_plots(perfs, ad_data)
 
 
 @logged
@@ -840,7 +945,7 @@ class TargetMateEnsembleRegressor(TargetMateEnsemble):
     """TargetMate ensemble regressor"""
     
     def __init__(self, **kwargs):
-        TargetMateEnsemble.__init__(is_classifier=False, **kwargs)
+        TargetMateEnsemble.__init__(self, is_classifier=False, **kwargs)
 
     def plot(self):
         """Plot model statistics"""
