@@ -1800,3 +1800,28 @@ class Plot():
                                 "%s_sign3_conf_scores.png" % sign3.dataset[:2])
         plt.savefig(filename, dpi=100)
         plt.close()
+
+    def projection_gaussian_kde(self, x, y, limit=None, **kwargs):
+
+        def quick_gaussian_kde(x, y, limit):
+            xl = x[:limit]
+            yl = y[:limit]
+            xy = np.vstack([xl, yl])
+            c = gaussian_kde(xy)(xy)
+            order = c.argsort()
+            return xl, yl, c, order
+
+        if limit is None:
+            limit = len(x)
+
+        sns.set_style("whitegrid")
+        fig = plt.figure(figsize=(5, 5))
+        ax = fig.add_subplot(111)
+        x, y, c, order = quick_gaussian_kde(x, y, limit)
+        ax.scatter(x[order], y[order], c=c[order], **kwargs)
+        ax.set_ylabel('')
+        ax.set_xlabel('')
+        filename = os.path.join(self.plot_path,
+                                "plot2d_gaussian_kde.png")
+        plt.savefig(filename, dpi=100)
+        plt.close()
