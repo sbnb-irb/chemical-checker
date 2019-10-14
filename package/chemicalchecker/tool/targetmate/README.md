@@ -6,6 +6,20 @@ TargetMate contains functionalities to do **supervised machine learning** with t
 | Classifcation | 
 | Regression | ::tick:: |
 
+## Step followed by TargetMate
+
+### Fitting time
+
+1. Identify a good pipeline through the use of CV grid search or TPOT.
+   - Full data.
+2. Cross-conformal prediction
+   - 
+3. 
+
+
+### 
+
+
 1. A stacked classifier based 
 
 1. An ensemble-based classifier based on Chemical Checker signatures.
