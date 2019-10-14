@@ -1,6 +1,6 @@
 import numpy as np
 
-ClassifierConfigs = {
+tpot_configs = {
 
     # Naive Bayes
     "naive_bayes" = {
@@ -145,3 +145,34 @@ ClassifierConfigs = {
     }
 
 }
+
+class TPOTClassifierConfigs:
+
+    def __init__(self, base_mod, **kwargs):
+        from tpot import TPOTClassifier
+        self.base_mod = TPOTClassifier(
+            config_dict=tpot_configs[base_mod],
+            generations=10,
+            population_size=30,
+            cv=self.cv,
+            scoring="balanced_accuracy",
+            verbosity=2,
+            n_jobs=n_jobs,
+            max_time_mins=5,
+            max_eval_time_mins=0.5,
+            random_state=42,
+            early_stop=3,
+            disable_update_check=True
+        
+    def as_pipeline(self, X, y, **kwargs):
+        """Select a pipeline, typically using hyper-parameter optimization methods e.g. TPOT.
+        
+        Args:
+            X(array): Signatures matrix.
+            y(array): Labels vector.
+        """
+        shuff = np.array(range(len(y)))
+        random.shuffle(shuff)
+        mod = clone(self.base_mod)
+        mod.fit(X[shuff], y[shuff])
+        return mod.fitted_pipeline_
