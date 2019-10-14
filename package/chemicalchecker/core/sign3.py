@@ -941,7 +941,8 @@ class sign3(BaseSignature, DataSignature):
                 (corr_mask, np.mean(correlations), np.std(correlations)))
             self.__log.debug('Distribution N(%.2f,%.2f)' % (dist_pars[-1][1:]))
         # get mol indexes where to apply the different transformations
-        full_coverage = DataSignature(sign2_coverage)[:].astype(bool)
+        full_coverage = DataSignature(sign2_coverage).get_h5_dataset(
+            'x_test').astype(bool)
         confidence_raw = self.get_h5_dataset('confidence_raw')
         done = np.full(full_coverage.shape[0], False)
         confidence = list()
