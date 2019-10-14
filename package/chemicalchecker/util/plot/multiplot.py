@@ -1316,7 +1316,6 @@ class MultiPlot():
                 sns.distplot(s3_data_conf, color=self.cc_palette([ds])[0],
                              kde=False, norm_hist=False, ax=ax)
             ax.set_yscale('log')
-            ax.set_xscale('log')
             ax.grid(axis='y', linestyle="-",
                     color=self.cc_palette([ds])[0], lw=0.3)
             ax.grid(axis='x', linestyle="-",
@@ -1796,5 +1795,48 @@ class MultiPlot():
             outfile = os.path.join(self.plot_path,
                                    'sign3_confidence_summary.png')
             plt.savefig(outfile, dpi=200)
+        plt.savefig(outfile, dpi=200)
+        plt.close('all')
+
+    def sign3_novel_confidence_distribution(self):
+
+        sns.set_style("whitegrid")
+        f, axes = plt.subplots(5, 5, figsize=(9, 9), sharex=True, sharey=True)
+
+        for ds, ax in zip(self.datasets, axes.flat):
+            try:
+                s3 = self.cc.get_signature('sign3', 'full', ds)
+            except Exception:
+                continue
+            if not os.path.isfile(s3.data_path):
+                continue
+            # get novelty and confidence
+            #nov = s3.get_h5_dataset('novelty')
+            out = s3.get_h5_dataset('outlier')
+            conf = s3.get_h5_dataset('confidence')
+            # get really novel molecules
+            # min_known = min(nov[out == 0])
+            nov_confs = conf[out == -1]
+            print(ds, len(nov_confs))
+            sns.distplot(nov_confs, color=self.cc_palette([ds])[0],
+                         kde=False, norm_hist=False, ax=ax, bins=20,
+                         hist_kws={'range': (0, 1)})
+            ax.set_xlim(0, 1)
+            ax.set_yscale('log')
+            ax.grid(axis='y', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.grid(axis='x', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
+            ax.spines["top"].set_color(self.cc_palette([ds])[0])
+            ax.spines["right"].set_color(self.cc_palette([ds])[0])
+            ax.spines["left"].set_color(self.cc_palette([ds])[0])
+            ax.text(0.05, 0.85, "%i" % len(nov_confs),
+                    transform=ax.transAxes, size=8)
+        f.text(0.5, 0.04, 'Confidence', ha='center', va='center')
+        f.text(0.06, 0.5, 'Novel Molecules', ha='center',
+               va='center', rotation='vertical')
+        outfile = os.path.join(
+            self.plot_path, 'sign3_novel_confidence_distribution.png')
         plt.savefig(outfile, dpi=200)
         plt.close('all')
