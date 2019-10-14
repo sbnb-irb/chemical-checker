@@ -288,17 +288,20 @@ class Fingerprinter(TargetMateSetup):
 
     def featurize(self, smiles, **kwargs):
         """Calculate fingerprints"""
-        destination_dir = os.path.join(self.models_path, self.dataset)
+        if self.is_tmp:
+            destination_dir = os.path.join(self.tmp_path, self.dataset)
+        else:
+            destination_dir = os.path.join(self.models_path, self.dataset)
         V = self.featurizer(smiles)
         with h5.File(destination_dir, "wb") as hf:
             hf.create_dataset("V", data = V.astype(np.int8))
             hf.create_dataset("keys", data = np.array(smiles, DataSignature.string_dtype()))
     
-    def read_fingerprint(self, idxs=None, fp_file=None, is_tmp=False):
+    def read_fingerprint(self, idxs=None, fp_file=None):
         """Read a signature from an HDF5 file"""
         # Identify HDF5 file
         if not fp_file:
-            if is_tmp:
+            if self.is_tmp:
                 h5file = os.path.join(self.tmp_path, self.dataset)
             else:
                 h5file = os.path.join(self.models_path, self.dataset)
@@ -406,7 +409,126 @@ class Signaturizer(TargetMateSetup):
         return np.hstack(V)
 
 
-class ApplicabilityDomain(TargetMateSetup):
+@logged
+class ApplicabilityDomain(Fingerprinter):
+    """Applicability domain functionalities, inspired by conformal prediction methods.
+    It uses an approximation of nearest-neighbor search.
+    """
+
+    def __init__(self,
+                 k=5,
+                 min_sim=0.25,
+                 **kwargs):
+        """Applicability domain parameters.
+        
+        Args:
+            k(int): Number of molecules to look across when doing the
+                applicability domain (default=5).
+            min_sim(float): Minimum similarity to consider in
+                the applicability domain determination (default=0.25).
+        """
+        # Inherit from TargetMateSetup
+        Fingerprinter.__init__(self, **kwargs)       
+        # K-neighbors to search during the applicability domain calculation
+        self.k = k
+        # Minimum chemical similarity to consider
+        self.min_sim = min_sim
+        # 
+        self.
+        
+    def indexing(self, X):
+        """Do the indexing for the search"""
+        # We search k+1 to be able to work with 'training' matrix.
+        indexer = LHSForest(n_neighbors=self.k+1, random_state=42)
+        indexer.fit(X)
+        if self.is_tmp:
+            destination_dir = os.path.join(self.tmp_path, "indexer.pkl")
+        else:
+            destination_dir = os.path.join(self.models_path, "indexer.pkl")
+        joblib.dump(indexer, destination_dir)
+
+    def search(self, X, is_prd):
+        """Do the search"""
+        if self.is_tmp:
+            destination_dir = os.path.join(self.tmp_path, "indexer.pkl")
+        else:
+            destination_dir = os.path.join(self.models_path, "indexer.pkl")
+        indexer = joblib.load(destination_dir)
+        if is_prd:
+            k = self.k
+        else:
+            k = self.k+1
+        dists, idxs = indexer.kneighbors(X, n_neighbors=k)
+        if not self.is_prd:
+            dists = dists[:,1:]
+            idxs  = idxs[:,1:]
+        # convert cosine distance to a similarity measure
+        sims = (2. - dists) / 2.
+        return sims, idxs
+
+    @staticmethod
+    def calculate_bias(yt, yp):
+        """Calculate the bias of the QSAR model
+        
+        Args:
+            yt(array): True values.
+            yp(array): Predicted values.
+        """
+        return np.array([np.abs(t - p) for t, p in zip(yt, yp)])
+
+    @staticmethod
+    def calculate_weights(idxs, sims, bias, stds):
+        """Calculate weights using adaptation of Aniceto et al 2016.
+        
+        We scale standard deviations and biases from 0 to 1.
+        
+        """
+        weights = np.zeros(idxs.shape[0])
+        for i, idxs_ in enumerate(idxs):
+            
+
+    def calculate_weights(self, query_smi, target_fps, stds, bias, N=None):
+        """Calculate weights using adaptation of Aniceto et al 2016."""
+        self.__log.debug("Finding nearest neighbors")
+        sims, idxs = self.knearest_search(query_smi, target_fps, N)
+        self.__log.debug("Calculating weights from std and bias")
+        weights = []
+        for i, idxs_ in enumerate(idxs):
+            ws = sims[i] / (stds[idxs_] * bias[idxs_])
+            weights += [np.max(ws)]
+        # TO-DO: Do we want to use a weight scaler here?
+        return np.array(weights)
+
+
+
+
+    def fit(self, smiles):
+        """Generate an applicability domain neighbors.
+        
+        Args:
+            smiles(list): List of SMILES strings.
+        """
+        self.is_tmp=False
+        self.__log.debug("Calculating fingerprints")
+        self.featurize(smiles)
+        X = self.read_fingerprint()
+        self.__log.debug("Indexing fingerprints for fast search")
+        self.indexing(X)
+        self.__log.debug("Searching similarities")
+        sims, idxs = self.search(X, is_prd=False)
+
+
+    def predict(self, smiles):
+        self.is_tmp=True
+        self.__log.debug("Calculating fingerprints")
+        self.featurize(smiles)
+        X = self.read_fingerprint()
+        self.__log.debug("Searching similarities")
+        sims, idxs = self.search(X, is_prd=True)
+       
+
+
+class ApplicabilityDomainOld(TargetMateSetup):
     """Applicability domain functionalities, inspired by conformal prediction methods"""
 
     def __init__(self,
@@ -926,7 +1048,7 @@ class TargetMateStackedRegressor(TargetMateRegressor, Signaturizer):
 
 
 @logged
-class TargetMateEnsembleClassifier(TargetMateEnsemble):
+class TargetMateEnsembleClassifier(TargetMateEnsemble, ApplicabilityDomain):
     """TargetMate ensemble classifier"""
 
     def __init__(self, **kwargs):
