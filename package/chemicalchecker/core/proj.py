@@ -145,6 +145,9 @@ class proj(BaseSignature, DataSignature):
                 **kwargs)
         elif kind == 'largevis':
             plot.projection_plot(proj_data, **kwargs)
+        elif kind == 'gaussian_kde':
+            plot.projection_gaussian_kde(
+                proj_data[:, 0], proj_data[:, 1], **kwargs)
 
     def plot_over(self, data, name, kind='shaded', **kwargs):
         """Load projected data and plot it."""
