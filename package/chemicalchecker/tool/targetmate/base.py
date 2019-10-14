@@ -408,9 +408,35 @@ class Signaturizer(TargetMateSetup):
             V += [self.read_signature(ds, **kwargs)]
         return np.hstack(V)
 
+@logged
+class ConformityClassification():
+    """ """
+
+    def __init__(self, confidence_level=0.8, **kwargs):
+        """Conformity for classification
+        
+        Args:
+            confidence_level(float): In classification tasks, the set of predicted classes for new instances will contain the true 
+                label in at least 80% of the cases (default=0.8).
+
+        """
+
+    def 
+
 
 @logged
-class ApplicabilityDomain(Fingerprinter):
+class Conformity(ConformityClassification, ConformityRegression):
+
+    def __init__(self, is_classifier, **kwargs):
+
+        if is_classifier:
+            ConformityClassification.__init__(self, **kwargs)
+        else:
+            ConformityRegression.__init__(self, **kwargs)
+
+
+@logged
+class ApplicabilityDomain(Fingerprinter, Conformity):
     """Applicability domain functionalities, inspired by conformal prediction methods.
     It uses an approximation of nearest-neighbor search.
     """
@@ -426,6 +452,7 @@ class ApplicabilityDomain(Fingerprinter):
                 applicability domain (default=5).
             min_sim(float): Minimum similarity to consider in
                 the applicability domain determination (default=0.25).
+            confidence_level(float)
         """
         # Inherit from TargetMateSetup
         Fingerprinter.__init__(self, **kwargs)       
