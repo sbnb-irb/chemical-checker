@@ -3,14 +3,12 @@ from sklearn import metrics
 
 ALPHA = 1e-6
 
-
 def roc_score(y_true, y_pred):
     y_true = list(y_true)
     y_pred = list(y_pred)
     score = metrics.roc_auc_score(y_true, y_pred)
     weight = (max(score, 0.5) - 0.5) / (1. - 0.5)
     return score, weight + ALPHA
-
 
 def pr_score(y_true, y_pred):
     y_true = list(y_true)
@@ -19,7 +17,6 @@ def pr_score(y_true, y_pred):
     score = metrics.auc(rec, prec)
     weight = (score - 0.) / (1. - 0.)
     return score, weight + ALPHA
-
 
 def bedroc_score(y_true, y_pred, alpha=20.0):
     y_true = np.array(y_true)
@@ -38,8 +35,7 @@ def bedroc_score(y_true, y_pred, alpha=20.0):
     weight = (score - 0.) / (1. - 0.)
     return score, weight + ALPHA
 
-
-def performances(yt, yp):
+def classifier_performances(yt, yp):
     """Calculate standard prediction performance metrics.
     In addition, it calculates the corresponding weights.
     For the moment, AUPR and AUROC are used.
@@ -50,10 +46,14 @@ def performances(yt, yp):
     perfs = {}
     yt = list(yt)
     yp = list(yp)
-    perfs["auroc"]  = roc_score(yt, yp)
-    perfs["aupr"]   = pr_score(yt, yp)
-    perfs["bedroc"] = bedroc_score(yt, yp)
-    perfs["y_true"] = [int(y) for y in yt]
-    perfs["y_pred"] = [float(y) for y in yp]
+    perfs["auroc"]  = metrics.roc_score(yt, yp)
+    perfs["aupr"]   = metrics.pr_score(yt, yp)
+    perfs["bedroc"] = metrics.bedroc_score(yt, yp)
+    perfs["y_true"] = yt
+    perfs["y_pred"] = yp
     return perfs
+
+def regressor_performances(yt, yp):
+    """"""
+    pass
 

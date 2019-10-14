@@ -433,42 +433,30 @@ class TargetMateClassifier(TargetMateSetup):
         """
         # Inherit from TargetMateSetup
         TargetMateSetup.__init__(self, **kwargs)
-        # Set the base classifier
-        if type(base_mod) == str:
-            if base_mod == "logistic_regression":
-                from sklearn.linear_model import LogisticRegressionCV
-                self.base_mod = LogisticRegressionCV(
-                    cv=3, class_weight="balanced", max_iter=1000,
-                    n_jobs=self.n_jobs)
-            if base_mod == "random_forest":
-                from sklearn.ensemble import RandomForestClassifier
-                self.base_mod = RandomForestClassifier(
-                    n_estimators=100, class_weight="balanced", n_jobs=self.n_jobs)
-            if base_mod == "naive_bayes":
-                from sklearn.naive_bayes import GaussianNB
-                self.base_mod = Pipeline(
-                    [('feature_selection', VarianceThreshold()),
-                     ('classify', GaussianNB())])
-            if base_mod == "tpot":
-                from tpot import TPOTClassifier
-                from models import tpotconfigs
-                self.base_mod = TPOTClassifier(
-                    config_dict=tpotconfigs.minimal,
-                    generations=10, population_size=30,
-                    cv=3, scoring="balanced_accuracy",
-                    verbosity=2, n_jobs=self.n_jobs,
-                    max_time_mins=5, max_eval_time_mins=0.5,
-                    random_state=42,
-                    early_stop=3,
-                    disable_update_check=True
-                )
-                self._is_tpot = True
-            else:
-                self._is_tpot = False
-        else:
-            self.base_mod = base_mod
         # Cross-validation folds
         self.cv = cv
+        # Determine number of jobs
+        if self.hpc:
+            n_jobs = self.n_jobs_hpc
+        else:
+            n_jobs = self.n_jobs
+        # Set the base classifier
+        from tpot import TPOTClassifier
+        from models import ClassifierConfigs
+        self.base_mod = TPOTClassifier(
+            config_dict=ClassifierConfigs[base_mod],
+            generations=10,
+            population_size=30,
+            cv=self.cv,
+            scoring="balanced_accuracy",
+            verbosity=2,
+            n_jobs=n_jobs,
+            max_time_mins=5,
+            max_eval_time_mins=0.5,
+            random_state=42,
+            early_stop=3,
+            disable_update_check=True
+        )
         # Minimum size of the minority class
         self.min_class_size = min_class_size
         # Active value
@@ -483,6 +471,8 @@ class TargetMateClassifier(TargetMateSetup):
         self.universe = Universe.load_universe(universe_path)
         # naive_sampling
         self.naive_sampling = naive_sampling
+        # Others
+        self.pipe = None
 
     def _reassemble_activity_sets(self, act, inact, putinact):
         self.__log.info("Reassembling activities. Convention: 1 = Active, -1 = Inactive, 0 = Sampled")
@@ -495,25 +485,6 @@ class TargetMateClassifier(TargetMateSetup):
         for i, x in enumerate(list(putinact)):
             data += [(i + n, 0, x[0], x[-1])]
         return InputData(data)
-
-    @staticmethod
-    def performances(yt, yp):
-        """Calculate standard prediction performance metrics.
-        In addition, it calculates the corresponding weights.
-        For the moment, AUPR and AUROC are used.
-        Args:
-            yt(list): Truth data (binary).
-            yp(list): Prediction scores (probabilities).
-        """
-        perfs = {}
-        yt = list(yt)
-        yp = list(yp)
-        perfs["auroc"]  = metrics.roc_score(yt, yp)
-        perfs["aupr"]   = metrics.pr_score(yt, yp)
-        perfs["bedroc"] = metrics.bedroc_score(yt, yp)
-        perfs["y_true"] = yt
-        perfs["y_pred"] = yp
-        return perfs
 
     def prepare_data(self, data):
         # Read data
@@ -561,41 +532,44 @@ class TargetMateClassifier(TargetMateSetup):
         self.__log.info("Actives %d / Merged inactives %d" % (self.ny, len(data.activity) - self.ny))
         return data
 
-    def fitter(self, X, y, destination_dir=None, is_cv=False, pipe=None, n_jobs=None):
-        """Fit a model.
+    def select_pipeline(self, X, y, destination_dir):
+        """Select a pipeline, typically using hyper-parameter optimization methods e.g. TPOT.
+        
+        Args:
+            X(array): Signatures matrix.
+            y(array): Labels vector.
+
+        """
+        shuff = np.array(range(len(y)))
+        random.shuffle(shuff)
+        mod = clone(self.base_mod)
+        mod.fit(X[shuff], y[shuff])
+        pipe = mod.fitted_pipeline_
+        with open(destination_dir, "wb") as f:
+            pickle.dump(pipe, f)
+        self.pipe = destination_dir
+
+    def fitter(self, X, y, destination_dir=None):
+        """Fit a model, using a specified pipeline.
         
         Args:
             X(array): Signatures matrix.
             y(array): Labels vector.
             destination_dir(str): File where to store the model.
                 If not specified, the model is returned in memory (default=None).
-            is_cv(bool): Is the fit part of a cross-validation regime.
-                This affect the usage of pre-identified pipelines, for example, with TPOT (default=False).
-            pipe(ML pipeline): A machine-learning pipeline.
             n_jobs(int): If jobs are specified, the number of CPUs per model are overwritten.
                 This is relevant when sending jobs to the cluster (default=None).
         """
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)
-        if not is_cv:  
-            mod = clone(self.base_mod)
-            if n_jobs: mod.n_jobs = n_jobs
-            mod.fit(X[shuff], y[shuff])
-            if self._is_tpot:
-                self.pipes += [mod.fitted_pipeline_]
-                mod = self.pipes[-1]
-                if n_jobs: mod.n_jobs = n_jobs
-                mod = mod.fit(X[shuff], y[shuff])
-            else:
-                self.pipes += [None]
-        else:
-            if not pipe:
-                mod = clone(self.base_mod)
-            else:
-                mod = pipe
-            if n_jobs: mod.n_jobs = n_jobs
-            mod.fit(X, y)
-        mod.n_jobs = self.n_jobs
+        if self.pipe:
+        # Load the pipeline
+        with open(self.pipe, "rb") as f:
+            mod = pickle.load(f)
+        # Fit the model
+        mod.fit(X[shuff], y[shuff])
+        # Save the destination directory of the model
+        self.fitted_model = destination_dir
         if destination_dir:
             joblib.dump(mod , destination_dir)
             pickle.dump(pipe, open(destination_dir+".pipe", "wb"))
@@ -621,25 +595,16 @@ class TargetMateClassifier(TargetMateSetup):
 class TargetMateRegressor(TargetMateSetup):
     """Set up a TargetMate classifier"""
 
-    def __init__(self, base_mod = "", metric = ""):
-        # Configure the base regressor
-        self.base_mod = base_mod
-        # Metric to use
-        self.metric = metric
-
-    @staticmethod
-    def performances(yt, yp):
-        perfs = {}
-        return perfs
+    pass
 
 
 @logged
 class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer):
     """An ensemble of models
     
-    Ensemblize models in order to provide an ensemble of predictions.
+    Ensemblize models in order to have a group of predictions.
 
-    An initial step is done to select a pipeline.
+    An initial step is done to select a pipeline for each dataset.
     """
 
     def __init__(self, is_classifier, **kwargs):
@@ -671,9 +636,8 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
             if self.hpc:
                 jobs += [self.func_hpc("select_pipeline", X, y, dest, self.n_jobs_hpc, cpu=self.n_jobs_hpc)]
             else:
-                self.select_pipeline(X, y, destination_dir=dest, n_jobs)
+                self.select_pipeline(X, y, destination_dir=dest)
         self.waiter(jobs)
-
 
     def fit_ensemble(self, data):
         y = data.activity
@@ -685,7 +649,7 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
             if self.hpc:
                 jobs  += [self.func_hpc("fitter", X, y, dest, False, None, self.n_jobs_hpc, cpu=self.n_jobs_hpc)]
             else:
-                self.fitter(X, y, destination_dir=dest, is_cv=False, pipe=None, n_jobs=None)
+                self.fitter(X, y, destination_dir=dest)
         self.waiter(jobs)
 
     def ensemble_iter(self):

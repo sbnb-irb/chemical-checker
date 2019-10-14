@@ -4,7 +4,8 @@ ClassifierConfigs = {
 
     # Naive Bayes
     "naive_bayes" = {
-        'sklearn.naive_bayes.GaussianNB': {}
+        'sklearn.naive_bayes.GaussianNB': {},
+        'sklearn.feature_selection.VarianceThreshold': {}
     },
 
     # Random Forest
