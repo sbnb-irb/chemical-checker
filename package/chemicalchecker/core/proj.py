@@ -65,7 +65,7 @@ class proj(BaseSignature, DataSignature):
                 dst.create_dataset("mappings", data=src['mappings'][:],
                                    dtype=sdtype)
             src_len = src["V"].shape[0]
-            dst.create_dataset("V", (src_len, 2), dtype=np.float32)
+            dst.create_dataset("V", (src_len, n_components), dtype=np.float32)
             for i in tqdm(range(0, src_len, chunk_size), 'PRE transform'):
                 chunk = slice(i, i + chunk_size)
                 dst['V'][chunk] = preprocess_algo.transform(src['V'][chunk])
@@ -100,7 +100,7 @@ class proj(BaseSignature, DataSignature):
     def fit(self, signature, validations=True, preprocess_dims=False,
             *args, **kwargs):
         """Take an input learn a 2D representation."""
-        self.__log.info("Input shape: %s" % signature.shape)
+        self.__log.info("Input shape: %s" % str(signature.shape))
         if preprocess_dims:
             signature = self.pre_fit_transform(signature,
                                                n_components=preprocess_dims)
