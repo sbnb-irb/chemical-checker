@@ -15,7 +15,60 @@ TargetMate contains functionalities to do **supervised machine learning** with t
 predictions. Proficient base classifiers contribute more to the prediction.
 * Conformal prediction is used to evaluate the applicability domain and confidence of the prediction.
 
-For information on how to do conformat prediction, please see: https://arxiv.org/pdf/1908.03569.pdf .
+For information on how to do conformal prediction, please see: https://arxiv.org/pdf/1908.03569.pdf .
+
+Intuitively, the non-conformity measure quantifies how different a given instance is
+from those already seen during the training phase, which is quantified using a non-conformity
+score. Therefore, any metric quantifying the applicability domain of a model, e.g., the
+distance of a new instance to the training set, can be used as non-conformity measure
+
+Term Definition
+Validity Conformal Predictors are always valid provided that the randomness or
+exchangeability principles hold. In the case of regression, a Conformal
+Predictor is valid if the confidence level matches the fraction of instances
+whose true value lies within the predicted confidence region. For instance,
+at a confidence level of 80%, the confidence intervals would contain the
+true value in at least 80% of the cases. In classification tasks, Conformal
+Predictors are valid in that the set of predicted classes for new instances
+will contain the true label in at least 80% of the cases.
+Efficiency In regression, the efficiency of a CP refers to the average size of the
+predicted confidence intervals. The tighter the intervals the more efficient a
+conformal predictor is. In the case of classification, efficiency refers to the
+fraction of single-class predictions that are correct.
+Confidence
+level (CL)
+The confidence level is defined by the modeler and refers to the minimum
+fraction of predictions whose true value will lie within the predicted
+confidence region, in the case of regression, and the fraction of instances
+whose true class will be among the set of predicted classes.
+Error rate The error rate refers to the fraction of instances whose true value lies
+outside the predicted confidence regions. If a CP is well-calibrated, the
+error rate should not be larger than 1-CL (see also Figure 1).
+Nonconformity
+measure
+Function used to evaluate the relatedness or conformity of new instances
+to those used for model training.
+
+## Mondrian conformal prediction (MCP)
+
+In MCP each class (e.g., active and inactive) is treated separately, and the confidence in the
+assignment of a given instance to the classes considered is evaluated independently. That is, a
+list of non-conformity scores is generated for each class using the predictions for the calibration
+set (Figure 4). Thus, in a binary classification setting a compound might be classified as “active”,
+“inactive”, both active and inactive (class “both”), or not assigned to either of them (class “null”
+or “empty”).
+
+1. Choosing a non-conformity measure to evaluate the non-conformity between the training
+and the test instances;
+2. Training the machine learning model of choice, and evaluate the non-conformity values
+for the training examples;
+3. Applying the trained model to the test or external set instances;
+4. For each test set instance, evaluating its non-conformity with respect to the training data
+using the same non-conformity measure used in step 1: the higher the conformity of the
+new instance, the higher the reliability of the prediction;
+5. Identifying reliable predictions given the user-defined significance and confidence levels;
+and
+6. Evaluating the validity and efficiency of the generated Conformal Predictor.
 
 ### Create a hierarchy of ChEMBL assays
 
