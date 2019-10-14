@@ -15,6 +15,8 @@ TargetMate contains functionalities to do **supervised machine learning** with t
 predictions. Proficient base classifiers contribute more to the prediction.
 * Conformal prediction is used to evaluate the applicability domain and confidence of the prediction.
 
+For information on how to do conformat prediction, please see: https://arxiv.org/pdf/1908.03569.pdf .
+
 ### Create a hierarchy of ChEMBL assays
 
 First, get the ChEMBL targets of your interest. Below, we fetch targets related to bacteria, viruses and fungi.
