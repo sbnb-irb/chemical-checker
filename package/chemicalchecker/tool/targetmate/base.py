@@ -409,22 +409,57 @@ class Signaturizer(TargetMateSetup):
         return np.hstack(V)
 
 @logged
-class ConformityClassification():
+class ConformityClassification(TargetMateSetup):
     """ """
 
     def __init__(self, confidence_level=0.8, **kwargs):
-        """Conformity for classification
+        """Conformity for classification.
         
         Args:
             confidence_level(float): In classification tasks, the set of predicted classes for new instances will contain the true 
                 label in at least 80% of the cases (default=0.8).
 
         """
+        TargetMateSetup.__init__(self, **kwargs)
+        self.confidence_level = confidence_level
+        self.epsilon = 1 - confidence_level
 
-    def 
+    @staticmethod
+    def conformity_list(yt, yp, std):
+        """Calculate the bias of the QSAR model.
+        
+        Args:
+            yt(array) : True values.
+            yp(array) : Predicted values.
+            std(array): Standard deviations.
+        """
+        return np.array([np.abs(t - p)/np.exp(s) for t, p, s in zip(yt, yp, std)])
+
+
+    def mondrian_conformity(self, yt, yp):
+        """Calculate Mondrian conformity lists."""
+
+        actives_mondrian_list   = []
+        inactives_mondrian_list = []
+        for 
 
 
 @logged
+class ConformityRegression(TargetMateSetup):
+    """ """
+
+    def __init__(self, confidence_level=0.8, **kwargs):
+        """Conformity for regression.
+
+        Args:
+            confidence_level(float): In regression tasks.
+        """
+        TargetMateSetup.__init__(self, **kwargs)
+        self.confidence_level = confidence_level
+        self.epsilon = 1 - confidence_level
+
+ 
+ @logged
 class Conformity(ConformityClassification, ConformityRegression):
 
     def __init__(self, is_classifier, **kwargs):
