@@ -7,8 +7,8 @@ Aggregated conformal predictors
 # Authors: Henrik Linusson
 
 import numpy as np
-from sklearn.cross_validation import KFold, StratifiedKFold
-from sklearn.cross_validation import ShuffleSplit, StratifiedShuffleSplit
+from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn.model_selection import ShuffleSplit, StratifiedShuffleSplit
 from sklearn.base import clone
 from nonconformist.base import BaseEstimator
 from nonconformist.util import calc_p
