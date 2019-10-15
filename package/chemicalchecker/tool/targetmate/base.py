@@ -392,17 +392,20 @@ class Signaturizer(TargetMateSetup):
 
 @logged
 class TargetMateClassifier(TargetMateSetup):
-    """Set up a TargetMate classifier. It can sample negatives from a universe of molecules (e.g. ChEMBL)"""
+    """Set up a TargetMate classifier. It can sample negatives from a universe of molecules (e.g. ChEMBL)
+    
+    It does Mondrian cross-conformal prediction.
+    """
 
     def __init__(self,
                  base_mod="naive_bayes",
                  model_config="vanilla",
-                 cv=5,
+                 ccp_folds=10,
                  min_class_size=10,
                  active_value=1,
                  inactive_value=None,
                  inactives_per_active=100,
-                 metric="bedroc",
+                 metric="auroc",
                  universe_path=None,
                  naive_sampling=False,
                  **kwargs):
@@ -411,8 +414,8 @@ class TargetMateClassifier(TargetMateSetup):
         Args:
             algo(str): Base algorithm to use (see /model configuration files) (default=naive_base).
             model_config(str): Model configurations for the base classifier (default=vanilla).
-            cv(int): Number of cv folds. The default cv generator used is
-                Stratified K-Folds (default=5).
+            ccp_folds(int): Number of cross-conformal prediction folds. The default generator used is
+                Stratified K-Folds (default=10).
             min_class_size(int): Minimum class size acceptable to train the
                 classifier (default=10).
             active_value(int): When reading data, the activity value considered to be active (default=1).
@@ -420,15 +423,14 @@ class TargetMateClassifier(TargetMateSetup):
                 then any value different that active_value is considered to be inactive (default=None).
             inactives_per_active(int): Number of inactive to sample for each active.
                 If None, only experimental actives and inactives are considered (default=100).
-            metric(str): Metric to use in the meta-prediction (bedroc, auroc or aupr)
-                (default="bedroc").
+            metric(str): Metric to use to select the pipeline (default="auroc").
             universe_path(str): Path to the universe. If not specified, the default one is used (default=None).
             naive_sampling(bool): Sample naively (randomly), without using the OneClassSVM (default=False).
         """
         # Inherit from TargetMateSetup
         TargetMateSetup.__init__(self, **kwargs)
-        # Cross-validation folds
-        self.cv = cv
+        # Cross-conformal folds
+        self.ccp_folds = ccp_folds
         # Determine number of jobs
         if self.hpc:
             n_jobs = self.n_jobs_hpc
@@ -518,18 +520,19 @@ class TargetMateClassifier(TargetMateSetup):
         self.__log.info("Actives %d / Merged inactives %d" % (self.ny, len(data.activity) - self.ny))
         return data
 
-    def select_pipeline(self, X, y, destination_dir):
+    def find_base_mod(self, X, y, destination_dir):
         """Select a pipeline, for example, using TPOT."""
+        self.__log.info("Setting the base model")
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)        
-        pipe = self.base_mod.as_pipeline(X[shuff], y[shuff])
+        base_mod = self.algo.as_pipeline(X[shuff], y[shuff])
         if destination_dir:
             with open(destination_dir, "wb") as f:
-                pickle.dump(pipe, f)
-        self.pipe = destination_dir
-        return pipe
+                pickle.dump(base_mod, f)
+        self.base_mod = base_mod
+        self.base_mod_dir = destination_dir
 
-    def fitter(self, X, y, destination_dir):
+    def fit(self, X, y, destination_dir):
         """Fit a model, using a specified pipeline.
         
         Args:
@@ -542,25 +545,25 @@ class TargetMateClassifier(TargetMateSetup):
         """
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)
-        if not self.pipe:
-            self.pipe = self.base_mod(X[shuff], y[shuff])
+        # Cross-conformal prediction
+        self.ccp = conformal.cross_conformal_prediction(self.base_mod)
         # Fit the model
-        mod.fit(X[shuff], y[shuff])
+        self.ccp.fit(X[shuff], y[shuff])
         # Save the destination directory of the model
-        self.fitted_model = destination_dir
+        self.ccp_dir = destination_dir
         if destination_dir:
-            joblib.dump(mod, destination_dir)
-        else:
-            return mod
+            with open(destination_dir, "wb") as f:
+                pickle.dump(self.ccp, f)
 
-    def predictor(self, mod, X):
-        """Make predictions.
+    def predict(self, X):
+        """Make cross-conformal predictions.
         
         Args:
-            mod(model): Predictive model.
             X(array): Signatures.
         """
-        return [p[1] for p in mod.predict_proba(X)]
+        idxs = np.argsort(ccp.classes)
+        pred = self.ccp.predict(X)
+        return pred[:,idxs]
 
     def kfolder(self):
         """Cross-validation splits strategy"""
