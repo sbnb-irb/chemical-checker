@@ -547,7 +547,8 @@ class sign3(BaseSignature, DataSignature):
         return AdaNet.predict_fn(modelpath)
 
     def predict_from_smiles(self, smiles, dest_file, chunk_size=1000,
-                            predict_fn=None, use_novelty_model=True):
+                            predict_fn=None, accurate_novelty=False,
+                            keys=None):
         """Given SMILES generate sign0 and predict sign3.
 
         Args:
@@ -568,8 +569,8 @@ class sign3(BaseSignature, DataSignature):
             predict_fn = self.get_predict_fn('adanet_sign0_A1.001_final')
         # we return a simple DataSignature object (basic HDF5 access)
         pred_s3 = DataSignature(dest_file)
-        # load novelty model
-        if use_novelty_model:
+        # load novelty model for more accurate novelty scores (slower)
+        if accurate_novelty:
             novelty_path = os.path.join(self.model_path, 'novelty', 'lof.pkl')
             try:
                 novelty_model = pickle.load(open(novelty_path, 'rb'))
@@ -589,8 +590,14 @@ class sign3(BaseSignature, DataSignature):
                                       encoding="bytes")
         with h5py.File(dest_file, "w") as results:
             # initialize V (with NaN in case of failing rdkit) and smiles keys
-            results.create_dataset('keys', data=np.array(
+            results.create_dataset('smiles', data=np.array(
                 smiles, DataSignature.string_dtype()))
+            if keys is not None:
+                results.create_dataset('keys', data=np.array(
+                    keys, DataSignature.string_dtype()))
+            else:
+                results.create_dataset('keys', data=np.array(
+                    smiles, DataSignature.string_dtype()))
             results.create_dataset('V', (len(smiles), 128), dtype=np.float32)
             results.create_dataset(
                 'stddev_norm', (len(smiles), ), dtype=np.float32)
@@ -642,7 +649,7 @@ class sign3(BaseSignature, DataSignature):
                 results['exp_error_norm'][chunk] = preds[:, 130]
                 results['novelty_norm'][chunk] = preds[:, 131]
                 results['confidence'][chunk] = preds[:, 132]
-                if use_novelty_model:
+                if accurate_novelty:
                     novelty = novelty_model.score_samples(preds[:, :128])
                     abs_novelty = np.abs(np.expand_dims(novelty, 1))
                     results['novelty_norm'][chunk] = nov_qtr.transform(
