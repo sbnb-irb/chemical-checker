@@ -25,13 +25,5 @@ class McpClassifier():
             cp = clone(self.cp)
             self.cps += [cp.calibrate(X[mask], y[mask])]
 
-    self predict(X, )
-
-# -----------------------------------------------------------------------------
-# Predict
-# -----------------------------------------------------------------------------
-prediction = icp.predict(data.data[test, :], significance=0.1)
-header = np.array(['c0','c1','c2','Truth'])
-table = np.vstack([prediction.T, data.target[test]]).T
-df = pd.DataFrame(np.vstack([header, table]))
-print(df)
+    self predict(X):
+        pass
