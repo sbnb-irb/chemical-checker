@@ -18,10 +18,7 @@ import uuid
 
 import joblib
 from sklearn.model_selection import StratifiedKFold
-from sklearn import metrics
 from sklearn.base import clone
-from sklearn.pipeline import Pipeline
-from sklearn.feature_selection import VarianceThreshold
 from scipy.stats import percentileofscore
 
 from chemicalchecker.core import ChemicalChecker
@@ -150,7 +147,6 @@ class TargetMateSetup(HPCUtils):
         self._is_fitted  = False
         self._is_trained = False
         self.is_tmp      = False
-        self.pipes       = []
 
     # Chemistry functions
     @staticmethod
@@ -399,7 +395,7 @@ class TargetMateClassifier(TargetMateSetup):
     """Set up a TargetMate classifier. It can sample negatives from a universe of molecules (e.g. ChEMBL)"""
 
     def __init__(self,
-                 base_mod="logistic_regression",
+                 base_mod="naive_bayes",
                  model_config="vanilla",
                  cv=5,
                  min_class_size=10,
@@ -413,11 +409,7 @@ class TargetMateClassifier(TargetMateSetup):
         """Set up a TargetMate classifier
 
         Args:
-            base_mod(clf): Classifier instance, containing fit and
-                predict_proba methods (default="logistic_regression")
-                The following strings are accepted: "logistic_regression",
-                "random_forest", "naive_bayes" and "tpot"
-                By default, sklearn LogisticRegressionCV is used.
+            algo(str): Base algorithm to use (see /model configuration files) (default=naive_base).
             model_config(str): Model configurations for the base classifier (default=vanilla).
             cv(int): Number of cv folds. The default cv generator used is
                 Stratified K-Folds (default=5).
@@ -443,10 +435,14 @@ class TargetMateClassifier(TargetMateSetup):
         else:
             n_jobs = self.n_jobs
         # Set the base classifier
+        self.algo = algo
         self.model_config = model_config
         if self.model_config == "vanilla":
             from .models.vanillaconfigs import VanillaClassifierConfigs as ModConfig
-            self.base_mod = ModConfig(base_mod, n_jobs=self.n_jobs)
+            self.algo = ModConfig(self.algo, n_jobs=self.n_jobs)
+        if self.model_config == "tpot":
+            from .models.tpotconfigs import TPOTClassifierConfigs as ModConfig
+            self.algo = ModConfig(self.algo, n_jobs=self.n_jobs)
         # Minimum size of the minority class
         self.min_class_size = min_class_size
         # Active value
@@ -523,13 +519,17 @@ class TargetMateClassifier(TargetMateSetup):
         return data
 
     def select_pipeline(self, X, y, destination_dir):
+        """Select a pipeline, for example, using TPOT."""
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)        
-        pipe = self.base_mod(X[shuff], y[shuff]).as_pipeline()
-        with open(destination_dir, "wb") as f:
-            pickle.dump(pipe, f)
+        pipe = self.base_mod.as_pipeline(X[shuff], y[shuff])
+        if destination_dir:
+            with open(destination_dir, "wb") as f:
+                pickle.dump(pipe, f)
+        self.pipe = destination_dir
+        return pipe
 
-    def fitter(self, X, y, destination_dir=None):
+    def fitter(self, X, y, destination_dir):
         """Fit a model, using a specified pipeline.
         
         Args:
@@ -716,6 +716,10 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
         if not data: return
         # Signaturize
         self.signaturize(data.smiles)
+        # Select pipelines
+        
+        
+
         # Fit the global classifier
         clf_ensemble = self.fit_ensemble(data)
         # Cross-validation
