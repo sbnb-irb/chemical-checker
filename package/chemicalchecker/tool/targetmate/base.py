@@ -400,6 +400,7 @@ class TargetMateClassifier(TargetMateSetup):
 
     def __init__(self,
                  base_mod="logistic_regression",
+                 model_config="vanilla",
                  cv=5,
                  min_class_size=10,
                  active_value=1,
@@ -417,6 +418,7 @@ class TargetMateClassifier(TargetMateSetup):
                 The following strings are accepted: "logistic_regression",
                 "random_forest", "naive_bayes" and "tpot"
                 By default, sklearn LogisticRegressionCV is used.
+            model_config(str): Model configurations for the base classifier (default=vanilla).
             cv(int): Number of cv folds. The default cv generator used is
                 Stratified K-Folds (default=5).
             min_class_size(int): Minimum class size acceptable to train the
@@ -441,22 +443,10 @@ class TargetMateClassifier(TargetMateSetup):
         else:
             n_jobs = self.n_jobs
         # Set the base classifier
-        from tpot import TPOTClassifier
-        from models import ClassifierConfigs
-        self.base_mod = TPOTClassifier(
-            config_dict=ClassifierConfigs[base_mod],
-            generations=10,
-            population_size=30,
-            cv=self.cv,
-            scoring="balanced_accuracy",
-            verbosity=2,
-            n_jobs=n_jobs,
-            max_time_mins=5,
-            max_eval_time_mins=0.5,
-            random_state=42,
-            early_stop=3,
-            disable_update_check=True
-        )
+        self.model_config = model_config
+        if self.model_config == "vanilla":
+            from .models.vanillaconfigs import VanillaClassifierConfigs as ModConfig
+            self.base_mod = ModConfig(base_mod, n_jobs=self.n_jobs)
         # Minimum size of the minority class
         self.min_class_size = min_class_size
         # Active value
@@ -533,21 +523,11 @@ class TargetMateClassifier(TargetMateSetup):
         return data
 
     def select_pipeline(self, X, y, destination_dir):
-        """Select a pipeline, typically using hyper-parameter optimization methods e.g. TPOT.
-        
-        Args:
-            X(array): Signatures matrix.
-            y(array): Labels vector.
-
-        """
         shuff = np.array(range(len(y)))
-        random.shuffle(shuff)
-        mod = clone(self.base_mod)
-        mod.fit(X[shuff], y[shuff])
-        pipe = mod.fitted_pipeline_
+        random.shuffle(shuff)        
+        pipe = self.base_mod(X[shuff], y[shuff]).as_pipeline()
         with open(destination_dir, "wb") as f:
             pickle.dump(pipe, f)
-        self.pipe = destination_dir
 
     def fitter(self, X, y, destination_dir=None):
         """Fit a model, using a specified pipeline.
@@ -562,17 +542,14 @@ class TargetMateClassifier(TargetMateSetup):
         """
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)
-        if self.pipe:
-        # Load the pipeline
-        with open(self.pipe, "rb") as f:
-            mod = pickle.load(f)
+        if not self.pipe:
+            self.pipe = self.base_mod(X[shuff], y[shuff])
         # Fit the model
         mod.fit(X[shuff], y[shuff])
         # Save the destination directory of the model
         self.fitted_model = destination_dir
         if destination_dir:
-            joblib.dump(mod , destination_dir)
-            pickle.dump(pipe, open(destination_dir+".pipe", "wb"))
+            joblib.dump(mod, destination_dir)
         else:
             return mod
 
@@ -616,10 +593,10 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
         if is_classifier:
             TargetMateClassifier.__init__(self, **kwargs)
         else:
-            TargetMateRegressorSetup.__init__(self, **kwargs)
+            TargetMateRegressor.__init__(self, **kwargs)
         Signaturizer.__init__(self, **kwargs)
-        self.pipelines = []
-        self.ensemble  = []
+        self.pipes    = []
+        self.ensemble = []
 
     def select_pipelines(self, data):
         """Choose a pipelines to work with, including determination of hyperparameters
@@ -631,13 +608,15 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
         self.__log.info("Selecting pipelines for every CC dataset...")
         jobs = []
         for i, X in enumerate(self.read_signatures_ensemble(datasets=self.datasets)):
-            dest = os.path.join(self.bases_models_path, self.datasets[i])
-            self.pipelines += [(self.datasets[i], dest)]
+            dest = os.path.join(self.bases_tmp_path, self.datasets[i]+".pipe")
+            pipelines += [(self.datasets[i], dest)]
             if self.hpc:
                 jobs += [self.func_hpc("select_pipeline", X, y, dest, self.n_jobs_hpc, cpu=self.n_jobs_hpc)]
             else:
                 self.select_pipeline(X, y, destination_dir=dest)
         self.waiter(jobs)
+        for pipe in pipelines:
+            self.pipes += [(pipe[0], pickle.load(open(pipe[1], "rb")))]
 
     def fit_ensemble(self, data):
         y = data.activity
@@ -815,6 +794,10 @@ class TargetMateStackedClassifier(TargetMateClassifier, Signaturizer):
 
 @logged
 class TargetMateStackedRegressor(TargetMateRegressor, Signaturizer):
+    pass
+
+@logged
+class ApplicabilityDomain:
     pass
 
 
