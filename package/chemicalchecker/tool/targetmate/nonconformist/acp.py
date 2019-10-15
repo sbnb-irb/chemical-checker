@@ -51,10 +51,10 @@ class CrossSampler(object):
 	"""
 	def gen_samples(self, y, n_samples, problem_type):
 		if problem_type == 'classification':
-			folds = StratifiedKFold(y, n_folds=n_samples)
+			kf = StratifiedKFold(n_splits=n_samples)
 		else:
-			folds = KFold(y.size, n_folds=n_samples)
-		for train, cal in folds:
+			kf = KFold(n_splits=n_samples)
+		for train, cal in kf.split(X=np.zeros(len(y)), y=y):
 			yield train, cal
 
 
@@ -78,15 +78,13 @@ class RandomSubSampler(object):
 
 	def gen_samples(self, y, n_samples, problem_type):
 		if problem_type == 'classification':
-			splits = StratifiedShuffleSplit(y,
-			                                n_iter=n_samples,
+			splits = StratifiedShuffleSplit(n_splits=n_samples,
 			                                test_size=self.cal_portion)
 		else:
-			splits = ShuffleSplit(y.size,
-			                      n_iter=n_samples,
+			splits = ShuffleSplit(n_splits=n_samples,
 			                      test_size=self.cal_portion)
 
-		for train, cal in splits:
+		for train, cal in splits.split(X=np.zeros(len(y)), y=y):
 			yield train, cal
 
 
