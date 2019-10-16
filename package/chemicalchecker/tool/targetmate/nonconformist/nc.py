@@ -11,8 +11,8 @@ from __future__ import division
 import abc
 import numpy as np
 import sklearn.base
-from nonconformist.base import ClassifierAdapter, RegressorAdapter
-from nonconformist.base import OobClassifierAdapter, OobRegressorAdapter
+from .base import ClassifierAdapter, RegressorAdapter
+from .base import OobClassifierAdapter, OobRegressorAdapter
 
 # -----------------------------------------------------------------------------
 # Error functions
