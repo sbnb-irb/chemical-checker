@@ -133,19 +133,7 @@ def EnsembleModel(Model, Signaturizer):
         
 
 
-@logged
-def FingerprintClassifier(TargetMateClassifier, Fingerprinter):
-    """ """
-    
-    def __init__(self, **kwargs):
-        FingeprintModel.__init__(self, is_classifier=True, **kwargs)    
-
-
-
-def TargetMateStackedClassifier(TargetMateClassifier, Signaturizer):
-    """Stacked predictions """
-
-
+def Foo2:
 
     def fit(self, data):
         """Fit a model, given data"""
