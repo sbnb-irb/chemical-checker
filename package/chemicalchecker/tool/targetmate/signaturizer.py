@@ -1,6 +1,10 @@
 import h5py
+import os
+import numpy as np
+
 from chemicalchecker.core.signature_data import DataSignature
 from chemicalchecker.util import logged
+
 from .utils import chemistry
 from .tmsetup import TargetMateSetup
 
@@ -100,8 +104,7 @@ class Signaturizer(TargetMateSetup):
                 s3, predict_fn = self.sign_predict_fn[dataset]
                 if not self.hpc:
                     s3.predict_from_smiles(smiles, destination_dir,
-                                           predict_fn=predict_fn,
-                                           use_novelty_model=False)
+                                           predict_fn=predict_fn)
                 else:    
                     job = s3.func_hpc("predict_from_smiles", smiles,
                                       destination_dir, chunk_size, None, False,

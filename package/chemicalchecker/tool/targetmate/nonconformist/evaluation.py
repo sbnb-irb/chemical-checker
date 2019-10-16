@@ -10,7 +10,7 @@ Evaluation of conformal predictors.
 
 from __future__ import division
 
-from nonconformist.base import RegressorMixin, ClassifierMixin
+from .base import RegressorMixin, ClassifierMixin
 
 import sys
 import numpy as np

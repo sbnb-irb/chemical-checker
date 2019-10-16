@@ -37,7 +37,6 @@ class InputData:
         self.smiles   = self.smiles[ridxs]
         self.inchikey = self.inchikey[ridxs]
 
-
 @logged
 class OutputData:
     """A simple output data class"""

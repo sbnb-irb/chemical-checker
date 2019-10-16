@@ -1,4 +1,4 @@
-from nonconformist.icp import *
+from .icp import *
 
 # TODO: move contents from nonconformist.icp here
 
