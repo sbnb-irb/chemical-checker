@@ -1,4 +1,8 @@
 import pandas as pd
+import numpy as np
+import random
+
+from chemicalchecker.util import logged
 
 @logged
 class InputData:

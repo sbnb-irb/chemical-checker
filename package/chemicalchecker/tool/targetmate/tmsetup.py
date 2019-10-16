@@ -1,3 +1,22 @@
+"""Set up TargetMate"""
+
+import os
+import shutil
+import uuid
+import csv
+import pickle
+
+from sklearn.model_selection import StratifiedKFold
+
+from chemicalchecker.util import logged
+from chemicalchecker.core import ChemicalChecker
+from chemicalchecker.util import Config
+
+from .utils import HPCUtils
+from .utils import chemistry
+from .io import InputData
+
+
 @logged
 class TargetMateSetup(HPCUtils):
     """Set up the base TargetMate class"""
@@ -10,7 +29,7 @@ class TargetMateSetup(HPCUtils):
                  n_jobs = None,
                  n_jobs_hpc = 8,
                  standardize = True,
-                 applicability = True,
+                 conformity = True,
                  hpc = False,
                  **kwargs):
         """Basic setup of the TargetMate.
@@ -25,7 +44,7 @@ class TargetMateSetup(HPCUtils):
             n_jobs(hpc): Number of CPUs to use in HPC (default=8)
             standardize(bool): Standardize small molecule structures (default=True)
             cv(int): Number of cv folds (default=5)
-            applicability(bool): Perform applicability domain calculation (default=True)
+            conformity(bool): Do cross-conformal prediction (default=True)
             hpc(bool): Use HPC (default=False)
         """
         HPCUtils.__init__(self, **kwargs)
@@ -176,3 +195,126 @@ class TargetMateSetup(HPCUtils):
         self.__log.debug("Saving training data (only evidence)")
         with open(self.models_path + "/trained_data.pkl", "wb") as f:
             pickle.dump(data, f)
+
+
+@logged
+class TargetMateClassifierSetup(TargetMateSetup):
+    """Set up a TargetMate classifier. It can sample negatives from a universe of molecules (e.g. ChEMBL)"""
+
+    def __init__(self,
+                 algo="naive_bayes",
+                 model_config="vanilla",
+                 ccp_folds=10,
+                 min_class_size=10,
+                 active_value=1,
+                 inactive_value=None,
+                 inactives_per_active=100,
+                 metric="auroc",
+                 universe_path=None,
+                 naive_sampling=False,
+                 **kwargs):
+        """Set up a TargetMate classifier
+
+        Args:
+            algo(str): Base algorithm to use (see /model configuration files) (default=naive_base).
+            model_config(str): Model configurations for the base classifier (default=vanilla).
+            ccp_folds(int): Number of cross-conformal prediction folds. The default generator used is
+                Stratified K-Folds (default=10).
+            min_class_size(int): Minimum class size acceptable to train the
+                classifier (default=10).
+            active_value(int): When reading data, the activity value considered to be active (default=1).
+            inactive_value(int): When reading data, the activity value considered to be inactive. If none specified,
+                then any value different that active_value is considered to be inactive (default=None).
+            inactives_per_active(int): Number of inactive to sample for each active.
+                If None, only experimental actives and inactives are considered (default=100).
+            metric(str): Metric to use to select the pipeline (default="auroc").
+            universe_path(str): Path to the universe. If not specified, the default one is used (default=None).
+            naive_sampling(bool): Sample naively (randomly), without using the OneClassSVM (default=False).
+        """
+        # Inherit from TargetMateSetup
+        TargetMateSetup.__init__(self, **kwargs)
+        # Cross-conformal folds
+        self.ccp_folds = ccp_folds
+        # Determine number of jobs
+        if self.hpc:
+            n_jobs = self.n_jobs_hpc
+        else:
+            n_jobs = self.n_jobs
+        # Set the base classifier
+        self.algo = algo
+        self.model_config = model_config
+        if self.model_config == "vanilla":
+            from .models.vanillaconfigs import VanillaClassifierConfigs as ModConfig
+            self.algo = ModConfig(self.algo, n_jobs=self.n_jobs)
+        if self.model_config == "tpot":
+            from .models.tpotconfigs import TPOTClassifierConfigs as ModConfig
+            self.algo = ModConfig(self.algo, n_jobs=self.n_jobs)
+        # Minimum size of the minority class
+        self.min_class_size = min_class_size
+        # Active value
+        self.active_value = active_value
+        # Inactive value
+        self.inactive_value = inactive_value
+        # Inactives per active
+        self.inactives_per_active = inactives_per_active
+        # Metric to use
+        self.metric = metric
+        # Load universe
+        self.universe = Universe.load_universe(universe_path)
+        # naive_sampling
+        self.naive_sampling = naive_sampling
+        # Others
+        self.pipe = None
+
+    def _reassemble_activity_sets(self, act, inact, putinact):
+        self.__log.info("Reassembling activities. Convention: 1 = Active, -1 = Inactive, 0 = Sampled")
+        data = []
+        for x in list(act):
+            data += [(x[1],  1, x[0], x[-1])]
+        for x in list(inact):
+            data += [(x[1], -1, x[0], x[-1])]
+        n = np.max([x[0] for x in data]) + 1
+        for i, x in enumerate(list(putinact)):
+            data += [(i + n, 0, x[0], x[-1])]
+        return InputData(data)
+
+    def prepare_data(self, data):
+        # Read data
+        data = self.read_data(data)
+        # Save training data
+        self.save_data(data)
+        # Sample inactives, if necessary
+        actives   = set()
+        inactives = set()
+        for d in data:
+            if d.activity == self.active_value:
+                actives.update([(d.smiles, d.idx, d.inchikey)])
+            else:
+                if not self.inactive_value:
+                    inactives.update([(d.smiles, d.idx, d.inchikey)])
+                else:
+                    if d.activity == self.inactive_value:
+                        inactives.update([(d.smiles, d.idx, d.inchikey)])
+        act, inact, putinact = self.universe.predict(actives, inactives,
+                                                     inactives_per_active=self.inactives_per_active,
+                                                     min_actives=self.min_class_size,
+                                                     naive=self.naive_sampling)
+        self.__log.info("Actives %d / Known inactives %d / Putative inactives %d" %
+                        (len(act), len(inact), len(putinact)))
+        self.__log.debug("Assembling and shuffling")
+        data = self._reassemble_activity_sets(act, inact, putinact)
+        data.shuffle()
+        return data
+
+    def kfolder(self):
+        """Cross-validation splits strategy"""
+        return StratifiedKFold(n_splits=int(np.min([self.cv, self.ny])),
+                               shuffle=True, random_state=42)
+
+
+@logged
+class TargetMateRegressorSetup(TargetMateSetup):
+    """Set up a TargetMate classifier"""
+
+    pass
+

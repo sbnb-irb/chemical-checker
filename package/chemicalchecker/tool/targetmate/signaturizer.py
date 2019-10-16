@@ -1,7 +1,8 @@
 import h5py
-
 from chemicalchecker.core.signature_data import DataSignature
+from chemicalchecker.util import logged
 from .utils import chemistry
+from .tmsetup import TargetMateSetup
 
 @logged
 class Fingerprinter(TargetMateSetup):
@@ -21,7 +22,7 @@ class Fingerprinter(TargetMateSetup):
         else:
             destination_dir = os.path.join(self.models_path, self.dataset)
         V = self.featurizer(smiles)
-        with h5.File(destination_dir, "wb") as hf:
+        with h5py.File(destination_dir, "wb") as hf:
             hf.create_dataset("V", data = V.astype(np.int8))
             hf.create_dataset("keys", data = np.array(smiles, DataSignature.string_dtype()))
     
@@ -131,6 +132,7 @@ class Signaturizer(TargetMateSetup):
     def read_signatures_stacked(self, datasets=None, **kwargs):
         """Return signatures in a stacked form"""
         if not datasets: datasets = self.datasets
+        if type(datasets) == str: datasets = [datasets]
         V = []
         for ds in datasets:
             V += [self.read_signature(ds, **kwargs)]

@@ -1,3 +1,6 @@
+from sklearn.pipeline import Pipeline
+from sklearn.feature_selection import VarianceThreshold
+
 class VanillaClassifierConfigs:
 
     def __init__(self, base_mod, n_jobs, **kwargs):
@@ -20,5 +23,4 @@ class VanillaClassifierConfigs:
     def as_pipeline(self):
         return Pipeline([('variance_threshold_0', VarianceThreshold()),
                          ('classifier', self.base_mod)])
-
 
