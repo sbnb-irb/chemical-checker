@@ -2,165 +2,32 @@
 TargetMate base classes.
 """
 import os
-import shutil
-import json
-import h5py
-import csv
 import collections
 import numpy as np
 import pickle
-
 import random
-import math
-import time
-import uuid
-
-import joblib
-from sklearn.model_selection import StratifiedKFold
-from sklearn.base import clone
-from scipy.stats import percentileofscore
-
-from chemicalchecker.core import ChemicalChecker
 
 from chemicalchecker.util import logged
-from chemicalchecker.util import Config
 
-from .utils import metrics
 from .universes import Universe
 from .utils import plots
-from .utils import HPCUtils
+from .signaturizer import Signaturizer, Fingerprinter
+from .tmsetup import TargetMateRegressorSetup, TargetMateClassifierSetup
+from .io import InputData
+
 
 @logged
-class TargetMateClassifier(TargetMateSetup):
-    """Set up a TargetMate classifier. It can sample negatives from a universe of molecules (e.g. ChEMBL)
-    
-    It does Mondrian cross-conformal prediction.
-    """
+class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
+    """Generic model class"""
 
-    def __init__(self,
-                 base_mod="naive_bayes",
-                 model_config="vanilla",
-                 ccp_folds=10,
-                 min_class_size=10,
-                 active_value=1,
-                 inactive_value=None,
-                 inactives_per_active=100,
-                 metric="auroc",
-                 universe_path=None,
-                 naive_sampling=False,
-                 **kwargs):
-        """Set up a TargetMate classifier
-
-        Args:
-            algo(str): Base algorithm to use (see /model configuration files) (default=naive_base).
-            model_config(str): Model configurations for the base classifier (default=vanilla).
-            ccp_folds(int): Number of cross-conformal prediction folds. The default generator used is
-                Stratified K-Folds (default=10).
-            min_class_size(int): Minimum class size acceptable to train the
-                classifier (default=10).
-            active_value(int): When reading data, the activity value considered to be active (default=1).
-            inactive_value(int): When reading data, the activity value considered to be inactive. If none specified,
-                then any value different that active_value is considered to be inactive (default=None).
-            inactives_per_active(int): Number of inactive to sample for each active.
-                If None, only experimental actives and inactives are considered (default=100).
-            metric(str): Metric to use to select the pipeline (default="auroc").
-            universe_path(str): Path to the universe. If not specified, the default one is used (default=None).
-            naive_sampling(bool): Sample naively (randomly), without using the OneClassSVM (default=False).
-        """
-        # Inherit from TargetMateSetup
-        TargetMateSetup.__init__(self, **kwargs)
-        # Cross-conformal folds
-        self.ccp_folds = ccp_folds
-        # Determine number of jobs
-        if self.hpc:
-            n_jobs = self.n_jobs_hpc
+    def __init__(self, is_classifier, **kwargs):
+        """Initialize"""
+        if is_classifier:
+            TargetMateClassifierSetup.__init__(self, **kwargs)
         else:
-            n_jobs = self.n_jobs
-        # Set the base classifier
-        self.algo = algo
-        self.model_config = model_config
-        if self.model_config == "vanilla":
-            from .models.vanillaconfigs import VanillaClassifierConfigs as ModConfig
-            self.algo = ModConfig(self.algo, n_jobs=self.n_jobs)
-        if self.model_config == "tpot":
-            from .models.tpotconfigs import TPOTClassifierConfigs as ModConfig
-            self.algo = ModConfig(self.algo, n_jobs=self.n_jobs)
-        # Minimum size of the minority class
-        self.min_class_size = min_class_size
-        # Active value
-        self.active_value = active_value
-        # Inactive value
-        self.inactive_value = inactive_value
-        # Inactives per active
-        self.inactives_per_active = inactives_per_active
-        # Metric to use
-        self.metric = metric
-        # Load universe
-        self.universe = Universe.load_universe(universe_path)
-        # naive_sampling
-        self.naive_sampling = naive_sampling
-        # Others
-        self.pipe = None
+            TargetMateRegressorSetup.__init__(self, **kwargs)
 
-    def _reassemble_activity_sets(self, act, inact, putinact):
-        self.__log.info("Reassembling activities. Convention: 1 = Active, -1 = Inactive, 0 = Sampled")
-        data = []
-        for x in list(act):
-            data += [(x[1],  1, x[0], x[-1])]
-        for x in list(inact):
-            data += [(x[1], -1, x[0], x[-1])]
-        n = np.max([x[0] for x in data]) + 1
-        for i, x in enumerate(list(putinact)):
-            data += [(i + n, 0, x[0], x[-1])]
-        return InputData(data)
-
-    def prepare_data(self, data):
-        # Read data
-        data = self.read_data(data)
-        # Save training data
-        self.save_data(data)
-        # Sample inactives, if necessary
-        actives   = set()
-        inactives = set()
-        for d in data:
-            if d.activity == self.active_value:
-                actives.update([(d.smiles, d.idx, d.inchikey)])
-            else:
-                if not self.inactive_value:
-                    inactives.update([(d.smiles, d.idx, d.inchikey)])
-                else:
-                    if d.activity == self.inactive_value:
-                        inactives.update([(d.smiles, d.idx, d.inchikey)])
-        act, inact, putinact = self.universe.predict(actives, inactives,
-                                                     inactives_per_active=self.inactives_per_active,
-                                                     min_actives=self.min_class_size,
-                                                     naive=self.naive_sampling)
-        self.__log.info("Actives %d / Known inactives %d / Putative inactives %d" %
-                        (len(act), len(inact), len(putinact)))
-        self.__log.debug("Assembling and shuffling")
-        data = self._reassemble_activity_sets(act, inact, putinact)
-        data.shuffle()
-        return data
-
-    def prepare_for_ml(self, data):
-        """Prepare data for ML, i.e. convert to 1/0 and check that there are enough samples for training"""
-        self.__log.debug("Prepare for machine learning (converting to 1/0")
-        # Consider putative inactives as inactives (e.g. set -1 to 0)
-        self.__log.debug("Considering putative inactives as inactives for training")
-        data.activity[data.activity <= 0] = 0   
-        # Check that there are enough molecules for training.
-        self.ny = np.sum(data.activity)
-        if self.ny < self.min_class_size or (len(data.activity) - self.ny) < self.min_class_size:
-            self.__log.warning(
-                "Not enough valid molecules in the minority class..." +
-                "Just keeping training data")
-            self._is_fitted = True
-            self.save()
-            return
-        self.__log.info("Actives %d / Merged inactives %d" % (self.ny, len(data.activity) - self.ny))
-        return data
-
-    def find_base_mod(self, X, y, destination_dir):
+    def find_base_mod(self, X, y, destination_dir=None):
         """Select a pipeline, for example, using TPOT."""
         self.__log.info("Setting the base model")
         shuff = np.array(range(len(y)))
@@ -172,7 +39,7 @@ class TargetMateClassifier(TargetMateSetup):
         self.base_mod = base_mod
         self.base_mod_dir = destination_dir
 
-    def fit(self, X, y, destination_dir):
+    def _fit(self, X, y, destination_dir=None):
         """Fit a model, using a specified pipeline.
         
         Args:
@@ -185,15 +52,113 @@ class TargetMateClassifier(TargetMateSetup):
         """
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)
-        # Cross-conformal prediction
-        self.ccp = conformal.cross_conformal_prediction(self.base_mod)
+        if self.conformity:
+            # Cross-conformal prediction
+            self.mod = conformal.cross_conformal_prediction(self.base_mod)
+        else:
+            self.mod = clone(self.base_mod)
         # Fit the model
-        self.ccp.fit(X[shuff], y[shuff])
+        self.mod.fit(X[shuff], y[shuff])
         # Save the destination directory of the model
-        self.ccp_dir = destination_dir
+        self.mod_dir = destination_dir
         if destination_dir:
             with open(destination_dir, "wb") as f:
-                pickle.dump(self.ccp, f)
+                pickle.dump(self.mod, f)
+
+    def _predict(self, X, destination_dir=None):
+        """Make predictions
+    
+        Returns:
+            A (n_samples, n_classes) array. For now, n_classes = 2.
+        """
+        self.mod.predict(X)
+
+    def fit(self):
+        return self._fit
+
+    def predict(self):
+        return self._predict
+
+
+@logged
+def FingerprintModel(Model, Fingerprinter):
+    """ """
+
+    def __init__(self, **kwargs):
+        """ """
+        Model.__init__(self, **kwargs)
+        Fingerprinter.__init__(self, **kwargs)
+
+
+@logged
+def StackedModel(Model, Signaturizer):
+    """ """
+
+    def __init__(self, **kwargs):
+        """ """
+        Model.__init__(self, **kwargs)
+        Signaturizer.__init__(self, **kwargs)
+
+    def fit_stack(self, data):
+        y = data.activity
+        X = self.read_signatures_stacked(datasets=self.datasets)
+        self._fit(X, y, destination_dir=None)
+
+    def fit(self, data):
+        self.is_tmp = False
+        data = self.prepare_data(data)
+        data = self.prepare_for_ml(data)
+        if not data: return
+        self.signaturize(data.smiles)
+        self.fit_stack(data)
+
+    def predict(self, data):
+        self.is_tmp = True
+
+
+@logged
+def EnsembleModel(Model, Signaturizer):
+    """ """
+
+    def __init__(self, **kwargs):
+        """ """
+        Model.__init__(self, **kwargs)
+        Signaturizer.__init__(self, **kwargs)
+
+    def fit_ensemble(self, data):
+
+
+    def fit(self, data):
+        self.is_tmp = False
+        
+
+
+@logged
+def FingerprintClassifier(TargetMateClassifier, Fingerprinter):
+    """ """
+    
+    def __init__(self, **kwargs):
+        FingeprintModel.__init__(self, is_classifier=True, **kwargs)    
+
+
+
+def TargetMateStackedClassifier(TargetMateClassifier, Signaturizer):
+    """Stacked predictions """
+
+
+
+    def fit(self, data):
+        """Fit a model, given data"""
+        is_tmp = False
+        # Read data
+        data = self.prepare_data(data)
+        # Prepare data for machine learning
+        data = self.prepare_for_ml(data)
+        if not data: return
+        # Signaturize
+        self.signaturize(data.smiles)
+
+        pass
 
     def predict(self, X):
         """Make cross-conformal predictions.
@@ -205,14 +170,10 @@ class TargetMateClassifier(TargetMateSetup):
         pred = self.ccp.predict(X)
         return pred[:,idxs]
 
-    def kfolder(self):
-        """Cross-validation splits strategy"""
-        return StratifiedKFold(n_splits=int(np.min([self.cv, self.ny])),
-                               shuffle=True, random_state=42)
 
 
 @logged
-class TargetMateRegressor(TargetMateSetup):
+class TargetMateRegressor(TargetRegressorMateSetup):
     """Set up a TargetMate classifier"""
 
     pass
@@ -269,9 +230,9 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
             dest = os.path.join(self.bases_models_path, self.datasets[i])
             self.ensemble += [(self.datasets[i], dest)]
             if self.hpc:
-                jobs  += [self.func_hpc("fitter", X, y, dest, False, None, self.n_jobs_hpc, cpu=self.n_jobs_hpc)]
+                jobs  += [self.func_hpc("fit_xy", X, y, dest, False, None, self.n_jobs_hpc, cpu=self.n_jobs_hpc)]
             else:
-                self.fitter(X, y, destination_dir=dest)
+                self.fit_xy(X, y, destination_dir=dest)
         self.waiter(jobs)
 
     def ensemble_iter(self):
