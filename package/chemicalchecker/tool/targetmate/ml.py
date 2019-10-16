@@ -1,7 +1,11 @@
 """TargetMate ML classes"""
 
+from chemicalchecker.util import logged
+from .base import FingerprintModel, EnsembleModel, StackedModel
+
+
 @logged
-def FingerprintClassifier(TargetMateClassifier, Fingerprinter):
+class FingerprintClassifier(FingerprintModel):
     """ """
     
     def __init__(self, **kwargs):
@@ -9,10 +13,16 @@ def FingerprintClassifier(TargetMateClassifier, Fingerprinter):
 
 
 @logged
-def TargetMateStackedClassifier(StackedModel, Signaturizer):
+class TargetMateStackedClassifier(StackedModel):
     """Stacked predictions"""
-
+    
+    def __init__(self, **kwargs):
+        StackedModel.__init__(self, is_classifier=True, **kwargs)
 
 @logged
-def TargetMateEnsembleClassifier(EnsembleModel, Signaturizer):
+class TargetMateEnsembleClassifier(EnsembleModel):
     """Ensemble predictions targetmate"""
+
+    def __init__(self, **kwargs):
+        EnsembleModel.__init__(self, is_classifier=True, **kwargs)
+

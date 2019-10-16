@@ -5,6 +5,7 @@ import shutil
 import uuid
 import csv
 import pickle
+import numpy as np
 
 from sklearn.model_selection import StratifiedKFold
 
@@ -14,7 +15,9 @@ from chemicalchecker.util import Config
 
 from .utils import HPCUtils
 from .utils import chemistry
+from .utils import conformal
 from .io import InputData
+from .universes import Universe
 
 
 @logged
@@ -79,8 +82,8 @@ class TargetMateSetup(HPCUtils):
         self.cc = ChemicalChecker(cc_root)
         # Standardize
         self.standardize = standardize
-        # Do applicability
-        self.applicability = applicability
+        # Do conformal modeling
+        self.conformity = conformity
         # Use HPC
         self.n_jobs_hpc = n_jobs_hpc
         self.hpc = hpc
@@ -202,7 +205,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
     """Set up a TargetMate classifier. It can sample negatives from a universe of molecules (e.g. ChEMBL)"""
 
     def __init__(self,
-                 algo="naive_bayes",
+                 algo="balanced_random_forest",
                  model_config="vanilla",
                  ccp_folds=10,
                  min_class_size=10,
@@ -265,6 +268,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
         self.naive_sampling = naive_sampling
         # Others
         self.pipe = None
+        self.cross_conformal_func = conformal.get_cross_conformal_classifier
 
     def _reassemble_activity_sets(self, act, inact, putinact):
         self.__log.info("Reassembling activities. Convention: 1 = Active, -1 = Inactive, 0 = Sampled")
@@ -304,6 +308,24 @@ class TargetMateClassifierSetup(TargetMateSetup):
         self.__log.debug("Assembling and shuffling")
         data = self._reassemble_activity_sets(act, inact, putinact)
         data.shuffle()
+        return data
+
+    def prepare_for_ml(self, data):
+        """Prepare data for ML, i.e. convert to 1/0 and check that there are enough samples for training"""
+        self.__log.debug("Prepare for machine learning (converting to 1/0")
+        # Consider putative inactives as inactives (e.g. set -1 to 0)
+        self.__log.debug("Considering putative inactives as inactives for training")
+        data.activity[data.activity <= 0] = 0   
+        # Check that there are enough molecules for training.
+        self.ny = np.sum(data.activity)
+        if self.ny < self.min_class_size or (len(data.activity) - self.ny) < self.min_class_size:
+            self.__log.warning(
+                "Not enough valid molecules in the minority class..." +
+                "Just keeping training data")
+            self._is_fitted = True
+            self.save()
+            return
+        self.__log.info("Actives %d / Merged inactives %d" % (self.ny, len(data.activity) - self.ny))
         return data
 
     def kfolder(self):
