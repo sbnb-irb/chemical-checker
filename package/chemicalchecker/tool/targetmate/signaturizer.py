@@ -25,10 +25,13 @@ class Fingerprinter(TargetMateSetup):
             destination_dir = os.path.join(self.tmp_path, self.dataset)
         else:
             destination_dir = os.path.join(self.models_path, self.dataset)
-        V = self.featurizer(smiles)
-        with h5py.File(destination_dir, "wb") as hf:
-            hf.create_dataset("V", data = V.astype(np.int8))
-            hf.create_dataset("keys", data = np.array(smiles, DataSignature.string_dtype()))
+        if os.path.exists(destination_dir):
+            self.__log.debug("Fingerprint file already exists: %s" %  destination_dir)
+        else:
+            V = self.featurizer(smiles)
+            with h5py.File(destination_dir, "wb") as hf:
+                hf.create_dataset("V", data = V.astype(np.int8))
+                hf.create_dataset("keys", data = np.array(smiles, DataSignature.string_dtype()))
     
     def read_fingerprint(self, idxs=None, fp_file=None):
         """Read a signature from an HDF5 file"""
@@ -98,6 +101,7 @@ class Signaturizer(TargetMateSetup):
         for dataset in self.datasets:
             destination_dir = self.get_destination_dir(dataset)
             if os.path.exists(destination_dir):
+                self.__log.debug("Signature %s file already exists: %s" % (dataset, destination_dir))
                 continue
             else:
                 self.__log.debug("Calculating sign for %s" % dataset)
