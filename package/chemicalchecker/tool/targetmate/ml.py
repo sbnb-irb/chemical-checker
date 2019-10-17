@@ -1,15 +1,15 @@
 """TargetMate ML classes"""
 
 from chemicalchecker.util import logged
-from .base import FingerprintModel, EnsembleModel, StackedModel
+from .base import FingerprintedModel, EnsembleModel, StackedModel
 
 
 @logged
-class FingerprintClassifier(FingerprintModel):
+class FingerprintClassifier(FingerprintedModel):
     """ """
     
     def __init__(self, **kwargs):
-        FingeprintModel.__init__(self, is_classifier=True, **kwargs)    
+        FingeprintedModel.__init__(self, is_classifier=True, **kwargs)    
 
 
 @logged
