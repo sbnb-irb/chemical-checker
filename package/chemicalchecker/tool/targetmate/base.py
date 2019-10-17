@@ -138,8 +138,8 @@ class StackedModel(SignaturedModel):
         X = self.read_signatures_stacked(datasets=self.datasets)
         self._fit(X, y, destination_dir=None)
 
-    def fit(self, data):
-        self.is_tmp = False
+    def fit(self, data, is_tmp=False):
+        self.is_tmp = is_tmp
         self.signaturize(data.smiles)
         self.fit_stack(data)
 
@@ -147,8 +147,8 @@ class StackedModel(SignaturedModel):
         X = self.read_signatures_stacked(datasets=self.datasets)
         return self._predict(X, destination_dir=None)
 
-    def predict(self, data):
-        self.is_tmp = True
+    def predict(self, data, is_tmp=True):
+        self.is_tmp = is_tmp
         self.signaturize(data.smiles)
         return self.predict_stack(data)
 
@@ -160,51 +160,44 @@ class EnsembleModel(SignaturedModel):
     def __init__(self, **kwargs):
         """ """
         SignaturedModel.__init__(self, **kwargs)
+        self.ensemble_dir = []
 
     def fit_ensemble(self, data):
-        pass
-
+        y = data.activity
+        jobs = []
+        for i, X in enumerate(self.read_signatures_ensemble(datasets=self.datasets)):
+            dest = os.path.join(self.bases_models_path, self.datasets[i])
+            self.ensemble_dir += [(self.datasets[i], dest)]
+            if self.hpc:
+                jobs += [self.func_hpc("_fit", X, y, dest, cpu=self.n_jobs_hpc)]
+            else:
+                self._fit(X, y, destination_dir=dest)
+        self.waiter(jobs)
 
     def fit(self, data):
-        self.is_tmp = False
-        data = self.prepare_data(data)
-        data = self.prepare_for_ml(data)
-        if not data: return
+        self.signaturize(data.smiles)
+        self.fit_ensemble(data)
         
+    def predict_ensemble(self, data, datasets=None):
+        if not datasets:
+            datasets = self.datasets
+        else:
+            datasets = sorted(set(datasets).intersection(self.datasets))
 
+        jobs = []
+        for i, X in enumerate(self.read_signatures_ensemble(datasets=datasets)):
+            dest = os.path.join(self.bases_tmp_path, datasets[i])
+            if self.hpc:
+                jobs += [self.func_hpc("_predict", X, dest, cpu=self.n_jobs_hpc)]
+            else:
+                self._predict(X)
 
-# class Foo2:
+    def predict(self, data, datasets=None, is_tmp=True):
+        self.is_tmp = is_tmp
+        self.signaturize(data.smiles)
+        for i, X in enumerate(self.read_signatures_ensemble(datasets=datasets)):
+            pass
 
-#     def fit(self, data):
-#         """Fit a model, given data"""
-#         is_tmp = False
-#         # Read data
-#         data = self.prepare_data(data)
-#         # Prepare data for machine learning
-#         data = self.prepare_for_ml(data)
-#         if not data: return
-#         # Signaturize
-#         self.signaturize(data.smiles)
-
-#         pass
-
-#     def predict(self, X):
-#         """Make cross-conformal predictions.
-        
-#         Args:
-#             X(array): Signatures.
-#         """
-#         idxs = np.argsort(ccp.classes)
-#         pred = self.ccp.predict(X)
-#         return pred[:,idxs]
-
-
-
-# @logged
-# class TargetMateRegressor(TargetMateRegressorSetup):
-#     """Set up a TargetMate classifier"""
-
-#     pass
 
 
 # @logged
