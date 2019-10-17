@@ -97,7 +97,7 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
 
 
 @logged
-class FingerprintModel(Model, Fingerprinter):
+class FingerprintedModel(Model, Fingerprinter):
     """ """
 
     def __init__(self, **kwargs):
