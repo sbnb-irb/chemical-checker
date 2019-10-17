@@ -2,9 +2,6 @@ import pandas as pd
 import numpy as np
 import random
 
-from chemicalchecker.util import logged
-
-@logged
 class InputData:
     """A simple input data class"""
     
@@ -19,6 +16,14 @@ class InputData:
         for idx, v in self.as_dataframe().iterrows():
             yield v
 
+    def __getitem__(self, idxs):
+        data = InputData([])
+        data.idx      = self.idx[ridxs]
+        data.activity = self.activity[ridxs]
+        data.smiles   = self.smiles[ridxs]
+        data.inchikey = self.inchikey[ridxs]
+        return data
+
     def as_dataframe(self):
         df = pd.DataFrame({
             "idx": self.idx,
@@ -28,16 +33,19 @@ class InputData:
             })
         return df        
 
-    def shuffle(self):
+    def shuffle(self, inplace=True):
         """Shuffle data"""
         ridxs = [i for i in range(0, len(self.idx))]
         random.shuffle(ridxs)
-        self.idx      = self.idx[ridxs]
-        self.activity = self.activity[ridxs]
-        self.smiles   = self.smiles[ridxs]
-        self.inchikey = self.inchikey[ridxs]
+        if inplace:
+            self.idx      = self.idx[ridxs]
+            self.activity = self.activity[ridxs]
+            self.smiles   = self.smiles[ridxs]
+            self.inchikey = self.inchikey[ridxs]
+        else:
+            return self.__getitem__[ridxs]
 
-@logged
+
 class OutputData:
     """A simple output data class"""
 
