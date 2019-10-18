@@ -3,6 +3,7 @@ from sklearn import metrics
 
 ALPHA = 1e-6
 
+# Base metrics
 def roc_score(y_true, y_pred):
     y_true = list(y_true)
     y_pred = list(y_pred)
@@ -35,6 +36,14 @@ def bedroc_score(y_true, y_pred, alpha=20.0):
     weight = (score - 0.) / (1. - 0.)
     return score, weight + ALPHA
 
+
+# Metric assigner
+def Metric(metric):
+    if metric == "auroc" : return roc_score
+    if metric == "aupr"  : return pr_score
+    if metric == "bedroc": return bedroc_score
+        
+# General performance functions
 def classifier_performances(yt, yp):
     """Calculate standard prediction performance metrics.
     In addition, it calculates the corresponding weights.

@@ -7,7 +7,7 @@ import csv
 import pickle
 import numpy as np
 
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, KFold
 
 from chemicalchecker.util import logged
 from chemicalchecker.core import ChemicalChecker
@@ -18,6 +18,7 @@ from .utils import chemistry
 from .utils import conformal
 from .io import InputData
 from .universes import Universe
+from .models.vanillaconfigs import VanillaClassifierConfigs
 
 
 @logged
@@ -32,6 +33,7 @@ class TargetMateSetup(HPCUtils):
                  n_jobs = None,
                  n_jobs_hpc = 8,
                  standardize = True,
+                 cv_folds=5,
                  conformity = True,
                  hpc = False,
                  **kwargs):
@@ -46,7 +48,7 @@ class TargetMateSetup(HPCUtils):
             n_jobs(int): Number of CPUs to use, all by default (default=None)
             n_jobs(hpc): Number of CPUs to use in HPC (default=8)
             standardize(bool): Standardize small molecule structures (default=True)
-            cv(int): Number of cv folds (default=5)
+            cv_folds(int): Number of cross-validation folds (default=5)
             conformity(bool): Do cross-conformal prediction (default=True)
             hpc(bool): Use HPC (default=False)
         """
@@ -84,6 +86,8 @@ class TargetMateSetup(HPCUtils):
         self.standardize = standardize
         # Do conformal modeling
         self.conformity = conformity
+        # CV folds
+        self.cv_folds = cv_folds
         # Use HPC
         self.n_jobs_hpc = n_jobs_hpc
         self.hpc = hpc
@@ -207,6 +211,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
     def __init__(self,
                  algo="balanced_random_forest",
                  model_config="vanilla",
+                 weight_algo="naive_bayes",
                  ccp_folds=10,
                  min_class_size=10,
                  active_value=1,
@@ -219,8 +224,10 @@ class TargetMateClassifierSetup(TargetMateSetup):
         """Set up a TargetMate classifier
 
         Args:
-            algo(str): Base algorithm to use (see /model configuration files) (default=naive_base).
+            algo(str): Base algorithm to use (see /model configuration files) (default=balanced_random_forest).
             model_config(str): Model configurations for the base classifier (default=vanilla).
+            weight_algo(str): Model used to weigh the contribution of an individual classifier.
+                Should be fast. For the moment, only vanilla classifiers are accepted (default=naive_bayes).
             ccp_folds(int): Number of cross-conformal prediction folds. The default generator used is
                 Stratified K-Folds (default=10).
             min_class_size(int): Minimum class size acceptable to train the
@@ -247,11 +254,12 @@ class TargetMateClassifierSetup(TargetMateSetup):
         self.algo = algo
         self.model_config = model_config
         if self.model_config == "vanilla":
-            from .models.vanillaconfigs import VanillaClassifierConfigs as ModConfig
-            self.algo = ModConfig(self.algo, n_jobs=self.n_jobs)
+            self.algo = VanillaClassifierConfigs(self.algo, n_jobs=self.n_jobs)
         if self.model_config == "tpot":
-            from .models.tpotconfigs import TPOTClassifierConfigs as ModConfig
-            self.algo = ModConfig(self.algo, n_jobs=self.n_jobs)
+            from .models.tpotconfigs import TPOTClassifierConfigs
+            self.algo = TPOTClassifierConfigs(self.algo, n_jobs=self.n_jobs)
+        # Weight algo
+        self.weight_algo = VanillaClassifierConfigs(weight_algo, n_jobs=self.n_jobs)
         # Minimum size of the minority class
         self.min_class_size = min_class_size
         # Active value
@@ -267,8 +275,8 @@ class TargetMateClassifierSetup(TargetMateSetup):
         # naive_sampling
         self.naive_sampling = naive_sampling
         # Others
-        self.pipe = None
         self.cross_conformal_func = conformal.get_cross_conformal_classifier
+        self.num_pred_cols = 2
 
     def _reassemble_activity_sets(self, act, inact, putinact):
         self.__log.info("Reassembling activities. Convention: 1 = Active, -1 = Inactive, 0 = Sampled")
@@ -330,7 +338,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
 
     def kfolder(self):
         """Cross-validation splits strategy"""
-        return StratifiedKFold(n_splits=int(np.min([self.cv, self.ny])),
+        return StratifiedKFold(n_splits=int(np.min([self.cv_folds, self.ny])),
                                shuffle=True, random_state=42)
 
 

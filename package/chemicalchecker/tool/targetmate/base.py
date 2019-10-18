@@ -12,6 +12,7 @@ from sklearn.base import clone
 from chemicalchecker.util import logged
 
 from .universes import Universe
+from .utils import metrics
 from .utils import plots
 from .signaturizer import Signaturizer, Fingerprinter
 from .tmsetup import TargetMateRegressorSetup, TargetMateClassifierSetup
@@ -40,6 +41,26 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
                 pickle.dump(base_mod, f)
         self.base_mod = base_mod
         self.base_mod_dir = destination_dir
+
+    def metric_calc(self, y_true, y_pred, metric=None):
+        """Calculate metric. Returns (value, weight) tuple."""
+        if not metric:
+            metric = self.metric
+        return metrics.Metric(metric)(y_true, y_pred)
+
+    def _weight(self, X, y):
+        """Weight the association between a certain data type and an y variable using a cross-validation scheme, and a relatively simple model."""
+        shuff = np.array(range(len(y)))
+        random.shuffle(shuff)
+        mod = self.algo.as_pipeline(X[shuff], y[shuff])
+        kf = self.kfolder()
+        y_pred = []
+        y_true = []
+        for train_idx, test_idx in kf.split(X, y):
+            mod.fit(X[train_idx], y[train_idx])
+            y_pred += list(mod.predict(X[test_idx]))
+            y_true += list(y[test_idx])
+        return self.metric_calc(y_true, y_pred)[1]
 
     def _fit(self, X, y, destination_dir=None):
         """Fit a model, using a specified pipeline.
@@ -72,7 +93,7 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
             with open(destination_dir, "wb") as f:
                 pickle.dump(self.mod, f)
 
-    def _predict(self, X, destination_dir=None):
+    def _predict(self, X):
         """Make predictions
     
         Returns:
@@ -83,10 +104,6 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
             preds = self.mod.predict(X)
         else:
             preds = self.mod.predict_proba(X)
-        if destination_dir:
-            self.__log.debug("Saving predictions in %s" % destination_dir)
-            with open(destination_dir, "wb") as f:
-                pickle.dump(destination_dir)
         return preds
 
     def fit(self):
@@ -145,7 +162,7 @@ class StackedModel(SignaturedModel):
 
     def predict_stack(self, data):
         X = self.read_signatures_stacked(datasets=self.datasets)
-        return self._predict(X, destination_dir=None)
+        return self._predict(X)
 
     def predict(self, data, is_tmp=True):
         self.is_tmp = is_tmp
@@ -160,14 +177,16 @@ class EnsembleModel(SignaturedModel):
     def __init__(self, **kwargs):
         """ """
         SignaturedModel.__init__(self, **kwargs)
-        self.ensemble_dir = []
+        self.ensemble_dir = {}
+        self.weights = {}
 
     def fit_ensemble(self, data):
         y = data.activity
         jobs = []
         for i, X in enumerate(self.read_signatures_ensemble(datasets=self.datasets)):
             dest = os.path.join(self.bases_models_path, self.datasets[i])
-            self.ensemble_dir += [(self.datasets[i], dest)]
+            self.ensemble_dir[self.datasets[i]] = dest
+            self.weights[self.datasets[i]] = self._weight(X, y)
             if self.hpc:
                 jobs += [self.func_hpc("_fit", X, y, dest, cpu=self.n_jobs_hpc)]
             else:
@@ -178,26 +197,26 @@ class EnsembleModel(SignaturedModel):
         self.signaturize(data.smiles)
         self.fit_ensemble(data)
         
-    def predict_ensemble(self, data, datasets=None):
+    def predict_ensemble(self, data, idxs, datasets):
         if not datasets:
             datasets = self.datasets
         else:
             datasets = sorted(set(datasets).intersection(self.datasets))
-
-        jobs = []
+        if idxs is None:
+            n = len(data.activity)
+        else:
+            n = len(idxs)
+        preds = np.zeros((n, self.num_pred_cols, len(datasets)))
         for i, X in enumerate(self.read_signatures_ensemble(datasets=datasets)):
-            dest = os.path.join(self.bases_tmp_path, datasets[i])
-            if self.hpc:
-                jobs += [self.func_hpc("_predict", X, dest, cpu=self.n_jobs_hpc)]
-            else:
-                self._predict(X)
+            with open(self.ensemble_dir[datasets[i]], "rb") as f:
+                self.mod = pickle.load(f)
+            preds[:,:,i] = self._predict(X)
+        return preds
 
-    def predict(self, data, datasets=None, is_tmp=True):
+    def predict(self, data, idxs=None, datasets=None, is_tmp=True):
         self.is_tmp = is_tmp
         self.signaturize(data.smiles)
-        for i, X in enumerate(self.read_signatures_ensemble(datasets=datasets)):
-            pass
-
+        return self.predict_ensemble(data, idxs, datasets)
 
 
 # @logged
