@@ -18,10 +18,10 @@ class InputData:
 
     def __getitem__(self, idxs):
         data = InputData([])
-        data.idx      = self.idx[ridxs]
-        data.activity = self.activity[ridxs]
-        data.smiles   = self.smiles[ridxs]
-        data.inchikey = self.inchikey[ridxs]
+        data.idx      = self.idx[idxs]
+        data.activity = self.activity[idxs]
+        data.smiles   = self.smiles[idxs]
+        data.inchikey = self.inchikey[idxs]
         return data
 
     def as_dataframe(self):
@@ -44,6 +44,23 @@ class InputData:
             self.inchikey = self.inchikey[ridxs]
         else:
             return self.__getitem__[ridxs]
+
+
+class Prediction:
+
+    def __init__(self, y_pred, weights, datasets):
+        self.y_pred   = y_pred
+        self.weights  = np.array(weights)
+        self.datasets = datasets
+
+    def metapredict(self, datasets=None):
+        if not datasets:
+            datasets = self.datasets
+        else:
+            datasets = sorted(set(self.datasets).intersection(datasets))
+        idxs = [self.datasets.index(x) for x in datasets]
+        return np.mean(self.y_pred[:, idxs], weights = self.weights[idxs], axis = 2)
+
 
 
 class OutputData:
