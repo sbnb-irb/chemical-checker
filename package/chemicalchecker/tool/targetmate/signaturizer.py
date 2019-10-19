@@ -88,6 +88,12 @@ class Signaturizer(TargetMateSetup):
         else:
             self.sign_predict_fn = sign_predict_fn
 
+    def get_datasets(self, datasets=None):
+        if datasets is None:
+            return self.datasets
+        else:
+            return sorted(set(self.datasets).intersection(datasets))
+
     def get_destination_dir(self, dataset):
         if self.is_tmp:
             return os.path.join(self.signatures_tmp_path, dataset)
@@ -95,10 +101,11 @@ class Signaturizer(TargetMateSetup):
             return os.path.join(self.signatures_models_path, dataset)
 
     # Calculate signatures
-    def signaturize(self, smiles, chunk_size=1000):
+    def signaturize(self, smiles, datasets=None, chunk_size=1000):
         self.__log.info("Calculating sign for every molecule.")
+        datasets = self.get_datasets(datasets)
         jobs  = []
-        for dataset in self.datasets:
+        for dataset in datasets:
             destination_dir = self.get_destination_dir(dataset)
             if os.path.exists(destination_dir):
                 self.__log.debug("Signature %s file already exists: %s" % (dataset, destination_dir))
