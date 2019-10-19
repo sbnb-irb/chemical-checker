@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pickle
 from chemicalchecker.util import logged
@@ -68,7 +69,7 @@ class Validation:
         self.splitter   = splitter
 
     @staticmethod
-    def stack(self, ar_a, ar_b):
+    def stack(ar_a, ar_b):
         if ar_a is None:
             return ar_b
         else:
@@ -148,7 +149,7 @@ class Validation:
         else:
             destination_dir = self.destination_dir
         self.datasets = tm.datasets
-        self.compute(tm, data)
+        self.compute(tm, data, train_idx, test_idx)
         self.score()
         if save:
             self.save()
