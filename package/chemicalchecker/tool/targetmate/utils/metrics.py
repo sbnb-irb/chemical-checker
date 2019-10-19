@@ -42,27 +42,4 @@ def Metric(metric):
     if metric == "auroc" : return roc_score
     if metric == "aupr"  : return pr_score
     if metric == "bedroc": return bedroc_score
-        
-# General performance functions
-def classifier_performances(yt, yp):
-    """Calculate standard prediction performance metrics.
-    In addition, it calculates the corresponding weights.
-    For the moment, AUPR and AUROC are used.
-    Args:
-        yt(list): Truth data (binary).
-        yp(list): Prediction scores (probabilities).
-    """
-    perfs = {}
-    yt = list(yt)
-    yp = list(yp)
-    perfs["auroc"]  = metrics.roc_score(yt, yp)
-    perfs["aupr"]   = metrics.pr_score(yt, yp)
-    perfs["bedroc"] = metrics.bedroc_score(yt, yp)
-    perfs["y_true"] = yt
-    perfs["y_pred"] = yp
-    return perfs
-
-def regressor_performances(yt, yp):
-    """"""
-    pass
-
+    
