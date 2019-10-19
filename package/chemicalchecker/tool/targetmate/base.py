@@ -152,25 +152,28 @@ class StackedModel(SignaturedModel):
         SignaturedModel.__init__(self, **kwargs)
         self.is_ensemble = False
 
-    def fit_stack(self, data):
-        y = data.activity
-        X = self.read_signatures_stacked(datasets=self.datasets)
+    def fit_stack(self, data, idxs):
+        if idxs is None:
+            y = data.activity
+        else:
+            y = data.activity[idxs]
+        X = self.read_signatures_stacked(datasets=self.datasets, idxs=idxs)
         self._fit(X, y, destination_dir=None)
 
-    def fit(self, data, is_tmp=False):
+    def fit(self, data, idxs=None, is_tmp=False):
         self.is_tmp = is_tmp
         self.signaturize(data.smiles)
-        self.fit_stack(data)
+        self.fit_stack(data, idxs)
 
-    def predict_stack(self, data):
-        X = self.read_signatures_stacked(datasets=self.datasets)
+    def predict_stack(self, idxs):
+        X = self.read_signatures_stacked(datasets=self.datasets, idxs=idxs)
         return self._predict(X)
 
-    def predict(self, data, is_tmp=True):
+    def predict(self, data, idxs=None, is_tmp=True):
         self.is_tmp = is_tmp
         self.signaturize(data.smiles)
         return Prediction(datasets    = self.datasets,
-                          y_pred      = self.predict_stack(data),
+                          y_pred      = self.predict_stack(idxs),
                           is_ensemble = self.is_ensemble,
                           weights     = None)
 
@@ -186,7 +189,7 @@ class EnsembleModel(SignaturedModel):
         self.ensemble_dir = {}
         self.weights = {}
 
-    def fit_ensemble(self, data):
+    def fit_ensemble(self, data, idxs):
         y = data.activity
         jobs = []
         for i, X in enumerate(self.read_signatures_ensemble(datasets=self.datasets)):
@@ -200,7 +203,8 @@ class EnsembleModel(SignaturedModel):
                 self._fit(X, y, destination_dir=dest)
         self.waiter(jobs)
 
-    def fit(self, data):
+    def fit(self, data, idxs=None, is_tmp=False):
+        self.is_tmp = is_tmp
         self.signaturize(data.smiles)
         self.fit_ensemble(data)
         
