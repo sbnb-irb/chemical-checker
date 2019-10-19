@@ -47,20 +47,37 @@ class InputData:
 
 
 class Prediction:
+    """A simple prediction class"""
 
-    def __init__(self, y_pred, weights, datasets):
-        self.y_pred   = y_pred
-        self.weights  = np.array(weights)
+    def __init__(self, datasets, y_pred, is_ensemble, weights=None):
+        self.is_ensemble = is_ensemble
         self.datasets = datasets
+        if is_ensemble:
+            self.y_pred_ens = y_pred
+            self.weights = weights
+            self.y_pred = self.metapredict(self.datasets)
+        else:
+            self.y_pred = y_pred
 
     def metapredict(self, datasets=None):
+        if not self.is_ensemble:
+            return self.y_pred
         if not datasets:
             datasets = self.datasets
         else:
             datasets = sorted(set(self.datasets).intersection(datasets))
-        idxs = [self.datasets.index(x) for x in datasets]
-        return np.mean(self.y_pred[:, idxs], weights = self.weights[idxs], axis = 2)
+        idxs = [self.datasets.index(ds) for ds in datasets]
+        if self.weights is None:
+            return np.mean(self.y_pred_ens[:,:,idxs], axis = 2)
+        else:
+            weights = [self.weights[ds] for ds in datasets]
+            return np.average(self.y_pred_ens[:,:,idxs], weights = weights, axis = 2)
 
+
+class EvaluationOutput:
+
+    def __init__(self):
+        pass
 
 
 class OutputData:
