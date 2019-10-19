@@ -16,7 +16,7 @@ from .utils import metrics
 from .utils import plots
 from .signaturizer import Signaturizer, Fingerprinter
 from .tmsetup import TargetMateRegressorSetup, TargetMateClassifierSetup
-from .io import InputData
+from .io import InputData, Prediction
 
 
 @logged
@@ -52,7 +52,7 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
         """Weight the association between a certain data type and an y variable using a cross-validation scheme, and a relatively simple model."""
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)
-        mod = self.algo.as_pipeline(X[shuff], y[shuff])
+        mod = self.weight_algo.as_pipeline(X[shuff], y[shuff])
         kf = self.kfolder()
         y_pred = []
         y_true = []
@@ -121,6 +121,7 @@ class FingerprintedModel(Model, Fingerprinter):
         """ """
         Model.__init__(self, **kwargs)
         Fingerprinter.__init__(self, **kwargs)
+        self.is_ensemble = False
 
 
 @logged
@@ -149,6 +150,7 @@ class StackedModel(SignaturedModel):
     def __init__(self, **kwargs):
         """ """
         SignaturedModel.__init__(self, **kwargs)
+        self.is_ensemble = False
 
     def fit_stack(self, data):
         y = data.activity
@@ -167,7 +169,10 @@ class StackedModel(SignaturedModel):
     def predict(self, data, is_tmp=True):
         self.is_tmp = is_tmp
         self.signaturize(data.smiles)
-        return self.predict_stack(data)
+        return Prediction(datasets    = self.datasets,
+                          y_pred      = self.predict_stack(data),
+                          is_ensemble = self.is_ensemble,
+                          weights     = None)
 
 
 @logged
@@ -177,6 +182,7 @@ class EnsembleModel(SignaturedModel):
     def __init__(self, **kwargs):
         """ """
         SignaturedModel.__init__(self, **kwargs)
+        self.is_ensemble = True
         self.ensemble_dir = {}
         self.weights = {}
 
@@ -184,6 +190,7 @@ class EnsembleModel(SignaturedModel):
         y = data.activity
         jobs = []
         for i, X in enumerate(self.read_signatures_ensemble(datasets=self.datasets)):
+            self.__log.info("Working on %s" % self.datasets[i])
             dest = os.path.join(self.bases_models_path, self.datasets[i])
             self.ensemble_dir[self.datasets[i]] = dest
             self.weights[self.datasets[i]] = self._weight(X, y)
@@ -198,10 +205,7 @@ class EnsembleModel(SignaturedModel):
         self.fit_ensemble(data)
         
     def predict_ensemble(self, data, idxs, datasets):
-        if not datasets:
-            datasets = self.datasets
-        else:
-            datasets = sorted(set(datasets).intersection(self.datasets))
+        datasets = self.get_datasets(datasets)
         if idxs is None:
             n = len(data.activity)
         else:
@@ -215,8 +219,11 @@ class EnsembleModel(SignaturedModel):
 
     def predict(self, data, idxs=None, datasets=None, is_tmp=True):
         self.is_tmp = is_tmp
-        self.signaturize(data.smiles)
-        return self.predict_ensemble(data, idxs, datasets)
+        self.signaturize(data.smiles, datasets=datasets)
+        return Prediction(datasets    = self.get_datasets(datasets),
+                          y_pred      = self.predict_ensemble(data, idxs, datasets),
+                          is_ensemble = self.is_ensemble,
+                          weights     = self.weights)
 
 
 # @logged
