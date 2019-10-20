@@ -73,11 +73,15 @@ class Validation:
         if ar_a is None:
             return ar_b
         else:
-            return np.vstack(ar_a, ar_b)
+            if len(ar_b.shape) == 1:
+                return np.hstack((ar_a, ar_b))
+            else:
+                return np.vstack((ar_a, ar_b))
 
     def compute(self, tm, data, train_idx, test_idx):
         """Do the cross-validation"""
         # Initialize
+        self.is_classifier = tm.is_classifier
         self.is_ensemble = tm.is_ensemble
         self.smiles = data.smiles
         # Setup
@@ -91,6 +95,9 @@ class Validation:
         if self.is_ensemble:
             self.y_pred_ens_train = None
             self.y_pred_ens_test = None
+        # Signaturize
+        self.__log.info("Signaturizing all data")
+        tm.signaturize(data.smiles, is_tmp=True)
         # Splits
         self.__log.debug("Computing validation")
         if train_idx is not None and test_idx is not None:
@@ -106,11 +113,11 @@ class Validation:
             data_train = data[train_idx]
             data_test  = data[test_idx]
             self.__log.debug("Fit with train set")
-            tm.fit(data_train, is_tmp=True)
+            tm.fit(data, idxs=train_idx, is_tmp=True)
             self.__log.debug("Predict with train set")
-            pred_train = tm.predict(data_train)
+            pred_train = tm.predict(data, idxs=train_idx, is_tmp=True)
             self.__log.debug("Predict with test set")
-            pred_test = tm.predict(data_test)
+            pred_test = tm.predict(data, idxs=test_idx, is_tmp=True)
             self.__log.debug("Appending")
             self.train_idx = self.stack(self.train_idx, train_idx)
             self.test_idx = self.stack(self.test_idx, test_idx)
