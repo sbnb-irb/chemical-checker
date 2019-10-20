@@ -28,21 +28,62 @@ class Performances:
     def __init__(self, is_classifier):
         self.is_classifier = is_classifier
 
+    @staticmethod
+    def truth_inv(yt):
+        """Given an active (1) / inactive (0) dataset, assign 1 to inactives"""
+        return np.abs(1 - yt)
+
     def classifier_performances(self, yt, yp):
         """Calculate standard prediction performance metrics.
         In addition, it calculates the corresponding weights.
         For the moment, AUPR and AUROC are used.
         Args:
-            yt(list): Truth data (binary).
-            yp(list): Prediction scores (probabilities).
+            yt(array): Truth data (binary).
+            yp(array): Prediction scores (probabilities).
         """
-        perfs = {}
-        yt = list(yt)
-        yp = list(yp)
-        self.auroc = metrics.roc_score(yt, yp)
-        self.aupr = metrics.pr_score(yt, yp)
-        self.bedroc = metrics.bedroc_score(yt, yp)
-  
+        shape = yp.shape
+        if len(shape) == 1:
+            self.__log.debug("Prediction has only one dimension, i.e. score for active")
+            self.auroc  = metrics.roc_score(yt, yp)[0]
+            self.aupr   = metrics.pr_score(yt, yp)[0]
+            self.bedroc = metrics.bedroc_score(yt, yp)[0]
+        else:
+            assert shape[1] == 2, "Too many classes. For the moment, TargetMate only works with active/inactive (1/0)"
+            assert set(yt) == set([0,1]), "Only 1/0 is accepted for the moment."
+            if len(shape) == 2:
+                self.__log.debug("Prediction has two dimensions (active/inactive). Not ensemble.")
+                self.auroc  = np.zeros(2)
+                self.aupr   = np.zeros(2)
+                self.bedroc = np.zeros(2)
+                self.__log.debug("Measuring performance for inactives")
+                yt_ = self.truth_inv(yt)
+                self.auroc[0]  = metrics.roc_score(yt_, yp[:,0])[0]
+                self.aupr[0]   = metrics.pr_score(yt_, yp[:,0])[0]
+                self.bedroc[0] = metrics.bedroc_score(yt_, yp[:,0])[0]
+                self.__log.debug("Measuring performances for actives")
+                yt_ = yt
+                self.auroc[1]  = metrics.roc_score(yt_, yp[:,1])[0]
+                self.aupr[1]   = metrics.pr_score(yt_, yp[:,1])[0]
+                self.bedroc[1] = metrics.bedroc_score(yt_, yp[:,1])[0]
+            if len(shape) == 3:
+                self.__log.debug("Prediction has three dimensions (active/inactives and ensemble of datasets)")
+                ens_size = shape[2]
+                self.auroc  = np.zeros((2, ens_size))
+                self.aupr   = np.zeros((2, ens_size))
+                self.bedroc = np.zeros((2, ens_size))
+                self.__log.debug("Measuring performance for inactives")
+                yt_ = self.truth_inv(yt)
+                for k in range(0, ens_size):
+                    self.auroc[0, k]  = metrics.roc_score(yt_, yp[:,0,k])[0]
+                    self.aupr[0, k]   = metrics.pr_score(yt_, yp[:,0,k])[0]
+                    self.bedroc[0, k] = metrics.bedroc_score(yt_, yp[:,0,k])[0]
+                self.__log.debug("Measuring performance for inactives")
+                yt_ = yt
+                for k in range(0, ens_size):
+                    self.auroc[1, k]  = metrics.roc_score(yt_, yp[:,1,k])[0]
+                    self.aupr[1, k]   = metrics.pr_score(yt_, yp[:,1,k])[0]
+                    self.bedroc[1, k] = metrics.bedroc_score(yt_, yp[:,1,k])[0]
+
     def regressor_performances(self, yt, yp):
         """ """
         pass
@@ -52,6 +93,7 @@ class Performances:
             self.classifier_performances(yt, yp)
         else:
             self.regressor_performances(yt, yp)
+        return self
 
 
 @logged
@@ -65,8 +107,8 @@ class Validation:
             splitter(): If none specified, the corresponding TargetMate splitter is used (default=None).
             destination_dir(str): If non specified, the models path of the TargetMate instance is used (default=None).
         """
+        self.splitter = splitter
         self.destination_dir = destination_dir
-        self.splitter   = splitter
 
     @staticmethod
     def stack(ar_a, ar_b):
@@ -132,10 +174,10 @@ class Validation:
 
     def score(self):
         self.perfs_train = Performances(self.is_classifier).compute(self.y_true_train, self.y_pred_train)
-        self.perfs_test = Performances(self.is_classifier).compute(self.y_true_test, self.y_true_test)
+        self.perfs_test  = Performances(self.is_classifier).compute(self.y_true_test,  self.y_pred_test )
         if self.is_ensemble:
             self.perfs_ens_train = Performances(self.is_classifier).compute(self.y_true_train, self.y_pred_ens_train)
-            self.perfs_ens_test = Performances(self.is_classifier).compute(self.y_true_test, self.y_pred_ens_test)
+            self.perfs_ens_test  = Performances(self.is_classifier).compute(self.y_true_test,  self.y_pred_ens_test )
 
     def save(self):
         self.__log.debug("Saving validation")
@@ -152,9 +194,9 @@ class Validation:
             test_idx(array): Precomputed indices for the test set (default=None).
         """
         if self.destination_dir is None:
-            destination_dir = os.path.join(tm.models_path, "validation.pkl")
+            self.destination_dir = os.path.join(tm.models_path, "validation.pkl")
         else:
-            destination_dir = self.destination_dir
+            self.destination_dir = self.destination_dir
         self.datasets = tm.datasets
         self.compute(tm, data, train_idx, test_idx)
         self.score()

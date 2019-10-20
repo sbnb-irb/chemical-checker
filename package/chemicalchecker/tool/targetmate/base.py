@@ -194,9 +194,12 @@ class EnsembleModel(SignaturedModel):
         self.weights = {}
 
     def fit_ensemble(self, data, idxs):
-        y = data.activity
+        if idxs is None:
+            y = data.activity
+        else:
+            y = data.activity[idxs]
         jobs = []
-        for i, X in enumerate(self.read_signatures_ensemble(datasets=self.datasets)):
+        for i, X in enumerate(self.read_signatures_ensemble(datasets=self.datasets, idxs=idxs)):
             self.__log.info("Working on %s" % self.datasets[i])
             dest = os.path.join(self.bases_models_path, self.datasets[i])
             self.ensemble_dir[self.datasets[i]] = dest
@@ -210,7 +213,7 @@ class EnsembleModel(SignaturedModel):
     def fit(self, data, idxs=None, is_tmp=False):
         self.is_tmp = is_tmp
         self.signaturize(data.smiles)
-        self.fit_ensemble(data)
+        self.fit_ensemble(data, idxs=idxs)
         
     def predict_ensemble(self, data, idxs, datasets):
         datasets = self.get_datasets(datasets)
@@ -219,7 +222,7 @@ class EnsembleModel(SignaturedModel):
         else:
             n = len(idxs)
         preds = np.zeros((n, self.num_pred_cols, len(datasets)))
-        for i, X in enumerate(self.read_signatures_ensemble(datasets=datasets)):
+        for i, X in enumerate(self.read_signatures_ensemble(datasets=datasets, idxs=idxs)):
             with open(self.ensemble_dir[datasets[i]], "rb") as f:
                 self.mod = pickle.load(f)
             preds[:,:,i] = self._predict(X)
