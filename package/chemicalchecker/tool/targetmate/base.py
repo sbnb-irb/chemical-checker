@@ -29,6 +29,7 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
             TargetMateClassifierSetup.__init__(self, **kwargs)
         else:
             TargetMateRegressorSetup.__init__(self, **kwargs)
+        self.is_classifier = is_classifier
 
     def find_base_mod(self, X, y, destination_dir=None):
         """Select a pipeline, for example, using TPOT."""
@@ -58,9 +59,12 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
         y_true = []
         for train_idx, test_idx in kf.split(X, y):
             mod.fit(X[train_idx], y[train_idx])
-            y_pred += list(mod.predict(X[test_idx]))
+            if self.is_classifier:
+                y_pred += list(mod.predict_proba(X[test_idx])[:,1])
+            else:
+                y_pred += list(mod.predict(X[test_idx]))
             y_true += list(y[test_idx])
-        return self.metric_calc(y_true, y_pred)[1]
+        return self.metric_calc(np.array(y_true), np.array(y_pred))[1]
 
     def _fit(self, X, y, destination_dir=None):
         """Fit a model, using a specified pipeline.

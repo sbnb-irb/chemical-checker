@@ -5,15 +5,15 @@ ALPHA = 1e-6
 
 # Base metrics
 def roc_score(y_true, y_pred):
-    y_true = list(y_true)
-    y_pred = list(y_pred)
+    y_true = np.array(y_true)
+    y_pred = np.array(y_pred)
     score = metrics.roc_auc_score(y_true, y_pred)
     weight = (max(score, 0.5) - 0.5) / (1. - 0.5)
     return score, weight + ALPHA
 
 def pr_score(y_true, y_pred):
-    y_true = list(y_true)
-    y_pred = list(y_pred)
+    y_true = np.array(y_true)
+    y_pred = np.array(y_pred)
     prec, rec, _ = metrics.precision_recall_curve(y_true, y_pred)
     score = metrics.auc(rec, prec)
     weight = (score - 0.) / (1. - 0.)
@@ -42,4 +42,3 @@ def Metric(metric):
     if metric == "auroc" : return roc_score
     if metric == "aupr"  : return pr_score
     if metric == "bedroc": return bedroc_score
-    

@@ -94,19 +94,23 @@ class Signaturizer(TargetMateSetup):
         else:
             return sorted(set(self.datasets).intersection(datasets))
 
-    def get_destination_dir(self, dataset):
-        if self.is_tmp:
+    def get_destination_dir(self, dataset, is_tmp=None):
+        if is_tmp is None:
+            is_tmp = self.is_tmp
+        else:
+            is_tmp = is_tmp
+        if is_tmp:
             return os.path.join(self.signatures_tmp_path, dataset)
         else:
             return os.path.join(self.signatures_models_path, dataset)
 
     # Calculate signatures
-    def signaturize(self, smiles, datasets=None, chunk_size=1000):
+    def signaturize(self, smiles, datasets=None, is_tmp=None, chunk_size=1000):
         self.__log.info("Calculating sign for every molecule.")
         datasets = self.get_datasets(datasets)
         jobs  = []
         for dataset in datasets:
-            destination_dir = self.get_destination_dir(dataset)
+            destination_dir = self.get_destination_dir(dataset, is_tmp)
             if os.path.exists(destination_dir):
                 self.__log.debug("Signature %s file already exists: %s" % (dataset, destination_dir))
                 continue
@@ -124,10 +128,10 @@ class Signaturizer(TargetMateSetup):
         self.waiter(jobs)
      
     # Signature readers
-    def read_signature(self, dataset, idxs=None, sign_folder=None):
+    def read_signature(self, dataset, idxs=None, is_tmp=None, sign_folder=None):
         """Read a signature from an HDF5 file"""
         if not sign_folder:
-            destination_dir = self.get_destination_dir(dataset)
+            destination_dir = self.get_destination_dir(dataset, is_tmp=is_tmp)
         else:
             destination_dir = os.path.join(sign_folder, dataset)
         with h5py.File(destination_dir, "r") as hf:
