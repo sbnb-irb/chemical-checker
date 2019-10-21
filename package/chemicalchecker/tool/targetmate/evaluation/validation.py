@@ -21,7 +21,6 @@ class PrecomputedSplitter:
         yield self.train_idx, test_idx
 
 
-@logged
 class Performances:
     """Calculate performances"""
 
@@ -94,6 +93,19 @@ class Performances:
         else:
             self.regressor_performances(yt, yp)
         return self
+
+    def as_dict(self):
+        if self.is_classifier:
+            perfs_dict = {
+                "auroc" : self.auroc,
+                "aupr"  : self.aupr,
+                "bedroc": self.bedroc
+            }
+        else:
+            perfs_dict = {
+                "x": "x"
+            }
+        return perfs_dict
 
 
 @logged
@@ -179,12 +191,46 @@ class Validation:
             self.perfs_ens_train = Performances(self.is_classifier).compute(self.y_true_train, self.y_pred_ens_train)
             self.perfs_ens_test  = Performances(self.is_classifier).compute(self.y_true_test,  self.y_pred_ens_test )
 
+    def as_dict(self):
+        valid = {
+            "is_classifier": self.is_classifier,
+            "is_ensemble": self.is_ensemble,
+            "destination_dir": self.destination_dir,
+            "train": {
+                    "y_true": self.y_true_train,
+                    "y_pred": self.y_pred_train,
+                    "perfs" : self.perfs_train.as_dict()
+                },
+            "test": {
+                    "y_true": self.y_true_test,
+                    "y_true": self.y_pred_test,
+                    "perfs" : self.perfs_test.as_dict()
+            }
+        }
+        if self.is_ensemble:
+            valid["ens_train"] = {
+                "y_true": self.y_true_train,
+                "y_pred": self.y_pred_ens_train,
+                "perfs" : self.perfs_ens_train.as_dict()
+            }
+            valid["ens_test"]  = {
+                "y_true": self.y_true_test,
+                "y_pred": self.y_pred_ens_test,
+                "perfs" : self.perfs_ens_test.as_dict()
+            }
+        return valid
+    
+    def save_as_dict(self):
+        self.__log.debug("Saving as dictionary")
+        with open(self.destination_dir, "wb") as f:
+            pickle.dump(self.as_dict(), f)
+
     def save(self):
         self.__log.debug("Saving validation")
         with open(self.destination_dir, "wb") as f:
             pickle.dump(self, f)
 
-    def validate(self, tm, data, train_idx=None, test_idx=None, save=True):
+    def validate(self, tm, data, train_idx=None, test_idx=None, as_dict=True, save=True):
         """Validate a TargetMate classifier using train-test splits.
 
         Args:
@@ -192,6 +238,8 @@ class Validation:
             data(InputData): Data object.
             train_idx(array): Precomputed indices for the train set (default=None). 
             test_idx(array): Precomputed indices for the test set (default=None).
+            as_dict(bool): Return as dictionary, for portability; if False, the validation is done inplace (default=True).
+            save(bool): Save (default=True)
         """
         if self.destination_dir is None:
             self.destination_dir = os.path.join(tm.models_path, "validation.pkl")
@@ -200,5 +248,9 @@ class Validation:
         self.datasets = tm.datasets
         self.compute(tm, data, train_idx, test_idx)
         self.score()
-        if save:
-            self.save()
+        if as_dict:
+            if save:
+                self.save_as_dict()
+        else:
+            if save:
+                self.save()
