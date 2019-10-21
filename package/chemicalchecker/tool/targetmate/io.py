@@ -72,17 +72,3 @@ class Prediction:
         else:
             weights = [self.weights[ds] for ds in datasets]
             return np.average(self.y_pred_ens[:,:,idxs], weights = weights, axis = 2)
-
-
-class EvaluationOutput:
-
-    def __init__(self):
-        pass
-
-
-class OutputData:
-    """A simple output data class"""
-
-    def __init__(self, data):
-        """Initialize output data class"""
-        pass
