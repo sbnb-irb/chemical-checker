@@ -195,6 +195,7 @@ class Validation:
         valid = {
             "is_classifier": self.is_classifier,
             "is_ensemble": self.is_ensemble,
+            "datasets": self.datasets,
             "destination_dir": self.destination_dir,
             "train": {
                     "y_true": self.y_true_train,

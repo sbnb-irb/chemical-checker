@@ -21,12 +21,10 @@ class OneModelClassifierPlot:
         if type(valid) is not dict:
             self.valid = valid.as_dict()
         
-    
-    def scores_distro(self, ax):
+    def scores_distribution(self, ax):
         """Distribution of scores"""
-        p = perfs["MetaPred"]
-        y_pred_tr = p["perf_train"]["y_pred"]
-        y_pred_ts = p["perf_test"]["y_pred"]
+        y_pred_tr = self.valid["train"]["y_pred"]
+        y_pred_ts = self.valid["test" ]["y_pred"]
         density = stats.kde.gaussian_kde(y_pred_tr)
         x = np.arange(0, 1, 0.01)
         ax.plot(x, density(x), color = "black")
