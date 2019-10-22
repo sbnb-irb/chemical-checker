@@ -58,7 +58,7 @@ class Signaturizer(TargetMateSetup):
 
     def __init__(self,
                  datasets=None,
-                 sign_predict_fn=None,
+                 sign_predict_paths=None,
                  **kwargs):
         """Set up a Signaturizer
         
@@ -79,14 +79,14 @@ class Signaturizer(TargetMateSetup):
         else:
             self.datasets = datasets
         # preloaded neural networks
-        if sign_predict_fn is None:
-            self.sign_predict_fn = dict()
+        if not sign_predict_paths:
+            self.sign_predict_paths = {}
             for ds in self.datasets:
-                self.__log.debug("Loading sign predictor for %s" % ds)
+                self.__log.debug("Loading signature predictr for %s" % ds)
                 s3 = self.cc.get_signature("sign3", "full", ds)
-                self.sign_predict_fn[ds] = (s3, s3.get_predict_fn())
+                self.sign_predict_paths[ds] = s3
         else:
-            self.sign_predict_fn = sign_predict_fn
+            self.sign_predict_paths = sign_predict_paths
 
     def get_datasets(self, datasets=None):
         if datasets is None:
@@ -116,14 +116,13 @@ class Signaturizer(TargetMateSetup):
                 continue
             else:
                 self.__log.debug("Calculating sign for %s" % dataset)
-                s3, predict_fn = self.sign_predict_fn[dataset]
+                s3 = self.sign_predict_paths[dataset]
                 if not self.hpc:
-                    s3.predict_from_smiles(smiles, destination_dir,
-                                           predict_fn=predict_fn)
+                    s3.predict_from_smiles(smiles, destination_dir)
                 else:    
                     job = s3.func_hpc("predict_from_smiles", smiles,
                                       destination_dir, chunk_size, None, False,
-                                      cpu=self.n_jobs_hpc, wait=False)
+                                      cpu=np.max([self.n_jobs_hpc,4]), wait=False)
                     jobs += [job]
         self.waiter(jobs)
      
