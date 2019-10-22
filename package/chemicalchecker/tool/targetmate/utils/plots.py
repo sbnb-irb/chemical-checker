@@ -7,10 +7,10 @@ from sklearn.metrics import roc_curve, precision_recall_curve
 from scipy import stats
 import numpy as np
 
-from chemicalchecker.util.plot import coord_color
+from chemicalchecker.util.plot.plot import coord_color
 
 
-class OneModelClassifierPlot:
+class OneClassifierPlot:
     """Do plots for one single TargetMate model"""
 
     def __init__(self, valid, **kwargs):
