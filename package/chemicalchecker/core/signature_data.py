@@ -109,15 +109,16 @@ class DataSignature(object):
                     hf_out.create_dataset(dset, data=masked)
 
     @staticmethod
-    def hstack_signatures(sign_list, destination, chunk_size=1000):
+    def hstack_signatures(sign_list, destination, chunk_size=1000,
+                          aggregate_keys=None):
         """Merge horizontally a list of signatures."""
         hsizes = [s.shape[1] for s in sign_list]
         vsizes = [s.shape[0] for s in sign_list]
         if not all([vsizes[0] == v for v in vsizes]):
-            raise ValueError('All signatures must have same malecules.')
+            raise ValueError('All signatures must have same molecules.')
         for idx in range(len(sign_list) - 1):
             if not sign_list[idx].keys == sign_list[idx + 1].keys:
-                raise ValueError('All signatures must have same malecules.')
+                raise ValueError('All signatures must have same molecules.')
 
         with h5py.File(destination, "w") as results:
             results.create_dataset('keys', data=np.array(
@@ -131,6 +132,39 @@ class DataSignature(object):
                         hchunk = slice(sum(hsizes[:idx]), sum(
                             hsizes[:idx]) + hsizes[idx])
                         results['V'][vchunk, hchunk] = hf_in['V'][vchunk]
+            # also copy other single column numerical vectors
+            for key in aggregate_keys:
+                tmp = list()
+                for idx, sign in enumerate(sign_list):
+                    with h5py.File(sign.data_path, 'r') as hf_in:
+                        tmp.append(hf_in[key][:])
+                results.create_dataset(key, data=np.vstack(tmp).T)
+
+    @staticmethod
+    def vstack_signatures(sign_list, destination, chunk_size=1000):
+        """Merge horizontally a list of signatures."""
+        hsizes = [s.shape[1] for s in sign_list]
+        vsizes = [s.shape[0] for s in sign_list]
+        if not all([hsizes[0] == h for h in hsizes]):
+            raise ValueError('All signatures must have same features.')
+
+        with h5py.File(destination, "w") as results:
+            results.create_dataset('keys', data=np.array(
+                np.hstack([s.keys for s in sign_list]),
+                DataSignature.string_dtype()))
+            results.create_dataset("V", (sum(vsizes), hsizes[0]))
+
+            for idx, sign in enumerate(sign_list):
+                with h5py.File(sign.data_path, 'r') as hf_in:
+                    for i in range(0, vsizes[idx], chunk_size):
+                        if i + chunk_size > vsizes[idx]:
+                            end = vsizes[idx]
+                        else:
+                            end = i + chunk_size
+                        vchunk_src = slice(i, end)
+                        vchunk_dst = slice(sum(vsizes[:idx]) + i,
+                                           sum(vsizes[:idx]) + end)
+                        results['V'][vchunk_dst] = hf_in['V'][vchunk_src]
 
     def get_h5_dataset(self, h5_dataset_name, mask=None):
         """Get a specific dataset in the signature."""
