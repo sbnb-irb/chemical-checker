@@ -18,6 +18,7 @@ matplotlib.use('Agg')
 import seaborn as sns
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.decomposition import dataset_correlation
@@ -1036,6 +1037,63 @@ class MultiPlot():
         plt.savefig(filename, dpi=100)
         plt.close('all')
 
+    def sign3_coverage_barplot(self, sign2_coverage):
+        cov = sign2_coverage.get_h5_dataset('V')
+        df = pd.DataFrame(columns=['from', 'to', 'coverage'])
+        for ds_from, ds_to in tqdm(itertools.product(self.datasets, self.datasets)):
+            idx_from = self.datasets.index(ds_from)
+            idx_to = self.datasets.index(ds_to)
+            mask_to = cov[:, idx_to].astype(bool)
+            tot_to = np.count_nonzero(mask_to)
+            having_from = np.count_nonzero(cov[mask_to, idx_from])
+            coverage = having_from / float(tot_to)
+            df.loc[len(df)] = pd.Series({
+                'from': ds_from[:2],
+                'to': ds_to[:2],
+                'coverage': coverage})
+
+        cross_cov = df.pivot('from', 'to', 'coverage').values
+        fracs = (cross_cov / np.sum(cross_cov, axis=0)).T
+        totals = dict()
+        for ds in self.datasets:
+            idx = self.datasets.index(ds)
+            coverage_col = cov[:, idx].astype(bool)
+            totals[ds] = np.count_nonzero(coverage_col)
+
+        columns = ['dataset'] + self.datasets
+        df2 = pd.DataFrame(columns=columns)
+        for ds, frac in reversed(zip(self.datasets, fracs)):
+            row = zip(columns, [ds[:2]] +
+                      (frac * np.log10(totals[ds])).tolist())
+            df2.loc[len(df2)] = pd.Series(dict(row))
+        df2.set_index('dataset', inplace=True)
+
+        fig, ax = plt.subplots(1, 1, figsize=(3, 10), dpi=100)
+        colors = [
+            '#EA5A49', '#EE7B6D', '#EA5A49', '#EE7B6D', '#EA5A49',
+            '#C189B9', '#B16BA8', '#C189B9', '#B16BA8', '#C189B9',
+            '#5A72B5', '#7B8EC4', '#5A72B5', '#7B8EC4', '#5A72B5',
+            '#96BF55', '#7CAF2A', '#96BF55', '#7CAF2A', '#96BF55',
+            '#F39426', '#F5A951', '#F39426', '#F5A951', '#F39426']
+        df2.plot.barh(stacked=True, ax=ax, legend=False, color=colors)
+        sns.despine(left=True, trim=True)
+        plt.tick_params(left=False)
+        ax.set_ylabel('')
+        ax.set_xlabel('Molecule Coverage',
+                      fontdict=dict(name='Arial', size=16))
+        # ax.xaxis.tick_top()
+
+        ax.set_xticks([0, 2, 4, 6])
+        ax.set_xticklabels(
+            [r'$10^{0}$', r'$10^{2}$', r'$10^{4}$', r'$10^{6}$', ])
+        ax.tick_params(labelsize=14)
+
+        plt.tight_layout()
+        filename = os.path.join(
+            self.plot_path, "sign3_coverage_barplot.png")
+        plt.savefig(filename, dpi=200)
+        plt.close('all')
+
     def sign3_CCA_heatmap(self, limit=10000):
         df = pd.DataFrame(columns=['from', 'to', 'CCA'])
         for i in range(len(self.datasets)):
@@ -1626,7 +1684,7 @@ class MultiPlot():
             s3 = self.cc.get_signature('sign3', 'full', ds)
             # filter most correlated spaces
             ds_corr = s3.get_h5_dataset('datasets_correlation')
-            self.__log.info(str(zip(list(self.cc.datasets), list(ds_corr))))
+            self.__log.info(str(zip(list(self.datasets), list(ds_corr))))
             # load X Y data
             traintest_file = os.path.join(s3.model_path, 'traintest.h5')
             traintest = Traintest(traintest_file, 'test')
@@ -1639,7 +1697,7 @@ class MultiPlot():
             # check various correlations thresholds
             colors = ['firebrick', 'gold', 'forestgreen']
             for corr_thr, color in zip([.7, .9, 1.0], colors):
-                corr_spaces = np.array(list(self.cc.datasets))[
+                corr_spaces = np.array(list(self.datasets))[
                     ds_corr > corr_thr].tolist()
                 self.__log.info('masking %s' % str(corr_spaces))
                 idxs = [all_dss.index(d) for d in corr_spaces]
@@ -1663,6 +1721,109 @@ class MultiPlot():
             outfile = os.path.join(
                 self.plot_path, 'sign3_correlation_distribution.png')
             plt.savefig(outfile, dpi=200)
+        plt.close('all')
+
+    def sign3_test_pearson_distribution(self):
+
+        from chemicalchecker.tool.adanet import AdaNet
+        from chemicalchecker.util.splitter import Traintest
+
+        def row_wise_correlation(X, Y):
+            var1 = (X.T - np.mean(X, axis=1)).T
+            var2 = (Y.T - np.mean(Y, axis=1)).T
+            cov = np.mean(var1 * var2, axis=1)
+            return cov / (np.std(X, axis=1) * np.std(Y, axis=1))
+
+        def mask_exclude(idxs, x_data, y_data):
+            x_data_transf = np.copy(x_data)
+            for idx in idxs:
+                # set current space to nan
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x_data_transf[:, col_slice] = np.nan
+            # drop rows that only contain NaNs
+            not_nan = np.isfinite(x_data_transf).any(axis=1)
+            x_data_transf = x_data_transf[not_nan]
+            y_data_transf = y_data[not_nan]
+            return x_data_transf, y_data_transf
+
+        sns.set_style("ticks")
+        fig, axes = plt.subplots(26, 1, sharex=True, figsize=(3, 10), dpi=100)
+        all_dss = list(self.datasets)
+        fig.subplots_adjust(left=0.05, right=.95, bottom=0.08,
+                            top=1, wspace=0, hspace=-.3)
+        colors = [
+            '#EA5A49', '#EE7B6D', '#EA5A49', '#EE7B6D', '#EA5A49',
+            '#C189B9', '#B16BA8', '#C189B9', '#B16BA8', '#C189B9',
+            '#5A72B5', '#7B8EC4', '#5A72B5', '#7B8EC4', '#5A72B5',
+            '#96BF55', '#7CAF2A', '#96BF55', '#7CAF2A', '#96BF55',
+            '#F39426', '#F5A951', '#F39426', '#F5A951', '#F39426']
+        for ds, ax, color in zip(all_dss, axes.flat, colors):
+            s3 = self.cc.get_signature('sign3', 'full', ds)
+            corr_file = os.path.join(
+                s3.model_path, 'adanet_eval', 'corr_test_comp.npy')
+            if not os.path.isfile(corr_file):
+                # filter most correlated spaces
+                ds_corr = s3.get_h5_dataset('datasets_correlation')
+                #self.__log.info(str(zip(list(self.datasets), list(ds_corr))))
+                # load X Y data
+                traintest_file = os.path.join(s3.model_path, 'traintest.h5')
+                traintest = Traintest(traintest_file, 'test')
+                traintest.open()
+                x_test, y_test = traintest.get_xy(0, 1000)
+                traintest.close()
+                # load DNN
+                predict_fn = AdaNet.predict_fn(os.path.join(
+                    s3.model_path, 'adanet_eval', 'savedmodel'))
+                # check various correlations thresholds
+                corr_thr = 0.70
+                corr_spaces = np.array(list(self.datasets))[
+                    ds_corr > corr_thr].tolist()
+                #self.__log.info('masking %s' % str(corr_spaces))
+                idxs = [all_dss.index(d) for d in corr_spaces]
+                x_thr, y_true = mask_exclude(idxs, x_test, y_test)
+                y_pred = AdaNet.predict(x_thr, predict_fn)
+
+                corr_test_comp = row_wise_correlation(y_pred.T, y_true.T)
+                np.save(corr_file, corr_test_comp)
+            corr_test_comp = np.load(corr_file)
+
+            # self.__log.info('%.2f N(%.2f,%.2f)' % (
+            #    corr_thr, np.mean(corr_test_comp), np.std(corr_test_comp)))
+            #sns.distplot(corr_test_comp, ax=ax,  color=color)
+            sns.kdeplot(corr_test_comp, ax=ax, clip_on=False, shade=True,
+                        alpha=1, lw=1.5, bw=.2, color=color)
+            sns.kdeplot(corr_test_comp, ax=ax, clip_on=False,
+                        color="w", lw=2, bw=.2)
+            ax.axhline(y=0, lw=2, clip_on=False, color=color)
+            ax.set_xlim(0, 1)
+            ax.tick_params(axis='x', colors=color)
+            ax.set_yticks([])
+            ax.set_xticks([])
+            ax.patch.set_alpha(0)
+            sns.despine(ax=ax, bottom=True, left=True, trim=True)
+            '''
+            ax.legend(prop={'size': 6})
+            ax.grid(axis='y', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
+            ax.spines["top"].set_color(self.cc_palette([ds])[0])
+            ax.spines["right"].set_color(self.cc_palette([ds])[0])
+            ax.spines["left"].set_color(self.cc_palette([ds])[0])
+            '''
+            outfile = os.path.join(
+                self.plot_path, 'sign3_test_pearson_distribution.png')
+        ax = axes.flat[-1]
+        ax.set_yticks([])
+        ax.set_xlim(0, 1)
+        ax.set_xticks([0, 0.25, 0.5, 0.75, 1])
+        ax.set_xticklabels(['0','.25', '.5','.75', '1'])
+        ax.set_xlabel('Test Correlation',
+                      fontdict=dict(name='Arial', size=16))
+        ax.tick_params(labelsize=14)
+        ax.patch.set_alpha(0)
+        sns.despine(ax=ax, bottom=False, left=True, trim=True)
+
+        plt.savefig(outfile, dpi=200)
         plt.close('all')
 
     def sign3_mfp_predictor(self):
@@ -1709,7 +1870,7 @@ class MultiPlot():
         plt.savefig(outfile, dpi=200)
         plt.close('all')
 
-    def sign3_confidence_summary(self, limit=100):
+    def sign3_confidence_summary(self, limit=1000):
 
         from chemicalchecker.core.signature_data import DataSignature
 
@@ -1721,15 +1882,17 @@ class MultiPlot():
             order = c.argsort()
             return xl, yl, c, order
 
-        sns.set_style("white")
+        sns.set_style("ticks")
         sns.set_context("paper")
-        fig = plt.figure(figsize=(15, 10))
-        fig.text(0.5, 0.04, 'Error (Log10 MSE)', ha='center')
-        fig.text(0.04, 0.5, 'Correlation (Pearson)',
-                 va='center', rotation='vertical')
-        fig.text(0.96, 0.5, 'Confidence', va='center', rotation='vertical')
-        for idx, ds in enumerate(self.datasets):
-
+        f, axes = plt.subplots(5, 5, figsize=(
+            10, 10), sharex=True, sharey=True)
+        plt.subplots_adjust(left=0.08, right=1, bottom=0.08,
+                            top=1, wspace=0, hspace=0)
+        #fig.text(0.5, 0.04, 'Error (Log10 MSE)', ha='center')
+        # fig.text(0.04, 0.5, 'Correlation (Pearson)',
+        #         va='center', rotation='vertical')
+        #fig.text(0.96, 0.5, 'Confidence', va='center', rotation='vertical')
+        for ds, ax in zip(self.datasets, axes.flatten()):
             s3 = self.cc.get_signature('sign3', 'full', ds)
 
             error_dist = DataSignature(os.path.join(s3.model_path, 'error.h5'))
@@ -1739,61 +1902,89 @@ class MultiPlot():
             log_mse = error_dist.get_h5_dataset('log_mse')
             log_mse_consensus = error_dist.get_h5_dataset('log_mse_consensus')
             keys = error_dist.get_h5_dataset('keys')
-            _, confidence = s3.get_vectors(keys, dataset_name='confidence_raw')
-            confidence = confidence.flatten()
+
+            confidence = s3.get_h5_dataset('confidence_raw').flatten()
+            mask = np.isin(s3.keys, keys)
+            confidence = confidence[mask]
             pc_confidence = stats.pearsonr(log_mse_consensus, confidence)[0]
             pc_stddev = abs(stats.pearsonr(log_mse_consensus, stddev)[0])
             pc_intensity = abs(stats.pearsonr(log_mse_consensus, intensity)[0])
             pc_exp_error = abs(stats.pearsonr(log_mse, exp_error)[0])
-            x, y, c, order = quick_gaussian_kde(log_mse_consensus, confidence)
+            x, y, c, order = quick_gaussian_kde(
+                log_mse_consensus, confidence, limit)
 
-            row = idx / 5
-            col = idx % 5
-
-            scores_ax = plt.subplot2grid((5, 20), (row, col * 4))
-            scores_ax.bar([0, 1, 2], [pc_stddev, pc_intensity,
-                                      pc_exp_error], [1, 1, 1],
-                          tick_label=['stddev', 'intensity', 'exp.error'],
-                          color=self.cc_palette([ds])[0])
-            for label in scores_ax.get_xticklabels():
-                label.set_ha("right")
-                label.set_rotation(45)
-                if row != 4:
-                    label.set_visible(False)
-            scores_ax.set_ylim(0, 1)
-            scores_ax.set_ylabel('Correlation (Pearson)')
-            scores_ax.set_ylabel('')
-            sns.despine(ax=scores_ax, bottom=True)
-            scores_ax.set_yticks([0, 1])
-            scores_ax.set_yticklabels(['0', '1'])
-
-            conf_ax = plt.subplot2grid((5, 20), (row, 1 + col * 4), colspan=2)
             white = self._rgb2hex(250, 250, 250)
             black = self._rgb2hex(0, 0, 0)
-            colors = [black, self.cc_palette([ds])[0], white]
+            colors = [white, self.cc_palette([ds])[0], black]
             cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
                 '', colors)
-            conf_ax.scatter(x[order], y[order], c=c[order],
-                            cmap=cmap, s=5, edgecolor='')
-            conf_ax.text(0.05, 0.05, r"$\rho$: {:.2f}".format(pc_confidence),
-                         transform=conf_ax.transAxes, size=6)
+            ax.scatter(x[order], y[order], c=c[order],
+                       cmap=cmap, s=5, edgecolor='')
+            ax.text(0.05, 0.1, r"$\rho$: {:.2f}".format(pc_confidence),
+                    transform=ax.transAxes, name='Arial', size=10)
 
-            conf_ax.set_ylim(0, 1)
-            conf_ax.set_xlim(-4.5, -0.5)
-            conf_ax.set_ylabel('Confidence')
-            conf_ax.set_ylabel('')
-            conf_ax.set_xlabel('Error (Log10 MSE)')
-            conf_ax.set_xlabel('')
-            sns.despine(ax=conf_ax, left=True, right=False)
+            ax.set_ylim(-0.0, 1.1)
+            ax.set_xlim(-3.1, -1.4)
+            ax.set_ylabel('Confidence')
+            ax.set_ylabel('')
+            ax.set_xlabel('Error (Log10 MSE)')
+            ax.set_xlabel('')
 
-            conf_ax.yaxis.set_label_position("right")
-            conf_ax.set_yticks([0, 1])
-            conf_ax.set_yticklabels(['0', '1'])
-            conf_ax.set_xticks([-4, -1])
-            conf_ax.set_xticklabels(['-4', '-1'])
+            ax.set_yticks([0.0, 1.0])
+            ax.set_yticklabels(['0', '1'])
+            ax.set_xticks([-3.0, -2])
+            ax.set_xticklabels(['-3', '-1.5'])
+            ax.tick_params(labelsize=14, direction='inout')
+
+            if ds[:2] == 'E1':
+                sns.despine(ax=ax, offset=3, trim=True)
+            elif ds[1] == '1':
+                sns.despine(ax=ax, bottom=True, offset=3, trim=True)
+                ax.tick_params(bottom=False)
+            elif ds[0] == 'E':
+                sns.despine(ax=ax, left=True, offset=3, trim=True)
+                ax.tick_params(left=False)
+            else:
+                sns.despine(ax=ax, bottom=True, left=True, offset=3, trim=True)
+                ax.tick_params(bottom=False, left=False)
+
+            # pies
+            colors = [self.cc_palette([ds])[0], 'lightgrey']
+            bbox = (.5, .5, .5, .5)
+            inset_ax = inset_axes(ax, 0.4, 0.4,
+                                  bbox_to_anchor=bbox,
+                                  bbox_transform=ax.transAxes,  loc=2)
+
+            inset_ax.pie([pc_stddev, 1 - pc_stddev],
+                         counterclock=False, startangle=90, colors=colors)
+            inset_ax.pie([1.0], radius=0.5, colors=['white'])
+            inset_ax.text(0.5, 0.5, r"$\sigma$", ha='center', va='center',
+                          transform=inset_ax.transAxes, name='Arial', size=10)
+            inset_ax = inset_axes(ax, 0.4, 0.4,
+                                  bbox_to_anchor=bbox,
+                                  bbox_transform=ax.transAxes,  loc=1)
+            inset_ax.pie([pc_intensity, 1 - pc_intensity],
+                         counterclock=False, startangle=90, colors=colors)
+            inset_ax.pie([1.0], radius=0.5, colors=['white'])
+            inset_ax.text(0.5, 0.5, r"$I$", ha='center', va='center',
+                          transform=inset_ax.transAxes, name='Arial', size=10)
+            inset_ax = inset_axes(ax, 0.4, 0.4,
+                                  bbox_to_anchor=bbox,
+                                  bbox_transform=ax.transAxes, loc=4)
+            inset_ax.pie([pc_exp_error, 1 - pc_exp_error],
+                         counterclock=False, startangle=90, colors=colors)
+            inset_ax.pie([1.0], radius=0.5, colors=['white'])
+            inset_ax.text(0.5, 0.5, r"$e$", ha='center', va='center',
+                          transform=inset_ax.transAxes, name='Arial', size=10)
 
             outfile = os.path.join(self.plot_path,
                                    'sign3_confidence_summary.png')
+            f.text(0.55, 0.02, 'Error (Log10 MSE)',
+                   ha='center', va='center',
+                   name='Arial', size=16)
+            f.text(0.02, 0.55, 'Confidence', ha='center',
+                   va='center', rotation='vertical',
+                   name='Arial', size=16)
             plt.savefig(outfile, dpi=200)
         plt.savefig(outfile, dpi=200)
         plt.close('all')
