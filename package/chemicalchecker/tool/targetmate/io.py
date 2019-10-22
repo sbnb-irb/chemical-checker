@@ -68,7 +68,8 @@ class Prediction:
             datasets = sorted(set(self.datasets).intersection(datasets))
         idxs = [self.datasets.index(ds) for ds in datasets]
         if self.weights is None:
-            return np.mean(self.y_pred_ens[:,:,idxs], axis = 2)
+            return np.median(self.y_pred_ens[:,:,idxs], axis = 2)
         else:
             weights = [self.weights[ds] for ds in datasets]
+            weights = np.array(weights) / np.sum(weights)
             return np.average(self.y_pred_ens[:,:,idxs], weights = weights, axis = 2)
