@@ -43,13 +43,14 @@ class proj(BaseSignature, DataSignature):
 
         self.projector = eval(proj_type)(signature_path, dataset, **kwargs)
 
-    def pre_fit_transform(self, signature, n_components=15, chunk_size=1000):
+    def pre_fit_transform(self, signature, n_components=15, batch_size=100):
         """Preprocess the input signature reducing by PCA."""
-        preprocess_algo = IncrementalPCA(n_components=n_components)
+        preprocess_algo = IncrementalPCA(n_components=n_components,
+                                         batch_size=batch_size)
         with h5py.File(signature.data_path, "r") as src:
             src_len = src["V"].shape[0]
-            for i in tqdm(range(0, src_len, chunk_size), 'PRE fit'):
-                chunk = slice(i, i + chunk_size)
+            for i in tqdm(range(0, src_len, batch_size), 'PRE fit'):
+                chunk = slice(i, i + batch_size)
                 preprocess_algo.partial_fit(src["V"][chunk])
         sdtype = DataSignature.string_dtype()
         destination = self.data_path + '_tmp_preprocess'
@@ -66,15 +67,15 @@ class proj(BaseSignature, DataSignature):
                                    dtype=sdtype)
             src_len = src["V"].shape[0]
             dst.create_dataset("V", (src_len, n_components), dtype=np.float32)
-            for i in tqdm(range(0, src_len, chunk_size), 'PRE transform'):
-                chunk = slice(i, i + chunk_size)
+            for i in tqdm(range(0, src_len, batch_size), 'PRE transform'):
+                chunk = slice(i, i + batch_size)
                 dst['V'][chunk] = preprocess_algo.transform(src['V'][chunk])
         self.preprocess_algo_path = os.path.join(self.signature_path,
                                                  'preprocess.pkl')
         pickle.dump(preprocess_algo, open(self.preprocess_algo_path, 'wb'))
         return pred_proj
 
-    def pre_predict(self, signature, chunk_size=1000):
+    def pre_predict(self, signature, batch_size=1000):
         """Preprocess the input signature reusing PCA transform."""
         preprocess_algo = pickle.load(open(self.preprocess_algo_path, 'rb'))
         sdtype = DataSignature.string_dtype()
@@ -92,18 +93,19 @@ class proj(BaseSignature, DataSignature):
                                    dtype=sdtype)
             src_len = src["V"].shape[0]
             dst.create_dataset("V", (src_len, 2), dtype=np.float32)
-            for i in tqdm(range(0, src_len, chunk_size), 'transform'):
-                chunk = slice(i, i + chunk_size)
+            for i in tqdm(range(0, src_len, batch_size), 'transform'):
+                chunk = slice(i, i + batch_size)
                 dst['V'][chunk] = preprocess_algo.transform(src['V'][chunk])
         return pred_proj
 
     def fit(self, signature, validations=True, preprocess_dims=False,
-            *args, **kwargs):
+            batch_size=100, *args, **kwargs):
         """Take an input learn a 2D representation."""
         self.__log.info("Input shape: %s" % str(signature.shape))
         if preprocess_dims:
             signature = self.pre_fit_transform(signature,
-                                               n_components=preprocess_dims)
+                                               n_components=preprocess_dims,
+                                               batch_size=batch_size)
         self.projector.fit(signature, validations, *args, **kwargs)
 
     def predict(self, signature, destination, *args, **kwargs):
