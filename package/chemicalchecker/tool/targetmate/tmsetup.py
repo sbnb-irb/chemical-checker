@@ -110,20 +110,6 @@ class TargetMateSetup(HPCUtils):
         if not os.path.exists(signatures_path): os.mkdir(signatures_path)
         return bases_path, signatures_path
 
-    # @staticmethod
-    # def avg_and_std(values, weights=None):
-    #     """Return the (weighted) average and standard deviation.
-
-    #     Args:
-    #         values(list or array): 1-d list or array of values
-    #         weights(list or array): By default, no weightening is applied
-    #     """
-    #     if weights is None:
-    #         weights = np.ones(len(values))
-    #     average = np.average(values, weights=weights)
-    #     variance = np.average((values - average)**2, weights=weights)
-    #     return (average, math.sqrt(variance))
-
     # Read input data
     def read_data(self, data, standardize=None):
         if not standardize:
@@ -157,28 +143,7 @@ class TargetMateSetup(HPCUtils):
         """Load previously stored TargetMate instance."""
         with open(os.path.join(models_path, "/TargetMate.pkl", "r")) as f:
             return pickle.load(f)
-
-    def load_performances(self):
-        """Load performance data"""
-        fn = os.path.join(self.models_path, "perfs.json")
-        if not os.path.exists(fn): return
-        with open(fn, "r") as f:
-            return json.load(f)
-
-    def load_ad_data(self):
-        """Load applicability domain data"""
-        fn = os.path.join(self.models_path, "ad_data.pkl")
-        if not os.path.exists(fn): return
-        with open(fn, "rb") as f:
-            return pickle.load(f)
-
-    def load_data(self):
-        self.__log.debug("Loading training data (only evidence)")
-        fn = os.path.join(self.models_path, "trained_data.pkl")
-        if not os.path.exists(fn): return
-        with open(fn, "rb") as f:
-            return pickle.load(f)
-
+ 
     def load_base_model(self, destination_dir, append_pipe=False):
         """Load a base model"""
         mod = joblib.load(destination_dir)
@@ -193,15 +158,6 @@ class TargetMateSetup(HPCUtils):
         self.sign_predict_fn = None
         with open(self.models_path + "/TargetMate.pkl", "wb") as f:
             pickle.dump(self, f)
-
-    def save_performances(self, perfs):
-        with open(self.models_path + "/perfs.json", "w") as f:
-            json.dump(perfs, f)
-
-    def save_data(self, data):
-        self.__log.debug("Saving training data (only evidence)")
-        with open(self.models_path + "/trained_data.pkl", "wb") as f:
-            pickle.dump(data, f)
 
 
 @logged
