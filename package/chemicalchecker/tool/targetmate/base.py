@@ -162,6 +162,7 @@ class StackedModel(SignaturedModel):
         SignaturedModel.__init__(self, **kwargs)
         self.is_ensemble = False
         self.n_components = n_components
+        self.pca = None
 
     def pca_fit(self, X):
         if not self.n_components: return X

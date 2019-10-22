@@ -22,11 +22,12 @@ tpot_configs = {
     },
 
     # Logistic Regression
-    'sklearn.linear_model.LogisticRegression': {
-        'class_weight': ['balanced'],
-        'penalty': ['l1', 'l2'],
-        'C': [1e-4, 1e-3, 1e-2, 1e-1, 0.5, 1., 5., 10., 15., 20., 25.],
-        'dual': [False]
+    "logistic_regression" = {
+        'sklearn.linear_model.LogisticRegression': {
+            'class_weight': ['balanced'],
+            'penalty': ['l1', 'l2'],
+            'C': [1e-4, 1e-3, 1e-2, 1e-1, 0.5, 1., 5., 10., 15., 20., 25.],
+            'dual': [False]
     },
 
     # Minimalistic TPOT Search
@@ -162,7 +163,7 @@ class TPOTClassifierConfigs:
             max_eval_time_mins=0.5,
             random_state=42,
             early_stop=3,
-            disable_update_check=True
+            disable_update_check=True)
         
     def as_pipeline(self, X, y, **kwargs):
         """Select a pipeline, typically using hyper-parameter optimization methods e.g. TPOT.
