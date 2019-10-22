@@ -566,7 +566,7 @@ class sign3(BaseSignature, DataSignature):
             raise err
         # load NN
         if predict_fn is None:
-            predict_fn = self.get_predict_fn('adanet_sign0_A1.001_final')
+            predict_fn = self.get_predict_fn()
         # we return a simple DataSignature object (basic HDF5 access)
         pred_s3 = DataSignature(dest_file)
         # load novelty model for more accurate novelty scores (slower)
