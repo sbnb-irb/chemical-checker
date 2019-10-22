@@ -31,7 +31,7 @@ class TargetMateSetup(HPCUtils):
                  cc_root = None,
                  overwrite = True,
                  n_jobs = None,
-                 n_jobs_hpc = 8,
+                 n_jobs_hpc = 1,
                  standardize = True,
                  cv_folds=5,
                  conformity = True,
@@ -46,7 +46,7 @@ class TargetMateSetup(HPCUtils):
             cc_root(str): CC root folder (default=None)
             overwrite(bool): Clean models_path directory (default=True)
             n_jobs(int): Number of CPUs to use, all by default (default=None)
-            n_jobs(hpc): Number of CPUs to use in HPC (default=8)
+            n_jobs(hpc): Number of CPUs to use in HPC (default=1)
             standardize(bool): Standardize small molecule structures (default=True)
             cv_folds(int): Number of cross-validation folds (default=5)
             conformity(bool): Do cross-conformal prediction (default=True)
@@ -110,19 +110,19 @@ class TargetMateSetup(HPCUtils):
         if not os.path.exists(signatures_path): os.mkdir(signatures_path)
         return bases_path, signatures_path
 
-    @staticmethod
-    def avg_and_std(values, weights=None):
-        """Return the (weighted) average and standard deviation.
+    # @staticmethod
+    # def avg_and_std(values, weights=None):
+    #     """Return the (weighted) average and standard deviation.
 
-        Args:
-            values(list or array): 1-d list or array of values
-            weights(list or array): By default, no weightening is applied
-        """
-        if weights is None:
-            weights = np.ones(len(values))
-        average = np.average(values, weights=weights)
-        variance = np.average((values - average)**2, weights=weights)
-        return (average, math.sqrt(variance))
+    #     Args:
+    #         values(list or array): 1-d list or array of values
+    #         weights(list or array): By default, no weightening is applied
+    #     """
+    #     if weights is None:
+    #         weights = np.ones(len(values))
+    #     average = np.average(values, weights=weights)
+    #     variance = np.average((values - average)**2, weights=weights)
+    #     return (average, math.sqrt(variance))
 
     # Read input data
     def read_data(self, data, standardize=None):
