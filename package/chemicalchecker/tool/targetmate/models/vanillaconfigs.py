@@ -13,14 +13,14 @@ class VanillaClassifierConfigs:
         if base_mod == "random_forest":
             from sklearn.ensemble import RandomForestClassifier
             self.base_mod = RandomForestClassifier(
-                n_estimators=100, class_weight="balanced", n_jobs=n_jobs)
+                n_estimators=1000, class_weight="balanced", n_jobs=n_jobs)
         if base_mod == "naive_bayes":
             from sklearn.naive_bayes import GaussianNB
             self.base_mod = GaussianNB()
         if base_mod == "balanced_random_forest":
             from imblearn.ensemble import BalancedRandomForestClassifier
             self.base_mod = BalancedRandomForestClassifier(
-                n_estimators=100, class_weight="balanced", n_jobs=n_jobs)
+                n_estimators=1000, class_weight="balanced", n_jobs=n_jobs)
 
     def as_pipeline(self, X=None, y=None, **kwargs):
         return Pipeline([('variance_threshold_0', VarianceThreshold()),
