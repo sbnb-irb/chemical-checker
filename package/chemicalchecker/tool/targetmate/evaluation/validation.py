@@ -21,6 +21,7 @@ class PrecomputedSplitter:
         yield self.train_idx, test_idx
 
 
+@logged
 class Performances:
     """Calculate performances"""
 
@@ -137,6 +138,8 @@ class Validation:
         # Initialize
         self.is_classifier = tm.is_classifier
         self.is_ensemble = tm.is_ensemble
+        self.conformity = tm.conformity
+        self.weights = tm.weights
         self.smiles = data.smiles
         # Setup
         self.__log.debug("Initializing all the results arrays")
@@ -195,7 +198,10 @@ class Validation:
         valid = {
             "is_classifier": self.is_classifier,
             "is_ensemble": self.is_ensemble,
+            "conformity": self.conformity,
             "datasets": self.datasets,
+            "weights": self.weights,
+            "smiles": self.smiles,
             "destination_dir": self.destination_dir,
             "train": {
                     "y_true": self.y_true_train,
@@ -204,7 +210,7 @@ class Validation:
                 },
             "test": {
                     "y_true": self.y_true_test,
-                    "y_true": self.y_pred_test,
+                    "y_pred": self.y_pred_test,
                     "perfs" : self.perfs_test.as_dict()
             }
         }
@@ -221,15 +227,14 @@ class Validation:
             }
         return valid
     
-    def save_as_dict(self):
-        self.__log.debug("Saving as dictionary")
-        with open(self.destination_dir, "wb") as f:
-            pickle.dump(self.as_dict(), f)
-
-    def save(self):
+    def save(self, d=None):
+        """Save. If d is specified, a dictionary is saved."""
         self.__log.debug("Saving validation")
         with open(self.destination_dir, "wb") as f:
-            pickle.dump(self, f)
+            if d is None:
+                pickle.dump(self, f)
+            else:
+                pickle.dump(d, f)
 
     def validate(self, tm, data, train_idx=None, test_idx=None, as_dict=True, save=True):
         """Validate a TargetMate classifier using train-test splits.
@@ -250,8 +255,9 @@ class Validation:
         self.compute(tm, data, train_idx, test_idx)
         self.score()
         if as_dict:
-            if save:
-                self.save_as_dict()
+            d = self.as_dict()
         else:
-            if save:
-                self.save()
+            d = None
+        if save:
+            self.save(d = d)
+        return d

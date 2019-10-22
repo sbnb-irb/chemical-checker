@@ -4,6 +4,8 @@ from chemicalchecker.util import Config
 from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util import logged
 import multiprocessing
+import numpy as np
+import time
 
 @logged
 class HPCUtils:
@@ -19,9 +21,11 @@ class HPCUtils:
         """Wait for jobs to finish"""
         if not jobs: return
         self.__log.debug("Waiting for jobs to finish...")
-        while np.any([job.status != "done" for job in jobs]):
+        while np.any([job.status() != "done" for job in jobs]):
+            for job in jobs:
+                self.__log.debug(job.status())
             time.sleep(secs)
-        self.__log.debug("Jobs done.")        
+        self.__log.debug("Jobs done.") 
 
     def func_hpc(self, func_name, *args, **kwargs):
         """Execute the *any* method on the configured HPC.

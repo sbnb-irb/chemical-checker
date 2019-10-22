@@ -8,6 +8,7 @@ import pickle
 import random
 
 from sklearn.base import clone
+from sklearn.decomposition import PCA
 
 from chemicalchecker.util import logged
 
@@ -34,6 +35,7 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
         else:
             TargetMateRegressorSetup.__init__(self, **kwargs)
         self.is_classifier = is_classifier
+        self.weights = None
 
     def find_base_mod(self, X, y, destination_dir=None):
         """Select a pipeline, for example, using TPOT."""
@@ -155,10 +157,24 @@ class SignaturedModel(Model, Signaturizer):
 class StackedModel(SignaturedModel):
     """Stacked TargetMate model."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, n_components=None, **kwargs):
         """Initialize the stacked model."""
         SignaturedModel.__init__(self, **kwargs)
         self.is_ensemble = False
+        self.n_components = n_components
+
+    def pca_fit(self, X):
+        if not self.n_components: return X
+        if self.n_components > X.shape[1]: return X
+        self.__log.debug("Doing PCA")
+        self.pca = PCA(n_components = self.n_components)
+        self.pca.fit(X)
+        return self.pca.transform(X)
+
+    def pca_transform(self, X):
+        self.__log.debug("")
+        if not self.pca: return X
+        return self.pca.transform(X)
 
     def fit_stack(self, data, idxs):
         if idxs is None:
@@ -166,6 +182,7 @@ class StackedModel(SignaturedModel):
         else:
             y = data.activity[idxs]
         X = self.read_signatures_stacked(datasets=self.datasets, idxs=idxs)
+        X = self.pca_fit(X)
         self._fit(X, y, destination_dir=None)
 
     def fit(self, data, idxs=None, is_tmp=False):
@@ -183,6 +200,7 @@ class StackedModel(SignaturedModel):
 
     def predict_stack(self, idxs):
         X = self.read_signatures_stacked(datasets=self.datasets, idxs=idxs)
+        X = self.pca_transform(X)
         return self._predict(X)
 
     def predict(self, data, idxs=None, is_tmp=True):
@@ -235,6 +253,7 @@ class EnsembleModel(SignaturedModel):
             n = len(idxs)
         preds = np.zeros((n, self.num_pred_cols, len(datasets)))
         for i, X in enumerate(self.read_signatures_ensemble(datasets=datasets, idxs=idxs)):
+            self.__log.debug("Working on %s" % self.datasets[i])
             with open(self.ensemble_dir[datasets[i]], "rb") as f:
                 self.mod = pickle.load(f)
             preds[:,:,i] = self._predict(X)
