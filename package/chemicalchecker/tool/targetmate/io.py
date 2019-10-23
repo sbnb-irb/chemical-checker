@@ -80,7 +80,7 @@ class Prediction:
             pw = pweights[i] / np.sum(pweights[i])
             w  = weights*pw
             w  = w / np.sum(w)
-            for j in range(0, y_pred.shape[0]):
+            for j in range(0, y_pred.shape[1]):
                 vals = v[i,j]
                 y_pred[i,j] = np.average(vals, weights = w)
         return y_pred
