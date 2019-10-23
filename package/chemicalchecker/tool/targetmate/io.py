@@ -60,6 +60,7 @@ class Prediction:
             self.y_pred = y_pred
 
     def metapredict(self, datasets=None):
+        """Metapredict using a double weighting scheme"""
         if not self.is_ensemble:
             return self.y_pred
         if not datasets:
@@ -68,8 +69,18 @@ class Prediction:
             datasets = sorted(set(self.datasets).intersection(datasets))
         idxs = [self.datasets.index(ds) for ds in datasets]
         if self.weights is None:
-            return np.median(self.y_pred_ens[:,:,idxs], axis = 2)
+            weights = np.ones(len(idxs))
         else:
-            weights = [self.weights[ds] for ds in datasets]
-            weights = np.array(weights) / np.sum(weights)
-            return np.average(self.y_pred_ens[:,:,idxs], weights = weights, axis = 2)
+            weights = np.array([self.weights[ds] for ds in datasets])
+        weights = weights / np.sum(weights)
+        v = self.y_pred_ens[:,:,idxs]
+        pweights = np.max(v, axis = 1)
+        y_pred = np.zeros((v.shape[0], v.shape[1]))
+        for i in range(0, y_pred.shape[0]):
+            pw = pweights[i] / np.sum(pweights[i])
+            w  = weights*pw
+            w  = w / np.sum(w)
+            for j in range(0, y_pred.shape[0]):
+                vals = v[i,j]
+                y_pred[i,j] = np.average(vals, weights = w)
+        return y_pred
