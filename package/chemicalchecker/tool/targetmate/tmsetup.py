@@ -151,6 +151,13 @@ class TargetMateSetup(HPCUtils):
             self.pipes += [pickle.load(open(destination_dir+".pipe", "rb"))]
         return mod
 
+    def load_data(self):
+        self.__log.debug("Loading training data (only evidence)")
+        fn = os.path.join(self.models_path, "trained_data.pkl")
+        if not os.path.exists(fn): return
+        with open(fn, "rb") as f:
+            return pickle.load(f)
+
     # Saving functions
     def save(self):
         """Save TargetMate instance"""
@@ -158,6 +165,12 @@ class TargetMateSetup(HPCUtils):
         self.sign_predict_fn = None
         with open(self.models_path + "/TargetMate.pkl", "wb") as f:
             pickle.dump(self, f)
+
+    def save_data(self, data):
+        self.__log.debug("Saving training data (only evidence)")
+        with open(self.models_path + "/trained_data.pkl", "wb") as f:
+            pickle.dump(data, f)
+
 
 
 @logged
