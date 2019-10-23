@@ -122,7 +122,9 @@ class Signaturizer(TargetMateSetup):
                 else:    
                     job = s3.func_hpc("predict_from_smiles", smiles,
                                       destination_dir, chunk_size, None, False,
-                                      cpu=np.max([self.n_jobs_hpc,8]), wait=False)
+                                      cpu=np.max([self.n_jobs_hpc,8]),
+                                      memory=18,
+                                      wait=False)
                     jobs += [job]
         self.waiter(jobs)
      
