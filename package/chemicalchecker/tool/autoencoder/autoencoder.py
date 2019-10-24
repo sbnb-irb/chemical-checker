@@ -1,7 +1,7 @@
 import os
 import h5py
 import numpy as np
-from keras import backend as K
+from tensorflow.keras import backend as K
 import tensorflow as tf
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.layers import Input, Dense, Masking, Dropout, Activation
@@ -68,6 +68,7 @@ class AutoEncoder:
         self.epochs = int(kwargs.get("epochs", 200))
         self.dropout_rate = float(kwargs.get("dropout_rate", 0.2))
         self.shuffle = kwargs.get("shuffle", True)
+        self.gpu = kwargs.get("gpu", False)
         self.mask_value = kwargs.get("mask_value", None)
         self.cpu = kwargs.get("cpu", 32)
         self.shuffles = 10
@@ -87,10 +88,16 @@ class AutoEncoder:
         """
         self.data_path = data_path
 
-        config = tf.ConfigProto(intra_op_parallelism_threads=self.cpu,
-                                inter_op_parallelism_threads=self.cpu,
-                                allow_soft_placement=True,
-                                device_count={'CPU': self.cpu})
+        if self.gpu:
+            print ("Running on GPUs")
+            config = tf.ConfigProto(device_count={'GPU': 1})
+
+        else:
+
+            config = tf.ConfigProto(intra_op_parallelism_threads=self.cpu,
+                                    inter_op_parallelism_threads=self.cpu,
+                                    allow_soft_placement=True,
+                                    device_count={'CPU': self.cpu})
         session = tf.Session(config=config)
         K.set_session(session)
 
@@ -216,9 +223,11 @@ class AutoEncoder:
         with h5py.File(dest_file, "w") as results, h5py.File(data_path, 'r') as hf:
             input_size = hf[input_dataset].shape[0]
             if "keys" in hf.keys():
-                results.create_dataset('keys', data=hf["keys"][:])
+                results.create_dataset('keys', data=hf["keys"][
+                                       :], maxshape=hf["keys"].shape)
             results.create_dataset('V', (input_size, self.autoencoder_model.layers[
-                                   index].output_shape[1]), dtype=np.float32)
+                                   index].output_shape[1]), dtype=np.float32,
+                                   maxshape=(input_size, self.autoencoder_model.layers[index].output_shape[1]))
 
             for i in range(0, input_size, chunk_size):
                 chunk = slice(i, i + chunk_size)
