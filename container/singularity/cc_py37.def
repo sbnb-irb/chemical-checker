@@ -4,7 +4,7 @@ From: centos:8
 %environment
     # PATHS
     export PATH=/opt/miniconda3/bin:$PATH
-    source activate py36
+    source activate py37
 
 %post
     # bind paths
@@ -36,11 +36,10 @@ From: centos:8
                    libXext \
                    postgresql-server \
                    postgresql-contrib \
-                   epel-release \
-                   curl
+                   epel-release 
 
     # MS compatible font for plotting 
-    yum install -y xorg-x11-font-utils fontconfig
+    yum install -y xorg-x11-font-utils fontconfig libmspack
     rpm -i http://download-ib01.fedoraproject.org/pub/epel/7/x86_64/Packages/c/cabextract-1.5-1.el7.x86_64.rpm
     rpm -i https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm
 
@@ -53,8 +52,9 @@ From: centos:8
     export PATH=/opt/miniconda3/bin:$PATH
 
     # create and activate conda enviroment
-    conda create --name=py36 python=3.6 -y
-    source activate py36
+    conda update conda -y
+    conda create --name=py37 python=3.7 -y
+    source activate py37
 
     # conda-specific packages
     conda install -y -c rdkit rdkit               # Open-Source Cheminformatics Software
@@ -65,21 +65,14 @@ From: centos:8
     conda install -y -c conda-forge hdbscan       # clustering
 
     # utility packages
-    pip install ipython
+    pip install ipython                           # interactive python
+    pip install jupyter                           # jupyter notebooks
     pip install six                               # py2/py3 compatibility
     pip install pytest                            # unit-testing
     pip install mock                              # mocking for unit-testing
     pip install autologging                       # logging handler
     pip install paramiko                          # ssh client
-    pip install termcolor                         # terminal output with colors
-    pip install standardiser                      # standardising molecules
     pip install psycopg2-binary                   # Postgesql driver
-    pip install xlrd                              # Extract data from Excel spreadsheets
-    pip install cmapPy                            # interacting with .gctx and .gct files, and other Connectivity Map resources
-    pip install e3fp                              # 3D molecular fingreprints
-    pip install csvsort                           # Sort csv
-    pip install intbitset                         # sort unsigned integers
-    pip install cython                            # C extensions
     pip install sqlalchemy                        # ORM SQL
     pip install sphinx                            # to generate docs
     pip install sphinx_rtd_theme                  # docs theme.
@@ -87,21 +80,32 @@ From: centos:8
     pip install wget                              # download library
     pip install timeout_decorator                 # method timeout
     pip install tqdm                              # handy progress-bar
+
+    # raw data packages
     pip install lxml                              # xml parser
+    pip install xlrd                              # Extract data from Excel spreadsheets
+    pip install cmapPy                            # interacting with .gctx and .gct files, and other Connectivity Map resources
+    pip install csvsort                           # Sort csv
+
+    # chemistry packages
+    #pip install e3fp                              # 3D molecular fingreprints
     pip install pubchempy                         # Pubchem rest api
     pip install chemfp                            # fast fingerprint search (used in TargetMate)
-    pip install jupyter                           # jupyter notebooks
+    pip install standardiser                      # standardising molecules
 
-    # data packages
+    # numerical packages
+    pip install cython                            # C extensions
     pip install numpy                             # best numerical library ever
     pip install pandas                            # handles table-like datastracture
     pip install scipy                             # scientific python
     pip install theano                            # Optimize evaluate math expressions
     pip install h5py                              # HDF5 via python
+    pip install fancyimpute                       # matrix completion and imputation algorithms
+    pip install protobuf==3.6.1                   # Google serialization library
+    #pip install intbitset                         # sort unsigned integers
 
     # graph packages
     pip install networkx                          # graph data stracture and algos
-    pip install protobuf==3.6.1
     pip install snap-stanford                     # Python interface for SNAP
 
     # visualization packages
@@ -115,9 +119,10 @@ From: centos:8
     pip install tensorflow==1.14.0                # neural network library
     pip install adanet==0.5.0                     # automl for NN
     pip install keras                             # NN API
+
+    # Dimensionality reduction
     pip install MulticoreTSNE                     # tSNE algo
     pip install umap-learn                        # UMAP algo
-    pip install fancyimpute                       # matrix completion and imputation algorithms
 
     # install local SBNB devpi packages
     DEVPI_HOST=gitlabsbnb.irbbarcelona.org
@@ -138,6 +143,14 @@ From: centos:8
     tar -xvf qed-1.0.1.tar.gz
     cd qed-1.0.1
     2to3 silicos_it/descriptors/qed.py -w # very minor py3 compatibility issues (prints)
+    python setup.py install
+
+    # fix until is compatible with python 3.7
+    cd /opt
+    git clone https://github.com/keiserlab/e3fp.git
+    cd e3fp/
+    cython e3fp/fingerprint/metrics/_fast.pyx  # this is the fix
+    python setup.py build_ext --inplace
     python setup.py install
 
     # APSW stands for Another Python SQLite Wrapper
