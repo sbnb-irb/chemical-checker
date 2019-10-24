@@ -40,10 +40,9 @@ From: centos:8
                    curl
 
     # MS compatible font for plotting 
-    #yum install -y cabextract \ #### Not yet there in centos 8
-    #               xorg-x11-font-utils \
-    #               fontconfig
-    #rpm -i https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm
+    yum install -y xorg-x11-font-utils fontconfig
+    rpm -i http://download-ib01.fedoraproject.org/pub/epel/7/x86_64/Packages/c/cabextract-1.5-1.el7.x86_64.rpm
+    rpm -i https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm
 
     # conda
     mkdir -p /opt/miniconda3
@@ -64,7 +63,6 @@ From: centos:8
     conda install -y anaconda-client              # client that provides an interface to Anaconda Cloud
     conda install -y -c pytorch faiss-cpu         # facebook trick for sparsity
     conda install -y -c conda-forge hdbscan       # clustering
-    conda install -y -c efelix fpsim2             # fast chemical similarity search developed at ChEMBL
 
     # utility packages
     pip install ipython
