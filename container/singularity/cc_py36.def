@@ -37,12 +37,12 @@ From: centos:8
                    postgresql-server \
                    postgresql-contrib \
                    epel-release \
-                   curl \
-                   cabextract \
-                   xorg-x11-font-utils \
-                   fontconfig
+                   curl
 
     # MS compatible font for plotting
+    yum install -y cabextract \
+                   xorg-x11-font-utils \
+                   fontconfig
     rpm -i https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm
 
     # conda
