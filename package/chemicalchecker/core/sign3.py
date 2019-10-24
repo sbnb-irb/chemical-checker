@@ -727,7 +727,7 @@ class sign3(BaseSignature, DataSignature):
                                  suffix='error_final', evaluate=False)
             self.__log.debug('Loading model for error prediction')
             rf = pickle.load(
-                open(os.path.join(final_err_path, 'RandomForest.pkl')), 'rb')
+                open(os.path.join(final_err_path, 'RandomForest.pkl'), 'rb'))
 
         # get sorted universe inchikeys
         inchikeys = set()
@@ -752,7 +752,7 @@ class sign3(BaseSignature, DataSignature):
         # save universe sign3
         if update_preds:
             predict_fn = self.get_predict_fn('adanet_final')
-            with h5py.File(self.data_path, "r+") as results:
+            with h5py.File(self.data_path, "a") as results:
                 # initialize V and keys datasets
                 safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
                 safe_create(results, 'keys',
