@@ -87,8 +87,8 @@ class TestAdanet(unittest.TestCase):
         self.assertEqual(ada.model_dir, self.adanet_path)
         # check results
         _, (res, _) = ada.train_and_evaluate()
-        self.assertAlmostEqual(res['accuracy'], 0.9676, 3)
-        self.assertAlmostEqual(res['loss'], 0.12861905, 3)
+        self.assertAlmostEqual(res['accuracy'], 0.9668, 2)
+        self.assertAlmostEqual(res['loss'], 0.12861905, 2)
         # check persistency
         predict_fn = AdaNet.predict_fn(ada.save_dir)
         y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn)
