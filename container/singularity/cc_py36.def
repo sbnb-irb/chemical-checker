@@ -1,5 +1,5 @@
 BootStrap: docker
-From: centos
+From: centos:8
 
 %environment
     # PATHS
@@ -37,7 +37,15 @@ From: centos
                    libXrender \
                    libXext \
                    postgresql-server \
-                   postgresql-contrib
+                   postgresql-contrib \
+                   epel-release \
+                   curl \
+                   cabextract \
+                   xorg-x11-font-utils \
+                   fontconfig
+
+    # MS compatible font for plotting
+    rpm -i https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm
 
     # conda
     mkdir -p /opt/miniconda3
@@ -52,13 +60,13 @@ From: centos
     source activate py36
 
     # conda-specific packages
-    conda install -y rdkit -c rdkit               # Open-Source Cheminformatics Software
-    conda install -y openbabel -c openbabel       # chemical toolbox
+    conda install -y -c rdkit rdkit               # Open-Source Cheminformatics Software
+    conda install -y -c openbabel openbabel       # chemical toolbox
     conda install -y mkl-service                  # change the number of CPU’s MKL is using
     conda install -y anaconda-client              # client that provides an interface to Anaconda Cloud
-    conda install -y faiss-cpu -c pytorch         # facebook trick for sparsity
-    conda install -y hdbscan -c conda-forge       # clustering
-    conda install -y fpsim2 -c efelix             # fast chemical similarity search developed at ChEMBL
+    conda install -y -c pytorch faiss-cpu         # facebook trick for sparsity
+    conda install -y -c conda-forge hdbscan       # clustering
+    conda install -y -c efelix fpsim2             # fast chemical similarity search developed at ChEMBL
 
     # utility packages
     pip install ipython
@@ -111,7 +119,7 @@ From: centos
     pip install tensorflow==1.14.0                # neural network library
     pip install adanet==0.5.0                     # automl for NN
     pip install keras                             # NN API
-    pip install MulticoreTSNE                     # tSNA algo
+    pip install MulticoreTSNE                     # tSNE algo
     pip install umap-learn                        # UMAP algo
     pip install fancyimpute                       # matrix completion and imputation algorithms
 
@@ -126,6 +134,14 @@ From: centos
     sbnb_pip sbnb-dsysmap                         # access the sbnb-dsysmap database
     sbnb_pip sbnb-uniprotkb                       # interface to the local UniprotKB database
     sbnb_pip sbnb-util                            # utility code in the SBNB lab
+
+    # chemical beauty QED
+    curl -LO http://silicos-it.be.s3-website-eu-west-1.amazonaws.com/_downloads/qed-1.0.1.tar.gz
+    mv qed-*.tar.gz /usr/local/src/
+    cd /usr/local/src/
+    tar -xvf qed-*.tar.gz
+    cd qed-*
+    python setup.py install
 
     # APSW stands for Another Python SQLite Wrapper
     pip install https://github.com/rogerbinns/apsw/releases/download/3.24.0-r1/apsw-3.24.0-r1.zip --global-option=fetch --global-option=--version --global-option=3.24.0 --global-option=--all --global-option=build --global-option=--enable-all-extensions
