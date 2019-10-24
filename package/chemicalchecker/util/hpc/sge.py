@@ -75,7 +75,7 @@ fi
                 ssh.load_system_host_keys()
                 ssh.connect(self.host, **self.conn_params)
             except paramiko.SSHException as sshException:
-                self.__log.warning(
+                raise Exception(
                     "Unable to establish SSH connection: %s" % sshException)
             finally:
                 ssh.close()
@@ -86,7 +86,7 @@ fi
             for i in np.array_split(l, n):
                 yield i
         elif isinstance(l, dict):
-            keys = l.keys()
+            keys = list(l.keys())
             for i in np.array_split(keys, n):
                 yield {k: l[k] for k in i}
         else:
@@ -173,7 +173,7 @@ fi
                 input_dict[str(cid)] = chunk
             input_path = os.path.join(self.jobdir, str(uuid.uuid4()))
             with open(input_path, 'wb') as fh:
-                pickle.dump(input_dict, fh)
+                pickle.dump(input_dict, fh, protocol=2)
             command = command.replace("<FILE>", input_path)
 
         if cpusafe:
@@ -224,8 +224,9 @@ fi
             self.job_id = self.job_id.rstrip()
             self.__log.debug(self.job_id)
         except paramiko.SSHException as sshException:
-            self.__log.warning(
+            raise Exception(
                 "Unable to establish SSH connection: %s" % sshException)
+
         finally:
             ssh.close()
             self.statusFile = os.path.join(
