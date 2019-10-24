@@ -490,11 +490,11 @@ class sign1(BaseSignature, DataSignature):
                 pass
             else:
                 self.__log.info("Normalizing")
-                V = self._normalizer(V, False)
+                V = self._normalizer(V, True)
 
             if self.integerize:
                 self.__log.info("Integerizing")
-                V = self._integerize(V, False)
+                V = self._integerize(V, True)
 
             self.__log.info("Saving to %s" % destination)
 
