@@ -1326,8 +1326,8 @@ class Plot():
             self.__log.info("train_log_mse %s", train_log_mse.shape)
         # test is anything that wasn't in the confidence distribution
         test_keys = list(sign3.unique_keys - set(keys))
-        test_idxs = np.where(np.isin(sign3.keys, test_keys))[0]
-        train_idxs = np.where(~np.isin(sign3.keys, test_keys))[0]
+        test_idxs = np.where(np.isin(list(sign3.keys), test_keys))[0]
+        train_idxs = np.where(~np.isin(list(sign3.keys), test_keys))[0]
 
         confidence = sign3.get_h5_dataset('confidence')
         test_confidence = confidence[test_idxs]
@@ -1681,8 +1681,8 @@ class Plot():
             self.__log.info("train_log_mse %s", train_log_mse.shape)
         # test is anything that wasn't in the confidence distribution
         test_keys = list(sign3.unique_keys - set(keys))
-        test_idxs = np.where(np.isin(sign3.keys, test_keys))[0]
-        train_idxs = np.where(~np.isin(sign3.keys, test_keys))[0]
+        test_idxs = np.where(np.isin(list(sign3.keys), test_keys))[0]
+        train_idxs = np.where(~np.isin(list(sign3.keys), test_keys))[0]
 
         stddev = sign3.get_h5_dataset('stddev')
         test_std = stddev[test_idxs]
