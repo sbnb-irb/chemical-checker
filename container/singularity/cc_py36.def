@@ -20,9 +20,7 @@ From: centos:8
 
     # basic packages
     yum install -y gcc \
-                   g++ \
                    gcc-c++ \
-                   gfortran \
                    gcc-gfortran \
                    cmake \
                    make \
