@@ -148,7 +148,8 @@ class sign3(BaseSignature, DataSignature):
             for idx, sign in enumerate(sign2_list):
                 sign3.__log.info("Fetching from %s" % sign.data_path)
                 # including NaN we have the correct number of molecules
-                coverage = np.isin(inchikeys, sign.keys, assume_unique=True)
+                coverage = np.isin(
+                    list(inchikeys), sign.keys, assume_unique=True)
                 sign3.__log.info("%s has %s Signature 2." %
                                  (sign.dataset, np.count_nonzero(coverage)))
                 fh['x_test'][:, idx:(idx + 1)] = np.expand_dims(coverage, 1)
@@ -182,7 +183,7 @@ class sign3(BaseSignature, DataSignature):
                 col_slice = slice(ref_dimension * idx,
                                   ref_dimension * (idx + 1))
                 hf['x'][:, col_slice] = signs
-                available = np.isin(self.sign2_self.keys, sign.keys)
+                available = np.isin(list(self.sign2_self).keys, sign.keys)
                 self.__log.info('%s shared molecules between %s and %s',
                                 sum(available), self.dataset, ds)
                 del signs
@@ -267,9 +268,9 @@ class sign3(BaseSignature, DataSignature):
             include_confidence(bool): whether to include confidences.
         """
         self.__log.debug('Saving sign0 traintest to: %s' % destination)
-        mask = np.isin(self.keys, sign0.keys, assume_unique=True)
+        mask = np.isin(list(self.keys), sign0.keys, assume_unique=True)
         # the following work only if sign0 keys is a subset (or ==) of sign3
-        assert(np.all(np.isin(sign0.keys, self.keys, assume_unique=True)))
+        assert(np.all(np.isin(list(sign0.keys), self.keys, assume_unique=True)))
         # shapes?
         common_keys = np.count_nonzero(mask)
         x_shape = (common_keys, sign0.shape[1])
@@ -1077,14 +1078,14 @@ class sign3(BaseSignature, DataSignature):
             if model is None:
                 model = pickle.load(open(novelty_model, 'rb'))
             # get scores for known molecules and pair with indexes
-            s2_idxs = np.argwhere(np.isin(self.keys, s2_inks,
+            s2_idxs = np.argwhere(np.isin(list(self.keys), s2_inks,
                                           assume_unique=True))
             s2_novelty = model.negative_outlier_factor_
             s2_outlier = [0] * s2_novelty.shape[0]
             assert(s2_idxs.shape[0] == s2_novelty.shape[0])
             # predict scores for other molecules and pair with indexes
             s3_inks = sorted(self.unique_keys - set(s2_inks))
-            s3_idxs = np.argwhere(np.isin(self.keys, s3_inks,
+            s3_idxs = np.argwhere(np.isin(list(self.keys), s3_inks,
                                           assume_unique=True))
             _, s3_pred_sign = self.get_vectors(s3_inks)
             s3_novelty = model.score_samples(s3_pred_sign)

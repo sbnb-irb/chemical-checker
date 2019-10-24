@@ -352,7 +352,7 @@ class sign1(BaseSignature, DataSignature):
             if mappings is not None:
                 # Sometimes sign1 might reduce the number of output signatures
                 # If so, we should update the mappings in the sign1.h5 file
-                mask = np.isin(mappings[:, 1], hf["keys"][:])
+                mask = np.isin(list(mappings[:, 1]), hf["keys"][:])
                 hf.create_dataset("mappings", data=mappings[mask])
 
         self.background_distances("cosine")
@@ -605,7 +605,7 @@ class sign1(BaseSignature, DataSignature):
             if mappings is not None:
                 # Sometimes sign1 reduce the number of output signatures
                 # If so, we should update the mappings in the sign1.h5 file
-                mask = np.isin(mappings[:, 1], hf["keys"][:])
+                mask = np.isin(list(mappings[:, 1]), hf["keys"][:])
                 hf.create_dataset("mappings", data=mappings[mask])
 
         self.__log.info("Cleaning")

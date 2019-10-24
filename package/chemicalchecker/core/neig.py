@@ -236,7 +236,7 @@ class neig(BaseSignature, DataSignature):
                          (len(keys), dataset_name))
         valid_keys = list(self.unique_keys & set(keys))
         idxs = np.argwhere(
-            np.isin(self.keys, list(valid_keys), assume_unique=True))
+            np.isin(list(self.keys), list(valid_keys), assume_unique=True))
         inks, signs = list(), list()
         with h5py.File(self.data_path, 'r') as hf:
             dset = hf[dataset_name]
