@@ -70,6 +70,7 @@ class sign3(BaseSignature, DataSignature):
         }
         default_adanet.update(params.get('adanet', {}))
         self.params['adanet'] = default_adanet
+
         default_sign0 = {
             'adanet_iterations': 10,
             'augmentation': False,
@@ -78,6 +79,16 @@ class sign3(BaseSignature, DataSignature):
         }
         default_sign0.update(params.get('sign0', {}))
         self.params['sign0'] = default_sign0
+
+        default_sign0_conf = {
+            'adanet_iterations': 10,
+            'augmentation': False,
+            'subnetwork_generator': 'StackDNNGenerator',
+            'cpu': params.get('cpu', 4)
+        }
+        default_sign0_conf.update(params.get('sign0_conf', {}))
+        self.params['sign0_conf'] = default_sign0_conf
+
         default_err = {
             'adanet_iterations': 1,
             'augmentation': False,
@@ -369,6 +380,112 @@ class sign3(BaseSignature, DataSignature):
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix)
 
+    def save_sign0_conf_matrix(self, sign0, destination, chunk_size=1000):
+        """Save matrix of signature 0 confidence values.
+
+        Args:
+            sign0(list): Signature 0 to learn from.
+            destination(str): Path where to save the matrix (HDF5 file).
+            include_confidence(bool): whether to include confidences.
+        """
+        self.__log.debug('Saving confidence traintest to: %s' % destination)
+        mask = np.isin(list(self.keys), sign0.keys, assume_unique=True)
+        # the following work only if sign0 keys is a subset (or ==) of sign3
+        assert(np.all(np.isin(list(sign0.keys), self.keys, assume_unique=True)))
+        # shapes?
+        common_keys = np.count_nonzero(mask)
+        x_shape = (common_keys, sign0.shape[1])
+        y_shape = (common_keys, 5)
+        self.__log.debug('Shapes X: %s Y: %s' % (str(x_shape), str(y_shape)))
+        with h5py.File(destination, 'w') as hf_out:
+            hf_out.create_dataset('x', x_shape, dtype=np.float32)
+            hf_out.create_dataset('y', y_shape, dtype=np.float32)
+            with h5py.File(self.data_path, 'r') as hf_in:
+                out_start = 0
+                for i in tqdm(range(0, self.shape[0], chunk_size)):
+                    chunk = slice(i, i + chunk_size)
+                    stddev = hf_in['stddev_norm'][chunk][mask[chunk]]
+                    stddev = np.expand_dims(stddev, 1)
+                    intensity = hf_in['intensity_norm'][chunk][mask[chunk]]
+                    intensity = np.expand_dims(intensity, 1)
+                    exp_error = hf_in['exp_error_norm'][chunk][mask[chunk]]
+                    exp_error = np.expand_dims(exp_error, 1)
+                    novelty = hf_in['novelty_norm'][chunk][mask[chunk]]
+                    novelty = np.expand_dims(novelty, 1)
+                    confidence = hf_in['confidence'][chunk][mask[chunk]]
+                    confidence = np.expand_dims(confidence, 1)
+                    conf_scores = np.hstack((stddev, intensity,
+                                             exp_error, novelty, confidence))
+                    out_size = conf_scores.shape[0]
+                    out_chunk = slice(out_start, out_start + out_size)
+                    hf_out['y'][out_chunk] = conf_scores
+                    hf_out['x'][out_chunk] = sign0[out_chunk]
+                    out_start += out_size
+
+    def learn_sign0_conf(self, sign0, adanet_params, reuse=True, suffix=None,
+                         evaluate=True):
+        """Learn the signature 3 confidence from sign0.
+
+        This method is used twice. First to evaluate the performances of the
+        AdaNet model. Second to train the final model on the full set of data.
+
+        Args:
+            sign0(list): Signature 0 object to learn from.
+            adanet_params(dict): Dictionary with algorithm parameters.
+            reuse(bool): Whether to reuse intermediate files (e.g. the
+                aggregated signature 2 matrix).
+            suffix(str): A suffix for the AdaNet model path (e.g.
+                'sign3/models/adanet_<suffix>').
+            evaluate(bool): Whether we are performing a train-test split and
+                evaluating the performances (N.B. this is required for complete
+                confidence scores)
+            include_confidence(bool): whether to include confidences.
+        """
+        try:
+            from chemicalchecker.tool.adanet import AdaNet
+        except ImportError as err:
+            raise err
+        # adanet parameters
+        self.__log.debug('AdaNet fit confidence %s based on %s', self.dataset,
+                         sign0.dataset)
+        # get params and set folder
+        if suffix:
+            adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
+        else:
+            adanet_path = os.path.join(self.model_path, 'adanet')
+        if 'model_dir' in adanet_params:
+            adanet_path = adanet_params.pop('model_dir')
+        if not reuse or not os.path.isdir(adanet_path):
+            os.makedirs(adanet_path)
+        # generate input matrix
+        sign0_matrix = os.path.join(self.model_path, 'train_sign0_conf.h5')
+        if not reuse or not os.path.isfile(sign0_matrix):
+            self.save_sign0_conf_matrix(sign0, sign0_matrix)
+        # if evaluating, perform the train-test split
+        if evaluate:
+            traintest_file = os.path.join(self.model_path,
+                                          'traintest_sign0_conf.h5')
+            traintest_file = adanet_params.pop(
+                'traintest_file', traintest_file)
+            if not reuse or not os.path.isfile(traintest_file):
+                Traintest.split_h5_blocks(sign0_matrix, traintest_file)
+        else:
+            traintest_file = sign0_matrix
+            traintest_file = adanet_params.pop(
+                'traintest_file', traintest_file)
+        # initialize adanet and start learning
+        ada = AdaNet(model_dir=adanet_path,
+                     traintest_file=traintest_file,
+                     **adanet_params)
+        self.__log.debug('AdaNet training on %s' % traintest_file)
+        ada.train_and_evaluate(evaluate=evaluate)
+        self.__log.debug('model saved to %s' % adanet_path)
+
+        if evaluate:
+            # save AdaNet performances and plots
+            sign2_plot = Plot(self.dataset, adanet_path)
+            ada.save_performances(adanet_path, sign2_plot, suffix)
+
     def save_error_matrix(self, sign3_train_file, predict_fn, destination,
                           max_total=1000000, chunk_size=100):
         """Save matrix of error in sign3 prediction.
@@ -522,12 +639,22 @@ class sign3(BaseSignature, DataSignature):
         s0_code = sign0.dataset
         eval_adanet_path = os.path.join(self.model_path,
                                         'adanet_sign0_%s_eval' % s0_code)
-        eval_stats = os.path.join(eval_adanet_path, 'stats_eval.pkl')
+        eval_stats = os.path.join(eval_adanet_path,
+                                  'stats_sign0_%s_eval.pkl' % s0_code)
         if not os.path.isfile(eval_stats):
             self.learn_sign0(sign0, self.params['sign0'],
                              suffix='sign0_%s_eval' % s0_code,
                              evaluate=True,
                              include_confidence=include_confidence)
+        # learn confidence predictor
+        conf_eval_adanet_path = os.path.join(
+            self.model_path, 'adanet_sign0_%s_conf_eval' % s0_code)
+        conf_eval_stats = os.path.join(
+            conf_eval_adanet_path, 'stats_conf_eval.pkl')
+        if not os.path.isfile(conf_eval_stats):
+            self.learn_sign0_conf(sign0, self.params['sign0_conf'],
+                                  suffix='sign0_%s_conf_eval' % s0_code,
+                                  evaluate=True)
 
         # check if we have the final trained model
         final_adanet_path = os.path.join(self.model_path,
@@ -538,6 +665,15 @@ class sign3(BaseSignature, DataSignature):
                              suffix='sign0_%s_final' % s0_code,
                              evaluate=False,
                              include_confidence=include_confidence)
+        # learn the final confidence predictor
+        conf_final_adanet_path = os.path.join(
+            self.model_path, 'adanet_sign0_%s_conf_final' % s0_code)
+        conf_final_stats = os.path.join(
+            conf_final_adanet_path, 'stats_conf_final.pkl')
+        if not os.path.isfile(conf_final_stats):
+            self.learn_sign0_conf(sign0, self.params['sign0_conf'],
+                                  suffix='sign0_%s_conf_final' % s0_code,
+                                  evaluate=False)
 
     def get_predict_fn(self, model='adanet_sign0_A1.001_final'):
         try:
@@ -728,7 +864,7 @@ class sign3(BaseSignature, DataSignature):
                                  suffix='error_final', evaluate=False)
             self.__log.debug('Loading model for error prediction')
             rf = pickle.load(
-                open(os.path.join(final_err_path, 'RandomForest.pkl'), 'rb'))
+                open(os.path.join(final_err_path, 'RandomForest.pkl')), 'rb')
 
         # get sorted universe inchikeys
         inchikeys = set()
