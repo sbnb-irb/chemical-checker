@@ -9,6 +9,7 @@ import tarfile
 import datetime
 import paramiko
 import numpy as np
+import math
 
 from chemicalchecker.util import logged
 
@@ -109,6 +110,7 @@ fi
             compress:Compress all generated files after job is done (default:True)
             check_error:Check for error message in output files(default:True)
             memory:Maximum memory the job can take in Gigabytes(default: 2)
+            mem_by_core:Maximum memory the job can take per core. Do not modify if not sure.(default: 2)
             time: Maximum time(in minutes) the job can run on the cluster(default:infinite)
 
         """
@@ -125,6 +127,7 @@ fi
         memory = kwargs.get("memory", 2)
         maxtime = kwargs.get("time", None)
         cpusafe = kwargs.get("cpusafe", True)
+        membycore = int(kwargs.get("mem_by_core", 2))
 
         submit_string = 'qsub -terse '
 
@@ -154,12 +157,25 @@ fi
             tmpname = command.replace("<TASK_ID>", "$SGE_TASK_ID")
             command = tmpname
 
+        if memory > membycore:
+            if cpu > 1:
+                newcpu = max(int(math.ceil(memory / membycore)), cpu)
+                memory = membycore
+            else:
+                newcpu = int(math.ceil(memory / membycore))
+                memory = membycore
+
+            if newcpu != cpu:
+                self.__log.warning(
+                    "The memory job requirements needs to " +
+                    "change the number of cores needed by the job. (%d --> %d)" % (cpu, newcpu))
+                cpu = newcpu
+
         if cpu > 1:
             jobParams.append("#$ -pe make " + str(cpu))
 
-        if memory > 1:
-            jobParams.append("#$ -l mem_free=" + str(memory) +
-                             "G,h_vmem=" + str(memory + 0.5) + "G")
+        jobParams.append("#$ -l mem_free=" + str(memory) +
+                         "G,h_vmem=" + str(memory + 0.2) + "G")
 
         if maxtime is not None:
             jobParams.append(
