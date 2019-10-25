@@ -157,6 +157,7 @@ fi
             tmpname = command.replace("<TASK_ID>", "$SGE_TASK_ID")
             command = tmpname
 
+        mem_need = memory
         if memory > membycore:
             if cpu > 1:
                 newcpu = max(int(math.ceil(memory / membycore)), cpu)
@@ -174,7 +175,7 @@ fi
         if cpu > 1:
             jobParams.append("#$ -pe make " + str(cpu))
 
-        jobParams.append("#$ -l mem_free=" + str(memory) +
+        jobParams.append("#$ -l mem_free=" + str(mem_need) +
                          "G,h_vmem=" + str(memory + 0.2) + "G")
 
         if maxtime is not None:
