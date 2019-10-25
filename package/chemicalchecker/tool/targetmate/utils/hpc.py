@@ -51,7 +51,8 @@ class HPCUtils:
             "import os, sys",
             "os.environ['OMP_NUM_THREADS'] = str(%s)" % cpu,
             "import pickle",
-            "obj, args = pickle.load(open(sys.argv[1], 'rb'))",
+            "with open(sys.argv[1], 'rb') as f:"
+            "    obj, args = pickle.load(f)",
             "obj.%s(*args)" % func_name,
             "print('JOB DONE')"
         ]
@@ -63,7 +64,8 @@ class HPCUtils:
         # pickle self and fit args
         pickle_file = '%s_%s_hpc.pkl' % (self.__class__.__name__, func_name)
         pickle_path = os.path.join(job_path, pickle_file)
-        pickle.dump((self, args), open(pickle_path, 'wb'))
+        with open(pickle_path, "wb") as f:
+            pickle.dump((self, args), f)
         # hpc parameters
         params = kwargs
         params["num_jobs"] = 1

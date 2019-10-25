@@ -103,7 +103,7 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
             with open(destination_dir, "wb") as f:
                 pickle.dump(self.mod, f)
 
-    def _predict(self, X):
+    def _predict(self, X, destination_dir=None):
         """Make predictions
     
         Returns:
@@ -114,7 +114,12 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
             preds = self.mod.predict(X)
         else:
             preds = self.mod.predict_proba(X)
-        return preds
+        if destination_dir:
+            self.__log.debug("Saving prediction in %s" % destination_dir)
+            with open(destination_dir, "wb") as f:
+                pickle.dump(preds, f)
+        else:
+            return preds
 
     def fit(self):
         return self._fit
@@ -224,46 +229,80 @@ class EnsembleModel(SignaturedModel):
         self.ensemble_dir = {}
         self.weights = {}
 
-    def fit_ensemble(self, data, idxs):
+    def fit_ensemble(self, data, idxs, wait):
         if idxs is None:
             y = data.activity
         else:
             y = data.activity[idxs]
         jobs = []
         for i, X in enumerate(self.read_signatures_ensemble(datasets=self.datasets, idxs=idxs)):
-            self.__log.info("Working on %s" % self.datasets[i])
-            dest = os.path.join(self.bases_models_path, self.datasets[i])
+            self.__log.info("Fitting on %s" % self.datasets[i])
+            if self.is_tmp:
+                dest = os.path.join(self.bases_tmp_path, self.datasets[i])
+            else:
+                dest = os.path.join(self.bases_models_path, self.datasets[i])
             self.ensemble_dir[self.datasets[i]] = dest
             self.weights[self.datasets[i]] = self._weight(X, y)
             if self.hpc:
                 jobs += [self.func_hpc("_fit", X, y, dest, cpu=self.n_jobs_hpc)]
             else:
                 self._fit(X, y, destination_dir=dest)
-        self.waiter(jobs)
+        if wait:
+            self.waiter(jobs)
+        return jobs
 
-    def fit(self, data, idxs=None, is_tmp=False):
+    def fit(self, data, idxs=None, is_tmp=False, wait=True):
         self.is_tmp = is_tmp
         self.signaturize(data.smiles)
-        self.fit_ensemble(data, idxs=idxs)
+        jobs = self.fit_ensemble(data, idxs=idxs, wait=wait)
+        if not wait:
+            return jobs
         
-    def predict_ensemble(self, data, idxs, datasets):
-        datasets = self.get_datasets(datasets)
-        if idxs is None:
-            n = len(data.activity)
-        else:
-            n = len(idxs)
-        preds = np.zeros((n, self.num_pred_cols, len(datasets)))
-        for i, X in enumerate(self.read_signatures_ensemble(datasets=datasets, idxs=idxs)):
-            self.__log.debug("Working on %s" % self.datasets[i])
-            with open(self.ensemble_dir[datasets[i]], "rb") as f:
-                self.mod = pickle.load(f)
-            preds[:,:,i] = self._predict(X)
-        return preds
+    def _single_predict(self, X, dataset, dest):
+        with open(self.ensemble_dir[dataset], "rb") as f:
+            self.mod = pickle.load(f)
+        self._predict(X, destination_dir = dest)
 
-    def predict(self, data, idxs=None, datasets=None, is_tmp=True):
-        self.is_tmp = is_tmp
-        self.signaturize(data.smiles, datasets=datasets)
-        return Prediction(datasets    = self.get_datasets(datasets),
-                          y_pred      = self.predict_ensemble(data, idxs, datasets),
+    def predict_ensemble(self, data, idxs, datasets, wait):
+        datasets = self.get_datasets(datasets)
+        jobs = []
+        for i, X in enumerate(self.read_signatures_ensemble(datasets=datasets, idxs=idxs)):
+            self.__log.info("Predicting on %s" % self.datasets[i])
+            if self.is_tmp:
+                dest = os.path.join(self.predictions_tmp_path, self.datasets[i])
+            else:
+                dest = os.path.join(self.predictions_models_path, self.datasets[i])
+            if self.hpc:
+                jobs += [self.func_hpc("_single_predict", X, datasets[i], dest, cpu=self.n_jobs_hpc)]
+            else:
+                self._single_predict(X, datasets[i], dest)
+        if wait:
+            self.waiter(jobs)
+            self.__log.info("Predictions done")
+        return jobs
+
+    def load_predictions(self, datasets=None):
+        datasets = self.get_datasets(datasets)
+        y_pred = []
+        for i, dataset in enumerate(datasets):
+            if self.is_tmp:
+                dest = os.path.join(self.predictions_tmp_path, dataset)
+            else:
+                dest = os.path.join(self.predictions_models_path, dataset)
+            with open(dest, "rb") as f:
+                y_pred += [pickle.load(f)]
+        y_pred = np.stack(y_pred, axis=2)
+        return Prediction(datasets = datasets,
+                          y_pred   = y_pred,
                           is_ensemble = self.is_ensemble,
-                          weights     = self.weights)
+                          weights = self.weights)
+
+    def predict(self, data, idxs=None, datasets=None, is_tmp=True, wait=True):
+        self.is_tmp = is_tmp
+        datasets = self.get_datasets(datasets)
+        self.signaturize(data.smiles, datasets=datasets)
+        jobs = self.predict_ensemble(data, idxs=idxs, datasets=datasets, wait=wait)
+        if wait:
+            return self.load_predictions(datasets)
+        else:
+            return jobs
