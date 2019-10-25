@@ -71,7 +71,8 @@ class TargetMateSetup(HPCUtils):
                 self.__log.debug("Cleaning %s" % self.models_path)
                 shutil.rmtree(self.models_path)
                 os.mkdir(self.models_path)
-        self.bases_models_path, self.signatures_models_path = self.directory_tree(self.models_path)
+        self.bases_models_path, self.signatures_models_path, self.predictions_models_path = self.directory_tree(self.models_path)
+        self._bases_models_path, self._signatures_models_path, self._predictions_models_path = self.bases_models_path, self.signatures_models_path, self.predictions_models_path 
         # Temporary path
         if not tmp_path:
             self.tmp_path = os.path.join(
@@ -79,7 +80,8 @@ class TargetMateSetup(HPCUtils):
         else:
             self.tmp_path = os.path.abspath(tmp_path)
         if not os.path.exists(self.tmp_path): os.mkdir(self.tmp_path)
-        self.bases_tmp_path, self.signatures_tmp_path = self.directory_tree(self.tmp_path)
+        self.bases_tmp_path, self.signatures_tmp_path, self.predictions_tmp_path = self.directory_tree(self.tmp_path)
+        self._bases_tmp_path, self._signatures_tmp_path, self._predictions_tmp_path = self.bases_tmp_path, self.signatures_tmp_path, self.predictions_tmp_path
         # Initialize the ChemicalChecker
         self.cc = ChemicalChecker(cc_root)
         # Standardize
@@ -95,6 +97,9 @@ class TargetMateSetup(HPCUtils):
         self._is_fitted  = False
         self._is_trained = False
         self.is_tmp      = False
+        # Log path information
+        self.__log.info("MODELS PATH: %s" % self.models_path)
+        self.__log.info("TMP PATH: %s" % self.tmp_path)
 
     # Chemistry functions
     @staticmethod
@@ -108,7 +113,63 @@ class TargetMateSetup(HPCUtils):
         if not os.path.exists(bases_path): os.mkdir(bases_path)
         signatures_path = os.path.join(root, "signatures")
         if not os.path.exists(signatures_path): os.mkdir(signatures_path)
-        return bases_path, signatures_path
+        predictions_path = os.path.join(root, "predictions")
+        if not os.path.exists(predictions_path): os.mkdir(predictions_path)
+        return bases_path, signatures_path, predictions_path
+
+    def reset_path_bases(self, is_tmp=True):
+        if is_tmp:
+            self.bases_tmp_path = self._bases_tmp_path
+        else:
+            self.bases_models_path = self._bases_models_path
+
+    def repath_bases_by_fold(self, fold_number, is_tmp=True, reset=True):
+        """Redefine path of a TargetMate instance. Used by the Validation class."""
+        if reset:
+            self.reset_path_bases(is_tmp = is_tmp)
+        if is_tmp:
+            self.bases_tmp_path = os.path.join(self.bases_tmp_path, "%02d" % fold_number)
+            if not os.path.exists(self.bases_tmp_path): os.mkdir(self.bases_tmp_path)
+        else:
+            self.bases_models_path = os.path.join(self.bases_models_path, "%02d" % fold_number)
+            if not os.path.exists(self.bases_models_path): os.mkdir(self.bases_models_path)
+
+    def reset_path_predictions(self, is_tmp=True):
+        """Reset predictions path"""
+        if is_tmp:
+            self.predictions_tmp_path = self._predictions_tmp_path
+        else:
+            self.predictions_models_path = self._predictions_models_path
+
+    def repath_predictions_by_fold(self, fold_number, is_tmp=True, reset=True):
+        """Redefine path of a TargetMate instance. Used by the Validation class."""
+        if reset:
+            self.reset_path_predictions(is_tmp=is_tmp)
+        if is_tmp:
+            self.predictions_tmp_path = os.path.join(self.predictions_tmp_path, "%02d" % fold_number)
+            if not os.path.exists(self.predictions_tmp_path): os.mkdir(self.predictions_tmp_path)
+        else:
+            self.predictions_models_path = os.path.join(self.predictions_models_path, "%02d" % fold_number)
+            if not os.path.exists(self.predictions_models_path): os.mkdir(self.predictions_models_path)
+
+    def repath_predictions_by_set(self, is_train, is_tmp=True, reset=True):
+        """Redefine path of a TargetMate instance. Used by the Validation class."""
+        if reset:
+            self.reset_path_predictions(is_tmp=is_tmp)
+        if is_train:
+            s = "train"
+        else:
+            s = "test"
+        if is_tmp:
+            self.predictions_tmp_path = os.path.join(self.predictions_tmp_path, s)
+            if not os.path.exists(self.predictions_tmp_path): os.mkdir(self.predictions_tmp_path)
+        else:
+            self.predictions_models_path = os.path.join(self.predictions_models_path, s)
+            if not os.path.exists(self.predictions_models_path): os.mkdir(self.predictions_models_path)
+    
+    def repath_predictions_by_fold_and_set(self, fold_number, is_train, is_tmp=True, reset=True):
+        self.repath_predictions_by_fold(fold_number=fold_number, is_tmp=is_tmp, reset=reset)
+        self.repath_predictions_by_set(is_train=is_train, is_tmp=is_tmp, reset=False)
 
     # Read input data
     def read_data(self, data, standardize=None):
@@ -245,7 +306,6 @@ class TargetMateClassifierSetup(TargetMateSetup):
         self.naive_sampling = naive_sampling
         # Others
         self.cross_conformal_func = conformal.get_cross_conformal_classifier
-        self.num_pred_cols = 2
 
     def _reassemble_activity_sets(self, act, inact, putinact):
         self.__log.info("Reassembling activities. Convention: 1 = Active, -1 = Inactive, 0 = Sampled")

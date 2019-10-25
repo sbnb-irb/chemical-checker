@@ -1,8 +1,10 @@
+"""Validate a TargetMate classifier"""
 import os
 import numpy as np
 import pickle
 from chemicalchecker.util import logged
 from ..utils import metrics
+from ..utils import HPCUtils
 
 
 def load_validation(destination_dir):
@@ -36,7 +38,7 @@ class Performances:
     def classifier_performances(self, yt, yp):
         """Calculate standard prediction performance metrics.
         In addition, it calculates the corresponding weights.
-        For the moment, AUPR and AUROC are used.
+        For the moment, AUROC, AUPR and BEDROC are used.
         Args:
             yt(array): Truth data (binary).
             yp(array): Prediction scores (probabilities).
@@ -110,16 +112,17 @@ class Performances:
 
 
 @logged
-class Validation:
+class Validation(HPCUtils):
     """Validation class."""
 
-    def __init__(self, splitter=None, destination_dir=None):
+    def __init__(self, splitter=None, destination_dir=None, **kwargs):
         """Initialize validation class.
 
         Args:
             splitter(): If none specified, the corresponding TargetMate splitter is used (default=None).
             destination_dir(str): If non specified, the models path of the TargetMate instance is used (default=None).
         """
+        HPCUtils.__init__(self, **kwargs)
         self.splitter = splitter
         self.destination_dir = destination_dir
 
@@ -164,27 +167,62 @@ class Validation:
                 kf = tm.kfolder()
             else:
                 kf = self.splitter
+        splits = [(train_idx, test_idx) for train_idx, test_idx in kf.split(X=np.zeros(len(data.activity)), y=data.activity)]
+        # Fit
+        self.__log.info("Fitting")
         i = 0
-        for train_idx, test_idx in kf.split(X=np.zeros(len(data.activity)), y=data.activity):
-            self.__log.info("Fold %0d" % (i+1))
+        jobs = []
+        for train_idx, test_idx in splits:
+            self.__log.info("Fold %02d" % i)
+            tm.repath_bases_by_fold(fold_number=i, is_tmp=True, reset=True)
+            self.__log.info(tm.bases_tmp_path)
+            jobs += tm.fit(data, idxs=train_idx, is_tmp=True, wait=False)
+            i += 1
+        self.waiter(jobs)
+        # Predict
+        self.__log.info("Predicting for train")
+        i = 0
+        jobs = []
+        for train_idx, test_idx in splits:
+            self.__log.info("Fold %02d" % i)
+            tm.repath_bases_by_fold(fold_number=i, is_tmp=True, reset=True)
+            tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=True, is_tmp=True, reset=True)
+            self.__log.info(tm.predictions_tmp_path)
+            jobs += tm.predict(data, idxs=train_idx, is_tmp=True, wait=False)
+            i += 1
+        self.waiter(jobs)
+        self.__log.info("Predicting for test")
+        i = 0
+        jobs = []
+        for train_idx, test_idx in splits:
+            self.__log.info("Fold %02d" % i)
+            tm.repath_bases_by_fold(fold_number=i, is_tmp=True, reset=True)
+            tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=False, is_tmp=True, reset=True)
+            self.__log.info(tm.predictions_tmp_path)
+            jobs += tm.predict(data, idxs=test_idx, is_tmp=True, wait=False)
+            i += 1
+        self.waiter(jobs)
+        # Gather data
+        self.__log.info("Gathering data")
+        i = 0
+        for train_idx, test_idx in splits:
+            tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=True, is_tmp=True, reset=True)
+            pred_train = tm.load_predictions()
+            tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=False, is_tmp=True, reset=True)
+            pred_test  = tm.load_predictions()
             data_train = data[train_idx]
             data_test  = data[test_idx]
-            self.__log.debug("Fit with train set")
-            tm.fit(data, idxs=train_idx, is_tmp=True)
-            self.__log.debug("Predict with train set")
-            pred_train = tm.predict(data, idxs=train_idx, is_tmp=True)
-            self.__log.debug("Predict with test set")
-            pred_test = tm.predict(data, idxs=test_idx, is_tmp=True)
-            self.__log.debug("Appending")
             self.train_idx = self.stack(self.train_idx, train_idx)
-            self.test_idx = self.stack(self.test_idx, test_idx)
+            self.test_idx  = self.stack(self.test_idx,  test_idx )
+            self.train_idx = self.stack(self.train_idx, train_idx)
+            self.test_idx  = self.stack(self.test_idx, test_idx)
             self.y_true_train = self.stack(self.y_true_train, data_train.activity)
-            self.y_true_test = self.stack(self.y_true_test, data_test.activity)
+            self.y_true_test  = self.stack(self.y_true_test, data_test.activity)
             self.y_pred_train = self.stack(self.y_pred_train, pred_train.y_pred)
-            self.y_pred_test = self.stack(self.y_pred_test, pred_test.y_pred)
+            self.y_pred_test  = self.stack(self.y_pred_test, pred_test.y_pred)
             if self.is_ensemble:
                 self.y_pred_ens_train = self.stack(self.y_pred_ens_train, pred_train.y_pred_ens)
-                self.y_pred_ens_test = self.stack(self.y_pred_ens_test, pred_test.y_pred_ens)
+                self.y_pred_ens_test  = self.stack(self.y_pred_ens_test, pred_test.y_pred_ens)
             i += 1
 
     def score(self):
@@ -245,7 +283,7 @@ class Validation:
             train_idx(array): Precomputed indices for the train set (default=None). 
             test_idx(array): Precomputed indices for the test set (default=None).
             as_dict(bool): Return as dictionary, for portability; if False, the validation is done inplace (default=True).
-            save(bool): Save (default=True)
+            save(bool): Save (default=True).
         """
         if self.destination_dir is None:
             self.destination_dir = os.path.join(tm.models_path, "validation.pkl")
