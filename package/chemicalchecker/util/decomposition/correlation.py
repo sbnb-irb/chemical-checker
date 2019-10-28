@@ -52,8 +52,8 @@ def pls(X, Y, B=100):
 def cross_validate(X, Y, B=100):
     r1, r2, z1, z2, p1, p2 = [], [], [], [], [], []
     # Random data
-    for _ in tqdm(xrange(100)):
-        idxs = random.sample([i for i in xrange(X.shape[0])],
+    for _ in tqdm(range(100)):
+        idxs = random.sample([i for i in range(X.shape[0])],
                              np.min([X.shape[0], 100000]))
         n_test = int(np.max([5, len(idxs) / 10]))
         test = idxs[:n_test]
