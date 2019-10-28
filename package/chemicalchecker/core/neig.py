@@ -297,6 +297,8 @@ class neig(BaseSignature, DataSignature):
         self.__log.info("Reading index file")
         with h5py.File(self.data_path, "r") as hw:
             metric_orig = hw["metric"][0]
+            if type(hw["metric"][0]) != str:
+                metric_orig = metric_orig.decode()
         # open faiss model
         faiss.omp_set_num_threads(self.cpu)
         index = faiss.read_index(self.index_filename)
@@ -311,7 +313,7 @@ class neig(BaseSignature, DataSignature):
         data = np.array(signatures, dtype=np.float32)
         self.__log.info("Searching %s neighbors" % k)
         # get neighbors idx and distances
-        if metric_orig == "cosine":
+        if "cosine" in metric_orig:
             normst = LA.norm(data, axis=1)
             dists, idx = index.search(data / normst[:, None], k)
         else:
