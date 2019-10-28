@@ -20,9 +20,7 @@ From: centos
 
     # basic packages
     yum install -y gcc \
-                   g++ \
                    gcc-c++ \
-                   gfortran \
                    gcc-gfortran \
                    cmake \
                    make \
@@ -37,7 +35,8 @@ From: centos
                    libXrender \
                    libXext \
                    postgresql-server \
-                   postgresql-contrib
+                   postgresql-contrib \
+                   epel-release 
 
     # conda
     mkdir /opt/miniconda2 
