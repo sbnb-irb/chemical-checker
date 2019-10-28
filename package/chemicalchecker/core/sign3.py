@@ -389,9 +389,9 @@ class sign3(BaseSignature, DataSignature):
             include_confidence(bool): whether to include confidences.
         """
         self.__log.debug('Saving confidence traintest to: %s' % destination)
-        mask = np.isin(list(self.keys), sign0.keys, assume_unique=True)
+        mask = np.isin(list(self.keys), list(sign0.keys), assume_unique=True)
         # the following work only if sign0 keys is a subset (or ==) of sign3
-        assert(np.all(np.isin(list(sign0.keys), self.keys, assume_unique=True)))
+        assert(np.all(np.isin(list(sign0.keys), list(self.keys), assume_unique=True)))
         # shapes?
         common_keys = np.count_nonzero(mask)
         x_shape = (common_keys, sign0.shape[1])
