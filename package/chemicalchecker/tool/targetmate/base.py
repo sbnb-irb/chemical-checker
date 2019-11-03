@@ -135,7 +135,7 @@ class FingerprintedModel(Model, Fingerprinter):
     def __init__(self, **kwargs):
         """ """
         Model.__init__(self, **kwargs)
-        Fingerprinter.__init__(self, **kwargs)
+        Fingerprinter.__init__(self, do_init=False, **kwargs)
         self.is_ensemble = False
 
 
@@ -145,7 +145,7 @@ class SignaturedModel(Model, Signaturizer):
     def __init__(self, **kwargs):
         """ """
         Model.__init__(self, **kwargs)
-        Signaturizer.__init__(self, **kwargs)
+        Signaturizer.__init__(self, do_init=False, **kwargs)
 
     def get_data_fit(self, data):
         data = self.prepare_data(data)
@@ -241,7 +241,7 @@ class EnsembleModel(SignaturedModel):
                 dest = os.path.join(self.bases_tmp_path, self.datasets[i])
             else:
                 dest = os.path.join(self.bases_models_path, self.datasets[i])
-            self.ensemble_dir[self.datasets[i]] = dest
+            self.ensemble_dir[self.datasets[i]] = self.is_tmp
             self.weights[self.datasets[i]] = self._weight(X, y)
             if self.hpc:
                 jobs += [self.func_hpc("_fit", X, y, dest, cpu=self.n_jobs_hpc)]
@@ -259,7 +259,12 @@ class EnsembleModel(SignaturedModel):
             return jobs
         
     def _single_predict(self, X, dataset, dest):
-        with open(self.ensemble_dir[dataset], "rb") as f:
+        if self.ensemble_dir[dataset]:
+            indiv_dest = os.path.join(self.bases_tmp_path, dataset)
+        else:
+            indiv_dest = os.path.join(self.bases_models_path, dataset)
+        with open(indiv_dest, "rb") as f:
+            self.__log.info("Reading model from %s" % indiv_dest)
             self.mod = pickle.load(f)
         self._predict(X, destination_dir = dest)
 
@@ -267,7 +272,7 @@ class EnsembleModel(SignaturedModel):
         datasets = self.get_datasets(datasets)
         jobs = []
         for i, X in enumerate(self.read_signatures_ensemble(datasets=datasets, idxs=idxs)):
-            self.__log.info("Predicting on %s" % self.datasets[i])
+            self.__log.info("Predicting on %s (n = %d)" % (self.datasets[i], X.shape[0]))
             if self.is_tmp:
                 dest = os.path.join(self.predictions_tmp_path, self.datasets[i])
             else:

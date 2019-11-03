@@ -36,6 +36,7 @@ class TargetMateSetup(HPCUtils):
                  cv_folds=5,
                  conformity = True,
                  hpc = False,
+                 do_init = True,
                  **kwargs):
         """Basic setup of the TargetMate.
 
@@ -52,6 +53,8 @@ class TargetMateSetup(HPCUtils):
             conformity(bool): Do cross-conformal prediction (default=True)
             hpc(bool): Use HPC (default=False)
         """
+        if not do_init:
+            return
         HPCUtils.__init__(self, **kwargs)
         # Jobs
         if not n_jobs:
@@ -126,7 +129,7 @@ class TargetMateSetup(HPCUtils):
     def repath_bases_by_fold(self, fold_number, is_tmp=True, reset=True):
         """Redefine path of a TargetMate instance. Used by the Validation class."""
         if reset:
-            self.reset_path_bases(is_tmp = is_tmp)
+            self.reset_path_bases(is_tmp=is_tmp)
         if is_tmp:
             self.bases_tmp_path = os.path.join(self.bases_tmp_path, "%02d" % fold_number)
             if not os.path.exists(self.bases_tmp_path): os.mkdir(self.bases_tmp_path)
@@ -232,6 +235,15 @@ class TargetMateSetup(HPCUtils):
         with open(self.models_path + "/trained_data.pkl", "wb") as f:
             pickle.dump(data, f)
 
+    # Wipe
+    def wipe(self):
+        """Delete temporary data"""
+        self.__log.debug("Removing %s" % self.tmp_path)
+        shutil.rmtree(self.tmp_path)
+        for job_path in self.job_paths:
+            if os.path.exists(job_path):
+                self.__log.debug("Removing %s" % job_path)
+                shutil.rmtree(job_path)
 
 
 @logged
@@ -239,7 +251,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
     """Set up a TargetMate classifier. It can sample negatives from a universe of molecules (e.g. ChEMBL)"""
 
     def __init__(self,
-                 algo="balanced_random_forest",
+                 algo="random_forest",
                  model_config="vanilla",
                  weight_algo="naive_bayes",
                  ccp_folds=10,
@@ -254,7 +266,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
         """Set up a TargetMate classifier
 
         Args:
-            algo(str): Base algorithm to use (see /model configuration files) (default=balanced_random_forest).
+            algo(str): Base algorithm to use (see /model configuration files) (default=random_forest).
             model_config(str): Model configurations for the base classifier (default=vanilla).
             weight_algo(str): Model used to weigh the contribution of an individual classifier.
                 Should be fast. For the moment, only vanilla classifiers are accepted (default=naive_bayes).

@@ -12,7 +12,7 @@ import pickle
 class HPCUtils:
 
     def __init__(self, **kwargs):
-        pass
+        self.job_paths = []
 
     @staticmethod
     def cpu_count():
@@ -42,6 +42,7 @@ class HPCUtils:
         job_base_path = cfg.PATH.CC_TMP
         tmp_dir = tempfile.mktemp(prefix='tmp_', dir=job_base_path)
         job_path = kwargs.get("job_path", tmp_dir)
+        self.job_paths += [job_path]
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         # check cpus
