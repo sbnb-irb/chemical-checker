@@ -15,7 +15,7 @@ class VanillaClassifierConfigs:
             self.base_mod = RandomForestClassifier(
                 n_estimators=500,
                 class_weight="balanced",
-                n_features="sqrt",
+                max_features="sqrt",
                 n_jobs=n_jobs)
         if base_mod == "naive_bayes":
             from sklearn.naive_bayes import GaussianNB

@@ -214,8 +214,6 @@ class Validation(HPCUtils):
             data_test  = data[test_idx]
             self.train_idx = self.stack(self.train_idx, train_idx)
             self.test_idx  = self.stack(self.test_idx,  test_idx )
-            self.train_idx = self.stack(self.train_idx, train_idx)
-            self.test_idx  = self.stack(self.test_idx, test_idx)
             self.y_true_train = self.stack(self.y_true_train, data_train.activity)
             self.y_true_test  = self.stack(self.y_true_test, data_test.activity)
             self.y_pred_train = self.stack(self.y_pred_train, pred_train.y_pred)
@@ -242,11 +240,13 @@ class Validation(HPCUtils):
             "smiles": self.smiles,
             "destination_dir": self.destination_dir,
             "train": {
+                    "idx"   : self.train_idx,
                     "y_true": self.y_true_train,
                     "y_pred": self.y_pred_train,
                     "perfs" : self.perfs_train.as_dict()
                 },
             "test": {
+                    "idx"   : self.test_idx,
                     "y_true": self.y_true_test,
                     "y_pred": self.y_pred_test,
                     "perfs" : self.perfs_test.as_dict()
@@ -274,7 +274,7 @@ class Validation(HPCUtils):
             else:
                 pickle.dump(d, f)
 
-    def validate(self, tm, data, train_idx=None, test_idx=None, as_dict=True, save=True):
+    def validate(self, tm, data, train_idx=None, test_idx=None, as_dict=True, save=True, wipe=True):
         """Validate a TargetMate classifier using train-test splits.
 
         Args:
@@ -284,6 +284,7 @@ class Validation(HPCUtils):
             test_idx(array): Precomputed indices for the test set (default=None).
             as_dict(bool): Return as dictionary, for portability; if False, the validation is done inplace (default=True).
             save(bool): Save (default=True).
+            wipe(bool): Clean temporary directory once done (default=True).
         """
         if self.destination_dir is None:
             self.destination_dir = os.path.join(tm.models_path, "validation.pkl")
@@ -298,4 +299,6 @@ class Validation(HPCUtils):
             d = None
         if save:
             self.save(d = d)
+        if wipe:
+            tm.wipe()
         return d
