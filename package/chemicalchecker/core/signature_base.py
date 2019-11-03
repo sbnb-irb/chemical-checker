@@ -115,6 +115,9 @@ class BaseSignature(object):
             "sign.%s(*args)" % func_name,
             "print('JOB DONE')"
         ]
+        if kwargs.get("delete_job_path", False):
+            script_lines.append("print('DELETING JOB PATH: %s')" % job_path)
+            script_lines.append("os.system('rm -rf %s')" % job_path)
         script_name = '%s_%s_hpc.py' % (self.__class__.__name__, func_name)
         script_path = os.path.join(job_path, script_name)
         with open(script_path, 'w') as fh:
