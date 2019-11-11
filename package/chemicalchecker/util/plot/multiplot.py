@@ -19,6 +19,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from matplotlib.collections import LineCollection
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.decomposition import dataset_correlation
@@ -79,7 +80,7 @@ class MultiPlot():
             'E': ['#F39426', '#F5A951', '#F8BF7D']}
         return colors[coord[:1]][lighness]
 
-    def cmap_discretize(self, cmap, N):
+    def cmap_discretize(cmap, N):
         """Return a discrete colormap from the continuous colormap cmap.
 
             cmap: colormap instance, eg. cm.jet.
@@ -99,20 +100,20 @@ class MultiPlot():
         cdict = {}
         for ki, key in enumerate(('red', 'green', 'blue')):
             cdict[key] = [(indices[i], colors_rgba[i - 1, ki],
-                           colors_rgba[i, ki]) for i in xrange(N + 1)]
+                           colors_rgba[i, ki]) for i in range(N + 1)]
         # Return colormap object.
         return matplotlib.colors.LinearSegmentedColormap(cmap.name + "_%d" % N, cdict, 1024)
 
     def sign_adanet_stats(self, ctype, metric=None, compare=None):
         # read stats fields
-        sign = self.cc.get_signature(ctype, 'reference', 'E5.001')
-        stat_file = os.path.join(sign.model_path, 'adanet', 'stats.pkl')
+        sign = self.cc.get_signature(ctype, 'full', 'E5.001')
+        stat_file = os.path.join(sign.model_path, 'adanet_eval', 'stats_eval.pkl')
         df = pd.read_pickle(stat_file)
         # merge all stats to pandas
         df = pd.DataFrame(columns=['coordinate'] + list(df.columns))
         for ds in tqdm(self.datasets):
-            sign = self.cc.get_signature(ctype, 'reference', ds)
-            stat_file = os.path.join(sign.model_path, 'adanet', 'stats.pkl')
+            sign = self.cc.get_signature(ctype, 'full', ds)
+            stat_file = os.path.join(sign.model_path, 'adanet_eval', 'stats_eval.pkl')
             if not os.path.isfile(stat_file):
                 continue
             tmpdf = pd.read_pickle(stat_file)
@@ -1095,7 +1096,6 @@ class MultiPlot():
         ax.set_xlabel('Molecule Coverage',
                       fontdict=dict(name='Arial', size=16))
         # ax.xaxis.tick_top()
-
         ax.set_xticks([0, 2, 4, 6])
         ax.set_xticklabels(
             [r'$10^{0}$', r'$10^{2}$', r'$10^{4}$', r'$10^{6}$', ])
@@ -1107,25 +1107,123 @@ class MultiPlot():
         plt.savefig(filename, dpi=200)
         plt.close('all')
 
-    def sign3_CCA_heatmap(self, limit=10000):
-        df = pd.DataFrame(columns=['from', 'to', 'CCA'])
-        for i in range(len(self.datasets)):
-            ds_from = self.datasets[i]
-            s3_from = self.cc.get_signature('sign3', 'full', ds_from)[:limit]
-            for j in range(i + 1):
-                ds_to = self.datasets[j]
-                s3_to = self.cc.get_signature('sign3', 'full', ds_to)[:limit]
-                res = dataset_correlation(s3_from, s3_to)
+        fig = plt.figure(figsize=(10, 10))
+        plt.subplots_adjust(left=0.05, right=0.95, bottom=0.02,
+                            top=0.95, hspace=0.1)
+        gs = fig.add_gridspec(2, 1)
+        gs.set_height_ratios((30, 1))
+        gs_ds = gs[0].subgridspec(1, 2, wspace=0.1, hspace=0.0)
+        ax_cov = fig.add_subplot(gs_ds[0])
+        ax_xcov = fig.add_subplot(gs_ds[1])
 
-                df.loc[len(df)] = pd.Series({
-                    'from': ds_from[:2],
-                    'to': ds_to[:2],
-                    'CCA': res[0]})
-                if ds_to != ds_from:
+        cdf = pd.DataFrame([(x[:2], totals[x]) for x in sorted(totals.keys(), reverse=True)],
+                           columns=['dataset', 'coverage'])
+        ax_cov.barh(range(25), cdf['coverage'],
+                    color=list(reversed(colors)), lw=0)
+        for y, name in enumerate(cdf['dataset'].tolist()):
+            ax_cov.text(2, y - 0.06, name, name='Arial', size=12,
+                        va='center', ha='left',
+                        color='white', fontweight='bold')
+        ax_cov.set_yticks(range(1, 26))
+        ax_cov.set_yticklabels([])
+        #ax_cov.set_xlim(0, 110)
+        # ax_cov.xaxis.set_label_position('top')
+        # ax_cov.xaxis.tick_top()
+        plt.tick_params(left=False)
+        ax_cov.set_ylabel('')
+        ax_cov.set_xlabel('Molecules', fontdict=dict(name='Arial', size=16))
+        ax_cov.set_xscale('log')
+        ax_cov.set_xlim(1, 1e6)
+        ax_cov.set_ylim(-1, 25)
+        # ax.xaxis.tick_top()
+        ax_cov.set_xticks([1e1, 1e3, 1e5])
+        ax_cov.set_xticklabels(
+            [r'$10^{1}$', r'$10^{3}$',  r'$10^{5}$', ])
+        # ax_cov.tick_params(labelsize=14)
+        ax_cov.tick_params(left=False, labelsize=14, direction='inout')
+        sns.despine(ax=ax_cov, left=True, bottom=True, top=False, trim=True)
+        ax_cov.xaxis.set_label_position('top')
+        ax_cov.xaxis.tick_top()
+        ax_xcov.tick_params(left=False, bottom=False, top=True,
+                            labelbottom=False, labeltop=True)
+        cmap = plt.get_cmap("Greys_r", 10)
+        for i in range(25):
+            ax_xcov.barh(25 - i, 1, left=range(25),
+                         color=[cmap(1 - cross_cov[i, x]) for x in range(25)],
+                         lw=0)
+        ax_xcov.set_ylim(0, 26)
+        ax_xcov.set_yticks([])
+        ax_xcov.set_yticklabels([])
+        ax_xcov.set_xticks([])
+        ax_xcov.set_xticklabels([])
+        ax_xcov.set_yticks(range(1, 26))
+
+        for y, color in enumerate(colors):
+            rect = matplotlib.patches.Rectangle(
+                (y, 25.75), 1, 0.5, lw=0, edgecolor='w', facecolor=color,
+                clip_on=False)
+            ax_xcov.add_patch(rect)
+        main_colors = ['#EA5A49', '#B16BA8', '#5A72B5', '#7CAF2A', '#F39426']
+        for y, col in enumerate(main_colors):
+            ax_xcov.set_yticks(range(1, 26))
+            rect = matplotlib.patches.Rectangle(
+                (y * 5, 26), 5, 1, lw=0.1, edgecolor='w', facecolor=col,
+                clip_on=False)
+            ax_xcov.add_patch(rect)
+            rx, ry = rect.get_xy()
+            cx = rx + rect.get_width() / 2.0
+            cy = ry + rect.get_height() / 2.0
+            ax_xcov.text(cx, cy, 'ABCDE'[y], weight='bold',
+                         name='Arial', size=12, ha='center', va='center',
+                         color='white', clip_on=False)
+
+        sns.despine(ax=ax_xcov, left=True, bottom=True)
+        ax_xcov.tick_params(left=False, bottom=False, top=False,
+                            labelbottom=False, labeltop=False)
+
+        ax_cbar = fig.add_subplot(gs[1])
+        cbar = matplotlib.colorbar.ColorbarBase(
+            ax_cbar, cmap=cmap, orientation='horizontal',
+            ticklocation='top')
+        cbar.ax.set_xlabel('Overlap',
+                           fontdict=dict(name='Arial', size=14))
+        cbar.ax.tick_params(labelsize=14, )
+        cbar.set_ticks([1, .8, .6, .4, .2, .0])
+        cbar.set_ticklabels(
+            list(reversed(['1', '0.8', '0.6', '0.4', '0.2', '0'])))
+
+        outfile = os.path.join(self.plot_path, 'sign3_coverage_barplot.png')
+        plt.savefig(outfile, dpi=100)
+        plt.close('all')
+
+    def sign3_CCA_heatmap(self, limit=10000):
+
+        sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
+
+        df = pd.DataFrame(columns=['from', 'to', 'CCA'])
+        cca_file = os.path.join(self.plot_path, "sign3_CCA.pkl")
+        if not os.path.isfile(cca_file):
+            for i in range(len(self.datasets)):
+                ds_from = self.datasets[i]
+                s3_from = self.cc.get_signature(
+                    'sign3', 'full', ds_from)[:limit]
+                for j in range(i + 1):
+                    ds_to = self.datasets[j]
+                    s3_to = self.cc.get_signature(
+                        'sign3', 'full', ds_to)[:limit]
+                    res = dataset_correlation(s3_from, s3_to)
+
                     df.loc[len(df)] = pd.Series({
-                        'from': ds_to[:2],
-                        'to': ds_from[:2],
-                        'CCA': res[3]})
+                        'from': ds_from[:2],
+                        'to': ds_to[:2],
+                        'CCA': res[0]})
+                    if ds_to != ds_from:
+                        df.loc[len(df)] = pd.Series({
+                            'from': ds_to[:2],
+                            'to': ds_from[:2],
+                            'CCA': res[3]})
+            df.to_pickle(cca_file)
+        df = pd.read_pickle(cca_file)
         fig, ax = plt.subplots(1, 1, figsize=(6, 5), dpi=100)
         cmap = plt.cm.get_cmap('plasma_r', 5)
         sns.heatmap(df.pivot('from', 'to', 'CCA'), vmin=0, vmax=1,
@@ -1135,6 +1233,57 @@ class MultiPlot():
         filename = os.path.join(
             self.plot_path, "sign3_CCA_heatmap.png")
         df.to_pickle(filename[:-3] + ".pkl")
+        plt.savefig(filename, dpi=100)
+        plt.close('all')
+
+        # also plot as MDS projection
+        cca = df.pivot('from', 'to', 'CCA').values
+        # make average of upper and lower triangular matrix
+        cca_avg = np.zeros_like(cca)
+        for i,  j in itertools.product(range(25), range(25)):
+            cca_avg[i, j] = np.mean((cca[i, j], cca[j, i]))
+        proj = MDS(dissimilarity='precomputed', random_state=0)
+        coords = proj.fit_transform(1 - cca_avg)
+
+        def anno_dist(ax, idx1, idx2, coords):
+            p1 = coords[idx1]
+            p2 = coords[idx2]
+            coords_dist = dist = np.linalg.norm(p1 - p2)
+            dist = 1 - cca_avg[idx1, idx2]
+            angle = math.degrees(math.atan2(p1[1] - p2[1], p1[0] - p2[0]))
+            if angle < 0:
+                angle += 5
+            else:
+                angle -= 5
+            ax.annotate('', xy=p1, xycoords='data',
+                        xytext=p2, textcoords='data',
+                        zorder=1,
+                        arrowprops=dict(arrowstyle="-", color="0.2",
+                                        shrinkA=10, shrinkB=10,
+                                        patchA=None, patchB=None,
+                                        connectionstyle="bar,angle=%.2f,fraction=-%.2f" % (
+                                            angle, (1 - np.power(coords_dist, 1 / 3))),
+                                        ),)
+
+            #ax.plot([p1[0],p2[0]], [p1[1],p2[1]])
+            midpoint = (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2
+            ax.annotate('%.2f' % dist, xy=midpoint,
+                        xytext=midpoint, textcoords='data', xycoords='data',
+                        rotation=angle, va='center', ha='center')
+
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=100)
+        colors = [self.cc_colors(ds) for ds in self.datasets]
+        markers = ["$\u2776$", "$\u2777$", "$\u2778$", "$\u2779$", "$\u277a$"]
+        for i, color in enumerate(colors):
+            ax.scatter(coords[i, 0], coords[i, 1], c=color, s=400,
+                       edgecolor='', marker=markers[i % 5], zorder=2)
+        anno_dist(ax, 19, 15, coords)
+        #anno_dist(ax, 20, 22,coords)
+        anno_dist(ax, 1, 2, coords)
+        anno_dist(ax, 9, 20, coords)
+        filename = os.path.join(
+            self.plot_path, "sign3_CCA_MDS.svg")
+        plt.axis('off')
         plt.savefig(filename, dpi=100)
         plt.close('all')
 
@@ -1267,107 +1416,446 @@ class MultiPlot():
             plt.close('all')
         """
 
-    def sign3_neig2_jaccard(self, max_sample=2000):
+    def sign3_similarity_search(self, limit=1000, compute_confidence=False):
 
-        df = pd.DataFrame(columns=['dataset', 'k', 'confidence', 'jaccard'])
+        from chemicalchecker.util.remove_near_duplicates import RNDuplicates
+        from chemicalchecker.util.splitter import Traintest
+        from chemicalchecker.tool.adanet import AdaNet
+        from chemicalchecker.core.sign3 import subsample_x_only
+        from scipy.stats import pearsonr
+        from sklearn.preprocessing import QuantileTransformer
+        from chemicalchecker.core.signature_data import DataSignature
 
-        for ds in self.datasets:
-            try:
-                s2 = self.cc.get_signature('sign2', 'full', ds)
-                n2 = self.cc.get_signature('neig2', 'reference', ds)
+
+        outfile = os.path.join(
+            self.plot_path, 'sign3_simsearch.pkl')
+        if not os.path.isfile(outfile):
+            df = pd.DataFrame(
+                columns=['dataset', 'confidence', 'jaccard', 'k', 'thr'])
+            for ds in self.datasets[:]:
                 s3 = self.cc.get_signature('sign3', 'full', ds)
-            except:
-                continue
-            if not os.path.isfile(s2.data_path):
-                continue
-            if not os.path.isfile(n2.data_path):
-                continue
-            if not os.path.isfile(s3.data_path):
-                continue
+                # get traintest split train Y
+                traintest_file = os.path.join(s3.model_path, 'traintest.h5')
+                traintest = Traintest(traintest_file, 'train')
+                traintest.open()
+                y_train = traintest.get_y(0, limit)
+                x_train = traintest.get_x(0, limit)
+                traintest.close()
+                print('***y_train', y_train.shape)
+                # make train signature fake inks
+                s3_train = DataSignature('./tmp/train_%s.h5' % ds)
+                # if not os.path.isfile(s3_train.data_path):
+                inks = ["{:010d}".format(x) for x in range(len(y_train))]
+                with h5py.File(s3_train.data_path, 'w') as hf:
+                    hf.create_dataset('V', data=y_train)
+                    hf.create_dataset('keys', data=np.array(
+                        inks, DataSignature.string_dtype()))
+                print('***s3_train', s3_train.info_h5)
+                # remove duplicates
+                s3_train_ref = DataSignature('./tmp/train_ref_%s.h5' % ds)
+                # if not os.path.isfile(s3_train_ref.data_path):
+                rnd = RNDuplicates(cpu=4)
+                rnd.remove(s3_train.data_path,
+                           save_dest=s3_train_ref.data_path)
+                print('***s3_train_ref', s3_train_ref.info_h5)
+                # make neig
+                n2_train = self.cc.get_signature('neig2', 'train', ds)
+                # if not os.path.isfile(n2_train.data_path):
+                n2_train.fit(s3_train_ref)
+                print('***n2_train', n2_train.info_h5)
+
+                pred_file = os.path.join(
+                    s3.model_path, 'adanet_eval', 'y_pred_0.90.npy')
+                true_file = os.path.join(
+                    s3.model_path, 'adanet_eval', 'y_true.npy')
+                conf_file = os.path.join(
+                    s3.model_path, 'adanet_eval', 'y_pred_0.90_conf.npy')
+
+                y_true = np.load(true_file)[:limit]
+                y_pred = np.load(pred_file)[:limit]
+                y_rnd = np.random.rand(*y_pred.shape)
+                print('***y_true', y_true.shape)
+                if compute_confidence and os.path.isfile(conf_file):
+                    confidence = np.load(conf_file)[:limit]
+                elif compute_confidence:
+                    # compute raw confidence scores for train
+                    print('Computing raw confidence scores for TRAIN')
+                    traintest = Traintest(traintest_file, 'train')
+                    traintest.open()
+                    x_train = traintest.get_x(0, limit*10)
+                    traintest.close()
+                    rf = pickle.load(
+                        open(os.path.join(s3.model_path,
+                                          'adanet_error_final/RandomForest.pkl'), 'rb'), encoding='latin1')
+                    predict_fn = s3.get_predict_fn('adanet_eval')
+                    nan_feat = np.full((1, x_train.shape[1]), np.nan, dtype=np.float32)
+                    nan_pred = predict_fn({'x': nan_feat})['predictions']
+                    coverage = ~np.isnan(x_train[:, 0::128])
+                    err_dist = rf.predict(coverage)
+                    pred, samples = AdaNet.predict(x_train, predict_fn,
+                                                   subsample_x_only,
+                                                   consensus=True,
+                                                   samples=10)
+                    consensus = np.mean(samples, axis=1)
+                    centered = consensus - nan_pred
+                    intensities = np.abs(centered)
+                    int_dist = np.mean(intensities, axis=1).flatten()
+                    stddevs = np.std(samples, axis=1)
+                    std_dist = np.mean(stddevs, axis=1).flatten()
+                    log_mse = np.log10(np.mean(((y_train - pred)**2), axis=1))
+                    log_mse_consensus = np.log10(
+                        np.mean(((y_train - consensus)**2), axis=1))
+                    # get calibration weights
+                    print('calibrationg weights')
+                    corr_int = pearsonr(int_dist.flatten(), log_mse_consensus)[0]
+                    corr_std = pearsonr(std_dist.flatten(), log_mse_consensus)[0]
+                    corr_err = pearsonr(err_dist.flatten(), log_mse)[0]
+                    # normalizers
+                    print('normalizers')
+                    std_qtr = QuantileTransformer(
+                        n_quantiles=len(std_dist)).fit(np.expand_dims(std_dist, 1))
+                    int_qtr = QuantileTransformer(
+                        n_quantiles=len(int_dist)).fit(np.expand_dims(int_dist, 1))
+                    err_qtr = QuantileTransformer(
+                        n_quantiles=len(err_dist)).fit(np.expand_dims(err_dist, 1))
+
+                    # get raw confidence scores for test
+                    print('Computing raw confidence scores for TEST')
+                    traintest = Traintest(traintest_file, 'test')
+                    traintest.open()
+                    x_test = traintest.get_x(0, limit)
+                    traintest.close()
+                    coverage = ~np.isnan(x_test[:, 0::128])
+                    errors = rf.predict(coverage)
+                    error_norm = err_qtr.transform(np.expand_dims(errors, 1))
+                    pred, samples = AdaNet.predict(x_test, predict_fn,
+                                                   subsample_x_only,
+                                                   consensus=True,
+                                                   samples=10)
+                    consensus = np.mean(samples, axis=1)
+                    centered = consensus - nan_pred
+                    intensities = np.abs(centered)
+                    intensities = np.mean(intensities, axis=1)
+                    inten_norm = int_qtr.transform(np.expand_dims(intensities, 1))
+                    stddevs = np.std(samples, axis=1)
+                    stddevs = np.mean(stddevs, axis=1)
+                    stddev_norm = std_qtr.transform(np.expand_dims(stddevs, 1))
+
+                    confidence = np.average(
+                        [inten_norm, (1 - stddev_norm), (1 - error_norm)],
+                        weights=[corr_int, corr_std, corr_err], axis=0)
+                    confidence = confidence.flatten()
+                    np.save(conf_file, confidence)
+                    print('Confidence DONE')
+                else:
+                    confidence = np.mean(abs(y_pred), axis=1)
+                rnd_confidence = np.random.rand(len(confidence))
+
+                for k in [1, 5, 10, 50, 100]:
+                    # get idxs of nearest neighbors of s2 and s3
+                    n2_s2 = n2_train.get_kth_nearest(
+                        list(y_true), k=k, distances=True, keys=True)
+                    n2_s3 = n2_train.get_kth_nearest(
+                        list(y_pred), k=k, distances=True, keys=False)
+                    # get jaccard
+                    jacc = n2_train.jaccard_similarity(
+                        n2_s2['indices'], n2_s3['indices'])
+                    df = df.append(pd.DataFrame(
+                        {'dataset': ds, 'confidence': 'all',
+                         'jaccard': jacc, 'k': k, 'thr': 1}), ignore_index=True)
+                    print('*****  ALL', k, len(jacc), np.mean(jacc))
+                    # only consider jaccard of confident predictions
+                    topn = int(np.floor(len(y_true) / 10))
+                    jacc = n2_train.jaccard_similarity(
+                        n2_s2['indices'][np.argsort(confidence)[-topn:]],
+                        n2_s3['indices'][np.argsort(confidence)[-topn:]])
+                    df = df.append(pd.DataFrame(
+                        {'dataset': ds, 'confidence': 'high',
+                         'jaccard': jacc, 'k': k, 'thr': 1}), ignore_index=True)
+                    # random confidence
+                    topn = int(np.floor(len(y_true) / 10))
+                    jacc = n2_train.jaccard_similarity(
+                        n2_s2['indices'][np.argsort(rnd_confidence)[-topn:]],
+                        n2_s3['indices'][np.argsort(rnd_confidence)[-topn:]])
+                    df = df.append(pd.DataFrame(
+                        {'dataset': ds, 'confidence': 'rnd_conf',
+                         'jaccard': jacc, 'k': k, 'thr': 1}), ignore_index=True)
+                    # random signatures
+                    n2_rnd = n2_train.get_kth_nearest(
+                        list(y_rnd), k=k, distances=True, keys=False)
+                    jacc = n2_train.jaccard_similarity(
+                        n2_s2['indices'], n2_rnd['indices'])
+                    df = df.append(pd.DataFrame(
+                        {'dataset': ds, 'confidence': 'rnd_sign',
+                         'jaccard': jacc, 'k': k, 'thr': 1}), ignore_index=True)
+
+                for thr in [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1]:
+                    k = 10
+                    # get idxs of nearest neighbors of s2 and s3
+                    n2_s2 = n2_train.get_kth_nearest(
+                        list(y_true), k=10, distances=True, keys=True)
+                    n2_s3 = n2_train.get_kth_nearest(
+                        list(y_pred), k=10, distances=True, keys=False)
+                    # drop searches that are above threshold
+                    mask = np.any(n2_s2['distances'] < thr, axis=1)
+                    for key, val in n2_s2.items():
+                        n2_s2[key] = val[mask]
+                    for key, val in n2_s3.items():
+                        n2_s3[key] = val[mask]
+                    # only consider neighbors below threshold
+                    thr_n2_s2 = [n2_s2['indices'][x][n2_s2['distances'][x] < thr]
+                                 for x in range(n2_s2['indices'].shape[0])]
+                    thr_n2_s3 = [n2_s3['indices'][x][n2_s3['distances'][x] < thr]
+                                 for x in range(n2_s3['indices'].shape[0])]
+                    # get jaccard
+                    jacc = n2_train.jaccard_similarity(
+                        thr_n2_s2, thr_n2_s3)
+                    df = df.append(pd.DataFrame(
+                        {'dataset': ds, 'confidence': 'all',
+                         'jaccard': jacc, 'k': k, 'thr': thr}), ignore_index=True)
+                    print('*****  ALL', k, len(jacc), np.mean(jacc))
+                    # only consider jaccard of confident predictions
+                    topn = int(np.floor(np.count_nonzero(mask) / 10))
+                    jacc = n2_train.jaccard_similarity(
+                        n2_s2['indices'][np.argsort(confidence[mask])[-topn:]],
+                        n2_s3['indices'][np.argsort(confidence[mask])[-topn:]])
+                    df = df.append(pd.DataFrame(
+                        {'dataset': ds, 'confidence': 'high',
+                         'jaccard': jacc, 'k': k, 'thr': thr}), ignore_index=True)
+                    # random confidence
+                    topn = int(np.floor(np.count_nonzero(mask) / 10))
+                    jacc = n2_train.jaccard_similarity(
+                        n2_s2['indices'][np.argsort(rnd_confidence[mask])[-topn:]],
+                        n2_s3['indices'][np.argsort(rnd_confidence[mask])[-topn:]])
+                    df = df.append(pd.DataFrame(
+                        {'dataset': ds, 'confidence': 'rnd_conf',
+                         'jaccard': jacc, 'k': k, 'thr': thr}), ignore_index=True)
+                    # random signatures
+                    n2_rnd = n2_train.get_kth_nearest(
+                        list(y_rnd), k=k, distances=True, keys=False)
+                    thr_n2_rnd = [n2_rnd['indices'][x][n2_rnd['distances'][x] < thr]
+                                  for x in range(n2_rnd['indices'].shape[0])]
+                    jacc = n2_train.jaccard_similarity(
+                        n2_s2['indices'], n2_rnd['indices'])
+                    df = df.append(pd.DataFrame(
+                        {'dataset': ds, 'confidence': 'rnd_sign',
+                         'jaccard': jacc, 'k': k, 'thr': thr}), ignore_index=True)
+
+            df.to_pickle(outfile)
+        df = pd.read_pickle(outfile)
+        df['k'] = df.k.astype('category')
+        df['thr'] = df.thr.astype('category')
+
+        # quick check on coherence
+        for ds in self.datasets:
+            a = df[(df.dataset == ds) & (df.k == 10)
+                   & (df.thr == 1) & (df.confidence != 'rnd_sign')
+                   & (df.confidence != 'rnd_conf')].jaccard.values
+            x = int(len(a) / 2)
+            assert(np.all(a[-x:] == a[x:]))
+
+        sns.set_style("ticks")
+        f, axes = plt.subplots(5, 5, figsize=(5, 6), sharex=True, sharey='row')
+        plt.subplots_adjust(left=0.16, right=0.99, bottom=0.12, top=0.99,
+                            wspace=.08, hspace=.1)
+        for ds, ax in zip(self.datasets[:], axes.flat):
+            sns.pointplot(data=df[df.dataset == ds], y='jaccard', x='k',
+                          hue_order=['rnd_sign', 'rnd_conf', 'all', 'high'], hue='confidence',
+                          linestyles=['--', '--', '-', '-'],
+                          markers=[',', '', 'o', 'o'],
+                          ax=ax, scale=0.4, errwidth=0.5, dodge=0.3,
+                          palette=['grey', 'grey', self.cc_colors(ds, 2), self.cc_colors(ds, 0)])
+            ax.get_legend().remove()
+
+            ax.set_ylabel('')
+            ax.set_xlabel('')
+            ax.set_ylim(0, 1)
+            if ds[:2] == 'E1':
+                sns.despine(ax=ax, offset=3, trim=True)
+                ax.set_yticks([0, 1])
+                ax.set_yticklabels(['0', '1'])
+                ax.tick_params(axis='x', labelrotation=45)
+            elif ds[1] == '1':
+                sns.despine(ax=ax, bottom=True, offset=3, trim=True)
+                ax.tick_params(bottom=False)
+                ax.set_yticks([0, 1])
+                ax.set_yticklabels(['0', '1'])
+            elif ds[0] == 'E':
+                sns.despine(ax=ax, left=True, offset=3, trim=True)
+                ax.tick_params(left=False)
+                ax.tick_params(axis='x', labelrotation=45)
+                #ax.set_xticks([0, 1])
+                #ax.set_xticklabels(['All', 'High'])
+            else:
+                sns.despine(ax=ax, bottom=True, left=True, offset=3, trim=True)
+                ax.tick_params(bottom=False, left=False)
+        f.text(0.5, 0.04, 'Neighbors Searched', ha='center', va='center')
+        f.text(0.06, 0.5, 'Jaccard Similarity', ha='center',
+               va='center', rotation='vertical')
+        outfile = os.path.join(
+            self.plot_path, 'sign3_simsearch_neig.png')
+        plt.savefig(outfile, dpi=200)
+        plt.close('all')
+
+        sns.set_style("ticks")
+        f, axes = plt.subplots(5, 5, figsize=(5, 6), sharex=True, sharey='row')
+        plt.subplots_adjust(left=0.16, right=0.99, bottom=0.12, top=0.99,
+                            wspace=.08, hspace=.1)
+        for ds, ax in zip(self.datasets[:], axes.flat):
+            sns.pointplot(data=df[df.dataset == ds], y='jaccard', x='thr',
+                          hue_order=['rnd_sign', 'rnd_conf', 'all', 'high'], hue='confidence',
+                          linestyles=['--', '--', '-', '-'],
+                          markers=[',', '', 'o', 'o'],
+                          ax=ax, scale=0.4, errwidth=0.5, dodge=0.3,
+                          palette=['grey', 'grey', self.cc_colors(ds, 2), self.cc_colors(ds, 0)])
+            ax.get_legend().remove()
+
+            ax.set_ylabel('')
+            ax.set_xlabel('')
+            ax.set_ylim(0, 1)
+            if ds[:2] == 'E1':
+                sns.despine(ax=ax, offset=3, trim=True)
+                ax.set_yticks([0, 1])
+                ax.set_yticklabels(['0', '1'])
+                ax.tick_params(axis='x', labelrotation=45)
+            elif ds[1] == '1':
+                sns.despine(ax=ax, bottom=True, offset=3, trim=True)
+                ax.tick_params(bottom=False)
+                ax.set_yticks([0, 1])
+                ax.set_yticklabels(['0', '1'])
+            elif ds[0] == 'E':
+                sns.despine(ax=ax, left=True, offset=3, trim=True)
+                ax.tick_params(left=False)
+                ax.tick_params(axis='x', labelrotation=45)
+                #ax.set_xticks([0, 1])
+                #ax.set_xticklabels(['All', 'High'])
+            else:
+                sns.despine(ax=ax, bottom=True, left=True, offset=3, trim=True)
+                ax.tick_params(bottom=False, left=False)
+        f.text(0.5, 0.04, 'Distance Threshold', ha='center', va='center')
+        f.text(0.06, 0.5, 'Jaccard Similarity', ha='center',
+               va='center', rotation='vertical')
+        outfile = os.path.join(
+            self.plot_path, 'sign3_simsearch_thr.png')
+        plt.savefig(outfile, dpi=200)
+        plt.close('all')
+
+    def sign3_neig2_jaccard(self, limit=2000):
+
+        df = pd.DataFrame(columns=['dataset', 'confidence', 'jaccard'])
+        for ds in self.datasets[:]:
+            s2 = self.cc.get_signature('sign2', 'full', ds)
+            n2 = self.cc.get_signature('neig2', 'reference', ds)
+            s3 = self.cc.get_signature('sign3', 'full', ds)
+
             # decide sample molecules
             inks = s2.keys
             s3_conf = s3.get_h5_dataset('confidence')
-            if len(inks) > max_sample:
-                inks = list()
-                s2_mask = np.isin(list(s3.keys), list(
-                    s2.keys), assume_unique=True)
-                s2_conf = s3_conf[s2_mask]
-                # make sure we sample a bit all confidences
-                conf_bins = np.arange(0, 100, 10)
-                for low in conf_bins:
-                    upp = low + 10
-                    if low == 0:
-                        mask_low = s2_conf >= np.percentile(s2_conf, low)
-                    else:
-                        mask_low = s2_conf > np.percentile(s2_conf, low)
-                    mask_upp = s2_conf <= np.percentile(s2_conf, upp)
-                    mask = mask_low & mask_upp
-                    inks_conf = np.random.choice(np.array(s2.keys)[mask],
-                                                 int(max_sample /
-                                                     len(conf_bins)),
-                                                 replace=False)
-                    inks.extend(inks_conf.tolist())
-                inks = sorted(inks)
+            s3_intensity = s3.get_h5_dataset('intensity_norm')
+            s2_mask = np.isin(list(s3.keys), list(s2.keys), assume_unique=True)
+            s2_conf = s3_conf[s2_mask]
+            s2_intensity = s3_intensity[s2_mask]
+
+            high_conf = s2_conf > .9
+            inks_high = inks[high_conf][:limit]
             # get sign2 and sign3
-            _, s2_data = s2.get_vectors(inks)
-            _, s3_data = s3.get_vectors(inks)
-            _, s3_data_conf = s3.get_vectors(inks, dataset_name='confidence')
-            s3_data_conf = s3_data_conf.T[0]
-            # get idx of nearest neighbors of s2
-            row = dict()
-            row['dataset'] = ds
-            k = int(s2.shape[0] * 0.0025)
-            k = max(k, 10)
-            row['k'] = k
+            _, s2_data = s2.get_vectors(inks_high)
+            _, s3_data = s3.get_vectors(inks_high)
+            _, s3_data_conf = s3.get_vectors(
+                inks_high, dataset_name='confidence')
+            s3_data_conf = s3_data_conf.flatten()
+            # get idxs of nearest neighbors of s2 and s3
+            k = 10
             n2_s2 = n2.get_kth_nearest(
                 list(s2_data), k=k, distances=False, keys=False)
             n2_s3 = n2.get_kth_nearest(
                 list(s3_data), k=k, distances=False, keys=False)
 
-            for low in np.arange(0, 100, 10):
-                mask = s3_data_conf >= np.percentile(s3_data_conf, low)
-                row['confidence'] = low
-                row['jaccard'] = n2.jaccard_similarity(
-                    n2_s2['indices'][mask],
-                    n2_s3['indices'][mask])
-                df = df.append(pd.DataFrame(row), ignore_index=True)
+            jacc = n2.jaccard_similarity(n2_s2['indices'], n2_s3['indices'])
+            df = df.append(pd.DataFrame(
+                {'dataset': ds, 'confidence': 'high', 'jaccard': jacc}), ignore_index=True)
+            print('***** HIGH', len(jacc), np.mean(jacc),
+                  stats.spearmanr(jacc, s3_data_conf))
 
-            print(df[df.dataset == ds].groupby('confidence').median())
+            all_conf = np.ones_like(s2_conf).astype(bool)
+            if len(jacc) < limit:
+                new_limit = len(jacc)
+            else:
+                new_limit = limit
+            inks_all = inks[all_conf][:new_limit]
+            # get sign2 and sign3
+            _, s2_data = s2.get_vectors(inks_all)
+            _, s3_data = s3.get_vectors(inks_all)
+            _, s3_data_conf = s3.get_vectors(
+                inks_all, dataset_name='confidence')
+            s3_data_conf = s3_data_conf.flatten()
+            # get idxs of nearest neighbors of s2 and s3
+            k = 10
+            n2_s2 = n2.get_kth_nearest(
+                list(s2_data), k=k, distances=False, keys=False)
+            n2_s3 = n2.get_kth_nearest(
+                list(s3_data), k=k, distances=False, keys=False)
+
+            jacc = n2.jaccard_similarity(n2_s2['indices'], n2_s3['indices'])
+            df = df.append(pd.DataFrame(
+                {'dataset': ds, 'confidence': 'all', 'jaccard': jacc}), ignore_index=True)
+            print('***** ALL', len(jacc), np.mean(jacc),
+                  stats.spearmanr(jacc, s3_data_conf))
 
         sns.set_style("whitegrid")
-        f, axes = plt.subplots(5, 5, figsize=(9, 9), sharex=True, sharey='row')
-        for ds, ax in zip(self.datasets, axes.flat):
-            sns.lineplot(data=df[df.dataset == ds],
-                         x='confidence', y='jaccard',
-                         style='dataset',
-                         markers=False, dashes=False,
-                         legend=False,
-                         color=self.cc_palette([ds])[0], ax=ax)
-            ax.set_xlim(0, 90)
-            #ax.set_ylim(0.4, 1)
-            ax.grid(axis='y', linestyle="-",
-                    color=self.cc_palette([ds])[0], lw=0.3)
-            ax.grid(axis='x', linestyle="-",
-                    color=self.cc_palette([ds])[0], lw=0.3)
-            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
-            ax.spines["top"].set_color(self.cc_palette([ds])[0])
-            ax.spines["right"].set_color(self.cc_palette([ds])[0])
-            ax.spines["left"].set_color(self.cc_palette([ds])[0])
-            ax.set_xlabel('')
+        f, axes = plt.subplots(5, 5, figsize=(4, 6), sharex=True, sharey='row')
+
+        plt.subplots_adjust(left=0.16, right=0.99, bottom=0.12, top=0.99,
+                            wspace=.08, hspace=.1)
+        for ds, ax in zip(self.datasets[:], axes.flat):
+            sns.barplot(data=df[df.dataset == ds], y='jaccard', x='confidence',
+                        order=['all', 'high'],
+                        ax=ax,
+                        palette=[self.cc_colors(ds, 2), self.cc_colors(ds, 0)])
             ax.set_ylabel('')
+            ax.set_xlabel('')
+            ax.set_ylim(0, 1)
+            if ds[:2] == 'E1':
+                sns.despine(ax=ax, offset=3, trim=True)
+                ax.set_yticks([0, 1])
+                ax.set_yticklabels(['0', '1'])
+            elif ds[1] == '1':
+                sns.despine(ax=ax, bottom=True, offset=3, trim=True)
+                ax.tick_params(bottom=False)
+                ax.set_yticks([0, 1])
+                ax.set_yticklabels(['0', '1'])
+            elif ds[0] == 'E':
+                sns.despine(ax=ax, left=True, offset=3, trim=True)
+                ax.tick_params(left=False)
+                ax.set_xticks([0, 1])
+                ax.set_xticklabels(['All', 'High'])
+            else:
+                sns.despine(ax=ax, bottom=True, left=True, offset=3, trim=True)
+                ax.tick_params(bottom=False, left=False)
         f.text(0.5, 0.04, 'Confidence', ha='center', va='center')
-        f.text(0.06, 0.5, 'Jaccard Neighbors Sign2/3', ha='center',
+        f.text(0.06, 0.5, 'Jaccard Similarity', ha='center',
                va='center', rotation='vertical')
         outfile = os.path.join(
             self.plot_path, 'sign3_neig2_jaccard.png')
         plt.savefig(outfile, dpi=200)
         plt.close('all')
-        return df
 
     def sign_property_distribution(self, cctype, molset, prop, xlim=None):
+        sns.set_style("ticks")
+        sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
 
-        sns.set_style("whitegrid")
-        f, axes = plt.subplots(5, 5, figsize=(9, 9), sharex=True, sharey=True)
+        fig, axes = plt.subplots(5, 5, figsize=(5, 5),
+                                 sharex=True, sharey=True)
+
+        plt.subplots_adjust(left=0.12, right=0.99, bottom=0.1, top=0.99,
+                            wspace=.08, hspace=.06)
+
+        fig.text(0.5, 0.02, prop.capitalize(),
+                 ha='center', va='center',
+                 name='Arial', size=16)
+        fig.text(0.02, 0.55, 'Molecules', ha='center',
+                 va='center', rotation='vertical',
+                 name='Arial', size=16)
 
         for ds, ax in zip(self.datasets, axes.flat):
             try:
@@ -1381,24 +1869,34 @@ class MultiPlot():
             # get idx of nearest neighbors of s2
             if xlim:
                 sns.distplot(s3_data_conf, color=self.cc_palette([ds])[0],
-                             kde=False, norm_hist=False, ax=ax, bins=20,
-                             hist_kws={'range': xlim})
+                             kde=False, norm_hist=False, ax=ax, bins=10,
+                             hist_kws=dict(range=xlim, alpha=1))
                 ax.set_xlim(xlim)
             else:
                 sns.distplot(s3_data_conf, color=self.cc_palette([ds])[0],
                              kde=False, norm_hist=False, ax=ax)
             ax.set_yscale('log')
+
             ax.grid(axis='y', linestyle="-",
                     color=self.cc_palette([ds])[0], lw=0.3)
             ax.grid(axis='x', linestyle="-",
                     color=self.cc_palette([ds])[0], lw=0.3)
-            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
-            ax.spines["top"].set_color(self.cc_palette([ds])[0])
-            ax.spines["right"].set_color(self.cc_palette([ds])[0])
-            ax.spines["left"].set_color(self.cc_palette([ds])[0])
-        f.text(0.5, 0.04, prop, ha='center', va='center')
-        f.text(0.06, 0.5, 'molecules', ha='center',
-               va='center', rotation='vertical')
+            if ds[:2] == 'E1':
+                sns.despine(ax=ax, offset=3, trim=True)
+            elif ds[1] == '1':
+                sns.despine(ax=ax, bottom=True, offset=3, trim=True)
+                ax.tick_params(bottom=False)
+            elif ds[0] == 'E':
+                sns.despine(ax=ax, left=True, offset=3, trim=True)
+                ax.tick_params(left=False)
+                ax.set_xticks([0, 0.5, 1])
+                ax.set_xticklabels(['0', '0.5', '1'])
+            else:
+                sns.despine(ax=ax, bottom=True, left=True, offset=3, trim=True)
+                ax.tick_params(bottom=False, left=False)
+
+        plt.minorticks_off()
+
         outfile = os.path.join(
             self.plot_path, '%s.png' % '_'.join([cctype, molset, prop]))
         plt.savefig(outfile, dpi=200)
@@ -1739,7 +2237,7 @@ class MultiPlot():
             plt.savefig(outfile, dpi=200)
         plt.close('all')
 
-    def sign3_test_pearson_distribution(self):
+    def sign3_test_distribution(self, limit=10000):
 
         from chemicalchecker.tool.adanet import AdaNet
         from chemicalchecker.util.splitter import Traintest
@@ -1762,86 +2260,138 @@ class MultiPlot():
             y_data_transf = y_data[not_nan]
             return x_data_transf, y_data_transf
 
-        sns.set_style("ticks")
-        sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
-        fig, axes = plt.subplots(26, 1, sharex=True, figsize=(3, 10), dpi=100)
+        df = pd.DataFrame(columns=['dataset', 'scaled', 'comp_wise',
+                                   'metric', 'value', 'corr_thr'])
         all_dss = list(self.datasets)
-        fig.subplots_adjust(left=0.05, right=.95, bottom=0.08,
-                            top=1, wspace=0, hspace=-.3)
-        colors = [
-            '#EA5A49', '#EE7B6D', '#EA5A49', '#EE7B6D', '#EA5A49',
-            '#C189B9', '#B16BA8', '#C189B9', '#B16BA8', '#C189B9',
-            '#5A72B5', '#7B8EC4', '#5A72B5', '#7B8EC4', '#5A72B5',
-            '#96BF55', '#7CAF2A', '#96BF55', '#7CAF2A', '#96BF55',
-            '#F39426', '#F5A951', '#F39426', '#F5A951', '#F39426']
-        for ds, ax, color in zip(all_dss, axes.flat, colors):
+        for ds in all_dss:
             s3 = self.cc.get_signature('sign3', 'full', ds)
-            corr_file = os.path.join(
-                s3.model_path, 'adanet_eval', 'corr_test_comp.npy')
-            if not os.path.isfile(corr_file):
+            pred_file = os.path.join(
+                s3.model_path, 'adanet_eval', 'y_pred_%.2f.npy')
+            true_file = os.path.join(
+                s3.model_path, 'adanet_eval', 'y_true.npy')
+            if not all([os.path.isfile(pred_file % t) for t in [0.7, 0.9]]):
                 # filter most correlated spaces
                 ds_corr = s3.get_h5_dataset('datasets_correlation')
-                #self.__log.info(str(zip(list(self.datasets), list(ds_corr))))
+                # self.__log.info(str(zip(list(self.datasets), list(ds_corr))))
                 # load X Y data
                 traintest_file = os.path.join(s3.model_path, 'traintest.h5')
                 traintest = Traintest(traintest_file, 'test')
                 traintest.open()
-                x_test, y_test = traintest.get_xy(0, 1000)
+                x_test, y_test = traintest.get_xy(0, limit)
                 traintest.close()
+                traintest = Traintest(traintest_file, 'validation')
+                traintest.open()
+                x_val, y_val = traintest.get_xy(0, limit)
+                traintest.close()
+                x_test = np.vstack((x_test, x_val))
+                y_test = np.vstack((y_test, y_val))
                 # load DNN
                 predict_fn = AdaNet.predict_fn(os.path.join(
                     s3.model_path, 'adanet_eval', 'savedmodel'))
                 # check various correlations thresholds
-                corr_thr = 0.70
-                corr_spaces = np.array(list(self.datasets))[
-                    ds_corr > corr_thr].tolist()
-                #self.__log.info('masking %s' % str(corr_spaces))
-                idxs = [all_dss.index(d) for d in corr_spaces]
-                x_thr, y_true = mask_exclude(idxs, x_test, y_test)
-                y_pred = AdaNet.predict(x_thr, predict_fn)
+                for corr_thr in [0.7, 0.9]:
+                    corr_spaces = np.array(list(self.datasets))[
+                        ds_corr > corr_thr].tolist()
+                    # self.__log.info('masking %s' % str(corr_spaces))
+                    idxs = [all_dss.index(d) for d in corr_spaces]
+                    x_thr, y_true = mask_exclude(idxs, x_test, y_test)
+                    y_pred = AdaNet.predict(x_thr, predict_fn)
 
-                corr_test_comp = row_wise_correlation(y_pred.T, y_true.T)
-                np.save(corr_file, corr_test_comp)
-            corr_test_comp = np.load(corr_file)
+                    np.save(pred_file % corr_thr, y_pred)
+                    np.save(true_file, y_true)
+            options = [
+                ['log10MSE', 'R2', 'Pearson'],
+                [0.7, 0.9],
+                [True, False],
+                [True, False]
+            ]
+            all_dfs = list()
+            for metric, corr_thr, scaled, comp_wise in itertools.product(*options):
+                y_true = np.load(true_file)
+                y_pred = np.load(pred_file % corr_thr)
+                if scaled:
+                    scaler = RobustScaler()
+                    y_true = scaler.fit_transform(y_true)
+                    y_pred = scaler.fit_transform(y_pred)
+                if comp_wise:
+                    y_true = y_true.T
+                    y_pred = y_pred.T
+                if metric == 'log10MSE':
+                    values = np.log10(np.mean((y_true - y_pred)**2, axis=1))
+                elif metric == 'R2':
+                    values = r2_score(y_true, y_pred, multioutput='raw_values')
+                elif metric == 'Pearson':
+                    values = row_wise_correlation(y_true, y_pred)
+                _df = pd.DataFrame(dict(dataset=ds, scaled=scaled, comp_wise=comp_wise,
+                                        metric=metric, corr_thr=corr_thr, value=values))
+                all_dfs.append(_df)
+            df = pd.concat(all_dfs)
 
-            # self.__log.info('%.2f N(%.2f,%.2f)' % (
-            #    corr_thr, np.mean(corr_test_comp), np.std(corr_test_comp)))
-            #sns.distplot(corr_test_comp, ax=ax,  color=color)
-            sns.kdeplot(corr_test_comp, ax=ax, clip_on=False, shade=True,
-                        alpha=1, lw=1.5, bw=.2, color=color)
-            sns.kdeplot(corr_test_comp, ax=ax, clip_on=False,
-                        color="w", lw=2, bw=.2)
-            ax.axhline(y=0, lw=2, clip_on=False, color=color)
-            ax.set_xlim(0, 1)
-            ax.tick_params(axis='x', colors=color)
+        sns.set_style("ticks")
+        sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
+
+        options = [
+            ['log10MSE', 'R2', 'Pearson'],
+            [0.9],
+            [True, False],
+            [True, False]
+        ]
+        for metric, corr_thr, scaled, comp_wise in itertools.product(*options):
+            odf = df[(df.scaled == scaled) & (df.comp_wise == comp_wise) & (
+                df.metric == metric) & (df.corr_thr == corr_thr)]
+            xmin = np.floor(np.percentile(odf.value, 5))
+            xmax = np.ceil(np.percentile(odf.value, 95))
+            fig, axes = plt.subplots(
+                26, 1, sharex=True, figsize=(3, 10), dpi=100)
+            fig.subplots_adjust(left=0.05, right=.95, bottom=0.08,
+                                top=1, wspace=0, hspace=-.3)
+            for idx, (ds, ax) in enumerate(zip(all_dss, axes.flat)):
+                color = self.cc_colors(ds, idx % 2)
+                color2 = self.cc_colors(ds, 2)
+                values = odf[(odf.dataset == ds)].value.tolist()
+                sns.kdeplot(values, ax=ax, clip_on=False, shade=True,
+                            alpha=1, lw=0,  bw=.15, color=color)
+                sns.kdeplot(values, ax=ax, clip_on=False,
+                            color=color2, lw=2, bw=.15)
+
+                ax.axhline(y=0, lw=2, clip_on=False, color=color)
+                ax.set_xlim(xmin, xmax)
+                ax.tick_params(axis='x', colors=color)
+                ax.set_yticks([])
+                ax.set_xticks([])
+                ax.patch.set_alpha(0)
+                sns.despine(ax=ax, bottom=True, left=True, trim=True)
+            ax = axes.flat[-1]
             ax.set_yticks([])
-            ax.set_xticks([])
-            ax.patch.set_alpha(0)
-            sns.despine(ax=ax, bottom=True, left=True, trim=True)
-            '''
-            ax.legend(prop={'size': 6})
-            ax.grid(axis='y', linestyle="-",
-                    color=self.cc_palette([ds])[0], lw=0.3)
-            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
-            ax.spines["top"].set_color(self.cc_palette([ds])[0])
-            ax.spines["right"].set_color(self.cc_palette([ds])[0])
-            ax.spines["left"].set_color(self.cc_palette([ds])[0])
-            '''
-            outfile = os.path.join(
-                self.plot_path, 'sign3_test_pearson_distribution.png')
-        ax = axes.flat[-1]
-        ax.set_yticks([])
-        ax.set_xlim(0, 1)
-        ax.set_xticks([0, 0.25, 0.5, 0.75, 1])
-        ax.set_xticklabels(['0', '.25', '.5', '.75', '1'])
-        ax.set_xlabel('Test Correlation',
-                      fontdict=dict(name='Arial', size=16))
-        ax.tick_params(labelsize=14)
-        ax.patch.set_alpha(0)
-        sns.despine(ax=ax, bottom=False, left=True, trim=True)
+            ax.set_xlim(xmin, xmax)
+            ax.set_xticks(np.linspace(xmin, xmax, 3))
+            ax.set_xticklabels(
+                ['%.1f' % x for x in np.linspace(xmin, xmax, 3)])
+            # ax.set_xticklabels(['0','0.5','1'])
 
-        plt.savefig(outfile, dpi=200)
-        plt.close('all')
+            xlabel = '%.1f' % corr_thr
+            xlabel += ' %s' % metric
+            if comp_wise:
+                xlabel += ' Comp.'
+            else:
+                xlabel += ' Mol.'
+            if scaled:
+                xlabel += ' scaled'
+            ax.set_xlabel(xlabel,
+                          fontdict=dict(name='Arial', size=16))
+            ax.tick_params(labelsize=14)
+            ax.patch.set_alpha(0)
+            sns.despine(ax=ax, bottom=False, left=True, trim=True)
+            fname = 'sign3_test_dist_%s_%.1f' % (metric, corr_thr)
+            if comp_wise:
+                fname += '_comp'
+            if scaled:
+                fname += '_scaled'
+            print(fname)
+            print(odf.value.describe())
+            outfile = os.path.join(self.plot_path, fname + '.png')
+            plt.savefig(outfile, dpi=200)
+            plt.close('all')
 
     def sign3_mfp_predictor(self):
 
@@ -1865,7 +2415,7 @@ class MultiPlot():
                 labels=['signature', 'stddev', 'intensity', 'exp_error',
                         'novelty', 'confidence'])
             # get idx of nearest neighbors of s2
-            sns.barplot(x='component_cat', y='pearson', data=df, hue='split',
+            sns.barplot(x='component_cat', y='mse', data=df, hue='split',
                         hue_order=['train', 'test'],
                         ax=ax, color=self.cc_palette([ds])[0])
             ax.set_xlabel('')
@@ -1880,10 +2430,53 @@ class MultiPlot():
             ax.spines["right"].set_color(self.cc_palette([ds])[0])
             ax.spines["left"].set_color(self.cc_palette([ds])[0])
 
-        f.text(0.06, 0.5, 'Correlation True/Pred. (Pearson)', ha='center',
+        f.text(0.06, 0.5, 'MSE', ha='center',
                va='center', rotation='vertical')
         outfile = os.path.join(
             self.plot_path, 'sign3_mfp_predictor.png')
+        plt.savefig(outfile, dpi=200)
+        plt.close('all')
+
+    def sign3_mfp_confidence_predictor(self):
+
+        sns.set_style("whitegrid")
+        f, axes = plt.subplots(5, 5, figsize=(9, 9), sharex=True, sharey=True)
+
+        for ds, ax in zip(self.datasets, axes.flat):
+            try:
+                s3 = self.cc.get_signature('sign3', 'full', ds)
+            except Exception:
+                continue
+            if not os.path.isfile(s3.data_path):
+                continue
+            stat_file = os.path.join(s3.model_path,
+                                     'adanet_sign0_A1.001_conf_eval',
+                                     'stats_sign0_A1.001_conf_eval.pkl')
+            df = pd.read_pickle(stat_file)
+            df['component_cat'] = df.component.astype('category')
+            df['component_cat'] = df['component_cat'].cat.rename_categories(
+                ['stddev', 'intensity', 'exp_error', 'novelty', 'confidence'])
+
+            # get idx of nearest neighbors of s2
+            sns.barplot(x='component_cat', y='mse', data=df, hue='split',
+                        hue_order=['train', 'test'],
+                        ax=ax, color=self.cc_palette([ds])[0])
+            ax.set_xlabel('')
+            ax.set_ylabel('')
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
+            ax.legend(prop={'size': 6})
+            ax.get_legend().remove()
+            ax.grid(axis='y', linestyle="-",
+                    color=self.cc_palette([ds])[0], lw=0.3)
+            ax.spines["bottom"].set_color(self.cc_palette([ds])[0])
+            ax.spines["top"].set_color(self.cc_palette([ds])[0])
+            ax.spines["right"].set_color(self.cc_palette([ds])[0])
+            ax.spines["left"].set_color(self.cc_palette([ds])[0])
+
+        f.text(0.06, 0.5, 'MSE', ha='center',
+               va='center', rotation='vertical')
+        outfile = os.path.join(
+            self.plot_path, 'sign3_mfp_confidence_predictor.png')
         plt.savefig(outfile, dpi=200)
         plt.close('all')
 
@@ -1935,12 +2528,11 @@ class MultiPlot():
                 log_mse_consensus, confidence, limit)
 
             white = self._rgb2hex(250, 250, 250)
-            black = self._rgb2hex(0, 0, 0)
-            colors = [white, self.cc_palette([ds])[0], black]
+            colors = [white, self.cc_palette([ds])[0]]
             cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
                 '', colors)
             ax.scatter(x[order], y[order], c=c[order],
-                       cmap=cmap, s=5, edgecolor='')
+                       cmap=cmap, s=5, edgecolor='', alpha=.8)
             ax.text(0.05, 0.1, r"$\rho$: {:.2f}".format(pc_confidence),
                     transform=ax.transAxes, name='Arial', size=10,
                     bbox=dict(facecolor='white', alpha=0.8))
@@ -1960,9 +2552,17 @@ class MultiPlot():
 
             if ds[:2] == 'E1':
                 sns.despine(ax=ax, offset=3, trim=True)
+                # set the alignment for outer ticklabels
+                ticklabels = ax.get_yticklabels()
+                ticklabels[0].set_va("bottom")
+                ticklabels[-1].set_va("top")
             elif ds[1] == '1':
                 sns.despine(ax=ax, bottom=True, offset=3, trim=True)
                 ax.tick_params(bottom=False)
+                # set the alignment for outer ticklabels
+                ticklabels = ax.get_yticklabels()
+                ticklabels[0].set_va("bottom")
+                ticklabels[-1].set_va("top")
             elif ds[0] == 'E':
                 sns.despine(ax=ax, left=True, offset=3, trim=True)
                 ax.tick_params(left=False)
@@ -1971,31 +2571,32 @@ class MultiPlot():
                 ax.tick_params(bottom=False, left=False)
 
             # pies
+            wp = {'linewidth': 0, 'antialiased': True}
             colors = [self.cc_palette([ds])[0], 'lightgrey']
             bbox = (.5, .5, .5, .5)
             inset_ax = inset_axes(ax, 0.4, 0.4,
                                   bbox_to_anchor=bbox,
                                   bbox_transform=ax.transAxes,  loc=2)
 
-            inset_ax.pie([pc_stddev, 1 - pc_stddev],
+            inset_ax.pie([pc_stddev, 1 - pc_stddev], wedgeprops=wp,
                          counterclock=False, startangle=90, colors=colors)
-            inset_ax.pie([1.0], radius=0.5, colors=['white'])
+            inset_ax.pie([1.0], radius=0.5, colors=['white'], wedgeprops=wp)
             inset_ax.text(0.5, 0.5, r"$\sigma$", ha='center', va='center',
                           transform=inset_ax.transAxes, name='Arial', size=10)
             inset_ax = inset_axes(ax, 0.4, 0.4,
                                   bbox_to_anchor=bbox,
                                   bbox_transform=ax.transAxes,  loc=1)
-            inset_ax.pie([pc_intensity, 1 - pc_intensity],
+            inset_ax.pie([pc_intensity, 1 - pc_intensity], wedgeprops=wp,
                          counterclock=False, startangle=90, colors=colors)
-            inset_ax.pie([1.0], radius=0.5, colors=['white'])
+            inset_ax.pie([1.0], radius=0.5, colors=['white'], wedgeprops=wp)
             inset_ax.text(0.5, 0.5, r"$I$", ha='center', va='center',
                           transform=inset_ax.transAxes, name='Arial', size=10)
             inset_ax = inset_axes(ax, 0.4, 0.4,
                                   bbox_to_anchor=bbox,
                                   bbox_transform=ax.transAxes, loc=4)
-            inset_ax.pie([pc_exp_error, 1 - pc_exp_error],
+            inset_ax.pie([pc_exp_error, 1 - pc_exp_error], wedgeprops=wp,
                          counterclock=False, startangle=90, colors=colors)
-            inset_ax.pie([1.0], radius=0.5, colors=['white'])
+            inset_ax.pie([1.0], radius=0.5, colors=['white'], wedgeprops=wp)
             inset_ax.text(0.5, 0.5, r"$e$", ha='center', va='center',
                           transform=inset_ax.transAxes, name='Arial', size=10)
 
@@ -2018,7 +2619,7 @@ class MultiPlot():
             if not os.path.isfile(s3.data_path):
                 continue
             # get novelty and confidence
-            #nov = s3.get_h5_dataset('novelty')
+            # nov = s3.get_h5_dataset('novelty')
             out = s3.get_h5_dataset('outlier')
             conf = s3.get_h5_dataset('confidence')
             # get really novel molecules
@@ -2049,7 +2650,7 @@ class MultiPlot():
         plt.close('all')
 
     def sign3_examplary_test_correlation(self, limit=1000,
-                                         examplary_ds=['B1.001', 'E2.001', 'D1.001']):
+                                         examplary_ds=['B1.001', 'D1.001', 'E4.001']):
 
         from chemicalchecker.tool.adanet import AdaNet
         from chemicalchecker.util.splitter import Traintest
@@ -2072,22 +2673,48 @@ class MultiPlot():
             y_data_transf = y_data[not_nan]
             return x_data_transf, y_data_transf
 
+        def plot_molecule(ax, inchikey, size=(300, 300), margin=5, interpolation=None):
+            from chemicalchecker.util.parser import Converter
+            from rdkit.Chem import Draw
+            from rdkit import Chem
+            from PIL import Image
+
+            # get smiles
+            converter = Converter()
+            smiles = converter.inchi_to_smiles(
+                eval(converter.inchikey_to_inchi(inchikey))[0]['standardinchi'])
+            # generate initial image
+            image = Draw.MolToImage(Chem.MolFromSmiles(smiles), size=size)
+            # find crop box
+            image_data = np.asarray(image)
+            image_white = np.all((image_data == [255, 255, 255]), axis=2)
+            non_white_columns = np.where(np.sum(~image_white, axis=0) != 0)[0]
+            non_white_rows = np.where(np.sum(~image_white, axis=1) != 0)[0]
+            cropBox = (min(non_white_rows) - margin,
+                       max(non_white_rows) + margin,
+                       min(non_white_columns) - margin,
+                       max(non_white_columns) + margin)
+            image_data_new = image_data[cropBox[0]:cropBox[1] + 1,
+                                        cropBox[2]:cropBox[3] + 1, :]
+            new_image = Image.fromarray(image_data_new)
+            ax.imshow(new_image, interpolation=interpolation)
+            ax.set_axis_off()
+
         all_dss = list(self.datasets)
 
         true_pred = dict()
         for ds in examplary_ds:
+            s2 = self.cc.get_signature('sign2', 'full', ds)
             s3 = self.cc.get_signature('sign3', 'full', ds)
-            corr_file = os.path.join(
-                s3.model_path, 'adanet_eval', 'corr_test_comp.npy')
             lowcorr_true_file = os.path.join(
                 s3.model_path, 'adanet_eval', 'corr_test_true.npy')
             lowcorr_pred_file = os.path.join(
                 s3.model_path, 'adanet_eval', 'corr_test_pred.npy')
-            files = [corr_file, lowcorr_true_file, lowcorr_pred_file]
+            files = [lowcorr_true_file, lowcorr_pred_file]
             if not all(os.path.isfile(x) for x in files):
                 # filter most correlated spaces
                 ds_corr = s3.get_h5_dataset('datasets_correlation')
-                #self.__log.info(str(zip(list(self.datasets), list(ds_corr))))
+                # self.__log.info(str(zip(list(self.datasets), list(ds_corr))))
                 # load X Y data
                 traintest_file = os.path.join(s3.model_path, 'traintest.h5')
                 traintest = Traintest(traintest_file, 'test')
@@ -2107,79 +2734,263 @@ class MultiPlot():
                 corr_thr = 0.70
                 corr_spaces = np.array(list(self.datasets))[
                     ds_corr > corr_thr].tolist()
-                #self.__log.info('masking %s' % str(corr_spaces))
+                # self.__log.info('masking %s' % str(corr_spaces))
                 idxs = [all_dss.index(d) for d in corr_spaces]
                 x_thr, y_true = mask_exclude(idxs, x_test, y_test)
                 y_pred = AdaNet.predict(x_thr, predict_fn)
 
-                corr_test_comp = row_wise_correlation(y_pred.T, y_true.T)
-                np.save(corr_file, corr_test_comp)
                 np.save(lowcorr_true_file, y_true)
                 np.save(lowcorr_pred_file, y_pred)
-            corr_test_comp = np.load(corr_file)
             y_true = np.load(lowcorr_true_file)
             y_pred = np.load(lowcorr_pred_file)
-            self.__log.debug('y_true.shape %s', str(y_true.shape))
-            self.__log.debug('y_pred.shape %s', str(y_pred.shape))
-            # get median component index
-            comp = list(corr_test_comp).index(
-                np.percentile(corr_test_comp, 75, interpolation='nearest'))
-            y_true_all = y_true[:, comp]
-            y_pred_all = y_pred[:, comp]  # .reshape(-1, order='F')
-            true_pred[ds] = (y_true_all, y_pred_all,
-                             stats.pearsonr(y_true_all, y_pred_all)[0], comp)
+            inks = list()
+            comp1 = s2[:][:, 0]
+            for i in range(y_true.shape[0]):
+                ink_i = s2.keys[np.argwhere(comp1 == y_true[i, 0])].flatten()
+                inks.append(ink_i.tolist())
+            #self.__log.debug('y_true.shape %s', str(y_true.shape))
+            #self.__log.debug('y_pred.shape %s', str(y_pred.shape))
+            ink_set = set([item for sublist in inks for item in sublist])
+            true_pred[ds] = (inks, ink_set,
+                             row_wise_correlation(y_true, y_pred),
+                             y_true, y_pred)
 
+        shared_inks = set.intersection(*[x[1] for x in true_pred.values()])
+        mol_corr = dict()
+        for mol in shared_inks:
+            mol_corr[mol] = dict()
+            for ds, (inks, ink_set, corr, y_true, y_pred) in true_pred.items():
+                idx = np.argwhere([mol in x for x in inks])[0][0]
+                mol_corr[mol][ds] = (idx, corr[idx], y_true[idx], y_pred[idx])
+
+        for mol in tqdm(mol_corr):  # = 'MBUVEWMHONZEQD-UHFFFAOYSA-N'
+            sns.set_style("ticks")
+            sns.set_style({'font.family': 'sans-serif',
+                           'font.serif': ['Arial']})
+            fig = plt.figure(figsize=(3, 10))
+            plt.subplots_adjust(left=0.2, right=1, bottom=0.08, top=1)
+            gs = fig.add_gridspec(4, 1)
+            gs.set_height_ratios((1, 2, 2, 2))
+            fig.text(0.5, 0.02, 'Actual Signature',
+                     ha='center', va='center',
+                     name='Arial', size=16)
+            fig.text(0.04, 0.45, 'Predicted', ha='center',
+                     va='center', rotation='vertical',
+                     name='Arial', size=16)
+            ax_mol = fig.add_subplot(gs[0])
+            plot_molecule(ax_mol, mol, size=(6000, 6000),
+                          interpolation='hanning')
+            gss_ds = [gs[1], gs[2], gs[3]]
+            for ds, sub in zip(examplary_ds, gss_ds):
+                gs_ds = sub.subgridspec(2, 2, wspace=0.0, hspace=0.0)
+                gs_ds.set_height_ratios((1, 5))
+                gs_ds.set_width_ratios((5, 1))
+                ax_main = fig.add_subplot(gs_ds[1, 0])
+                ax_top = fig.add_subplot(gs_ds[0, 0], sharex=ax_main)
+                ax_top.text(0.05, 0.2, "%s" % ds[:2],
+                            color=self.cc_colors(ds),
+                            transform=ax_top.transAxes,
+                            name='Arial', size=14, weight='bold')
+                ax_top.set_axis_off()
+                ax_right = fig.add_subplot(gs_ds[1, 1], sharey=ax_main)
+                ax_right.set_axis_off()
+
+                ax_main.plot((-1, 1), (-1, 1), ls="--",
+                             c="lightgray", alpha=.5)
+
+                true = mol_corr[mol][ds][2]
+                pred = mol_corr[mol][ds][3]
+                sns.regplot(true, pred,
+                            ax=ax_main, n_boot=10000, truncate=False,
+                            color=self.cc_colors(ds),
+                            scatter_kws=dict(s=10, edgecolor=''),
+                            line_kws=dict(lw=1))
+
+                error = np.log10(np.mean((true - pred)**2))
+                ax_main.text(0.5, 0.04, r"Error:" + " {:.2f}".format(error),
+                             transform=ax_main.transAxes,
+                             name='Arial', size=10,
+                             bbox=dict(facecolor='white', alpha=0.8))
+
+                sns.despine(ax=ax_main, offset=3, trim=True)
+
+                ax_main.set_ylabel('')
+                ax_main.set_xlabel('')
+                ax_main.set_yticks([-1.0, 0, 1.0])
+                ax_main.set_yticklabels(['-1', '0', '1'])
+                ax_main.set_xticks([-1.0, 0, 1.0])
+                ax_main.set_xticklabels(['-1', '0', '1'])
+                ax_main.tick_params(labelsize=14, direction='inout')
+
+                sns.distplot(true, ax=ax_top,
+                             hist=False, kde_kws=dict(shade=True, bw=.2),
+                             color=self.cc_colors(ds))
+                sns.distplot(pred, ax=ax_right, vertical=True,
+                             hist=False, kde_kws=dict(shade=True, bw=.2),
+                             color=self.cc_colors(ds))
+
+            # plt.tight_layout()
+            spaces = '-'.join([ds[:2] for ds in examplary_ds])
+            outfile = os.path.join(
+                self.plot_path, 'sign3_%s_%s.png' % (spaces, mol))
+            plt.savefig(outfile, dpi=200)
+            plt.close('all')
+
+    def sign3_sign2_comparison(self):
+
+        pklfile = os.path.join(self.plot_path, 'sign3_sign2_comparison.pkl')
+        if not os.path.isfile(pklfile):
+            data = dict()
+            for ds in self.datasets:
+                if 'dataset' not in data:
+                    data['dataset'] = list()
+                data['dataset'].append(ds[:2])
+                # sign2
+                s2 = self.cc.get_signature('sign2', 'full', ds)
+                stat_file = os.path.join(
+                    s2.stats_path, 'validation_stats.json')
+                if not os.path.isfile(stat_file):
+                    s2.validate()
+                stats = json.load(open(stat_file, 'r'))
+                for k, v in stats.items():
+                    if k + '_sign2' not in data:
+                        data[k + '_sign2'] = list()
+                    data[k + '_sign2'].append(v)
+                # sign3
+                s3 = self.cc.get_signature('sign3', 'full', ds)
+                stat_file = os.path.join(
+                    s3.stats_path, 'validation_stats.json')
+                if not os.path.isfile(stat_file):
+                    s3.validate()
+                stats = json.load(open(stat_file, 'r'))
+                for k, v in stats.items():
+                    if k + '_0.0' not in data:
+                        data[k + '_0.0'] = list()
+                    data[k + '_0.0'].append(v)
+                # other confidences thresholds
+                for thr in np.arange(0.1, 0.9, 0.1):
+                    s3_conf = self.cc.get_signature(
+                        'sign3', 'conf%.1f' % thr, ds)
+                    stat_file = os.path.join(s3_conf.stats_path,
+                                             'validation_stats.json')
+                    stats = json.load(open(stat_file, 'r'))
+                    for k, v in stats.items():
+                        if k + '_%.1f' % thr not in data:
+                            data[k + '_%.1f' % thr] = list()
+                        data[k + '_%.1f' % thr].append(v)
+
+            df = pd.DataFrame(data)
+            df = df.infer_objects()
+            df.sort_values("dataset", ascending=False, inplace=True)
+            df.to_pickle(pklfile)
+
+        def gradient_arrow(ax, start, end, xs=None, cmap="plasma", head=None, n=50, lw=3):
+            # Arrow shaft: LineCollection
+            if xs is None:
+                x = np.linspace(start[0], end[0], n)
+            else:
+                x = xs
+                n = len(xs)
+            cmap = plt.get_cmap(cmap, n)
+            y = np.linspace(start[1], end[1], n)
+            points = np.array([x, y]).T.reshape(-1, 1, 2)
+            segments = np.concatenate([points[:-1], points[1:]], axis=1)
+            lc = LineCollection(segments, cmap=cmap, linewidth=lw)
+            lc.set_array(np.linspace(0, 1, n))
+            ax.add_collection(lc)
+            # Arrow head: Triangle
+            tricoords = [(0, -0.4), (0.5, 0), (0, 0.4), (0, -0.4)]
+            angle = np.arctan2(end[1] - start[1], end[0] - start[0])
+            rot = matplotlib.transforms.Affine2D().rotate(angle)
+            tricoords2 = rot.transform(tricoords)
+            tri = matplotlib.path.Path(tricoords2, closed=True)
+            if head is None:
+                if xs is None:
+                    head = cmap(n)
+                else:
+                    head = cmap(xs.index(xs[-1]))
+            ax.scatter(end[0], end[1], c=head, s=(2 * lw)**2,
+                       marker=tri, cmap=cmap, vmin=0)
+            ax.autoscale_view()
+
+        df = pd.read_pickle(pklfile)
         sns.set_style("ticks")
-        sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
-        sns.set_style("ticks")
-        fig, axes = plt.subplots(3, 1, figsize=(
-            3, 10), sharex=True, sharey=True)
-        plt.subplots_adjust(left=0.18, right=1, bottom=0.08,
-                            top=1, wspace=0, hspace=0.25)
-        fig.text(0.55, 0.02, 'Actual Signature',
-                 ha='center', va='center',
-                 name='Arial', size=16)
-        fig.text(0.04, 0.55, 'Predicted', ha='center',
-                 va='center', rotation='vertical',
-                 name='Arial', size=16)
+        sns.set_style({'font.family': 'sans-serif',
+                       'font.serif': ['Arial']})
 
-        for ds, ax in zip(examplary_ds, axes.flat):
+        fig = plt.figure(figsize=(3, 10))
+        plt.subplots_adjust(left=0.14, right=0.96, bottom=0.01,
+                            top=0.92, hspace=0.1)
 
-            x, y, c, order = self.quick_gaussian_kde(
-                true_pred[ds][0], true_pred[ds][1], limit)
+        gs = fig.add_gridspec(2, 1)
+        gs.set_height_ratios((30, 1))
+        gs_ds = gs[0].subgridspec(1, 2, wspace=0.1, hspace=0.0)
+        ax_cov = fig.add_subplot(gs_ds[0])
+        ax_roc = fig.add_subplot(gs_ds[1])
 
-            ax.plot((-1, 1), (-1, 1), ls="--", c=".1", alpha=.6)
+        for ds in self.datasets:
+            y = 25 - self.datasets.index(ds) - 1
+            start = df[df.dataset == ds[:2]]['moa_cov_sign2'].tolist()[0]
+            end = df[df.dataset == ds[:2]]['moa_cov_0.0'].tolist()[0]
+            js = ['sign2'] + ['%.1f' %
+                              f for f in reversed(np.arange(0.0, 0.9, 0.1))]
+            #js = ['sign2','0.5','0.0']
+            covs = [df[df.dataset == ds[:2]]['moa_cov_%s' % j].tolist()[0]
+                    for j in js]
+            cmap = plt.get_cmap("plasma", len(covs))
+            gradient_arrow(ax_cov, (start, y), (end, y), xs=covs, lw=7)
 
-            white = self._rgb2hex(250, 250, 250)
-            black = self._rgb2hex(0, 0, 0)
-            colors = [self.cc_colors(ds, 2), self.cc_palette([ds])[0], black]
-            cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-                '', colors)
-            sns.regplot(x[order], y[order], ax=ax, n_boot=10000,
-                        color=self.cc_colors(ds),
-                        scatter_kws=dict(cmap=cmap, c=c[order], color=None,
-                                         s=10, edgecolor=''))
-            ax.text(0.02, 0.9, r"{} comp. {:d}:  $\rho$ {:.2f}".format(
-                ds[:2], true_pred[ds][3], true_pred[ds][2]),
-                transform=ax.transAxes, name='Arial', size=10,
-                bbox=dict(facecolor='white', alpha=0.8))
+            start = df[df.dataset == ds[:2]]['moa_auc_sign2'].tolist()[0]
+            aucs = [df[df.dataset == ds[:2]]['moa_auc_%s' % j].tolist()[0]
+                    for j in js]
+            end = aucs[np.argmax(covs)]
+            cmap = plt.get_cmap("plasma", len(covs))
+            ax_roc.scatter(start, y, color=cmap(0), s=60)
+            ax_roc.scatter(end, y, color=cmap(np.argmax(covs)), s=60)
 
-            ax.set_ylim(-1.1, 1.1)
-            ax.set_xlim(-1.1, 1.1)
-            ax.set_ylabel('True')
-            ax.set_ylabel('')
-            ax.set_xlabel('Pred')
-            ax.set_xlabel('')
+        ax_cov.set_yticks(range(0, 25))
+        ax_cov.set_yticklabels(df['dataset'])
+        ax_cov.set_xlim(0, 110)
+        ax_cov.set_xticks([0, 100])
+        ax_cov.set_xticklabels(['0', '100'])
+        ax_cov.set_xlabel('Coverage', fontdict=dict(name='Arial', size=14))
+        ax_cov.xaxis.set_label_position('top')
+        # ax_cov.xaxis.tick_top()
+        sns.despine(ax=ax_cov, left=True, bottom=True, top=False, trim=True)
+        ax_cov.tick_params(left=False, labelsize=14, direction='inout',
+                           bottom=False, top=True, labelbottom=False, labeltop=True)
+        # set the alignment for outer ticklabels
+        ticklabels = ax_cov.get_xticklabels()
+        ticklabels[0].set_ha("left")
+        ticklabels[-1].set_ha("right")
 
-            ax.set_yticks([-1.0, 0, 1.0])
-            ax.set_yticklabels(['-1', '0', '1'])
-            ax.set_xticks([-1.0, 0, 1.0])
-            ax.set_xticklabels(['-1', '0', '1'])
-            ax.tick_params(labelsize=14, direction='inout')
-            sns.despine(ax=ax, offset=3, trim=True)
+        ax_roc.set_yticks([])
+        ax_roc.set_yticklabels([])
+        ax_roc.set_xlim(0.5, 1)
+        ax_roc.set_xticks([0.5, 1])
+        ax_roc.set_xticklabels(['0.5', '1'])
+        ax_roc.set_xlabel('AUROC', fontdict=dict(name='Arial', size=14))
+        ax_roc.xaxis.set_label_position('top')
+        sns.despine(ax=ax_roc, left=True, bottom=True, top=False, trim=True)
+        ax_roc.tick_params(left=False, labelsize=14, direction='inout',
+                           bottom=False, top=True, labelbottom=False, labeltop=True)
+        # set the alignment for outer ticklabels
+        ticklabels = ax_roc.get_xticklabels()
+        ticklabels[0].set_ha("left")
+        ticklabels[-1].set_ha("right")
 
-        # plt.tight_layout()
+        ax_cbar = fig.add_subplot(gs[1])
+        cbar = matplotlib.colorbar.ColorbarBase(
+            ax_cbar, cmap=cmap, orientation='horizontal',
+            ticklocation='top')
+        cbar.ax.set_xlabel('Confidence filter',
+                           fontdict=dict(name='Arial', size=14))
+        cbar.ax.tick_params(labelsize=14, )
+        cbar.set_ticks([1, .8, .6, .4, .2, .0])
+        cbar.set_ticklabels(
+            list(reversed(['1', '0.8', '0.6', '0.4', '0.2', '0'])))
+
         outfile = os.path.join(
-            self.plot_path, 'sign3_examplary_test_correlation.png')
-        plt.savefig(outfile, dpi=200)
+            self.plot_path, 'sign3_sign2_moa_comparison.png')
+        plt.savefig(outfile, dpi=100)
         plt.close('all')
