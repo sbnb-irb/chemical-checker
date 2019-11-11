@@ -81,6 +81,14 @@ class Traintest(object):
             features[np.where(np.isnan(features))] = self.replace_nan
         return features
 
+    def get_y(self, beg_idx, end_idx):
+        """Get a batch of Y."""
+        features = self._f[self.y_name][beg_idx: end_idx]
+        # handle NaNs
+        if self.replace_nan is not None:
+            features[np.where(np.isnan(features))] = self.replace_nan
+        return features
+
     def get_all_x(self):
         """Get full X."""
         features = self._f[self.x_name][:]
