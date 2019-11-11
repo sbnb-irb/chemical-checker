@@ -622,7 +622,7 @@ class sign3(BaseSignature, DataSignature):
             self.train_other(
                 other_predictors, adanet_path, traintest_file, train_only=True)
 
-    def fit_sign0(self, sign0, include_confidence=True):
+    def fit_sign0(self, sign0, include_confidence=True, extra_confidence=False):
         """Train an AdaNet model to predict sign3 from sign0.
 
         This method is fitting a model that uses Morgan fingerprint as features
@@ -633,6 +633,10 @@ class sign3(BaseSignature, DataSignature):
             chemchecker(ChemicalChecker): The CC object used to fetch input
                 signature 0.
             sign0_traintest(str): Path to the train file.
+            include_confidence(bool): Whether to include confidence score in
+                regression problem.
+            extra_confidence(bool): Whether to train an additional regressor
+                exclusively devoted to confidence.
         """
 
         # check if performance evaluations need to be done
@@ -647,14 +651,15 @@ class sign3(BaseSignature, DataSignature):
                              evaluate=True,
                              include_confidence=include_confidence)
         # learn confidence predictor
-        conf_eval_adanet_path = os.path.join(
-            self.model_path, 'adanet_sign0_%s_conf_eval' % s0_code)
-        conf_eval_stats = os.path.join(
-            conf_eval_adanet_path, 'stats_conf_eval.pkl')
-        if not os.path.isfile(conf_eval_stats):
-            self.learn_sign0_conf(sign0, self.params['sign0_conf'],
-                                  suffix='sign0_%s_conf_eval' % s0_code,
-                                  evaluate=True)
+        if extra_confidence:
+            conf_eval_adanet_path = os.path.join(
+                self.model_path, 'adanet_sign0_%s_conf_eval' % s0_code)
+            conf_eval_stats = os.path.join(
+                conf_eval_adanet_path, 'stats_conf_eval.pkl')
+            if not os.path.isfile(conf_eval_stats):
+                self.learn_sign0_conf(sign0, self.params['sign0_conf'],
+                                      suffix='sign0_%s_conf_eval' % s0_code,
+                                      evaluate=True)
 
         # check if we have the final trained model
         final_adanet_path = os.path.join(self.model_path,
@@ -666,14 +671,15 @@ class sign3(BaseSignature, DataSignature):
                              evaluate=False,
                              include_confidence=include_confidence)
         # learn the final confidence predictor
-        conf_final_adanet_path = os.path.join(
-            self.model_path, 'adanet_sign0_%s_conf_final' % s0_code)
-        conf_final_stats = os.path.join(
-            conf_final_adanet_path, 'stats_conf_final.pkl')
-        if not os.path.isfile(conf_final_stats):
-            self.learn_sign0_conf(sign0, self.params['sign0_conf'],
-                                  suffix='sign0_%s_conf_final' % s0_code,
-                                  evaluate=False)
+        if extra_confidence:
+            conf_final_adanet_path = os.path.join(
+                self.model_path, 'adanet_sign0_%s_conf_final' % s0_code)
+            conf_final_stats = os.path.join(
+                conf_final_adanet_path, 'stats_conf_final.pkl')
+            if not os.path.isfile(conf_final_stats):
+                self.learn_sign0_conf(sign0, self.params['sign0_conf'],
+                                      suffix='sign0_%s_conf_final' % s0_code,
+                                      evaluate=False)
 
     def get_predict_fn(self, model='adanet_sign0_A1.001_final'):
         try:
