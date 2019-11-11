@@ -57,6 +57,13 @@ class DataSignature(object):
         """Get the keys of the signature as a set."""
         return set(self.keys)
 
+    def chunker(self, size=2000):
+        """Iterate on signatures."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        for i in range(0, self.shape[0], size):
+            yield slice(i, i + size)
+
     @property
     def info_h5(self):
         """Get the dictionary of dataset and shapes."""
@@ -67,6 +74,17 @@ class DataSignature(object):
             for key in hf.keys():
                 infos[key] = hf[key].shape
         return infos
+
+    @property
+    def shape(self):
+        """Get the V matrix sizes."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if 'shape' not in hf.keys():
+                self.__log.warn("HDF5 file has no 'shape' dataset.")
+                return hf['V'].shape
+            return hf['shape'][:]
 
     @staticmethod
     def string_dtype():
