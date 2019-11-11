@@ -720,3 +720,66 @@ class ChemicalChecker():
         cluster = HPC.from_config(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
+
+    @staticmethod
+    def make_sign3_confidence_stratification(job_path, cc_root, cpu=1):
+        """Run HPC jobs to copy signature with given threshold of confidence.
+
+        Args:
+            job_path(str): Path (usually in scratch) where the script files are
+                generated.
+            cc_root(str): The Chemical Checker root directory.
+            cpu(int): Number of cores to reserve.
+        """
+        # create job directory if not available
+        import chemicalchecker
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+        # create script file
+        cc = ChemicalChecker(cc_root)
+        cc_config = os.environ['CC_CONFIG']
+        cc_package = os.path.join(chemicalchecker.__path__[0], '../')
+        script_lines = [
+            "import sys, os",
+            "import pickle",
+            "import numpy as np",
+            "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
+            "sys.path.append('%s')" % cc_package,  # allow package import
+            "from chemicalchecker.core import ChemicalChecker",
+            "cc = ChemicalChecker('%s')" % cc_root,
+            "task_id = sys.argv[1]",  # <TASK_ID>
+            "filename = sys.argv[2]",  # <FILE>
+            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
+            "data = inputs[task_id]",  # elements for current job
+            "for ds in data:",  # elements are indexes
+            "    s3 = cc.get_signature('sign3', 'full', ds)",
+            "    conf = s3.get_h5_dataset('confidence')",
+            "    for thr in np.arange(0.1,1,0.1):",
+            "        mask = conf > thr",
+            "        s3_conf = cc.get_signature('sign3', 'conf%.1f' % thr, ds)",
+            "        s3.make_filtered_copy(s3_conf.data_path, mask)",
+            "        s3_conf.validate()",
+            "print('JOB DONE')"
+        ]
+        script_name = os.path.join(job_path, 'sign3.py')
+        with open(script_name, 'w') as fh:
+            for line in script_lines:
+                fh.write(line + '\n')
+        # hpc parameters
+        all_datasets = sorted(list(cc.datasets_exemplary()))
+        params = {}
+        params["num_jobs"] = len(all_datasets)
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_SIGN3_CONF"
+        params["elements"] = all_datasets
+        params["wait"] = False
+        params["memory"] = 4  # this avoids singularity segfault on some nodes
+        params["cpu"] = cpu  # Node2Vec parallelizes well
+        # job command
+        singularity_image = Config().PATH.SINGULARITY_IMAGE
+        command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+            singularity_image, script_name)
+        # submit jobs
+        cluster = HPC.from_config(Config())
+        cluster.submitMultiJob(command, **params)
+        return cluster
