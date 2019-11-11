@@ -152,6 +152,16 @@ class Plot():
 
         return A
 
+    @staticmethod
+    def cc_colors(coord, lighness=0):
+        colors = {
+            'A': ['#EA5A49', '#EE7B6D', '#F7BDB6'],
+            'B': ['#B16BA8', '#C189B9', '#D0A6CB'],
+            'C': ['#5A72B5', '#7B8EC4', '#9CAAD3'],
+            'D': ['#7CAF2A', '#96BF55', '#B0CF7F'],
+            'E': ['#F39426', '#F5A951', '#F8BF7D']}
+        return colors[coord[:1]][lighness]
+
     def clustering_plot(self, Nc, A, B, C):
 
         sns.set_style("white")
@@ -541,7 +551,7 @@ class Plot():
 
     # Projection plot
 
-    def datashader_projection(self, proj, name, **kwargs):
+    def datashader_projection(self, proj, **kwargs):
         import datashader as ds
         import datashader.transfer_functions as tf
 
@@ -589,6 +599,7 @@ class Plot():
         x_range = kwargs.get('x_range', (-100, 100))
         y_range = kwargs.get('y_range', (-100, 100))
         spread = kwargs.get('spread', None)
+        spread_threshold = kwargs.get('spread_threshold', None)
         weigth = kwargs.get('weigth', None)
         transparent = kwargs.get('transparent', False)
         marginals = kwargs.get('marginals', False)
@@ -596,6 +607,8 @@ class Plot():
         category = kwargs.get('category', None)
         category_colors = kwargs.get('category_colors', None)
         save_each = kwargs.get('save_each', False)
+        name = kwargs.get('name', 'PROJ')
+        span = kwargs.get('span', None)
         if cmap is None:
             cmap = get_cmap(self.color)
         else:
@@ -630,22 +643,28 @@ class Plot():
                            x_axis_type='linear', y_axis_type='linear')
         # aggregate
         if weigth is not None:
-            points = canvas.points(df, 'x', 'y', ds.min('w'))
+            points = canvas.points(df, 'x', 'y', ds.mean('w'))
         elif category is not None:
             points = canvas.points(df, 'x', 'y', ds.count_cat('cat'))
         else:
             points = canvas.points(df, 'x', 'y')
         # shading
         if category_colors:
-            shade = tf.shade(points, color_key=category_colors, how=how)
+            shade = tf.shade(points, color_key=category_colors, how=how,
+                             span=span)
         else:
-            shade = tf.shade(points, cmap=cmap, how=how)
+            shade = tf.shade(points, cmap=cmap, how=how, span=span)
         if spread is not None:
-            shade = tf.spread(shade, px=spread)
+            if spread_threshold is None:
+                shade = tf.spread(shade, px=spread)
+            else:
+                shade = tf.dynspread(
+                    shade, threshold=spread_threshold, max_px=spread)
         if transparent:
             img = shade
         else:
-            background_color = kwargs.get('background_color', self.color)
+            background_color = kwargs.get('background_color',
+                                          self.cc_colors(self.dataset_code, 0))
             img = tf.set_background(shade, background_color)
         # export
         dst_file = os.path.join(self.plot_path, 'shaded_%s_%s' %
@@ -735,7 +754,7 @@ class Plot():
 
         return df
 
-    def projection_plot(self, Proj, bw=None, levels=5, dev=None, s=None, transparency=0.5):
+    def projection_plot(self, Proj, bw=None, levels=5, dev=None, s=None, transparency=0.5, **kwargs):
 
         if dev:
             noise_x = np.random.normal(0, dev, Proj.shape[0])
@@ -761,7 +780,10 @@ class Plot():
         ax.axes.get_xaxis().set_visible(False)
         ax.axes.get_yaxis().set_visible(False)
 
-        plt.savefig("%s/largevis_scatter.png" % self.plot_path)
+        name = kwargs.get('name', 'PROJ')
+        dst_file = os.path.join(self.plot_path, 'shaded_margin_%s_%s.png' %
+                                (name, self.dataset_code))
+        plt.savefig(dst_file)
 
         def make_cmap(colors, position=None, bit=False):
             bit_rgb = np.linspace(0, 1, 256)
@@ -1814,6 +1836,7 @@ class Plot():
         if limit is None:
             limit = len(x)
 
+        name = kwargs.get('name', 'PROJ')
         sns.set_style("whitegrid")
         fig = plt.figure(figsize=(5, 5))
         ax = fig.add_subplot(111)
@@ -1822,6 +1845,75 @@ class Plot():
         ax.set_ylabel('')
         ax.set_xlabel('')
         filename = os.path.join(self.plot_path,
-                                "plot2d_gaussian_kde.png")
+                                "2D_KDE_%s.png" % name)
         plt.savefig(filename, dpi=100)
         plt.close()
+
+    def sign3_novelty_confidence(self, sign):
+
+        fig = plt.figure(figsize=(3, 3))
+        plt.subplots_adjust(left=0.2, right=1, bottom=0.2, top=1)
+        gs = fig.add_gridspec(2, 2, wspace=0.0, hspace=0.0)
+        gs.set_height_ratios((1, 5))
+        gs.set_width_ratios((5, 1))
+
+        ax_main = fig.add_subplot(gs[1, 0])
+        ax_top = fig.add_subplot(gs[0, 0], sharex=ax_main)
+        ax_top.text(0.05, 0.2, "%s" % ds[:2],
+                    color=self.cc_colors(ds),
+                    transform=ax_top.transAxes,
+                    name='Arial', size=14, weight='bold')
+        ax_top.set_axis_off()
+        ax_right = fig.add_subplot(gs[1, 1], sharey=ax_main)
+        ax_right.set_axis_off()
+
+        # ax_main.plot((-1, 1), (-1, 1), ls="--",
+        #             c="lightgray", alpha=.5)
+
+        novelty = sign.get_h5_dataset('novelty_norm')[:limit]
+        confidence = sign.get_h5_dataset('confidence')[:limit]
+        sns.regplot(novelty, confidence,
+                    ax=ax_main, n_boot=10000, truncate=False,
+                    color=self.cc_colors(ds),
+                    scatter_kws=dict(s=10, edgecolor=''),
+                    line_kws=dict(lw=1))
+
+        pearson = stats.pearsonr(novelty, confidence)[0]
+        ax_main.text(0.7, 0.9, r"$\rho$: {:.2f}".format(pearson),
+                     transform=ax_main.transAxes,
+                     name='Arial', size=10,
+                     bbox=dict(facecolor='white', alpha=0.8, lw=0))
+
+        ax_main.set_ylabel('')
+        ax_main.set_xlabel('')
+        ax_main.set_ylim(0.5, 1)
+        ax_main.set_xlim(0, 1)
+        ax_main.set_yticks([0.5, 1.0])
+        ax_main.set_yticklabels(['0.5', '1'])
+        ax_main.set_xticks([0, 0.5, 1.0])
+        ax_main.set_xticklabels(['0', '0.5', '1'])
+        ax_main.tick_params(labelsize=14, direction='inout')
+
+        sns.distplot(novelty, ax=ax_top,
+                     hist=False, kde_kws=dict(shade=True, bw=.2),
+                     color=self.cc_colors(ds))
+        sns.distplot(confidence, ax=ax_right, vertical=True,
+                     hist=False, kde_kws=dict(shade=True, bw=.2),
+                     color=self.cc_colors(ds))
+
+        sns.despine(ax=ax_main, offset=3, trim=True)
+
+        fig.text(0.5, -0.2, 'Novelty',
+                 ha='center', va='center',
+                 transform=ax_main.transAxes,
+                 name='Arial', size=16)
+        fig.text(-0.2, 0.5, 'Confidence', ha='center',
+                 va='center', rotation='vertical',
+                 transform=ax_main.transAxes,
+                 name='Arial', size=16)
+
+        # plt.tight_layout()
+        outfile = os.path.join(
+            self.plot_path, 'sign3_%s_novelty_confidence.png' % self.dataset_code)
+        plt.savefig(outfile, dpi=100)
+        plt.close('all')

@@ -139,7 +139,6 @@ class proj(BaseSignature, DataSignature):
         if kind == 'shaded':
             plot.datashader_projection(
                 proj_data,
-                self.projector.__class__.__name__,
                 cmap=cmap,
                 x_range=x_range,
                 y_range=y_range,
