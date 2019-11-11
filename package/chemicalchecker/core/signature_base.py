@@ -229,13 +229,6 @@ class BaseSignature(object):
         else:
             return False
 
-    def chunker(self, size=2000):
-        """Iterate on signatures."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
-        for i in range(0, self.shape[0], size):
-            yield slice(i, i + size)
-
     def consistency_check(self):
         """Check that signature is valid."""
         if os.path.isfile(self.data_path):
@@ -295,17 +288,6 @@ class BaseSignature(object):
             hf.create_dataset("shape", data=matrix.shape)
             hf.create_dataset(
                 "date", data=[datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
-
-    @property
-    def shape(self):
-        """Get the V matrix sizes."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
-        with h5py.File(self.data_path, 'r') as hf:
-            if 'shape' not in hf.keys():
-                self.__log.warn("HDF5 file has no 'shape' dataset.")
-                return hf['V'].shape
-            return hf['shape'][:]
 
     @cached_property
     def features(self):
