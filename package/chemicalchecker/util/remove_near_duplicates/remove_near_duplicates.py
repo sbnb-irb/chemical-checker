@@ -59,7 +59,7 @@ class RNDuplicates():
         if type(data) == str:
             self.__log.debug("Data input is: " + data)
             if os.path.isfile(data) and data[-3:] == ".h5":
-                dh5 = h5py.File(data)
+                dh5 = h5py.File(data, 'r')
                 if "keys" not in dh5.keys() or "V" not in dh5.keys():
                     raise Exception(
                         "H5 file " + data + " does not contain datasets 'keys' and 'V'")
@@ -133,7 +133,7 @@ class RNDuplicates():
 
                 starts = range(0, data_size[0], self.chunk)
 
-                dh5 = h5py.File(data)
+                dh5 = h5py.File(data, 'r')
 
                 for start in starts:
 
@@ -184,12 +184,12 @@ class RNDuplicates():
         dirpath = os.path.dirname(destination)
 
         self.__log.info("Saving removed duplicates to : " + destination)
-        list_maps = collections.OrderedDict(sorted(self.mappings.items()))
+        list_maps = sorted(self.mappings.items())
         self.__log.info("Starting to write to : " + destination)
         with h5py.File(destination, 'w') as hf:
             hf.create_dataset("keys", data=self.keys[np.array(self.final_ids)])
             if self.data is None:
-                dh5 = h5py.File(self.data_file)
+                dh5 = h5py.File(self.data_file, 'r')
                 V = np.array(
                     [dh5["V"][i] for i in self.final_ids], dtype=self.data_type)
             else:
@@ -198,7 +198,7 @@ class RNDuplicates():
             hf.create_dataset("V", data=V)
             hf.create_dataset("shape", data=V.shape)
             hf.create_dataset("mappings",
-                              data=np.array(list_maps.items(),
+                              data=np.array(list_maps,
                                             DataSignature.string_dtype()))
         self.__log.info("Writing mappings to " + dirpath)
         with open(os.path.join(dirpath, "mappings"), 'wb') as fh:
