@@ -84,10 +84,8 @@ class ChemicalChecker():
 
     def datasets_exemplary(self):
         """Iterator on Chemical Checker datasets."""
-        for dataset in self._datasets:
-            if '001' not in dataset:
-                continue
-            yield dataset
+        for dataset in self.coordinates:
+            yield dataset + '.001'
 
     @property
     def sign3_full_map_dataset(self):
