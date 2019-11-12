@@ -2,7 +2,7 @@
 
 LOCAL_CCREPO=$HOME/chemical_checker
 
-REMOTE_CCREPO=http://gitlab.sbnb.org/project-specific-repositories/chemical_checker/raw/master/
+REMOTE_CCREPO=http://gitlabsbnb.irbbarcelona.org/project-specific-repositories/chemical_checker/raw/master/
 
 LOCAL_IMAGE=$LOCAL_CCREPO/cc.simg
 
