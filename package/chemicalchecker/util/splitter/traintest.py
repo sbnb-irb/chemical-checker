@@ -13,7 +13,7 @@ class Traintest(object):
     the generator functions which tensorflow likes.
     """
 
-    def __init__(self, hdf5_file, split, replace_nan=None):
+    def __init__(self, hdf5_file, split, replace_nan=None, siamese=False):
         """Initialize the traintest object.
 
         We assume the file is containing diffrent splits.
@@ -22,12 +22,25 @@ class Traintest(object):
         self._file = hdf5_file
         self._f = None
         self.replace_nan = replace_nan
+        self.siamese = siamese
         if split is None:
-            self.x_name = "x"
-            self.y_name = "y"
+            if siamese:
+                self.x_name_left = "x_left"
+                self.y_name_left = "y_left"
+                self.x_name_right = "x_right"
+                self.y_name_right = "y_right"
+            else:
+                self.x_name = "x"
+                self.y_name = "y"
         else:
-            self.x_name = "x_%s" % split
-            self.y_name = "y_%s" % split
+            if siamese:
+                self.x_name_left = "x_left_%s" % split
+                self.y_name_left = "y_left_%s" % split
+                self.x_name_right = "x_right_%s" % split
+                self.y_name_right = "y_right_%s" % split
+            else:
+                self.x_name = "x_%s" % split
+                self.y_name = "y_%s" % split
             available_splits = self.get_split_names()
             if split not in available_splits:
                 raise Exception("Split '%s' not found in %s!" %
@@ -66,20 +79,42 @@ class Traintest(object):
 
     def get_xy(self, beg_idx, end_idx):
         """Get a batch of X and Y."""
-        features = self._f[self.x_name][beg_idx: end_idx]
-        # handle NaNs
-        if self.replace_nan is not None:
-            features[np.where(np.isnan(features))] = self.replace_nan
-        labels = self._f[self.y_name][beg_idx: end_idx]
-        return features, labels
+        if self.siamese:
+            features_left = self._f[self.x_name_left][beg_idx: end_idx]
+            features_right = self._f[self.x_name_right][beg_idx: end_idx]
+            # handle NaNs
+            if self.replace_nan is not None:
+                features_left[
+                    np.where(np.isnan(features_left))] = self.replace_nan
+                features_right[
+                    np.where(np.isnan(features_right))] = self.replace_nan
+            return features_left, features_right
+        else:
+            features = self._f[self.x_name][beg_idx: end_idx]
+            # handle NaNs
+            if self.replace_nan is not None:
+                features[np.where(np.isnan(features))] = self.replace_nan
+            labels = self._f[self.y_name][beg_idx: end_idx]
+            return features, labels
 
     def get_x(self, beg_idx, end_idx):
         """Get a batch of X."""
-        features = self._f[self.x_name][beg_idx: end_idx]
-        # handle NaNs
-        if self.replace_nan is not None:
-            features[np.where(np.isnan(features))] = self.replace_nan
-        return features
+        if self.siamese:
+            features_left = self._f[self.x_name_left][beg_idx: end_idx]
+            features_right = self._f[self.x_name_right][beg_idx: end_idx]
+            # handle NaNs
+            if self.replace_nan is not None:
+                features_left[
+                    np.where(np.isnan(features_left))] = self.replace_nan
+                features_right[
+                    np.where(np.isnan(features_right))] = self.replace_nan
+            return [features_left, features_right]
+        else:
+            features = self._f[self.x_name][beg_idx: end_idx]
+            # handle NaNs
+            if self.replace_nan is not None:
+                features[np.where(np.isnan(features))] = self.replace_nan
+            return features
 
     def get_y(self, beg_idx, end_idx):
         """Get a batch of Y."""
@@ -144,6 +179,33 @@ class Traintest(object):
         splits *= len(idxs)
         splits = splits.round().astype(np.int)
         return np.split(idxs, splits)
+
+    @staticmethod
+    def get_split_indeces_siamese(rows, fractions):
+        """Get random indeces for different splits."""
+        if not sum(fractions) == 1.0:
+            raise Exception("Split fractions should sum to 1.0")
+        # shuffle indeces
+        idxs = list(range(rows))
+        idxs_shuflle = list(range(rows))
+        np.random.shuffle(idxs_shuflle)
+        # from frequs to indices
+        splits = np.cumsum(fractions)
+        splits = splits[:-1]
+        splits *= len(idxs)
+        splits = splits.round().astype(np.int)
+        split_left = np.split(idxs, splits)
+        split_right = []
+        for i in range(len(split_left)):
+            split_right.append(np.copy(split_left[i]))
+            np.random.shuffle(split_right[i])
+
+        final_split = []
+
+        for i in range(len(split_left)):
+            final_split.append((split_left[i], split_right[i]))
+
+        return final_split
 
     @staticmethod
     def create(X, Y, out_file, split_names=['train', 'test', 'validation'],
@@ -359,16 +421,121 @@ class Traintest(object):
         Traintest.__log.info('Traintest saved to %s', out_file)
 
     @staticmethod
-    def generator_fn(file_name, split, batch_size=None, only_x=False):
+    def split_h5_blocks_siamese(in_file, out_file,
+                                split_names=['train', 'test', 'validation'],
+                                split_fractions=[.8, .1, .1], block_size=1000,
+                                datasets=None):
+        """Create the HDF5 file with validation splits from an input file.
+
+        Args:
+            in_file(str): path of the h5 file to read from.
+            out_file(str): path of the h5 file to write.
+            split_names(list(str)): names for the split of data.
+            split_fractions(list(float)): fraction of data in each split.
+            block_size(int): size of the block to be used.
+            dataset(list): only split the given dataset and ignore others.
+        """
+        with h5py.File(in_file, 'r') as hf_in:
+            # log input datasets and get shapes
+            for k in hf_in.keys():
+                Traintest.__log.debug(
+                    "{:<20} shape: {:>10}".format(k, str(hf_in[k].shape)))
+                rows = hf_in[k].shape[0]
+            # reduce block size if it is not adequate
+            while rows / (float(block_size) * 10) <= 1:
+                block_size = int(block_size / 10)
+                Traintest.__log.warning(
+                    "Reducing block_size to: %s", block_size)
+            # train test validation splits
+            if len(split_names) != len(split_fractions):
+                raise Exception(
+                    "Split names and fraction should be same amount.")
+            split_names = [s.encode() for s in split_names]
+            # get indeces of blocks for each split
+            split_block_idx = Traintest.get_split_indeces_siamese(
+                rows, split_fractions)
+
+            if datasets is None:
+                datasets = hf_in.keys()
+            for dataset_name in datasets:
+                if dataset_name not in hf_in.keys():
+                    raise Exception(
+                        "Dataset %s not found in source file." % dataset_name)
+            # save to output file
+            Traintest.__log.info('Traintest saving to %s', out_file)
+            with h5py.File(out_file, "w") as hf_out:
+                # create fixed datasets
+                hf_out.create_dataset(
+                    'split_names', data=np.array(split_names))
+                hf_out.create_dataset(
+                    'split_fractions', data=np.array(split_fractions))
+
+                for name, blocks in zip(split_names, split_block_idx):
+                    # for each original dataset
+                    for k in datasets:
+                        # create all splits
+                        ds_name_left = "%s_left_%s" % (k, name.decode())
+                        ds_name_right = "%s_right_%s" % (k, name.decode())
+                        # need total size and mapping of blocks
+                        total_size = blocks[0].shape[0]
+                        index_right = blocks[1]
+                        # create block matrix
+                        reshape = False
+                        if len(hf_in[k].shape) == 1:
+                            cols = 1
+                            reshape = True
+                        else:
+                            cols = hf_in[k].shape[1]
+                        hf_out.create_dataset(ds_name_left,
+                                              (total_size, cols),
+                                              dtype=hf_in[k].dtype)
+                        hf_out.create_dataset(ds_name_right,
+                                              (total_size, cols),
+                                              dtype=hf_in[k].dtype)
+                        for i in tqdm(range(0, total_size, block_size)):
+                            chunk = slice(i, i + block_size)
+                            dst_chunk = chunk
+                            src_chunk_left = chunk
+                            src_chunk_right = index_right[chunk]
+                            src_data_right = np.array(
+                                [hf_in[k][j] for j in src_chunk_right])
+                            if src_data_right.shape[0] != block_size:
+                                dst_chunk = slice(
+                                    i, i + src_data_right.shape[0])
+                                src_chunk_left = dst_chunk
+                            if reshape:
+                                hf_out[ds_name_left][dst_chunk] = np.expand_dims(
+                                    hf_in[k][src_chunk_left], 1)
+                                hf_out[ds_name_right][dst_chunk] = np.expand_dims(
+                                    src_data_right, 1)
+                            else:
+                                hf_out[ds_name_left][dst_chunk] = hf_in[
+                                    k][src_chunk_left]
+                                hf_out[ds_name_right][
+                                    dst_chunk] = src_data_right
+                        # Traintest.__log.debug(
+                        #    "Written: {:<20} shape: {:>10}".format(
+                        #        ds_name, str(hf_out[ds_name].shape)))
+        Traintest.__log.info('Traintest saved to %s', out_file)
+
+    @staticmethod
+    def generator_fn(file_name, split, batch_size=None, only_x=False, siamese=False):
         """Return the generator function that we can query for batches."""
-        reader = Traintest(file_name, split)
+        reader = Traintest(file_name, split, siamese=siamese)
         reader.open()
-        # read shapes
-        x_shape = reader._f[reader.x_name].shape
-        y_shape = reader._f[reader.y_name].shape
-        # read data types
-        x_dtype = reader._f[reader.x_name].dtype
-        y_dtype = reader._f[reader.y_name].dtype
+
+        if siamese:
+            x_shape = reader._f[reader.x_name_left].shape
+            y_shape = reader._f[reader.y_name_left].shape
+            x_dtype = reader._f[reader.x_name_left].dtype
+            y_dtype = reader._f[reader.y_name_left].dtype
+        else:
+            # read shapes
+            x_shape = reader._f[reader.x_name].shape
+            y_shape = reader._f[reader.y_name].shape
+            # read data types
+            x_dtype = reader._f[reader.x_name].dtype
+            y_dtype = reader._f[reader.y_name].dtype
         # no batch size -> return everything
         if not batch_size:
             batch_size = x_shape[0]
@@ -377,7 +544,10 @@ class Traintest(object):
             # generator function yielding data
             epoch = 0
             beg_idx, end_idx = 0, batch_size
-            total = reader._f[reader.x_name].shape[0]
+            if siamese:
+                total = reader._f[reader.x_name_left].shape[0]
+            else:
+                total = reader._f[reader.x_name].shape[0]
             while True:
                 if beg_idx >= total:
                     Traintest.__log.debug("EPOCH completed")
