@@ -5,6 +5,7 @@ import os
 import collections
 import numpy as np
 import pickle
+import joblib
 import random
 
 from sklearn.base import clone
@@ -45,7 +46,7 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
         base_mod = self.algo.as_pipeline(X[shuff], y[shuff])
         if destination_dir:
             with open(destination_dir, "wb") as f:
-                pickle.dump(base_mod, f)
+                joblib.dump(base_mod, f)
         self.base_mod = base_mod
         self.base_mod_dir = destination_dir
 
@@ -101,7 +102,7 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
         if destination_dir:
             self.__log.debug("Saving fitted model in %s" % self.mod_dir)
             with open(destination_dir, "wb") as f:
-                pickle.dump(self.mod, f)
+                joblib.dump(self.mod, f)
 
     def _predict(self, X, destination_dir=None):
         """Make predictions
@@ -172,26 +173,37 @@ class StackedModel(SignaturedModel):
     def pca_fit(self, X):
         if not self.n_components: return X
         if self.n_components > X.shape[1]: return X
-        self.__log.debug("Doing PCA")
+        self.__log.debug("Doing PCA fit")
         self.pca = PCA(n_components = self.n_components)
         self.pca.fit(X)
         return self.pca.transform(X)
 
     def pca_transform(self, X):
-        self.__log.debug("")
+        self.__log.debug("Doing PCA transform")
         if not self.pca: return X
         return self.pca.transform(X)
 
-    def fit_stack(self, data, idxs):
+    def fit_stack(self, data, idxs, wait):
         if idxs is None:
             y = data.activity
         else:
             y = data.activity[idxs]
         X = self.read_signatures_stacked(datasets=self.datasets, idxs=idxs)
         X = self.pca_fit(X)
-        self._fit(X, y, destination_dir=None)
+        jobs = []
+        if self.is_tmp:
+            dest = os.path.join(self.bases_tmp_path, "stacked")
+        else:
+            dest = os.path.join(self.bases_models_path, "stacked")
+        if self.hpc:
+            jobs += [self.func_hpc("_fit", X, y, dest, cpu=self.n_jobs_hpc)]
+        else:
+            self._fit(X, y, destination_dir=dest)
+        if wait:
+            self.waiter(jobs)
+        return jobs
 
-    def fit(self, data, idxs=None, is_tmp=False):
+    def fit(self, data, idxs=None, is_tmp=False, wait=True):
         """
         Fit the stacked model.
 
@@ -202,18 +214,19 @@ class StackedModel(SignaturedModel):
         """
         self.is_tmp = is_tmp
         self.signaturize(data.smiles)
-        self.fit_stack(data, idxs)
+        self.fit_stack(data, idxs=idxs, wait=wait)
 
-    def predict_stack(self, idxs):
+    def predict_stack(self, idxs, wait):
         X = self.read_signatures_stacked(datasets=self.datasets, idxs=idxs)
         X = self.pca_transform(X)
+        dest = os.path.join(self.bases_models_path, dataset)
         return self._predict(X)
 
-    def predict(self, data, idxs=None, is_tmp=True):
+    def predict(self, data, idxs=None, is_tmp=True, wait=True):
         self.is_tmp = is_tmp
         self.signaturize(data.smiles)
         return Prediction(datasets    = self.datasets,
-                          y_pred      = self.predict_stack(idxs),
+                          y_pred      = self.predict_stack(idxs, wait=wait),
                           is_ensemble = self.is_ensemble,
                           weights     = None)
 
@@ -265,7 +278,7 @@ class EnsembleModel(SignaturedModel):
             indiv_dest = os.path.join(self.bases_models_path, dataset)
         with open(indiv_dest, "rb") as f:
             self.__log.info("Reading model from %s" % indiv_dest)
-            self.mod = pickle.load(f)
+            self.mod = joblib.load(f)
         self._predict(X, destination_dir = dest)
 
     def predict_ensemble(self, data, idxs, datasets, wait):
