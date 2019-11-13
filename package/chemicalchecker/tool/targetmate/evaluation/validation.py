@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pickle
 from chemicalchecker.util import logged
+from sklearn import model_selection
 from ..utils import metrics
 from ..utils import HPCUtils
 
@@ -115,17 +116,29 @@ class Performances:
 class Validation(HPCUtils):
     """Validation class."""
 
-    def __init__(self, splitter=None, destination_dir=None, **kwargs):
+    def __init__(self,
+                 splitter=None,
+                 is_cv=True,
+                 n_splits=5,
+                 test_size=0.2,
+                 destination_dir=None,
+                 **kwargs):
         """Initialize validation class.
 
         Args:
-            splitter(): If none specified, the corresponding TargetMate splitter is used (default=None).
+            splitter(object): If none specified, the corresponding TargetMate splitter is used (default=None).
+            is_cv(bool): If False, a simple train-test split is done (default=True).
+            cv_folds(int): Number of CV folds (default=5).
+            test_size(float): Proportion of samples in the test set (default=0.2).
             destination_dir(str): If non specified, the models path of the TargetMate instance is used (default=None).
         """
         HPCUtils.__init__(self, **kwargs)
         self.splitter = splitter
+        self.is_cv = is_cv
+        self.n_splits = n_splits
+        self.test_size = test_size
         self.destination_dir = destination_dir
-
+        
     @staticmethod
     def stack(ar_a, ar_b):
         if ar_a is None:
@@ -164,7 +177,20 @@ class Validation(HPCUtils):
             kf = PrecomputedSplitter(train_idx, test_idx)
         else:
             if not self.splitter:
-                kf = tm.kfolder()
+                if self.is_cv:
+                    if tm.is_classifier:
+                        kf = model_selection.StratifiedKFold(n_splits=self.n_splits, shuffle=True)
+                    else:
+                        self.__log.error("CV FOR REGRESSIO NOT YET DONE")
+                        # TO-DO
+                    #kf = tm.kfolder()
+                else:
+                    if tm.is_classifier:
+                        self.__log.info("Setting up a stratified shuffle split")
+                        kf = model_selection.StratifiedShuffleSplit(n_splits=self.n_splits, test_size=self.test_size)
+                    else:
+                        self.__log.error("SPLITTING FOR REGRESSION NOT YET DONE")
+                        # TO-DO
             else:
                 kf = self.splitter
         splits = [(train_idx, test_idx) for train_idx, test_idx in kf.split(X=np.zeros(len(data.activity)), y=data.activity)]
