@@ -33,7 +33,7 @@ class TargetMateSetup(HPCUtils):
                  n_jobs = None,
                  n_jobs_hpc = 1,
                  standardize = True,
-                 cv_folds=5,
+                 cv_folds = 5,
                  conformity = True,
                  hpc = False,
                  do_init = True,
@@ -251,8 +251,8 @@ class TargetMateClassifierSetup(TargetMateSetup):
     """Set up a TargetMate classifier. It can sample negatives from a universe of molecules (e.g. ChEMBL)"""
 
     def __init__(self,
-                 algo="random_forest",
-                 model_config="vanilla",
+                 algo=None,
+                 model_config="autosklearn",
                  weight_algo="naive_bayes",
                  ccp_folds=10,
                  min_class_size=10,
@@ -300,6 +300,9 @@ class TargetMateClassifierSetup(TargetMateSetup):
         if self.model_config == "tpot":
             from .models.tpotconfigs import TPOTClassifierConfigs
             self.algo = TPOTClassifierConfigs(self.algo, n_jobs=self.n_jobs)
+        if self.model_config == "autosklearn":
+            from .models.autosklearnconfigs import AutoSklearnClassifierConfigs
+            self.algo = AutoSklearnClassifierConfigs(n_jobs=self.n_jobs)
         # Weight algo
         self.weight_algo = VanillaClassifierConfigs(weight_algo, n_jobs=self.n_jobs)
         # Minimum size of the minority class
