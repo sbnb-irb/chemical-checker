@@ -38,7 +38,7 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
         self.weights = None
 
     def find_base_mod(self, X, y, destination_dir=None):
-        """Select a pipeline, for example, using TPOT."""
+        """Select a pipeline, for example, using AutoSklearn."""
         self.__log.info("Setting the base model")
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)        
@@ -92,7 +92,7 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
             self.mod = self.cross_conformal_func(self.base_mod)
         else:
             self.__log.info("Using the selected pipeline")
-            self.mod = clone(self.base_mod)
+            self.mod = self.base_mod
         # Fit the model
         self.__log.info("Fitting")
         self.mod.fit(X[shuff], y[shuff])
