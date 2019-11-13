@@ -20,7 +20,7 @@ class PrecomputedSplitter:
         self.test_idx = test_idx
 
     def split(X = None, y = None):
-        yield self.train_idx, test_idx
+        yield self.train_idx, self.test_idx
 
 
 @logged
@@ -275,7 +275,7 @@ class Validation(HPCUtils):
                 pickle.dump(d, f)
 
     def validate(self, tm, data, train_idx=None, test_idx=None, as_dict=True, save=True, wipe=True):
-        """Validate a TargetMate classifier using train-test splits.
+        """Validate a TargetMate model using train-test splits.
 
         Args:
             tm(TargetMate model): The TargetMate model to be evaluated.
