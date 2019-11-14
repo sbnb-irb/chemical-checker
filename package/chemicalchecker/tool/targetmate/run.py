@@ -39,6 +39,7 @@ class Tasker:
                         self.datasets += [datasets]
                 else:
                     self.datasets = datasets
+        print(self.datasets)
         # Models
         self.models_path = []
         if type(models_path) == str:
