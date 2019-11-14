@@ -7,6 +7,7 @@ import uuid
 import os
 #os.environ["OMP_NUM_THREADS"] = "1"
 
+MAXTIME = 3600
 
 class AutoSklearnClassifier(BaseAutoSklearnClassifier):
 
@@ -46,7 +47,7 @@ class AutoSklearnClassifierConfigs:
         output_folder = os.path.join(self.output_folder, tag)
         # Instantiate classifier
         self.base_mod = AutoSklearnClassifier(
-            time_left_for_this_task = 3600,
+            time_left_for_this_task = MAXTIME,
             resampling_strategy = self.resampling_strategy,
             resampling_strategy_arguments = self.resampling_strategy_arguments,
             tmp_folder = tmp_folder,
