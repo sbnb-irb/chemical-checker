@@ -69,13 +69,13 @@ class TargetMateSetup(HPCUtils):
             self.__log.warning(
                 "Specified models directory does not exist: %s",
                 self.models_path)
-            os.mkdir(self.models_path)
+            os.makedirs(self.models_path, exist_ok = True)
         else:
             if overwrite:
                 # Cleaning models directory
                 self.__log.debug("Cleaning %s" % self.models_path)
                 shutil.rmtree(self.models_path, ignore_errors=True)
-                os.mkdir(self.models_path)
+                os.makedirs(self.models_path, exist_ok = True)
         self.bases_models_path, self.signatures_models_path, self.predictions_models_path = self.directory_tree(self.models_path)
         self._bases_models_path, self._signatures_models_path, self._predictions_models_path = self.bases_models_path, self.signatures_models_path, self.predictions_models_path 
         # Temporary path
@@ -98,6 +98,8 @@ class TargetMateSetup(HPCUtils):
         # Use HPC
         self.n_jobs_hpc = n_jobs_hpc
         self.hpc = hpc
+        # Timeout
+        self.train_timeout = train_timeout
         # Others
         self._is_fitted  = False
         self._is_trained = False
