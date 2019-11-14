@@ -34,12 +34,11 @@ class Tasker:
                 for _ in self.data:
                     self.datasets += [[datasets]]
             else:
-                if datasets[0] == str:
+                if type(datasets[0]) == str:
                     for _ in self.data:
                         self.datasets += [datasets]
                 else:
                     self.datasets = datasets
-        print(self.datasets)
         # Models
         self.models_path = []
         if type(models_path) == str:
