@@ -287,9 +287,6 @@ class EnsembleModel(SignaturedModel):
         else:
             indiv_dest = os.path.join(self.bases_models_path, dataset)
         self.mod_dir = indiv_dest
-        #with open(indiv_dest, "rb") as f:
-        #    self.__log.info("Reading model from %s" % indiv_dest)
-        #    self.mod = joblib.load(f)
         self._predict(X, destination_dir = dest)
 
     def predict_ensemble(self, data, idxs, datasets, wait):
