@@ -37,6 +37,7 @@ class TargetMateSetup(HPCUtils):
                  conformity = True,
                  hpc = False,
                  do_init = True,
+                 train_timeout = 3600,
                  **kwargs):
         """Basic setup of the TargetMate.
 
@@ -52,6 +53,7 @@ class TargetMateSetup(HPCUtils):
             cv_folds(int): Number of cross-validation folds (default=5)
             conformity(bool): Do cross-conformal prediction (default=True)
             hpc(bool): Use HPC (default=False)
+            train_timeout(int): Maximum time in seconds for training a classifier; applies to autosklearn (default=3600).
         """
         if not do_init:
             return
@@ -302,7 +304,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
             self.algo = TPOTClassifierConfigs(self.algo, n_jobs=self.n_jobs)
         if self.model_config == "autosklearn":
             from .models.autosklearnconfigs import AutoSklearnClassifierConfigs
-            self.algo = AutoSklearnClassifierConfigs(n_jobs=self.n_jobs, tmp_path=self.tmp_path)
+            self.algo = AutoSklearnClassifierConfigs(n_jobs=self.n_jobs, tmp_path=self.tmp_path, train_timeout=self.train_timeout)
         # Weight algo
         self.weight_algo = VanillaClassifierConfigs(weight_algo, n_jobs=self.n_jobs)
         # Minimum size of the minority class
