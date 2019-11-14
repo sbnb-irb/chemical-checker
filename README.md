@@ -12,7 +12,7 @@ Please feel free to explore any of the scripts inside this repository. The most 
 
 The Chemical Checker (CC) is a resource of small molecule signatures. In the CC, compounds are described from multiple viewpoints, spanning every aspect of the drug discovery pipeline, from chemical properties to clinical outcomes.
 
-* For more information about this repositiory, please refer to our [Wiki page](http://gitlab.sbnb.org/project-specific-repositories/chemical_checker/wikis/home).
+* For more information about this repositiory, please refer to our [Wiki page](http://gitlabsbnb.irbbarcelona.org/project-specific-repositories/chemical_checker/wikis/home).
 * For a quick exploration of the resource, please visit the [CC web app](http://chemicalchecker.org).
 * For full documentation of the python package, please see the [API doc](http://project-specific-repositories.sbnb-pages.irbbarcelona.org/chemical_checker).
 * Concepts and methods are best described in the original CC publication, [Duran-Frigola et al. 2019](https://biorxiv.org/content/10.1101/745703v1).
@@ -22,7 +22,7 @@ The Chemical Checker (CC) is a resource of small molecule signatures. In the CC,
 To fetch signatures (without fancy CC package capabilities) the package can be installed directly via `pip` from our local PyPI server:
 
 ```bash
-sudo pip install --index http://coelho.irbbarcelona.pcb.ub.es:3141/root/dev/ --trusted-host coelho.irbbarcelona.pcb.ub.es chemicalchecker
+sudo pip install --index http://gitlabsbnb.irbbarcelona.org:3141/root/dev/ --trusted-host gitlabsbnb.irbbarcelona.org chemicalchecker
 ```
 
 _N.B. Only bare minimum dependencies are installed along with the package_
@@ -81,7 +81,7 @@ For an advanced usage of the CC package capabilities, we recomend creating the C
 
 4. Download the [setup_chemicalchecker.sh](setup_chemicalchecker.sh) script to your home folder:
 
-        wget http://gitlab.sbnb.org/project-specific-repositories/chemical_checker/raw/master/setup_chemicalchecker.sh
+        wget http://gitlabsbnb.irbbarcelona.org/project-specific-repositories/chemical_checker/raw/master/setup_chemicalchecker.sh
 
 5. Run the script (this script will require to type your password) with:
 

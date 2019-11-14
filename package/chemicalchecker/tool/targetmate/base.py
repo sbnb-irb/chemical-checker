@@ -5,6 +5,7 @@ import os
 import collections
 import numpy as np
 import pickle
+import joblib
 import random
 
 from sklearn.base import clone
@@ -36,19 +37,23 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
             TargetMateRegressorSetup.__init__(self, **kwargs)
         self.is_classifier = is_classifier
         self.weights = None
+        self.mod_dir = None
 
     def find_base_mod(self, X, y, destination_dir=None):
-        """Select a pipeline, for example, using TPOT."""
+        """Select a pipeline, for example, using AutoSklearn."""
         self.__log.info("Setting the base model")
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)        
         base_mod = self.algo.as_pipeline(X[shuff], y[shuff])
         if destination_dir:
+            self.__log.info("Saving base model in %s" % destination_dir)
+            self.base_mod_dir = destination_dir
             with open(destination_dir, "wb") as f:
-                pickle.dump(base_mod, f)
-        self.base_mod = base_mod
-        self.base_mod_dir = destination_dir
-
+                joblib.dump(base_mod, f)
+        else:
+            self.base_mod = base_mod
+        return base_mod
+        
     def metric_calc(self, y_true, y_pred, metric=None):
         """Calculate metric. Returns (value, weight) tuple."""
         if not metric:
@@ -83,25 +88,27 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
             n_jobs(int): If jobs are specified, the number of CPUs per model are overwritten.
                 This is relevant when sending jobs to the cluster (default=None).
         """
-        self.find_base_mod(X, y)
+        base_mod = self.find_base_mod(X, y, destination_dir = destination_dir)
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)
         if self.conformity:
             self.__log.info("Preparing cross-conformity")
             # Cross-conformal prediction
-            self.mod = self.cross_conformal_func(self.base_mod)
+            mod = self.cross_conformal_func(base_mod)
         else:
             self.__log.info("Using the selected pipeline")
-            self.mod = clone(self.base_mod)
+            mod = base_mod
         # Fit the model
         self.__log.info("Fitting")
-        self.mod.fit(X[shuff], y[shuff])
+        mod.fit(X[shuff], y[shuff])
         # Save the destination directory of the model
-        self.mod_dir = destination_dir
         if destination_dir:
             self.__log.debug("Saving fitted model in %s" % self.mod_dir)
             with open(destination_dir, "wb") as f:
-                pickle.dump(self.mod, f)
+                joblib.dump(mod, f)
+            self.mod_dir = destination_dir
+        else:
+            self.mod = mod
 
     def _predict(self, X, destination_dir=None):
         """Make predictions
@@ -110,10 +117,14 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
             A (n_samples, n_classes) array. For now, n_classes = 2.
         """
         self.__log.info("Predicting")
-        if self.conformity:
-            preds = self.mod.predict(X)
+        if self.mod_dir:
+            mod = joblib.load(self.mod_dir)
         else:
-            preds = self.mod.predict_proba(X)
+            mod = self.mod
+        if self.conformity:
+            preds = mod.predict(X)
+        else:
+            preds = mod.predict_proba(X)
         if destination_dir:
             self.__log.debug("Saving prediction in %s" % destination_dir)
             with open(destination_dir, "wb") as f:
@@ -172,26 +183,37 @@ class StackedModel(SignaturedModel):
     def pca_fit(self, X):
         if not self.n_components: return X
         if self.n_components > X.shape[1]: return X
-        self.__log.debug("Doing PCA")
+        self.__log.debug("Doing PCA fit")
         self.pca = PCA(n_components = self.n_components)
         self.pca.fit(X)
         return self.pca.transform(X)
 
     def pca_transform(self, X):
-        self.__log.debug("")
+        self.__log.debug("Doing PCA transform")
         if not self.pca: return X
         return self.pca.transform(X)
 
-    def fit_stack(self, data, idxs):
+    def fit_stack(self, data, idxs, wait):
         if idxs is None:
             y = data.activity
         else:
             y = data.activity[idxs]
         X = self.read_signatures_stacked(datasets=self.datasets, idxs=idxs)
         X = self.pca_fit(X)
-        self._fit(X, y, destination_dir=None)
+        jobs = []
+        if self.is_tmp:
+            dest = os.path.join(self.bases_tmp_path, "stacked")
+        else:
+            dest = os.path.join(self.bases_models_path, "stacked")
+        if self.hpc:
+            jobs += [self.func_hpc("_fit", X, y, dest, cpu=self.n_jobs_hpc)]
+        else:
+            self._fit(X, y, destination_dir=dest)
+        if wait:
+            self.waiter(jobs)
+        return jobs
 
-    def fit(self, data, idxs=None, is_tmp=False):
+    def fit(self, data, idxs=None, is_tmp=False, wait=True):
         """
         Fit the stacked model.
 
@@ -202,18 +224,19 @@ class StackedModel(SignaturedModel):
         """
         self.is_tmp = is_tmp
         self.signaturize(data.smiles)
-        self.fit_stack(data, idxs)
+        self.fit_stack(data, idxs=idxs, wait=wait)
 
-    def predict_stack(self, idxs):
+    def predict_stack(self, idxs, wait):
         X = self.read_signatures_stacked(datasets=self.datasets, idxs=idxs)
         X = self.pca_transform(X)
+        dest = os.path.join(self.bases_models_path, dataset)
         return self._predict(X)
 
-    def predict(self, data, idxs=None, is_tmp=True):
+    def predict(self, data, idxs=None, is_tmp=True, wait=True):
         self.is_tmp = is_tmp
         self.signaturize(data.smiles)
         return Prediction(datasets    = self.datasets,
-                          y_pred      = self.predict_stack(idxs),
+                          y_pred      = self.predict_stack(idxs, wait=wait),
                           is_ensemble = self.is_ensemble,
                           weights     = None)
 
@@ -263,9 +286,10 @@ class EnsembleModel(SignaturedModel):
             indiv_dest = os.path.join(self.bases_tmp_path, dataset)
         else:
             indiv_dest = os.path.join(self.bases_models_path, dataset)
-        with open(indiv_dest, "rb") as f:
-            self.__log.info("Reading model from %s" % indiv_dest)
-            self.mod = pickle.load(f)
+        self.mod_dir = indiv_dest
+        #with open(indiv_dest, "rb") as f:
+        #    self.__log.info("Reading model from %s" % indiv_dest)
+        #    self.mod = joblib.load(f)
         self._predict(X, destination_dir = dest)
 
     def predict_ensemble(self, data, idxs, datasets, wait):
