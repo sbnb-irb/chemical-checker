@@ -180,7 +180,9 @@ class AggregatedCp(BaseEstimator):
 		                                   self.n_models,
 		                                   problem_type)
 		for train, cal in samples:
-			predictor = clone(self.predictor)
+			from copy import deepcopy
+			predictor = deepcopy(self.predictor)
+			#predictor = clone(self.predictor)
 			predictor.fit(x[train, :], y[train])
 			predictor.calibrate(x[cal, :], y[cal])
 			self.predictors.append(predictor)
