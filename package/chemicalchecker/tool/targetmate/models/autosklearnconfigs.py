@@ -7,8 +7,6 @@ import uuid
 import os
 #os.environ["OMP_NUM_THREADS"] = "1"
 
-MAXTIME = 3600
-
 class AutoSklearnClassifier(BaseAutoSklearnClassifier):
 
     def __init__(self, **kwargs):
@@ -23,7 +21,7 @@ class AutoSklearnClassifier(BaseAutoSklearnClassifier):
 
 class AutoSklearnClassifierConfigs:
 
-    def __init__(self, n_jobs, tmp_path, resampling_strategy="cv", **kwargs):
+    def __init__(self, n_jobs, tmp_path, train_timeout, resampling_strategy="cv", **kwargs):
         """Just set up paths"""
         auto_path = os.path.join(os.path.join(tmp_path, "autosklearn"))
         tmp_folder = os.path.join(auto_path, "tmp")
@@ -33,6 +31,7 @@ class AutoSklearnClassifierConfigs:
         self.tmp_folder = tmp_folder
         self.output_folder = output_folder
         self.n_jobs = n_jobs
+        self.train_timeout = train_timeout
         if resampling_strategy == "cv":
             self.resampling_strategy = model_selection.StratifiedKFold
             self.resampling_strategy_arguments = {"n_splits": 5, "shuffle": True}
@@ -47,7 +46,7 @@ class AutoSklearnClassifierConfigs:
         output_folder = os.path.join(self.output_folder, tag)
         # Instantiate classifier
         self.base_mod = AutoSklearnClassifier(
-            time_left_for_this_task = MAXTIME,
+            time_left_for_this_task = self.train_timeout,
             resampling_strategy = self.resampling_strategy,
             resampling_strategy_arguments = self.resampling_strategy_arguments,
             tmp_folder = tmp_folder,
