@@ -97,7 +97,7 @@ class MultiValidate(HPCUtils):
         for data, models_path, datasets in self.tasks:
             tm, data, validation = self.prepare(data, models_path, datasets, **kwargs)
             if self.hpc:
-                jobs += self.func_hpc("_run", tm, data, validation)
+                jobs += [self.func_hpc("_run", tm, data, validation)]
             else:
                 self._run(tm, data, validation)
         if wait:
