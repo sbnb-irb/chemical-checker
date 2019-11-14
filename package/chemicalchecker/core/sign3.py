@@ -691,7 +691,7 @@ class sign3(BaseSignature, DataSignature):
 
     def predict_from_smiles(self, smiles, dest_file, chunk_size=1000,
                             predict_fn=None, accurate_novelty=False,
-                            keys=None):
+                            keys=None, components=128, include_confidence=True):
         """Given SMILES generate sign0 and predict sign3.
 
         Args:
@@ -741,18 +741,19 @@ class sign3(BaseSignature, DataSignature):
             else:
                 results.create_dataset('keys', data=np.array(
                     smiles, DataSignature.string_dtype()))
-            results.create_dataset('V', (len(smiles), 128), dtype=np.float32)
-            results.create_dataset(
-                'stddev_norm', (len(smiles), ), dtype=np.float32)
-            results.create_dataset(
-                'intensity_norm', (len(smiles), ), dtype=np.float32)
-            results.create_dataset(
-                'exp_error_norm', (len(smiles), ), dtype=np.float32)
-            results.create_dataset(
-                'novelty_norm', (len(smiles), ), dtype=np.float32)
-            results.create_dataset(
-                'confidence', (len(smiles), ), dtype=np.float32)
-            results.create_dataset("shape", data=(len(smiles), 128))
+            results.create_dataset('V', (len(smiles), components), dtype=np.float32)
+            if include_confidence:
+                results.create_dataset(
+                    'stddev_norm', (len(smiles), ), dtype=np.float32)
+                results.create_dataset(
+                    'intensity_norm', (len(smiles), ), dtype=np.float32)
+                results.create_dataset(
+                    'exp_error_norm', (len(smiles), ), dtype=np.float32)
+                results.create_dataset(
+                    'novelty_norm', (len(smiles), ), dtype=np.float32)
+                results.create_dataset(
+                    'confidence', (len(smiles), ), dtype=np.float32)
+            results.create_dataset("shape", data=(len(smiles), components))
             # compute sign0 (i.e. Morgan fingerprint)
             nBits = 2048
             radius = 2
@@ -784,19 +785,23 @@ class sign3(BaseSignature, DataSignature):
                 preds = predict_fn({'x': sign0s})['predictions']
                 # add NaN when SMILES conversion failed
                 if failed:
-                    preds[np.array(failed)] = np.full((133, ),  np.nan)
+                    if include_confidence:
+                        preds[np.array(failed)] = np.full((components + 5, ),  np.nan)
+                    else:
+                        preds[np.array(failed)] = np.full((components, ),  np.nan)
                 # save chunk to H5
-                results['V'][chunk] = preds[:, :128]
-                results['stddev_norm'][chunk] = preds[:, 128]
-                results['intensity_norm'][chunk] = preds[:, 129]
-                results['exp_error_norm'][chunk] = preds[:, 130]
-                results['novelty_norm'][chunk] = preds[:, 131]
-                results['confidence'][chunk] = preds[:, 132]
-                if accurate_novelty:
-                    novelty = novelty_model.score_samples(preds[:, :128])
-                    abs_novelty = np.abs(np.expand_dims(novelty, 1))
-                    results['novelty_norm'][chunk] = nov_qtr.transform(
-                        abs_novelty).flatten()
+                results['V'][chunk] = preds[:, :components]
+                if include_confidence:
+                    results['stddev_norm'][chunk] = preds[:, components]
+                    results['intensity_norm'][chunk] = preds[:, components + 1]
+                    results['exp_error_norm'][chunk] = preds[:, components + 2]
+                    results['novelty_norm'][chunk] = preds[:, components + 3]
+                    results['confidence'][chunk] = preds[:, components + 4]
+                    if accurate_novelty:
+                        novelty = novelty_model.score_samples(preds[:, :components])
+                        abs_novelty = np.abs(np.expand_dims(novelty, 1))
+                        results['novelty_norm'][chunk] = nov_qtr.transform(
+                            abs_novelty).flatten()
         return pred_s3
 
     def fit(self, sign2_list, sign2_self, sign2_universe=None,
