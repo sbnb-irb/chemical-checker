@@ -33,7 +33,7 @@ class TargetMateSetup(HPCUtils):
                  n_jobs = None,
                  n_jobs_hpc = 1,
                  standardize = True,
-                 cv_folds=5,
+                 cv_folds = 5,
                  conformity = True,
                  hpc = False,
                  do_init = True,
@@ -72,7 +72,7 @@ class TargetMateSetup(HPCUtils):
             if overwrite:
                 # Cleaning models directory
                 self.__log.debug("Cleaning %s" % self.models_path)
-                shutil.rmtree(self.models_path)
+                shutil.rmtree(self.models_path, ignore_errors=True)
                 os.mkdir(self.models_path)
         self.bases_models_path, self.signatures_models_path, self.predictions_models_path = self.directory_tree(self.models_path)
         self._bases_models_path, self._signatures_models_path, self._predictions_models_path = self.bases_models_path, self.signatures_models_path, self.predictions_models_path 
@@ -239,11 +239,11 @@ class TargetMateSetup(HPCUtils):
     def wipe(self):
         """Delete temporary data"""
         self.__log.debug("Removing %s" % self.tmp_path)
-        shutil.rmtree(self.tmp_path)
+        shutil.rmtree(self.tmp_path, ignore_errors=True)
         for job_path in self.job_paths:
             if os.path.exists(job_path):
                 self.__log.debug("Removing %s" % job_path)
-                shutil.rmtree(job_path)
+                shutil.rmtree(job_path, ignore_errors=True)
 
 
 @logged
@@ -251,8 +251,8 @@ class TargetMateClassifierSetup(TargetMateSetup):
     """Set up a TargetMate classifier. It can sample negatives from a universe of molecules (e.g. ChEMBL)"""
 
     def __init__(self,
-                 algo="random_forest",
-                 model_config="vanilla",
+                 algo=None,
+                 model_config="autosklearn",
                  weight_algo="naive_bayes",
                  ccp_folds=10,
                  min_class_size=10,
@@ -300,6 +300,9 @@ class TargetMateClassifierSetup(TargetMateSetup):
         if self.model_config == "tpot":
             from .models.tpotconfigs import TPOTClassifierConfigs
             self.algo = TPOTClassifierConfigs(self.algo, n_jobs=self.n_jobs)
+        if self.model_config == "autosklearn":
+            from .models.autosklearnconfigs import AutoSklearnClassifierConfigs
+            self.algo = AutoSklearnClassifierConfigs(n_jobs=self.n_jobs, tmp_path=self.tmp_path)
         # Weight algo
         self.weight_algo = VanillaClassifierConfigs(weight_algo, n_jobs=self.n_jobs)
         # Minimum size of the minority class
