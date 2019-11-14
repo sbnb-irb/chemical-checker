@@ -37,6 +37,7 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
             TargetMateRegressorSetup.__init__(self, **kwargs)
         self.is_classifier = is_classifier
         self.weights = None
+        self.mod_dir = None
 
     def find_base_mod(self, X, y, destination_dir=None):
         """Select a pipeline, for example, using AutoSklearn."""
@@ -45,11 +46,14 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
         random.shuffle(shuff)        
         base_mod = self.algo.as_pipeline(X[shuff], y[shuff])
         if destination_dir:
+            self.__log.info("Saving base model in %s" % destination_dir)
+            self.base_mod_dir = destination_dir
             with open(destination_dir, "wb") as f:
                 joblib.dump(base_mod, f)
-        self.base_mod = base_mod
-        self.base_mod_dir = destination_dir
-
+        else:
+            self.base_mod = base_mod
+        return base_mod
+        
     def metric_calc(self, y_true, y_pred, metric=None):
         """Calculate metric. Returns (value, weight) tuple."""
         if not metric:
@@ -84,25 +88,27 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
             n_jobs(int): If jobs are specified, the number of CPUs per model are overwritten.
                 This is relevant when sending jobs to the cluster (default=None).
         """
-        self.find_base_mod(X, y)
+        base_mod = self.find_base_mod(X, y, destination_dir = destination_dir)
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)
         if self.conformity:
             self.__log.info("Preparing cross-conformity")
             # Cross-conformal prediction
-            self.mod = self.cross_conformal_func(self.base_mod)
+            mod = self.cross_conformal_func(base_mod)
         else:
             self.__log.info("Using the selected pipeline")
-            self.mod = self.base_mod
+            mod = base_mod
         # Fit the model
         self.__log.info("Fitting")
-        self.mod.fit(X[shuff], y[shuff])
+        mod.fit(X[shuff], y[shuff])
         # Save the destination directory of the model
-        self.mod_dir = destination_dir
         if destination_dir:
             self.__log.debug("Saving fitted model in %s" % self.mod_dir)
             with open(destination_dir, "wb") as f:
-                joblib.dump(self.mod, f)
+                joblib.dump(mod, f)
+            self.mod_dir = destination_dir
+        else:
+            self.mod = mod
 
     def _predict(self, X, destination_dir=None):
         """Make predictions
@@ -111,10 +117,14 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
             A (n_samples, n_classes) array. For now, n_classes = 2.
         """
         self.__log.info("Predicting")
-        if self.conformity:
-            preds = self.mod.predict(X)
+        if self.mod_dir:
+            mod = joblib.load(self.mod_dir)
         else:
-            preds = self.mod.predict_proba(X)
+            mod = self.mod
+        if self.conformity:
+            preds = mod.predict(X)
+        else:
+            preds = mod.predict_proba(X)
         if destination_dir:
             self.__log.debug("Saving prediction in %s" % destination_dir)
             with open(destination_dir, "wb") as f:
@@ -276,9 +286,10 @@ class EnsembleModel(SignaturedModel):
             indiv_dest = os.path.join(self.bases_tmp_path, dataset)
         else:
             indiv_dest = os.path.join(self.bases_models_path, dataset)
-        with open(indiv_dest, "rb") as f:
-            self.__log.info("Reading model from %s" % indiv_dest)
-            self.mod = joblib.load(f)
+        self.mod_dir = indiv_dest
+        #with open(indiv_dest, "rb") as f:
+        #    self.__log.info("Reading model from %s" % indiv_dest)
+        #    self.mod = joblib.load(f)
         self._predict(X, destination_dir = dest)
 
     def predict_ensemble(self, data, idxs, datasets, wait):
