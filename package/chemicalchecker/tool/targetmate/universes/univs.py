@@ -109,7 +109,7 @@ class Universe:
     def fetch_molecules(self):
         self.__log.debug("Downloading molrepo")
         converter = Converter()
-        molrepo = Molrepo.get_fields_by_molrepo_name(self.molrepo, ["inchikey", "src_id", "inchi"])[:1000]
+        molrepo = Molrepo.get_fields_by_molrepo_name(self.molrepo, ["inchikey", "src_id", "inchi"])
         smiles = []
         for mol in molrepo:
             smi = converter.inchi_to_smiles(mol[-1])
