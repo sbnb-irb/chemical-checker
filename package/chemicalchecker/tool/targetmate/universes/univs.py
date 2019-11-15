@@ -25,6 +25,7 @@ class UniverseLoader(pickle.Unpickler):
             return Universe
         return super().find_class(module, name)
 
+DEFAULTPATH = "/aloy/web_checker/repo_data/targetmate/universe/default/"
 
 @logged
 class Universe:
@@ -61,7 +62,10 @@ class Universe:
         if not os.path.isdir(self.tmp_path):
             os.makedirs(self.tmp_path)
         if not model_path:
-            self.model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "default")
+            if not os.path.exists(DEFAULTPATH):
+                self.model_path = os.path.join(os.path.dirname(os.path.abspath(".")), "default")
+            else:
+                self.model_path = os.path.join(DEFAULTPATH)
         else:
             self.model_path = os.path.abspath(model_path)
             if not os.path.isdir(self.model_path):
