@@ -99,7 +99,10 @@ class Universe:
     @staticmethod
     def load_universe(model_path = None):
         if not model_path:
-            file_name = os.path.join(os.path.dirname(os.path.abspath(__file__)), "default/universe.pkl")
+            if os.path.exists(DEFAULTPATH):
+                file_name = os.path.join(DEFAULTPATH, "universe.pkl")
+            else:
+                file_name = os.path.join(os.path.abspath("."), "universe.pkl")
         else:
             file_name = os.path.join(os.path.abspath(model_path), "universe.pkl")
         with open(file_name, "rb") as f:
