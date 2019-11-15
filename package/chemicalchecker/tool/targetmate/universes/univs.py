@@ -80,6 +80,18 @@ class Universe:
         with open(pkl_file, "wb") as f:
             pickle.dump(self, f)
 
+    def smiles(self):
+        with open(self.smiles_file, "rb") as f:
+            return pickle.load(f)
+
+    def clusters_dict(self):
+        with open(self.clusters_dict_file, "rb") as f:
+            return pickle.load(f)
+
+    def representative_smiles(self):
+        with open(self.representative_smiles_file, "rb") as f:
+            return pickle.load(f)
+
     @staticmethod
     def load_universe(model_path = None):
         if not model_path:
@@ -94,33 +106,44 @@ class Universe:
         self.__log.debug("Downloading molrepo")
         converter = Converter()
         molrepo = Molrepo.get_fields_by_molrepo_name(self.molrepo, ["inchikey", "src_id", "inchi"])
-        self.smiles = []
+        smiles = []
         for mol in molrepo:
             smi = converter.inchi_to_smiles(mol[-1])
-            self.smiles += [(smi, mol[1], mol[0])]
+            smiles += [(smi, mol[1], mol[0])]
+        self.smiles_file = os.path.join(self.models_path, "smiles.pkl")
+        with open(self.smiles_file, "wb") as f:
+            pickle.dump(smiles, f)
             
     def cluster(self):
-        maccs = maccs_matrix([smi[0] for smi in self.smiles])
+        smiles = self.smiles()
+        maccs = maccs_matrix([smi[0] for smi in smiles])
         if not self.k:
             self.k = int(np.sqrt(maccs.shape[0] / 2)) + 1
         kmeans = MiniBatchKMeans(
             n_clusters=self.k, init_size=np.max([3 * self.k, 300]))
         kmeans.fit(maccs)
         clusters = kmeans.predict(maccs)
-        self.clusters_dict = collections.defaultdict(list)
+        clusters_dict = collections.defaultdict(list)
         for i, c in enumerate(clusters):
-            self.clusters_dict[c] += [i]
-        self.representative_smiles = []
-        for c, idxs in self.clusters_dict.items():
+            clusters_dict[c] += [i]
+        self.clusters_dict_file = os.path.join(self.models_path, "clusters_dict.pkl")
+        with open(self.clusters_dict_file, "wb") as f:
+            pickle.dump(clusters_dict, f)
+        representative_smiles = []
+        for c, idxs in clusters_dict.items():
             idxs_ = random.choices(
                 idxs, k=self.representative_mols_per_cluster)
             for i in idxs_:
-                self.representative_smiles += [(c, self.smiles[i])]
+                representative_smiles += [(c, smiles[i])]
+        self.representative_smiles_file = os.path.join(self.models_path, "representative_smiles.pkl")
+        with open(self.representative_smiles_file, "wb") as f:
+            pickle.dump(representative_smiles, f)
 
     def calculate_arena(self):
         fps_file = os.path.join(self.model_path, "arena.h5")
+        representative_smiles = self.representative_smiles()
         morgan_arena([smi[1][0]
-                      for smi in self.representative_smiles], fps_file)
+                      for smi in representative_smiles], fps_file)
         self.arena_file = fps_file
 
     def fit_oneclass_svm(self, actives):
@@ -178,17 +201,23 @@ class Universe:
         if len(inactives) >= N:
             return actives, random.sample(inactives, N), set()
         N = N - len(inactives)
+        # Load relevant data
+        smiles = self.smiles()
         if naive:
             self.__log.debug("Naively sampling candidates")
             # Select permitted candidates
-            candidates_iks = set([smi[-1] for smi in self.smiles]).difference(actives_iks.union(inactives_iks))
+            candidates_iks = set([smi[-1] for smi in smiles]).difference(actives_iks.union(inactives_iks))
             if not candidates_iks:
                 return actives, inactives, set()
-            candidates_dict = dict((smi[-1], (smi[0], smi[1])) for smi in self.smiles)
+            candidates_dict = dict((smi[-1], (smi[0], smi[1])) for smi in smiles)
             candidates_iks = random.sample(candidates_iks, int(np.min([N, len(candidates_iks)])))
             candidates = set([(candidates_dict[ik][0], candidates_dict[ik][1], ik) for ik in candidates_iks])
             return actives, inactives, candidates
         else:
+            # Load relevant data
+            self.__log.debug("Loading relevant data")
+            representative_smiles = self.representative_smiles()
+            clusters_dict = self.clusters_dict()
             self.__log.debug("Sampling candidates based on OneClassSVM and clusters")
             # Fitting one-class SVM
             clf, actives_list_smiles = self.fit_oneclass_svm(actives)
@@ -196,7 +225,7 @@ class Universe:
             arena = load_morgan_arena(self.arena_file)
             # Calculating similarity matrix
             sim_mat = similarity_matrix(
-                actives_list_smiles, arena, len(self.representative_smiles))
+                actives_list_smiles, arena, len(representative_smiles))
             sim_mat = sim_mat.T
             # Predicting using one-class SVM
             prd = clf.predict(sim_mat)
@@ -204,7 +233,7 @@ class Universe:
             weight_dict = collections.defaultdict(int)
             for i, p in enumerate(prd):
                 if p == -1:
-                    weight_dict[self.representative_smiles[i][0]] += 1
+                    weight_dict[representative_smiles[i][0]] += 1
             candidate_clusters = sorted(weight_dict.keys())
             candidate_weights = [weight_dict[k] for k in candidate_clusters]
             # Sample from candidates
@@ -214,8 +243,8 @@ class Universe:
             while len(candidates) < N and t < trials:
                 c = random.choices(candidate_clusters, k=1,
                                    weights=candidate_weights)[0]
-                i = random.choice(self.clusters_dict[c])
-                cand = self.smiles[i]
+                i = random.choice(clusters_dict[c])
+                cand = smiles[i]
                 if cand[-1] not in actives_iks and cand[-1] not in inactives_iks:
                     candidates.update([cand])
                 t += 1
@@ -223,7 +252,7 @@ class Universe:
                 all_iks = actives_iks.union(inactives_iks).union(
                     [cc[-1] for cc in candidates])
                 remaining_universe = [
-                    smi for smi in self.smiles if smi[-1] not in all_iks]
+                    smi for smi in smiles if smi[-1] not in all_iks]
                 N = N - len(candidates)
                 if N >= len(remaining_universe):
                     candidates.update(remaining_universe)
