@@ -114,7 +114,7 @@ class Universe:
         for mol in molrepo:
             smi = converter.inchi_to_smiles(mol[-1])
             smiles += [(smi, mol[1], mol[0])]
-        self.smiles_file = os.path.join(self.models_path, "smiles.pkl")
+        self.smiles_file = os.path.join(self.model_path, "smiles.pkl")
         with open(self.smiles_file, "wb") as f:
             pickle.dump(smiles, f)
             
@@ -130,7 +130,7 @@ class Universe:
         clusters_dict = collections.defaultdict(list)
         for i, c in enumerate(clusters):
             clusters_dict[c] += [i]
-        self.clusters_dict_file = os.path.join(self.models_path, "clusters_dict.pkl")
+        self.clusters_dict_file = os.path.join(self.model_path, "clusters_dict.pkl")
         with open(self.clusters_dict_file, "wb") as f:
             pickle.dump(clusters_dict, f)
         representative_smiles = []
@@ -139,7 +139,7 @@ class Universe:
                 idxs, k=self.representative_mols_per_cluster)
             for i in idxs_:
                 representative_smiles += [(c, smiles[i])]
-        self.representative_smiles_file = os.path.join(self.models_path, "representative_smiles.pkl")
+        self.representative_smiles_file = os.path.join(self.model_path, "representative_smiles.pkl")
         with open(self.representative_smiles_file, "wb") as f:
             pickle.dump(representative_smiles, f)
 
