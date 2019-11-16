@@ -7,6 +7,7 @@ import numpy as np
 import pickle
 import joblib
 import random
+import uuid
 
 from sklearn.base import clone
 from sklearn.decomposition import PCA
@@ -39,8 +40,21 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
         self.weights = None
         self.mod_dir = None
 
+    def array_on_disk(self, ar):
+        fn = os.path.join(self.arrays_tmp_path, str(uuid.uuid4())+".npy")
+        np.save(fn, ar)
+        return fn
+
+    def check_array_from_disk(self, ar):
+        if type(ar) == str:
+            return np.load(ar)
+        else:
+            return ar
+
     def find_base_mod(self, X, y, destination_dir=None):
         """Select a pipeline, for example, using AutoSklearn."""
+        X = self.check_array_from_disk(X)
+        y = self.check_array_from_disk(y)
         self.__log.info("Setting the base model")
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)        
@@ -62,6 +76,8 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
 
     def _weight(self, X, y):
         """Weight the association between a certain data type and an y variable using a cross-validation scheme, and a relatively simple model."""
+        X = self.check_array_from_disk(X)
+        y = self.check_array_from_disk(y)
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)
         mod = self.weight_algo.as_pipeline(X[shuff], y[shuff])
@@ -88,6 +104,10 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
             n_jobs(int): If jobs are specified, the number of CPUs per model are overwritten.
                 This is relevant when sending jobs to the cluster (default=None).
         """
+        # Check if array is a file
+        X = self.check_array_from_disk(X)
+        y = self.check_array_from_disk(y)
+        # Get stargetd
         base_mod = self.find_base_mod(X, y, destination_dir = destination_dir)
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)
@@ -116,6 +136,7 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
         Returns:
             A (n_samples, n_classes) array. For now, n_classes = 2.
         """
+        X = self.check_array_from_disk(X)
         self.__log.info("Predicting")
         if self.mod_dir:
             mod = joblib.load(self.mod_dir)
@@ -198,6 +219,8 @@ class StackedModel(SignaturedModel):
             y = data.activity
         else:
             y = data.activity[idxs]
+        if self.hpc:
+            y = self.array_on_disk(y)
         X = self.read_signatures_stacked(datasets=self.datasets, idxs=idxs)
         X = self.pca_fit(X)
         jobs = []
@@ -206,6 +229,7 @@ class StackedModel(SignaturedModel):
         else:
             dest = os.path.join(self.bases_models_path, "stacked")
         if self.hpc:
+            X = self.array_on_disk(X)
             jobs += [self.func_hpc("_fit", X, y, dest, cpu=self.n_jobs_hpc)]
         else:
             self._fit(X, y, destination_dir=dest)
@@ -224,21 +248,53 @@ class StackedModel(SignaturedModel):
         """
         self.is_tmp = is_tmp
         self.signaturize(data.smiles)
-        self.fit_stack(data, idxs=idxs, wait=wait)
+        jobs = self.fit_stack(data, idxs=idxs, wait=wait)
+        if not wait:
+            return jobs
 
     def predict_stack(self, idxs, wait):
         X = self.read_signatures_stacked(datasets=self.datasets, idxs=idxs)
         X = self.pca_transform(X)
-        dest = os.path.join(self.bases_models_path, dataset)
-        return self._predict(X)
+        if self.is_tmp:
+            dest = os.path.join(self.predictions_tmp_path, "Stacked")
+        else:
+            dest = os.path.join(self.predictions_models_path, "Stacked")
+        jobs = []
+        if self.hpc:
+            X = self.array_on_disk(X)
+            jobs += [self.func_hpc("_predict", X, dest, cpu=self.n_jobs_hpc)]
+        else:
+            self._predict(X, destination_dir=dest)
+        if wait:
+            self.waiter(jobs)
+        return jobs
 
-    def predict(self, data, idxs=None, is_tmp=True, wait=True):
+    def load_predictions(self, datasets):
+        datasets = self.get_datasets(datasets)
+        y_pred = []
+        if self.is_tmp:
+            dest = os.path.join(self.predictions_tmp_path, "Stacked")
+        else:
+            dest = os.path.join(self.predictions_models_path, "Stacked")
+        with open(dest, "rb") as f:
+            y_pred = pickle.load(f)
+        return Prediction(
+            datasets = datasets,
+            y_pred = y_pred,
+            is_ensemble = self.is_ensemble,
+            weights = None
+            )
+
+    def predict(self, data, idxs=None, datasets=None, is_tmp=True, wait=True):
         self.is_tmp = is_tmp
-        self.signaturize(data.smiles)
-        return Prediction(datasets    = self.datasets,
-                          y_pred      = self.predict_stack(idxs, wait=wait),
-                          is_ensemble = self.is_ensemble,
-                          weights     = None)
+        datasets = self.get_datasets(datasets)
+        self.signaturize(data.smiles, datasets=datasets)
+        jobs = self.predict_stack(data, idxs=idxs, datasets=datasets, wait=wait)
+        if wait:
+            return self.load_predictions(datasets)
+        else:
+            return jobs
+
 
 
 @logged
@@ -257,8 +313,10 @@ class EnsembleModel(SignaturedModel):
             y = data.activity
         else:
             y = data.activity[idxs]
+        if self.hpc:
+            y = self.array_on_disk(y)
         jobs = []
-        for i, X in enumerate(self.read_signatures_ensemble(datasets=self.datasets, idxs=idxs)):
+        for i, X in enumerate(self.read_signatures_ensemble(datasets=self.datasets, idxs=idxs)):  
             self.__log.info("Fitting on %s" % self.datasets[i])
             if self.is_tmp:
                 dest = os.path.join(self.bases_tmp_path, self.datasets[i])
@@ -267,6 +325,7 @@ class EnsembleModel(SignaturedModel):
             self.ensemble_dir[self.datasets[i]] = self.is_tmp
             self.weights[self.datasets[i]] = self._weight(X, y)
             if self.hpc:
+                X = self.array_on_disk(X)
                 jobs += [self.func_hpc("_fit", X, y, dest, cpu=self.n_jobs_hpc)]
             else:
                 self._fit(X, y, destination_dir=dest)
@@ -299,6 +358,7 @@ class EnsembleModel(SignaturedModel):
             else:
                 dest = os.path.join(self.predictions_models_path, self.datasets[i])
             if self.hpc:
+                X = self.array_on_disk(X)
                 jobs += [self.func_hpc("_single_predict", X, datasets[i], dest, cpu=self.n_jobs_hpc)]
             else:
                 self._single_predict(X, datasets[i], dest)
