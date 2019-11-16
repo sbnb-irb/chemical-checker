@@ -84,9 +84,11 @@ class TargetMateSetup(HPCUtils):
                 Config().PATH.CC_TMP, str(uuid.uuid4()))
         else:
             self.tmp_path = os.path.abspath(tmp_path)
-        if not os.path.exists(self.tmp_path): os.mkdir(self.tmp_path)
+        if not os.path.exists(self.tmp_path): os.makedirs(self.tmp_path, exist_ok = True)
         self.bases_tmp_path, self.signatures_tmp_path, self.predictions_tmp_path = self.directory_tree(self.tmp_path)
         self._bases_tmp_path, self._signatures_tmp_path, self._predictions_tmp_path = self.bases_tmp_path, self.signatures_tmp_path, self.predictions_tmp_path
+        self.arrays_tmp_path = os.path.join(self.tmp_path, "arrays")
+        os.makedirs(self.arrays_tmp_path, exist_ok = True)
         # Initialize the ChemicalChecker
         self.cc = ChemicalChecker(cc_root)
         # Standardize
