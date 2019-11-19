@@ -2,7 +2,6 @@ from autosklearn.classification import AutoSklearnClassifier as BaseAutoSklearnC
 from autosklearn.metrics import roc_auc
 from sklearn import model_selection
 import numpy as np
-import random
 import uuid
 import os
 #os.environ["OMP_NUM_THREADS"] = "1"
@@ -47,21 +46,24 @@ class AutoSklearnClassifierConfigs:
         # Instantiate classifier
         self.base_mod = AutoSklearnClassifier(
             time_left_for_this_task = self.train_timeout,
+            per_run_time_limit = int(np.max([self.train_timeout / 5, 60])),
             resampling_strategy = self.resampling_strategy,
             resampling_strategy_arguments = self.resampling_strategy_arguments,
+            n_jobs = self.n_jobs,
             tmp_folder = tmp_folder,
             output_folder = output_folder,
             delete_tmp_folder_after_terminate = False,
-            delete_output_folder_after_terminate = False
+            delete_output_folder_after_terminate = False,
+            ensemble_memory_limit=np.max([1024, 1024*self.n_jobs/2]),
+            ml_memory_limit=np.max([3072, 3072*self.n_jobs/2])
             )
 
     def as_pipeline(self, X, y, **kwargs):
         """Prefit and refit"""
         self.instantiate()
-        shuff = np.array(range(len(y)))
-        random.shuffle(shuff)
         mod = self.base_mod
         mod.prefit(X, y)
         return mod
+
 
 

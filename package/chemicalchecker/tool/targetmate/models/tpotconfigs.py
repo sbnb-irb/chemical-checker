@@ -175,8 +175,6 @@ class TPOTClassifierConfigs:
             X(array): Signatures matrix.
             y(array): Labels vector.
         """
-        shuff = np.array(range(len(y)))
-        random.shuffle(shuff)
         mod = clone(self.base_mod)
-        mod.fit(X[shuff], y[shuff])
+        mod.fit(X, y)
         return mod.fitted_pipeline_

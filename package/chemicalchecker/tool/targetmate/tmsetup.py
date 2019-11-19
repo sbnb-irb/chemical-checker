@@ -29,15 +29,17 @@ class TargetMateSetup(HPCUtils):
                  models_path,
                  tmp_path = None,
                  cc_root = None,
+                 is_classic = False,
                  overwrite = True,
                  n_jobs = None,
-                 n_jobs_hpc = 1,
-                 standardize = True,
+                 n_jobs_hpc = 4,
+                 standardize = False,
                  cv_folds = 5,
                  conformity = True,
                  hpc = False,
                  do_init = True,
                  train_timeout = 3600,
+                 shuffle = False,
                  **kwargs):
         """Basic setup of the TargetMate.
 
@@ -46,6 +48,7 @@ class TargetMateSetup(HPCUtils):
             tmp_path(str): Directory where temporary data will be stored
                 (relevant at predict time) (default=None)
             cc_root(str): CC root folder (default=None)
+            is_classic(bool): Use a classical chemical fingerprint, instead of CC signatures (default=False)
             overwrite(bool): Clean models_path directory (default=True)
             n_jobs(int): Number of CPUs to use, all by default (default=None)
             n_jobs(hpc): Number of CPUs to use in HPC (default=1)
@@ -91,6 +94,8 @@ class TargetMateSetup(HPCUtils):
         os.makedirs(self.arrays_tmp_path, exist_ok = True)
         # Initialize the ChemicalChecker
         self.cc = ChemicalChecker(cc_root)
+        # Use classical or CC fingerprint
+        self.is_classic = is_classic
         # Standardize
         self.standardize = standardize
         # Do conformal modeling
@@ -102,6 +107,8 @@ class TargetMateSetup(HPCUtils):
         self.hpc = hpc
         # Timeout
         self.train_timeout = train_timeout
+        # Shuffle
+        self.shuffle = shuffle
         # Others
         self._is_fitted  = False
         self._is_trained = False
@@ -264,7 +271,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
                  min_class_size=10,
                  active_value=1,
                  inactive_value=None,
-                 inactives_per_active=100,
+                 inactives_per_active=None,
                  metric="auroc",
                  universe_path=None,
                  naive_sampling=False,
@@ -302,15 +309,15 @@ class TargetMateClassifierSetup(TargetMateSetup):
         self.algo = algo
         self.model_config = model_config
         if self.model_config == "vanilla":
-            self.algo = VanillaClassifierConfigs(self.algo, n_jobs=self.n_jobs)
+            self.algo = VanillaClassifierConfigs(self.algo, n_jobs=n_jobs)
         if self.model_config == "tpot":
             from .models.tpotconfigs import TPOTClassifierConfigs
-            self.algo = TPOTClassifierConfigs(self.algo, n_jobs=self.n_jobs)
+            self.algo = TPOTClassifierConfigs(self.algo, n_jobs=n_jobs)
         if self.model_config == "autosklearn":
             from .models.autosklearnconfigs import AutoSklearnClassifierConfigs
-            self.algo = AutoSklearnClassifierConfigs(n_jobs=self.n_jobs, tmp_path=self.tmp_path, train_timeout=self.train_timeout)
+            self.algo = AutoSklearnClassifierConfigs(n_jobs=n_jobs, tmp_path=self.tmp_path, train_timeout=self.train_timeout)
         # Weight algo
-        self.weight_algo = VanillaClassifierConfigs(weight_algo, n_jobs=self.n_jobs)
+        self.weight_algo = VanillaClassifierConfigs(weight_algo, n_jobs=self.n_jobs) # TO-DO: This is run locally for now.
         # Minimum size of the minority class
         self.min_class_size = min_class_size
         # Active value
@@ -363,9 +370,11 @@ class TargetMateClassifierSetup(TargetMateSetup):
                                                      naive=self.naive_sampling)
         self.__log.info("Actives %d / Known inactives %d / Putative inactives %d" %
                         (len(act), len(inact), len(putinact)))
-        self.__log.debug("Assembling and shuffling")
+        self.__log.debug("Assembling")
         data = self._reassemble_activity_sets(act, inact, putinact)
-        data.shuffle()
+        if self.shuffle:
+            self.__log.debug("Shuffling")
+            data.shuffle()
         return data
 
     def prepare_for_ml(self, data):
@@ -397,4 +406,33 @@ class TargetMateRegressorSetup(TargetMateSetup):
     """Set up a TargetMate classifier"""
 
     pass
+
+
+
+class ModelSetup(TargetMateClassifierSetup, TargetMateRegressorSetup):
+
+    def __init__(self, is_classifier, **kwargs):
+        if is_classifier:
+            TargetMateClassifierSetup.__init__(self, **kwargs)
+        else:
+            TargetMateRegressorSetup.__init__(self, **kwargs)
+        self.is_classifier = is_classifier
+
+    def prepare_data(self, data):
+        if self.is_classifier:
+            return TargetMateClassifierSetup.prepare_data(self, data)
+        else:
+            return TargetMateRegressorSetup.prepare_data(self, data)
+
+    def prepare_for_ml(self, data):
+        if self.is_classifier:
+            return TargetMateClassifierSetup.prepare_for_ml(self, data)
+        else:
+            return TargetMateRegressorSetup.prepare_for_ml(self, data)
+
+    def kfolder(self):
+        if self.is_classifier:
+            return TargetMateClassifierSetup.kfolder(self)
+        else:
+            return TargetMateRegressorSetup.kfolder(self)
 

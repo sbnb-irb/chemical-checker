@@ -17,13 +17,13 @@ from chemicalchecker.util import logged
 from .universes import Universe
 from .utils import metrics
 from .utils import plots
-from .signaturizer import Signaturizer, Fingerprinter
-from .tmsetup import TargetMateRegressorSetup, TargetMateClassifierSetup
+from .signaturizer import SignaturizerSetup
+from .tmsetup import ModelSetup
 from .io import InputData, Prediction
 
 
 @logged
-class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
+class Model(ModelSetup):
     """Generic model class"""
 
     def __init__(self, is_classifier, **kwargs):
@@ -32,11 +32,7 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
         Args:
             is_classifier(bool): Is the model a classifier or a regressor?
         """
-        if is_classifier:
-            TargetMateClassifierSetup.__init__(self, **kwargs)
-        else:
-            TargetMateRegressorSetup.__init__(self, **kwargs)
-        self.is_classifier = is_classifier
+        ModelSetup.__init__(self, is_classifier, **kwargs)
         self.weights = None
         self.mod_dir = None
 
@@ -57,7 +53,8 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
         y = self.check_array_from_disk(y)
         self.__log.info("Setting the base model")
         shuff = np.array(range(len(y)))
-        random.shuffle(shuff)        
+        if self.shuffle:
+            random.shuffle(shuff)        
         base_mod = self.algo.as_pipeline(X[shuff], y[shuff])
         if destination_dir:
             self.__log.info("Saving base model in %s" % destination_dir)
@@ -79,7 +76,8 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
         X = self.check_array_from_disk(X)
         y = self.check_array_from_disk(y)
         shuff = np.array(range(len(y)))
-        random.shuffle(shuff)
+        if self.shuffle:
+            random.shuffle(shuff)
         mod = self.weight_algo.as_pipeline(X[shuff], y[shuff])
         kf = self.kfolder()
         y_pred = []
@@ -110,7 +108,8 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
         # Get stargetd
         base_mod = self.find_base_mod(X, y, destination_dir = destination_dir)
         shuff = np.array(range(len(y)))
-        random.shuffle(shuff)
+        if self.shuffle:
+            random.shuffle(shuff)
         if self.conformity:
             self.__log.info("Preparing cross-conformity")
             # Cross-conformal prediction
@@ -161,23 +160,12 @@ class Model(TargetMateClassifierSetup, TargetMateRegressorSetup):
 
 
 @logged
-class FingerprintedModel(Model, Fingerprinter):
-    """ """
+class SignaturedModel(Model, SignaturizerSetup):
 
     def __init__(self, **kwargs):
         """ """
         Model.__init__(self, **kwargs)
-        Fingerprinter.__init__(self, do_init=False, **kwargs)
-        self.is_ensemble = False
-
-
-@logged
-class SignaturedModel(Model, Signaturizer):
-
-    def __init__(self, **kwargs):
-        """ """
-        Model.__init__(self, **kwargs)
-        Signaturizer.__init__(self, do_init=False, **kwargs)
+        SignaturizerSetup.__init__(self, do_init = False, **kwargs)
 
     def get_data_fit(self, data):
         data = self.prepare_data(data)
@@ -221,13 +209,14 @@ class StackedModel(SignaturedModel):
             y = data.activity[idxs]
         if self.hpc:
             y = self.array_on_disk(y)
-        X = self.read_signatures_stacked(datasets=self.datasets, idxs=idxs)
+        X = self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs)
         X = self.pca_fit(X)
+        self.__log.info("Samples: %d, Dimensions %s" % X.shape)
         jobs = []
         if self.is_tmp:
-            dest = os.path.join(self.bases_tmp_path, "stacked")
+            dest = os.path.join(self.bases_tmp_path, "Stacked")
         else:
-            dest = os.path.join(self.bases_models_path, "stacked")
+            dest = os.path.join(self.bases_models_path, "Stacked")
         if self.hpc:
             X = self.array_on_disk(X)
             jobs += [self.func_hpc("_fit", X, y, dest, cpu=self.n_jobs_hpc)]
@@ -252,8 +241,16 @@ class StackedModel(SignaturedModel):
         if not wait:
             return jobs
 
-    def predict_stack(self, idxs, wait):
-        X = self.read_signatures_stacked(datasets=self.datasets, idxs=idxs)
+    def _predict_(self, X, dest):
+        if self.is_tmp:
+            dest_ = os.path.join(self.bases_tmp_path, "Stacked")
+        else:
+            dest_ = os.path.join(self.bases_models_path, "Stacked")
+        self.mod_dir = dest_
+        self._predict(X, dest)
+
+    def predict_stack(self, data, idxs, wait):
+        X = self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs)
         X = self.pca_transform(X)
         if self.is_tmp:
             dest = os.path.join(self.predictions_tmp_path, "Stacked")
@@ -262,14 +259,14 @@ class StackedModel(SignaturedModel):
         jobs = []
         if self.hpc:
             X = self.array_on_disk(X)
-            jobs += [self.func_hpc("_predict", X, dest, cpu=self.n_jobs_hpc)]
+            jobs += [self.func_hpc("_predict_", X, dest, cpu=self.n_jobs_hpc)]
         else:
-            self._predict(X, destination_dir=dest)
+            self._predict_(X, dest)
         if wait:
             self.waiter(jobs)
         return jobs
 
-    def load_predictions(self, datasets):
+    def load_predictions(self, datasets=None):
         datasets = self.get_datasets(datasets)
         y_pred = []
         if self.is_tmp:
@@ -289,12 +286,11 @@ class StackedModel(SignaturedModel):
         self.is_tmp = is_tmp
         datasets = self.get_datasets(datasets)
         self.signaturize(data.smiles, datasets=datasets)
-        jobs = self.predict_stack(data, idxs=idxs, datasets=datasets, wait=wait)
+        jobs = self.predict_stack(data, idxs=idxs, wait=wait)
         if wait:
             return self.load_predictions(datasets)
         else:
             return jobs
-
 
 
 @logged
@@ -316,7 +312,7 @@ class EnsembleModel(SignaturedModel):
         if self.hpc:
             y = self.array_on_disk(y)
         jobs = []
-        for i, X in enumerate(self.read_signatures_ensemble(datasets=self.datasets, idxs=idxs)):  
+        for i, X in enumerate(self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs)):  
             self.__log.info("Fitting on %s" % self.datasets[i])
             if self.is_tmp:
                 dest = os.path.join(self.bases_tmp_path, self.datasets[i])
@@ -351,7 +347,7 @@ class EnsembleModel(SignaturedModel):
     def predict_ensemble(self, data, idxs, datasets, wait):
         datasets = self.get_datasets(datasets)
         jobs = []
-        for i, X in enumerate(self.read_signatures_ensemble(datasets=datasets, idxs=idxs)):
+        for i, X in enumerate(self.read_signatures(is_ensemble=self.is_ensemble, datasets=datasets, idxs=idxs)):
             self.__log.info("Predicting on %s (n = %d)" % (self.datasets[i], X.shape[0]))
             if self.is_tmp:
                 dest = os.path.join(self.predictions_tmp_path, self.datasets[i])

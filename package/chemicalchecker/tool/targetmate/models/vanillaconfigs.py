@@ -1,6 +1,8 @@
 from sklearn.pipeline import Pipeline
 from sklearn.feature_selection import VarianceThreshold
 
+SEED = 42
+
 class VanillaClassifierConfigs:
 
     def __init__(self, base_mod, n_jobs, **kwargs):
@@ -16,6 +18,7 @@ class VanillaClassifierConfigs:
                 n_estimators=500,
                 class_weight="balanced",
                 max_features="sqrt",
+                random_state=SEED,
                 n_jobs=n_jobs)
         if base_mod == "naive_bayes":
             from sklearn.naive_bayes import GaussianNB
