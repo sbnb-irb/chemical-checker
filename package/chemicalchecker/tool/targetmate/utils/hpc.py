@@ -21,12 +21,12 @@ class HPCUtils:
     def waiter(self, jobs, secs=3):
         """Wait for jobs to finish"""
         if not jobs: return
-        self.__log.debug("Waiting for jobs to finish...")
+        self.__log.info("Waiting for jobs to finish...")
         while np.any([job.status() != "done" for job in jobs]):
             for job in jobs:
                 self.__log.debug(job.status())
             time.sleep(secs)
-        self.__log.debug("Jobs done.") 
+        self.__log.info("Jobs done.") 
 
     def func_hpc(self, func_name, *args, **kwargs):
         """Execute the *any* method on the configured HPC.

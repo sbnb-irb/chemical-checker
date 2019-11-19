@@ -7,10 +7,11 @@ class InputData:
     
     def __init__(self, data):
         """Initialize input data class"""
-        self.idx       = np.array([d[0] for d in data])
-        self.activity  = np.array([float(d[1]) for d in data])
-        self.smiles    = np.array([d[2] for d in data])
-        self.inchikey  = np.array([d[3] for d in data])
+        sorted_idx     = np.argsort(np.array([d[0] for d in data]))
+        self.idx       = np.array([d[0] for d in data])[sorted_idx]
+        self.activity  = np.array([float(d[1]) for d in data])[sorted_idx]
+        self.smiles    = np.array([d[2] for d in data])[sorted_idx]
+        self.inchikey  = np.array([d[3] for d in data])[sorted_idx]
 
     def __iter__(self):
         for idx, v in self.as_dataframe().iterrows():
