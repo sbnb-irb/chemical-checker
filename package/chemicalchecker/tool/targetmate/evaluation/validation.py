@@ -8,6 +8,8 @@ from sklearn import model_selection
 from ..utils import metrics
 from ..utils import HPCUtils
 
+SEED = 42
+MAXQUEUE = 100
 
 def load_validation(destination_dir):
     with open(destination_dir, "rb") as f:
@@ -93,9 +95,9 @@ class Performances:
                         auroc[1, k]  = metrics.roc_score(yt_, yp[:,1,k])[0]
                         aupr[1, k]   = metrics.pr_score(yt_, yp[:,1,k])[0]
                         bedroc[1, k] = metrics.bedroc_score(yt_, yp[:,1,k])[0]
-        self.auroc  += [auroc]
-        self.bedroc += [bedroc]
-        self.aupr   += [aupr]
+            self.auroc  += [auroc]
+            self.bedroc += [bedroc]
+            self.aupr   += [aupr]
 
     def regressor_performances(self, yt, yp):
         """TO-DO"""
@@ -181,16 +183,14 @@ class Scorer:
 
 
 @logged
-class Validation(HPCUtils):
+class BaseValidation(object):
     """Validation class."""
 
     def __init__(self,
-                 splitter=None,
-                 is_cv=True,
-                 n_splits=5,
-                 test_size=0.2,
-                 destination_dir=None,
-                 **kwargs):
+                 splitter,
+                 is_cv,
+                 n_splits,
+                 test_size):
         """Initialize validation class.
 
         Args:
@@ -200,33 +200,41 @@ class Validation(HPCUtils):
             test_size(float): Proportion of samples in the test set (default=0.2).
             destination_dir(str): If non specified, the models path of the TargetMate instance is used (default=None).
         """
-        HPCUtils.__init__(self, **kwargs)
-        self.splitter = splitter
-        self.is_cv = is_cv
-        self.n_splits = n_splits
-        self.test_size = test_size
-        self.destination_dir = destination_dir
-        
-    def compute(self, tm, data, train_idx, test_idx):
-        """Do the cross-validation"""
-        # Initialize
-        self.tmp_path = tm.tmp_path
-        self.is_classifier = tm.is_classifier
-        self.is_ensemble = tm.is_ensemble
-        self.conformity = tm.conformity
-        self.weights = tm.weights
-        # Signaturize
-        self.__log.info("Signaturizing all data")
-        tm.signaturize(data.smiles, is_tmp=True)
-        # Splits
-        self.__log.debug("Computing validation")
+        self.splitter      = splitter
+        self.is_cv         = is_cv
+        self._n_splits     = n_splits
+        self.test_size     = test_size
+
+        self.models_path   = []
+        self.tmp_path      = []
+        self.gather_path   = []
+        self.scores_path   = []
+
+        self.is_ensemble   = []
+        self.is_classifier = []
+        self.conformity    = []
+        self.datasets      = []
+        self.weights       = []
+        self.n_splits      = []
+
+    def setup(self, tm):
+        self.models_path   += [tm.models_path]
+        self.tmp_path      += [tm.tmp_path]
+        self.is_ensemble   += [tm.is_ensemble]
+        self.is_classifier += [tm.is_classifier]
+        self.conformity    += [tm.conformity]
+        self.datasets      += [tm.datasets]
+        self.weights       += [tm.weights]
+
+    def get_splits(self, tm, data, train_idx, test_idx):
+        self.__log.info("Splitting")
         if train_idx is not None and test_idx is not None:
             kf = PrecomputedSplitter(train_idx, test_idx)
         else:
             if not self.splitter:
                 if self.is_cv:
                     if tm.is_classifier:
-                        kf = model_selection.StratifiedKFold(n_splits=self.n_splits, shuffle=True)
+                        kf = model_selection.StratifiedKFold(n_splits=self._n_splits, shuffle=True, random_state=SEED)
                     else:
                         self.__log.error("CV FOR REGRESSION NOT YET DONE")
                         # TO-DO
@@ -234,14 +242,17 @@ class Validation(HPCUtils):
                 else:
                     if tm.is_classifier:
                         self.__log.info("Setting up a stratified shuffle split")
-                        kf = model_selection.StratifiedShuffleSplit(n_splits=self.n_splits, test_size=self.test_size)
+                        kf = model_selection.StratifiedShuffleSplit(n_splits=self._n_splits, test_size=self.test_size, random_state=SEED)
                     else:
                         self.__log.error("SPLITTING FOR REGRESSION NOT YET DONE")
                         # TO-DO
             else:
                 kf = self.splitter
         splits = [(train_idx, test_idx) for train_idx, test_idx in kf.split(X=np.zeros(len(data.activity)), y=data.activity)]
-        # Fit
+        self.n_splits += [len(splits)]
+        return splits
+
+    def fit(self, tm, data, splits):
         self.__log.info("Fitting")
         i = 0
         jobs = []
@@ -251,65 +262,65 @@ class Validation(HPCUtils):
             self.__log.info(tm.bases_tmp_path)
             jobs += tm.fit(data, idxs=train_idx, is_tmp=True, wait=False)
             i += 1
-        self.waiter(jobs)
-        # Predict
-        self.__log.info("Predicting for train")
+        return jobs
+
+    def predict(self, tm, data, splits, is_train):
+        if is_train: label = "Train"
+        else: label = "Test"
+        self.__log.info("Predicting for %s" % label)
         i = 0
         jobs = []
         for train_idx, test_idx in splits:
+            if is_train:
+                idx = train_idx
+            else:
+                idx = test_idx
             self.__log.info("Fold %02d" % i)
             tm.repath_bases_by_fold(fold_number=i, is_tmp=True, reset=True)
-            tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=True, is_tmp=True, reset=True)
+            tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=is_train, is_tmp=True, reset=True)
             self.__log.info(tm.predictions_tmp_path)
-            jobs += tm.predict(data, idxs=train_idx, is_tmp=True, wait=False)
+            jobs += tm.predict(data, idxs=idx, is_tmp=True, wait=False)
             i += 1
-        self.waiter(jobs)
-        self.__log.info("Predicting for test")
-        i = 0
-        jobs = []
-        for train_idx, test_idx in splits:
-            self.__log.info("Fold %02d" % i)
-            tm.repath_bases_by_fold(fold_number=i, is_tmp=True, reset=True)
-            tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=False, is_tmp=True, reset=True)
-            self.__log.info(tm.predictions_tmp_path)
-            jobs += tm.predict(data, idxs=test_idx, is_tmp=True, wait=False)
-            i += 1
-        self.waiter(jobs)
-        self.n_splits = i
+        return jobs
+        
+    def gather(self, tm, data, splits):
         # Gather data
-        gather = Gatherer(is_ensemble = self.is_ensemble)
+        gather = Gatherer(is_ensemble = tm.is_ensemble)
         gather.gather(tm, data, splits)
-        self.gather_path = os.path.join(self.tmp_path, "validation-gather.pkl")
-        with open(self.gather_path, "wb") as f:
+        gather_path = os.path.join(tm.tmp_path, "validation_gather.pkl")
+        with open(gather_path, "wb") as f:
             pickle.dump(gather, f)
+        self.gather_path += [gather_path]
 
     def score(self):
         self.__log.info("Loading gathered predictions")
-        with open(self.gather_path, "rb") as f:
-            gather = pickle.load(f)
-        scores = Scorer(is_classifier = self.is_classifier, is_ensemble = self.is_ensemble)
-        scores.score(gather)
-        self.scores_path = os.path.join(self.tmp_path, "validation_scores.pkl")
-        with open(self.scores_path, "wb") as f:
-             pickle.dump(scores, f)
+        for tmp_path, gather_path, is_classifier, is_ensemble in zip(self.tmp_path, self.gather_path, self.is_classifier, self.is_ensemble):
+            with open(gather_path, "rb") as f:
+                gather = pickle.load(f)
+            scores = Scorer(is_classifier = is_classifier, is_ensemble = is_ensemble)
+            scores.score(gather)
+            scores_path = os.path.join(tmp_path, "validation_scores.pkl")
+            with open(scores_path, "wb") as f:
+                 pickle.dump(scores, f)
+            self.scores_path += [scores_path]
         
-    def as_dict(self):
+    def _as_dict(self, i):
         self.__log.debug("Reading gatherer")
-        with open(self.gather_path, "rb") as f:
+        with open(self.gather_path[i], "rb") as f:
             gather = pickle.load(f)
         self.__log.debug("Reading scores")
-        with open(self.scores_path, "rb") as f:
+        with open(self.scores_path[i], "rb") as f:
             scores = pickle.load(f)
         self.__log.info("Converting to dictionary")
         valid = {
-            "n_splits": self.n_splits,
+            "n_splits": self.n_splits[i],
             "dim_dict": ("splits", "molecules", "outcomes", "ensemble"),
-            "is_classifier": self.is_classifier,
-            "is_ensemble": self.is_ensemble,
-            "conformity": self.conformity,
-            "datasets": self.datasets,
-            "weights": self.weights,
-            "destination_dir": self.destination_dir,
+            "is_classifier": self.is_classifier[i],
+            "is_ensemble": self.is_ensemble[i],
+            "conformity": self.conformity[i],
+            "datasets": self.datasets[i],
+            "weights": self.weights[i],
+            "models_path": self.models_path[i],
             "train": {
                     "idx"   : gather.train_idx,
                     "y_true": gather.y_true_train,
@@ -323,7 +334,7 @@ class Validation(HPCUtils):
                     "perfs" : scores.perfs_test.as_dict()
             }
         }
-        if self.is_ensemble:
+        if self.is_ensemble[i]:
             valid["ens_train"] = {
                 "y_true": gather.y_true_train,
                 "y_pred": gather.y_pred_ens_train,
@@ -334,42 +345,140 @@ class Validation(HPCUtils):
                 "y_pred": gather.y_pred_ens_test,
                 "perfs" : scores.perfs_ens_test.as_dict()
             }
+        print("TRAIN AUROC", valid["train"]["perfs"]["auroc"])
+        print("TEST AUROC ", valid["test"]["perfs"]["auroc"])
         return valid
     
-    def save(self, d=None):
-        """Save. If d is specified, a dictionary is saved."""
-        self.__log.debug("Saving validation")
-        with open(self.destination_dir, "wb") as f:
-            if d is None:
-                pickle.dump(self, f)
-            else:
-                pickle.dump(d, f)
+    def as_dict(self):
+        for i in range(0, len(self.models_path)):
+            yield self._as_dict(i)
+        
+    def save(self):
+        for valid in self.as_dict():
+            filename = os.path.join(valid["models_path"], "validation.pkl")
+            with open(filename, "wb") as f:
+                pickle.dump(valid, f)
 
-    def validate(self, tm, data, train_idx=None, test_idx=None, as_dict=True, save=True, wipe=True):
+
+@logged
+class Validation(BaseValidation, HPCUtils):
+
+    def __init__(self,
+                 splitter=None,
+                 is_cv=False,
+                 n_splits=3,
+                 test_size=0.2,
+                 **kwargs):
+        HPCUtils.__init__(self, **kwargs)
+        BaseValidation.__init__(self, splitter, is_cv, n_splits, test_size)
+
+    def single_validate(self, tm, data, train_idx, test_idx, wipe, **kwargs):
+        # Initialize
+        self.__log.info("Setting up")
+        self.setup(tm)
+        # Signaturize
+        self.__log.info("Signaturizing all data")
+        tm.signaturize(data.smiles, is_tmp=True, wait=True)
+        # Splits
+        self.__log.info("Getting splits")
+        splits = self.get_splits(tm, data, train_idx, test_idx)
+        # Fit
+        self.__log.info("Fit with train")
+        jobs = self.fit(tm, data, splits)
+        self.waiter(jobs)
+        # Predict for train
+        self.__log.info("Predict for train")
+        jobs = self.predict(tm, data, splits, is_train=True)
+        self.waiter(jobs)
+        # Predict for test
+        self.__log.info("Predict for test")
+        jobs = self.predict(tm, data, splits, is_train=False)
+        self.waiter(jobs)
+        # Gather
+        self.__log.info("Gather")
+        self.gather(tm, data, splits)
+        # Score
+        self.__log.info("Scores")
+        self.score()
+        # Save
+        self.__log.info("Save")
+        self.save()
+        # Wipe
+        if wipe:
+            tm.wipe()
+
+    def multi_validate(self, tm_list, data_list, wipe, **kwargs):
+        # Initialize
+        self.__log.info("Setting up")
+        for tm in tm_list:
+            self.setup(tm)
+        # Signaturize
+        self.__log.info("Signaturizing all data")
+        jobs = []
+        for tm, data in zip(tm_list, data_list):
+            jobs += tm.signaturize(data.smiles, is_tmp=True, wait=False)
+            if len(jobs) > MAXQUEUE:
+                self.waiter(jobs)
+                jobs = []
+        self.waiter(jobs)
+        # Splits
+        self.__log.info("Getting splits")
+        splits_list = []
+        for tm, data in zip(tm_list, data_list):
+            splits_list += [self.get_splits(tm, data, None, None)]
+        # Fit
+        self.__log.info("Fit with train")
+        jobs = []
+        for tm, data, splits in zip(tm_list, data_list, splits_list):
+            jobs += self.fit(tm, data, splits)
+            if len(jobs) > MAXQUEUE:
+                self.waiter(jobs)
+                jobs = []
+        self.waiter(jobs)
+        # Predict for train
+        self.__log.info("Predict for train")
+        jobs = []
+        for tm, data, splits in zip(tm_list, data_list, splits_list):
+            jobs += self.predict(tm, data, splits, is_train=True)
+            if len(jobs) > MAXQUEUE:
+                self.waiter(jobs)
+                jobs = []
+        self.waiter(jobs)
+        # Predict for test
+        self.__log.info("Predict for test")
+        jobs = []
+        for tm, data, splits in zip(tm_list, data_list, splits_list):
+            jobs += self.predict(tm, data, splits, is_train=False)
+            if len(jobs) > MAXQUEUE:
+                self.waiter(jobs)
+                jobs = []
+        self.waiter(jobs)
+        # Gather
+        self.__log.info("Gather")
+        for tm, data, splits in zip(tm_list, data_list, splits_list):
+            self.gather(tm, data, splits)
+        # Score
+        self.__log.info("Scores")
+        self.score()
+        # Save
+        self.__log.info("Save")
+        self.save()
+        # Wipe
+        if wipe:
+            for tm in tm_list:
+                tm.wipe()
+
+    def validate(self, tm, data, train_idx=None, test_idx=None, wipe=True):
         """Validate a TargetMate model using train-test splits.
 
         Args:
-            tm(TargetMate model): The TargetMate model to be evaluated.
-            data(InputData): Data object.
+            tm(TargetMate model, or list of): The TargetMate model to be evaluated. A list is accepted.
+            data(InputData, or list of): Data object. A list is accepted.
             train_idx(array): Precomputed indices for the train set (default=None). 
             test_idx(array): Precomputed indices for the test set (default=None).
-            as_dict(bool): Return as dictionary, for portability; if False, the validation is done inplace (default=True).
-            save(bool): Save (default=True).
             wipe(bool): Clean temporary directory once done (default=True).
         """
-        if self.destination_dir is None:
-            self.destination_dir = os.path.join(tm.models_path, "validation.pkl")
+        if type(tm) != list:
+            self.single_validate(tm=tm, data=data, train_idx=train_idx, test_idx=test_idx, wipe=wipe)
         else:
-            self.destination_dir = self.destination_dir
-        self.datasets = tm.datasets
-        self.compute(tm, data, train_idx, test_idx)
-        self.score()
-        if as_dict:
-            d = self.as_dict()
-        else:
-            d = None
-        if save:
-            self.save(d = d)
-        if wipe:
-            tm.wipe()
-        return d
+            self.multi_validate(tm_list=tm, data_list=data, wipe=wipe)

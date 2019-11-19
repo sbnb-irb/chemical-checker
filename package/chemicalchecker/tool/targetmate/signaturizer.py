@@ -6,45 +6,91 @@ from chemicalchecker.core.signature_data import DataSignature
 from chemicalchecker.util import logged
 
 from .utils import chemistry
+from .utils import HPCUtils
 from .tmsetup import TargetMateSetup
 
+
 @logged
-class Fingerprinter(TargetMateSetup):
+class BaseSignaturizer(TargetMateSetup, HPCUtils):
+
+    def __init__(self, **kwargs):
+        TargetMateSetup.__init__(self, **kwargs)
+        if self.is_classic:
+            HPCUtils.__init__(self, **kwargs)
+
+    def get_datasets(self, datasets=None):
+        if self.is_classic:
+            return self.datasets
+        else:
+            if datasets is None:
+                return self.datasets
+            else:
+                return sorted(set(self.datasets).intersection(datasets))
+
+    def get_destination_dir(self, dataset, is_tmp=None):
+        if is_tmp is None:
+            is_tmp = self.is_tmp
+        else:
+            is_tmp = is_tmp
+        if self.is_classic:
+            if is_tmp:
+                return os.path.join(self.signatures_tmp_path, self.dataset)
+            else:
+                return os.path.join(self.signatures_models_path, self.dataset)
+        else:
+            if is_tmp:
+                return os.path.join(self.signatures_tmp_path, dataset)
+            else:
+                return os.path.join(self.signatures_models_path, dataset)
+
+
+@logged
+class Fingerprinter(BaseSignaturizer):
     """Set up a Fingerprinter. This is usually used as a baseline featurizer to compare with CC signatures."""
 
     def __init__(self, **kwargs):
-        # Inherit TargetMateSetup
-        TargetMateSetup.__init__(**kwargs)
+        # Inherit
+        BaseSignaturizer.__init__(self, **kwargs)
         # Featurizer
-        self.featurizer = chemistry.morgan_matrix
-        self.dataset = "FP"
+        self.featurizer_func = chemistry.morgan_matrix
+        self.datasets = ["FP"]
+        self.dataset  = self.datasets[0]
 
-    def featurize(self, smiles, **kwargs):
+    def featurizer(self, smiles, destination_dir):
+        V = self.featurizer_func(smiles)
+        with h5py.File(destination_dir, "w") as hf:
+            hf.create_dataset("V", data = V.astype(np.int8))
+            hf.create_dataset("keys", data = np.array(smiles, DataSignature.string_dtype()))
+
+    def signaturize(self, smiles, is_tmp=None, wait=True, **kwargs):
         """Calculate fingerprints"""
-        if self.is_tmp:
-            destination_dir = os.path.join(self.tmp_path, self.dataset)
-        else:
-            destination_dir = os.path.join(self.models_path, self.dataset)
+        destination_dir = self.get_destination_dir(dataset = None, is_tmp = is_tmp)
+        jobs = []
         if os.path.exists(destination_dir):
             self.__log.debug("Fingerprint file already exists: %s" %  destination_dir)
         else:
-            V = self.featurizer(smiles)
-            with h5py.File(destination_dir, "wb") as hf:
-                hf.create_dataset("V", data = V.astype(np.int8))
-                hf.create_dataset("keys", data = np.array(smiles, DataSignature.string_dtype()))
-    
-    def read_fingerprint(self, idxs=None, fp_file=None):
-        """Read a signature from an HDF5 file"""
-        # Identify HDF5 file
-        if not fp_file:
-            if self.is_tmp:
-                h5file = os.path.join(self.tmp_path, self.dataset)
+            self.__log.debug("Calculating fingerprint")
+            if not self.hpc:
+                self.featurizer(smiles, destination_dir)
             else:
-                h5file = os.path.join(self.models_path, self.dataset)
+                job = self.func_hpc("featurizer",
+                                    smiles, 
+                                    destination_dir,
+                                    cpu = 4,
+                                    wait = False)
+                jobs += [job]
+        if wait:
+            self.waiter(jobs)
+        return jobs
+
+    # Signature readers
+    def read_signatures(self, idxs=None, is_tmp=None, sign_folder=None, **kwargs):
+        """Read a signature from an HDF5 file"""
+        if not sign_folder:
+            destination_dir = self.get_destination_dir(dataset = None, is_tmp=is_tmp)
         else:
-            h5file = os.path.join(fp_file)
-        # Read the file
-        with h5py.File(h5file, "r") as hf:
+            destination_dir = os.path.join(sign_folder, self.dataset)
+        with h5py.File(destination_dir, "r") as hf:
             if idxs is None:
                 V = hf["V"][:]
             else:
@@ -53,7 +99,7 @@ class Fingerprinter(TargetMateSetup):
 
 
 @logged
-class Signaturizer(TargetMateSetup):
+class Signaturizer(BaseSignaturizer):
     """Set up a Signaturizer"""
 
     def __init__(self,
@@ -69,8 +115,8 @@ class Signaturizer(TargetMateSetup):
             sign_predict_fn(dict): pre-loaded predict_fn, keys are dataset
                 codes, values are tuples of (sign, predict_fn)
         """
-        # Inherit TargetMateSetup
-        TargetMateSetup.__init__(self, **kwargs)
+        # Inherit
+        BaseSignaturizer.__init__(self, **kwargs)
         # Datasets
         if not datasets:
             # self.datasets = list(self.cc.datasets)
@@ -82,30 +128,14 @@ class Signaturizer(TargetMateSetup):
         if not sign_predict_paths:
             self.sign_predict_paths = {}
             for ds in self.datasets:
-                self.__log.debug("Loading signature predictr for %s" % ds)
+                self.__log.debug("Loading signature predictor for %s" % ds)
                 s3 = self.cc.get_signature("sign3", "full", ds)
                 self.sign_predict_paths[ds] = s3
         else:
             self.sign_predict_paths = sign_predict_paths
 
-    def get_datasets(self, datasets=None):
-        if datasets is None:
-            return self.datasets
-        else:
-            return sorted(set(self.datasets).intersection(datasets))
-
-    def get_destination_dir(self, dataset, is_tmp=None):
-        if is_tmp is None:
-            is_tmp = self.is_tmp
-        else:
-            is_tmp = is_tmp
-        if is_tmp:
-            return os.path.join(self.signatures_tmp_path, dataset)
-        else:
-            return os.path.join(self.signatures_models_path, dataset)
-
     # Calculate signatures
-    def signaturize(self, smiles, datasets=None, is_tmp=None, chunk_size=1000):
+    def signaturize(self, smiles, datasets=None, is_tmp=None, chunk_size=1000, wait=True, **kwargs):
         self.__log.info("Calculating sign for every molecule.")
         datasets = self.get_datasets(datasets)
         jobs  = []
@@ -123,10 +153,12 @@ class Signaturizer(TargetMateSetup):
                     job = s3.func_hpc("predict_from_smiles", smiles,
                                       destination_dir, chunk_size, None, False,
                                       cpu=np.max([self.n_jobs_hpc,8]),
-                                      memory=18,
+                                      memory=16,
                                       wait=False)
                     jobs += [job]
-        self.waiter(jobs)
+        if wait:
+            self.waiter(jobs)
+        return jobs
      
     # Signature readers
     def read_signature(self, dataset, idxs=None, is_tmp=None, sign_folder=None):
@@ -156,3 +188,31 @@ class Signaturizer(TargetMateSetup):
         for ds in datasets:
             V += [self.read_signature(ds, **kwargs)]
         return np.hstack(V)
+
+    def read_signatures(self, is_ensemble, **kwargs):
+        if is_ensemble:
+            return self.read_signatures_ensemble(**kwargs)
+        else:
+            return self.read_signatures_stacked(**kwargs)
+
+
+class SignaturizerSetup(Signaturizer, Fingerprinter):
+
+    def __init__(self, **kwargs):
+        if self.is_classic:
+            Fingerprinter.__init__(self, **kwargs)
+        else:
+            Signaturizer.__init__(self, **kwargs)
+        
+    def signaturize(self, smiles, **kwargs):
+        if self.is_classic:
+            return Fingerprinter.signaturize(self, smiles, **kwargs)
+        else:
+            return Signaturizer.signaturize(self, smiles, **kwargs)
+
+    def read_signatures(self, **kwargs):
+        if self.is_classic:
+            return Fingerprinter.read_signatures(self, **kwargs)
+        else:
+            return Signaturizer.read_signatures(self, **kwargs)
+
