@@ -16,6 +16,7 @@ from chemicalchecker.util import Config
 from .utils import HPCUtils
 from .utils import chemistry
 from .utils import conformal
+from .utils.log import set_logging
 from .io import InputData
 from .universes import Universe
 from .models.vanillaconfigs import VanillaClassifierConfigs
@@ -32,7 +33,7 @@ class TargetMateSetup(HPCUtils):
                  is_classic = False,
                  overwrite = True,
                  n_jobs = None,
-                 n_jobs_hpc = 4,
+                 n_jobs_hpc = 8,
                  standardize = False,
                  cv_folds = 5,
                  conformity = True,
@@ -40,6 +41,7 @@ class TargetMateSetup(HPCUtils):
                  do_init = True,
                  train_timeout = 3600,
                  shuffle = False,
+                 log = "INFO",
                  **kwargs):
         """Basic setup of the TargetMate.
 
@@ -109,6 +111,9 @@ class TargetMateSetup(HPCUtils):
         self.train_timeout = train_timeout
         # Shuffle
         self.shuffle = shuffle
+        # Logging
+        self.log = log
+        set_logging(self.log)
         # Others
         self._is_fitted  = False
         self._is_trained = False
@@ -310,12 +315,18 @@ class TargetMateClassifierSetup(TargetMateSetup):
         self.model_config = model_config
         if self.model_config == "vanilla":
             self.algo = VanillaClassifierConfigs(self.algo, n_jobs=n_jobs)
+        if self.model_config == "grid":
+            from .models.gridconfigs import GridClassifierConfigs
+            self.algo = GridClassifierConfigs(self.algo, n_jobs=n_jobs)
         if self.model_config == "tpot":
             from .models.tpotconfigs import TPOTClassifierConfigs
             self.algo = TPOTClassifierConfigs(self.algo, n_jobs=n_jobs)
         if self.model_config == "autosklearn":
             from .models.autosklearnconfigs import AutoSklearnClassifierConfigs
-            self.algo = AutoSklearnClassifierConfigs(n_jobs=n_jobs, tmp_path=self.tmp_path, train_timeout=self.train_timeout)
+            self.algo = AutoSklearnClassifierConfigs(n_jobs=n_jobs,
+                                                     tmp_path=self.tmp_path,
+                                                     train_timeout=self.train_timeout,
+                                                     log=self.log)
         # Weight algo
         self.weight_algo = VanillaClassifierConfigs(weight_algo, n_jobs=self.n_jobs) # TO-DO: This is run locally for now.
         # Minimum size of the minority class
