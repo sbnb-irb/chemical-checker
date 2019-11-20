@@ -47,10 +47,10 @@ class HPCUtils:
             os.mkdir(job_path)
         # check cpus
         cpu = kwargs.get("cpu", 1)
+        memory = kwargs.get("memory", int(cpu*2))
         # create script file
         script_lines = [
             "import os, sys",
-            "os.environ['OMP_NUM_THREADS'] = str(%s)" % cpu,
             "import pickle",
             "with open(sys.argv[1], 'rb') as f:"
             "    obj, args = pickle.load(f)",
@@ -72,6 +72,8 @@ class HPCUtils:
         params["num_jobs"] = 1
         params["jobdir"] = job_path
         params["job_name"] = script_name
+        params["cpu"] = cpu
+        params["memory"] = memory
         params["wait"] = False
         # job command
         singularity_image = cfg.PATH.SINGULARITY_IMAGE
