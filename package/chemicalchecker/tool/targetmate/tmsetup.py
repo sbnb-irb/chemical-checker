@@ -39,6 +39,7 @@ class TargetMateSetup(HPCUtils):
                  conformity = True,
                  hpc = False,
                  do_init = True,
+                 grid_n_iter = 10,
                  train_timeout = 3600,
                  shuffle = False,
                  log = "INFO",
@@ -58,6 +59,7 @@ class TargetMateSetup(HPCUtils):
             cv_folds(int): Number of cross-validation folds (default=5)
             conformity(bool): Do cross-conformal prediction (default=True)
             hpc(bool): Use HPC (default=False)
+            grid_n_iter(int): Number of iterations in a grid search for parameters (default=10).
             train_timeout(int): Maximum time in seconds for training a classifier; applies to autosklearn (default=3600).
         """
         if not do_init:
@@ -107,6 +109,8 @@ class TargetMateSetup(HPCUtils):
         # Use HPC
         self.n_jobs_hpc = n_jobs_hpc
         self.hpc = hpc
+        # Grid iterations
+        self.grid_n_iter = grid_n_iter
         # Timeout
         self.train_timeout = train_timeout
         # Shuffle
@@ -317,7 +321,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
             self.algo = VanillaClassifierConfigs(self.algo, n_jobs=n_jobs)
         if self.model_config == "grid":
             from .models.gridconfigs import GridClassifierConfigs
-            self.algo = GridClassifierConfigs(self.algo, n_jobs=n_jobs)
+            self.algo = GridClassifierConfigs(self.algo, n_jobs=n_jobs, n_iter = self.grid_n_iter)
         if self.model_config == "tpot":
             from .models.tpotconfigs import TPOTClassifierConfigs
             self.algo = TPOTClassifierConfigs(self.algo, n_jobs=n_jobs)
