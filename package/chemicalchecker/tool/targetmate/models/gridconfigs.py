@@ -24,9 +24,9 @@ search_configs = {
 @logged
 class GridClassifierConfigs:
 
-    def __init__(self, base_mod, n_jobs, **kwargs):
+    def __init__(self, base_mod, n_jobs, n_iter, **kwargs):
         self.SEED = 42
-        self.n_iter = 3
+        self.n_iter = n_iter
         self.base_mod = base_mod
         self.n_jobs = n_jobs
 
@@ -43,7 +43,7 @@ class GridClassifierConfigs:
                                  n_jobs = self.n_jobs,
                                  iid = False,
                                  cv = 5,
-                                 verbose = 2,
+                                 verbose = 0,
                                  scoring = "roc_auc",
                                  random_state = self.SEED
                                  )        
