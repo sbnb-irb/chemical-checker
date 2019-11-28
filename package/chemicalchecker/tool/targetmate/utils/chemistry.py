@@ -4,6 +4,7 @@ from rdkit.Chem import MACCSkeys
 from rdkit.Chem import DataStructs
 from rdkit.Chem import AllChem as Chem
 from rdkit.Chem.Descriptors import MolWt
+from rdkit.Chem.Scaffolds import MurckoScaffold
 
 from standardiser import standardise
 
@@ -42,6 +43,12 @@ def morgan_arena(smiles, file_name):
     create_db_file(smiles, file_name, 'Morgan', {'radius': 2, 'nBits': 1024})
     arena = FPSim2Engine(file_name)
     return arena
+
+
+def generate_scaffold(smiles, include_chirality=False):
+    """Bemis-Murcko scaffold"""
+    mol = Chem.MolFromSmiles(smiles)
+    return MurckoScaffold.MurckoScaffoldSmiles(mol=mol, includeChirality=include_chirality)
 
 
 def load_morgan_arena(file_name):
