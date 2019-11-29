@@ -190,23 +190,23 @@ class BaseValidation(object):
     def __init__(self,
                  splitter,
                  is_cv,
+                 is_stratified,
                  n_splits,
-                 test_size,
-                 scaffold_split):
+                 test_size):
         """Initialize validation class.
 
         Args:
-            splitter(object): If none specified, the corresponding TargetMate splitter is used (default=None).
-            is_cv(bool): If False, a simple train-test split is done (default=True).
-            cv_folds(int): Number of CV folds (default=5).
-            test_size(float): Proportion of samples in the test set (default=0.2).
-            destination_dir(str): If non specified, the models path of the TargetMate instance is used (default=None).
+            splitter(object): If none specified, the corresponding TargetMate splitter is used.
+            is_cv(bool): If False, a simple train-test split is done.
+            is_stratified(bool): Do stratified split.
+            n_splits(int): Number of splits to perform.
+            test_size(float): Proportion of samples in the test set.
         """
         self.splitter       = splitter
         self.is_cv          = is_cv
         self._n_splits      = n_splits
         self.test_size      = test_size
-        self.scaffold_split = scaffold_split
+        self.is_stratified  = is_stratified
 
         self.models_path    = []
         self.tmp_path       = []
@@ -235,25 +235,11 @@ class BaseValidation(object):
             kf = PrecomputedSplitter(train_idx, test_idx)
         else:
             if not self.splitter:
-                if self.is_cv:
-                    if tm.is_classifier:
-                        kf = model_selection.StratifiedKFold(n_splits=self._n_splits, shuffle=True, random_state=SEED)
-                    else:
-                        self.__log.error("CV FOR REGRESSION NOT YET DONE")
-                        # TO-DO
-                    #kf = tm.kfolder()
-                else:
-                    if tm.is_classifier:
-                        if self.scaffold_split:
-                            self.__log.info("Setting up a stratified scaffold split")
-                            #kf = splitters.StratifiedShuffleScaffoldSplit(n_splits=self._n_splits, test_size=self.test_size, random_state=SEED)
-                            kf = splitters.SortedScaffoldSplit(n_splits=self._n_splits, test_size=self.test_size, random_state=SEED)
-                        else:
-                            self.__log.info("Setting up a stratified shuffle split")
-                            kf = model_selection.StratifiedShuffleSplit(n_splits=self._n_splits, test_size=self.test_size, random_state=SEED)
-                    else:
-                        self.__log.error("SPLITTING FOR REGRESSION NOT YET DONE")
-                        # TO-DO
+                Spl = splitters.GetSplitter(is_cv=self.is_cv,
+                                            is_stratified=self.is_stratified,
+                                            is_classifier=tm.is_classifier,
+                                            scaffold_split=tm.scaffold_split)
+                kf = Spl(n_splits=self._n_splits, test_size=self.test_size, random_state=SEED)
             else:
                 kf = self.splitter
         splits = [(train_idx, test_idx) for train_idx, test_idx in kf.split(X=data.smiles, y=data.activity)]
@@ -321,7 +307,6 @@ class BaseValidation(object):
             scores = pickle.load(f)
         self.__log.info("Converting to dictionary")
         valid = {
-            "scaffold_split": self.scaffold_split,
             "n_splits": self.n_splits[i],
             "dim_dict": ("splits", "molecules", "outcomes", "ensemble"),
             "is_classifier": self.is_classifier[i],
@@ -375,12 +360,12 @@ class Validation(BaseValidation, HPCUtils):
     def __init__(self,
                  splitter=None,
                  is_cv=False,
+                 is_stratified=True,
                  n_splits=3,
                  test_size=0.2,
-                 scaffold_split=False,
                  **kwargs):
         HPCUtils.__init__(self, **kwargs)
-        BaseValidation.__init__(self, splitter, is_cv, n_splits, test_size, scaffold_split)
+        BaseValidation.__init__(self, splitter, is_cv, is_stratified, n_splits, test_size)
 
     def single_validate(self, tm, data, train_idx, test_idx, wipe, **kwargs):
         # Initialize
