@@ -173,14 +173,14 @@ class SignaturedModel(Model, SignaturizerSetup):
         Model.__init__(self, **kwargs)
         SignaturizerSetup.__init__(self, do_init = False, **kwargs)
 
-    def get_data_fit(self, data):
-        data = self.prepare_data(data)
+    def get_data_fit(self, data, smiles_idx=1, activity_idx=0, srcid_idx=None):
+        data = self.prepare_data(data, smiles_idx, activity_idx, srcid_idx)
         data = self.prepare_for_ml(data)
         return data
 
-    def get_data_predict(self, data):
-        data = self.prepare_data(data)
-        data = self.prepare_for_ml(data)
+    def get_data_predict(self, data, smiles_idx=0, activity_idx=None, srcid_idx=None):
+        data = self.prepare_data(data, smiles_idx, activity_idx, srcid_idx)
+        data = self.prepare_for_ml(data) # TO-DO: Check that this is necessary...
         return data
 
 

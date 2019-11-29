@@ -3,7 +3,6 @@
 import os
 import shutil
 import uuid
-import csv
 import pickle
 import numpy as np
 
@@ -14,10 +13,9 @@ from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util import Config
 
 from .utils import HPCUtils
-from .utils import chemistry
 from .utils import conformal
 from .utils.log import set_logging
-from .io import InputData
+from .io import read_data, reassemble_activity_sets
 from .universes import Universe
 from .models.vanillaconfigs import VanillaClassifierConfigs
 
@@ -142,12 +140,7 @@ class TargetMateSetup(HPCUtils):
         self.__log.info("MODELS PATH: %s" % self.models_path)
         self.__log.info("TMP PATH: %s" % self.tmp_path)
 
-    # Chemistry functions
-    @staticmethod
-    def read_smiles(smi, standardize):
-        return chemistry.read_smiles(smi, standardize)
-
-    # Other functions
+    # Directories functions
     @staticmethod
     def directory_tree(root):
         bases_path = os.path.join(root, "bases")
@@ -213,31 +206,12 @@ class TargetMateSetup(HPCUtils):
         self.repath_predictions_by_set(is_train=is_train, is_tmp=is_tmp, reset=False)
 
     # Read input data
-    def read_data(self, data, standardize=None):
+    def read_data(self, data, smiles_idx, activity_idx, srcid_idx, standardize=None):
         if not standardize:
             standardize = self.standardize
         # Read data
-        self.__log.info("Reading data")
-        # Read data if it is a file
-        if type(data) == str:
-            self.__log.info("Reading file %s", data)
-            with open(data, "r") as f:
-                data = []
-                for r in csv.reader(f, delimiter="\t"):
-                    data += [[r[0]] + r[1:]]
-        # Get only valid SMILES strings
-        self.__log.info(
-            "Parsing SMILES strings, keeping only valid ones for training.")
-        data_ = []
-        for i, d in enumerate(data):
-            m = self.read_smiles(d[1], standardize)
-            if not m:
-                continue
-            # data is always of [(initial index, activity, smiles,
-            # inchikey)]
-            data_ += [[i, float(d[0])] + [m[1], m[0]]]
-        data = data_
-        return InputData(data)
+        self.__log.info("Reading data, parsing smiles")
+        return read_data(data, smiles_idx, activity_idx, srcid_idx, standardize)
 
     # Loading functions
     @staticmethod
@@ -384,19 +358,11 @@ class TargetMateClassifierSetup(TargetMateSetup):
 
     def _reassemble_activity_sets(self, act, inact, putinact):
         self.__log.info("Reassembling activities. Convention: 1 = Active, -1 = Inactive, 0 = Sampled")
-        data = []
-        for x in list(act):
-            data += [(x[1],  1, x[0], x[-1])]
-        for x in list(inact):
-            data += [(x[1], -1, x[0], x[-1])]
-        n = np.max([x[0] for x in data]) + 1
-        for i, x in enumerate(list(putinact)):
-            data += [(i + n, 0, x[0], x[-1])]
-        return InputData(data)
+        return reassemble_activity_sets(act, inact, putinact)
 
-    def prepare_data(self, data):
+    def prepare_data(self, data, smiles_idx, activity_idx, srcid_idx):
         # Read data
-        data = self.read_data(data)
+        data = self.read_data(data, smiles_idx, activity_idx, srcid_idx)
         # Save training data
         self.save_data(data)
         # Sample inactives, if necessary
@@ -460,11 +426,11 @@ class ModelSetup(TargetMateClassifierSetup, TargetMateRegressorSetup):
             TargetMateRegressorSetup.__init__(self, **kwargs)
         self.is_classifier = is_classifier
 
-    def prepare_data(self, data):
+    def prepare_data(self, data, smiles_idx, activity_idx, srcid_idx):
         if self.is_classifier:
-            return TargetMateClassifierSetup.prepare_data(self, data)
+            return TargetMateClassifierSetup.prepare_data(self, data, smiles_idx, activity_idx, srcid_idx)
         else:
-            return TargetMateRegressorSetup.prepare_data(self, data)
+            return TargetMateRegressorSetup.prepare_data(self, data, smiles_idx, activity_idx, srcid_idx)
 
     def prepare_for_ml(self, data):
         if self.is_classifier:
