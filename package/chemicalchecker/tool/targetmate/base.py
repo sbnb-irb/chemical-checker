@@ -17,6 +17,7 @@ from chemicalchecker.util import logged
 from .universes import Universe
 from .utils import metrics
 from .utils import plots
+from .utils import splitters
 from .signaturizer import SignaturizerSetup
 from .tmsetup import ModelSetup
 from .io import InputData, Prediction
@@ -47,15 +48,16 @@ class Model(ModelSetup):
         else:
             return ar
 
-    def find_base_mod(self, X, y, destination_dir=None):
-        """Select a pipeline, for example, using AutoSklearn."""
-        X = self.check_array_from_disk(X)
-        y = self.check_array_from_disk(y)
+    def find_base_mod(self, X, y, smiles, destination_dir=None):
+        """Select a pipeline, for example, using HyperOpt."""
+        X      = self.check_array_from_disk(X)
+        y      = self.check_array_from_disk(y)
+        smiles = self.check_array_from_disk(smiles)
         self.__log.info("Setting the base model")
         shuff = np.array(range(len(y)))
         if self.shuffle:
             random.shuffle(shuff)        
-        base_mod = self.algo.as_pipeline(X[shuff], y[shuff])
+        base_mod = self.algo.as_pipeline(X=X[shuff], y=y[shuff], smiles=smiles[shuff])
         if destination_dir:
             self.__log.info("Saving base model in %s" % destination_dir)
             self.base_mod_dir = destination_dir
@@ -79,7 +81,11 @@ class Model(ModelSetup):
         if self.shuffle:
             random.shuffle(shuff)
         mod = self.weight_algo.as_pipeline(X[shuff], y[shuff])
-        kf = self.kfolder()
+        Spl = splitters.GetSplitter(is_cv=False,
+                                    is_classifier=self.is_classifier,
+                                    is_stratified=True,
+                                    scaffold_split=self.scaffold_split)
+        kf = Spl(n_splits=1, test_size=0.2, random_state=42)
         y_pred = []
         y_true = []
         for train_idx, test_idx in kf.split(X, y):
@@ -91,7 +97,7 @@ class Model(ModelSetup):
             y_true += list(y[test_idx])
         return self.metric_calc(np.array(y_true), np.array(y_pred))[1]
 
-    def _fit(self, X, y, destination_dir=None):
+    def _fit(self, X, y, smiles=None, destination_dir=None):
         """Fit a model, using a specified pipeline.
         
         Args:
@@ -105,8 +111,8 @@ class Model(ModelSetup):
         # Check if array is a file
         X = self.check_array_from_disk(X)
         y = self.check_array_from_disk(y)
-        # Get stargetd
-        base_mod = self.find_base_mod(X, y, destination_dir = destination_dir)
+        # Get started
+        base_mod = self.find_base_mod(X, y, smiles, destination_dir = destination_dir)
         shuff = np.array(range(len(y)))
         if self.shuffle:
             random.shuffle(shuff)
@@ -205,10 +211,13 @@ class StackedModel(SignaturedModel):
     def fit_stack(self, data, idxs, wait):
         if idxs is None:
             y = data.activity
+            smiles = data.smiles
         else:
             y = data.activity[idxs]
+            smiles = data.smiles
         if self.hpc:
             y = self.array_on_disk(y)
+            smiles = self.array_on_disk(smiles)
         X = self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs)
         X = self.pca_fit(X)
         self.__log.info("Samples: %d, Dimensions %s" % X.shape)
@@ -219,9 +228,9 @@ class StackedModel(SignaturedModel):
             dest = os.path.join(self.bases_models_path, "Stacked")
         if self.hpc:
             X = self.array_on_disk(X)
-            jobs += [self.func_hpc("_fit", X, y, dest, cpu=self.n_jobs_hpc)]
+            jobs += [self.func_hpc("_fit", X, y, smiles, dest, cpu=self.n_jobs_hpc)]
         else:
-            self._fit(X, y, destination_dir=dest)
+            self._fit(X, y, smiles=smiles, destination_dir=dest)
         if wait:
             self.waiter(jobs)
         return jobs
@@ -307,10 +316,13 @@ class EnsembleModel(SignaturedModel):
     def fit_ensemble(self, data, idxs, wait):
         if idxs is None:
             y = data.activity
+            smiles = data.smiles
         else:
             y = data.activity[idxs]
+            smiles = data.smiles[idxs]
         if self.hpc:
             y = self.array_on_disk(y)
+            smiles = self.array_on_disk(smiles)
         jobs = []
         for i, X in enumerate(self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs)):  
             self.__log.info("Fitting on %s" % self.datasets[i])
@@ -322,9 +334,9 @@ class EnsembleModel(SignaturedModel):
             self.weights[self.datasets[i]] = self._weight(X, y)
             if self.hpc:
                 X = self.array_on_disk(X)
-                jobs += [self.func_hpc("_fit", X, y, dest, cpu=self.n_jobs_hpc)]
+                jobs += [self.func_hpc("_fit", X, y, smiles, dest, cpu=self.n_jobs_hpc)]
             else:
-                self._fit(X, y, destination_dir=dest)
+                self._fit(X, y, smiles=smiles, destination_dir=dest)
         if wait:
             self.waiter(jobs)
         return jobs
