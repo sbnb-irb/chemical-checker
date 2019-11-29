@@ -7,6 +7,7 @@ from chemicalchecker.util import logged
 
 from .chemistry import generate_scaffold
 
+TRIALS = 3
 
 class Splitter(object):
 
@@ -41,7 +42,7 @@ def generate_scaffolds(smiles):
 class ShuffleScaffoldSplit(Splitter):
     """Random sampling based on scaffolds. It tries to satisfy the desired proportion"""
 
-    def __init__(self, trials=10, **kwargs):
+    def __init__(self, trials=TRIALS, **kwargs):
         Splitter.__init__(self, **kwargs)
         self.trials = trials
 
@@ -98,7 +99,7 @@ class StratifiedShuffleScaffoldSplit(Splitter):
     It tries to preserve the proportion of samples in the train and test sets.
     The current algorithm is very rough..."""
 
-    def __init__(self, trials=1000, **kwargs):
+    def __init__(self, trials=TRIALS, **kwargs):
         ShuffleScaffoldSplit.__init__(self, trials=10, **kwargs)
         self.trials = trials
 
@@ -157,6 +158,7 @@ class StratifiedShuffleScaffoldSplit(Splitter):
             yield train_idx, test_idx
 
 
+@logged
 class DeepchemScaffoldSplit(Splitter):
     """Analogous to DeepChem implementation. First it sorts by scaffold set size."""
 
@@ -182,6 +184,8 @@ class DeepchemScaffoldSplit(Splitter):
         random.shuffle(train_idx)
         random.seed(seed)
         random.shuffle(test_idx)
+        prop = len(test_idx) / (len(test_idx) + len(train_idx))
+        self.__log.info("Train size: %d, Test size: %d, prop: %.2f" % (len(train_idx), len(test_idx), prop))
         yield train_idx, test_idx
 
 
