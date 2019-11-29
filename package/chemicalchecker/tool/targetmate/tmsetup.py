@@ -35,11 +35,15 @@ class TargetMateSetup(HPCUtils):
                  n_jobs = None,
                  n_jobs_hpc = 8,
                  standardize = False,
-                 cv_folds = 5,
+                 is_cv = False,
+                 is_stratified = True,
+                 n_splits = 3,
+                 test_size = 0.2,
+                 scaffold_split = False,
                  conformity = True,
                  hpc = False,
                  do_init = True,
-                 grid_n_iter = 10,
+                 search_n_iter = 10,
                  train_timeout = 3600,
                  shuffle = False,
                  log = "INFO",
@@ -49,17 +53,21 @@ class TargetMateSetup(HPCUtils):
         Args:
             models_path(str): Directory where models will be stored.
             tmp_path(str): Directory where temporary data will be stored
-                (relevant at predict time) (default=None)
-            cc_root(str): CC root folder (default=None)
-            is_classic(bool): Use a classical chemical fingerprint, instead of CC signatures (default=False)
-            overwrite(bool): Clean models_path directory (default=True)
-            n_jobs(int): Number of CPUs to use, all by default (default=None)
-            n_jobs(hpc): Number of CPUs to use in HPC (default=1)
-            standardize(bool): Standardize small molecule structures (default=True)
-            cv_folds(int): Number of cross-validation folds (default=5)
+                (relevant at predict time) (default=None).
+            cc_root(str): CC root folder (default=None).
+            is_classic(bool): Use a classical chemical fingerprint, instead of CC signatures (default=False).
+            overwrite(bool): Clean models_path directory (default=True).
+            n_jobs(int): Number of CPUs to use, all by default (default=None).
+            n_jobs(hpc): Number of CPUs to use in HPC (default=1).
+            standardize(bool): Standardize small molecule structures (default=True).
+            is_cv(bool): In hyper-parameter optimization, do cross-validation (default=False).
+            is_stratified(bool): In hyper-parameter optimization, do stratified split (default=True).
+            n_splits(int): If hyper-parameter optimization is done, number of splits (default=3).
+            test_size(int): If hyper-parameter optimization is done, size of the test (default=0.2).
+            scaffold_split(bool): Model should be evaluated with scaffold splits (default=False).
             conformity(bool): Do cross-conformal prediction (default=True)
             hpc(bool): Use HPC (default=False)
-            grid_n_iter(int): Number of iterations in a grid search for parameters (default=10).
+            search_n_iter(int): Number of iterations in a search for hyperparameters (default=10).
             train_timeout(int): Maximum time in seconds for training a classifier; applies to autosklearn (default=3600).
         """
         if not do_init:
@@ -104,13 +112,21 @@ class TargetMateSetup(HPCUtils):
         self.standardize = standardize
         # Do conformal modeling
         self.conformity = conformity
-        # CV folds
-        self.cv_folds = cv_folds
+        # Do cross-validation
+        self.is_cv = is_cv
+        # Stratified
+        self.is_stratified = is_stratified
+        # Number os splits
+        self.n_splits = n_splits
+        # Test size
+        self.test_size = test_size
+        # Scaffold splits
+        self.scaffold_split = scaffold_split
         # Use HPC
         self.n_jobs_hpc = n_jobs_hpc
         self.hpc = hpc
         # Grid iterations
-        self.grid_n_iter = grid_n_iter
+        self.search_n_iter = search_n_iter
         # Timeout
         self.train_timeout = train_timeout
         # Shuffle
@@ -307,6 +323,8 @@ class TargetMateClassifierSetup(TargetMateSetup):
         """
         # Inherit from TargetMateSetup
         TargetMateSetup.__init__(self, **kwargs)
+        # Metric to use
+        self.metric = metric
         # Cross-conformal folds
         self.ccp_folds = ccp_folds
         # Determine number of jobs
@@ -318,13 +336,29 @@ class TargetMateClassifierSetup(TargetMateSetup):
         self.algo = algo
         self.model_config = model_config
         if self.model_config == "vanilla":
-            self.algo = VanillaClassifierConfigs(self.algo, n_jobs=n_jobs)
+            self.algo = VanillaClassifierConfigs(self.algo,
+                                                 n_jobs=n_jobs)
         if self.model_config == "grid":
             from .models.gridconfigs import GridClassifierConfigs
-            self.algo = GridClassifierConfigs(self.algo, n_jobs=n_jobs, n_iter = self.grid_n_iter)
+            self.algo = GridClassifierConfigs(self.algo,
+                                              n_jobs=n_jobs,
+                                              n_iter=self.search_n_iter)
+        if self.model_config == "hyperopt":
+            from .models.hyperoptconfigs import HyperoptClassifierConfigs
+            self.algo = HyperoptClassifierConfigs(self.algo,
+                                                  metric=self.metric,
+                                                  n_jobs=n_jobs,
+                                                  n_iter=self.search_n_iter,
+                                                  timeout=self.train_timeout,
+                                                  is_cv=self.is_cv,
+                                                  is_stratified=self.is_stratified,
+                                                  n_splits=self.n_splits,
+                                                  test_size=self.test_size,
+                                                  scaffold_split=self.scaffold_split)
         if self.model_config == "tpot":
             from .models.tpotconfigs import TPOTClassifierConfigs
-            self.algo = TPOTClassifierConfigs(self.algo, n_jobs=n_jobs)
+            self.algo = TPOTClassifierConfigs(self.algo,
+                                              n_jobs=n_jobs)
         if self.model_config == "autosklearn":
             from .models.autosklearnconfigs import AutoSklearnClassifierConfigs
             self.algo = AutoSklearnClassifierConfigs(n_jobs=n_jobs,
@@ -341,8 +375,6 @@ class TargetMateClassifierSetup(TargetMateSetup):
         self.inactive_value = inactive_value
         # Inactives per active
         self.inactives_per_active = inactives_per_active
-        # Metric to use
-        self.metric = metric
         # Load universe
         self.universe = Universe.load_universe(universe_path)
         # naive_sampling
@@ -410,11 +442,6 @@ class TargetMateClassifierSetup(TargetMateSetup):
         self.__log.info("Actives %d / Merged inactives %d" % (self.ny, len(data.activity) - self.ny))
         return data
 
-    def kfolder(self):
-        """Cross-validation splits strategy"""
-        return StratifiedKFold(n_splits=int(np.min([self.cv_folds, self.ny])),
-                               shuffle=True, random_state=42)
-
 
 @logged
 class TargetMateRegressorSetup(TargetMateSetup):
@@ -444,10 +471,4 @@ class ModelSetup(TargetMateClassifierSetup, TargetMateRegressorSetup):
             return TargetMateClassifierSetup.prepare_for_ml(self, data)
         else:
             return TargetMateRegressorSetup.prepare_for_ml(self, data)
-
-    def kfolder(self):
-        if self.is_classifier:
-            return TargetMateClassifierSetup.kfolder(self)
-        else:
-            return TargetMateRegressorSetup.kfolder(self)
 

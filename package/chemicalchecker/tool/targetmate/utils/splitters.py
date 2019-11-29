@@ -157,13 +157,14 @@ class StratifiedShuffleScaffoldSplit(Splitter):
             yield train_idx, test_idx
 
 
-class SortedScaffoldSplit(Splitter):
+class DeepchemScaffoldSplit(Splitter):
     """Analogous to DeepChem implementation. First it sorts by scaffold set size."""
 
     def __init__(self, **kwargs):
         Splitter.__init__(self, **kwargs)
 
     def split(self, X, y=None):
+        seed = self.random_state
         smiles = X
         self.calc_sizes(len(smiles))
         scaffolds = generate_scaffolds(smiles)
@@ -175,4 +176,35 @@ class SortedScaffoldSplit(Splitter):
                 test_idx  += idxs
             else:
                 train_idx += idxs
-        yield np.array(train_idx).astype(np.int), np.array(test_idx).astype(np.int)
+        train_idx = np.array(train_idx).astype(np.int)
+        test_idx  = np.array(test_idx).astype(np.int)
+        random.seed(seed)
+        random.shuffle(train_idx)
+        random.seed(seed)
+        random.shuffle(test_idx)
+        yield train_idx, test_idx
+
+
+def GetSplitter(is_cv, is_classifier, is_stratified, scaffold_split):
+    """Select the splitter, depending on the characteristics of the problem"""
+    if is_classifier:
+        if is_cv:
+            if is_stratified:
+                spl = model_selection.StratifiedKFold
+            else:
+                spl = model_selection.KFold
+        else:
+            if scaffold_split:
+                if is_stratified:
+                    spl = StratifiedShuffleScaffoldSplit
+                else:
+                    spl = ShuffleScaffoldSplit
+            else:
+                if is_stratified:
+                    spl = model_selection.ShuffleSplit
+                else:
+                    spl = model_selection.StratifiedShuffleSplit
+    else:
+        # TO-DO
+        pass
+    return spl
