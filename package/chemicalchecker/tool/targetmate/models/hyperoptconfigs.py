@@ -4,6 +4,7 @@ import numpy as np
 import uuid
 from chemicalchecker.util import logged
 from sklearn import ensemble
+from xgboost.sklearn import XGBClassifier
 from hyperopt import fmin, tpe, hp, SparkTrials, STATUS_OK, Trials
 import mlflow
 from ..evaluation.score import validation_score
@@ -11,7 +12,7 @@ from ..evaluation.score import validation_score
 # Others
 
 SEED = 42
-MIN_TIMEOUT = 30
+MIN_TIMEOUT = 60
 
 # Search configs
 
@@ -24,6 +25,18 @@ search_configs ={
             "min_samples_split": [2, 3, 10],
             "criterion": ["gini", "entropy"],
             "max_features": ["sqrt", "log2"]
+        }
+    },
+    "xgboost": {
+        "model": XGBClassifier(random_state=SEED),
+        "params": {
+            "n_estimators": [100, 500, 1000],
+            "max_depth": [1, 5, 10, 15],
+            "colsample_bytree": [0.5, 1],
+            "gamma": [0, 0.5, 1],
+            "subsample": [0.5, 1],
+            "learning_rate": [0.01, 0.1, 1],
+            "min_child_weight": [1, 3, 6]
         }
     }
 }

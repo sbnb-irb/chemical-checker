@@ -27,8 +27,13 @@ class VanillaClassifierConfigs:
             from imblearn.ensemble import BalancedRandomForestClassifier
             self.base_mod = BalancedRandomForestClassifier(
                 n_estimators=500, class_weight="balanced", n_jobs=n_jobs)
+        if base_mod == "xgboost":
+            from xgboost.sklearn import XGBClassifier
+            self.base_mod = XGBClassifier(n_estimators=500, n_jobs=n_jobs)
+            print(self.base_mod)
 
     def as_pipeline(self, X=None, y=None, **kwargs):
-        return Pipeline([('variance_threshold_0', VarianceThreshold()),
-                         ('classify', self.base_mod)])
+        return self.base_mod
+        #return Pipeline([('variance_threshold_0', VarianceThreshold()),
+        #                 ('classify', self.base_mod)])
 

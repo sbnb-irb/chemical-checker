@@ -198,3 +198,11 @@ class Prediction:
                 vals = v[i,j]
                 y_pred[i,j] = np.average(vals, weights = w)
         return y_pred
+
+
+class Explanation:
+
+    def __init__(self, datasets, shaps, is_ensemble):
+        self.is_ensemble = is_ensemble
+        self.datasets = datasets
+        self.shaps = shaps
