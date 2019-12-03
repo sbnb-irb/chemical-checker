@@ -21,6 +21,10 @@ import h5py
 import shutil
 import numpy as np
 from time import time
+import faiss
+from scipy.stats.mstats import rankdata
+from numpy import linalg as LA
+from tqdm import tqdm
 
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
@@ -51,6 +55,7 @@ class sign2(BaseSignature, DataSignature):
         self.data_path = os.path.join(self.signature_path, 'sign2.h5')
         DataSignature.__init__(self, self.data_path)
         self.model_path = os.path.join(self.signature_path, 'models')
+        self.faiss_path = os.path.join(self.model_path, 'faiss')
         if not os.path.isdir(self.model_path):
             os.makedirs(self.model_path)
         self.stats_path = os.path.join(self.signature_path, 'stats')
@@ -68,6 +73,9 @@ class sign2(BaseSignature, DataSignature):
         self.params['graph'] = params.get('graph', None)
         self.params['node2vec'] = params.get('node2vec', None)
         self.params['adanet'] = params.get('adanet', None)
+        self.clustering = 1000
+        if self.params['adanet'] is not None:
+            self.cpu = self.params['adanet'].get('cpu', 1)
 
     def fit(self, sign1, neig1, reuse=True, validations=True, compare_nn=False):
         """Learn a model.
@@ -128,7 +136,7 @@ class sign2(BaseSignature, DataSignature):
                 n2v.run(graph_file, emb_file)
         # convert to signature h5 format
         if not reuse or not os.path.isfile(self.data_path):
-            n2v.emb_to_h5(sign1, emb_file, self.data_path)
+            n2v.emb_to_h5(sign1.keys, emb_file, self.data_path)
         # save link prediction stats
         linkpred_file = os.path.join(self.stats_path, 'linkpred.json')
         if not reuse or not os.path.isfile(linkpred_file):
@@ -187,7 +195,387 @@ class sign2(BaseSignature, DataSignature):
             self.validate()
         self.mark_ready()
 
-    def predict(self, sign1, destination,  validations=False):
+    def fit_merge(self, signs, reuse=True, validations=True, compare_nn=False):
+        """Learn a model.
+
+        Node2vec embeddings are computed using the graph derived from several signatures.
+        The predictive model is learned with AdaNet.
+
+        Args:
+            sign1(sign1): Signature type 1.
+            neig1(neig1): Nearest neighbor of type 1.
+            reuse(bool): Reuse already generated intermediate files. Set to
+                False to re-train from scratch.
+        """
+        #########
+        # step 1: Node2Vec (learn graph embedding) input is neig1
+        #########
+        try:
+            from chemicalchecker.util.network import SNAPNetwork
+            from chemicalchecker.util.performance import LinkPrediction
+            from chemicalchecker.tool.adanet import AdaNet
+            from chemicalchecker.tool.node2vec import Node2Vec
+        except ImportError as err:
+            raise err
+
+        faiss.omp_set_num_threads(self.cpu)
+
+        self.__log.debug('Node2Vec on several signatures')
+        n2v = Node2Vec(executable=Config().TOOLS.node2vec_exec)
+        # use neig1 to generate the Node2Vec input graph (as edgelist)
+        graph_params = self.params['graph']
+        node2vec_path = os.path.join(self.model_path, 'node2vec')
+        if not os.path.isdir(node2vec_path):
+            os.makedirs(node2vec_path)
+        graph_file = os.path.join(node2vec_path, 'graph.edgelist')
+        if not reuse or not os.path.isfile(graph_file):
+            graph_files_in = []
+            for sign in signs:
+                sign2_model_path = sign.model_path.replace("sign1", "sign2")
+                graph_files_in.append(os.path.join(
+                    sign2_model_path, 'node2vec', 'graph.edgelist'))
+
+            if graph_params:
+                n2v.merge_edgelists(signs, graph_files_in,
+                                    graph_file, **graph_params)
+            else:
+                n2v.merge_edgelists(
+                    signs, graph_files_in, graph_file)
+
+        with open(graph_file, 'r') as fh:
+            lines = fh.readlines()
+        keys = set(l.split()[0] for l in lines)
+
+        unique_keys = set()
+        for sign in signs:
+            unique_keys.update(sign.unique_keys)
+
+        if not len(keys) == len(unique_keys):
+            raise Exception("Graph %s is missing nodes. %d/%d" %
+                            graph_file, len(keys), len(unique_keys))
+        else:
+            list_keys = list(unique_keys)
+            list_keys.sort()
+
+        # save graph stats
+        graph_stat_file = os.path.join(self.stats_path, 'graph_stats.json')
+        graph = None
+        if not reuse or not os.path.isfile(graph_stat_file):
+            graph = SNAPNetwork.from_file(graph_file)
+            graph.stats_toJSON(graph_stat_file)
+        # run Node2Vec to generate embeddings
+        node2vec_params = self.params['node2vec']
+        emb_file = os.path.join(node2vec_path, 'n2v.emb')
+        if not reuse or not os.path.isfile(emb_file):
+            if node2vec_params:
+                n2v.run(graph_file, emb_file, **node2vec_params)
+            else:
+                n2v.run(graph_file, emb_file)
+        # convert to signature h5 format
+        if not reuse or not os.path.isfile(self.data_path):
+            n2v.emb_to_h5(list_keys, emb_file, self.data_path)
+        # save link prediction stats
+        linkpred_file = os.path.join(self.stats_path, 'linkpred.json')
+        if not reuse or not os.path.isfile(linkpred_file):
+            if not graph:
+                graph = SNAPNetwork.from_file(graph_file)
+            linkpred = LinkPrediction(self, graph)
+            linkpred.performance.toJSON(linkpred_file)
+
+        mappings = {}
+        for sign in signs:
+            # copy reduced-full mappingsfrom sign1
+            if "mappings" not in self.info_h5 and "mappings" in sign.info_h5:
+                mappings.update(dict(sign.get_h5_dataset('mappings').tolist()))
+            else:
+                self.__log.warn(
+                    "Cannot copy 'mappings' from sign: %s" % sign.data_path)
+        if len(mappings) > 0:
+            # Fixing merged mappings
+            for key, value in mappings.items():
+                if value not in keys:
+                    mappings[key] = mappings[value]
+            list_maps = sorted(mappings.items())
+            with h5py.File(self.data_path, 'a') as hf:
+                # delete if already there
+                if 'mappings' in hf:
+                    del hf['mappings']
+                hf.create_dataset("mappings",
+                                  data=np.array(list_maps,
+                                                DataSignature.string_dtype()))
+        sign2_plot = Plot(self.dataset, self.stats_path)
+        sign2_plot.sign_feature_distribution_plot(self)
+
+        if "centroids" not in self.info_h5:
+
+            # Find 1000 molecules that are representative
+            # Centroids of a k=1000 clustering should work
+            niter = 20
+            d = self.shape[1]
+            kmeans = faiss.Kmeans(int(d), int(self.clustering), niter=niter)
+            with h5py.File(self.data_path, 'r') as dh5:
+                data = np.float32(np.array(dh5["V"][:], dtype=np.float32))
+                kmeans.train(data)
+
+            centroids = kmeans.centroids
+
+            # Let's find the closest molecule to each one of the centroids
+            # We look for the nearest neighbous of the centroids
+
+            index = faiss.IndexFlatL2(d)
+            index.add(data)
+            D, I = index.search(centroids, 3)
+
+            # Sometimes the closest is already in the list so we take the next
+            # one
+            final_centroids = set()
+            for i in I:
+                for j in i:
+                    if j not in final_centroids:
+                        final_centroids.add(j)
+                        break
+
+            centroids = list(final_centroids)
+            centroids.sort()
+            with h5py.File(self.data_path, 'a') as hf:
+                if 'centroids' in hf:
+                    del hf['centroids']
+                hf.create_dataset("centroids", data=np.array(centroids))
+        else:
+            centroids = self.get_h5_dataset("centroids")
+
+        adanet_params = self.params['adanet']
+        adanet_path = os.path.join(self.model_path, 'adanet')
+        if adanet_params:
+            if 'model_dir' in adanet_params:
+                adanet_path = adanet_params.pop('model_dir')
+        if not reuse or not os.path.isdir(adanet_path):
+            os.makedirs(adanet_path)
+
+        if not reuse or not os.path.isdir(self.faiss_path):
+            os.makedirs(self.faiss_path)
+
+        data_centroids = []
+        for centroid in centroids:
+            data_centroids.append(self[centroid])
+
+        # For each signature 1 to merge
+        for sign in signs:
+
+            faiss_path_sign = os.path.join(self.faiss_path, sign.dataset)
+            if not os.path.isdir(faiss_path_sign):
+                os.makedirs(faiss_path_sign)
+
+            final_index_file = os.path.join(
+                faiss_path_sign, 'final.index')
+
+            if os.path.isfile(final_index_file) and reuse:
+                continue
+
+            # create an index of sign2 merged for all molecules present in this
+            # sign1
+            dataset_keys = sign.keys
+
+            index = faiss.IndexFlatIP(self.shape[1])
+
+            for chunk in sign.chunker():
+
+                _, data = self.get_vectors(dataset_keys[chunk])
+                data_temp = np.array(data, dtype=np.float32)
+                normst = LA.norm(data_temp, axis=1)
+                index.add(data_temp / normst[:, None])
+
+            # Find the closest molecule to each one of the 1K representative
+            # molecules
+            data_temp = np.array(data_centroids, dtype=np.float32)
+            normst = LA.norm(data_temp, axis=1)
+            Dt, It = index.search(data_temp / normst[:, None], 10)
+
+            # Again if one of the closest was already taken, get the next one
+            representative = set()
+            for i in It:
+                for j in i:
+                    if j not in representative:
+                        representative.add(j)
+                        break
+
+            # check actually there are 1K representative molecules
+            if not len(representative) == self.clustering:
+                raise Exception("Faiss do not have enough values.")
+
+            index = faiss.IndexFlatIP(sign.shape[1])
+
+            data = []
+            for reprs in sorted(list(representative)):
+                data.append(sign[reprs])
+
+            # Index the signature1 of the 1K representative molecules and save
+            # index to be used later
+            data_temp = np.array(data, dtype=np.float32)
+            normst = LA.norm(data_temp, axis=1)
+            index.add(data_temp / normst[:, None])
+
+            faiss.write_index(index, final_index_file)
+
+        distances_file = os.path.join(self.faiss_path, 'distances.h5')
+
+        with h5py.File(distances_file, "w") as results:
+            # initialize V and keys datasets
+            results.create_dataset(
+                'V', (self.shape[0], self.clustering), dtype=np.float32)
+            results.create_dataset('keys',
+                                   data=np.array(self.keys,
+                                                 DataSignature.string_dtype()))
+            results.create_dataset("shape", data=(
+                self.shape[0], self.clustering))
+
+            # For all molecules in sign2 merged
+            for chunk in tqdm(self.chunker()):
+
+                distances = []
+                keys = self.keys[chunk]
+                for sign in signs:
+
+                    faiss_path_sign = os.path.join(
+                        self.faiss_path, sign.dataset)
+                    final_index_file = os.path.join(
+                        faiss_path_sign, 'final.index')
+
+                    index = faiss.read_index(final_index_file)
+
+                    # Find nearest neighbours to the 1K representatives of each
+                    # subspace
+                    _, data = sign.get_vectors(keys, include_nan=True)
+                    data_temp = np.array(data, dtype=np.float32)
+                    normst = LA.norm(data_temp, axis=1)
+                    Dt, It = index.search(
+                        data_temp / normst[:, None], self.clustering)
+                    Dt = np.maximum(0.0, 1.0 - Dt)
+                    # Order the distances acording to indices since we want the
+                    # distance to representative0 to the first position, etc
+                    distance = np.take_along_axis(
+                        Dt, np.argsort(It, axis=1), axis=1)
+                    # Rank the distances
+                    ranked = rankdata(distance, axis=1)
+                    # Put default value to vectors where there was no signature
+                    ranked[It < 0] = float(self.clustering)
+                    # Reverse ranks. Larger ranks for shorter distances
+                    ranked = float(self.clustering) - ranked
+                    distances += [ranked]
+
+                # To aggregate the different distances, Let's take the maximum
+                # of them
+                final_distance = np.amax(distances, axis=0)
+                results['V'][chunk] = final_distance / float(self.clustering)
+
+        # prepare train-test file
+        traintest_file = os.path.join(adanet_path, 'traintest.h5')
+        if adanet_params:
+            traintest_file = adanet_params.pop(
+                'traintest_file', traintest_file)
+        if not reuse or not os.path.isfile(traintest_file):
+            Traintest.create_signature_file(
+                distances_file, self.data_path, traintest_file)
+
+        if adanet_params:
+            ada = AdaNet(model_dir=adanet_path,
+                         traintest_file=traintest_file, **adanet_params)
+        else:
+            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
+        # learn NN with AdaNet
+        self.__log.debug('AdaNet training on %s' % traintest_file)
+        ada.train_and_evaluate()
+
+        # save background distances, validate and mark ready
+        self.background_distances("cosine")
+        if validations:
+            self.validate()
+        self.mark_ready()
+
+    def predict_merge(self, signs, destination, validations=False):
+        """Use the learned model to predict the signature."""
+        try:
+            from chemicalchecker.tool.adanet import AdaNet
+        except ImportError as err:
+            raise err
+        # load AdaNet model
+        adanet_path = os.path.join(self.model_path, 'adanet', 'savedmodel')
+        self.__log.debug('loading model from %s' % adanet_path)
+        predict_fn = AdaNet.predict_fn(adanet_path)
+
+        join_keys = set()
+        for sign in signs:
+            join_keys.update(sign.keys)
+
+        self.keys = list(join_keys)
+
+        self.keys.sort()
+
+        with h5py.File(destination, "w") as results:
+            # initialize V and keys datasets
+            results.create_dataset(
+                'V', (len(self.keys), 128), dtype=np.float32)
+            results.create_dataset('keys',
+                                   data=np.array(self.keys,
+                                                 DataSignature.string_dtype()))
+            results.create_dataset("shape", data=(
+                len(self.keys), 128))
+
+            map_index = {}
+            for sign in signs:
+
+                faiss_path_sign = os.path.join(
+                    self.faiss_path, sign.dataset)
+                final_index_file = os.path.join(
+                    faiss_path_sign, 'final.index')
+
+                index = faiss.read_index(final_index_file)
+
+                map_index[sign] = index
+
+            size = 1000
+            # For all molecules in sign2 merged
+            for i in tqdm(range(0, len(self.keys), size)):
+                chunk = slice(i, i + size)
+
+                distances = []
+                keys = self.keys[chunk]
+
+                for sign in signs:
+
+                    index = map_index[sign]
+
+                    # Find nearest neighbours to the 1K representatives of each
+                    # subspace
+                    _, data = sign.get_vectors(keys, include_nan=True)
+                    data_temp = np.array(data, dtype=np.float32)
+                    normst = LA.norm(data_temp, axis=1)
+                    Dt, It = index.search(
+                        data_temp / normst[:, None], self.clustering)
+                    Dt = np.maximum(0.0, 1.0 - Dt)
+                    # Order the distances acording to indices since we want the
+                    # distance to representative0 to the first position, etc
+                    distance = np.take_along_axis(
+                        Dt, np.argsort(It, axis=1), axis=1)
+                    # Rank the distances
+                    ranked = rankdata(distance, axis=1)
+                    # Put default value to vectors where there was no signature
+                    ranked[It < 0] = float(self.clustering)
+                    # Reverse ranks. Larger ranks for shorter distances
+                    ranked = float(self.clustering) - ranked
+                    distances += [ranked]
+
+                # To aggregate the different distances, Let's take the maximum
+                # of them
+                final_distance = np.amax(distances, axis=0)
+
+                results['V'][chunk] = AdaNet.predict(
+                    final_distance / float(self.clustering), predict_fn)
+
+        if validations:
+            self.validate()
+
+    def predict(self, sign1, destination, validations=False):
         """Use the learned model to predict the signature."""
         try:
             from chemicalchecker.tool.adanet import AdaNet
@@ -410,7 +798,7 @@ class sign2(BaseSignature, DataSignature):
         eval_s2 = sign2(node2vec_path, self.dataset)
         # convert to signature h5 format
         if not reuse or not os.path.isfile(eval_s2.data_path):
-            n2v.emb_to_h5(sign1, emb_file, eval_s2.data_path)
+            n2v.emb_to_h5(sign1.keys, emb_file, eval_s2.data_path)
         # save link prediction stats
         linkpred = LinkPrediction(eval_s2, SNAPNetwork.from_file(graph_train))
         perf_train_filen = os.path.join(node2vec_path, 'linkpred.train.json')
