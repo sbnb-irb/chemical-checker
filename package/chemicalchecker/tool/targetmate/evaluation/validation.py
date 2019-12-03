@@ -137,6 +137,8 @@ class Gatherer:
         self.y_true_test  = []
         self.y_pred_train = []
         self.y_pred_test  = []
+        self.shaps_train  = []
+        self.shaps_test   = []
         if self.is_ensemble:
             self.y_pred_ens_train = []
             self.y_pred_ens_test  = []
@@ -148,8 +150,10 @@ class Gatherer:
         for tr_idx, te_idx in splits:
             tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=True, is_tmp=True, reset=True)
             pred_train = tm.load_predictions()
+            expl_train = tm.load_explanations()
             tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=False, is_tmp=True, reset=True)
             pred_test  = tm.load_predictions()
+            expl_test  = tm.load_explanations()
             data_train = data[tr_idx]
             data_test  = data[te_idx]
             self.train_idx += [tr_idx]
@@ -158,6 +162,10 @@ class Gatherer:
             self.y_true_test  += [data_test.activity]
             self.y_pred_train += [pred_train.y_pred]
             self.y_pred_test  += [pred_test.y_pred]
+            if expl_train:
+                self.shaps_train += [expl_train.shaps]
+            if expl_test:
+                self.shaps_test  += [expl_test.shaps]
             if self.is_ensemble:
                 self.y_pred_ens_train += [pred_train.y_pred_ens]
                 self.y_pred_ens_test  += [pred_test.y_pred_ens]
@@ -192,7 +200,8 @@ class BaseValidation(object):
                  is_cv,
                  is_stratified,
                  n_splits,
-                 test_size):
+                 test_size,
+                 explain):
         """Initialize validation class.
 
         Args:
@@ -207,6 +216,7 @@ class BaseValidation(object):
         self._n_splits      = n_splits
         self.test_size      = test_size
         self.is_stratified  = is_stratified
+        self.explain        = explain
 
         self.models_path    = []
         self.tmp_path       = []
@@ -274,6 +284,9 @@ class BaseValidation(object):
             tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=is_train, is_tmp=True, reset=True)
             self.__log.info(tm.predictions_tmp_path)
             jobs += tm.predict(data, idxs=idx, is_tmp=True, wait=False)
+            if self.explain and not is_train:
+                self.__log.info("Explaining (only for test)")
+                jobs += tm.explain(data, idxs=idx, is_tmp=True, wait=False)
             i += 1
         return jobs
         
@@ -319,12 +332,14 @@ class BaseValidation(object):
                     "idx"   : gather.train_idx,
                     "y_true": gather.y_true_train,
                     "y_pred": gather.y_pred_train,
+                    "shaps" : gather.shaps_train,
                     "perfs" : scores.perfs_train.as_dict()
                 },
             "test": {
                     "idx"   : gather.test_idx,
                     "y_true": gather.y_true_test,
                     "y_pred": gather.y_pred_test,
+                    "shaps" : gather.shaps_test,
                     "perfs" : scores.perfs_test.as_dict()
             }
         }
@@ -363,9 +378,10 @@ class Validation(BaseValidation, HPCUtils):
                  is_stratified=True,
                  n_splits=3,
                  test_size=0.2,
+                 explain=True,
                  **kwargs):
         HPCUtils.__init__(self, **kwargs)
-        BaseValidation.__init__(self, splitter, is_cv, is_stratified, n_splits, test_size)
+        BaseValidation.__init__(self, splitter, is_cv, is_stratified, n_splits, test_size, explain)
 
     def single_validate(self, tm, data, train_idx, test_idx, wipe, **kwargs):
         # Initialize

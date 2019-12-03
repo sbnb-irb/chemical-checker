@@ -12,6 +12,8 @@ import uuid
 from sklearn.base import clone
 from sklearn.decomposition import PCA
 
+import shap
+
 from chemicalchecker.util import logged
 
 from .universes import Universe
@@ -20,7 +22,7 @@ from .utils import plots
 from .utils import splitters
 from .signaturizer import SignaturizerSetup
 from .tmsetup import ModelSetup
-from .io import InputData, Prediction
+from .io import InputData, Prediction, Explanation
 
 
 @logged
@@ -34,8 +36,9 @@ class Model(ModelSetup):
             is_classifier(bool): Is the model a classifier or a regressor?
         """
         ModelSetup.__init__(self, is_classifier, **kwargs)
-        self.weights = None
-        self.mod_dir = None
+        self.weights         = None
+        self.mod_dir         = None
+        self.mod_uncalib_dir = None
 
     def array_on_disk(self, ar):
         fn = os.path.join(self.arrays_tmp_path, str(uuid.uuid4())+".npy")
@@ -120,20 +123,32 @@ class Model(ModelSetup):
             self.__log.info("Preparing cross-conformity")
             # Cross-conformal prediction
             mod = self.cross_conformal_func(base_mod)
+            # Do normal as well
+            mod_uncalib = base_mod
         else:
             self.__log.info("Using the selected pipeline")
             mod = base_mod
+            mod_uncalib = None
         # Fit the model
         self.__log.info("Fitting")
         mod.fit(X[shuff], y[shuff])
+        if mod_uncalib:
+            self.__log.info("Fitting model, but without calibration")
+            mod_uncalib.fit(X[shuff], y[shuff])
         # Save the destination directory of the model
         if destination_dir:
             self.__log.debug("Saving fitted model in %s" % self.mod_dir)
+            self.mod_dir = destination_dir
             with open(destination_dir, "wb") as f:
                 joblib.dump(mod, f)
-            self.mod_dir = destination_dir
+            if mod_uncalib:
+                self.__log.debug("Saving fitted uncalibrated model in %s-uncalib" % self.mod_dir)
+                self.mod_uncalib_dir = destination_dir+"-uncalib"
+                with open(self.mod_uncalib_dir, "wb") as f:
+                    joblib.dump(mod_uncalib, f)
         else:
             self.mod = mod
+            self.mod_uncalib = mod_uncalib
 
     def _predict(self, X, destination_dir=None):
         """Make predictions
@@ -158,11 +173,40 @@ class Model(ModelSetup):
         else:
             return preds
 
+    def _explain(self, X, destination_dir=None):
+        """Explain the output of a model.
+
+        Returns:
+        """
+        X = self.check_array_from_disk(X)
+        self.__log.info("Explaining")
+        if self.conformity:
+            if self.mod_uncalib_dir:
+                mod = joblib.load(self.mod_uncalib_dir)
+            else:
+                mod = self.mod_uncalib
+        else:
+            if self.mod_dir:
+                mod = joblib.load(self.mod_dir)
+            else:
+                mod = self.mod
+        explainer = shap.TreeExplainer(mod) # TO-DO: Apply kernel explainer for non-tree methods.
+        shaps     = explainer.shap_values(X)
+        if destination_dir:
+            self.__log.debug("Saving explanations in %s" % destination_dir)
+            with open(destination_dir, "wb") as f:
+                pickle.dump(shaps, f)
+        else:
+            return shaps
+
     def fit(self):
         return self._fit
 
     def predict(self):
         return self._predict
+
+    def explain(self):
+        return self._explain
 
 
 @logged
@@ -298,6 +342,62 @@ class StackedModel(SignaturedModel):
         jobs = self.predict_stack(data, idxs=idxs, wait=wait)
         if wait:
             return self.load_predictions(datasets)
+        else:
+            return jobs
+
+    def _explain_(self, X, dest):
+        if self.is_tmp:
+            dest_ = os.path.join(self.bases_tmp_path, "Stacked")
+        else:
+            dest_ = os.path.join(self.bases_models_path, "Stacked")
+        if self.conformity:
+            self.mod_uncalib_dir = dest_+"-uncalib"
+        else:
+            self.mod_dir = dest_
+        self._explain(X, dest)
+
+    def explain_stack(self, data, idxs, wait):
+        X = self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs)
+        X = self.pca_transform(X)
+        if self.is_tmp:
+            dest = os.path.join(self.predictions_tmp_path, "Stacked-expl")
+        else:
+            dest = os.path.join(self.predictions_models_path, "Stacked-expl")
+        jobs = []
+        if self.hpc:
+            X = self.array_on_disk(X)
+            jobs += [self.func_hpc("_explain_", X, dest, cpu=self.n_jobs_hpc)]
+        else:
+            self._explain_(X, dest)
+        if wait:
+            self.waiter(jobs)
+        return jobs
+
+    def load_explanations(self, datasets=None):
+        datasets = self.get_datasets(datasets)
+        y_pred = []
+        if self.is_tmp:
+            dest = os.path.join(self.predictions_tmp_path, "Stacked-expl")
+        else:
+            dest = os.path.join(self.predictions_models_path, "Stacked-expl")
+        if not os.path.exists(dest):
+            self.__log.info("Explanations not found")
+            return None
+        with open(dest, "rb") as f:
+            shaps = pickle.load(f)
+        return Explanation(
+            datasets = datasets,
+            shaps = shaps,
+            is_ensemble = self.is_ensemble
+            )
+
+    def explain(self, data, idxs=None, datasets=None, is_tmp=True, wait=True):
+        self.is_tmp = is_tmp
+        datasets = self.get_datasets(datasets)
+        self.signaturize(data.smiles, datasets=datasets)
+        jobs = self.explain_stack(data, idxs=idxs, wait=wait)
+        if wait:
+            return self.load_explanations(datasets)
         else:
             return jobs
 
