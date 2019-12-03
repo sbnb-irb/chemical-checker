@@ -41,8 +41,8 @@ class TargetMateSetup(HPCUtils):
                  conformity = True,
                  hpc = False,
                  do_init = True,
-                 search_n_iter = 10,
-                 train_timeout = 3600,
+                 search_n_iter = 25,
+                 train_timeout = 7200,
                  shuffle = False,
                  log = "INFO",
                  **kwargs):
@@ -65,8 +65,8 @@ class TargetMateSetup(HPCUtils):
             scaffold_split(bool): Model should be evaluated with scaffold splits (default=False).
             conformity(bool): Do cross-conformal prediction (default=True)
             hpc(bool): Use HPC (default=False)
-            search_n_iter(int): Number of iterations in a search for hyperparameters (default=10).
-            train_timeout(int): Maximum time in seconds for training a classifier; applies to autosklearn (default=3600).
+            search_n_iter(int): Number of iterations in a search for hyperparameters (default=25).
+            train_timeout(int): Maximum time in seconds for training a classifier; applies to autosklearn (default=7200).
         """
         if not do_init:
             return
