@@ -21,8 +21,12 @@ usage: node2vec
 import os
 import h5py
 import subprocess
+import operator
+import pickle
 import numpy as np
+import gc
 from tqdm import tqdm
+import collections
 import distutils.spawn
 from datetime import datetime
 from bisect import bisect_left
@@ -84,13 +88,13 @@ class Node2Vec():
         # compute weights
         return (-np.log10(pvalues) - min_p) * range_w / range_p + min_w
 
-    def emb_to_h5(self, sign1, in_file, out_file):
+    def emb_to_h5(self, keys, in_file, out_file):
         """Convert from native node2vec format to familiar h5.
 
         We need to map back from sign1 ids to inchikeys and sort.
         """
         self.__log.info("Converting %s to %s" % (in_file, out_file))
-        inchikeys = sign1.keys
+        inchikeys = keys
         with open(in_file, 'r') as fh:
             words = list()
             vectors = list()
@@ -167,6 +171,55 @@ class Node2Vec():
                     neig_idxs, neig_dists, thr_pvals, thr_dists)
                 for dst_idx, weight in edges:
                     fh.write("%i %i %.4f\n" % (src_idx, dst_idx, weight))
+
+    def merge_edgelists(self, signs, edgefiles, out_file, **params):
+        """Convert Nearest-neighbor to an edgelist.
+
+        Args:
+            signs(list): List of signature objects.
+            edgefiles(list): List of edge files.
+            out_file(str): Destination file.
+            params(dict): Parameters defining similarity network.
+        """
+
+        edges_weights = collections.defaultdict(dict)
+        all_keys = set()
+        for i, edgefile in enumerate(edgefiles):
+            keys = signs[i].keys
+            all_keys.update(keys)
+            with open(edgefile, 'r') as fh:
+                for line in fh:
+                    elems = line.rstrip().split(' ')
+                    key1 = keys[int(elems[0])]
+                    key2 = keys[int(elems[1])]
+                    if key2 not in edges_weights[key1]:
+                        edges_weights[key1][key2] = 0.0
+                    edges_weights[key1][key2] = max(
+                        edges_weights[key1][key2], float(elems[2]))
+
+        mem_max_degree = Node2Vec.heuristic_max_degree(len(edges_weights))
+        self.max_degree = params.get("max_degree", mem_max_degree)
+        if self.max_degree > mem_max_degree:
+            self.__log.warn('user max_degree too large: %s', self.max_degree)
+            self.__log.warn('using memory safe degree: %s', mem_max_degree)
+            self.max_degree = mem_max_degree
+
+        all_keys_list = list(all_keys)
+        all_keys_list.sort()
+
+        dictOfkeys = {all_keys_list[i]: i for i in range(0, len(all_keys_list))}
+
+        # write edgelist
+        with open(out_file, 'w') as fh:
+            for node, map_nodes in edges_weights.items():
+                self.__log.debug('molecule: %s', node)
+
+                mols = list(map_nodes.items())
+                mols.sort(key=lambda tup: tup[1])
+                mols.reverse()
+                for dst_idx, weight in mols[:self.max_degree]:
+                    fh.write("%s %s %.4f\n" %
+                             (dictOfkeys[node], dictOfkeys[dst_idx], min(weight, 1.0)))
 
     def split_edgelist(self, full_graph, train, test, train_fraction=0.8):
         """Split a graph in train and test.
