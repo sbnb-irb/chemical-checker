@@ -63,6 +63,7 @@ From: centos:8
     conda install -y anaconda-client              # client that provides an interface to Anaconda Cloud
     conda install -y -c pytorch faiss-cpu         # facebook trick for sparsity
     conda install -y -c conda-forge hdbscan       # clustering
+    conda install -y -c efelix fpsim2             # fast compound similarity searches (used in TargetMate)
 
     # utility packages
     pip install ipython                           # interactive python
@@ -88,9 +89,8 @@ From: centos:8
     pip install csvsort                           # Sort csv
 
     # chemistry packages
-    #pip install e3fp                              # 3D molecular fingreprints
+    #pip install e3fp                             # 3D molecular fingreprints (py3.78 compatibility fix at the bottom)
     pip install pubchempy                         # Pubchem rest api
-    pip install chemfp                            # fast fingerprint search (used in TargetMate)
     pip install standardiser                      # standardising molecules
 
     # numerical packages
