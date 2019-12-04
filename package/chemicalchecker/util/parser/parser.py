@@ -93,7 +93,7 @@ class Parser():
             if not line:
                 continue
             src_id = line.GetPropsAsDict()['ChEBI ID']
-            smiles = Chem.MolToSmiles(line)
+            smiles = Chem.MolToSmiles(line, isomericSmiles=True)
             # the following is always the same
             try:
                 inchikey, inchi = converter.smiles_to_inchi(smiles)
@@ -643,7 +643,7 @@ class Parser():
             if not mol:
                 continue
             src_id = mol.GetProp("_Name")
-            smi = Chem.MolToSmiles(mol)
+            smi = Chem.MolToSmiles(mol, isomericSmiles=True)
             try:
                 inchikey, inchi = converter.smiles_to_inchi(smi)
             except Exception as ex:
@@ -684,7 +684,7 @@ class Parser():
             for mol in suppl:
 
                 src_id = mol.GetProp("_Name")
-                smi = Chem.MolToSmiles(mol)
+                smi = Chem.MolToSmiles(mol, isomericSmiles=True)
 
                 try:
                     inchikey, inchi = converter.smiles_to_inchi(smi)
