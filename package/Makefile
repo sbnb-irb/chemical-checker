@@ -53,7 +53,7 @@ lint: ## check style with flake8
 	flake8 chemicalchecker tests
 
 test: ## run tests quickly with the default Python
-	pytest
+	pytest -s
 
 
 coverage: ## check code coverage quickly with the default Python
