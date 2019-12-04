@@ -21,7 +21,6 @@ import h5py
 import shutil
 import numpy as np
 from time import time
-import faiss
 from scipy.stats.mstats import rankdata
 from numpy import linalg as LA
 from tqdm import tqdm
@@ -215,6 +214,7 @@ class sign2(BaseSignature, DataSignature):
             from chemicalchecker.util.performance import LinkPrediction
             from chemicalchecker.tool.adanet import AdaNet
             from chemicalchecker.tool.node2vec import Node2Vec
+            import faiss
         except ImportError as err:
             raise err
 
@@ -496,6 +496,7 @@ class sign2(BaseSignature, DataSignature):
         """Use the learned model to predict the signature."""
         try:
             from chemicalchecker.tool.adanet import AdaNet
+            import faiss
         except ImportError as err:
             raise err
         # load AdaNet model
