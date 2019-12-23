@@ -18,7 +18,7 @@ class SignUtils(object):
 
     def _fingerprinter__init__(self, cls):
         featurizer_func = chemistry.morgan_matrix
-        datasets = ["FP"]
+        datasets = ["FP.000"]
         dataset  = datasets[0]
         return featurizer_func, datasets, dataset
     
@@ -59,8 +59,8 @@ class SignUtils(object):
                 job = cls.func_hpc("featurizer",
                                     smiles, 
                                     destination_dir,
-                                    cpu = 4,
-                                    wait = False)
+                                    cpu=4,
+                                    wait=False)
                 jobs += [job]
         if wait:
             cls.waiter(jobs)
@@ -84,14 +84,34 @@ class SignUtils(object):
                 else:    
                     job = s3.func_hpc("predict_from_smiles", smiles,
                                       destination_dir, chunk_size, None, False,
-                                      cpu=np.max([cls.n_jobs_hpc,8]),
+                                      cpu=np.max([cls.n_jobs_hpc, 8]),
                                       memory=16,
-                                      wait=False)
+                                      wait=False,
+                                      delete_job_path=True)
                     jobs += [job]
         if wait:
             cls.waiter(jobs)
         return jobs
 
+    def _fingerprinter_destination_dirs(self, cls, is_tmp=None, **kwargs):
+        if not self.destination_dirs:
+            self.__log.info("Getting destination dirs")
+            destination_dir = cls.get_destination_dir(dataset=None, is_tmp=is_tmp)
+            self.destination_dirs[cls.dataset] = destination_dir
+        return self.destination_dirs
+
+    def _signaturizer_destination_dirs(self, cls, datasets=None, is_tmp=None, **kwargs):
+        if not self.destination_dirs:
+            self.__log.info("Getting destination dirs")
+            datasets = cls.get_datasets(datasets)
+            for dataset in datasets:
+                destination_dir = cls.get_destination_dir(dataset=dataset, is_tmp=is_tmp)
+                self.destination_dirs[dataset] = destination_dir
+        return self.destination_dirs
+
+
+# Raw signaturizer
+#  Used to do signaturizers *outside* the TargetMate class
 
 @logged
 class RawBaseSignaturizer(HPCUtils):
@@ -132,9 +152,13 @@ class RawFingerprinter(RawBaseSignaturizer):
 
     def signaturize(self, smiles, wait=True, **kwargs):
         utils = SignUtils()
-        jobs = utils._featurizer_signaturize(self, smiles, wait, **kwargs)
-        self.destination_dirs = utils.destinations_dirs
+        jobs = utils._fingerprinter_signaturize(self, smiles, wait, **kwargs)
+        self.destination_dirs = utils.destination_dirs
         return jobs
+
+    def get_destination_dirs(self, **kwargs):
+        utils = SignUtils()
+        return utils._fingerprinter_get_destination_dirs(self, **kwargs)
 
 
 @logged
@@ -165,11 +189,18 @@ class RawSignaturizer(RawBaseSignaturizer):
         utils = SignUtils()
         jobs = utils._signaturizer_signaturize(self, smiles, datasets=None, chunk_size=1000, wait=True, **kwargs)
         self.destination_dirs = utils.destination_dirs
+        return jobs
+
+    def get_destination_dirs(self, **kwargs):
+        utils = SignUtils()
+        return utils._signaturizer_get_destination_dirs(self, **kwargs)
 
 
 class RawSignaturizerSetup(RawSignaturizer, RawFingerprinter):
 
     def __init__(self, **kwargs):
+        self.is_classic = kwargs.get("is_classic")
+        self.hpc = kwargs.get("hpc")
         if self.is_classic:
             RawFingerprinter.__init__(self, **kwargs)
         else:
@@ -181,6 +212,15 @@ class RawSignaturizerSetup(RawSignaturizer, RawFingerprinter):
         else:
             return RawSignaturizer.signaturize(self, smiles, **kwargs)
 
+    def get_destination_dirs(self, **kwargs):
+        if self.is_classic:
+            return RawFingerprinter.get_destination_dirs(self, **kwargs)
+        else:
+            return RawSignaturizer.get_destination_dirs(self, **kwargs)
+
+
+# Signaturizer
+#  Used to do signaturizers *inside* the TargetMate class
 
 @logged
 class BaseSignaturizer(TargetMateSetup, HPCUtils):
@@ -353,7 +393,8 @@ class Signaturizer(BaseSignaturizer):
                                       destination_dir, chunk_size, None, False,
                                       cpu=np.max([self.n_jobs_hpc,8]),
                                       memory=16,
-                                      wait=False)
+                                      wait=False,
+                                      delete_job_path=True)
                     jobs += [job]
         if wait:
             self.waiter(jobs)

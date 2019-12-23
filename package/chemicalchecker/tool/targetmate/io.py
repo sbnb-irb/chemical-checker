@@ -80,20 +80,24 @@ def reassemble_activity_sets(act, inact, putinact):
     return InputData(data)
 
 
-def read_multiple_smiles(data_list, smiles_idx, standardize):
+def read_smiles_from_multiple_data(data_list, smiles_idx, standardize=False, sort=True, **kwargs):
+    """Read smiles from multiple datasets"""
     smiles_ = set()
     for data in data_list:
         smis = []
         for r in reader(data):
             smis += [r[smiles_idx]]
-        smiles_.update(smiles_)
+        smiles_.update(smis)
     smiles_ = list(smiles_)
-    smiles  = []
+    smiles   = []
+    inchikey = []
     for smi in smiles_:
         m = read_smiles(smi, standardize)
         if not m: continue
         smiles += [m[1]]
-    return sorted(smiles)
+        inchikey += [m[0]]
+    data = (smiles, inchikey)
+    return SmilesData(data, sort=sort)
 
 
 # Classes
@@ -158,6 +162,21 @@ class InputData:
             if self.srcid is not None: self.srcid = self.srcid[ridxs]
         else:
             return self.__getitem__[ridxs]
+
+
+class SmilesData:
+    """A simple smiles data container"""
+
+    def __init__(self, data, sort):
+        """Initialize"""
+        smiles   = np.array(data[0])
+        inchikey = np.array(data[1])
+        if sort:
+            order     = np.argsort(smiles)
+            smiles    = smiles[order]
+            inchikey  = inchikey[order]
+        self.smiles   = smiles
+        self.inchikey = inchikey
 
 
 class Prediction:
