@@ -378,7 +378,7 @@ class Validation(BaseValidation, HPCUtils):
                  is_stratified=True,
                  n_splits=3,
                  test_size=0.2,
-                 explain=True,
+                 explain=False,
                  **kwargs):
         HPCUtils.__init__(self, **kwargs)
         BaseValidation.__init__(self, splitter, is_cv, is_stratified, n_splits, test_size, explain)

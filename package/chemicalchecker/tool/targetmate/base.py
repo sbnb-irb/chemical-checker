@@ -132,7 +132,7 @@ class Model(ModelSetup):
         # Fit the model
         self.__log.info("Fitting")
         mod.fit(X[shuff], y[shuff])
-        if mod_uncalib:
+        if mod_uncalib is not None:
             self.__log.info("Fitting model, but without calibration")
             mod_uncalib.fit(X[shuff], y[shuff])
         # Save the destination directory of the model
@@ -141,11 +141,15 @@ class Model(ModelSetup):
             self.mod_dir = destination_dir
             with open(destination_dir, "wb") as f:
                 joblib.dump(mod, f)
-            if mod_uncalib:
+            if mod_uncalib is not None:
                 self.__log.debug("Saving fitted uncalibrated model in %s-uncalib" % self.mod_dir)
-                self.mod_uncalib_dir = destination_dir+"-uncalib"
+                self.mod_uncalib_dir = self.mod_dir+"-uncalib"
                 with open(self.mod_uncalib_dir, "wb") as f:
                     joblib.dump(mod_uncalib, f)
+            else:
+                self.__log.debug("Calibrated and uncalibrated models are the same %s-uncalib" % self.mod_dir)
+                self.mod_uncalib_dir = self.mod_dir+"-uncalib"
+                os.symlink(self.mod_dir, self.mod_uncalib_dir)
         else:
             self.mod = mod
             self.mod_uncalib = mod_uncalib
@@ -190,7 +194,7 @@ class Model(ModelSetup):
                 mod = joblib.load(self.mod_dir)
             else:
                 mod = self.mod
-        explainer = shap.TreeExplainer(mod) # TO-DO: Apply kernel explainer for non-tree methods.
+        explainer = shap.TreeExplainer(mod) # TO-DO: Apply kernel explainer for non-tree methods. Perhaps use LIME when computational cost is high.
         shaps     = explainer.shap_values(X)
         if destination_dir:
             self.__log.debug("Saving explanations in %s" % destination_dir)
