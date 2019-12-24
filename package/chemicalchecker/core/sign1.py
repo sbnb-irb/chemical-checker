@@ -111,6 +111,10 @@ class sign1(BaseSignature, DataSignature):
                 f.write("not_normalized\n")
             else:
                 f.write("normalized\n")
+            if self.discrete:
+                f.write("discrete\n")
+            else:
+                f.write("not_discrete\n")
 
         input_data = sign0.data_path
         mappings = None
@@ -394,6 +398,7 @@ class sign1(BaseSignature, DataSignature):
         with open(FILE, "r") as f:
             i = f.next()
             n = f.next()
+            d = f.next()
             if "not_integerize" in i:
                 self.integerize = False
             else:
@@ -402,6 +407,10 @@ class sign1(BaseSignature, DataSignature):
                 self.not_normalized = True
             else:
                 self.not_normalized = False
+            if "not_discrete" in d:
+                self.discrete = False
+            else:
+                self.discrete = True
 
         input_data = sign0.data_path
         mappings = None
