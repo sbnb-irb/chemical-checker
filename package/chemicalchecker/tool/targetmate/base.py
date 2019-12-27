@@ -266,7 +266,7 @@ class StackedModel(SignaturedModel):
         if self.hpc:
             y = self.array_on_disk(y)
             smiles = self.array_on_disk(smiles)
-        X = self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs)
+        X = self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs, smiles=smiles)
         X = self.pca_fit(X)
         self.__log.info("Samples: %d, Dimensions %s" % X.shape)
         jobs = []
@@ -307,7 +307,7 @@ class StackedModel(SignaturedModel):
         self._predict(X, dest)
 
     def predict_stack(self, data, idxs, wait):
-        X = self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs)
+        X = self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs, smiles=data.smiles)
         X = self.pca_transform(X)
         if self.is_tmp:
             dest = os.path.join(self.predictions_tmp_path, "Stacked")
@@ -361,7 +361,7 @@ class StackedModel(SignaturedModel):
         self._explain(X, dest)
 
     def explain_stack(self, data, idxs, wait):
-        X = self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs)
+        X = self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs, smiles=data.smiles)
         X = self.pca_transform(X)
         if self.is_tmp:
             dest = os.path.join(self.predictions_tmp_path, "Stacked-expl")
@@ -428,7 +428,7 @@ class EnsembleModel(SignaturedModel):
             y = self.array_on_disk(y)
             smiles = self.array_on_disk(smiles)
         jobs = []
-        for i, X in enumerate(self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs)):  
+        for i, X in enumerate(self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs, smiles=data.smiles)):  
             self.__log.info("Fitting on %s" % self.datasets[i])
             if self.is_tmp:
                 dest = os.path.join(self.bases_tmp_path, self.datasets[i])
@@ -463,7 +463,7 @@ class EnsembleModel(SignaturedModel):
     def predict_ensemble(self, data, idxs, datasets, wait):
         datasets = self.get_datasets(datasets)
         jobs = []
-        for i, X in enumerate(self.read_signatures(is_ensemble=self.is_ensemble, datasets=datasets, idxs=idxs)):
+        for i, X in enumerate(self.read_signatures(is_ensemble=self.is_ensemble, datasets=datasets, idxs=idxs, smiles=data.smiles)):
             self.__log.info("Predicting on %s (n = %d)" % (self.datasets[i], X.shape[0]))
             if self.is_tmp:
                 dest = os.path.join(self.predictions_tmp_path, self.datasets[i])

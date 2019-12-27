@@ -24,12 +24,13 @@ class MultiValidation(MultiSetup):
         self.validation = Validation(**kwargs)
 
     def run(self, TargetMate, **kwargs):
-        self.precalc_signatures(**kwargs)
+        self.__log.info("Precalculating signatures of merged data")
+        sign_paths = self.precalc_signatures(**kwargs)
         self.__log.info("Multiple trainings")
         tm_list   = []
         data_list = []
         for data, models_path, _ in self.tasks:
-            tm = TargetMate(models_path=models_path, **kwargs)
+            tm = TargetMate(models_path=models_path, master_sign_paths=sign_paths, **kwargs)
             tm_list   += [tm]
             data_list += [tm.get_data_fit(data)]
         self.validation.validate(tm=tm_list, data=data_list)
