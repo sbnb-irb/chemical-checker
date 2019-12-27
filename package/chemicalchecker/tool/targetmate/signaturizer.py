@@ -4,6 +4,7 @@ import numpy as np
 
 from chemicalchecker.core.signature_data import DataSignature
 from chemicalchecker.util import logged
+from chemicalchecker.core import ChemicalChecker
 
 from .utils import chemistry
 from .utils import HPCUtils
@@ -23,7 +24,7 @@ class SignUtils(object):
         return featurizer_func, datasets, dataset
     
     def _signaturizer__init__(self, cls, datasets, sign_predict_paths):
-        if not datasets:
+        if datasets is None:
             # self.datasets = list(self.cc.datasets)
             datasets = ["%s%s.001" % (x, y) for x in "ABCDE" for y in "12345"]
         else:
@@ -93,14 +94,14 @@ class SignUtils(object):
             cls.waiter(jobs)
         return jobs
 
-    def _fingerprinter_destination_dirs(self, cls, is_tmp=None, **kwargs):
+    def _fingerprinter_get_destination_dirs(self, cls, is_tmp=None, **kwargs):
         if not self.destination_dirs:
             self.__log.info("Getting destination dirs")
             destination_dir = cls.get_destination_dir(dataset=None, is_tmp=is_tmp)
             self.destination_dirs[cls.dataset] = destination_dir
         return self.destination_dirs
 
-    def _signaturizer_destination_dirs(self, cls, datasets=None, is_tmp=None, **kwargs):
+    def _signaturizer_get_destination_dirs(self, cls, datasets=None, is_tmp=None, **kwargs):
         if not self.destination_dirs:
             self.__log.info("Getting destination dirs")
             datasets = cls.get_datasets(datasets)
@@ -112,21 +113,29 @@ class SignUtils(object):
 
 # Raw signaturizer
 #  Used to do signaturizers *outside* the TargetMate class
+#  The following is only used to signaturize. Classes are not prepared to read signatures.
 
 @logged
 class RawBaseSignaturizer(HPCUtils):
 
-    def __init__(self, root, is_classic, **kwargs):
+    def __init__(self, root, is_classic, cc_root=None, hpc=False, n_jobs_hpc=8, **kwargs):
         if is_classic:
             HPCUtils.__init__(self, **kwargs)
         self.root = root
         self.is_classic = is_classic
         self.destination_dirs = {}
+        self.cc = ChemicalChecker(cc_root)
+        self.hpc = hpc
+        self.n_jobs_hpc = n_jobs_hpc
 
     def get_datasets(self, datasets=None):
         if self.is_classic:
             return self.datasets
         else:
+            if datasets is None:
+                datasets = self.datasets
+            else:
+                datasets = set(datasets).intersection(self.datasets)
             return sorted(set(datasets))
 
     def get_destination_dir(self, dataset, **kwargs):
@@ -187,7 +196,7 @@ class RawSignaturizer(RawBaseSignaturizer):
     # Calculate signatures
     def signaturize(self, smiles, datasets=None, chunk_size=1000, wait=True, **kwargs):
         utils = SignUtils()
-        jobs = utils._signaturizer_signaturize(self, smiles, datasets=None, chunk_size=1000, wait=True, **kwargs)
+        jobs = utils._signaturizer_signaturize(self, smiles, datasets=datasets, chunk_size=chunk_size, wait=wait, **kwargs)
         self.destination_dirs = utils.destination_dirs
         return jobs
 
@@ -221,22 +230,21 @@ class RawSignaturizerSetup(RawSignaturizer, RawFingerprinter):
 
 # Signaturizer
 #  Used to do signaturizers *inside* the TargetMate class
+#  The following is prepared to write and read signatures.
 
 @logged
 class BaseSignaturizer(TargetMateSetup, HPCUtils):
 
-    #def __init__(self, master_signature_files=None, **kwargs):
-    def __init__(self, **kwargs):
+    def __init__(self, master_sign_paths=None, **kwargs):
         """Initialize base signaturizer
         
         Args:
-            master_signature_files(dict): Path to signature files that are not specific to the collection being analysed (default=None).
+            master_sign_paths(dict): Path to signature files that are not specific to the collection being analysed (default=None).
         """
-
         TargetMateSetup.__init__(self, **kwargs)
         if self.is_classic:
             HPCUtils.__init__(self, **kwargs)
-        #self.master_signature_files=master_signature_files
+        self.master_sign_paths = master_sign_paths
 
     def get_datasets(self, datasets=None):
         if self.is_classic:
@@ -263,20 +271,54 @@ class BaseSignaturizer(TargetMateSetup, HPCUtils):
             else:
                 return os.path.join(self.signatures_models_path, dataset)
 
-    def get_master_idx(self, dataset):
+    def get_master_idxs(self, dataset):
         master_idxs = {}
-        master_dest = self.master_signature_files[dataset]
+        master_dest = self.master_sign_paths[dataset]
         with h5py.File(master_dest, "r") as hf:
-            smiles = hf["smiles"][:]
+            smiles = hf["keys"][:]
         for i, smi in enumerate(smiles):
-            master_idxs[i]
-        return master_idx
+            master_idxs[smi] = i
+        return master_idxs
 
-    def master_mapping(self, smiles, master_idx):
-        idx = []
+    def master_mapping(self, smiles, master_idxs):
+        idxs = []
         for smi in smiles:
-            idx += [master_idx[smi]]
-        return idx
+            idxs += [master_idxs[smi]]
+        return np.array(idxs).astype(np.int)
+
+    # Signature readers
+    def _read_signatures_from_master(self, dataset, smiles, idxs, **kwargs):
+        if dataset is None:
+            dataset = self.dataset
+        master_idxs = self.get_master_idxs(dataset)
+        idxs_ = self.master_mapping(smiles, master_idxs)
+        if idxs is not None:
+            idxs_ = idxs_[idxs]
+        destination_dir = os.path.join(self.master_sign_paths[dataset])
+        with h5py.File(destination_dir, "r") as hf:
+            V = hf["V"][:][idxs_]
+        return V
+
+    def _read_signatures(self, dataset, idxs, is_tmp, sign_folder, **kwargs):
+        """Read a signature from an HDF5 file"""
+        if not sign_folder:
+            destination_dir = self.get_destination_dir(dataset, is_tmp=is_tmp)
+        else:
+            destination_dir = os.path.join(sign_folder, dataset)
+        with h5py.File(destination_dir, "r") as hf:
+            if idxs is None:
+                V = hf["V"][:]
+            else:
+                V = hf["V"][:][idxs]
+        return V
+
+    def read_signatures(self, dataset=None, smiles=None, idxs=None, is_tmp=None, sign_folder=None, **kwargs):
+        if self.master_sign_paths is None:
+            self.__log.info("Reading signatures from a task-specific file")
+            return self._read_signatures(dataset=dataset, idxs=idxs, is_tmp=is_tmp, sign_folder=sign_folder, **kwargs)
+        else:
+            self.__log.info("Reading signatures from a master signatures file")
+            return self._read_signatures_from_master(dataset=dataset, smiles=smiles, idxs=idxs, **kwargs)
 
 
 @logged
@@ -288,7 +330,7 @@ class Fingerprinter(BaseSignaturizer):
         BaseSignaturizer.__init__(self, **kwargs)
         # Featurizer
         self.featurizer_func = chemistry.morgan_matrix
-        self.datasets = ["FP"]
+        self.datasets = ["FP.000"]
         self.dataset  = self.datasets[0]
 
     def featurizer(self, smiles, destination_dir):
@@ -299,6 +341,9 @@ class Fingerprinter(BaseSignaturizer):
 
     def signaturize(self, smiles, is_tmp=None, wait=True, **kwargs):
         """Calculate fingerprints"""
+        if self.master_sign_paths is not None:
+            self.__log.info("Master signature paths exist")
+            return []
         destination_dir = self.get_destination_dir(dataset = None, is_tmp = is_tmp)
         jobs = []
         if os.path.exists(destination_dir):
@@ -317,24 +362,6 @@ class Fingerprinter(BaseSignaturizer):
         if wait:
             self.waiter(jobs)
         return jobs
-
-    # Signature readers
-    def read_signatures_from_master(self, idxs=None, **kwargs):
-        master_idx = self.get_master_idx(self.dataset)
-
-
-    def read_signatures(self, idxs=None, is_tmp=None, sign_folder=None, **kwargs):
-        """Read a signature from an HDF5 file"""
-        if not sign_folder:
-            destination_dir = self.get_destination_dir(dataset = None, is_tmp=is_tmp)
-        else:
-            destination_dir = os.path.join(sign_folder, self.dataset)
-        with h5py.File(destination_dir, "r") as hf:
-            if idxs is None:
-                V = hf["V"][:]
-            else:
-                V = hf["V"][:][idxs]
-        return V
 
 
 @logged
@@ -399,26 +426,12 @@ class Signaturizer(BaseSignaturizer):
         if wait:
             self.waiter(jobs)
         return jobs
-     
-    # Signature readers
-    def read_signature(self, dataset, idxs=None, is_tmp=None, sign_folder=None):
-        """Read a signature from an HDF5 file"""
-        if not sign_folder:
-            destination_dir = self.get_destination_dir(dataset, is_tmp=is_tmp)
-        else:
-            destination_dir = os.path.join(sign_folder, dataset)
-        with h5py.File(destination_dir, "r") as hf:
-            if idxs is None:
-                V = hf["V"][:]
-            else:
-                V = hf["V"][:][idxs]
-        return V
 
     def read_signatures_ensemble(self, datasets=None, **kwargs):
         """Return signatures as an ensemble"""
         if not datasets: datasets = self.datasets
         for ds in datasets:
-            yield self.read_signature(ds, **kwargs)
+            yield self.read_signatures(ds, **kwargs)
 
     def read_signatures_stacked(self, datasets=None, **kwargs):
         """Return signatures in a stacked form"""
@@ -426,7 +439,7 @@ class Signaturizer(BaseSignaturizer):
         if type(datasets) == str: datasets = [datasets]
         V = []
         for ds in datasets:
-            V += [self.read_signature(ds, **kwargs)]
+            V += [self.read_signatures(ds, **kwargs)]
         return np.hstack(V)
 
     def read_signatures(self, is_ensemble, **kwargs):
@@ -437,6 +450,7 @@ class Signaturizer(BaseSignaturizer):
 
 
 class SignaturizerSetup(Signaturizer, Fingerprinter):
+    """Set up a signaturizer"""
 
     def __init__(self, **kwargs):
         if self.is_classic:
@@ -446,13 +460,12 @@ class SignaturizerSetup(Signaturizer, Fingerprinter):
         
     def signaturize(self, smiles, **kwargs):
         if self.is_classic:
-            return Fingerprinter.signaturize(self, smiles, **kwargs)
+            return Fingerprinter.signaturize(self, smiles=smiles, **kwargs)
         else:
-            return Signaturizer.signaturize(self, smiles, **kwargs)
+            return Signaturizer.signaturize(self, smiles=smiles, **kwargs)
 
-    def read_signatures(self, **kwargs):
+    def read_signatures(self, smiles=None, **kwargs):
         if self.is_classic:
-            return Fingerprinter.read_signatures(self, **kwargs)
+            return Fingerprinter.read_signatures(self, smiles=smiles, **kwargs)
         else:
-            return Signaturizer.read_signatures(self, **kwargs)
-
+            return Signaturizer.read_signatures(self, smiles=smiles, **kwargs)
