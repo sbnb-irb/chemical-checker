@@ -26,7 +26,6 @@ from .signature_data import DataSignature
 from .signature_base import BaseSignature
 
 from chemicalchecker.util import logged
-from chemicalchecker.util import Config
 
 
 @logged
@@ -46,13 +45,17 @@ class sign0(BaseSignature, DataSignature):
         self.data_path = os.path.join(self.signature_path, "sign0.h5")
         DataSignature.__init__(self, self.data_path)
         self.__log.debug('data_path: %s', self.data_path)
+
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+
         self.preprocess_script = os.path.join(
-            Config().PATH.CC_REPO,
-            "package/scripts/preprocess",
+            dir_path,
+            '../..',
+            "scripts/preprocess",
             self.dataset,
             "run.py")
         if not os.path.isfile(self.preprocess_script):
-            self.__log.warn("Pre-process sript not found! %s",
+            raise Exception("Pre-process sript not found! %s",
                             self.preprocess_script)
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
@@ -284,7 +287,8 @@ class sign0(BaseSignature, DataSignature):
         for ink in tqdm(sample):
             feat_old = set(res[ink].split(','))
             if self.dataset[:2] in continuous:
-                feat_old = set(["%.3f" % float(x) for x in res[ink].split(',')])
+                feat_old = set(["%.3f" % float(x)
+                                for x in res[ink].split(',')])
             feat_new = set(self.to_feature_string(
                 self[ink.encode()], string_func)[0].split(','))
             if feat_new == feat_old:
