@@ -34,9 +34,9 @@ def fetch_drug_gene_correlations():
           SELECT t1.drug_id, t2.gene_name, t1.estimate, t1.pvalue
             FROM gene_drugs t1, genes t2
               WHERE t1.gene_id = t2.gene_id
-                AND t1.pvalue < 0.01
+                AND t1.pvalue < %.5f
                 AND t1."mDataType" = 'mRNA'
-          '''
+          ''' % min_pvalue
     R = psql.qstring(cmd, db_name)
     return R
 
