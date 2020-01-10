@@ -1,7 +1,7 @@
 """Convert between molecule identifier conventions."""
 from six.moves.urllib.request import urlopen
 from six.moves.urllib.parse import quote
-
+import json
 from chemicalchecker.util import logged
 
 
@@ -112,7 +112,7 @@ class Converter():
         try:
             inchikey = quote(inchikey)
             url = 'https://www.ebi.ac.uk/unichem/rest/inchi/%s' % inchikey
-            return urlopen(url).read().rstrip().decode()
+            return json.loads(urlopen(url).read().rstrip().decode())
         except Exception as ex:
             Converter.__log.warn(str(ex))
             raise ConversionError(
