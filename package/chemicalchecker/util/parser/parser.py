@@ -944,15 +944,26 @@ class Parser():
         converter = Converter()
 
         file_path = map_paths[molrepo_name]
-        chunk = list()
         f = open(file_path, "r")
-        f.next()
+        delimiter = '\t'
+        index_smi = 0
+        index_id = 1
+        min_items = 2
+        if molrepo_name == 'tool':
+            delimiter = ' '
+            index_smi = 0
+            index_id = 2
+            min_items = 3
+            f.next()
+
+        chunk = list()
+
         for l in f:
-            l = l.rstrip("\n").split(" ")
-            if len(l) < 3:
+            l = l.rstrip("\n").split(delimiter)
+            if len(l) < min_items:
                 continue
-            src_id = l[2]
-            smi = l[0]
+            src_id = l[index_id]
+            smi = l[index_smi]
             try:
                 inchikey, inchi = converter.smiles_to_inchi(smi)
             except Exception as ex:
