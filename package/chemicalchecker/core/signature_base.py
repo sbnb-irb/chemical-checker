@@ -190,11 +190,15 @@ class BaseSignature(object):
                 inchikey_mappings = dict(self.get_h5_dataset('mappings'))
         else:
             inchikey_mappings = None
-        plot = Plot(self.dataset, self.stats_path)
+
         stats = {"molecules": len(self.keys)}
         results = dict()
         validation_path = Config().PATH.validation_path
         validation_files = os.listdir(validation_path)
+        validation_path = self.signature_path + \
+            '/../../../../../tests/validation_sets/'
+        self.__log.info(validation_path)
+        plot = Plot(self.dataset, self.stats_path, validation_path)
         if len(validation_files) == 0:
             raise Exception("Validation dir %s is empty." % validation_path)
         for validation_file in validation_files:
