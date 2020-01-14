@@ -165,7 +165,7 @@ class BaseSignature(object):
             raise Exception(
                 "Before calling predict method, fit method needs to be called.")
 
-    def validate_versus_signature(self, sign, apply_mappings=True, metric='cosine'):
+    def validate_versus_signature(self, sign, n_samples=1000, n_neighbors=5, apply_mappings=True, metric='cosine'):
         """Perform validations.
 
 
@@ -177,7 +177,70 @@ class BaseSignature(object):
                 from the `full` signature and values are moleules from the
                 `reference` set.
         """
+        from sklearn.neighbors import NearestNeighbors
+        from sklearn.metrics import roc_curve, auc
         # check if we apply mapping (i.e. the signature is a 'reference')
+        if apply_mappings:
+            if 'mappings' not in self.info_h5:
+                self.__log.warning("Cannot apply mappings in validation.")
+                inchikey_mappings = None
+            else:
+                inchikey_mappings = dict(self.get_h5_dataset('mappings'))
+        else:
+            inchikey_mappings = None
+        # select pairs
+        ## first look for the intersection of inchikeys
+        vs_keys = sign.keys()
+        my_keys = self.keys()
+        vs_conn_set = set([ik.split("-")[0] for ik in vs_keys]) # consider connectivity layer to increase converage
+        my_conn_set = set([ik.split("-")[0] for ik in my_keys]) 
+        common_conn = my_conn_set.intersection(vs_conn_set)
+        if n_samples > len(common_conn)
+            common_conn = set(random.sample(list(common_con), n_samples))
+        ## extract matrices
+        vs_keys_conn = dict((ik, ik.split("-")[0]) for ik in vs_keys if ik.split("-")[0] in common_conn)
+        my_keys_conn = dict((ik, ik.split("-")[0]) for ik in my_keys if ik.split("-")[0] in common_conn)
+        common_conn = sorted(common_conn)
+        vs_vectors = sign.get_vectors([vs_keys_conn[c] for c in common_conn])[1]
+        my_vectors = self.get_vectors([my_keys_conn[c] for c in common_conn])[1]
+        ## do nearest neighbors
+        nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric)
+        nn.fit(vs_vectors)
+        neighs = nn.kneighbors(vs_vectors)[1][:,1:]
+        ## sample positive and negative pairs
+        pos_pairs = set()
+        neg_pairs = set()
+        for i in range(0, len(neighs)):
+            for j in neighs[i]:
+                pair = [common_conn[i], common_conn[j]]
+                pair = sorted(pair)
+                pos_pairs.update([(pair[0], pair[1])])
+        for _ in range(0, len(pos_pairs)*10):
+            pair = random.sample(common_iks, 2)
+            pair = sorted(pair)
+            pair = (pair[0], pair[1])
+            if pair in pos_pairs: continue
+            neg_pairs.update([pair])
+            if len(neg_pairs) > len(pos_pairs):
+                break
+        # do distances
+        if metric == "cosine":
+            from scipy.spatial.distance import cosine as metric
+        if metric == "euclidean":
+            from scipy.spatial.distance import euclidean as metric
+        y_t = np.array([1]*len(pos_pairs) + [0]*len(neg_pairs))
+        pairs = list(pos_pairs) + list(neg_pairs)
+        y_p = []
+        for pair in pairs:
+            idx1 = bisect_left(common_iks)
+            idx2 = bisect_left(common_iks)
+            y_p += [metric(my_vectors[idx1], my_vectors[idx2])]
+        # convert to similarity-respected order
+        y_p = -np.abs(np.array(y_p))
+        # performance
+        fpr, tpr, _ = roc_curve(y_t, y_p)
+        auroc = auc(fpr, tpr)
+        
 
     def validate(self, apply_mappings=True, metric='cosine'):
         """Perform validations.
