@@ -165,7 +165,21 @@ class BaseSignature(object):
             raise Exception(
                 "Before calling predict method, fit method needs to be called.")
 
-    def validate(self, apply_mappings=True):
+    def validate_versus_signature(self, sign, apply_mappings=True, metric='cosine'):
+        """Perform validations.
+
+
+        Args:
+            sign(signature object): A CC signature object to validate against
+            apply_mappings(bool): Whether to use mappings to compute
+                validation. Signature which have been redundancy-reduced
+                (i.e. `reference`) have fewer molecules. The key are moleules
+                from the `full` signature and values are moleules from the
+                `reference` set.
+        """
+        # check if we apply mapping (i.e. the signature is a 'reference')
+
+    def validate(self, apply_mappings=True, metric='cosine'):
         """Perform validations.
 
         A validation file is an external resource basically presenting pairs of
@@ -193,10 +207,9 @@ class BaseSignature(object):
 
         stats = {"molecules": len(self.keys)}
         results = dict()
-        validation_path = Config().PATH.validation_path
-        validation_files = os.listdir(validation_path)
         validation_path = self.signature_path + \
             '/../../../../../tests/validation_sets/'
+        validation_files = os.listdir(validation_path)
         self.__log.info(validation_path)
         plot = Plot(self.dataset, self.stats_path, validation_path)
         if len(validation_files) == 0:
@@ -205,7 +218,7 @@ class BaseSignature(object):
             vset = validation_file.split('_')[0]
             cctype = self.__class__.__name__
             res = plot.vector_validation(self, cctype, prefix=vset,
-                                         mappings=inchikey_mappings)
+                                         mappings=inchikey_mappings, distance=metric)
             results[vset] = res
             stats.update({
                 "%s_ks_d" % vset: res[0][0],
