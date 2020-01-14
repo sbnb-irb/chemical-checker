@@ -84,7 +84,7 @@ class DataCalculator():
                     rdMolDescriptors.CalcNumRotatableBonds(mol) > 11:
                 return None
 
-            smiles = Chem.MolToSmiles(mol)
+            smiles = Chem.MolToSmiles(mol, isomericSmiles=True)
             result = pipeline.fprints_from_smiles(
                 smiles, inchikey, confgen_params, fprint_params, save)
             return result
@@ -132,7 +132,7 @@ class DataCalculator():
 
         def murcko_scaffold(mol):
             core = MurckoScaffold.GetScaffoldForMol(mol)
-            if not Chem.MolToSmiles(core):
+            if not Chem.MolToSmiles(core, isomericSmiles=True):
                 core = mol
             fw = MurckoScaffold.MakeScaffoldGeneric(core)
             info = {}
