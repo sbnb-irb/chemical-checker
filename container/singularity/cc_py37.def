@@ -112,6 +112,7 @@ From: centos:8
     pip install matplotlib                        # chart library :)
     pip install seaborn                           # prettier graph built on top of matplotlib
     pip install datashader                        # plot huge 2D datasets (projetions)
+    pip install svgutils                          # compose multi-panel paper figures
 
     # ML packages
     pip install scikit-learn                      # entry level ML in python
