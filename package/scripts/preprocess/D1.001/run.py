@@ -18,6 +18,7 @@ from chemicalchecker.database import Molrepo
 from chemicalchecker.util.performance import gaussianize as g
 # Variables
 dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
+features_file = "features.h5"
 
 
 def parse_level(mini_sig_info_file, map_files, signaturesdir):
@@ -321,20 +322,22 @@ def main(args):
 
     if args.method == 'fit':
 
+        mpath = args.models_path
+
         main._log.info("Parsing")
         parse_level(mini_sig_info_file, map_files, signaturesdir)
 
-        ik_matrices = os.path.join(args.models_path, 'ik_matrices_fit')
+        ik_matrices = os.path.join(mpath, 'ik_matrices_fit')
 
         if os.path.exists(ik_matrices) is False:
             os.makedirs(ik_matrices, 0o775)
 
-        connectivitydir = os.path.join(args.models_path, 'connectivity_fit')
+        connectivitydir = os.path.join(mpath, 'connectivity_fit')
 
         if os.path.exists(connectivitydir) is False:
             os.makedirs(connectivitydir, 0o775)
 
-        consensus = os.path.join(args.models_path, "consensus_fit.h5")
+        consensus = os.path.join(mpath, "consensus_fit.h5")
 
         min_idxs = 10
 
@@ -352,13 +355,20 @@ def main(args):
 
     if args.method == 'predict':
 
+        mpath = tempfile.mkdtemp(
+            prefix='predict_', dir=args.models_path)
+
         ik_matrices = tempfile.mkdtemp(
-            prefix='ik_matrices_', dir=args.models_path)
+            prefix='ik_matrices_', dir=mpath)
 
         connectivitydir = tempfile.mkdtemp(
-            prefix='connectivity_', dir=args.models_path)
+            prefix='connectivity_', dir=mpath)
 
-        consensus = os.path.join(args.models_path, "consensus_predict.h5")
+        consensus = os.path.join(mpath, "consensus_predict.h5")
+
+        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+            features_list = hf["features"][:]
+            features = set(features_list)
 
         min_idxs = 1
 
@@ -394,7 +404,7 @@ def main(args):
 
         main._log.info("Getting signature files...")
 
-        job_path = os.path.join(args.models_path, "job_conn")
+        job_path = os.path.join(mpath, "job_conn")
 
         if os.path.isdir(job_path):
             shutil.rmtree(job_path)
@@ -439,7 +449,7 @@ def main(args):
 
         main._log.info("Doing aggregation matrices")
 
-        job_path = os.path.join(args.models_path, "job_agg_matrices")
+        job_path = os.path.join(mpath, "job_agg_matrices")
 
         if os.path.isdir(job_path):
             shutil.rmtree(job_path)
@@ -491,7 +501,11 @@ def main(args):
         keys.append(str(k))
         words.update([x[0] for x in inchikey_raw[k]])
 
-    orderwords = list(words)
+    if features is not None:
+        orderwords = features_list
+    else:
+        orderwords = list(words)
+        orderwords.sort()
     raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
     wordspos = {k: v for v, k in enumerate(orderwords)}
 
@@ -504,9 +518,13 @@ def main(args):
         hf.create_dataset("V", data=raws)
         hf.create_dataset("features", data=np.array(orderwords))
 
+    if args.method == "fit":
+        with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
+            hf.create_dataset("features", data=np.array(orderwords))
+
     if args.method == 'predict':
-        shutil.rmtree(ik_matrices)
-        shutil.rmtree(connectivitydir)
+        shutil.rmtree(mpath)
+        # shutil.rmtree(connectivitydir)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
