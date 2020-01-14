@@ -12,6 +12,9 @@ from scipy import interpolate
 from scipy import stats
 from functools import partial
 from scipy.stats import gaussian_kde
+from sklearn.preprocessing import RobustScaler
+from sklearn.metrics import r2_score
+from matplotlib.patches import Polygon
 
 import matplotlib
 matplotlib.use('Agg')
@@ -21,6 +24,7 @@ import matplotlib.gridspec as gridspec
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.collections import LineCollection
 
+from chemicalchecker.util.parser import Converter
 from chemicalchecker.util import logged
 from chemicalchecker.util.decomposition import dataset_correlation
 
@@ -29,7 +33,8 @@ from chemicalchecker.util.decomposition import dataset_correlation
 class MultiPlot():
     """Produce Chemical Checker plots using multiple datasets."""
 
-    def __init__(self, chemchecker, plot_path, limit_dataset=None):
+    def __init__(self, chemchecker, plot_path, limit_dataset=None, svg=False,
+                 dpi=200, grey=False, style=None):
         """Initialize a MultiPlot object.
 
         Produce plots integrating data from multiple datasets.
@@ -46,7 +51,22 @@ class MultiPlot():
         if not limit_dataset:
             self.datasets = list(self.cc.datasets)
         else:
-            self.datasets = limit_dataset
+            if not isinstance(limit_dataset, list):
+                self.datasets = list(limit_dataset)
+            else:
+                self.datasets = limit_dataset
+        self.svg = svg
+        self.dpi = dpi
+        self.grey = grey
+        if style is None:
+            self.style = ('ticks', {
+                'font.family': ' sans-serif',
+                'font.serif': ['Arial'],
+                'font.size': 16,
+                'axes.grid': True})
+        else:
+            self.style = style
+        sns.set_style(*self.style)
 
     def _rgb2hex(self, r, g, b):
         return '#%02x%02x%02x' % (r, g, b)
@@ -70,15 +90,18 @@ class MultiPlot():
                 colors.append(rgb2hex(250, 150, 50))
         return colors
 
-    @staticmethod
-    def cc_colors(coord, lighness=0):
+    def cc_colors(self, coord, lighness=0):
         colors = {
             'A': ['#EA5A49', '#EE7B6D', '#F7BDB6'],
             'B': ['#B16BA8', '#C189B9', '#D0A6CB'],
             'C': ['#5A72B5', '#7B8EC4', '#9CAAD3'],
             'D': ['#7CAF2A', '#96BF55', '#B0CF7F'],
-            'E': ['#F39426', '#F5A951', '#F8BF7D']}
-        return colors[coord[:1]][lighness]
+            'E': ['#F39426', '#F5A951', '#F8BF7D'],
+            'G': ['#333333', '#666666', '#999999']}
+        if not self.grey:
+            return colors[coord[:1]][lighness]
+        else:
+            return colors['G'][lighness]
 
     def cmap_discretize(cmap, N):
         """Return a discrete colormap from the continuous colormap cmap.
@@ -107,13 +130,15 @@ class MultiPlot():
     def sign_adanet_stats(self, ctype, metric=None, compare=None):
         # read stats fields
         sign = self.cc.get_signature(ctype, 'full', 'E5.001')
-        stat_file = os.path.join(sign.model_path, 'adanet_eval', 'stats_eval.pkl')
+        stat_file = os.path.join(
+            sign.model_path, 'adanet_eval', 'stats_eval.pkl')
         df = pd.read_pickle(stat_file)
         # merge all stats to pandas
         df = pd.DataFrame(columns=['coordinate'] + list(df.columns))
         for ds in tqdm(self.datasets):
             sign = self.cc.get_signature(ctype, 'full', ds)
-            stat_file = os.path.join(sign.model_path, 'adanet_eval', 'stats_eval.pkl')
+            stat_file = os.path.join(
+                sign.model_path, 'adanet_eval', 'stats_eval.pkl')
             if not os.path.isfile(stat_file):
                 continue
             tmpdf = pd.read_pickle(stat_file)
@@ -138,7 +163,7 @@ class MultiPlot():
             all_metrics = ['mse', 'r2', 'explained_variance', 'pearson_std',
                            'pearson_avg', 'time', 'nn_layers', 'nr_variables']
         for metric in all_metrics:
-            sns.set_style("whitegrid")
+            # sns.set_style("whitegrid")
             g = sns.catplot(data=df, kind='point', x='dataset', y=metric,
                             hue="algo", col="coordinate", col_wrap=5,
                             col_order=self.datasets,
@@ -159,7 +184,7 @@ class MultiPlot():
                 metric += '_CMP'
             outfile = os.path.join(
                 self.plot_path, 'sign2_adanet_stats_%s.png' % metric)
-            plt.savefig(outfile, dpi=100)
+            plt.savefig(outfile, dpi=self.dpi)
             plt.close('all')
 
     def sign2_node2vec_stats(self):
@@ -289,14 +314,14 @@ class MultiPlot():
         sns.despine(left=True, bottom=True)
 
         outfile = os.path.join(self.plot_path, 'sign2_node2vec_stats.png')
-        plt.savefig(outfile, dpi=100)
+        plt.savefig(outfile, dpi=self.dpi)
         plt.close('all')
 
     def sign_feature_distribution_plot(self, cctype, molset, block_size=1000,
                                        block_nr=10, sort=False):
         sample_size = block_size * block_nr
         fig, axes = plt.subplots(25, 1, sharey=True, sharex=True,
-                                 figsize=(10, 40), dpi=100)
+                                 figsize=(10, 40), dpi=self.dpi)
         for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
             sign = self.cc.get_signature(cctype, molset, ds)
             if not os.path.isfile(sign.data_path):
@@ -352,7 +377,7 @@ class MultiPlot():
             filename = os.path.join(
                 self.plot_path,
                 "%s_%s_feat_distrib_sort.png" % (cctype, molset))
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close()
 
     def plot_adanet_subnetwork_layer_size(self, shapes=None, func=None):
@@ -379,8 +404,8 @@ class MultiPlot():
         X, Y = np.meshgrid(x, y)  # grid of point
         Z = func(X, Y)  # evaluation of the function on the grid
 
-        sns.set_style("whitegrid")
-        fig, ax = plt.subplots(figsize=(7, 5), dpi=100)
+        # sns.set_style("whitegrid")
+        fig, ax = plt.subplots(figsize=(7, 5), dpi=self.dpi)
         norm = matplotlib.colors.BoundaryNorm(
             boundaries=[2**i for i in range(5, 11)], ncolors=256)
         # drawing the function
@@ -404,7 +429,7 @@ class MultiPlot():
                      color='k', fontsize=10)
 
         filename = os.path.join(self.plot_path, "layer_size.png")
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close()
 
     def sign2_grid_search_plot(self, grid_postfix=None):
@@ -451,7 +476,7 @@ class MultiPlot():
                 netdf.loc[len(netdf)] = pd.Series(new_row)
 
         sns.set_context("notebook")
-        sns.set_style("whitegrid")
+        # sns.set_style("whitegrid")
         hue_order = ["StackDNNGenerator", "ExtendDNNGenerator"]
         g = sns.catplot(data=netdf, kind='bar', x='layer', y='neurons',
                         hue="subnetwork_generator", col="coordinate", col_wrap=5,
@@ -463,7 +488,7 @@ class MultiPlot():
             ax.set_title("")
         filename = os.path.join(
             self.plot_path, "sign2_%s_grid_search_NN.png" % (grid_postfix))
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close()
 
         hue_order = ["StackDNNGenerator", "ExtendDNNGenerator"]
@@ -478,11 +503,11 @@ class MultiPlot():
             ax.set_title("")
         filename = os.path.join(
             self.plot_path, "sign2_%s_grid_search_NN_stackonly.png" % (grid_postfix))
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close()
 
         for metric in ['pearson_avg', 'time', 'r2', 'pearson_std', 'explained_variance']:
-            sns.set_style("whitegrid")
+            # sns.set_style("whitegrid")
             hue_order = ["StackDNNGenerator",
                          "ExtendDNNGenerator", "LinearRegression"]
             if metric == 'time':
@@ -501,7 +526,7 @@ class MultiPlot():
                 ax.set_title("")
             filename = os.path.join(
                 self.plot_path, "sign2_%s_grid_search_%s.png" % (grid_postfix, metric))
-            plt.savefig(filename, dpi=100)
+            plt.savefig(filename, dpi=self.dpi)
             plt.close()
 
             g = sns.catplot(data=df[df.subnetwork_generator != 'ExtendDNNGenerator'], kind='point', x='dataset', y=metric,
@@ -518,7 +543,7 @@ class MultiPlot():
                 ax.set_title("")
             filename = os.path.join(
                 self.plot_path, "sign2_%s_grid_search_%s_stackonly.png" % (grid_postfix, metric))
-            plt.savefig(filename, dpi=100)
+            plt.savefig(filename, dpi=self.dpi)
             plt.close()
 
     def sign2_grid_search_node2vec_plot(self, grid_postfix=None):
@@ -555,8 +580,7 @@ class MultiPlot():
         df = df.infer_objects()
 
         sns.set_context("talk")
-        sns.set_style("ticks")
-        matplotlib.rcParams['font.sans-serif'] = "Arial"
+        # sns.set_style("ticks")
         g = sns.relplot(data=df, kind='line', x='d', y='AUC-ROC',
                         hue="coordinate", col="coordinate", col_wrap=5,
                         col_order=self.datasets, style="dataset",
@@ -585,7 +609,7 @@ class MultiPlot():
         filename = os.path.join(
             self.plot_path, "sign2_%s_grid_search_node2vec.png" % (grid_postfix))
         plt.tight_layout()
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close()
 
     def sign3_grid_search_plot(self, grid_roots):
@@ -624,7 +648,7 @@ class MultiPlot():
                 netdf.loc[len(netdf)] = pd.Series(new_row)
 
         sns.set_context("notebook")
-        sns.set_style("whitegrid")
+        # sns.set_style("whitegrid")
         hue_order = ["StackDNNGenerator", "ExtendDNNGenerator"]
         g = sns.catplot(data=netdf, kind='bar', x='layer', y='neurons',
                         hue="subnetwork_generator", col="coordinate", col_wrap=5,
@@ -636,7 +660,7 @@ class MultiPlot():
             ax.set_title("")
         filename = os.path.join(
             self.plot_path, "sign3_crossfit_NN.png")
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close()
 
         hue_order = ["StackDNNGenerator", "ExtendDNNGenerator"]
@@ -651,11 +675,11 @@ class MultiPlot():
             ax.set_title("")
         filename = os.path.join(
             self.plot_path, "sign3_crossfit_NN_stackonly.png")
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close()
 
         for metric in ['pearson_avg', 'time', 'r2', 'pearson_std', 'explained_variance']:
-            sns.set_style("whitegrid")
+            # sns.set_style("whitegrid")
             hue_order = ["StackDNNGenerator",
                          "ExtendDNNGenerator", "LinearRegression"]
             if metric == 'time':
@@ -672,7 +696,7 @@ class MultiPlot():
                 ax.set_title("")
             filename = os.path.join(
                 self.plot_path, "sign3_crossfit_%s.png" % (metric))
-            plt.savefig(filename, dpi=100)
+            plt.savefig(filename, dpi=self.dpi)
             plt.close()
 
             g = sns.catplot(data=df[df.subnetwork_generator != 'ExtendDNNGenerator'], kind='point', x='dataset', y=metric,
@@ -687,7 +711,7 @@ class MultiPlot():
                 ax.set_title("")
             filename = os.path.join(
                 self.plot_path, "sign3_crossfit_%s_stackonly.png" % (metric))
-            plt.savefig(filename, dpi=100)
+            plt.savefig(filename, dpi=self.dpi)
             plt.close()
 
     def sign3_all_crossfit_plot(self, crossfit_dir):
@@ -768,7 +792,7 @@ class MultiPlot():
             plt.tight_layout()
             filename = os.path.join(
                 self.plot_path, "sign3_all_crossfit_train_delta_%s.png" % (met))
-            plt.savefig(filename, dpi=300)
+            plt.savefig(filename, dpi=self.dpi)
             plt.close()
 
         piv_test = adanet_test.pivot(
@@ -789,7 +813,7 @@ class MultiPlot():
         odf['log10_train_size'] = np.log(odf.train_size)
         odf['pearson_avg_train'] = odf.overfit_pearson_avg + odf.pearson_avg
 
-        sns.set_style("whitegrid")
+        # sns.set_style("whitegrid")
         sns.set_context("talk")
         order = sorted(odf.coordinate_to.unique())
         sns.relplot(x="pearson_avg_train", y="pearson_avg",
@@ -800,7 +824,7 @@ class MultiPlot():
                     facet_kws={'xlim': (0., 1.), 'ylim': (0., 1.)})
         filename = os.path.join(
             self.plot_path, "sign3_overfit_vs_trainsize.png")
-        plt.savefig(filename, dpi=300)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close()
 
     @staticmethod
@@ -829,7 +853,7 @@ class MultiPlot():
 
         # plot
         sns.set_context('talk')
-        sns.set_style("white")
+        # sns.set_style("white")
         fig, ax = plt.subplots(figsize=(14, 12))
         cmap = matplotlib.cm.viridis
         cmap.set_bad(cmap.colors[0])
@@ -868,7 +892,7 @@ class MultiPlot():
         # save
         plt.tight_layout()
         filename = os.path.join("sign2_universe.png")
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close()
 
     def spy_augment(self, matrix, augment_fn, epochs=1):
@@ -881,16 +905,16 @@ class MultiPlot():
             ax.set_yticklabels([])
             ax.set_xticklabels([])
         filename = os.path.join(self.plot_path, "spy.png")
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close()
 
     def sign3_adanet_performance_all_plot(self, metric="pearson", suffix=None,
                                           stat_filename="stats_eval.pkl"):
 
-        sns.set_style("whitegrid")
-        sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
+        # sns.set_style("whitegrid")
+        # sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
         fig, axes = plt.subplots(25, 1, sharey=True, sharex=False,
-                                 figsize=(20, 70), dpi=100)
+                                 figsize=(20, 70), dpi=self.dpi)
         adanet_dir = 'adanet_eval'
         if suffix is not None:
             adanet_dir = 'adanet_%s' % suffix
@@ -930,16 +954,16 @@ class MultiPlot():
             ax.spines["left"].set_color(self.cc_palette([ds])[0])
         plt.tight_layout()
         filename = os.path.join(self.plot_path, "adanet_performance_all.png")
-        plt.savefig(filename, dpi=200)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close('all')
 
     def sign3_adanet_performance_overall(self, metric="pearson", suffix=None,
                                          not_self=True):
 
-        sns.set_style("whitegrid")
+        # sns.set_style("whitegrid")
         sns.set_context("talk")
         fig, axes = plt.subplots(5, 5, sharey=True, sharex=False,
-                                 figsize=(10, 10), dpi=100)
+                                 figsize=(10, 10), dpi=self.dpi)
         adanet_dir = 'adanet_eval'
         if suffix is not None:
             adanet_dir = 'adanet_%s' % suffix
@@ -987,7 +1011,7 @@ class MultiPlot():
         else:
             filename = os.path.join(
                 self.plot_path, "adanet_performance_overall.png")
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close('all')
 
     def sign3_adanet_performance_overall_heatmap(self, metric="pearson",
@@ -1012,7 +1036,7 @@ class MultiPlot():
         df['from'] = df['from'].map({ds: ds[:2] for ds in self.cc.datasets})
         df = df.dropna()
 
-        fig, ax = plt.subplots(1, 1, figsize=(6, 5), dpi=100)
+        fig, ax = plt.subplots(1, 1, figsize=(6, 5), dpi=self.dpi)
         cmap = plt.cm.get_cmap('plasma_r', 5)
         sns.heatmap(df.pivot('from', 'to', metric), vmin=0, vmax=1,
                     linewidths=.5, square=True, cmap=cmap)
@@ -1020,7 +1044,7 @@ class MultiPlot():
         plt.tight_layout()
         filename = os.path.join(
             self.plot_path, "adanet_perf_heatmap_%s_%s.png" % (split, metric))
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close('all')
 
     def sign3_coverage_heatmap(self, sign2_coverage):
@@ -1038,7 +1062,7 @@ class MultiPlot():
                 'to': ds_to[:2],
                 'coverage': coverage})
 
-        fig, ax = plt.subplots(1, 1, figsize=(6, 5), dpi=100)
+        fig, ax = plt.subplots(1, 1, figsize=(6, 5), dpi=self.dpi)
         cmap = plt.cm.get_cmap('plasma_r', 5)
         sns.heatmap(df.pivot('from', 'to', 'coverage'), vmin=0, vmax=1,
                     linewidths=.5, square=True, cmap=cmap)
@@ -1046,12 +1070,11 @@ class MultiPlot():
         plt.tight_layout()
         filename = os.path.join(
             self.plot_path, "sign3_coverage_heatmap.png")
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close('all')
 
     def sign3_coverage_barplot(self, sign2_coverage):
-        sns.set_style("ticks")
-        sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
+        # sns.set_style(*self.style)
         cov = sign2_coverage.get_h5_dataset('V')
         df = pd.DataFrame(columns=['from', 'to', 'coverage'])
         for ds_from, ds_to in tqdm(itertools.product(self.datasets, self.datasets)):
@@ -1082,7 +1105,7 @@ class MultiPlot():
             df2.loc[len(df2)] = pd.Series(dict(row))
         df2.set_index('dataset', inplace=True)
 
-        fig, ax = plt.subplots(1, 1, figsize=(3, 10), dpi=100)
+        fig, ax = plt.subplots(1, 1, figsize=(3, 10), dpi=self.dpi)
         colors = [
             '#EA5A49', '#EE7B6D', '#EA5A49', '#EE7B6D', '#EA5A49',
             '#C189B9', '#B16BA8', '#C189B9', '#B16BA8', '#C189B9',
@@ -1093,21 +1116,23 @@ class MultiPlot():
         sns.despine(left=True, trim=True)
         plt.tick_params(left=False)
         ax.set_ylabel('')
-        ax.set_xlabel('Molecule Coverage',
-                      fontdict=dict(name='Arial', size=16))
+        ax.set_xlabel('Molecule Coverage')
         # ax.xaxis.tick_top()
         ax.set_xticks([0, 2, 4, 6])
         ax.set_xticklabels(
             [r'$10^{0}$', r'$10^{2}$', r'$10^{4}$', r'$10^{6}$', ])
         ax.tick_params(labelsize=14)
+        ax.grid(False)
 
         plt.tight_layout()
         filename = os.path.join(
             self.plot_path, "sign3_coverage_barplot.png")
-        plt.savefig(filename, dpi=200)
+        plt.savefig(filename, dpi=self.dpi)
+        if self.svg:
+            plt.savefig(filename.replace('.png', '.svg'), dpi=self.dpi)
         plt.close('all')
 
-        fig = plt.figure(figsize=(10, 10))
+        fig = plt.figure(figsize=(3, 10))
         plt.subplots_adjust(left=0.05, right=0.95, bottom=0.02,
                             top=0.95, hspace=0.1)
         gs = fig.add_gridspec(2, 1)
@@ -1121,32 +1146,36 @@ class MultiPlot():
         ax_cov.barh(range(25), cdf['coverage'],
                     color=list(reversed(colors)), lw=0)
         for y, name in enumerate(cdf['dataset'].tolist()):
-            ax_cov.text(2, y - 0.06, name, name='Arial', size=12,
+            ax_cov.text(2, y - 0.06, name, size=12,
                         va='center', ha='left',
                         color='white', fontweight='bold')
         ax_cov.set_yticks(range(1, 26))
         ax_cov.set_yticklabels([])
-        #ax_cov.set_xlim(0, 110)
+        # ax_cov.set_xlim(0, 110)
         # ax_cov.xaxis.set_label_position('top')
         # ax_cov.xaxis.tick_top()
         plt.tick_params(left=False)
         ax_cov.set_ylabel('')
-        ax_cov.set_xlabel('Molecules', fontdict=dict(name='Arial', size=16))
+        ax_cov.set_xlabel('Molecules', fontsize=16)
         ax_cov.set_xscale('log')
         ax_cov.set_xlim(1, 1e6)
         ax_cov.set_ylim(-1, 25)
         # ax.xaxis.tick_top()
         ax_cov.set_xticks([1e1, 1e3, 1e5])
-        ax_cov.set_xticklabels(
-            [r'$10^{1}$', r'$10^{3}$',  r'$10^{5}$', ])
+        # ax_cov.set_xticklabels(
+        #    [r'$\mathregular{10^{1}}$', r'$\mathregular{10^{3}}$',
+        #     r'$\mathregular{10^{5}}$', ])
+        ax_cov.grid(False)
         # ax_cov.tick_params(labelsize=14)
-        ax_cov.tick_params(left=False, labelsize=14, direction='inout')
+        ax_cov.tick_params(left=False, labelsize=14, pad=0, direction='inout')
         sns.despine(ax=ax_cov, left=True, bottom=True, top=False, trim=True)
         ax_cov.xaxis.set_label_position('top')
         ax_cov.xaxis.tick_top()
         ax_xcov.tick_params(left=False, bottom=False, top=True,
                             labelbottom=False, labeltop=True)
-        cmap = plt.get_cmap("Greys_r", 10)
+        cmap_tmp = plt.get_cmap("magma", 14)
+        cmap = matplotlib.colors.ListedColormap(
+            cmap_tmp(np.linspace(0, 1, 14))[4:], 10)
         for i in range(25):
             ax_xcov.barh(25 - i, 1, left=range(25),
                          color=[cmap(1 - cross_cov[i, x]) for x in range(25)],
@@ -1174,70 +1203,210 @@ class MultiPlot():
             cx = rx + rect.get_width() / 2.0
             cy = ry + rect.get_height() / 2.0
             ax_xcov.text(cx, cy, 'ABCDE'[y], weight='bold',
-                         name='Arial', size=12, ha='center', va='center',
+                         size=12, ha='center', va='center',
                          color='white', clip_on=False)
 
         sns.despine(ax=ax_xcov, left=True, bottom=True)
         ax_xcov.tick_params(left=False, bottom=False, top=False,
                             labelbottom=False, labeltop=False)
-
+        ax_xcov.grid(False)
         ax_cbar = fig.add_subplot(gs[1])
         cbar = matplotlib.colorbar.ColorbarBase(
             ax_cbar, cmap=cmap, orientation='horizontal',
             ticklocation='top')
-        cbar.ax.set_xlabel('Overlap',
-                           fontdict=dict(name='Arial', size=14))
-        cbar.ax.tick_params(labelsize=14, )
+        cbar.ax.set_xlabel('Overlap', fontsize=16)
+        cbar.ax.tick_params(labelsize=12)
         cbar.set_ticks([1, .8, .6, .4, .2, .0])
-        cbar.set_ticklabels(
-            list(reversed(['1', '0.8', '0.6', '0.4', '0.2', '0'])))
+        cbar.set_ticklabels(['0', '', '', '', '', '1'])
+
+        poly = Polygon([(0.05, 2.0), (0.05, 1.4), (1, 1.4)],
+                       transform=ax_cbar.get_xaxis_transform(),
+                       clip_on=False,
+                       facecolor='black')
+        ax_cbar.add_patch(poly)
 
         outfile = os.path.join(self.plot_path, 'sign3_coverage_barplot.png')
-        plt.savefig(outfile, dpi=100)
+        plt.savefig(outfile, dpi=self.dpi)
+        if self.svg:
+            plt.savefig(outfile.replace('.png', '.svg'), dpi=self.dpi)
         plt.close('all')
 
     def sign3_CCA_heatmap(self, limit=10000):
 
-        sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
-
-        df = pd.DataFrame(columns=['from', 'to', 'CCA'])
-        cca_file = os.path.join(self.plot_path, "sign3_CCA.pkl")
+        cca_file = os.path.join(self.plot_path, "sign3_sign2_CCA.pkl")
         if not os.path.isfile(cca_file):
+            df = pd.DataFrame(columns=['from', 'to', 'CCA2', 'CCA3'])
             for i in range(len(self.datasets)):
                 ds_from = self.datasets[i]
+                s2_from = self.cc.get_signature(
+                    'sign2', 'full', ds_from)
                 s3_from = self.cc.get_signature(
                     'sign3', 'full', ds_from)[:limit]
                 for j in range(i + 1):
                     ds_to = self.datasets[j]
+                    if ds_to == ds_from:
+                        df.loc[len(df)] = pd.Series({
+                            'from': ds_from[:2],
+                            'to': ds_to[:2],
+                            'CCA3': 1.0,
+                            'CCA2': 1.0})
+                        continue
+                    s2_to = self.cc.get_signature(
+                        'sign2', 'full', ds_to)
                     s3_to = self.cc.get_signature(
                         'sign3', 'full', ds_to)[:limit]
-                    res = dataset_correlation(s3_from, s3_to)
+                    s3_res = dataset_correlation(s3_from, s3_to)
+
+                    # shared keys
+                    shared_inks = s2_from.unique_keys & s2_to.unique_keys
+                    shared_inks = sorted(list(shared_inks))[:limit]
+                    mask_from = np.isin(list(s2_from.keys), list(shared_inks))
+                    mask_to = np.isin(list(s2_to.keys), list(shared_inks))
+                    ss2_from = s2_from[
+                        :limit * 10][mask_from[:limit * 10]][:limit]
+                    ss2_to = s2_to[:limit * 10][mask_to[:limit * 10]][:limit]
+                    min_size = min(len(ss2_to), len(ss2_from))
+                    print(ds_from, ds_to, 'S2 min_size', min_size)
+                    if min_size < 10:
+                        df.loc[len(df)] = pd.Series({
+                            'from': ds_from[:2],
+                            'to': ds_to[:2],
+                            'CCA3': s3_res[0],
+                            'CCA2': 0.0})
+                        df.loc[len(df)] = pd.Series({
+                            'from': ds_to[:2],
+                            'to': ds_from[:2],
+                            'CCA3': s3_res[3],
+                            'CCA2': 0.0})
+                        continue
+                    s2_res = dataset_correlation(
+                        ss2_from[:min_size], ss2_to[:min_size])
 
                     df.loc[len(df)] = pd.Series({
                         'from': ds_from[:2],
                         'to': ds_to[:2],
-                        'CCA': res[0]})
-                    if ds_to != ds_from:
-                        df.loc[len(df)] = pd.Series({
-                            'from': ds_to[:2],
-                            'to': ds_from[:2],
-                            'CCA': res[3]})
+                        'CCA3': s3_res[0],
+                        'CCA2': s2_res[0]})
+
+                    df.loc[len(df)] = pd.Series({
+                        'from': ds_to[:2],
+                        'to': ds_from[:2],
+                        'CCA3': s3_res[3],
+                        'CCA2': s2_res[3]})
+                    print(ds_from, ds_to, 's3 %.2f' %
+                          s3_res[0], 's2 %.2f' % s2_res[0])
             df.to_pickle(cca_file)
         df = pd.read_pickle(cca_file)
-        fig, ax = plt.subplots(1, 1, figsize=(6, 5), dpi=100)
+
+        # sns.set_style("ticks")
+        # sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
+
+        # CCA heatmaps
+        for cca_id in ['CCA2', 'CCA3']:
+            fig, ax = plt.subplots(1, 1, figsize=(6, 5), dpi=self.dpi)
+            cmap = plt.cm.get_cmap('plasma_r', 5)
+            sns.heatmap(df.pivot('from', 'to', cca_id), vmin=0, vmax=1,
+                        linewidths=.2, square=True, cmap=cmap, ax=ax)
+            ax.set_xlabel('')
+            ax.set_ylabel('')
+            bottom, top = ax.get_ylim()
+            ax.set_ylim(bottom + 0.5, top - 0.5)
+            plt.title('Canonical Correlation Analysis')
+            plt.tight_layout()
+            filename = os.path.join(
+                self.plot_path, "sign3_%s_heatmap.png" % cca_id)
+            plt.savefig(filename, dpi=self.dpi)
+            plt.close('all')
+
+        # combined heatmap
+        cca3 = df.pivot('from', 'to', 'CCA3').values
+        cca3_avg = np.zeros_like(cca3)
+        for i,  j in itertools.product(range(25), range(25)):
+            cca3_avg[i, j] = np.mean((cca3[i, j], cca3[j, i]))
+        cca2 = df.pivot('from', 'to', 'CCA2').values
+        cca2_avg = np.zeros_like(cca2)
+        for i,  j in itertools.product(range(25), range(25)):
+            cca2_avg[i, j] = np.mean((cca2[i, j], cca2[j, i]))
+        combined = np.tril(cca3_avg) + np.triu(cca2_avg)
+        np.fill_diagonal(combined, np.nan)
+
+        fig = plt.figure(figsize=(6, 6))
+        plt.subplots_adjust(left=0.05, right=0.90, bottom=0.08, top=0.9,
+                            wspace=.02, hspace=.02)
+        gs = fig.add_gridspec(2, 2)
+        gs.set_height_ratios((1, 10))
+        gs.set_width_ratios((20, 1))
+        ax_dist = fig.add_subplot(gs[0, 0])
+        cca2_dist = cca2_avg[np.triu_indices_from(cca2_avg, 1)]
+        cca3_dist = cca3_avg[np.tril_indices_from(cca3_avg, -1)]
+        sns.kdeplot(cca2_dist, ax=ax_dist, shade=True, bw=.2, color='blue',
+                    clip=(min(cca2_dist), max(cca2_dist)))
+        sns.kdeplot(cca3_dist, ax=ax_dist, shade=True, bw=.2, color='red',
+                    clip=(min(cca3_dist), max(cca3_dist)))
+        ax_dist.text(0.05, 0.35, "Observed", transform=ax_dist.transAxes,
+                     name='Arial', size=14, color='blue')
+        ax_dist.text(0.05, 0.8, "Predicted", transform=ax_dist.transAxes,
+                     name='Arial', size=14, color='red')
+        fig.text(0.5, 1.7, 'Canonical Correlation Analysis',
+                 ha='center', va='center', transform=ax_dist.transAxes,
+                 name='Arial', size=16)
+        # sns.despine(ax=ax_dist, left=True, bottom=True)
+        ax_dist.set_axis_off()
+        ax_hm = fig.add_subplot(gs[1, 0])
+        ax_cbar = fig.add_subplot(gs[1, 1])
         cmap = plt.cm.get_cmap('plasma_r', 5)
-        sns.heatmap(df.pivot('from', 'to', 'CCA'), vmin=0, vmax=1,
-                    linewidths=.5, square=True, cmap=cmap)
-        plt.title('Canonical Correlation Analysis')
-        plt.tight_layout()
+        sns.heatmap(combined, vmin=0, vmax=1,
+                    linewidths=.2, square=True, cmap=cmap,
+                    ax=ax_hm, cbar_ax=ax_cbar)
+        ax_hm.set_xlabel('')
+        ax_hm.set_ylabel('')
+        ax_hm.set_xticklabels([x[:2] for x in self.datasets], rotation=90)
+        ax_hm.set_yticklabels([x[:2] for x in self.datasets], rotation=0)
+        bottom, top = ax_hm.get_ylim()
+        ax_hm.set_ylim(bottom + 0.5, top - 0.5)
         filename = os.path.join(
-            self.plot_path, "sign3_CCA_heatmap.png")
-        df.to_pickle(filename[:-3] + ".pkl")
-        plt.savefig(filename, dpi=100)
+            self.plot_path, "sign3_combined_heatmap.png")
+        plt.savefig(filename, dpi=self.dpi)
+        plt.close('all')
+
+        # scatter plot comparing sign1 and sign3
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=self.dpi)
+        sns.scatterplot(x='CCA2', y='CCA3', data=df, ax=ax)
+        filename = os.path.join(
+            self.plot_path, "sign3_sign2_CCA.png")
+        plt.savefig(filename, dpi=self.dpi)
+        plt.close('all')
+
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=self.dpi)
+        for i in range(len(self.datasets)):
+            for j in range(len(self.datasets)):
+                dsx = self.datasets[i][:2]
+                dsy = self.datasets[j][:2]
+                if dsx == dsy:
+                    continue
+                c1 = self.cc_colors(dsx)
+                c2 = self.cc_colors(dsy)
+                marker_style = dict(color=c1,  markerfacecoloralt=c2,
+                                    markeredgecolor='w', markeredgewidth=0, markersize=8,
+                                    marker='o')
+                x = df[(df['from'] == dsx) & (df['to'] == dsy)][
+                    'CCA2'].tolist()[0]
+                y = df[(df['from'] == dsx) & (df['to'] == dsy)][
+                    'CCA3'].tolist()[0]
+                ax.plot(x, y, alpha=0.9, fillstyle='right', **marker_style)
+        ax.set_xlabel('Observed Signatures CCA',
+                      fontdict=dict(name='Arial', size=16))
+        ax.set_ylabel('Predicted Signatures CCA',
+                      fontdict=dict(name='Arial', size=16))
+        ax.tick_params(labelsize=14)
+        sns.despine(ax=ax, trim=True)
+        filename = os.path.join(
+            self.plot_path, "sign3_sign2_CCA.png")
+        plt.savefig(filename, dpi=self.dpi)
         plt.close('all')
 
         # also plot as MDS projection
-        cca = df.pivot('from', 'to', 'CCA').values
+        cca = df.pivot('from', 'to', 'CCA3').values
         # make average of upper and lower triangular matrix
         cca_avg = np.zeros_like(cca)
         for i,  j in itertools.product(range(25), range(25)):
@@ -1265,26 +1434,26 @@ class MultiPlot():
                                             angle, (1 - np.power(coords_dist, 1 / 3))),
                                         ),)
 
-            #ax.plot([p1[0],p2[0]], [p1[1],p2[1]])
+            # ax.plot([p1[0],p2[0]], [p1[1],p2[1]])
             midpoint = (p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2
             ax.annotate('%.2f' % dist, xy=midpoint,
                         xytext=midpoint, textcoords='data', xycoords='data',
                         rotation=angle, va='center', ha='center')
 
-        fig, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=100)
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5), dpi=self.dpi)
         colors = [self.cc_colors(ds) for ds in self.datasets]
         markers = ["$\u2776$", "$\u2777$", "$\u2778$", "$\u2779$", "$\u277a$"]
         for i, color in enumerate(colors):
             ax.scatter(coords[i, 0], coords[i, 1], c=color, s=400,
                        edgecolor='', marker=markers[i % 5], zorder=2)
         anno_dist(ax, 19, 15, coords)
-        #anno_dist(ax, 20, 22,coords)
+        # anno_dist(ax, 20, 22,coords)
         anno_dist(ax, 1, 2, coords)
         anno_dist(ax, 9, 20, coords)
         filename = os.path.join(
             self.plot_path, "sign3_CCA_MDS.svg")
         plt.axis('off')
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close('all')
 
     def all_sign_validations(self, sign_types=None, molsets=None, valset='moa'):
@@ -1322,9 +1491,9 @@ class MultiPlot():
                             row['value'] /= 100.
                         df.loc[len(df)] = pd.Series(row)
         print(df)
-        sns.set_style("whitegrid")
+        # sns.set_style("whitegrid")
         fig, axes = plt.subplots(5, 5, sharey=True, sharex=True,
-                                 figsize=(15, 15), dpi=100)
+                                 figsize=(15, 15), dpi=self.dpi)
         for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
             ds_color = self.cc_palette([ds])[0]
             sns.barplot(x='sign_molset', y='value',
@@ -1370,13 +1539,13 @@ class MultiPlot():
                                 "sign_validation_%s_%s_%s.png"
                                 % (valset, '_'.join(sign_types),
                                     '_'.join(molsets)))
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close('all')
         """
         for metric in metrics:
-            sns.set_style("whitegrid")
+            # sns.set_style("whitegrid")
             fig, axes = plt.subplots(5, 5, sharey=True, sharex=False,
-                                     figsize=(10, 10), dpi=100)
+                                     figsize=(10, 10), dpi=self.dpi)
             for ds, ax in tqdm(zip(self.cc.datasets, axes.flatten())):
 
                 cdf = df[df.dataset == ds][metric]
@@ -1412,7 +1581,7 @@ class MultiPlot():
             plt.tight_layout()
             filename = os.path.join(self.plot_path,
                                     "sign_validation_deltas_%s.png" % metric)
-            plt.savefig(filename, dpi=100)
+            plt.savefig(filename, dpi=self.dpi)
             plt.close('all')
         """
 
@@ -1425,7 +1594,6 @@ class MultiPlot():
         from scipy.stats import pearsonr
         from sklearn.preprocessing import QuantileTransformer
         from chemicalchecker.core.signature_data import DataSignature
-
 
         outfile = os.path.join(
             self.plot_path, 'sign3_simsearch.pkl')
@@ -1482,13 +1650,14 @@ class MultiPlot():
                     print('Computing raw confidence scores for TRAIN')
                     traintest = Traintest(traintest_file, 'train')
                     traintest.open()
-                    x_train = traintest.get_x(0, limit*10)
+                    x_train = traintest.get_x(0, limit * 10)
                     traintest.close()
                     rf = pickle.load(
                         open(os.path.join(s3.model_path,
                                           'adanet_error_final/RandomForest.pkl'), 'rb'), encoding='latin1')
                     predict_fn = s3.get_predict_fn('adanet_eval')
-                    nan_feat = np.full((1, x_train.shape[1]), np.nan, dtype=np.float32)
+                    nan_feat = np.full(
+                        (1, x_train.shape[1]), np.nan, dtype=np.float32)
                     nan_pred = predict_fn({'x': nan_feat})['predictions']
                     coverage = ~np.isnan(x_train[:, 0::128])
                     err_dist = rf.predict(coverage)
@@ -1507,8 +1676,10 @@ class MultiPlot():
                         np.mean(((y_train - consensus)**2), axis=1))
                     # get calibration weights
                     print('calibrationg weights')
-                    corr_int = pearsonr(int_dist.flatten(), log_mse_consensus)[0]
-                    corr_std = pearsonr(std_dist.flatten(), log_mse_consensus)[0]
+                    corr_int = pearsonr(int_dist.flatten(),
+                                        log_mse_consensus)[0]
+                    corr_std = pearsonr(std_dist.flatten(),
+                                        log_mse_consensus)[0]
                     corr_err = pearsonr(err_dist.flatten(), log_mse)[0]
                     # normalizers
                     print('normalizers')
@@ -1536,7 +1707,8 @@ class MultiPlot():
                     centered = consensus - nan_pred
                     intensities = np.abs(centered)
                     intensities = np.mean(intensities, axis=1)
-                    inten_norm = int_qtr.transform(np.expand_dims(intensities, 1))
+                    inten_norm = int_qtr.transform(
+                        np.expand_dims(intensities, 1))
                     stddevs = np.std(samples, axis=1)
                     stddevs = np.mean(stddevs, axis=1)
                     stddev_norm = std_qtr.transform(np.expand_dims(stddevs, 1))
@@ -1625,7 +1797,8 @@ class MultiPlot():
                     # random confidence
                     topn = int(np.floor(np.count_nonzero(mask) / 10))
                     jacc = n2_train.jaccard_similarity(
-                        n2_s2['indices'][np.argsort(rnd_confidence[mask])[-topn:]],
+                        n2_s2['indices'][np.argsort(
+                            rnd_confidence[mask])[-topn:]],
                         n2_s3['indices'][np.argsort(rnd_confidence[mask])[-topn:]])
                     df = df.append(pd.DataFrame(
                         {'dataset': ds, 'confidence': 'rnd_conf',
@@ -1654,7 +1827,7 @@ class MultiPlot():
             x = int(len(a) / 2)
             assert(np.all(a[-x:] == a[x:]))
 
-        sns.set_style("ticks")
+        # sns.set_style("ticks")
         f, axes = plt.subplots(5, 5, figsize=(5, 6), sharex=True, sharey='row')
         plt.subplots_adjust(left=0.16, right=0.99, bottom=0.12, top=0.99,
                             wspace=.08, hspace=.1)
@@ -1684,8 +1857,8 @@ class MultiPlot():
                 sns.despine(ax=ax, left=True, offset=3, trim=True)
                 ax.tick_params(left=False)
                 ax.tick_params(axis='x', labelrotation=45)
-                #ax.set_xticks([0, 1])
-                #ax.set_xticklabels(['All', 'High'])
+                # ax.set_xticks([0, 1])
+                # ax.set_xticklabels(['All', 'High'])
             else:
                 sns.despine(ax=ax, bottom=True, left=True, offset=3, trim=True)
                 ax.tick_params(bottom=False, left=False)
@@ -1694,10 +1867,10 @@ class MultiPlot():
                va='center', rotation='vertical')
         outfile = os.path.join(
             self.plot_path, 'sign3_simsearch_neig.png')
-        plt.savefig(outfile, dpi=200)
+        plt.savefig(outfile, dpi=self.dpi)
         plt.close('all')
 
-        sns.set_style("ticks")
+        # sns.set_style("ticks")
         f, axes = plt.subplots(5, 5, figsize=(5, 6), sharex=True, sharey='row')
         plt.subplots_adjust(left=0.16, right=0.99, bottom=0.12, top=0.99,
                             wspace=.08, hspace=.1)
@@ -1727,8 +1900,8 @@ class MultiPlot():
                 sns.despine(ax=ax, left=True, offset=3, trim=True)
                 ax.tick_params(left=False)
                 ax.tick_params(axis='x', labelrotation=45)
-                #ax.set_xticks([0, 1])
-                #ax.set_xticklabels(['All', 'High'])
+                # ax.set_xticks([0, 1])
+                # ax.set_xticklabels(['All', 'High'])
             else:
                 sns.despine(ax=ax, bottom=True, left=True, offset=3, trim=True)
                 ax.tick_params(bottom=False, left=False)
@@ -1737,7 +1910,7 @@ class MultiPlot():
                va='center', rotation='vertical')
         outfile = os.path.join(
             self.plot_path, 'sign3_simsearch_thr.png')
-        plt.savefig(outfile, dpi=200)
+        plt.savefig(outfile, dpi=self.dpi)
         plt.close('all')
 
     def sign3_neig2_jaccard(self, limit=2000):
@@ -1802,7 +1975,7 @@ class MultiPlot():
             print('***** ALL', len(jacc), np.mean(jacc),
                   stats.spearmanr(jacc, s3_data_conf))
 
-        sns.set_style("whitegrid")
+        # sns.set_style("whitegrid")
         f, axes = plt.subplots(5, 5, figsize=(4, 6), sharex=True, sharey='row')
 
         plt.subplots_adjust(left=0.16, right=0.99, bottom=0.12, top=0.99,
@@ -1837,25 +2010,24 @@ class MultiPlot():
                va='center', rotation='vertical')
         outfile = os.path.join(
             self.plot_path, 'sign3_neig2_jaccard.png')
-        plt.savefig(outfile, dpi=200)
+        plt.savefig(outfile, dpi=self.dpi)
         plt.close('all')
 
-    def sign_property_distribution(self, cctype, molset, prop, xlim=None):
-        sns.set_style("ticks")
-        sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
+    def sign_property_distribution(self, cctype, molset, prop, xlim=None,
+                                   ylim=None):
+        # sns.set_style("whitegrid")
+        # sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
 
-        fig, axes = plt.subplots(5, 5, figsize=(5, 5),
-                                 sharex=True, sharey=True)
+        fig, axes = plt.subplots(5, 5, figsize=(8, 8),
+                                 sharex=False, sharey=False)
 
-        plt.subplots_adjust(left=0.12, right=0.99, bottom=0.1, top=0.99,
+        plt.subplots_adjust(left=0.12, right=0.99, bottom=0.1, top=0.96,
                             wspace=.08, hspace=.06)
+        main_ax = fig.add_subplot(111, frameon=False)
 
-        fig.text(0.5, 0.02, prop.capitalize(),
-                 ha='center', va='center',
-                 name='Arial', size=16)
-        fig.text(0.02, 0.55, 'Molecules', ha='center',
-                 va='center', rotation='vertical',
-                 name='Arial', size=16)
+        main_ax.set_xlabel(prop.capitalize(), fontsize=16)
+        main_ax.set_ylabel('Molecules', fontsize=16)
+        main_ax.set_axis_off()
 
         for ds, ax in zip(self.datasets, axes.flat):
             try:
@@ -1868,38 +2040,46 @@ class MultiPlot():
             s3_data_conf = s3.get_h5_dataset(prop)
             # get idx of nearest neighbors of s2
             if xlim:
-                sns.distplot(s3_data_conf, color=self.cc_palette([ds])[0],
-                             kde=False, norm_hist=False, ax=ax, bins=10,
-                             hist_kws=dict(range=xlim, alpha=1))
+                ax.hist(s3_data_conf, color=self.cc_colors(ds, 0),
+                        density=False, bins=10, log=True,
+                        range=xlim, alpha=1)
                 ax.set_xlim(xlim)
             else:
-                sns.distplot(s3_data_conf, color=self.cc_palette([ds])[0],
-                             kde=False, norm_hist=False, ax=ax)
-            ax.set_yscale('log')
-
-            ax.grid(axis='y', linestyle="-",
-                    color=self.cc_palette([ds])[0], lw=0.3)
-            ax.grid(axis='x', linestyle="-",
-                    color=self.cc_palette([ds])[0], lw=0.3)
-            if ds[:2] == 'E1':
-                sns.despine(ax=ax, offset=3, trim=True)
-            elif ds[1] == '1':
-                sns.despine(ax=ax, bottom=True, offset=3, trim=True)
-                ax.tick_params(bottom=False)
+                ax.hist(s3_data_conf, color=self.cc_colors(ds, 0),
+                        density=False, log=True)
+            if ylim:
+                ax.set_ylim(ylim)
+            # ax.set_yscale('log')
+            if ds[1] == '1':
+                ax.tick_params(left=True, bottom=False, labelsize=10)
+                ax.set_yticks([1e2, 1e4, 1e6])
+                ax.set_xticks([0, 0.5, 1])
+                ax.set_xticklabels([])
             elif ds[0] == 'E':
-                sns.despine(ax=ax, left=True, offset=3, trim=True)
-                ax.tick_params(left=False)
+                ax.tick_params(left=False, bottom=True, labelsize=10)
                 ax.set_xticks([0, 0.5, 1])
                 ax.set_xticklabels(['0', '0.5', '1'])
+                ax.set_yticks([1e2, 1e4, 1e6])
+                ax.set_yticklabels([])
             else:
-                sns.despine(ax=ax, bottom=True, left=True, offset=3, trim=True)
-                ax.tick_params(bottom=False, left=False)
-
-        plt.minorticks_off()
+                ax.tick_params(bottom=False, left=False, labelsize=10)
+                ax.set_xticks([0, 0.5, 1])
+                ax.set_xticklabels([])
+                ax.set_yticks([1e2, 1e4, 1e6])
+                ax.set_yticklabels([])
+            if ds[:2] == 'E1':
+                ax.tick_params(left=True, bottom=True, labelsize=10)
+                ax.set_yticks([1e2, 1e4, 1e6])
+                ax.set_xticks([0, 0.5, 1])
+                ax.set_xticklabels(['0', '0.5', '1'])
+        # plt.minorticks_off()
 
         outfile = os.path.join(
             self.plot_path, '%s.png' % '_'.join([cctype, molset, prop]))
-        plt.savefig(outfile, dpi=200)
+        plt.tight_layout()
+        plt.savefig(outfile, dpi=self.dpi)
+        if self.svg:
+            plt.savefig(outfile.replace('.png', '.svg'), dpi=self.dpi)
         plt.close('all')
 
     def sign3_error_predictors(self, sign2_universe_presence):
@@ -1953,10 +2133,10 @@ class MultiPlot():
 
         df['algo'] = df.algo.map(
             {'LinearRegression': 'LR', 'RandomForest': 'RF', 'NeuralNetwork': 'NN'})
-        sns.set_style("whitegrid")
+        # sns.set_style("whitegrid")
         sns.set_context("talk")
         fig, axes = plt.subplots(5, 5, sharey=True, sharex=True,
-                                 figsize=(10, 15), dpi=100)
+                                 figsize=(10, 15), dpi=self.dpi)
 
         for ds, ax in tqdm(zip(self.datasets, axes.flatten())):
 
@@ -1977,15 +2157,15 @@ class MultiPlot():
 
         # plt.tight_layout()
         filename = os.path.join(self.plot_path, "sign3_error_predictors.png")
-        plt.savefig(filename, dpi=100)
+        plt.savefig(filename, dpi=self.dpi)
         plt.close('all')
         return df
 
-    def sign_confidence_distribution(self):
+    def sign3_confidence_distribution(self):
 
-        sns.set_style("whitegrid")
+        # sns.set_style("whitegrid")
         fig, axes = plt.subplots(5, 5, sharey=True, sharex=True,
-                                 figsize=(10, 10), dpi=100)
+                                 figsize=(10, 10), dpi=self.dpi)
 
         for ds, ax in zip(self.datasets, axes.flat):
             sign3 = self.cc.get_signature('sign3', 'full', ds)
@@ -2047,7 +2227,9 @@ class MultiPlot():
 
             outfile = os.path.join(
                 self.plot_path, 'confidence_distribution_new.png')
-            plt.savefig(outfile, dpi=200)
+            plt.savefig(outfile, dpi=self.dpi)
+        if self.svg:
+            plt.savefig(outfile.replace('.png', '.svg'), dpi=self.dpi)
         plt.close('all')
 
     def sign3_test_error_distribution(self):
@@ -2074,9 +2256,9 @@ class MultiPlot():
             y_data_transf = y_data[not_nan]
             return x_data_transf, y_data_transf
 
-        sns.set_style("whitegrid")
+        # sns.set_style("whitegrid")
         fig, axes = plt.subplots(5, 5, sharey=True, sharex=True,
-                                 figsize=(10, 10), dpi=100)
+                                 figsize=(10, 10), dpi=self.dpi)
         all_dss = list(self.datasets)
         for ds, ax in zip(all_dss, axes.flat):
             s3 = self.cc.get_signature('sign3', 'full', ds)
@@ -2164,7 +2346,7 @@ class MultiPlot():
 
             outfile = os.path.join(
                 self.plot_path, 'sign3_test_error_distribution.png')
-            plt.savefig(outfile, dpi=200)
+            plt.savefig(outfile, dpi=self.dpi)
         plt.close('all')
 
     def sign3_correlation_distribution(self):
@@ -2190,9 +2372,9 @@ class MultiPlot():
             y_data_transf = y_data[not_nan]
             return x_data_transf, y_data_transf
 
-        sns.set_style("whitegrid")
+        # sns.set_style("whitegrid")
         fig, axes = plt.subplots(5, 5, sharey=False, sharex=True,
-                                 figsize=(10, 10), dpi=100)
+                                 figsize=(10, 10), dpi=self.dpi)
         all_dss = list(self.datasets)
         for ds, ax in zip(all_dss, axes.flat):
             s3 = self.cc.get_signature('sign3', 'full', ds)
@@ -2234,10 +2416,13 @@ class MultiPlot():
 
             outfile = os.path.join(
                 self.plot_path, 'sign3_correlation_distribution.png')
-            plt.savefig(outfile, dpi=200)
+            plt.savefig(outfile, dpi=self.dpi)
+            if self.svg:
+                plt.savefig(outfile.replace('.png', '.svg'), dpi=self.dpi)
         plt.close('all')
 
-    def sign3_test_distribution(self, limit=10000):
+    def sign3_test_distribution(self, limit=10000,
+                                options=[['Pearson'], [0.9], [True], [False]]):
 
         from chemicalchecker.tool.adanet import AdaNet
         from chemicalchecker.util.splitter import Traintest
@@ -2263,6 +2448,7 @@ class MultiPlot():
         df = pd.DataFrame(columns=['dataset', 'scaled', 'comp_wise',
                                    'metric', 'value', 'corr_thr'])
         all_dss = list(self.datasets)
+        all_dfs = list()
         for ds in all_dss:
             s3 = self.cc.get_signature('sign3', 'full', ds)
             pred_file = os.path.join(
@@ -2299,23 +2485,23 @@ class MultiPlot():
 
                     np.save(pred_file % corr_thr, y_pred)
                     np.save(true_file, y_true)
-            options = [
-                ['log10MSE', 'R2', 'Pearson'],
-                [0.7, 0.9],
-                [True, False],
-                [True, False]
-            ]
-            all_dfs = list()
+            if options == None:
+                options = [
+                    ['log10MSE', 'R2', 'Pearson'],
+                    [0.9],
+                    [True, False],
+                    [True, False]
+                ]
             for metric, corr_thr, scaled, comp_wise in itertools.product(*options):
                 y_true = np.load(true_file)
                 y_pred = np.load(pred_file % corr_thr)
+                if comp_wise:
+                    y_true = y_true.T
+                    y_pred = y_pred.T
                 if scaled:
                     scaler = RobustScaler()
                     y_true = scaler.fit_transform(y_true)
                     y_pred = scaler.fit_transform(y_pred)
-                if comp_wise:
-                    y_true = y_true.T
-                    y_pred = y_pred.T
                 if metric == 'log10MSE':
                     values = np.log10(np.mean((y_true - y_pred)**2, axis=1))
                 elif metric == 'R2':
@@ -2325,36 +2511,37 @@ class MultiPlot():
                 _df = pd.DataFrame(dict(dataset=ds, scaled=scaled, comp_wise=comp_wise,
                                         metric=metric, corr_thr=corr_thr, value=values))
                 all_dfs.append(_df)
-            df = pd.concat(all_dfs)
+        df = pd.concat(all_dfs)
 
-        sns.set_style("ticks")
-        sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
+        # sns.set_style("ticks")
+        # sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
 
-        options = [
-            ['log10MSE', 'R2', 'Pearson'],
-            [0.9],
-            [True, False],
-            [True, False]
-        ]
+        if options == None:
+            options = [
+                ['log10MSE', 'R2', 'Pearson'],
+                [0.9],
+                [True, False],
+                [True, False]
+            ]
         for metric, corr_thr, scaled, comp_wise in itertools.product(*options):
             odf = df[(df.scaled == scaled) & (df.comp_wise == comp_wise) & (
                 df.metric == metric) & (df.corr_thr == corr_thr)]
             xmin = np.floor(np.percentile(odf.value, 5))
             xmax = np.ceil(np.percentile(odf.value, 95))
             fig, axes = plt.subplots(
-                26, 1, sharex=True, figsize=(3, 10), dpi=100)
+                26, 1, sharex=True, figsize=(3, 10), dpi=self.dpi)
             fig.subplots_adjust(left=0.05, right=.95, bottom=0.08,
                                 top=1, wspace=0, hspace=-.3)
             for idx, (ds, ax) in enumerate(zip(all_dss, axes.flat)):
                 color = self.cc_colors(ds, idx % 2)
-                color2 = self.cc_colors(ds, 2)
+                color2 = self.cc_colors(ds, (idx % 2) + 1)
                 values = odf[(odf.dataset == ds)].value.tolist()
-                sns.kdeplot(values, ax=ax, clip_on=False, shade=True,
+                sns.kdeplot(values, ax=ax, clip_on=True, shade=True,
                             alpha=1, lw=0,  bw=.15, color=color)
-                sns.kdeplot(values, ax=ax, clip_on=False,
+                sns.kdeplot(values, ax=ax, clip_on=True,
                             color=color2, lw=2, bw=.15)
 
-                ax.axhline(y=0, lw=2, clip_on=False, color=color)
+                ax.axhline(y=0, lw=2, clip_on=True, color=color)
                 ax.set_xlim(xmin, xmax)
                 ax.tick_params(axis='x', colors=color)
                 ax.set_yticks([])
@@ -2390,12 +2577,14 @@ class MultiPlot():
             print(fname)
             print(odf.value.describe())
             outfile = os.path.join(self.plot_path, fname + '.png')
-            plt.savefig(outfile, dpi=200)
+            plt.savefig(outfile, dpi=self.dpi)
+            if self.svg:
+                plt.savefig(outfile.replace('.png', '.svg'), dpi=self.dpi)
             plt.close('all')
 
     def sign3_mfp_predictor(self):
 
-        sns.set_style("whitegrid")
+        # sns.set_style("whitegrid")
         f, axes = plt.subplots(5, 5, figsize=(9, 9), sharex=True, sharey=True)
 
         for ds, ax in zip(self.datasets, axes.flat):
@@ -2434,12 +2623,12 @@ class MultiPlot():
                va='center', rotation='vertical')
         outfile = os.path.join(
             self.plot_path, 'sign3_mfp_predictor.png')
-        plt.savefig(outfile, dpi=200)
+        plt.savefig(outfile, dpi=self.dpi)
         plt.close('all')
 
     def sign3_mfp_confidence_predictor(self):
 
-        sns.set_style("whitegrid")
+        # sns.set_style("whitegrid")
         f, axes = plt.subplots(5, 5, figsize=(9, 9), sharex=True, sharey=True)
 
         for ds, ax in zip(self.datasets, axes.flat):
@@ -2477,7 +2666,7 @@ class MultiPlot():
                va='center', rotation='vertical')
         outfile = os.path.join(
             self.plot_path, 'sign3_mfp_confidence_predictor.png')
-        plt.savefig(outfile, dpi=200)
+        plt.savefig(outfile, dpi=self.dpi)
         plt.close('all')
 
     @staticmethod
@@ -2493,9 +2682,9 @@ class MultiPlot():
 
         from chemicalchecker.core.signature_data import DataSignature
 
-        sns.set_style("ticks")
+        # sns.set_style("ticks")
         # sns.set_context("paper")
-        sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
+        # sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
         f, axes = plt.subplots(5, 5, figsize=(
             10, 10), sharex=True, sharey=True)
         plt.subplots_adjust(left=0.08, right=1, bottom=0.08,
@@ -2528,7 +2717,7 @@ class MultiPlot():
                 log_mse_consensus, confidence, limit)
 
             white = self._rgb2hex(250, 250, 250)
-            colors = [white, self.cc_palette([ds])[0]]
+            colors = [white, self.cc_colors(ds, 1)]
             cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
                 '', colors)
             ax.scatter(x[order], y[order], c=c[order],
@@ -2572,9 +2761,9 @@ class MultiPlot():
 
             # pies
             wp = {'linewidth': 0, 'antialiased': True}
-            colors = [self.cc_palette([ds])[0], 'lightgrey']
+            colors = [self.cc_colors(ds, 1), 'lightgrey']
             bbox = (.5, .5, .5, .5)
-            inset_ax = inset_axes(ax, 0.4, 0.4,
+            inset_ax = inset_axes(ax, 0.35, 0.35,
                                   bbox_to_anchor=bbox,
                                   bbox_transform=ax.transAxes,  loc=2)
 
@@ -2583,7 +2772,7 @@ class MultiPlot():
             inset_ax.pie([1.0], radius=0.5, colors=['white'], wedgeprops=wp)
             inset_ax.text(0.5, 0.5, r"$\sigma$", ha='center', va='center',
                           transform=inset_ax.transAxes, name='Arial', size=10)
-            inset_ax = inset_axes(ax, 0.4, 0.4,
+            inset_ax = inset_axes(ax, 0.35, 0.35,
                                   bbox_to_anchor=bbox,
                                   bbox_transform=ax.transAxes,  loc=1)
             inset_ax.pie([pc_intensity, 1 - pc_intensity], wedgeprops=wp,
@@ -2591,7 +2780,7 @@ class MultiPlot():
             inset_ax.pie([1.0], radius=0.5, colors=['white'], wedgeprops=wp)
             inset_ax.text(0.5, 0.5, r"$I$", ha='center', va='center',
                           transform=inset_ax.transAxes, name='Arial', size=10)
-            inset_ax = inset_axes(ax, 0.4, 0.4,
+            inset_ax = inset_axes(ax, 0.35, 0.35,
                                   bbox_to_anchor=bbox,
                                   bbox_transform=ax.transAxes, loc=4)
             inset_ax.pie([pc_exp_error, 1 - pc_exp_error], wedgeprops=wp,
@@ -2602,13 +2791,17 @@ class MultiPlot():
 
             outfile = os.path.join(self.plot_path,
                                    'sign3_confidence_summary.png')
-            plt.savefig(outfile, dpi=200)
-        plt.savefig(outfile, dpi=200)
+            plt.savefig(outfile, dpi=self.dpi)
+            if self.svg:
+                plt.savefig(outfile.replace('.png', '.svg'), dpi=self.dpi)
+        plt.savefig(outfile, dpi=self.dpi)
+        if self.svg:
+            plt.savefig(outfile.replace('.png', '.svg'), dpi=self.dpi)
         plt.close('all')
 
     def sign3_novel_confidence_distribution(self):
 
-        sns.set_style("whitegrid")
+        # sns.set_style("whitegrid")
         f, axes = plt.subplots(5, 5, figsize=(9, 9), sharex=True, sharey=True)
 
         for ds, ax in zip(self.datasets, axes.flat):
@@ -2646,10 +2839,12 @@ class MultiPlot():
                va='center', rotation='vertical')
         outfile = os.path.join(
             self.plot_path, 'sign3_novel_confidence_distribution.png')
-        plt.savefig(outfile, dpi=200)
+        plt.savefig(outfile, dpi=self.dpi)
         plt.close('all')
 
     def sign3_examplary_test_correlation(self, limit=1000,
+                                         molecules=[
+                                             'MBUVEWMHONZEQD-UHFFFAOYSA-N'],
                                          examplary_ds=['B1.001', 'D1.001', 'E4.001']):
 
         from chemicalchecker.tool.adanet import AdaNet
@@ -2673,32 +2868,22 @@ class MultiPlot():
             y_data_transf = y_data[not_nan]
             return x_data_transf, y_data_transf
 
-        def plot_molecule(ax, inchikey, size=(300, 300), margin=5, interpolation=None):
-            from chemicalchecker.util.parser import Converter
-            from rdkit.Chem import Draw
+        def plot_molecule(ax, smiles):
             from rdkit import Chem
-            from PIL import Image
-
-            # get smiles
-            converter = Converter()
-            smiles = converter.inchi_to_smiles(
-                eval(converter.inchikey_to_inchi(inchikey))[0]['standardinchi'])
-            # generate initial image
-            image = Draw.MolToImage(Chem.MolFromSmiles(smiles), size=size)
-            # find crop box
-            image_data = np.asarray(image)
-            image_white = np.all((image_data == [255, 255, 255]), axis=2)
-            non_white_columns = np.where(np.sum(~image_white, axis=0) != 0)[0]
-            non_white_rows = np.where(np.sum(~image_white, axis=1) != 0)[0]
-            cropBox = (min(non_white_rows) - margin,
-                       max(non_white_rows) + margin,
-                       min(non_white_columns) - margin,
-                       max(non_white_columns) + margin)
-            image_data_new = image_data[cropBox[0]:cropBox[1] + 1,
-                                        cropBox[2]:cropBox[3] + 1, :]
-            new_image = Image.fromarray(image_data_new)
-            ax.imshow(new_image, interpolation=interpolation)
-            ax.set_axis_off()
+            from rdkit.Chem import Draw
+            figure = Draw.MolToMPL(Chem.MolFromSmiles(smiles))
+            # rdkit only plot to new figure, so copy over to my axq
+            for child in figure.axes[0].get_children():
+                if isinstance(child, matplotlib.lines.Line2D):
+                    ax.plot(*child.get_data(), c=child.get_color())
+                if isinstance(child, matplotlib.text.Annotation):
+                    ax.text(*child.get_position(), s=child.get_text(),
+                            color=child.get_color(), ha=child.get_ha(),
+                            va=child.get_va(), family=child.get_family(),
+                            size=6,
+                            bbox={'facecolor': 'white',
+                                  'boxstyle': 'circle,pad=0.2'})
+            plt.close(figure)
 
         all_dss = list(self.datasets)
 
@@ -2748,25 +2933,28 @@ class MultiPlot():
             for i in range(y_true.shape[0]):
                 ink_i = s2.keys[np.argwhere(comp1 == y_true[i, 0])].flatten()
                 inks.append(ink_i.tolist())
-            #self.__log.debug('y_true.shape %s', str(y_true.shape))
-            #self.__log.debug('y_pred.shape %s', str(y_pred.shape))
+            # self.__log.debug('y_true.shape %s', str(y_true.shape))
+            # self.__log.debug('y_pred.shape %s', str(y_pred.shape))
             ink_set = set([item for sublist in inks for item in sublist])
             true_pred[ds] = (inks, ink_set,
                              row_wise_correlation(y_true, y_pred),
                              y_true, y_pred)
 
-        shared_inks = set.intersection(*[x[1] for x in true_pred.values()])
+        if molecules is None:
+            shared_inks = set.intersection(*[x[1] for x in true_pred.values()])
+        else:
+            shared_inks = molecules
         mol_corr = dict()
         for mol in shared_inks:
             mol_corr[mol] = dict()
             for ds, (inks, ink_set, corr, y_true, y_pred) in true_pred.items():
                 idx = np.argwhere([mol in x for x in inks])[0][0]
-                mol_corr[mol][ds] = (idx, corr[idx], y_true[idx], y_pred[idx])
+                mol_corr[mol][ds] = (
+                    idx, corr[idx], y_true[idx], y_pred[idx])
 
-        for mol in tqdm(mol_corr):  # = 'MBUVEWMHONZEQD-UHFFFAOYSA-N'
-            sns.set_style("ticks")
-            sns.set_style({'font.family': 'sans-serif',
-                           'font.serif': ['Arial']})
+        for mol in tqdm(mol_corr):
+            # sns.set_style("whitegrid")
+            # sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
             fig = plt.figure(figsize=(3, 10))
             plt.subplots_adjust(left=0.2, right=1, bottom=0.08, top=1)
             gs = fig.add_gridspec(4, 1)
@@ -2777,9 +2965,20 @@ class MultiPlot():
             fig.text(0.04, 0.45, 'Predicted', ha='center',
                      va='center', rotation='vertical',
                      name='Arial', size=16)
+            # plot molecule
             ax_mol = fig.add_subplot(gs[0])
-            plot_molecule(ax_mol, mol, size=(6000, 6000),
-                          interpolation='hanning')
+            # get smiles
+            converter = Converter()
+            smiles = converter.inchi_to_smiles(
+                eval(converter.inchikey_to_inchi(mol))[0]['standardinchi'])
+            plot_molecule(ax_mol, smiles)
+            # fix placement
+            ax_mol.set_axis_off()
+            l, b, w, h = ax_mol.get_position().bounds
+            new_w = w + 0.05
+            new_h = h + 0.05
+            ax_mol.set_position([0.5 - (new_w / 2.), b - 0.05, new_w, new_h])
+            ax_mol.axis('equal')
             gss_ds = [gs[1], gs[2], gs[3]]
             for ds, sub in zip(examplary_ds, gss_ds):
                 gs_ds = sub.subgridspec(2, 2, wspace=0.0, hspace=0.0)
@@ -2788,7 +2987,7 @@ class MultiPlot():
                 ax_main = fig.add_subplot(gs_ds[1, 0])
                 ax_top = fig.add_subplot(gs_ds[0, 0], sharex=ax_main)
                 ax_top.text(0.05, 0.2, "%s" % ds[:2],
-                            color=self.cc_colors(ds),
+                            color='black',
                             transform=ax_top.transAxes,
                             name='Arial', size=14, weight='bold')
                 ax_top.set_axis_off()
@@ -2802,17 +3001,17 @@ class MultiPlot():
                 pred = mol_corr[mol][ds][3]
                 sns.regplot(true, pred,
                             ax=ax_main, n_boot=10000, truncate=False,
-                            color=self.cc_colors(ds),
+                            color=self.cc_colors(ds, 1),
                             scatter_kws=dict(s=10, edgecolor=''),
                             line_kws=dict(lw=1))
 
                 error = np.log10(np.mean((true - pred)**2))
-                ax_main.text(0.5, 0.04, r"Error:" + " {:.2f}".format(error),
+                ax_main.text(0.5, 0.08, r"Error:" + " {:.2f}".format(error),
                              transform=ax_main.transAxes,
                              name='Arial', size=10,
                              bbox=dict(facecolor='white', alpha=0.8))
 
-                sns.despine(ax=ax_main, offset=3, trim=True)
+                # sns.despine(ax=ax_main, offset=3, trim=True)
 
                 ax_main.set_ylabel('')
                 ax_main.set_xlabel('')
@@ -2824,16 +3023,18 @@ class MultiPlot():
 
                 sns.distplot(true, ax=ax_top,
                              hist=False, kde_kws=dict(shade=True, bw=.2),
-                             color=self.cc_colors(ds))
+                             color=self.cc_colors(ds, 1))
                 sns.distplot(pred, ax=ax_right, vertical=True,
                              hist=False, kde_kws=dict(shade=True, bw=.2),
-                             color=self.cc_colors(ds))
+                             color=self.cc_colors(ds, 1))
 
             # plt.tight_layout()
             spaces = '-'.join([ds[:2] for ds in examplary_ds])
             outfile = os.path.join(
                 self.plot_path, 'sign3_%s_%s.png' % (spaces, mol))
-            plt.savefig(outfile, dpi=200)
+            plt.savefig(outfile, dpi=self.dpi)
+            if self.svg:
+                plt.savefig(outfile.replace('.png', '.svg'), dpi=self.dpi)
             plt.close('all')
 
     def sign3_sign2_comparison(self):
@@ -2914,9 +3115,8 @@ class MultiPlot():
             ax.autoscale_view()
 
         df = pd.read_pickle(pklfile)
-        sns.set_style("ticks")
-        sns.set_style({'font.family': 'sans-serif',
-                       'font.serif': ['Arial']})
+        # sns.set_style("ticks")
+        # sns.set_style({'font.family': 'sans-serif',  'font.serif': ['Arial']})
 
         fig = plt.figure(figsize=(3, 10))
         plt.subplots_adjust(left=0.14, right=0.96, bottom=0.01,
@@ -2934,7 +3134,7 @@ class MultiPlot():
             end = df[df.dataset == ds[:2]]['moa_cov_0.0'].tolist()[0]
             js = ['sign2'] + ['%.1f' %
                               f for f in reversed(np.arange(0.0, 0.9, 0.1))]
-            #js = ['sign2','0.5','0.0']
+            # js = ['sign2','0.5','0.0']
             covs = [df[df.dataset == ds[:2]]['moa_cov_%s' % j].tolist()[0]
                     for j in js]
             cmap = plt.get_cmap("plasma", len(covs))
@@ -2992,5 +3192,5 @@ class MultiPlot():
 
         outfile = os.path.join(
             self.plot_path, 'sign3_sign2_moa_comparison.png')
-        plt.savefig(outfile, dpi=100)
+        plt.savefig(outfile, dpi=self.dpi)
         plt.close('all')
