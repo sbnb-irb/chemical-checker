@@ -60,7 +60,7 @@ class Converter():
             mol = self.Chem.rdinchi.InchiToMol(inchi_ascii)[0]
         except Exception as ex:
             raise ConversionError("'InchiToMol' exception:", ex.message)
-        return self.Chem.MolToSmiles(mol)
+        return self.Chem.MolToSmiles(mol, isomericSmiles=True)
 
     def inchi_to_inchikey(self, inchi):
         try:
