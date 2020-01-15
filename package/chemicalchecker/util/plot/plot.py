@@ -88,7 +88,7 @@ def lighten_color(color, amount=0.5):
 class Plot():
     """Produce different kind of plots."""
 
-    def __init__(self, dataset, plot_path, validation_path=None):
+    def __init__(self, dataset, plot_path, validation_path=None, svg=True):
         """Initialize the Plot object.
 
         Produce all kind of plots and data associated
@@ -159,7 +159,8 @@ class Plot():
             'B': ['#B16BA8', '#C189B9', '#D0A6CB'],
             'C': ['#5A72B5', '#7B8EC4', '#9CAAD3'],
             'D': ['#7CAF2A', '#96BF55', '#B0CF7F'],
-            'E': ['#F39426', '#F5A951', '#F8BF7D']}
+            'E': ['#F39426', '#F5A951', '#F8BF7D'],
+            'Z': ['#000000', '#666666', '#999999']}
         return colors[coord[:1]][lighness]
 
     def clustering_plot(self, Nc, A, B, C):
@@ -1849,7 +1850,7 @@ class Plot():
         plt.savefig(filename, dpi=100)
         plt.close()
 
-    def sign3_novelty_confidence(self, sign):
+    def sign3_novelty_confidence(self, sign, limit=1000):
 
         fig = plt.figure(figsize=(3, 3))
         plt.subplots_adjust(left=0.2, right=1, bottom=0.2, top=1)
@@ -1859,8 +1860,8 @@ class Plot():
 
         ax_main = fig.add_subplot(gs[1, 0])
         ax_top = fig.add_subplot(gs[0, 0], sharex=ax_main)
-        ax_top.text(0.05, 0.2, "%s" % ds[:2],
-                    color=self.cc_colors(ds),
+        ax_top.text(0.05, 0.2, "%s" % self.dataset[:2],
+                    color=self.cc_colors(self.dataset),
                     transform=ax_top.transAxes,
                     name='Arial', size=14, weight='bold')
         ax_top.set_axis_off()
@@ -1874,7 +1875,7 @@ class Plot():
         confidence = sign.get_h5_dataset('confidence')[:limit]
         sns.regplot(novelty, confidence,
                     ax=ax_main, n_boot=10000, truncate=False,
-                    color=self.cc_colors(ds),
+                    color=self.cc_colors(self.dataset),
                     scatter_kws=dict(s=10, edgecolor=''),
                     line_kws=dict(lw=1))
 
@@ -1896,10 +1897,10 @@ class Plot():
 
         sns.distplot(novelty, ax=ax_top,
                      hist=False, kde_kws=dict(shade=True, bw=.2),
-                     color=self.cc_colors(ds))
+                     color=self.cc_colors(self.dataset))
         sns.distplot(confidence, ax=ax_right, vertical=True,
                      hist=False, kde_kws=dict(shade=True, bw=.2),
-                     color=self.cc_colors(ds))
+                     color=self.cc_colors(self.dataset))
 
         sns.despine(ax=ax_main, offset=3, trim=True)
 
