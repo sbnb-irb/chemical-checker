@@ -135,7 +135,7 @@ class DataSignature(object):
         if not all([vsizes[0] == v for v in vsizes]):
             raise ValueError('All signatures must have same molecules.')
         for idx in range(len(sign_list) - 1):
-            if not sign_list[idx].keys == sign_list[idx + 1].keys:
+            if not all(sign_list[idx].keys == sign_list[idx + 1].keys):
                 raise ValueError('All signatures must have same molecules.')
 
         with h5py.File(destination, "w") as results:
@@ -151,12 +151,13 @@ class DataSignature(object):
                             hsizes[:idx]) + hsizes[idx])
                         results['V'][vchunk, hchunk] = hf_in['V'][vchunk]
             # also copy other single column numerical vectors
-            for key in aggregate_keys:
-                tmp = list()
-                for idx, sign in enumerate(sign_list):
-                    with h5py.File(sign.data_path, 'r') as hf_in:
-                        tmp.append(hf_in[key][:])
-                results.create_dataset(key, data=np.vstack(tmp).T)
+            if aggregate_keys:
+                for key in aggregate_keys:
+                    tmp = list()
+                    for idx, sign in enumerate(sign_list):
+                        with h5py.File(sign.data_path, 'r') as hf_in:
+                            tmp.append(hf_in[key][:])
+                    results.create_dataset(key, data=np.vstack(tmp).T)
 
     @staticmethod
     def vstack_signatures(sign_list, destination, chunk_size=1000):
