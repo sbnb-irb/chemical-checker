@@ -178,7 +178,8 @@ class BaseSignature(object):
                 `reference` set.
         """
         from sklearn.neighbors import NearestNeighbors
-        from sklearn.metrics import roc_curve, auc
+        # from sklearn.metrics import roc_curve, auc
+        import random
         # check if we apply mapping (i.e. the signature is a 'reference')
         if apply_mappings:
             if 'mappings' not in self.info_h5:
@@ -188,26 +189,39 @@ class BaseSignature(object):
                 inchikey_mappings = dict(self.get_h5_dataset('mappings'))
         else:
             inchikey_mappings = None
+        plot = Plot(self.dataset, self.stats_path, None)
+        cctype = self.__class__.__name__
         # select pairs
-        ## first look for the intersection of inchikeys
-        vs_keys = sign.keys()
-        my_keys = self.keys()
-        vs_conn_set = set([ik.split("-")[0] for ik in vs_keys]) # consider connectivity layer to increase converage
-        my_conn_set = set([ik.split("-")[0] for ik in my_keys]) 
+        # first look for the intersection of inchikeys
+        vs_keys = sign.keys
+        if inchikey_mappings is None:
+            my_keys = self.keys
+        else:
+            my_keys = [inchikey_mappings[k] for k in self.keys]
+        # consider connectivity layer to increase converage
+        vs_conn_set = set([ik.split("-")[0] for ik in vs_keys])
+        my_conn_set = set([ik.split("-")[0] for ik in my_keys])
         common_conn = my_conn_set.intersection(vs_conn_set)
-        if n_samples > len(common_conn)
-            common_conn = set(random.sample(list(common_con), n_samples))
-        ## extract matrices
-        vs_keys_conn = dict((ik, ik.split("-")[0]) for ik in vs_keys if ik.split("-")[0] in common_conn)
-        my_keys_conn = dict((ik, ik.split("-")[0]) for ik in my_keys if ik.split("-")[0] in common_conn)
+
+        frac_shared = 100 * len(common_conn) / float(len(my_conn_set))
+
+        if n_samples < len(common_conn):
+            common_conn = set(random.sample(list(common_conn), n_samples))
+        # extract matrices
+        vs_keys_conn = dict(
+            (ik.split("-")[0], ik) for ik in vs_keys if ik.split("-")[0] in common_conn)
+        my_keys_conn = dict(
+            (ik.split("-")[0], ik) for ik in my_keys if ik.split("-")[0] in common_conn)
         common_conn = sorted(common_conn)
-        vs_vectors = sign.get_vectors([vs_keys_conn[c] for c in common_conn])[1]
-        my_vectors = self.get_vectors([my_keys_conn[c] for c in common_conn])[1]
-        ## do nearest neighbors
+        vs_vectors = sign.get_vectors(
+            [vs_keys_conn[c] for c in common_conn])[1]
+        my_vectors = self.get_vectors(
+            [my_keys_conn[c] for c in common_conn])[1]
+        # do nearest neighbors
         nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric)
         nn.fit(vs_vectors)
-        neighs = nn.kneighbors(vs_vectors)[1][:,1:]
-        ## sample positive and negative pairs
+        neighs = nn.kneighbors(vs_vectors)[1][:, 1:]
+        # sample positive and negative pairs
         pos_pairs = set()
         neg_pairs = set()
         for i in range(0, len(neighs)):
@@ -215,11 +229,12 @@ class BaseSignature(object):
                 pair = [common_conn[i], common_conn[j]]
                 pair = sorted(pair)
                 pos_pairs.update([(pair[0], pair[1])])
-        for _ in range(0, len(pos_pairs)*10):
-            pair = random.sample(common_iks, 2)
+        for _ in range(0, len(pos_pairs) * 10):
+            pair = random.sample(common_conn, 2)
             pair = sorted(pair)
             pair = (pair[0], pair[1])
-            if pair in pos_pairs: continue
+            if pair in pos_pairs:
+                continue
             neg_pairs.update([pair])
             if len(neg_pairs) > len(pos_pairs):
                 break
@@ -228,19 +243,21 @@ class BaseSignature(object):
             from scipy.spatial.distance import cosine as metric
         if metric == "euclidean":
             from scipy.spatial.distance import euclidean as metric
-        y_t = np.array([1]*len(pos_pairs) + [0]*len(neg_pairs))
+        y_t = np.array([1] * len(pos_pairs) + [0] * len(neg_pairs))
         pairs = list(pos_pairs) + list(neg_pairs)
         y_p = []
         for pair in pairs:
-            idx1 = bisect_left(common_iks)
-            idx2 = bisect_left(common_iks)
+            idx1 = bisect_left(common_conn, pair[0])
+            idx2 = bisect_left(common_conn, pair[1])
             y_p += [metric(my_vectors[idx1], my_vectors[idx2])]
         # convert to similarity-respected order
         y_p = -np.abs(np.array(y_p))
+
+        plot.roc_curve_plot(y_t, y_p, cctype, sign.dataset,
+                            len(common_conn), frac_shared)
         # performance
-        fpr, tpr, _ = roc_curve(y_t, y_p)
-        auroc = auc(fpr, tpr)
-        
+        # fpr, tpr, _ = roc_curve(y_t, y_p)
+        # auroc = auc(fpr, tpr)
 
     def validate(self, apply_mappings=True, metric='cosine'):
         """Perform validations.
