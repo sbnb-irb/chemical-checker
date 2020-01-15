@@ -335,7 +335,10 @@ class DataSignature(object):
 
         bg = list()
         done = set()
-        while len(bg) < sample_pairs:
+        tries = 1e6
+        tr = 0
+        while len(bg) < sample_pairs and tr < tries:
+            tr += 1
             i = np.random.randint(0, matrix.shape[0] - 1)
             j = np.random.randint(i + 1, matrix.shape[0])
             if (i, j) not in done:
