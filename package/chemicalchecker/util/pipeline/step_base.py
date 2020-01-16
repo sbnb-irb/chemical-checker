@@ -25,14 +25,23 @@ class BaseStep(object):
         """Initialize the Step with the config at the given path."""
         self.name = name
         self.readyfile = name + ".ready"
-        self.readydir = params["readydir"]
-        self.tmpdir = params["tmpdir"]
+
+        if config is None:
+            self.readydir = ''
+            self.tmpdir = ''
+        else:
+            self.readydir = params["readydir"]
+            self.tmpdir = params["tmpdir"]
         self.config = config
 
     @abstractmethod
     def run(self):
         """Run the step."""
         BaseStep.__log.info("Running step " + self.name)
+
+    def set_dirs(self, readydir, tmpdir):
+        self.tmpdir = tmpdir
+        self.readydir = readydir
 
     def is_ready(self, substep=None):
         """Check if the step is already done."""
