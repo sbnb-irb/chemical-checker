@@ -402,13 +402,16 @@ class PairTraintest(object):
                 if augmentation_fn is not None:
                     tmp_x1 = list()
                     tmp_x2 = list()
+                    tmp_y = list()
                     for i in range(augment_scale):
                         tmp_x1.append(augmentation_fn(
                             x1, **augmentation_kwargs))
                         tmp_x2.append(augmentation_fn(
                             x2, **augmentation_kwargs))
+                        tmp_y.append(y)
                     x1 = np.vstack(tmp_x1)
                     x2 = np.vstack(tmp_x2)
+                    y = np.vstack(tmp_y)
                 if replace_nan is not None:
                     x1[np.where(np.isnan(x1))] = replace_nan
                     x2[np.where(np.isnan(x2))] = replace_nan
