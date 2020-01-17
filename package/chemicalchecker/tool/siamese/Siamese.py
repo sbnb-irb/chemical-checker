@@ -19,6 +19,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from chemicalchecker.util import logged
+from chemicalchecker.util.splitter import PairTraintest
 
 
 @logged
@@ -34,7 +35,7 @@ class Siamese(object):
             epochs(int): The number of epochs (default: 200)
         """
 
-        self.epochs = int(kwargs.get("epochs", 200))
+        self.epochs = int(kwargs.get("epochs", 5))
         self.batch_size = int(kwargs.get("batch_size", 128))
         self.learning_rate = int(kwargs.get("learning_rate", 0.001))
 
@@ -50,11 +51,11 @@ class Siamese(object):
         self.transformer = None
 
 
-    @staticmethod
-    def create_base_network(input_shape):
+    def create_base_network(self, input_shape):
         '''Create network architecture'''
         input = Input(shape=input_shape)
-        x = Flatten()(input)
+        #x = Flatten()(input)
+        x = input
         x = Dense(1024, activation='relu')(x)
         x = Dropout(0.1)(x)
         x = Dense(512, activation='relu')(x)
@@ -63,21 +64,18 @@ class Siamese(object):
         return Model(input, x)
 
       
-    @staticmethod  
-    def euclidean_distance(vects):
+    def euclidean_distance(self, vects):
         x, y = vects
         sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
         return K.sqrt(K.maximum(sum_square, K.epsilon()))
 
 
-    @staticmethod
-    def eucl_dist_output_shape(shapes):
+    def eucl_dist_output_shape(self, shapes):
         shape1, shape2 = shapes
         return (shape1[0], 1)
 
 
-    @staticmethod
-    def contrastive_loss(y_true, y_pred):
+    def contrastive_loss(self, y_true, y_pred):
         '''Contrastive loss from Hadsell-et-al.'06
         http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
         '''
@@ -87,15 +85,15 @@ class Siamese(object):
         return K.mean(y_true * square_pred + (1 - y_true) * margin_square)
 
 
-    @staticmethod
-    def accuracy(y_true, y_pred):
+    def accuracy(self, y_true, y_pred):
         '''Compute classification accuracy with a fixed threshold on distances.
         '''
         return K.mean(K.equal(y_true, K.cast(y_pred < 0.5, y_true.dtype)))
 
-    @staticmethod
-    def build_siamese(input_shape):
-        base_network = create_base_network(input_shape)
+
+    def build_siamese(self, input_shape):
+
+        base_network = self.create_base_network(input_shape)
 
         input_a = Input(shape=input_shape)
         input_b = Input(shape=input_shape)
@@ -103,68 +101,35 @@ class Siamese(object):
         processed_a = base_network(input_a)
         processed_b = base_network(input_b)
 
-        distance = Lambda(euclidean_distance,
-                  output_shape=eucl_dist_output_shape)([processed_a, processed_b])
+        distance = Lambda(self.euclidean_distance,
+                  output_shape=self.eucl_dist_output_shape)([processed_a, processed_b])
 
         siamese = Model([input_a, input_b], distance)
 
         self.__log.debug("Num of layers: %d" % len(siamese.layers))
-
         return siamese
 
 
 
-    def fit(self, data_path, final=False, use_geterator=True):
-        #self.data_path = data_path
-        #config = tf.ConfigProto(device_count={'GPU': 1})
-        #session = tf.Session(config=config)
-        #K.set_session(session)
+    def fit(self, data_path, use_geterator=True):
 
-        #if not os.path.isfile(self.data_path) or self.data_path[-3:] != '.h5':
-        #    raise Exception("Input data needs to be a H5 file")
+        shapes, dtypes, gen = PairTraintest.generator_fn(data_path, 'train_train', batch_size=self.batch_size)
 
-        #self.traintest_file = os.path.join(self.models_path, 'traintest.h5')
-
-        #self.training_generator = DataGenerator(partition['train'], labels, **params)
-        #self.test_generator = DataGenerator(partition['validation'], labels, **params)
-        if use_geterator == False:
-            with h5py.File(data_path, "r") as hf:
-                self.input_shape = hf['x'].shape[1]
-                x_tr = np.array(hf['x'])
-                p_tr_tr = np.array(hf['p_train_train'])
-                y_tr_tr = np.array(hf['y_train_train'])
-
-            self.siamese= build_siamese(self.input_shape)
-
-            ms = RMSprop(learning_rate=self.learning_rate)
-            self.siamese.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
-            history = self.siamese.fit(x=[], y=y_tr_tr,
-                                       validation_data=([te_pairs[:, 0], te_pairs[:, 1]], te_y),
-                                       epochs=epochs)
-
-
+        self.input_shape = (shapes[0][1],)
         
-        self.input_shape = 0
-        
+        self.siamese = self.build_siamese(self.input_shape)
+        self.siamese.summary()
 
         rms = RMSprop(learning_rate=self.learning_rate)
-        self.siamese.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
+        self.siamese.compile(loss=self.contrastive_loss, optimizer=rms, metrics=[self.accuracy])
 
-        training_generator = generator()
-        if not final:
-            validation_generator = generator()
-            history = self.siamese.fit_generator(generator=training_generator, 
-                                       validation_data=validation_generator,
-                                       epochs=epochs)
-        else:
-            history = self.siamese.fit_generator(generator=training_generator, 
-                                       epochs=epochs)
+        history = self.siamese.fit_generator(generator=gen(), epochs=self.epochs, steps_per_epoch=np.ceil(shapes[0][0] / self.batch_size))
 
         self.siamese.save(self.siamese_model_file)
 
         self._plot_history(history, os.path.join(self.models_path, "siamese_validation_plot.png"))
 
-
+    """
     def compute_accuracy(generator):
         y_pred = self.siamese.predict_generator(generator)
         pred = y_pred.ravel() < 0.5
@@ -181,7 +146,7 @@ class Siamese(object):
 
         acc_te_te = compute_accuracy(generator_te_te)
         self.__log.debug("Accuracy Tr_Te: %f" % acc_tr_te)
-
+    """
 
     def predict(self, data_path, dest_file, chunk_size=1000, input_dataset='V'):
         """Take data .h5 and produce an encoded data.
@@ -211,9 +176,14 @@ class Siamese(object):
 
 
     def _plot_history(self, history, destination=None):
-        plt.figure(figsize=(4, 4), dpi=600)
+        plt.figure(figsize=(8, 4), dpi=600)
+        plt.subplot(1, 2, 1)
+        plt.title('Loss evolution')
         plt.plot(history.history["loss"], label="Train loss", lw=1)
-        plt.plot(history.history["val_loss"], label="Test loss", lw=1)
+        plt.subplot(1, 2, 2)
+        plt.title('Accuracy evolution')
+        plt.plot(history.history["accuracy"], label="Test loss", lw=1)
+        plt.ylim(0,1)
         plt.legend(loc='best')
         if destination is not None:
             plt.savefig(destination)
