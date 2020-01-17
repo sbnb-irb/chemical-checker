@@ -1506,20 +1506,20 @@ def epoch_per_iteration_heuristic(samples, features, clip=(16, 1024)):
     return np.clip(pow2, *clip)
 
 
-def subsample(tensor, p_original=0.05, p_one_dataset=0.5,
+def subsample(tensor, p_original=0.05, p_one_dataset=0.0,
               one_dataset=None):
     """Function to subsample stacked data."""
     # it is safe to make a local copy of the input matrix
     new_data = np.copy(tensor)
     # we will have a masking matrix at the end
     mask = np.zeros_like(new_data).astype(bool)
+    if p_one_dataset > 0.0 and one_dataset is None:
+        raise Exception('Please specify dataset to keep')
     for idx, row in enumerate(new_data):
         # the following assume the stacked signature to have a fixed width
         presence = ~np.isnan(row[0::128])
         # drop everything except the predifined dataset
         if np.random.rand() < p_one_dataset:
-            if one_dataset is None:
-                raise Exception('Please specify dataset to keep')
             presence_add = one_dataset
         else:
             # low probability of keeping the original sample
