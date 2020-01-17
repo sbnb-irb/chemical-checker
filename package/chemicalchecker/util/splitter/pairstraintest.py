@@ -368,9 +368,10 @@ class PairTraintest(object):
         PairTraintest.__log.info('PairTraintest saved to %s', out_file)
 
     @staticmethod
-    def generator_fn(file_name, split, batch_size=None, only_x=False):
+    def generator_fn(file_name, split, batch_size=None, only_x=False,
+                     replace_nan=None):
         """Return the generator function that we can query for batches."""
-        reader = PairTraintest(file_name, split)
+        reader = PairTraintest(file_name, split, replace_nan=replace_nan)
         reader.open()
         # read shapes
         x_shape = reader._f[reader.x_name].shape
@@ -395,7 +396,6 @@ class PairTraintest(object):
                     PairTraintest.__log.debug("EPOCH completed")
                     beg_idx = 0
                     epoch += 1
-                    return
                 if only_x:
                     pairs = reader.get_p(beg_idx, end_idx)
                     x1 = X[pairs[:, 0]]
