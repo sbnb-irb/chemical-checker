@@ -140,7 +140,7 @@ class sign1(BaseSignature, DataSignature):
                     keys = hf['keys'][chunk]
                     for key, row in zip(keys, V):
                         mask = np.where(row > 0)
-                        val = ",".join([",".join([features[x]] * row[x])
+                        val = ",".join([",".join([features[x]] * int(row[x]))
                                         for x in mask[0]])
                         f.write("%s %s\n" % (key, val))
 
