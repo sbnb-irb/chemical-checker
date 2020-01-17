@@ -194,7 +194,7 @@ class sign3(BaseSignature, DataSignature):
                 col_slice = slice(ref_dimension * idx,
                                   ref_dimension * (idx + 1))
                 hf['x'][:, col_slice] = signs
-                available = np.isin(list(self.sign2_self).keys, sign.keys)
+                available = np.isin(list(self.sign2_self.keys), sign.keys)
                 self.__log.info('%s shared molecules between %s and %s',
                                 sum(available), self.dataset, ds)
                 del signs
