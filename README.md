@@ -1,5 +1,5 @@
 # :warning: Note for Editors and Reviewers
-
+ 
 This repository is the one currently being used to develop the Chemical Checker (CC) in our SB&NB laboratory. As such, the repository contains a significant number of functionalities and data not presented in the primary CC manuscript.
 
 Due to the strong computational requirements of our pipeline, the code has been written and optimized to work in our local HPC facilities. Installation guides found below are for SB&NB users only. As stated in the manuscript, the main deliverable of our resource are the CC _signatures_, which can be accessed easily through a [REST API](https://chemicalchecker.com/help) or downloaded as [data files](https://chemicalchecker.com/downloads).

@@ -469,15 +469,21 @@ class Plot():
 
         # ROC curve
 
-        plt.figure(figsize=(4, 4), dpi=600)
-        fig = plt.subplot(111)
-
         Scores = np.concatenate((-S, -D))
         Truth = np.array(len(S) * [1] + len(D) * [0])
 
-        auc_score = roc_auc_score(Truth, Scores)
+        auc_score = self.roc_curve_plot(Truth, Scores, cctype, prefix, N, frac)
 
-        fpr, tpr, thr = roc_curve(Truth, Scores)
+        return ks, auc_score, frac
+
+    def roc_curve_plot(self, thruth, scores, cctype, prefix, N=None, frac=None):
+
+        plt.figure(figsize=(4, 4), dpi=600)
+        fig = plt.subplot(111)
+
+        auc_score = roc_auc_score(thruth, scores)
+
+        fpr, tpr, thr = roc_curve(thruth, scores)
 
         plt.plot([0, 1], [0, 1], color=self.color, linestyle="--")
         plt.plot(fpr, tpr, color=self.color, linestyle="-", lw=2)
@@ -503,7 +509,7 @@ class Plot():
             for i in range(len(fpr)):
                 f.write("%f\t%f\n" % (fpr[i], tpr[i]))
 
-        return ks, auc_score, frac
+        return auc_score
 
     # Matrix plot
 
