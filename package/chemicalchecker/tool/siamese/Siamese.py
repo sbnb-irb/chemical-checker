@@ -3,6 +3,8 @@ from __future__ import print_function
 import numpy as np
 
 import random
+import os
+
 from keras.datasets import mnist
 from keras.models import Model
 from keras.layers import Input, Flatten, Dense, Dropout, Lambda
@@ -50,7 +52,7 @@ class Siamese(object):
 
     @staticmethod
     def create_base_network(input_shape):
-            '''Create network architecture'''
+        '''Create network architecture'''
         input = Input(shape=input_shape)
         x = Flatten()(input)
         x = Dense(1024, activation='relu')(x)
@@ -91,8 +93,28 @@ class Siamese(object):
         '''
         return K.mean(K.equal(y_true, K.cast(y_pred < 0.5, y_true.dtype)))
 
+    @staticmethod
+    def build_siamese(input_shape):
+        base_network = create_base_network(input_shape)
 
-    def fit(self, data_path, final=False):
+        input_a = Input(shape=input_shape)
+        input_b = Input(shape=input_shape)
+
+        processed_a = base_network(input_a)
+        processed_b = base_network(input_b)
+
+        distance = Lambda(euclidean_distance,
+                  output_shape=eucl_dist_output_shape)([processed_a, processed_b])
+
+        siamese = Model([input_a, input_b], distance)
+
+        self.__log.debug("Num of layers: %d" % len(siamese.layers))
+
+        return siamese
+
+
+
+    def fit(self, data_path, final=False, use_geterator=True):
         #self.data_path = data_path
         #config = tf.ConfigProto(device_count={'GPU': 1})
         #session = tf.Session(config=config)
@@ -105,23 +127,25 @@ class Siamese(object):
 
         #self.training_generator = DataGenerator(partition['train'], labels, **params)
         #self.test_generator = DataGenerator(partition['validation'], labels, **params)
+        if use_geterator == False:
+            with h5py.File(data_path, "r") as hf:
+                self.input_shape = hf['x'].shape[1]
+                x_tr = np.array(hf['x'])
+                p_tr_tr = np.array(hf['p_train_train'])
+                y_tr_tr = np.array(hf['y_train_train'])
 
-        self.input_shape = 
+            self.siamese= build_siamese(self.input_shape)
+
+            ms = RMSprop(learning_rate=self.learning_rate)
+            self.siamese.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
+            history = self.siamese.fit(x=[], y=y_tr_tr,
+                                       validation_data=([te_pairs[:, 0], te_pairs[:, 1]], te_y),
+                                       epochs=epochs)
+
+
         
-        base_network = create_base_network(input_shape)
-
-        input_a = Input(shape=input_shape)
-        input_b = Input(shape=input_shape)
-
-        processed_a = base_network(input_a)
-        processed_b = base_network(input_b)
-
-        distance = Lambda(euclidean_distance,
-                  output_shape=eucl_dist_output_shape)([processed_a, processed_b])
-
-        self.siamese = Model([input_a, input_b], distance)
-
-        self.__log.debug("Num of layers: %d" % len(self.siamese.layers))
+        self.input_shape = 0
+        
 
         rms = RMSprop(learning_rate=self.learning_rate)
         self.siamese.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
