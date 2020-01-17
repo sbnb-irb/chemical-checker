@@ -369,7 +369,8 @@ class PairTraintest(object):
 
     @staticmethod
     def generator_fn(file_name, split, batch_size=None, only_x=False,
-                     replace_nan=None):
+                     replace_nan=None,
+                     augmentation_fn=None, augmentation_kwargs={}):
         """Return the generator function that we can query for batches."""
         reader = PairTraintest(file_name, split, replace_nan=replace_nan)
         reader.open()
@@ -393,19 +394,24 @@ class PairTraintest(object):
             total = reader._f[reader.x_name].shape[0]
             while True:
                 if beg_idx >= total:
-                    PairTraintest.__log.debug("EPOCH completed")
                     beg_idx = 0
                     epoch += 1
                 if only_x:
                     pairs = reader.get_p(beg_idx, end_idx)
                     x1 = X[pairs[:, 0]]
                     x2 = X[pairs[:, 1]]
+                    if augmentation_fn is not None:
+                        x1 = augmentation_fn(x1, **augmentation_kwargs)
+                        x2 = augmentation_fn(x2, **augmentation_kwargs)
                     yield x1, x2
                 else:
                     pairs, y = reader.get_py(beg_idx, end_idx)
                     x1 = X[pairs[:, 0]]
                     x2 = X[pairs[:, 1]]
-                    yield x1, x2, y
+                    if augmentation_fn is not None:
+                        x1 = augmentation_fn(x1, **augmentation_kwargs)
+                        x2 = augmentation_fn(x2, **augmentation_kwargs)
+                    yield [x1, x2], y
                 beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
 
         shapes = (x_shape, x_shape, y_shape)
