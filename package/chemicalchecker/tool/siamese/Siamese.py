@@ -19,7 +19,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from chemicalchecker.util import logged
+
 from chemicalchecker.util.splitter import PairTraintest
+from chemicalchecker.core.sign4 import subsample
 
 
 @logged
@@ -35,9 +37,10 @@ class Siamese(object):
             epochs(int): The number of epochs (default: 200)
         """
 
-        self.epochs = int(kwargs.get("epochs", 5))
+        self.epochs = int(kwargs.get("epochs", 15))
         self.batch_size = int(kwargs.get("batch_size", 128))
         self.learning_rate = int(kwargs.get("learning_rate", 0.001))
+        self.replace_nan = int(kwargs.get("replace_nan", 0))
 
         self.models_path = os.path.abspath(models_path)
         if not os.path.exists(models_path):
@@ -56,9 +59,9 @@ class Siamese(object):
         input = Input(shape=input_shape)
         #x = Flatten()(input)
         x = input
-        x = Dense(1024, activation='relu')(x)
+        x = Dense(6144, activation='relu')(x) # 1024
         x = Dropout(0.1)(x)
-        x = Dense(512, activation='relu')(x)
+        x = Dense(1024, activation='relu')(x) # 512
         x = Dropout(0.1)(x)
         x = Dense(128, activation='relu')(x)
         return Model(input, x)
@@ -113,7 +116,7 @@ class Siamese(object):
 
     def fit(self, data_path, use_geterator=True):
 
-        shapes, dtypes, gen = PairTraintest.generator_fn(data_path, 'train_train', batch_size=self.batch_size)
+        shapes, dtypes, gen = PairTraintest.generator_fn(data_path, 'train_train', batch_size=self.batch_size, replace_nan=self.replace_nan, augmentation_fn=subsample, augmentation_kwargs=[False]*5 + [True] + [False]*19)
 
         self.input_shape = (shapes[0][1],)
         
