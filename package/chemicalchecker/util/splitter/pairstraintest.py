@@ -396,27 +396,25 @@ class PairTraintest(object):
                 if beg_idx >= total:
                     beg_idx = 0
                     epoch += 1
+                pairs, y = reader.get_py(beg_idx, end_idx)
+                x1 = X[pairs[:, 0]]
+                x2 = X[pairs[:, 1]]
+                if augmentation_fn is not None:
+                    tmp_x1 = list()
+                    tmp_x2 = list()
+                    for i in range(augment_scale):
+                        tmp_x1.append(augmentation_fn(
+                            x1, **augmentation_kwargs))
+                        tmp_x2.append(augmentation_fn(
+                            x2, **augmentation_kwargs))
+                    x1 = np.vstack(tmp_x1)
+                    x2 = np.vstack(tmp_x2)
+                if replace_nan is not None:
+                    x1[np.where(np.isnan(x1))] = replace_nan
+                    x2[np.where(np.isnan(x2))] = replace_nan
                 if only_x:
-                    pairs = reader.get_p(beg_idx, end_idx)
-                    x1 = X[pairs[:, 0]]
-                    x2 = X[pairs[:, 1]]
-                    if augmentation_fn is not None:
-                        x1 = augmentation_fn(x1, **augmentation_kwargs)
-                        x2 = augmentation_fn(x2, **augmentation_kwargs)
-                    if replace_nan is not None:
-                        x1[np.where(np.isnan(x1))] = replace_nan
-                        x2[np.where(np.isnan(x2))] = replace_nan
                     yield x1, x2
                 else:
-                    pairs, y = reader.get_py(beg_idx, end_idx)
-                    x1 = X[pairs[:, 0]]
-                    x2 = X[pairs[:, 1]]
-                    if augmentation_fn is not None:
-                        x1 = augmentation_fn(x1, **augmentation_kwargs)
-                        x2 = augmentation_fn(x2, **augmentation_kwargs)
-                    if replace_nan is not None:
-                        x1[np.where(np.isnan(x1))] = replace_nan
-                        x2[np.where(np.isnan(x2))] = replace_nan
                     yield [x1, x2], y
                 beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
 
