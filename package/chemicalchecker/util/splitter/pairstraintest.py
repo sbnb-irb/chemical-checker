@@ -114,6 +114,14 @@ class PairTraintest(object):
             features[np.where(np.isnan(features))] = self.replace_nan
         return features
 
+    def get_all_p(self):
+        """Get full X."""
+        features = self._f[self.p_name][:]
+        # handle NaNs
+        if self.replace_nan is not None:
+            features[np.where(np.isnan(features))] = self.replace_nan
+        return features
+
     def get_all_y(self):
         """Get full Y."""
         labels = self._f[self.y_name][:]
@@ -152,7 +160,7 @@ class PairTraintest(object):
 
     @staticmethod
     def create(X, out_file, neigbors_matrix=None, neigbors=10,
-               mean_center_x=True,
+               mean_center_x=True, shuffle=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
                x_dtype=np.float32, y_dtype=np.float32, debug=False):
         """Create the HDF5 file with validation splits for both X and Y.
@@ -334,20 +342,28 @@ class PairTraintest(object):
                     [split_ref_map[split1][x] for x in idxs2_0])
                 idxs2_0_full = ref_full_map[idxs2_0_ref]
 
-                # write to h5
+                # stack pairs and ys
                 pairs_1 = np.vstack((idxs1_full, idxs2_1_full)).T
                 y_1 = np.ones((1, pairs_1.shape[0]))
                 pairs_0 = np.vstack((idxs1_full, idxs2_0_full)).T
                 y_0 = np.zeros((1, pairs_0.shape[0]))
                 all_pairs = np.vstack((pairs_1, pairs_0))
                 all_ys = np.hstack((y_1, y_0)).T
+
+                # shuffling
+                shuffle_idxs = np.arange(all_ys.shape[0])
+                if shuffle:
+                    np.random.shuffle(shuffle_idxs)
+
+                # save to h5
                 ds_name = "p_%s_%s" % (split1, split2)
                 PairTraintest.__log.info(
                     'writing %s %s %s', ds_name, pairs_1.shape, pairs_0.shape)
-                fh.create_dataset(ds_name, data=all_pairs)
+                fh.create_dataset(ds_name, data=all_pairs[shuffle_idxs])
                 ds_name = "y_%s_%s" % (split1, split2)
-                PairTraintest.__log.info('writing %s %s', ds_name, all_ys)
-                fh.create_dataset(ds_name, data=all_ys)
+                PairTraintest.__log.info(
+                    'writing %s %s', ds_name, all_ys.shape)
+                fh.create_dataset(ds_name, data=all_ys[shuffle_idxs])
 
         PairTraintest.__log.info('PairTraintest saved to %s', out_file)
 
