@@ -117,9 +117,7 @@ class Siamese(object):
 
     def fit(self, data_path, use_geterator=True):
 
-        #shapes, dtypes, gen = PairTraintest.generator_fn(data_path, 'train_train', batch_size=self.batch_size, replace_nan=self.replace_nan, augmentation_fn=subsample, augmentation_kwargs=dict(one_dataset=[False]*5 + [True] + [False]*19))
-
-        shapes, dtypes, gen = PairTraintest.generator_fn(data_path, 'train_train', batch_size=self.batch_size, replace_nan=self.replace_nan)
+        shapes, dtypes, gen = PairTraintest.generator_fn(data_path, 'train_train', batch_size=self.batch_size, replace_nan=self.replace_nan, augmentation_fn=subsample, augmentation_kwargs=dict(one_dataset=[False]*5 + [True] + [False]*19))
 
         self.input_shape = (shapes[0][1],)
         
