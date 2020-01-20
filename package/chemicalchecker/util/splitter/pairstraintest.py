@@ -416,7 +416,7 @@ class PairTraintest(object):
                     x1[np.where(np.isnan(x1))] = replace_nan
                     x2[np.where(np.isnan(x2))] = replace_nan
                 if only_x:
-                    yield x1, x2
+                    yield [x1, x2]
                 else:
                     yield [x1, x2], y
                 beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
