@@ -875,7 +875,7 @@ class sign3(BaseSignature, DataSignature):
                                  suffix='error_final', evaluate=False)
             self.__log.debug('Loading model for error prediction')
             rf = pickle.load(
-                open(os.path.join(final_err_path, 'RandomForest.pkl')), 'rb')
+                open(os.path.join(final_err_path, 'RandomForest.pkl'), 'rb'))
 
         # get sorted universe inchikeys
         inchikeys = set()
