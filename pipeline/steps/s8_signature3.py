@@ -13,54 +13,70 @@ from chemicalchecker.util import HPC
 @logged
 class Signature3(BaseStep):
 
-    def __init__(self, config, name, **params):
+    def __init__(self, config=None, name='signature3', **params):
 
         BaseStep.__init__(self, config, name, **params)
+
+        self.target_datasets = params.get('target_datasets', None)
+        self.ref_datasets = params.get('reference_datasets', None)
 
     def run(self):
         """Run the molprops step."""
 
-        all_datasets = Dataset.get()
         config_cc = Config()
-
+        dataset_codes = list()
         cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
 
-        dataset_codes = list()
-        for ds in all_datasets:
-            if not ds.exemplary:
-                continue
-            sign3 = cc.get_signature("sign3", "full", ds)
-            if sign3.is_fit():
-                continue
+        if self.ref_datasets is None:
 
-            if os.path.exists(sign3.signature_path):
-                shutil.rmtree(sign3.signature_path)
+            self.ref_datasets = []
+            all_datasets = Dataset.get()
+            for ds in all_datasets:
+                if not ds.exemplary:
+                    continue
 
-            dataset_codes.append(ds)
+                self.ref_datasets.append(ds.dataset_code)
 
-        job_path = tempfile.mkdtemp(
-            prefix='jobs_sign3_', dir=self.tmpdir)
+        if self.target_datasets is None:
 
-        if not os.path.isdir(job_path):
-            os.mkdir(job_path)
-
-        dataset_codes.sort()
+            for ds in self.ref_datasets:
+                sign3 = cc.get_signature("sign3", "full", ds)
+                if sign3.is_fit():
+                    continue
+                dataset_codes.append(ds)
+        else:
+            for ds in self.target_datasets:
+                sign3 = cc.get_signature("sign3", "full", ds)
+                if sign3.is_fit():
+                    continue
+                dataset_codes.append(ds)
 
         if len(dataset_codes) > 0:
 
+            job_path = tempfile.mkdtemp(
+                prefix='jobs_sign3_', dir=self.tmpdir)
+
+            if not os.path.isdir(job_path):
+                os.mkdir(job_path)
+
+            dataset_codes.sort()
+
             sign2_list = [cc.get_signature('sign2', 'full', ds)
-                          for ds in dataset_codes]
-            full_universe = os.path.join(self.tmpdir, "universe_full")
-            sign3_full = cc.get_signature('sign3', 'full', "A1.001")
-            sign3_full.save_sign2_universe(sign2_list, full_universe)
+                          for ds in self.ref_datasets]
 
-            try:
-                with h5py.File(full_universe, 'r') as hf:
-                    keys = hf.keys()
-            except Exception, e:
+            if self.target_datasets is None:
+                full_universe = os.path.join(self.tmpdir, "universe_full")
+                full_coverage = os.path.join(self.tmpdir, "coverage_full")
+                sign3_full = cc.get_signature('sign3', 'full', "A1.001")
+                sign3_full.save_sign2_universe(sign2_list, full_universe)
+                sign3_full.save_sign2_coverage(sign2_list, full_coverage)
+                try:
+                    with h5py.File(full_universe, 'r') as hf:
+                        keys = hf.keys()
+                except Exception, e:
 
-                self.__log.error(e)
-                raise Exception("Universe full file is corrupted")
+                    self.__log.error(e)
+                    raise Exception("Universe full file is corrupted")
 
             # create script file
             cc_config_path = os.environ['CC_CONFIG']
@@ -86,10 +102,25 @@ class Signature3(BaseStep):
                 # start import
                 "sign3_full = cc.get_signature('sign3', 'full', data,**pars)",
                 "sign2_full = cc.get_signature('sign2', 'full', data)",
-                "sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in cc.datasets_exemplary()]",
-                "sign3_full.fit(sign2_list,sign2_full,sign2_universe='%s')" % full_universe,
-                "print('JOB DONE')"
+                "sign2_src_list = [%s]" % (str(self.ref_datasets)[1:-1]),
+                "sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in sign2_src_list]"
             ]
+
+            if self.target_datasets is None:
+
+                script_lines += [
+                    "sign3_full.fit(sign2_list,sign2_full,sign2_universe='%s', sign2_coverage='%s')" % (
+                        full_universe, full_coverage),
+                    "print('JOB DONE')"
+                ]
+
+            else:
+
+                script_lines += [
+                    "sign2_list.append(cc.get_signature('sign2', 'full', data))",
+                    "sign3_full.fit(sign2_list,sign2_full)",
+                    "print('JOB DONE')"
+                ]
 
             script_name = os.path.join(job_path, 'sign3_script.py')
             with open(script_name, 'w') as fh:
@@ -105,7 +136,6 @@ class Signature3(BaseStep):
             params["job_name"] = "CC_SIGN3"
             params["elements"] = dataset_codes
             params["wait"] = True
-            params["memory"] = 50
             params["cpu"] = 32
             # job command
             singularity_image = Config().PATH.SINGULARITY_IMAGE
