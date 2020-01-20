@@ -64,6 +64,14 @@ class sign4(BaseSignature, DataSignature):
         self.params = dict()
         # parameters to learn from sign2
         default_sign2 = {
+            'neighbors': 10,
+            'batch_size': 100,
+            'augment_fn': subsample,
+            'augment_scale': 2,
+            'augment_kwargs': {
+                'p_dataset': 0.5,
+                'dataset': dataset.code
+            },
         }
         default_sign2.update(params.get('sign2', {}))
         self.params['sign2'] = default_sign2
@@ -222,29 +230,23 @@ class sign4(BaseSignature, DataSignature):
             traintest_file = params.pop(
                 'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
-                pairs = PairTraintest(sign2_matrix, traintest_file, nr_neig=10)
-                if not pairs.valid():
-                    pairs.generate(max_pairs=1e6)
+                PairTraintest.create(sign2_matrix, traintest_file,
+                                     split_names=['train', 'test'],
+                                     split_fractions=[.8, .2],
+                                     neigbors_matrix=self.sign2_self[:],
+                                     neigbors=params['neighbors'])
         else:
             traintest_file = sign2_matrix
-            pairs = PairTraintest(traintest_file, nr_neig=10)
-            if not pairs.valid():
-                pairs.generate(max_pairs=1e6)
-        # parameter heuristics
-        with h5py.File(sign2_matrix, 'r') as hf:
-            mat_shape = hf['x'].shape
-        if 'layer_size' not in params:
-            params['layer_size'] = layer_size_heuristic(*mat_shape)
-        if 'batch_size' not in params:
-            params['batch_size'] = batch_size_heuristic(*mat_shape)
-        if 'epoch_per_iteration' not in params:
-            params['epoch_per_iteration'] = epoch_per_iteration_heuristic(
-                *mat_shape)
+            PairTraintest.create(sign2_matrix, traintest_file,
+                                 split_names=['train'],
+                                 split_fractions=[1.0],
+                                 neigbors_matrix=self.sign2_self[:],
+                                 neigbors=params['neighbors'])
         siamese = Siamese(model_dir=siamese_path,
                           traintest_file=traintest_file,
                           **params)
         self.__log.debug('Siamese training on %s' % traintest_file)
-        siamese.train_and_evaluate(evaluate=evaluate)
+        siamese.fit()
         self.__log.debug('model saved to %s' % siamese_path)
         # when evaluating also save the performances
         if evaluate:
