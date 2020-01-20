@@ -254,8 +254,8 @@ class PairTraintest(object):
             fh.create_dataset('x', data=X)
 
             # for each split combo generate pairs and ys
-            #combos = itertools.combinations_with_replacement(split_names, 2)
-            combos = [('train', 'train'), ('train', 'test'), ('test', 'test')]
+            combos = itertools.combinations_with_replacement(split_names, 2)
+            #combos = [('train', 'train'), ('train', 'test'), ('test', 'test')]
             for split1, split2 in combos:
                 # handle case where we ask more neig then molecules
                 if neigbors > nr_matrix[split2].shape[0]:
@@ -345,7 +345,7 @@ class PairTraintest(object):
     @staticmethod
     def generator_fn(file_name, split, batch_size=None, only_x=False,
                      replace_nan=None, augment_scale=1,
-                     augmentation_fn=None, augmentation_kwargs={}):
+                     augment_fn=None, augment_kwargs={}):
         """Return the generator function that we can query for batches.
 
         file_name(str): The H5 generated via `create`
@@ -354,8 +354,8 @@ class PairTraintest(object):
         only_x(bool): Usually when predicting only X are useful.
         replace_nan(bool): Value used for NaN replacement.
         augment_scale(int): Augment the train size by this factor.
-        augmentation_fn(func): Function to augment data.
-        augmentation_kwargs(dict): Parameters for the aument functions.
+        augment_fn(func): Function to augment data.
+        augment_kwargs(dict): Parameters for the aument functions.
         """
         reader = PairTraintest(file_name, split)
         reader.open()
@@ -384,15 +384,15 @@ class PairTraintest(object):
                 pairs, y = reader.get_py(beg_idx, end_idx)
                 x1 = X[pairs[:, 0]]
                 x2 = X[pairs[:, 1]]
-                if augmentation_fn is not None:
+                if augment_fn is not None:
                     tmp_x1 = list()
                     tmp_x2 = list()
                     tmp_y = list()
                     for i in range(augment_scale):
-                        tmp_x1.append(augmentation_fn(
-                            x1, **augmentation_kwargs))
-                        tmp_x2.append(augmentation_fn(
-                            x2, **augmentation_kwargs))
+                        tmp_x1.append(augment_fn(
+                            x1, **augment_kwargs))
+                        tmp_x2.append(augment_fn(
+                            x2, **augment_kwargs))
                         tmp_y.append(y)
                     x1 = np.vstack(tmp_x1)
                     x2 = np.vstack(tmp_x2)
