@@ -369,7 +369,7 @@ class PairTraintest(object):
 
     @staticmethod
     def generator_fn(file_name, split, batch_size=None, only_x=False,
-                     replace_nan=None, augment_scale=10,
+                     replace_nan=None, augment_scale=1,
                      augmentation_fn=None, augmentation_kwargs={}):
         """Return the generator function that we can query for batches."""
         reader = PairTraintest(file_name, split)
@@ -421,6 +421,6 @@ class PairTraintest(object):
                     yield [x1, x2], y
                 beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
 
-        shapes = (x_shape, x_shape, y_shape)
+        shapes = ((p_shape[0], x_shape[1]), (p_shape[0], x_shape[1]), y_shape)
         dtypes = (x_dtype, x_dtype, y_dtype)
         return shapes, dtypes, example_generator_fn
