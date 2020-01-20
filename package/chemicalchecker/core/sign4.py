@@ -64,13 +64,14 @@ class sign4(BaseSignature, DataSignature):
         self.params = dict()
         # parameters to learn from sign2
         default_sign2 = {
+            'epochs': 1,
             'neighbors': 10,
-            'batch_size': 100,
-            'augment_fn': subsample,
-            'augment_scale': 2,
+            'batch_size': 1000,
+            'augment_fn': None,
+            'augment_scale': 1,
             'augment_kwargs': {
                 'p_dataset': 0.5,
-                'dataset': dataset.code
+                'dataset': dataset
             },
         }
         default_sign2.update(params.get('sign2', {}))
@@ -190,8 +191,7 @@ class sign4(BaseSignature, DataSignature):
                                 sum(available), self.dataset, ds)
                 del signs
 
-    def learn_sign2(self, params, reuse=True, suffix=None,
-                    evaluate=True):
+    def learn_sign2(self, params, reuse=True, suffix=None, evaluate=True):
         """Learn the signature 3 model.
 
         This method is used twice. First to evaluate the performances of the
@@ -230,20 +230,29 @@ class sign4(BaseSignature, DataSignature):
             traintest_file = params.pop(
                 'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
-                PairTraintest.create(sign2_matrix, traintest_file,
+                X = DataSignature(sign2_matrix).get_h5_dataset('x')
+                PairTraintest.create(X, traintest_file,
                                      split_names=['train', 'test'],
                                      split_fractions=[.8, .2],
                                      neigbors_matrix=self.sign2_self[:],
                                      neigbors=params['neighbors'])
         else:
             traintest_file = sign2_matrix
-            PairTraintest.create(sign2_matrix, traintest_file,
+            X = DataSignature(sign2_matrix).get_h5_dataset('x')
+            PairTraintest.create(X, traintest_file,
                                  split_names=['train'],
                                  split_fractions=[1.0],
                                  neigbors_matrix=self.sign2_self[:],
                                  neigbors=params['neighbors'])
-        siamese = Siamese(model_dir=siamese_path,
-                          traintest_file=traintest_file,
+        # update the subsampling parameter
+        if 'augment_kwargs' in params:
+            ds = params['augment_kwargs']['dataset']
+            ds_mask = np.argwhere(np.isin(self.src_datasets, ds)).flatten()
+            params['augment_kwargs']['dataset'] = ds_mask
+
+        siamese = Siamese(siamese_path,
+                          traintest_file,
+                          evaluate,
                           **params)
         self.__log.debug('Siamese training on %s' % traintest_file)
         siamese.fit()
@@ -796,7 +805,7 @@ class sign4(BaseSignature, DataSignature):
                             abs_novelty).flatten()
         return pred_s3
 
-    def fit(self, sign2_list, sign2_self, neig2_self, sign2_universe=None,
+    def fit(self, sign2_list, sign2_self, sign2_universe=None,
             sign2_coverage=None, sign0=None,
             model_confidence=True, save_correlations=True,
             predict_novelty=True, update_preds=True, normalize_scores=True,
@@ -825,29 +834,29 @@ class sign4(BaseSignature, DataSignature):
             chunk_size(int): Chunk size when writing to sign4.h5
         """
         try:
-            from chemicalchecker.tool.adanet import AdaNet
+            from chemicalchecker.tool.siamese import Siamese
         except ImportError as err:
             raise err
 
         # define dataset that will be used
         self.src_datasets = [sign.dataset for sign in sign2_list]
         self.sign2_self = sign2_self
-        self.neig2_self = neig2_self
         self.sign2_list = sign2_list
-        self.__log.debug('AdaNet fit %s based on %s', self.dataset,
+        self.__log.debug('Siamese fit %s based on %s', self.dataset,
                          str(self.src_datasets))
         # check if performance evaluations need to be done
-        eval_adanet_path = os.path.join(self.model_path, 'adanet_eval')
+        eval_adanet_path = os.path.join(self.model_path, 'siamese_eval')
         eval_stats = os.path.join(eval_adanet_path, 'stats_eval.pkl')
         if not os.path.isfile(eval_stats):
             self.learn_sign2(self.params['sign2'],
                              suffix='eval', evaluate=True)
 
         # check if we have the final trained model
-        final_adanet_path = os.path.join(self.model_path, 'adanet_final')
+        final_adanet_path = os.path.join(self.model_path, 'siamese_final')
         if not os.path.isdir(final_adanet_path):
             self.learn_sign2(self.params['sign2'],
                              suffix='final', evaluate=False)
+        return
 
         # part of confidence is the expected error
         if model_confidence:
