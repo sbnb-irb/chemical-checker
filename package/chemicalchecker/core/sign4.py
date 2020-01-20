@@ -1506,21 +1506,24 @@ def epoch_per_iteration_heuristic(samples, features, clip=(16, 1024)):
     return np.clip(pow2, *clip)
 
 
-def subsample(tensor, p_original=0.05, p_one_dataset=0.0,
-              one_dataset=None):
+def subsample(tensor, sign_size=128, p_original=0.05,
+              p_dataset=0.0, dataset=None):
     """Function to subsample stacked data."""
     # it is safe to make a local copy of the input matrix
     new_data = np.copy(tensor)
     # we will have a masking matrix at the end
     mask = np.zeros_like(new_data).astype(bool)
-    if p_one_dataset > 0.0 and one_dataset is None:
-        raise Exception('Please specify dataset to keep')
+    if new_data.shape[0] % sign_size != 0:
+        raise Exception('All signature should be of length %i.' % sign_size)
+    if p_dataset > 0.0 and dataset is None:
+        raise Exception('Please specify dataset/s to keep.')
     for idx, row in enumerate(new_data):
         # the following assume the stacked signature to have a fixed width
-        presence = ~np.isnan(row[0::128])
-        # drop everything except the predifined dataset
-        if np.random.rand() < p_one_dataset:
-            presence_add = one_dataset
+        presence = ~np.isnan(row[0::sign_size])
+        # drop everything except the desired dataset
+        if np.random.rand() < p_dataset:
+            presence_add = np.zeros(presence.shape).astype(bool)
+            presence_add[dataset] = True
         else:
             # low probability of keeping the original sample
             if np.random.rand() < p_original:
@@ -1538,7 +1541,7 @@ def subsample(tensor, p_original=0.05, p_one_dataset=0.0,
                 presence_add = np.zeros(presence.shape).astype(bool)
                 presence_add[to_add] = True
         # from dataset mask to signature mask
-        mask[idx] = np.repeat(presence_add, 128)
+        mask[idx] = np.repeat(presence_add, sign_size)
     # make masked dataset NaN
     new_data[~mask] = np.nan
     return new_data
