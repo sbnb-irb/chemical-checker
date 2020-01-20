@@ -26,28 +26,17 @@ class PairTraintest(object):
         self._f = None
         self.replace_nan = replace_nan
         self.nr_neig = nr_neig
+        self.x_name = "x"
         if split is None:
             self.p_name = "p"
-            self.x_name = "x"
             self.y_name = "y"
         else:
             self.p_name = "p_%s" % split
-            self.x_name = "x"
             self.y_name = "y_%s" % split
             available_splits = self.get_split_names()
             if split not in available_splits:
                 raise Exception("Split '%s' not found in %s!" %
                                 (split, str(available_splits)))
-
-    def valid(self):
-        '''Check if nr of neighbors correspond to want is desired.'''
-        self.open()
-        if "nr_neig" in self._f:
-            if self._f["nr_neig"] == self.nr_neig:
-                self.close()
-                return True
-        self.close()
-        return False
 
     def get_xy_shapes(self):
         """Return the shpaes of X an Y."""
@@ -128,22 +117,6 @@ class PairTraintest(object):
         return labels
 
     @staticmethod
-    def create_signature_file(sign_from, sign_to, out_filename):
-        """Create the HDF5 file with both X and Y, train and test."""
-        # get type1
-        with h5py.File(sign_from, 'r') as fh:
-            X = fh['V'][:]
-            check_X = fh['keys'][:]
-        X = np.asarray(X, dtype=np.float32)
-        # get type2
-        with h5py.File(sign_to, 'r') as fh:
-            Y = fh['V'][:]
-            check_Y = fh['keys'][:]
-        assert(np.array_equal(check_X, check_Y))
-        # train test validation splits
-        PairTraintest.create(X, Y, out_filename)
-
-    @staticmethod
     def get_split_indeces(rows, fractions):
         """Get random indeces for different splits."""
         if not sum(fractions) == 1.0:
@@ -163,12 +136,15 @@ class PairTraintest(object):
                mean_center_x=True, shuffle=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
                x_dtype=np.float32, y_dtype=np.float32, debug=False):
-        """Create the HDF5 file with validation splits for both X and Y.
+        """Create the HDF5 file with validation splits.
 
         Args:
             X(numpy.ndarray): features to train from.
-            Y(numpy.ndarray): labels to predict.
             out_file(str): path of the h5 file to write.
+            neigbors_matrix(numpy.ndarray): matrix for computing neighbors.
+            neigbors(int): Number of positive neighbors to include.
+            mean_center_x(bool): center each feature on its mean?
+            shuffle(bool): Shuffle positive and negatives.
             split_names(list(str)): names for the split of data.
             split_fractions(list(float)): fraction of data in each split.
             x_dtype(type): numpy data type for X.
@@ -180,7 +156,6 @@ class PairTraintest(object):
         # train test validation splits
         if len(split_names) != len(split_fractions):
             raise Exception("Split names and fraction should be same amount.")
-        #split_names = [s.encode() for s in split_names]
 
         # override parameters for debug
         if debug:
@@ -269,7 +244,7 @@ class PairTraintest(object):
             NN[split_name].add(nr_matrix[split_name])
 
         # mean centering columns
-        if mean_center_x == True:
+        if mean_center_x:
             mean = np.nanmean(X, axis=1)
             X = X - mean[:, np.newaxis]
 
@@ -371,17 +346,27 @@ class PairTraintest(object):
     def generator_fn(file_name, split, batch_size=None, only_x=False,
                      replace_nan=None, augment_scale=1,
                      augmentation_fn=None, augmentation_kwargs={}):
-        """Return the generator function that we can query for batches."""
+        """Return the generator function that we can query for batches.
+
+        file_name(str): The H5 generated via `create`
+        split(str): One of 'train_train', 'train_test', or 'test_test'
+        batch_size(int): Size of a batch of data.
+        only_x(bool): Usually when predicting only X are useful.
+        replace_nan(bool): Value used for NaN replacement.
+        augment_scale(int): Augment the train size by this factor.
+        augmentation_fn(func): Function to augment data.
+        augmentation_kwargs(dict): Parameters for the aument functions.
+        """
         reader = PairTraintest(file_name, split)
         reader.open()
         # read shapes
         x_shape = reader._f[reader.x_name].shape
         y_shape = reader._f[reader.y_name].shape
+        p_shape = reader._f[reader.p_name].shape
         # read data types
         x_dtype = reader._f[reader.x_name].dtype
         y_dtype = reader._f[reader.y_name].dtype
         # no batch size -> return everything
-        p_shape = reader._f[reader.p_name].shape
         if not batch_size:
             batch_size = p_shape[0]
         # keep X in memory for resolving pairs quickly
@@ -421,6 +406,7 @@ class PairTraintest(object):
                     yield [x1, x2], y
                 beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
 
-        shapes = ((p_shape[0], x_shape[1]), (p_shape[0], x_shape[1]), y_shape)
+        pair_shape = (p_shape[0] * augment_scale, x_shape[1])
+        shapes = (pair_shape, pair_shape, y_shape)
         dtypes = (x_dtype, x_dtype, y_dtype)
         return shapes, dtypes, example_generator_fn
