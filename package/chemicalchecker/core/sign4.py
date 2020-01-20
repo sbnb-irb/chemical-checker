@@ -1513,7 +1513,7 @@ def subsample(tensor, sign_size=128, p_original=0.05,
     new_data = np.copy(tensor)
     # we will have a masking matrix at the end
     mask = np.zeros_like(new_data).astype(bool)
-    if new_data.shape[0] % sign_size != 0:
+    if new_data.shape[1] % sign_size != 0:
         raise Exception('All signature should be of length %i.' % sign_size)
     if p_dataset > 0.0 and dataset is None:
         raise Exception('Please specify dataset/s to keep.')
