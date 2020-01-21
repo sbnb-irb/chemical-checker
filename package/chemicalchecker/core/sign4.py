@@ -1375,7 +1375,7 @@ class sign4(BaseSignature, DataSignature):
         # get results for each split
         results = dict()
         all_dss = list(self.src_datasets)
-        for split in ['train', 'test', 'validation']:
+        for split in ['train_test', 'test_test']:
             traintest = Traintest(traintest_file, split)
             x_shape, y_shape = traintest.get_xy_shapes()
             total_size = float(y_shape[0])
@@ -1385,60 +1385,60 @@ class sign4(BaseSignature, DataSignature):
             # make prediction keeping only a single space
             for idx, ds in enumerate(all_dss):
                 # algo name, prepare results
-                name = ("AdaNet", ds)
+                name = ("Siamese", ds)
                 if suffix:
-                    name = ("AdaNet_%s" % suffix, ds)
+                    name = ("Siamese_%s" % suffix, ds)
                 if name not in results:
                     results[name] = dict()
                 # predict and save
                 results[name][split] = predict_and_save(name, [idx],
                                                         traintest_file, split,
                                                         mask_keep,
-                                                        adanet_path,
+                                                        siamese_path,
                                                         total_size)
             # make prediction excluding space to predict
             ds = self.dataset
             idx = all_dss.index(ds)
             # algo name, prepare results
-            name = ("AdaNet", "not-%s" % ds)
+            name = ("Siamese", "not-%s" % ds)
             if suffix:
-                name = ("AdaNet_%s" % suffix, "not-%s" % ds)
+                name = ("Siamese_%s" % suffix, "not-%s" % ds)
             if name not in results:
                 results[name] = dict()
             # predict and save
             results[name][split] = predict_and_save(name, [idx],
                                                     traintest_file, split,
                                                     mask_exclude,
-                                                    adanet_path, total_size)
+                                                    siamese_path, total_size)
             # exclude level to predict
             dss = [d for d in all_dss if d.startswith(self.dataset[0])]
             idxs = [all_dss.index(d) for d in dss]
             # algo name, prepare results
-            name = ("AdaNet", "not-%sX" % self.dataset[0])
+            name = ("Siamese", "not-%sX" % self.dataset[0])
             if suffix:
-                name = ("AdaNet_%s" % suffix, "not-%sX" % self.dataset[0])
+                name = ("Siamese_%s" % suffix, "not-%sX" % self.dataset[0])
             if name not in results:
                 results[name] = dict()
             # predict and save
             results[name][split] = predict_and_save(name, idxs,
                                                     traintest_file, split,
                                                     mask_exclude,
-                                                    adanet_path, total_size)
+                                                    siamese_path, total_size)
             # check special combinations
             dss = [d for d in all_dss if d.startswith('B')] + \
                 [d for d in all_dss if d.startswith('C')]
             idxs = [all_dss.index(d) for d in dss]
             # algo name, prepare results
-            name = ("AdaNet", "not-BX|CX")
+            name = ("Siamese", "not-BX|CX")
             if suffix:
-                name = ("AdaNet_%s" % suffix, "not-BX|CX")
+                name = ("Siamese_%s" % suffix, "not-BX|CX")
             if name not in results:
                 results[name] = dict()
             # predict and save
             results[name][split] = predict_and_save(name, idxs,
                                                     traintest_file, split,
                                                     mask_exclude,
-                                                    adanet_path, total_size)
+                                                    siamese_path, total_size)
         return results
 
 

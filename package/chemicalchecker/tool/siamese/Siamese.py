@@ -30,7 +30,7 @@ class Siamese(object):
             epochs(int): The number of epochs (default: 200)
         """
 
-        self.epochs = int(kwargs.get("epochs", 5))
+        self.epochs = int(kwargs.get("epochs", 15))
         self.batch_size = int(kwargs.get("batch_size", 100))
         self.learning_rate = float(kwargs.get("learning_rate", 0.001))
         self.replace_nan = float(kwargs.get("replace_nan", 0.0))
@@ -198,21 +198,19 @@ class Siamese(object):
 
         return acc_tr_te, acc_te_te
 
-    def predict(self, traintest_file, dest_file, chunk_size=1000, input_dataset='V'):
+    def predict(self, input_file, dest_file, chunk_size=1000, input_dataset='V'):
         """Take data .h5 and produce an encoded data.
 
         Args:
-            traintest_file(string): a path to input .h5 file.
             dest_file(string): a path to output .h5 file.
             chunk_size(int): numbe rof inputs at each prediction.
             dataset(string): The name of the dataset in the .h5 file to encode(default: 'V')
         """
-
-        self.siamese = load_model(self.siamese_model_file)
-        self.transformer = self.siamese.layers[2]
-
-        with h5py.File(dest_file, "w") as results, h5py.File(traintest_file, 'r') as hf:
+        with h5py.File(dest_file, "w") as results, h5py.File(input_file, 'r') as hf:
             input_size = hf[input_dataset].shape[0]
+            self.build_model((hf[input_dataset].shape[1],), load=True)
+            self.transformer = self.siamese.layers[2]
+            self.transformer.summary()
             if "keys" in hf.keys():
                 results.create_dataset('keys', data=hf["keys"][
                                        :], maxshape=hf["keys"].shape)
@@ -223,8 +221,9 @@ class Siamese(object):
 
             for i in range(0, input_size, chunk_size):
                 chunk = slice(i, i + chunk_size)
+                no_nans = np.nan_to_num(hf[input_dataset][chunk])
                 results['V'][chunk] = self.transformer.predict(
-                    hf[input_dataset][chunk])
+                    no_nans)
 
     def _plot_history(self, history, destination=None):
         import matplotlib
