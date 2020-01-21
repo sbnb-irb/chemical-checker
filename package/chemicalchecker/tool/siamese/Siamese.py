@@ -138,19 +138,16 @@ class Siamese(object):
             self.siamese.load_weights(self.siamese_model_file)
 
     def fit(self):
-
         input_shape = (self.tr_shapes[0][1],)
         self.build_model(input_shape)
 
         t0 = time()
-        history = self.siamese.fit_generator(
+        self.history = self.siamese.fit_generator(
             generator=self.tr_gen(),
             steps_per_epoch=np.ceil(self.tr_shapes[0][0] / self.batch_size),
             epochs=self.epochs,
             validation_data=self.val_gen(),
             validation_steps=np.ceil(self.val_shapes[0][0] / self.batch_size))
-
-        self.history = history
 
         self.siamese.save(self.siamese_model_file)
         self.time = time() - t0
@@ -183,12 +180,11 @@ class Siamese(object):
         self._plot_history(self.history, plot_file)"""
 
     def evaluate(self):
-
-        def specific_eval(split):
+        def specific_eval(split, b_size=100):
             shapes, dtypes, gen = PairTraintest.generator_fn(self.traintest_file, split, 
-                    batch_size=100, replace_nan=self.replace_nan, augment_scale=1)
+                    batch_size=b_size, replace_nan=self.replace_nan, augment_scale=1)
 
-            y_loss, y_acc = self.siamese.evaluate_generator(gen(), steps=shapes[0][1]//100 ,max_queue_size=1, verbose=1)
+            y_loss, y_acc = self.siamese.evaluate_generator(gen(), steps=shapes[0][0]//b_size ,max_queue_size=1, verbose=1)
 
             self.__log.debug("Accuracy %s: %f" % (split, y_acc))
             return y_acc
@@ -198,7 +194,6 @@ class Siamese(object):
         self.build_model(input_shape, load=True)
 
         acc_tr_te = specific_eval('train_test')
-
         acc_te_te = specific_eval('test_test')
 
         return acc_tr_te, acc_te_te

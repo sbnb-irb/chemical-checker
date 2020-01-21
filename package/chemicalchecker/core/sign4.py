@@ -1327,7 +1327,7 @@ class sign4(BaseSignature, DataSignature):
         return results
 
     def siamese_single_spaces(self, siamese_path, traintest_file, suffix):
-        """Prediction of adanet using single space signatures.
+        """Prediction of Siamese using single space signatures.
 
         We want to compare the performances of trained adanet to those of
         predictors based on single space. This is done filling the matrix
@@ -1335,7 +1335,7 @@ class sign4(BaseSignature, DataSignature):
         can be assesses (e.g. excluding all spaces from level A).
 
         Args:
-            adanet_path(str): Path to the AdaNet SavedModel.
+            siamese_path(str): Path to the Siamese SavedModel.
             traintest_file(str): Path to the traintest file.
             suffix(str): Suffix string for the predictor name.
         """
@@ -1344,8 +1344,8 @@ class sign4(BaseSignature, DataSignature):
         except ImportError as err:
             raise err
 
-        def predict_and_save(name, idxs, save_dir, traintest_file, split,
-                             mask_fn, adanet_path, total_size):
+        def predict_and_save(name, idxs, traintest_file, split,
+                             mask_fn, siamese_path, total_size):
             # call predict
             self.__log.info("Predicting for: %s", name)
             y_pred, y_true = Siamese.predict_online(
@@ -1355,12 +1355,12 @@ class sign4(BaseSignature, DataSignature):
             if y_pred.shape[0] < 4:
                 return
             file_true = os.path.join(
-                adanet_path, "_".join(list(name) + [split, 'true']))
+                siamese_path, "_".join(list(name) + [split, 'true']))
             np.save(file_true, y_true)
             y_true_shape = y_true.shape[0]
             del y_true
             file_pred = os.path.join(
-                adanet_path, "_".join(list(name) + [split, 'pred']))
+                siamese_path, "_".join(list(name) + [split, 'pred']))
             np.save(file_pred, y_pred)
             del y_pred
             result = dict()
@@ -1371,8 +1371,7 @@ class sign4(BaseSignature, DataSignature):
             return result
 
         # get predict function (loads the neural network)
-        self.__log.info("Loading AdaNet model")
-        save_dir = os.path.join(adanet_path, 'savedmodel')
+        self.__log.info("Loading Siamese model")
         # get results for each split
         results = dict()
         all_dss = list(self.src_datasets)
@@ -1392,7 +1391,7 @@ class sign4(BaseSignature, DataSignature):
                 if name not in results:
                     results[name] = dict()
                 # predict and save
-                results[name][split] = predict_and_save(name, [idx], save_dir,
+                results[name][split] = predict_and_save(name, [idx],
                                                         traintest_file, split,
                                                         mask_keep,
                                                         adanet_path,
@@ -1407,7 +1406,7 @@ class sign4(BaseSignature, DataSignature):
             if name not in results:
                 results[name] = dict()
             # predict and save
-            results[name][split] = predict_and_save(name, [idx], save_dir,
+            results[name][split] = predict_and_save(name, [idx],
                                                     traintest_file, split,
                                                     mask_exclude,
                                                     adanet_path, total_size)
@@ -1421,7 +1420,7 @@ class sign4(BaseSignature, DataSignature):
             if name not in results:
                 results[name] = dict()
             # predict and save
-            results[name][split] = predict_and_save(name, idxs, save_dir,
+            results[name][split] = predict_and_save(name, idxs,
                                                     traintest_file, split,
                                                     mask_exclude,
                                                     adanet_path, total_size)
@@ -1436,7 +1435,7 @@ class sign4(BaseSignature, DataSignature):
             if name not in results:
                 results[name] = dict()
             # predict and save
-            results[name][split] = predict_and_save(name, idxs, save_dir,
+            results[name][split] = predict_and_save(name, idxs,
                                                     traintest_file, split,
                                                     mask_exclude,
                                                     adanet_path, total_size)
