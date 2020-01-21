@@ -81,7 +81,7 @@ class Siamese(object):
         self.siamese = None
         self.transformer = None
 
-    def fit(self):
+    def build_model(self, input_shape, load=False):
         def euclidean_distance(vects):
             x, y = vects
             sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
@@ -115,9 +115,6 @@ class Siamese(object):
             '''
             return K.mean(K.equal(y_true, K.cast(y_pred < 0.5, y_true.dtype)))
 
-        t0 = time()
-        input_shape = (self.tr_shapes[0][1],)
-
         base_network = create_base_network(input_shape)
 
         input_a = Input(shape=input_shape)
@@ -136,7 +133,17 @@ class Siamese(object):
 
         rms = RMSprop()
         model.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
-        history = model.fit_generator(
+        self.siamese = model
+        if load:
+            self.siamese.load_weights(self.siamese_model_file)
+
+    def fit(self):
+
+        input_shape = (self.tr_shapes[0][1],)
+        self.build_model(input_shape)
+
+        t0 = time()
+        history = self.siamese.fit_generator(
             generator=self.tr_gen(),
             steps_per_epoch=np.ceil(self.tr_shapes[0][0] / self.batch_size),
             epochs=self.epochs,
@@ -145,9 +152,9 @@ class Siamese(object):
 
         self.history = history
 
-        model.save(self.siamese_model_file)
+        self.siamese.save(self.siamese_model_file)
         self.time = time() - t0
-
+    """
     def save_performances(self, path, suffix):
         trte, tete = self.evaluate()
         perf_file = os.path.join(path, "siamese_%s.pkl" % suffix)
@@ -173,38 +180,26 @@ class Siamese(object):
         df.to_pickle(perf_file)
 
         plot_file = os.path.join(path, "siamese_%s.png" % suffix)
-        self._plot_history(self.history, plot_file)
+        self._plot_history(self.history, plot_file)"""
 
     def evaluate(self):
-        def compute_accuracy(generator, y_true):
-            y_pred = self.siamese.predict_generator(generator)
-            pred = y_pred.ravel() < 0.5
-            y_true = p_obj.get_all_y()
-            print("y_pred", y_pred.shape)
-            return np.mean(pred == y_true)
-
-        def get_y(data_path, split):
-            p_obj = PairTraintest(data_path, split=split)
-            p_obj.open()
-            y_true = p_obj.get_all_y().flatten()
-            p_obj.close()
-            return y_true
 
         def specific_eval(split):
             shapes, dtypes, gen = PairTraintest.generator_fn(self.traintest_file, split, 
                     batch_size=100, replace_nan=self.replace_nan, augment_scale=1)
 
-            y_true = get_y(data_path, split)
+            y_loss, y_acc = self.siamese.evaluate_generator(gen(), steps=shapes[0][1]//100 ,max_queue_size=1, verbose=1)
 
-            acc_tr_te = compute_accuracy(gen(), y_true)
+            self.__log.debug("Accuracy %s: %f" % (split, y_acc))
+            return y_acc
 
-            self.__log.debug("Accuracy %s: %f" % (split, acc_tr_te))
+        input_shape = (self.tr_shapes[0][1],)
 
+        self.build_model(input_shape, load=True)
 
+        acc_tr_te = specific_eval('train_test')
 
-        self.siamese = load_model(self.siamese_model_file, compile=False)
-
-        specific_eval('test_test')
+        acc_te_te = specific_eval('test_test')
 
         return acc_tr_te, acc_te_te
 
