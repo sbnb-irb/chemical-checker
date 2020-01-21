@@ -259,12 +259,12 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('model saved to %s' % siamese_path)
         # when evaluating also save the performances
         if evaluate:
-            # singles = self.siamese_single_spaces(siamese_path, traintest_file,
-            #                                    suffix)
+            singles = self.siamese_single_spaces(siamese_path, traintest_file,
+                                                 suffix)
             # save Siamese performances and plots
-            sign2_plot = Plot(self.dataset, siamese_path)
+            #sign2_plot = Plot(self.dataset, siamese_path)
             #siamese.save_performances(siamese_path, sign2_plot, suffix, singles)
-            siamese.save_performances(siamese_path, sign2_plot, suffix)
+            siamese.save_performances(siamese_path, suffix, singles)
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True,
                           chunk_size=1000):
@@ -1326,7 +1326,7 @@ class sign4(BaseSignature, DataSignature):
                     name, model, x_data, y_data, split, save_path)
         return results
 
-    def adanet_single_spaces(self, adanet_path, traintest_file, suffix):
+    def siamese_single_spaces(self, siamese_path, traintest_file, suffix):
         """Prediction of adanet using single space signatures.
 
         We want to compare the performances of trained adanet to those of
@@ -1340,19 +1340,17 @@ class sign4(BaseSignature, DataSignature):
             suffix(str): Suffix string for the predictor name.
         """
         try:
-            from chemicalchecker.tool.adanet import AdaNet
+            from chemicalchecker.tool.siamese import Siamese
         except ImportError as err:
             raise err
 
         def predict_and_save(name, idxs, save_dir, traintest_file, split,
-                             predict_fn, mask_fn, adanet_path, total_size):
+                             mask_fn, adanet_path, total_size):
             # call predict
             self.__log.info("Predicting for: %s", name)
-            y_pred, y_true = AdaNet.predict_online(
+            y_pred, y_true = Siamese.predict_online(
                 traintest_file, split,
-                predict_fn=predict_fn,
-                mask_fn=partial(mask_fn, idxs),
-                limit=1000)
+                mask_fn=partial(mask_fn, idxs))
             self.__log.info("%s Y: %s", name, y_pred.shape)
             if y_pred.shape[0] < 4:
                 return
@@ -1375,7 +1373,6 @@ class sign4(BaseSignature, DataSignature):
         # get predict function (loads the neural network)
         self.__log.info("Loading AdaNet model")
         save_dir = os.path.join(adanet_path, 'savedmodel')
-        predict_fn = AdaNet.predict_fn(save_dir)
         # get results for each split
         results = dict()
         all_dss = list(self.src_datasets)
@@ -1397,7 +1394,7 @@ class sign4(BaseSignature, DataSignature):
                 # predict and save
                 results[name][split] = predict_and_save(name, [idx], save_dir,
                                                         traintest_file, split,
-                                                        predict_fn, mask_keep,
+                                                        mask_keep,
                                                         adanet_path,
                                                         total_size)
             # make prediction excluding space to predict
@@ -1412,7 +1409,7 @@ class sign4(BaseSignature, DataSignature):
             # predict and save
             results[name][split] = predict_and_save(name, [idx], save_dir,
                                                     traintest_file, split,
-                                                    predict_fn, mask_exclude,
+                                                    mask_exclude,
                                                     adanet_path, total_size)
             # exclude level to predict
             dss = [d for d in all_dss if d.startswith(self.dataset[0])]
@@ -1426,7 +1423,7 @@ class sign4(BaseSignature, DataSignature):
             # predict and save
             results[name][split] = predict_and_save(name, idxs, save_dir,
                                                     traintest_file, split,
-                                                    predict_fn, mask_exclude,
+                                                    mask_exclude,
                                                     adanet_path, total_size)
             # check special combinations
             dss = [d for d in all_dss if d.startswith('B')] + \
@@ -1441,7 +1438,7 @@ class sign4(BaseSignature, DataSignature):
             # predict and save
             results[name][split] = predict_and_save(name, idxs, save_dir,
                                                     traintest_file, split,
-                                                    predict_fn, mask_exclude,
+                                                    mask_exclude,
                                                     adanet_path, total_size)
         return results
 
