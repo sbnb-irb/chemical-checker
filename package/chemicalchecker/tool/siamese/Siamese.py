@@ -99,8 +99,6 @@ class Siamese(object):
         def create_base_network(input_shape):
             '''Create network architecture'''
             input = Input(shape=input_shape)
-            # x = Dense(3200, activation='relu')(input) # 1024
-            #x = Dropout(0.1)(x)
             x = Dense(1024, activation='relu')(input)  # 1024
             x = Dropout(0.1)(x)
             x = Dense(512, activation='relu')(x)  # 512
@@ -146,39 +144,35 @@ class Siamese(object):
             self.model_dir, "siamese_validation_plot.png"))
 
     def evaluate(self):
-        def compute_accuracy(generator, p_obj):
-            y_pred = self.siamese.predict_generator(
-                generator, steps=np.ceil(shapes[0][0] / 100))
+        def compute_accuracy(generator, y_true):
+            y_pred = self.siamese.predict_generator(generator)
             pred = y_pred.ravel() < 0.5
             y_true = p_obj.get_all_y()
-            print("y_true", y_true.shape)
             print("y_pred", y_pred.shape)
-            p_obj.close()
             return np.mean(pred == y_true)
+
+        def get_y(data_path, split):
+            p_obj = PairTraintest(data_path, split=split)
+            p_obj.open()
+            y_true = p_obj.get_all_y().flatten()
+            p_obj.close()
+            return y_true
+
+        def specific_eval(split):
+            shapes, dtypes, gen = PairTraintest.generator_fn(self.traintest_file, split, 
+                    batch_size=100, replace_nan=self.replace_nan, augment_scale=1)
+
+            y_true = get_y(data_path, split)
+
+            acc_tr_te = compute_accuracy(gen(), y_true)
+
+            self.__log.debug("Accuracy %s: %f" % (split, acc_tr_te))
+
+
 
         self.siamese = load_model(self.siamese_model_file, compile=False)
 
-        shapes, dtypes, gen = PairTraintest.generator_fn(
-            self.traintest_file, 'train_test',
-            batch_size=100, replace_nan=self.replace_nan,
-            only_x=True)
-
-        pair_object = PairTraintest(self.traintest_file, split="train_test")
-        pair_object.open()
-
-        acc_tr_te = compute_accuracy(gen(), pair_object)
-        self.__log.debug("Accuracy Tr_Te: %f" % acc_tr_te)
-
-        shapes, dtypes, gen = PairTraintest.generator_fn(
-            self.traintest_file, 'test_test',
-            batch_size=100, replace_nan=self.replace_nan,
-            only_x=True)
-
-        pair_object = PairTraintest(self.traintest_file, split="test_test")
-        pair_object.open()
-
-        acc_te_te = compute_accuracy(gen(), pair_object)
-        self.__log.debug("Accuracy Te_Te: %f" % acc_te_te)
+        specific_eval('test_test')
 
     def predict(self, traintest_file, dest_file, chunk_size=1000, input_dataset='V'):
         """Take data .h5 and produce an encoded data.
@@ -235,6 +229,7 @@ class Siamese(object):
         plt.title('Val accuracy evolution')
         plt.plot(history.history["val_accuracy"],
                  label="Val accuracy", lw=1, color="green")
+        plt.ylim(0, 1)
 
         plt.legend(loc='best')
         if destination is not None:
