@@ -4,6 +4,7 @@ import numpy as np
 
 import os
 import h5py
+from time import time
 from keras.models import Model, load_model
 from keras.layers import Input, Dense, Dropout, Lambda
 from keras.optimizers import RMSprop
@@ -36,6 +37,9 @@ class Siamese(object):
         self.augment_fn = kwargs.get("augment_fn", None)
         self.augment_kwargs = kwargs.get("augment_kwargs", None)
         self.augment_scale = int(kwargs.get("augment_scale", 1))
+        self.suffix = str(kwargs.get("suffix", 'eval'))
+        self.name = 'siamese_%s' % self.suffix
+        self.time = 0
 
         self.traintest_file = os.path.abspath(traintest_file)
         if not os.path.exists(traintest_file):
@@ -111,6 +115,7 @@ class Siamese(object):
             '''
             return K.mean(K.equal(y_true, K.cast(y_pred < 0.5, y_true.dtype)))
 
+        t0 = time()
         input_shape = (self.tr_shapes[0][1],)
 
         base_network = create_base_network(input_shape)
@@ -138,10 +143,37 @@ class Siamese(object):
             validation_data=self.val_gen(),
             validation_steps=np.ceil(self.val_shapes[0][0] / self.batch_size))
 
-        model.save(self.siamese_model_file)
+        self.history = history
 
-        self._plot_history(history, os.path.join(
-            self.model_dir, "siamese_validation_plot.png"))
+        model.save(self.siamese_model_file)
+        self.time = time() - t0
+
+    def save_performances(self, path, suffix):
+        trte, tete = self.evaluate()
+        perf_file = os.path.join(path, "siamese_%s.pkl" % suffix)
+
+        df = pd.DataFrame(columns=['algo', 'split', 'time', 'epochs',
+            'batch_size', 'learning_rate', 'replace_nan', 'augment_fn',
+            'augment_scale', 'augment_kwargs'])
+        row = {
+            'algo': self.name,
+            'time': self.time,
+            'epochs': self.epochs,
+            'batch_size': self.batch_size,
+            'learning_rate': self.learning_rate,
+            'replace_nan': self.replace_nan,
+            'augment_fn': str(self.augment_fn),
+            'augment_kwargs': str(self.augment_kwargs),
+            'augment_scale': self.augment_scale,
+        }
+        row.update('split': 'train_test', 'accuracy': trte)
+        df.iloc[len(df)] = pd.Series(row)
+        row.update('split': 'test_test', 'accuracy': tete)
+        df.iloc[len(df)] = pd.Series(row)
+        df.to_pickle(perf_file)
+
+        plot_file = os.path.join(path, "siamese_%s.png" % suffix)
+        self._plot_history(self.history, plot_file)
 
     def evaluate(self):
         def compute_accuracy(generator, y_true):
@@ -173,6 +205,8 @@ class Siamese(object):
         self.siamese = load_model(self.siamese_model_file, compile=False)
 
         specific_eval('test_test')
+
+        return acc_tr_te, acc_te_te
 
     def predict(self, traintest_file, dest_file, chunk_size=1000, input_dataset='V'):
         """Take data .h5 and produce an encoded data.
@@ -234,3 +268,54 @@ class Siamese(object):
         plt.legend(loc='best')
         if destination is not None:
             plt.savefig(destination)
+
+    @staticmethod
+    def predict_online(h5_file, split,
+                       mask_fn=None, batch_size=10000, limit=None,
+                       probs=False, n_classes=None, model_dir=None):
+        """Predict on given testset without killing the memory.
+
+        Args:
+            model_dir(str): path where to save the model.
+            h5_file(str): path to h5 file compatible with `Traintest`.
+            split(str): the split to use within the h5_file.
+            predict_fn(func): the predict function returned by `predict_fn`.
+            mask_fn(func): a function masking part of the input.
+            batch_size(int): batch size for `Traintest` file.
+            limit(int): maximum number of predictions.
+            probs(bool): if this is a classifier return the probabilities.
+        """
+        self.siamese = load_model(self.siamese_model_file)
+        predict_fn = self.siamese.layers[2]
+
+        shapes, dtypes, fn = Traintest.generator_fn(
+            h5_file, split, batch_size, only_x=False)
+        x_shape, y_shape = shapes
+        x_dtype, y_dtype = dtypes
+        # tha max size of the return prediction is at most same size as input
+        y_pred = np.full(y_shape, np.nan, dtype=x_dtype)
+        if probs:
+            if n_classes is None:
+                raise Exception("Specify number of classes.")
+            y_pred = np.full((y_shape[0], n_classes), np.nan, dtype=x_dtype)
+        y_true = np.full(y_shape, np.nan, dtype=y_dtype)
+        last_idx = 0
+        if limit is None:
+            limit = y_shape[0]
+        if mask_fn is None:
+            def mask_fn(x, y):
+                return x, y
+        for x_data, y_data in fn():
+            x_m, y_m = mask_fn(x_data, y_data)
+            if x_m.shape[0] == 0:
+                continue
+            y_m_pred = predict_fn(x_m)
+            y_true[last_idx:last_idx + len(y_m)] = y_m
+            y_pred[last_idx:last_idx + len(y_m)] = y_m_pred
+            last_idx += len(y_m)
+            if last_idx >= limit:
+                break
+        # we might not reach the limit
+        if last_idx < limit:
+            limit = last_idx
+        return y_pred[:limit], y_true[:limit]
