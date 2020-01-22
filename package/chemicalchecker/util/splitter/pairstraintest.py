@@ -384,7 +384,7 @@ class PairTraintest(object):
             total = reader._f[reader.p_name].shape[0]
             while True:
                 if beg_idx >= total:
-                    beg_idx = 0
+                    beg_idx, end_idx = 0, batch_size
                     epoch += 1
                     PairTraintest.__log.debug('EPOCH %i', epoch)
                 pairs, y = reader.get_py(beg_idx, end_idx)
