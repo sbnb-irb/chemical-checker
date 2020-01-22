@@ -254,8 +254,8 @@ class PairTraintest(object):
             fh.create_dataset('x', data=X)
 
             # for each split combo generate pairs and ys
-            combos = itertools.combinations_with_replacement(split_names, 2)
-            #combos = [('train', 'train'), ('train', 'test'), ('test', 'test')]
+            #combos = itertools.combinations_with_replacement(split_names, 2)
+            combos = [('train', 'train'), ('train', 'test'), ('test', 'test')]
             for split1, split2 in combos:
                 # handle case where we ask more neig then molecules
                 if neigbors > nr_matrix[split2].shape[0]:
@@ -345,7 +345,8 @@ class PairTraintest(object):
     @staticmethod
     def generator_fn(file_name, split, batch_size=None, only_x=False,
                      replace_nan=None, augment_scale=1,
-                     augment_fn=None, augment_kwargs={}):
+                     augment_fn=None, augment_kwargs={},
+                     mask_fn=None):
         """Return the generator function that we can query for batches.
 
         file_name(str): The H5 generated via `create`
@@ -371,6 +372,10 @@ class PairTraintest(object):
             batch_size = p_shape[0]
         # keep X in memory for resolving pairs quickly
         X = reader.get_all_x()
+        # default mask is not mask
+        if mask_fn is None:
+            def mask_fn(*data):
+                return data
 
         def example_generator_fn():
             # generator function yielding data
@@ -397,6 +402,7 @@ class PairTraintest(object):
                     x1 = np.vstack(tmp_x1)
                     x2 = np.vstack(tmp_x2)
                     y = np.vstack(tmp_y)
+                x1, x2, y = mask_fn(x1, x2, y)
                 if replace_nan is not None:
                     x1[np.where(np.isnan(x1))] = replace_nan
                     x2[np.where(np.isnan(x2))] = replace_nan

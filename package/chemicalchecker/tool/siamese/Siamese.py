@@ -4,8 +4,10 @@ import numpy as np
 
 import os
 import h5py
+import pandas as pd
 from time import time
 from tqdm import tqdm
+from functools import partial
 from keras.models import Model, load_model
 from keras.layers import Input, Dense, Dropout, Lambda
 from keras.optimizers import RMSprop
@@ -159,14 +161,66 @@ class Siamese(object):
 
         plot_file = os.path.join(self.model_dir, "%s.png" % self.name)
         self._plot_history(self.history, plot_file)
-    """
-    def save_performances(self, path, suffix):
-        trte, tete = self.evaluate()
-        perf_file = os.path.join(path, "siamese_%s.pkl" % suffix)
 
+    def save_performances(self, path, suffix,
+                          splits=['train_test', 'test_test']):
+
+        def mask_keep(idxs, x1_data, x2_data, y_data):
+            # we will fill an array of NaN with values we want to keep
+            x1_data_transf = np.zeros_like(x1_data, dtype=np.float32) * np.nan
+            for idx in idxs:
+                # copy column from original data
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x1_data_transf[:, col_slice] = x1_data[:, col_slice]
+            x2_data_transf = np.zeros_like(x2_data, dtype=np.float32) * np.nan
+            for idx in idxs:
+                # copy column from original data
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x2_data_transf[:, col_slice] = x2_data[:, col_slice]
+            # keep rows containing at least one not-NaN value
+            not_nan1 = np.isfinite(x1_data_transf).any(axis=1)
+            not_nan2 = np.isfinite(x2_data_transf).any(axis=1)
+            not_nan = np.logical_and(not_nan1, not_nan2)
+            x1_data_transf = x1_data_transf[not_nan]
+            x2_data_transf = x2_data_transf[not_nan]
+            y_data_transf = y_data[not_nan]
+            return x1_data_transf, x2_data_transf, y_data_transf
+
+        def mask_exclude(idxs, x1_data, x2_data, y_data):
+            x1_data_transf = np.copy(x1_data)
+            for idx in idxs:
+                # set current space to nan
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x1_data_transf[:, col_slice] = np.nan
+            x2_data_transf = np.copy(x2_data)
+            for idx in idxs:
+                # set current space to nan
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x2_data_transf[:, col_slice] = np.nan
+            # drop rows that only contain NaNs
+            not_nan1 = np.isfinite(x1_data_transf).any(axis=1)
+            not_nan2 = np.isfinite(x2_data_transf).any(axis=1)
+            not_nan = np.logical_and(not_nan1, not_nan2)
+            x1_data_transf = x1_data_transf[not_nan]
+            x2_data_transf = x2_data_transf[not_nan]
+            y_data_transf = y_data[not_nan]
+            return x1_data_transf, x2_data_transf, y_data_transf
+
+        all_acc = self.evaluate()
+
+        space_idx = self.augment_kwargs['dataset']
+        excl_fn = partial(mask_exclude, space_idx)
+        excl_acc = self.evaluate(mask_fn=excl_fn)
+
+        keep_fn = partial(mask_keep, space_idx)
+        keep_acc = self.evaluate(mask_fn=keep_fn)
+
+        perf_file = os.path.join(path, "siamese_%s.pkl" % suffix)
         df = pd.DataFrame(columns=['algo', 'split', 'time', 'epochs',
-            'batch_size', 'learning_rate', 'replace_nan', 'augment_fn',
-            'augment_scale', 'augment_kwargs'])
+                                   'batch_size', 'learning_rate',
+                                   'replace_nan', 'augment_fn',
+                                   'augment_scale', 'augment_kwargs',
+                                   'eval_set'])
         row = {
             'algo': self.name,
             'time': self.time,
@@ -178,37 +232,43 @@ class Siamese(object):
             'augment_kwargs': str(self.augment_kwargs),
             'augment_scale': self.augment_scale,
         }
-        row.update('split': 'train_test', 'accuracy': trte)
-        df.iloc[len(df)] = pd.Series(row)
-        row.update('split': 'test_test', 'accuracy': tete)
-        df.iloc[len(df)] = pd.Series(row)
+        for split in splits:
+            row.update({'eval_set': 'ALL', 'split': split,
+                        'accuracy': all_acc[split]})
+            df.loc[len(df)] = pd.Series(row)
+            row.update({'eval_set': 'NOT-SELF', 'split': split,
+                        'accuracy': excl_acc[split]})
+            df.loc[len(df)] = pd.Series(row)
+            row.update({'eval_set': 'SELF', 'split': split,
+                        'accuracy': keep_acc[split]})
+            df.loc[len(df)] = pd.Series(row)
         df.to_pickle(perf_file)
+        df.to_csv(perf_file.replace('.pkl', '.csv'), index=False)
 
-    """
-
-    def evaluate(self):
-        def specific_eval(split, b_size=100):
+    def evaluate(self, splits=['train_test', 'test_test'], mask_fn=None):
+        def specific_eval(split, b_size=100, mask_fn=None):
             shapes, dtypes, gen = PairTraintest.generator_fn(
                 self.traintest_file, split,
                 batch_size=b_size,
                 replace_nan=self.replace_nan,
-                augment_scale=1)
+                mask_fn=mask_fn)
 
             y_loss, y_acc = self.siamese.evaluate_generator(
                 gen(), steps=shapes[0][0] // b_size,
-                max_queue_size=1, verbose=1, shuffle=True)
+                max_queue_size=1, verbose=1)
 
             self.__log.debug("Accuracy %s: %f" % (split, y_acc))
-            return y_acc
+            return {'accuracy': y_acc}
 
         input_shape = (self.tr_shapes[0][1],)
 
         self.build_model(input_shape, load=True)
 
-        acc_tr_te = specific_eval('train_test')
-        acc_te_te = specific_eval('test_test')
+        results = dict()
+        for split in splits:
+            results[split] = specific_eval(split, mask_fn=mask_fn)
 
-        return acc_tr_te, acc_te_te
+        return results
 
     def _predict(self, input_file, dest_file, chunk_size=1000,
                  input_dataset='V', keys=None):

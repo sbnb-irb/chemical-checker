@@ -71,7 +71,7 @@ class sign4(BaseSignature, DataSignature):
             'augment_scale': 1,
             'augment_kwargs': {
                 'p_dataset': 0.5,
-                'dataset': dataset
+                'dataset': [dataset]
             },
         }
         default_sign2.update(params.get('sign2', {}))
@@ -259,13 +259,8 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('model saved to %s' % siamese_path)
         # when evaluating also save the performances
         if evaluate:
-            pass
-            # singles = self.siamese_single_spaces(siamese_path, traintest_file,
-            #                                     suffix)
             # save Siamese performances and plots
-            #sign2_plot = Plot(self.dataset, siamese_path)
-            #siamese.save_performances(siamese_path, sign2_plot, suffix, singles)
-            #siamese.save_performances(siamese_path, suffix, singles)
+            siamese.save_performances(siamese_path, suffix)
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True,
                           chunk_size=1000):
@@ -1329,13 +1324,13 @@ class sign4(BaseSignature, DataSignature):
     def siamese_single_spaces(self, siamese_path, traintest_file, suffix):
         """Prediction of Siamese using single space signatures.
 
-        We want to compare the performances of trained adanet to those of
+        We want to compare the performances of trained siamese to those of
         predictors based on single space. This is done filling the matrix
         with NaNs spaces not being evaluated. Also particular combinations
         can be assesses (e.g. excluding all spaces from level A).
 
         Args:
-            siamese_path(str): Path to the Siamese SavedModel.
+            siamese_path(str): Path to the Siamese model.
             traintest_file(str): Path to the traintest file.
             suffix(str): Suffix string for the predictor name.
         """
