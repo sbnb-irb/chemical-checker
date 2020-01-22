@@ -259,12 +259,13 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('model saved to %s' % siamese_path)
         # when evaluating also save the performances
         if evaluate:
-            singles = self.siamese_single_spaces(siamese_path, traintest_file,
-                                                 suffix)
+            pass
+            # singles = self.siamese_single_spaces(siamese_path, traintest_file,
+            #                                     suffix)
             # save Siamese performances and plots
             #sign2_plot = Plot(self.dataset, siamese_path)
             #siamese.save_performances(siamese_path, sign2_plot, suffix, singles)
-            siamese.save_performances(siamese_path, suffix, singles)
+            #siamese.save_performances(siamese_path, suffix, singles)
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True,
                           chunk_size=1000):
@@ -807,8 +808,8 @@ class sign4(BaseSignature, DataSignature):
 
     def fit(self, sign2_list, sign2_self, sign2_universe=None,
             sign2_coverage=None, sign0=None,
-            model_confidence=True, save_correlations=True,
-            predict_novelty=True, update_preds=True, normalize_scores=True,
+            model_confidence=False, save_correlations=False,
+            predict_novelty=False, update_preds=True, normalize_scores=False,
             validations=True, chunk_size=1000):
         """Fit the model to predict the signature 3.
 
@@ -846,17 +847,18 @@ class sign4(BaseSignature, DataSignature):
                          str(self.src_datasets))
         # check if performance evaluations need to be done
         eval_adanet_path = os.path.join(self.model_path, 'siamese_eval')
-        eval_stats = os.path.join(eval_adanet_path, 'stats_eval.pkl')
-        if not os.path.isfile(eval_stats):
+        eval_file = os.path.join(eval_adanet_path, 'siamese.h5')
+        if not os.path.isfile(eval_file):
             self.learn_sign2(self.params['sign2'],
                              suffix='eval', evaluate=True)
 
         # check if we have the final trained model
         final_adanet_path = os.path.join(self.model_path, 'siamese_final')
-        if not os.path.isdir(final_adanet_path):
+        final_file = os.path.join(final_adanet_path, 'siamese.h5')
+        if not os.path.isfile(final_file):
             self.learn_sign2(self.params['sign2'],
                              suffix='final', evaluate=False)
-        return
+        siamese = Siamese(final_adanet_path)
 
         # part of confidence is the expected error
         if model_confidence:
@@ -897,11 +899,11 @@ class sign4(BaseSignature, DataSignature):
             sign2_coverage = os.path.join(self.model_path,
                                           'all_sign2_coverage.h5')
         if not os.path.isfile(sign2_coverage):
-            sign4.save_sign2_coverage(sign2_list, sign2_coverage)
+            #sign4.save_sign2_coverage(sign2_list, sign2_coverage)
+            pass
 
         # save universe sign4
         if update_preds:
-            predict_fn = self.get_predict_fn('adanet_final')
             with h5py.File(self.data_path, "a") as results:
                 # initialize V and keys datasets
                 safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
@@ -975,25 +977,24 @@ class sign4(BaseSignature, DataSignature):
                     # reference prediction (based on no information)
                     nan_feat = np.full((1, features['x_test'].shape[1]),
                                        np.nan, dtype=np.float32)
-                    nan_pred = predict_fn({'x': nan_feat})['predictions']
+                    nan_pred = siamese.predict(nan_feat)
                     # read input in chunks
                     for idx in tqdm(range(0, tot_inks, chunk_size)):
                         chunk = slice(idx, idx + chunk_size)
                         feat = features['x_test'][chunk]
                         # predict with final model
                         if not model_confidence:
-                            results['V'][chunk] = AdaNet.predict(
-                                feat, predict_fn)
+                            results['V'][chunk] = siamese.predict(feat)
                             continue
                         # save confidence natural scores
                         # compute estimated error from coverage
                         coverage = ~np.isnan(feat[:, 0::128])
                         results['exp_error'][chunk] = rf.predict(coverage)
                         # draw prediction with sub-sampling (dropout)
-                        pred, samples = AdaNet.predict(feat, predict_fn,
-                                                       subsample_x_only,
-                                                       consensus=True,
-                                                       samples=10)
+                        pred, samples = siamese.predict(feat)
+                        # subsample_x_only,
+                        # consensus=True,
+                        # samples=10)
                         results['V'][chunk] = pred
                         # summarize the predictions as consensus
                         consensus = np.mean(samples, axis=1)
@@ -1265,7 +1266,6 @@ class sign4(BaseSignature, DataSignature):
                 results['outlier'] = ordered_outlier
 
     def predict(self):
-        # TODO decide default prediction mode.
         pass
 
     def train_other(self, predictors, save_path, traintest_file,
