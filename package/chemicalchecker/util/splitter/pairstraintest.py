@@ -386,6 +386,7 @@ class PairTraintest(object):
                 if beg_idx >= total:
                     beg_idx = 0
                     epoch += 1
+                    PairTraintest.__log.debug('EPOCH %i', epoch)
                 pairs, y = reader.get_py(beg_idx, end_idx)
                 x1 = X[pairs[:, 0]]
                 x2 = X[pairs[:, 1]]
