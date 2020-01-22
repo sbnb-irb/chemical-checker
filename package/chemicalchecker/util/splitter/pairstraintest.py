@@ -254,8 +254,8 @@ class PairTraintest(object):
             fh.create_dataset('x', data=X)
 
             # for each split combo generate pairs and ys
-            #combos = itertools.combinations_with_replacement(split_names, 2)
-            combos = [('train', 'train'), ('train', 'test'), ('test', 'test')]
+            combos = itertools.combinations_with_replacement(split_names, 2)
+            #combos = [('train', 'train'), ('train', 'test'), ('test', 'test')]
             for split1, split2 in combos:
                 # handle case where we ask more neig then molecules
                 if neigbors > nr_matrix[split2].shape[0]:
