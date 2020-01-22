@@ -147,10 +147,14 @@ class Siamese(object):
             steps_per_epoch=np.ceil(self.tr_shapes[0][0] / self.batch_size),
             epochs=self.epochs,
             validation_data=self.val_gen(),
-            validation_steps=np.ceil(self.val_shapes[0][0] / self.batch_size))
+            validation_steps=np.ceil(self.val_shapes[0][0] / self.batch_size),
+            shuffle=True)
 
         self.siamese.save(self.siamese_model_file)
         self.time = time() - t0
+
+        self._plot_history(history, os.path.join(
+            self.models_path, "%ssiamese.png" % self.name))
     """
     def save_performances(self, path, suffix):
         trte, tete = self.evaluate()
@@ -184,7 +188,7 @@ class Siamese(object):
             shapes, dtypes, gen = PairTraintest.generator_fn(self.traintest_file, split, 
                     batch_size=b_size, replace_nan=self.replace_nan, augment_scale=1)
 
-            y_loss, y_acc = self.siamese.evaluate_generator(gen(), steps=shapes[0][0]//b_size ,max_queue_size=1, verbose=1)
+            y_loss, y_acc = self.siamese.evaluate_generator(gen(), steps=shapes[0][0]//b_size ,max_queue_size=1, verbose=1, shuffle=True)
 
             self.__log.debug("Accuracy %s: %f" % (split, y_acc))
             return y_acc
