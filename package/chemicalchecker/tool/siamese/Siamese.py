@@ -5,6 +5,7 @@ import numpy as np
 import os
 import h5py
 from time import time
+from tqdm import tqdm
 from keras.models import Model, load_model
 from keras.layers import Input, Dense, Dropout, Lambda
 from keras.optimizers import RMSprop
@@ -15,13 +16,14 @@ from keras import backend as K
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import PairTraintest
+from chemicalchecker.core.signature_data import DataSignature
 
 
 @logged
 class Siamese(object):
     """Siamese class"""
 
-    def __init__(self, model_dir, traintest_file, evaluate, **kwargs):
+    def __init__(self, model_dir, traintest_file=None, evaluate=False, **kwargs):
         """Initialize the AutoEncoder class
 
         Args:
@@ -41,9 +43,6 @@ class Siamese(object):
         self.name = 'siamese_%s' % self.suffix
         self.time = 0
 
-        self.traintest_file = os.path.abspath(traintest_file)
-        if not os.path.exists(traintest_file):
-            raise Exception('Data path not exists!')
         self.model_dir = os.path.abspath(model_dir)
         if not os.path.exists(model_dir):
             self.__log.warning(
@@ -51,37 +50,42 @@ class Siamese(object):
                 self.model_dir)
             os.mkdir(self.model_dir)
 
-        tr_shapes, tr_dtypes, tr_gen = PairTraintest.generator_fn(
-            self.traintest_file,
-            'train_train',
-            batch_size=int(self.batch_size / self.augment_scale),
-            replace_nan=self.replace_nan,
-            augment_fn=self.augment_fn,
-            augment_kwargs=self.augment_kwargs,
-            augment_scale=self.augment_scale)
-        self.tr_shapes = tr_shapes
-        self.tr_gen = tr_gen
+        if traintest_file is not None:
+            self.traintest_file = os.path.abspath(traintest_file)
+            if not os.path.exists(traintest_file):
+                raise Exception('Data path not exists!')
 
-        if evaluate:
-            val_shapes, val_dtypes, val_gen = PairTraintest.generator_fn(
-                self.traintest_file,
-                'train_test',
-                batch_size=self.batch_size,
-                replace_nan=self.replace_nan)
-        else:
-            val_shapes, val_dtypes, val_gen = PairTraintest.generator_fn(
+            tr_shapes, tr_dtypes, tr_gen = PairTraintest.generator_fn(
                 self.traintest_file,
                 'train_train',
-                batch_size=self.batch_size,
-                replace_nan=self.replace_nan)
-        self.val_shapes = val_shapes
-        self.val_gen = val_gen
+                batch_size=int(self.batch_size / self.augment_scale),
+                replace_nan=self.replace_nan,
+                augment_fn=self.augment_fn,
+                augment_kwargs=self.augment_kwargs,
+                augment_scale=self.augment_scale)
+            self.tr_shapes = tr_shapes
+            self.tr_gen = tr_gen
+
+            if evaluate:
+                val_shapes, val_dtypes, val_gen = PairTraintest.generator_fn(
+                    self.traintest_file,
+                    'train_test',
+                    batch_size=self.batch_size,
+                    replace_nan=self.replace_nan)
+            else:
+                val_shapes, val_dtypes, val_gen = PairTraintest.generator_fn(
+                    self.traintest_file,
+                    'train_train',
+                    batch_size=self.batch_size,
+                    replace_nan=self.replace_nan)
+            self.val_shapes = val_shapes
+            self.val_gen = val_gen
 
         self.siamese_model_file = os.path.join(self.model_dir, "siamese.h5")
         self.siamese = None
         self.transformer = None
 
-    def build_model(self, input_shape, load=False):
+    def build_model(self, input_shape=None, load=False):
         def euclidean_distance(vects):
             x, y = vects
             sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
@@ -153,8 +157,8 @@ class Siamese(object):
         self.siamese.save(self.siamese_model_file)
         self.time = time() - t0
 
-        self._plot_history(history, os.path.join(
-            self.models_path, "%ssiamese.png" % self.name))
+        plot_file = os.path.join(self.model_dir, "%s.png" % self.name)
+        self._plot_history(self.history, plot_file)
     """
     def save_performances(self, path, suffix):
         trte, tete = self.evaluate()
@@ -180,15 +184,19 @@ class Siamese(object):
         df.iloc[len(df)] = pd.Series(row)
         df.to_pickle(perf_file)
 
-        plot_file = os.path.join(path, "siamese_%s.png" % suffix)
-        self._plot_history(self.history, plot_file)"""
+    """
 
     def evaluate(self):
         def specific_eval(split, b_size=100):
-            shapes, dtypes, gen = PairTraintest.generator_fn(self.traintest_file, split, 
-                    batch_size=b_size, replace_nan=self.replace_nan, augment_scale=1)
+            shapes, dtypes, gen = PairTraintest.generator_fn(
+                self.traintest_file, split,
+                batch_size=b_size,
+                replace_nan=self.replace_nan,
+                augment_scale=1)
 
-            y_loss, y_acc = self.siamese.evaluate_generator(gen(), steps=shapes[0][0]//b_size ,max_queue_size=1, verbose=1, shuffle=True)
+            y_loss, y_acc = self.siamese.evaluate_generator(
+                gen(), steps=shapes[0][0] // b_size,
+                max_queue_size=1, verbose=1, shuffle=True)
 
             self.__log.debug("Accuracy %s: %f" % (split, y_acc))
             return y_acc
@@ -202,7 +210,8 @@ class Siamese(object):
 
         return acc_tr_te, acc_te_te
 
-    def predict(self, input_file, dest_file, chunk_size=1000, input_dataset='V'):
+    def _predict(self, input_file, dest_file, chunk_size=1000,
+                 input_dataset='V', keys=None):
         """Take data .h5 and produce an encoded data.
 
         Args:
@@ -218,16 +227,26 @@ class Siamese(object):
             if "keys" in hf.keys():
                 results.create_dataset('keys', data=hf["keys"][
                                        :], maxshape=hf["keys"].shape)
+            elif keys is not None:
+                results.create_dataset(
+                    'keys', data=np.array(keys, DataSignature.string_dtype()))
             results.create_dataset(
                 'V', (input_size, self.transformer.output_shape[1]),
                 dtype=np.float32,
                 maxshape=(input_size, self.transformer.output_shape[1]))
 
-            for i in range(0, input_size, chunk_size):
+            for i in tqdm(range(0, input_size, chunk_size)):
                 chunk = slice(i, i + chunk_size)
                 no_nans = np.nan_to_num(hf[input_dataset][chunk])
                 results['V'][chunk] = self.transformer.predict(
                     no_nans)
+
+    def predict(self, input_mat):
+        if self.siamese is None:
+            self.build_model((input_mat.shape[1],), load=True)
+            self.transformer = self.siamese.layers[2]
+        no_nans = np.nan_to_num(input_mat)
+        return self.transformer.predict(no_nans)
 
     def _plot_history(self, history, destination=None):
         import matplotlib
