@@ -381,7 +381,7 @@ class PairTraintest(object):
             # generator function yielding data
             epoch = 0
             beg_idx, end_idx = 0, batch_size
-            total = reader._f[reader.x_name].shape[0]
+            total = reader._f[reader.p_name].shape[0]
             while True:
                 if beg_idx >= total:
                     beg_idx = 0
