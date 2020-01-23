@@ -239,7 +239,7 @@ class Siamese(object):
 
         all_acc = self.evaluate('ALL')
 
-        space_idx = self.augment_kwargs['dataset']
+        space_idx = self.augment_kwargs['dataset_idx']
         excl_fn = partial(mask_exclude, space_idx)
         excl_acc = self.evaluate('NOT-SELF', mask_fn=excl_fn)
 
