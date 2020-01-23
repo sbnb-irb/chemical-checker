@@ -9,7 +9,7 @@ from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 
 
 @logged
-class PairTraintest(object):
+class NeighborPairTraintest(object):
     """Convenience batch reader from HDF5 files of pairs.
 
     This class allow creation and access to HDF5 train-test sets and expose
@@ -159,7 +159,7 @@ class PairTraintest(object):
             y_dtype(type): numpy data type for Y (np.float32 for regression,
                 np.int32 for classification.
         """
-        PairTraintest.__log.debug(
+        NeighborPairTraintest.__log.debug(
             "{:<20} shape: {:>10}".format("input X", str(X.shape)))
         # train test validation splits
         if len(split_names) != len(split_fractions):
@@ -196,7 +196,7 @@ class PairTraintest(object):
 
         # split chunks, get indeces of chunks for each split
         chunk_size = np.floor(rows / 100)
-        split_chunk_idx = PairTraintest.get_split_indeces(
+        split_chunk_idx = NeighborPairTraintest.get_split_indeces(
             int(np.floor(rows / chunk_size)) + 1,
             split_fractions)
 
@@ -233,14 +233,14 @@ class PairTraintest(object):
             for src_slice, dst_slice in tqdm(src_dst):
                 src_chunk = slice(*src_slice)
                 dst_chunk = slice(*dst_slice)
-                PairTraintest.__log.debug(
+                NeighborPairTraintest.__log.debug(
                     "writing src: %s  to dst: %s" % (src_slice, dst_slice))
                 ref_src_chunk = ref_idxs[src_chunk]
                 ref_dst_chunk = ref_idxs[dst_chunk]
                 for src_id, dst_id in zip(ref_src_chunk, ref_dst_chunk):
                     split_ref_map[split_name][dst_id] = src_id
                 nr_matrix[split_name][dst_chunk] = ref_matrix[src_chunk]
-            PairTraintest.__log.debug(
+            NeighborPairTraintest.__log.debug(
                 "nr_matrix %s %s", split_name, nr_matrix[split_name].shape)
 
         # for each split generate NN
@@ -257,10 +257,10 @@ class PairTraintest(object):
             X = X - mean[:, np.newaxis]
 
         # create dataset
-        PairTraintest.__log.info('Traintest saving to %s', out_file)
+        NeighborPairTraintest.__log.info('Traintest saving to %s', out_file)
         with h5py.File(out_file, "w") as fh:
             fh.create_dataset('x', data=X)
-
+            fh.create_dataset('split_names', data=split_names)
             # for each split combo generate pairs and ys
             combos = itertools.combinations_with_replacement(split_names, 2)
             #combos = [('train', 'train'), ('train', 'test'), ('test', 'test')]
@@ -268,7 +268,7 @@ class PairTraintest(object):
                 # handle case where we ask more neig then molecules
                 if neigbors > nr_matrix[split2].shape[0]:
                     combo_neig = nr_matrix[split2].shape[0]
-                    PairTraintest.__log.warning(
+                    NeighborPairTraintest.__log.warning(
                         'split %s is small, reducing neigbors to %i' %
                         (split2, combo_neig))
                 else:
@@ -340,15 +340,16 @@ class PairTraintest(object):
 
                 # save to h5
                 ds_name = "p_%s_%s" % (split1, split2)
-                PairTraintest.__log.info(
+                NeighborPairTraintest.__log.info(
                     'writing %s %s %s', ds_name, pairs_1.shape, pairs_0.shape)
                 fh.create_dataset(ds_name, data=all_pairs[shuffle_idxs])
                 ds_name = "y_%s_%s" % (split1, split2)
-                PairTraintest.__log.info(
+                NeighborPairTraintest.__log.info(
                     'writing %s %s', ds_name, all_ys.shape)
                 fh.create_dataset(ds_name, data=all_ys[shuffle_idxs])
 
-        PairTraintest.__log.info('PairTraintest saved to %s', out_file)
+        NeighborPairTraintest.__log.info(
+            'NeighborPairTraintest saved to %s', out_file)
 
     @staticmethod
     def generator_fn(file_name, split, batch_size=None, only_x=False,
@@ -366,7 +367,7 @@ class PairTraintest(object):
         augment_fn(func): Function to augment data.
         augment_kwargs(dict): Parameters for the aument functions.
         """
-        reader = PairTraintest(file_name, split)
+        reader = NeighborPairTraintest(file_name, split)
         reader.open()
         # read shapes
         x_shape = reader._f[reader.x_name].shape
@@ -394,7 +395,7 @@ class PairTraintest(object):
                 if beg_idx >= total:
                     beg_idx, end_idx = 0, batch_size
                     epoch += 1
-                    PairTraintest.__log.debug('EPOCH %i', epoch)
+                    NeighborPairTraintest.__log.debug('EPOCH %i', epoch)
                 pairs, y = reader.get_py(beg_idx, end_idx)
                 x1 = X[pairs[:, 0]]
                 x2 = X[pairs[:, 1]]

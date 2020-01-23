@@ -1,2 +1,3 @@
 from .traintest import Traintest
-from .pairstraintest import PairTraintest
+from .pairtraintest import PairTraintest
+from .neighbortraintest import NeighborPairTraintest
