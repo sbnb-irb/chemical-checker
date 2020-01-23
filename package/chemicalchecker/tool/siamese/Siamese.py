@@ -87,6 +87,29 @@ class Siamese(object):
         self.siamese = None
         self.transformer = None
 
+        self.__log.info("**** Siamese Parameters: ***")
+        self.__log.info("{:<22}: {:>12}".format("model_dir", self.model_dir))
+        self.__log.info("{:<22}: {:>12}".format(
+            "traintest_file", self.traintest_file))
+        tmp = PairTraintest(self.traintest_file, 'train_train')
+        for split in tmp.get_split_names():
+            tmp = PairTraintest(self.traintest_file, split)
+            self.__log.info("{:<22}: {:>12}".format(
+                split, str(tmp.get_py_shapes())))
+        self.__log.info("{:<22}: {:>12}".format(
+            "learning_rate", self.learning_rate))
+        self.__log.info("{:<22}: {:>12}".format("batch_size", self.batch_size))
+
+        self.__log.info("{:<22}: {:>12}".format(
+            "augment_fn", str(self.augment_fn)))
+        self.__log.info("{:<22}: {:>12}".format(
+            "augment_scale", self.augment_scale))
+        self.__log.info("{:<22}: {:>12}".format(
+            "augment_kwargs", str(self.augment_kwargs)))
+        self.__log.info("{:<22}: {:>12}".format(
+            "replace_nan", str(self.replace_nan)))
+        self.__log.info("**** Siamese Parameters: ***")
+
     def build_model(self, input_shape=None, load=False):
         def euclidean_distance(vects):
             x, y = vects
