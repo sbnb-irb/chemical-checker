@@ -38,6 +38,14 @@ class PairTraintest(object):
                 raise Exception("Split '%s' not found in %s!" %
                                 (split, str(available_splits)))
 
+    def get_py_shapes(self):
+        """Return the shpaes of X an Y."""
+        self.open()
+        p_shape = self._f[self.p_name].shape
+        y_shape = self._f[self.y_name].shape
+        self.close()
+        return p_shape, y_shape
+
     def get_xy_shapes(self):
         """Return the shpaes of X an Y."""
         self.open()
@@ -135,7 +143,7 @@ class PairTraintest(object):
     def create(X, out_file, neigbors_matrix=None, neigbors=10,
                mean_center_x=True, shuffle=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
-               x_dtype=np.float32, y_dtype=np.float32, debug=False):
+               x_dtype=np.float32, y_dtype=np.float32, debug_test=False):
         """Create the HDF5 file with validation splits.
 
         Args:
@@ -158,7 +166,7 @@ class PairTraintest(object):
             raise Exception("Split names and fraction should be same amount.")
 
         # override parameters for debug
-        if debug:
+        if debug_test:
             neigbors = 10
             split_names = ['train', 'test']
             split_fractions = [.8, .2]
@@ -176,7 +184,7 @@ class PairTraintest(object):
         ref_full_map = np.array(rnd.final_ids)
         rows = ref_matrix.shape[0]
 
-        if debug:
+        if debug_test:
             # we'll use this to later check that the mapping went fine
             test = faiss.IndexFlatL2(neigbors_matrix.shape[1])
             test.add(neigbors_matrix)
@@ -278,7 +286,7 @@ class PairTraintest(object):
                 else:
                     _, neig_idxs = NN[split1].search(
                         nr_matrix[split2], combo_neig)
-                if debug:
+                if debug_test:
                     _, neig_idxs = NN[split1].search(
                         nr_matrix[split2], combo_neig)
                 # get positive pairs
@@ -295,7 +303,7 @@ class PairTraintest(object):
                 # map back to full
                 idxs1_full = ref_full_map[idxs1_ref]
                 idxs2_1_full = ref_full_map[idxs2_1_ref]
-                if debug:
+                if debug_test:
                     # train ~= full
                     total = 0
                     ok = 0
