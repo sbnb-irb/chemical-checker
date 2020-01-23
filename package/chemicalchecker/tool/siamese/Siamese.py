@@ -270,7 +270,7 @@ class Siamese(object):
 
     def evaluate(self, eval_set, splits=['train_test', 'test_test'],
                  mask_fn=None):
-        def specific_eval(split, b_size=100, mask_fn=None):
+        def specific_eval(split, b_size=self.batch_size, mask_fn=None):
             shapes, dtypes, gen = PairTraintest.generator_fn(
                 self.traintest_file, split,
                 batch_size=b_size,
