@@ -61,6 +61,7 @@ class Traintest(object):
             split_names = [a.decode() for a in self._f["split_names"]]
         else:
             split_names = ['train', 'test', 'validation']
+            self.__log.info("Using default split names %s" % split_names)
         self.close()
         return split_names
 
