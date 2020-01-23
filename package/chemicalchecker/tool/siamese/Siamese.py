@@ -52,7 +52,8 @@ class Siamese(object):
                 self.model_dir)
             os.mkdir(self.model_dir)
 
-        if traintest_file is not None:
+        self.traintest_file = traintest_file
+        if self.traintest_file is not None:
             self.traintest_file = os.path.abspath(traintest_file)
             if not os.path.exists(traintest_file):
                 raise Exception('Data path not exists!')
