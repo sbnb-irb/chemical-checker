@@ -252,7 +252,7 @@ class sign4(BaseSignature, DataSignature):
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
             ds_mask = np.argwhere(np.isin(self.src_datasets, ds)).flatten()
-            params['augment_kwargs']['dataset'] = ds_mask
+            params['augment_kwargs']['dataset_idx'] = ds_mask
 
         siamese = Siamese(siamese_path,
                           traintest_file,
@@ -1513,7 +1513,7 @@ def epoch_per_iteration_heuristic(samples, features, clip=(16, 1024)):
 
 
 def subsample(tensor, sign_size=128, p_original=0.05,
-              p_dataset=0.0, dataset=None):
+              p_dataset=0.0, dataset_idx=None, dataset=None):
     """Function to subsample stacked data."""
     # it is safe to make a local copy of the input matrix
     new_data = np.copy(tensor)
@@ -1521,7 +1521,7 @@ def subsample(tensor, sign_size=128, p_original=0.05,
     mask = np.zeros_like(new_data).astype(bool)
     if new_data.shape[1] % sign_size != 0:
         raise Exception('All signature should be of length %i.' % sign_size)
-    if p_dataset > 0.0 and dataset is None:
+    if p_dataset > 0.0 and dataset_idx is None:
         raise Exception('Please specify dataset/s to keep.')
     for idx, row in enumerate(new_data):
         # the following assume the stacked signature to have a fixed width
@@ -1529,7 +1529,7 @@ def subsample(tensor, sign_size=128, p_original=0.05,
         # drop everything except the desired dataset
         if np.random.rand() < p_dataset:
             presence_add = np.zeros(presence.shape).astype(bool)
-            presence_add[dataset] = True
+            presence_add[dataset_idx] = True
         else:
             # low probability of keeping the original sample
             if np.random.rand() < p_original:
