@@ -809,6 +809,7 @@ class sign4(BaseSignature, DataSignature):
             sign2_coverage=None, sign0=None,
             model_confidence=False, save_correlations=False,
             predict_novelty=False, update_preds=True, normalize_scores=False,
+            mask_features=True,
             validations=True, chunk_size=1000):
         """Fit the model to predict the signature 3.
 
@@ -977,13 +978,18 @@ class sign4(BaseSignature, DataSignature):
                     nan_feat = np.full((1, features['x_test'].shape[1]),
                                        np.nan, dtype=np.float32)
                     nan_pred = siamese.predict(nan_feat)
+                    # check cumulative sum of features
+                    cumsum = np.zeros_like(nan_pred)
                     # read input in chunks
-                    for idx in tqdm(range(0, tot_inks, chunk_size)):
+                    for idx in tqdm(range(0, tot_inks, chunk_size),
+                                    desc='Predicting'):
                         chunk = slice(idx, idx + chunk_size)
                         feat = features['x_test'][chunk]
                         # predict with final model
                         if not model_confidence:
-                            results['V'][chunk] = siamese.predict(feat)
+                            preds = siamese.predict(feat)
+                            results['V'][chunk] = preds
+                            cumsum += np.sum(preds, axis=0)
                             continue
                         # save confidence natural scores
                         # compute estimated error from coverage
@@ -1009,6 +1015,19 @@ class sign4(BaseSignature, DataSignature):
                         # just save the average stddev over the components
                         results['stddev'][chunk] = np.mean(
                             stddevs, axis=1).flatten()
+                # apply final feature masking
+                if mask_features:
+                    mask = ~np.isclose(cumsum, 0, atol=1e-4).flatten()
+                    nr_feats = np.count_nonzero(mask)
+                    self.__log.debug('Masking %i features' % nr_feats)
+                    safe_create(results, 'V_mask', (tot_inks, nr_feats),
+                                dtype=np.float32)
+                    for idx in tqdm(range(0, tot_inks, chunk_size),
+                                    desc='Masking'):
+                        chunk = slice(idx, idx + chunk_size)
+                        results['V_mask'][chunk] = results['V'][chunk, mask]
+                    del results['V']
+                    results['V'] = results['V_mask']
 
         # normalize consensus scores sampling distribution of known signatures
         if normalize_scores:
