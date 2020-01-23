@@ -226,7 +226,7 @@ class sign4(BaseSignature, DataSignature):
             self.save_sign2_matrix(self.sign2_list, sign2_matrix)
         # if evaluating, perform the train-test split
         if evaluate:
-            traintest_file = os.path.join(self.model_path, 'traintest.h5')
+            traintest_file = os.path.join(self.model_path, 'traintest_eval.h5')
             traintest_file = params.pop(
                 'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
@@ -237,7 +237,8 @@ class sign4(BaseSignature, DataSignature):
                                      neigbors_matrix=self.sign2_self[:],
                                      neigbors=params['neighbors'])
         else:
-            traintest_file = sign2_matrix
+            traintest_file = os.path.join(
+                self.model_path, 'traintest_final.h5')
             X = DataSignature(sign2_matrix).get_h5_dataset('x')
             PairTraintest.create(X, traintest_file,
                                  split_names=['train'],
