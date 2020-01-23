@@ -251,7 +251,7 @@ class Siamese(object):
                                    'batch_size', 'learning_rate',
                                    'replace_nan', 'augment_fn',
                                    'augment_scale', 'augment_kwargs',
-                                   'eval_set'])
+                                   'eval_set', 'accuracy'])
         row = {
             'algo': self.name,
             'time': self.time,
@@ -265,16 +265,17 @@ class Siamese(object):
         }
         for split in splits:
             row.update({'eval_set': 'ALL', 'split': split,
-                        'accuracy': all_acc[split]})
+                        'accuracy': all_acc[split]['accuracy']})
             df.loc[len(df)] = pd.Series(row)
             row.update({'eval_set': 'NOT-SELF', 'split': split,
-                        'accuracy': excl_acc[split]})
+                        'accuracy': excl_acc[split]['accuracy']})
             df.loc[len(df)] = pd.Series(row)
             row.update({'eval_set': 'ONLY-SELF', 'split': split,
-                        'accuracy': keep_acc[split]})
+                        'accuracy': keep_acc[split]['accuracy']})
             df.loc[len(df)] = pd.Series(row)
         df.to_pickle(perf_file)
         df.to_csv(perf_file.replace('.pkl', '.csv'), index=False)
+        self._plot_eval(df)
 
     def evaluate(self, eval_set, splits=['train_test', 'test_test'],
                  mask_fn=None):
@@ -314,7 +315,7 @@ class Siamese(object):
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
 
-        plt.figure(figsize=(8, 4), dpi=600)
+        plt.figure(figsize=(8, 8), dpi=600)
 
         plt.subplot(2, 2, 1)
         plt.title('Train loss evolution')
@@ -338,7 +339,8 @@ class Siamese(object):
                  label="Val accuracy", lw=1, color="green")
         plt.ylim(0, 1)
 
-        plt.legend(loc='best')
-        plt.tight_layout()
         if destination is not None:
             plt.savefig(destination)
+
+    def _plot_eval(self, df):
+        pass
