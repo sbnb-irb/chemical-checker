@@ -90,18 +90,19 @@ class Siamese(object):
 
         self.__log.info("**** Siamese Parameters: ***")
         self.__log.info("{:<22}: {:>12}".format("model_dir", self.model_dir))
-        self.__log.info("{:<22}: {:>12}".format(
-            "traintest_file", self.traintest_file))
-        tmp = PairTraintest(self.traintest_file, 'train_train')
-        self.__log.info("{:<22}: {:>12}".format(
-            'train_train', str(tmp.get_py_shapes())))
-        if evaluate:
-            tmp = PairTraintest(self.traintest_file, 'train_test')
+        if self.traintest_file is not None:
             self.__log.info("{:<22}: {:>12}".format(
-                'train_test', str(tmp.get_py_shapes())))
-            tmp = PairTraintest(self.traintest_file, 'test_test')
+                "traintest_file", self.traintest_file))
+            tmp = PairTraintest(self.traintest_file, 'train_train')
             self.__log.info("{:<22}: {:>12}".format(
-                'test_test', str(tmp.get_py_shapes())))
+                'train_train', str(tmp.get_py_shapes())))
+            if evaluate:
+                tmp = PairTraintest(self.traintest_file, 'train_test')
+                self.__log.info("{:<22}: {:>12}".format(
+                    'train_test', str(tmp.get_py_shapes())))
+                tmp = PairTraintest(self.traintest_file, 'test_test')
+                self.__log.info("{:<22}: {:>12}".format(
+                    'test_test', str(tmp.get_py_shapes())))
 
         self.__log.info("{:<22}: {:>12}".format(
             "learning_rate", self.learning_rate))
@@ -301,37 +302,6 @@ class Siamese(object):
 
         return results
 
-    def _predict(self, input_file, dest_file, chunk_size=1000,
-                 input_dataset='V', keys=None):
-        """Take data .h5 and produce an encoded data.
-
-        Args:
-            dest_file(string): a path to output .h5 file.
-            chunk_size(int): numbe rof inputs at each prediction.
-            dataset(string): The name of the dataset in the .h5 file to encode(default: 'V')
-        """
-        with h5py.File(dest_file, "w") as results, h5py.File(input_file, 'r') as hf:
-            input_size = hf[input_dataset].shape[0]
-            self.build_model((hf[input_dataset].shape[1],), load=True)
-            self.transformer = self.siamese.layers[2]
-            self.transformer.summary()
-            if "keys" in hf.keys():
-                results.create_dataset('keys', data=hf["keys"][
-                                       :], maxshape=hf["keys"].shape)
-            elif keys is not None:
-                results.create_dataset(
-                    'keys', data=np.array(keys, DataSignature.string_dtype()))
-            results.create_dataset(
-                'V', (input_size, self.transformer.output_shape[1]),
-                dtype=np.float32,
-                maxshape=(input_size, self.transformer.output_shape[1]))
-
-            for i in tqdm(range(0, input_size, chunk_size)):
-                chunk = slice(i, i + chunk_size)
-                no_nans = np.nan_to_num(hf[input_dataset][chunk])
-                results['V'][chunk] = self.transformer.predict(
-                    no_nans)
-
     def predict(self, input_mat):
         if self.siamese is None:
             self.build_model((input_mat.shape[1],), load=True)
@@ -369,56 +339,6 @@ class Siamese(object):
         plt.ylim(0, 1)
 
         plt.legend(loc='best')
+        plt.tight_layout()
         if destination is not None:
             plt.savefig(destination)
-
-    @staticmethod
-    def predict_online(h5_file, split,
-                       mask_fn=None, batch_size=10000, limit=None,
-                       probs=False, n_classes=None, model_dir=None):
-        """Predict on given testset without killing the memory.
-
-        Args:
-            model_dir(str): path where to save the model.
-            h5_file(str): path to h5 file compatible with `Traintest`.
-            split(str): the split to use within the h5_file.
-            predict_fn(func): the predict function returned by `predict_fn`.
-            mask_fn(func): a function masking part of the input.
-            batch_size(int): batch size for `Traintest` file.
-            limit(int): maximum number of predictions.
-            probs(bool): if this is a classifier return the probabilities.
-        """
-        self.siamese = load_model(self.siamese_model_file)
-        predict_fn = self.siamese.layers[2]
-
-        shapes, dtypes, fn = Traintest.generator_fn(
-            h5_file, split, batch_size, only_x=False)
-        x_shape, y_shape = shapes
-        x_dtype, y_dtype = dtypes
-        # tha max size of the return prediction is at most same size as input
-        y_pred = np.full(y_shape, np.nan, dtype=x_dtype)
-        if probs:
-            if n_classes is None:
-                raise Exception("Specify number of classes.")
-            y_pred = np.full((y_shape[0], n_classes), np.nan, dtype=x_dtype)
-        y_true = np.full(y_shape, np.nan, dtype=y_dtype)
-        last_idx = 0
-        if limit is None:
-            limit = y_shape[0]
-        if mask_fn is None:
-            def mask_fn(x, y):
-                return x, y
-        for x_data, y_data in fn():
-            x_m, y_m = mask_fn(x_data, y_data)
-            if x_m.shape[0] == 0:
-                continue
-            y_m_pred = predict_fn(x_m)
-            y_true[last_idx:last_idx + len(y_m)] = y_m
-            y_pred[last_idx:last_idx + len(y_m)] = y_m_pred
-            last_idx += len(y_m)
-            if last_idx >= limit:
-                break
-        # we might not reach the limit
-        if last_idx < limit:
-            limit = last_idx
-        return y_pred[:limit], y_true[:limit]
