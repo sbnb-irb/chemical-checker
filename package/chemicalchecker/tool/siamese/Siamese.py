@@ -269,7 +269,9 @@ class Siamese(object):
             df.loc[len(df)] = pd.Series(row)
         df.to_pickle(perf_file)
         df.to_csv(perf_file.replace('.pkl', '.csv'), index=False)
-        self._plot_eval(df)
+
+        plot_file = os.path.join(self.model_dir, "full_%s.png" % self.name)
+        self._plot_eval(df, destination=plot_file)
 
     def evaluate(self, eval_set, splits=['train_test', 'test_test'],
                  mask_fn=None):
@@ -336,5 +338,17 @@ class Siamese(object):
         if destination is not None:
             plt.savefig(destination)
 
-    def _plot_eval(self, df):
-        pass
+    def _plot_eval(self, df,destination=None):
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
+        g = sns.catplot(x="eval_set", y="accuracy", hue="split", data=df,
+                        height=6, kind="bar", palette="muted")
+        g.set_ylabels("Accuracy", fontsize=15)
+        plt.ylim(0,1)
+
+        if destination is not None:
+            plt.savefig(destination)
+        
