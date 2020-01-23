@@ -239,12 +239,15 @@ class sign4(BaseSignature, DataSignature):
         else:
             traintest_file = os.path.join(
                 self.model_path, 'traintest_final.h5')
-            X = DataSignature(sign2_matrix).get_h5_dataset('x')
-            PairTraintest.create(X, traintest_file,
-                                 split_names=['train'],
-                                 split_fractions=[1.0],
-                                 neigbors_matrix=self.sign2_self[:],
-                                 neigbors=params['neighbors'])
+            traintest_file = params.pop(
+                'traintest_file', traintest_file)
+            if not reuse or not os.path.isfile(traintest_file):
+                X = DataSignature(sign2_matrix).get_h5_dataset('x')
+                PairTraintest.create(X, traintest_file,
+                                     split_names=['train'],
+                                     split_fractions=[1.0],
+                                     neigbors_matrix=self.sign2_self[:],
+                                     neigbors=params['neighbors'])
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
