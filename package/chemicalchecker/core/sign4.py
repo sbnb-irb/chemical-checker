@@ -1022,6 +1022,7 @@ class sign4(BaseSignature, DataSignature):
                     self.__log.debug('Masking %i features' % nr_feats)
                     safe_create(results, 'V_mask', (tot_inks, nr_feats),
                                 dtype=np.float32)
+                    safe_create(results, 'feat_mask', data=mask)
                     for idx in tqdm(range(0, tot_inks, chunk_size),
                                     desc='Masking'):
                         chunk = slice(idx, idx + chunk_size)
