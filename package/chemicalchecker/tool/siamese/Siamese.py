@@ -92,10 +92,16 @@ class Siamese(object):
         self.__log.info("{:<22}: {:>12}".format(
             "traintest_file", self.traintest_file))
         tmp = PairTraintest(self.traintest_file, 'train_train')
-        for split in tmp.get_split_names():
-            tmp = PairTraintest(self.traintest_file, split)
+        self.__log.info("{:<22}: {:>12}".format(
+            'train_train', str(tmp.get_py_shapes())))
+        if evaluate:
+            tmp = PairTraintest(self.traintest_file, 'train_test')
             self.__log.info("{:<22}: {:>12}".format(
-                split, str(tmp.get_py_shapes())))
+                'train_test', str(tmp.get_py_shapes())))
+            tmp = PairTraintest(self.traintest_file, 'test_test')
+            self.__log.info("{:<22}: {:>12}".format(
+                'test_test', str(tmp.get_py_shapes())))
+
         self.__log.info("{:<22}: {:>12}".format(
             "learning_rate", self.learning_rate))
         self.__log.info("{:<22}: {:>12}".format("batch_size", self.batch_size))
