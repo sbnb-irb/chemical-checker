@@ -1,24 +1,18 @@
 from __future__ import absolute_import
 from __future__ import print_function
-import numpy as np
 
 import os
-import h5py
+import numpy as np
 import pandas as pd
 from time import time
-from tqdm import tqdm
 from functools import partial
-from keras.models import Model, load_model
-from keras.layers import Input, Dense, Dropout, Lambda
-from keras.optimizers import RMSprop
-
-
 from keras import backend as K
-
+from keras.models import Model
+from keras.optimizers import RMSprop
+from keras.layers import Input, Dense, Dropout, Lambda
 
 from chemicalchecker.util import logged
-from chemicalchecker.util.splitter import PairTraintest
-from chemicalchecker.core.signature_data import DataSignature
+from chemicalchecker.util.splitter import NeighborPairTraintest
 
 
 @logged
@@ -58,7 +52,7 @@ class Siamese(object):
             if not os.path.exists(traintest_file):
                 raise Exception('Data path not exists!')
 
-            tr_shapes, tr_dtypes, tr_gen = PairTraintest.generator_fn(
+            tr_shape_type_gen = NeighborPairTraintest.generator_fn(
                 self.traintest_file,
                 'train_train',
                 batch_size=int(self.batch_size / self.augment_scale),
@@ -66,23 +60,23 @@ class Siamese(object):
                 augment_fn=self.augment_fn,
                 augment_kwargs=self.augment_kwargs,
                 augment_scale=self.augment_scale)
-            self.tr_shapes = tr_shapes
-            self.tr_gen = tr_gen
+            self.tr_shapes = tr_shape_type_gen[0]
+            self.tr_gen = tr_shape_type_gen[2]
 
             if evaluate:
-                val_shapes, val_dtypes, val_gen = PairTraintest.generator_fn(
+                val_shape_type_gen = NeighborPairTraintest.generator_fn(
                     self.traintest_file,
                     'train_test',
                     batch_size=self.batch_size,
                     replace_nan=self.replace_nan)
             else:
-                val_shapes, val_dtypes, val_gen = PairTraintest.generator_fn(
+                val_shape_type_gen = NeighborPairTraintest.generator_fn(
                     self.traintest_file,
                     'train_train',
                     batch_size=self.batch_size,
                     replace_nan=self.replace_nan)
-            self.val_shapes = val_shapes
-            self.val_gen = val_gen
+            self.val_shapes = val_shape_type_gen[0]
+            self.val_gen = val_shape_type_gen[2]
 
         self.siamese_model_file = os.path.join(self.model_dir, "siamese.h5")
         self.siamese = None
@@ -93,14 +87,14 @@ class Siamese(object):
         if self.traintest_file is not None:
             self.__log.info("{:<22}: {:>12}".format(
                 "traintest_file", self.traintest_file))
-            tmp = PairTraintest(self.traintest_file, 'train_train')
+            tmp = NeighborPairTraintest(self.traintest_file, 'train_train')
             self.__log.info("{:<22}: {:>12}".format(
                 'train_train', str(tmp.get_py_shapes())))
             if evaluate:
-                tmp = PairTraintest(self.traintest_file, 'train_test')
+                tmp = NeighborPairTraintest(self.traintest_file, 'train_test')
                 self.__log.info("{:<22}: {:>12}".format(
                     'train_test', str(tmp.get_py_shapes())))
-                tmp = PairTraintest(self.traintest_file, 'test_test')
+                tmp = NeighborPairTraintest(self.traintest_file, 'test_test')
                 self.__log.info("{:<22}: {:>12}".format(
                     'test_test', str(tmp.get_py_shapes())))
 
@@ -280,7 +274,7 @@ class Siamese(object):
     def evaluate(self, eval_set, splits=['train_test', 'test_test'],
                  mask_fn=None):
         def specific_eval(split, b_size=self.batch_size, mask_fn=None):
-            shapes, dtypes, gen = PairTraintest.generator_fn(
+            shapes, dtypes, gen = NeighborPairTraintest.generator_fn(
                 self.traintest_file, split,
                 batch_size=b_size,
                 replace_nan=self.replace_nan,

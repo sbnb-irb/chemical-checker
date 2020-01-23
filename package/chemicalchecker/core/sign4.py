@@ -22,7 +22,7 @@ from .signature_data import DataSignature
 
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
-from chemicalchecker.util.splitter import Traintest, PairTraintest
+from chemicalchecker.util.splitter import Traintest, NeighborPairTraintest
 
 
 @logged
@@ -231,11 +231,12 @@ class sign4(BaseSignature, DataSignature):
                 'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix).get_h5_dataset('x')
-                PairTraintest.create(X, traintest_file,
-                                     split_names=['train', 'test'],
-                                     split_fractions=[.8, .2],
-                                     neigbors_matrix=self.sign2_self[:],
-                                     neigbors=params['neighbors'])
+                NeighborPairTraintest.create(
+                    X, traintest_file,
+                    split_names=['train', 'test'],
+                    split_fractions=[.8, .2],
+                    neigbors_matrix=self.sign2_self[:],
+                    neigbors=params['neighbors'])
         else:
             traintest_file = os.path.join(
                 self.model_path, 'traintest_final.h5')
@@ -243,11 +244,12 @@ class sign4(BaseSignature, DataSignature):
                 'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix).get_h5_dataset('x')
-                PairTraintest.create(X, traintest_file,
-                                     split_names=['train'],
-                                     split_fractions=[1.0],
-                                     neigbors_matrix=self.sign2_self[:],
-                                     neigbors=params['neighbors'])
+                NeighborPairTraintest.create(
+                    X, traintest_file,
+                    split_names=['train'],
+                    split_fractions=[1.0],
+                    neigbors_matrix=self.sign2_self[:],
+                    neigbors=params['neighbors'])
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
