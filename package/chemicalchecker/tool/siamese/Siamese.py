@@ -206,14 +206,14 @@ class Siamese(object):
             y_data_transf = y_data[not_nan]
             return x1_data_transf, x2_data_transf, y_data_transf
 
-        all_acc = self.evaluate()
+        all_acc = self.evaluate('ALL')
 
         space_idx = self.augment_kwargs['dataset']
         excl_fn = partial(mask_exclude, space_idx)
-        excl_acc = self.evaluate(mask_fn=excl_fn)
+        excl_acc = self.evaluate('NOT-SELF', mask_fn=excl_fn)
 
         keep_fn = partial(mask_keep, space_idx)
-        keep_acc = self.evaluate(mask_fn=keep_fn)
+        keep_acc = self.evaluate('ONLY-SELF', mask_fn=keep_fn)
 
         perf_file = os.path.join(path, "siamese_%s.pkl" % suffix)
         df = pd.DataFrame(columns=['algo', 'split', 'time', 'epochs',
@@ -239,13 +239,14 @@ class Siamese(object):
             row.update({'eval_set': 'NOT-SELF', 'split': split,
                         'accuracy': excl_acc[split]})
             df.loc[len(df)] = pd.Series(row)
-            row.update({'eval_set': 'SELF', 'split': split,
+            row.update({'eval_set': 'ONLY-SELF', 'split': split,
                         'accuracy': keep_acc[split]})
             df.loc[len(df)] = pd.Series(row)
         df.to_pickle(perf_file)
         df.to_csv(perf_file.replace('.pkl', '.csv'), index=False)
 
-    def evaluate(self, splits=['train_test', 'test_test'], mask_fn=None):
+    def evaluate(self, eval_set, splits=['train_test', 'test_test'],
+                 mask_fn=None):
         def specific_eval(split, b_size=100, mask_fn=None):
             shapes, dtypes, gen = PairTraintest.generator_fn(
                 self.traintest_file, split,
@@ -257,7 +258,7 @@ class Siamese(object):
                 gen(), steps=shapes[0][0] // b_size,
                 max_queue_size=1, verbose=1)
 
-            self.__log.debug("Accuracy %s: %f" % (split, y_acc))
+            self.__log.debug("Accuracy %s %s: %f" % (eval_set, split, y_acc))
             return {'accuracy': y_acc}
 
         input_shape = (self.tr_shapes[0][1],)
