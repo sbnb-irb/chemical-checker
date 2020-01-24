@@ -65,7 +65,8 @@ class sign4(BaseSignature, DataSignature):
         # parameters to learn from sign2
         default_sign2 = {
             'epochs': 1,
-            'neighbors': 10,
+            'pos_neighbors': 3,
+            'neg_neighbors': 30,
             'batch_size': 1000,
             'augment_fn': None,
             'augment_scale': 1,
@@ -122,6 +123,24 @@ class sign4(BaseSignature, DataSignature):
                 _, vectors = sign.get_vectors(inchikeys, include_nan=True)
                 fh['x_test'][:, idx * 128:(idx + 1) * 128] = vectors
                 del vectors
+
+    '''
+    @staticmethod
+    def complete_sign2_universe(sign2_list, sign2_self, partial_universe,
+                                sign2_universe):
+
+        # get sorted universe inchikeys and CC signatures
+        sign4.__log.info("Completing signature 2 universe matrix.")
+        inchikeys = set()
+        for sign in sign2_list:
+            if sign == sign2_self:
+                continue
+            inchikeys.update(sign.unique_keys)
+        inchikeys = sorted(list(inchikeys))
+
+        space_inks = sign2_self.unique_keys - set(inchikeys)
+        tot_inks = len(inchikeys)
+    '''
 
     @staticmethod
     def save_sign2_coverage(sign2_list, destination):
@@ -236,7 +255,8 @@ class sign4(BaseSignature, DataSignature):
                     split_names=['train', 'test'],
                     split_fractions=[.8, .2],
                     neigbors_matrix=self.sign2_self[:],
-                    neigbors=params['neighbors'])
+                    pos_neigbors=params['pos_neigbors'],
+                    neg_neigbors=params['neg_neigbors'])
         else:
             traintest_file = os.path.join(
                 self.model_path, 'traintest_final.h5')
@@ -249,7 +269,8 @@ class sign4(BaseSignature, DataSignature):
                     split_names=['train'],
                     split_fractions=[1.0],
                     neigbors_matrix=self.sign2_self[:],
-                    neigbors=params['neighbors'])
+                    pos_neigbors=params['pos_neigbors'],
+                    neg_neigbors=params['neg_neigbors'])
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
@@ -808,6 +829,7 @@ class sign4(BaseSignature, DataSignature):
         return pred_s3
 
     def fit(self, sign2_list, sign2_self, sign2_universe=None,
+            partial_universe=None,
             sign2_coverage=None, sign0=None,
             model_confidence=False, save_correlations=False,
             predict_novelty=False, update_preds=True, normalize_scores=False,
@@ -895,6 +917,9 @@ class sign4(BaseSignature, DataSignature):
         # build input matrix if not provided (should be since is shared)
         if sign2_universe is None:
             sign2_universe = os.path.join(self.model_path, 'all_sign2.h5')
+        if partial_universe is not None:
+            sign4.complete_sign2_universe(sign2_list, sign2_self,
+                                          partial_universe, sign2_universe)
         if not os.path.isfile(sign2_universe):
             sign4.save_sign2_universe(sign2_list, sign2_universe)
         if sign2_coverage is None:
