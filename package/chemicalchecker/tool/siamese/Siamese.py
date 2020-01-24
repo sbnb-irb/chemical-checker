@@ -174,7 +174,7 @@ class Siamese(object):
         early_stopping = EarlyStopping(
             monitor='val_accuracy',
             verbose=1,
-            patience=3,
+            patience=5,
             mode='max',
             restore_best_weights=True)
 
@@ -186,7 +186,8 @@ class Siamese(object):
             callbacks=[early_stopping],
             validation_data=self.val_gen(),
             validation_steps=np.ceil(self.val_shapes[0][0] / self.batch_size),
-            shuffle=True)
+            shuffle=True,
+            verbose=2)
 
         self.siamese.save(self.siamese_model_file)
         self.time = time() - t0
@@ -288,10 +289,11 @@ class Siamese(object):
                 batch_size=b_size,
                 replace_nan=self.replace_nan,
                 mask_fn=mask_fn)
-
+            print(shapes[0][0])
+            print(b_size)
             y_loss, y_acc = self.siamese.evaluate_generator(
-                gen(), steps=shapes[0][0] // b_size,
-                max_queue_size=1, verbose=1)
+                gen(), steps=shapes[0][0] // 100,
+                max_queue_size=1, verbose=0)
 
             self.__log.debug("Accuracy %s %s: %f" % (eval_set, split, y_acc))
             return {'accuracy': y_acc}
@@ -326,6 +328,7 @@ class Siamese(object):
                  label="Train loss", lw=1, color="red")
         plt.plot(history.history["val_loss"],
                  label="Val loss", lw=1, color="green")
+        plt.legend()
 
         plt.subplot(1, 2, 2)
         plt.title('Train accuracy evolution')
@@ -334,6 +337,7 @@ class Siamese(object):
         plt.plot(history.history["val_accuracy"],
                  label="Val accuracy", lw=1, color="green")
         plt.ylim(0, 1)
+        plt.legend()
 
         if destination is not None:
             plt.savefig(destination)
