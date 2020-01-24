@@ -67,7 +67,7 @@ class Siamese(object):
             if evaluate:
                 val_shape_type_gen = NeighborPairTraintest.generator_fn(
                     self.traintest_file,
-                    'train_test',
+                    'test_test',
                     batch_size=self.batch_size,
                     replace_nan=self.replace_nan)
             else:
@@ -176,7 +176,7 @@ class Siamese(object):
         early_stopping = EarlyStopping(
             monitor='val_accuracy',
             verbose=1,
-            patience=2,
+            patience=3,
             mode='max',
             restore_best_weights=True)
 
