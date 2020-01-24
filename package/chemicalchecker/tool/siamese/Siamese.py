@@ -172,11 +172,19 @@ class Siamese(object):
         input_shape = (self.tr_shapes[0][1],)
         self.build_model(input_shape)
 
+        early_stopping = tf.keras.callbacks.EarlyStopping(
+            monitor='val_accuracy',
+            verbose=1,
+            patience=2,
+            mode='max',
+            restore_best_weights=True)
+
         t0 = time()
         self.history = self.siamese.fit_generator(
             generator=self.tr_gen(),
             steps_per_epoch=np.ceil(self.tr_shapes[0][0] / self.batch_size),
             epochs=self.epochs,
+            callbacks=[early_stopping],
             validation_data=self.val_gen(),
             validation_steps=np.ceil(self.val_shapes[0][0] / self.batch_size),
             shuffle=True)
