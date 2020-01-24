@@ -137,8 +137,6 @@ class Siamese(object):
             input = Input(shape=input_shape)
             x = Dense(1024, activation='relu')(input)  # 1024
             x = Dropout(0.1)(x)
-            x = Dense(512, activation='relu')(x)  # 512
-            x = Dropout(0.1)(x)
             x = Dense(128, activation='relu')(x)
             return Model(input, x)
 
