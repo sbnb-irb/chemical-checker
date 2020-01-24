@@ -10,6 +10,7 @@ from keras import backend as K
 from keras.models import Model
 from keras.optimizers import RMSprop
 from keras.layers import Input, Dense, Dropout, Lambda
+from keras.callbacks import EarlyStopping
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborPairTraintest
@@ -172,7 +173,7 @@ class Siamese(object):
         input_shape = (self.tr_shapes[0][1],)
         self.build_model(input_shape)
 
-        early_stopping = tf.keras.callbacks.EarlyStopping(
+        early_stopping = EarlyStopping(
             monitor='val_accuracy',
             verbose=1,
             patience=2,
