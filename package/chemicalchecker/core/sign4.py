@@ -255,8 +255,8 @@ class sign4(BaseSignature, DataSignature):
                     split_names=['train', 'test'],
                     split_fractions=[.8, .2],
                     neigbors_matrix=self.sign2_self[:],
-                    pos_neigbors=params['pos_neigbors'],
-                    neg_neigbors=params['neg_neigbors'])
+                    pos_neighbors=params['pos_neighbors'],
+                    neg_neighbors=params['neg_neighbors'])
         else:
             traintest_file = os.path.join(
                 self.model_path, 'traintest_final.h5')
@@ -269,8 +269,8 @@ class sign4(BaseSignature, DataSignature):
                     split_names=['train'],
                     split_fractions=[1.0],
                     neigbors_matrix=self.sign2_self[:],
-                    pos_neigbors=params['pos_neigbors'],
-                    neg_neigbors=params['neg_neigbors'])
+                    pos_neighbors=params['pos_neighbors'],
+                    neg_neighbors=params['neg_neighbors'])
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
