@@ -140,7 +140,7 @@ class NeighborPairTraintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def create(X, out_file, neigbors_matrix=None, pos_neigbors=10,
+    def create(X, out_file, neigbors_matrix=None, pos_neighbors=10,
                neg_neighbors=100,
                mean_center_x=True, shuffle=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
@@ -266,13 +266,13 @@ class NeighborPairTraintest(object):
             #combos = [('train', 'train'), ('train', 'test'), ('test', 'test')]
             for split1, split2 in combos:
                 # handle case where we ask more neig then molecules
-                if pos_neigbors > nr_matrix[split2].shape[0]:
+                if pos_neighbors > nr_matrix[split2].shape[0]:
                     combo_neig = nr_matrix[split2].shape[0]
                     NeighborPairTraintest.__log.warning(
-                        'split %s is small, reducing pos_neigbors to %i' %
+                        'split %s is small, reducing pos_neighbors to %i' %
                         (split2, combo_neig))
                 else:
-                    combo_neig = pos_neigbors
+                    combo_neig = pos_neighbors
                 # remove self neighbors when splits are the same
                 if split1 == split2:
                     # search NN
