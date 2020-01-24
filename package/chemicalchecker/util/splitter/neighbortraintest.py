@@ -140,7 +140,8 @@ class NeighborPairTraintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def create(X, out_file, neigbors_matrix=None, neigbors=10,
+    def create(X, out_file, neigbors_matrix=None, pos_neigbors=10,
+               neg_neighbors=100,
                mean_center_x=True, shuffle=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
                x_dtype=np.float32, y_dtype=np.float32, debug_test=False):
@@ -167,7 +168,7 @@ class NeighborPairTraintest(object):
 
         # override parameters for debug
         if debug_test:
-            neigbors = 10
+            pos_neigbors = 10
             split_names = ['train', 'test']
             split_fractions = [.8, .2]
 
@@ -265,13 +266,13 @@ class NeighborPairTraintest(object):
             #combos = [('train', 'train'), ('train', 'test'), ('test', 'test')]
             for split1, split2 in combos:
                 # handle case where we ask more neig then molecules
-                if neigbors > nr_matrix[split2].shape[0]:
+                if pos_neigbors > nr_matrix[split2].shape[0]:
                     combo_neig = nr_matrix[split2].shape[0]
                     NeighborPairTraintest.__log.warning(
-                        'split %s is small, reducing neigbors to %i' %
+                        'split %s is small, reducing pos_neigbors to %i' %
                         (split2, combo_neig))
                 else:
-                    combo_neig = neigbors
+                    combo_neig = pos_neigbors
                 # remove self neighbors when splits are the same
                 if split1 == split2:
                     # search NN
@@ -316,7 +317,7 @@ class NeighborPairTraintest(object):
                 for row in neig_idxs:
                     no_neig = set(range(nr_matrix[split2].shape[0])) - set(row)
                     smpl = np.random.choice(
-                        list(no_neig), combo_neig, replace=False)
+                        list(no_neig), neg_neighbors, replace=False)
                     idxs2_0.extend(smpl)
                 idxs2_0 = np.array(idxs2_0)
                 # map
@@ -327,6 +328,10 @@ class NeighborPairTraintest(object):
                 # stack pairs and ys
                 pairs_1 = np.vstack((idxs1_full, idxs2_1_full)).T
                 y_1 = np.ones((1, pairs_1.shape[0]))
+                # oversample the positives
+                neg_pos_ratio = np.floor(neg_neighbors / combo_neig)
+                pairs_1 = np.repeat(pairs_1, neg_pos_ratio)
+                y_1 = np.repeat(y_1, neg_pos_ratio)
                 pairs_0 = np.vstack((idxs1_full, idxs2_0_full)).T
                 y_0 = np.zeros((1, pairs_0.shape[0]))
                 all_pairs = np.vstack((pairs_1, pairs_0))
