@@ -260,7 +260,6 @@ class NeighborPairTraintest(object):
         NeighborPairTraintest.__log.info('Traintest saving to %s', out_file)
         with h5py.File(out_file, "w") as fh:
             fh.create_dataset('x', data=X)
-            fh.create_dataset('split_names', data=split_names)
             # for each split combo generate pairs and ys
             combos = itertools.combinations_with_replacement(split_names, 2)
             #combos = [('train', 'train'), ('train', 'test'), ('test', 'test')]

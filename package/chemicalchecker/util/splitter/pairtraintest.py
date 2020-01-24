@@ -155,23 +155,23 @@ class PairTraintest(object):
             y_dtype(type): numpy data type for Y (np.float32 for regression,
                 np.int32 for classification.
         """
-        JoinTraintest.__log.debug(
+        PairTraintest.__log.debug(
             "{:<20} shape: {:>10}".format("input X1", str(X1.shape)))
-        JoinTraintest.__log.debug(
+        PairTraintest.__log.debug(
             "{:<20} shape: {:>10}".format("input X2", str(X2.shape)))
         # train test validation splits
         if len(split_names) != len(pairs):
             raise Exception("Split names and set of pairs must be same nr.")
         for name, Y in zip(split_names, pairs):
-            JoinTraintest.__log.debug(
+            PairTraintest.__log.debug(
                 "{:<20} shape: {:>10}".format(name, str(Y.shape)))
 
         # create dataset
-        JoinTraintest.__log.info('Traintest saving to %s', out_file)
+        PairTraintest.__log.info('Traintest saving to %s', out_file)
         with h5py.File(out_file, "w") as fh:
             fh.create_dataset('x1', data=X1)
             fh.create_dataset('x2', data=X2)
-            fh.create_dataset('split_names', data=split_names)
+            #fh.create_dataset('split_names', data=split_names)
 
             for name, PY in zip(split_names, pairs):
                 # shuffling
@@ -183,15 +183,15 @@ class PairTraintest(object):
                 P = PY[:, :2]
                 Y = Y[:, -1]
                 ds_name = "p_%s" % name
-                JoinTraintest.__log.info(
+                PairTraintest.__log.info(
                     'writing %s %s %s', ds_name, name, P.shape)
                 fh.create_dataset(ds_name, data=P[shuffle_idxs])
                 ds_name = "y_%s" % name
-                JoinTraintest.__log.info(
+                PairTraintest.__log.info(
                     'writing %s %s', ds_name, Y.shape)
                 fh.create_dataset(ds_name, data=Y[shuffle_idxs])
 
-        JoinTraintest.__log.info('PairTraintest saved to %s', out_file)
+        PairTraintest.__log.info('PairTraintest saved to %s', out_file)
 
     @staticmethod
     def generator_fn(file_name, split, batch_size=None, only_x=False,
@@ -209,7 +209,7 @@ class PairTraintest(object):
         augment_fn(func): Function to augment data.
         augment_kwargs(dict): Parameters for the aument functions.
         """
-        reader = JoinTraintest(file_name, split)
+        reader = PairTraintest(file_name, split)
         reader.open()
         # read shapes
         x1_shape = reader._f[reader.x1_name].shape
@@ -240,7 +240,7 @@ class PairTraintest(object):
                 if beg_idx >= total:
                     beg_idx, end_idx = 0, batch_size
                     epoch += 1
-                    JoinTraintest.__log.debug('EPOCH %i', epoch)
+                    PairTraintest.__log.debug('EPOCH %i', epoch)
                 pairs, y = reader.get_py(beg_idx, end_idx)
                 x1 = X1[pairs[:, 0]]
                 x2 = X2[pairs[:, 1]]
