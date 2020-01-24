@@ -303,6 +303,10 @@ class NeighborPairTraintest(object):
                 # map back to full
                 idxs1_full = ref_full_map[idxs1_ref]
                 idxs2_1_full = ref_full_map[idxs2_1_ref]
+                # oversample the positives
+                neg_pos_ratio = np.floor(neg_neighbors / combo_neig)
+                idxs1_full = np.repeat(idxs1_full, neg_pos_ratio)
+                idxs2_1_full = np.repeat(idxs2_1_full, neg_pos_ratio)
                 if debug_test:
                     # train ~= full
                     total = 0
@@ -328,10 +332,6 @@ class NeighborPairTraintest(object):
                 # stack pairs and ys
                 pairs_1 = np.vstack((idxs1_full, idxs2_1_full)).T
                 y_1 = np.ones((1, pairs_1.shape[0]))
-                # oversample the positives
-                neg_pos_ratio = np.floor(neg_neighbors / combo_neig)
-                pairs_1 = np.repeat(pairs_1, neg_pos_ratio)
-                y_1 = np.repeat(y_1, neg_pos_ratio)
                 pairs_0 = np.vstack((idxs1_full, idxs2_0_full)).T
                 y_0 = np.zeros((1, pairs_0.shape[0]))
                 all_pairs = np.vstack((pairs_1, pairs_0))
