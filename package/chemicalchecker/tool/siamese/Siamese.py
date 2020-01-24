@@ -320,26 +320,19 @@ class Siamese(object):
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
 
-        plt.figure(figsize=(8, 8), dpi=600)
+        plt.figure(figsize=(8, 4), dpi=600)
 
-        plt.subplot(2, 2, 1)
+        plt.subplot(1, 2, 1)
         plt.title('Train loss evolution')
         plt.plot(history.history["loss"],
                  label="Train loss", lw=1, color="red")
-
-        plt.subplot(2, 2, 2)
-        plt.title('Train accuracy evolution')
-        plt.plot(history.history["accuracy"],
-                 label="Train accuracy", lw=1, color="red")
-        plt.ylim(0, 1)
-
-        plt.subplot(2, 2, 3)
-        plt.title('Val loss evolution')
         plt.plot(history.history["val_loss"],
                  label="Val loss", lw=1, color="green")
 
-        plt.subplot(2, 2, 4)
-        plt.title('Val accuracy evolution')
+        plt.subplot(1, 2, 2)
+        plt.title('Train accuracy evolution')
+        plt.plot(history.history["accuracy"],
+                 label="Train accuracy", lw=1, color="red")
         plt.plot(history.history["val_accuracy"],
                  label="Val accuracy", lw=1, color="green")
         plt.ylim(0, 1)
