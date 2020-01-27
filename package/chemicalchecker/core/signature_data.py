@@ -81,10 +81,10 @@ class DataSignature(object):
         if not os.path.isfile(self.data_path):
             raise Exception("Data file %s not available." % self.data_path)
         with h5py.File(self.data_path, 'r') as hf:
-            if 'shape' not in hf.keys():
-                self.__log.warn("HDF5 file has no 'shape' dataset.")
-                return hf['V'].shape
-            return hf['shape'][:]
+            if 'V' not in hf.keys():
+                raise Exception("Data file %s has no 'V' dataset." %
+                                self.data_path)
+            return hf['V'].shape
 
     @staticmethod
     def string_dtype():
