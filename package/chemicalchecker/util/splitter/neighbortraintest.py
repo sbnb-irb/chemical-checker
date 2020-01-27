@@ -1,5 +1,4 @@
 import h5py
-import faiss
 import itertools
 import numpy as np
 from tqdm import tqdm
@@ -160,6 +159,10 @@ class NeighborPairTraintest(object):
             y_dtype(type): numpy data type for Y (np.float32 for regression,
                 np.int32 for classification.
         """
+        try:
+            import faiss
+        except ImportError as err:
+            raise err
         NeighborPairTraintest.__log.debug(
             "{:<20} shape: {:>10}".format("input X", str(X.shape)))
         # train test validation splits
