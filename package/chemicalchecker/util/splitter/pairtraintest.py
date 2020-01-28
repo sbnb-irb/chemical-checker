@@ -205,6 +205,31 @@ class PairTraintest(object):
         PairTraintest.__log.info('PairTraintest saved to %s', out_file)
 
     @staticmethod
+    def generate_splits(X1, X2, pairs):
+        # leave left out
+        x1_set = list(set(pairs[:, 0]))
+        x1_train_idxs = x1_set[:int(len(x1_set) * .8)]
+        x1_train_mask = np.isin(pairs[:, 0], x1_train_idxs)
+        x1_train, x1_test = pairs[x1_train_mask], pairs[~x1_train_mask]
+        x1_train_test = pairs[x1_train_mask], pairs[~x1_train_mask]
+        assert(len(set(x1_train[:, 0]) & set(x1_test[:, 0])) == 0)
+        # leave right out
+        x2_set = list(set(pairs[:, 1]))
+        x2_train_idxs = x2_set[:int(len(x2_set) * .8)]
+        x2_train_mask = np.isin(pairs[:, 1], x2_train_idxs)
+        x2_train, x2_test = pairs[x2_train_mask], pairs[~x2_train_mask]
+        x2_train_test = pairs[x2_train_mask], pairs[~x2_train_mask]
+        assert(len(set(x2_train[:, 1]) & set(x2_test[:, 1])) == 0)
+        # leave both out
+        both_train_mask = np.logical_and(x1_train_mask, x2_train_mask)
+        both_test_mask = np.logical_and(~x1_train_mask, ~x2_train_mask)
+        both_train, both_test = pairs[both_train_mask], pairs[both_test_mask]
+        both_train_test = pairs[both_train_mask], pairs[both_test_mask]
+        assert(len(set(both_train[:, 0]) & set(both_test[:, 0])) == 0)
+        assert(len(set(both_train[:, 1]) & set(both_test[:, 1])) == 0)
+        return x1_train_test, x2_train_test, both_train_test
+
+    @staticmethod
     def generator_fn(file_name, split, batch_size=None, only_x=False,
                      replace_nan=None, mask_fn=None):
         """Return the generator function that we can query for batches.
@@ -229,6 +254,7 @@ class PairTraintest(object):
         if not batch_size:
             batch_size = p_shape[0]
         # keep X in memory for resolving pairs quickly
+        PairTraintest.__log.debug('Loading Xs')
         X1 = reader.get_all_x1()
         X2 = reader.get_all_x2()
         # default mask is not mask
