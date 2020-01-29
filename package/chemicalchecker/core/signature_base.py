@@ -325,6 +325,13 @@ class BaseSignature(object):
             return True
         else:
             return False
+            
+    def available(self):
+        """This signature data is available."""
+        if os.path.isfile(self.data_path):
+            return True
+        else:
+            return False
 
     def consistency_check(self):
         """Check that signature is valid."""
