@@ -100,17 +100,22 @@ class Pipeline():
                 # check if already done
                 if task.is_ready():
                     Pipeline.__log.info(
-                        "Step: '%s' already done. Skipping...", task.name)
+                        "Task: '%s' already done. Skipping...", task.name)
                     continue
                 # run it
+                Pipeline.__log.info(
+                    "Starting task: '%s' ...", task.name)
                 task.run()
                 # after runnin we expect the step to be in ready state
                 if not task.is_ready():
                     # if not we report the error
                     Pipeline.__log.error(
-                        "Pipeline failed in step %s. Please, check errors.",
+                        "Pipeline failed in task %s. Please, check errors.",
                         task.name)
                     break
+                else:
+                    Pipeline.__log.info(
+                        "Done task: '%s' ...", task.name)
 
         else:
             # iterate on the steps

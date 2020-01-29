@@ -3,15 +3,15 @@ import tempfile
 from chemicalchecker.util import logged
 from chemicalchecker.database import Datasource
 from chemicalchecker.util import HPC
-from chemicalchecker.util import BaseStep
+from chemicalchecker.util import BaseTask
 
 
 @logged
-class Downloads(BaseStep):
+class Downloads(BaseTask):
 
     def __init__(self, config, name, **params):
 
-        BaseStep.__init__(self, config, name, **params)
+        BaseTask.__init__(self, config, name, **params)
 
     def run(self):
         """Run the downloads step."""

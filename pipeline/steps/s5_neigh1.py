@@ -6,16 +6,16 @@ from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
-from chemicalchecker.util import BaseStep
+from chemicalchecker.util import BaseTask
 from chemicalchecker.util import HPC
 
 
 @logged
-class Neigh1(BaseStep):
+class Neigh1(BaseTask):
 
     def __init__(self, config=None, name='neigh1', **params):
 
-        BaseStep.__init__(self, config, name, **params)
+        BaseTask.__init__(self, config, name, **params)
 
         self.datasets = params.get('datasets', None)
         self.full_reference = params.get('full_reference', True)
