@@ -7,16 +7,16 @@ from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
-from chemicalchecker.util import BaseStep
+from chemicalchecker.util import BaseTask
 from chemicalchecker.util import HPC
 
 
 @logged
-class Sign3FullShort(BaseStep):
+class Sign3FullShort(BaseTask):
 
     def __init__(self, config, name, **params):
 
-        BaseStep.__init__(self, config, name, **params)
+        BaseTask.__init__(self, config, name, **params)
 
     def run(self):
         """Run the molprops step."""
@@ -34,15 +34,15 @@ class Sign3FullShort(BaseStep):
             if not ds.exemplary:
                 continue
 
-            dataset_codes.append(ds)
+            dataset_codes.append(ds.dataset_code)
+
+        dataset_codes.sort()
 
         s3 = cc.get_signature('sign3', 'full', dataset_codes[0])
 
         rows = s3.shape[0]
 
         cols = s3.shape[1] * len(dataset_codes)
-
-        dataset_codes.sort()
 
         s3_full = cc.get_signature('sign3', 'full', dataset_sign3_full)
 

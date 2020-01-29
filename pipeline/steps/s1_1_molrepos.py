@@ -2,15 +2,15 @@ import tempfile
 
 from chemicalchecker.util import logged
 from chemicalchecker.database import Molrepo
-from chemicalchecker.util import BaseStep
+from chemicalchecker.util import BaseTask
 
 
 @logged
-class Molrepos(BaseStep):
+class Molrepos(BaseTask):
 
     def __init__(self, config, name, **params):
 
-        BaseStep.__init__(self, config, name, **params)
+        BaseTask.__init__(self, config, name, **params)
 
     def run(self):
         """Run the molrepos step."""

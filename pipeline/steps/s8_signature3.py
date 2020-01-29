@@ -6,16 +6,16 @@ from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
-from chemicalchecker.util import BaseStep
+from chemicalchecker.util import BaseTask
 from chemicalchecker.util import HPC
 
 
 @logged
-class Signature3(BaseStep):
+class Signature3(BaseTask):
 
     def __init__(self, config=None, name='signature3', **params):
 
-        BaseStep.__init__(self, config, name, **params)
+        BaseTask.__init__(self, config, name, **params)
 
         self.target_datasets = params.get('target_datasets', None)
         self.ref_datasets = params.get('reference_datasets', None)
@@ -51,6 +51,8 @@ class Signature3(BaseStep):
                     continue
                 dataset_codes.append(ds)
 
+        job_path = None
+
         if len(dataset_codes) > 0:
 
             job_path = tempfile.mkdtemp(
@@ -73,7 +75,7 @@ class Signature3(BaseStep):
                 try:
                     with h5py.File(full_universe, 'r') as hf:
                         keys = hf.keys()
-                except Exception, e:
+                except Exception as e:
 
                     self.__log.error(e)
                     raise Exception("Universe full file is corrupted")
@@ -159,4 +161,5 @@ class Signature3(BaseStep):
 
         if len(dataset_not_done) == 0:
             self.mark_ready()
-            # shutil.rmtree(job_path)
+            if job_path is not None:
+                shutil.rmtree(job_path)

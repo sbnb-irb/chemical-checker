@@ -5,16 +5,16 @@ from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
-from chemicalchecker.util import BaseStep
+from chemicalchecker.util import BaseTask
 from chemicalchecker.util import HPC
 
 
 @logged
-class Signature1(BaseStep):
+class Signature1(BaseTask):
 
     def __init__(self, config=None, name='signature1', **params):
 
-        BaseStep.__init__(self, config, name, **params)
+        BaseTask.__init__(self, config, name, **params)
 
         self.datasets = params.get('datasets', None)
         self.full_reference = params.get('full_reference', True)
@@ -50,9 +50,6 @@ class Signature1(BaseStep):
                     continue
                 dataset_codes.append(ds)
 
-        job_path = tempfile.mkdtemp(
-            prefix='jobs_sign1_', dir=self.tmpdir)
-
         dataset_params = list()
 
         for ds_code in dataset_codes:
@@ -73,6 +70,9 @@ class Signature1(BaseStep):
         job_path = None
         if len(dataset_codes) > 0:
 
+            job_path = tempfile.mkdtemp(
+                prefix='jobs_sign1_', dir=self.tmpdir)
+
             if not os.path.isdir(job_path):
                 os.mkdir(job_path)
             # create script file
@@ -90,7 +90,8 @@ class Signature1(BaseStep):
                 "config = Config()",
                 "task_id = sys.argv[1]",  # <TASK_ID>
                 "filename = sys.argv[2]",  # <FILE>
-                "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
+                # load pickled data
+                "inputs = pickle.load(open(filename, 'rb'))",
                 "data = inputs[task_id][0][0]",  # elements for current job
                 "pars = inputs[task_id][0][1]",  # elements for current job
                 # elements are indexes
