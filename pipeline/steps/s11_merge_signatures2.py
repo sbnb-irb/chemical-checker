@@ -7,16 +7,16 @@ from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
-from chemicalchecker.util import BaseStep
+from chemicalchecker.util import BaseTask
 from chemicalchecker.util import HPC
 
 
 @logged
-class MergeSignatures2(BaseStep):
+class MergeSignatures2(BaseTask):
 
     def __init__(self, config, name, **params):
 
-        BaseStep.__init__(self, config, name, **params)
+        BaseTask.__init__(self, config, name, **params)
 
     def run(self):
         """Run the merge sign2 step."""
@@ -37,14 +37,14 @@ class MergeSignatures2(BaseStep):
 
             new_ds = coord + ".000"
 
-            print new_ds
+            print (new_ds)
 
             sign2 = cc.get_signature("sign2", "full", new_ds)
             if sign2.is_fit():
                 continue
 
             if os.path.exists(sign2.signature_path):
-                print sign2.signature_path
+                print (sign2.signature_path)
                 shutil.rmtree(sign2.signature_path)
                 shutil.rmtree(sign2.signature_path[:-5])
 

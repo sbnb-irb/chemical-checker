@@ -6,16 +6,16 @@ from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
-from chemicalchecker.util import BaseStep
+from chemicalchecker.util import BaseTask
 from chemicalchecker.util import HPC
 
 
 @logged
-class Signature2(BaseStep):
+class Signature2(BaseTask):
 
     def __init__(self, config=None, name='signature2', **params):
 
-        BaseStep.__init__(self, config, name, **params)
+        BaseTask.__init__(self, config, name, **params)
 
         self.datasets = params.get('datasets', None)
         self.full_reference = params.get('full_reference', True)
@@ -143,4 +143,5 @@ class Signature2(BaseStep):
 
         if len(dataset_not_done) == 0:
             self.mark_ready()
-            shutil.rmtree(job_path)
+            if job_path is not None:
+                shutil.rmtree(job_path)

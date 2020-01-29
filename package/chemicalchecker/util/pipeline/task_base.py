@@ -1,6 +1,6 @@
-"""Implementation of the abstract step class.
+"""Implementation of the abstract task class.
 
-Each step class derived from this base class will have to implement several
+Each task class derived from this base class will have to implement several
 methods. 
 """
 import os
@@ -14,7 +14,7 @@ from chemicalchecker.util import logged
 
 @logged
 @six.add_metaclass(ABCMeta)
-class BaseStep(object):
+class BaseTask(object):
     """A Step base class.
 
     Implements methods and checks common to all steps.
@@ -37,7 +37,7 @@ class BaseStep(object):
     @abstractmethod
     def run(self):
         """Run the step."""
-        BaseStep.__log.info("Running step " + self.name)
+        BaseTask.__log.info("Running step " + self.name)
 
     def set_dirs(self, readydir, tmpdir):
         self.tmpdir = tmpdir
@@ -45,7 +45,7 @@ class BaseStep(object):
 
     def is_ready(self, substep=None):
         """Check if the step is already done."""
-        BaseStep.__log.debug('is_ready')
+        BaseTask.__log.debug('is_ready')
         if substep is None:
             filename = self.readyfile
         else:
@@ -54,7 +54,7 @@ class BaseStep(object):
 
     def mark_ready(self, substep=None):
         """Mark the step as done."""
-        BaseStep.__log.debug('mark_ready')
+        BaseTask.__log.debug('mark_ready')
         if substep is None:
             filename = os.path.join(self.readydir, self.readyfile)
         else:
@@ -65,7 +65,7 @@ class BaseStep(object):
 
     def clean(self, substep=None):
         """Clean the step."""
-        BaseStep.__log.debug('clean')
+        BaseTask.__log.debug('clean')
         if substep is None:
             for filename in glob.glob(os.path.join(self.readydir, self.name + "_*.ready")):
                 os.remove(filename)
