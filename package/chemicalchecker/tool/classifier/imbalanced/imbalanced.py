@@ -29,9 +29,9 @@ class Imbalanced(object):
             epochs(int): The number of epochs (default: 200)
         """
 
-        self.epochs = int(kwargs.get("epochs", 50))
+        self.epochs = int(kwargs.get("epochs", 10))
         self.batch_size = int(kwargs.get("batch_size", 1000))
-        self.learning_rate = float(kwargs.get("learning_rate", 0.001))
+        self.learning_rate = float(kwargs.get("learning_rate", 1e-3))
         self.replace_nan = float(kwargs.get("replace_nan", 0.0))
         self.dropout = float(kwargs.get("dropout", 0.2))
         self.suffix = str(kwargs.get("suffix", 'eval'))
@@ -99,6 +99,8 @@ class Imbalanced(object):
 
         self.__log.info("{:<22}: {:>12}".format(
             "learning_rate", self.learning_rate))
+        self.__log.info("{:<22}: {:>12}".format(
+            "epochs", self.epochs))
         self.__log.info("{:<22}: {:>12}".format("batch_size", self.batch_size))
         self.__log.info("{:<22}: {:>12}".format(
             "class_weight", str(self.class_weight)))
@@ -154,7 +156,7 @@ class Imbalanced(object):
         model = keras.Sequential(model_layers)
 
         model.compile(
-            optimizer=keras.optimizers.Adam(lr=1e-3),
+            optimizer=keras.optimizers.Adam(lr=self.learning_rate),
             loss=keras.losses.BinaryCrossentropy(),
             metrics=metrics)
 
@@ -313,7 +315,7 @@ class Imbalanced(object):
         if self.model is None:
             self.build_model((x1_shape[1] + x2_shape[1],), load=True)
         shapes, dtypes, gen = PairTraintest.generator_fn(
-            prediction_file, 'train',
+            prediction_file, split,
             batch_size=batch_size, only_x=True)
         res = self.model.predict_generator(gen(),
                                            steps=np.ceil(shapes[0][0] / 1000))
