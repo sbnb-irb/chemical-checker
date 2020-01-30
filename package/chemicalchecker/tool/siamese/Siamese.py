@@ -82,6 +82,7 @@ class Siamese(object):
         self.siamese_model_file = os.path.join(self.model_dir, "siamese.h5")
         self.siamese = None
         self.transformer = None
+        self.last_epoch = 0
 
         self.__log.info("**** Siamese Parameters: ***")
         self.__log.info("{:<22}: {:>12}".format("model_dir", self.model_dir))
@@ -167,27 +168,41 @@ class Siamese(object):
         if load:
             self.siamese.load_weights(self.siamese_model_file)
 
-    def fit(self):
+    def fit(self, final=False):
         input_shape = (self.tr_shapes[0][1],)
         self.build_model(input_shape)
 
-        early_stopping = EarlyStopping(
-            monitor='val_accuracy',
-            verbose=1,
-            patience=5,
-            mode='max',
-            restore_best_weights=True)
+        if not final:
+            early_stopping = EarlyStopping(
+                monitor='val_accuracy',
+                verbose=1,
+                patience=5,
+                mode='max',
+                restore_best_weights=True)
 
-        t0 = time()
-        self.history = self.siamese.fit_generator(
-            generator=self.tr_gen(),
-            steps_per_epoch=np.ceil(self.tr_shapes[0][0] / self.batch_size),
-            epochs=self.epochs,
-            callbacks=[early_stopping],
-            validation_data=self.val_gen(),
-            validation_steps=np.ceil(self.val_shapes[0][0] / self.batch_size),
-            shuffle=True,
-            verbose=2)
+            t0 = time()
+            self.history = self.siamese.fit_generator(
+                generator=self.tr_gen(),
+                steps_per_epoch=np.ceil(self.tr_shapes[0][0] / self.batch_size),
+                epochs=self.epochs,
+                callbacks=[early_stopping],
+                validation_data=self.val_gen(),
+                validation_steps=np.ceil(self.val_shapes[0][0] / self.batch_size),
+                shuffle=True,
+                verbose=2)
+
+            self.last_epoch = early_stopping.stopped_epoch
+
+        else:
+            t0 = time()
+            self.history = self.siamese.fit_generator(
+                generator=self.tr_gen(),
+                steps_per_epoch=np.ceil(self.tr_shapes[0][0] / self.batch_size),
+                epochs=self.epochs,
+                validation_data=self.val_gen(),
+                validation_steps=np.ceil(self.val_shapes[0][0] / self.batch_size),
+                shuffle=True,
+                verbose=2)
 
         self.siamese.save(self.siamese_model_file)
         self.time = time() - t0
