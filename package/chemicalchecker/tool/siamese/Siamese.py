@@ -168,11 +168,11 @@ class Siamese(object):
         if load:
             self.siamese.load_weights(self.siamese_model_file)
 
-    def fit(self, final=False):
+    def fit(self, evaluate=True):
         input_shape = (self.tr_shapes[0][1],)
         self.build_model(input_shape)
 
-        if not final:
+        if evaluate:
             early_stopping = EarlyStopping(
                 monitor='val_accuracy',
                 verbose=1,
@@ -191,7 +191,10 @@ class Siamese(object):
                 shuffle=True,
                 verbose=2)
 
-            self.last_epoch = early_stopping.stopped_epoch
+            if early_stopping.stopped_epoch != 0:
+                self.last_epoch = early_stopping.stopped_epoch - 5
+            else:
+                self.last_epoch = self.epochs
 
         else:
             t0 = time()
