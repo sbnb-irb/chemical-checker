@@ -551,10 +551,9 @@ class Traintest(object):
                 total = reader._f[reader.x_name].shape[0]
             while True:
                 if beg_idx >= total:
-                    Traintest.__log.debug("EPOCH completed")
-                    beg_idx = 0
+                    beg_idx, end_idx = 0, batch_size
                     epoch += 1
-                    return
+                    #Traintest.__log.debug('EPOCH %i', epoch)
                 if only_x:
                     yield reader.get_x(beg_idx, end_idx)
                 else:
