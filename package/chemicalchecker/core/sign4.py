@@ -289,7 +289,7 @@ class sign4(BaseSignature, DataSignature):
             # save Siamese performances and plots
             siamese.save_performances(siamese_path, suffix)
             # update the parameters with the new nr_of epochs
-            self.params['sign2'] = siamese.last_epoch + 2
+            self.params['sign2']['epochs'] = siamese.last_epoch + 2
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True,
                           chunk_size=1000):
