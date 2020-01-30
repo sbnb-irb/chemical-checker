@@ -282,7 +282,7 @@ class sign4(BaseSignature, DataSignature):
                           evaluate,
                           **params)
         self.__log.debug('Siamese training on %s' % traintest_file)
-        siamese.fit()
+        siamese.fit(evaluate)
         self.__log.debug('model saved to %s' % siamese_path)
         # when evaluating also save the performances
         if evaluate:
