@@ -361,3 +361,14 @@ class neig(BaseSignature, DataSignature):
         with h5py.File(self.data_path, 'r') as hf:
             for i in range(self.shape[0]):
                 yield hf['indices'][i], hf['distances'][i]
+
+    @property
+    def shape(self):
+        """Get the V matrix sizes."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if 'shape' not in hf.keys():
+                self.__log.warn("HDF5 file has no 'shape' dataset.")
+                return hf['distances'].shape
+            return hf['shape'][:]
