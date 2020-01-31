@@ -336,7 +336,8 @@ class sign1(BaseSignature, DataSignature):
             sort_idxs = np.argsort(inchikeys)
 
             with h5py.File(self.data_path, "w") as hf:
-                hf.create_dataset("keys", data=inchikeys[sort_idxs])
+                hf.create_dataset("keys", data=np.array(inchikeys[sort_idxs],
+                                                        DataSignature.string_dtype()))
                 hf.create_dataset("V", data=V[sort_idxs])
                 hf.create_dataset("shape", data=V[sort_idxs].shape)
                 hf.create_dataset("elbow", data=[elb_i])
