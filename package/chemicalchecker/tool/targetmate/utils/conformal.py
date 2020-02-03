@@ -6,7 +6,7 @@ from ..nonconformist.nc import ClassifierNc
 from ..nonconformist.acp import CrossConformalClassifier
 
 def condition(x):
-	return x[1]
+    return x[1]
 
 def get_cross_conformal_classifier(base_mod):    
     mod = ClassifierAdapter(base_mod)
