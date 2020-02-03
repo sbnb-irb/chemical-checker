@@ -2,11 +2,14 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import os
+import json
 import numpy as np
 import pandas as pd
 from time import time
 from tqdm import tqdm
 from functools import partial
+from scipy.stats import rankdata
+from keras.backend import int_shape
 import keras
 import tensorflow as tf
 from keras import backend as K
@@ -35,7 +38,9 @@ class Multioutput(object):
         self.replace_nan = float(kwargs.get("replace_nan", 0.0))
         self.dropout = float(kwargs.get("dropout", 0.2))
         self.suffix = str(kwargs.get("suffix", 'eval'))
+        self.split = str(kwargs.get("split", 'train'))
         self.layers = kwargs.get("layers", [128])
+        self.pretrained_model = kwargs.get("pretrained_model", None)
         self.name = 'multioutput_%s' % self.suffix
         self.time = 0
         self.output_dim = None
@@ -55,7 +60,7 @@ class Multioutput(object):
 
         tr_shape_type_gen = Traintest.generator_fn(
             self.traintest_file,
-            'train',
+            self.split,
             batch_size=self.batch_size)
         self.tr_shapes = tr_shape_type_gen[0]
         self.tr_gen = tr_shape_type_gen[2]
@@ -67,11 +72,14 @@ class Multioutput(object):
                 'test',
                 batch_size=self.batch_size)
         else:
-            val_shape_type_gen = tr_shape_type_gen
+            val_shape_type_gen = Traintest.generator_fn(
+                self.traintest_file,
+                self.split,
+                batch_size=self.batch_size)
         self.val_shapes = val_shape_type_gen[0]
         self.val_gen = val_shape_type_gen[2]
 
-        self.model_file = os.path.join(self.model_dir, "multioutput.h5")
+        self.model_file = os.path.join(self.model_dir, "%s.h5" % self.name)
         self.model = None
 
         self.__log.info("**** Multioutput Parameters: ***")
@@ -97,14 +105,16 @@ class Multioutput(object):
             "layers", str(self.layers)))
         self.__log.info("{:<22}: {:>12}".format(
             "dropout", str(self.dropout)))
+        self.__log.info("{:<22}: {:>12}".format(
+            "pretrained_model", str(self.pretrained_model)))
 
         self.__log.info("**** Imbalanced Parameters: ***")
 
     def build_model(self, input_shape=None, load=False):
-
         metrics = [
-            keras.metrics.BinaryAccuracy(name='accuracy'),
+            keras.metrics.CategoricalAccuracy(name='accuracy'),
             keras.metrics.AUC(name='auc'),
+            keras.metrics.TopKCategoricalAccuracy(k=10, name='top10')
         ]
 
         model_layers = list()
@@ -126,12 +136,14 @@ class Multioutput(object):
 
         model.compile(
             optimizer=keras.optimizers.Adam(lr=self.learning_rate),
-            loss='categorical_crossentropy',
+            loss=keras.losses.CategoricalCrossentropy(),
             metrics=metrics)
 
         model.summary()
 
         self.model = model
+        if self.pretrained_model is not None:
+            self.model.load_weights(self.pretrained_model)
         if load:
             self.model.load_weights(self.model_file)
 
@@ -158,6 +170,12 @@ class Multioutput(object):
 
         self.model.save(self.model_file)
         self.time = time() - t0
+
+        '''
+        hist_log = os.path.join(self.model_dir,'history_%s.json' % self.name)
+        with open(hist_log, 'w') as file:
+            json.dump(self.history.history, file)
+        '''
 
         plot_file = os.path.join(self.model_dir, "%s.png" % self.name)
         self._plot_history(self.history, plot_file)
@@ -195,15 +213,15 @@ class Multioutput(object):
 
     def predict(self, prediction_file, split='train', batch_size=1000):
         ptt = Traintest(prediction_file, split)
-        x_shape, y_shape = ptt.get_xy_shapes()
+        x_shape = ptt.get_x_shapes()
         if self.model is None:
-            self.build_model((x_shape,), load=True)
+            self.build_model((x_shape[1],), load=True)
         shapes, dtypes, gen = Traintest.generator_fn(
             prediction_file, split,
             batch_size=batch_size, only_x=True)
         res = self.model.predict_generator(gen(),
-                                           steps=np.ceil(shapes[0][0] / 1000))
-        return res[:shapes[0][0]]
+                                           steps=np.ceil(shapes[0] / 1000))
+        return res[:shapes[0]]
 
     def _plot_history(self, history, destination=None):
         import matplotlib
@@ -236,11 +254,19 @@ class Multioutput(object):
                  label="Val", lw=1, color="green")
         plt.ylim(0, 1)
 
+        plt.subplot(1, 4, 4)
+        plt.title('TOP10')
+        plt.plot(history.history["top10"],
+                 label="Train", lw=1, ls='--', color="orange")
+        plt.plot(history.history["val_top10"],
+                 label="Val", lw=1, color="orange")
+        plt.ylim(0, 1)
 
         plt.tight_layout()
 
         if destination is not None:
             plt.savefig(destination)
+        plt.close('all')
 
     def _plot_eval(self, df):
         pass
