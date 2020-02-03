@@ -136,7 +136,7 @@ class Multioutput(object):
 
         model.compile(
             optimizer=keras.optimizers.Adam(lr=self.learning_rate),
-            loss=keras.losses.CategoricalCrossentropy(),
+            loss=keras.losses.BinaryCrossentropy(),
             metrics=metrics)
 
         model.summary()
@@ -147,24 +147,30 @@ class Multioutput(object):
         if load:
             self.model.load_weights(self.model_file)
 
-    def fit(self):
+    def fit(self, monitor='val_top10', class_weight=None):
         input_shape = (self.tr_shapes[0][1],)
         self.build_model(input_shape)
 
         early_stopping = tf.keras.callbacks.EarlyStopping(
-            monitor='val_auc',
+            monitor=monitor,
             verbose=1,
             patience=4,
             mode='max',
             restore_best_weights=True)
+
+        if monitor is None:
+            callbacks = None
+        else:
+            callbacks = [early_stopping]
 
         t0 = time()
         self.history = self.model.fit_generator(
             generator=self.tr_gen(),
             steps_per_epoch=np.ceil(self.tr_shapes[0][0] / self.batch_size),
             epochs=self.epochs,
-            callbacks=[early_stopping],
+            callbacks=callbacks,
             validation_data=self.val_gen(),
+            class_weight=class_weight,
             validation_steps=np.ceil(self.val_shapes[0][0] / self.batch_size),
             shuffle=True)
 
