@@ -41,10 +41,19 @@ class Traintest(object):
             else:
                 self.x_name = "x_%s" % split
                 self.y_name = "y_%s" % split
+            '''
             available_splits = self.get_split_names()
             if split not in available_splits:
                 raise Exception("Split '%s' not found in %s!" %
                                 (split, str(available_splits)))
+            '''
+
+    def get_x_shapes(self):
+        """Return the shpaes of X."""
+        self.open()
+        x_shape = self._f[self.x_name].shape
+        self.close()
+        return x_shape
 
     def get_xy_shapes(self):
         """Return the shpaes of X an Y."""
@@ -531,12 +540,20 @@ class Traintest(object):
             x_dtype = reader._f[reader.x_name_left].dtype
             y_dtype = reader._f[reader.y_name_left].dtype
         else:
-            # read shapes
-            x_shape = reader._f[reader.x_name].shape
-            y_shape = reader._f[reader.y_name].shape
-            # read data types
-            x_dtype = reader._f[reader.x_name].dtype
-            y_dtype = reader._f[reader.y_name].dtype
+            if only_x:
+                x_shape = reader._f[reader.x_name].shape
+                shapes = x_shape
+                x_dtype = reader._f[reader.x_name].dtype
+                dtypes = x_dtype
+            else:
+                # read shapes
+                x_shape = reader._f[reader.x_name].shape
+                y_shape = reader._f[reader.y_name].shape
+                shapes = (x_shape, y_shape)
+                # read data types
+                x_dtype = reader._f[reader.x_name].dtype
+                y_dtype = reader._f[reader.y_name].dtype
+                dtypes = (x_dtype, y_dtype)
         # no batch size -> return everything
         if not batch_size:
             batch_size = x_shape[0]
@@ -560,4 +577,4 @@ class Traintest(object):
                     yield reader.get_xy(beg_idx, end_idx)
                 beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
 
-        return (x_shape, y_shape), (x_dtype, y_dtype), example_generator_fn
+        return shapes, dtypes, example_generator_fn
