@@ -1567,42 +1567,37 @@ def epoch_per_iteration_heuristic(samples, features, clip=(16, 1024)):
     return np.clip(pow2, *clip)
 
 
-def subsample(tensor, sign_size=128, p_original=0.05,
-              p_dataset=0.0, dataset_idx=None, dataset=None):
+def subsample(tensor, sign_width=128,
+              p_nr=np.array([1 / 25.] * 25),
+              p_keep=np.array([1 / 25.] * 25)):
     """Function to subsample stacked data."""
     # it is safe to make a local copy of the input matrix
     new_data = np.copy(tensor)
     # we will have a masking matrix at the end
     mask = np.zeros_like(new_data).astype(bool)
-    if new_data.shape[1] % sign_size != 0:
-        raise Exception('All signature should be of length %i.' % sign_size)
-    if p_dataset > 0.0 and dataset_idx is None:
-        raise Exception('Please specify dataset/s to keep.')
+    #if new_data.shape[1] % sign_width != 0:
+    #    raise Exception('All signature should be of length %i.' % sign_width)
     for idx, row in enumerate(new_data):
-        # the following assume the stacked signature to have a fixed width
-        presence = ~np.isnan(row[0::sign_size])
-        # drop everything except the desired dataset
-        if np.random.rand() < p_dataset:
-            presence_add = np.zeros(presence.shape).astype(bool)
-            presence_add[dataset_idx] = True
-        else:
-            # low probability of keeping the original sample
-            if np.random.rand() < p_original:
-                presence_add = presence
-            else:
-                # present datasets
-                present_idxs = np.argwhere(presence).flatten()
-                # how many dataset in this subsampling?
-                max_add = present_idxs.shape[0]
-                n_to_add = np.random.choice(max_add) + 1
-                # which ones?
-                to_add = np.random.choice(
-                    present_idxs, n_to_add, replace=False)
-                # dataset mask
-                presence_add = np.zeros(presence.shape).astype(bool)
-                presence_add[to_add] = True
+        # the following assumes the stacked signature have a fixed width
+        presence = ~np.isnan(row[0::sign_width])
+        # datasets that I can select
+        present_idxs = np.argwhere(presence).flatten()
+        # how many dataset at most?
+        max_add = present_idxs.shape[0]
+        # normalize nr dataset probabilities
+        p_nr_row = p_nr[:max_add] / np.sum(p_nr[:max_add])
+        # how many dataset are we keeping?
+        nr_keep = np.random.choice(max_add, p=p_nr_row) + 1
+        # normalize dataset keep probabilities
+        p_keep_row = p_keep[presence] / np.sum(p_keep[presence])
+        # which ones?
+        to_add = np.random.choice(
+            present_idxs, nr_keep, p=p_keep_row, replace=False)
+        # dataset mask
+        presence_add = np.zeros(presence.shape).astype(bool)
+        presence_add[to_add] = True
         # from dataset mask to signature mask
-        mask[idx] = np.repeat(presence_add, sign_size)
+        mask[idx] = np.repeat(presence_add, sign_width)
     # make masked dataset NaN
     new_data[~mask] = np.nan
     return new_data
