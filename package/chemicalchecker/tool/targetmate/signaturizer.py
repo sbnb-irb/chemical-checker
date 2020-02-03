@@ -469,3 +469,82 @@ class SignaturizerSetup(Signaturizer, Fingerprinter):
             return Fingerprinter.read_signatures(self, smiles=smiles, **kwargs)
         else:
             return Signaturizer.read_signatures(self, smiles=smiles, **kwargs)
+
+# Signatures in a raw HDF5 format
+#  Utils functions to assemble signatures
+
+@logged
+class RawSignatureStacker(object):
+
+    def __init__(self, filename, datasets, sign_type="sign3", cc=None):
+        self.filename = os.path.abspath(filename)
+        self.datasets = datasets
+        self.sign_type = sign_type
+        if cc is None:
+            self.cc = ChemicalChecker()
+        else:
+            self.cc = cc
+
+    def stack(self):
+        self.__log.debug("Stacked signature will be stored as a simple HDF5 file")
+        keys = None
+        self.__log.debug("Getting shared keys")
+        for ds in self.datasets:
+            sign = self.cc.get_signature(self.sign_type, "full", ds)
+            if keys is None:
+                keys = set(sign.keys)
+            else:
+                keys = keys.intersection(sign.keys)
+        keys = sorted(keys)
+        self.__log.debug("Provisionally, I control for a universe of iks")
+        cc = ChemicalChecker()
+        sign = cc.get_signature("sign3", "full", "A1.001")
+        iks_universe = set(sign.keys)
+        keys = [k for k in keys if k in iks_universe or k[0]=="_"] # The "_" is relevant to the DREAM challenge
+        self.__log.debug("%d keys in common" % len(keys))
+        X = None
+        for ds in self.datasets:
+            sign = self.cc.get_signature(self.sign_type, "full", ds)
+            V = sign.get_vectors(keys)[1]
+            if X is None:
+                X = V
+                dtype = V.dtype
+            else:
+                X = np.hstack((X, V))
+        self.__log.debug("Saving: %s" % self.filename)
+        with h5py.File(self.filename, "w") as hf:
+            hf.create_dataset("V", data=X.astype(dtype))
+            hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
+            hf.create_dataset("datasets", data=np.array(self.datasets, DataSignature.string_dtype()))
+
+@logged
+class FileByFileSignatureStacker(object):
+
+    def __init__(self, filename, source_folder, files_format="npy"):
+        self.filename = os.path.abspath(filename)
+        self.files_format = files_format
+        self.source_folder = os.path.abspath(source_folder)
+
+    def stack(self):
+        self.__log.debug("Reading files one by one from: %s" % self.source_folder)
+        V    = []
+        keys = []
+        dtype = None
+        from tqdm import tqdm
+        for f in tqdm(os.listdir(self.source_folder)):
+            f = os.path.join(self.source_folder, f)
+            if self.files_format == "npy":
+                v = np.load(f)
+                if dtype is None:
+                    dtype = v.dtype
+                V += [v]
+                keys += [f.split("/")[-1].split(".npy")[0]]
+        V    = np.array(V)
+        keys = np.array(keys)
+        idxs = np.argsort(keys)
+        keys = keys[idxs]
+        V    = V[idxs]
+        self.__log.debug("Saving: %s" % self.filename)
+        with h5py.File(self.filename, "w") as hf:
+            hf.create_dataset("V", data=V.astype(dtype))
+            hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
