@@ -135,11 +135,15 @@ class Siamese(object):
 
         def create_base_network(input_shape):
             '''Create network architecture'''
+            def binarize(x):
+                greater = K.greater_equal(x,0.5) #will return boolean values
+                greater = K.cast(greater, dtype=K.floatx()) #will convert bool to 0 and 1    
+                return greater
             input = Input(shape=input_shape)
             x = Dense(1024, activation='relu', use_bias=False)(input)  # 1024
             x = Dropout(0.1)(x)
             x = Dense(128, activation='sigmoid')(x)
-            
+            x = Lambda(binarize, output_shape=(128,))(x)
             return Model(input, x)
 
         def accuracy(y_true, y_pred):

@@ -886,7 +886,7 @@ class sign4(BaseSignature, DataSignature):
                              suffix='final', evaluate=False)
         siamese = Siamese(final_adanet_path)
         scaler_file = os.path.join(self.model_path, 'scaler.pkl')
-        if os.path.ifile(scaler_file):
+        if os.path.isfile(scaler_file):
             scaler = pickle.load(open(scaler_file, 'rb'))
             siamese.set_predict_scaler(scaler)
         else:
