@@ -1,0 +1,216 @@
+import tempfile
+import os
+import shutil
+import time
+
+from chemicalchecker.util import logged
+from chemicalchecker.util import Config
+from chemicalchecker.core import ChemicalChecker
+from chemicalchecker.util.pipeline import BaseTask
+from chemicalchecker.util import HPC
+
+VALID_TYPES = ['sign', 'neig', 'clus', 'proj']
+
+CC_TYPES_DEPENDENCIES = {'sign0': '', 'sign1': 'sign0', 'sign2':
+                         'sign1', 'sign3': 'sign2', 'neig1': 'sign1', 'proj1': 'sign1',
+                         'clus1': 'sign1', 'neig2': 'sign2', 'proj2': 'sign2'}
+
+CC_TYPES_MEM_CPU = {'sign0': (32, 16), 'sign1': (20, 10), 'sign2': (
+    20, 16), 'sign3': (2, 32), 'neig1': (30, 15),
+    'clus1': (20, 10), 'proj1': (20, 10)}
+
+SPECIAL_PARAMS = {'sign2': {'adanet': {'cpu': 16}, 'node2vec': {'cpu': 4}},
+                  'neig1': {'cpu': 15},
+                  'sign3': {'cpu': 32},
+                  'clus1': {'cpu': 10},
+                  'proj1': {'cpu': 10}}
+
+
+@logged
+class CCPredict(BaseTask):
+
+    def __init__(self, config=None, name=None, cc_type=None, **params):
+
+        if cc_type is None:
+            raise Exception("CCPredict requires a cc_type")
+
+        if name is None:
+            name = cc_type
+        BaseTask.__init__(self, config, name, **params)
+
+        if cc_type not in CC_TYPES_DEPENDENCIES.keys():
+            raise Exception('CC Type ' + cc_type + ' not supported')
+
+        self.cc_type = cc_type
+
+        self.ds_data_params = params.get('ds_params', None)
+        self.general_data_params = params.get('general_params', None)
+
+        self.output_path = params.get("output_path", None)
+        self.output_file = params.get("output_file", None)
+        self.datasets_input_files = params.get("datasets_input_files", None)
+        self.datasets_entry_point = params.get("datasets_entry_point", None)
+
+        if self.output_file is None:
+            self.output_file = self.cc_type + ".h5"
+
+        if self.output_path is None:
+            raise Exception("No output_path defined")
+
+        if self.datasets_input_files is None:
+            raise Exception("There is no dataset to predict " + self.cc_type)
+
+    def run(self):
+        """Run the CCPredict task."""
+
+        config_cc = Config()
+        dataset_codes = list()
+        cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
+
+        branch = 'reference'
+
+        if self.cc_type == 'sign0' or self.cc_type == 'sign3':
+            branch = 'full'
+
+        if type(self.datasets_input_files) is dict or type(self.datasets_input_files) is list:
+
+            if type(self.datasets_input_files) is list:
+                dataset_codes_files = {}
+                for code in self.datasets_input_files:
+                    dataset_codes_files[code] = os.path.join(
+                        self.output_path, code, CC_TYPES_DEPENDENCIES[self.cc_type] + ".h5")
+                    dataset_codes.append(code)
+                self.datasets_input_files = dataset_codes_files
+            else:
+                dataset_codes = self.datasets_input_files.keys()
+        else:
+            raise Exception(
+                "Input dataset_codes parameter is neither a list nor a dict")
+
+        for ds, filename in self.datasets_input_files.items():
+            if not os.path.exists(self.datasets_input_files[ds]):
+                raise Exception(
+                    "Expected input file %s not present" % self.datasets_input_files[code])
+
+        for ds in dataset_codes:
+            sign0 = cc.get_signature(self.cc_type, branch, ds)
+            if not sign0.is_fit():
+                raise Exception("Dataset %s is not trained yet" % ds)
+
+        dataset_params = list()
+
+        for ds_code in dataset_codes:
+            if isinstance(self.ds_data_params, Config):
+                temp_dict = self.ds_data_params.asdict()
+            else:
+                temp_dict = self.ds_data_params
+            if temp_dict is not None and ds_code in temp_dict.keys():
+                if isinstance(temp_dict[ds_code], Config):
+                    dict_params = temp_dict[ds_code].asdict()
+                else:
+                    dict_params = temp_dict[ds_code]
+
+                if self.cc_type in SPECIAL_PARAMS:
+                    dict_params.update(SPECIAL_PARAMS[self.cc_type])
+                if self.general_data_params is not None:
+                    dict_params.update(self.general_data_params)
+
+                if self.datasets_entry_point is not None:
+                    for ds in self.datasets_entry_point.keys():
+                        dict_params.update(
+                            {'entry_point': self.datasets_entry_point[ds]})
+                dataset_params.append(
+                    (ds_code, self.datasets_input_files[ds_code], dict_params))
+            else:
+                dataset_params.append(
+                    (ds_code, self.datasets_input_files[ds_code], None))
+
+        job_path = None
+        if len(dataset_codes) > 0:
+
+            dataset_codes.sort()
+
+            job_path = tempfile.mkdtemp(
+                prefix='jobs_' + self.cc_type + '_pred_', dir=self.tmpdir)
+
+            if not os.path.isdir(job_path):
+                os.mkdir(job_path)
+
+            # create script file
+            cc_config_path = os.environ['CC_CONFIG']
+            cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
+            script_lines = [
+                "import sys, os",
+                "import pickle",
+                "from chemicalchecker.core import ChemicalChecker",
+                "from chemicalchecker.core import DataSignature",
+                "task_id = sys.argv[1]",  # <TASK_ID>
+                "filename = sys.argv[2]",  # <FILE>
+                # load pickled data
+                "inputs = pickle.load(open(filename, 'rb'))",
+                # elements for current job
+                "dataset = inputs[task_id][0][0]",
+                "dataset_file = inputs[task_id][0][1]",
+                "pars = inputs[task_id][0][2]",  # elements for current job
+                # elements for current job
+                "input_file = dataset_file",
+                "cc = ChemicalChecker('%s' )" % config_cc.PATH.CC_ROOT,
+                'if pars is None: pars = {}',
+                "output_file=os.path.join('%s', dataset, '%s')" % (
+                    self.output_path, self.output_file),
+                "if not os.path.exists(os.path.dirname(output_file)):",
+                "    os.makedirs(os.path.dirname(output_file))",
+                # start import
+                'sign_full = cc.get_signature("%s","%s",dataset, **pars)' % (
+                    self.cc_type, branch)
+            ]
+
+            if self.cc_type == 'sign0':
+                script_lines += ["sign_full.predict(input_file,output_file)"]
+            else:
+                script_lines += [
+                    "sign_full.predict(DataSignature(input_file),output_file)"]
+
+            script_lines += ["print('JOB DONE')"]
+
+            script_name = os.path.join(
+                job_path, self.cc_type + '_pred_script.py')
+            with open(script_name, 'w') as fh:
+                for line in script_lines:
+                    fh.write(line + '\n')
+            # hpc parameters
+
+            params = {}
+            params["num_jobs"] = len(dataset_codes)
+            params["jobdir"] = job_path
+            params["job_name"] = "CC_PRD_" + self.cc_type.upper()
+            params["elements"] = dataset_params
+            params["wait"] = True
+            params["memory"] = CC_TYPES_MEM_CPU[self.cc_type][0]
+            params["cpu"] = CC_TYPES_MEM_CPU[self.cc_type][1]
+            # job command
+            singularity_image = Config().PATH.SINGULARITY_IMAGE
+            command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE>".format(
+                cc_package, cc_config_path, singularity_image, script_name)
+            # submit jobs
+            cluster = HPC.from_config(config_cc)
+            jobs = cluster.submitMultiJob(command, **params)
+
+        dataset_not_done = []
+        time.sleep(5)
+
+        for code in self.datasets_input_files.keys():
+
+            check_file = os.path.join(self.output_path, code, self.output_file)
+
+            if not os.path.exists(check_file):
+                dataset_not_done.append(code)
+                self.__log.error(
+                    self.cc_type + " predict failed for dataset code: " + code)
+
+        if len(dataset_not_done) > 0:
+            raise Exception('Not all predictions were completed correctly')
+        else:
+            self.mark_ready()
+            if job_path is not None:
+                shutil.rmtree(job_path)
