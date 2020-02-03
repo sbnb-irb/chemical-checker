@@ -1,7 +1,10 @@
+import os
 import h5py
+import pickle
 import itertools
 import numpy as np
 from tqdm import tqdm
+from sklearn.preprocessing import RobustScaler
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.remove_near_duplicates import RNDuplicates
@@ -257,8 +260,11 @@ class NeighborPairTraintest(object):
 
         # mean centering columns
         if mean_center_x:
-            mean = np.nanmean(X, axis=1)
-            X = X - mean[:, np.newaxis]
+            scaler = RobustScaler()
+            X = scaler.fit_transform(X)
+            scaler_file = os.path.join(os.path.split(out_file)[0],
+                                       'scaler.pkl')
+            pickle.dump(scaler, open(scaler_file, 'wb'))
 
         # create dataset
         NeighborPairTraintest.__log.info('Traintest saving to %s', out_file)
