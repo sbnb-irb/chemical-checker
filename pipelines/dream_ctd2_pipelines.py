@@ -10,7 +10,7 @@ import h5py
 from chemicalchecker import ChemicalChecker
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, CCFit
 
-os.environ['CC_CONFIG'] = '/aloy/home/oguitart/pipelines/dream_ctd2_config.json'
+os.environ['CC_CONFIG'] = '/aloy/home/oguitart/projects/source/chemical_checker/pipelines/dream_ctd2_config.json'
 
 
 CC_PATH = "/aloy/web_checker/package_cc/dream_ctd2/"
