@@ -102,6 +102,7 @@ class CCFit(BaseTask):
         self.datasets = params.get('datasets', None)
         self.full_reference = params.get('full_reference', True)
         self.ds_data_params = params.get('ds_params', None)
+        self.general_data_params = params.get('general_params', None)
         self.target_datasets = params.get('target_datasets', None)
         self.ref_datasets = params.get('reference_datasets', None)
 
@@ -218,6 +219,8 @@ class CCFit(BaseTask):
 
                 if self.cc_type in SPECIAL_PARAMS:
                     dict_params.update(SPECIAL_PARAMS[self.cc_type])
+                if self.general_data_params is not None:
+                    dict_params.update(self.general_data_params)
                 dataset_params.append(
                     (ds_code, dict_params))
             else:
