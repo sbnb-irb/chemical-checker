@@ -60,6 +60,8 @@ class sign0(BaseSignature, DataSignature):
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
 
+        self.entry_point = params.get('entry_point', None)
+
     def call_preprocess(self, output, method, infile=None, entry=None):
         """Call the external pre-process script."""
         # create argument list
@@ -88,7 +90,7 @@ class sign0(BaseSignature, DataSignature):
 
         self.mark_ready()
 
-    def predict(self, input_data_file, destination, entry_point=None):
+    def predict(self, input_data_file, destination):
         """Call the external preprocess script to generate h5 data."""
         """
         Args:
@@ -107,7 +109,7 @@ class sign0(BaseSignature, DataSignature):
             raise Exception("Pre-process script not found! %s",
                             self.preprocess_script)
         self.call_preprocess(destination, "predict",
-                             input_data_file, entry_point)
+                             input_data_file, self.entry_point)
 
     def to_features(self, signatures):
         """Convert signature to explicit feature names.
