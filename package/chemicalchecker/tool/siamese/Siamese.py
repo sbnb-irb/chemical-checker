@@ -183,11 +183,13 @@ class Siamese(object):
             t0 = time()
             self.history = self.siamese.fit_generator(
                 generator=self.tr_gen(),
-                steps_per_epoch=np.ceil(self.tr_shapes[0][0] / self.batch_size),
+                steps_per_epoch=np.ceil(
+                    self.tr_shapes[0][0] / self.batch_size),
                 epochs=self.epochs,
                 callbacks=[early_stopping],
                 validation_data=self.val_gen(),
-                validation_steps=np.ceil(self.val_shapes[0][0] / self.batch_size),
+                validation_steps=np.ceil(
+                    self.val_shapes[0][0] / self.batch_size),
                 shuffle=True,
                 verbose=2)
 
@@ -200,10 +202,12 @@ class Siamese(object):
             t0 = time()
             self.history = self.siamese.fit_generator(
                 generator=self.tr_gen(),
-                steps_per_epoch=np.ceil(self.tr_shapes[0][0] / self.batch_size),
+                steps_per_epoch=np.ceil(
+                    self.tr_shapes[0][0] / self.batch_size),
                 epochs=self.epochs,
                 validation_data=self.val_gen(),
-                validation_steps=np.ceil(self.val_shapes[0][0] / self.batch_size),
+                validation_steps=np.ceil(
+                    self.val_shapes[0][0] / self.batch_size),
                 shuffle=True,
                 verbose=2)
 
@@ -326,12 +330,19 @@ class Siamese(object):
 
         return results
 
+    def set_predict_scaler(self, scaler):
+        self.scaler = scaler
+
     def predict(self, input_mat):
         if self.siamese is None:
             self.build_model((input_mat.shape[1],), load=True)
             self.transformer = self.siamese.layers[2]
         no_nans = np.nan_to_num(input_mat)
-        return self.transformer.predict(no_nans)
+        if hasattr(self, 'scaler'):
+            scaled = self.scaler.fit_transform(no_nans)
+        else:
+            scaled = no_nans
+        return self.transformer.predict(scaled)
 
     def _plot_history(self, history, destination=None):
         import matplotlib
@@ -360,7 +371,7 @@ class Siamese(object):
         if destination is not None:
             plt.savefig(destination)
 
-    def _plot_eval(self, df,destination=None):
+    def _plot_eval(self, df, destination=None):
         import matplotlib
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
@@ -369,8 +380,7 @@ class Siamese(object):
         g = sns.catplot(x="eval_set", y="accuracy", hue="split", data=df,
                         height=6, kind="bar", palette="muted")
         g.set_ylabels("Accuracy", fontsize=15)
-        plt.ylim(0,1)
+        plt.ylim(0, 1)
 
         if destination is not None:
             plt.savefig(destination)
-        
