@@ -136,9 +136,10 @@ class Siamese(object):
         def create_base_network(input_shape):
             '''Create network architecture'''
             input = Input(shape=input_shape)
-            x = Dense(1024, activation='relu')(input)  # 1024
+            x = Dense(1024, activation='relu', use_bias=False)(input)  # 1024
             x = Dropout(0.1)(x)
-            x = Dense(128, activation='relu')(x)
+            x = Dense(128, activation='sigmoid')(x)
+            
             return Model(input, x)
 
         def accuracy(y_true, y_pred):
