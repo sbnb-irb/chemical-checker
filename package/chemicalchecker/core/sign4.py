@@ -835,7 +835,7 @@ class sign4(BaseSignature, DataSignature):
             sign2_coverage=None, sign0=None,
             model_confidence=False, save_correlations=False,
             predict_novelty=False, update_preds=True, normalize_scores=False,
-            mask_features=True,
+            mask_features=False,
             validations=True, chunk_size=1000):
         """Fit the model to predict the signature 3.
 
@@ -885,6 +885,12 @@ class sign4(BaseSignature, DataSignature):
             self.learn_sign2(self.params['sign2'],
                              suffix='final', evaluate=False)
         siamese = Siamese(final_adanet_path)
+        scaler_file = os.path.join(self.model_path, 'scaler.pkl')
+        if os.path.ifile(scaler_file):
+            scaler = pickle.load(open(scaler_file, 'rb'))
+            siamese.set_predict_scaler(scaler)
+        else:
+            self.__log.warn('No scaler available. %s' % scaler_file)
 
         # part of confidence is the expected error
         if model_confidence:
