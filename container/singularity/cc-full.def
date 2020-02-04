@@ -84,6 +84,7 @@ From: centos
     pip install pubchempy                         # Pubchem rest api
     pip install chemfp                            # fast fingerprint search (used in TargetMate)
     pip install jupyter                           # jupyter notebooks
+    pip install apache-airflow                    # Install airflow for the pipeline
 
     # data packages
     pip install numpy                             # best numerical library ever
