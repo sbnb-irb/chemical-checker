@@ -3,6 +3,8 @@ import os
 import shutil
 import time
 
+from airflow.models import BaseOperator
+from airflow import AirflowException
 from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
@@ -27,7 +29,7 @@ SPECIAL_PARAMS = {'sign2': {'adanet': {'cpu': 16}, 'node2vec': {'cpu': 4}},
 
 
 @logged
-class CCPredict(BaseTask):
+class CCPredict(BaseTask, BaseOperator):
 
     def __init__(self, config=None, name=None, cc_type=None, **params):
 
@@ -36,7 +38,14 @@ class CCPredict(BaseTask):
 
         if name is None:
             name = cc_type
+        args = []
+        task_id = params.get('task_id', None)
+        if task_id is None:
+            params['task_id'] = name
         BaseTask.__init__(self, config, name, **params)
+        BaseOperator.__init__(self, *args, **params)
+
+        # BaseTask.__init__(self, config, name, **params)
 
         if cc_type not in CC_TYPES_DEPENDENCIES.keys():
             raise Exception('CC Type ' + cc_type + ' not supported')
@@ -82,7 +91,7 @@ class CCPredict(BaseTask):
                     dataset_codes.append(code)
                 self.datasets_input_files = dataset_codes_files
             else:
-                dataset_codes = self.datasets_input_files.keys()
+                dataset_codes = list(self.datasets_input_files.keys())
         else:
             raise Exception(
                 "Input dataset_codes parameter is neither a list nor a dict")
@@ -209,8 +218,16 @@ class CCPredict(BaseTask):
                     self.cc_type + " predict failed for dataset code: " + code)
 
         if len(dataset_not_done) > 0:
-            raise Exception('Not all predictions were completed correctly')
+            if not self.custom_ready():
+                raise AirflowException("Some predictions failed")
         else:
             self.mark_ready()
             if job_path is not None:
                 shutil.rmtree(job_path)
+
+    def execute(self, context):
+        """Run the molprops step."""
+
+        self.tmpdir = context['params']['tmpdir']
+
+        self.run()
