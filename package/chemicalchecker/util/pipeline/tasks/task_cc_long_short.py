@@ -3,7 +3,8 @@ import os
 import shutil
 import h5py
 import numpy as np
-
+from airflow.models import BaseOperator
+from airflow import AirflowException
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
@@ -13,7 +14,7 @@ from chemicalchecker.util import HPC
 
 
 @logged
-class CCLongShort(BaseTask):
+class CCLongShort(BaseTask, BaseOperator):
 
     def __init__(self, config=None, name=None, cc_type=None, **params):
 
@@ -22,7 +23,13 @@ class CCLongShort(BaseTask):
 
         if name is None:
             name = cc_type + "_long_short"
+        args = []
+        task_id = params.get('task_id', None)
+        if task_id is None:
+            params['task_id'] = name
+
         BaseTask.__init__(self, config, name, **params)
+        BaseOperator.__init__(self, *args, **params)
 
         self.cc_type = cc_type
 
@@ -63,7 +70,8 @@ class CCLongShort(BaseTask):
 
         dataset_codes.sort()
 
-        dataset_params = {"cpu": 32, "epochs": self.epochs, "encoding_dim": self.encoding_dim}
+        dataset_params = {"cpu": 32, "epochs": self.epochs,
+                          "encoding_dim": self.encoding_dim}
 
         s = cc.get_signature(self.cc_type, 'full', dataset_codes[0])
 
@@ -172,3 +180,12 @@ class CCLongShort(BaseTask):
         else:
             self.__log.warning(
                 self.dataset_sign_short + " Long to Short failed please check")
+            if not self.custom_ready():
+                raise AirflowException("Long to Short failed")
+
+    def execute(self, context):
+        """Run the molprops step."""
+
+        self.tmpdir = context['params']['tmpdir']
+
+        self.run()

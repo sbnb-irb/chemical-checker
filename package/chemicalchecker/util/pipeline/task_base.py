@@ -43,6 +43,9 @@ class BaseTask(object):
         self.tmpdir = tmpdir
         self.readydir = readydir
 
+    def custom_ready(self):
+        return self.readydir != ''
+
     def is_ready(self, substep=None):
         """Check if the step is already done."""
         BaseTask.__log.debug('is_ready')
@@ -54,14 +57,17 @@ class BaseTask(object):
 
     def mark_ready(self, substep=None):
         """Mark the step as done."""
-        BaseTask.__log.debug('mark_ready')
-        if substep is None:
-            filename = os.path.join(self.readydir, self.readyfile)
+        if not self.custom_ready():
+            BaseTask.__log.debug('Not ready dir so skip mark_ready')
         else:
-            filename = os.path.join(
-                self.readydir, self.name + "_" + substep + ".ready")
-        with open(filename, 'w') as fh:
-            pass
+            BaseTask.__log.debug('mark_ready')
+            if substep is None:
+                filename = os.path.join(self.readydir, self.readyfile)
+            else:
+                filename = os.path.join(
+                    self.readydir, self.name + "_" + substep + ".ready")
+            with open(filename, 'w') as fh:
+                pass
 
     def clean(self, substep=None):
         """Clean the step."""

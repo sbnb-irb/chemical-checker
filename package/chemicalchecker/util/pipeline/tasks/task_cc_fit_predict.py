@@ -2,7 +2,8 @@ import tempfile
 import os
 import shutil
 import h5py
-
+from airflow.models import BaseOperator
+from airflow import AirflowException
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
@@ -64,7 +65,7 @@ SIGN0_SCRIPT_F = [
 SIGN0_SCRIPT_FR = [
     "from chemicalchecker.util.remove_near_duplicates import RNDuplicates",
     "sign_full.fit()",
-    "rnd = RNDuplicates(cpu=%d)"%CC_TYPES_MEM_CPU['sign0'][1],
+    "rnd = RNDuplicates(cpu=%d)" % CC_TYPES_MEM_CPU['sign0'][1],
     "rnd.remove(sign_full.data_path, save_dest=sign_ref.data_path)",
     "f5 = h5py.File(sign_full.data_path)",
     "if 'features' in f5.keys():"
@@ -86,7 +87,7 @@ SPECIAL_PARAMS = {'sign2': {'adanet': {'cpu': 16}, 'node2vec': {'cpu': 4}},
 
 
 @logged
-class CCFit(BaseTask):
+class CCFit(BaseTask, BaseOperator):
 
     def __init__(self, config=None, name=None, cc_type=None, **params):
 
@@ -95,7 +96,14 @@ class CCFit(BaseTask):
 
         if name is None:
             name = cc_type
+
+        args = []
+        task_id = params.get('task_id', None)
+        if task_id is None:
+            params['task_id'] = name
+
         BaseTask.__init__(self, config, name, **params)
+        BaseOperator.__init__(self, *args, **params)
 
         self.cc_type = cc_type
 
@@ -327,3 +335,13 @@ class CCFit(BaseTask):
             self.mark_ready()
             if job_path is not None:
                 shutil.rmtree(job_path)
+        else:
+            if not self.custom_ready():
+                raise AirflowException("Not all dataset fits are done")
+
+    def execute(self, context):
+        """Run the molprops step."""
+
+        self.tmpdir = context['params']['tmpdir']
+
+        self.run()

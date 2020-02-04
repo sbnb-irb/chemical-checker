@@ -3,7 +3,8 @@ import os
 import shutil
 import h5py
 import numpy as np
-
+from airflow.models import BaseOperator
+from airflow import AirflowException
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
@@ -13,7 +14,7 @@ from chemicalchecker.util import HPC
 
 
 @logged
-class CCSmileConverter(BaseTask):
+class CCSmileConverter(BaseTask, BaseOperator):
 
     def __init__(self, config=None, name=None, cc_type='sign3', **params):
 
@@ -22,7 +23,13 @@ class CCSmileConverter(BaseTask):
 
         if name is None:
             name = "smile_to _" + cc_type
+        args = []
+        task_id = params.get('task_id', None)
+        if task_id is None:
+            params['task_id'] = name
+
         BaseTask.__init__(self, config, name, **params)
+        BaseOperator.__init__(self, *args, **params)
 
         self.cc_type = cc_type
 
@@ -134,3 +141,13 @@ class CCSmileConverter(BaseTask):
             self.mark_ready()
             if os.path.isdir(job_path):
                 shutil.rmtree(job_path)
+        else:
+            if not self.custom_ready():
+                raise AirflowException("Some predictions failed")
+
+    def execute(self, context):
+        """Run the molprops step."""
+
+        self.tmpdir = context['params']['tmpdir']
+
+        self.run()
