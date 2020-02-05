@@ -27,20 +27,26 @@ class Traintest(object):
             if siamese:
                 self.x_name_left = "x_left"
                 self.y_name_left = "y_left"
+                self.sw_name_left = "sw_left"
                 self.x_name_right = "x_right"
                 self.y_name_right = "y_right"
+                self.sw_name_right = "sw_right"
             else:
                 self.x_name = "x"
                 self.y_name = "y"
+                self.sw_name = "sw"
         else:
             if siamese:
                 self.x_name_left = "x_left_%s" % split
                 self.y_name_left = "y_left_%s" % split
+                self.sw_name_left = "sw_left_%s" % split
                 self.x_name_right = "x_right_%s" % split
                 self.y_name_right = "y_right_%s" % split
+                self.sw_name_right = "sw_right_%s" % split
             else:
                 self.x_name = "x_%s" % split
                 self.y_name = "y_%s" % split
+                self.sw_name = "sw_%s" % split
             '''
             available_splits = self.get_split_names()
             if split not in available_splits:
@@ -86,6 +92,25 @@ class Traintest(object):
             self.__log.info("HDF5 close %s", self._file)
         except AttributeError:
             self.__log.error('HDF5 file is not open yet.')
+
+    def get_sw(self, beg_idx, end_idx):
+        """Get a batch of X."""
+        if self.siamese:
+            features_left = self._f[self.sw_name_left][beg_idx: end_idx]
+            features_right = self._f[self.sw_name_right][beg_idx: end_idx]
+            # handle NaNs
+            if self.replace_nan is not None:
+                features_left[
+                    np.where(np.isnan(features_left))] = self.replace_nan
+                features_right[
+                    np.where(np.isnan(features_right))] = self.replace_nan
+            return [features_left, features_right]
+        else:
+            features = self._f[self.sw_name][beg_idx: end_idx]
+            # handle NaNs
+            if self.replace_nan is not None:
+                features[np.where(np.isnan(features))] = self.replace_nan
+            return features
 
     def get_xy(self, beg_idx, end_idx):
         """Get a batch of X and Y."""
@@ -529,7 +554,8 @@ class Traintest(object):
         Traintest.__log.info('Traintest saved to %s', out_file)
 
     @staticmethod
-    def generator_fn(file_name, split, batch_size=None, only_x=False, siamese=False):
+    def generator_fn(file_name, split, batch_size=None, only_x=False,
+                     siamese=False, sample_weights=False):
         """Return the generator function that we can query for batches."""
         reader = Traintest(file_name, split, siamese=siamese)
         reader.open()
@@ -572,9 +598,13 @@ class Traintest(object):
                     epoch += 1
                     #Traintest.__log.debug('EPOCH %i', epoch)
                 if only_x:
-                    yield reader.get_x(beg_idx, end_idx)
+                    to_yield = reader.get_x(beg_idx, end_idx)
                 else:
-                    yield reader.get_xy(beg_idx, end_idx)
+                    to_yield = reader.get_xy(beg_idx, end_idx)
+                if sample_weights:
+                    yield tuple([*to_yield, reader.get_sw(beg_idx, end_idx)])
+                else:
+                    yield to_yield
                 beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
 
         return shapes, dtypes, example_generator_fn
