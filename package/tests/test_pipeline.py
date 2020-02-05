@@ -4,9 +4,6 @@ import pytest
 import unittest
 import functools
 
-from chemicalchecker.util.pipeline import Pipeline, CCPredict
-
-
 def skip_if_import_exception(function):
     """Assist in skipping tests failing because of missing dependencies."""
     @functools.wraps(function)
@@ -31,11 +28,14 @@ class TestPipeline(unittest.TestCase):
 
     def tearDown(self):
         if os.path.isdir(self.pp_dir):
+            os.system("chmod -R 777 " + self.pp_dir)
             os.system("rm -rf " + self.pp_dir)
             #shutil.rmtree(self.pp_dir)
 
     @skip_if_import_exception
     def test_pipeline(self):
+        from chemicalchecker.util.pipeline import Pipeline, CCPredict
+
         self.pp = Pipeline(pipeline_path=self.pp_dir)
         self.assertTrue(os.path.isdir(self.pp.readydir))
         output_path = self.pp_dir
