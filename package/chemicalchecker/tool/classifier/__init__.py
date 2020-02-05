@@ -1,2 +1,2 @@
 from .imbalanced import Imbalanced
-from .multioutput import Multioutput
+from .multitask import BinaryMultitask
