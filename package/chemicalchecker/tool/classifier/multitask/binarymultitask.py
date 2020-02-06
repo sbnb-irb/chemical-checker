@@ -1,7 +1,8 @@
 import os
+import keras
+import pickle
 import numpy as np
 from time import time
-import keras
 import tensorflow as tf
 from keras import backend as K
 from keras.layers import Dense, Dropout
@@ -40,8 +41,9 @@ class BinaryMultitask(object):
         self.sample_weights = kwargs.get("sample_weights", False)
 
         # internal variables
-        self.name = 'multioutput_%s' % self.suffix
+        self.name = '%s_%s' % (self.__class__.__name__.lower(), self.suffix)
         self.time = 0
+        self.evaluate = evaluate
         self.output_dim = None
         self.model_dir = os.path.abspath(model_dir)
         self.model_file = os.path.join(self.model_dir, "%s.h5" % self.name)
@@ -66,7 +68,8 @@ class BinaryMultitask(object):
             batch_size=self.batch_size,
             sample_weights=self.sample_weights)
         self.tr_shapes = tr_shape_type_gen[0]
-        self.tr_gen = tr_shape_type_gen[2]
+        self.tr_gen = tr_shape_type_gen[2]()
+        self.steps_per_epoch = np.ceil(self.tr_shapes[0][0] / self.batch_size)
         self.output_dim = tr_shape_type_gen[0][1][1]
 
         # initialize validation/test generator
@@ -75,14 +78,19 @@ class BinaryMultitask(object):
                 self.traintest_file,
                 'test',
                 batch_size=self.batch_size,
-                sample_weights=self.sample_weights)
+                sample_weights=self.sample_weights,
+                shuffle=False)
+            self.val_shapes = val_shape_type_gen[0]
+            self.val_gen = val_shape_type_gen[2]()
+            self.validation_steps = np.ceil(
+                self.val_shapes[0][0] / self.batch_size)
         else:
-            val_shape_type_gen = None, None, None
-        self.val_shapes = val_shape_type_gen[0]
-        self.val_gen = val_shape_type_gen[2]
+            self.val_shapes = None
+            self.val_gen = None
+            self.validation_steps = None
 
         # log parameters
-        self.__log.info("**** BinaryMultitask Parameters: ***")
+        self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
         self.__log.info("{:<22}: {:>12}".format("model_dir", self.model_dir))
         if self.traintest_file is not None:
             self.__log.info("{:<22}: {:>12}".format(
@@ -106,7 +114,7 @@ class BinaryMultitask(object):
             "dropout", str(self.dropout)))
         self.__log.info("{:<22}: {:>12}".format(
             "pretrained_model", str(self.pretrained_model)))
-        self.__log.info("**** BinaryMultitask Parameters: ***")
+        self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
 
     def build_model(self, input_shape, load=False):
         """Compile Keras model
@@ -195,14 +203,13 @@ class BinaryMultitask(object):
         # call fit and save model
         t0 = time()
         self.history = self.model.fit_generator(
-            generator=self.tr_gen(),
-            steps_per_epoch=np.ceil(self.tr_shapes[0][0] / self.batch_size),
+            generator=self.tr_gen,
+            steps_per_epoch=self.steps_per_epoch,
             epochs=self.epochs,
             callbacks=callbacks,
-            validation_data=self.val_gen(),
+            validation_data=self.val_gen,
             class_weight=class_weight,
-            validation_steps=np.ceil(self.val_shapes[0][0] / self.batch_size),
-            shuffle=True)
+            validation_steps=self.validation_steps)
         self.time = time() - t0
         self.model.save(self.model_file)
 
@@ -213,11 +220,13 @@ class BinaryMultitask(object):
             self.last_epoch = self.epochs
 
         # save and plot history
-        np.save("history.npy", self.history)
+        history_file = os.path.join(
+            self.model_dir, "%s_history.pkl" % self.name)
+        pickle.dump(self.history.history, open(history_file, 'wb'))
         plot_file = os.path.join(self.model_dir, "%s.png" % self.name)
-        self._plot_history(self.history, plot_file)
+        self._plot_history(self.history.history, plot_file)
 
-    def predict(self, prediction_file, split='train', batch_size=1000):
+    def predict(self, prediction_file, split='train', batch_size=100):
         """Do predictions.
 
         prediction_file(str): Path to input file containing Xs.
@@ -234,9 +243,10 @@ class BinaryMultitask(object):
         shapes, dtypes, gen = Traintest.generator_fn(
             prediction_file, split,
             batch_size=batch_size,
-            only_x=True)
+            only_x=True,
+            shuffle=False)
         res = self.model.predict_generator(
-            gen(), steps=np.ceil(shapes[0] / 1000))
+            gen(), steps=np.ceil(shapes[0] / batch_size))
         return res[:shapes[0]]
 
     def _plot_history(self, history, destination):
@@ -247,57 +257,25 @@ class BinaryMultitask(object):
         """
         import matplotlib.pyplot as plt
 
-        plt.figure(figsize=(10, 15), dpi=600)
+        metrics = [k for k in history if not k.startswith('val_')]
 
-        plt.subplot(3, 2, 1)
-        plt.title('Loss')
-        plt.plot(history.history["loss"],
-                 label="Train", lw=1, ls='--', color="orangered")
-        plt.plot(history.history["val_loss"],
-                 label="Val", lw=1, color="orangered")
-        max_loss = max(max(history.history["val_loss"]),
-                       max(history.history["loss"]))
-        plt.ylim(0, max_loss)
+        rows = np.ceil(len(metrics) / 2.)
+        cols = 2
 
-        plt.subplot(3, 2, 2)
-        plt.title('Accuracy')
-        plt.plot(history.history["accuracy"],
-                 label="Train", lw=1, ls='--', color="royalblue")
-        plt.plot(history.history["val_accuracy"],
-                 label="Val", lw=1, color="royalblue")
-        plt.ylim(0, 1)
+        colors = ['orangered', 'royalblue', 'forestgreen', 'darkmagenta',
+                  'darkorange', 'olive'] * 10
 
-        plt.subplot(3, 2, 3)
-        plt.title('AUROC')
-        plt.plot(history.history["auroc"],
-                 label="Train", lw=1, ls='--', color="forestgreen")
-        plt.plot(history.history["val_auroc"],
-                 label="Val", lw=1, color="forestgreen")
-        plt.ylim(0, 1)
+        plt.figure(figsize=(cols * 5, rows * 5), dpi=100)
 
-        plt.subplot(3, 2, 4)
-        plt.title('AUPRC')
-        plt.plot(history.history["auprc"],
-                 label="Train", lw=1, ls='--', color="darkmagenta")
-        plt.plot(history.history["val_auprc"],
-                 label="Val", lw=1, color="darkmagenta")
-        plt.ylim(0, 1)
-
-        plt.subplot(3, 2, 5)
-        plt.title('Top 10')
-        plt.plot(history.history["top10"],
-                 label="Train", lw=1, ls='--', color="darkorange")
-        plt.plot(history.history["val_top10"],
-                 label="Val", lw=1, color="darkorange")
-        plt.ylim(0, 1)
-
-        plt.subplot(3, 2, 6)
-        plt.title('MCC')
-        plt.plot(history.history["mcc"],
-                 label="Train", lw=1, ls='--', color="olive")
-        plt.plot(history.history["val_mcc"],
-                 label="Val", lw=1, color="olive")
-        plt.ylim(0, 1)
+        for idx, metric in enumerate(metrics):
+            plt.subplot(rows, cols, idx + 1)
+            plt.title(metric.capitalize())
+            plt.plot(history[metric],
+                     label="Train", lw=2, ls='--', color=colors[idx])
+            if self.evaluate:
+                plt.plot(history["val_%s" % metric],
+                         label="Val", lw=2, color=colors[idx])
+            plt.ylim(0, 1)
 
         plt.tight_layout()
 
