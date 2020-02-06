@@ -556,7 +556,8 @@ class Traintest(object):
 
     @staticmethod
     def generator_fn(file_name, split, batch_size=None, only_x=False,
-                     siamese=False, sample_weights=False, shuffle=True):
+                     siamese=False, sample_weights=False, shuffle=True,
+                     return_on_epoch=False):
         """Return the generator function that we can query for batches."""
         reader = Traintest(file_name, split, siamese=siamese)
         reader.open()
@@ -606,6 +607,8 @@ class Traintest(object):
                         np.random.shuffle(batch_beg_end)
                     # Traintest.__log.debug('EPOCH %i (caller: %s)', epoch,
                     #                      inspect.stack()[1].function)
+                    if return_on_epoch:
+                        return
                 beg_idx, end_idx = batch_beg_end[batch_idx]
                 if only_x:
                     if sample_weights:
