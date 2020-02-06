@@ -71,7 +71,6 @@ class sign4(BaseSignature, DataSignature):
             'augment_fn': None,
             'augment_scale': 1,
             'augment_kwargs': {
-                'p_dataset': 0.5,
                 'dataset': [dataset]
             },
         }
@@ -282,12 +281,10 @@ class sign4(BaseSignature, DataSignature):
                           evaluate,
                           **params)
         self.__log.debug('Siamese training on %s' % traintest_file)
-        siamese.fit(evaluate)
+        siamese.fit()
         self.__log.debug('model saved to %s' % siamese_path)
         # when evaluating also save the performances
         if evaluate:
-            # save Siamese performances and plots
-            siamese.save_performances(siamese_path, suffix)
             # update the parameters with the new nr_of epochs
             self.params['sign2']['epochs'] = siamese.last_epoch + 2
 
@@ -1569,7 +1566,8 @@ def epoch_per_iteration_heuristic(samples, features, clip=(16, 1024)):
 
 def subsample(tensor, sign_width=128,
               p_nr=np.array([1 / 25.] * 25),
-              p_keep=np.array([1 / 25.] * 25)):
+              p_keep=np.array([1 / 25.] * 25),
+              **kwargs):
     """Function to subsample stacked data."""
     # it is safe to make a local copy of the input matrix
     new_data = np.copy(tensor)
