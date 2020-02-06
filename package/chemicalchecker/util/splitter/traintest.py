@@ -1,4 +1,5 @@
 import h5py
+import inspect
 import numpy as np
 from tqdm import tqdm
 
@@ -555,7 +556,7 @@ class Traintest(object):
 
     @staticmethod
     def generator_fn(file_name, split, batch_size=None, only_x=False,
-                     siamese=False, sample_weights=False):
+                     siamese=False, sample_weights=False, shuffle=True):
         """Return the generator function that we can query for batches."""
         reader = Traintest(file_name, split, siamese=siamese)
         reader.open()
@@ -565,6 +566,8 @@ class Traintest(object):
             y_shape = reader._f[reader.y_name_left].shape
             x_dtype = reader._f[reader.x_name_left].dtype
             y_dtype = reader._f[reader.y_name_left].dtype
+            shapes = (x_shape, y_shape)
+            dtypes = (x_dtype, y_dtype)
         else:
             if only_x:
                 x_shape = reader._f[reader.x_name].shape
@@ -583,20 +586,27 @@ class Traintest(object):
         # no batch size -> return everything
         if not batch_size:
             batch_size = x_shape[0]
+        batch_beg_end = np.zeros((int(np.ceil(x_shape[0] / batch_size)), 2))
+        last = 0
+        for row in batch_beg_end:
+            row[0] = last
+            row[1] = last + batch_size
+            last = row[1]
+        batch_beg_end = batch_beg_end.astype(int)
 
         def example_generator_fn():
             # generator function yielding data
             epoch = 0
-            beg_idx, end_idx = 0, batch_size
-            if siamese:
-                total = reader._f[reader.x_name_left].shape[0]
-            else:
-                total = reader._f[reader.x_name].shape[0]
+            batch_idx = 0
             while True:
-                if beg_idx >= total:
-                    beg_idx, end_idx = 0, batch_size
+                if batch_idx == len(batch_beg_end):
+                    batch_idx = 0
                     epoch += 1
-                    #Traintest.__log.debug('EPOCH %i', epoch)
+                    if shuffle:
+                        np.random.shuffle(batch_beg_end)
+                    # Traintest.__log.debug('EPOCH %i (caller: %s)', epoch,
+                    #                      inspect.stack()[1].function)
+                beg_idx, end_idx = batch_beg_end[batch_idx]
                 if only_x:
                     to_yield = reader.get_x(beg_idx, end_idx)
                 else:
@@ -605,6 +615,6 @@ class Traintest(object):
                     yield tuple([*to_yield, reader.get_sw(beg_idx, end_idx)])
                 else:
                     yield to_yield
-                beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
+                batch_idx += 1
 
         return shapes, dtypes, example_generator_fn
