@@ -608,13 +608,17 @@ class Traintest(object):
                     #                      inspect.stack()[1].function)
                 beg_idx, end_idx = batch_beg_end[batch_idx]
                 if only_x:
-                    to_yield = reader.get_x(beg_idx, end_idx)
+                    if sample_weights:
+                        yield reader.get_x(beg_idx, end_idx), \
+                            reader.get_sw(beg_idx, end_idx)
+                    else:
+                        yield reader.get_x(beg_idx, end_idx)
                 else:
-                    to_yield = reader.get_xy(beg_idx, end_idx)
-                if sample_weights:
-                    yield tuple([*to_yield, reader.get_sw(beg_idx, end_idx)])
-                else:
-                    yield to_yield
+                    if sample_weights:
+                        yield reader.get_xy(beg_idx, end_idx), \
+                            reader.get_sw(beg_idx, end_idx)
+                    else:
+                        yield reader.get_xy(beg_idx, end_idx)
                 batch_idx += 1
 
         return shapes, dtypes, example_generator_fn
