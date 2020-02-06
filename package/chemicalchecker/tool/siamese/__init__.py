@@ -1,1 +1,1 @@
-from .Siamese import Siamese
+from .siamese import Siamese
