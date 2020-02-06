@@ -273,7 +273,7 @@ class AdaNetWrapper(object):
         def _input_fn():
             # get shapes, dtypes, and generator function
             (x_shape, y_shape), dtypes, generator_fn = Traintest.generator_fn(
-                self.traintest_file, split, self.batch_size)
+                self.traintest_file, split, self.batch_size, return_on_epoch=True)
             # create dataset object
             dataset = tf.data.Dataset.from_generator(
                 generator_fn,
@@ -368,7 +368,7 @@ class AdaNetWrapper(object):
             predict_fn = predictor.from_saved_model(
                 model_dir, signature_def_key='predict')
         shapes, dtypes, fn = Traintest.generator_fn(
-            h5_file, split, batch_size, only_x=False)
+            h5_file, split, batch_size, only_x=False, return_on_epoch=True)
         x_shape, y_shape = shapes
         x_dtype, y_dtype = dtypes
         # tha max size of the return prediction is at most same size as input
