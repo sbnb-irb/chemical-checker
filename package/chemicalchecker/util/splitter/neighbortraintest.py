@@ -70,13 +70,13 @@ class NeighborPairTraintest(object):
     def open(self):
         """Open the HDF5."""
         self._f = h5py.File(self._file, 'r')
-        self.__log.info("HDF5 open %s", self._file)
+        #self.__log.info("HDF5 open %s", self._file)
 
     def close(self):
         """Close the HDF5."""
         try:
             self._f.close()
-            self.__log.info("HDF5 close %s", self._file)
+            #self.__log.info("HDF5 close %s", self._file)
         except AttributeError:
             self.__log.error('HDF5 file is not open yet.')
 
@@ -368,7 +368,7 @@ class NeighborPairTraintest(object):
     def generator_fn(file_name, split, batch_size=None, only_x=False,
                      replace_nan=None, augment_scale=1,
                      augment_fn=None, augment_kwargs={},
-                     mask_fn=None):
+                     mask_fn=None, shuffle=True):
         """Return the generator function that we can query for batches.
 
         file_name(str): The H5 generated via `create`
@@ -398,17 +398,27 @@ class NeighborPairTraintest(object):
         if mask_fn is None:
             def mask_fn(*data):
                 return data
+        batch_beg_end = np.zeros((int(np.ceil(x_shape[0] / batch_size)), 2))
+        last = 0
+        for row in batch_beg_end:
+            row[0] = last
+            row[1] = last + batch_size
+            last = row[1]
+        batch_beg_end = batch_beg_end.astype(int)
 
         def example_generator_fn():
             # generator function yielding data
             epoch = 0
-            beg_idx, end_idx = 0, batch_size
-            total = reader._f[reader.p_name].shape[0]
+            batch_idx = 0
             while True:
-                if beg_idx >= total:
-                    beg_idx, end_idx = 0, batch_size
+                if batch_idx == len(batch_beg_end):
+                    batch_idx = 0
                     epoch += 1
-                    NeighborPairTraintest.__log.debug('EPOCH %i', epoch)
+                    if shuffle:
+                        np.random.shuffle(batch_beg_end)
+                    # Traintest.__log.debug('EPOCH %i (caller: %s)', epoch,
+                    #                      inspect.stack()[1].function)
+                beg_idx, end_idx = batch_beg_end[batch_idx]
                 pairs, y = reader.get_py(beg_idx, end_idx)
                 x1 = X[pairs[:, 0]]
                 x2 = X[pairs[:, 1]]
@@ -433,7 +443,7 @@ class NeighborPairTraintest(object):
                     yield [x1, x2]
                 else:
                     yield [x1, x2], y
-                beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
+                batch_idx += 1
 
         pair_shape = (p_shape[0] * augment_scale, x_shape[1])
         shapes = (pair_shape, pair_shape, y_shape)
