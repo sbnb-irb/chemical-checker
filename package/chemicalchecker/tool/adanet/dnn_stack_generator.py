@@ -2,10 +2,13 @@ import functools
 import adanet
 import tensorflow as tf
 
+from tensorflow.keras import layers
+from tensorflow.keras.layers import Dense, Dropout
+
 from chemicalchecker.util import logged
 
 
-class NanMaskingLayer(tf.keras.layers.Layer):
+class NanMaskingLayer(layers.Layer):
 
     def __init__(self, mask_value=0.0):
         super(NanMaskingLayer, self).__init__()
@@ -66,26 +69,18 @@ class StackDNNBuilder(adanet.subnetwork.Builder):
         input_layer = tf.cast(features['x'], tf.float32)
         # forcing to input shape as dataset uses tf.py_func (loosing shape)
         input_layer = tf.reshape(features['x'], [-1, self._input_shape])
-        kernel_initializer = tf.glorot_uniform_initializer(seed=self._seed)
         last_layer = input_layer
         if self._nan_mask_value is not None:
             last_layer = NanMaskingLayer(self._nan_mask_value)(last_layer)
         for _ in range(self._num_layers):
-            last_layer = tf.layers.dense(
-                last_layer,
-                units=self._layer_size,
-                activation=self._activation,
-                kernel_initializer=kernel_initializer)
-            last_layer = tf.layers.dropout(
-                last_layer,
+            last_layer = Dense(
+                self._layer_size,
+                activation=self._activation)(last_layer)
+            last_layer = Dropout(
                 rate=self._dropout,
-                seed=self._seed,
-                training=training)
+                seed=self._seed)(last_layer, training=training)
 
-        logits = tf.layers.dense(
-            last_layer,
-            units=logits_dimension,
-            kernel_initializer=kernel_initializer)
+        logits = Dense(units=logits_dimension)(last_layer)
 
         persisted_tensors = {"num_layers": tf.constant(self._num_layers)}
         return adanet.Subnetwork(
