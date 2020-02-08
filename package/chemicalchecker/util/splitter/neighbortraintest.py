@@ -4,6 +4,8 @@ import pickle
 import itertools
 import numpy as np
 from tqdm import tqdm
+from scipy import stats
+from scipy.spatial.distance import euclidean
 from sklearn.preprocessing import RobustScaler
 
 from chemicalchecker.util import logged
@@ -145,6 +147,7 @@ class NeighborPairTraintest(object):
     def create(X, out_file, neigbors_matrix=None, pos_neighbors=10,
                neg_neighbors=100,
                mean_center_x=True, shuffle=True,
+               check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
                x_dtype=np.float32, y_dtype=np.float32, debug_test=False):
         """Create the HDF5 file with validation splits.
@@ -327,8 +330,11 @@ class NeighborPairTraintest(object):
                     print(split1, split2, ok / total, ok, combo_neig)
                 # get negative pairs
                 idxs2_0 = list()
-                for row in neig_idxs:
+                for idx, row in enumerate(neig_idxs):
                     no_neig = set(range(nr_matrix[split2].shape[0])) - set(row)
+                    # avoid fetching itself as negative!
+                    if split1 == split2:
+                        no_neig = no_neig - set([idx])
                     smpl = np.random.choice(
                         list(no_neig), neg_neighbors, replace=False)
                     idxs2_0.extend(smpl)
@@ -351,6 +357,29 @@ class NeighborPairTraintest(object):
                 if shuffle:
                     np.random.shuffle(shuffle_idxs)
 
+                if check_distances:
+                    import matplotlib.pyplot as plt
+                    import seaborn as sns
+                    d1 = list()
+                    d0 = list()
+                    for idx in range(len(all_ys))[:500]: 
+                        dist = euclidean(
+                            neigbors_matrix[all_pairs[shuffle_idxs][idx][0]],
+                            neigbors_matrix[all_pairs[shuffle_idxs][idx][1]]) 
+                        if all_ys[shuffle_idxs][idx] == 1: 
+                            d1.append(dist)
+                        else:  
+                            d0.append(dist)
+                    name = "%s_%s" % (split1, split2)
+                    plot_file = os.path.join(os.path.split(out_file)[0],
+                                       'dist_%s.png' % name)
+                    sns.distplot(d1, label='1')
+                    sns.distplot(d0, label='0')
+                    plt.legend()
+                    plt.savefig(plot_file)
+                    plt.close()
+
+
                 # save to h5
                 ds_name = "p_%s_%s" % (split1, split2)
                 NeighborPairTraintest.__log.info(
@@ -368,7 +397,8 @@ class NeighborPairTraintest(object):
     def generator_fn(file_name, split, batch_size=None, only_x=False,
                      replace_nan=None, augment_scale=1,
                      augment_fn=None, augment_kwargs={},
-                     mask_fn=None, shuffle=True):
+                     mask_fn=None, shuffle=True,
+                     sharedx=None):
         """Return the generator function that we can query for batches.
 
         file_name(str): The H5 generated via `create`
@@ -393,7 +423,11 @@ class NeighborPairTraintest(object):
         if not batch_size:
             batch_size = p_shape[0]
         # keep X in memory for resolving pairs quickly
-        X = reader.get_all_x()
+        if sharedx is not None:
+            X = sharedx
+        else:
+            NeighborPairTraintest.__log.debug('Reading X in memory')
+            X = reader.get_all_x()
         # default mask is not mask
         if mask_fn is None:
             def mask_fn(*data):
@@ -405,6 +439,7 @@ class NeighborPairTraintest(object):
             row[1] = last + batch_size
             last = row[1]
         batch_beg_end = batch_beg_end.astype(int)
+        NeighborPairTraintest.__log.debug('Generator ready')
 
         def example_generator_fn():
             # generator function yielding data
