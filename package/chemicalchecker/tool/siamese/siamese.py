@@ -1,13 +1,14 @@
 import os
+import keras
 import pickle
 import numpy as np
 from time import time
 from functools import partial
+
 from keras import backend as K
-from keras.models import Model
-from keras.optimizers import RMSprop
-from keras.layers import Input, Dense, Dropout, Lambda
+from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
+from keras.layers import Input, Dropout, Lambda, Dense
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborPairTraintest
@@ -29,7 +30,7 @@ class Siamese(object):
             traintest_file(str): Path to the traintest file.
             evaluate(bool): Whether to run evaluation.
         """
-
+        from chemicalchecker.core.signature_data import DataSignature
         # read parameters
         self.epochs = int(kwargs.get("epochs", 10))
         self.batch_size = int(kwargs.get("batch_size", 100))
@@ -64,19 +65,22 @@ class Siamese(object):
             if not os.path.exists(traintest_file):
                 raise Exception('Input data file does not exists!')
 
-        # initialize train generator
-        tr_shape_type_gen = NeighborPairTraintest.generator_fn(
-            self.traintest_file,
-            'train_train',
-            batch_size=int(self.batch_size / self.augment_scale),
-            replace_nan=self.replace_nan,
-            augment_fn=self.augment_fn,
-            augment_kwargs=self.augment_kwargs,
-            augment_scale=self.augment_scale)
-        self.tr_shapes = tr_shape_type_gen[0]
-        self.tr_gen = tr_shape_type_gen[2]()
-        self.steps_per_epoch = np.ceil(self.tr_shapes[0][0] / self.batch_size)
-        self.output_dim = tr_shape_type_gen[0][1][1]
+            # initialize train generator
+            self.sharedx = DataSignature(traintest_file).get_h5_dataset('x')
+            tr_shape_type_gen = NeighborPairTraintest.generator_fn(
+                self.traintest_file,
+                'train_train',
+                batch_size=int(self.batch_size / self.augment_scale),
+                replace_nan=self.replace_nan,
+                sharedx=self.sharedx,
+                augment_fn=self.augment_fn,
+                augment_kwargs=self.augment_kwargs,
+                augment_scale=self.augment_scale)
+            self.tr_shapes = tr_shape_type_gen[0]
+            self.tr_gen = tr_shape_type_gen[2]()
+            self.steps_per_epoch = np.ceil(
+                self.tr_shapes[0][0] / self.batch_size)
+            self.output_dim = tr_shape_type_gen[0][1][1]
 
         # initialize validation/test generator
         if evaluate:
@@ -85,6 +89,7 @@ class Siamese(object):
                 'test_test',
                 batch_size=self.batch_size,
                 replace_nan=self.replace_nan,
+                sharedx=self.sharedx,
                 shuffle=False)
             self.val_shapes = val_shape_type_gen[0]
             self.val_gen = val_shape_type_gen[2]()
@@ -137,47 +142,53 @@ class Siamese(object):
         input_shape(tuple): X dimensions (only nr feat is needed)
         load(bool): Whether to load the pretrained model.
         """
-
         def euclidean_distance(vects):
             x, y = vects
             sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
             return K.sqrt(K.maximum(sum_square, K.epsilon()))
 
-        def eucl_dist_output_shape(shapes):
+        def dist_output_shape(shapes):
             shape1, shape2 = shapes
             return (shape1[0], 1)
-
-        def create_base_network(input_shape):
-            '''Create network architecture'''
-            input_layer = Input(shape=input_shape)
-            x = Dense(1024, activation='relu', use_bias=False)(input_layer)
-            x = Dropout(0.1)(x)
-            x = Dense(128, activation='sigmoid')(x)
-            return Model(input_layer, x)
 
         # we have two inputs
         input_a = Input(shape=input_shape)
         input_b = Input(shape=input_shape)
 
         # each goes to a network with the same architechture
-        base_network = create_base_network(input_shape)
-        processed_a = base_network(input_a)
-        processed_b = base_network(input_b)
+        model_layers = list()
+        # first layer
+        model_layers.append(
+            Dense(self.layers[0], activation='relu', input_shape=input_shape))
+        if self.dropout is not None:
+            model_layers.append(Dropout(self.dropout))
+        # other layers
+        for layer in self.layers[1:-1]:
+            model_layers.append(Dense(layer, activation='relu'))
+            if self.dropout is not None:
+                model_layers.append(Dropout(self.dropout))
+        # last layer
+        model_layers.append(
+            Dense(self.layers[-1], activation='relu'))
+        basenet = Sequential(model_layers)
+        basenet.summary()
 
-        # the output layer is computing the distance
-        distance = Lambda(
-            euclidean_distance,
-            output_shape=eucl_dist_output_shape)([processed_a, processed_b])
-        model = Model([input_a, input_b], distance)
+        encoded_a = basenet(input_a)
+        encoded_b = basenet(input_b)
+
+        # layer to merge two encoded inputs with distance between them
+        distance = Lambda(euclidean_distance, output_shape=dist_output_shape)
+        # call this layer on list of two input tensors.
+        prediction = distance([encoded_a, encoded_b])
+        model = Model([input_a, input_b], prediction)
 
         # define monitored metrics
-        def accuracy(y_true, y_pred):
-            '''Classification accuracy with a fixed threshold on distances.
-            '''
-            return K.mean(K.equal(y_true, K.cast(y_pred < 0.5, y_true.dtype)))
+        def accuracy(y_true, y_pred, threshold=0.5):
+            y_pred = K.cast(y_pred < threshold, y_pred.dtype)
+            return K.mean(K.equal(y_true, y_pred))
 
         metrics = [
-            accuracy,
+            accuracy
         ]
 
         def contrastive_loss(y_true, y_pred):
@@ -191,7 +202,7 @@ class Siamese(object):
 
         # compile and print summary
         model.compile(
-            optimizer=RMSprop(lr=self.learning_rate),
+            optimizer=keras.optimizers.RMSprop(lr=self.learning_rate),
             loss=contrastive_loss,
             metrics=metrics)
         model.summary()
@@ -212,17 +223,8 @@ class Siamese(object):
         input_shape = (self.tr_shapes[0][1],)
         self.build_model(input_shape)
 
-        # prepare callbacks: eraly stopping
+        # prepare callbacks
         callbacks = list()
-        patience = 4
-        early_stopping = EarlyStopping(
-            monitor=monitor,
-            verbose=1,
-            patience=patience,
-            mode='max',
-            restore_best_weights=True)
-        if monitor:
-            callbacks.append(early_stopping)
 
         def mask_keep(idxs, x1_data, x2_data, y_data):
             # we will fill an array of NaN with values we want to keep
@@ -273,19 +275,32 @@ class Siamese(object):
             'ONLY-SELF': partial(mask_keep, space_idx),
         }
         validation_sets = list()
-        for split in ['train_test', 'test_test']:
-            for set_name, mask_fn in mask_fns.items():
-                name = '_'.join([split, set_name])
-                shapes, dtypes, gen = NeighborPairTraintest.generator_fn(
-                    self.traintest_file, split,
-                    batch_size=self.batch_size,
-                    replace_nan=self.replace_nan,
-                    mask_fn=mask_fn,
-                    shuffle=False)
-                validation_sets.append((gen, shapes, name))
-        additional_vals = AdditionalValidationSets(
-            validation_sets, self.model, batch_size=self.batch_size)
-        callbacks.append(additional_vals)
+        if self.evaluate:
+            vsets = ['train_test', 'test_test']
+            for split in vsets:
+                for set_name, mask_fn in mask_fns.items():
+                    name = '_'.join([split, set_name])
+                    shapes, dtypes, gen = NeighborPairTraintest.generator_fn(
+                        self.traintest_file, split,
+                        batch_size=self.batch_size,
+                        replace_nan=self.replace_nan,
+                        mask_fn=mask_fn,
+                        sharedx=self.sharedx,
+                        shuffle=False)
+                    validation_sets.append((gen, shapes, name))
+            additional_vals = AdditionalValidationSets(
+                validation_sets, self.model, batch_size=self.batch_size)
+            callbacks.append(additional_vals)
+
+        patience = 10
+        early_stopping = EarlyStopping(
+            monitor=monitor,
+            verbose=1,
+            patience=patience,
+            mode='max',
+            restore_best_weights=True)
+        if monitor or not self.evaluate:
+            callbacks.append(early_stopping)
 
         # call fit and save model
         t0 = time()
@@ -298,7 +313,8 @@ class Siamese(object):
             validation_steps=self.validation_steps)
         self.time = time() - t0
         self.model.save(self.model_file)
-        self.history.history.update(additional_vals.history)
+        if self.evaluate:
+            self.history.history.update(additional_vals.history)
 
         # check early stopping
         if early_stopping.stopped_epoch != 0:
@@ -311,7 +327,7 @@ class Siamese(object):
             self.model_dir, "%s_history.pkl" % self.name)
         pickle.dump(self.history.history, open(history_file, 'wb'))
         plot_file = os.path.join(self.model_dir, "%s.png" % self.name)
-        self._plot_history(self.history.history, plot_file)
+        self._plot_history(self.history.history, vsets, plot_file)
 
     def set_predict_scaler(self, scaler):
         self.scaler = scaler
@@ -333,7 +349,7 @@ class Siamese(object):
             scaled = no_nans
         return self.transformer.predict(scaled)
 
-    def _plot_history(self, history, destination):
+    def _plot_history(self, history, vsets, destination):
         """Plot history.
 
         history(dict): history result from Keras fit method.
@@ -343,19 +359,24 @@ class Siamese(object):
 
         metrics = list({k.split('_')[-1] for k in history})
 
-        rows = np.ceil(len(metrics) / 2.)
-        cols = 2
+        rows = len(metrics)
+        cols = len(vsets)
 
         plt.figure(figsize=(cols * 5, rows * 5), dpi=100)
 
-        for idx, metric in enumerate(metrics):
-            plt.subplot(rows, cols, idx + 1)
-            plt.title(metric.capitalize())
-            plt.plot(history[metric], label="Train", lw=2, ls='--')
-            other_valsets = [k for k in history if metric in k and metric != k]
-            for valset in other_valsets:
-                plt.plot(history[valset], label=valset, lw=2)
-            plt.ylim(0, 1)
+        c = 1
+        for metric in metrics:
+            for vset in vsets:
+                plt.subplot(rows, cols, c)
+                plt.title(metric.capitalize())
+                plt.plot(history[metric], label="Train", lw=2, ls='--')
+                plt.plot(history['val_' + metric], label="Val", lw=2, ls='--')
+                vset_met = [k for k in history if vset in k and metric in k]
+                for valset in vset_met:
+                    plt.plot(history[valset], label=valset, lw=2)
+                plt.ylim(0, 1)
+                plt.legend()
+                c += 1
 
         plt.tight_layout()
 
@@ -403,10 +424,5 @@ class AdditionalValidationSets(Callback):
                 verbose=self.verbose)
 
             for i, result in enumerate(results):
-                if i == 0:
-                    valuename = val_set_name + '_loss'
-                else:
-                    valuename = val_set_name + '_' + \
-                        str(self.model.metrics[i - 1].name)
-                print(valuename, str(result))
-                self.history.setdefault(valuename, []).append(result)
+                name = '_'.join([val_set_name, self.model.metrics_names[i]])
+                self.history.setdefault(name, []).append(result)
