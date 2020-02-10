@@ -5,7 +5,7 @@ import itertools
 import numpy as np
 from tqdm import tqdm
 from scipy import stats
-from scipy.spatial.distance import euclidean
+from scipy.spatial.distance import cdist
 from sklearn.preprocessing import RobustScaler
 
 from chemicalchecker.util import logged
@@ -275,6 +275,8 @@ class NeighborTripletTraintest(object):
                 else:
                     _, neig_idxs = NN[split1].search(
                         nr_matrix[split2], F)
+                    print(NN[split1])
+                    print(NN[split2])
                 if debug_test:
                     _, neig_idxs = NN[split1].search(
                         nr_matrix[split2], F)
@@ -296,11 +298,15 @@ class NeighborTripletTraintest(object):
 
                 num_triplets = 10
 
+                print(neig_idxs)
                 for idx, row in enumerate(neig_idxs):
-                    no_F = set(range(len(neigbors_matrix))) - set(row)
+                    
+                    no_F = set(range(len(neig_idxs))) - set(row)
                     # avoid fetching itself as negative!
                     if split1 == split2:
                         no_F = no_F - set([idx])
+
+                    no_F = list(no_F)
 
                     p_indexes = np.random.choice(T, num_triplets, replace=True, p=t_prob)
 
@@ -322,9 +328,8 @@ class NeighborTripletTraintest(object):
                     hard_n = [np.random.choice(neig_idxs[idx][p_i:T], 1, p=t_prob[p_i:]/sum(t_prob[p_i:]))[0] for p_i in p_indexes]
                     hard_n_lst.extend(hard_n)
 
-
                 anchors_lst = ref_full_map[np.array([split_ref_map[split1][x] for x in anchors_lst])]
-
+                print(split_ref_map)
                 easy_p_lst = ref_full_map[np.array([split_ref_map[split2][x] for x in easy_p_lst])]
                 easy_n_lst = ref_full_map[np.array([split_ref_map[split2][x] for x in easy_n_lst])]
 
@@ -344,10 +349,13 @@ class NeighborTripletTraintest(object):
 
                     def subplot(triplets_lst, tiplet_name, limit=1000):
                         plt.title('Distances %s' % tiplet_name)
-                        dis_ap = euclidean(neigbors_matrix[triplets_lst[shuffle_idxs][:limit][:,0]], 
-                            neigbors_matrix[triplets_lst[shuffle_idxs][:limit][:,1]])
-                        dis_an = euclidean(neigbors_matrix[triplets_lst[shuffle_idxs][:limit][:,0]], 
-                            neigbors_matrix[triplets_lst[shuffle_idxs][:limit][:,2]])
+                        anchors = neigbors_matrix[triplets_lst[:,0][:limit]]
+                        positives = neigbors_matrix[triplets_lst[:,1][:limit]]
+                        negatives = neigbors_matrix[triplets_lst[:,2][:limit]]
+
+                        dis_ap = [np.linalg.norm(a - p) for a, p in zip(anchors, positives)]
+                        dis_an = [np.linalg.norm(a - n) for a, n in zip(anchors, negatives)]
+
                         sns.distplot(dis_ap, label='AP')
                         sns.distplot(dis_an, label='AN')
                         plt.legend()
