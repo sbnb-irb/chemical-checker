@@ -144,7 +144,7 @@ class NeighborTripletTraintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def create(X, out_file, neigbors_matrix=None, triplets=10,
+    def create(X, out_file, neigbors_matrix=None, F=1000,T=100,
                mean_center_x=True, shuffle=True,
                check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
@@ -174,12 +174,15 @@ class NeighborTripletTraintest(object):
         if len(split_names) != len(split_fractions):
             raise Exception("Split names and fraction should be same amount.")
 
+        #F is 10% of the size of NN shape (1000 maximum)
+        F = int(min([F, 0.1 * len(neigbors_matrix)]))
+
+        #T is 1% of the size of NN shape (100 maximum)
+        T = int(min([T, 0.01 * len(neigbors_matrix)]))
+
         # the neigbors_matrix is optional
-        if neigbors_matrix is None:
-            neigbors_matrix = X
-        else:
-            if len(neigbors_matrix) != len(X):
-                raise Exception("neigbors_matrix shuold be same length as X.")
+        if len(neigbors_matrix) != len(X):
+            raise Exception("neigbors_matrix shuold be same length as X.")
 
         # reduce redundancy, keep full-ref mapping
         rnd = RNDuplicates(cpu=10)
@@ -253,119 +256,131 @@ class NeighborTripletTraintest(object):
             pickle.dump(scaler, open(scaler_file, 'wb'))
 
         # create dataset
+        NeighborTripletTraintest.__log.info('%s', F)
+        NeighborTripletTraintest.__log.info('%s', T)
         NeighborTripletTraintest.__log.info('Traintest saving to %s', out_file)
         with h5py.File(out_file, "w") as fh:
             fh.create_dataset('x', data=X)
-            # for each split combo generate pairs and ys
+            # for each split combo generate triplets where [anchor, positive, negative]
             combos = itertools.combinations_with_replacement(split_names, 2)
             #combos = [('train', 'train'), ('train', 'test'), ('test', 'test')]
             for split1, split2 in combos:
-                # handle case where we ask more neig then molecules
-                if triplets > nr_matrix[split2].shape[0]:
-                    combo_neig = nr_matrix[split2].shape[0]
-                    NeighborTripletTraintest.__log.warning(
-                        'split %s is small, reducing triplets to %i' %
-                        (split2, combo_neig))
-                else:
-                    combo_neig = triplets
                 # remove self neighbors when splits are the same
                 if split1 == split2:
                     # search NN
-                    dists, neig_idxs = NN[split1].search(nr_matrix[split2],
-                                                         combo_neig + 1)
-                    # the nearest neig between same groups is the molecule
-                    # itself
-                    assert(all(neig_idxs[:, 0] ==
-                               np.arange(0, len(neig_idxs))))
+                    _, neig_idxs = NN[split1].search(nr_matrix[split2], int(F + 1))
+                    # the nearest neig between same groups is the molecule itself
+                    assert(all(neig_idxs[:, 0] == np.arange(0, len(neig_idxs))))
                     neig_idxs = neig_idxs[:, 1:]
                 else:
                     _, neig_idxs = NN[split1].search(
-                        nr_matrix[split2], combo_neig)
+                        nr_matrix[split2], F)
                 if debug_test:
                     _, neig_idxs = NN[split1].search(
-                        nr_matrix[split2], combo_neig)
-                # get positive pairs
-                # get first pair element idxs
-                idxs1 = np.repeat(
-                    np.arange(nr_matrix[split2].shape[0]), combo_neig)
-                # get second pair elements idxs
-                idxs2_1 = neig_idxs.flatten()
-                assert(len(idxs1) == len(idxs2_1))
-                # map back to reference
-                idxs1_ref = np.array([split_ref_map[split2][x] for x in idxs1])
-                idxs2_1_ref = np.array(
-                    [split_ref_map[split1][x] for x in idxs2_1])
-                # map back to full
-                idxs1_full = ref_full_map[idxs1_ref]
-                idxs2_1_full = ref_full_map[idxs2_1_ref]
+                        nr_matrix[split2], F)
 
-                # @PAU ADD EASY MEDIUM HARD LOGIC
+                # get probabilities for T
+                t_prob = ((np.arange(T+1)[::-1])/ np.sum(np.arange(T+1)))[:T]
+                assert(sum(t_prob) == 1.0)
 
-                # get negative pairs EASY
-                idxs2_0 = list()
+                anchors_lst = list()
+
+                easy_p_lst = list()
+                easy_n_lst = list()
+
+                medium_p_lst = list()
+                medium_n_lst = list()
+
+                hard_p_lst = list()
+                hard_n_lst = list()
+
+                num_triplets = 10
+
                 for idx, row in enumerate(neig_idxs):
-                    no_neig = set(range(nr_matrix[split2].shape[0])) - set(row)
+                    no_F = set(range(len(neigbors_matrix))) - set(row)
                     # avoid fetching itself as negative!
                     if split1 == split2:
-                        no_neig = no_neig - set([idx])
-                    smpl = np.random.choice(
-                        list(no_neig), neg_neighbors, replace=False)
-                    idxs2_0.extend(smpl)
-                idxs2_0 = np.array(idxs2_0)
-                # map
-                idxs2_0_ref = np.array(
-                    [split_ref_map[split1][x] for x in idxs2_0])
-                idxs2_0_full = ref_full_map[idxs2_0_ref]
+                        no_F = no_F - set([idx])
 
-                # @PAU MEDIUM
-                # @PAU HARD
+                    p_indexes = np.random.choice(T, num_triplets, replace=True, p=t_prob)
+
+                    anchors = [idx] * num_triplets
+                    anchors_lst.extend(anchors)
+
+                    positives = neig_idxs[idx][:T][p_indexes]
+                    easy_p_lst.extend(positives)
+                    medium_p_lst.extend(positives)
+                    hard_p_lst.extend(positives)
 
 
-                # stack pairs and ys  @PAU FIXME (should be triplets)
-                pairs_1 = np.vstack((idxs1_full, idxs2_1_full)).T
-                y_1 = np.ones((1, pairs_1.shape[0]))
-                pairs_0 = np.vstack((idxs1_full, idxs2_0_full)).T
-                y_0 = np.zeros((1, pairs_0.shape[0]))
-                all_pairs = np.vstack((pairs_1, pairs_0))
-                all_ys = np.hstack((y_1, y_0)).T
+                    easy_n = np.random.choice(no_F, num_triplets, replace=False)
+                    easy_n_lst.extend(easy_n)
 
-                # shuffling
-                shuffle_idxs = np.arange(all_ys.shape[0])
-                if shuffle:
-                    np.random.shuffle(shuffle_idxs)
+                    medium_n = np.random.choice(neig_idxs[idx][T:], num_triplets, replace=False)
+                    medium_n_lst.extend(medium_n)
+
+                    hard_n = [np.random.choice(neig_idxs[idx][p_i:T], 1, p=t_prob[p_i:]/sum(t_prob[p_i:]))[0] for p_i in p_indexes]
+                    hard_n_lst.extend(hard_n)
+
+
+                anchors_lst = ref_full_map[np.array([split_ref_map[split1][x] for x in anchors_lst])]
+
+                easy_p_lst = ref_full_map[np.array([split_ref_map[split2][x] for x in easy_p_lst])]
+                easy_n_lst = ref_full_map[np.array([split_ref_map[split2][x] for x in easy_n_lst])]
+
+                medium_p_lst = ref_full_map[np.array([split_ref_map[split2][x] for x in medium_p_lst])]
+                medium_n_lst = ref_full_map[np.array([split_ref_map[split2][x] for x in medium_n_lst])]
+
+                hard_p_lst = ref_full_map[np.array([split_ref_map[split2][x] for x in hard_p_lst])]
+                hard_n_lst = ref_full_map[np.array([split_ref_map[split2][x] for x in hard_n_lst])]
+
+                easy_triplets = np.vstack((anchors_lst, easy_p_lst, easy_n_lst)).T
+                medium_triplets = np.vstack((anchors_lst, medium_p_lst, medium_n_lst)).T
+                hard_triplets = np.vstack((anchors_lst, hard_p_lst, hard_n_lst)).T
 
                 if check_distances:
                     import matplotlib.pyplot as plt
                     import seaborn as sns
-                    d1 = list()
-                    d0 = list()
-                    for idx in range(len(all_ys))[:500]:
-                        # @PAU FIX PLOT
-                        dist = euclidean(
-                            neigbors_matrix[all_pairs[shuffle_idxs][idx][0]],
-                            neigbors_matrix[all_pairs[shuffle_idxs][idx][1]])
-                        if all_ys[shuffle_idxs][idx] == 1:
-                            d1.append(dist)
-                        else:
-                            d0.append(dist)
+
+                    def subplot(triplets_lst, tiplet_name, limit=1000):
+                        plt.title('Distances %s' % tiplet_name)
+                        dis_ap = euclidean(neigbors_matrix[triplets_lst[shuffle_idxs][:limit][:,0]], 
+                            neigbors_matrix[triplets_lst[shuffle_idxs][:limit][:,1]])
+                        dis_an = euclidean(neigbors_matrix[triplets_lst[shuffle_idxs][:limit][:,0]], 
+                            neigbors_matrix[triplets_lst[shuffle_idxs][:limit][:,2]])
+                        sns.distplot(dis_ap, label='AP')
+                        sns.distplot(dis_an, label='AN')
+                        plt.legend()
+                        return plt
+
+                    plt.figure(figsize=(5, 15))
+
                     name = "%s_%s" % (split1, split2)
                     plot_file = os.path.join(os.path.split(out_file)[0],
                                              'dist_%s.png' % name)
-                    sns.distplot(d1, label='1')
-                    sns.distplot(d0, label='0')
-                    plt.legend()
+                    plt.subplot(3, 1, 1)
+                    subplot(easy_triplets, 'Easy Triplets')
+
+                    plt.subplot(3, 1, 2)
+                    subplot(medium_triplets, 'Medium Triplets')
+
+                    plt.subplot(3, 1, 3)
+                    subplot(hard_triplets, 'Hard Triplets')
+
                     plt.savefig(plot_file)
                     plt.close()
+
+                # shuffling
+                triplets = np.hstack((easy_triplets, medium_triplets, hard_triplets))
+                shuffle_idxs = np.arange(triplets.shape[1])
+                if shuffle:
+                    np.random.shuffle(shuffle_idxs)
 
                 # save to h5
                 ds_name = "p_%s_%s" % (split1, split2)
                 NeighborTripletTraintest.__log.info(
-                    'writing %s %s %s', ds_name, pairs_1.shape, pairs_0.shape)
-                fh.create_dataset(ds_name, data=all_pairs[shuffle_idxs])
-                ds_name = "y_%s_%s" % (split1, split2)
-                NeighborTripletTraintest.__log.info(
-                    'writing %s %s', ds_name, all_ys.shape)
-                fh.create_dataset(ds_name, data=all_ys[shuffle_idxs])
+                    'writing %s %s %s %s', ds_name, easy_triplets.shape, medium_triplets.shape, hard_triplets.shape)
+                fh.create_dataset(ds_name, data=triplets[shuffle_idxs])
 
         NeighborTripletTraintest.__log.info(
             'NeighborTripletTraintest saved to %s', out_file)
