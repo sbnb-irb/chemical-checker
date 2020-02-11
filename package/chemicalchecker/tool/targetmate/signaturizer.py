@@ -503,7 +503,8 @@ class RawSignatureStacker(object):
         keys = [k for k in keys if k in iks_universe or k[0]=="_"] # The "_" is relevant to the DREAM challenge
         self.__log.debug("%d keys in common" % len(keys))
         X = None
-        for ds in self.datasets:
+        confidence = np.zeros((len(keys), len(self.datasets)))
+        for j, ds in enumerate(self.datasets):
             sign = self.cc.get_signature(self.sign_type, "full", ds)
             V = sign.get_vectors(keys)[1]
             if X is None:
@@ -511,11 +512,21 @@ class RawSignatureStacker(object):
                 dtype = V.dtype
             else:
                 X = np.hstack((X, V))
+            if self.sign_type == "sign3":
+                my_keys = set(keys)
+                conf_ = sign.get_h5_dataset("confidence")
+                keys_ = sign.get_h5_dataset("keys")
+                conf  = []
+                for i, k in enumerate(keys_):
+                    if k.decode() in my_keys:
+                        conf += [conf_[i]]
+                confidence[:,j] = np.array(conf)
         self.__log.debug("Saving: %s" % self.filename)
         with h5py.File(self.filename, "w") as hf:
             hf.create_dataset("V", data=X.astype(dtype))
             hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
             hf.create_dataset("datasets", data=np.array(self.datasets, DataSignature.string_dtype()))
+            hf.create_dataset("confidences", data=confidence)
 
 @logged
 class FileByFileSignatureStacker(object):
