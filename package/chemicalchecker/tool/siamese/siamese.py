@@ -58,6 +58,14 @@ class Siamese(object):
             self.__log.warning("Creating model directory: %s", self.model_dir)
             os.mkdir(self.model_dir)
 
+        # check if a scaler is available
+        scaler_file = os.path.join(self.model_dir, 'scaler.pkl')
+        if os.path.isfile(scaler_file):
+            scaler = pickle.load(open(scaler_file, 'rb'))
+            self.set_predict_scaler(scaler)
+        else:
+            self.__log.warn('No scaler available. %s' % scaler_file)
+
         # check input path
         self.traintest_file = traintest_file
         if self.traintest_file is not None:
