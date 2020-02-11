@@ -23,7 +23,7 @@ from .signature_data import DataSignature
 
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
-from chemicalchecker.util.splitter import Traintest, NeighborPairTraintest
+from chemicalchecker.util.splitter import Traintest, NeighborTripletTraintest
 
 
 @logged
@@ -66,8 +66,6 @@ class sign4(BaseSignature, DataSignature):
         # parameters to learn from sign2
         default_sign2 = {
             'epochs': 1,
-            'pos_neighbors': 3,
-            'neg_neighbors': 30,
             'batch_size': 1000,
             'augment_fn': None,
             'augment_scale': 1,
@@ -227,7 +225,7 @@ class sign4(BaseSignature, DataSignature):
                 confidence scores)
         """
         try:
-            from chemicalchecker.tool.siamese import Siamese
+            from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError as err:
             raise err
         # get params and set folder
@@ -250,14 +248,11 @@ class sign4(BaseSignature, DataSignature):
                 'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix).get_h5_dataset('x')
-                NeighborPairTraintest.create(
+                NeighborTripletTraintest.create(
                     X, traintest_file,
                     split_names=['train', 'test'],
                     split_fractions=[.8, .2],
-                    neigbors_matrix=self.sign2_self[:],
-                    scaler_dest=siamese_path,
-                    pos_neighbors=params['pos_neighbors'],
-                    neg_neighbors=params['neg_neighbors'])
+                    neigbors_matrix=self.sign2_self[:])
         else:
             traintest_file = os.path.join(
                 self.model_path, 'traintest_final.h5')
@@ -265,14 +260,11 @@ class sign4(BaseSignature, DataSignature):
                 'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix).get_h5_dataset('x')
-                NeighborPairTraintest.create(
+                NeighborTripletTraintest.create(
                     X, traintest_file,
                     split_names=['train'],
                     split_fractions=[1.0],
-                    neigbors_matrix=self.sign2_self[:],
-                    scaler_dest=siamese_path,
-                    pos_neighbors=params['pos_neighbors'],
-                    neg_neighbors=params['neg_neighbors'])
+                    neigbors_matrix=self.sign2_self[:])
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
@@ -283,7 +275,7 @@ class sign4(BaseSignature, DataSignature):
             params['augment_kwargs']['p_nr'] = p_nr
             params['augment_kwargs']['p_keep'] = p_keep
 
-        siamese = Siamese(siamese_path,
+        siamese = SiameseTriplets(siamese_path,
                           traintest_file,
                           evaluate,
                           **params)
