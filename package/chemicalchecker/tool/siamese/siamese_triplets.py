@@ -8,11 +8,11 @@ from functools import partial
 from keras import backend as K
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
-from keras.layers import Input, Dropout, Lambda, Dense
+from keras.layers import Input, Dropout, Lambda, Dense, concatenate
 from keras.regularizers import l2
 
 from chemicalchecker.util import logged
-from chemicalchecker.util.splitter import NeighborPairTraintest
+from chemicalchecker.util.splitter import NeighborTripletTraintest
 
 
 @logged
@@ -69,7 +69,7 @@ class SiameseTriplets(object):
 
             # initialize train generator
             self.sharedx = DataSignature(traintest_file).get_h5_dataset('x')
-            tr_shape_type_gen = NeighborPairTraintest.generator_fn(
+            tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
                 self.traintest_file,
                 'train_train',
                 batch_size=int(self.batch_size / self.augment_scale),
@@ -86,7 +86,7 @@ class SiameseTriplets(object):
 
         # initialize validation/test generator
         if evaluate:
-            val_shape_type_gen = NeighborPairTraintest.generator_fn(
+            val_shape_type_gen = NeighborTripletTraintest.generator_fn(
                 self.traintest_file,
                 'test_test',
                 batch_size=self.batch_size,
@@ -108,16 +108,16 @@ class SiameseTriplets(object):
         if self.traintest_file is not None:
             self.__log.info("{:<22}: {:>12}".format(
                 "traintest_file", self.traintest_file))
-            tmp = NeighborPairTraintest(self.traintest_file, 'train_train')
+            tmp = NeighborTripletTraintest(self.traintest_file, 'train_train')
             self.__log.info("{:<22}: {:>12}".format(
-                'train_train', str(tmp.get_py_shapes())))
+                'train_train', str(tmp.get_p_shapes())))
             if evaluate:
-                tmp = NeighborPairTraintest(self.traintest_file, 'train_test')
+                tmp = NeighborTripletTraintest(self.traintest_file, 'train_test')
                 self.__log.info("{:<22}: {:>12}".format(
-                    'train_test', str(tmp.get_py_shapes())))
-                tmp = NeighborPairTraintest(self.traintest_file, 'test_test')
+                    'train_test', str(tmp.get_p_shapes())))
+                tmp = NeighborTripletTraintest(self.traintest_file, 'test_test')
                 self.__log.info("{:<22}: {:>12}".format(
-                    'test_test', str(tmp.get_py_shapes())))
+                    'test_test', str(tmp.get_p_shapes())))
         self.__log.info("{:<22}: {:>12}".format(
             "learning_rate", self.learning_rate))
         self.__log.info("{:<22}: {:>12}".format(
@@ -184,7 +184,11 @@ class SiameseTriplets(object):
                 sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
                 return K.sqrt(K.maximum(sum_square, K.epsilon()))
 
-            anchor, positive, negative = y_pred
+            total_lenght = y_pred.shape.as_list()[-1]
+
+            anchor = y_pred[:,0:int(total_lenght*1/3)]
+            positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)]
+            negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)]
 
             acc = K.cast(euclidean_distance(anchor, positive) < euclidean_distance(anchor, negative), anchor.dtype)
 
@@ -195,7 +199,12 @@ class SiameseTriplets(object):
         ]
 
         def triplet_loss(y_true, y_pred):
-            anchor, positive, negative = y_pred
+            total_lenght = y_pred.shape.as_list()[-1]
+
+            anchor = y_pred[:,0:int(total_lenght*1/3)]
+            positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)]
+            negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)]
+            
             p_dist = K.sum(K.square(anchor-positive), axis=-1)
             n_dist = K.sum(K.square(anchor-negative), axis=-1)
             return K.sum(K.maximum(p_dist - n_dist + self.margin, 0), axis=0)
@@ -280,7 +289,7 @@ class SiameseTriplets(object):
             for split in vsets:
                 for set_name, mask_fn in mask_fns.items():
                     name = '_'.join([split, set_name])
-                    shapes, dtypes, gen = NeighborPairTraintest.generator_fn(
+                    shapes, dtypes, gen = NeighborTripletTraintest.generator_fn(
                         self.traintest_file, split,
                         batch_size=self.batch_size,
                         replace_nan=self.replace_nan,
