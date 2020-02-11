@@ -282,9 +282,7 @@ class NeighborTripletTraintest(object):
 
                 # get probabilities for T
                 t_prob = ((np.arange(T+1)[::-1])/ np.sum(np.arange(T+1)))[:T]
-                f_prob = ((np.arange((F-T)+1)[::-1])/ np.sum(np.arange((F-T)+1)))[:(F-T)]
                 assert(sum(t_prob) == 1.0)
-                assert(sum(f_prob) == 1.0)
 
                 anchors_lst = list()
 
@@ -324,7 +322,7 @@ class NeighborTripletTraintest(object):
                     easy_n = np.random.choice(no_F, num_triplets, replace=False)
                     easy_n_lst.extend(easy_n)
 
-                    medium_n = np.random.choice(neig_idxs[idx][T:], num_triplets, replace=False, p=f_prob)
+                    medium_n = np.random.choice(neig_idxs[idx][T:], num_triplets, replace=False)
                     medium_n_lst.extend(medium_n)
 
                     hard_n = [np.random.choice(neig_idxs[idx][p_i+1:T+1], 1, p=t_prob[p_i:]/sum(t_prob[p_i:]))[0] for p_i in p_indexes]
