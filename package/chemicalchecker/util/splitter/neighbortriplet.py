@@ -42,13 +42,12 @@ class NeighborTripletTraintest(object):
                 raise Exception("Split '%s' not found in %s!" %
                                 (split, str(available_splits)))
 
-    def get_py_shapes(self):
+    def get_p_shapes(self):
         """Return the shpaes of X an Y."""
         self.open()
         p_shape = self._f[self.p_name].shape
-        y_shape = self._f[self.y_name].shape
         self.close()
-        return p_shape, y_shape
+        return p_shape
 
     def get_xy_shapes(self):
         """Return the shpaes of X an Y."""
