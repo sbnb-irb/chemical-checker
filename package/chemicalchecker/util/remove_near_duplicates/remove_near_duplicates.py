@@ -30,7 +30,7 @@ class RNDuplicates():
         self.nbits = nbits
         self.only_duplicates = only_duplicates
         self.cpu = cpu
-        self.threshold = 100000
+        self.threshold = 1000000
         self.chunk = 1000
         self.data_file = ''
         self.__log.debug('RNDuplicates to use ' + str(self.nbits) + " bits")
