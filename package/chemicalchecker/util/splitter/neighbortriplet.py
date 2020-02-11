@@ -144,7 +144,7 @@ class NeighborTripletTraintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def create(X, out_file, neigbors_matrix=None, F=100,T=5,
+    def create(X, out_file, neigbors_matrix=None, F=1000, T=100,
                mean_center_x=True, shuffle=True,
                check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
@@ -174,11 +174,11 @@ class NeighborTripletTraintest(object):
         if len(split_names) != len(split_fractions):
             raise Exception("Split names and fraction should be same amount.")
 
-        #F is 10% of the size of NN shape (100 maximum)
+        # F is 10% of the size of NN shape (1000 maximum)
         F = int(min([F, 0.1 * len(neigbors_matrix)]))
 
-        #T is 1% of the size of NN shape (5 maximum)
-        T = int(min([T, 0.005 * len(neigbors_matrix)]))
+        # T is 1% of the size of NN shape (100 maximum)
+        T = int(min([T, 0.01 * len(neigbors_matrix)]))
 
         # the neigbors_matrix is optional
         if len(neigbors_matrix) != len(X):
@@ -261,7 +261,8 @@ class NeighborTripletTraintest(object):
         NeighborTripletTraintest.__log.info('Traintest saving to %s', out_file)
         with h5py.File(out_file, "w") as fh:
             fh.create_dataset('x', data=X)
-            # for each split combo generate triplets where [anchor, positive, negative]
+            # for each split combo generate triplets where [anchor, positive,
+            # negative]
             combos = itertools.combinations_with_replacement(split_names, 2)
             #combos = [('train', 'train'), ('train', 'test'), ('test', 'test')]
 
@@ -271,17 +272,20 @@ class NeighborTripletTraintest(object):
                 # remove self neighbors when splits are the same
                 if split1 == split2:
                     # search NN
-                    _, neig_idxs = NN[split1].search(nr_matrix[split2], int(F + 1))
-                    # the nearest neig between same groups is the molecule itself
-                    assert(all(neig_idxs[:, 0] == np.arange(0, len(neig_idxs))))
+                    _, neig_idxs = NN[split1].search(
+                        nr_matrix[split2], int(F + 1))
+                    # the nearest neig between same groups is the molecule
+                    # itself
+                    assert(all(neig_idxs[:, 0] ==
+                               np.arange(0, len(neig_idxs))))
                     neig_idxs = neig_idxs[:, 1:]
                 else:
                     _, neig_idxs = NN[split1].search(
                         nr_matrix[split2], F)
 
-
                 # get probabilities for T
-                t_prob = ((np.arange(T+1)[::-1])/ np.sum(np.arange(T+1)))[:T]
+                t_prob = ((np.arange(T + 1)[::-1]) /
+                          np.sum(np.arange(T + 1)))[:T]
                 assert(sum(t_prob) == 1.0)
 
                 anchors_lst = list()
@@ -299,7 +303,7 @@ class NeighborTripletTraintest(object):
 
                 # Idx comes from split2, all else comes from split1
                 for idx, row in enumerate(neig_idxs):
-                    
+
                     no_F = set(range(len(neig_idxs))) - set(row)
 
                     # avoid fetching itself as negative!
@@ -308,7 +312,8 @@ class NeighborTripletTraintest(object):
 
                     no_F = list(no_F)
 
-                    p_indexes = np.random.choice(T, num_triplets, replace=True, p=t_prob)
+                    p_indexes = np.random.choice(
+                        T, num_triplets, replace=True, p=t_prob)
 
                     anchors = [idx] * num_triplets
                     anchors_lst.extend(anchors)
@@ -318,46 +323,64 @@ class NeighborTripletTraintest(object):
                     medium_p_lst.extend(positives)
                     hard_p_lst.extend(positives)
 
-
-                    easy_n = np.random.choice(no_F, num_triplets, replace=False)
+                    easy_n = np.random.choice(
+                        no_F, num_triplets, replace=False)
                     easy_n_lst.extend(easy_n)
 
-                    medium_n = np.random.choice(neig_idxs[idx][T:], num_triplets, replace=False)
+                    medium_n = np.random.choice(
+                        neig_idxs[idx][T:], num_triplets, replace=False)
                     medium_n_lst.extend(medium_n)
 
-                    hard_n = [np.random.choice(neig_idxs[idx][p_i+1:T+1], 1, p=t_prob[p_i:]/sum(t_prob[p_i:]))[0] for p_i in p_indexes]
+                    hard_n = [np.random.choice(neig_idxs[idx][p_i:T], 1, p=t_prob[
+                                               p_i:] / sum(t_prob[p_i:]))[0] for p_i in p_indexes]
                     hard_n_lst.extend(hard_n)
 
-                anchors_lst = ref_full_map[np.array([split_ref_map[split2][x] for x in anchors_lst])]
-                easy_p_lst = ref_full_map[np.array([split_ref_map[split1][x] for x in easy_p_lst])]
-                easy_n_lst = ref_full_map[np.array([split_ref_map[split1][x] for x in easy_n_lst])]
+                anchors_lst = ref_full_map[
+                    np.array([split_ref_map[split1][x] for x in anchors_lst])]
+                print(split_ref_map)
+                easy_p_lst = ref_full_map[
+                    np.array([split_ref_map[split2][x] for x in easy_p_lst])]
+                easy_n_lst = ref_full_map[
+                    np.array([split_ref_map[split2][x] for x in easy_n_lst])]
 
-                medium_p_lst = ref_full_map[np.array([split_ref_map[split1][x] for x in medium_p_lst])]
-                medium_n_lst = ref_full_map[np.array([split_ref_map[split1][x] for x in medium_n_lst])]
+                medium_p_lst = ref_full_map[
+                    np.array([split_ref_map[split2][x] for x in medium_p_lst])]
+                medium_n_lst = ref_full_map[
+                    np.array([split_ref_map[split2][x] for x in medium_n_lst])]
 
-                hard_p_lst = ref_full_map[np.array([split_ref_map[split1][x] for x in hard_p_lst])]
-                hard_n_lst = ref_full_map[np.array([split_ref_map[split1][x] for x in hard_n_lst])]
+                hard_p_lst = ref_full_map[
+                    np.array([split_ref_map[split2][x] for x in hard_p_lst])]
+                hard_n_lst = ref_full_map[
+                    np.array([split_ref_map[split2][x] for x in hard_n_lst])]
 
-                easy_triplets = np.vstack((anchors_lst, easy_p_lst, easy_n_lst)).T
-                medium_triplets = np.vstack((anchors_lst, medium_p_lst, medium_n_lst)).T
-                hard_triplets = np.vstack((anchors_lst, hard_p_lst, hard_n_lst)).T
+                easy_triplets = np.vstack(
+                    (anchors_lst, easy_p_lst, easy_n_lst)).T
+                medium_triplets = np.vstack(
+                    (anchors_lst, medium_p_lst, medium_n_lst)).T
+                hard_triplets = np.vstack(
+                    (anchors_lst, hard_p_lst, hard_n_lst)).T
 
                 if check_distances:
-                    limit = 1000
-                    row = []
-                    for triplets_lst in [easy_triplets, medium_triplets, hard_triplets]:
-                        anchors = neigbors_matrix[triplets_lst[:,0][:limit]]
-                        positives = neigbors_matrix[triplets_lst[:,1][:limit]]
-                        negatives = neigbors_matrix[triplets_lst[:,2][:limit]]
+                    import matplotlib.pyplot as plt
+                    import seaborn as sns
 
-                        dis_ap = [np.linalg.norm(a - p) for a, p in zip(anchors, positives)]
-                        dis_an = [np.linalg.norm(a - n) for a, n in zip(anchors, negatives)]
+                    def subplot(triplets_lst, tiplet_name, limit=1000):
+                        plt.title('Distances %s' % tiplet_name)
+                        anchors = neigbors_matrix[triplets_lst[:, 0][:limit]]
+                        positives = neigbors_matrix[triplets_lst[:, 1][:limit]]
+                        negatives = neigbors_matrix[triplets_lst[:, 2][:limit]]
+
+                        dis_ap = [np.linalg.norm(a - p)
+                                  for a, p in zip(anchors, positives)]
+                        dis_an = [np.linalg.norm(a - n)
+                                  for a, n in zip(anchors, negatives)]
 
                         row.append([dis_ap, dis_an])
                     dists.append(row)
 
                 # shuffling
-                triplets = np.hstack((easy_triplets, medium_triplets, hard_triplets))
+                triplets = np.hstack(
+                    (easy_triplets, medium_triplets, hard_triplets))
                 shuffle_idxs = np.arange(triplets.shape[1])
                 if shuffle:
                     np.random.shuffle(shuffle_idxs)
@@ -373,7 +396,8 @@ class NeighborTripletTraintest(object):
                 import seaborn as sns
 
                 plt.figure(figsize=(10, 10))
-                plot_file = os.path.join(os.path.split(out_file)[0], 'distances.png')
+                plot_file = os.path.join(
+                    os.path.split(out_file)[0], 'distances.png')
                 i = 0
                 j = 0
                 categs = ['easy', 'medium', 'hard']
@@ -381,14 +405,14 @@ class NeighborTripletTraintest(object):
                 for row in dists:
                     split = combos[i]
                     for pair in row:
-                        plt.subplot(3,3, j+1)
+                        plt.subplot(3, 3, j + 1)
                         plt.title('%s %s' % (split, categs[j % 3]))
                         sns.distplot(pair[0], label='AP')
                         sns.distplot(pair[1], label='AN')
                         plt.legend()
-                        plt.xlim(0,5)
+                        plt.xlim(0, 5)
                         j += 1
-                    i +=1
+                    i += 1
 
                 plt.savefig(plot_file)
                 plt.close()
@@ -397,7 +421,7 @@ class NeighborTripletTraintest(object):
             'NeighborTripletTraintest saved to %s', out_file)
 
     @staticmethod
-    def generator_fn(file_name, split, batch_size=None, only_x=False,
+    def generator_fn(file_name, split, batch_size=None,
                      replace_nan=None, augment_scale=1,
                      augment_fn=None, augment_kwargs={},
                      mask_fn=None, shuffle=True,
@@ -407,7 +431,6 @@ class NeighborTripletTraintest(object):
         file_name(str): The H5 generated via `create`
         split(str): One of 'train_train', 'train_test', or 'test_test'
         batch_size(int): Size of a batch of data.
-        only_x(bool): Usually when predicting only X are useful.
         replace_nan(bool): Value used for NaN replacement.
         augment_scale(int): Augment the train size by this factor.
         augment_fn(func): Function to augment data.
@@ -417,11 +440,9 @@ class NeighborTripletTraintest(object):
         reader.open()
         # read shapes
         x_shape = reader._f[reader.x_name].shape
-        y_shape = reader._f[reader.y_name].shape
         p_shape = reader._f[reader.p_name].shape
         # read data types
         x_dtype = reader._f[reader.x_name].dtype
-        y_dtype = reader._f[reader.y_name].dtype
         # no batch size -> return everything
         if not batch_size:
             batch_size = p_shape[0]
@@ -457,34 +478,34 @@ class NeighborTripletTraintest(object):
                     # Traintest.__log.debug('EPOCH %i (caller: %s)', epoch,
                     #                      inspect.stack()[1].function)
                 beg_idx, end_idx = batch_beg_end[batch_idx]
-                pairs, y = reader.get_py(beg_idx, end_idx)
+                pairs = reader.get_p(beg_idx, end_idx)
                 # @PAU FIX generator
                 x1 = X[pairs[:, 0]]
                 x2 = X[pairs[:, 1]]
+                x3 = X[pairs[:, 2]]
                 if augment_fn is not None:
                     tmp_x1 = list()
                     tmp_x2 = list()
-                    tmp_y = list()
+                    tmp_x3 = list()
                     for i in range(augment_scale):
                         tmp_x1.append(augment_fn(
                             x1, **augment_kwargs))
                         tmp_x2.append(augment_fn(
                             x2, **augment_kwargs))
-                        tmp_y.append(y)
+                        tmp_x3.append(augment_fn(
+                            x3, **augment_kwargs))
                     x1 = np.vstack(tmp_x1)
                     x2 = np.vstack(tmp_x2)
-                    y = np.vstack(tmp_y)
-                x1, x2, y = mask_fn(x1, x2, y)
+                    x3 = np.vstack(tmp_x3)
+                x1, x2, x3 = mask_fn(x1, x2, x3)
                 if replace_nan is not None:
                     x1[np.where(np.isnan(x1))] = replace_nan
                     x2[np.where(np.isnan(x2))] = replace_nan
-                if only_x:
-                    yield [x1, x2]
-                else:
-                    yield [x1, x2], y
+                    x3[np.where(np.isnan(x3))] = replace_nan
+                yield [x1, x2, x3]
                 batch_idx += 1
 
         pair_shape = (p_shape[0] * augment_scale, x_shape[1])
-        shapes = (pair_shape, pair_shape, y_shape)
-        dtypes = (x_dtype, x_dtype, y_dtype)
+        shapes = (pair_shape, pair_shape, pair_shape)
+        dtypes = (x_dtype, x_dtype, x_dtype)
         return shapes, dtypes, example_generator_fn
