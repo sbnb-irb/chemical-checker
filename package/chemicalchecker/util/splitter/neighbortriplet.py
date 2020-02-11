@@ -144,7 +144,7 @@ class NeighborTripletTraintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def create(X, out_file, neigbors_matrix=None, F=1000, T=100,
+    def create(X, out_file, neigbors_matrix=None, F=100, T=5,
                mean_center_x=True, shuffle=True,
                check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
@@ -174,11 +174,11 @@ class NeighborTripletTraintest(object):
         if len(split_names) != len(split_fractions):
             raise Exception("Split names and fraction should be same amount.")
 
-        # F is 10% of the size of NN shape (1000 maximum)
+        # F is 10% of the size of NN shape (100 maximum)
         F = int(min([F, 0.1 * len(neigbors_matrix)]))
 
-        # T is 1% of the size of NN shape (100 maximum)
-        T = int(min([T, 0.01 * len(neigbors_matrix)]))
+        # T is 1% of the size of NN shape (5 maximum)
+        T = int(min([T, 0.005 * len(neigbors_matrix)]))
 
         # the neigbors_matrix is optional
         if len(neigbors_matrix) != len(X):
@@ -331,27 +331,26 @@ class NeighborTripletTraintest(object):
                         neig_idxs[idx][T:], num_triplets, replace=False)
                     medium_n_lst.extend(medium_n)
 
-                    hard_n = [np.random.choice(neig_idxs[idx][p_i:T], 1, p=t_prob[
-                                               p_i:] / sum(t_prob[p_i:]))[0] for p_i in p_indexes]
+                    hard_n = [np.random.choice(neig_idxs[idx][
+                                               p_i + 1:T + 1], 1, p=t_prob[p_i:] / sum(t_prob[p_i:]))[0] for p_i in p_indexes]
                     hard_n_lst.extend(hard_n)
 
                 anchors_lst = ref_full_map[
-                    np.array([split_ref_map[split1][x] for x in anchors_lst])]
-                print(split_ref_map)
+                    np.array([split_ref_map[split2][x] for x in anchors_lst])]
                 easy_p_lst = ref_full_map[
-                    np.array([split_ref_map[split2][x] for x in easy_p_lst])]
+                    np.array([split_ref_map[split1][x] for x in easy_p_lst])]
                 easy_n_lst = ref_full_map[
-                    np.array([split_ref_map[split2][x] for x in easy_n_lst])]
+                    np.array([split_ref_map[split1][x] for x in easy_n_lst])]
 
                 medium_p_lst = ref_full_map[
-                    np.array([split_ref_map[split2][x] for x in medium_p_lst])]
+                    np.array([split_ref_map[split1][x] for x in medium_p_lst])]
                 medium_n_lst = ref_full_map[
-                    np.array([split_ref_map[split2][x] for x in medium_n_lst])]
+                    np.array([split_ref_map[split1][x] for x in medium_n_lst])]
 
                 hard_p_lst = ref_full_map[
-                    np.array([split_ref_map[split2][x] for x in hard_p_lst])]
+                    np.array([split_ref_map[split1][x] for x in hard_p_lst])]
                 hard_n_lst = ref_full_map[
-                    np.array([split_ref_map[split2][x] for x in hard_n_lst])]
+                    np.array([split_ref_map[split1][x] for x in hard_n_lst])]
 
                 easy_triplets = np.vstack(
                     (anchors_lst, easy_p_lst, easy_n_lst)).T
@@ -361,11 +360,9 @@ class NeighborTripletTraintest(object):
                     (anchors_lst, hard_p_lst, hard_n_lst)).T
 
                 if check_distances:
-                    import matplotlib.pyplot as plt
-                    import seaborn as sns
-
-                    def subplot(triplets_lst, tiplet_name, limit=1000):
-                        plt.title('Distances %s' % tiplet_name)
+                    limit = 1000
+                    row = []
+                    for triplets_lst in [easy_triplets, medium_triplets, hard_triplets]:
                         anchors = neigbors_matrix[triplets_lst[:, 0][:limit]]
                         positives = neigbors_matrix[triplets_lst[:, 1][:limit]]
                         negatives = neigbors_matrix[triplets_lst[:, 2][:limit]]
