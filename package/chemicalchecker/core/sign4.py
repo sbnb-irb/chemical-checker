@@ -10,6 +10,7 @@ import pandas as pd
 from tqdm import tqdm
 from time import time
 from functools import partial
+from scipy.spatial.distance import pdist
 from scipy.stats import pearsonr, norm, rankdata
 
 from sklearn.linear_model import LinearRegression
@@ -254,6 +255,7 @@ class sign4(BaseSignature, DataSignature):
                     split_names=['train', 'test'],
                     split_fractions=[.8, .2],
                     neigbors_matrix=self.sign2_self[:],
+                    scaler_dest=siamese_path,
                     pos_neighbors=params['pos_neighbors'],
                     neg_neighbors=params['neg_neighbors'])
         else:
@@ -268,13 +270,18 @@ class sign4(BaseSignature, DataSignature):
                     split_names=['train'],
                     split_fractions=[1.0],
                     neigbors_matrix=self.sign2_self[:],
+                    scaler_dest=siamese_path,
                     pos_neighbors=params['pos_neighbors'],
                     neg_neighbors=params['neg_neighbors'])
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
-            ds_mask = np.argwhere(np.isin(self.src_datasets, ds)).flatten()
-            params['augment_kwargs']['dataset_idx'] = ds_mask
+            dataset_idx = np.argwhere(np.isin(self.src_datasets, ds)).flatten()
+            params['augment_kwargs']['dataset_idx'] = dataset_idx
+            # compute probabilities for subsampling
+            p_nr, p_keep = subsampling_probs(self.sign2_coverage, dataset_idx)
+            params['augment_kwargs']['p_nr'] = p_nr
+            params['augment_kwargs']['p_keep'] = p_keep
 
         siamese = Siamese(siamese_path,
                           traintest_file,
@@ -283,10 +290,55 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('Siamese training on %s' % traintest_file)
         siamese.fit()
         self.__log.debug('model saved to %s' % siamese_path)
-        # when evaluating also save the performances
+        # evaluate distance distributions
+        self.plot_distance_distributions(siamese, dataset_idx)
+        # when evaluating we update the nr of epoch to avoid
+        # overfitting during final
         if evaluate:
             # update the parameters with the new nr_of epochs
             self.params['sign2']['epochs'] = siamese.last_epoch + 2
+
+    def plot_distance_distributions(self, siamese, dataset_idx,
+                                    chunk_size=10000, limit=300):
+        # get molecules where space is available
+        preds_with_self = list()
+        preds_without_self = list()
+        with_ok = False
+        without_ok = False
+        with h5py.File(self.sign2_universe, "r") as features:
+            # read input in chunks
+            for idx in range(0, features['x_test'].shape[0], chunk_size):
+                chunk = slice(idx, idx + chunk_size)
+                feat = features['x_test'][chunk]
+
+                with_self = feat[~np.isnan(feat[:, dataset_idx[0] * 128])]
+                without_self = feat[np.isnan(feat[:, dataset_idx[0] * 128])]
+                if len(preds_with_self) < limit:
+                    if len(with_self) == 0:
+                        continue
+                    preds_with_self.extend(siamese.predict(with_self))
+                else:
+                    with_ok = True
+                if len(preds_without_self) < limit:
+                    if len(without_self) == 0:
+                        continue
+                    preds_without_self.extend(siamese.predict(without_self))
+                else:
+                    without_ok = True
+                if with_ok and without_ok:
+                    break
+        # now compute pairwise distances
+        dist_with = pdist(preds_with_self[:limit])
+        dist_without = pdist(preds_without_self[:limit])
+
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        plot_file = os.path.join(siamese.model_dir, 'distance_distrib.png')
+        sns.distplot(dist_with, label='with self')
+        sns.distplot(dist_without, label='without self')
+        plt.legend()
+        plt.savefig(plot_file)
+        plt.close()
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True,
                           chunk_size=1000):
@@ -866,8 +918,27 @@ class sign4(BaseSignature, DataSignature):
         self.src_datasets = [sign.dataset for sign in sign2_list]
         self.sign2_self = sign2_self
         self.sign2_list = sign2_list
+        self.sign2_coverage = sign2_coverage
+        if self.sign2_coverage is None:
+            self.sign2_coverage = os.path.join(self.model_path,
+                                               'all_sign2_coverage.h5')
+        if not os.path.isfile(self.sign2_coverage):
+            sign4.save_sign2_coverage(sign2_list, self.sign2_coverage)
+
         self.__log.debug('Siamese fit %s based on %s', self.dataset,
                          str(self.src_datasets))
+
+        # build input matrix if not provided (should be since is shared)
+        self.sign2_universe = sign2_universe
+        if self.sign2_universe is None:
+            self.sign2_universe = os.path.join(self.model_path, 'all_sign2.h5')
+        if partial_universe is not None:
+            sign4.complete_sign2_universe(
+                sign2_list, sign2_self,
+                partial_universe, self.sign2_universe)
+        if not os.path.isfile(self.sign2_universe):
+            sign4.save_sign2_universe(sign2_list, self.sign2_universe)
+
         # check if performance evaluations need to be done
         eval_adanet_path = os.path.join(self.model_path, 'siamese_eval')
         eval_file = os.path.join(eval_adanet_path, 'siamese.h5')
@@ -918,21 +989,6 @@ class sign4(BaseSignature, DataSignature):
         tot_inks = len(inchikeys)
         self.tot_inks = tot_inks
         tot_ds = len(self.src_datasets)
-
-        # build input matrix if not provided (should be since is shared)
-        if sign2_universe is None:
-            sign2_universe = os.path.join(self.model_path, 'all_sign2.h5')
-        if partial_universe is not None:
-            sign4.complete_sign2_universe(sign2_list, sign2_self,
-                                          partial_universe, sign2_universe)
-        if not os.path.isfile(sign2_universe):
-            sign4.save_sign2_universe(sign2_list, sign2_universe)
-        if sign2_coverage is None:
-            sign2_coverage = os.path.join(self.model_path,
-                                          'all_sign2_coverage.h5')
-        if not os.path.isfile(sign2_coverage):
-            #sign4.save_sign2_coverage(sign2_list, sign2_coverage)
-            pass
 
         # save universe sign4
         if update_preds:
@@ -1564,8 +1620,26 @@ def epoch_per_iteration_heuristic(samples, features, clip=(16, 1024)):
     return np.clip(pow2, *clip)
 
 
+def subsampling_probs(sign2_coverage, dataset_idx):
+    cov = DataSignature(sign2_coverage).get_h5_dataset('V')
+    no_self = cov[(cov[:, dataset_idx] == 0).flatten()]
+    # how many dataset per molecule?
+    nr, freq_nr = np.unique(
+        np.sum(no_self, axis=1).astype(int), return_counts=True)
+    np.zeros(cov.shape[1])
+    p_nr = freq_nr / no_self.shape[0]
+    tmp = np.zeros(cov.shape[1])
+    tmp[nr] = p_nr
+    p_nr = tmp
+    # probabilities to keep a dataset?
+    p_keep = np.sum(no_self, axis=0) / np.sum(no_self)
+    return p_nr, p_keep
+
+
 def subsample(tensor, sign_width=128,
               p_nr=np.array([1 / 25.] * 25),
+              p_self=0.1,
+              dataset_idx=[0],
               p_keep=np.array([1 / 25.] * 25),
               **kwargs):
     """Function to subsample stacked data."""
@@ -1573,7 +1647,7 @@ def subsample(tensor, sign_width=128,
     new_data = np.copy(tensor)
     # we will have a masking matrix at the end
     mask = np.zeros_like(new_data).astype(bool)
-    #if new_data.shape[1] % sign_width != 0:
+    # if new_data.shape[1] % sign_width != 0:
     #    raise Exception('All signature should be of length %i.' % sign_width)
     for idx, row in enumerate(new_data):
         # the following assumes the stacked signature have a fixed width
@@ -1586,8 +1660,12 @@ def subsample(tensor, sign_width=128,
         p_nr_row = p_nr[:max_add] / np.sum(p_nr[:max_add])
         # how many dataset are we keeping?
         nr_keep = np.random.choice(max_add, p=p_nr_row) + 1
+        # correct for the self which would be zero
+        tmp_p_keep = p_keep.copy()
+        tmp_p_keep[dataset_idx] = p_self / (1 - p_self)
+        tmp_p_keep /= np.sum(tmp_p_keep)
         # normalize dataset keep probabilities
-        p_keep_row = p_keep[presence] / np.sum(p_keep[presence])
+        p_keep_row = tmp_p_keep[presence] / np.sum(tmp_p_keep[presence])
         # which ones?
         to_add = np.random.choice(
             present_idxs, nr_keep, p=p_keep_row, replace=False)
