@@ -145,7 +145,7 @@ class NeighborPairTraintest(object):
 
     @staticmethod
     def create(X, out_file, neigbors_matrix=None, pos_neighbors=10,
-               neg_neighbors=100,
+               neg_neighbors=100, scaler_dest=None,
                mean_center_x=True, shuffle=True,
                check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
@@ -265,8 +265,9 @@ class NeighborPairTraintest(object):
         if mean_center_x:
             scaler = RobustScaler()
             X = scaler.fit_transform(X)
-            scaler_file = os.path.join(os.path.split(out_file)[0],
-                                       'scaler.pkl')
+            if scaler_dest is None:
+                scaler_dest = os.path.split(out_file)[0]
+            scaler_file = os.path.join(scaler_dest, 'scaler.pkl')
             pickle.dump(scaler, open(scaler_file, 'wb'))
 
         # create dataset
@@ -362,23 +363,22 @@ class NeighborPairTraintest(object):
                     import seaborn as sns
                     d1 = list()
                     d0 = list()
-                    for idx in range(len(all_ys))[:500]: 
+                    for idx in range(len(all_ys))[:500]:
                         dist = euclidean(
                             neigbors_matrix[all_pairs[shuffle_idxs][idx][0]],
-                            neigbors_matrix[all_pairs[shuffle_idxs][idx][1]]) 
-                        if all_ys[shuffle_idxs][idx] == 1: 
+                            neigbors_matrix[all_pairs[shuffle_idxs][idx][1]])
+                        if all_ys[shuffle_idxs][idx] == 1:
                             d1.append(dist)
-                        else:  
+                        else:
                             d0.append(dist)
                     name = "%s_%s" % (split1, split2)
                     plot_file = os.path.join(os.path.split(out_file)[0],
-                                       'dist_%s.png' % name)
+                                             'dist_%s.png' % name)
                     sns.distplot(d1, label='1')
                     sns.distplot(d0, label='0')
                     plt.legend()
                     plt.savefig(plot_file)
                     plt.close()
-
 
                 # save to h5
                 ds_name = "p_%s_%s" % (split1, split2)
