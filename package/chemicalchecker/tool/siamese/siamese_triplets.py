@@ -172,9 +172,9 @@ class SiameseTriplets(object):
             if self.dropout is not None:
                 basenet.add(Dropout(self.dropout))
         basenet.add(
-            Dense(self.layers[-1], activation='relu'))
+            Dense(self.layers[-1], activation='sigmoid'))
 
-        basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
+        #basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
 
         encoded_a = basenet(input_a)
         encoded_p = basenet(input_p)
@@ -204,16 +204,24 @@ class SiameseTriplets(object):
             accuracy
         ]
 
-        def triplet_loss(y_true, y_pred):
+        def triplet_loss(y_true, y_pred, N = 2, beta=2, epsilon=1e-8):
             total_lenght = y_pred.shape.as_list()[-1]
 
             anchor = y_pred[:,0:int(total_lenght*1/3)]
             positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)]
             negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)]
             
-            p_dist = K.sum(K.square(anchor-positive), axis=-1)
-            n_dist = K.sum(K.square(anchor-negative), axis=-1)
-            return K.sum(K.maximum(p_dist - n_dist + self.margin, 0), axis=0)
+            # distance between the anchor and the positive
+            #pos_dist = K.sum(K.square(anchor-positive),axis=1)
+
+            # distance between the anchor and the negative
+            #neg_dist = K.sum(K.square(anchor-negative),axis=1)
+
+            loss = 1.0 - K.sigmoid(
+                K.sum(anchor * positive, axis=-1, keepdims=True) -
+                K.sum(anchor * negative, axis=-1, keepdims=True))
+
+            return loss
 
         # compile and print summary
         model.compile(
@@ -227,7 +235,7 @@ class SiameseTriplets(object):
         if load:
             self.model.load_weights(self.model_file)
         # this will be the encoder/transformer
-        self.transformer = self.model.layers[2]
+        self.transformer = self.model.layers[-2]
 
     def fit(self, monitor='val_accuracy'):
         """Fit the model.
@@ -241,7 +249,7 @@ class SiameseTriplets(object):
         # prepare callbacks
         callbacks = list()
 
-        def mask_keep(idxs, x1_data, x2_data, y_data):
+        def mask_keep(idxs, x1_data, x2_data, x3_data):
             # we will fill an array of NaN with values we want to keep
             x1_data_transf = np.zeros_like(x1_data, dtype=np.float32) * np.nan
             for idx in idxs:
@@ -253,16 +261,22 @@ class SiameseTriplets(object):
                 # copy column from original data
                 col_slice = slice(idx * 128, (idx + 1) * 128)
                 x2_data_transf[:, col_slice] = x2_data[:, col_slice]
+            x3_data_transf = np.zeros_like(x3_data, dtype=np.float32) * np.nan
+            for idx in idxs:
+                # copy column from original data
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x3_data_transf[:, col_slice] = x3_data[:, col_slice]
             # keep rows containing at least one not-NaN value
             not_nan1 = np.isfinite(x1_data_transf).any(axis=1)
             not_nan2 = np.isfinite(x2_data_transf).any(axis=1)
-            not_nan = np.logical_and(not_nan1, not_nan2)
+            not_nan3 = np.isfinite(x3_data_transf).any(axis=1)
+            not_nan = np.logical_and(not_nan1, not_nan2, not_nan3)
             x1_data_transf = x1_data_transf[not_nan]
             x2_data_transf = x2_data_transf[not_nan]
-            y_data_transf = y_data[not_nan]
-            return x1_data_transf, x2_data_transf, y_data_transf
+            x3_data_transf = x3_data_transf[not_nan]
+            return x1_data_transf, x2_data_transf, x3_data_transf
 
-        def mask_exclude(idxs, x1_data, x2_data, y_data):
+        def mask_exclude(idxs, x1_data, x2_data, x3_data):
             x1_data_transf = np.copy(x1_data)
             for idx in idxs:
                 # set current space to nan
@@ -273,14 +287,20 @@ class SiameseTriplets(object):
                 # set current space to nan
                 col_slice = slice(idx * 128, (idx + 1) * 128)
                 x2_data_transf[:, col_slice] = np.nan
+            x3_data_transf = np.copy(x3_data)
+            for idx in idxs:
+                # set current space to nan
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x3_data_transf[:, col_slice] = np.nan
             # drop rows that only contain NaNs
             not_nan1 = np.isfinite(x1_data_transf).any(axis=1)
             not_nan2 = np.isfinite(x2_data_transf).any(axis=1)
-            not_nan = np.logical_and(not_nan1, not_nan2)
+            not_nan3 = np.isfinite(x3_data_transf).any(axis=1)
+            not_nan = np.logical_and(not_nan1, not_nan2, not_nan3)
             x1_data_transf = x1_data_transf[not_nan]
             x2_data_transf = x2_data_transf[not_nan]
-            y_data_transf = y_data[not_nan]
-            return x1_data_transf, x2_data_transf, y_data_transf
+            x3_data_transf = x3_data_transf[not_nan]
+            return x1_data_transf, x2_data_transf, x3_data_transf
 
         # additional validation sets
         space_idx = self.augment_kwargs['dataset_idx']
