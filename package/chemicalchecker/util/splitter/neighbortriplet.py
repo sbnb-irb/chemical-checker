@@ -32,30 +32,27 @@ class NeighborTripletTraintest(object):
         self.nr_neig = nr_neig
         self.x_name = "x"
         if split is None:
-            self.p_name = "p"
-            self.y_name = "y"
+            self.t_name = "t"
         else:
-            self.p_name = "p_%s" % split
-            self.y_name = "y_%s" % split
+            self.t_name = "t_%s" % split
             available_splits = self.get_split_names()
             if split not in available_splits:
                 raise Exception("Split '%s' not found in %s!" %
                                 (split, str(available_splits)))
 
-    def get_p_shapes(self):
+    def get_t_shapes(self):
         """Return the shpaes of X an Y."""
         self.open()
-        p_shape = self._f[self.p_name].shape
+        t_shape = self._f[self.t_name].shape
         self.close()
-        return p_shape
+        return t_shape
 
     def get_xy_shapes(self):
         """Return the shpaes of X an Y."""
         self.open()
         x_shape = self._f[self.x_name].shape
-        y_shape = self._f[self.y_name].shape
         self.close()
-        return x_shape, y_shape
+        return x_shape
 
     def get_split_names(self):
         """Return the name of the splits."""
@@ -81,18 +78,9 @@ class NeighborTripletTraintest(object):
         except AttributeError:
             self.__log.error('HDF5 file is not open yet.')
 
-    def get_py(self, beg_idx, end_idx):
-        """Get a batch of X and Y."""
-        features = self._f[self.p_name][beg_idx: end_idx]
-        # handle NaNs
-        if self.replace_nan is not None:
-            features[np.where(np.isnan(features))] = self.replace_nan
-        labels = self._f[self.y_name][beg_idx: end_idx]
-        return features, labels
-
-    def get_p(self, beg_idx, end_idx):
+    def get_t(self, beg_idx, end_idx):
         """Get a batch of X."""
-        features = self._f[self.p_name][beg_idx: end_idx]
+        features = self._f[self.t_name][beg_idx: end_idx]
         # handle NaNs
         if self.replace_nan is not None:
             features[np.where(np.isnan(features))] = self.replace_nan
@@ -116,7 +104,7 @@ class NeighborTripletTraintest(object):
 
     def get_all_p(self):
         """Get full X."""
-        features = self._f[self.p_name][:]
+        features = self._f[self.t_name][:]
         # handle NaNs
         if self.replace_nan is not None:
             features[np.where(np.isnan(features))] = self.replace_nan
@@ -375,16 +363,16 @@ class NeighborTripletTraintest(object):
                     dists.append(row)
 
                 # shuffling
-                triplets = np.hstack(
+                triplets = np.vstack(
                     (easy_triplets, medium_triplets, hard_triplets))
-                shuffle_idxs = np.arange(triplets.shape[1])
+                shuffle_idxs = np.arange(triplets.shape[0])
                 if shuffle:
                     np.random.shuffle(shuffle_idxs)
 
                 # save to h5
-                ds_name = "p_%s_%s" % (split1, split2)
+                ds_name = "t_%s_%s" % (split1, split2)
                 NeighborTripletTraintest.__log.info(
-                    'writing %s %s %s %s', ds_name, easy_triplets.shape, medium_triplets.shape, hard_triplets.shape)
+                    'writing %s %s %s %s %s', ds_name, easy_triplets.shape, medium_triplets.shape, hard_triplets.shape, triplets.shape)
                 fh.create_dataset(ds_name, data=triplets[shuffle_idxs])
 
             if check_distances:
@@ -436,12 +424,12 @@ class NeighborTripletTraintest(object):
         reader.open()
         # read shapes
         x_shape = reader._f[reader.x_name].shape
-        p_shape = reader._f[reader.p_name].shape
+        t_shape = reader._f[reader.t_name].shape
         # read data types
         x_dtype = reader._f[reader.x_name].dtype
         # no batch size -> return everything
         if not batch_size:
-            batch_size = p_shape[0]
+            batch_size = t_shape[0]
         # keep X in memory for resolving pairs quickly
         if sharedx is not None:
             X = sharedx
@@ -474,7 +462,7 @@ class NeighborTripletTraintest(object):
                     # Traintest.__log.debug('EPOCH %i (caller: %s)', epoch,
                     #                      inspect.stack()[1].function)
                 beg_idx, end_idx = batch_beg_end[batch_idx]
-                pairs = reader.get_p(beg_idx, end_idx)
+                pairs = reader.get_t(beg_idx, end_idx)
                 # @PAU FIX generator
                 x1 = X[pairs[:, 0]]
                 x2 = X[pairs[:, 1]]
@@ -498,10 +486,10 @@ class NeighborTripletTraintest(object):
                     x1[np.where(np.isnan(x1))] = replace_nan
                     x2[np.where(np.isnan(x2))] = replace_nan
                     x3[np.where(np.isnan(x3))] = replace_nan
-                yield [x1, x2, x3]
+                yield [x1, x2, x3], np.empty((x1.shape[0],1))
                 batch_idx += 1
 
-        pair_shape = (p_shape[0] * augment_scale, x_shape[1])
+        pair_shape = (t_shape[0] * augment_scale, x_shape[1])
         shapes = (pair_shape, pair_shape, pair_shape)
         dtypes = (x_dtype, x_dtype, x_dtype)
         return shapes, dtypes, example_generator_fn
