@@ -242,7 +242,7 @@ class sign1(BaseSignature, DataSignature):
 
             inchikey_sig = shelve.open(
                 os.path.join(tmp_dir, "sign1.dict"), "n")
-            for i in xrange(len(inchikeys)):
+            for i in range(len(inchikeys)):
                 inchikey_sig[str(inchikeys[i])] = V[i]
             inchikey_sig.close()
             f.close()
@@ -325,7 +325,7 @@ class sign1(BaseSignature, DataSignature):
             inchikeys = []
             inchikey_sig = shelve.open(
                 os.path.join(tmp_dir, "sign1.dict"), "n")
-            for i in xrange(len(RowNames)):
+            for i in range(len(RowNames)):
                 inchikey = RowNames[i]
                 inchikeys += [inchikey]
                 inchikey_sig[str(inchikey)] = V[i]
@@ -347,10 +347,11 @@ class sign1(BaseSignature, DataSignature):
 
         with h5py.File(self.data_path, "a") as hf:
             hf.create_dataset(
-                "name", data=[str(self.dataset) + "_sig"])
+                "name", data=np.array([str(self.dataset) + "_sig"], DataSignature.string_dtype()))
             hf.create_dataset(
-                "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
-            hf.create_dataset("metric", data=["cosine"])
+                "date", data=np.array([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
+            hf.create_dataset("metric", data=np.array(
+                ["cosine"], DataSignature.string_dtype()))
             hf.create_dataset("normed", data=[not self.not_normalized])
             hf.create_dataset("integerized", data=[self.integerize])
             hf.create_dataset("principal_components", data=[True])
@@ -510,7 +511,7 @@ class sign1(BaseSignature, DataSignature):
 
             inchikey_sig = shelve.open(
                 os.path.join(tmp_dir, "sign1.dict"), "n")
-            for i in xrange(len(inchikeys)):
+            for i in range(len(inchikeys)):
                 inchikey_sig[str(inchikeys[i])] = V[i]
             inchikey_sig.close()
             f.close()
@@ -585,7 +586,7 @@ class sign1(BaseSignature, DataSignature):
             inchikeys = []
             inchikey_sig = shelve.open(
                 os.path.join(tmp_dir, "sign1.dict"), "n")
-            for i in xrange(len(RowNames)):
+            for i in range(len(RowNames)):
                 inchikey = RowNames[i]
                 inchikeys += [inchikey]
                 inchikey_sig[str(inchikey)] = V[i]
@@ -605,10 +606,11 @@ class sign1(BaseSignature, DataSignature):
 
         with h5py.File(destination, "a") as hf:
             hf.create_dataset(
-                "name", data=[str(self.dataset) + "_sig"])
+                "name", data=np.array([str(self.dataset) + "_sig"], DataSignature.string_dtype()))
             hf.create_dataset(
-                "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
-            hf.create_dataset("metric", data=["cosine"])
+                "date", data=np.array([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
+            hf.create_dataset("metric", data=np.array(
+                ["cosine"], DataSignature.string_dtype()))
             hf.create_dataset("normed", data=[not self.not_normalized])
             hf.create_dataset("integerized", data=[self.integerize])
             hf.create_dataset("principal_components", data=[True])
@@ -707,10 +709,10 @@ class sign1(BaseSignature, DataSignature):
         mm = corpora.MmCorpus(tfidf_corpus)
 
         exp_var_ratios = []
-        for _ in xrange(B):
+        for _ in range(B):
             xt = []
             sm = lil_matrix((N, mm.num_terms))
-            for i in xrange(N):
+            for i in range(N):
                 io = random.randint(0, mm.num_docs - 1)
                 terms = mm[io]
                 # Transformed matrix
