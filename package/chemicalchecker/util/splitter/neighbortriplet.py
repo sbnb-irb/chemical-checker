@@ -135,7 +135,7 @@ class NeighborTripletTraintest(object):
                mean_center_x=True, shuffle=True,
                check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
-               x_dtype=np.float32, y_dtype=np.float32, debug_test=False, num_triplets=100):
+               x_dtype=np.float32, y_dtype=np.float32, debug_test=False, num_triplets=10):
         """Create the HDF5 file with validation splits.
 
         Args:
