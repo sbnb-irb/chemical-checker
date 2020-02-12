@@ -221,7 +221,7 @@ class SiameseTriplets(object):
                 K.sum(anchor * positive, axis=-1, keepdims=True) -
                 K.sum(anchor * negative, axis=-1, keepdims=True))
 
-            return loss
+            return K.mean(loss)
 
         # compile and print summary
         model.compile(
