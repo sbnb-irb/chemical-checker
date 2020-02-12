@@ -9,6 +9,7 @@ import os
 
 from .sge import sge
 from .slurm import slurm
+from .local import local
 
 from chemicalchecker.util import logged
 
