@@ -4,5 +4,5 @@ from .dataset import Dataset, DatasetHasDatasource
 from .pubchem import Pubchem
 from .molecule import Molecule
 from .datasource import Datasource
-from .molrepo import Molrepo, MolrepoHasDatasource
+from .molrepo import Molrepo, MolrepoHasDatasource, MolrepoHasMolecule
 from .calcdata import Calcdata
