@@ -333,7 +333,7 @@ class SiameseTriplets(object):
 
         # check early stopping
         if early_stopping.stopped_epoch != 0:
-            self.last_epoch = early_stopping.stopped_epoch - patience
+            self.last_epoch = early_stopping.stopped_epoch - self.patience
         else:
             self.last_epoch = self.epochs
 
