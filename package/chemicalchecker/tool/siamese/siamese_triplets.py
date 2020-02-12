@@ -110,14 +110,14 @@ class SiameseTriplets(object):
                 "traintest_file", self.traintest_file))
             tmp = NeighborTripletTraintest(self.traintest_file, 'train_train')
             self.__log.info("{:<22}: {:>12}".format(
-                'train_train', str(tmp.get_p_shapes())))
+                'train_train', str(tmp.get_t_shapes())))
             if evaluate:
                 tmp = NeighborTripletTraintest(self.traintest_file, 'train_test')
                 self.__log.info("{:<22}: {:>12}".format(
-                    'train_test', str(tmp.get_p_shapes())))
+                    'train_test', str(tmp.get_t_shapes())))
                 tmp = NeighborTripletTraintest(self.traintest_file, 'test_test')
                 self.__log.info("{:<22}: {:>12}".format(
-                    'test_test', str(tmp.get_p_shapes())))
+                    'test_test', str(tmp.get_t_shapes())))
         self.__log.info("{:<22}: {:>12}".format(
             "learning_rate", self.learning_rate))
         self.__log.info("{:<22}: {:>12}".format(
@@ -163,12 +163,15 @@ class SiameseTriplets(object):
         basenet = Sequential()
         # first layer
         basenet.add(
-            Dense(1024, activation='relu', input_shape=input_shape))
+            Dense(self.layers[0], activation='relu', input_shape=input_shape))
         if self.dropout is not None:
             basenet.add(Dropout(self.dropout))
+        for layer in self.layers[1:-1]:
+            basenet.add(Dense(layer, activation='relu'))
+            if self.dropout is not None:
+                basenet.add(Dropout(self.dropout))
         basenet.add(
-            Dense(128, activation='relu'))
-        basenet.summary()
+            Dense(self.layers[-1], activation='relu'))
 
         encoded_a = basenet(input_a)
         encoded_p = basenet(input_p)
@@ -176,7 +179,7 @@ class SiameseTriplets(object):
 
         merged_vector = concatenate([encoded_a, encoded_p, encoded_n], axis=-1, name='merged_layer')
 
-        model = Model([input_a, input_p, input_n], merged_vector)
+        model = Model(inputs=[input_a, input_p, input_n], output=merged_vector)
 
         # define monitored metrics
         def accuracy(y_true, y_pred, threshold=0.5):
