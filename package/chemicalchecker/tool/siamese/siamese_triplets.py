@@ -45,6 +45,7 @@ class SiameseTriplets(object):
         self.augment_kwargs = kwargs.get("augment_kwargs", None)
         self.augment_scale = int(kwargs.get("augment_scale", 1))
         self.margin = float(kwargs.get("margin", 0.2))
+        self.patience = float(kwargs.get("patience", 5))
 
         # internal variables
         self.name = '%s_%s' % (self.__class__.__name__.lower(), self.suffix)
@@ -172,6 +173,8 @@ class SiameseTriplets(object):
                 basenet.add(Dropout(self.dropout))
         basenet.add(
             Dense(self.layers[-1], activation='relu'))
+
+        basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
 
         encoded_a = basenet(input_a)
         encoded_p = basenet(input_p)
@@ -304,11 +307,10 @@ class SiameseTriplets(object):
                 validation_sets, self.model, batch_size=self.batch_size)
             callbacks.append(additional_vals)
 
-        patience = 10
         early_stopping = EarlyStopping(
             monitor=monitor,
             verbose=1,
-            patience=patience,
+            patience=self.patience,
             mode='max',
             restore_best_weights=True)
         if monitor or not self.evaluate:
@@ -322,7 +324,8 @@ class SiameseTriplets(object):
             epochs=self.epochs,
             callbacks=callbacks,
             validation_data=self.val_gen,
-            validation_steps=self.validation_steps)
+            validation_steps=self.validation_steps,
+            shuffle=True)
         self.time = time() - t0
         self.model.save(self.model_file)
         if self.evaluate:
@@ -386,7 +389,6 @@ class SiameseTriplets(object):
                 vset_met = [k for k in history if vset in k and metric in k]
                 for valset in vset_met:
                     plt.plot(history[valset], label=valset, lw=2)
-                plt.ylim(0, 1)
                 plt.legend()
                 c += 1
 

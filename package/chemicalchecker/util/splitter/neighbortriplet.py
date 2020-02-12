@@ -135,7 +135,7 @@ class NeighborTripletTraintest(object):
                mean_center_x=True, shuffle=True,
                check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
-               x_dtype=np.float32, y_dtype=np.float32, debug_test=False):
+               x_dtype=np.float32, y_dtype=np.float32, debug_test=False, num_triplets=100):
         """Create the HDF5 file with validation splits.
 
         Args:
@@ -286,7 +286,6 @@ class NeighborTripletTraintest(object):
                 hard_p_lst = list()
                 hard_n_lst = list()
 
-                num_triplets = 10
 
                 # Idx comes from split2, all else comes from split1
                 for idx, row in enumerate(neig_idxs):
@@ -311,11 +310,11 @@ class NeighborTripletTraintest(object):
                     hard_p_lst.extend(positives)
 
                     easy_n = np.random.choice(
-                        no_F, num_triplets, replace=False)
+                        no_F, num_triplets, replace=True)
                     easy_n_lst.extend(easy_n)
 
                     medium_n = np.random.choice(
-                        neig_idxs[idx][T:], num_triplets, replace=False)
+                        neig_idxs[idx][T:], num_triplets, replace=True)
                     medium_n_lst.extend(medium_n)
 
                     hard_n = [np.random.choice(neig_idxs[idx][
