@@ -6,8 +6,7 @@ import uuid
 import time
 import pickle
 import tarfile
-import datetime
-import paramiko
+import subprocess
 import numpy as np
 import math
 
@@ -20,66 +19,18 @@ ERROR = "error"
 
 
 @logged
-class sge():
-    """Send tasks to an HPC cluster through SGE queueing system."""
-
-    jobFilenamePrefix = "job-"
-    jobFilenameSuffix = ".sh"
+class local():
+    """Run tasks in your local system."""
 
     jobStatusSuffix = ".status"
 
-    templateScript = """\
-#!/bin/bash
-#
-#
-
-# Options for qsub
-%(options)s
-# End of qsub options
-
-# Loads default environment configuration
-if [[ -f $HOME/.bashrc ]]
-then
-  source $HOME/.bashrc
-fi
-
-%(command)s
-
-    """
-
-    defaultOptions = """\
-#$ -S /bin/bash
-#$ -r yes
-#$ -j yes
-"""
-
     def __init__(self, **kwargs):
-        """Initialize the SGE object.
+        """Initialize the local object.
 
         """
-        self.host = kwargs.get("host", '')
-        self.queue = kwargs.get("queue", None)
-        self.username = kwargs.get("username", '')
-        self.password = kwargs.get("password", '')
         self.error_finder = kwargs.get("error_finder", self.__find_error)
-        dry_run = kwargs.get("dry_run", False)
         self.statusFile = None
         self.status_id = None
-        self.conn_params = {}
-
-        if self.username != '' and self.password != '':
-            self.conn_params["username"] = self.username
-            self.conn_params["password"] = self.password
-        if not dry_run:
-            try:
-                ssh = paramiko.SSHClient()
-                ssh.load_system_host_keys()
-                ssh.connect(self.host, **self.conn_params)
-            except paramiko.SSHException as sshException:
-                raise Exception(
-                    "Unable to establish SSH connection: %s" % sshException)
-            finally:
-                ssh.close()
 
     def _chunks(self, l, n):
         """Yield successive n-sized chunks from l."""
@@ -117,33 +68,25 @@ fi
 
         # get arguments or default values
         num_jobs = int(kwargs.get("num_jobs", 1))
-        cpu = kwargs.get("cpu", 1)
-        wait = kwargs.get("wait", True)
         self.jobdir = kwargs.get("jobdir", '')
         self.job_name = kwargs.get("job_name", 'hpc_cc_job')
         elements = kwargs.get("elements", [])
         compress_out = kwargs.get("compress", True)
         check_error = kwargs.get("check_error", True)
-        memory = kwargs.get("memory", 2)
-        maxtime = kwargs.get("time", None)
+        cpu = 2
         cpusafe = kwargs.get("cpusafe", True)
-        membycore = int(kwargs.get("mem_by_core", 2))
 
-        submit_string = 'qsub -terse '
+        index_image_command = command.find('.simg')
 
-        if self.queue is not None:
-            submit_string += " -q " + self.queue + " "
-
-        if wait:
-            submit_string += " -sync y "
+        # Remove the call to singularity since we are already in a singularity
+        # image
+        if index_image_command >= 0:
+            command = command[index_image_command + 5:]
 
         self.__log.debug("Job name is: " + self.job_name)
 
         if not os.path.exists(self.jobdir):
             os.makedirs(self.jobdir)
-
-        jobParams = ["#$ -N " + self.job_name]
-        jobParams.append("#$ -wd " + self.jobdir)
 
         if (len(elements) == 0 and num_jobs > 1):
             raise Exception(
@@ -151,36 +94,6 @@ fi
 
         if num_jobs == 0:
             raise Exception("Number of specified jobs is zero")
-
-        if num_jobs > 1 or command.find("<TASK_ID>") != -1:
-            jobParams.append("#$ -t 1-" + str(num_jobs))
-            tmpname = command.replace("<TASK_ID>", "$SGE_TASK_ID")
-            command = tmpname
-
-        mem_need = memory
-        if memory > membycore:
-            if cpu > 1:
-                newcpu = max(int(math.ceil(memory / membycore)), cpu)
-                memory = membycore
-            else:
-                newcpu = int(math.ceil(memory / membycore))
-                memory = membycore
-
-            if newcpu != cpu:
-                self.__log.warning(
-                    "The memory job requirements needs to " +
-                    "change the number of cores needed by the job. (%d --> %d)" % (cpu, newcpu))
-                cpu = newcpu
-
-        if cpu > 1:
-            jobParams.append("#$ -pe make " + str(cpu))
-
-        jobParams.append("#$ -l mem_free=" + str(mem_need) +
-                         "G,h_vmem=" + str(memory + 0.2) + "G")
-
-        if maxtime is not None:
-            jobParams.append(
-                "#$ -l h_rt=" + str(datetime.timedelta(minutes=maxtime)))
 
         if len(elements) > 0:
             self.__log.debug("Num elements submitted " + str(len(elements)))
@@ -207,67 +120,36 @@ fi
                                 for v in env_vars] + [command])
 
         # Creates the final job.sh
-        paramsText = self.defaultOptions + str("\n").join(jobParams)
-        jobFilename = os.path.join(
-            self.jobdir, sge.jobFilenamePrefix + self.job_name + sge.jobFilenameSuffix)
-        self.__log.info("Writing file " + jobFilename + "...")
-        jobFile = open(jobFilename, "w")
-        jobFile.write(sge.templateScript %
-                      {"options": paramsText, "command": command})
-        jobFile.close()
+        self.__log.info("Writing script file for in dir " + self.jobdir)
 
-        os.chmod(jobFilename, 0o755)
+        if num_jobs > 1 and command.find("<TASK_ID>") != -1:
 
-        submit_string += jobFilename
+            for i in range(num_jobs):
+                cmd_run = command.replace("<TASK_ID>", str(i + 1))
+                self.__log.info("Running job %d/%d" % (i + 1, num_jobs))
+                with open(os.path.join(self.jobdir, "log" + str(i + 1) + ".txt"), 'w') as f:
+                    subprocess.call([cmd_run], stdout=f, stderr=f, shell=True)
 
-        self.__log.debug("HPC submission: " + submit_string)
+        else:
+            cmd_run = command
+            with open(os.path.join(self.jobdir, "log.txt"), 'w') as f:
+                subprocess.call([cmd_run], stdout=f, stderr=f, shell=True)
 
-        time.sleep(2)
+        self.statusFile = os.path.join(
+            self.jobdir, self.job_name + self.jobStatusSuffix)
+        errors = None
+        with open(self.statusFile, "w") as f:
+            f.write(DONE)
+        self.status_id = DONE
 
-        try:
-            ssh = paramiko.SSHClient()
-            ssh.load_system_host_keys()
-            ssh.connect(self.host, **self.conn_params)
-            stdin, stdout, stderr = ssh.exec_command(
-                submit_string, get_pty=True)
+        if check_error:
+            errors = self.check_errors()
 
-            job = stdout.readlines()
+        if compress_out and errors is None:
+            self.compress()
 
-            if job[0].find(".") != -1:
-                self.job_id = job[0][:job[0].find(".")]
-            else:
-                self.job_id = job[0]
-
-            self.job_id = self.job_id.rstrip()
-            self.__log.debug(self.job_id)
-        except paramiko.SSHException as sshException:
-            raise Exception(
-                "Unable to establish SSH connection: %s" % sshException)
-
-        finally:
-            ssh.close()
-            self.statusFile = os.path.join(
-                self.jobdir, self.job_name + sge.jobStatusSuffix)
-            with open(self.statusFile, "w") as f:
-                f.write(STARTED)
-            self.status_id = STARTED
-
-        if wait:
-            errors = None
-            with open(self.statusFile, "w") as f:
-                f.write(DONE)
-            self.status_id = DONE
-
-            if check_error:
-                errors = self.check_errors()
-
-            if compress_out and errors is None:
-                self.compress()
-
-            if errors is not None:
-                return errors
-
-        return self.job_id
+        if errors is not None:
+            return errors
 
     def __find_error(self, files):
 
@@ -303,7 +185,7 @@ fi
 
         files = []
 
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.o*')):
+        for file_name in glob.glob(os.path.join(self.jobdir, 'log*')):
 
             files.append(file_name)
 
@@ -332,10 +214,10 @@ fi
         self.__log.debug("Compressing output job files...")
         tar = tarfile.open(os.path.join(
             self.jobdir, self.job_name + ".tar.gz"), "w:gz")
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.o*')):
+        for file_name in glob.glob(os.path.join(self.jobdir, 'log*')):
             tar.add(file_name, os.path.basename(file_name))
         tar.close()
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.o*')):
+        for file_name in glob.glob(os.path.join(self.jobdir, 'log*')):
             os.remove(file_name)
 
     def status(self):
@@ -353,28 +235,5 @@ fi
 
         if self.statusFile is None:
             return None
-
-        if self.status_id == STARTED:
-            try:
-                ssh = paramiko.SSHClient()
-                ssh.load_system_host_keys()
-                ssh.connect(self.host, **self.conn_params)
-                stdin, stdout, stderr = ssh.exec_command(
-                    'qstat -j ' + self.job_id)
-
-                message = stdout.readlines()
-
-                self.__log.debug(message)
-
-                # if message[0].find("do not exist") != -1:
-                if len(message) == 0:
-                    self.status_id = DONE
-                    with open(self.statusFile, "w") as f:
-                        f.write(self.status_id)
-            except paramiko.SSHException as sshException:
-                self.__log.warning(
-                    "Unable to establish SSH connection: %s" % sshException)
-            finally:
-                ssh.close()
 
         return self.status_id

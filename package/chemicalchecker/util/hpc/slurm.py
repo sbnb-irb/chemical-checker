@@ -265,7 +265,7 @@ fi
         errors = ''
 
         for file_name in files:
-            with open(file_name, encoding="ISO-8859-1") as f:
+            with open(file_name, 'r') as f:
                 num = 1
                 for line in f:
                     if re.search(r'(?i)error', line):
