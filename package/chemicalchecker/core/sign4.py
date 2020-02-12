@@ -1618,13 +1618,12 @@ def subsampling_probs(sign2_coverage, dataset_idx):
     # how many dataset per molecule?
     nr, freq_nr = np.unique(
         np.sum(no_self, axis=1).astype(int), return_counts=True)
-    np.zeros(cov.shape[1])
     p_nr = freq_nr / no_self.shape[0]
     tmp = np.zeros(cov.shape[1])
     tmp[nr] = p_nr
     p_nr = tmp
     # probabilities to keep a dataset?
-    p_keep = np.sum(no_self, axis=0) / np.sum(no_self)
+    p_keep = np.sum(no_self, axis=0) / no_self.shape[0]
     return p_nr, p_keep
 
 
@@ -1639,6 +1638,7 @@ def subsample(tensor, sign_width=128,
     new_data = np.copy(tensor)
     # we will have a masking matrix at the end
     mask = np.zeros_like(new_data).astype(bool)
+    p_keep[dataset_idx] = 0.0
     # if new_data.shape[1] % sign_width != 0:
     #    raise Exception('All signature should be of length %i.' % sign_width)
     for idx, row in enumerate(new_data):
@@ -1651,16 +1651,15 @@ def subsample(tensor, sign_width=128,
         # normalize nr dataset probabilities
         p_nr_row = p_nr[:max_add] / np.sum(p_nr[:max_add])
         # how many dataset are we keeping?
-        nr_keep = np.random.choice(max_add, p=p_nr_row) + 1
-        # correct for the self which would be zero
-        tmp_p_keep = p_keep.copy()
-        tmp_p_keep[dataset_idx] = p_self / (1 - p_self)
-        tmp_p_keep /= np.sum(tmp_p_keep)
+        nr_keep = np.random.choice(np.arange(1, len(p_nr_row) + 1), p=p_nr_row)
         # normalize dataset keep probabilities
-        p_keep_row = tmp_p_keep[presence] / np.sum(tmp_p_keep[presence])
+        p_keep_row = p_keep[presence] / np.sum(p_keep[presence])
+        nr_keep = np.min([nr_keep, np.sum(p_keep_row > 0)])
         # which ones?
         to_add = np.random.choice(
             present_idxs, nr_keep, p=p_keep_row, replace=False)
+        if np.random.rand() < p_self:
+            to_add = np.append(to_add, dataset_idx)
         # dataset mask
         presence_add = np.zeros(presence.shape).astype(bool)
         presence_add[to_add] = True
