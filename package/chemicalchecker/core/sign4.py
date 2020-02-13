@@ -379,8 +379,9 @@ class sign4(BaseSignature, DataSignature):
         import matplotlib.pyplot as plt
         import seaborn as sns
 
-        self.__log.info('VALIDATION: Plot distances.')
-        fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(10, 3))
+        self.__log.info('VALIDATION: Plot euclidean distances.')
+        fig, axes = plt.subplots(
+            1, 3, sharex=True, sharey=True, figsize=(10, 3))
         for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
             ax = axes[idx - 1]
             ax.set_title(name)
@@ -390,12 +391,32 @@ class sign4(BaseSignature, DataSignature):
                 dist_unknown = pdist(unknown_pred[name][:dist_limit])
                 sns.distplot(dist_unknown, label='unknown', ax=ax)
             ax.legend()
-        plot_file = os.path.join(siamese.model_dir, 'known_unknown_dists.png')
+        plot_file = os.path.join(siamese.model_dir,
+                                 'known_unknown_dists_euclidean.png')
+        plt.savefig(plot_file)
+        plt.close()
+
+        self.__log.info('VALIDATION: Plot cosine distances.')
+        fig, axes = plt.subplots(
+            1, 3, sharex=True, sharey=True, figsize=(10, 3))
+        for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
+            ax = axes[idx - 1]
+            ax.set_title(name)
+            dist_known = pdist(known_pred[name][:dist_limit])
+            sns.distplot(dist_known, label='known', ax=ax)
+            if len(unknown_pred[name]) > 0:
+                dist_unknown = pdist(unknown_pred[name][:dist_limit],
+                                     metric='cosine')
+                sns.distplot(dist_unknown, label='unknown', ax=ax)
+            ax.legend()
+        plot_file = os.path.join(siamese.model_dir,
+                                 'known_unknown_dists_cosine.png')
         plt.savefig(plot_file)
         plt.close()
 
         self.__log.info('VALIDATION: Plot intensities.')
-        fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(10, 3))
+        fig, axes = plt.subplots(
+            1, 3, sharex=True, sharey=True, figsize=(10, 3))
         for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
             ax = axes[idx - 1]
             ax.set_title(name)
@@ -434,7 +455,8 @@ class sign4(BaseSignature, DataSignature):
 
         self.__log.info('VALIDATION: Plot feature distribution.')
         fig = plt.figure(figsize=(20, 6), dpi=100)
-        fig, axes = plt.subplots(4, 1, sharex=True, sharey=True, figsize=(20, 12))
+        fig, axes = plt.subplots(
+            4, 1, sharex=True, sharey=True, figsize=(20, 12))
         order = np.argsort(np.mean(known_pred['ALL'], axis=0))[::-1]
         for name, ax in zip(mask_fns, axes):
             df = pd.DataFrame(known_pred[name][:, order]).melt().dropna()
