@@ -8,7 +8,7 @@ from functools import partial
 from keras import backend as K
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
-from keras.layers import Input, Dropout, Lambda, Dense, concatenate
+from keras.layers import Input, Dropout, Lambda, Dense, concatenate, BatchNormalization
 from keras.regularizers import l2
 
 from chemicalchecker.util import logged
@@ -45,7 +45,7 @@ class SiameseTriplets(object):
         self.augment_kwargs = kwargs.get("augment_kwargs", None)
         self.augment_scale = int(kwargs.get("augment_scale", 1))
         self.margin = float(kwargs.get("margin", 0.2))
-        self.patience = float(kwargs.get("patience", 300))
+        self.patience = float(kwargs.get("patience", 5))
 
         # internal variables
         self.name = '%s_%s' % (self.__class__.__name__.lower(), self.suffix)
@@ -175,7 +175,10 @@ class SiameseTriplets(object):
         basenet.add(
             Dense(self.layers[-1], activation='relu'))
 
-        basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
+        basenet.add(BatchNormalization())
+
+        #basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
+        basenet.summary()
 
         encoded_a = basenet(input_a)
         encoded_p = basenet(input_p)
@@ -187,10 +190,6 @@ class SiameseTriplets(object):
 
         # define monitored metrics
         def acct(y_true, y_pred):
-            def euclidean_distance(x, y):
-                sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
-                return K.sqrt(K.maximum(sum_square, K.epsilon()))
-
             total_lenght = y_pred.shape.as_list()[-1]
 
             anchor = y_pred[:,0:int(total_lenght*1/3)]
@@ -390,7 +389,7 @@ class SiameseTriplets(object):
 
         # check early stopping
         if early_stopping.stopped_epoch != 0:
-            self.last_epoch = early_stopping.stopped_epoch - self.patience
+            self.last_epoch = early_stopping.stopped_epoch - (self.patience + 1)
         else:
             self.last_epoch = self.epochs
 
