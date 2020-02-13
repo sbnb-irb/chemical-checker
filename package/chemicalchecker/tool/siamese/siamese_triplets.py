@@ -111,14 +111,14 @@ class SiameseTriplets(object):
                 "traintest_file", self.traintest_file))
             tmp = NeighborTripletTraintest(self.traintest_file, 'train_train')
             self.__log.info("{:<22}: {:>12}".format(
-                'train_train', str(tmp.get_t_shapes())))
+                'train_train', str(tmp.get_ty_shapes())))
             if evaluate:
                 tmp = NeighborTripletTraintest(self.traintest_file, 'train_test')
                 self.__log.info("{:<22}: {:>12}".format(
-                    'train_test', str(tmp.get_t_shapes())))
+                    'train_test', str(tmp.get_ty_shapes())))
                 tmp = NeighborTripletTraintest(self.traintest_file, 'test_test')
                 self.__log.info("{:<22}: {:>12}".format(
-                    'test_test', str(tmp.get_t_shapes())))
+                    'test_test', str(tmp.get_ty_shapes())))
         self.__log.info("{:<22}: {:>12}".format(
             "learning_rate", self.learning_rate))
         self.__log.info("{:<22}: {:>12}".format(
@@ -146,14 +146,15 @@ class SiameseTriplets(object):
         input_shape(tuple): X dimensions (only nr feat is needed)
         load(bool): Whether to load the pretrained model.
         """
-        def euclidean_distance(vects):
-            x, y = vects
-            sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
-            return K.sqrt(K.maximum(sum_square, K.epsilon()))
 
         def dist_output_shape(shapes):
             shape1, shape2 = shapes
             return (shape1[0], 1)
+
+
+        def euclidean_distance(x, y):
+                sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
+                return K.sqrt(K.maximum(sum_square, K.epsilon()))
 
         # we have two inputs
         input_a = Input(shape=input_shape)
@@ -185,7 +186,7 @@ class SiameseTriplets(object):
         model = Model(inputs=[input_a, input_p, input_n], output=merged_vector)
 
         # define monitored metrics
-        def accuracy(y_true, y_pred):
+        def acct(y_true, y_pred):
             def euclidean_distance(x, y):
                 sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
                 return K.sqrt(K.maximum(sum_square, K.epsilon()))
@@ -200,23 +201,50 @@ class SiameseTriplets(object):
 
             return K.mean(acc)
 
-        def acc_e(y_true, y_pred):
-            def euclidean_distance(x, y):
-                sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
-                return K.sqrt(K.maximum(sum_square, K.epsilon()))
-
+        def acce(y_true, y_pred):
             total_lenght = y_pred.shape.as_list()[-1]
 
-            anchor = y_pred[:,0:int(total_lenght*1/3)]
-            positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)]
-            negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)]
+            msk = K.cast(K.equal(y_true, 0), 'float32')
+
+            anchor = y_pred[:,0:int(total_lenght*1/3)] * msk
+            positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)] * msk
+            negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)] * msk
 
             acc = K.cast(euclidean_distance(anchor, positive) < euclidean_distance(anchor, negative), anchor.dtype)
 
-            return K.mean(acc)
+            return K.mean(acc) * 3
 
+        def accm(y_true, y_pred):
+            total_lenght = y_pred.shape.as_list()[-1]
+
+            msk = K.cast(K.equal(y_true, 1), 'float32')
+
+            anchor = y_pred[:,0:int(total_lenght*1/3)] * msk
+            positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)] * msk
+            negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)] * msk
+
+            acc = K.cast(euclidean_distance(anchor, positive) < euclidean_distance(anchor, negative), anchor.dtype)
+
+            return K.mean(acc) * 3
+
+        def acch(y_true, y_pred):
+            total_lenght = y_pred.shape.as_list()[-1]
+
+            msk = K.cast(K.equal(y_true, 2), 'float32')
+
+            anchor = y_pred[:,0:int(total_lenght*1/3)] * msk
+            positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)] * msk
+            negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)] * msk
+
+            acc = K.cast(euclidean_distance(anchor, positive) < euclidean_distance(anchor, negative), anchor.dtype)
+
+            return K.mean(acc) * 3
+        
         metrics = [
-            accuracy
+            acct,
+            acce,
+            accm,
+            acch
         ]
 
         def triplet_loss(y_true, y_pred, N = 2, beta=2, epsilon=1e-8):
@@ -225,12 +253,6 @@ class SiameseTriplets(object):
             anchor = y_pred[:,0:int(total_lenght*1/3)]
             positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)]
             negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)]
-            
-            # distance between the anchor and the positive
-            #pos_dist = K.sum(K.square(anchor-positive),axis=1)
-
-            # distance between the anchor and the negative
-            #neg_dist = K.sum(K.square(anchor-negative),axis=1)
 
             loss = 1.0 - K.sigmoid(
                 K.sum(anchor * positive, axis=-1, keepdims=True) -
@@ -252,7 +274,7 @@ class SiameseTriplets(object):
         # this will be the encoder/transformer
         self.transformer = self.model.layers[-2]
 
-    def fit(self, monitor='val_accuracy'):
+    def fit(self, monitor='val_acct'):
         """Fit the model.
 
         monitor(str): variable to monitor for early stopping.
@@ -325,8 +347,8 @@ class SiameseTriplets(object):
             'ONLY-SELF': partial(mask_keep, space_idx),
         }
         validation_sets = list()
+        vsets = ['train_test', 'test_test']
         if self.evaluate:
-            vsets = ['train_test', 'test_test']
             for split in vsets:
                 for set_name, mask_fn in mask_fns.items():
                     name = '_'.join([split, set_name])
