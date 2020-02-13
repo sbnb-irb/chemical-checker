@@ -8,7 +8,7 @@ from functools import partial
 from keras import backend as K
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
-from keras.layers import Input, Dropout, Lambda, Dense, concatenate, BatchNormalization
+from keras.layers import Input, Dropout, Lambda, Dense, concatenate, BatchNormalization, Activation
 from keras.regularizers import l2
 
 from chemicalchecker.util import logged
@@ -165,17 +165,19 @@ class SiameseTriplets(object):
         basenet = Sequential()
         # first layer
         basenet.add(
-            Dense(self.layers[0], activation='relu', input_shape=input_shape))
+            Dense(self.layers[0], activation='relu', input_shape=input_shape, use_bias=False))
         if self.dropout is not None:
             basenet.add(Dropout(self.dropout))
         for layer in self.layers[1:-1]:
-            basenet.add(Dense(layer, activation='relu'))
+            basenet.add(Dense(layer, activation='relu', use_bias=False))
             if self.dropout is not None:
                 basenet.add(Dropout(self.dropout))
         basenet.add(
-            Dense(self.layers[-1], activation='relu'))
+            Dense(self.layers[-1], activation='relu', use_bias=False))
+        basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
+        basenet.add(Activation('sigmoid'))
 
-        basenet.add(BatchNormalization())
+        #basenet.add(BatchNormalization())
 
         #basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
         basenet.summary()
