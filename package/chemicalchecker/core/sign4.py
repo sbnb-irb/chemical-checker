@@ -325,35 +325,48 @@ class sign4(BaseSignature, DataSignature):
         }
 
         # get molecules where space is available
-        self.__log.info('VALIDATION: fetching Xs.')
-        known = list()
-        unknown = list()
-        enough_known = False
-        enough_unknown = False
-        with h5py.File(self.sign2_universe, "r") as features:
-            # read input in chunks
-            for idx in range(0, features['x_test'].shape[0], chunk_size):
-                chunk = slice(idx, idx + chunk_size)
-                feat = features['x_test'][chunk]
+        if self.sign2_coverage is None:
+            self.__log.info('VALIDATION: fetching Xs.')
+            known = list()
+            unknown = list()
+            enough_known = False
+            enough_unknown = False
+            with h5py.File(self.sign2_universe, "r") as features:
+                # read input in chunks
+                for idx in range(0, features['x_test'].shape[0], chunk_size):
+                    chunk = slice(idx, idx + chunk_size)
+                    feat = features['x_test'][chunk]
+                    nan_ds = np.isnan(feat[:, dataset_idx[0] * 128])
+                    if len(known) < limit:
+                        chunk_known = feat[~nan_ds]
+                        if len(chunk_known) == 0:
+                            continue
+                        known.extend(chunk_known)
+                    else:
+                        enough_known = True
+                    if len(unknown) < limit:
+                        chunk_unknown = feat[nan_ds]
+                        if len(chunk_unknown) == 0:
+                            continue
+                        unknown.extend(chunk_unknown)
+                    else:
+                        enough_unknown = True
+                    if enough_known and enough_unknown:
+                        break
+            known = np.vstack(known[:limit])
+            unknown = np.vstack(unknown[:limit])
+        else:
+            cov = DataSignature(self.sign2_coverage).get_h5_dataset('V')
+            known_idxs = np.argwhere(cov[:, dataset_idx[0]] == 1).flatten()
+            unknown_idxs = np.argwhere(cov[:, dataset_idx[0]] == 0).flatten()
+            self.__log.info('VALIDATION: total %s known, %s unknown' %
+                            (known_idxs.shape[0], unknown_idxs.shape[0]))
+            full_x = DataSignature(self.sign2_universe)
+            known = full_x.get_h5_dataset(
+                'x_test', mask=known_idxs[:limit])
+            unknown = full_x.get_h5_dataset(
+                'x_test', mask=unknown_idxs[:limit])
 
-                chunk_known = feat[~np.isnan(feat[:, dataset_idx[0] * 128])]
-                chunk_unknown = feat[np.isnan(feat[:, dataset_idx[0] * 128])]
-                if len(known) < limit:
-                    if len(chunk_known) == 0:
-                        continue
-                    known.extend(chunk_known)
-                else:
-                    enough_known = True
-                if len(unknown) < limit:
-                    if len(chunk_unknown) == 0:
-                        continue
-                    unknown.extend(chunk_unknown)
-                else:
-                    enough_unknown = True
-                if enough_known and enough_unknown:
-                    break
-        known = np.vstack(known[:limit])
-        unknown = np.vstack(unknown[:limit])
         # predict
         self.__log.info('VALIDATION: Predicting.')
         known_pred = dict()
@@ -367,39 +380,40 @@ class sign4(BaseSignature, DataSignature):
         import seaborn as sns
 
         self.__log.info('VALIDATION: Plot distances.')
-        fig = plt.figure(figsize=(10, 3), dpi=100)
+        fig, axes = plt.subplots(1, 3, sharex=True, figsize=(10, 3))
         for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
-            ax = fig.add_subplot(1, 3, idx)
+            ax = axes[idx - 1]
             ax.set_title(name)
             dist_known = pdist(known_pred[name][:dist_limit])
-            sns.distplot(dist_known, label='known')
+            sns.distplot(dist_known, label='known', ax=ax)
             if len(unknown_pred[name]) > 0:
                 dist_unknown = pdist(unknown_pred[name][:dist_limit])
-                sns.distplot(dist_unknown, label='unknown')
-            plt.legend()
+                sns.distplot(dist_unknown, label='unknown', ax=ax)
+            ax.legend()
         plot_file = os.path.join(siamese.model_dir, 'known_unknown_dists.png')
         plt.savefig(plot_file)
         plt.close()
 
         self.__log.info('VALIDATION: Plot intensities.')
-        fig = plt.figure(figsize=(10, 3), dpi=100)
+        fig, axes = plt.subplots(1, 3, sharex=True, figsize=(10, 3))
         for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
-            ax = fig.add_subplot(1, 3, idx)
+            ax = axes[idx - 1]
             ax.set_title(name)
             dist_known = np.sum(known_pred[name], axis=1)
-            sns.distplot(dist_known, label='known')
+            sns.distplot(dist_known, label='known', ax=ax)
             if len(unknown_pred[name]) > 0:
                 dist_unknown = np.sum(unknown_pred[name], axis=1)
-                sns.distplot(dist_unknown, label='unknown')
-            plt.legend()
-        plot_file = os.path.join(siamese.model_dir, 'known_unknown_intensity.png')
+                sns.distplot(dist_unknown, label='unknown', ax=ax)
+            ax.legend()
+        plot_file = os.path.join(
+            siamese.model_dir, 'known_unknown_intensity.png')
         plt.savefig(plot_file)
         plt.close()
 
         self.__log.info('VALIDATION: Plot TSNEs.')
-        fig = plt.figure(figsize=(10, 3), dpi=100)
+        fig, axes = plt.subplots(1, 3, figsize=(10, 3))
         for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
-            ax = fig.add_subplot(1, 3, idx)
+            ax = axes[idx - 1]
             ax.set_title(name)
             tsne = MulticoreTSNE(n_components=2)
             if len(unknown_pred[name]) > 0:
@@ -409,27 +423,31 @@ class sign4(BaseSignature, DataSignature):
             proj = tsne.fit_transform(tsne_train)
             dist_known = proj[:len(known_pred[name])]
             dist_unknown = proj[len(known_pred[name]):]
-            ax.scatter(dist_known[:, 0], dist_known[:, 1], label='known')
-            ax.scatter(dist_unknown[:, 0], dist_unknown[:, 1], label='unknown')
-            plt.legend()
+            ax.scatter(dist_known[:, 0], dist_known[
+                       :, 1], alpha=.3, label='known')
+            ax.scatter(dist_unknown[:, 0], dist_unknown[
+                       :, 1], alpha=.3, marker='x', label='unknown')
+            ax.legend()
         plot_file = os.path.join(siamese.model_dir, 'known_unknown_tsne.png')
         plt.savefig(plot_file)
         plt.close()
 
         self.__log.info('VALIDATION: Plot feature distribution.')
         fig = plt.figure(figsize=(20, 6), dpi=100)
-        ax = fig.add_subplot(211)
+        fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(20, 6))
         order = np.argsort(np.mean(known_pred['ALL'], axis=0))[::-1]
-        df = pd.DataFrame(known_pred['ALL'][:, order]).melt().dropna()
-        sns.pointplot(x='variable', y='value', ci='sd', data=df, ax=ax)
-        ax.set_ylabel('known')
-        ax.axhline(0)
-        ax = fig.add_subplot(212)
+        for name in mask_fns:
+            df = pd.DataFrame(known_pred[name][:, order]).melt().dropna()
+            sns.pointplot(x='variable', y='value', ci='sd',
+                          data=df, ax=ax1, label=name)
+        ax1.set_ylabel('known')
+        ax1.axhline(0)
         df = pd.DataFrame(unknown_pred['ALL'][:, order]).melt().dropna()
-        sns.pointplot(x='variable', y='value', ci='sd', data=df, ax=ax)
-        ax.set_ylabel('unknown')
-        ax.axhline(0)
-        filename = os.path.join(siamese.model_dir, "known_unknown_features.png")
+        sns.pointplot(x='variable', y='value', ci='sd', data=df, ax=ax2)
+        ax2.set_ylabel('unknown')
+        ax2.axhline(0)
+        filename = os.path.join(
+            siamese.model_dir, "known_unknown_features.png")
         plt.savefig(filename, dpi=100)
         plt.close()
 
@@ -1544,6 +1562,31 @@ class sign4(BaseSignature, DataSignature):
         except ImportError as err:
             raise err
 
+        def mask_keep(idxs, x_data, y_data):
+            # we will fill an array of NaN with values we want to keep
+            x_data_transf = np.zeros_like(x_data, dtype=np.float32) * np.nan
+            for idx in idxs:
+                # copy column from original data
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x_data_transf[:, col_slice] = x_data[:, col_slice]
+            # keep rows containing at least one not-NaN value
+            not_nan = np.isfinite(x_data_transf).any(axis=1)
+            x_data_transf = x_data_transf[not_nan]
+            y_data_transf = y_data[not_nan]
+            return x_data_transf, y_data_transf
+
+        def mask_exclude(idxs, x_data, y_data):
+            x_data_transf = np.copy(x_data)
+            for idx in idxs:
+                # set current space to nan
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x_data_transf[:, col_slice] = np.nan
+            # drop rows that only contain NaNs
+            not_nan = np.isfinite(x_data_transf).any(axis=1)
+            x_data_transf = x_data_transf[not_nan]
+            y_data_transf = y_data[not_nan]
+            return x_data_transf, y_data_transf
+
         def predict_and_save(name, idxs, traintest_file, split,
                              mask_fn, siamese_path, total_size):
             # call predict
@@ -1645,33 +1688,6 @@ class sign4(BaseSignature, DataSignature):
 def safe_create(h5file, *args, **kwargs):
     if args[0] not in h5file:
         h5file.create_dataset(*args, **kwargs)
-
-
-def mask_keep(idxs, x_data, y_data):
-    # we will fill an array of NaN with values we want to keep
-    x_data_transf = np.zeros_like(x_data, dtype=np.float32) * np.nan
-    for idx in idxs:
-        # copy column from original data
-        col_slice = slice(idx * 128, (idx + 1) * 128)
-        x_data_transf[:, col_slice] = x_data[:, col_slice]
-    # keep rows containing at least one not-NaN value
-    not_nan = np.isfinite(x_data_transf).any(axis=1)
-    x_data_transf = x_data_transf[not_nan]
-    y_data_transf = y_data[not_nan]
-    return x_data_transf, y_data_transf
-
-
-def mask_exclude(idxs, x_data, y_data):
-    x_data_transf = np.copy(x_data)
-    for idx in idxs:
-        # set current space to nan
-        col_slice = slice(idx * 128, (idx + 1) * 128)
-        x_data_transf[:, col_slice] = np.nan
-    # drop rows that only contain NaNs
-    not_nan = np.isfinite(x_data_transf).any(axis=1)
-    x_data_transf = x_data_transf[not_nan]
-    y_data_transf = y_data[not_nan]
-    return x_data_transf, y_data_transf
 
 
 def col_wise_correlation(X, Y):
