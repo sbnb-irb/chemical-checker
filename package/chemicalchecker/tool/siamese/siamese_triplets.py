@@ -45,7 +45,7 @@ class SiameseTriplets(object):
         self.augment_kwargs = kwargs.get("augment_kwargs", None)
         self.augment_scale = int(kwargs.get("augment_scale", 1))
         self.margin = float(kwargs.get("margin", 0.2))
-        self.patience = float(kwargs.get("patience", 5))
+        self.patience = float(kwargs.get("patience", 300))
 
         # internal variables
         self.name = '%s_%s' % (self.__class__.__name__.lower(), self.suffix)
@@ -172,9 +172,9 @@ class SiameseTriplets(object):
             if self.dropout is not None:
                 basenet.add(Dropout(self.dropout))
         basenet.add(
-            Dense(self.layers[-1], activation='sigmoid'))
+            Dense(self.layers[-1], activation='relu'))
 
-        #basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
+        basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
 
         encoded_a = basenet(input_a)
         encoded_p = basenet(input_p)
@@ -185,7 +185,22 @@ class SiameseTriplets(object):
         model = Model(inputs=[input_a, input_p, input_n], output=merged_vector)
 
         # define monitored metrics
-        def accuracy(y_true, y_pred, threshold=0.5):
+        def accuracy(y_true, y_pred):
+            def euclidean_distance(x, y):
+                sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
+                return K.sqrt(K.maximum(sum_square, K.epsilon()))
+
+            total_lenght = y_pred.shape.as_list()[-1]
+
+            anchor = y_pred[:,0:int(total_lenght*1/3)]
+            positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)]
+            negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)]
+
+            acc = K.cast(euclidean_distance(anchor, positive) < euclidean_distance(anchor, negative), anchor.dtype)
+
+            return K.mean(acc)
+
+        def acc_e(y_true, y_pred):
             def euclidean_distance(x, y):
                 sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
                 return K.sqrt(K.maximum(sum_square, K.epsilon()))
