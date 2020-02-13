@@ -1730,6 +1730,7 @@ def subsampling_probs(sign2_coverage, dataset_idx):
 
 def subsample(tensor, sign_width=128,
               p_nr=np.array([1 / 25.] * 25),
+              p_only_self=0.25,
               p_self=0.1,
               dataset_idx=[0],
               p_keep=np.array([1 / 25.] * 25),
@@ -1745,6 +1746,12 @@ def subsample(tensor, sign_width=128,
     for idx, row in enumerate(new_data):
         # the following assumes the stacked signature have a fixed width
         presence = ~np.isnan(row[0::sign_width])
+        # case where we show only the space itself
+        if np.random.rand() < p_only_self:
+            presence_add = np.full_like(presence, False)
+            presence_add[dataset_idx] = True
+            mask[idx] = np.repeat(presence_add, sign_width)
+            continue
         # datasets that I can select
         present_idxs = np.argwhere(presence).flatten()
         # how many dataset at most?
@@ -1769,3 +1776,50 @@ def subsample(tensor, sign_width=128,
     # make masked dataset NaN
     new_data[~mask] = np.nan
     return new_data
+
+
+def plot_subsample(ds='B1.001'):
+    import matplotlib.pyplot as plt
+    from chemicalchecker import ChemicalChecker
+    from chemicalchecker.core.signature_data import DataSignature
+    from chemicalchecker.core.sign4 import subsample, subsampling_probs
+
+    cc = ChemicalChecker()
+    s4 = cc.get_signature("sign4", "full", ds)
+    s4_X = os.path.join(s4.model_path, 'train.h5')
+    X = DataSignature(s4_X).get_h5_dataset('x')
+    sign_width = 128
+
+    dataset_idx = np.argwhere(
+        np.isin(list(cc.datasets_exemplary()), ds)).flatten()
+    sign2_coverage = '/aloy/web_checker/current/full/all_sign2_coverage.h5'
+    p_nr, p_keep = subsampling_probs(sign2_coverage, dataset_idx)
+
+    X1 = subsample(X, dataset_idx=[5], p_self=.1)
+
+    presence_X = ~np.isnan(X[:, 0::sign_width])
+    presence_X1 = ~np.isnan(X1[:, 0::sign_width])
+
+    _, freq_nr_X = np.unique(
+        np.sum(presence_X, axis=1).astype(int), return_counts=True)
+    _, freq_nr_X1 = np.unique(
+        np.sum(presence_X1, axis=1).astype(int), return_counts=True)
+
+    plt.figure(figsize=(12, 6), dpi=100)
+    plt.subplot(1, 2, 1)
+    plt.title('which dataset')
+    plt.bar(np.arange(25) - 0.2, np.sum(presence_X, axis=0),
+            width=.2, alpha=.8, label='original')
+    plt.bar(np.arange(25) + 0.2, np.sum(presence_X1, axis=0),
+            width=.2, alpha=.8, label='real freq.')
+
+    plt.subplot(1, 2, 2)
+    plt.title('how many dataset')
+    plt.bar(np.arange(1, len(freq_nr_X) + 1) - 0.2,
+            freq_nr_X, width=.2, alpha=.8, label='original')
+    plt.bar(np.arange(1, len(freq_nr_X1) + 1) + 0.2,
+            freq_nr_X1, width=.2, alpha=.8, label='real freq.')
+
+    plt.tight_layout()
+    plt.savefig('subsample_dataset.png')
+    plt.close()
