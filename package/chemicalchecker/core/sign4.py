@@ -380,7 +380,7 @@ class sign4(BaseSignature, DataSignature):
         import seaborn as sns
 
         self.__log.info('VALIDATION: Plot distances.')
-        fig, axes = plt.subplots(1, 3, sharex=True, figsize=(10, 3))
+        fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(10, 3))
         for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
             ax = axes[idx - 1]
             ax.set_title(name)
@@ -395,7 +395,7 @@ class sign4(BaseSignature, DataSignature):
         plt.close()
 
         self.__log.info('VALIDATION: Plot intensities.')
-        fig, axes = plt.subplots(1, 3, sharex=True, figsize=(10, 3))
+        fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(10, 3))
         for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
             ax = axes[idx - 1]
             ax.set_title(name)
@@ -434,17 +434,18 @@ class sign4(BaseSignature, DataSignature):
 
         self.__log.info('VALIDATION: Plot feature distribution.')
         fig = plt.figure(figsize=(20, 6), dpi=100)
-        fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(20, 6))
+        fig, axes = plt.subplots(4, 1, sharex=True, sharey=True, figsize=(20, 12))
         order = np.argsort(np.mean(known_pred['ALL'], axis=0))[::-1]
-        for name in mask_fns:
+        for name, ax in zip(mask_fns, axes):
             df = pd.DataFrame(known_pred[name][:, order]).melt().dropna()
             sns.pointplot(x='variable', y='value', ci='sd',
-                          data=df, ax=ax1, label=name)
-        ax1.set_ylabel('known')
-        ax1.axhline(0)
+                          data=df, ax=ax, label=name)
+            ax.set_ylabel('known %s' % name)
+            ax.axhline(0)
         df = pd.DataFrame(unknown_pred['ALL'][:, order]).melt().dropna()
+        ax2 = axes[-1]
         sns.pointplot(x='variable', y='value', ci='sd', data=df, ax=ax2)
-        ax2.set_ylabel('unknown')
+        ax2.set_ylabel('unknown ALL')
         ax2.axhline(0)
         filename = os.path.join(
             siamese.model_dir, "known_unknown_features.png")
