@@ -3,17 +3,17 @@ From: centos
 
 %environment
     # PATHS
-    export PATH=/opt/miniconda2/bin:$PATH
-    source activate py27
+    export PATH=/opt/miniconda3/bin:$PATH
+    source activate py37
 
 %post
     # bind paths
-    mkdir /aloy
-    mkdir /aloy/home
-    mkdir /aloy/data
-    mkdir /aloy/scratch
-    mkdir /aloy/web_checker
-    mkdir /slgpfs
+    mkdir -p /aloy
+    mkdir -p /aloy/home
+    mkdir -p /aloy/data
+    mkdir -p /aloy/scratch
+    mkdir -p /aloy/web_checker
+    mkdir -p /slgpfs
     
     # update yum
     yum update -y
@@ -39,16 +39,17 @@ From: centos
                    epel-release 
 
     # conda
-    mkdir /opt/miniconda2 
-    cd /opt/miniconda2 
-    wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
-    bash Miniconda2-latest-Linux-x86_64.sh -p /opt/miniconda2 -b -f
-    rm Miniconda2-latest-Linux-x86_64.sh
-    export PATH=/opt/miniconda2/bin:$PATH
+    mkdir -p /opt/miniconda3
+    cd /opt/miniconda3 
+    wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    bash Miniconda3-latest-Linux-x86_64.sh -p /opt/miniconda3 -b -f
+    rm Miniconda3-latest-Linux-x86_64.sh
+    export PATH=/opt/miniconda3/bin:$PATH
 
     # create and activate conda enviroment
-    conda create --name=py27 python=2.7 -y
-    source activate py27
+    conda update conda -y
+    conda create --name=py37 python=3.7 -y
+    source activate py37
 
     # basic requirements
     pip install numpy
