@@ -33,19 +33,23 @@ class NeighborTripletTraintest(object):
         self.x_name = "x"
         if split is None:
             self.t_name = "t"
+            self.y_name = "y"
         else:
             self.t_name = "t_%s" % split
+            self.y_name = "y_%s" % split
             available_splits = self.get_split_names()
             if split not in available_splits:
                 raise Exception("Split '%s' not found in %s!" %
                                 (split, str(available_splits)))
 
-    def get_t_shapes(self):
+
+    def get_ty_shapes(self):
         """Return the shpaes of X an Y."""
         self.open()
         t_shape = self._f[self.t_name].shape
+        y_shape = self._f[self.y_name].shape
         self.close()
-        return t_shape
+        return t_shape, y_shape
 
     def get_xy_shapes(self):
         """Return the shpaes of X an Y."""
@@ -364,15 +368,22 @@ class NeighborTripletTraintest(object):
                 # shuffling
                 triplets = np.vstack(
                     (easy_triplets, medium_triplets, hard_triplets))
+
                 shuffle_idxs = np.arange(triplets.shape[0])
+
+                l = easy_triplets.shape[0]
+                y = np.hstack((np.full((l,), 0), np.full((l,), 1), np.full((l,), 2)))
+
                 if shuffle:
                     np.random.shuffle(shuffle_idxs)
 
                 # save to h5
                 ds_name = "t_%s_%s" % (split1, split2)
+                ys_name = "y_%s_%s" % (split1, split2)
                 NeighborTripletTraintest.__log.info(
-                    'writing %s %s %s %s %s', ds_name, easy_triplets.shape, medium_triplets.shape, hard_triplets.shape, triplets.shape)
+                    'writing %s %s %s %s %s', ds_name, easy_triplets.shape, medium_triplets.shape, hard_triplets.shape, triplets.shape, y.shape)
                 fh.create_dataset(ds_name, data=triplets[shuffle_idxs])
+                fh.create_dataset(ys_name, data=y[shuffle_idxs])
 
             if check_distances:
                 import matplotlib.pyplot as plt
@@ -462,7 +473,7 @@ class NeighborTripletTraintest(object):
                     #                      inspect.stack()[1].function)
                 beg_idx, end_idx = batch_beg_end[batch_idx]
                 pairs = reader.get_t(beg_idx, end_idx)
-                # @PAU FIX generator
+                y = reader.get_y(beg_idx, end_idx)
                 x1 = X[pairs[:, 0]]
                 x2 = X[pairs[:, 1]]
                 x3 = X[pairs[:, 2]]
@@ -485,7 +496,7 @@ class NeighborTripletTraintest(object):
                     x1[np.where(np.isnan(x1))] = replace_nan
                     x2[np.where(np.isnan(x2))] = replace_nan
                     x3[np.where(np.isnan(x3))] = replace_nan
-                yield [x1, x2, x3], np.empty((x1.shape[0],1))
+                yield [x1, x2, x3], y
                 batch_idx += 1
 
         pair_shape = (t_shape[0] * augment_scale, x_shape[1])
