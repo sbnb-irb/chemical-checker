@@ -10,26 +10,6 @@ stages:
 
 
 
-build_singularity_image_py27:
-  stage: image
-  script:
-    - yum install squashfs-tools -y
-    - mkdir images -p
-    - rm -f images/cc_py27.simg
-    - singularity build images/cc_py27.simg container/singularity/cc_py27.def
-    - singularity exec images/cc_py27.simg pip freeze > images/py27_freeze.txt
-  cache:
-    paths:
-      - images
-  artifacts:
-    paths:
-    - images/cc_py27.simg
-    - images/py27_freeze.txt
-    expire_in: 1 week
-  only:
-    changes:
-      - container/singularity/cc_py27.def
-
 build_singularity_image_py37:
   stage: image
   script:
@@ -48,35 +28,25 @@ build_singularity_image_py37:
     changes:
       - container/singularity/cc_py37.def
 
-build_singularity_image_py27_lite:
+build_singularity_image_py37_lite:
   stage: image
   script:
     - yum install squashfs-tools -y
     - mkdir images -p
-    - rm -f images/cc_py27_lite.simg
-    - singularity build images/cc_py27_lite.simg container/singularity/cc_py27_lite.def
+    - rm -f images/cc_py37_lite.simg
+    - singularity build images/cc_py37_lite.simg container/singularity/cc_py37_lite.def
   cache:
     paths:
       - images
   artifacts:
     paths:
-    - images/cc_py27_lite.simg
+    - images/cc_py37_lite.simg
     expire_in: 1 week
   only:
     changes:
-      - container/singularity/cc_py27_lite.def
+      - container/singularity/cc_py37_lite.def
 
 
-
-python_2.7:
-  stage: test
-  script:
-    - ls -l
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27.simg which python
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27.simg make -C /test/package test
-  cache:
-    paths:
-      - images
 
 python_3.7:
   stage: test
@@ -88,12 +58,12 @@ python_3.7:
     paths:
       - images
 
-python_2.7_lite:
+python_3.7_lite:
   stage: test
   script:
     - ls -l
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27_lite.simg which python
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27_lite.simg make -C /test/package test
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py37_lite.simg which python
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py37_lite.simg make -C /test/package test
   cache:
     paths:
       - images
@@ -128,7 +98,7 @@ pages:
     paths:
       - images
   script:
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py27.simg make -C /test/package docs
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py37.simg make -C /test/package docs
     - cd package/docs
     - mv _build/html/ ../../public/
     - ls -l ../../public
