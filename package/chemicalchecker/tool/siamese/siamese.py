@@ -167,17 +167,18 @@ class Siamese(object):
         model_layers = list()
         # first layer
         model_layers.append(
-            Dense(self.layers[0], activation='relu', input_shape=input_shape))
+            Dense(self.layers[0], activation='tanh', input_shape=input_shape))
         if self.dropout is not None:
             model_layers.append(Dropout(self.dropout))
         # other layers
         for layer in self.layers[1:-1]:
-            model_layers.append(Dense(layer, activation='relu'))
+            model_layers.append(Dense(layer, activation='tanh'))
             if self.dropout is not None:
                 model_layers.append(Dropout(self.dropout))
         # last layer
         model_layers.append(
-            Dense(self.layers[-1], activation='relu'))
+            Dense(self.layers[-1], activation='tanh'))
+
         basenet = Sequential(model_layers)
         basenet.summary()
 
@@ -373,7 +374,7 @@ class Siamese(object):
         plt.figure(figsize=(cols * 5, rows * 5), dpi=100)
 
         c = 1
-        for metric in metrics:
+        for metric in sorted(metrics):
             for vset in vsets:
                 plt.subplot(rows, cols, c)
                 plt.title(metric.capitalize())
