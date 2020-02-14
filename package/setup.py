@@ -62,7 +62,7 @@ setup(
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
-    url='http://gitlab.sbnb.org/project-specific-repositories/chemical_checker',
+    url='http://gitlab.sbnb.org/packages/chemical_checker',
     version='0.2.2',
     zip_safe=False,
 )
