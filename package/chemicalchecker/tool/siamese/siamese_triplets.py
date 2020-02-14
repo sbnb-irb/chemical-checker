@@ -173,9 +173,9 @@ class SiameseTriplets(object):
             if self.dropout is not None:
                 basenet.add(Dropout(self.dropout))
         basenet.add(
-            Dense(self.layers[-1], activation='relu', use_bias=False))
-        basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
-        basenet.add(Activation('sigmoid'))
+            Dense(self.layers[-1], activation='tanh', use_bias=False))
+        #basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
+        #basenet.add(Activation('sigmoid'))
 
         #basenet.add(BatchNormalization())
 
