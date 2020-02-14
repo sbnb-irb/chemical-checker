@@ -135,7 +135,7 @@ class NeighborTripletTraintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def create(X, out_file, neigbors_matrix=None, F=0.1, T=0.01,
+    def create(X, out_file, neigbors_matrix=None, f_per=0.1, t_per=0.01,
                mean_center_x=True, shuffle=True,
                check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
@@ -164,18 +164,6 @@ class NeighborTripletTraintest(object):
         # train test validation splits
         if len(split_names) != len(split_fractions):
             raise Exception("Split names and fraction should be same amount.")
-
-        # F is 10% of the size of NN shape (100 min)
-        F = int(F * len(neigbors_matrix))
-        F = max(100, F)
-        F = min(1000, F)
-
-        # T is 1% of the size of NN shape (30 min)
-        T = int(T * len(neigbors_matrix))
-        T = max(5, T)
-        T = min(100, T)
-
-        print("F and T: ",F,T)
 
         # the neigbors_matrix is optional
         if len(neigbors_matrix) != len(X):
@@ -253,8 +241,6 @@ class NeighborTripletTraintest(object):
             pickle.dump(scaler, open(scaler_file, 'wb'))
 
         # create dataset
-        NeighborTripletTraintest.__log.info('%s', F)
-        NeighborTripletTraintest.__log.info('%s', T)
         NeighborTripletTraintest.__log.info('Traintest saving to %s', out_file)
         with h5py.File(out_file, "w") as fh:
             fh.create_dataset('x', data=X)
@@ -266,6 +252,20 @@ class NeighborTripletTraintest(object):
             dists = []
 
             for split1, split2 in combos:
+                #Define F and T according to the split that is being used:
+                F = int(f_per * nr_matrix[split2].shape[0])
+                F = max(100, F)
+                F = min(1000, F)
+                F = min(F, (nr_matrix[split2].shape[0] - 1))
+
+                # T is 1% of the size of NN shape (30 min)
+                T = int(t_per * nr_matrix[split2].shape[0])
+                T = max(5, T)
+                T = min(100, T)
+                assert(T < F)
+
+                NeighborTripletTraintest.__log.info("F and T: %s %s" % (F, T))
+
                 # remove self neighbors when splits are the same
                 if split1 == split2:
                     # search NN
@@ -283,7 +283,7 @@ class NeighborTripletTraintest(object):
                 # get probabilities for T
                 t_prob = ((np.arange(T + 1)[::-1]) /
                           np.sum(np.arange(T + 1)))[:T]
-                assert(sum(t_prob) == 1.0)
+                assert(sum(t_prob) > 0.99)
 
                 anchors_lst = list()
 
@@ -296,7 +296,6 @@ class NeighborTripletTraintest(object):
                 hard_p_lst = list()
                 hard_n_lst = list()
 
-                print("neig_idxs shape: ",neig_idxs.shape)
                 # Idx comes from split2, all else comes from split1
                 for idx, row in enumerate(neig_idxs):
 
@@ -308,7 +307,7 @@ class NeighborTripletTraintest(object):
 
                     no_F = list(no_F)
 
-                    print("row: ",row[-5:], "len no_F: ", len(no_F))
+                    #print("row: ",row[-5:], "len no_F: ", len(no_F))
 
                     p_indexes = np.random.choice(
                         T, num_triplets, replace=True, p=t_prob)
