@@ -367,112 +367,120 @@ class sign4(BaseSignature, DataSignature):
             unknown = full_x.get_h5_dataset(
                 'x_test', mask=unknown_idxs[:limit])
 
-        # predict
-        self.__log.info('VALIDATION: Predicting.')
-        known_pred = dict()
-        unknown_pred = dict()
-        for name, mask_fn in mask_fns.items():
-            known_pred[name] = siamese.predict(mask_fn(known))
-            unknown_pred[name] = siamese.predict(mask_fn(unknown))
+        for feat_type in ['continuos', 'binary']:
+            # predict
+            self.__log.info('VALIDATION: Predicting.')
+            known_pred = dict()
+            unknown_pred = dict()
+            for name, mask_fn in mask_fns.items():
+                known_pred[name] = siamese.predict(mask_fn(known))
+                unknown_pred[name] = siamese.predict(mask_fn(unknown))
+                if 'binary' in feat_type:
+                    known_pred[name] = np.sign(known_pred[name])
+                    unknown_pred[name] = np.sign(unknown_pred[name])
 
-        from MulticoreTSNE import MulticoreTSNE
-        import matplotlib.pyplot as plt
-        import seaborn as sns
+            self.__log.info(known_pred['ALL'][0])
+            self.__log.info(known_pred['ALL'][1])
+            from MulticoreTSNE import MulticoreTSNE
+            import matplotlib.pyplot as plt
+            import seaborn as sns
 
-        self.__log.info('VALIDATION: Plot euclidean distances.')
-        fig, axes = plt.subplots(
-            1, 3, sharex=True, sharey=True, figsize=(10, 3))
-        for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
-            ax = axes[idx - 1]
-            ax.set_title(name)
-            dist_known = pdist(known_pred[name][:dist_limit])
-            sns.distplot(dist_known, label='known', ax=ax)
-            if len(unknown_pred[name]) > 0:
-                dist_unknown = pdist(unknown_pred[name][:dist_limit])
-                sns.distplot(dist_unknown, label='unknown', ax=ax)
-            ax.legend()
-        plot_file = os.path.join(siamese.model_dir,
-                                 'known_unknown_dists_euclidean.png')
-        plt.savefig(plot_file)
-        plt.close()
+            fname = '%s_known_unknown' % feat_type
 
-        self.__log.info('VALIDATION: Plot cosine distances.')
-        fig, axes = plt.subplots(
-            1, 3, sharex=True, sharey=True, figsize=(10, 3))
-        for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
-            ax = axes[idx - 1]
-            ax.set_title(name)
-            dist_known = pdist(known_pred[name][:dist_limit])
-            sns.distplot(dist_known, label='known', ax=ax)
-            if len(unknown_pred[name]) > 0:
-                dist_unknown = pdist(unknown_pred[name][:dist_limit],
-                                     metric='cosine')
-                sns.distplot(dist_unknown, label='unknown', ax=ax)
-            ax.legend()
-        plot_file = os.path.join(siamese.model_dir,
-                                 'known_unknown_dists_cosine.png')
-        plt.savefig(plot_file)
-        plt.close()
+            self.__log.info('VALIDATION: Plot euclidean distances.')
+            fig, axes = plt.subplots(
+                1, 3, sharex=True, sharey=True, figsize=(10, 3))
+            for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
+                ax = axes[idx - 1]
+                ax.set_title(name)
+                dist_known = pdist(known_pred[name][:dist_limit])
+                sns.distplot(dist_known, label='known', ax=ax)
+                if len(unknown_pred[name]) > 0:
+                    dist_unknown = pdist(unknown_pred[name][:dist_limit])
+                    sns.distplot(dist_unknown, label='unknown', ax=ax)
+                ax.legend()
+            plot_file = os.path.join(siamese.model_dir,
+                                     '%s_dists_euclidean.png' % fname)
+            plt.savefig(plot_file)
+            plt.close()
 
-        self.__log.info('VALIDATION: Plot intensities.')
-        fig, axes = plt.subplots(
-            1, 3, sharex=True, sharey=True, figsize=(10, 3))
-        for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
-            ax = axes[idx - 1]
-            ax.set_title(name)
-            dist_known = np.sum(known_pred[name], axis=1)
-            sns.distplot(dist_known, label='known', ax=ax)
-            if len(unknown_pred[name]) > 0:
-                dist_unknown = np.sum(unknown_pred[name], axis=1)
-                sns.distplot(dist_unknown, label='unknown', ax=ax)
-            ax.legend()
-        plot_file = os.path.join(
-            siamese.model_dir, 'known_unknown_intensity.png')
-        plt.savefig(plot_file)
-        plt.close()
+            self.__log.info('VALIDATION: Plot cosine distances.')
+            fig, axes = plt.subplots(
+                1, 3, sharex=True, sharey=True, figsize=(10, 3))
+            for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
+                ax = axes[idx - 1]
+                ax.set_title(name)
+                dist_known = pdist(known_pred[name][:dist_limit])
+                sns.distplot(dist_known, label='known', ax=ax)
+                if len(unknown_pred[name]) > 0:
+                    dist_unknown = pdist(unknown_pred[name][:dist_limit],
+                                         metric='cosine')
+                    sns.distplot(dist_unknown, label='unknown', ax=ax)
+                ax.legend()
+            plot_file = os.path.join(siamese.model_dir,
+                                     '%s_dists_cosine.png' % fname)
+            plt.savefig(plot_file)
+            plt.close()
 
-        self.__log.info('VALIDATION: Plot TSNEs.')
-        fig, axes = plt.subplots(1, 3, figsize=(10, 3))
-        for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
-            ax = axes[idx - 1]
-            ax.set_title(name)
-            tsne = MulticoreTSNE(n_components=2)
-            if len(unknown_pred[name]) > 0:
-                tsne_train = np.vstack([known_pred[name], unknown_pred[name]])
-            else:
-                tsne_train = known_pred[name]
-            proj = tsne.fit_transform(tsne_train)
-            dist_known = proj[:len(known_pred[name])]
-            dist_unknown = proj[len(known_pred[name]):]
-            ax.scatter(dist_known[:, 0], dist_known[
-                       :, 1], alpha=.3, label='known')
-            ax.scatter(dist_unknown[:, 0], dist_unknown[
-                       :, 1], alpha=.3, marker='x', label='unknown')
-            ax.legend()
-        plot_file = os.path.join(siamese.model_dir, 'known_unknown_tsne.png')
-        plt.savefig(plot_file)
-        plt.close()
+            self.__log.info('VALIDATION: Plot intensities.')
+            fig, axes = plt.subplots(
+                1, 3, sharex=True, sharey=True, figsize=(10, 3))
+            for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
+                ax = axes[idx - 1]
+                ax.set_title(name)
+                dist_known = np.sum(known_pred[name], axis=1)
+                sns.distplot(dist_known, label='known', ax=ax)
+                if len(unknown_pred[name]) > 0:
+                    dist_unknown = np.sum(unknown_pred[name], axis=1)
+                    sns.distplot(dist_unknown, label='unknown', ax=ax)
+                ax.legend()
+            plot_file = os.path.join(
+                siamese.model_dir, '%s_intensity.png' % fname)
+            plt.savefig(plot_file)
+            plt.close()
 
-        self.__log.info('VALIDATION: Plot feature distribution.')
-        fig = plt.figure(figsize=(20, 6), dpi=100)
-        fig, axes = plt.subplots(
-            4, 1, sharex=True, sharey=True, figsize=(20, 12))
-        order = np.argsort(np.mean(known_pred['ALL'], axis=0))[::-1]
-        for name, ax in zip(mask_fns, axes):
-            df = pd.DataFrame(known_pred[name][:, order]).melt().dropna()
-            sns.pointplot(x='variable', y='value', ci='sd',
-                          data=df, ax=ax, label=name)
-            ax.set_ylabel('known %s' % name)
-            ax.axhline(0)
-        df = pd.DataFrame(unknown_pred['ALL'][:, order]).melt().dropna()
-        ax2 = axes[-1]
-        sns.pointplot(x='variable', y='value', ci='sd', data=df, ax=ax2)
-        ax2.set_ylabel('unknown ALL')
-        ax2.axhline(0)
-        filename = os.path.join(
-            siamese.model_dir, "known_unknown_features.png")
-        plt.savefig(filename, dpi=100)
-        plt.close()
+            self.__log.info('VALIDATION: Plot TSNEs.')
+            fig, axes = plt.subplots(1, 3, figsize=(10, 3))
+            for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
+                ax = axes[idx - 1]
+                ax.set_title(name)
+                tsne = MulticoreTSNE(n_components=2)
+                if len(unknown_pred[name]) > 0:
+                    tsne_train = np.vstack([known_pred[name], unknown_pred[name]])
+                else:
+                    tsne_train = known_pred[name]
+                proj = tsne.fit_transform(tsne_train)
+                dist_known = proj[:len(known_pred[name])]
+                dist_unknown = proj[len(known_pred[name]):]
+                ax.scatter(dist_known[:, 0], dist_known[
+                           :, 1], alpha=.3, label='known')
+                ax.scatter(dist_unknown[:, 0], dist_unknown[
+                           :, 1], alpha=.3, marker='x', label='unknown')
+                ax.legend()
+            plot_file = os.path.join(siamese.model_dir, '%s_tsne.png' % fname)
+            plt.savefig(plot_file)
+            plt.close()
+
+            self.__log.info('VALIDATION: Plot feature distribution.')
+            fig = plt.figure(figsize=(20, 6), dpi=100)
+            fig, axes = plt.subplots(
+                4, 1, sharex=True, sharey=True, figsize=(20, 12))
+            order = np.argsort(np.mean(known_pred['ALL'], axis=0))[::-1]
+            for name, ax in zip(mask_fns, axes):
+                df = pd.DataFrame(known_pred[name][:, order]).melt().dropna()
+                sns.pointplot(x='variable', y='value', ci='sd',
+                              data=df, ax=ax, label=name)
+                ax.set_ylabel('known %s' % name)
+                ax.axhline(0)
+            df = pd.DataFrame(unknown_pred['ALL'][:, order]).melt().dropna()
+            ax2 = axes[-1]
+            sns.pointplot(x='variable', y='value', ci='sd', data=df, ax=ax2)
+            ax2.set_ylabel('unknown ALL')
+            ax2.axhline(0)
+            filename = os.path.join(
+                siamese.model_dir, "%s_features.png"  % fname)
+            plt.savefig(filename, dpi=100)
+            plt.close()
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True,
                           chunk_size=1000):
