@@ -174,7 +174,7 @@ class SiameseTriplets(object):
                 basenet.add(Dropout(self.dropout))
         basenet.add(
             Dense(self.layers[-1], activation='tanh', use_bias=False))
-        #basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
+        basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
         #basenet.add(Activation('sigmoid'))
 
         #basenet.add(BatchNormalization())
@@ -391,7 +391,7 @@ class SiameseTriplets(object):
 
         # check early stopping
         if early_stopping.stopped_epoch != 0:
-            self.last_epoch = early_stopping.stopped_epoch - (self.patience + 1)
+            self.last_epoch = early_stopping.stopped_epoch - self.patience
         else:
             self.last_epoch = self.epochs
 
