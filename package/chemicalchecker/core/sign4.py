@@ -10,7 +10,7 @@ import pandas as pd
 from tqdm import tqdm
 from time import time
 from functools import partial
-from scipy.spatial.distance import pdist
+from scipy.spatial.distance import pdist, cdist
 from scipy.stats import pearsonr, norm, rankdata
 
 from sklearn.linear_model import LinearRegression
@@ -288,7 +288,7 @@ class sign4(BaseSignature, DataSignature):
         # overfitting during final
         if evaluate:
             # update the parameters with the new nr_of epochs
-            self.params['sign2']['epochs'] = siamese.last_epoch + 2
+            self.params['sign2']['epochs'] = siamese.last_epoch + 1
 
     def plot_validations(self, siamese, dataset_idx, chunk_size=10000,
                          limit=1000, dist_limit=1000):
@@ -382,6 +382,8 @@ class sign4(BaseSignature, DataSignature):
             self.__log.info(known_pred['ALL'][0])
             self.__log.info(known_pred['ALL'][1])
             from MulticoreTSNE import MulticoreTSNE
+            from sklearn.manifold import MDS
+            from sklearn.decomposition import PCA
             import matplotlib.pyplot as plt
             import seaborn as sns
 
@@ -410,7 +412,8 @@ class sign4(BaseSignature, DataSignature):
             for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
                 ax = axes[idx - 1]
                 ax.set_title(name)
-                dist_known = pdist(known_pred[name][:dist_limit])
+                dist_known = pdist(known_pred[name][:dist_limit], 
+                                         metric='cosine')
                 sns.distplot(dist_known, label='known', ax=ax)
                 if len(unknown_pred[name]) > 0:
                     dist_unknown = pdist(unknown_pred[name][:dist_limit],
@@ -439,11 +442,15 @@ class sign4(BaseSignature, DataSignature):
             plt.savefig(plot_file)
             plt.close()
 
-            self.__log.info('VALIDATION: Plot TSNEs.')
-            fig, axes = plt.subplots(1, 3, figsize=(10, 3))
+            self.__log.info('VALIDATION: Plot Projections.')
+            fig, axes = plt.subplots(3, 2, figsize=(10, 10))
+            axes = axes.flatten()
+            i = 0
             for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
-                ax = axes[idx - 1]
-                ax.set_title(name)
+                # TSNE
+                ax = axes[i]
+                i += 1
+                ax.set_title('TSNE ' + name)
                 tsne = MulticoreTSNE(n_components=2)
                 if len(unknown_pred[name]) > 0:
                     tsne_train = np.vstack([known_pred[name], unknown_pred[name]])
@@ -453,15 +460,34 @@ class sign4(BaseSignature, DataSignature):
                 dist_known = proj[:len(known_pred[name])]
                 dist_unknown = proj[len(known_pred[name]):]
                 ax.scatter(dist_known[:, 0], dist_known[
-                           :, 1], alpha=.3, label='known')
+                           :, 1], label='known', s=3)
                 ax.scatter(dist_unknown[:, 0], dist_unknown[
-                           :, 1], alpha=.3, marker='x', label='unknown')
+                           :, 1], alpha=.6, label='unknown', s=3)
                 ax.legend()
-            plot_file = os.path.join(siamese.model_dir, '%s_tsne.png' % fname)
+
+                # PCA
+                ax = axes[i]
+                i += 1
+                ax.set_title('PCA ' + name)
+                pca = PCA(n_components=2)
+                if len(unknown_pred[name]) > 0:
+                    pca_train = np.vstack([known_pred[name], unknown_pred[name]])
+                else:
+                    pca_train = known_pred[name]
+                proj = pca.fit_transform(pca_train)
+                dist_known = proj[:len(known_pred[name])]
+                dist_unknown = proj[len(known_pred[name]):]
+                ax.scatter(dist_known[:, 0], dist_known[
+                           :, 1], label='known', s=3)
+                ax.scatter(dist_unknown[:, 0], dist_unknown[
+                           :, 1], alpha=.6, label='unknown', s=3)
+                ax.legend()
+
+            plot_file = os.path.join(siamese.model_dir, '%s_proj.png' % fname)
             plt.savefig(plot_file)
             plt.close()
 
-            self.__log.info('VALIDATION: Plot feature distribution.')
+            self.__log.info('VALIDATION: Plot feature distribution 1.')
             fig = plt.figure(figsize=(20, 6), dpi=100)
             fig, axes = plt.subplots(
                 4, 1, sharex=True, sharey=True, figsize=(20, 12))
@@ -478,7 +504,32 @@ class sign4(BaseSignature, DataSignature):
             ax2.set_ylabel('unknown ALL')
             ax2.axhline(0)
             filename = os.path.join(
-                siamese.model_dir, "%s_features.png"  % fname)
+                siamese.model_dir, "%s_features_1.png"  % fname)
+            plt.savefig(filename, dpi=100)
+            plt.close()
+
+            self.__log.info('VALIDATION: Plot feature distribution 2.')
+            fig, axes = plt.subplots(2, 2, figsize=(10, 10))
+            axes = axes.flatten()
+            i = 0
+            for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
+                ax = axes[i]
+                i += 1
+                ax.set_title(name)
+                if len(unknown_pred[name]) > 0:
+                    sigs = np.vstack([known_pred[name], unknown_pred[name]])
+                else:
+                    sigs = known_pred[name]
+                sigs_known = sigs[:len(known_pred[name])].flatten()
+                sigs_unknown = sigs[len(known_pred[name]):].flatten()
+                
+                sns.distplot(sigs_known, label='known', ax=ax)
+                sns.distplot(sigs_unknown, label='unknown', ax=ax)
+
+                ax.legend()
+
+            filename = os.path.join(
+                siamese.model_dir, "%s_features_2.png"  % fname)
             plt.savefig(filename, dpi=100)
             plt.close()
 
