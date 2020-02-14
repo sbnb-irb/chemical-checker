@@ -135,11 +135,11 @@ class NeighborTripletTraintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def create(X, out_file, neigbors_matrix=None, F=100, T=5,
+    def create(X, out_file, neigbors_matrix=None, F=0.1, T=0.01,
                mean_center_x=True, shuffle=True,
                check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
-               x_dtype=np.float32, y_dtype=np.float32, debug_test=False, num_triplets=1000):
+               x_dtype=np.float32, y_dtype=np.float32, debug_test=False, num_triplets=10):
         """Create the HDF5 file with validation splits.
 
         Args:
@@ -165,15 +165,21 @@ class NeighborTripletTraintest(object):
         if len(split_names) != len(split_fractions):
             raise Exception("Split names and fraction should be same amount.")
 
-        # F is 10% of the size of NN shape (100 maximum)
-        F = int(min([F, 0.1 * len(neigbors_matrix)]))
+        # F is 10% of the size of NN shape (100 min)
+        F = int(F * len(neigbors_matrix))
+        F = max(100, F)
+        F = min(1000, F)
 
-        # T is 1% of the size of NN shape (5 maximum)
-        T = int(min([T, 0.005 * len(neigbors_matrix)]))
+        # T is 1% of the size of NN shape (30 min)
+        T = int(T * len(neigbors_matrix))
+        T = max(5, T)
+        T = min(100, T)
+
+        print("F and T: ",F,T)
 
         # the neigbors_matrix is optional
         if len(neigbors_matrix) != len(X):
-            raise Exception("neigbors_matrix shuold be same length as X.")
+            raise Exception("neigbors_matrix should be same length as X.")
 
         # reduce redundancy, keep full-ref mapping
         rnd = RNDuplicates(cpu=10)
@@ -290,17 +296,19 @@ class NeighborTripletTraintest(object):
                 hard_p_lst = list()
                 hard_n_lst = list()
 
-
+                print("neig_idxs shape: ",neig_idxs.shape)
                 # Idx comes from split2, all else comes from split1
                 for idx, row in enumerate(neig_idxs):
 
-                    no_F = set(range(len(neig_idxs))) - set(row)
-
+                    
+                    no_F = set(range(neig_idxs.shape[0])) - set(row)
                     # avoid fetching itself as negative!
                     if split1 == split2:
                         no_F = no_F - set([idx])
 
                     no_F = list(no_F)
+
+                    print("row: ",row[-5:], "len no_F: ", len(no_F))
 
                     p_indexes = np.random.choice(
                         T, num_triplets, replace=True, p=t_prob)
@@ -381,7 +389,7 @@ class NeighborTripletTraintest(object):
                 ds_name = "t_%s_%s" % (split1, split2)
                 ys_name = "y_%s_%s" % (split1, split2)
                 NeighborTripletTraintest.__log.info(
-                    'writing %s %s %s %s %s', ds_name, easy_triplets.shape, medium_triplets.shape, hard_triplets.shape, triplets.shape, y.shape)
+                    'writing %s %s %s %s %s %s', ds_name, easy_triplets.shape, medium_triplets.shape, hard_triplets.shape, triplets.shape, y.shape)
                 fh.create_dataset(ds_name, data=triplets[shuffle_idxs])
                 fh.create_dataset(ys_name, data=y[shuffle_idxs])
 
