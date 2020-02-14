@@ -138,4 +138,4 @@ From: centos
 
     #Install the chemical checker package through git repository
     cd /opt
-    git clone http://gitlabsbnb.irbbarcelona.org/project-specific-repositories/chemical_checker.git
+    git clone http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker.git

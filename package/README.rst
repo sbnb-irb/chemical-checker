@@ -6,7 +6,7 @@ Python Package with everything needed to create and query the Chemical Checker.
 
 
 * Free software: GNU General Public License v3
-* Documentation: http://gitlab.sbnb.org/project-specific-repositories/chemical_checker/wikis/home
+* Documentation: http://gitlab.sbnb.org/packages/chemical_checker/wikis/home
 
 
 Features

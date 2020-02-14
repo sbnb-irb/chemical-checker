@@ -6,9 +6,9 @@ Due to the strong computational requirements of our pipeline, the code has been 
 
 The Chemical Checker (CC) is a resource of small molecule signatures. In the CC, compounds are described from multiple viewpoints, spanning every aspect of the drug discovery pipeline, from chemical properties to clinical outcomes.
 
-* For more information about this repositiory, please refer to our [Wiki page](http://gitlabsbnb.irbbarcelona.org/project-specific-repositories/chemical_checker/wikis/home).
+* For more information about this repositiory, please refer to our [Wiki page](http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker/wikis/home).
 * For a quick exploration of the resource, please visit the [CC web app](http://chemicalchecker.org).
-* For full documentation of the python package, please see the [API doc](http://project-specific-repositories.sbnb-pages.irbbarcelona.org/chemical_checker).
+* For full documentation of the python package, please see the [API doc](http://packages.sbnb-pages.irbbarcelona.org/chemical_checker).
 * Concepts and methods are best described in the original CC publication, [Duran-Frigola et al. 2019](https://biorxiv.org/content/10.1101/745703v1).
 
 ## Quick start
@@ -75,7 +75,7 @@ For an advanced usage of the CC package capabilities, we recomend creating the C
 
 4. Download the [setup_chemicalchecker.sh](setup_chemicalchecker.sh) script to your home folder:
 
-        wget http://gitlabsbnb.irbbarcelona.org/project-specific-repositories/chemical_checker/raw/master/setup_chemicalchecker.sh
+        wget http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker/raw/master/setup_chemicalchecker.sh
 
 5. Run the script (this script will require to type your password) with:
 
