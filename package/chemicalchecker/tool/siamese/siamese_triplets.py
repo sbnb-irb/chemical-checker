@@ -153,8 +153,8 @@ class SiameseTriplets(object):
 
 
         def euclidean_distance(x, y):
-                sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
-                return K.sqrt(K.maximum(sum_square, K.epsilon()))
+            sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
+            return K.sqrt(K.maximum(sum_square, K.epsilon()))
 
         # we have two inputs
         input_a = Input(shape=input_shape)
@@ -399,8 +399,10 @@ class SiameseTriplets(object):
         history_file = os.path.join(
             self.model_dir, "%s_history.pkl" % self.name)
         pickle.dump(self.history.history, open(history_file, 'wb'))
-        plot_file = os.path.join(self.model_dir, "%s.png" % self.name)
-        self._plot_history(self.history.history, vsets, plot_file)
+        history_file = os.path.join(self.model_dir, "history.png")
+        anchor_file = os.path.join(self.model_dir, "anchor_distr.png")
+        self._plot_history(self.history.history, vsets, history_file)
+        self._plot_anchor_dist(anchor_file)
 
     def set_predict_scaler(self, scaler):
         self.scaler = scaler
@@ -455,6 +457,116 @@ class SiameseTriplets(object):
         if destination is not None:
             plt.savefig(destination)
         plt.close('all')
+
+    def _plot_anchor_dist(self, plot_file):
+        from scipy.spatial.distance import cosine
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
+        def sim(a,b):
+            return -(cosine(a,b) - 1)
+
+
+        val_shape_type_gen = NeighborTripletTraintest.generator_fn(
+                self.traintest_file,
+                'train_test',
+                batch_size=self.batch_size,
+                replace_nan=self.replace_nan,
+                sharedx=self.sharedx,
+                shuffle=False)
+        trval_gen = val_shape_type_gen[2]()
+
+        vset_dict = {'train_train': self.tr_gen, 'train_test': trval_gen, 'test_test': self.val_gen}
+        
+        fig, axes = plt.subplots(3, 4, figsize=(22, 15))
+        axes = axes.flatten()
+        i = 0
+        for vset in vset_dict:
+            ax = axes[i]
+            i += 1
+            anchors = list()
+            positives = list()
+            negatives = list()
+            labels = list()
+            for inputs, y in vset_dict[vset]:
+                anchors.extend(self.predict(inputs[0]))
+                positives.extend(self.predict(inputs[1]))
+                negatives.extend(self.predict(inputs[2]))
+                labels.extend(y)
+                if len(anchors) >= 1000:
+                    break
+            anchors = np.array(anchors)
+            positives = np.array(positives)
+            negatives = np.array(negatives)
+            labels = np.array(labels)
+
+            ap_dists = np.linalg.norm(anchors-positives, axis=1)
+            an_dists = np.linalg.norm(anchors-negatives, axis=1)
+
+            mask_e = labels == 0
+            mask_m = labels == 1
+            mask_h = labels == 2
+
+            ax.set_title('Euclidean '+vset)
+            sns.kdeplot(ap_dists[mask_e], label='pos_e', ax=ax, color='limegreen')
+            sns.kdeplot(ap_dists[mask_m], label='pos_m', ax=ax, color='forestgreen')
+            sns.kdeplot(ap_dists[mask_h], label='pos_h', ax=ax, color='darkgreen')
+
+            sns.kdeplot(an_dists[mask_e], label='neg_e', ax=ax, color='salmon')
+            sns.kdeplot(an_dists[mask_m], label='neg_m', ax=ax, color='red')
+            sns.kdeplot(an_dists[mask_h], label='neg_h', ax=ax, color='darkred')
+
+            ax.legend()
+
+            ax = axes[i]
+            i += 1
+
+            ax.scatter(ap_dists[mask_e], an_dists[mask_e], label='easy', color='green', s=2)
+            ax.scatter(ap_dists[mask_m], an_dists[mask_m], label='medium', color='goldenrod', s=2, alpha=0.7)
+            ax.scatter(ap_dists[mask_h], an_dists[mask_h], label='hard', color='red', s=2, alpha=0.7)
+            ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
+            ax.set_xlabel('Euc dis positives')
+            ax.set_ylabel('Euc dis negatives')
+
+
+            ax = axes[i]
+            i += 1
+
+            ap_sim = np.array([sim(anchors[i], positives[i]) for i in range(len(anchors))])
+            an_sim = np.array([sim(anchors[i], negatives[i]) for i in range(len(anchors))])
+
+            ax.set_title('Cosine '+vset)
+            sns.kdeplot(ap_sim[mask_e], label='pos_e', ax=ax, color='limegreen')
+            sns.kdeplot(ap_sim[mask_m], label='pos_m', ax=ax, color='forestgreen')
+            sns.kdeplot(ap_sim[mask_h], label='pos_h', ax=ax, color='darkgreen')
+            plt.xlim(-1,1)
+
+            sns.kdeplot(an_sim[mask_e], label='neg_e', ax=ax, color='salmon')
+            sns.kdeplot(an_sim[mask_m], label='neg_m', ax=ax, color='red')
+            sns.kdeplot(an_sim[mask_h], label='neg_h', ax=ax, color='darkred')
+            plt.xlim(-1,1)
+            ax.legend()
+
+            ax = axes[i]
+            i += 1
+
+            ax.scatter(ap_sim[mask_e], an_sim[mask_e], label='easy', color='green', s=2)
+            ax.scatter(ap_sim[mask_m], an_sim[mask_m], label='medium', color='goldenrod', s=2, alpha=0.7)
+            ax.scatter(ap_sim[mask_h], an_sim[mask_h], label='hard', color='red', s=2, alpha=0.7)
+            ax.set_xlim(-1,1)
+            ax.set_ylim(-1,1)
+            ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
+            ax.set_xlabel('Cos sim positives')
+            ax.set_ylabel('Cos sim negatives')
+
+        plt.savefig(plot_file)
+        plt.close()
+
+
+
+
+
+
 
 
 class AdditionalValidationSets(Callback):
