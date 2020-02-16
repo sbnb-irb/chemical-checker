@@ -275,6 +275,11 @@ class sign4(BaseSignature, DataSignature):
             params['augment_kwargs']['p_nr'] = p_nr
             params['augment_kwargs']['p_keep'] = p_keep
 
+        # save params
+        param_file = os.path.join(siamese_path, 'params.pkl')
+        pickle.dump(params, open(param_file, 'wb'))
+
+        # init siamese NN
         siamese = SiameseTriplets(siamese_path,
                           traintest_file,
                           evaluate,
