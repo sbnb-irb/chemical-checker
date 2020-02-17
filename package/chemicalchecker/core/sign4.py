@@ -231,6 +231,8 @@ class sign4(BaseSignature, DataSignature):
         # get params and set folder
         if suffix:
             siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
+            traintest_file = os.path.join(self.model_path,
+                                          'traintest_%s.h5' % suffix)
         else:
             siamese_path = os.path.join(self.model_path, 'siamese')
         if 'model_dir' in params:
@@ -243,7 +245,6 @@ class sign4(BaseSignature, DataSignature):
             self.save_sign2_matrix(self.sign2_list, sign2_matrix)
         # if evaluating, perform the train-test split
         if evaluate:
-            traintest_file = os.path.join(self.model_path, 'traintest_eval.h5')
             traintest_file = params.pop(
                 'traintest_file', traintest_file)
             num_triplets = params.pop('num_triplets', 10)
@@ -253,11 +254,10 @@ class sign4(BaseSignature, DataSignature):
                     X, traintest_file,
                     split_names=['train', 'test'],
                     split_fractions=[.8, .2],
+                    suffix=suffix,
                     num_triplets=num_triplets,
                     neigbors_matrix=self.sign2_self[:])
         else:
-            traintest_file = os.path.join(
-                self.model_path, 'traintest_final.h5')
             traintest_file = params.pop(
                 'traintest_file', traintest_file)
             num_triplets = params.pop('num_triplets', 10)
@@ -267,6 +267,7 @@ class sign4(BaseSignature, DataSignature):
                     X, traintest_file,
                     split_names=['train'],
                     split_fractions=[1.0],
+                    suffix=suffix,
                     num_triplets=num_triplets,
                     neigbors_matrix=self.sign2_self[:])
         # update the subsampling parameter
@@ -521,11 +522,7 @@ class sign4(BaseSignature, DataSignature):
 
             self.__log.info('VALIDATION: Plot feature distribution 2.')
             fig, axes = plt.subplots(2, 2, figsize=(10, 10))
-            axes = axes.flatten()
-            i = 0
-            for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
-                ax = axes[i]
-                i += 1
+            for (name, mask_fn), ax in zip(mask_fns.items(), axes.flatten()):
                 ax.set_title(name)
                 if len(unknown_pred[name]) > 0:
                     sigs = np.vstack([known_pred[name], unknown_pred[name]])
@@ -536,7 +533,6 @@ class sign4(BaseSignature, DataSignature):
 
                 sns.distplot(sigs_known, label='known', ax=ax)
                 sns.distplot(sigs_unknown, label='unknown', ax=ax)
-
                 ax.legend()
 
             filename = os.path.join(
