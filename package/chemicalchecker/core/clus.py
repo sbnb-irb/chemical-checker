@@ -5,11 +5,11 @@ import h5py
 import json
 import bisect
 import shelve
+import joblib
 import tempfile
 import datetime
 import numpy as np
 from csvsort import csvsort
-from sklearn.externals import joblib
 from sklearn.preprocessing import Normalizer
 from scipy.spatial.distance import euclidean, pdist
 
@@ -230,7 +230,8 @@ class clus(BaseSignature, DataSignature):
                     D, labels = kmeans.index.search(self.data, 1)
                     inertias += [self._inertia(self.data,
                                                labels, kmeans.centroids)]
-                    disps += [self._dispersion(kmeans.centroids, sig_dist, self.metric)]
+                    disps += [self._dispersion(kmeans.centroids,
+                                               sig_dist, self.metric)]
 
                 disps[0] = disps[1]
 

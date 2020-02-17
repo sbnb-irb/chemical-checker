@@ -4,13 +4,12 @@ import h5py
 import glob
 import random
 import shelve
+import joblib
 import tempfile
 import datetime
 import numpy as np
 from scipy.sparse import lil_matrix
-from sklearn.externals import joblib
 from sklearn.decomposition import PCA
-from scipy.spatial.distance import euclidean, cosine
 from sklearn.utils.sparsefuncs import mean_variance_axis
 from sklearn.preprocessing import Normalizer, RobustScaler
 
