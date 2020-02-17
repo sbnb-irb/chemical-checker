@@ -165,6 +165,27 @@ class BaseSignature(object):
             raise Exception(
                 "Before calling predict method, fit method needs to be called.")
 
+    def subsample(self, n):
+        """Subsample from a signature without replacement.
+            
+            Args:
+               n(int): Maximum number of samples (default=10000).
+
+            Returns:
+               V(matrix): A (samples, features) matrix.
+               keys(array): The list of keys.
+        """
+        self.__log.debug("Subsampling dataset (n=%d)" % n)
+        if n > len(self.keys):
+            V = self[:]
+            keys = self.keys
+        else:
+            idxs = np.array(sorted(np.random.choice(len(self.keys), n, replace=False)))
+            with h5py.File(self.data_path, "r") as hf:
+                V = hf["V"][idxs]
+            keys = np.array(self.keys)[idxs]
+        return V, keys
+
     def validate_versus_signature(self, sign, n_samples=1000, n_neighbors=5, apply_mappings=True, metric='cosine'):
         """Perform validations.
 

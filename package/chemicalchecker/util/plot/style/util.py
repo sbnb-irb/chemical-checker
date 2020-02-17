@@ -1,5 +1,6 @@
 """Util coloring functions or the CC"""
 import seaborn as sns
+from chemicalchecker.util import logged
 
 def _rgb2hex(r, g, b):
     return '#%02x%02x%02x' % (r, g, b)
@@ -37,7 +38,13 @@ def cc_colors(coord, lighness=0):
         'Z': ['#000000', '#666666', '#999999']}
     return colors[coord[:1]][lighness]
 
+@logged
 def set_style(style=None):
+    import matplotlib
+    try:
+        matplotlib.font_manager._rebuild()
+    except:
+        set_style.__log.warning("Cannot rebuild font manager")
     if style is None:
         style = ('ticks', {
             'font.family': 'sans-serif',

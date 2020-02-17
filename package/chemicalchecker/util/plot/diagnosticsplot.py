@@ -1,0 +1,226 @@
+"""Utility for plotting the conventional diagnostics CC plots"""
+import os
+import pandas as pd
+from chemicalchecker.util import logged
+import matplotlib.pyplot as plt
+import seaborn as sns
+from chemicalchecker.util.plot.style.util import coord_color, set_style
+import random
+import numpy as np
+import pickle
+
+set_style()
+
+@logged
+class DiagnosisPlot(object):
+
+    def __init__(self, cc, sign):
+        """Initialize diagnostics plotter. The plotter works mainly on precomputed data (using the Diagnose class).. If you need to do computations, please see the Plot class, which is the one used in the CC pipeline.
+        
+            Args:
+                cc(ChemicalChecker): A CC instance.
+                sign(CC signature): A CC signature to be be diagnosed.
+        """
+        self.cc = cc
+        self.sign = sign
+        folds = self.sign.data_path.split("/")
+        self.cctype = folds[-2]
+        self.dataset = folds[-3]
+        self.molset = folds[-6]
+
+    @staticmethod
+    def _get_ax(ax):
+        if ax is None:
+            fig, ax = plt.subplots(1,1, figsize=(5, 5))
+        return ax
+
+    def _get_color(self, color):
+        if color is None:
+            return coord_color(self.sign.dataset)
+        else:
+            return color
+
+    def load_diagnosis_pickle(self, fn):
+        with open(os.path.join(self.sign.stats_path, fn), "rb") as f:
+            results = pickle.load(f)
+        return results
+
+    def cross_coverage(self, sign=None, ax=None, title=None, color=None):
+        ax = self._get_ax(ax)
+        color = self._get_color(color)
+        fn = os.path.join(self.sign.stats_path, "cross_coverage_%s.pkl" % self.cc.sign_name(sign))
+        results = self.load_diagnosis_pickle(fn)
+        ax.bar([0, 1], [results["my_overlap"], results["vs_overlap"]], hatch="////", edgecolor=color, lw=2, color="white")
+        ax.set_ylim(0, 1.05)
+        ax.set_ylabel("Overlap")
+        ax.set_xticks([0, 1])
+        ax.set_xticklabels(["T / R", "R / T"])
+        if title is None:
+            title = "T = %s | R = %s" % (self.cc.sign_name(self.sign), self.cc.sign_name(sign))
+        ax.set_title(title)
+
+    def cross_roc(self, sign=None, ax=None, title=None, color=None):
+        ax = self._get_ax(ax)
+        color = self._get_color(color)
+        fn = os.path.join(self.sign.stats_path, "cross_roc_%s.pkl" % self.cc.sign_name(sign))
+        results = self.load_diagnosis_pickle(fn)
+        step = 0.001
+        fpr = np.arange(0, 1+step, step)
+        tpr = np.interp(fpr, results["fpr"], results["tpr"])
+        auc_ = results["auc"]
+        if color is None:
+            color = coord_color(dataset_code)
+        ax.plot(fpr, tpr, color=color)
+        ax.plot([0,1],[0,1], color="gray", linestyle="--")
+        ax.set_xlim(-0.05, 1.05)
+        ax.set_ylim(-0.05, 1.05)
+        ax.set_xlabel("FPR")
+        ax.set_ylabel("TPR")
+        if title is None:
+            title = "%s | %s (%.3f)" % (self.cc.sign_name(self.sign), self.cc.sign_name(sign), auc_)
+        ax.set_title(title)
+        return ax
+
+    def image(self, ax=None, title=None):
+        ax = self._get_ax(ax)
+        results = self.load_diagnosis_pickle("image.pkl")
+        ax.imshow(results["X"], cmap="Spectral", aspect="auto")
+        if title is None:
+            title = "%s" % self.cc.sign_name(self.sign)
+        ax.set_ylabel("Keys")
+        ax.set_xlabel("Dimensions")
+        ax.set_title(title)
+        ax.grid()
+        return ax
+
+    def projection(self, ax=None, density=True, color=None, title=None):
+        ax = self._get_ax(ax)
+        results = self.load_diagnosis_pickle("projection.pkl")
+        P = results["P"]
+        x = P[:,0]
+        y = P[:,1]
+        if density:
+            from scipy.stats import gaussian_kde
+            xy = np.vstack([x, y])
+            z = gaussian_kde(xy)(xy)
+            idx = z.argsort()
+            x, y, z = x[idx], y[idx], z[idx]
+            ax.scatter(x, y, c=z, s=10, edgecolor="")
+        else:
+            color = self._get_color(color)
+            ax.scatter(x, y, s=10, color=color, alpha=0.5)
+        P_focus = results["P_focus"]
+        if P_focus is not None:
+            print(P_focus)
+            x = P_focus[:,0]
+            y = P_focus[:,1]
+            ax.scatter(x, y, edgecolor="black", color="white")
+        ax.set_xlabel("Dim 1")
+        ax.set_ylabel("Dim 2")
+        if title is None:
+            title = "%s %s (%d)" % (self.dataset, self.cctype, P.shape[0])
+        ax.set_title(title)
+        return ax
+
+    def _distance_distribution(self, results, ax=None, color=None, title=None):
+        """Distance distribution plot"""
+        ax = self._get_ax(ax)
+        color = self._get_color(color)
+        dists = results["dists"]
+        sns.kdeplot(dists, ax=ax, shade=True, color=color)
+        ax.set_ylabel("Density")
+        if title is None:
+            title = "%s %s" % (self.sign.dataset, self.cctype)
+        ax.set_title(title)
+        return ax
+
+    def euclidean_distances(self, ax=None, color=None, title=None):
+        results = self.load_diagnosis_pickle("euclidean_distances.pkl")
+        ax = self._distance_distribution(results, ax=ax, color=color, title=title)
+        ax.set_xlabel("Euclidean distance")
+
+    def cosine_distances(self, ax=None, color=None, title=None):
+        results = self.load_diagnosis_pickle("cosine_distances.pkl")
+        ax = self._distance_distribution(results, ax=ax, color=color, title=title)
+        ax.set_xlabel("Cosine distance")
+
+    def _iqr(self, results, ax, title):
+        ax = self._get_ax(ax)
+        p50 = results["p50"]
+        idxs = np.argsort(-p50)
+        p25 = results["p25"][idxs]
+        p50 = p50[idxs]
+        p75 = results["p75"][idxs]
+        x = [i for i in range(len(p50))]
+        ax.scatter(x, p50, c=p50, cmap="Spectral", s=10, zorder=100)
+        ax.fill_between(x, p75, p25, color="lightgray", alpha=0.5, zorder=1)
+        if title is None:
+            title = "%s" % self.cc.sign_name(self.sign)
+        ax.set_title(title)
+        ax.set_ylabel("Value")
+        ax.axhline(0, color="black", lw=1)
+        return ax
+
+    def values(self, ax=None, color=None, title=None):
+        ax = self._get_ax(ax)
+        color = self._get_color(color)
+        results = self.load_diagnosis_pickle("subsampled_data.pkl")
+        V = results["V"].ravel()
+        sns.kdeplot(V, ax=ax, shade=True, color=color)
+        ax.set_xlabel("Value")
+        ax.set_ylabel("Density")
+        if title is None:
+            title = "%s" % self.cc.sign_name(self.sign)
+        ax.set_title(title)
+
+    def features_iqr(self, ax=None, title=None):
+        results = self.load_diagnosis_pickle("features_iqr.pkl")
+        ax = self._iqr(results, ax=ax, title=title)
+        ax.set_xlabel("Features (sorted)")
+
+    def keys_iqr(self, ax=None, title=None):
+        results = self.load_diagnosis_pickle("keys_iqr.pkl")
+        ax = self._iqr(results, ax=ax, title=title)
+        ax.set_xlabel("Keys (sorted)")
+
+    def _across(self, values, datasets, ax, title, exemplary, cctype, molset):
+        ax = self._get_ax(ax)
+        datasets = np.array(datasets)
+        values = np.array(values)
+        idxs = np.argsort(-values)
+        datasets = datasets[idxs]
+        values = values[idxs]
+        colors = [coord_color(ds) for ds in datasets]
+        x = [i+1 for i in range(0, len(values))]
+        ax.scatter(x, values, color=colors)
+        for i, x_ in enumerate(x):
+            ax.plot([x_,x_], [-1, values[i]], color=colors[i])
+        if title is None:
+            title = "%s | %s_%s" % (self.cc.sign_name(self.sign), cctype, molset)
+        ax.set_title(title)
+        ax.set_xticks(x)
+        ax.set_xticklabels([ds[1] for ds in datasets])
+        ax.set_xlabel("Datasets")
+        return ax
+
+    def across_coverage(self, ax=None, title=None, exemplary=True, cctype="sign1", molset="full"):
+        results = self.load_diagnosis_pickle("across_coverage.pkl")
+        datasets = []
+        covs = []
+        for k,v in results.items():
+            datasets += [k]
+            covs += [v["my_overlap"]]
+        ax = self._across(covs, datasets, ax=ax, title=title, exemplary=exemplary, cctype=cctype, molset=molset)
+        ax.set_ylabel("Coverage")
+        ax.set_ylim(-0.05, 1.05)
+
+    def across_roc(self, ax=None, title=None, exemplary=True, cctype="sign1", molset="full"):
+        results = self.load_diagnosis_pickle("across_roc.pkl")
+        datasets = []
+        rocs = []
+        for k,v in results.items():
+            datasets += [k]
+            rocs += [v["auc"]]
+        ax = self._across(rocs, datasets, ax=ax, title=title, exemplary=exemplary, cctype=cctype, molset=molset)
+        ax.set_ylabel("ROC-AUC")
+        ax.set_ylim(0.45, 1.05)

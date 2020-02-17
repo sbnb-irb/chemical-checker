@@ -16,6 +16,7 @@ import numpy as np
 
 from .data import DataFactory
 from .signature_data import DataSignature
+from .molkit import Mol
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
@@ -235,6 +236,14 @@ class ChemicalChecker():
             return None
         return DataSignature(data.data_path)
 
+    def sign_name(self, sign):
+        """Get a signature name (e.g. 'B1.001-sign1-full')"""
+        folds = sign.data_path.split("/")
+        cctype = folds[-2]
+        dataset = folds[-3]
+        molset = folds[-6]
+        return "%s_%s_%s" % (dataset, cctype, molset)
+
     def copy_signature_from(self, source_cc, cctype, molset, dataset_code,
                             overwrite=False):
         """Copy a signature file from another CC instance.
@@ -360,6 +369,17 @@ class ChemicalChecker():
         pred_s3 = ae.encode(temp_full_sign3, dest_file)
 
         return pred_s3
+
+    def get_molecule(self, mol_str, str_type):
+        return Mol(self, mol_str, str_type)
+
+    def get_diagnosisplot(self):
+        from chemicalchecker.util.plot.diagnosticsplot import DiagnosisPlot
+        return DiagnosisPlot(cc=self)
+
+    def get_diagnosis(self, sign, save=True, plot=True, n=10000):
+        from chemicalchecker.core.diagnostics import Diagnosis
+        return Diagnosis(cc=self, sign=sign, save=save, plot=plot, n=n)
 
     @staticmethod
     def remove_near_duplicates_hpc(job_path, cc_root, cctype, datasets):
