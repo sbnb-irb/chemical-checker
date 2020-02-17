@@ -246,24 +246,28 @@ class sign4(BaseSignature, DataSignature):
             traintest_file = os.path.join(self.model_path, 'traintest_eval.h5')
             traintest_file = params.pop(
                 'traintest_file', traintest_file)
+            num_triplets = params.pop('num_triplets', 10)
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix).get_h5_dataset('x')
                 NeighborTripletTraintest.create(
                     X, traintest_file,
                     split_names=['train', 'test'],
                     split_fractions=[.8, .2],
+                    num_triplets=num_triplets,
                     neigbors_matrix=self.sign2_self[:])
         else:
             traintest_file = os.path.join(
                 self.model_path, 'traintest_final.h5')
             traintest_file = params.pop(
                 'traintest_file', traintest_file)
+            num_triplets = params.pop('num_triplets', 10)
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix).get_h5_dataset('x')
                 NeighborTripletTraintest.create(
                     X, traintest_file,
                     split_names=['train'],
                     split_fractions=[1.0],
+                    num_triplets=num_triplets,
                     neigbors_matrix=self.sign2_self[:])
         # update the subsampling parameter
         if 'augment_kwargs' in params:
@@ -281,9 +285,9 @@ class sign4(BaseSignature, DataSignature):
 
         # init siamese NN
         siamese = SiameseTriplets(siamese_path,
-                          traintest_file,
-                          evaluate,
-                          **params)
+                                  traintest_file,
+                                  evaluate,
+                                  **params)
         self.__log.debug('Siamese training on %s' % traintest_file)
         siamese.fit()
         self.__log.debug('model saved to %s' % siamese_path)
@@ -417,8 +421,8 @@ class sign4(BaseSignature, DataSignature):
             for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
                 ax = axes[idx - 1]
                 ax.set_title(name)
-                dist_known = pdist(known_pred[name][:dist_limit], 
-                                         metric='cosine')
+                dist_known = pdist(known_pred[name][:dist_limit],
+                                   metric='cosine')
                 sns.distplot(dist_known, label='known', ax=ax)
                 if len(unknown_pred[name]) > 0:
                     dist_unknown = pdist(unknown_pred[name][:dist_limit],
@@ -458,7 +462,8 @@ class sign4(BaseSignature, DataSignature):
                 ax.set_title('TSNE ' + name)
                 tsne = MulticoreTSNE(n_components=2)
                 if len(unknown_pred[name]) > 0:
-                    tsne_train = np.vstack([known_pred[name], unknown_pred[name]])
+                    tsne_train = np.vstack(
+                        [known_pred[name], unknown_pred[name]])
                 else:
                     tsne_train = known_pred[name]
                 proj = tsne.fit_transform(tsne_train)
@@ -476,7 +481,8 @@ class sign4(BaseSignature, DataSignature):
                 ax.set_title('PCA ' + name)
                 pca = PCA(n_components=2)
                 if len(unknown_pred[name]) > 0:
-                    pca_train = np.vstack([known_pred[name], unknown_pred[name]])
+                    pca_train = np.vstack(
+                        [known_pred[name], unknown_pred[name]])
                 else:
                     pca_train = known_pred[name]
                 proj = pca.fit_transform(pca_train)
@@ -509,7 +515,7 @@ class sign4(BaseSignature, DataSignature):
             ax2.set_ylabel('unknown ALL')
             ax2.axhline(0)
             filename = os.path.join(
-                siamese.model_dir, "%s_features_1.png"  % fname)
+                siamese.model_dir, "%s_features_1.png" % fname)
             plt.savefig(filename, dpi=100)
             plt.close()
 
@@ -527,14 +533,14 @@ class sign4(BaseSignature, DataSignature):
                     sigs = known_pred[name]
                 sigs_known = sigs[:len(known_pred[name])].flatten()
                 sigs_unknown = sigs[len(known_pred[name]):].flatten()
-                
+
                 sns.distplot(sigs_known, label='known', ax=ax)
                 sns.distplot(sigs_unknown, label='unknown', ax=ax)
 
                 ax.legend()
 
             filename = os.path.join(
-                siamese.model_dir, "%s_features_2.png"  % fname)
+                siamese.model_dir, "%s_features_2.png" % fname)
             plt.savefig(filename, dpi=100)
             plt.close()
 
