@@ -137,6 +137,7 @@ class NeighborTripletTraintest(object):
                mean_center_x=True, shuffle=True,
                check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
+               suffix='eval',
                x_dtype=np.float32, y_dtype=np.float32, num_triplets=1000):
         """Create the HDF5 file with validation splits.
 
@@ -234,22 +235,24 @@ class NeighborTripletTraintest(object):
         if mean_center_x:
             scaler = RobustScaler()
             X = scaler.fit_transform(X)
-            scaler_file = os.path.join(os.path.split(out_file)[0],
-                                       'scaler.pkl')
+            if suffix is None:
+                scaler_file = os.path.join(os.path.split(out_file)[0],
+                                           'scaler.pkl')
+            else:
+                scaler_file = os.path.join(os.path.split(out_file)[0],
+                                           'scaler_%s.pkl' % suffix)
             pickle.dump(scaler, open(scaler_file, 'wb'))
 
         # create dataset
         NeighborTripletTraintest.__log.info('Traintest saving to %s', out_file)
+        combo_dists = dict()
         with h5py.File(out_file, "w") as fh:
             fh.create_dataset('x', data=X)
             # for each split combo generate triplets where [anchor, positive,
             # negative]
             combos = itertools.combinations_with_replacement(split_names, 2)
-            #combos = [('train', 'train'), ('train', 'test'), ('test', 'test')]
-
-            dists = []
-
             for split1, split2 in combos:
+                combo = '_'.join([split1, split2])
                 # Define F and T according to the split that is being used:
                 F = int(f_per * nr_matrix[split2].shape[0])
                 F = max(100, F)
@@ -260,9 +263,8 @@ class NeighborTripletTraintest(object):
                 T = int(t_per * nr_matrix[split2].shape[0])
                 T = max(5, T)
                 T = min(100, T)
-                assert(T < F)
-
                 NeighborTripletTraintest.__log.info("F and T: %s %s" % (F, T))
+                assert(T < F)
 
                 # remove self neighbors when splits are the same
                 if split1 == split2:
@@ -380,7 +382,7 @@ class NeighborTripletTraintest(object):
                     import matplotlib.pyplot as plt
                     import seaborn as sns
 
-                    limit = 10000
+                    limit = min(10000, len(shuffle_idxs))
                     dists = np.empty((limit, 3))
                     for idx, row in enumerate(shuffle_idxs[:limit]):
                         anchor = neigbors_matrix[triplets[row][0]]
@@ -392,26 +394,33 @@ class NeighborTripletTraintest(object):
                         dis_an = euclidean(anchor, negative)
                         dists[idx] = [dis_ap, dis_an, category]
                         assert(dis_ap < dis_an)
+                    assert(len(np.unique(dists[:, 2])) == 3)
+                    combo_dists[combo] = dists
 
-                    fig, axes = plt.subplots(
-                        1, 3, sharex=True, sharey=False, figsize=(10, 3))
-                    combo = "%s_%s" % (split1, split2)
-                    ax_idx = 0
-                    cat_names = ['easy', 'medium', 'hard']
-                    for cat_id in [0, 1, 2]:
-                        cat_mask = dists[:, 2] == cat_id
-                        print('cat', cat_id, np.count_nonzero(cat_mask))
-                        ax = axes.flatten()[ax_idx]
-                        ax.set_title('%s %s' % (combo, cat_names[cat_id]))
-                        sns.distplot(dists[cat_mask, 0], label='AP', ax=ax)
-                        sns.distplot(dists[cat_mask, 1], label='AN', ax=ax)
-                        ax.legend()
-                        ax_idx += 1
+        if check_distances:
+            fig, axes = plt.subplots(
+                3, 3, sharex=True, sharey=True, figsize=(10, 10))
+            ax_idx = 0
+            cat_names = ['easy', 'medium', 'hard']
+            for combo, dists in combo_dists.items():
+                for cat_id in [0, 1, 2]:
+                    cat_mask = dists[:, 2] == cat_id
+                    print('cat', cat_id, np.count_nonzero(cat_mask))
+                    ax = axes.flatten()[ax_idx]
+                    ax.set_title('%s %s' % (combo, cat_names[cat_id]))
+                    sns.distplot(dists[cat_mask, 0], label='AP', ax=ax)
+                    sns.distplot(dists[cat_mask, 1], label='AN', ax=ax)
+                    ax.legend()
+                    ax_idx += 1
 
-                    plot_file = os.path.join(
-                        os.path.split(out_file)[0], 'distances_%s.png' % combo)
-                    plt.savefig(plot_file)
-                    plt.close()
+            if suffix is None:
+                plot_file = os.path.join(
+                    os.path.split(out_file)[0], 'distances.png')
+            else:
+                plot_file = os.path.join(
+                    os.path.split(out_file)[0], 'distances_%s.png' % suffix)
+            plt.savefig(plot_file)
+            plt.close()
 
         NeighborTripletTraintest.__log.info(
             'NeighborTripletTraintest saved to %s', out_file)
