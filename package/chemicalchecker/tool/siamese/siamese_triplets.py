@@ -5,11 +5,11 @@ import numpy as np
 from time import time
 from functools import partial
 
+import tensorflow as tf
 from keras import backend as K
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
-from keras.layers import Input, Dropout, Lambda, Dense, concatenate, BatchNormalization, Activation
-from keras.regularizers import l2
+from keras.layers import Input, Dropout, Lambda, Dense, concatenate
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
@@ -115,10 +115,12 @@ class SiameseTriplets(object):
             self.__log.info("{:<22}: {:>12}".format(
                 'train_train', str(tmp.get_ty_shapes())))
             if evaluate:
-                tmp = NeighborTripletTraintest(self.traintest_file, 'train_test')
+                tmp = NeighborTripletTraintest(
+                    self.traintest_file, 'train_test')
                 self.__log.info("{:<22}: {:>12}".format(
                     'train_test', str(tmp.get_ty_shapes())))
-                tmp = NeighborTripletTraintest(self.traintest_file, 'test_test')
+                tmp = NeighborTripletTraintest(
+                    self.traintest_file, 'test_test')
                 self.__log.info("{:<22}: {:>12}".format(
                     'test_test', str(tmp.get_ty_shapes())))
         self.__log.info("{:<22}: {:>12}".format(
@@ -141,7 +143,6 @@ class SiameseTriplets(object):
             "augment_kwargs", str(self.augment_kwargs)))
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
 
-
     def build_model(self, input_shape, load=False):
         """Compile Keras model
 
@@ -152,7 +153,6 @@ class SiameseTriplets(object):
         def dist_output_shape(shapes):
             shape1, shape2 = shapes
             return (shape1[0], 1)
-
 
         def euclidean_distance(x, y):
             sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
@@ -176,10 +176,10 @@ class SiameseTriplets(object):
                 basenet.add(Dropout(self.dropout))
         basenet.add(
             Dense(self.layers[-1], activation='tanh', use_bias=False))
-        basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
-        #basenet.add(Activation('sigmoid'))
+        basenet.add(Lambda(lambda x: K.l2_normalize(x, axis=-1)))
+        # basenet.add(Activation('sigmoid'))
 
-        #basenet.add(BatchNormalization())
+        # basenet.add(BatchNormalization())
 
         #basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
         basenet.summary()
@@ -188,84 +188,102 @@ class SiameseTriplets(object):
         encoded_p = basenet(input_p)
         encoded_n = basenet(input_n)
 
-        merged_vector = concatenate([encoded_a, encoded_p, encoded_n], axis=-1, name='merged_layer')
+        merged_vector = concatenate(
+            [encoded_a, encoded_p, encoded_n], axis=-1, name='merged_layer')
 
         model = Model(inputs=[input_a, input_p, input_n], output=merged_vector)
 
         # define monitored metrics
-        def acct(y_true, y_pred):
+        def accTot(y_true, y_pred):
             total_lenght = y_pred.shape.as_list()[-1]
 
-            anchor = y_pred[:,0:int(total_lenght*1/3)]
-            positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)]
-            negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)]
+            anchor = y_pred[:, 0:int(total_lenght * 1 / 3)]
+            positive = y_pred[
+                :, int(total_lenght * 1 / 3):int(total_lenght * 2 / 3)]
+            negative = y_pred[
+                :, int(total_lenght * 2 / 3):int(total_lenght * 3 / 3)]
 
-            acc = K.cast(euclidean_distance(anchor, positive) < euclidean_distance(anchor, negative), anchor.dtype)
+            acc = K.cast(euclidean_distance(anchor, positive) <
+                         euclidean_distance(anchor, negative), anchor.dtype)
 
             return K.mean(acc)
 
-        def acce(y_true, y_pred):
+        def accBin(y_true, y_pred):
+            return accTot(y_true, tf.math.sign(y_pred))
+
+        def accE(y_true, y_pred):
             total_lenght = y_pred.shape.as_list()[-1]
 
             msk = K.cast(K.equal(y_true, 0), 'float32')
 
-            anchor = y_pred[:,0:int(total_lenght*1/3)] * msk
-            positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)] * msk
-            negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)] * msk
+            anchor = y_pred[:, 0:int(total_lenght * 1 / 3)] * msk
+            positive = y_pred[
+                :, int(total_lenght * 1 / 3):int(total_lenght * 2 / 3)] * msk
+            negative = y_pred[
+                :, int(total_lenght * 2 / 3):int(total_lenght * 3 / 3)] * msk
 
-            acc = K.cast(euclidean_distance(anchor, positive) < euclidean_distance(anchor, negative), anchor.dtype)
+            acc = K.cast(euclidean_distance(anchor, positive) <
+                         euclidean_distance(anchor, negative), anchor.dtype)
 
             return K.mean(acc) * 3
 
-        def accm(y_true, y_pred):
+        def accM(y_true, y_pred):
             total_lenght = y_pred.shape.as_list()[-1]
 
             msk = K.cast(K.equal(y_true, 1), 'float32')
 
-            anchor = y_pred[:,0:int(total_lenght*1/3)] * msk
-            positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)] * msk
-            negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)] * msk
+            anchor = y_pred[:, 0:int(total_lenght * 1 / 3)] * msk
+            positive = y_pred[
+                :, int(total_lenght * 1 / 3):int(total_lenght * 2 / 3)] * msk
+            negative = y_pred[
+                :, int(total_lenght * 2 / 3):int(total_lenght * 3 / 3)] * msk
 
-            acc = K.cast(euclidean_distance(anchor, positive) < euclidean_distance(anchor, negative), anchor.dtype)
+            acc = K.cast(euclidean_distance(anchor, positive) <
+                         euclidean_distance(anchor, negative), anchor.dtype)
 
             return K.mean(acc) * 3
 
-        def acch(y_true, y_pred):
+        def accH(y_true, y_pred):
             total_lenght = y_pred.shape.as_list()[-1]
 
             msk = K.cast(K.equal(y_true, 2), 'float32')
 
-            anchor = y_pred[:,0:int(total_lenght*1/3)] * msk
-            positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)] * msk
-            negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)] * msk
+            anchor = y_pred[:, 0:int(total_lenght * 1 / 3)] * msk
+            positive = y_pred[
+                :, int(total_lenght * 1 / 3):int(total_lenght * 2 / 3)] * msk
+            negative = y_pred[
+                :, int(total_lenght * 2 / 3):int(total_lenght * 3 / 3)] * msk
 
-            acc = K.cast(euclidean_distance(anchor, positive) < euclidean_distance(anchor, negative), anchor.dtype)
+            acc = K.cast(euclidean_distance(anchor, positive) <
+                         euclidean_distance(anchor, negative), anchor.dtype)
 
             return K.mean(acc) * 3
-        
+
         metrics = [
-            acct,
-            acce,
-            accm,
-            acch
+            accTot,
+            accBin,
+            accE,
+            accM,
+            accH
         ]
 
         def split_output(y_pred):
             total_lenght = y_pred.shape.as_list()[-1]
-            anchor = y_pred[:,0:int(total_lenght*1/3)]
-            positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)]
-            negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)]
+            anchor = y_pred[:, 0:int(total_lenght * 1 / 3)]
+            positive = y_pred[
+                :, int(total_lenght * 1 / 3):int(total_lenght * 2 / 3)]
+            negative = y_pred[
+                :, int(total_lenght * 2 / 3):int(total_lenght * 3 / 3)]
             return anchor, positive, negative
 
-
-        def tloss(y_true, y_pred):            
+        def tloss(y_true, y_pred):
             anchor, positive, negative = split_output(y_pred)
 
-            pos_dist = K.sum(K.square(anchor-positive),axis=1)
-            neg_dist = K.sum(K.square(anchor-negative),axis=1)
+            pos_dist = K.sum(K.square(anchor - positive), axis=1)
+            neg_dist = K.sum(K.square(anchor - negative), axis=1)
 
-            basic_loss = pos_dist-neg_dist+self.margin
-            loss = K.maximum(basic_loss,0.0)
+            basic_loss = pos_dist - neg_dist + self.margin
+            loss = K.maximum(basic_loss, 0.0)
 
             return loss
 
@@ -284,19 +302,21 @@ class SiameseTriplets(object):
 
                 neg_dis = K.sum(anchor * negative, axis=1)
                 dim = K.int_shape(y_pred)[1]
-                gor = K.pow(K.mean(neg_dis),2) + K.maximum(K.mean(K.pow(neg_dis,2))-1.0/dim, 0.0)
+                gor = K.pow(K.mean(neg_dis), 2) + \
+                    K.maximum(K.mean(K.pow(neg_dis, 2)) - 1.0 / dim, 0.0)
                 return gor
 
             gro = global_orthogonal_regularization(y_pred) * self.alpha
             loss = tloss(y_true, y_pred)
             return loss + gro
 
-        lfuncs_dict = {'tloss': tloss, 
-                       'bayesian_tloss': bayesian_tloss, 
+        lfuncs_dict = {'tloss': tloss,
+                       'bayesian_tloss': bayesian_tloss,
                        'orthogonal_tloss': orthogonal_tloss}
 
         # compile and print summary
-        self.__log.info('Loss function: %s' % lfuncs_dict[self.loss_func].__name__)
+        self.__log.info('Loss function: %s' %
+                        lfuncs_dict[self.loss_func].__name__)
         model.compile(
             optimizer=keras.optimizers.Adam(lr=self.learning_rate),
             loss=lfuncs_dict[self.loss_func],
@@ -498,21 +518,21 @@ class SiameseTriplets(object):
         import matplotlib.pyplot as plt
         import seaborn as sns
 
-        def sim(a,b):
-            return -(cosine(a,b) - 1)
-
+        def sim(a, b):
+            return -(cosine(a, b) - 1)
 
         val_shape_type_gen = NeighborTripletTraintest.generator_fn(
-                self.traintest_file,
-                'train_test',
-                batch_size=self.batch_size,
-                replace_nan=self.replace_nan,
-                sharedx=self.sharedx,
-                shuffle=False)
+            self.traintest_file,
+            'train_test',
+            batch_size=self.batch_size,
+            replace_nan=self.replace_nan,
+            sharedx=self.sharedx,
+            shuffle=False)
         trval_gen = val_shape_type_gen[2]()
 
-        vset_dict = {'train_train': self.tr_gen, 'train_test': trval_gen, 'test_test': self.val_gen}
-        
+        vset_dict = {'train_train': self.tr_gen,
+                     'train_test': trval_gen, 'test_test': self.val_gen}
+
         fig, axes = plt.subplots(3, 4, figsize=(22, 15))
         axes = axes.flatten()
         i = 0
@@ -535,73 +555,81 @@ class SiameseTriplets(object):
             negatives = np.array(negatives)
             labels = np.array(labels)
 
-            ap_dists = np.linalg.norm(anchors-positives, axis=1)
-            an_dists = np.linalg.norm(anchors-negatives, axis=1)
+            ap_dists = np.linalg.norm(anchors - positives, axis=1)
+            an_dists = np.linalg.norm(anchors - negatives, axis=1)
 
             mask_e = labels == 0
             mask_m = labels == 1
             mask_h = labels == 2
 
-            ax.set_title('Euclidean '+vset)
-            sns.kdeplot(ap_dists[mask_e], label='pos_e', ax=ax, color='limegreen')
-            sns.kdeplot(ap_dists[mask_m], label='pos_m', ax=ax, color='forestgreen')
-            sns.kdeplot(ap_dists[mask_h], label='pos_h', ax=ax, color='darkgreen')
+            ax.set_title('Euclidean ' + vset)
+            sns.kdeplot(ap_dists[mask_e], label='pos_e',
+                        ax=ax, color='limegreen')
+            sns.kdeplot(ap_dists[mask_m], label='pos_m',
+                        ax=ax, color='forestgreen')
+            sns.kdeplot(ap_dists[mask_h], label='pos_h',
+                        ax=ax, color='darkgreen')
 
             sns.kdeplot(an_dists[mask_e], label='neg_e', ax=ax, color='salmon')
             sns.kdeplot(an_dists[mask_m], label='neg_m', ax=ax, color='red')
-            sns.kdeplot(an_dists[mask_h], label='neg_h', ax=ax, color='darkred')
+            sns.kdeplot(an_dists[mask_h], label='neg_h',
+                        ax=ax, color='darkred')
 
             ax.legend()
 
             ax = axes[i]
             i += 1
 
-            ax.scatter(ap_dists[mask_e], an_dists[mask_e], label='easy', color='green', s=2)
-            ax.scatter(ap_dists[mask_m], an_dists[mask_m], label='medium', color='goldenrod', s=2, alpha=0.7)
-            ax.scatter(ap_dists[mask_h], an_dists[mask_h], label='hard', color='red', s=2, alpha=0.7)
+            ax.scatter(ap_dists[mask_e], an_dists[mask_e],
+                       label='easy', color='green', s=2)
+            ax.scatter(ap_dists[mask_m], an_dists[mask_m],
+                       label='medium', color='goldenrod', s=2, alpha=0.7)
+            ax.scatter(ap_dists[mask_h], an_dists[mask_h],
+                       label='hard', color='red', s=2, alpha=0.7)
             ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
             ax.set_xlabel('Euc dis positives')
             ax.set_ylabel('Euc dis negatives')
 
-
             ax = axes[i]
             i += 1
 
-            ap_sim = np.array([sim(anchors[i], positives[i]) for i in range(len(anchors))])
-            an_sim = np.array([sim(anchors[i], negatives[i]) for i in range(len(anchors))])
+            ap_sim = np.array([sim(anchors[i], positives[i])
+                               for i in range(len(anchors))])
+            an_sim = np.array([sim(anchors[i], negatives[i])
+                               for i in range(len(anchors))])
 
-            ax.set_title('Cosine '+vset)
-            sns.kdeplot(ap_sim[mask_e], label='pos_e', ax=ax, color='limegreen')
-            sns.kdeplot(ap_sim[mask_m], label='pos_m', ax=ax, color='forestgreen')
-            sns.kdeplot(ap_sim[mask_h], label='pos_h', ax=ax, color='darkgreen')
-            plt.xlim(-1,1)
+            ax.set_title('Cosine ' + vset)
+            sns.kdeplot(ap_sim[mask_e], label='pos_e',
+                        ax=ax, color='limegreen')
+            sns.kdeplot(ap_sim[mask_m], label='pos_m',
+                        ax=ax, color='forestgreen')
+            sns.kdeplot(ap_sim[mask_h], label='pos_h',
+                        ax=ax, color='darkgreen')
+            plt.xlim(-1, 1)
 
             sns.kdeplot(an_sim[mask_e], label='neg_e', ax=ax, color='salmon')
             sns.kdeplot(an_sim[mask_m], label='neg_m', ax=ax, color='red')
             sns.kdeplot(an_sim[mask_h], label='neg_h', ax=ax, color='darkred')
-            plt.xlim(-1,1)
+            plt.xlim(-1, 1)
             ax.legend()
 
             ax = axes[i]
             i += 1
 
-            ax.scatter(ap_sim[mask_e], an_sim[mask_e], label='easy', color='green', s=2)
-            ax.scatter(ap_sim[mask_m], an_sim[mask_m], label='medium', color='goldenrod', s=2, alpha=0.7)
-            ax.scatter(ap_sim[mask_h], an_sim[mask_h], label='hard', color='red', s=2, alpha=0.7)
-            ax.set_xlim(-1,1)
-            ax.set_ylim(-1,1)
+            ax.scatter(ap_sim[mask_e], an_sim[mask_e],
+                       label='easy', color='green', s=2)
+            ax.scatter(ap_sim[mask_m], an_sim[mask_m],
+                       label='medium', color='goldenrod', s=2, alpha=0.7)
+            ax.scatter(ap_sim[mask_h], an_sim[mask_h],
+                       label='hard', color='red', s=2, alpha=0.7)
+            ax.set_xlim(-1, 1)
+            ax.set_ylim(-1, 1)
             ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
             ax.set_xlabel('Cos sim positives')
             ax.set_ylabel('Cos sim negatives')
 
         plt.savefig(plot_file)
         plt.close()
-
-
-
-
-
-
 
 
 class AdditionalValidationSets(Callback):
