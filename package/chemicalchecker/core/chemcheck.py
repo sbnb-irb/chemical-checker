@@ -95,6 +95,26 @@ class ChemicalChecker():
     def sign3_full_map_short_dataset(self):
         return self.ds_sign3_full_map_short
 
+    @staticmethod
+    def set_verbosity(level='warning', logger_name='chemicalchecker'):
+        '''Set the verbosity for logging module.'''
+        import logging
+        level = level.upper()
+        levels = {'DEBUG': logging.DEBUG,
+                  'INFO': logging.INFO,
+                  'WARNING': logging.WARNING,
+                  'ERROR': logging.ERROR,
+                  'CRITICAL': logging.CRITICAL}
+        log_fn = {'DEBUG': ChemicalChecker.__log.debug,
+                  'INFO': ChemicalChecker.__log.info,
+                  'WARNING': ChemicalChecker.__log.warning,
+                  'ERROR': ChemicalChecker.__log.error,
+                  'CRITICAL': ChemicalChecker.__log.critical}
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(levels[level])
+        log_fn[level]("Logging level %s for logger '%s'." %
+                      (level.upper(), logger_name))
+
     def report_available(self, molset='*', dataset='*', signature='*'):
         """Report available signatures in the CC.
 
