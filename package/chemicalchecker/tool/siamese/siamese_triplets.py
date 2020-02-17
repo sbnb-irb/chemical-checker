@@ -44,7 +44,9 @@ class SiameseTriplets(object):
         self.augment_fn = kwargs.get("augment_fn", None)
         self.augment_kwargs = kwargs.get("augment_kwargs", None)
         self.augment_scale = int(kwargs.get("augment_scale", 1))
-        self.margin = float(kwargs.get("margin", 0.2))
+        self.loss_func = str(kwargs.get("loss_func", 'triplet_loss'))
+        self.margin = float(kwargs.get("margin", 1.0))
+        self.alpha = float(kwargs.get("alpha", 1.0))
         self.patience = float(kwargs.get("patience", 5))
 
         # internal variables
@@ -248,12 +250,27 @@ class SiameseTriplets(object):
             acch
         ]
 
-        def triplet_loss(y_true, y_pred, N = 2, beta=2, epsilon=1e-8):
+        def split_output(y_pred):
             total_lenght = y_pred.shape.as_list()[-1]
-
             anchor = y_pred[:,0:int(total_lenght*1/3)]
             positive = y_pred[:,int(total_lenght*1/3):int(total_lenght*2/3)]
             negative = y_pred[:,int(total_lenght*2/3):int(total_lenght*3/3)]
+            return anchor, positive, negative
+
+
+        def tloss(y_true, y_pred):            
+            anchor, positive, negative = split_output(y_pred)
+
+            pos_dist = K.sum(K.square(anchor-positive),axis=1)
+            neg_dist = K.sum(K.square(anchor-negative),axis=1)
+
+            basic_loss = pos_dist-neg_dist+self.margin
+            loss = K.maximum(basic_loss,0.0)
+
+            return loss
+
+        def bayesian_tloss(y_true, y_pred):
+            anchor, positive, negative = split_output(y_pred)
 
             loss = 1.0 - K.sigmoid(
                 K.sum(anchor * positive, axis=-1, keepdims=True) -
@@ -261,10 +278,28 @@ class SiameseTriplets(object):
 
             return K.mean(loss)
 
+        def orthogonal_tloss(y_true, y_pred):
+            def global_orthogonal_regularization(y_pred):
+                anchor, positive, negative = split_output(y_pred)
+
+                neg_dis = K.sum(anchor * negative, axis=1)
+                dim = K.int_shape(y_pred)[1]
+                gor = K.pow(K.mean(neg_dis),2) + K.maximum(K.mean(K.pow(neg_dis,2))-1.0/dim, 0.0)
+                return gor
+
+            gro = global_orthogonal_regularization(y_pred) * self.alpha
+            loss = tloss(y_true, y_pred)
+            return loss + gro
+
+        lfuncs_dict = {'tloss': tloss, 
+                       'bayesian_tloss': bayesian_tloss, 
+                       'orthogonal_tloss': orthogonal_tloss}
+
         # compile and print summary
+        self.__log.info('Loss function: %s' % lfuncs_dict[self.loss_func].__name__)
         model.compile(
             optimizer=keras.optimizers.Adam(lr=self.learning_rate),
-            loss=triplet_loss,
+            loss=lfuncs_dict[self.loss_func],
             metrics=metrics)
         model.summary()
 
