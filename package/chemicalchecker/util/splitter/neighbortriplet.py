@@ -4,8 +4,7 @@ import pickle
 import itertools
 import numpy as np
 from tqdm import tqdm
-from scipy import stats
-from scipy.spatial.distance import cdist
+from scipy.spatial.distance import euclidean
 from sklearn.preprocessing import RobustScaler
 
 from chemicalchecker.util import logged
@@ -41,7 +40,6 @@ class NeighborTripletTraintest(object):
             if split not in available_splits:
                 raise Exception("Split '%s' not found in %s!" %
                                 (split, str(available_splits)))
-
 
     def get_ty_shapes(self):
         """Return the shpaes of X an Y."""
@@ -139,7 +137,7 @@ class NeighborTripletTraintest(object):
                mean_center_x=True, shuffle=True,
                check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
-               x_dtype=np.float32, y_dtype=np.float32, debug_test=False, num_triplets=1000):
+               x_dtype=np.float32, y_dtype=np.float32, num_triplets=1000):
         """Create the HDF5 file with validation splits.
 
         Args:
@@ -252,7 +250,7 @@ class NeighborTripletTraintest(object):
             dists = []
 
             for split1, split2 in combos:
-                #Define F and T according to the split that is being used:
+                # Define F and T according to the split that is being used:
                 F = int(f_per * nr_matrix[split2].shape[0])
                 F = max(100, F)
                 F = min(1000, F)
@@ -299,7 +297,6 @@ class NeighborTripletTraintest(object):
                 # Idx comes from split2, all else comes from split1
                 for idx, row in enumerate(neig_idxs):
 
-                    
                     no_F = set(range(neig_idxs.shape[0])) - set(row)
                     # avoid fetching itself as negative!
                     if split1 == split2:
@@ -328,8 +325,10 @@ class NeighborTripletTraintest(object):
                         neig_idxs[idx][T:], num_triplets, replace=True)
                     medium_n_lst.extend(medium_n)
 
-                    hard_n = [np.random.choice(neig_idxs[idx][
-                                               p_i + 1:T + 1], 1, p=t_prob[p_i:] / sum(t_prob[p_i:]))[0] for p_i in p_indexes]
+                    hard_n = [np.random.choice(
+                        neig_idxs[idx][p_i + 1:T + 1], 1,
+                        p=t_prob[p_i:] / sum(t_prob[p_i:]))[0]
+                        for p_i in p_indexes]
                     hard_n_lst.extend(hard_n)
 
                 anchors_lst = ref_full_map[
@@ -356,31 +355,14 @@ class NeighborTripletTraintest(object):
                 hard_triplets = np.vstack(
                     (anchors_lst, hard_p_lst, hard_n_lst)).T
 
-                if check_distances:
-                    limit = 1000
-                    row = []
-                    for triplets_lst in [easy_triplets, medium_triplets, hard_triplets]:
-                        anchors = neigbors_matrix[triplets_lst[:, 0][:limit]]
-                        positives = neigbors_matrix[triplets_lst[:, 1][:limit]]
-                        negatives = neigbors_matrix[triplets_lst[:, 2][:limit]]
-
-                        dis_ap = [np.linalg.norm(a - p)
-                                  for a, p in zip(anchors, positives)]
-                        dis_an = [np.linalg.norm(a - n)
-                                  for a, n in zip(anchors, negatives)]
-
-                        row.append([dis_ap, dis_an])
-                    dists.append(row)
-
                 # shuffling
                 triplets = np.vstack(
                     (easy_triplets, medium_triplets, hard_triplets))
-
                 shuffle_idxs = np.arange(triplets.shape[0])
-
-                l = easy_triplets.shape[0]
-                y = np.hstack((np.full((l,), 0), np.full((l,), 1), np.full((l,), 2)))
-
+                y = np.hstack((
+                    np.full((easy_triplets.shape[0],), 0),
+                    np.full((medium_triplets.shape[0],), 1),
+                    np.full((hard_triplets.shape[0],), 2)))
                 if shuffle:
                     np.random.shuffle(shuffle_idxs)
 
@@ -388,35 +370,48 @@ class NeighborTripletTraintest(object):
                 ds_name = "t_%s_%s" % (split1, split2)
                 ys_name = "y_%s_%s" % (split1, split2)
                 NeighborTripletTraintest.__log.info(
-                    'writing %s %s %s %s %s %s', ds_name, easy_triplets.shape, medium_triplets.shape, hard_triplets.shape, triplets.shape, y.shape)
+                    'writing %s %s %s %s %s %s', ds_name, easy_triplets.shape,
+                    medium_triplets.shape, hard_triplets.shape, triplets.shape,
+                    y.shape)
                 fh.create_dataset(ds_name, data=triplets[shuffle_idxs])
                 fh.create_dataset(ys_name, data=y[shuffle_idxs])
 
-            if check_distances:
-                import matplotlib.pyplot as plt
-                import seaborn as sns
+                if check_distances:
+                    import matplotlib.pyplot as plt
+                    import seaborn as sns
 
-                plt.figure(figsize=(10, 10))
-                plot_file = os.path.join(
-                    os.path.split(out_file)[0], 'distances.png')
-                i = 0
-                j = 0
-                categs = ['easy', 'medium', 'hard']
-                combos = ['train_train', 'train_test', 'test_test']
-                for row in dists:
-                    split = combos[i]
-                    for pair in row:
-                        plt.subplot(3, 3, j + 1)
-                        plt.title('%s %s' % (split, categs[j % 3]))
-                        sns.distplot(pair[0], label='AP')
-                        sns.distplot(pair[1], label='AN')
-                        plt.legend()
-                        plt.xlim(0, 5)
-                        j += 1
-                    i += 1
+                    limit = 10000
+                    dists = np.empty((limit, 3))
+                    for idx, row in enumerate(shuffle_idxs[:limit]):
+                        anchor = neigbors_matrix[triplets[row][0]]
+                        positive = neigbors_matrix[triplets[row][1]]
+                        negative = neigbors_matrix[triplets[row][2]]
+                        category = y[row]
 
-                plt.savefig(plot_file)
-                plt.close()
+                        dis_ap = euclidean(anchor, positive)
+                        dis_an = euclidean(anchor, negative)
+                        dists[idx] = [dis_ap, dis_an, category]
+                        assert(dis_ap < dis_an)
+
+                    fig, axes = plt.subplots(
+                        1, 3, sharex=True, sharey=False, figsize=(10, 3))
+                    combo = "%s_%s" % (split1, split2)
+                    ax_idx = 0
+                    cat_names = ['easy', 'medium', 'hard']
+                    for cat_id in [0, 1, 2]:
+                        cat_mask = dists[:, 2] == cat_id
+                        print('cat', cat_id, np.count_nonzero(cat_mask))
+                        ax = axes.flatten()[ax_idx]
+                        ax.set_title('%s %s' % (combo, cat_names[cat_id]))
+                        sns.distplot(dists[cat_mask, 0], label='AP', ax=ax)
+                        sns.distplot(dists[cat_mask, 1], label='AN', ax=ax)
+                        ax.legend()
+                        ax_idx += 1
+
+                    plot_file = os.path.join(
+                        os.path.split(out_file)[0], 'distances_%s.png' % combo)
+                    plt.savefig(plot_file)
+                    plt.close()
 
         NeighborTripletTraintest.__log.info(
             'NeighborTripletTraintest saved to %s', out_file)
