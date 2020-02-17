@@ -405,7 +405,6 @@ class NeighborTripletTraintest(object):
             for combo, dists in combo_dists.items():
                 for cat_id in [0, 1, 2]:
                     cat_mask = dists[:, 2] == cat_id
-                    print('cat', cat_id, np.count_nonzero(cat_mask))
                     ax = axes.flatten()[ax_idx]
                     ax.set_title('%s %s' % (combo, cat_names[cat_id]))
                     sns.distplot(dists[cat_mask, 0], label='AP', ax=ax)
