@@ -330,7 +330,7 @@ class SiameseTriplets(object):
         # this will be the encoder/transformer
         self.transformer = self.model.layers[-2]
 
-    def fit(self, monitor='val_acct'):
+    def fit(self, monitor='val_accTot'):
         """Fit the model.
 
         monitor(str): variable to monitor for early stopping.
