@@ -70,6 +70,14 @@ class Converter():
             raise ConversionError("'InchiToInchiKey' exception:", ex.message)
         return inchikey
 
+    def inchi_to_mol(self, inchi):
+        try:
+            inchi_ascii = inchi.encode("ascii", "ignore")
+            mol = self.Chem.rdinchi.InchiToMol(inchi_ascii)[0]
+        except Exception as ex:
+            raise ConversionError("'InchiToMol' exception:", ex.message)
+        return mol
+
     @staticmethod
     def ctd_to_smiles(ctdid):
         """From CTD identifier to SMILES."""
