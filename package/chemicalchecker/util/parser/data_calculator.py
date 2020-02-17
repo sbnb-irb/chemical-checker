@@ -300,7 +300,7 @@ class DataCalculator():
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
-        from sklearn.externals import joblib
+        import joblib
         import collections
         import numpy as np
         import pandas as pd
