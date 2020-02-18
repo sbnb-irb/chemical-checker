@@ -168,7 +168,7 @@ class SiameseTriplets(object):
                 net.add(Dense(size, use_bias=use_bias, input_shape=input_shape))
             else:
                 net.add(Dense(size, use_bias=use_bias))
-            net.add(BatchNormalization())
+            #net.add(BatchNormalization())
             net.add(Activation(activation))
             if self.dropout is not None:
                 net.add(Dropout(self.dropout))
