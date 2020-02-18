@@ -167,7 +167,7 @@ class BaseSignature(object):
 
     def subsample(self, n):
         """Subsample from a signature without replacement.
-            
+
             Args:
                n(int): Maximum number of samples (default=10000).
 
@@ -180,7 +180,8 @@ class BaseSignature(object):
             V = self[:]
             keys = self.keys
         else:
-            idxs = np.array(sorted(np.random.choice(len(self.keys), n, replace=False)))
+            idxs = np.array(sorted(np.random.choice(
+                len(self.keys), n, replace=False)))
             with h5py.File(self.data_path, "r") as hf:
                 V = hf["V"][idxs]
             keys = np.array(self.keys)[idxs]
@@ -346,7 +347,7 @@ class BaseSignature(object):
             return True
         else:
             return False
-            
+
     def available(self):
         """This signature data is available."""
         if os.path.isfile(self.data_path):
@@ -531,3 +532,11 @@ class BaseSignature(object):
                 for comps, sml in zip(V_chunk, smiles_chunk):
                     fh.write(','.join(comps.astype(str)))
                     fh.write(',%s\n' % sml)
+
+    def get_molset(self, molset):
+        '''Return a signature from a different molset'''
+        folds = self.signature_path.split('/')
+        folds[-5] = molset
+        new_path = '/'.join(folds)
+        newsign = self.__class__(new_path, self.dataset)
+        return newsign
