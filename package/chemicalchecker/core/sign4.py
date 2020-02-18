@@ -10,7 +10,7 @@ import pandas as pd
 from tqdm import tqdm
 from time import time
 from functools import partial
-from scipy.spatial.distance import pdist, cdist
+from scipy.spatial.distance import pdist
 from scipy.stats import pearsonr, norm, rankdata
 
 from sklearn.linear_model import LinearRegression
@@ -24,6 +24,7 @@ from .signature_data import DataSignature
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import Traintest, NeighborTripletTraintest
+#from chemicalchecker.util.splitter import NeighborTraintest
 
 
 @logged
@@ -244,9 +245,9 @@ class sign4(BaseSignature, DataSignature):
         if not reuse or not os.path.isfile(sign2_matrix):
             self.save_sign2_matrix(self.sign2_list, sign2_matrix)
         # if evaluating, perform the train-test split
+        traintest_file = params.pop(
+            'traintest_file', traintest_file)
         if evaluate:
-            traintest_file = params.pop(
-                'traintest_file', traintest_file)
             num_triplets = params.pop('num_triplets', 10)
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix).get_h5_dataset('x')
@@ -258,8 +259,6 @@ class sign4(BaseSignature, DataSignature):
                     num_triplets=num_triplets,
                     neigbors_matrix=self.sign2_self[:])
         else:
-            traintest_file = params.pop(
-                'traintest_file', traintest_file)
             num_triplets = params.pop('num_triplets', 10)
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix).get_h5_dataset('x')
@@ -328,6 +327,19 @@ class sign4(BaseSignature, DataSignature):
         def no_mask(idxs, x1_data):
             return x1_data
 
+        def row_wise_correlation(X, Y):
+            var1 = (X.T - np.mean(X, axis=1)).T
+            var2 = (Y.T - np.mean(Y, axis=1)).T
+            cov = np.mean(var1 * var2, axis=1)
+            return cov / (np.std(X, axis=1) * np.std(Y, axis=1))
+
+        from MulticoreTSNE import MulticoreTSNE
+        from sklearn.decomposition import PCA
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        import itertools
+        from sklearn.preprocessing import robust_scale
+
         mask_fns = {
             'ALL': partial(no_mask, dataset_idx),
             'NOT-SELF': partial(mask_exclude, dataset_idx),
@@ -391,19 +403,33 @@ class sign4(BaseSignature, DataSignature):
 
             self.__log.info(known_pred['ALL'][0])
             self.__log.info(known_pred['ALL'][1])
-            from MulticoreTSNE import MulticoreTSNE
-            from sklearn.manifold import MDS
-            from sklearn.decomposition import PCA
-            import matplotlib.pyplot as plt
-            import seaborn as sns
 
             fname = '%s_known_unknown' % feat_type
 
-            self.__log.info('VALIDATION: Plot euclidean distances.')
+            self.__log.info(
+                'VALIDATION: Plot correlations %s.' % feat_type)
             fig, axes = plt.subplots(
                 1, 3, sharex=True, sharey=True, figsize=(10, 3))
-            for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
-                ax = axes[idx - 1]
+            combos = itertools.combinations(mask_fns, 2)
+            for ax, (n1, n2) in zip(axes.flatten(), combos):
+                corrs = row_wise_correlation(known_pred[n1], known_pred[n2])
+                scaled_corrs = row_wise_correlation(
+                    robust_scale(known_pred[n1]),
+                    robust_scale(known_pred[n2]))
+                sns.distplot(corrs, label='%s %s' % (n1, n2), ax=ax)
+                sns.distplot(scaled_corrs, label='scaled %s %s' %
+                             (n1, n2), ax=ax)
+                ax.legend()
+            plot_file = os.path.join(siamese.model_dir,
+                                     '%s_correlations.png' % fname)
+            plt.savefig(plot_file)
+            plt.close()
+
+            self.__log.info(
+                'VALIDATION: Plot euclidean distances %s.' % feat_type)
+            fig, axes = plt.subplots(
+                1, 3, sharex=True, sharey=True, figsize=(10, 3))
+            for ax, name in zip(axes.flatten(), mask_fns):
                 ax.set_title(name)
                 dist_known = pdist(known_pred[name][:dist_limit])
                 sns.distplot(dist_known, label='known', ax=ax)
@@ -416,11 +442,11 @@ class sign4(BaseSignature, DataSignature):
             plt.savefig(plot_file)
             plt.close()
 
-            self.__log.info('VALIDATION: Plot cosine distances.')
+            self.__log.info(
+                'VALIDATION: Plot cosine distances %s.' % feat_type)
             fig, axes = plt.subplots(
                 1, 3, sharex=True, sharey=True, figsize=(10, 3))
-            for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
-                ax = axes[idx - 1]
+            for ax, name in zip(axes.flatten(), mask_fns):
                 ax.set_title(name)
                 dist_known = pdist(known_pred[name][:dist_limit],
                                    metric='cosine')
@@ -435,11 +461,10 @@ class sign4(BaseSignature, DataSignature):
             plt.savefig(plot_file)
             plt.close()
 
-            self.__log.info('VALIDATION: Plot intensities.')
+            self.__log.info('VALIDATION: Plot intensities %s.' % feat_type)
             fig, axes = plt.subplots(
                 1, 3, sharex=True, sharey=True, figsize=(10, 3))
-            for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
-                ax = axes[idx - 1]
+            for ax, name in zip(axes.flatten(), mask_fns):
                 ax.set_title(name)
                 dist_known = np.sum(known_pred[name], axis=1)
                 sns.distplot(dist_known, label='known', ax=ax)
@@ -452,14 +477,9 @@ class sign4(BaseSignature, DataSignature):
             plt.savefig(plot_file)
             plt.close()
 
-            self.__log.info('VALIDATION: Plot Projections.')
+            self.__log.info('VALIDATION: Plot Projections %s.' % feat_type)
             fig, axes = plt.subplots(3, 2, figsize=(10, 10))
-            axes = axes.flatten()
-            i = 0
-            for idx, (name, mask_fn) in enumerate(mask_fns.items(), 1):
-                # TSNE
-                ax = axes[i]
-                i += 1
+            for ax, name in zip(axes[:, 0].flatten(), mask_fns):
                 ax.set_title('TSNE ' + name)
                 tsne = MulticoreTSNE(n_components=2)
                 if len(unknown_pred[name]) > 0:
@@ -475,10 +495,7 @@ class sign4(BaseSignature, DataSignature):
                 ax.scatter(dist_unknown[:, 0], dist_unknown[
                            :, 1], alpha=.6, label='unknown', s=3)
                 ax.legend()
-
-                # PCA
-                ax = axes[i]
-                i += 1
+            for ax, name in zip(axes[:, 1].flatten(), mask_fns):
                 ax.set_title('PCA ' + name)
                 pca = PCA(n_components=2)
                 if len(unknown_pred[name]) > 0:
@@ -494,17 +511,17 @@ class sign4(BaseSignature, DataSignature):
                 ax.scatter(dist_unknown[:, 0], dist_unknown[
                            :, 1], alpha=.6, label='unknown', s=3)
                 ax.legend()
-
             plot_file = os.path.join(siamese.model_dir, '%s_proj.png' % fname)
             plt.savefig(plot_file)
             plt.close()
 
-            self.__log.info('VALIDATION: Plot feature distribution 1.')
+            self.__log.info(
+                'VALIDATION: Plot feature distribution 1 %s.' % feat_type)
             fig = plt.figure(figsize=(20, 6), dpi=100)
             fig, axes = plt.subplots(
                 4, 1, sharex=True, sharey=True, figsize=(20, 12))
             order = np.argsort(np.mean(known_pred['ALL'], axis=0))[::-1]
-            for name, ax in zip(mask_fns, axes):
+            for ax, name in zip(axes.flatten(), mask_fns):
                 df = pd.DataFrame(known_pred[name][:, order]).melt().dropna()
                 sns.pointplot(x='variable', y='value', ci='sd',
                               data=df, ax=ax, label=name)
@@ -520,9 +537,10 @@ class sign4(BaseSignature, DataSignature):
             plt.savefig(filename, dpi=100)
             plt.close()
 
-            self.__log.info('VALIDATION: Plot feature distribution 2.')
+            self.__log.info(
+                'VALIDATION: Plot feature distribution 2 %s.' % feat_type)
             fig, axes = plt.subplots(2, 2, figsize=(10, 10))
-            for (name, mask_fn), ax in zip(mask_fns.items(), axes.flatten()):
+            for ax, name in zip(axes.flatten(), mask_fns):
                 ax.set_title(name)
                 if len(unknown_pred[name]) > 0:
                     sigs = np.vstack([known_pred[name], unknown_pred[name]])
