@@ -70,13 +70,13 @@ class NeighborTripletTraintest(object):
     def open(self):
         """Open the HDF5."""
         self._f = h5py.File(self._file, 'r')
-        #self.__log.info("HDF5 open %s", self._file)
+        # self.__log.info("HDF5 open %s", self._file)
 
     def close(self):
         """Close the HDF5."""
         try:
             self._f.close()
-            #self.__log.info("HDF5 close %s", self._file)
+            # self.__log.info("HDF5 close %s", self._file)
         except AttributeError:
             self.__log.error('HDF5 file is not open yet.')
 
@@ -171,13 +171,19 @@ class NeighborTripletTraintest(object):
         # reduce redundancy, keep full-ref mapping
         rnd = RNDuplicates(cpu=10)
         _, ref_matrix, full_ref_map = rnd.remove(neigbors_matrix)
-        ref_full_map = np.array(rnd.final_ids)
-        rows = ref_matrix.shape[0]
+        ref_full_map = dict()
+        for key, value in full_ref_map.items():
+            ref_full_map.setdefault(value, list()).append(key)
+        full_refid_map = dict(
+            zip(rnd.final_ids, np.arange(len(rnd.final_ids))))
+        refid_full_map = {full_refid_map[k]: v
+                          for k, v in ref_full_map.items()}
+        #ref_full_all_map = np.array(rnd.final_ids)
 
         # split chunks, get indeces of chunks for each split
-        chunk_size = np.floor(rows / 100)
+        chunk_size = np.floor(ref_matrix.shape[0] / 100)
         split_chunk_idx = NeighborTripletTraintest.get_split_indeces(
-            int(np.floor(rows / chunk_size)) + 1,
+            int(np.floor(ref_matrix.shape[0] / chunk_size)) + 1,
             split_fractions)
 
         # split ref matrix, keep ref-split mapping
@@ -253,16 +259,10 @@ class NeighborTripletTraintest(object):
             combos = itertools.combinations_with_replacement(split_names, 2)
             for split1, split2 in combos:
                 combo = '_'.join([split1, split2])
-                # Define F and T according to the split that is being used:
-                F = int(f_per * nr_matrix[split2].shape[0])
-                F = max(100, F)
-                F = min(1000, F)
-                F = min(F, (nr_matrix[split2].shape[0] - 1))
-
-                # T is 1% of the size of NN shape (30 min)
-                T = int(t_per * nr_matrix[split2].shape[0])
-                T = max(5, T)
-                T = min(100, T)
+                # define F and T according to the split that is being used
+                F = np.clip(f_per * nr_matrix[split2].shape[0], 100, 1000)
+                F = int(min(F, (nr_matrix[split2].shape[0] - 1)))
+                T = int(np.clip(t_per * nr_matrix[split2].shape[0], 5, 100))
                 NeighborTripletTraintest.__log.info("F and T: %s %s" % (F, T))
                 assert(T < F)
 
@@ -270,7 +270,7 @@ class NeighborTripletTraintest(object):
                 if split1 == split2:
                     # search NN
                     _, neig_idxs = NN[split1].search(
-                        nr_matrix[split2], int(F + 1))
+                        nr_matrix[split2], F + 1)
                     # the nearest neig between same groups is the molecule
                     # itself
                     assert(all(neig_idxs[:, 0] ==
@@ -285,88 +285,97 @@ class NeighborTripletTraintest(object):
                           np.sum(np.arange(T + 1)))[:T]
                 assert(sum(t_prob) > 0.99)
 
-                anchors_lst = list()
+                # save list of split indeces
+                anchors_split = list()
+                easy_p_split = list()
+                easy_n_split = list()
+                medi_p_split = list()
+                medi_n_split = list()
+                hard_p_split = list()
+                hard_n_split = list()
 
-                easy_p_lst = list()
-                easy_n_lst = list()
-
-                medium_p_lst = list()
-                medium_n_lst = list()
-
-                hard_p_lst = list()
-                hard_n_lst = list()
-
-                # Idx comes from split2, all else comes from split1
+                # idx refere split2, all else to split1
                 for idx, row in enumerate(neig_idxs):
-
-                    no_F = set(range(neig_idxs.shape[0])) - set(row)
-                    # avoid fetching itself as negative!
-                    if split1 == split2:
-                        no_F = no_F - set([idx])
-
-                    no_F = list(no_F)
-
-                    #print("row: ",row[-5:], "len no_F: ", len(no_F))
-
+                    # anchors are repeated num_triplets times
+                    anchors = [idx] * num_triplets
+                    anchors_split.extend(anchors)
+                    # positives are sampled from top T NNs for each category
                     p_indexes = np.random.choice(
                         T, num_triplets, replace=True, p=t_prob)
-
-                    anchors = [idx] * num_triplets
-                    anchors_lst.extend(anchors)
-
                     positives = neig_idxs[idx][:T][p_indexes]
-                    easy_p_lst.extend(positives)
-                    medium_p_lst.extend(positives)
-                    hard_p_lst.extend(positives)
+                    easy_p_split.extend(positives)
+                    medi_p_split.extend(positives)
+                    hard_p_split.extend(positives)
 
+                    # easy negatives are sampled from outside NN
+                    no_nn = set(range(neig_idxs.shape[0])) - set(row)
+                    # avoid fetching itself as negative!
+                    if split1 == split2:
+                        no_nn = no_nn - set([idx])
+                    no_nn = list(no_nn)
                     easy_n = np.random.choice(
-                        no_F, num_triplets, replace=True)
-                    easy_n_lst.extend(easy_n)
+                        no_nn, num_triplets, replace=True)
+                    easy_n_split.extend(easy_n)
 
-                    medium_n = np.random.choice(
+                    # medium negatives are from F (in NN but not T)
+                    medi_n = np.random.choice(
                         neig_idxs[idx][T:], num_triplets, replace=True)
-                    medium_n_lst.extend(medium_n)
+                    medi_n_split.extend(medi_n)
 
+                    # hard negatives are from T
                     hard_n = [np.random.choice(
                         neig_idxs[idx][p_i + 1:T + 1], 1,
                         p=t_prob[p_i:] / sum(t_prob[p_i:]))[0]
                         for p_i in p_indexes]
-                    hard_n_lst.extend(hard_n)
+                    hard_n_split.extend(hard_n)
 
-                anchors_lst = ref_full_map[
-                    np.array([split_ref_map[split2][x] for x in anchors_lst])]
-                easy_p_lst = ref_full_map[
-                    np.array([split_ref_map[split1][x] for x in easy_p_lst])]
-                easy_n_lst = ref_full_map[
-                    np.array([split_ref_map[split1][x] for x in easy_n_lst])]
+                # get reference ids
+                anchors_ref = [split_ref_map[split2][x] for x in anchors_split]
+                easy_p_ref = [split_ref_map[split1][x] for x in easy_p_split]
+                easy_n_ref = [split_ref_map[split1][x] for x in easy_n_split]
+                medi_p_ref = [split_ref_map[split1][x] for x in medi_p_split]
+                medi_n_ref = [split_ref_map[split1][x] for x in medi_n_split]
+                hard_p_ref = [split_ref_map[split1][x] for x in hard_p_split]
+                hard_n_ref = [split_ref_map[split1][x] for x in hard_n_split]
 
-                medium_p_lst = ref_full_map[
-                    np.array([split_ref_map[split1][x] for x in medium_p_lst])]
-                medium_n_lst = ref_full_map[
-                    np.array([split_ref_map[split1][x] for x in medium_n_lst])]
+                # choose random from full analogs
+                anchors_full = np.array(
+                    [np.random.choice(refid_full_map[x]) for x in anchors_ref])
+                easy_p_full = np.array(
+                    [np.random.choice(refid_full_map[x]) for x in easy_p_ref])
+                easy_n_full = np.array(
+                    [np.random.choice(refid_full_map[x]) for x in easy_n_ref])
+                medi_p_full = np.array(
+                    [np.random.choice(refid_full_map[x]) for x in medi_p_ref])
+                medi_n_full = np.array(
+                    [np.random.choice(refid_full_map[x]) for x in medi_n_ref])
+                hard_p_full = np.array(
+                    [np.random.choice(refid_full_map[x]) for x in hard_p_ref])
+                hard_n_full = np.array(
+                    [np.random.choice(refid_full_map[x]) for x in hard_n_ref])
 
-                hard_p_lst = ref_full_map[
-                    np.array([split_ref_map[split1][x] for x in hard_p_lst])]
-                hard_n_lst = ref_full_map[
-                    np.array([split_ref_map[split1][x] for x in hard_n_lst])]
-
+                # stack triplets
                 easy_triplets = np.vstack(
-                    (anchors_lst, easy_p_lst, easy_n_lst)).T
+                    (anchors_full, easy_p_full, easy_n_full)).T
                 medium_triplets = np.vstack(
-                    (anchors_lst, medium_p_lst, medium_n_lst)).T
+                    (anchors_full, medi_p_full, medi_n_full)).T
                 hard_triplets = np.vstack(
-                    (anchors_lst, hard_p_lst, hard_n_lst)).T
-
-                # shuffling
+                    (anchors_full, hard_p_full, hard_n_full)).T
                 triplets = np.vstack(
                     (easy_triplets, medium_triplets, hard_triplets))
-                shuffle_idxs = np.arange(triplets.shape[0])
+                # stack categories
                 y = np.hstack((
                     np.full((easy_triplets.shape[0],), 0),
                     np.full((medium_triplets.shape[0],), 1),
                     np.full((hard_triplets.shape[0],), 2)))
+
+                # shuffling
+                shuffle_idxs = np.arange(triplets.shape[0])
                 if shuffle:
                     np.random.shuffle(shuffle_idxs)
+                NeighborTripletTraintest.__log.info(
+                    'Using %s molecules in triplets' %
+                    len(np.unique(triplets)))
 
                 # save to h5
                 ds_name = "t_%s_%s" % (split1, split2)
@@ -393,7 +402,10 @@ class NeighborTripletTraintest(object):
                         dis_ap = euclidean(anchor, positive)
                         dis_an = euclidean(anchor, negative)
                         dists[idx] = [dis_ap, dis_an, category]
-                        assert(dis_ap < dis_an)
+                        if (dis_ap > dis_an):
+                            NeighborTripletTraintest.__log.warning(
+                                'DIST ERROR %s %.2f %.2f %i' %
+                                (triplets[row], dis_ap, dis_an, category))
                     assert(len(np.unique(dists[:, 2])) == 3)
                     combo_dists[combo] = dists
 
@@ -470,7 +482,7 @@ class NeighborTripletTraintest(object):
         for idx, row in enumerate(batch_beg_end):
             beg_idx, end_idx = batch_beg_end[idx]
             pairs = reader.get_t(beg_idx, end_idx)
-            #print(beg_idx, end_idx, 'batch_beg_end', idx, pairs.shape)
+            # print(beg_idx, end_idx, 'batch_beg_end', idx, pairs.shape)
         NeighborTripletTraintest.__log.debug('Generator ready')
 
         def example_generator_fn():
@@ -485,8 +497,8 @@ class NeighborTripletTraintest(object):
                         np.random.shuffle(batch_beg_end)
                     # Traintest.__log.debug('EPOCH %i (caller: %s)', epoch,
                     #                      inspect.stack()[1].function)
-                #print('EPOCH %i' % epoch)
-                #print('batch_idx %i' % batch_idx)
+                # print('EPOCH %i' % epoch)
+                # print('batch_idx %i' % batch_idx)
                 beg_idx, end_idx = batch_beg_end[batch_idx]
                 pairs = reader.get_t(beg_idx, end_idx)
                 y = reader.get_y(beg_idx, end_idx)
@@ -515,7 +527,7 @@ class NeighborTripletTraintest(object):
                     x1[np.where(np.isnan(x1))] = replace_nan
                     x2[np.where(np.isnan(x2))] = replace_nan
                     x3[np.where(np.isnan(x3))] = replace_nan
-                #print(x1.shape, x2.shape, x3.shape, y.shape)
+                # print(x1.shape, x2.shape, x3.shape, y.shape)
                 yield [x1, x2, x3], y
                 batch_idx += 1
 
