@@ -431,7 +431,7 @@ class NeighborPairTraintest(object):
         if mask_fn is None:
             def mask_fn(*data):
                 return data
-        batch_beg_end = np.zeros((int(np.ceil(x_shape[0] / batch_size)), 2))
+        batch_beg_end = np.zeros((int(np.ceil(p_shape[0] / batch_size)), 2))
         last = 0
         for row in batch_beg_end:
             row[0] = last
