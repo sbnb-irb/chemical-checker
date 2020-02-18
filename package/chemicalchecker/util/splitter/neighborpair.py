@@ -4,7 +4,6 @@ import pickle
 import itertools
 import numpy as np
 from tqdm import tqdm
-from scipy import stats
 from scipy.spatial.distance import euclidean
 from sklearn.preprocessing import RobustScaler
 
