@@ -325,7 +325,7 @@ class NeighborTripletTraintest(object):
                     # hard negatives are from T
                     hard_n = [np.random.choice(
                         neig_idxs[idx][p_i + 1:T + 1], 1,
-                        p=t_prob[p_i:] / sum(t_prob[p_i:]))[0]
+                        p=(t_prob[p_i:] / sum(t_prob[p_i:]))[::-1])[0]
                         for p_i in p_indexes]
                     hard_n_split.extend(hard_n)
 
