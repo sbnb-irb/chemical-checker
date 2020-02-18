@@ -460,13 +460,17 @@ class NeighborTripletTraintest(object):
         if mask_fn is None:
             def mask_fn(*data):
                 return data
-        batch_beg_end = np.zeros((int(np.ceil(x_shape[0] / batch_size)), 2))
+        batch_beg_end = np.zeros((int(np.ceil(t_shape[0] / batch_size)), 2))
         last = 0
         for row in batch_beg_end:
             row[0] = last
             row[1] = last + batch_size
             last = row[1]
         batch_beg_end = batch_beg_end.astype(int)
+        for idx, row in enumerate(batch_beg_end):
+            beg_idx, end_idx = batch_beg_end[idx]
+            pairs = reader.get_t(beg_idx, end_idx)
+            #print(beg_idx, end_idx, 'batch_beg_end', idx, pairs.shape)
         NeighborTripletTraintest.__log.debug('Generator ready')
 
         def example_generator_fn():
@@ -481,6 +485,8 @@ class NeighborTripletTraintest(object):
                         np.random.shuffle(batch_beg_end)
                     # Traintest.__log.debug('EPOCH %i (caller: %s)', epoch,
                     #                      inspect.stack()[1].function)
+                #print('EPOCH %i' % epoch)
+                #print('batch_idx %i' % batch_idx)
                 beg_idx, end_idx = batch_beg_end[batch_idx]
                 pairs = reader.get_t(beg_idx, end_idx)
                 y = reader.get_y(beg_idx, end_idx)
@@ -491,6 +497,7 @@ class NeighborTripletTraintest(object):
                     tmp_x1 = list()
                     tmp_x2 = list()
                     tmp_x3 = list()
+                    tmp_y = list()
                     for i in range(augment_scale):
                         tmp_x1.append(augment_fn(
                             x1, **augment_kwargs))
@@ -498,14 +505,17 @@ class NeighborTripletTraintest(object):
                             x2, **augment_kwargs))
                         tmp_x3.append(augment_fn(
                             x3, **augment_kwargs))
+                        tmp_y.append(y)
                     x1 = np.vstack(tmp_x1)
                     x2 = np.vstack(tmp_x2)
                     x3 = np.vstack(tmp_x3)
+                    y = np.hstack(tmp_y)
                 x1, x2, x3 = mask_fn(x1, x2, x3)
                 if replace_nan is not None:
                     x1[np.where(np.isnan(x1))] = replace_nan
                     x2[np.where(np.isnan(x2))] = replace_nan
                     x3[np.where(np.isnan(x3))] = replace_nan
+                #print(x1.shape, x2.shape, x3.shape, y.shape)
                 yield [x1, x2, x3], y
                 batch_idx += 1
 
