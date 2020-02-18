@@ -175,18 +175,10 @@ class SiameseTriplets(object):
         # each goes to a network with the same architechture
         basenet = Sequential()
         # first layer
-        basenet.add(Dense(self.layers[0], activation='relu', input_shape=input_shape, use_bias=False))
-        #add_layer(basenet, self.layers[0], 'relu', input_shape=input_shape)
-        if self.dropout is not None:
-            basenet.add(Dropout(self.dropout))
+        add_layer(basenet, self.layers[0], 'relu', input_shape=input_shape)
         for layer in self.layers[1:-1]:
-            basenet.add(Dense(layer, activation='relu', use_bias=False))
-            #add_layer(basenet, layer, 'relu')
-            if self.dropout is not None:
-                basenet.add(Dropout(self.dropout))
-        #add_layer(basenet, self.layers[-1], 'tanh')
-        basenet.add(
-            Dense(self.layers[-1], activation='tanh', use_bias=False))
+            add_layer(basenet, layer, 'relu')
+        add_layer(basenet, self.layers[-1], 'tanh')
         basenet.add(Lambda(lambda x: K.l2_normalize(x, axis=-1)))
 
         basenet.summary()
@@ -325,7 +317,7 @@ class SiameseTriplets(object):
         self.__log.info('Loss function: %s' %
                         lfuncs_dict[self.loss_func].__name__)
         model.compile(
-            optimizer=keras.optimizers.RMSprop(lr=self.learning_rate),
+            optimizer=keras.optimizers.Adam(lr=self.learning_rate),
             loss=lfuncs_dict[self.loss_func],
             metrics=metrics)
         model.summary()
