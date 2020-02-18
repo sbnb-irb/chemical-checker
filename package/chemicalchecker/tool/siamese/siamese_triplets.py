@@ -5,11 +5,10 @@ import numpy as np
 from time import time
 from functools import partial
 
-import tensorflow as tf
 from keras import backend as K
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
-from keras.layers import Input, Dropout, Lambda, Dense, concatenate
+from keras.layers import Input, Dropout, Lambda, Dense, concatenate, BatchNormalization, Activation
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
@@ -158,6 +157,16 @@ class SiameseTriplets(object):
             sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
             return K.sqrt(K.maximum(sum_square, K.epsilon()))
 
+        def add_layer(net, size, activation, use_bias=False, input_shape=False):
+            if input_shape:
+                net.add(Dense(size, use_bias=use_bias, input_shape=input_shape))
+            else:
+                net.add(Dense(size, use_bias=use_bias))
+            net.add(BatchNormalization())
+            net.add(Activation(activation))
+            if self.dropout is not None:
+                net.add(Dropout(self.dropout))
+
         # we have two inputs
         input_a = Input(shape=input_shape)
         input_p = Input(shape=input_shape)
@@ -166,22 +175,20 @@ class SiameseTriplets(object):
         # each goes to a network with the same architechture
         basenet = Sequential()
         # first layer
-        basenet.add(
-            Dense(self.layers[0], activation='relu', input_shape=input_shape, use_bias=False))
+        basenet.add(Dense(self.layers[0], activation='relu', input_shape=input_shape, use_bias=False))
+        #add_layer(basenet, self.layers[0], 'relu', input_shape=input_shape)
         if self.dropout is not None:
             basenet.add(Dropout(self.dropout))
         for layer in self.layers[1:-1]:
             basenet.add(Dense(layer, activation='relu', use_bias=False))
+            #add_layer(basenet, layer, 'relu')
             if self.dropout is not None:
                 basenet.add(Dropout(self.dropout))
+        #add_layer(basenet, self.layers[-1], 'tanh')
         basenet.add(
             Dense(self.layers[-1], activation='tanh', use_bias=False))
         basenet.add(Lambda(lambda x: K.l2_normalize(x, axis=-1)))
-        # basenet.add(Activation('sigmoid'))
 
-        # basenet.add(BatchNormalization())
-
-        #basenet.add(Lambda(lambda x: K.l2_normalize(x,axis=-1)))
         basenet.summary()
 
         encoded_a = basenet(input_a)
@@ -209,7 +216,7 @@ class SiameseTriplets(object):
             return K.mean(acc)
 
         def accBin(y_true, y_pred):
-            return accTot(y_true, tf.math.sign(y_pred))
+            return accTot(y_true, K.sign(y_pred))
 
         def accE(y_true, y_pred):
             total_lenght = y_pred.shape.as_list()[-1]
@@ -318,7 +325,7 @@ class SiameseTriplets(object):
         self.__log.info('Loss function: %s' %
                         lfuncs_dict[self.loss_func].__name__)
         model.compile(
-            optimizer=keras.optimizers.Adam(lr=self.learning_rate),
+            optimizer=keras.optimizers.RMSprop(lr=self.learning_rate),
             loss=lfuncs_dict[self.loss_func],
             metrics=metrics)
         model.summary()
