@@ -244,6 +244,12 @@ class ChemicalChecker():
         molset = folds[-6]
         return "%s_%s_%s" % (dataset, cctype, molset)
 
+    def signature(self, dataset, cctype):
+        return self.get_signature(cctype=cctype, molset="full", dataset_code=dataset)
+
+    def diagnosis(self, sign, save=True, plot=True, overwrite=False, n=10000):
+        return self.get_diagnosis(sign=sign, save=save, plot=plot, overwrite=overwrite, n=n)
+
     def copy_signature_from(self, source_cc, cctype, molset, dataset_code,
                             overwrite=False):
         """Copy a signature file from another CC instance.
@@ -377,9 +383,9 @@ class ChemicalChecker():
         from chemicalchecker.util.plot.diagnosticsplot import DiagnosisPlot
         return DiagnosisPlot(cc=self)
 
-    def get_diagnosis(self, sign, save=True, plot=True, n=10000):
+    def get_diagnosis(self, sign, save=True, plot=True, overwrite=False, n=10000):
         from chemicalchecker.core.diagnostics import Diagnosis
-        return Diagnosis(cc=self, sign=sign, save=save, plot=plot, n=n)
+        return Diagnosis(cc=self, sign=sign, save=save, plot=plot, overwrite=overwrite, n=n)
 
     @staticmethod
     def remove_near_duplicates_hpc(job_path, cc_root, cctype, datasets):
