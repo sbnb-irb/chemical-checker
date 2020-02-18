@@ -1,5 +1,4 @@
 import h5py
-import inspect
 import numpy as np
 from tqdm import tqdm
 
