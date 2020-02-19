@@ -1,7 +1,3 @@
-This repository is the one currently being used to develop the Chemical Checker (CC) in our SB&NB laboratory. As such, the repository contains a significant number of functionalities and data not presented in the primary CC manuscript.
-
-Due to the strong computational requirements of our pipeline, the code has been written and optimized to work in our local HPC facilities. Installation guides found below are mainly addressed to SB&NB users. As stated in the manuscript, the main deliverable of our resource are the CC _signatures_, which can be accessed easily through a [REST API](https://chemicalchecker.com/help) or downloaded as [data files](https://chemicalchecker.com/downloads).
-
 # Chemical Checker
 
 The Chemical Checker (CC) is a resource of small molecule signatures. In the CC, compounds are described from multiple viewpoints, spanning every aspect of the drug discovery pipeline, from chemical properties to clinical outcomes.
@@ -10,6 +6,10 @@ The Chemical Checker (CC) is a resource of small molecule signatures. In the CC,
 * For a quick exploration of the resource, please visit the [CC web app](http://chemicalchecker.org).
 * For full documentation of the python package, please see the [API doc](http://packages.sbnb-pages.irbbarcelona.org/chemical_checker).
 * Concepts and methods are best described in the original CC publication, [Duran-Frigola et al. 2019](https://biorxiv.org/content/10.1101/745703v1).
+
+This repository is the one currently being used to develop the Chemical Checker (CC) in our SB&NB laboratory. As such, the repository contains a significant number of functionalities and data not presented in the primary CC manuscript.
+
+Due to the strong computational requirements of our pipeline, the code has been written and optimized to work in our local HPC facilities. Installation guides found below are mainly addressed to SB&NB users. As stated in the manuscript, the main deliverable of our resource are the CC _signatures_, which can be accessed easily through a [REST API](https://chemicalchecker.com/help) or downloaded as [data files](https://chemicalchecker.com/downloads).
 
 ## Quick start
 
