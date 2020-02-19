@@ -258,7 +258,7 @@ class sign4(BaseSignature, DataSignature):
                     split_fractions=[.8, .2],
                     suffix=suffix,
                     num_triplets=num_triplets,
-                    neigbors_matrix=self.sign2_self[:])
+                    neigbors_matrix=self.sign1_self[:])
         else:
             num_triplets = params.get('num_triplets', 10)
             if not reuse or not os.path.isfile(traintest_file):
@@ -269,7 +269,7 @@ class sign4(BaseSignature, DataSignature):
                     split_fractions=[1.0],
                     suffix=suffix,
                     num_triplets=num_triplets,
-                    neigbors_matrix=self.sign2_self[:])
+                    neigbors_matrix=self.sign1_self[:])
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
@@ -1097,7 +1097,7 @@ class sign4(BaseSignature, DataSignature):
                             abs_novelty).flatten()
         return pred_s3
 
-    def fit(self, sign2_list, sign2_self, sign2_universe=None,
+    def fit(self, sign2_list, sign2_self, sign1_self, sign2_universe=None,
             partial_universe=None,
             sign2_coverage=None, sign0=None,
             model_confidence=False, save_correlations=False,
@@ -1134,6 +1134,7 @@ class sign4(BaseSignature, DataSignature):
 
         # define dataset that will be used
         self.src_datasets = [sign.dataset for sign in sign2_list]
+        self.sign1_self = sign1_self
         self.sign2_self = sign2_self
         self.sign2_list = sign2_list
         self.sign2_coverage = sign2_coverage

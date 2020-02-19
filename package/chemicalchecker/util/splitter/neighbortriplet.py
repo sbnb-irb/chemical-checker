@@ -411,7 +411,7 @@ class NeighborTripletTraintest(object):
 
         if check_distances:
             fig, axes = plt.subplots(
-                3, 3, sharex=True, sharey=True, figsize=(10, 10))
+                3, 3, sharex=True, sharey=False, figsize=(10, 10))
             ax_idx = 0
             cat_names = ['easy', 'medium', 'hard']
             for combo, dists in combo_dists.items():
