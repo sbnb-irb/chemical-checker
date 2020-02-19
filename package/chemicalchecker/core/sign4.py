@@ -404,6 +404,8 @@ class sign4(BaseSignature, DataSignature):
             self.__log.info(known_pred['ALL'][0])
             self.__log.info(known_pred['ALL'][1])
 
+            metrics = dict()
+
             fname = '%s_known_unknown' % feat_type
 
             self.__log.info(
@@ -419,6 +421,8 @@ class sign4(BaseSignature, DataSignature):
                 sns.distplot(corrs, label='%s %s' % (n1, n2), ax=ax)
                 sns.distplot(scaled_corrs, label='scaled %s %s' %
                              (n1, n2), ax=ax)
+                metrics['%s %s' % (n1, n2)] = np.mean(corrs)
+                metrics['scaled %s %s' % (n1, n2)] = np.mean(scaled_corrs)
                 ax.legend()
             plot_file = os.path.join(siamese.model_dir,
                                      '%s_correlations.png' % fname)
@@ -436,6 +440,7 @@ class sign4(BaseSignature, DataSignature):
                 if len(unknown_pred[name]) > 0:
                     dist_unknown = pdist(unknown_pred[name][:dist_limit])
                     sns.distplot(dist_unknown, label='unknown', ax=ax)
+                    metrics['euc_' + name] = np.mean(dist_known) - np.mean(dist_unknown)
                 ax.legend()
             plot_file = os.path.join(siamese.model_dir,
                                      '%s_dists_euclidean.png' % fname)
@@ -455,11 +460,17 @@ class sign4(BaseSignature, DataSignature):
                     dist_unknown = pdist(unknown_pred[name][:dist_limit],
                                          metric='cosine')
                     sns.distplot(dist_unknown, label='unknown', ax=ax)
+                    metrics['cos_' + name] = np.mean(dist_known) - np.mean(dist_unknown)
                 ax.legend()
             plot_file = os.path.join(siamese.model_dir,
                                      '%s_dists_cosine.png' % fname)
             plt.savefig(plot_file)
             plt.close()
+
+            metrics_file = os.path.join(siamese.model_dir,
+                                     '%s_metrics.pkl' % fname)
+            with open(metrics_file, 'wb') as output:
+                pickle.dump(metrics, output, pickle.HIGHEST_PROTOCOL)
 
             self.__log.info('VALIDATION: Plot intensities %s.' % feat_type)
             fig, axes = plt.subplots(
