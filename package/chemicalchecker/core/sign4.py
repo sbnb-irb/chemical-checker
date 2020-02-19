@@ -234,10 +234,12 @@ class sign4(BaseSignature, DataSignature):
             siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
             traintest_file = os.path.join(self.model_path,
                                           'traintest_%s.h5' % suffix)
+            params['traintest_file'] = params.get(
+                'traintest_file', traintest_file)
         else:
             siamese_path = os.path.join(self.model_path, 'siamese')
         if 'model_dir' in params:
-            siamese_path = params.pop('model_dir')
+            siamese_path = params.get('model_dir')
         if not reuse or not os.path.isdir(siamese_path):
             os.makedirs(siamese_path)
         # generate input matrix
@@ -245,10 +247,9 @@ class sign4(BaseSignature, DataSignature):
         if not reuse or not os.path.isfile(sign2_matrix):
             self.save_sign2_matrix(self.sign2_list, sign2_matrix)
         # if evaluating, perform the train-test split
-        traintest_file = params.pop(
-            'traintest_file', traintest_file)
+        traintest_file = params.get('traintest_file')
         if evaluate:
-            num_triplets = params.pop('num_triplets', 10)
+            num_triplets = params.get('num_triplets', 10)
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix).get_h5_dataset('x')
                 NeighborTripletTraintest.create(
@@ -259,7 +260,7 @@ class sign4(BaseSignature, DataSignature):
                     num_triplets=num_triplets,
                     neigbors_matrix=self.sign2_self[:])
         else:
-            num_triplets = params.pop('num_triplets', 10)
+            num_triplets = params.get('num_triplets', 10)
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix).get_h5_dataset('x')
                 NeighborTripletTraintest.create(
@@ -285,8 +286,7 @@ class sign4(BaseSignature, DataSignature):
 
         # init siamese NN
         siamese = SiameseTriplets(siamese_path,
-                                  traintest_file,
-                                  evaluate,
+                                  evaluate=evaluate,
                                   **params)
         self.__log.debug('Siamese training on %s' % traintest_file)
         siamese.fit()
@@ -1128,7 +1128,7 @@ class sign4(BaseSignature, DataSignature):
             chunk_size(int): Chunk size when writing to sign4.h5
         """
         try:
-            from chemicalchecker.tool.siamese import Siamese
+            from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError as err:
             raise err
 
@@ -1158,20 +1158,20 @@ class sign4(BaseSignature, DataSignature):
             sign4.save_sign2_universe(sign2_list, self.sign2_universe)
 
         # check if performance evaluations need to be done
-        eval_adanet_path = os.path.join(self.model_path, 'siamese_eval')
-        eval_file = os.path.join(eval_adanet_path, 'siamese.h5')
+        eval_model_path = os.path.join(self.model_path, 'siamese_eval')
+        eval_file = os.path.join(eval_model_path, 'siamese.h5')
         if not os.path.isfile(eval_file):
             self.learn_sign2(self.params['sign2'],
                              suffix='eval', evaluate=True)
 
         # check if we have the final trained model
-        final_adanet_path = os.path.join(self.model_path, 'siamese_final')
-        final_file = os.path.join(final_adanet_path, 'siamese.h5')
+        final_model_path = os.path.join(self.model_path, 'siamese_final')
+        final_file = os.path.join(final_model_path, 'siamese.h5')
         if not os.path.isfile(final_file):
             self.learn_sign2(self.params['sign2'],
                              suffix='final', evaluate=False)
-        siamese = Siamese(final_adanet_path)
-        scaler_file = os.path.join(self.model_path, 'scaler.pkl')
+        siamese = SiameseTriplets(final_model_path)
+        scaler_file = os.path.join(self.model_path, 'scaler_final.pkl')
         if os.path.isfile(scaler_file):
             scaler = pickle.load(open(scaler_file, 'rb'))
             siamese.set_predict_scaler(scaler)
@@ -1181,16 +1181,14 @@ class sign4(BaseSignature, DataSignature):
         # part of confidence is the expected error
         if model_confidence:
             # generate prediction, measure error, fit regressor
-            eval_err_path = os.path.join(self.model_path, 'adanet_error_eval')
+            predict_fn = siamese.predict
+            eval_err_path = os.path.join(self.model_path, 'error_eval')
             if not os.path.isdir(eval_err_path):
-                predict_fn = self.get_predict_fn('adanet_eval')
                 # step1 learn dataset availability to error predictor
                 self.learn_error(predict_fn, self.params['error'],
                                  suffix='error_eval', evaluate=True)
-
             # final error predictor
-            final_err_path = os.path.join(
-                self.model_path, 'adanet_error_final')
+            final_err_path = os.path.join(self.model_path, 'error_final')
             if not os.path.isdir(final_err_path):
                 predict_fn = self.get_predict_fn('adanet_final')
                 self.learn_error(predict_fn, self.params['error'],

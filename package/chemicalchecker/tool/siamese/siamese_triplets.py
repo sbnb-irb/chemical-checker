@@ -22,7 +22,7 @@ class SiameseTriplets(object):
     allows metric learning.
     """
 
-    def __init__(self, model_dir, traintest_file=None, evaluate=False, **kwargs):
+    def __init__(self, model_dir, evaluate=False, **kwargs):
         """Initialize the Siamese class.
 
         Args:
@@ -31,6 +31,11 @@ class SiameseTriplets(object):
             evaluate(bool): Whether to run evaluation.
         """
         from chemicalchecker.core.signature_data import DataSignature
+        # check if parameter file exists
+        param_file = os.path.join(model_dir, 'params.pkl')
+        if os.path.isfile(param_file):
+            kwargs = pickle.load(open(param_file, 'rb'))
+            self.__log.info('Parameters loaded from: %s' % param_file)
         # read parameters
         self.epochs = int(kwargs.get("epochs", 10))
         self.batch_size = int(kwargs.get("batch_size", 100))
@@ -43,10 +48,11 @@ class SiameseTriplets(object):
         self.augment_fn = kwargs.get("augment_fn", None)
         self.augment_kwargs = kwargs.get("augment_kwargs", None)
         self.augment_scale = int(kwargs.get("augment_scale", 1))
-        self.loss_func = str(kwargs.get("loss_func", 'triplet_loss'))
+        self.loss_func = str(kwargs.get("loss_func", 'orthogonal_tloss'))
         self.margin = float(kwargs.get("margin", 1.0))
         self.alpha = float(kwargs.get("alpha", 1.0))
         self.patience = float(kwargs.get("patience", 5))
+        self.traintest_file = kwargs.get("traintest_file", None)
 
         # internal variables
         self.name = '%s_%s' % (self.__class__.__name__.lower(), self.suffix)
@@ -63,14 +69,14 @@ class SiameseTriplets(object):
             os.mkdir(self.model_dir)
 
         # check input path
-        self.traintest_file = traintest_file
         if self.traintest_file is not None:
-            self.traintest_file = os.path.abspath(traintest_file)
-            if not os.path.exists(traintest_file):
+            self.traintest_file = os.path.abspath(self.traintest_file)
+            if not os.path.exists(self.traintest_file):
                 raise Exception('Input data file does not exists!')
 
             # initialize train generator
-            self.sharedx = DataSignature(traintest_file).get_h5_dataset('x')
+            self.sharedx = DataSignature(
+                self.traintest_file).get_h5_dataset('x')
             tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
                 self.traintest_file,
                 'train_train',
