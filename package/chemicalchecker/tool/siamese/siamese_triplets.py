@@ -8,7 +8,7 @@ from functools import partial
 from keras import backend as K
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
-from keras.layers import Input, Dropout, Lambda, Dense, concatenate, BatchNormalization, Activation
+from keras.layers import Input, Dropout, Lambda, Dense, concatenate, BatchNormalization, Activation, Masking
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
@@ -165,9 +165,8 @@ class SiameseTriplets(object):
 
         def add_layer(net, size, activation, use_bias=False, input_shape=False):
             if input_shape:
-                net.add(Dense(size, use_bias=use_bias, input_shape=input_shape))
-            else:
-                net.add(Dense(size, use_bias=use_bias))
+                net.add(Masking(mask_value=0.0, input_shape=input_shape))
+            net.add(Dense(size, use_bias=use_bias))
             #net.add(BatchNormalization())
             net.add(Activation(activation))
             if self.dropout is not None:
