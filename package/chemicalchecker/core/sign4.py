@@ -274,7 +274,7 @@ class sign4(BaseSignature, DataSignature):
                     split_fractions=[.8, .2],
                     suffix=suffix,
                     num_triplets=num_triplets,
-                    neigbors_matrix=self.sign1_self[:])
+                    neigbors_matrix=self.neig_matrix[:])
         else:
             num_triplets = params.get('num_triplets', 10)
             if not reuse or not os.path.isfile(traintest_file):
@@ -285,7 +285,7 @@ class sign4(BaseSignature, DataSignature):
                     split_fractions=[1.0],
                     suffix=suffix,
                     num_triplets=num_triplets,
-                    neigbors_matrix=self.sign1_self[:])
+                    neigbors_matrix=self.neig_matrix[:])
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
@@ -1023,14 +1023,14 @@ class sign4(BaseSignature, DataSignature):
                     sign2_matrix, traintest_file, predict_fn,
                     split_names=['train', 'test'],
                     split_fractions=[.8, .2],
-                    neigbors_matrix=self.sign1_self[:])
+                    neigbors_matrix=self.neig_matrix[:])
         else:
             if not reuse or not os.path.isfile(traintest_file):
                 NeighborErrorTraintest.create(
                     sign2_matrix, traintest_file, predict_fn,
                     split_names=['train'],
                     split_fractions=[.1],
-                    neigbors_matrix=self.sign1_self[:])
+                    neigbors_matrix=self.neig_matrix[:])
 
         if evaluate:
             self.train_predictors(params, model_dir, traintest_file)
@@ -1353,7 +1353,7 @@ class sign4(BaseSignature, DataSignature):
 
         # define dataset that will be used
         self.src_datasets = [sign.dataset for sign in sign2_list]
-        self.sign1_self = sign1_self
+        self.neig_matrix = sign1_self
         self.sign2_self = sign2_self
         self.sign2_list = sign2_list
         self.sign2_coverage = sign2_coverage
