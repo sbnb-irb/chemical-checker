@@ -13,6 +13,10 @@ from functools import partial
 from scipy.spatial.distance import pdist
 from scipy.stats import pearsonr, norm, rankdata
 
+from sklearn.svm import SVR
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.neural_network import MLPRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import LocalOutlierFactor
@@ -24,7 +28,7 @@ from .signature_data import DataSignature
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import Traintest, NeighborTripletTraintest
-#from chemicalchecker.util.splitter import NeighborTraintest
+from chemicalchecker.util.splitter import NeighborErrorTraintest
 
 
 @logged
@@ -86,8 +90,20 @@ class sign4(BaseSignature, DataSignature):
         }
         default_sign0_conf.update(params.get('sign0_conf', {}))
         self.params['sign0_conf'] = default_sign0_conf
-        # parameters to learn error
+        # predictors and parameters to learn error
         default_err = {
+            'LinearRegression': LinearRegression(
+                n_jobs=params.get('cpu', 4)
+            ),
+            'RandomForest': RandomForestRegressor(
+                n_estimators=100,
+                min_samples_leaf=50,
+                n_jobs=params.get('cpu', 4)
+            ),
+            'SVR': SVR(),
+            'KNeighborsRegressor': KNeighborsRegressor(),
+            'GaussianProcessRegressor': GaussianProcessRegressor(),
+            'MLPRegressor': MLPRegressor()
         }
         default_err.update(params.get('error', {}))
         self.params['error'] = default_err
@@ -983,62 +999,136 @@ class sign4(BaseSignature, DataSignature):
             raise err
         # get params and set folder
         if suffix:
-            adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
+            model_dir = os.path.join(self.model_path, 'error_%s' % suffix)
+            traintest_file = os.path.join(self.model_path,
+                                          'traintest_error_%s.h5' % suffix)
         else:
-            adanet_path = os.path.join(self.model_path, 'adanet')
+            model_dir = os.path.join(self.model_path, 'adanet')
+            traintest_file = os.path.join(self.model_path,
+                                          'traintest_error.h5')
         if params:
             if 'model_dir' in params:
-                adanet_path = params.pop('model_dir')
-        if not reuse or not os.path.isdir(adanet_path):
-            os.makedirs(adanet_path)
+                model_dir = params.pop('model_dir')
+        if not reuse or not os.path.isdir(model_dir):
+            os.makedirs(model_dir)
         # generate input matrix
-        sign4_train_file = os.path.join(self.model_path, 'train.h5')
-        error_matrix = os.path.join(self.model_path, 'train_error.h5')
-        if not reuse or not os.path.isfile(error_matrix):
-            self.save_error_matrix(sign4_train_file, predict_fn, error_matrix)
+        sign2_matrix = os.path.join(self.model_path, 'train.h5')
+        if not reuse or not os.path.isfile(sign2_matrix):
+            self.save_sign2_matrix(self.sign2_list, sign2_matrix)
         # if evaluating, perform the train-test split
+        traintest_file = params.pop('traintest_file', traintest_file)
         if evaluate:
-            traintest_file = os.path.join(
-                self.model_path, 'traintest_error.h5')
-            if params:
-                traintest_file = params.pop(
-                    'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
-                Traintest.split_h5_blocks(error_matrix, traintest_file)
+                NeighborErrorTraintest.create(
+                    sign2_matrix, traintest_file, predict_fn,
+                    split_names=['train', 'test'],
+                    split_fractions=[.8, .2],
+                    neigbors_matrix=self.sign1_self[:])
         else:
-            traintest_file = error_matrix
-            if params:
-                traintest_file = params.pop(
-                    'traintest_file', traintest_file)
-        # initialize adanet and start learning
-        if params:
-            # parameter heuristics
-            ada = AdaNet(model_dir=adanet_path,
-                         traintest_file=traintest_file,
-                         **params)
-        else:
-            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
-        self.__log.debug('AdaNet training on %s' % traintest_file)
-        ada.train_and_evaluate(evaluate=evaluate)
-        self.__log.debug('model saved to %s' % adanet_path)
-        # when evaluating also save the performances
-        other_predictors = {
-            ('LinearRegression', 'ALL'): LinearRegression(
-                n_jobs=params['cpu']),
-            ('RandomForest', 'ALL'): RandomForestRegressor(
-                n_estimators=100,
-                min_samples_leaf=50,
-                n_jobs=params['cpu'])
-        }
+            if not reuse or not os.path.isfile(traintest_file):
+                NeighborErrorTraintest.create(
+                    sign2_matrix, traintest_file, predict_fn,
+                    split_names=['train'],
+                    split_fractions=[.1],
+                    neigbors_matrix=self.sign1_self[:])
+
         if evaluate:
-            others = self.train_other(
-                other_predictors, adanet_path, traintest_file)
-            # save AdaNet performances and plots
-            sign2_plot = Plot(self.dataset, adanet_path)
-            ada.save_performances(adanet_path, sign2_plot, suffix, others)
+            self.train_predictors(params, model_dir, traintest_file)
+            #self.save_performances(model_dir, sign2_plot, suffix, others)
         else:
-            self.train_other(
-                other_predictors, adanet_path, traintest_file, train_only=True)
+            self.train_predictors(
+                params, model_dir, traintest_file, train_only=True)
+
+    def train_predictors(self, predictors, save_path, traintest_file,
+                         train_only=False):
+        """Train predictors for comparison."""
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
+        def train_predict_save(name, model, x_true, y_true, split, save_path):
+            result = dict()
+            result['time'] = 0.
+            # train and save
+            if split is None or split == 'train':
+                self.__log.info('Training model: %s' % name)
+                t0 = time()
+                model.fit(x_true, y_true)
+                model_path = os.path.join(save_path, '%s.pkl' % name)
+                pickle.dump(model, open(model_path, 'wb'))
+                result['time'] = time() - t0
+                self.__log.info('Training took: %s' % result['time'])
+            # call predict
+            self.__log.info("Predicting for: %s", name)
+            y_pred = model.predict(x_true)
+            y_pred = np.expand_dims(y_pred, 1)
+            y_true = np.expand_dims(y_true, 1)
+            self.__log.info("%s Y: %s", name, y_pred.shape)
+            if y_pred.shape[0] < 4:
+                return
+            file_true = os.path.join(
+                save_path, "_".join([name] + [str(split), 'true']))
+            np.save(file_true, y_true)
+            file_pred = os.path.join(
+                save_path, "_".join([name] + [str(split), 'pred']))
+            np.save(file_pred, y_pred)
+            result['true'] = file_true
+            result['pred'] = file_pred
+            result['coverage'] = 1.0
+            return result
+
+        # get results for each split or none if only training
+        results = dict()
+        if train_only:
+            splits = [None]
+        else:
+            splits = ['train', 'test']
+        for split in splits:
+            traintest = Traintest(traintest_file, split)
+            x_shape, y_shape = traintest.get_xy_shapes()
+            self.__log.info("%s X: %s Y: %s", split, x_shape, y_shape)
+            self.__log.info("%s Y: %s", split, y_shape)
+            traintest.open()
+            x_data = traintest.get_all_x()
+            y_data = traintest.get_all_y().flatten()
+            traintest.close()
+            for name, model in predictors.items():
+                if name not in results:
+                    results[name] = dict()
+                # predict and save
+                results[name][str(split)] = train_predict_save(
+                    name, model, x_data, y_data, split, save_path)
+        # save prerformances
+        if not train_only:
+            for name in sorted(results):
+
+                fig, axes = plt.subplots(
+                    1, len(splits), sharex=True, sharey=True, figsize=(7, 4))
+                for ax, split in zip(axes.flatten(), splits):
+                    preds = results[name]
+                    if split not in preds:
+                        self.__log.info("Skipping %s on %s", name, split)
+                        continue
+                    if preds[split] is None:
+                        self.__log.info("Skipping %s on %s", name, split)
+                        continue
+                    y_pred = np.load(preds[split]['pred'] + ".npy")
+                    y_true = np.load(preds[split]['true'] + ".npy")
+                    sns.regplot(y_true.flatten(), y_pred.flatten(),
+                                #x_estimator=np.mean,
+                                truncate=False,
+                                scatter_kws={'alpha': .8}, ax=ax)
+                    ax.set_xlabel('True')
+                    ax.set_ylabel('Predicted')
+                    ax.set_xlim(0, 1)
+                    ax.set_ylim(0, 1)
+                    ax.set_title(split)
+                plt.tight_layout()
+                plot_file = os.path.join(save_path,
+                                         '%s_correlations.png' % name)
+                plt.savefig(plot_file)
+                plt.close()
+
+        return results
 
     def fit_sign0(self, sign0, include_confidence=True, extra_confidence=False):
         """Train an AdaNet model to predict sign4 from sign0.
@@ -1316,13 +1406,13 @@ class sign4(BaseSignature, DataSignature):
             if not os.path.isdir(eval_err_path):
                 # step1 learn dataset availability to error predictor
                 self.learn_error(predict_fn, self.params['error'],
-                                 suffix='error_eval', evaluate=True)
+                                 suffix='eval', evaluate=True)
             # final error predictor
             final_err_path = os.path.join(self.model_path, 'error_final')
             if not os.path.isdir(final_err_path):
                 predict_fn = self.get_predict_fn('adanet_final')
                 self.learn_error(predict_fn, self.params['error'],
-                                 suffix='error_final', evaluate=False)
+                                 suffix='final', evaluate=False)
             self.__log.debug('Loading model for error prediction')
             rf = pickle.load(
                 open(os.path.join(final_err_path, 'RandomForest.pkl')), 'rb')
@@ -1720,64 +1810,6 @@ class sign4(BaseSignature, DataSignature):
 
     def predict(self):
         pass
-
-    def train_other(self, predictors, save_path, traintest_file,
-                    train_only=False):
-        """Train other predictors for comparison."""
-
-        def train_predict_save(name, model, x_true, y_true, split, save_path):
-            result = dict()
-            result['time'] = 0.
-            # train and save
-            if split is None or split == 'train':
-                self.__log.info('Training model: %s' % name[0])
-                t0 = time()
-                model.fit(x_true, y_true)
-                model_path = os.path.join(save_path, '%s.pkl' % name[0])
-                pickle.dump(model, open(model_path, 'wb'))
-                result['time'] = time() - t0
-                self.__log.info('Training took: %s' % result['time'])
-            # call predict
-            self.__log.info("Predicting for: %s", name[0])
-            y_pred = model.predict(x_true)
-            y_pred = np.expand_dims(y_pred, 1)
-            y_true = np.expand_dims(y_true, 1)
-            self.__log.info("%s Y: %s", name[0], y_pred.shape)
-            if y_pred.shape[0] < 4:
-                return
-            file_true = os.path.join(
-                save_path, "_".join([name[0]] + [str(split), 'true']))
-            np.save(file_true, y_true)
-            file_pred = os.path.join(
-                save_path, "_".join([name[0]] + [str(split), 'pred']))
-            np.save(file_pred, y_pred)
-            result['true'] = file_true
-            result['pred'] = file_pred
-            result['coverage'] = 1.0
-            return result
-
-        # get results for each split
-        results = dict()
-        if train_only:
-            splits = [None]
-        else:
-            splits = ['train', 'test', 'validation']
-        for split in splits:
-            traintest = Traintest(traintest_file, split)
-            x_shape, y_shape = traintest.get_xy_shapes()
-            self.__log.info("%s X: %s Y: %s", split, x_shape, y_shape)
-            self.__log.info("%s Y: %s", split, y_shape)
-            traintest.open()
-            x_data = traintest.get_all_x()
-            y_data = traintest.get_all_y().flatten()
-            traintest.close()
-            for name, model in predictors.items():
-                if name not in results:
-                    results[name] = dict()
-                # predict and save
-                results[name][str(split)] = train_predict_save(
-                    name, model, x_data, y_data, split, save_path)
-        return results
 
     def siamese_single_spaces(self, siamese_path, traintest_file, suffix):
         """Prediction of Siamese using single space signatures.
