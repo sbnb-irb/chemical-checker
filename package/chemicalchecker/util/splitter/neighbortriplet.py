@@ -133,7 +133,7 @@ class NeighborTripletTraintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def create(X, out_file, neigbors_matrix=None, f_per=0.1, t_per=0.01,
+    def create(X, out_file, neigbors_sign, f_per=0.1, t_per=0.01,
                mean_center_x=True, shuffle=True,
                check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
@@ -156,6 +156,7 @@ class NeighborTripletTraintest(object):
         """
         try:
             import faiss
+            from chemicalchecker.core.signature_data import DataSignature
         except ImportError as err:
             raise err
         NeighborTripletTraintest.__log.debug(
@@ -164,7 +165,7 @@ class NeighborTripletTraintest(object):
         if len(split_names) != len(split_fractions):
             raise Exception("Split names and fraction should be same amount.")
 
-        # the neigbors_matrix is optional
+        neigbors_matrix = neigbors_sign[:]
         if len(neigbors_matrix) != len(X):
             raise Exception("neigbors_matrix should be same length as X.")
 
@@ -178,7 +179,7 @@ class NeighborTripletTraintest(object):
             zip(rnd.final_ids, np.arange(len(rnd.final_ids))))
         refid_full_map = {full_refid_map[k]: v
                           for k, v in ref_full_map.items()}
-        #ref_full_all_map = np.array(rnd.final_ids)
+        # ref_full_all_map = np.array(rnd.final_ids)
 
         # split chunks, get indeces of chunks for each split
         chunk_size = np.floor(ref_matrix.shape[0] / 100)
@@ -373,10 +374,18 @@ class NeighborTripletTraintest(object):
                 shuffle_idxs = np.arange(triplets.shape[0])
                 if shuffle:
                     np.random.shuffle(shuffle_idxs)
+                unique_ids = np.unique(triplets)
                 NeighborTripletTraintest.__log.info(
                     'Using %s molecules in triplets' %
-                    len(np.unique(triplets)))
+                    len(unique_ids))
 
+                # get inchikeys of test or train molecules
+                if split1 == split2:
+                    ink_ids = np.array(sorted(unique_ids))
+                    split_inks = np.array(np.array(neigbors_sign.keys)[ink_ids],
+                                          DataSignature.string_dtype())
+                    ds_name = "keys_%s" % split1
+                    fh.create_dataset(ds_name, data=split_inks)
                 # save to h5
                 ds_name = "t_%s_%s" % (split1, split2)
                 ys_name = "y_%s_%s" % (split1, split2)

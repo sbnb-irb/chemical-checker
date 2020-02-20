@@ -269,23 +269,21 @@ class sign4(BaseSignature, DataSignature):
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix).get_h5_dataset('x')
                 NeighborTripletTraintest.create(
-                    X, traintest_file,
+                    X, traintest_file, self.neig_matrix,
                     split_names=['train', 'test'],
                     split_fractions=[.8, .2],
                     suffix=suffix,
-                    num_triplets=num_triplets,
-                    neigbors_matrix=self.neig_matrix[:])
+                    num_triplets=num_triplets)
         else:
             num_triplets = params.get('num_triplets', 10)
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix).get_h5_dataset('x')
                 NeighborTripletTraintest.create(
-                    X, traintest_file,
+                    X, traintest_file, self.neig_matrix,
                     split_names=['train'],
                     split_fractions=[1.0],
                     suffix=suffix,
-                    num_triplets=num_triplets,
-                    neigbors_matrix=self.neig_matrix[:])
+                    num_triplets=num_triplets)
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
@@ -315,8 +313,8 @@ class sign4(BaseSignature, DataSignature):
             # update the parameters with the new nr_of epochs
             self.params['sign2']['epochs'] = siamese.last_epoch + 1
 
-    def plot_validations(self, siamese, dataset_idx, chunk_size=10000,
-                         limit=1000, dist_limit=1000):
+    def plot_validations(self, siamese, dataset_idx, traintest_file,
+                         chunk_size=10000, limit=1000, dist_limit=1000):
         def mask_keep(idxs, x1_data):
             # we will fill an array of NaN with values we want to keep
             x1_data_transf = np.zeros_like(x1_data, dtype=np.float32) * np.nan
@@ -397,347 +395,371 @@ class sign4(BaseSignature, DataSignature):
             known = np.vstack(known[:limit])
             unknown = np.vstack(unknown[:limit])
         else:
+            # get known and unknown idxs
             cov = DataSignature(self.sign2_coverage).get_h5_dataset('V')
             known_idxs = np.argwhere(cov[:, dataset_idx[0]] == 1).flatten()
             unknown_idxs = np.argwhere(cov[:, dataset_idx[0]] == 0).flatten()
             self.__log.info('VALIDATION: total %s known, %s unknown' %
                             (known_idxs.shape[0], unknown_idxs.shape[0]))
             full_x = DataSignature(self.sign2_universe)
-            known = full_x.get_h5_dataset(
-                'x_test', mask=known_idxs[:limit])
-            unknown = full_x.get_h5_dataset(
-                'x_test', mask=unknown_idxs[:limit])
+            # get train and test idxs
+            all_inchikeys = self.get_universe_inchikeys()
+            traintest = DataSignature(traintest_file)
+            train_inks = traintest.get_h5_dataset('keys_train')
+            test_inks = traintest.get_h5_dataset('keys_test')
+            train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks))
+            test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks))
 
-        for feat_type in ['continuos', 'binary']:
-            # predict
-            self.__log.info('VALIDATION: Predicting.')
-            known_pred = dict()
-            unknown_pred = dict()
-            for name, mask_fn in mask_fns.items():
-                known_pred[name] = siamese.predict(mask_fn(known))
-                unknown_pred[name] = siamese.predict(mask_fn(unknown))
-                if 'binary' in feat_type:
-                    known_pred[name] = np.sign(known_pred[name])
-                    unknown_pred[name] = np.sign(unknown_pred[name])
+        # predict
+        self.__log.info('VALIDATION: Predicting.')
+        preds = dict()
+        for name, mask_fn in mask_fns.items():
+            preds[name] = siamese.predict(mask_fn(full_x))
 
-            self.__log.info(known_pred['ALL'][0])
-            self.__log.info(known_pred['ALL'][1])
+        self.__log.info(pred['ALL'][known_idxs][0])
+        self.__log.info(known_pred['ALL'][1])
 
-            metrics = dict()
+        metrics = dict()
 
-            fname = '%s_known_unknown' % feat_type
+        feat_type = 'continuos'
+        fname = '%s_known_unknown' % feat_type
 
-            self.__log.info(
-                'VALIDATION: Plot correlations %s.' % feat_type)
-            fig, axes = plt.subplots(
-                1, 3, sharex=True, sharey=True, figsize=(10, 3))
-            combos = itertools.combinations(mask_fns, 2)
-            for ax, (n1, n2) in zip(axes.flatten(), combos):
-                corrs = row_wise_correlation(known_pred[n1], known_pred[n2])
-                scaled_corrs = row_wise_correlation(
-                    robust_scale(known_pred[n1]),
-                    robust_scale(known_pred[n2]))
-                sns.distplot(corrs, label='%s %s' % (n1, n2), ax=ax)
-                sns.distplot(scaled_corrs, label='scaled %s %s' %
-                             (n1, n2), ax=ax)
-                metrics['%s %s' % (n1, n2)] = np.mean(corrs)
-                metrics['scaled %s %s' % (n1, n2)] = np.mean(scaled_corrs)
-                ax.legend()
-            plot_file = os.path.join(siamese.model_dir,
-                                     '%s_correlations.png' % fname)
-            plt.savefig(plot_file)
-            plt.close()
+        self.__log.info(
+            'VALIDATION: Plot correlations %s.' % feat_type)
+        fig, axes = plt.subplots(
+            1, 3, sharex=True, sharey=True, figsize=(10, 3))
+        combos = itertools.combinations(mask_fns, 2)
+        for ax, (n1, n2) in zip(axes.flatten(), combos):
+            corrs = row_wise_correlation(known_pred[n1], known_pred[n2])
+            scaled_corrs = row_wise_correlation(
+                robust_scale(known_pred[n1]),
+                robust_scale(known_pred[n2]))
+            sns.distplot(corrs, label='%s %s' % (n1, n2), ax=ax)
+            sns.distplot(scaled_corrs, label='scaled %s %s' %
+                         (n1, n2), ax=ax)
+            metrics['%s %s' % (n1, n2)] = np.mean(corrs)
+            metrics['scaled %s %s' % (n1, n2)] = np.mean(scaled_corrs)
+            ax.legend()
+        plot_file = os.path.join(siamese.model_dir,
+                                 '%s_correlations.png' % fname)
+        plt.savefig(plot_file)
+        plt.close()
 
-            self.__log.info(
-                'VALIDATION: Plot euclidean distances %s.' % feat_type)
-            fig, axes = plt.subplots(
-                1, 3, sharex=True, sharey=True, figsize=(10, 3))
-            for ax, name in zip(axes.flatten(), mask_fns):
-                ax.set_title(name)
-                dist_known = pdist(known_pred[name][:dist_limit])
-                sns.distplot(dist_known, label='known', ax=ax)
-                if len(unknown_pred[name]) > 0:
-                    dist_unknown = pdist(unknown_pred[name][:dist_limit])
-                    sns.distplot(dist_unknown, label='unknown', ax=ax)
-                    metrics[
-                        'euc_' + name] = abs(np.mean(dist_known) - np.mean(dist_unknown))
-                ax.legend()
-            plot_file = os.path.join(siamese.model_dir,
-                                     '%s_dists_euclidean.png' % fname)
-            plt.savefig(plot_file)
-            plt.close()
+        self.__log.info(
+            'VALIDATION: Plot euclidean distances %s.' % feat_type)
+        fig, axes = plt.subplots(
+            1, 3, sharex=True, sharey=True, figsize=(10, 3))
+        for ax, name in zip(axes.flatten(), mask_fns):
+            ax.set_title(name)
+            dist_known = pdist(known_pred[name][:dist_limit])
+            sns.distplot(dist_known, label='known', ax=ax)
+            if len(unknown_pred[name]) > 0:
+                dist_unknown = pdist(unknown_pred[name][:dist_limit])
+                sns.distplot(dist_unknown, label='unknown', ax=ax)
+                metrics[
+                    'euc_' + name] = abs(np.mean(dist_known) - np.mean(dist_unknown))
+            ax.legend()
+        plot_file = os.path.join(siamese.model_dir,
+                                 '%s_dists_euclidean.png' % fname)
+        plt.savefig(plot_file)
+        plt.close()
 
-            self.__log.info(
-                'VALIDATION: Plot cosine distances %s.' % feat_type)
-            fig, axes = plt.subplots(
-                1, 3, sharex=True, sharey=True, figsize=(10, 3))
-            for ax, name in zip(axes.flatten(), mask_fns):
-                ax.set_title(name)
-                dist_known = pdist(known_pred[name][:dist_limit],
-                                   metric='cosine')
-                sns.distplot(dist_known, label='known', ax=ax)
-                if len(unknown_pred[name]) > 0:
-                    dist_unknown = pdist(unknown_pred[name][:dist_limit],
-                                         metric='cosine')
-                    sns.distplot(dist_unknown, label='unknown', ax=ax)
-                    metrics[
-                        'cos_' + name] = abs(np.mean(dist_known) - np.mean(dist_unknown))
-                ax.legend()
-            plot_file = os.path.join(siamese.model_dir,
-                                     '%s_dists_cosine.png' % fname)
-            plt.savefig(plot_file)
-            plt.close()
+        self.__log.info(
+            'VALIDATION: Plot cosine distances %s.' % feat_type)
+        fig, axes = plt.subplots(
+            1, 3, sharex=True, sharey=True, figsize=(10, 3))
+        for ax, name in zip(axes.flatten(), mask_fns):
+            ax.set_title(name)
+            dist_known = pdist(known_pred[name][:dist_limit],
+                               metric='cosine')
+            sns.distplot(dist_known, label='known', ax=ax)
+            if len(unknown_pred[name]) > 0:
+                dist_unknown = pdist(unknown_pred[name][:dist_limit],
+                                     metric='cosine')
+                sns.distplot(dist_unknown, label='unknown', ax=ax)
+                metrics[
+                    'cos_' + name] = abs(np.mean(dist_known) - np.mean(dist_unknown))
+            ax.legend()
+        plot_file = os.path.join(siamese.model_dir,
+                                 '%s_dists_cosine.png' % fname)
+        plt.savefig(plot_file)
+        plt.close()
 
-            self.__log.info('VALIDATION: Plot intensities %s.' % feat_type)
-            fig, axes = plt.subplots(
-                1, 3, sharex=True, sharey=True, figsize=(10, 3))
-            for ax, name in zip(axes.flatten(), mask_fns):
-                ax.set_title(name)
-                dist_known = np.sum(known_pred[name], axis=1)
-                sns.distplot(dist_known, label='known', ax=ax)
-                if len(unknown_pred[name]) > 0:
-                    dist_unknown = np.sum(unknown_pred[name], axis=1)
-                    sns.distplot(dist_unknown, label='unknown', ax=ax)
-                ax.legend()
-            plot_file = os.path.join(
-                siamese.model_dir, '%s_intensity.png' % fname)
-            plt.savefig(plot_file)
-            plt.close()
+        self.__log.info('VALIDATION: Plot intensities %s.' % feat_type)
+        fig, axes = plt.subplots(
+            1, 3, sharex=True, sharey=True, figsize=(10, 3))
+        for ax, name in zip(axes.flatten(), mask_fns):
+            ax.set_title(name)
+            dist_known = np.sum(np.abs(known_pred[name]), axis=1)
+            sns.distplot(dist_known, label='known', ax=ax)
+            if len(unknown_pred[name]) > 0:
+                dist_unknown = np.sum(np.abs(unknown_pred[name]), axis=1)
+                sns.distplot(dist_unknown, label='unknown', ax=ax)
+            ax.legend()
+        plot_file = os.path.join(
+            siamese.model_dir, '%s_intensity.png' % fname)
+        plt.savefig(plot_file)
+        plt.close()
 
-            def jaccard_similarity(n1, n2):
-                res = list()
-                for r1, r2 in zip(n1, n2):
-                    s1 = set(r1)
-                    s2 = set(r2)
-                    inter = len(set.intersection(s1, s2))
-                    uni = len(set.union(s1, s2))
-                    res.append(inter / float(uni))
-                return np.array(res)
-            self.__log.info('VALIDATION: Plot NN accuracy %s.' % feat_type)
-            NN_pred = faiss.IndexFlatL2(known_pred['ALL'].shape[1])
-            NN_pred.add(known_pred['ALL'])
-            _, neig_idx = NN_pred.search(known_pred['ALL'], 100)
-            # remove self
-            NN_pred_neig = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
-            for idx, row in enumerate(neig_idx):
-                NN_pred_neig[idx] = row[np.argwhere(row != idx).flatten()]
-            # generate NN for actual
-            NN_true = faiss.IndexFlatL2(self.neig_matrix.shape[1])
-            NN_true.add(self.neig_matrix[:limit])
-            _, neig_idx = NN_true.search(self.neig_matrix[:limit], 100)
-            # remove self
-            NN_true_neig = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
-            for idx, row in enumerate(neig_idx):
-                NN_true_neig[idx] = row[np.argwhere(row != idx).flatten()]
-            # compare pred and actual NN jacard
-            fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-            nn_range = range(5, 21, 5)
-            for idx, top in enumerate(nn_range):
-                jaccs = jaccard_similarity(
-                    NN_pred_neig[:, :top], NN_true_neig[:, :top])
-                sns.distplot(jaccs, ax=ax, label='top %s NN' % top)
-                ax.set_xlim(0, 1)
-                ax.legend()
-            plot_file = os.path.join(
-                siamese.model_dir, '%s_NN_accuracy.png' % fname)
-            plt.savefig(plot_file)
-            plt.close()
+        def overlap(n1, n2):
+            res = list()
+            for r1, r2 in zip(n1, n2):
+                s1 = set(r1)
+                s2 = set(r2)
+                inter = len(set.intersection(s1, s2))
+                res.append(inter / float(len(s1)))
+            return np.array(res)
+        self.__log.info('VALIDATION: Plot NN accuracy %s.' % feat_type)
 
-            self.__log.info('VALIDATION: Plot KNN %s.' % feat_type)
-            rnd = RNDuplicates(cpu=10)
-            _, ref_matrix, full_ref_map = rnd.remove(known_pred['ALL'])
-            neig_pred = faiss.IndexFlatL2(ref_matrix.shape[1])
-            neig_pred.add(ref_matrix)
-            unknown_n_dis, _ = neig_pred.search(unknown_pred['ALL'], 5)
-            known_n_dis, _ = neig_pred.search(known_pred['ALL'], 6)
-            known_n_dis = known_n_dis[:, 1:]
-            fig, axes = plt.subplots(1, 2, figsize=(10, 5))
-            axes = axes.flatten()
-            axes[0].set_title('K1 NN')
-            sns.distplot(known_n_dis[:, 0], label='known', ax=axes[0])
-            sns.distplot(unknown_n_dis[:, 0], label='unknown', ax=axes[0])
-            metrics['K1 NN'] = abs(
-                np.mean(known_n_dis[:, 0]) - np.mean(unknown_n_dis[:, 0]))
-            axes[0].legend()
-            axes[1].set_title('K5 NN')
-            sns.distplot(known_n_dis[:, -1], label='known', ax=axes[1])
-            sns.distplot(unknown_n_dis[:, -1], label='unknown', ax=axes[1])
-            metrics['K5 NN'] = abs(
-                np.mean(known_n_dis[:, -1]) - np.mean(unknown_n_dis[:, -1]))
-            axes[1].legend()
-            filename = os.path.join(
-                siamese.model_dir, "%s_KNN.png" % fname)
-            plt.savefig(filename, dpi=100)
-            plt.close()
+        NN_pred = faiss.IndexFlatL2(known_pred['ALL'].shape[1])
+        NN_pred.add(known_pred['ALL'])
+        _, neig_idx = NN_pred.search(known_pred['ALL'], 100)
+        # remove self
+        NN_pred_neig = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
+        for idx, row in enumerate(neig_idx):
+            NN_pred_neig[idx] = row[np.argwhere(row != idx).flatten()]
 
-            self.__log.info(
-                'VALIDATION: Plot feature distribution 1 %s.' % feat_type)
-            fig = plt.figure(figsize=(20, 6), dpi=100)
-            fig, axes = plt.subplots(
-                4, 1, sharex=True, sharey=True, figsize=(20, 12))
-            order = np.argsort(np.mean(known_pred['ALL'], axis=0))[::-1]
-            for ax, name in zip(axes.flatten(), mask_fns):
-                df = pd.DataFrame(known_pred[name][:, order]).melt().dropna()
-                sns.pointplot(x='variable', y='value', ci='sd',
-                              data=df, ax=ax, label=name)
-                ax.set_ylabel('known %s' % name)
-                ax.axhline(0)
-            df = pd.DataFrame(unknown_pred['ALL'][:, order]).melt().dropna()
-            ax2 = axes[-1]
-            sns.pointplot(x='variable', y='value', ci='sd', data=df, ax=ax2)
-            ax2.set_ylabel('unknown ALL')
-            ax2.axhline(0)
-            filename = os.path.join(
-                siamese.model_dir, "%s_features_1.png" % fname)
-            plt.savefig(filename, dpi=100)
-            plt.close()
+        # generate NN for actual
+        NN_true = faiss.IndexFlatL2(self.neig_matrix.shape[1])
+        NN_true.add(self.neig_matrix[:limit])
+        _, neig_idx = NN_true.search(self.neig_matrix[:limit], 100)
+        # remove self
+        NN_true_neig = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
+        for idx, row in enumerate(neig_idx):
+            NN_true_neig[idx] = row[np.argwhere(row != idx).flatten()]
 
-            self.__log.info(
-                'VALIDATION: Plot feature distribution 2 %s.' % feat_type)
-            fig, axes = plt.subplots(2, 2, figsize=(10, 10))
-            for ax, name in zip(axes.flatten(), mask_fns):
-                ax.set_title(name)
-                if len(unknown_pred[name]) > 0:
-                    sigs = np.vstack([known_pred[name], unknown_pred[name]])
-                else:
-                    sigs = known_pred[name]
-                sigs_known = sigs[:len(known_pred[name])].flatten()
-                sigs_unknown = sigs[len(known_pred[name]):].flatten()
+        shuffle_idx = np.arange(len(known_pred['ALL']))
+        np.random.shuffle(shuffle_idx)
+        NN_rand = faiss.IndexFlatL2(known_pred['ALL'].shape[1])
+        NN_rand.add(known_pred['ALL'][shuffle_idx])
+        _, neig_idx = NN_rand.search(known_pred['ALL'][shuffle_idx], 100)
+        # remove self
+        NN_rand_neig = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
+        for idx, row in enumerate(neig_idx):
+            NN_rand_neig[idx] = row[np.argwhere(row != idx).flatten()]
 
-                sns.distplot(sigs_known, label='known', ax=ax)
-                sns.distplot(sigs_unknown, label='unknown', ax=ax)
-                ax.legend()
-            filename = os.path.join(
-                siamese.model_dir, "%s_features_2.png" % fname)
-            plt.savefig(filename, dpi=100)
-            plt.close()
+        # compare pred and actual NN jacard
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+        nn_range = range(5, 21, 5)
+        for idx, top in enumerate(nn_range):
+            jaccs = overlap(
+                NN_pred_neig[:, :top], NN_true_neig[:, :top])
+            sns.distplot(jaccs, ax=ax, label='top %s NN' % top)
+            ax.set_xlim(0, 1)
+            ax.legend()
+        plot_file = os.path.join(
+            siamese.model_dir, '%s_NN_accuracy.png' % fname)
+        plt.savefig(plot_file)
+        plt.close()
 
-            self.__log.info('VALIDATION: Plot Projections 1 %s.' % feat_type)
-            fig, axes = plt.subplots(3, 2, figsize=(10, 10))
-            for ax, name in zip(axes[:, 0].flatten(), mask_fns):
-                ax.set_title('TSNE ' + name)
-                tsne = MulticoreTSNE(n_components=2)
-                if len(unknown_pred[name]) > 0:
-                    tsne_train = np.vstack(
-                        [known_pred[name], unknown_pred[name]])
-                else:
-                    tsne_train = known_pred[name]
-                proj = tsne.fit_transform(tsne_train)
-                dist_known = proj[:len(known_pred[name])]
-                dist_unknown = proj[len(known_pred[name]):]
-                ax.scatter(dist_known[:, 0], dist_known[
-                           :, 1], label='known', s=3)
-                ax.scatter(dist_unknown[:, 0], dist_unknown[
-                           :, 1], alpha=.6, label='unknown', s=3)
-                ax.legend()
-            for ax, name in zip(axes[:, 1].flatten(), mask_fns):
-                ax.set_title('PCA ' + name)
-                pca = PCA(n_components=2)
-                if len(unknown_pred[name]) > 0:
-                    pca_train = np.vstack(
-                        [known_pred[name], unknown_pred[name]])
-                else:
-                    pca_train = known_pred[name]
-                proj = pca.fit_transform(pca_train)
-                dist_known = proj[:len(known_pred[name])]
-                dist_unknown = proj[len(known_pred[name]):]
-                ax.scatter(dist_known[:, 0], dist_known[
-                           :, 1], label='known', s=3)
-                ax.scatter(dist_unknown[:, 0], dist_unknown[
-                           :, 1], alpha=.6, label='unknown', s=3)
-                ax.legend()
-                if name == 'ALL':
-                    dists = np.vstack([dist_known, dist_unknown])
-                    shuffle_idxs = np.arange(len(dists))
-                    np.random.shuffle(shuffle_idxs)
-                    dists = dists[shuffle_idxs]
-                    y = np.hstack([np.full(len(dist_known), 1), np.full(len(dist_unknown), 0)])[
-                        shuffle_idxs]
-                    clf = LogisticRegressionCV(
-                        cv=5, random_state=0).fit(dists, y)
-                    metrics['logreg_acc_pca'] = clf.score(dists, y)
-            plot_file = os.path.join(
-                siamese.model_dir, '%s_proj_1.png' % fname)
-            plt.savefig(plot_file)
-            plt.close()
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+        nn_range = range(5, 21, 5)
+        for idx, top in enumerate(nn_range):
+            jaccs = overlap(
+                NN_rand_neig[:, :top], NN_true_neig[:, :top])
+            sns.distplot(jaccs, ax=ax, label='top %s NN' % top)
+            ax.set_xlim(0, 1)
+            ax.legend()
+        plot_file = os.path.join(
+            siamese.model_dir, '%s_NN_accuracy_rand.png' % fname)
+        plt.savefig(plot_file)
+        plt.close()
 
-            self.__log.info('VALIDATION: Plot Projections 2 %s.' % feat_type)
-            fig, axes = plt.subplots(1, 2, figsize=(10, 5))
-            for ax, name in zip(axes.flatten(), ['TSNE', 'PCA']):
-                ax.set_title(name + ' known')
-                if name == 'TSNE':
-                    proj_model = MulticoreTSNE(n_components=2)
-                else:
-                    proj_model = PCA(n_components=2)
-                proj_train = np.vstack(
-                    [known_pred['ALL'], known_pred['NOT-SELF']])  # known_pred['ONLY-SELF']
-                proj = proj_model.fit_transform(proj_train)
-                dist_all = proj[:len(known_pred['ALL'])]
-                dist_not_self = proj[len(known_pred['ALL']):len(
-                    known_pred['ALL']) + len(known_pred['NOT-SELF'])]
-                #dist_only_self = proj[len(known_pred['ALL'])+len(known_pred['NOT-SELF']):]
-                ax.scatter(dist_all[:, 0], dist_all[
-                           :, 1], label='ALL', s=3)
-                ax.scatter(dist_not_self[:, 0], dist_not_self[
-                           :, 1], alpha=.6, label='NOT-SELF', s=3)
-                # ax.scatter(dist_only_self[:, 0], dist_only_self[
-                #           :, 1], alpha=.6, label='ONLY-SELF', s=3)
-                ax.legend()
-            plot_file = os.path.join(
-                siamese.model_dir, '%s_proj_2.png' % fname)
-            plt.savefig(plot_file)
-            plt.close()
+        self.__log.info('VALIDATION: Plot KNN %s.' % feat_type)
+        rnd = RNDuplicates(cpu=10)
+        _, ref_matrix, full_ref_map = rnd.remove(known_pred['ALL'])
+        neig_pred = faiss.IndexFlatL2(ref_matrix.shape[1])
+        neig_pred.add(ref_matrix)
+        unknown_n_dis, _ = neig_pred.search(unknown_pred['ALL'], 5)
+        known_n_dis, _ = neig_pred.search(known_pred['ALL'], 6)
+        known_n_dis = known_n_dis[:, 1:]
+        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+        axes = axes.flatten()
+        axes[0].set_title('K1 NN')
+        sns.distplot(known_n_dis[:, 0], label='known', ax=axes[0])
+        sns.distplot(unknown_n_dis[:, 0], label='unknown', ax=axes[0])
+        metrics['K1 NN'] = abs(
+            np.mean(known_n_dis[:, 0]) - np.mean(unknown_n_dis[:, 0]))
+        axes[0].legend()
+        axes[1].set_title('K5 NN')
+        sns.distplot(known_n_dis[:, -1], label='known', ax=axes[1])
+        sns.distplot(unknown_n_dis[:, -1], label='unknown', ax=axes[1])
+        metrics['K5 NN'] = abs(
+            np.mean(known_n_dis[:, -1]) - np.mean(unknown_n_dis[:, -1]))
+        axes[1].legend()
+        filename = os.path.join(
+            siamese.model_dir, "%s_KNN.png" % fname)
+        plt.savefig(filename, dpi=100)
+        plt.close()
 
-            self.__log.info('VALIDATION: Plot Projections 3 %s.' % feat_type)
-            _, ref_matrix, full_ref_map = rnd.remove(unknown_pred['ALL'])
-            NN_true = faiss.IndexFlatL2(ref_matrix.shape[1])
-            NN_true.add(ref_matrix)
-            # indx known [unknown, unknown, unknown]
-            _, neig_indx = NN_true.search(known_pred['ALL'], 5)
-            K1_unknown = np.array(
-                [unknown_pred['ALL'][full_ref_map[x]] for x in neig_indx[:, 0]])
-            K5_unknown = np.array(
-                [unknown_pred['ALL'][full_ref_map[x]] for x in neig_indx[:, -1]])
+        self.__log.info(
+            'VALIDATION: Plot feature distribution 1 %s.' % feat_type)
+        fig = plt.figure(figsize=(20, 6), dpi=100)
+        fig, axes = plt.subplots(
+            4, 1, sharex=True, sharey=True, figsize=(20, 12))
+        order = np.argsort(np.mean(known_pred['ALL'], axis=0))[::-1]
+        for ax, name in zip(axes.flatten(), mask_fns):
+            df = pd.DataFrame(known_pred[name][:, order]).melt().dropna()
+            sns.pointplot(x='variable', y='value', ci='sd',
+                          data=df, ax=ax, label=name)
+            ax.set_ylabel('known %s' % name)
+            ax.axhline(0)
+        df = pd.DataFrame(unknown_pred['ALL'][:, order]).melt().dropna()
+        ax2 = axes[-1]
+        sns.pointplot(x='variable', y='value', ci='sd', data=df, ax=ax2)
+        ax2.set_ylabel('unknown ALL')
+        ax2.axhline(0)
+        filename = os.path.join(
+            siamese.model_dir, "%s_features_1.png" % fname)
+        plt.savefig(filename, dpi=100)
+        plt.close()
 
-            fig, axes = plt.subplots(2, 2, figsize=(10, 10))
-            for ax, name in zip(axes, ['TSNE', 'PCA']):
-                if name == 'TSNE':
-                    proj_model = MulticoreTSNE(n_components=2)
-                else:
-                    proj_model = PCA(n_components=2)
+        self.__log.info(
+            'VALIDATION: Plot feature distribution 2 %s.' % feat_type)
+        fig, axes = plt.subplots(2, 2, figsize=(10, 10))
+        for ax, name in zip(axes.flatten(), mask_fns):
+            ax.set_title(name)
+            if len(unknown_pred[name]) > 0:
+                sigs = np.vstack([known_pred[name], unknown_pred[name]])
+            else:
+                sigs = known_pred[name]
+            sigs_known = sigs[:len(known_pred[name])].flatten()
+            sigs_unknown = sigs[len(known_pred[name]):].flatten()
 
-                ax[0].set_title(name + ' unknown K1')
+            sns.distplot(sigs_known, label='known', ax=ax)
+            sns.distplot(sigs_unknown, label='unknown', ax=ax)
+            ax.legend()
+        filename = os.path.join(
+            siamese.model_dir, "%s_features_2.png" % fname)
+        plt.savefig(filename, dpi=100)
+        plt.close()
 
-                proj_train = np.vstack([known_pred['ALL'], K1_unknown])
-                proj = proj_model.fit_transform(proj_train)
-                dist_known = proj[:len(known_pred['ALL'])]
-                dist_unknown = proj[len(known_pred['ALL']):]
-                ax[0].scatter(dist_known[:, 0], dist_known[
-                    :, 1], label='known', s=3)
-                ax[0].scatter(dist_unknown[:, 0], dist_unknown[
-                    :, 1], alpha=.6, label='unknown', s=3)
-                ax[0].legend()
+        self.__log.info('VALIDATION: Plot Projections 1 %s.' % feat_type)
+        fig, axes = plt.subplots(3, 2, figsize=(10, 10))
+        for ax, name in zip(axes[:, 0].flatten(), mask_fns):
+            ax.set_title('TSNE ' + name)
+            tsne = MulticoreTSNE(n_components=2)
+            if len(unknown_pred[name]) > 0:
+                tsne_train = np.vstack(
+                    [known_pred[name], unknown_pred[name]])
+            else:
+                tsne_train = known_pred[name]
+            proj = tsne.fit_transform(tsne_train)
+            dist_known = proj[:len(known_pred[name])]
+            dist_unknown = proj[len(known_pred[name]):]
+            ax.scatter(dist_known[:, 0], dist_known[
+                       :, 1], label='known', s=3)
+            ax.scatter(dist_unknown[:, 0], dist_unknown[
+                       :, 1], alpha=.6, label='unknown', s=3)
+            ax.legend()
+        for ax, name in zip(axes[:, 1].flatten(), mask_fns):
+            ax.set_title('PCA ' + name)
+            pca = PCA(n_components=2)
+            if len(unknown_pred[name]) > 0:
+                pca_train = np.vstack(
+                    [known_pred[name], unknown_pred[name]])
+            else:
+                pca_train = known_pred[name]
+            proj = pca.fit_transform(pca_train)
+            dist_known = proj[:len(known_pred[name])]
+            dist_unknown = proj[len(known_pred[name]):]
+            ax.scatter(dist_known[:, 0], dist_known[
+                       :, 1], label='known', s=3)
+            ax.scatter(dist_unknown[:, 0], dist_unknown[
+                       :, 1], alpha=.6, label='unknown', s=3)
+            ax.legend()
+            if name == 'ALL':
+                dists = np.vstack([dist_known, dist_unknown])
+                shuffle_idxs = np.arange(len(dists))
+                np.random.shuffle(shuffle_idxs)
+                dists = dists[shuffle_idxs]
+                y = np.hstack([np.full(len(dist_known), 1), np.full(len(dist_unknown), 0)])[
+                    shuffle_idxs]
+                clf = LogisticRegressionCV(
+                    cv=5, random_state=0).fit(dists, y)
+                metrics['logreg_acc_pca'] = clf.score(dists, y)
+        plot_file = os.path.join(
+            siamese.model_dir, '%s_proj_1.png' % fname)
+        plt.savefig(plot_file)
+        plt.close()
 
-                ax[1].set_title(name + ' unknown K5')
-                proj_train = np.vstack(
-                    [known_pred['ALL'], K5_unknown])
-                proj = proj_model.fit_transform(proj_train)
-                dist_known = proj[:len(known_pred['ALL'])]
-                dist_unknown = proj[len(known_pred['ALL']):]
-                ax[1].scatter(dist_known[:, 0], dist_known[
-                    :, 1], label='known', s=3)
-                ax[1].scatter(dist_unknown[:, 0], dist_unknown[
-                    :, 1], alpha=.6, label='unknown', s=3)
-                ax[1].legend()
-            plot_file = os.path.join(
-                siamese.model_dir, '%s_proj_3.png' % fname)
-            plt.savefig(plot_file)
-            plt.close()
+        self.__log.info('VALIDATION: Plot Projections 2 %s.' % feat_type)
+        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+        for ax, name in zip(axes.flatten(), ['TSNE', 'PCA']):
+            ax.set_title(name + ' known')
+            if name == 'TSNE':
+                proj_model = MulticoreTSNE(n_components=2)
+            else:
+                proj_model = PCA(n_components=2)
+            proj_train = np.vstack(
+                [known_pred['ALL'], known_pred['NOT-SELF']])  # known_pred['ONLY-SELF']
+            proj = proj_model.fit_transform(proj_train)
+            dist_all = proj[:len(known_pred['ALL'])]
+            dist_not_self = proj[len(known_pred['ALL']):len(
+                known_pred['ALL']) + len(known_pred['NOT-SELF'])]
+            #dist_only_self = proj[len(known_pred['ALL'])+len(known_pred['NOT-SELF']):]
+            ax.scatter(dist_all[:, 0], dist_all[
+                       :, 1], label='ALL', s=3)
+            ax.scatter(dist_not_self[:, 0], dist_not_self[
+                       :, 1], alpha=.6, label='NOT-SELF', s=3)
+            # ax.scatter(dist_only_self[:, 0], dist_only_self[
+            #           :, 1], alpha=.6, label='ONLY-SELF', s=3)
+            ax.legend()
+        plot_file = os.path.join(
+            siamese.model_dir, '%s_proj_2.png' % fname)
+        plt.savefig(plot_file)
+        plt.close()
 
-            metrics_file = os.path.join(siamese.model_dir,
-                                        '%s_metrics.pkl' % fname)
-            with open(metrics_file, 'wb') as output:
-                pickle.dump(metrics, output, pickle.HIGHEST_PROTOCOL)
+        self.__log.info('VALIDATION: Plot Projections 3 %s.' % feat_type)
+        _, ref_matrix, full_ref_map = rnd.remove(unknown_pred['ALL'])
+        NN_true = faiss.IndexFlatL2(ref_matrix.shape[1])
+        NN_true.add(ref_matrix)
+        # indx known [unknown, unknown, unknown]
+        _, neig_indx = NN_true.search(known_pred['ALL'], 5)
+        K1_unknown = np.array(
+            [unknown_pred['ALL'][full_ref_map[x]] for x in neig_indx[:, 0]])
+        K5_unknown = np.array(
+            [unknown_pred['ALL'][full_ref_map[x]] for x in neig_indx[:, -1]])
+
+        fig, axes = plt.subplots(2, 2, figsize=(10, 10))
+        for ax, name in zip(axes, ['TSNE', 'PCA']):
+            if name == 'TSNE':
+                proj_model = MulticoreTSNE(n_components=2)
+            else:
+                proj_model = PCA(n_components=2)
+
+            ax[0].set_title(name + ' unknown K1')
+
+            proj_train = np.vstack([known_pred['ALL'], K1_unknown])
+            proj = proj_model.fit_transform(proj_train)
+            dist_known = proj[:len(known_pred['ALL'])]
+            dist_unknown = proj[len(known_pred['ALL']):]
+            ax[0].scatter(dist_known[:, 0], dist_known[
+                :, 1], label='known', s=3)
+            ax[0].scatter(dist_unknown[:, 0], dist_unknown[
+                :, 1], alpha=.6, label='unknown', s=3)
+            ax[0].legend()
+
+            ax[1].set_title(name + ' unknown K5')
+            proj_train = np.vstack(
+                [known_pred['ALL'], K5_unknown])
+            proj = proj_model.fit_transform(proj_train)
+            dist_known = proj[:len(known_pred['ALL'])]
+            dist_unknown = proj[len(known_pred['ALL']):]
+            ax[1].scatter(dist_known[:, 0], dist_known[
+                :, 1], label='known', s=3)
+            ax[1].scatter(dist_unknown[:, 0], dist_unknown[
+                :, 1], alpha=.6, label='unknown', s=3)
+            ax[1].legend()
+        plot_file = os.path.join(
+            siamese.model_dir, '%s_proj_3.png' % fname)
+        plt.savefig(plot_file)
+        plt.close()
+
+        metrics_file = os.path.join(siamese.model_dir,
+                                    '%s_metrics.pkl' % fname)
+        with open(metrics_file, 'wb') as output:
+            pickle.dump(metrics, output, pickle.HIGHEST_PROTOCOL)
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True,
                           chunk_size=1000):
@@ -1352,6 +1374,16 @@ class sign4(BaseSignature, DataSignature):
                             abs_novelty).flatten()
         return pred_s3
 
+    def get_universe_inchikeys(self):
+        # get sorted universe inchikeys
+        if hasattr(self, 'universe_inchikeys'):
+            return self.universe_inchikeys
+        inchikeys = set()
+        for ds, sign in zip(self.src_datasets, self.sign2_list):
+            inchikeys.update(sign.unique_keys)
+        inchikeys = sorted(list(inchikeys))
+        return inchikeys
+
     def fit(self, sign2_list, sign2_self, sign1_self, sign2_universe=None,
             partial_universe=None,
             sign2_coverage=None, sign0=None,
@@ -1454,12 +1486,8 @@ class sign4(BaseSignature, DataSignature):
                 open(os.path.join(final_err_path, 'RandomForest.pkl')), 'rb')
 
         # get sorted universe inchikeys
-        inchikeys = set()
-        for ds, sign in zip(self.src_datasets, sign2_list):
-            inchikeys.update(sign.unique_keys)
-        inchikeys = sorted(list(inchikeys))
-        tot_inks = len(inchikeys)
-        self.tot_inks = tot_inks
+        self.universe_inchikeys = self.get_universe_inchikeys()
+        tot_inks = len(self.universe_inchikeys)
         tot_ds = len(self.src_datasets)
 
         # save universe sign4
@@ -1468,7 +1496,7 @@ class sign4(BaseSignature, DataSignature):
                 # initialize V and keys datasets
                 safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
                 safe_create(results, 'keys',
-                            data=np.array(inchikeys,
+                            data=np.array(self.universe_inchikeys,
                                           DataSignature.string_dtype()))
                 safe_create(results, 'datasets',
                             data=np.array(self.src_datasets,
