@@ -339,6 +339,9 @@ class sign4(BaseSignature, DataSignature):
         import seaborn as sns
         import itertools
         from sklearn.preprocessing import robust_scale
+        from sklearn.linear_model import LogisticRegressionCV
+        import faiss
+        from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 
         mask_fns = {
             'ALL': partial(no_mask, dataset_idx),
@@ -440,7 +443,7 @@ class sign4(BaseSignature, DataSignature):
                 if len(unknown_pred[name]) > 0:
                     dist_unknown = pdist(unknown_pred[name][:dist_limit])
                     sns.distplot(dist_unknown, label='unknown', ax=ax)
-                    metrics['euc_' + name] = np.mean(dist_known) - np.mean(dist_unknown)
+                    metrics['euc_' + name] = abs(np.mean(dist_known) - np.mean(dist_unknown))
                 ax.legend()
             plot_file = os.path.join(siamese.model_dir,
                                      '%s_dists_euclidean.png' % fname)
@@ -460,18 +463,15 @@ class sign4(BaseSignature, DataSignature):
                     dist_unknown = pdist(unknown_pred[name][:dist_limit],
                                          metric='cosine')
                     sns.distplot(dist_unknown, label='unknown', ax=ax)
-                    metrics['cos_' + name] = np.mean(dist_known) - np.mean(dist_unknown)
+                    metrics['cos_' + name] = abs(np.mean(dist_known) - np.mean(dist_unknown))
                 ax.legend()
             plot_file = os.path.join(siamese.model_dir,
                                      '%s_dists_cosine.png' % fname)
             plt.savefig(plot_file)
             plt.close()
 
-            metrics_file = os.path.join(siamese.model_dir,
-                                     '%s_metrics.pkl' % fname)
-            with open(metrics_file, 'wb') as output:
-                pickle.dump(metrics, output, pickle.HIGHEST_PROTOCOL)
 
+            
             self.__log.info('VALIDATION: Plot intensities %s.' % feat_type)
             fig, axes = plt.subplots(
                 1, 3, sharex=True, sharey=True, figsize=(10, 3))
@@ -488,7 +488,7 @@ class sign4(BaseSignature, DataSignature):
             plt.savefig(plot_file)
             plt.close()
 
-            self.__log.info('VALIDATION: Plot Projections %s.' % feat_type)
+            self.__log.info('VALIDATION: Plot Projections 1 %s.' % feat_type)
             fig, axes = plt.subplots(3, 2, figsize=(10, 10))
             for ax, name in zip(axes[:, 0].flatten(), mask_fns):
                 ax.set_title('TSNE ' + name)
@@ -522,7 +522,41 @@ class sign4(BaseSignature, DataSignature):
                 ax.scatter(dist_unknown[:, 0], dist_unknown[
                            :, 1], alpha=.6, label='unknown', s=3)
                 ax.legend()
-            plot_file = os.path.join(siamese.model_dir, '%s_proj.png' % fname)
+                if name == 'ALL':
+                    dists = np.vstack([dist_known, dist_unknown])
+                    shuffle_idxs = np.arange(len(dists))
+                    np.random.shuffle(shuffle_idxs)
+                    dists = dists[shuffle_idxs]
+                    y = np.hstack([np.full(len(dist_known), 1), np.full(len(dist_unknown), 0)])[shuffle_idxs]
+                    clf = LogisticRegressionCV(cv=5, random_state=0).fit(dists, y)
+                    metrics['logreg_acc_pca'] = clf.score(dists, y)
+
+            plot_file = os.path.join(siamese.model_dir, '%s_proj_1.png' % fname)
+            plt.savefig(plot_file)
+            plt.close()
+
+            self.__log.info('VALIDATION: Plot Projections 2 %s.' % feat_type)
+            fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+            for ax, name in zip(axes.flatten(), ['TSNE', 'PCA']):
+                ax.set_title(name + ' known')
+                if name == 'TSNE':
+                    proj_model = MulticoreTSNE(n_components=2)
+                else:
+                    proj_model = PCA(n_components=2)
+                proj_train = np.vstack(
+                    [known_pred['ALL'], known_pred['NOT-SELF']]) # known_pred['ONLY-SELF']
+                proj = proj_model.fit_transform(proj_train)
+                dist_all = proj[:len(known_pred['ALL'])]
+                dist_not_self = proj[len(known_pred['ALL']):len(known_pred['ALL']) + len(known_pred['NOT-SELF'])]
+                #dist_only_self = proj[len(known_pred['ALL'])+len(known_pred['NOT-SELF']):]
+                ax.scatter(dist_all[:, 0], dist_all[
+                           :, 1], label='ALL', s=3)
+                ax.scatter(dist_not_self[:, 0], dist_not_self[
+                           :, 1], alpha=.6, label='NOT-SELF', s=3)
+                #ax.scatter(dist_only_self[:, 0], dist_only_self[
+                #           :, 1], alpha=.6, label='ONLY-SELF', s=3)
+                ax.legend()
+            plot_file = os.path.join(siamese.model_dir, '%s_proj_2.png' % fname)
             plt.savefig(plot_file)
             plt.close()
 
@@ -566,8 +600,92 @@ class sign4(BaseSignature, DataSignature):
 
             filename = os.path.join(
                 siamese.model_dir, "%s_features_2.png" % fname)
+
             plt.savefig(filename, dpi=100)
             plt.close()
+
+            self.__log.info(
+                'VALIDATION: Plot KNN %s.' % feat_type)
+
+            rnd = RNDuplicates(cpu=10)
+            _, ref_matrix, full_ref_map = rnd.remove(known_pred['ALL'])
+            NN_true = faiss.IndexFlatL2(ref_matrix.shape[1])
+            NN_true.add(ref_matrix)
+            unknown_n_dis, _ = NN_true.search(unknown_pred['ALL'], 5)
+            known_n_dis, _ = NN_true.search(known_pred['ALL'], 6)
+            known_n_dis = known_n_dis[:,1:]
+
+            fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+            axes = axes.flatten()
+            axes[0].set_title('K1 NN')
+            sns.distplot(known_n_dis[:,0], label='known', ax=axes[0])
+            sns.distplot(unknown_n_dis[:,0], label='unknown', ax=axes[0])
+            metrics['K1 NN'] = abs(np.mean(known_n_dis[:,0]) - np.mean(unknown_n_dis[:,0]))
+            axes[0].legend()
+
+            axes[1].set_title('K5 NN')
+            sns.distplot(known_n_dis[:,-1], label='known', ax=axes[1])
+            sns.distplot(unknown_n_dis[:,-1], label='unknown', ax=axes[1])
+            metrics['K5 NN'] = abs(np.mean(known_n_dis[:,-1]) - np.mean(unknown_n_dis[:,-1]))
+            axes[1].legend()
+
+            filename = os.path.join(
+                siamese.model_dir, "%s_KNN.png" % fname)
+
+            plt.savefig(filename, dpi=100)
+            plt.close()
+
+            
+
+            self.__log.info('VALIDATION: Plot Projections 3 %s.' % feat_type)
+
+            _, ref_matrix, full_ref_map = rnd.remove(unknown_pred['ALL'])
+            NN_true = faiss.IndexFlatL2(ref_matrix.shape[1])
+            NN_true.add(ref_matrix)
+            _, neig_indx = NN_true.search(known_pred['ALL'], 5) # indx known [unknown, unknown, unknown]
+            K1_unknown = np.array([unknown_pred['ALL'][full_ref_map[x]] for x in neig_indx[:,0]])
+            K5_unknown = np.array([unknown_pred['ALL'][full_ref_map[x]] for x in neig_indx[:,-1]])
+
+            fig, axes = plt.subplots(2, 2, figsize=(10, 10))
+            for ax, name in zip(axes, ['TSNE', 'PCA']):
+                if name == 'TSNE':
+                    proj_model = MulticoreTSNE(n_components=2)
+                else:
+                    proj_model = PCA(n_components=2)
+
+                ax[0].set_title(name + ' unknown K1')
+
+                proj_train = np.vstack([known_pred['ALL'], K1_unknown])
+                proj = proj_model.fit_transform(proj_train)
+                dist_known = proj[:len(known_pred['ALL'])]
+                dist_unknown = proj[len(known_pred['ALL']):]
+                ax[0].scatter(dist_known[:, 0], dist_known[
+                           :, 1], label='known', s=3)
+                ax[0].scatter(dist_unknown[:, 0], dist_unknown[
+                           :, 1], alpha=.6, label='unknown', s=3)
+                ax[0].legend()
+
+                ax[1].set_title(name + ' unknown K5')
+                proj_train = np.vstack(
+                    [known_pred['ALL'], K5_unknown])
+                proj = proj_model.fit_transform(proj_train)
+                dist_known = proj[:len(known_pred['ALL'])]
+                dist_unknown = proj[len(known_pred['ALL']):]
+                ax[1].scatter(dist_known[:, 0], dist_known[
+                           :, 1], label='known', s=3)
+                ax[1].scatter(dist_unknown[:, 0], dist_unknown[
+                           :, 1], alpha=.6, label='unknown', s=3)
+                ax[1].legend()
+            plot_file = os.path.join(siamese.model_dir, '%s_proj_3.png' % fname)
+            plt.savefig(plot_file)
+            plt.close()
+
+            metrics_file = os.path.join(siamese.model_dir,
+                                     '%s_metrics.pkl' % fname)
+            with open(metrics_file, 'wb') as output:
+                pickle.dump(metrics, output, pickle.HIGHEST_PROTOCOL)
+
+
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True,
                           chunk_size=1000):
