@@ -180,7 +180,7 @@ class NeighborTripletTraintest(object):
 
         neigbors_matrix = neigbors_matrix[shuffle_idx[:limit]]
         X = X.get_h5_dataset('x')[shuffle_idx[:limit]]
-        X_inks = neigbors_sign.keys[shuffle_idx[:limit]]
+        X_inks = np.array(neigbors_sign.keys)[shuffle_idx[:limit]]
 
         if len(neigbors_matrix) != len(X):
             raise Exception("neigbors_matrix should be same length as X.")
