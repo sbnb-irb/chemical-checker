@@ -138,7 +138,7 @@ class NeighborTripletTraintest(object):
                check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
                suffix='eval',
-               x_dtype=np.float32, y_dtype=np.float32, num_triplets=1000):
+               x_dtype=np.float32, y_dtype=np.float32, num_triplets=1e6, limit=100000):
         """Create the HDF5 file with validation splits.
 
         Args:
@@ -169,6 +169,14 @@ class NeighborTripletTraintest(object):
         if len(neigbors_matrix) != len(X):
             raise Exception("neigbors_matrix should be same length as X.")
 
+        # Limit total X size depending
+        shuffle_idx = np.arange(neigbors_matrix.shape[0])
+        np.random.shuffle(shuffle_idx)
+
+        neigbors_matrix = neigbors_matrix[shuffle_idx[:limit]]
+        X = X[shuffle_idx[:limit]]
+        X_inks = neigbors_sign.keys[shuffle_idx[:limit]]
+
         # reduce redundancy, keep full-ref mapping
         rnd = RNDuplicates(cpu=10)
         _, ref_matrix, full_ref_map = rnd.remove(neigbors_matrix)
@@ -180,6 +188,10 @@ class NeighborTripletTraintest(object):
         refid_full_map = {full_refid_map[k]: v
                           for k, v in ref_full_map.items()}
         # ref_full_all_map = np.array(rnd.final_ids)
+
+
+        #Set triplet_factor
+        triplet_per_mol = int(np.ceil((num_triplets/3) / ref_matrix.shape[0]))
 
         # split chunks, get indeces of chunks for each split
         chunk_size = np.floor(ref_matrix.shape[0] / 100)
@@ -298,11 +310,11 @@ class NeighborTripletTraintest(object):
                 # idx refere split2, all else to split1
                 for idx, row in enumerate(neig_idxs):
                     # anchors are repeated num_triplets times
-                    anchors = [idx] * num_triplets
+                    anchors = [idx] * triplet_per_mol
                     anchors_split.extend(anchors)
                     # positives are sampled from top T NNs for each category
                     p_indexes = np.random.choice(
-                        T, num_triplets, replace=True, p=t_prob)
+                        T, triplet_per_mol, replace=True, p=t_prob)
                     positives = neig_idxs[idx][:T][p_indexes]
                     easy_p_split.extend(positives)
                     medi_p_split.extend(positives)
@@ -315,12 +327,12 @@ class NeighborTripletTraintest(object):
                         no_nn = no_nn - set([idx])
                     no_nn = list(no_nn)
                     easy_n = np.random.choice(
-                        no_nn, num_triplets, replace=True)
+                        no_nn, triplet_per_mol, replace=True)
                     easy_n_split.extend(easy_n)
 
                     # medium negatives are from F (in NN but not T)
                     medi_n = np.random.choice(
-                        neig_idxs[idx][T:], num_triplets, replace=True)
+                        neig_idxs[idx][T:], triplet_per_mol, replace=True)
                     medi_n_split.extend(medi_n)
 
                     # hard negatives are from T
@@ -382,7 +394,7 @@ class NeighborTripletTraintest(object):
                 # get inchikeys of test or train molecules
                 if split1 == split2:
                     ink_ids = np.array(sorted(unique_ids))
-                    split_inks = np.array(np.array(neigbors_sign.keys)[ink_ids],
+                    split_inks = np.array(np.array(X_inks[ink_ids]),
                                           DataSignature.string_dtype())
                     ds_name = "keys_%s" % split1
                     fh.create_dataset(ds_name, data=split_inks)
