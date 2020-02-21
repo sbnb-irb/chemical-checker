@@ -73,6 +73,7 @@ class sign4(BaseSignature, DataSignature):
             'epochs': 1,
             'batch_size': 1000,
             'augment_fn': None,
+            'num_triplets': 1000000,
             'augment_scale': 1,
             'augment_kwargs': {
                 'dataset': [dataset]
@@ -265,7 +266,7 @@ class sign4(BaseSignature, DataSignature):
         # if evaluating, perform the train-test split
         traintest_file = params.get('traintest_file')
         if evaluate:
-            num_triplets = params.get('num_triplets', 10)
+            num_triplets = params.get('num_triplets', 1e6)
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix).get_h5_dataset('x')
                 NeighborTripletTraintest.create(
@@ -275,7 +276,7 @@ class sign4(BaseSignature, DataSignature):
                     suffix=suffix,
                     num_triplets=num_triplets)
         else:
-            num_triplets = params.get('num_triplets', 10)
+            num_triplets = params.get('num_triplets', 1e6)
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix).get_h5_dataset('x')
                 NeighborTripletTraintest.create(
@@ -306,15 +307,16 @@ class sign4(BaseSignature, DataSignature):
         siamese.fit()
         self.__log.debug('model saved to %s' % siamese_path)
         # evaluate distance distributions
-        self.plot_validations(siamese, dataset_idx)
+        self.plot_validations(siamese, dataset_idx, traintest_file)
         # when evaluating we update the nr of epoch to avoid
         # overfitting during final
         if evaluate:
             # update the parameters with the new nr_of epochs
-            self.params['sign2']['epochs'] = siamese.last_epoch + 1
+            self.params['sign2']['epochs'] = siamese.last_epoch
 
     def plot_validations(self, siamese, dataset_idx, traintest_file,
                          chunk_size=10000, limit=1000, dist_limit=1000):
+        return False
         def mask_keep(idxs, x1_data):
             # we will fill an array of NaN with values we want to keep
             x1_data_transf = np.zeros_like(x1_data, dtype=np.float32) * np.nan
@@ -323,8 +325,8 @@ class sign4(BaseSignature, DataSignature):
                 col_slice = slice(idx * 128, (idx + 1) * 128)
                 x1_data_transf[:, col_slice] = x1_data[:, col_slice]
             # keep rows containing at least one not-NaN value
-            not_nan = np.isfinite(x1_data_transf).any(axis=1)
-            x1_data_transf = x1_data_transf[not_nan]
+            #not_nan = np.isfinite(x1_data_transf).any(axis=1)
+            #x1_data_transf = x1_data_transf[not_nan]
             return x1_data_transf
 
         def mask_exclude(idxs, x1_data):
@@ -334,8 +336,8 @@ class sign4(BaseSignature, DataSignature):
                 col_slice = slice(idx * 128, (idx + 1) * 128)
                 x1_data_transf[:, col_slice] = np.nan
             # drop rows that only contain NaNs
-            not_nan = np.isfinite(x1_data_transf).any(axis=1)
-            x1_data_transf = x1_data_transf[not_nan]
+            #not_nan = np.isfinite(x1_data_transf).any(axis=1)
+            #x1_data_transf = x1_data_transf[not_nan]
             return x1_data_transf
 
         def no_mask(idxs, x1_data):
@@ -356,6 +358,7 @@ class sign4(BaseSignature, DataSignature):
         from sklearn.linear_model import LogisticRegressionCV
         import faiss
         from chemicalchecker.util.remove_near_duplicates import RNDuplicates
+        from tqdm import tqdm
 
         mask_fns = {
             'ALL': partial(no_mask, dataset_idx),
@@ -409,35 +412,48 @@ class sign4(BaseSignature, DataSignature):
             test_inks = traintest.get_h5_dataset('keys_test')
             train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks))
             test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks))
+            tr_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, train_inks))
+            ts_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, test_inks))
 
         # predict
         self.__log.info('VALIDATION: Predicting.')
-        preds = dict()
-        for name, mask_fn in mask_fns.items():
-            preds[name] = siamese.predict(mask_fn(full_x))
+        pred = dict()
+        pred_signs_name = os.path.join(self.model_path, 'pred_signs.pkl')
+        if not os.path.isfile(pred_signs_name):
+            for name, mask_fn in mask_fns.items():
+                with h5py.File(self.sign2_universe, "r") as features:
+                    # read input in chunks
+                    preds[name] = np.zeros((features['x_test'].shape[0], 128))
+                    for idx in tqdm(range(0, features['x_test'].shape[0], chunk_size)):
+                        chunk = slice(idx, idx + chunk_size)
+                        feat = features['x_test'][chunk]
+                        preds[name][chunk] = siamese.predict(mask_fn(feat))
+        
+            with open(pred_signs_name, 'wb') as f:
+                pickle.dump(preds, f)
+        else:
+            with open(pred_signs_name, 'rb') as f:
+                pred = pickle.load(f)
 
         self.__log.info(pred['ALL'][known_idxs][0])
-        self.__log.info(pred['ALL'][known_idxs][1])
+        self.__log.info(pred['ALL'][unknown_idxs][0])
         #self.__log.info(known_pred['ALL'][1])
 
+        return False
+        rnd_idx = np.random.choice(len(pred['ALL'][unknown_idxs]), 50000, replace=False)
+        unknown_naive = pred['ALL'][unknown_idxs][rnd_idx]
 
-
-        unknown_naive = np.random.choice(pred['ALL'][unknown_idxs], 50000)
-
-        rnd = RNDuplicates(cpu=12)
-        _, ref_matrix, full_ref_map = rnd.remove(pred['ALL'][known_idxs])
+        rnd = RNDuplicates(cpu=10)
+        _, ref_matrix, full_ref_map = rnd.remove(unknown_naive.astype(np.float32))
         neig_pred = faiss.IndexFlatL2(ref_matrix.shape[1])
         neig_pred.add(ref_matrix)
-        unknown_n_dis, unknown_n_idx = neig_pred.search(pred['ALL'][unknown_idxs], 5)
-        known_n_dis, known_n_idx = neig_pred.search(pred['ALL'][known_idxs], 6)
-        known_n_dis = known_n_dis[:, 1:]
-        known_n_idx = known_n_idx[:, 1:]
+        unknown_n_dis, unknown_n_idx = neig_pred.search(pred['ALL'][known_idxs].astype(np.float32), 5)
 
         K1_unknown = np.array(
-            [unknown_pred['ALL'][x] for x in unknown_n_idx[:, 0]])
+            [pred['ALL'][unknown_idxs][full_ref_map[x]] for x in unknown_n_idx[:, 0]])
 
         K5_unknown = np.array(
-            [unknown_pred['ALL'][x] for x in unknown_n_idx[:, -1]])
+            [pred['ALL'][unknown_idxs][full_ref_map[x]] for x in unknown_n_idx[:, -1]])
 
         metrics = dict()
 
@@ -447,19 +463,18 @@ class sign4(BaseSignature, DataSignature):
         self.__log.info(
             'VALIDATION: Plot correlations %s.' % feat_type)
         fig, axes = plt.subplots(
-            2, 3, sharex=True, sharey=True, figsize=(10, 3))
+            1, 3, sharex=True, sharey=True, figsize=(10, 3))
         combos = itertools.combinations(mask_fns, 2)
-        for i, (n1, n2) in enumerate(combos):
+        for ax, (n1, n2) in zip(axes, combos):
             corrs_train = row_wise_correlation(robust_scale(pred[n1][train_idxs]), 
                 robust_scale(pred[n2][train_idxs]))
             corrs_test = row_wise_correlation(robust_scale(pred[n1][test_idxs]), 
                 robust_scale(pred[n2][test_idxs]))
-            axes[0][i].set_title('Scaled train %s %s' % (n1, n2))
-            axes[1][i].set_title('Scaled test %s %s' % (n1, n2))
-            sns.distplot(corrs_train, ax=axes[0][i])
-            sns.distplot(scaled_corrs, ax=axes[1][i])
+            ax.set_title('Scaled  %s %s' % (n1, n2))
+            sns.distplot(corrs_train, ax=ax, label='train')
+            sns.distplot(corrs_test, ax=ax,label='test')
             metrics['corr train %s %s' % (n1, n2)] = np.mean(corrs_train)
-            metrics['corr test %s %s' % (n1, n2)] = np.mean(corrs_train)
+            metrics['corr test %s %s' % (n1, n2)] = np.mean(corrs_test)
         plot_file = os.path.join(siamese.model_dir,
                                  '%s_correlations.png' % fname)
         plt.savefig(plot_file)
@@ -469,31 +484,36 @@ class sign4(BaseSignature, DataSignature):
             self.__log.info(
                 'VALIDATION: Plot %s distances %s.' % (m, feat_type))
             fig, axes = plt.subplots(
-                3, 2, sharex=True, sharey=True, figsize=(10, 3))
-            dist_unknown = pdist(unknown_naive, metric=m)
+                3, 2, sharex=True, sharey=True, figsize=(3, 10))
+            dist_unknown = pdist(np.choice(unknown_naive, dist_limit, replace=False), metric=m)
             mean_d_unknown = np.mean(dist_unknown)
             for ax_row, name in zip(axes, ['Train-Train', 'Train-Test', 'Test-Test']):
-                dist_only = False
                 if name == 'Train-Train':
-                    dist_all = pdist(pred['ALL'][train_idxs], metric=m)
-                    dist_only = pdist(pred['ONLY-SELF'][train_idxs], metric=m)
+                    dist_all = pdist(np.choice(pred['ALL'][train_idxs], dist_limit, replace=False), metric=m)
+                    dist_only = pdist(np.choice(pred['ONLY-SELF'][train_idxs], dist_limit, replace=False), metric=m)
                     mean_dist = np.mean(dist_all)
-                    metrics['%s_trtr' % m] = abs(mean_dist - mean_d_unknown)
-                    metrics['%s_only' % m] = abs(mean_dist - np.mean(dist_only))
+                    metrics['%s_trtr_all' % m] = abs(mean_dist - mean_d_unknown)
+                    metrics['%s_trtr_only' % m] = abs(mean_dist - np.mean(dist_only))
                 elif name == 'Train-Test':
-                    dist_all = pdist(np.vstack([pred['ALL'][train_idxs], 
-                        pred['ALL'][test_idxs]]), metric=m)
-                    metrics['%s_trts' % m] = abs(np.mean(dist_all) - mean_d_unknown)
+                    dist_all = pdist(np.choice((np.vstack([pred['ALL'][train_idxs], 
+                        pred['ALL'][test_idxs]])), dist_limit, replace=False), metric=m)
+                    dist_only = pdist(np.choice((np.vstack([pred['ONLY-SELF'][train_idxs], 
+                        pred['ONLY-SELF'][test_idxs]])), dist_limit, replace=False), metric=m)
+                    mean_dist = np.mean(dist_all)
+                    metrics['%s_trts_all' % m] = abs(mean_dist - mean_d_unknown)
+                    metrics['%s_trts_only' % m] = abs(mean_dist - np.mean(dist_only))
                 else:
-                    dist_all = pdist(pred['ALL'][test_idxs],metric=m)
-                    metrics['%s_tsts' % m] = abs(np.mean(dist_all) - mean_d_unknown)
+                    dist_all = pdist(np.choice(pred['ALL'][test_idxs], dist_limit, replace=False), metric=m)
+                    dist_only = pdist(np.choice(pred['ONLY-SELF'][test_idxs], dist_limit, replace=False), metric=m)
+                    mean_dist = np.mean(dist_all)
+                    metrics['%s_tsts' % m] = abs(mean_dist - mean_d_unknown)
+                    metrics['%s_tsts_only' % m] = abs(mean_dist - np.mean(dist_only))
                 ax_row[0].set_title(name + 'ALL')
                 sns.distplot(dist_all, label='known', ax=ax_row[0])
                 sns.distplot(dist_unknown, label='unknown', ax=ax_row[0])
                 ax_row[0].legend()
-                if dist_only:
-                    ax_row[1].set_title(name + 'ONLY-SELF')
-                    sns.distplot(dist_only, label='known', ax=ax_row[1])
+                ax_row[1].set_title(name + 'ONLY-SELF')
+                sns.distplot(dist_only, ax=ax_row[1])
             plot_file = os.path.join(siamese.model_dir,
                                      '%s_dists_%s.png' % (fname, m))
             plt.savefig(plot_file)
@@ -507,8 +527,8 @@ class sign4(BaseSignature, DataSignature):
         np.sum(np.abs(unknown_naive), axis=1),
         np.sum(np.abs(K1_unknown), axis=1),
         np.sum(np.abs(K5_unknown), axis=1)])
-        plt.title('Intensities' fontsize=20)
-        sns.boxenplot(data=data)
+        plt.title('Intensities', fontsize=20)
+        sns.violinplot(data=data, inner="quartile")
         labels = ['tr', 'te', 'ONLY-SELF', 'unk_naive', 'unk_K1', 'unk_K5']
         plt.xticks(range(len(labels)), labels)
         plot_file = os.path.join(
@@ -519,15 +539,20 @@ class sign4(BaseSignature, DataSignature):
 
         self.__log.info('VALIDATION: Plot NN accuracy %s.' % feat_type)
 
-        def get_nn_matrix(in_data):
+        def get_nn_matrix(in_data, unk_data=False):
             NN = faiss.IndexFlatL2(in_data.shape[1])
             NN.add(in_data)
-            _, neig_idx = NN.search(in_data, 20)
+            neig_dis, neig_idx = NN.search(in_data, 20)
             # remove self
-            NN_neig = np.zeros((neig_idx.shape[0], neig_idx.shape[1])) # -1
+            NN_neig = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
+            NN_dis = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
             for idx, row in enumerate(neig_idx):
                 NN_neig[idx] = row[np.argwhere(row != idx).flatten()]
-            return NN_neig
+                NN_dis[idx] = neig_dis[idx][np.argwhere(row != idx).flatten()]
+            unk_neig_dist = False
+            if unk_data:
+                unk_neig_dist, _ = NN.search(unk_data, 5)
+            return NN_dis, NN_neig, unk_neig_dist
             
         def overlap(n1, n2):
             res = list()
@@ -541,36 +566,66 @@ class sign4(BaseSignature, DataSignature):
         fig, axes = plt.subplots(
             1, 3, sharex=True, sharey=True, figsize=(10, 3))
 
-        NN_true = get_nn_matrix(self.neig_matrix)
         nn_range = range(5, 21, 5)
 
+        NN_true = dict()
+        NN_pred = dict()
+        dis_unk = dict()
+        dis_knw = dict()
+
         axes[0].set_title('Accuracy Train-Train')
-        NN_pred = get_nn_matrix(pred['ALL'][train_idxs]) # MAPPING NEEDED FOR EVERY SPLIT
+        _, NN_true['trtr'], _ = get_nn_matrix(self.neig_matrix[tr_nn_idxs])
+        dis_knw['trtr'], NN_pred['trtr'], dis_unk['trtr'] = get_nn_matrix(pred['ALL'][train_idxs], unk_data=unknown_naive)
+        assert(len(NN_true['trtr']) == len(NN_pred['trtr']))
+        trtr_jaccs = []
         for top in nn_range:
-            jaccs = overlap(NN_pred[:, :top], NN_true[:, :top])
-            sns.distplot(jaccs, ax=axes[0], label='top %s NN' % top)
-            ax.set_xlim(0, 1)
-            ax.legend()
+            jaccs = overlap(NN_pred['trtr'][:, :top], NN_true['trtr'][:, :top])
+            trtr_jaccs.append(jaccs)
+            sns.distplot(jaccs, ax=axes[0], label='top %s NN' % top, hist=False)
+            axes[0].set_xlim(0, 1)
+            axes[0].legend()
+        metrics['KNNacc_trtr'] = np.mean(trtr_jaccs) 
         axes[1].set_title('Accuracy Train-Test')
-        NN_pred = get_nn_matrix(np.vstack([pred['ALL'][train_idxs], pred['ALL'][test_idxs]]))
+        trts_jaccs = []
+        _, NN_true['trts'], _ = get_nn_matrix(np.vstack([self.neig_matrix[tr_nn_idxs], self.neig_matrix[ts_nn_idxs]]))
+        dis_knw['trts'], NN_pred['trts'], dis_unk['trts'] = get_nn_matrix(np.vstack([pred['ALL'][train_idxs], pred['ALL'][test_idxs]]))
+        assert(len(NN_true['trts']) == len(NN_pred['trts']))
         for top in nn_range:
-            jaccs = overlap(NN_pred[:, :top], NN_true[:, :top])
-            sns.distplot(jaccs, ax=axes[1], label='top %s NN' % top)
-            ax.set_xlim(0, 1)
-            ax.legend()
+            jaccs = overlap(NN_pred['trts'][:, :top], NN_true['trts'][:, :top])
+            trts_jaccs.append(jaccs)
+            sns.distplot(jaccs, ax=axes[1], label='top %s NN' % top, hist=False)
+            axes[1].set_xlim(0, 1)
+            axes[1].legend()
+        metrics['KNNacc_trts'] = np.mean(trts_jaccs)
         axes[2].set_title('Accuracy Test-Test')
-        NN_pred = get_nn_matrix(pred['ALL'][test_idxs])
+        tsts_jaccs = []
+        _, NN_true['tsts'], _ = get_nn_matrix(self.neig_matrix[ts_nn_idxs])
+        dis_knw['tsts'], NN_pred['tsts'], dis_unk['tsts'] = get_nn_matrix(pred['ALL'][test_idxs])
+        assert(len(NN_true['tsts']) == len(NN_pred['tsts']))
         for top in nn_range:
-            jaccs = overlap(NN_pred[:, :top], NN_true[:, :top])
-            sns.distplot(jaccs, ax=axes[2], label='top %s NN' % top)
-            ax.set_xlim(0, 1)
-            ax.legend()
+            jaccs = overlap(NN_pred['tsts'][:, :top], NN_true['tsts'][:, :top])
+            tsts_jaccs.append(jaccs)
+            sns.distplot(jaccs, ax=axes[2], label='top %s NN' % top, hist=False)
+            axes[2].set_xlim(0, 1)
+            axes[2].legend()
+        metrics['KNNacc_tsts'] = np.mean(tsts_jaccs) 
         plot_file = os.path.join(
             siamese.model_dir, '%s_NN_accuracy.png' % fname)
         plt.savefig(plot_file)
         plt.close()
 
+        del NN_true
+        return False
         self.__log.info('VALIDATION: Plot KNN %s.' % feat_type)
+        fig, axes = plt.subplots(2, 3, figsize=(10, 6))
+        for ax_row, name in zip(axes, mask_fns):
+            pass
+
+
+
+
+
+
         rnd = RNDuplicates(cpu=10)
         _, ref_matrix, full_ref_map = rnd.remove(known_pred['ALL'])
         neig_pred = faiss.IndexFlatL2(ref_matrix.shape[1])
@@ -2128,6 +2183,53 @@ def subsample(tensor, sign_width=128,
     # make masked dataset NaN
     new_data[~mask] = np.nan
     return new_data
+
+def subsample_keras(tensor, sign_width=128,
+              p_nr=np.array([1 / 25.] * 25),
+              p_only_self=0.25,
+              p_self=0.1,
+              dataset_idx=[0],
+              p_keep=np.array([1 / 25.] * 25),
+              **kwargs):
+    """Function to subsample stacked data."""
+    # we will have a masking matrix at the end
+    mask = np.zeros_like(tensor).astype(bool)
+    p_keep[dataset_idx] = 0.0
+    # if new_data.shape[1] % sign_width != 0:
+    #    raise Exception('All signature should be of length %i.' % sign_width)
+    for idx, row in enumerate(tensor):
+        # the following assumes the stacked signature have a fixed width
+        presence = ~np.isnan(row[0::sign_width])
+        # case where we show only the space itself
+        if np.random.rand() < p_only_self:
+            presence_add = np.full_like(presence, False)
+            presence_add[dataset_idx] = True
+            mask[idx] = np.repeat(presence_add, sign_width)
+            continue
+        # datasets that I can select
+        present_idxs = np.argwhere(presence).flatten()
+        # how many dataset at most?
+        max_add = present_idxs.shape[0]
+        # normalize nr dataset probabilities
+        p_nr_row = p_nr[:max_add] / np.sum(p_nr[:max_add])
+        # how many dataset are we keeping?
+        nr_keep = np.random.choice(np.arange(1, len(p_nr_row) + 1), p=p_nr_row)
+        # normalize dataset keep probabilities
+        p_keep_row = p_keep[presence] / np.sum(p_keep[presence])
+        nr_keep = np.min([nr_keep, np.sum(p_keep_row > 0)])
+        # which ones?
+        to_add = np.random.choice(
+            present_idxs, nr_keep, p=p_keep_row, replace=False)
+        if np.random.rand() < p_self:
+            to_add = np.append(to_add, dataset_idx)
+        # dataset mask
+        presence_add = np.zeros(presence.shape).astype(bool)
+        presence_add[to_add] = True
+        # from dataset mask to signature mask
+        mask[idx] = np.repeat(presence_add, sign_width)
+    # make masked dataset NaN
+    tensor[~mask] = np.nan
+    return tensor
 
 
 def plot_subsample(ds='B1.001'):
