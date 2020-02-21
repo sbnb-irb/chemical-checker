@@ -184,7 +184,7 @@ class NeighborTripletTraintest(object):
         np.random.shuffle(shuffle_idx)
 
         neigbors_matrix = neigbors_matrix[shuffle_idx[:limit]]
-        X = X[shuffle_idx[:limit]]
+        X = X.get_h5_dataset('x')[shuffle_idx[:limit]]
         X_inks = neigbors_sign.keys[shuffle_idx[:limit]]
 
         # reduce redundancy, keep full-ref mapping
@@ -199,9 +199,9 @@ class NeighborTripletTraintest(object):
                           for k, v in ref_full_map.items()}
         # ref_full_all_map = np.array(rnd.final_ids)
 
-
-        #Set triplet_factor
-        triplet_per_mol = int(np.ceil((num_triplets/3) / ref_matrix.shape[0]))
+        # Set triplet_factor
+        triplet_per_mol = int(
+            np.ceil((num_triplets / 3) / ref_matrix.shape[0]))
 
         # split chunks, get indeces of chunks for each split
         chunk_size = np.floor(ref_matrix.shape[0] / 100)
