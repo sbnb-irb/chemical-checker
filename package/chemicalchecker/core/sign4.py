@@ -2192,43 +2192,14 @@ def subsample_keras(tensor, sign_width=128,
               p_keep=np.array([1 / 25.] * 25),
               **kwargs):
     """Function to subsample stacked data."""
-    # we will have a masking matrix at the end
-    mask = np.zeros_like(tensor).astype(bool)
-    p_keep[dataset_idx] = 0.0
-    # if new_data.shape[1] % sign_width != 0:
-    #    raise Exception('All signature should be of length %i.' % sign_width)
-    for idx, row in enumerate(tensor):
-        # the following assumes the stacked signature have a fixed width
-        presence = ~np.isnan(row[0::sign_width])
-        # case where we show only the space itself
-        if np.random.rand() < p_only_self:
-            presence_add = np.full_like(presence, False)
-            presence_add[dataset_idx] = True
-            mask[idx] = np.repeat(presence_add, sign_width)
-            continue
-        # datasets that I can select
-        present_idxs = np.argwhere(presence).flatten()
-        # how many dataset at most?
-        max_add = present_idxs.shape[0]
-        # normalize nr dataset probabilities
-        p_nr_row = p_nr[:max_add] / np.sum(p_nr[:max_add])
-        # how many dataset are we keeping?
-        nr_keep = np.random.choice(np.arange(1, len(p_nr_row) + 1), p=p_nr_row)
-        # normalize dataset keep probabilities
-        p_keep_row = p_keep[presence] / np.sum(p_keep[presence])
-        nr_keep = np.min([nr_keep, np.sum(p_keep_row > 0)])
-        # which ones?
-        to_add = np.random.choice(
-            present_idxs, nr_keep, p=p_keep_row, replace=False)
-        if np.random.rand() < p_self:
-            to_add = np.append(to_add, dataset_idx)
-        # dataset mask
-        presence_add = np.zeros(presence.shape).astype(bool)
-        presence_add[to_add] = True
-        # from dataset mask to signature mask
-        mask[idx] = np.repeat(presence_add, sign_width)
-    # make masked dataset NaN
-    tensor[~mask] = np.nan
+    # p needs to be precomputed
+
+    r = K.random_uniform(tensor.shape, minval=0.0, maxval=1.0)
+
+    msk = K.cast(K.greater_equal(r, p), tensor.dtype)
+
+    tensor = tensor * msk
+
     return tensor
 
 
