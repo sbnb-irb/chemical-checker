@@ -169,23 +169,24 @@ class NeighborTripletTraintest(object):
             from chemicalchecker.core.signature_data import DataSignature
         except ImportError as err:
             raise err
-        NeighborTripletTraintest.__log.debug(
-            "{:<20} shape: {:>10}".format("input X", str(X.shape)))
         # train test validation splits
         if len(split_names) != len(split_fractions):
             raise Exception("Split names and fraction should be same amount.")
 
+        # Limit total X size
         neigbors_matrix = neigbors_sign[:]
-        if len(neigbors_matrix) != len(X):
-            raise Exception("neigbors_matrix should be same length as X.")
-
-        # Limit total X size depending
         shuffle_idx = np.arange(neigbors_matrix.shape[0])
         np.random.shuffle(shuffle_idx)
 
         neigbors_matrix = neigbors_matrix[shuffle_idx[:limit]]
         X = X.get_h5_dataset('x')[shuffle_idx[:limit]]
         X_inks = neigbors_sign.keys[shuffle_idx[:limit]]
+
+        if len(neigbors_matrix) != len(X):
+            raise Exception("neigbors_matrix should be same length as X.")
+
+        NeighborTripletTraintest.__log.debug(
+            "{:<20} shape: {:>10}".format("input X", str(X.shape)))
 
         # reduce redundancy, keep full-ref mapping
         rnd = RNDuplicates(cpu=10)
