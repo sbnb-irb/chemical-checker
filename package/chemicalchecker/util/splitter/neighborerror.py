@@ -194,21 +194,19 @@ class NeighborErrorTraintest(object):
         for idx, row in enumerate(neig_idx):
             NN_true_neig[idx] = row[np.argwhere(row != idx).flatten()]
 
-        # compare pred and actual NN jacard
-        def jaccard_similarity(n1, n2):
+        def overlap(n1, n2):
             res = list()
             for r1, r2 in zip(n1, n2):
                 s1 = set(r1)
                 s2 = set(r2)
                 inter = len(set.intersection(s1, s2))
-                uni = len(set.union(s1, s2))
-                res.append(inter / float(uni))
+                res.append(inter / float(len(s1)))
             return np.array(res)
 
         nn_range = range(5, 21, 5)
         all_jaccs = np.zeros((NN_true_neig.shape[0], len(nn_range)))
         for idx, top in enumerate(nn_range):
-            jaccs = jaccard_similarity(
+            jaccs = overlap(
                 NN_pred_neig[:, :top], NN_true_neig[:, :top])
             all_jaccs[:, idx] = jaccs
 
