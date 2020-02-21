@@ -268,7 +268,7 @@ class sign4(BaseSignature, DataSignature):
         if evaluate:
             num_triplets = params.get('num_triplets', 1e6)
             if not reuse or not os.path.isfile(traintest_file):
-                X = DataSignature(sign2_matrix).get_h5_dataset('x')
+                X = DataSignature(sign2_matrix)
                 NeighborTripletTraintest.create(
                     X, traintest_file, self.neig_matrix,
                     split_names=['train', 'test'],
@@ -278,7 +278,7 @@ class sign4(BaseSignature, DataSignature):
         else:
             num_triplets = params.get('num_triplets', 1e6)
             if not reuse or not os.path.isfile(traintest_file):
-                X = DataSignature(sign2_matrix).get_h5_dataset('x')
+                X = DataSignature(sign2_matrix)
                 NeighborTripletTraintest.create(
                     X, traintest_file, self.neig_matrix,
                     split_names=['train'],
