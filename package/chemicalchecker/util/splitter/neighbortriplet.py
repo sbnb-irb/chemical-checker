@@ -133,6 +133,16 @@ class NeighborTripletTraintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
+    def precomputed_triplets(X, triplets, out_file,
+                             mean_center_x=True,
+                             shuffle=True,
+                             split_names=['train', 'test'],
+                             split_fractions=[.8, .2],
+                             x_dtype=np.float32, y_dtype=np.float32):
+        # do traintest split for triplets (np.unique of indeces)
+        pass
+
+    @staticmethod
     def create(X, out_file, neigbors_sign, f_per=0.1, t_per=0.01,
                mean_center_x=True, shuffle=True,
                check_distances=True,
