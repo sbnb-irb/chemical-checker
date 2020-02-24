@@ -6,9 +6,10 @@ from time import time
 from functools import partial
 
 from keras import backend as K
+from keras.layers import concatenate
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
-from keras.layers import Input, Dropout, Lambda, Dense, concatenate, BatchNormalization, Activation, Masking
+from keras.layers import Input, Dropout, Lambda, Dense, Activation, Masking
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
@@ -41,10 +42,13 @@ class SiameseTriplets(object):
         self.batch_size = int(kwargs.get("batch_size", 100))
         self.learning_rate = float(kwargs.get("learning_rate", 0.0001))
         self.replace_nan = float(kwargs.get("replace_nan", 0.0))
-        self.dropout = float(kwargs.get("dropout", 0.2))
         self.suffix = str(kwargs.get("suffix", 'eval'))
         self.split = str(kwargs.get("split", 'train'))
-        self.layers = kwargs.get("layers", [128])
+        self.layers_sizes = kwargs.get("layers_sizes", [128])
+        self.layers = kwargs.get("layers", [Dense] * len(self.layers_sizes))
+        self.activations = kwargs.get("activations",
+                                      ['relu'] * len(self.layers_sizes))
+        self.dropouts = kwargs.get("dropouts", [0.2] * len(self.layers_sizes))
         self.augment_fn = kwargs.get("augment_fn", None)
         self.augment_kwargs = kwargs.get("augment_kwargs", None)
         self.augment_scale = int(kwargs.get("augment_scale", 1))
@@ -139,7 +143,11 @@ class SiameseTriplets(object):
         self.__log.info("{:<22}: {:>12}".format(
             "layers", str(self.layers)))
         self.__log.info("{:<22}: {:>12}".format(
-            "dropout", str(self.dropout)))
+            "layers_sizes", str(self.layers_sizes)))
+        self.__log.info("{:<22}: {:>12}".format(
+            "activations", str(self.activations)))
+        self.__log.info("{:<22}: {:>12}".format(
+            "dropouts", str(self.dropouts)))
         self.__log.info("{:<22}: {:>12}".format(
             "augment_fn", str(self.augment_fn)))
         self.__log.info("{:<22}: {:>12}".format(
@@ -163,14 +171,15 @@ class SiameseTriplets(object):
             sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
             return K.sqrt(K.maximum(sum_square, K.epsilon()))
 
-        def add_layer(net, size, activation, use_bias=False, input_shape=False):
+        def add_layer(net, layer, layer_size, activation, dropout,
+                      use_bias=False, input_shape=False):
             if input_shape:
                 net.add(Masking(mask_value=0.0, input_shape=input_shape))
-            net.add(Dense(size, use_bias=use_bias))
-            #net.add(BatchNormalization())
+            net.add(layer(layer_size, use_bias=use_bias))
+            # net.add(BatchNormalization())
             net.add(Activation(activation))
-            if self.dropout is not None:
-                net.add(Dropout(self.dropout))
+            if dropout is not None:
+                net.add(Dropout(dropout))
 
         # we have two inputs
         input_a = Input(shape=input_shape)
@@ -180,12 +189,17 @@ class SiameseTriplets(object):
         # each goes to a network with the same architechture
         basenet = Sequential()
         # first layer
-        add_layer(basenet, self.layers[0], 'relu', input_shape=input_shape)
-        for layer in self.layers[1:-1]:
-            add_layer(basenet, layer, 'relu')
-        add_layer(basenet, self.layers[-1], 'tanh')
+        add_layer(basenet, self.layers[0], self.layers_sizes[0],
+                  self.activations[0], self.dropouts[0],
+                  input_shape=input_shape)
+        hidden_layers = zip(self.layers[1:],
+                            self.layers_sizes[1:],
+                            self.activations[1:],
+                            self.dropouts[1:])
+        for layer, layer_size, activation, dropout in hidden_layers:
+            add_layer(basenet, layer, layer_size, activation, dropout)
+        # last normalization layer for loss
         basenet.add(Lambda(lambda x: K.l2_normalize(x, axis=-1)))
-
         basenet.summary()
 
         encoded_a = basenet(input_a)
@@ -195,7 +209,8 @@ class SiameseTriplets(object):
         merged_vector = concatenate(
             [encoded_a, encoded_p, encoded_n], axis=-1, name='merged_layer')
 
-        model = Model(inputs=[input_a, input_p, input_n], output=merged_vector)
+        model = Model(inputs=[input_a, input_p, input_n],
+                      output=merged_vector)
 
         # define monitored metrics
         def accTot(y_true, y_pred):
@@ -203,9 +218,9 @@ class SiameseTriplets(object):
 
             anchor = y_pred[:, 0:int(total_lenght * 1 / 3)]
             positive = y_pred[
-                :, int(total_lenght * 1 / 3):int(total_lenght * 2 / 3)]
+                :, int(total_lenght * 1 / 3): int(total_lenght * 2 / 3)]
             negative = y_pred[
-                :, int(total_lenght * 2 / 3):int(total_lenght * 3 / 3)]
+                :, int(total_lenght * 2 / 3): int(total_lenght * 3 / 3)]
 
             acc = K.cast(euclidean_distance(anchor, positive) <
                          euclidean_distance(anchor, negative), anchor.dtype)
@@ -222,9 +237,9 @@ class SiameseTriplets(object):
 
             anchor = y_pred[:, 0:int(total_lenght * 1 / 3)] * msk
             positive = y_pred[
-                :, int(total_lenght * 1 / 3):int(total_lenght * 2 / 3)] * msk
+                :, int(total_lenght * 1 / 3): int(total_lenght * 2 / 3)] * msk
             negative = y_pred[
-                :, int(total_lenght * 2 / 3):int(total_lenght * 3 / 3)] * msk
+                :, int(total_lenght * 2 / 3): int(total_lenght * 3 / 3)] * msk
 
             acc = K.cast(euclidean_distance(anchor, positive) <
                          euclidean_distance(anchor, negative), anchor.dtype)
@@ -238,9 +253,9 @@ class SiameseTriplets(object):
 
             anchor = y_pred[:, 0:int(total_lenght * 1 / 3)] * msk
             positive = y_pred[
-                :, int(total_lenght * 1 / 3):int(total_lenght * 2 / 3)] * msk
+                :, int(total_lenght * 1 / 3): int(total_lenght * 2 / 3)] * msk
             negative = y_pred[
-                :, int(total_lenght * 2 / 3):int(total_lenght * 3 / 3)] * msk
+                :, int(total_lenght * 2 / 3): int(total_lenght * 3 / 3)] * msk
 
             acc = K.cast(euclidean_distance(anchor, positive) <
                          euclidean_distance(anchor, negative), anchor.dtype)
@@ -254,9 +269,9 @@ class SiameseTriplets(object):
 
             anchor = y_pred[:, 0:int(total_lenght * 1 / 3)] * msk
             positive = y_pred[
-                :, int(total_lenght * 1 / 3):int(total_lenght * 2 / 3)] * msk
+                :, int(total_lenght * 1 / 3): int(total_lenght * 2 / 3)] * msk
             negative = y_pred[
-                :, int(total_lenght * 2 / 3):int(total_lenght * 3 / 3)] * msk
+                :, int(total_lenght * 2 / 3): int(total_lenght * 3 / 3)] * msk
 
             acc = K.cast(euclidean_distance(anchor, positive) <
                          euclidean_distance(anchor, negative), anchor.dtype)
@@ -273,11 +288,11 @@ class SiameseTriplets(object):
 
         def split_output(y_pred):
             total_lenght = y_pred.shape.as_list()[-1]
-            anchor = y_pred[:, 0:int(total_lenght * 1 / 3)]
+            anchor = y_pred[:, 0: int(total_lenght * 1 / 3)]
             positive = y_pred[
-                :, int(total_lenght * 1 / 3):int(total_lenght * 2 / 3)]
+                :, int(total_lenght * 1 / 3): int(total_lenght * 2 / 3)]
             negative = y_pred[
-                :, int(total_lenght * 2 / 3):int(total_lenght * 3 / 3)]
+                :, int(total_lenght * 2 / 3): int(total_lenght * 3 / 3)]
             return anchor, positive, negative
 
         def tloss(y_true, y_pred):
