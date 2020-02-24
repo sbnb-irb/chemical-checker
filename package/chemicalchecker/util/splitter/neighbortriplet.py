@@ -239,7 +239,8 @@ class NeighborTripletTraintest(object):
 
         # reduce redundancy, keep full-ref mapping
         rnd = RNDuplicates(cpu=10)
-        _, ref_matrix, full_ref_map = rnd.remove(neigbors_matrix)
+        _, ref_matrix, full_ref_map = rnd.remove(
+            neigbors_matrix.astype(np.float32))
         ref_full_map = dict()
         for key, value in full_ref_map.items():
             ref_full_map.setdefault(value, list()).append(key)
