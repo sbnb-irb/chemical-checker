@@ -138,9 +138,58 @@ class NeighborTripletTraintest(object):
                              shuffle=True,
                              split_names=['train', 'test'],
                              split_fractions=[.8, .2],
+                             suffix='eval',
                              x_dtype=np.float32, y_dtype=np.float32):
+
+        # mean centering columns
+        if mean_center_x:
+            scaler = RobustScaler()
+            X = scaler.fit_transform(X)
+            if suffix is None:
+                scaler_file = os.path.join(os.path.split(out_file)[0],
+                                           'scaler.pkl')
+            else:
+                scaler_file = os.path.join(os.path.split(out_file)[0],
+                                           'scaler_%s.pkl' % suffix)
+            pickle.dump(scaler, open(scaler_file, 'wb'))
+
+        # shuffling
+        shuffle_idxs = np.arange(triplets.shape[0])
+        if shuffle:
+            np.random.shuffle(shuffle_idxs)
+        triplets = np.array(triplets)[shuffle_idxs]
+
         # do traintest split for triplets (np.unique of indeces)
-        pass
+        split_idxs = NeighborTripletTraintest.get_split_indeces(
+            len(triplets), split_fractions)
+        '''
+        split_idxs = dict(zip(split_names, split_idxs))
+        # find triplets having test-test train-trani and train-test
+        combos = itertools.combinations_with_replacement(split_names, 2)
+        for split1, split2 in combos:
+            split1_idxs = split_idxs[split1]
+            split2_idxs = split_idxs[split2]
+            if split1 != split2:
+                split1_mask = ~np.all(np.isin(triplets, split1_idxs), axis=1)
+                split2_mask = ~np.all(np.isin(triplets, split2_idxs), axis=1)
+                combo_mask = np.logical_and(split1_mask, split2_mask)
+            else:
+                combo_mask = np.all(np.isin(triplets, split1_idxs), axis=1)
+            print(split1, split2, np.count_nonzero(combo_mask),
+            combo_mask.shape)
+        '''
+        # create dataset
+        NeighborTripletTraintest.__log.info('Traintest saving to %s', out_file)
+        with h5py.File(out_file, "w") as fh:
+            fh.create_dataset('x', data=X, dtype=x_dtype)
+            for split_name, split_idx in zip(split_names, split_idxs):
+                split_triplets = triplets[split_idx]
+                fh.create_dataset('t_%s' % split_name,
+                                  data=split_triplets)
+                fh.create_dataset('y_%s' % split_name,
+                                  data=np.zeros((len(split_triplets), 1)))
+        NeighborTripletTraintest.__log.info(
+            'NeighborTripletTraintest saved to %s', out_file)
 
     @staticmethod
     def create(X, out_file, neigbors_sign, f_per=0.1, t_per=0.01,
