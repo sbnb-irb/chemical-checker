@@ -316,7 +316,6 @@ class sign4(BaseSignature, DataSignature):
 
     def plot_validations(self, siamese, dataset_idx, traintest_file,
                          chunk_size=10000, limit=1000, dist_limit=1000):
-        return False
         def mask_keep(idxs, x1_data):
             # we will fill an array of NaN with values we want to keep
             x1_data_transf = np.zeros_like(x1_data, dtype=np.float32) * np.nan
@@ -365,6 +364,37 @@ class sign4(BaseSignature, DataSignature):
             'NOT-SELF': partial(mask_exclude, dataset_idx),
             'ONLY-SELF': partial(mask_keep, dataset_idx),
         }
+
+
+        # get known and unknown idxs
+        cov = DataSignature(self.sign2_coverage).get_h5_dataset('V')
+        known_idxs = np.argwhere(cov[:, dataset_idx[0]] == 1).flatten()
+        unknown_idxs = np.argwhere(cov[:, dataset_idx[0]] == 0).flatten()      # Sample 50.000 unknown idx or use all if less than 50.000
+        self.__log.info('VALIDATION: total %s known, %s unknown' %
+                        (known_idxs.shape[0], unknown_idxs.shape[0]))
+        full_x = DataSignature(self.sign2_universe)
+
+        #_, known_idxs = np.unique(full_x[known_idxs], return_index=True)
+        #if len(known_idxs) > 5000:
+        #    unknown_idxs = np.random.choice(len(known_idxs), 5000, replace=False)
+
+        if len(unknown_idxs) > 50000:
+            unknown_idxs = np.random.choice(len(unknown_idxs), 50000, replace=False)
+
+        # get train and test idxs
+        all_inchikeys = self.get_universe_inchikeys()
+        traintest = DataSignature(traintest_file)
+        train_inks = traintest.get_h5_dataset('keys_train')
+        test_inks = traintest.get_h5_dataset('keys_test')
+        train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks))[:4000]
+        test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks))[:1000]
+        tr_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, train_inks))
+        ts_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, test_inks))
+
+        # 6.6 GB - 3.4GB = 3.2 GB
+
+        return False
+
 
         # get molecules where space is available
         if self.sign2_coverage is None:
