@@ -368,19 +368,11 @@ class sign4(BaseSignature, DataSignature):
 
         # get known and unknown idxs
         cov = DataSignature(self.sign2_coverage).get_h5_dataset('V')
-        known_idxs = np.argwhere(cov[:, dataset_idx[0]] == 1).flatten()
-        unknown_idxs = np.argwhere(cov[:, dataset_idx[0]] == 0).flatten()      # Sample 50.000 unknown idx or use all if less than 50.000
-        self.__log.info('VALIDATION: total %s known, %s unknown' %
-                        (known_idxs.shape[0], unknown_idxs.shape[0]))
+        unknown_idxs = np.argwhere(cov[:, dataset_idx[0]] == 0).flatten()
         full_x = DataSignature(self.sign2_universe)
-
-        #_, known_idxs = np.unique(full_x[known_idxs], return_index=True)
-        #if len(known_idxs) > 5000:
-        #    unknown_idxs = np.random.choice(len(known_idxs), 5000, replace=False)
 
         if len(unknown_idxs) > 50000:
             unknown_idxs = np.random.choice(len(unknown_idxs), 50000, replace=False)
-
         # get train and test idxs
         all_inchikeys = self.get_universe_inchikeys()
         traintest = DataSignature(traintest_file)
@@ -392,6 +384,45 @@ class sign4(BaseSignature, DataSignature):
         ts_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, test_inks))
 
         # 6.6 GB - 3.4GB = 3.2 GB
+        # predict
+        self.__log.info('VALIDATION: Predicting.')
+        pred = dict()
+        pred_signs_name = os.path.join(self.model_path, 'pred_signs.pkl')
+
+        with h5py.File(self.sign2_universe, "r") as features:
+            for idx in tqdm(range(0, features['x_test'].shape[0], chunk_size)):
+                chunk = slice(idx, idx + chunk_size)
+                feat = features['x_test'][train_idxs[train_idxs < idx + chunk_size]]
+                if len(feat) != 0:
+                    pred['tr'].setdefault('ALL', [])
+                    pred['tr']['ALL'].append(siamese.predict(mask_fns['ALL'](feat)))
+
+                    pred['tr'].setdefault('NOT-SELF', [])
+                    pred['tr']['NOT-SELF'].append(siamese.predict(mask_fns['NOT-SELF'](feat)))
+
+                    pred['tr'].setdefault('ONLY-SELF', [])
+                    pred['tr']['ONLY-SELF'].append(siamese.predict(mask_fns['ONLY-SELF'](feat)))
+
+                feat = features['x_test'][test_idxs[test_idxs < idx + chunk_size]]
+                if len(feat) != 0:
+                    pred['ts'].setdefault('ALL', [])
+                    pred['ts']['ALL'].append(siamese.predict(mask_fns['ALL'](feat)))
+
+                    pred['ts'].setdefault('NOT-SELF', [])
+                    pred['ts']['NOT-SELF'].append(siamese.predict(mask_fns['NOT-SELF'](feat)))
+
+                    pred['ts'].setdefault('ONLY-SELF', [])
+                    pred['ts']['ONLY-SELF'].append(siamese.predict(mask_fns['ONLY-SELF'](feat)))
+
+                feat = features['x_test'][unknown_idxs[unknown_idxs < idx + chunk_size]]
+                if len(feat) != 0:
+                    pred['unk'].setdefault('ALL', [])
+                    pred['unk']['ALL'].append(siamese.predict(mask_fns['ALL'](feat)))
+        
+            with open(pred_signs_name, 'wb') as f:
+                pickle.dump(preds, f)
+
+        self.__log.info(pred['ALL'][unknown_idxs][0])
 
         return False
 
@@ -2157,26 +2188,16 @@ def epoch_per_iteration_heuristic(samples, features, clip=(16, 1024)):
 def subsampling_probs(sign2_coverage, dataset_idx):
     cov = DataSignature(sign2_coverage).get_h5_dataset('V')
     no_self = cov[(cov[:, dataset_idx] == 0).flatten()]
-    # chemistry spaces have very few not selfs
-    if no_self.shape[0] < 100000:
-        no_self = np.vstack((no_self, cov[:100000]))
     # how many dataset per molecule?
-    nrs, freq_nrs = np.unique(
+    nr, freq_nr = np.unique(
         np.sum(no_self, axis=1).astype(int), return_counts=True)
-    # frequency based probabilities
-    p_nrs = freq_nrs / no_self.shape[0]
-    # add minimum probability (corner cases where to use 1 or 2 datasets)
-    min_p_nr = np.full(cov.shape[1], min(p_nrs), dtype=np.float32)
-    for nr, p_nr in zip(nrs, p_nrs):
-        min_p_nr[nr] = p_nr
-    # but leave out too large nrs
-    min_p_nr[max(nrs):] = 0.0
-    # normalize (sum of probabilities must be one)
-    min_p_nr = min_p_nr / np.sum(min_p_nr)
-    # print(np.log10(min_p_nr + 1e-10).astype(int))
+    p_nr = freq_nr / no_self.shape[0]
+    tmp = np.zeros(cov.shape[1])
+    tmp[nr] = p_nr
+    p_nr = tmp
     # probabilities to keep a dataset?
     p_keep = np.sum(no_self, axis=0) / no_self.shape[0]
-    return min_p_nr, p_keep
+    return p_nr, p_keep
 
 
 def subsample(tensor, sign_width=128,
