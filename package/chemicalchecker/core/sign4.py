@@ -1111,10 +1111,6 @@ class sign4(BaseSignature, DataSignature):
                 evaluating the performances (N.B. this is required for complete
                 confidence scores)
         """
-        try:
-            from chemicalchecker.tool.adanet import AdaNet
-        except ImportError as err:
-            raise err
         # get params and set folder
         if suffix:
             model_dir = os.path.join(self.model_path, 'error_%s' % suffix)
@@ -1133,19 +1129,27 @@ class sign4(BaseSignature, DataSignature):
         sign2_matrix = os.path.join(self.model_path, 'train.h5')
         if not reuse or not os.path.isfile(sign2_matrix):
             self.save_sign2_matrix(self.sign2_list, sign2_matrix)
+
+        # update the subsampling function
+        dataset_idx = np.argwhere(
+            np.isin(self.src_datasets, self.dataset)).flatten()
+        p_nr, p_keep = subsampling_probs(self.sign2_coverage, dataset_idx)
+        subsample_fn = partial(subsample, dataset_idx=dataset_idx,
+                               p_nr=p_nr, p_keep=p_keep)
+
         # if evaluating, perform the train-test split
         traintest_file = params.pop('traintest_file', traintest_file)
         if evaluate:
             if not reuse or not os.path.isfile(traintest_file):
                 NeighborErrorTraintest.create(
-                    sign2_matrix, traintest_file, predict_fn,
+                    sign2_matrix, traintest_file, predict_fn, subsample_fn,
                     split_names=['train', 'test'],
                     split_fractions=[.8, .2],
                     neigbors_matrix=self.neig_matrix[:])
         else:
             if not reuse or not os.path.isfile(traintest_file):
                 NeighborErrorTraintest.create(
-                    sign2_matrix, traintest_file, predict_fn,
+                    sign2_matrix, traintest_file, predict_fn, subsample_fn,
                     split_names=['train'],
                     split_fractions=[.1],
                     neigbors_matrix=self.neig_matrix[:])

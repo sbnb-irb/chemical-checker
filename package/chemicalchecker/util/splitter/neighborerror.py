@@ -3,7 +3,7 @@ import h5py
 import itertools
 import numpy as np
 from tqdm import tqdm
-from scipy.spatial.distance import euclidean
+from sklearn.preprocessing import robust_scale
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.remove_near_duplicates import RNDuplicates
@@ -131,10 +131,10 @@ class NeighborErrorTraintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def create(to_predict, out_file, predict_fn, neigbors_matrix=None,
-               shuffle=True, split_names=['train', 'test'],
-               split_fractions=[.8, .2], suffix='eval',
-               x_dtype=np.float32, y_dtype=np.float32):
+    def create(to_predict, out_file, predict_fn, subsample_fn,
+               neigbors_matrix=None, shuffle=True,
+               split_names=['train', 'test'], split_fractions=[.8, .2],
+               suffix='eval', x_dtype=np.float32, y_dtype=np.float32):
         """Create the HDF5 file with validation splits.
 
         Args:
@@ -150,10 +150,13 @@ class NeighborErrorTraintest(object):
             y_dtype(type): numpy data type for Y (np.float32 for regression,
                 np.int32 for classification.
         """
-        try:
-            import faiss
-        except ImportError as err:
-            raise err
+
+        def row_wise_correlation(X, Y):
+            var1 = (X.T - np.mean(X, axis=1)).T
+            var2 = (Y.T - np.mean(Y, axis=1)).T
+            cov = np.mean(var1 * var2, axis=1)
+            return cov / (np.std(X, axis=1) * np.std(Y, axis=1))
+
         NeighborErrorTraintest.__log.debug(
             "{:<20} shape: {:>10}".format("input to_predict",
                                           to_predict))
@@ -168,50 +171,23 @@ class NeighborErrorTraintest(object):
                 raise Exception("neigbors_matrix should be same length as X.")
             tot_feat = features['x'].shape[1]
             chunk_size = int(np.floor(tot_x / 100))
-            preds = np.zeros((tot_x, 128), dtype=np.float32)
             X = np.zeros((tot_x, int(tot_feat / 128)))
+            Y = np.zeros((tot_x, 1))
+            preds_noself = np.zeros((tot_x, 128), dtype=np.float32)
+            preds_onlyself = np.zeros((tot_x, 128), dtype=np.float32)
+
             # read input in chunks
             for idx in tqdm(range(0, tot_x, chunk_size), desc='Predicting'):
                 chunk = slice(idx, idx + chunk_size)
                 feat = features['x'][chunk]
-                preds[chunk] = predict_fn(feat)
-                X[chunk] = ~np.isnan(feat[:, ::128])
-
-        # generate NN for predictions
-        NN_pred = faiss.IndexFlatL2(preds.shape[1])
-        NN_pred.add(preds)
-        _, neig_idx = NN_pred.search(preds, 100)
-        # remove self
-        NN_pred_neig = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
-        for idx, row in enumerate(neig_idx):
-            NN_pred_neig[idx] = row[np.argwhere(row != idx).flatten()]
-        # generate NN for actual
-        NN_true = faiss.IndexFlatL2(neigbors_matrix.shape[1])
-        NN_true.add(neigbors_matrix)
-        _, neig_idx = NN_true.search(neigbors_matrix, 100)
-        # remove self
-        NN_true_neig = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
-        for idx, row in enumerate(neig_idx):
-            NN_true_neig[idx] = row[np.argwhere(row != idx).flatten()]
-
-        def overlap(n1, n2):
-            res = list()
-            for r1, r2 in zip(n1, n2):
-                s1 = set(r1)
-                s2 = set(r2)
-                inter = len(set.intersection(s1, s2))
-                res.append(inter / float(len(s1)))
-            return np.array(res)
-
-        nn_range = range(5, 21, 5)
-        all_jaccs = np.zeros((NN_true_neig.shape[0], len(nn_range)))
-        for idx, top in enumerate(nn_range):
-            jaccs = overlap(
-                NN_pred_neig[:, :top], NN_true_neig[:, :top])
-            all_jaccs[:, idx] = jaccs
-
-        # save accuracy as Y
-        Y = np.mean(all_jaccs, axis=1)
+                feat_onlyself = subsample_fn(feat, p_only_self=1.0)
+                preds_onlyself[chunk] = predict_fn(feat_onlyself)
+                feat_noself = subsample_fn(feat, p_only_self=0.0, p_self=0.0)
+                preds_noself[chunk] = predict_fn(feat_noself)
+                X[chunk] = (~np.isnan(feat_noself[:, ::128])).astype(int)
+            Y = np.expand_dims(row_wise_correlation(
+                robust_scale(preds_onlyself),
+                robust_scale(preds_noself)), 1)
 
         # reduce redundancy, keep full-ref mapping
         rnd = RNDuplicates(cpu=10)
