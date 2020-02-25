@@ -1942,8 +1942,27 @@ class sign4(BaseSignature, DataSignature):
                     del results['outlier']
                 results['outlier'] = ordered_outlier
 
-    def predict(self):
-        pass
+    def predict(self, src_file, dst_file, src_h5_ds='x_test',
+                dst_h5_ds='V', model_path=None, chunk_size=1000):
+        from chemicalchecker.tool.siamese import SiameseTriplets
+
+        if model_path is None:
+            model_path = os.path.join(self.model_path, 'siamese_test')
+        self.__log.info('PREDICTING using model from: %s' % model_path)
+        self.__log.info('INPUT from: %s' % src_file)
+        self.__log.info('OUTPUT goes to: %s' % dst_file)
+        siamese = SiameseTriplets(model_path)
+        with h5py.File(src_file, "r") as features:
+            with h5py.File(dst_file, "w") as preds:
+                # create destination h5 dataset
+                tot_inks = features[src_h5_ds].shape[0]
+                preds_shape = (tot_inks, 128)
+                preds.create_dataset(dst_h5_ds, preds_shape, dtype=np.float32)
+                # predict in chunks
+                for idx in tqdm(range(0, tot_inks, chunk_size), desc='PRED'):
+                    chunk = slice(idx, idx + chunk_size)
+                    feat = features[src_h5_ds][chunk]
+                    preds[dst_h5_ds][chunk] = siamese.predict(feat)
 
     def siamese_single_spaces(self, siamese_path, traintest_file, suffix):
         """Prediction of Siamese using single space signatures.
