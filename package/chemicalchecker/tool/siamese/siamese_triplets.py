@@ -23,7 +23,7 @@ class SiameseTriplets(object):
     allows metric learning.
     """
 
-    def __init__(self, model_dir, evaluate=False, **kwargs):
+    def __init__(self, model_dir, evaluate=False, plot=True, **kwargs):
         """Initialize the Siamese class.
 
         Args:
@@ -50,7 +50,7 @@ class SiameseTriplets(object):
                                       ['relu'] * len(self.layers_sizes))
         self.dropouts = kwargs.get("dropouts", [0.2] * len(self.layers_sizes))
         self.augment_fn = kwargs.get("augment_fn", None)
-        self.augment_kwargs = kwargs.get("augment_kwargs", None)
+        self.augment_kwargs = kwargs.get("augment_kwargs", {})
         self.augment_scale = int(kwargs.get("augment_scale", 1))
         self.loss_func = str(kwargs.get("loss_func", 'orthogonal_tloss'))
         self.margin = float(kwargs.get("margin", 1.0))
@@ -61,11 +61,11 @@ class SiameseTriplets(object):
         # internal variables
         self.name = '%s_%s' % (self.__class__.__name__.lower(), self.suffix)
         self.time = 0
-        self.output_dim = None
         self.model_dir = os.path.abspath(model_dir)
         self.model_file = os.path.join(self.model_dir, "%s.h5" % self.name)
         self.model = None
         self.evaluate = evaluate
+        self.plot = plot
 
         # check output path
         if not os.path.exists(model_dir):
@@ -94,7 +94,6 @@ class SiameseTriplets(object):
             self.tr_gen = tr_shape_type_gen[2]()
             self.steps_per_epoch = np.ceil(
                 self.tr_shapes[0][0] / self.batch_size)
-            self.output_dim = tr_shape_type_gen[0][1][1]
 
         # initialize validation/test generator
         if evaluate:
@@ -137,8 +136,6 @@ class SiameseTriplets(object):
         self.__log.info("{:<22}: {:>12}".format(
             "epochs", self.epochs))
         self.__log.info("{:<22}: {:>12}".format(
-            "output_dim", self.output_dim))
-        self.__log.info("{:<22}: {:>12}".format(
             "batch_size", self.batch_size))
         self.__log.info("{:<22}: {:>12}".format(
             "layers", str(self.layers)))
@@ -155,6 +152,10 @@ class SiameseTriplets(object):
         self.__log.info("{:<22}: {:>12}".format(
             "augment_kwargs", str(self.augment_kwargs)))
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
+
+        self.__log.debug("Saving parameters to %s" % param_file)
+        with open(param_file, "wb") as f:
+            pickle.dump(kwargs, f)
 
     def build_model(self, input_shape, load=False):
         """Compile Keras model
@@ -414,16 +415,21 @@ class SiameseTriplets(object):
             x3_data_transf = x3_data_transf[not_nan]
             return x1_data_transf, x2_data_transf, x3_data_transf
 
-        # additional validation sets
-        space_idx = self.augment_kwargs['dataset_idx']
-        mask_fns = {
-            'ALL': None,
-            'NOT-SELF': partial(mask_exclude, space_idx),
-            'ONLY-SELF': partial(mask_keep, space_idx),
-        }
-        validation_sets = list()
-        vsets = ['train_test', 'test_test']
         if self.evaluate:
+            # additional validation sets
+            if "dataset_idx" in self.augment_kwargs:
+                space_idx = self.augment_kwargs['dataset_idx']
+                mask_fns = {
+                    'ALL': None,
+                    'NOT-SELF': partial(mask_exclude, space_idx),
+                    'ONLY-SELF': partial(mask_keep, space_idx),
+                }
+            else:
+                mask_fns = {
+                    'ALL': None
+                }
+            validation_sets = list()
+            vsets = ['train_test', 'test_test']
             for split in vsets:
                 for set_name, mask_fn in mask_fns.items():
                     name = '_'.join([split, set_name])
@@ -475,8 +481,10 @@ class SiameseTriplets(object):
         pickle.dump(self.history.history, open(history_file, 'wb'))
         history_file = os.path.join(self.model_dir, "history.png")
         anchor_file = os.path.join(self.model_dir, "anchor_distr.png")
-        self._plot_history(self.history.history, vsets, history_file)
-        self._plot_anchor_dist(anchor_file)
+        if self.evaluate:
+            self._plot_history(self.history.history, vsets, history_file)
+            if self.plot:
+                self._plot_anchor_dist(anchor_file)
 
     def set_predict_scaler(self, scaler):
         self.scaler = scaler

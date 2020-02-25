@@ -9,7 +9,7 @@ class Pca(BaseTransform):
     """Do a PCA"""
     def __init__(self, sign1, n_components=0.9, max_keys=10000, **kwargs):
         BaseTransform.__init__(self, sign1, "pca", max_keys)
-        self.n_components = 0.9
+        self.n_components = n_components
 
     def fit(self):
         V = self.subsample()[0]
