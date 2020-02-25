@@ -366,68 +366,7 @@ class sign4(BaseSignature, DataSignature):
         }
 
 
-        # get known and unknown idxs
-        cov = DataSignature(self.sign2_coverage).get_h5_dataset('V')
-        unknown_idxs = np.argwhere(cov[:, dataset_idx[0]] == 0).flatten()
-        full_x = DataSignature(self.sign2_universe)
-
-        if len(unknown_idxs) > 50000:
-            unknown_idxs = np.random.choice(len(unknown_idxs), 50000, replace=False)
-        # get train and test idxs
-        all_inchikeys = self.get_universe_inchikeys()
-        traintest = DataSignature(traintest_file)
-        train_inks = traintest.get_h5_dataset('keys_train')
-        test_inks = traintest.get_h5_dataset('keys_test')
-        train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks))[:4000]
-        test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks))[:1000]
-        tr_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, train_inks))
-        ts_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, test_inks))
-
-        # 6.6 GB - 3.4GB = 3.2 GB
-        # predict
-        self.__log.info('VALIDATION: Predicting.')
-        pred = dict()
-        pred_signs_name = os.path.join(self.model_path, 'pred_signs.pkl')
-
-        with h5py.File(self.sign2_universe, "r") as features:
-            for idx in tqdm(range(0, features['x_test'].shape[0], chunk_size)):
-                chunk = slice(idx, idx + chunk_size)
-                feat = features['x_test'][train_idxs[train_idxs < idx + chunk_size]]
-                if len(feat) != 0:
-                    pred['tr'].setdefault('ALL', [])
-                    pred['tr']['ALL'].append(siamese.predict(mask_fns['ALL'](feat)))
-
-                    pred['tr'].setdefault('NOT-SELF', [])
-                    pred['tr']['NOT-SELF'].append(siamese.predict(mask_fns['NOT-SELF'](feat)))
-
-                    pred['tr'].setdefault('ONLY-SELF', [])
-                    pred['tr']['ONLY-SELF'].append(siamese.predict(mask_fns['ONLY-SELF'](feat)))
-
-                feat = features['x_test'][test_idxs[test_idxs < idx + chunk_size]]
-                if len(feat) != 0:
-                    pred['ts'].setdefault('ALL', [])
-                    pred['ts']['ALL'].append(siamese.predict(mask_fns['ALL'](feat)))
-
-                    pred['ts'].setdefault('NOT-SELF', [])
-                    pred['ts']['NOT-SELF'].append(siamese.predict(mask_fns['NOT-SELF'](feat)))
-
-                    pred['ts'].setdefault('ONLY-SELF', [])
-                    pred['ts']['ONLY-SELF'].append(siamese.predict(mask_fns['ONLY-SELF'](feat)))
-
-                feat = features['x_test'][unknown_idxs[unknown_idxs < idx + chunk_size]]
-                if len(feat) != 0:
-                    pred['unk'].setdefault('ALL', [])
-                    pred['unk']['ALL'].append(siamese.predict(mask_fns['ALL'](feat)))
-        
-            with open(pred_signs_name, 'wb') as f:
-                pickle.dump(preds, f)
-
-        self.__log.info(pred['ALL'][unknown_idxs][0])
-
-        return False
-
-
-        # get molecules where space is available
+                # get molecules where space is available
         if self.sign2_coverage is None:
             self.__log.info('VALIDATION: fetching Xs.')
             known = list()
@@ -461,25 +400,30 @@ class sign4(BaseSignature, DataSignature):
         else:
             # get known and unknown idxs
             cov = DataSignature(self.sign2_coverage).get_h5_dataset('V')
-            known_idxs = np.argwhere(cov[:, dataset_idx[0]] == 1).flatten()
             unknown_idxs = np.argwhere(cov[:, dataset_idx[0]] == 0).flatten()
-            self.__log.info('VALIDATION: total %s known, %s unknown' %
-                            (known_idxs.shape[0], unknown_idxs.shape[0]))
             full_x = DataSignature(self.sign2_universe)
+
+            if len(unknown_idxs) > 50000:
+                unknown_idxs = np.random.choice(len(unknown_idxs), 50000, replace=False)
+            unknown_idxs.sort()
             # get train and test idxs
             all_inchikeys = self.get_universe_inchikeys()
             traintest = DataSignature(traintest_file)
-            train_inks = traintest.get_h5_dataset('keys_train')
-            test_inks = traintest.get_h5_dataset('keys_test')
-            train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks))
-            test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks))
-            tr_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, train_inks))
-            ts_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, test_inks))
+            train_inks = traintest.get_h5_dataset('keys_train')[:4000]
+            test_inks = traintest.get_h5_dataset('keys_test')[:1000]
+            train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks))[:4000]
+            test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks))[:1000]
+            train_idxs.sort()
+            test_idxs.sort()
+            tr_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, train_inks)).reshape(4000,)
+            ts_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, test_inks)).reshape(1000,)
 
+        # 6.6 GB - 3.4GB = 3.2 GB
         # predict
         self.__log.info('VALIDATION: Predicting.')
-        pred = dict()
+        preds = dict()
         pred_signs_name = os.path.join(self.model_path, 'pred_signs.pkl')
+
         if not os.path.isfile(pred_signs_name):
             for name, mask_fn in mask_fns.items():
                 with h5py.File(self.sign2_universe, "r") as features:
@@ -494,27 +438,35 @@ class sign4(BaseSignature, DataSignature):
                 pickle.dump(preds, f)
         else:
             with open(pred_signs_name, 'rb') as f:
-                pred = pickle.load(f)
+                preds = pickle.load(f)
 
-        self.__log.info(pred['ALL'][known_idxs][0])
-        self.__log.info(pred['ALL'][unknown_idxs][0])
-        #self.__log.info(known_pred['ALL'][1])
+        preds.setdefault('tr', {})
+        preds.setdefault('ts', {})
+        preds.setdefault('unk', {})
+        preds['tr']['ALL'] = preds['ALL'][train_idxs].reshape(preds['ALL'][train_idxs].shape[0], 128)
+        preds['ts']['ALL'] = preds['ALL'][test_idxs].reshape(preds['ALL'][test_idxs].shape[0], 128)
+        preds['unk']['ALL'] = preds['ALL'][unknown_idxs].reshape(preds['ALL'][unknown_idxs].shape[0], 128)
+        del preds['ALL']
+        preds['tr']['NOT-SELF'] = preds['NOT-SELF'][train_idxs].reshape(preds['NOT-SELF'][train_idxs].shape[0], 128)
+        preds['ts']['NOT-SELF'] = preds['NOT-SELF'][test_idxs].reshape(preds['NOT-SELF'][test_idxs].shape[0], 128)
+        del preds['NOT-SELF']
+        preds['tr']['ONLY-SELF'] = preds['ONLY-SELF'][train_idxs].reshape(preds['ONLY-SELF'][train_idxs].shape[0], 128)
+        preds['ts']['ONLY-SELF'] = preds['ONLY-SELF'][test_idxs].reshape(preds['ONLY-SELF'][test_idxs].shape[0], 128)
+        del preds['ONLY-SELF']
 
-        return False
-        rnd_idx = np.random.choice(len(pred['ALL'][unknown_idxs]), 50000, replace=False)
-        unknown_naive = pred['ALL'][unknown_idxs][rnd_idx]
+        #unknown_naive = pred['ALL'][unknown_idxs][rnd_idx]
 
         rnd = RNDuplicates(cpu=10)
-        _, ref_matrix, full_ref_map = rnd.remove(unknown_naive.astype(np.float32))
+        _, ref_matrix, full_ref_map = rnd.remove(preds['unk']['ALL'].astype(np.float32))
         neig_pred = faiss.IndexFlatL2(ref_matrix.shape[1])
         neig_pred.add(ref_matrix)
-        unknown_n_dis, unknown_n_idx = neig_pred.search(pred['ALL'][known_idxs].astype(np.float32), 5)
+        unknown_n_dis, unknown_n_idx = neig_pred.search(np.vstack([preds['tr']['ALL'], preds['ts']['ALL']]).astype(np.float32), 5)
 
         K1_unknown = np.array(
-            [pred['ALL'][unknown_idxs][full_ref_map[x]] for x in unknown_n_idx[:, 0]])
+            [preds['unk']['ALL'][full_ref_map[x]] for x in unknown_n_idx[:, 0]])
 
         K5_unknown = np.array(
-            [pred['ALL'][unknown_idxs][full_ref_map[x]] for x in unknown_n_idx[:, -1]])
+            [preds['unk']['ALL'][full_ref_map[x]] for x in unknown_n_idx[:, -1]])
 
         metrics = dict()
 
@@ -527,15 +479,17 @@ class sign4(BaseSignature, DataSignature):
             1, 3, sharex=True, sharey=True, figsize=(10, 3))
         combos = itertools.combinations(mask_fns, 2)
         for ax, (n1, n2) in zip(axes, combos):
-            corrs_train = row_wise_correlation(robust_scale(pred[n1][train_idxs]), 
-                robust_scale(pred[n2][train_idxs]))
-            corrs_test = row_wise_correlation(robust_scale(pred[n1][test_idxs]), 
-                robust_scale(pred[n2][test_idxs]))
+            corrs_train = row_wise_correlation(robust_scale(preds['tr'][n1]), 
+                robust_scale(preds['tr'][n2]))
+            corrs_test = row_wise_correlation(robust_scale(preds['ts'][n1]), 
+                robust_scale(preds['ts'][n2]))
             ax.set_title('Scaled  %s %s' % (n1, n2))
             sns.distplot(corrs_train, ax=ax, label='train')
             sns.distplot(corrs_test, ax=ax,label='test')
             metrics['corr train %s %s' % (n1, n2)] = np.mean(corrs_train)
             metrics['corr test %s %s' % (n1, n2)] = np.mean(corrs_test)
+            del corrs_train
+            del corrs_test
         plot_file = os.path.join(siamese.model_dir,
                                  '%s_correlations.png' % fname)
         plt.savefig(plot_file)
@@ -545,27 +499,27 @@ class sign4(BaseSignature, DataSignature):
             self.__log.info(
                 'VALIDATION: Plot %s distances %s.' % (m, feat_type))
             fig, axes = plt.subplots(
-                3, 2, sharex=True, sharey=True, figsize=(3, 10))
-            dist_unknown = pdist(np.choice(unknown_naive, dist_limit, replace=False), metric=m)
+                3, 2, sharex=True, sharey=True, figsize=(8, 10))
+            dist_unknown = pdist(preds['unk']['ALL'][np.random.choice(len(preds['unk']['ALL']), dist_limit, replace=False)], metric=m)
             mean_d_unknown = np.mean(dist_unknown)
             for ax_row, name in zip(axes, ['Train-Train', 'Train-Test', 'Test-Test']):
                 if name == 'Train-Train':
-                    dist_all = pdist(np.choice(pred['ALL'][train_idxs], dist_limit, replace=False), metric=m)
-                    dist_only = pdist(np.choice(pred['ONLY-SELF'][train_idxs], dist_limit, replace=False), metric=m)
+                    dist_all = pdist(preds['tr']['ALL'][np.random.choice(len(preds['tr']['ALL']), dist_limit, replace=False)], metric=m)
+                    dist_only = pdist(preds['tr']['ONLY-SELF'][np.random.choice(len(preds['tr']['ONLY-SELF']), dist_limit, replace=False)], metric=m)
                     mean_dist = np.mean(dist_all)
                     metrics['%s_trtr_all' % m] = abs(mean_dist - mean_d_unknown)
                     metrics['%s_trtr_only' % m] = abs(mean_dist - np.mean(dist_only))
                 elif name == 'Train-Test':
-                    dist_all = pdist(np.choice((np.vstack([pred['ALL'][train_idxs], 
-                        pred['ALL'][test_idxs]])), dist_limit, replace=False), metric=m)
-                    dist_only = pdist(np.choice((np.vstack([pred['ONLY-SELF'][train_idxs], 
-                        pred['ONLY-SELF'][test_idxs]])), dist_limit, replace=False), metric=m)
+                    dist_all = pdist(np.vstack([preds['tr']['ALL'],preds['ts']['ALL']])[np.random.choice(len(np.vstack([preds['tr']['ALL'], 
+                        preds['ts']['ALL']])), dist_limit, replace=False)], metric=m)
+                    dist_only = pdist(np.vstack([preds['tr']['ONLY-SELF'],preds['ts']['ONLY-SELF']])[np.random.choice(len(np.vstack([preds['tr']['ONLY-SELF'], 
+                        preds['ts']['ONLY-SELF']])), dist_limit, replace=False)], metric=m)
                     mean_dist = np.mean(dist_all)
                     metrics['%s_trts_all' % m] = abs(mean_dist - mean_d_unknown)
                     metrics['%s_trts_only' % m] = abs(mean_dist - np.mean(dist_only))
                 else:
-                    dist_all = pdist(np.choice(pred['ALL'][test_idxs], dist_limit, replace=False), metric=m)
-                    dist_only = pdist(np.choice(pred['ONLY-SELF'][test_idxs], dist_limit, replace=False), metric=m)
+                    dist_all = pdist(preds['ts']['ALL'][np.random.choice(len(preds['ts']['ALL']), dist_limit, replace=False)], metric=m)
+                    dist_only = pdist(preds['ts']['ONLY-SELF'][np.random.choice(len(preds['ts']['ONLY-SELF']), dist_limit, replace=False)], metric=m)
                     mean_dist = np.mean(dist_all)
                     metrics['%s_tsts' % m] = abs(mean_dist - mean_d_unknown)
                     metrics['%s_tsts_only' % m] = abs(mean_dist - np.mean(dist_only))
@@ -575,6 +529,8 @@ class sign4(BaseSignature, DataSignature):
                 ax_row[0].legend()
                 ax_row[1].set_title(name + 'ONLY-SELF')
                 sns.distplot(dist_only, ax=ax_row[1])
+                del dist_all
+                del dist_only
             plot_file = os.path.join(siamese.model_dir,
                                      '%s_dists_%s.png' % (fname, m))
             plt.savefig(plot_file)
@@ -582,10 +538,10 @@ class sign4(BaseSignature, DataSignature):
 
         self.__log.info('VALIDATION: Plot intensities %s.' % feat_type)
         plt.figure(figsize=(10, 3))
-        data = np.array([np.sum(np.abs(pred['ALL'][train_idxs]), axis=1),
-        np.sum(np.abs(pred['ALL'][test_idxs]), axis=1),
-        np.sum(np.abs(pred['ONLY-SELF'][known_idxs]), axis=1),
-        np.sum(np.abs(unknown_naive), axis=1),
+        data = np.array([np.sum(np.abs(preds['tr']['ALL']), axis=1),
+        np.sum(np.abs(preds['ts']['ALL']), axis=1),
+        np.sum(np.abs(np.vstack([preds['tr']['ONLY-SELF'], preds['ts']['ONLY-SELF']])), axis=1),
+        np.sum(np.abs(preds['unk']['ALL']), axis=1),
         np.sum(np.abs(K1_unknown), axis=1),
         np.sum(np.abs(K5_unknown), axis=1)])
         plt.title('Intensities', fontsize=20)
@@ -596,14 +552,15 @@ class sign4(BaseSignature, DataSignature):
             siamese.model_dir, '%s_intensity.png' % fname)
         plt.savefig(plot_file)
         plt.close()
-
+        del data
 
         self.__log.info('VALIDATION: Plot NN accuracy %s.' % feat_type)
 
         def get_nn_matrix(in_data, unk_data=False):
+            print(in_data.shape)
             NN = faiss.IndexFlatL2(in_data.shape[1])
-            NN.add(in_data)
-            neig_dis, neig_idx = NN.search(in_data, 20)
+            NN.add(in_data.astype(np.float32))
+            neig_dis, neig_idx = NN.search(in_data.astype(np.float32), 20)
             # remove self
             NN_neig = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
             NN_dis = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
@@ -635,8 +592,8 @@ class sign4(BaseSignature, DataSignature):
         dis_knw = dict()
 
         axes[0].set_title('Accuracy Train-Train')
-        _, NN_true['trtr'], _ = get_nn_matrix(self.neig_matrix[tr_nn_idxs])
-        dis_knw['trtr'], NN_pred['trtr'], dis_unk['trtr'] = get_nn_matrix(pred['ALL'][train_idxs], unk_data=unknown_naive)
+        _, NN_true['trtr'], _ = get_nn_matrix(self.neig_matrix.get_h5_dataset('V')[tr_nn_idxs])
+        dis_knw['trtr'], NN_pred['trtr'], dis_unk['trtr'] = get_nn_matrix(preds['tr']['ALL'], unk_data=preds['unk']['ALL'])
         assert(len(NN_true['trtr']) == len(NN_pred['trtr']))
         trtr_jaccs = []
         for top in nn_range:
@@ -649,7 +606,7 @@ class sign4(BaseSignature, DataSignature):
         axes[1].set_title('Accuracy Train-Test')
         trts_jaccs = []
         _, NN_true['trts'], _ = get_nn_matrix(np.vstack([self.neig_matrix[tr_nn_idxs], self.neig_matrix[ts_nn_idxs]]))
-        dis_knw['trts'], NN_pred['trts'], dis_unk['trts'] = get_nn_matrix(np.vstack([pred['ALL'][train_idxs], pred['ALL'][test_idxs]]))
+        dis_knw['trts'], NN_pred['trts'], dis_unk['trts'] = get_nn_matrix(np.vstack([preds['tr']['ALL'], preds['ts']['ALL']]))
         assert(len(NN_true['trts']) == len(NN_pred['trts']))
         for top in nn_range:
             jaccs = overlap(NN_pred['trts'][:, :top], NN_true['trts'][:, :top])
@@ -661,7 +618,7 @@ class sign4(BaseSignature, DataSignature):
         axes[2].set_title('Accuracy Test-Test')
         tsts_jaccs = []
         _, NN_true['tsts'], _ = get_nn_matrix(self.neig_matrix[ts_nn_idxs])
-        dis_knw['tsts'], NN_pred['tsts'], dis_unk['tsts'] = get_nn_matrix(pred['ALL'][test_idxs])
+        dis_knw['tsts'], NN_pred['tsts'], dis_unk['tsts'] = get_nn_matrix(preds['ts']['ALL'])
         assert(len(NN_true['tsts']) == len(NN_pred['tsts']))
         for top in nn_range:
             jaccs = overlap(NN_pred['tsts'][:, :top], NN_true['tsts'][:, :top])
@@ -676,6 +633,12 @@ class sign4(BaseSignature, DataSignature):
         plt.close()
 
         del NN_true
+
+        print('yes')
+        while True:
+            pass
+
+
         return False
         self.__log.info('VALIDATION: Plot KNN %s.' % feat_type)
         fig, axes = plt.subplots(2, 3, figsize=(10, 6))
