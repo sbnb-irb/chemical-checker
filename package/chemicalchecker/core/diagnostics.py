@@ -142,6 +142,7 @@ class Diagnosis(object):
             Args:
                 n_pairs(int): Number of pairs to sample (default=10000)
         """
+        self.__log.debug("Cosine distances")
         fn = "euclidean_distances"
         if self._todo(fn):
             results = self._distance_distribution(n_pairs=n_pairs, metric="euclidean")
@@ -160,6 +161,7 @@ class Diagnosis(object):
             Args:
                 n_pairs(int): Number of pairs to sample (default=10000).
         """
+        self.__log.debug("Cosine distances")
         fn = "cosine_distances"
         if self._todo(fn):
             results = self._distance_distribution(n_pairs=n_pairs, metric="cosine")
@@ -313,6 +315,7 @@ class Diagnosis(object):
                 focus_keys(list): Keys to be highlighted in the projection (default=None).
                 max_keys(int): Maximum number of keys to include in the projection (default=10000).
         """
+        self.__log.debug("Projection")
         from sklearn.manifold import TSNE
         fn = "projection"
         if self._todo(fn):
@@ -368,6 +371,7 @@ class Diagnosis(object):
             plotter_function = self.plotter.projection)
 
     def image(self, keys=None, max_keys=100):
+        self.__log.debug("Image")
         fn = "image"
         if self._todo(fn):
             if keys is None:
@@ -417,6 +421,7 @@ class Diagnosis(object):
         return results
 
     def features_iqr(self, keys=None, max_keys=10000):
+        self.__log.debug("Features IQR")
         fn = "features_iqr"
         if self._todo(fn):
             results = self._iqr(axis=0, keys=keys, max_keys=max_keys)
@@ -430,6 +435,7 @@ class Diagnosis(object):
             plotter_function = self.plotter.features_iqr)
 
     def keys_iqr(self, keys=None, max_keys=100000):
+        self.__log.debug("Keys IQR")
         fn = "keys_iqr"
         if self._todo(fn):
             results = self._iqr(axis=1, keys=keys, max_keys=max_keys)
@@ -442,11 +448,14 @@ class Diagnosis(object):
             plot = self.plot,
             plotter_function = self.plotter.keys_iqr)
 
-    def values(self):
+    def values(self, max_values=10000):
+        self.__log.debug("Values")
         from scipy.stats import gaussian_kde
         fn = "values"
         if self._todo(fn):
-            V = self.V.ravel().ravel()
+            V = self.V.ravel()
+            idxs = np.random.choice(len(V), max_values, replace=False)
+            V = V[idxs]
             kernel = gaussian_kde(V)
             positions = np.linspace(np.min(V), np.max(V), 1000)
             values = kernel(positions)
@@ -478,6 +487,7 @@ class Diagnosis(object):
 
     def dimensions(self, datasets=None, exemplary=True, cctype=None, molset=None, **kwargs):
         """Get dimensions of the signature and compare to other signatures"""
+        self.__log.debug("Dimensions")
         from sklearn.decomposition import PCA
         fn = "dimensions"
         if cctype is None:
@@ -523,6 +533,7 @@ class Diagnosis(object):
             molset(str): Molecule set to use. Full is recommended (default=None).
             **kwargs of hte cross_coverage method.
         """
+        self.__log.debug("Across coverage")
         fn = "across_coverage"
         if cctype is None:
             cctype = self.cctype
@@ -557,6 +568,7 @@ class Diagnosis(object):
             molset(str): Molecule set to use. Full is recommended (default='full').
             **kwargs of hte cross_coverage method.
         """
+        self.__log.debug("Across ROC")
         fn = "across_roc"
         if cctype is None:
             cctype = self.cctype
@@ -582,13 +594,13 @@ class Diagnosis(object):
                 "molset": molset})
 
     def atc_roc(self, **kwargs):
+        self.__log.debug("ATC ROC")
         fn = "atc_roc"
         cctype = "sign1"
         molset = "full"
         ds = "E1.001"
         if self._todo(fn):
             sign = self.cc.get_signature(cctype, molset, ds)
-            print(sign)
             results = self.cross_roc(sign, save=False, force_redo=True, **kwargs)
         else:
             results = None
@@ -600,6 +612,7 @@ class Diagnosis(object):
             plotter_function = self.plotter.atc_roc)
 
     def moa_roc(self, **kwargs):
+        self.__log.debug("MoA ROC")
         fn = "moa_roc"
         cctype = "sign1"
         molset = "full"
@@ -619,7 +632,7 @@ class Diagnosis(object):
     def available(self):
         return self.plotter.available()
 
-    def canvas(self):
+    def canvas(self, cctype=None):
         self.__log.debug("Getting all needed data.")
         plot = self.plot
         self.plot = False
@@ -631,9 +644,9 @@ class Diagnosis(object):
         self.image()
         self.features_iqr()
         self.keys_iqr()
-        self.across_coverage()
+        self.across_coverage(cctype=cctype)
         self.across_roc()
-        self.dimensions()
+        self.dimensions(cctype=cctype)
         self.values()
         self.atc_roc()
         self.moa_roc()
