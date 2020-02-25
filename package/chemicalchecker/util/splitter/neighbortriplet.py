@@ -328,6 +328,11 @@ class NeighborTripletTraintest(object):
         combo_dists = dict()
         with h5py.File(out_file, "w") as fh:
             fh.create_dataset('x', data=X)
+            if mean_center_x:
+                fh.create_dataset(
+                    'scaler',
+                    data=np.array([scaler_file],
+                                  dtype=DataSignature.string_dtype()))
             # for each split combo generate triplets where [anchor, positive,
             # negative]
             combos = itertools.combinations_with_replacement(split_names, 2)
