@@ -2133,16 +2133,26 @@ def epoch_per_iteration_heuristic(samples, features, clip=(16, 1024)):
 def subsampling_probs(sign2_coverage, dataset_idx):
     cov = DataSignature(sign2_coverage).get_h5_dataset('V')
     no_self = cov[(cov[:, dataset_idx] == 0).flatten()]
+    # chemistry spaces have very few not selfs
+    if no_self.shape[0] < 100000:
+        no_self = np.vstack((no_self, cov[:100000]))
     # how many dataset per molecule?
-    nr, freq_nr = np.unique(
+    nrs, freq_nrs = np.unique(
         np.sum(no_self, axis=1).astype(int), return_counts=True)
-    p_nr = freq_nr / no_self.shape[0]
-    tmp = np.zeros(cov.shape[1])
-    tmp[nr] = p_nr
-    p_nr = tmp
+    # frequency based probabilities
+    p_nrs = freq_nrs / no_self.shape[0]
+    # add minimum probability (corner cases where to use 1 or 2 datasets)
+    min_p_nr = np.full(cov.shape[1], min(p_nrs), dtype=np.float32)
+    for nr, p_nr in zip(nrs, p_nrs):
+        min_p_nr[nr] = p_nr
+    # but leave out too large nrs
+    min_p_nr[max(nrs):] = 0.0
+    # normalize (sum of probabilities must be one)
+    min_p_nr = min_p_nr / np.sum(min_p_nr)
+    # print(np.log10(min_p_nr + 1e-10).astype(int))
     # probabilities to keep a dataset?
     p_keep = np.sum(no_self, axis=0) / no_self.shape[0]
-    return p_nr, p_keep
+    return min_p_nr, p_keep
 
 
 def subsample(tensor, sign_width=128,
