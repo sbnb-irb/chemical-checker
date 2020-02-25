@@ -57,11 +57,12 @@ class DataSignature(object):
         """Get the keys of the signature as a set."""
         return set(self.keys)
 
-    def chunker(self, size=2000):
+    def chunker(self, size=2000, n=None):
         """Iterate on signatures."""
         if not os.path.isfile(self.data_path):
             raise Exception("Data file %s not available." % self.data_path)
-        for i in range(0, self.shape[0], size):
+        if n is None: n = self.shape[0]
+        for i in range(0, n, size):
             yield slice(i, i + size)
 
     @property

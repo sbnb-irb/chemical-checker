@@ -50,6 +50,8 @@ class BaseSignature(object):
     def __init__(self, signature_path, dataset, **params):
         """Initialize or load the signature at the given path."""
         self.dataset = dataset
+        self.cctype = signature_path.split("/")[-1]
+        self.molset = signature_path.split("/")[-5]
         self.signature_path = os.path.abspath(signature_path)
         if sys.version_info[0] == 2:
             if isinstance(self.signature_path, unicode):
