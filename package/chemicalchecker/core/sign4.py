@@ -500,7 +500,7 @@ class sign4(BaseSignature, DataSignature):
                 'VALIDATION: Plot %s distances %s.' % (m, feat_type))
             fig, axes = plt.subplots(
                 3, 2, sharex=True, sharey=True, figsize=(8, 10))
-            dist_unknown = pdist(preds['unk']['ALL'][np.random.choice(len(preds['unk']['ALL']), dist_limit, replace=False)], metric=m)
+            dist_unknown = pdist(preds['unk']['ALL'][np.random.choice(len(preds['unk']['ALL']), min(dist_limit, len(preds['unk']['ALL'])), replace=False)], metric=m)
             mean_d_unknown = np.mean(dist_unknown)
             for ax_row, name in zip(axes, ['Train-Train', 'Train-Test', 'Test-Test']):
                 if name == 'Train-Train':
@@ -510,16 +510,18 @@ class sign4(BaseSignature, DataSignature):
                     metrics['%s_trtr_all' % m] = abs(mean_dist - mean_d_unknown)
                     metrics['%s_trtr_only' % m] = abs(mean_dist - np.mean(dist_only))
                 elif name == 'Train-Test':
-                    dist_all = pdist(np.vstack([preds['tr']['ALL'],preds['ts']['ALL']])[np.random.choice(len(np.vstack([preds['tr']['ALL'], 
-                        preds['ts']['ALL']])), dist_limit, replace=False)], metric=m)
-                    dist_only = pdist(np.vstack([preds['tr']['ONLY-SELF'],preds['ts']['ONLY-SELF']])[np.random.choice(len(np.vstack([preds['tr']['ONLY-SELF'], 
-                        preds['ts']['ONLY-SELF']])), dist_limit, replace=False)], metric=m)
+                    known_all = np.vstack([preds['tr']['ALL'],preds['ts']['ALL']])
+                    dist_all = pdist(known_all[np.random.choice(len(known_all), min(dist_limit, len(known_all)), replace=False)], metric=m)
+                    del known_all
+                    known_only = np.vstack([preds['tr']['ONLY-SELF'],preds['ts']['ONLY-SELF']])
+                    dist_only = pdist(known_only[np.random.choice(len(known_only), min(dist_limit, len(known_only)), replace=False)], metric=m)
+                    del known_only
                     mean_dist = np.mean(dist_all)
                     metrics['%s_trts_all' % m] = abs(mean_dist - mean_d_unknown)
                     metrics['%s_trts_only' % m] = abs(mean_dist - np.mean(dist_only))
                 else:
-                    dist_all = pdist(preds['ts']['ALL'][np.random.choice(len(preds['ts']['ALL']), dist_limit, replace=False)], metric=m)
-                    dist_only = pdist(preds['ts']['ONLY-SELF'][np.random.choice(len(preds['ts']['ONLY-SELF']), dist_limit, replace=False)], metric=m)
+                    dist_all = pdist(preds['ts']['ALL'][np.random.choice(len(preds['ts']['ALL']), min(dist_limit, len(preds['ts']['ALL'])), replace=False)], metric=m)
+                    dist_only = pdist(preds['ts']['ONLY-SELF'][np.random.choice(len(preds['ts']['ONLY-SELF']), min(dist_limit, len(preds['ts']['ALL'])), replace=False)], metric=m)
                     mean_dist = np.mean(dist_all)
                     metrics['%s_tsts' % m] = abs(mean_dist - mean_d_unknown)
                     metrics['%s_tsts_only' % m] = abs(mean_dist - np.mean(dist_only))
