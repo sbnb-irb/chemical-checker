@@ -132,7 +132,7 @@ class DiagnosisPlot(object):
     def image(self, ax=None, title=None):
         ax = self._get_ax(ax)
         results = self.load_diagnosis_pickle("image.pkl")
-        ax.imshow(results["X"], cmap="Spectral", aspect="auto")
+        ax.imshow(results["X"], cmap="viridis", aspect="auto")
         if title is None:
             title = "Image"
         ax.set_ylabel("Keys")
@@ -300,11 +300,17 @@ class DiagnosisPlot(object):
             colors += [coord_color(k)]
             y += [v["keys"]]
             x += [len(v["expl"])]
-        ax.scatter(np.log10(x), np.log10(y), color =colors)
+        x = np.log10(x)
+        y = np.log10(y)
+        ax.scatter(x, y, color =colors)
+        max_x = np.max(x)
+        max_y = np.max(y)
         v = results["MY"]
         y = [v["keys"]]
         x = [len(v["expl"])]
-        ax.scatter(np.log10(x), np.log10(y), color="white", edgecolor="black", s = 80)
+        x = np.log10(x)
+        y = np.log10(y)
+        ax.scatter(x, y, color="white", edgecolor="black", s=80)
         ax.set_xlabel("Latent variables (log10)")
         ax.set_ylabel("Molecules (log10)")
         if title is None:
