@@ -243,7 +243,8 @@ class DiagnosisPlot(object):
         ax = self._get_ax(ax)
         datasets = np.array(datasets)
         values = np.array(values)
-        idxs = np.argsort(-values)
+        idxs = np.array(list(pd.DataFrame({"ds": datasets, "vl": -values}).sort_values(["vl", "ds"]).index)).astype(np.int)
+        #idxs = np.argsort(-values)
         datasets = datasets[idxs]
         values = values[idxs]
         colors = [coord_color(ds) for ds in datasets]
@@ -265,7 +266,7 @@ class DiagnosisPlot(object):
         covs = []
         for k,v in results.items():
             datasets += [k]
-            covs += [v["my_overlap"]]
+            covs += [v["vs_overlap"]]
         ax = self._across(covs, datasets, ax=ax, title=title, exemplary=exemplary, cctype=cctype, molset=molset)
         ax.set_ylabel("Coverage")
         ax.set_ylim(-0.05, 1.05)

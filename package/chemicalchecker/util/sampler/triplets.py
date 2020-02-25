@@ -63,7 +63,7 @@ class TripletSampler(object):
         # Decide how much to sample
         num_samp = int(num_triplets/len(toref_idxs))
         if num_samp == 0:
-            raise Exception("You cannot sample less than number of keys")
+            num_samp = int(num_triplets)
         # Sample from neighbors
         nn = neig_ds.get_h5_dataset("indices")
         triplets = []
