@@ -8,6 +8,8 @@ from chemicalchecker.util.plot.style.util import coord_color, set_style
 import random
 import numpy as np
 import pickle
+import matplotlib as mpl
+from matplotlib import cm
 
 set_style()
 
@@ -39,6 +41,13 @@ class DiagnosisPlot(object):
             return coord_color(self.sign.dataset)
         else:
             return color
+    
+    @staticmethod
+    def _categorical_colors(n):
+        norm = mpl.colors.Normalize(vmin=1.,vmax=n)
+        cmap = cm.get_cmap("tab20b")
+        colors = cmap(norm([i+1 for i in range(0, n)]))
+        return colors
 
     def load_diagnosis_pickle(self, fn):
         with open(os.path.join(self.sign.stats_path, fn), "rb") as f:
@@ -53,6 +62,8 @@ class DiagnosisPlot(object):
             "cosine_distances": "Cosine distance distribution",
             "cross_coverage": "Coverage of another signature",
             "cross_roc": "ROC curve against another signature",
+            "cluster_sizes": "Size of identified clusters",
+            "clusters_projection": "Projection of the clusters",
             "dimensions": "Latent dimensions",
             "euclidean_distances": "Euclidean distance distribution",
             "features_iqr": "IQR of the features values",
@@ -60,6 +71,7 @@ class DiagnosisPlot(object):
             "keys_iqr": "IQR of the keys values",
             "moa_roc": "ROC for the MoA CC space (B1)",
             "projection": "tSNE 2D projection",
+            "redundancy": "Redundant keys",
             "values": "Values distibution of the signature"
         }
         R = []
@@ -141,6 +153,17 @@ class DiagnosisPlot(object):
         ax.grid()
         return ax
 
+    def _proj_lims(self, P):
+        xlim = [np.min(P[:,0]), np.max(P[:,0])]
+        ylim = [np.min(P[:,1]), np.max(P[:,1])]
+        xscale = (xlim[1] - xlim[0])*0.05
+        yscale = (ylim[1] - ylim[0])*0.05
+        xlim[0] -= xscale
+        xlim[1] += xscale
+        ylim[0] -= yscale
+        ylim[1] += yscale
+        return xlim, ylim
+
     def projection(self, ax=None, density=True, color=None, title=None):
         ax = self._get_ax(ax)
         results = self.load_diagnosis_pickle("projection.pkl")
@@ -162,6 +185,9 @@ class DiagnosisPlot(object):
             x = P_focus[:,0]
             y = P_focus[:,1]
             ax.scatter(x, y, edgecolor="black", color="white")
+        xlim, ylim = self._proj_lims(P)
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
         ax.set_xlabel("Dim 1")
         ax.set_ylabel("Dim 2")
         if title is None:
@@ -316,6 +342,79 @@ class DiagnosisPlot(object):
         ax.set_ylabel("Molecules (log10)")
         if title is None:
             title = "Latent dimensions"
+        ax.set_title(title)
+        return ax
+
+    def redundancy(self, ax=None, title=None):
+        ax = self._get_ax(ax)
+        results = self.load_diagnosis_pickle("redundancy.pkl")
+        counts = results["counts"]
+        x = [i+1 for i in range(0, len(counts))]
+        y = [np.log10(c[1]) for c in counts]
+        ax.scatter(x, y, c=y, cmap="Spectral", s=10, zorder=100)
+        if title is None:
+            title = "Redundancy (%.2f)" % (results["n_ref"]/results["n_full"])
+        ax.set_yticks(sorted(set(np.array(ax.get_yticks(), np.int))))
+        ax.set_xlabel("Non-red. keys")
+        ax.set_ylabel("Red. keys (log10)")
+        ax.set_title(title)
+        return ax
+
+    def cluster_sizes(self, ax=None, max_clusters=20, title=None):
+        ax = self._get_ax(ax)
+        results = self.load_diagnosis_pickle("clusters.pkl")
+        y = np.array([r[1] for r in results["lab_counts"] if r[0] != -1]) / results["P"].shape[0]
+        y = np.cumsum(y)
+        x = [i+1 for i in range(0, len(y))]
+        xticks = [1, max_clusters, max_clusters*2]
+        xticklabels = [1, max_clusters, len(x)]
+        # plot first part
+        y_ = y[:max_clusters]
+        x_ = x[:max_clusters]
+        colors = self._categorical_colors(len(x_))
+        ax.scatter(x_,y_, color=colors, zorder=100)
+        ax.axvline(max_clusters, color="gray", lw=1, linestyle="--")
+        # plot second part
+        y_ = y[max_clusters:]
+        xmax = max_clusters*2
+        x_ = list(np.linspace(max_clusters+1/len(y_), xmax, len(y_)))
+        ax.plot(x_, y_, color="gray", zorder=10)
+        # plot outliers
+        ax.plot([xmax, xmax], [np.max(y), 1], lw = 1, color = "red")
+        ax.set_ylim(-0.05, 1.05)
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticklabels)
+        ax.set_xlabel("Clusters")
+        ax.set_ylabel("Prop. of keys")
+        if title is None:
+            title = "Cluster sizes (%d)" % results["n_clusters"]
+        ax.set_title(title)
+        return ax
+
+    def clusters_projection(self, ax=None, max_clusters=20, title=None):
+        ax = self._get_ax(ax)
+        results = self.load_diagnosis_pickle("clusters.pkl")
+        P      = results["P"]
+        labels = results["labels"]
+        labs   = [r[0] for r in results["lab_counts"] if r[0] != -1]
+        labs_  = labs[:max_clusters]
+        colors = self._categorical_colors(len(labs_))
+        for lab, col in zip(labs_, colors):
+            mask = labels == lab
+            ax.scatter(P[mask,0], P[mask,1], color=col, zorder=3)
+        for lab in labs:
+            if lab in labs_: continue
+            mask = labels == lab
+            ax.scatter(P[mask,0], P[mask,1], color="gray", s=1, zorder=2)
+        mask = labels == -1
+        ax.scatter(P[mask,0], P[mask,1], color="red", s=1, zorder=1)
+        xlim, ylim = self._proj_lims(P)
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
+        ax.set_ylabel("Dim 2")
+        ax.set_xlabel("Dim 1")
+        if title is None:
+            title = "Top clusters"
         ax.set_title(title)
         return ax
        
