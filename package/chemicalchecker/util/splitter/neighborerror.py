@@ -132,7 +132,7 @@ class NeighborErrorTraintest(object):
 
     @staticmethod
     def create(to_predict, out_file, predict_fn, subsample_fn,
-               neigbors_matrix=None, shuffle=True,
+               neigbors_matrix=None, shuffle=True, max_x=10000,
                split_names=['train', 'test'], split_fractions=[.8, .2],
                suffix='eval', x_dtype=np.float32, y_dtype=np.float32):
         """Create the HDF5 file with validation splits.
@@ -169,29 +169,35 @@ class NeighborErrorTraintest(object):
             tot_x = features['x'].shape[0]
             if len(neigbors_matrix) != tot_x:
                 raise Exception("neigbors_matrix should be same length as X.")
+            tot_x = min(max_x, tot_x)
             tot_feat = features['x'].shape[1]
             chunk_size = int(np.floor(tot_x / 100))
             X = np.zeros((tot_x, int(tot_feat / 128)))
             Y = np.zeros((tot_x, 1))
             preds_noself = np.zeros((tot_x, 128), dtype=np.float32)
-            preds_onlyself = np.zeros((tot_x, 128), dtype=np.float32)
+            preds_all = np.zeros((tot_x, 128), dtype=np.float32)
 
             # read input in chunks
             for idx in tqdm(range(0, tot_x, chunk_size), desc='Predicting'):
-                chunk = slice(idx, idx + chunk_size)
-                feat = features['x'][chunk]
-                feat_onlyself = subsample_fn(feat, p_only_self=1.0)
-                preds_onlyself[chunk] = predict_fn(feat_onlyself)
-                feat_noself = subsample_fn(feat, p_only_self=0.0, p_self=0.0)
-                preds_noself[chunk] = predict_fn(feat_noself)
-                X[chunk] = (~np.isnan(feat_noself[:, ::128])).astype(int)
+                src_chunk = slice(idx, idx + chunk_size)
+                if idx + chunk_size > tot_x:
+                    src_chunk = slice(idx, tot_x)
+                feat = features['x'][src_chunk]
+                feat_all = subsample_fn(feat)
+                preds_all[src_chunk] = predict_fn(feat_all)
+                feat_noself = subsample_fn(
+                    feat, p_only_self=0.0, p_self=0.0)
+                preds_noself[src_chunk] = predict_fn(feat_noself)
+                X[src_chunk] = (
+                    ~np.isnan(feat_all[:, ::128])).astype(int)
+                print([int(x) for x in X[src_chunk][0]])
             Y = np.expand_dims(row_wise_correlation(
-                robust_scale(preds_onlyself),
+                robust_scale(preds_all),
                 robust_scale(preds_noself)), 1)
 
         # reduce redundancy, keep full-ref mapping
         rnd = RNDuplicates(cpu=10)
-        _, ref_matrix, full_ref_map = rnd.remove(neigbors_matrix)
+        _, ref_matrix, full_ref_map = rnd.remove(neigbors_matrix[:max_x])
         ref_full_map = dict()
         for key, value in full_ref_map.items():
             ref_full_map.setdefault(value, list()).append(key)
