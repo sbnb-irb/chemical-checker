@@ -94,11 +94,8 @@ class sign4(BaseSignature, DataSignature):
         # predictors and parameters to learn error
         n_jobs = params.get('cpu', 4)
         default_err = {
-            'LinearRegression': LinearRegression(
-                n_jobs=n_jobs
-            ),
-            'LinearSVR': LinearSVR(
-                n_jobs=n_jobs),
+            'LinearRegression': LinearRegression(),
+            'LinearSVR': LinearSVR(),
             'RandomForest': RandomForestRegressor(
                 n_estimators=100,
                 min_samples_leaf=5,
@@ -106,10 +103,8 @@ class sign4(BaseSignature, DataSignature):
             ),
             'KNeighborsRegressor': KNeighborsRegressor(
                 n_jobs=n_jobs),
-            'GaussianProcessRegressor': GaussianProcessRegressor(
-                n_jobs=n_jobs),
-            'MLPRegressor': MLPRegressor(
-                n_jobs=n_jobs)
+            'GaussianProcessRegressor': GaussianProcessRegressor(),
+            'MLPRegressor': MLPRegressor()
         }
         default_err.update(params.get('error', {}))
         self.params['error'] = default_err
