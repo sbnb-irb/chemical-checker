@@ -79,8 +79,8 @@ class SiameseTriplets(object):
                 raise Exception('Input data file does not exists!')
 
             # initialize train generator
-            self.sharedx = DataSignature(
-                self.traintest_file).get_h5_dataset('x')
+            traintest_data = DataSignature(self.traintest_file)
+            self.sharedx = traintest_data.get_h5_dataset('x')
             tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
                 self.traintest_file,
                 'train_train',
@@ -95,6 +95,11 @@ class SiameseTriplets(object):
             self.steps_per_epoch = np.ceil(
                 self.tr_shapes[0][0] / self.batch_size)
 
+            # load the scaler
+            if 'scaler' in traintest_data.info_h5:
+                scaler_path = traintest_data.get_h5_dataset('scaler')[0]
+                self.__log.info("Using scaler: %s", scaler_path)
+                self.scaler = pickle.load(open(scaler_path, 'rb'))
         # initialize validation/test generator
         if evaluate:
             val_shape_type_gen = NeighborTripletTraintest.generator_fn(
@@ -486,9 +491,6 @@ class SiameseTriplets(object):
             if self.plot:
                 self._plot_anchor_dist(anchor_file)
 
-    def set_predict_scaler(self, scaler):
-        self.scaler = scaler
-
     def predict(self, input_mat):
         """Do predictions.
 
@@ -501,7 +503,7 @@ class SiameseTriplets(object):
             self.build_model((input_mat.shape[1],), load=True)
         no_nans = np.nan_to_num(input_mat)
         if hasattr(self, 'scaler'):
-            scaled = self.scaler.fit_transform(no_nans)
+            scaled = self.scaler.transform(no_nans)
         else:
             scaled = no_nans
         return self.transformer.predict(scaled)
