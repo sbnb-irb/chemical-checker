@@ -420,10 +420,8 @@ class sign4(BaseSignature, DataSignature):
             test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks))[:1000]
             train_idxs.sort()
             test_idxs.sort()
-            tr_nn_idxs = np.argwhere(
-                np.isin(self.neig_matrix.keys, train_inks)).reshape(4000,)
-            ts_nn_idxs = np.argwhere(
-                np.isin(self.neig_matrix.keys, test_inks)).reshape(1000,)
+            tr_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, train_inks)).reshape(len(train_inks),)
+            ts_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, test_inks)).reshape(len(test_inks),)
 
         # 6.6 GB - 3.4GB = 3.2 GB
         # predict
@@ -597,8 +595,8 @@ class sign4(BaseSignature, DataSignature):
             NN_neig = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
             NN_dis = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
             for idx, row in enumerate(neig_idx):
-                NN_neig[idx] = row[np.argwhere(row != idx).flatten()]
-                NN_dis[idx] = neig_dis[idx][np.argwhere(row != idx).flatten()]
+                NN_neig[idx] = row[np.argwhere(row != idx).flatten()][:NN_neig.shape[1]]
+                NN_dis[idx] = neig_dis[idx][np.argwhere(row != idx).flatten()][:NN_dis.shape[1]]
             unk_neig_dist = False
             if unk_data.any():
                 unk_neig_dist, _ = NN.search(unk_data.astype(np.float32), 5)
@@ -862,32 +860,46 @@ class sign4(BaseSignature, DataSignature):
         middle = int(np.ceil(len(ts_idx) / 2))
         ts_all = preds['ts']['ALL'][ts_idx[:middle]]
         ts_not = preds['ts']['NOT-SELF'][ts_idx[middle:]]
-        for ax, name in zip(axes, ['TSNE', 'PCA']):
-            if name == 'TSNE':
-                proj_model = MulticoreTSNE(n_components=2)
-            else:
-                proj_model = PCA(n_components=2)
-            proj_train = np.vstack([
-                tr_all,
-                tr_not,
-                ts_all,
-                ts_not
-            ])
-            proj = proj_model.fit_transform(proj_train)
-            p_tr_all = proj[:len(tr_all)]
-            p_tr_not = proj[len(tr_all):len(tr_all) + len(tr_not)]
-            p_ts_all = proj[len(tr_all) + len(tr_not):len(tr_all) + len(tr_not) + len(ts_all)]
-            p_ts_not = proj[-len(ts_not):]
-            ax.set_title(name + ' ALL vs NOT-SELF')
-            ax.scatter(p_tr_all[:, 0], p_tr_all[:, 1],
-                       alpha=.9, label='tr ALL', s=2)
-            ax.scatter(p_tr_not[:, 0], p_tr_not[:, 1],
-                       alpha=.9, label='tr NOT-SELF', s=2)
-            ax.scatter(p_ts_all[:, 0], p_ts_all[:, 1],
-                       alpha=.9, label='ts ALL', s=2)
-            ax.scatter(p_ts_not[:, 0], p_ts_not[:, 1],
-                       alpha=.9, label='ts NOT-SELF', s=2)
-            ax.legend()
+
+        fig, axes = plt.subplots(2, 2, figsize=(15, 15))
+        axes = axes.flatten()
+        proj_model = MulticoreTSNE(n_components=2)
+        proj_train = np.vstack([
+                    tr_all,
+                    tr_not,
+                    ts_all,
+                    ts_not
+                    ])
+        proj = proj_model.fit_transform(proj_train)
+
+        axes[0].set_title('TSNE tr ALL', fontsize=15)
+        p = proj[:len(tr_all)]
+        p_esle = proj[len(tr_all):]
+        axes[0].scatter(p_esle[:, 0], p_esle[:, 1], color='grey', s=20)
+        axes[0].scatter(p[:, 0], p[:, 1], label='tr ALL', s=20)
+        axes[0].legend()
+
+        axes[1].set_title('TSNE tr NOT-SELF', fontsize=15)
+        p = proj[len(tr_all):len(tr_all)+len(tr_not)]
+        p_esle = np.vstack([proj[:len(tr_all)], proj[len(tr_all)+len(tr_not):]])
+        axes[1].scatter(p_esle[:, 0], p_esle[:, 1], color='grey', s=20)
+        axes[1].scatter(p[:, 0], p[:, 1], label='tr NOT-SELF', s=20, color='orange')
+        axes[1].legend()
+
+        axes[2].set_title('TSNE ts ALL', fontsize=15)
+        p = proj[len(tr_all)+len(tr_not):len(tr_all)+len(tr_not)+len(ts_all)]
+        p_esle = np.vstack([proj[:len(tr_all)+len(tr_not)], proj[-len(ts_not):]])
+        axes[2].scatter(p_esle[:, 0], p_esle[:, 1], color='grey', s=20)
+        axes[2].scatter(p[:, 0], p[:, 1], label='tr NOT-SELF', s=20, color='green')
+        axes[2].legend()
+
+        axes[3].set_title('TSNE ts NOT-SELF', fontsize=15)
+        p = proj[-len(ts_not):]
+        p_esle = proj[:-len(ts_not):]
+        axes[3].scatter(p_esle[:, 0], p_esle[:, 1], color='grey', s=20)
+        axes[3].scatter(p[:, 0], p[:, 1], label='tr NOT-SELF', s=20, color='red')
+        axes[3].legend()
+
         plot_file = os.path.join(
             siamese.model_dir, '%s_proj_2.png' % fname)
         plt.savefig(plot_file)
