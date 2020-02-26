@@ -405,18 +405,15 @@ class sign4(BaseSignature, DataSignature):
             if len(unknown_idxs) > 50000:
                 unknown_idxs = np.random.choice(
                     len(unknown_idxs), 50000, replace=False)
-            unknown_idxs.sort()
             # get train and test idxs
             all_inchikeys = self.get_universe_inchikeys()
             traintest = DataSignature(traintest_file)
             train_inks = traintest.get_h5_dataset('keys_train')[:4000]
             test_inks = traintest.get_h5_dataset('keys_test')[:1000]
-            train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks))[:4000]
-            test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks))[:1000]
-            train_idxs.sort()
-            test_idxs.sort()
-            tr_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, train_inks)).reshape(len(train_inks),)
-            ts_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, test_inks)).reshape(len(test_inks),)
+            train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks)).flatten()
+            test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks)).flatten()
+            tr_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, train_inks)).flatten()
+            ts_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, test_inks)).flatten()
 
         # 6.6 GB - 3.4GB = 3.2 GB
         # predict
