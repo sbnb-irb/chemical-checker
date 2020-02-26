@@ -2,8 +2,10 @@ import numpy as np
 import random
 import pickle
 import os
+import collections
 from chemicalchecker.util import logged
 from chemicalchecker.util.plot import DiagnosisPlot
+from sklearn.neighbors import NearestNeighbors
 
 
 @logged
@@ -45,6 +47,11 @@ class Diagnosis(object):
             return False
         else:
             return True
+
+    def _load_diagnosis_pickle(self, fn):
+        with open(os.path.join(self.sign.stats_path, fn), "rb") as f:
+            results = pickle.load(f)
+        return results
 
     def _returner(self, results, fn, save, plot, plotter_function, kw_plotter=None):
         if results is None:
@@ -232,7 +239,6 @@ class Diagnosis(object):
             if r["inter"] < n_neighbors:
                 self.__log.warning("Not enough shared molecules")
                 return None
-            from sklearn.neighbors import NearestNeighbors
             from sklearn.metrics import roc_curve, auc
             import random
             # apply mappings if necessary
@@ -316,7 +322,7 @@ class Diagnosis(object):
                 max_keys(int): Maximum number of keys to include in the projection (default=10000).
         """
         self.__log.debug("Projection")
-        from sklearn.manifold import TSNE
+        from MulticoreTSNE import MulticoreTSNE as TSNE
         fn = "projection"
         if self._todo(fn):
             if focus_keys is not None:
@@ -628,6 +634,109 @@ class Diagnosis(object):
             save = self.save,
             plot = self.plot,
             plotter_function = self.plotter.moa_roc)
+
+    def redundancy(self):
+        self.__log.debug("Redundancy")
+        fn = "redundancy"
+        if self._todo(fn):
+            sign_ref = self.sign.get_molset("reference")
+            mappings = sign_ref.get_h5_dataset("mappings")
+            mps = []
+            for i in range(0, mappings.shape[0]):
+                mps += [(mappings[i,0].decode(), mappings[i,1].decode())]
+            mps = np.array(mps)
+            n_full = mps.shape[0]
+            n_ref  = len(set(mps[:,1]))
+            red_counts = collections.defaultdict(int)
+            for i in range(0, mps.shape[0]):
+                red_counts[mps[i,1]] += 1
+            red_counts = [(k, v) for k, v in sorted(red_counts.items(), key=lambda item: -item[1])]
+            results = {
+                "n_full": n_full,
+                "n_ref": n_ref,
+                "counts": red_counts
+            }
+        else:
+            results = None
+        return self._returner(
+            results = results,
+            fn = fn,
+            save = self.save,
+            plot = self.plot,
+            plotter_function = self.plotter.redundancy)
+
+    def _cluster(self, expected_coverage, n_neighbors, min_samples):
+        self.__log.debug("Clustering")
+        from sklearn.cluster import DBSCAN
+        from sklearn import metrics
+        self.__log.debug("Clustering")
+        if self._todo("projection"):
+            plot = self.plot
+            save = self.save
+            self.plot = False
+            self.save = True
+            self.projection()
+            self.plot = plot
+            self.save = save
+        P = self._load_diagnosis_pickle("projection.pkl")["P"]
+        min_samples = int(np.max([np.min([P.shape[0]*0.01, min_samples]), 5]))
+        self.__log.debug("Estimating epsilon")
+        nn = NearestNeighbors(n_neighbors+1)
+        nn.fit(P)
+        dists = nn.kneighbors(P)[0][:,n_neighbors]
+        h = np.histogram(dists, bins="auto")
+        y = np.cumsum(h[0])/np.sum(h[0])
+        x = h[1][1:]
+        eps = x[np.where(y > expected_coverage)[0][0]]
+        self.__log.debug("Running DBSCAN")
+        cl = DBSCAN(eps=eps, min_samples=min_samples).fit(P)
+        labels = cl.labels_
+        n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+        n_noise_ = list(labels).count(-1)
+        silhouette = metrics.silhouette_score(P, labels)
+        lab_counts = collections.defaultdict(int)
+        for lab in labels:
+            lab_counts[lab] += 1
+        lab_counts = [(k, v) for k, v in sorted(lab_counts.items(), key=lambda item: -item[1])]
+        results = {
+            "P": P,
+            "min_samples": min_samples,
+            "labels": labels,
+            "lab_counts": lab_counts,
+            "epsilon": eps,
+            "n_clusters": n_clusters_,
+            "n_noise": n_noise_,
+            "silhouette": silhouette
+        }
+        return results
+        
+    def clusters_projection(self, expected_coverage=0.95, n_neighbors=5, min_samples=10):
+        self.__log.debug("Projection clusters")
+        fn = "clusters"
+        if self._todo(fn):
+            results = self._cluster(expected_coverage, n_neighbors, min_samples)
+        else:
+            results = None
+        return self._returner(
+            results = results,
+            fn = fn,
+            save = self.save,
+            plot = self.plot,
+            plotter_function = self.plotter.clusters_projection)
+
+    def cluster_sizes(self, expected_coverage=0.95, n_neighbors=5, min_samples=10):
+        self.__log.debug("Cluster sizes")
+        fn = "clusters"
+        if self._todo(fn):
+            results = self._cluster(expected_coverage, n_neighbors, min_samples)
+        else:
+            results = None
+        return self._returner(
+            results = results,
+            fn = fn,
+            save = self.save,
+            plot = self.plot,
+            plotter_function = self.plotter.cluster_sizes)
 
     def available(self):
         return self.plotter.available()
