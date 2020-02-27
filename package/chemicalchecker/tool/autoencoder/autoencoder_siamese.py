@@ -8,7 +8,7 @@ import json
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.layers import Input, Dense
 from chemicalchecker.util import logged
-from chemicalchecker.util.splitter import Traintest
+from chemicalchecker.util.splitter import AE_SiameseTraintest
 from chemicalchecker.core.signature_data import DataSignature
 
 import matplotlib
@@ -48,7 +48,16 @@ class CustomRegularization(tf.keras.layers.Layer):
         z1 = x[2]
         z2 = x[3]
 
-        loss = self.latent_loss(x1, x2, z1, z2, batch_size)
+        mask_value = 0.0
+        nan_idxs = tf.is_nan(x1)
+        replace = tf.ones_like(x1) * mask_value
+        x1_masked = tf.where(nan_idxs, replace, x1)
+
+        nan_idxs = tf.is_nan(x2)
+        replace = tf.ones_like(x2) * mask_value
+        x2_masked = tf.where(nan_idxs, replace, x2)
+
+        loss = self.latent_loss(x1_masked, x2_masked, z1, z2, batch_size)
         self.add_loss(loss, x)
         # you can output whatever you need, just update output_shape adequately
         # But this is probably useful
@@ -98,12 +107,11 @@ class AutoEncoderSiamese:
         self.activation_last = kwargs.get("activation_last", tf.nn.tanh)
         self.epochs = int(kwargs.get("epochs", 200))
         self.dropout_rate = float(kwargs.get("dropout_rate", 0.2))
-        self.shuffle = kwargs.get("shuffle", False)
+        self.shuffle = kwargs.get("shuffle", True)
         self.gpu = kwargs.get("gpu", False)
         self.mask_value = kwargs.get("mask_value", None)
         self.cpu = kwargs.get("cpu", 32)
-        self.shuffles = 10
-        self.random_seed = 42
+        self.input_dataset = kwargs.get("input_dataset", 'x')
 
         self.autoencoder_model_file = os.path.join(
             self.models_path, "autoencoder.h5")
@@ -124,8 +132,45 @@ class AutoEncoderSiamese:
         """
         self.data_path = data_path
 
+        if not os.path.isfile(self.data_path) or self.data_path[-3:] != '.h5':
+            raise Exception("Input data needs to be a H5 file")
+
+        self.traintest_file = os.path.join(self.models_path, 'traintest.h5')
+
+        with h5py.File(data_path, 'r') as hf:
+            if self.input_dataset not in hf.keys():
+                raise Exception(
+                    "Input data file needs to have a dataset called " + self.input_dataset)
+
+            if self.mask_value is not None:
+                # size = hf[self.input_dataset].shape[0]
+                # chunk_size = 1000
+                # self.mask_value = np.zeros(hf['x'].shape[1])
+                # for i in range(0, size, chunk_size):
+                #     chunk = slice(i, i + chunk_size)
+                #     self.mask_value += np.nansum(hf['x'][chunk], axis=0)
+
+                # self.mask_value = self.mask_value / float(size)
+                self.mask_value = np.nanmean(hf[self.input_dataset][:], axis=0)
+                self.__log.debug(self.mask_value)
+
+        if not os.path.isfile(self.traintest_file):
+            AE_SiameseTraintest.split_h5_blocks(self.data_path, self.traintest_file, split_names=[
+                'train', 'test'], split_fractions=[.8, .2], input_datasets=[self.input_dataset])
+
+        (x_shape, y_shape), dtypes, generator_fn_train = AE_SiameseTraintest.generator_fn(
+            self.traintest_file, 'train', self.batch_size, shuffle=self.shuffle)
+
+        steps_per_epoch = int(np.ceil(x_shape[0] / self.batch_size))
+        self.input_dimension = x_shape[1]
+
+        (x_shape, y_shape), dtypes, generator_fn_test = AE_SiameseTraintest.generator_fn(
+            self.traintest_file, 'test', self.batch_size, shuffle=False)
+
+        steps_per_epoch_val = int(np.ceil(x_shape[0] / self.batch_size))
+
         if self.gpu:
-            print("Running on GPUs")
+            self.__log.debug("Running on GPUs")
             config = tf.ConfigProto(device_count={'GPU': 1})
 
         else:
@@ -137,42 +182,8 @@ class AutoEncoderSiamese:
         session = tf.Session(config=config)
         K.set_session(session)
 
-        if not os.path.isfile(self.data_path) or self.data_path[-3:] != '.h5':
-            raise Exception("Input data needs to be a H5 file")
-
-        self.traintest_file = os.path.join(self.models_path, 'traintest.h5')
-
-        with h5py.File(data_path, 'r') as hf:
-            if 'x' not in hf.keys():
-                raise Exception(
-                    "Input data file needs to have a dataset called 'x'")
-
-        if not os.path.isfile(self.traintest_file):
-            Traintest.split_h5_blocks_siamese(self.data_path, self.traintest_file, split_names=[
-                'train', 'test'], split_fractions=[.8, .2], datasets=['x'])
-
-            with h5py.File(self.traintest_file, 'r+') as hf:
-                hf["y_left_train"] = h5py.SoftLink('/x_left_train')
-                hf["y_left_test"] = h5py.SoftLink('/x_left_test')
-                hf["y_right_train"] = h5py.SoftLink('/x_right_train')
-                hf["y_right_test"] = h5py.SoftLink('/x_right_test')
-
-        with h5py.File(self.traintest_file, 'r') as hf:
-
-            x_ds = 'x_left_train'
-            self.input_dimension = hf[x_ds].shape[1]
-
-            self.train_size = hf[x_ds].shape[0]
-            self.test_size = hf["x_left_test"].shape[0]
-
         input_dim_left = Input(shape=(self.input_dimension, ))
         input_dim_right = Input(shape=(self.input_dimension, ))
-
-        if self.mask_value is not None:
-            print("mask value is not none")
-            self.loss = self.filtered_loss_function
-            input_dim_left = NanMaskingLayer()(input_dim_left)
-            input_dim_right = NanMaskingLayer()(input_dim_right)
 
         if self.input_dimension <= self.encoding_dim:
             raise Exception("Input dimension smaller than desired reduction")
@@ -184,22 +195,26 @@ class AutoEncoderSiamese:
         # space
         reduc_rate = np.floor(self.input_dimension / self.encoding_dim)
 
-        self.num_middle_layers = np.ceil(reduc_rate / 2)
+        self.num_middle_layers = int(np.ceil(reduc_rate / 2))
+
+        if self.num_middle_layers == 1:
+            self.num_middle_layers += 1
 
         layer_sizes = np.linspace(
             self.input_dimension, self.encoding_dim, self.num_middle_layers + 1)[1:]
 
         self.__log.debug("Num of layers: %d" % len(layer_sizes))
 
-        self.encoder = Dense(self.encoding_dim, activation=self.activation)
         encoder_net = Sequential()
 
+        if self.mask_value is not None:
+            self.__log.debug("mask value is not none")
+            self.loss = self.filtered_loss_function
+            encoder_net.add(NanMaskingLayer(mask_value=self.mask_value))
+
         for i, layer_size in enumerate(layer_sizes):
-            if i == len(layer_sizes):
-                encoder_net.add(self.encoder)
-            else:
-                encoder_net.add(
-                    Dense(int(layer_size), activation=self.activation))
+            encoder_net.add(
+                Dense(int(layer_size), activation=self.activation))
 
         self.encoded_left = encoder_net(input_dim_left)
         self.encoded_right = encoder_net(input_dim_right)
@@ -231,11 +246,10 @@ class AutoEncoderSiamese:
 
         self.autoencoder_model.summary()
 
-        history = self.autoencoder_model.fit(self.generator_fn("train"), epochs=self.epochs,
-                                             shuffle=self.shuffle, steps_per_epoch=self.train_size / self.batch_size,
-                                             validation_data=self.generator_fn(
-                                                 "test"),
-                                             validation_steps=self.test_size / self.batch_size)
+        history = self.autoencoder_model.fit_generator(generator_fn_train(), epochs=self.epochs,
+                                                       steps_per_epoch=steps_per_epoch,
+                                                       validation_data=generator_fn_test(),
+                                                       validation_steps=steps_per_epoch_val)
 
         self.autoencoder_model.save(self.autoencoder_model_file)
         encoder_net.save(self.encoder_model_file)
@@ -243,6 +257,10 @@ class AutoEncoderSiamese:
         json_data = {}
         json_data["layer_sizes"] = layer_sizes.tolist()
         json_data["input_dimension"] = self.input_dimension
+        if self.mask_value is not None:
+            json_data["mask_value"] = self.mask_value.tolist()
+        else:
+            json_data["mask_value"] = None
 
         with open(self.encoder_model_file_json, 'w') as outfile:
             json.dump(json_data, outfile)
@@ -264,18 +282,16 @@ class AutoEncoderSiamese:
             json_data = json.load(json_file)
 
         input_dim = Input(shape=(json_data["input_dimension"], ))
-        if self.mask_value is not None:
-            print("mask value is not none")
-            input_dim = NanMaskingLayer()(input_dim)
-        encoder_loaded = Dense(self.encoding_dim, activation=self.activation)
         encoder_net_loaded = Sequential()
+        if json_data["mask_value"] is not None:
+            self.__log.debug("mask value is not none")
+            encoder_net_loaded.add(NanMaskingLayer(
+                np.asarray(json_data["mask_value"])))
 
         for i, layer_size in enumerate(json_data["layer_sizes"]):
-            if i == len(json_data["layer_sizes"]):
-                encoder_net_loaded.add(encoder_loaded)
-            else:
-                encoder_net_loaded.add(
-                    Dense(int(layer_size), activation=self.activation))
+
+            encoder_net_loaded.add(
+                Dense(int(layer_size), activation=self.activation))
 
         encoder_net_loaded(input_dim)
         encoder_net_loaded.load_weights(self.encoder_model_file)
@@ -298,39 +314,6 @@ class AutoEncoderSiamese:
                     hf[input_dataset][chunk])
 
         return encoded_data
-
-    def generator_fn(self, split):
-        """Generate an input function for the Estimator.
-
-        Args:
-            split(str): the split to use within the traintest file.
-        """
-        # get shapes, dtypes, and generator function
-        # (x_shape_left, y_shape_left), (x_shape_right, y_shape_right), dtypes_left, dtypes_right, generator_fn = Traintest.generator_fn_siamese(
-        #     self.traintest_file, split, self.batch_size)
-
-        (x_shape, y_shape), dtypes, generator_fn = Traintest.generator_fn(
-            self.traintest_file, split, self.batch_size, siamese=True)
-        # create dataset object
-        dataset = tf.data.Dataset.from_generator(
-            generator_fn,
-            output_types=(dtypes[0], dtypes[0]),
-            output_shapes=(tf.TensorShape(
-                [None, x_shape[1]]), tf.TensorShape([None, y_shape[1]]))
-
-        )
-
-        return tf.data.Dataset.zip((dataset, dataset)).repeat()
-        # return iterator
-
-    def masked_mse(self, mask_value):
-        def f(y_true, y_pred):
-            mask_true = K.cast(K.not_equal(y_true, mask_value), K.floatx())
-            masked_squared_error = K.square(mask_true * (y_true - y_pred))
-            masked_mse = K.sum(masked_squared_error, axis=-
-                               1) / K.maximum(K.sum(mask_true, axis=-1), 1)
-            return masked_mse
-        return f
 
     def filtered_loss_function(self, y_true, y_pred):
         nans = tf.is_nan(y_true)
