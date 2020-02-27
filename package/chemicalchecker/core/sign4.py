@@ -425,7 +425,7 @@ class sign4(BaseSignature, DataSignature):
         self.__log.info(
             'VALIDATION: Plot correlations %s.' % feat_type)
         fig, axes = plt.subplots(
-            1, 3, sharex=True, sharey=True, figsize=(10, 3))
+            1, 3, sharex=True, sharey=False, figsize=(10, 3))
         combos = itertools.combinations(mask_fns, 2)
         for ax, (n1, n2) in zip(axes.flatten(), combos):
             corrs = row_wise_correlation(known_pred[n1], known_pred[n2])

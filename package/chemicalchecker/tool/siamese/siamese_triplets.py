@@ -276,10 +276,9 @@ class SiameseTriplets(object):
             r = r_num / r_den
             return K.mean(r)
 
-        def accO(y_true, y_pred):
+        def corr(y_true, y_pred):
             anchor, positive, negative, only_self = split_output(y_pred)
-
-
+            #
             return pearson_r(anchor, only_self)
 
         metrics = [
@@ -287,7 +286,7 @@ class SiameseTriplets(object):
             accE,
             accM,
             accH,
-            accO
+            corr
         ]
 
         def tloss(y_true, y_pred):
@@ -327,7 +326,7 @@ class SiameseTriplets(object):
         def only_self_loss(y_true, y_pred):
             def only_self_regularization(y_pred):
                 anchor, positive, negative, only_self = split_output(y_pred)
-                return cosine_proximity(anchor, only_self)
+                return 1- K.sum(anchor * only_self, axis=-1)# mean_squared_error(anchor, only_self)
 
             loss = orthogonal_tloss(y_true, y_pred)
             o_self = only_self_regularization(y_pred)
