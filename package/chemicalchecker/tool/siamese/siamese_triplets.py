@@ -274,7 +274,7 @@ class SiameseTriplets(object):
         ]
 
         def tloss(y_true, y_pred):
-            anchor, positive, negative = split_output(y_pred)
+            anchor, positive, negative, _ = split_output(y_pred)
 
             pos_dist = K.sum(K.square(anchor - positive), axis=1)
             neg_dist = K.sum(K.square(anchor - negative), axis=1)
@@ -285,7 +285,7 @@ class SiameseTriplets(object):
             return loss
 
         def bayesian_tloss(y_true, y_pred):
-            anchor, positive, negative = split_output(y_pred)
+            anchor, positive, negative, _ = split_output(y_pred)
 
             loss = 1.0 - K.sigmoid(
                 K.sum(anchor * positive, axis=-1, keepdims=True) -
@@ -295,7 +295,7 @@ class SiameseTriplets(object):
 
         def orthogonal_tloss(y_true, y_pred):
             def global_orthogonal_regularization(y_pred):
-                anchor, positive, negative = split_output(y_pred)
+                anchor, positive, negative, _ = split_output(y_pred)
 
                 neg_dis = K.sum(anchor * negative, axis=1)
                 dim = K.int_shape(y_pred)[1]
