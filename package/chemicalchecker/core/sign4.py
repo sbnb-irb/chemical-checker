@@ -263,10 +263,10 @@ class sign4(BaseSignature, DataSignature):
             self.save_sign2_matrix(self.sign2_list, sign2_matrix)
         # if evaluating, perform the train-test split
         traintest_file = params.get('traintest_file')
+        X = DataSignature(sign2_matrix)
         if evaluate:
             num_triplets = params.get('num_triplets', 1e6)
             if not reuse or not os.path.isfile(traintest_file):
-                X = DataSignature(sign2_matrix)
                 NeighborTripletTraintest.create(
                     X, traintest_file, self.neig_sign,
                     split_names=['train', 'test'],
@@ -276,7 +276,6 @@ class sign4(BaseSignature, DataSignature):
         else:
             num_triplets = params.get('num_triplets', 1e6)
             if not reuse or not os.path.isfile(traintest_file):
-                X = DataSignature(sign2_matrix)
                 NeighborTripletTraintest.create(
                     X, traintest_file, self.neig_sign,
                     split_names=['train'],
@@ -329,7 +328,7 @@ class sign4(BaseSignature, DataSignature):
         intensities, stddevs, consensus = self.conformal_prediction(
             siamese, known_x)
         # get prediction with only self
-        self_preds = siamese.predict(mask_keep([self.dataset_idx], known_x))
+        self_preds = siamese.predict(mask_keep(self.dataset_idx, known_x))
         # get correlation between prediction and only self predictions
         accuracies = row_wise_correlation(preds, self_preds, scaled=True)
         know_dist_file = os.path.join(self.model_path, 'known_dist.h5')
@@ -1272,7 +1271,8 @@ class sign4(BaseSignature, DataSignature):
             self.save_sign2_matrix(self.sign2_list, sign2_matrix)
 
         # update the subsampling function
-        dataset_idx = np.argwhere(np.isin(self.src_datasets, ds)).flatten()
+        dataset_idx = np.argwhere(np.isin(self.src_datasets,
+                                          self.dataset)).flatten()
         p_nr, p_keep = subsampling_probs(self.sign2_coverage, dataset_idx)
         subsample_fn = partial(subsample, dataset_idx=dataset_idx,
                                p_nr=p_nr, p_keep=p_keep)
