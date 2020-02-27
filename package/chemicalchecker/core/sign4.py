@@ -314,8 +314,171 @@ class sign4(BaseSignature, DataSignature):
             # update the parameters with the new nr_of epochs
             self.params['sign2']['epochs'] = siamese.last_epoch
 
-    def plot_validations(self, siamese, dataset_idx, traintest_file,
-                         chunk_size=10000, limit=1000, dist_limit=1000):
+    def plot_validations(self, siamese, dataset_idx, chunk_size=10000,
+                         limit=1000, dist_limit=1000):
+        def mask_keep(idxs, x1_data):
+            # we will fill an array of NaN with values we want to keep
+            x1_data_transf = np.zeros_like(x1_data, dtype=np.float32) * np.nan
+            for idx in idxs:
+                # copy column from original data
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x1_data_transf[:, col_slice] = x1_data[:, col_slice]
+            # keep rows containing at least one not-NaN value
+            not_nan = np.isfinite(x1_data_transf).any(axis=1)
+            x1_data_transf = x1_data_transf[not_nan]
+            return x1_data_transf
+
+        def mask_exclude(idxs, x1_data):
+            x1_data_transf = np.copy(x1_data)
+            for idx in idxs:
+                # set current space to nan
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x1_data_transf[:, col_slice] = np.nan
+            # drop rows that only contain NaNs
+            not_nan = np.isfinite(x1_data_transf).any(axis=1)
+            x1_data_transf = x1_data_transf[not_nan]
+            return x1_data_transf
+
+        def no_mask(idxs, x1_data):
+            return x1_data
+
+        def row_wise_correlation(X, Y):
+            var1 = (X.T - np.mean(X, axis=1)).T
+            var2 = (Y.T - np.mean(Y, axis=1)).T
+            cov = np.mean(var1 * var2, axis=1)
+            return cov / (np.std(X, axis=1) * np.std(Y, axis=1))
+
+        from MulticoreTSNE import MulticoreTSNE
+        from sklearn.decomposition import PCA
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        import itertools
+        from sklearn.preprocessing import robust_scale
+
+        mask_fns = {
+            'ALL': partial(no_mask, dataset_idx),
+            'NOT-SELF': partial(mask_exclude, dataset_idx),
+            'ONLY-SELF': partial(mask_keep, dataset_idx),
+        }
+
+        # get molecules where space is available
+        if self.sign2_coverage is None:
+            self.__log.info('VALIDATION: fetching Xs.')
+            known = list()
+            unknown = list()
+            enough_known = False
+            enough_unknown = False
+            with h5py.File(self.sign2_universe, "r") as features:
+                # read input in chunks
+                for idx in range(0, features['x_test'].shape[0], chunk_size):
+                    chunk = slice(idx, idx + chunk_size)
+                    feat = features['x_test'][chunk]
+                    nan_ds = np.isnan(feat[:, dataset_idx[0] * 128])
+                    if len(known) < limit:
+                        chunk_known = feat[~nan_ds]
+                        if len(chunk_known) == 0:
+                            continue
+                        known.extend(chunk_known)
+                    else:
+                        enough_known = True
+                    if len(unknown) < limit:
+                        chunk_unknown = feat[nan_ds]
+                        if len(chunk_unknown) == 0:
+                            continue
+                        unknown.extend(chunk_unknown)
+                    else:
+                        enough_unknown = True
+                    if enough_known and enough_unknown:
+                        break
+            known = np.vstack(known[:limit])
+            unknown = np.vstack(unknown[:limit])
+        else:
+            cov = DataSignature(self.sign2_coverage).get_h5_dataset('V')
+            known_idxs = np.argwhere(cov[:, dataset_idx[0]] == 1).flatten()
+            unknown_idxs = np.argwhere(cov[:, dataset_idx[0]] == 0).flatten()
+            self.__log.info('VALIDATION: total %s known, %s unknown' %
+                            (known_idxs.shape[0], unknown_idxs.shape[0]))
+            full_x = DataSignature(self.sign2_universe)
+            known = full_x.get_h5_dataset(
+                'x_test', mask=known_idxs[:limit])
+            unknown = full_x.get_h5_dataset(
+                'x_test', mask=unknown_idxs[:limit])
+
+        feat_type = 'continuos'
+
+        # predict
+        self.__log.info('VALIDATION: Predicting.')
+        known_pred = dict()
+        unknown_pred = dict()
+        for name, mask_fn in mask_fns.items():
+            known_pred[name] = siamese.predict(mask_fn(known))
+            if name == 'ONLY-SELF':
+                unknown_pred[name] = []
+            else:
+                unknown_pred[name] = siamese.predict(mask_fn(unknown))
+
+        self.__log.info(known_pred['ALL'][0])
+        self.__log.info(unknown_pred['ALL'][0])
+
+        fname = '%s_known_unknown' % feat_type
+
+        self.__log.info(
+            'VALIDATION: Plot correlations %s.' % feat_type)
+        fig, axes = plt.subplots(
+            1, 3, sharex=True, sharey=True, figsize=(10, 3))
+        combos = itertools.combinations(mask_fns, 2)
+        for ax, (n1, n2) in zip(axes.flatten(), combos):
+            corrs = row_wise_correlation(known_pred[n1], known_pred[n2])
+            scaled_corrs = row_wise_correlation(
+                robust_scale(known_pred[n1]),
+                robust_scale(known_pred[n2]))
+            sns.distplot(corrs, label='%s %s' % (n1, n2), ax=ax)
+            sns.distplot(scaled_corrs, label='scaled %s %s' %
+                         (n1, n2), ax=ax)
+            ax.legend()
+        plot_file = os.path.join(siamese.model_dir,
+                                 '%s_correlations.png' % fname)
+        plt.savefig(plot_file)
+        plt.close()
+
+        self.__log.info(
+            'VALIDATION: Plot euclidean distances %s.' % feat_type)
+        fig, axes = plt.subplots(
+            1, 3, sharex=True, sharey=True, figsize=(10, 3))
+        for ax, name in zip(axes.flatten(), mask_fns):
+            ax.set_title(name)
+            dist_known = pdist(known_pred[name][:dist_limit])
+            sns.distplot(dist_known, label='known', ax=ax)
+            if len(unknown_pred[name]) > 0:
+                dist_unknown = pdist(unknown_pred[name][:dist_limit])
+                sns.distplot(dist_unknown, label='unknown', ax=ax)
+            ax.legend()
+        plot_file = os.path.join(siamese.model_dir,
+                                 '%s_dists_euclidean.png' % fname)
+        plt.savefig(plot_file)
+        plt.close()
+
+        self.__log.info(
+            'VALIDATION: Plot cosine distances %s.' % feat_type)
+        fig, axes = plt.subplots(
+            1, 3, sharex=True, sharey=True, figsize=(10, 3))
+        for ax, name in zip(axes.flatten(), mask_fns):
+            ax.set_title(name)
+            dist_known = pdist(known_pred[name][:dist_limit],
+                               metric='cosine')
+            sns.distplot(dist_known, label='known', ax=ax)
+            if len(unknown_pred[name]) > 0:
+                dist_unknown = pdist(unknown_pred[name][:dist_limit],
+                                     metric='cosine')
+                sns.distplot(dist_unknown, label='unknown', ax=ax)
+            ax.legend()
+        plot_file = os.path.join(siamese.model_dir,
+                                 '%s_dists_cosine.png' % fname)
+        plt.savefig(plot_file)
+        plt.close()
+
+    def plot_validations_2(self, siamese, dataset_idx, traintest_file,
+                           chunk_size=10000, limit=1000, dist_limit=1000):
         def mask_keep(idxs, x1_data):
             # we will fill an array of NaN with values we want to keep
             x1_data_transf = np.zeros_like(x1_data, dtype=np.float32) * np.nan
@@ -400,7 +563,6 @@ class sign4(BaseSignature, DataSignature):
             # get known and unknown idxs
             cov = DataSignature(self.sign2_coverage).get_h5_dataset('V')
             unknown_idxs = np.argwhere(cov[:, dataset_idx[0]] == 0).flatten()
-            full_x = DataSignature(self.sign2_universe)
 
             if len(unknown_idxs) > 50000:
                 unknown_idxs = np.random.choice(
@@ -410,13 +572,19 @@ class sign4(BaseSignature, DataSignature):
             traintest = DataSignature(traintest_file)
             train_inks = traintest.get_h5_dataset('keys_train')[:4000]
             test_inks = traintest.get_h5_dataset('keys_test')[:1000]
-            train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks)).flatten()
-            test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks)).flatten()
-            tr_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, train_inks)).flatten()
-            ts_nn_idxs = np.argwhere(np.isin(self.neig_matrix.keys, test_inks)).flatten()
+            train_idxs = np.argwhere(
+                np.isin(all_inchikeys, train_inks)).flatten()
+            test_idxs = np.argwhere(
+                np.isin(all_inchikeys, test_inks)).flatten()
+            train_idxs.sort()
+            test_idxs.sort()
+            tr_nn_idxs = np.argwhere(
+                np.isin(self.neig_matrix.keys, train_inks)).flatten()
+            ts_nn_idxs = np.argwhere(
+                np.isin(self.neig_matrix.keys, test_inks)).flatten()
 
         # 6.6 GB - 3.4GB = 3.2 GB
-        # predict
+        # predict FIXME we don't really need all the predictions
         self.__log.info('VALIDATION: Predicting.')
         preds = dict()
         pred_signs_name = os.path.join(self.model_path, 'pred_signs.pkl')
@@ -437,50 +605,39 @@ class sign4(BaseSignature, DataSignature):
             with open(pred_signs_name, 'rb') as f:
                 preds = pickle.load(f)
 
+        # we only need train test and a bunch of unknowns
         preds.setdefault('tr', {})
         preds.setdefault('ts', {})
         preds.setdefault('unk', {})
-        preds['tr']['ALL'] = preds['ALL'][train_idxs].reshape(
-            preds['ALL'][train_idxs].shape[0], 128)
-        preds['ts']['ALL'] = preds['ALL'][test_idxs].reshape(
-            preds['ALL'][test_idxs].shape[0], 128)
-        preds['unk']['ALL'] = preds['ALL'][unknown_idxs].reshape(
-            preds['ALL'][unknown_idxs].shape[0], 128)
+        preds['tr']['ALL'] = preds['ALL'][train_idxs].astype(np.float32)
+        preds['ts']['ALL'] = preds['ALL'][test_idxs].astype(np.float32)
+        preds['unk']['ALL'] = preds['ALL'][unknown_idxs].astype(np.float32)
         del preds['ALL']
-        preds['tr']['NOT-SELF'] = preds['NOT-SELF'][train_idxs].reshape(
-            preds['NOT-SELF'][train_idxs].shape[0], 128)
-        preds['ts']['NOT-SELF'] = preds['NOT-SELF'][test_idxs].reshape(
-            preds['NOT-SELF'][test_idxs].shape[0], 128)
+        preds['tr'][
+            'NOT-SELF'] = preds['NOT-SELF'][train_idxs].astype(np.float32)
+        preds['ts'][
+            'NOT-SELF'] = preds['NOT-SELF'][test_idxs].astype(np.float32)
         del preds['NOT-SELF']
-        preds['tr']['ONLY-SELF'] = preds['ONLY-SELF'][train_idxs].reshape(
-            preds['ONLY-SELF'][train_idxs].shape[0], 128)
-        preds['ts']['ONLY-SELF'] = preds['ONLY-SELF'][test_idxs].reshape(
-            preds['ONLY-SELF'][test_idxs].shape[0], 128)
+        preds['tr'][
+            'ONLY-SELF'] = preds['ONLY-SELF'][train_idxs].astype(np.float32)
+        preds['ts'][
+            'ONLY-SELF'] = preds['ONLY-SELF'][test_idxs].astype(np.float32)
         del preds['ONLY-SELF']
 
-        #unknown_naive = pred['ALL'][unknown_idxs][rnd_idx]
-
-        rnd = RNDuplicates(cpu=10)
-        _, ref_matrix, full_ref_map = rnd.remove(
-            preds['unk']['ALL'].astype(np.float32))
-        neig_pred = faiss.IndexFlatL2(ref_matrix.shape[1])
-        neig_pred.add(ref_matrix)
+        # find nearest neighbors for train and test
+        neig_pred = faiss.IndexFlatL2(preds['unk']['ALL'].shape[1])
+        neig_pred.add(preds['unk']['ALL'])
         unknown_n_dis, unknown_n_idx = neig_pred.search(
-            np.vstack([preds['tr']['ALL'], preds['ts']['ALL']]).astype(np.float32), 5)
-
-        K1_unknown = np.array(
-            [preds['unk']['ALL'][full_ref_map[x]] for x in unknown_n_idx[:, 0]])
-
-        K5_unknown = np.array(
-            [preds['unk']['ALL'][full_ref_map[x]] for x in unknown_n_idx[:, -1]])
+            np.vstack([preds['tr']['ALL'], preds['ts']['ALL']]), 5)
+        K1_unknown = preds['unk']['ALL'][unknown_n_idx[:, 0]]
+        K5_unknown = preds['unk']['ALL'][unknown_n_idx[:, -1]]
 
         metrics = dict()
-
         feat_type = 'continuos'
         fname = '%s_known_unknown' % feat_type
-
         self.__log.info(
             'VALIDATION: Plot correlations %s.' % feat_type)
+
         fig, axes = plt.subplots(
             1, 3, sharex=True, sharey=True, figsize=(10, 3))
         combos = itertools.combinations(mask_fns, 2)
@@ -506,8 +663,7 @@ class sign4(BaseSignature, DataSignature):
                 'VALIDATION: Plot %s distances %s.' % (m, feat_type))
             fig, axes = plt.subplots(
                 3, 2, sharex=True, sharey=True, figsize=(8, 10))
-            dist_unknown = pdist(preds['unk']['ALL'][np.random.choice(len(preds['unk'][
-                                 'ALL']), min(dist_limit, len(preds['unk']['ALL'])), replace=False)], metric=m)
+            dist_unknown = pdist(preds['unk']['ALL'][:dist_limit], metric=m)
             mean_d_unknown = np.mean(dist_unknown)
             for ax_row, name in zip(axes, ['Train-Train', 'Train-Test', 'Test-Test']):
                 if name == 'Train-Train':
@@ -558,6 +714,7 @@ class sign4(BaseSignature, DataSignature):
             plt.savefig(plot_file)
             plt.close()
 
+        return True
         self.__log.info('VALIDATION: Plot intensities %s.' % feat_type)
         plt.figure(figsize=(10, 3))
         data = np.array([np.sum(np.abs(preds['tr']['ALL']), axis=1),
@@ -587,8 +744,10 @@ class sign4(BaseSignature, DataSignature):
             NN_neig = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
             NN_dis = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
             for idx, row in enumerate(neig_idx):
-                NN_neig[idx] = row[np.argwhere(row != idx).flatten()][:NN_neig.shape[1]]
-                NN_dis[idx] = neig_dis[idx][np.argwhere(row != idx).flatten()][:NN_dis.shape[1]]
+                NN_neig[idx] = row[np.argwhere(row != idx).flatten()][
+                    :NN_neig.shape[1]]
+                NN_dis[idx] = neig_dis[idx][np.argwhere(row != idx).flatten()][
+                    :NN_dis.shape[1]]
             unk_neig_dist = False
             if unk_data.any():
                 unk_neig_dist, _ = NN.search(unk_data.astype(np.float32), 5)
@@ -857,11 +1016,11 @@ class sign4(BaseSignature, DataSignature):
         axes = axes.flatten()
         proj_model = MulticoreTSNE(n_components=2)
         proj_train = np.vstack([
-                    tr_all,
-                    tr_not,
-                    ts_all,
-                    ts_not
-                    ])
+            tr_all,
+            tr_not,
+            ts_all,
+            ts_not
+        ])
         proj = proj_model.fit_transform(proj_train)
 
         axes[0].set_title('TSNE tr ALL', fontsize=15)
@@ -872,24 +1031,30 @@ class sign4(BaseSignature, DataSignature):
         axes[0].legend()
 
         axes[1].set_title('TSNE tr NOT-SELF', fontsize=15)
-        p = proj[len(tr_all):len(tr_all)+len(tr_not)]
-        p_esle = np.vstack([proj[:len(tr_all)], proj[len(tr_all)+len(tr_not):]])
+        p = proj[len(tr_all):len(tr_all) + len(tr_not)]
+        p_esle = np.vstack(
+            [proj[:len(tr_all)], proj[len(tr_all) + len(tr_not):]])
         axes[1].scatter(p_esle[:, 0], p_esle[:, 1], color='grey', s=20)
-        axes[1].scatter(p[:, 0], p[:, 1], label='tr NOT-SELF', s=20, color='orange')
+        axes[1].scatter(p[:, 0], p[:, 1], label='tr NOT-SELF',
+                        s=20, color='orange')
         axes[1].legend()
 
         axes[2].set_title('TSNE ts ALL', fontsize=15)
-        p = proj[len(tr_all)+len(tr_not):len(tr_all)+len(tr_not)+len(ts_all)]
-        p_esle = np.vstack([proj[:len(tr_all)+len(tr_not)], proj[-len(ts_not):]])
+        p = proj[len(tr_all) + len(tr_not):len(tr_all) +
+                 len(tr_not) + len(ts_all)]
+        p_esle = np.vstack(
+            [proj[:len(tr_all) + len(tr_not)], proj[-len(ts_not):]])
         axes[2].scatter(p_esle[:, 0], p_esle[:, 1], color='grey', s=20)
-        axes[2].scatter(p[:, 0], p[:, 1], label='tr NOT-SELF', s=20, color='green')
+        axes[2].scatter(p[:, 0], p[:, 1], label='tr NOT-SELF',
+                        s=20, color='green')
         axes[2].legend()
 
         axes[3].set_title('TSNE ts NOT-SELF', fontsize=15)
         p = proj[-len(ts_not):]
         p_esle = proj[:-len(ts_not):]
         axes[3].scatter(p_esle[:, 0], p_esle[:, 1], color='grey', s=20)
-        axes[3].scatter(p[:, 0], p[:, 1], label='tr NOT-SELF', s=20, color='red')
+        axes[3].scatter(p[:, 0], p[:, 1], label='tr NOT-SELF',
+                        s=20, color='red')
         axes[3].legend()
 
         plot_file = os.path.join(
@@ -2301,35 +2466,21 @@ def subsample(tensor, sign_width=128,
     return new_data
 
 
-def subsample_keras(tensor, sign_width=128,
-                    p_nr=np.array([1 / 25.] * 25),
-                    p_only_self=0.25,
-                    p_self=0.1,
-                    dataset_idx=[0],
-                    p_keep=np.array([1 / 25.] * 25),
-                    **kwargs):
-    """Function to subsample stacked data."""
-    # p needs to be precomputed
-
-    r = K.random_uniform(tensor.shape, minval=0.0, maxval=1.0)
-
-    msk = K.cast(K.greater_equal(r, p), tensor.dtype)
-
-    tensor = tensor * msk
-
-    return tensor
-
-
-def plot_subsample(ds='B1.001'):
+def plot_subsample(ds='B1.001', p_self=.1, p_only_self=0., limit=10000):
+    import os
+    import numpy as np
     import matplotlib.pyplot as plt
     from chemicalchecker import ChemicalChecker
     from chemicalchecker.core.signature_data import DataSignature
     from chemicalchecker.core.sign4 import subsample, subsampling_probs
 
     cc = ChemicalChecker()
-    s4 = cc.get_signature("sign4", "full", ds)
+    s4 = cc.get_signature("sign3", "full", ds)
     s4_X = os.path.join(s4.model_path, 'train.h5')
-    X = DataSignature(s4_X).get_h5_dataset('x')
+    data_X = DataSignature(s4_X)
+    shape_X = data_X.info_h5['x']
+    limit = min(shape_X[0], limit)
+    X = data_X.get_h5_dataset('x', mask=np.arange(limit))
     sign_width = 128
 
     dataset_idx = np.argwhere(
@@ -2337,7 +2488,8 @@ def plot_subsample(ds='B1.001'):
     sign2_coverage = '/aloy/web_checker/current/full/all_sign2_coverage.h5'
     p_nr, p_keep = subsampling_probs(sign2_coverage, dataset_idx)
 
-    X1 = subsample(X, dataset_idx=[5], p_self=.1)
+    X1 = subsample(X, dataset_idx=[dataset_idx], p_nr=p_nr, p_keep=p_keep,
+                   p_self=p_self, p_only_self=p_only_self)
 
     presence_X = ~np.isnan(X[:, 0::sign_width])
     presence_X1 = ~np.isnan(X1[:, 0::sign_width])
@@ -2346,22 +2498,33 @@ def plot_subsample(ds='B1.001'):
         np.sum(presence_X, axis=1).astype(int), return_counts=True)
     _, freq_nr_X1 = np.unique(
         np.sum(presence_X1, axis=1).astype(int), return_counts=True)
+    freq_nr_noself = p_nr * limit
 
-    plt.figure(figsize=(12, 6), dpi=100)
-    plt.subplot(1, 2, 1)
+    plt.figure(figsize=(12, 12), dpi=100)
+    plt.subplot(2, 1, 1)
     plt.title('which dataset')
     plt.bar(np.arange(25) - 0.2, np.sum(presence_X, axis=0),
             width=.2, alpha=.8, label='original')
     plt.bar(np.arange(25) + 0.2, np.sum(presence_X1, axis=0),
-            width=.2, alpha=.8, label='real freq.')
+            width=.2, alpha=.8, label='subsampled')
+    plt.xlim(-1, 25)
+    plt.xticks(np.arange(25), [x[:2] for x in cc.datasets_exemplary()])
 
-    plt.subplot(1, 2, 2)
+    plt.legend()
+
+    plt.subplot(2, 1, 2)
     plt.title('how many dataset')
     plt.bar(np.arange(1, len(freq_nr_X) + 1) - 0.2,
             freq_nr_X, width=.2, alpha=.8, label='original')
-    plt.bar(np.arange(1, len(freq_nr_X1) + 1) + 0.2,
-            freq_nr_X1, width=.2, alpha=.8, label='real freq.')
+    plt.bar(np.arange(1, len(freq_nr_X1) + 1),
+            freq_nr_X1, width=.2, alpha=.8, label='subsampled')
+    plt.bar(np.arange(1, len(freq_nr_noself) + 1) + 0.2,
+            freq_nr_noself, width=.2, alpha=.8, label='not self')
+    plt.legend()
+    plt.xticks(np.arange(26))
+    plt.xlim(0, 26)
 
     plt.tight_layout()
-    plt.savefig('subsample_dataset.png')
+    plt.savefig('subsample_dataset_%s_pself_%.2f_ponly_%.2f.png' %
+                (ds, p_self, p_only_self))
     plt.close()
