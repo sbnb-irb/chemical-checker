@@ -11,6 +11,7 @@ from tqdm import tqdm
 from time import time
 from functools import partial
 from scipy.spatial.distance import pdist
+from sklearn.preprocessing import robust_scale
 from scipy.stats import pearsonr, norm, rankdata
 
 from sklearn.svm import LinearSVR
@@ -29,6 +30,7 @@ from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import Traintest, NeighborTripletTraintest
 from chemicalchecker.util.splitter import NeighborErrorTraintest
+from chemicalchecker.tool.siamese import SiameseTriplets
 
 
 @logged
@@ -242,10 +244,6 @@ class sign4(BaseSignature, DataSignature):
                 evaluating the performances (N.B. this is required for complete
                 confidence scores)
         """
-        try:
-            from chemicalchecker.tool.siamese import SiameseTriplets
-        except ImportError as err:
-            raise err
         # get params and set folder
         if suffix:
             siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
@@ -289,16 +287,11 @@ class sign4(BaseSignature, DataSignature):
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
             dataset_idx = np.argwhere(np.isin(self.src_datasets, ds)).flatten()
-            params['augment_kwargs']['dataset_idx'] = dataset_idx
+            params['augment_kwargs']['dataset_idx'] = self.dataset_idx
             # compute probabilities for subsampling
             p_nr, p_keep = subsampling_probs(self.sign2_coverage, dataset_idx)
             params['augment_kwargs']['p_nr'] = p_nr
             params['augment_kwargs']['p_keep'] = p_keep
-
-        # save params
-        param_file = os.path.join(siamese_path, 'params.pkl')
-        pickle.dump(params, open(param_file, 'wb'))
-
         # init siamese NN
         siamese = SiameseTriplets(siamese_path,
                                   evaluate=evaluate,
@@ -306,6 +299,10 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('Siamese training on %s' % traintest_file)
         siamese.fit()
         self.__log.debug('model saved to %s' % siamese_path)
+        # save known NN faiss index
+        known_mask = np.arange(min(100000, X.info_h5['x'][0]))
+        known_x = X.get_h5_dataset('x', mask=known_mask)
+        self.save_known_distributions(siamese, known_x)
         # evaluate distance distributions
         self.plot_validations(siamese, dataset_idx, traintest_file)
         # when evaluating we update the nr of epoch to avoid
@@ -314,46 +311,63 @@ class sign4(BaseSignature, DataSignature):
             # update the parameters with the new nr_of epochs
             self.params['sign2']['epochs'] = siamese.last_epoch
 
+    def save_known_distributions(self, siamese, known_x):
+        try:
+            import faiss
+        except ImportError as err:
+            raise err
+        # save known neighbors faiss index
+        known_pred = siamese.predict(known_x)
+        neig_index = faiss.IndexFlatL2(known_pred.shape[1])
+        neig_index.add(known_pred.astype(np.float32))
+        known_neig_file = os.path.join(self.model_path, 'known_neig.index')
+        faiss.write_index(neig_index, known_neig_file)
+        # predict with final model
+        preds = siamese.predict(known_x)
+        # measure average distance from known
+        distances = np.mean(neig_index.search(preds, 50), axis=1).flatten()
+        intensities, stddevs, consensus = self.conformal_prediction(
+            siamese, known_x)
+        # get prediction with only self
+        self_preds = siamese.predict(mask_keep([self.dataset_idx], known_x))
+        # get correlation between prediction and only self predictions
+        accuracies = row_wise_correlation(preds, self_preds, scaled=True)
+        know_dist_file = os.path.join(self.model_path, 'known_dist.h5')
+        with h5py.File(know_dist_file, "w") as hf:
+            hf.create_dataset('stddev', data=stddevs, dtype=np.float32)
+            hf.create_dataset('intensity', data=intensities, dtype=np.float32)
+            hf.create_dataset('consensus', data=consensus, dtype=np.float32)
+            hf.create_dataset('distance', data=distances, dtype=np.float32)
+            hf.create_dataset('accuracy', data=accuracies, dtype=np.float32)
+
+    def conformal_prediction(self, siamese, featues, nan_pred=None):
+        # reference prediction (based on no information)
+        if nan_pred is None:
+            nan_feat = np.full((1, featues.shape[1]), np.nan, dtype=np.float32)
+            nan_pred = siamese.predict(nan_feat)
+        # draw prediction with sub-sampling (dropout)
+        dropout_fn = partial(subsample, dataset_idx=self.dataset_idx)
+        samples = siamese.predict(featues, dropout_fn=dropout_fn,
+                                  dropout_samples=10)
+        # summarize the predictions as consensus
+        consensus = np.mean(samples, axis=1)
+        # zeros input (no info) as intensity reference
+        centered = consensus - nan_pred
+        # measure the intensity (mean of absolute comps)
+        intensities = np.mean(np.abs(centered), axis=1).flatten()
+        # summarize the standard deviation of components
+        stddevs = np.mean(np.std(samples, axis=1), axis=1).flatten()
+        return intensities, stddevs, consensus
+
     def plot_validations(self, siamese, dataset_idx, chunk_size=10000,
                          limit=1000, dist_limit=1000):
-        def mask_keep(idxs, x1_data):
-            # we will fill an array of NaN with values we want to keep
-            x1_data_transf = np.zeros_like(x1_data, dtype=np.float32) * np.nan
-            for idx in idxs:
-                # copy column from original data
-                col_slice = slice(idx * 128, (idx + 1) * 128)
-                x1_data_transf[:, col_slice] = x1_data[:, col_slice]
-            # keep rows containing at least one not-NaN value
-            not_nan = np.isfinite(x1_data_transf).any(axis=1)
-            x1_data_transf = x1_data_transf[not_nan]
-            return x1_data_transf
-
-        def mask_exclude(idxs, x1_data):
-            x1_data_transf = np.copy(x1_data)
-            for idx in idxs:
-                # set current space to nan
-                col_slice = slice(idx * 128, (idx + 1) * 128)
-                x1_data_transf[:, col_slice] = np.nan
-            # drop rows that only contain NaNs
-            not_nan = np.isfinite(x1_data_transf).any(axis=1)
-            x1_data_transf = x1_data_transf[not_nan]
-            return x1_data_transf
 
         def no_mask(idxs, x1_data):
             return x1_data
 
-        def row_wise_correlation(X, Y):
-            var1 = (X.T - np.mean(X, axis=1)).T
-            var2 = (Y.T - np.mean(Y, axis=1)).T
-            cov = np.mean(var1 * var2, axis=1)
-            return cov / (np.std(X, axis=1) * np.std(Y, axis=1))
-
-        from MulticoreTSNE import MulticoreTSNE
-        from sklearn.decomposition import PCA
         import matplotlib.pyplot as plt
         import seaborn as sns
         import itertools
-        from sklearn.preprocessing import robust_scale
 
         mask_fns = {
             'ALL': partial(no_mask, dataset_idx),
@@ -362,49 +376,14 @@ class sign4(BaseSignature, DataSignature):
         }
 
         # get molecules where space is available
-        if self.sign2_coverage is None:
-            self.__log.info('VALIDATION: fetching Xs.')
-            known = list()
-            unknown = list()
-            enough_known = False
-            enough_unknown = False
-            with h5py.File(self.sign2_universe, "r") as features:
-                # read input in chunks
-                for idx in range(0, features['x_test'].shape[0], chunk_size):
-                    chunk = slice(idx, idx + chunk_size)
-                    feat = features['x_test'][chunk]
-                    nan_ds = np.isnan(feat[:, dataset_idx[0] * 128])
-                    if len(known) < limit:
-                        chunk_known = feat[~nan_ds]
-                        if len(chunk_known) == 0:
-                            continue
-                        known.extend(chunk_known)
-                    else:
-                        enough_known = True
-                    if len(unknown) < limit:
-                        chunk_unknown = feat[nan_ds]
-                        if len(chunk_unknown) == 0:
-                            continue
-                        unknown.extend(chunk_unknown)
-                    else:
-                        enough_unknown = True
-                    if enough_known and enough_unknown:
-                        break
-            known = np.vstack(known[:limit])
-            unknown = np.vstack(unknown[:limit])
-        else:
-            cov = DataSignature(self.sign2_coverage).get_h5_dataset('V')
-            known_idxs = np.argwhere(cov[:, dataset_idx[0]] == 1).flatten()
-            unknown_idxs = np.argwhere(cov[:, dataset_idx[0]] == 0).flatten()
-            self.__log.info('VALIDATION: total %s known, %s unknown' %
-                            (known_idxs.shape[0], unknown_idxs.shape[0]))
-            full_x = DataSignature(self.sign2_universe)
-            known = full_x.get_h5_dataset(
-                'x_test', mask=known_idxs[:limit])
-            unknown = full_x.get_h5_dataset(
-                'x_test', mask=unknown_idxs[:limit])
-
-        feat_type = 'continuos'
+        cov = DataSignature(self.sign2_coverage).get_h5_dataset('V')
+        known_idxs = np.argwhere(cov[:, dataset_idx[0]] == 1).flatten()
+        unknown_idxs = np.argwhere(cov[:, dataset_idx[0]] == 0).flatten()
+        self.__log.info('VALIDATION: total %s known, %s unknown' %
+                        (known_idxs.shape[0], unknown_idxs.shape[0]))
+        full_x = DataSignature(self.sign2_universe)
+        known = full_x.get_h5_dataset('x_test', mask=known_idxs[:limit])
+        unknown = full_x.get_h5_dataset('x_test', mask=unknown_idxs[:limit])
 
         # predict
         self.__log.info('VALIDATION: Predicting.')
@@ -420,62 +399,40 @@ class sign4(BaseSignature, DataSignature):
         self.__log.info(known_pred['ALL'][0])
         self.__log.info(unknown_pred['ALL'][0])
 
-        fname = '%s_known_unknown' % feat_type
-
-        self.__log.info(
-            'VALIDATION: Plot correlations %s.' % feat_type)
+        self.__log.info('VALIDATION: Plot correlations.')
         fig, axes = plt.subplots(
             1, 3, sharex=True, sharey=False, figsize=(10, 3))
         combos = itertools.combinations(mask_fns, 2)
         for ax, (n1, n2) in zip(axes.flatten(), combos):
             corrs = row_wise_correlation(known_pred[n1], known_pred[n2])
             scaled_corrs = row_wise_correlation(
-                robust_scale(known_pred[n1]),
-                robust_scale(known_pred[n2]))
+                known_pred[n1], known_pred[n2], scaled=True)
             sns.distplot(corrs, label='%s %s' % (n1, n2), ax=ax)
-            sns.distplot(scaled_corrs, label='scaled %s %s' %
-                         (n1, n2), ax=ax)
+            sns.distplot(scaled_corrs, label='scaled %s %s' % (n1, n2), ax=ax)
             ax.legend()
-        plot_file = os.path.join(siamese.model_dir,
-                                 '%s_correlations.png' % fname)
+        fname = 'known_unknown_correlations.png'
+        plot_file = os.path.join(siamese.model_dir, fname)
         plt.savefig(plot_file)
         plt.close()
 
-        self.__log.info(
-            'VALIDATION: Plot euclidean distances %s.' % feat_type)
-        fig, axes = plt.subplots(
-            1, 3, sharex=True, sharey=True, figsize=(10, 3))
-        for ax, name in zip(axes.flatten(), mask_fns):
-            ax.set_title(name)
-            dist_known = pdist(known_pred[name][:dist_limit])
-            sns.distplot(dist_known, label='known', ax=ax)
-            if len(unknown_pred[name]) > 0:
-                dist_unknown = pdist(unknown_pred[name][:dist_limit])
-                sns.distplot(dist_unknown, label='unknown', ax=ax)
-            ax.legend()
-        plot_file = os.path.join(siamese.model_dir,
-                                 '%s_dists_euclidean.png' % fname)
-        plt.savefig(plot_file)
-        plt.close()
-
-        self.__log.info(
-            'VALIDATION: Plot cosine distances %s.' % feat_type)
-        fig, axes = plt.subplots(
-            1, 3, sharex=True, sharey=True, figsize=(10, 3))
-        for ax, name in zip(axes.flatten(), mask_fns):
-            ax.set_title(name)
-            dist_known = pdist(known_pred[name][:dist_limit],
-                               metric='cosine')
-            sns.distplot(dist_known, label='known', ax=ax)
-            if len(unknown_pred[name]) > 0:
-                dist_unknown = pdist(unknown_pred[name][:dist_limit],
-                                     metric='cosine')
-                sns.distplot(dist_unknown, label='unknown', ax=ax)
-            ax.legend()
-        plot_file = os.path.join(siamese.model_dir,
-                                 '%s_dists_cosine.png' % fname)
-        plt.savefig(plot_file)
-        plt.close()
+        for metric in ['euclidean', 'cosine']:
+            self.__log.info('VALIDATION: Plot %s distances.' % metric)
+            fig, axes = plt.subplots(
+                1, 3, sharex=True, sharey=True, figsize=(10, 3))
+            for ax, name in zip(axes.flatten(), mask_fns):
+                ax.set_title(name)
+                dist_known = pdist(known_pred[name][:dist_limit],
+                                   metric=metric)
+                sns.distplot(dist_known, label='known', ax=ax)
+                if len(unknown_pred[name]) > 0:
+                    dist_unknown = pdist(unknown_pred[name][:dist_limit],
+                                         metric=metric)
+                    sns.distplot(dist_unknown, label='unknown', ax=ax)
+                ax.legend()
+            fname = 'known_unknown_dist_%s.png' % metric
+            plot_file = os.path.join(siamese.model_dir, fname)
+            plt.savefig(plot_file)
+            plt.close()
 
     def plot_validations_2(self, siamese, dataset_idx, traintest_file,
                            chunk_size=10000, limit=1000, dist_limit=1000):
@@ -504,12 +461,6 @@ class sign4(BaseSignature, DataSignature):
 
         def no_mask(idxs, x1_data):
             return x1_data
-
-        def row_wise_correlation(X, Y):
-            var1 = (X.T - np.mean(X, axis=1)).T
-            var2 = (Y.T - np.mean(Y, axis=1)).T
-            cov = np.mean(var1 * var2, axis=1)
-            return cov / (np.std(X, axis=1) * np.std(Y, axis=1))
 
         from MulticoreTSNE import MulticoreTSNE
         from sklearn.decomposition import PCA
@@ -642,10 +593,10 @@ class sign4(BaseSignature, DataSignature):
             1, 3, sharex=True, sharey=True, figsize=(10, 3))
         combos = itertools.combinations(mask_fns, 2)
         for ax, (n1, n2) in zip(axes, combos):
-            corrs_train = row_wise_correlation(robust_scale(preds['tr'][n1]),
-                                               robust_scale(preds['tr'][n2]))
-            corrs_test = row_wise_correlation(robust_scale(preds['ts'][n1]),
-                                              robust_scale(preds['ts'][n2]))
+            corrs_train = row_wise_correlation(
+                preds['tr'][n1], preds['tr'][n2], scaled=True)
+            corrs_test = row_wise_correlation(
+                preds['ts'][n1], preds['ts'][n2], scaled=True)
             ax.set_title('Scaled  %s %s' % (n1, n2))
             sns.distplot(corrs_train, ax=ax, label='train')
             sns.distplot(corrs_test, ax=ax, label='test')
@@ -1687,7 +1638,7 @@ class sign4(BaseSignature, DataSignature):
             chunk_size(int): Chunk size when writing to sign4.h5
         """
         try:
-            from chemicalchecker.tool.siamese import SiameseTriplets
+            import faiss
         except ImportError as err:
             raise err
 
@@ -1734,8 +1685,8 @@ class sign4(BaseSignature, DataSignature):
                              suffix='final', evaluate=False)
         siamese = SiameseTriplets(final_model_path)
 
-        # part of confidence is the expected error
         if model_confidence:
+            # part of confidence is the expected error/accuracy
             # generate prediction, measure error, fit regressor
             predict_fn = siamese.predict
             eval_err_path = os.path.join(self.model_path, 'error_eval')
@@ -1746,12 +1697,15 @@ class sign4(BaseSignature, DataSignature):
             # final error predictor
             final_err_path = os.path.join(self.model_path, 'error_final')
             if not os.path.isdir(final_err_path):
-                predict_fn = self.get_predict_fn('adanet_final')
                 self.learn_error(predict_fn, self.params['error'],
                                  suffix='final', evaluate=False)
             self.__log.debug('Loading model for error prediction')
             rf = pickle.load(
                 open(os.path.join(final_err_path, 'RandomForest.pkl')), 'rb')
+            # another part of confidence is the intensity
+            # that is proportional to the distance to prediction of knowns
+            NN_file = os.path.join(self.model_path, 'known_nn.h5')
+            NN = faiss.read_index(NN_file)
 
         # get sorted universe inchikeys
         self.universe_inchikeys = self.get_universe_inchikeys()
@@ -1785,6 +1739,11 @@ class sign4(BaseSignature, DataSignature):
                     safe_create(results, 'intensity',
                                 (tot_inks,), dtype=np.float32)
                     safe_create(results, 'intensity_norm',
+                                (tot_inks,), dtype=np.float32)
+                    # this is to store distance
+                    safe_create(results, 'distance',
+                                (tot_inks,), dtype=np.float32)
+                    safe_create(results, 'distance_norm',
                                 (tot_inks,), dtype=np.float32)
                     # this is to store error prediction
                     safe_create(results, 'exp_error',
@@ -1849,29 +1808,20 @@ class sign4(BaseSignature, DataSignature):
                         # compute estimated error from coverage
                         coverage = ~np.isnan(feat[:, 0::128])
                         results['exp_error'][chunk] = rf.predict(coverage)
-                        # draw prediction with sub-sampling (dropout)
-                        dropout_fn = partial(subsample,
-                                             dataset_idx=self.dataset_idx)
-                        samples = siamese.predict(
-                            feat, dropout_fn=dropout_fn, dropout_samples=10)
-                        # summarize the predictions as consensus
-                        consensus = np.mean(samples, axis=1)
-                        results['consensus'][chunk] = consensus
-                        # zeros input (no info) as intensity reference
-                        centered = consensus - nan_pred
-                        # measure the intensity (mean of absolute comps)
-                        intensities = np.abs(centered)
-                        results['intensity'][chunk] = np.mean(
-                            intensities, axis=1).flatten()
-                        # summarize the standard deviation of components
-                        stddevs = np.std(samples, axis=1)
-                        # just save the average stddev over the components
-                        results['stddev'][chunk] = np.mean(
-                            stddevs, axis=1).flatten()
+                        # conformal prediction
+                        ints, stds, cons = self.conformal_prediction(
+                            siamese, feat, nan_pred=nan_pred)
+                        results['intensity'][chunk] = ints
+                        results['stddev'][chunk] = stds
+                        results['consensus'][chunk] = cons
+                        # distance from known predictions
+                        distances = NN.search(preds, 50)
+                        results['distance'][chunk] = np.mean(
+                            distances, axis=1).flatten()
 
         # normalize consensus scores sampling distribution of known signatures
         if normalize_scores:
-            self.normalize_scores(sign2_coverage)
+            self.normalize_scores()
 
         # use semi-supervised anomaly detection algorithm to predict novelty
         if predict_novelty:
@@ -1886,12 +1836,8 @@ class sign4(BaseSignature, DataSignature):
             self.fit_sign0(sign0)
         self.mark_ready()
 
-    def normalize_scores(self, sign2_coverage, chunk_size=10000):
+    def normalize_scores(self, chunk_size=10000):
         """Normalize confidence scores."""
-        try:
-            from chemicalchecker.tool.adanet import AdaNet
-        except ImportError as err:
-            raise err
 
         # get distribution for normalization
         distributions = self.confidence_distributions(self.sign2_self)
@@ -1957,7 +1903,7 @@ class sign4(BaseSignature, DataSignature):
                 (corr_mask, np.mean(correlations), np.std(correlations)))
             self.__log.debug('Distribution N(%.2f,%.2f)' % (dist_pars[-1][1:]))
         # get mol indexes where to apply the different transformations
-        full_coverage = DataSignature(sign2_coverage).get_h5_dataset(
+        full_coverage = DataSignature(self.sign2_coverage).get_h5_dataset(
             'x_test').astype(bool)
         confidence_raw = self.get_h5_dataset('confidence_raw')
         done = np.full(full_coverage.shape[0], False)
@@ -2145,157 +2091,48 @@ class sign4(BaseSignature, DataSignature):
                     feat = features[src_h5_ds][chunk]
                     preds[dst_h5_ds][chunk] = siamese.predict(feat)
 
-    def siamese_single_spaces(self, siamese_path, traintest_file, suffix):
-        """Prediction of Siamese using single space signatures.
-
-        We want to compare the performances of trained siamese to those of
-        predictors based on single space. This is done filling the matrix
-        with NaNs spaces not being evaluated. Also particular combinations
-        can be assesses (e.g. excluding all spaces from level A).
-
-        Args:
-            siamese_path(str): Path to the Siamese model.
-            traintest_file(str): Path to the traintest file.
-            suffix(str): Suffix string for the predictor name.
-        """
-        try:
-            from chemicalchecker.tool.siamese import Siamese
-        except ImportError as err:
-            raise err
-
-        def mask_keep(idxs, x_data, y_data):
-            # we will fill an array of NaN with values we want to keep
-            x_data_transf = np.zeros_like(x_data, dtype=np.float32) * np.nan
-            for idx in idxs:
-                # copy column from original data
-                col_slice = slice(idx * 128, (idx + 1) * 128)
-                x_data_transf[:, col_slice] = x_data[:, col_slice]
-            # keep rows containing at least one not-NaN value
-            not_nan = np.isfinite(x_data_transf).any(axis=1)
-            x_data_transf = x_data_transf[not_nan]
-            y_data_transf = y_data[not_nan]
-            return x_data_transf, y_data_transf
-
-        def mask_exclude(idxs, x_data, y_data):
-            x_data_transf = np.copy(x_data)
-            for idx in idxs:
-                # set current space to nan
-                col_slice = slice(idx * 128, (idx + 1) * 128)
-                x_data_transf[:, col_slice] = np.nan
-            # drop rows that only contain NaNs
-            not_nan = np.isfinite(x_data_transf).any(axis=1)
-            x_data_transf = x_data_transf[not_nan]
-            y_data_transf = y_data[not_nan]
-            return x_data_transf, y_data_transf
-
-        def predict_and_save(name, idxs, traintest_file, split,
-                             mask_fn, siamese_path, total_size):
-            # call predict
-            self.__log.info("Predicting for: %s", name)
-            y_pred, y_true = Siamese.predict_online(
-                traintest_file, split,
-                mask_fn=partial(mask_fn, idxs))
-            self.__log.info("%s Y: %s", name, y_pred.shape)
-            if y_pred.shape[0] < 4:
-                return
-            file_true = os.path.join(
-                siamese_path, "_".join(list(name) + [split, 'true']))
-            np.save(file_true, y_true)
-            y_true_shape = y_true.shape[0]
-            del y_true
-            file_pred = os.path.join(
-                siamese_path, "_".join(list(name) + [split, 'pred']))
-            np.save(file_pred, y_pred)
-            del y_pred
-            result = dict()
-            result['true'] = file_true
-            result['pred'] = file_pred
-            result['coverage'] = y_true_shape / total_size
-            result['time'] = 0.
-            return result
-
-        # get predict function (loads the neural network)
-        self.__log.info("Loading Siamese model")
-        # get results for each split
-        results = dict()
-        all_dss = list(self.src_datasets)
-        for split in ['train_test', 'test_test']:
-            traintest = Traintest(traintest_file, split)
-            x_shape, y_shape = traintest.get_xy_shapes()
-            total_size = float(y_shape[0])
-            self.__log.info("%s X: %s Y: %s", split, x_shape, y_shape)
-            self.__log.info("%s Y: %s", split, y_shape)
-
-            # make prediction keeping only a single space
-            for idx, ds in enumerate(all_dss):
-                # algo name, prepare results
-                name = ("Siamese", ds)
-                if suffix:
-                    name = ("Siamese_%s" % suffix, ds)
-                if name not in results:
-                    results[name] = dict()
-                # predict and save
-                results[name][split] = predict_and_save(name, [idx],
-                                                        traintest_file, split,
-                                                        mask_keep,
-                                                        siamese_path,
-                                                        total_size)
-            # make prediction excluding space to predict
-            ds = self.dataset
-            idx = all_dss.index(ds)
-            # algo name, prepare results
-            name = ("Siamese", "not-%s" % ds)
-            if suffix:
-                name = ("Siamese_%s" % suffix, "not-%s" % ds)
-            if name not in results:
-                results[name] = dict()
-            # predict and save
-            results[name][split] = predict_and_save(name, [idx],
-                                                    traintest_file, split,
-                                                    mask_exclude,
-                                                    siamese_path, total_size)
-            # exclude level to predict
-            dss = [d for d in all_dss if d.startswith(self.dataset[0])]
-            idxs = [all_dss.index(d) for d in dss]
-            # algo name, prepare results
-            name = ("Siamese", "not-%sX" % self.dataset[0])
-            if suffix:
-                name = ("Siamese_%s" % suffix, "not-%sX" % self.dataset[0])
-            if name not in results:
-                results[name] = dict()
-            # predict and save
-            results[name][split] = predict_and_save(name, idxs,
-                                                    traintest_file, split,
-                                                    mask_exclude,
-                                                    siamese_path, total_size)
-            # check special combinations
-            dss = [d for d in all_dss if d.startswith('B')] + \
-                [d for d in all_dss if d.startswith('C')]
-            idxs = [all_dss.index(d) for d in dss]
-            # algo name, prepare results
-            name = ("Siamese", "not-BX|CX")
-            if suffix:
-                name = ("Siamese_%s" % suffix, "not-BX|CX")
-            if name not in results:
-                results[name] = dict()
-            # predict and save
-            results[name][split] = predict_and_save(name, idxs,
-                                                    traintest_file, split,
-                                                    mask_exclude,
-                                                    siamese_path, total_size)
-        return results
-
 
 def safe_create(h5file, *args, **kwargs):
     if args[0] not in h5file:
         h5file.create_dataset(*args, **kwargs)
 
 
-def col_wise_correlation(X, Y):
+def mask_keep(idxs, x1_data):
+    # we will fill an array of NaN with values we want to keep
+    x1_data_transf = np.zeros_like(x1_data, dtype=np.float32) * np.nan
+    for idx in idxs:
+        # copy column from original data
+        col_slice = slice(idx * 128, (idx + 1) * 128)
+        x1_data_transf[:, col_slice] = x1_data[:, col_slice]
+    # keep rows containing at least one not-NaN value
+    not_nan = np.isfinite(x1_data_transf).any(axis=1)
+    x1_data_transf = x1_data_transf[not_nan]
+    return x1_data_transf
+
+
+def mask_exclude(idxs, x1_data):
+    x1_data_transf = np.copy(x1_data)
+    for idx in idxs:
+        # set current space to nan
+        col_slice = slice(idx * 128, (idx + 1) * 128)
+        x1_data_transf[:, col_slice] = np.nan
+    # drop rows that only contain NaNs
+    not_nan = np.isfinite(x1_data_transf).any(axis=1)
+    x1_data_transf = x1_data_transf[not_nan]
+    return x1_data_transf
+
+
+def col_wise_correlation(X, Y, scaled=False):
+    if scaled:
+        X = robust_scale(X)
+        Y = robust_scale(Y)
     return row_wise_correlation(X.T, Y.T)
 
 
-def row_wise_correlation(X, Y):
+def row_wise_correlation(X, Y, scaled=False):
+    if scaled:
+        X = robust_scale(X)
+        Y = robust_scale(Y)
     var1 = (X.T - np.mean(X, axis=1)).T
     var2 = (Y.T - np.mean(Y, axis=1)).T
     cov = np.mean(var1 * var2, axis=1)
