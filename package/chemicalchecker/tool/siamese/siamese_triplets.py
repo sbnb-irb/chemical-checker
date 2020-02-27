@@ -488,7 +488,7 @@ class SiameseTriplets(object):
             if self.plot:
                 self._plot_anchor_dist(anchor_file)
 
-    def predict(self, input_mat):
+    def predict(self, x_matrix, dropout_fn=None, dropout_samples=10):
         """Do predictions.
 
         prediction_file(str): Path to input file containing Xs.
@@ -497,13 +497,22 @@ class SiameseTriplets(object):
         """
         # load model if not alredy there
         if self.model is None:
-            self.build_model((input_mat.shape[1],), load=True)
-        no_nans = np.nan_to_num(input_mat)
+            self.build_model((x_matrix.shape[1],), load=True)
+        # apply input scaling
+        scaled = x_matrix
         if hasattr(self, 'scaler'):
-            scaled = self.scaler.transform(no_nans)
-        else:
-            scaled = no_nans
-        return self.transformer.predict(scaled)
+            scaled = self.scaler.transform(x_matrix)
+        # get rid of NaNs
+        no_nans = np.nan_to_num(scaled)
+        # get default dropout function
+        if dropout_fn is None:
+            return self.transformer.predict(no_nans)
+        # sample with dropout
+        repeat = no_nans[:].repeat(dropout_samples, axis=0)
+        sampling = self.transformer.predict(repeat)
+        sampling = sampling.reshape(
+            x_matrix.shape[0], dropout_samples, sampling.shape[1])
+        return sampling
 
     def _plot_history(self, history, vsets, destination):
         """Plot history.
