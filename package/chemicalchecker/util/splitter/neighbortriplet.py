@@ -572,6 +572,9 @@ class NeighborTripletTraintest(object):
             # print(beg_idx, end_idx, 'batch_beg_end', idx, pairs.shape)
         NeighborTripletTraintest.__log.debug('Generator ready')
 
+        only_args = augment_kwargs.copy()
+        only_args['p_only_self'] = 1.0
+
         def example_generator_fn():
             # generator function yielding data
             epoch = 0
@@ -592,10 +595,12 @@ class NeighborTripletTraintest(object):
                 x1 = X[pairs[:, 0]]
                 x2 = X[pairs[:, 1]]
                 x3 = X[pairs[:, 2]]
+                x4 = X[pairs[:, 0]]
                 if augment_fn is not None:
                     tmp_x1 = list()
                     tmp_x2 = list()
                     tmp_x3 = list()
+                    tmp_x4 = list()
                     tmp_y = list()
                     for i in range(augment_scale):
                         tmp_x1.append(augment_fn(
@@ -604,21 +609,25 @@ class NeighborTripletTraintest(object):
                             x2, **augment_kwargs))
                         tmp_x3.append(augment_fn(
                             x3, **augment_kwargs))
+                        tmp_x4.append(augment_fn(
+                            x4, **only_args))
                         tmp_y.append(y)
                     x1 = np.vstack(tmp_x1)
                     x2 = np.vstack(tmp_x2)
                     x3 = np.vstack(tmp_x3)
+                    x4 = np.vstack(tmp_x4)
                     y = np.hstack(tmp_y)
                 x1, x2, x3 = mask_fn(x1, x2, x3)
                 if replace_nan is not None:
                     x1[np.where(np.isnan(x1))] = replace_nan
                     x2[np.where(np.isnan(x2))] = replace_nan
                     x3[np.where(np.isnan(x3))] = replace_nan
+                    x4[np.where(np.isnan(x4))] = replace_nan
                 # print(x1.shape, x2.shape, x3.shape, y.shape)
-                yield [x1, x2, x3], y
+                yield [x1, x2, x3, x4], y
                 batch_idx += 1
 
         pair_shape = (t_shape[0] * augment_scale, x_shape[1])
-        shapes = (pair_shape, pair_shape, pair_shape)
-        dtypes = (x_dtype, x_dtype, x_dtype)
+        shapes = (pair_shape, pair_shape, pair_shape, pair_shape)
+        dtypes = (x_dtype, x_dtype, x_dtype, x_dtype)
         return shapes, dtypes, example_generator_fn
