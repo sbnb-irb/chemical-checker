@@ -175,7 +175,7 @@ class NeighborErrorTraintest(object):
             X = np.zeros((tot_x, int(tot_feat / 128)))
             Y = np.zeros((tot_x, 1))
             preds_noself = np.zeros((tot_x, 128), dtype=np.float32)
-            preds_all = np.zeros((tot_x, 128), dtype=np.float32)
+            preds_onlyself = np.zeros((tot_x, 128), dtype=np.float32)
 
             # read input in chunks
             for idx in tqdm(range(0, tot_x, chunk_size), desc='Predicting'):
@@ -183,16 +183,15 @@ class NeighborErrorTraintest(object):
                 if idx + chunk_size > tot_x:
                     src_chunk = slice(idx, tot_x)
                 feat = features['x'][src_chunk]
-                feat_all = subsample_fn(feat)
-                preds_all[src_chunk] = predict_fn(feat_all)
+                feat_all = feat
+                preds_onlyself[src_chunk] = predict_fn(feat_all)
                 feat_noself = subsample_fn(
                     feat, p_only_self=0.0, p_self=0.0)
                 preds_noself[src_chunk] = predict_fn(feat_noself)
                 X[src_chunk] = (
-                    ~np.isnan(feat_all[:, ::128])).astype(int)
-                print([int(x) for x in X[src_chunk][0]])
+                    ~np.isnan(feat[:, ::128])).astype(int)
             Y = np.expand_dims(row_wise_correlation(
-                robust_scale(preds_all),
+                robust_scale(preds_onlyself),
                 robust_scale(preds_noself)), 1)
 
         # reduce redundancy, keep full-ref mapping
