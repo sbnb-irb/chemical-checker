@@ -90,7 +90,7 @@ class SiameseTriplets(object):
                 sharedx=self.sharedx,
                 augment_fn=self.augment_fn,
                 augment_kwargs=self.augment_kwargs,
-                augment_scale=self.augment_scale)
+                train=True)
             self.tr_shapes = tr_shape_type_gen[0]
             self.tr_gen = tr_shape_type_gen[2]()
             self.steps_per_epoch = np.ceil(
@@ -108,7 +108,10 @@ class SiameseTriplets(object):
                 'test_test',
                 batch_size=self.batch_size,
                 replace_nan=self.replace_nan,
+                augment_kwargs=self.augment_kwargs,
+                augment_fn=self.augment_fn,
                 sharedx=self.sharedx,
+                train=False,
                 shuffle=False)
             self.val_shapes = val_shape_type_gen[0]
             self.val_gen = val_shape_type_gen[2]()
@@ -276,7 +279,7 @@ class SiameseTriplets(object):
         def accO(y_true, y_pred):
             anchor, positive, negative, only_self = split_output(y_pred)
 
-            
+
             return pearson_r(anchor, only_self)
 
         metrics = [
@@ -324,7 +327,7 @@ class SiameseTriplets(object):
         def only_self_loss(y_true, y_pred):
             def only_self_regularization(y_pred):
                 anchor, positive, negative, only_self = split_output(y_pred)
-                return mean_squared_error(anchor, only_self)
+                return cosine_proximity(anchor, only_self)
 
             loss = orthogonal_tloss(y_true, y_pred)
             o_self = only_self_regularization(y_pred)
@@ -441,6 +444,9 @@ class SiameseTriplets(object):
                         replace_nan=self.replace_nan,
                         mask_fn=mask_fn,
                         sharedx=self.sharedx,
+                        augment_kwargs=self.augment_kwargs,
+                        augment_fn=self.augment_fn,
+                        train=False,
                         shuffle=False)
                     validation_sets.append((gen, shapes, name))
             additional_vals = AdditionalValidationSets(
@@ -562,6 +568,9 @@ class SiameseTriplets(object):
             batch_size=self.batch_size,
             replace_nan=self.replace_nan,
             sharedx=self.sharedx,
+            augment_kwargs=self.augment_kwargs,
+            augment_fn=self.augment_fn,
+            train=False,
             shuffle=False)
         trval_gen = val_shape_type_gen[2]()
 
