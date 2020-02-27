@@ -595,12 +595,11 @@ class NeighborTripletTraintest(object):
                 x1 = X[pairs[:, 0]]
                 x2 = X[pairs[:, 1]]
                 x3 = X[pairs[:, 2]]
-                x4 = X[pairs[:, 0]]
+                x4 = augment_fn(X[pairs[:, 0]], **only_args)
                 if augment_fn is not None:
                     tmp_x1 = list()
                     tmp_x2 = list()
                     tmp_x3 = list()
-                    tmp_x4 = list()
                     tmp_y = list()
                     for i in range(augment_scale):
                         tmp_x1.append(augment_fn(
@@ -609,13 +608,10 @@ class NeighborTripletTraintest(object):
                             x2, **augment_kwargs))
                         tmp_x3.append(augment_fn(
                             x3, **augment_kwargs))
-                        tmp_x4.append(augment_fn(
-                            x4, **only_args))
                         tmp_y.append(y)
                     x1 = np.vstack(tmp_x1)
                     x2 = np.vstack(tmp_x2)
                     x3 = np.vstack(tmp_x3)
-                    x4 = np.vstack(tmp_x4)
                     y = np.hstack(tmp_y)
                 x1, x2, x3 = mask_fn(x1, x2, x3)
                 if replace_nan is not None:
