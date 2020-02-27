@@ -10,7 +10,7 @@ from keras.layers import concatenate
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
 from keras.layers import Input, Dropout, Lambda, Dense, Activation, Masking
-from keras.losses import cosine_proximity
+from keras.losses import cosine_proximity, mean_squared_error, kullback_leibler_divergence
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
@@ -260,10 +260,24 @@ class SiameseTriplets(object):
                          euclidean_distance(anchor*msk, negative*msk), anchor.dtype)
             return K.mean(acc) * 3
 
+        def pearson_r(y_true, y_pred):
+            x = y_true
+            y = y_pred
+            mx = K.mean(x, axis=0)
+            my = K.mean(y, axis=0)
+            xm, ym = x - mx, y - my
+            r_num = K.sum(xm * ym)
+            x_square_sum = K.sum(xm * xm)
+            y_square_sum = K.sum(ym * ym)
+            r_den = K.sqrt(x_square_sum * y_square_sum)
+            r = r_num / r_den
+            return K.mean(r)
+
         def accO(y_true, y_pred):
             anchor, positive, negative, only_self = split_output(y_pred)
-            acc = K.cast(K.less(euclidean_distance(anchor, only_self), 0.5), anchor.dtype)
-            return K.mean(acc)
+
+            
+            return pearson_r(anchor, only_self)
 
         metrics = [
             accTot,
@@ -310,7 +324,7 @@ class SiameseTriplets(object):
         def only_self_loss(y_true, y_pred):
             def only_self_regularization(y_pred):
                 anchor, positive, negative, only_self = split_output(y_pred)
-                return cosine_proximity(anchor, only_self, axis=-1)
+                return mean_squared_error(anchor, only_self)
 
             loss = orthogonal_tloss(y_true, y_pred)
             o_self = only_self_regularization(y_pred)
@@ -319,7 +333,8 @@ class SiameseTriplets(object):
 
         lfuncs_dict = {'tloss': tloss,
                        'bayesian_tloss': bayesian_tloss,
-                       'orthogonal_tloss': orthogonal_tloss}
+                       'orthogonal_tloss': orthogonal_tloss,
+                       'only_self_loss': only_self_loss}
 
         # compile and print summary
         self.__log.info('Loss function: %s' %
