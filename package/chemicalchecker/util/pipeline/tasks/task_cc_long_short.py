@@ -71,7 +71,8 @@ class CCLongShort(BaseTask, BaseOperator):
         dataset_codes.sort()
 
         dataset_params = {"cpu": 32, "epochs": self.epochs,
-                          "encoding_dim": self.encoding_dim}
+                          "encoding_dim": self.encoding_dim,
+                          "input_dataset": "V"}
 
         s = cc.get_signature(self.cc_type, 'full', dataset_codes[0])
 
@@ -116,7 +117,6 @@ class CCLongShort(BaseTask, BaseOperator):
                 "import pickle",
                 "import h5py",
                 "import numpy as np",
-                "from numpy import linalg as LA",
                 "from chemicalchecker.util import Config",
                 "from chemicalchecker.core import ChemicalChecker",
                 "from chemicalchecker.tool.autoencoder import AutoEncoderSiamese",
@@ -129,21 +129,10 @@ class CCLongShort(BaseTask, BaseOperator):
                 'sign_short = cc.get_signature("%s", "full", "%s")' % (
                     self.cc_type, self.dataset_sign_short),
                 # start import
-                'output_file = os.path.join(sign_full.signature_path, "sign_norm.h5")',
-                'with h5py.File(output_file, "w") as hf:',
-                '    hf.create_dataset("keys", data=np.array([str(k) for k in sign_full.keys]))',
-                '    hf.create_dataset("x", sign_full.shape, dtype=np.float32)',
-                'num_datasets = %d' % len(dataset_codes),
-                'input_dim = %d' % input_dim,
-                'for i in range(0, num_datasets):',
-                "    with h5py.File(output_file, 'r+') as hf, h5py.File(sign_full.data_path, 'r') as dh5in:",
-                '        dataset = dh5in["V"][:, i * input_dim:(i+1)*input_dim]',
-                '        norms = LA.norm(dataset, axis=1)',
-                '        hf["x"][:, i * input_dim:(i+1)*input_dim] = dataset / norms[:, None]',
                 'params = %s' % dataset_params,
                 'ae = AutoEncoderSiamese(sign_short.model_path, **params)',
-                'ae.fit(output_file)',
-                'ae.encode(output_file,sign_short.data_path, input_dataset="x")',
+                'ae.fit(sign_full.data_path)',
+                'ae.encode(sign_full.data_path,sign_short.data_path, input_dataset="V")',
                 "sign_short.validate()",
                 "sign_short.mark_ready()",
                 "print('JOB DONE')"
