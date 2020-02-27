@@ -528,7 +528,7 @@ class NeighborTripletTraintest(object):
                      replace_nan=None, augment_scale=1,
                      augment_fn=None, augment_kwargs={},
                      mask_fn=None, shuffle=True,
-                     sharedx=None):
+                     sharedx=None, train=True):
         """Return the generator function that we can query for batches.
 
         file_name(str): The H5 generated via `create`
@@ -596,7 +596,7 @@ class NeighborTripletTraintest(object):
                 x2 = X[pairs[:, 1]]
                 x3 = X[pairs[:, 2]]
                 x4 = augment_fn(X[pairs[:, 0]], **only_args)
-                if augment_fn is not None:
+                if train:
                     tmp_x1 = list()
                     tmp_x2 = list()
                     tmp_x3 = list()
