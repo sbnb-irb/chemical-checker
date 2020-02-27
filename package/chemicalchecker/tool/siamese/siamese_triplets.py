@@ -10,6 +10,7 @@ from keras.layers import concatenate
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
 from keras.layers import Input, Dropout, Lambda, Dense, Activation, Masking
+from keras.losses import cosine_proximity
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
@@ -191,6 +192,7 @@ class SiameseTriplets(object):
         input_a = Input(shape=input_shape)
         input_p = Input(shape=input_shape)
         input_n = Input(shape=input_shape)
+        input_o = Input(shape=input_shape)
 
         # each goes to a network with the same architechture
         basenet = Sequential()
@@ -211,95 +213,65 @@ class SiameseTriplets(object):
         encoded_a = basenet(input_a)
         encoded_p = basenet(input_p)
         encoded_n = basenet(input_n)
+        encoded_o = basenet(input_o)
 
         merged_vector = concatenate(
-            [encoded_a, encoded_p, encoded_n], axis=-1, name='merged_layer')
+            [encoded_a, encoded_p, encoded_n, encoded_o], axis=-1, name='merged_layer')
 
-        model = Model(inputs=[input_a, input_p, input_n],
+        model = Model(inputs=[input_a, input_p, input_n, input_o],
                       output=merged_vector)
+
+        def split_output(y_pred): # TODO NEED TO CHANGE IF WE USE 4 INPUTS INSTEAD OF 3
+            total_lenght = y_pred.shape.as_list()[-1]
+            anchor = y_pred[:, 0: int(total_lenght * 1 / 4)]
+            positive = y_pred[
+                :, int(total_lenght * 1 / 4): int(total_lenght * 2 / 4)]
+            negative = y_pred[
+                :, int(total_lenght * 2 / 4): int(total_lenght * 3 / 4)]
+            only = y_pred[
+                :, int(total_lenght * 3 / 4): int(total_lenght * 4 / 4)]
+            return anchor, positive, negative, only
 
         # define monitored metrics
         def accTot(y_true, y_pred):
-            total_lenght = y_pred.shape.as_list()[-1]
-
-            anchor = y_pred[:, 0:int(total_lenght * 1 / 3)]
-            positive = y_pred[
-                :, int(total_lenght * 1 / 3): int(total_lenght * 2 / 3)]
-            negative = y_pred[
-                :, int(total_lenght * 2 / 3): int(total_lenght * 3 / 3)]
-
+            anchor, positive, negative, _ = split_output(y_pred)
             acc = K.cast(euclidean_distance(anchor, positive) <
                          euclidean_distance(anchor, negative), anchor.dtype)
-
             return K.mean(acc)
 
-        def accBin(y_true, y_pred):
-            return accTot(y_true, K.sign(y_pred))
-
         def accE(y_true, y_pred):
-            total_lenght = y_pred.shape.as_list()[-1]
-
+            anchor, positive, negative, _ = split_output(y_pred)
             msk = K.cast(K.equal(y_true, 0), 'float32')
-
-            anchor = y_pred[:, 0:int(total_lenght * 1 / 3)] * msk
-            positive = y_pred[
-                :, int(total_lenght * 1 / 3): int(total_lenght * 2 / 3)] * msk
-            negative = y_pred[
-                :, int(total_lenght * 2 / 3): int(total_lenght * 3 / 3)] * msk
-
-            acc = K.cast(euclidean_distance(anchor, positive) <
-                         euclidean_distance(anchor, negative), anchor.dtype)
-
+            acc = K.cast(euclidean_distance(anchor*msk, positive*msk) <
+                         euclidean_distance(anchor*msk, negative*msk), anchor.dtype)
             return K.mean(acc) * 3
 
         def accM(y_true, y_pred):
-            total_lenght = y_pred.shape.as_list()[-1]
-
+            anchor, positive, negative, _ = split_output(y_pred)
             msk = K.cast(K.equal(y_true, 1), 'float32')
-
-            anchor = y_pred[:, 0:int(total_lenght * 1 / 3)] * msk
-            positive = y_pred[
-                :, int(total_lenght * 1 / 3): int(total_lenght * 2 / 3)] * msk
-            negative = y_pred[
-                :, int(total_lenght * 2 / 3): int(total_lenght * 3 / 3)] * msk
-
-            acc = K.cast(euclidean_distance(anchor, positive) <
-                         euclidean_distance(anchor, negative), anchor.dtype)
-
+            acc = K.cast(euclidean_distance(anchor*msk, positive*msk) <
+                         euclidean_distance(anchor*msk, negative*msk), anchor.dtype)
             return K.mean(acc) * 3
 
         def accH(y_true, y_pred):
-            total_lenght = y_pred.shape.as_list()[-1]
-
+            anchor, positive, negative, _ = split_output(y_pred)
             msk = K.cast(K.equal(y_true, 2), 'float32')
-
-            anchor = y_pred[:, 0:int(total_lenght * 1 / 3)] * msk
-            positive = y_pred[
-                :, int(total_lenght * 1 / 3): int(total_lenght * 2 / 3)] * msk
-            negative = y_pred[
-                :, int(total_lenght * 2 / 3): int(total_lenght * 3 / 3)] * msk
-
-            acc = K.cast(euclidean_distance(anchor, positive) <
-                         euclidean_distance(anchor, negative), anchor.dtype)
-
+            acc = K.cast(euclidean_distance(anchor*msk, positive*msk) <
+                         euclidean_distance(anchor*msk, negative*msk), anchor.dtype)
             return K.mean(acc) * 3
+
+        def accO(y_true, y_pred):
+            anchor, positive, negative, only_self = split_output(y_pred)
+            acc = K.cast(K.less(euclidean_distance(anchor, only_self), 0.5), anchor.dtype)
+            return K.mean(acc)
 
         metrics = [
             accTot,
-            accBin,
             accE,
             accM,
-            accH
+            accH,
+            accO
         ]
-
-        def split_output(y_pred):
-            total_lenght = y_pred.shape.as_list()[-1]
-            anchor = y_pred[:, 0: int(total_lenght * 1 / 3)]
-            positive = y_pred[
-                :, int(total_lenght * 1 / 3): int(total_lenght * 2 / 3)]
-            negative = y_pred[
-                :, int(total_lenght * 2 / 3): int(total_lenght * 3 / 3)]
-            return anchor, positive, negative
 
         def tloss(y_true, y_pred):
             anchor, positive, negative = split_output(y_pred)
@@ -334,6 +306,16 @@ class SiameseTriplets(object):
             gro = global_orthogonal_regularization(y_pred) * self.alpha
             loss = tloss(y_true, y_pred)
             return loss + gro
+
+        def only_self_loss(y_true, y_pred):
+            def only_self_regularization(y_pred):
+                anchor, positive, negative, only_self = split_output(y_pred)
+                return cosine_proximity(anchor, only_self, axis=-1)
+
+            loss = orthogonal_tloss(y_true, y_pred)
+            o_self = only_self_regularization(y_pred)
+            return loss + o_self
+
 
         lfuncs_dict = {'tloss': tloss,
                        'bayesian_tloss': bayesian_tloss,
