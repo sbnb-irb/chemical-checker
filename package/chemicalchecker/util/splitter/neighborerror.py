@@ -183,8 +183,8 @@ class NeighborErrorTraintest(object):
                 if idx + chunk_size > tot_x:
                     src_chunk = slice(idx, tot_x)
                 feat = features['x'][src_chunk]
-                feat_all = feat
-                preds_onlyself[src_chunk] = predict_fn(feat_all)
+                feat_onlyself = subsample_fn(feat, p_only_self=1.0, )
+                preds_onlyself[src_chunk] = predict_fn(feat_onlyself)
                 feat_noself = subsample_fn(
                     feat, p_only_self=0.0, p_self=0.0)
                 preds_noself[src_chunk] = predict_fn(feat_noself)
