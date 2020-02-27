@@ -270,7 +270,7 @@ class sign4(BaseSignature, DataSignature):
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix)
                 NeighborTripletTraintest.create(
-                    X, traintest_file, self.neig_matrix,
+                    X, traintest_file, self.neig_sign,
                     split_names=['train', 'test'],
                     split_fractions=[.8, .2],
                     suffix=suffix,
@@ -280,7 +280,7 @@ class sign4(BaseSignature, DataSignature):
             if not reuse or not os.path.isfile(traintest_file):
                 X = DataSignature(sign2_matrix)
                 NeighborTripletTraintest.create(
-                    X, traintest_file, self.neig_matrix,
+                    X, traintest_file, self.neig_sign,
                     split_names=['train'],
                     split_fractions=[1.0],
                     suffix=suffix,
@@ -579,9 +579,9 @@ class sign4(BaseSignature, DataSignature):
             train_idxs.sort()
             test_idxs.sort()
             tr_nn_idxs = np.argwhere(
-                np.isin(self.neig_matrix.keys, train_inks)).flatten()
+                np.isin(self.neig_sign.keys, train_inks)).flatten()
             ts_nn_idxs = np.argwhere(
-                np.isin(self.neig_matrix.keys, test_inks)).flatten()
+                np.isin(self.neig_sign.keys, test_inks)).flatten()
 
         # 6.6 GB - 3.4GB = 3.2 GB
         # predict FIXME we don't really need all the predictions
@@ -772,7 +772,7 @@ class sign4(BaseSignature, DataSignature):
         dis_unk = dict()
         dis_knw = dict()
 
-        nn_matrix = self.neig_matrix.get_h5_dataset('V')
+        nn_matrix = self.neig_sign.get_h5_dataset('V')
 
         axes[0].set_title('Accuracy Train-Train')
         _, NN_true['trtr'], _ = get_nn_matrix(nn_matrix[tr_nn_idxs])
@@ -1284,62 +1284,6 @@ class sign4(BaseSignature, DataSignature):
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix)
 
-    def save_error_matrix(self, sign4_train_file, predict_fn, destination,
-                          max_total=1000000, chunk_size=100):
-        """Save matrix of error in sign4 prediction.
-
-        This is the matrix for training the signature 3 error estimator
-        based on sign2 presence/absence.
-
-        Args:
-            sign4_train_file(list): The original train file with sign2s.
-            predict_fn(func): Trained Adanet predict function.
-            destination(str): Path where to save the matrix (HDF5 file).
-            sampling(int): How much subsampling per molecule.
-        """
-        self.__log.debug('Saving error traintest to: %s' % destination)
-        # get current space shape
-        self_len = self.sign2_self.shape[0]
-        # we calculate the sampling to fill a maximum total
-        if self_len > max_total:
-            # lower it can be is 1
-            sampling = 1
-        else:
-            sampling = int(np.floor(max_total / float(self_len)))
-        feat_shape = (self_len * sampling, len(self.src_datasets))
-        # create a new file with x and y
-        with h5py.File(destination, 'w') as hf_out:
-            hf_out.create_dataset('x', feat_shape, dtype=np.float32)
-            hf_out.create_dataset('y', (feat_shape[0], 1), dtype=np.float32)
-            # perform sampling for each input and measure distance
-            with h5py.File(sign4_train_file, 'r') as hf_in:
-                offset = 0
-                for i in tqdm(range(0, self_len, chunk_size)):
-                    # source input is repeated sampling times
-                    for r in range(sampling):
-                        # last chunk has different size
-                        csize = chunk_size
-                        if i + csize > hf_in['x'].shape[0]:
-                            csize = hf_in['x'].shape[0] - i
-                        src_chunk = slice(i, i + csize)
-                        # destination chunk is shifted by input length
-                        dst_chunk = slice(offset + (r * csize),
-                                          offset + csize + (r * csize))
-                        in_x = hf_in['x'][src_chunk]
-                        in_y = hf_in['y'][src_chunk]
-                        sub_x, _ = subsample(in_x, in_y, prob_original=0.2)
-                        coverage = ~np.isnan(sub_x[:, 0::128])
-                        # save coverage as X
-                        hf_out['x'][dst_chunk] = coverage
-                        # run prediction on subsampled input
-                        y_pred = predict_fn({'x': sub_x})['predictions']
-                        # save log mean squared error as Y
-                        mse = np.mean(((in_y - y_pred)**2), axis=1)
-                        log_mse = np.log10(mse)
-                        hf_out['y'][dst_chunk] = np.expand_dims(log_mse, 1)
-                    offset = dst_chunk.stop
-                assert(offset == feat_shape[0])
-
     def learn_error(self, predict_fn, params, reuse=True, suffix=None,
                     evaluate=True):
         """Learn the signature 3 prediction error.
@@ -1377,8 +1321,7 @@ class sign4(BaseSignature, DataSignature):
             self.save_sign2_matrix(self.sign2_list, sign2_matrix)
 
         # update the subsampling function
-        dataset_idx = np.argwhere(
-            np.isin(self.src_datasets, self.dataset)).flatten()
+        dataset_idx = np.argwhere(np.isin(self.src_datasets, ds)).flatten()
         p_nr, p_keep = subsampling_probs(self.sign2_coverage, dataset_idx)
         subsample_fn = partial(subsample, dataset_idx=dataset_idx,
                                p_nr=p_nr, p_keep=p_keep)
@@ -1391,14 +1334,14 @@ class sign4(BaseSignature, DataSignature):
                     sign2_matrix, traintest_file, predict_fn, subsample_fn,
                     split_names=['train', 'test'],
                     split_fractions=[.8, .2],
-                    neigbors_matrix=self.neig_matrix[:])
+                    neigbors_matrix=self.neig_sign[:])
         else:
             if not reuse or not os.path.isfile(traintest_file):
                 NeighborErrorTraintest.create(
                     sign2_matrix, traintest_file, predict_fn, subsample_fn,
                     split_names=['train'],
                     split_fractions=[.1],
-                    neigbors_matrix=self.neig_matrix[:])
+                    neigbors_matrix=self.neig_sign[:])
 
         if evaluate:
             self.train_predictors(params, model_dir, traintest_file)
@@ -1748,12 +1691,14 @@ class sign4(BaseSignature, DataSignature):
         except ImportError as err:
             raise err
 
-        # define dataset that will be used
+        # define datasets that will be used
         self.src_datasets = [sign.dataset for sign in sign2_list]
-        self.neig_matrix = sign1_self
+        self.neig_sign = sign1_self
         self.sign2_self = sign2_self
         self.sign2_list = sign2_list
         self.sign2_coverage = sign2_coverage
+        self.dataset_idx = np.argwhere(
+            np.isin(self.src_datasets, self.dataset)).flatten()
         if self.sign2_coverage is None:
             self.sign2_coverage = os.path.join(self.model_path,
                                                'all_sign2_coverage.h5')
@@ -1788,12 +1733,6 @@ class sign4(BaseSignature, DataSignature):
             self.learn_sign2(self.params['sign2'],
                              suffix='final', evaluate=False)
         siamese = SiameseTriplets(final_model_path)
-        scaler_file = os.path.join(self.model_path, 'scaler_final.pkl')
-        if os.path.isfile(scaler_file):
-            scaler = pickle.load(open(scaler_file, 'rb'))
-            siamese.set_predict_scaler(scaler)
-        else:
-            self.__log.warn('No scaler available. %s' % scaler_file)
 
         # part of confidence is the expected error
         if model_confidence:
@@ -1901,20 +1840,20 @@ class sign4(BaseSignature, DataSignature):
                         chunk = slice(idx, idx + chunk_size)
                         feat = features['x_test'][chunk]
                         # predict with final model
+                        preds = siamese.predict(feat)
+                        results['V'][chunk] = preds
+                        # skip modelling confidence if not required
                         if not model_confidence:
-                            preds = siamese.predict(feat)
-                            results['V'][chunk] = preds
                             continue
                         # save confidence natural scores
                         # compute estimated error from coverage
                         coverage = ~np.isnan(feat[:, 0::128])
                         results['exp_error'][chunk] = rf.predict(coverage)
                         # draw prediction with sub-sampling (dropout)
-                        pred, samples = siamese.predict(feat)
-                        # subsample_x_only,
-                        # consensus=True,
-                        # samples=10)
-                        results['V'][chunk] = pred
+                        dropout_fn = partial(subsample,
+                                             dataset_idx=self.dataset_idx)
+                        samples = siamese.predict(
+                            feat, dropout_fn=dropout_fn, dropout_samples=10)
                         # summarize the predictions as consensus
                         consensus = np.mean(samples, axis=1)
                         results['consensus'][chunk] = consensus
@@ -2418,7 +2357,7 @@ def subsampling_probs(sign2_coverage, dataset_idx):
 
 def subsample(tensor, sign_width=128,
               p_nr=np.array([1 / 25.] * 25),
-              p_only_self=0.25,
+              p_only_self=0.0,
               p_self=0.1,
               dataset_idx=[0],
               p_keep=np.array([1 / 25.] * 25),
