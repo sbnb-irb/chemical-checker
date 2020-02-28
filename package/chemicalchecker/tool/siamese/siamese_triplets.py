@@ -326,8 +326,18 @@ class SiameseTriplets(object):
         def only_self_loss(y_true, y_pred):
             def only_self_regularization(y_pred):
                 anchor, positive, negative, only_self = split_output(y_pred)
-                return mean_squared_error(anchor, only_self) # 1- K.sum(anchor * only_self, axis=-1)
 
+                pos_dist = K.sum(K.square(anchor - only_self), axis=1)
+                neg_dist = K.sum(K.square(anchor - negative), axis=1)
+
+                basic_loss = pos_dist - neg_dist + self.margin
+                loss = K.maximum(basic_loss, 0.0)
+
+                neg_dis = K.sum(anchor * negative, axis=1)
+                dim = K.int_shape(y_pred)[1]
+                gor = K.pow(K.mean(neg_dis), 2) + \
+                    K.maximum(K.mean(K.pow(neg_dis, 2)) - 1.0 / dim, 0.0)
+                return loss + (gor * self.alpha)
             loss = orthogonal_tloss(y_true, y_pred)
             o_self = only_self_regularization(y_pred)
             return loss + o_self
@@ -354,7 +364,7 @@ class SiameseTriplets(object):
         # this will be the encoder/transformer
         self.transformer = self.model.layers[-2]
 
-    def fit(self, monitor='val_loss'):
+    def fit(self, monitor='val_accTot'):
         """Fit the model.
 
         monitor(str): variable to monitor for early stopping.
@@ -452,12 +462,85 @@ class SiameseTriplets(object):
                 validation_sets, self.model, batch_size=self.batch_size)
             callbacks.append(additional_vals)
 
-        early_stopping = EarlyStopping(
+        class CustomEarlyStopping(EarlyStopping):
+            def __init__(self,
+                         monitor='val_loss',
+                         min_delta=0,
+                         patience=0,
+                         verbose=0,
+                         mode='auto',
+                         baseline=None,
+                         threshold = 0,
+                         restore_best_weights=False):
+                super(EarlyStopping, self).__init__()
+
+                self.monitor = monitor
+                self.baseline = baseline
+                self.patience = patience
+                self.verbose = verbose
+                self.min_delta = min_delta
+                self.wait = 0
+                self.stopped_epoch = 0
+                self.restore_best_weights = restore_best_weights
+                self.best_weights = None
+                self.threshold = threshold
+
+                if mode not in ['auto', 'min', 'max']:
+                    warnings.warn('EarlyStopping mode %s is unknown, '
+                                  'fallback to auto mode.' % mode,
+                                  RuntimeWarning)
+                    mode = 'auto'
+
+                if mode == 'min':
+                    self.monitor_op = np.less
+                elif mode == 'max':
+                    self.monitor_op = np.greater
+                else:
+                    if 'acc' in self.monitor:
+                        self.monitor_op = np.greater
+                    else:
+                        self.monitor_op = np.less
+
+                if self.monitor_op == np.greater:
+                    self.min_delta *= 1
+                else:
+                    self.min_delta *= -1
+
+            def on_epoch_end(self, epoch, logs=None):
+                current = self.get_monitor_value(logs)
+                threshold = logs.get(self.monitor.replace('val_', ''))
+                if current is None:
+                    return
+
+
+                if self.threshold > threshold:
+                    self.best = current
+                    self.wait = 0
+                    if self.restore_best_weights:
+                        self.best_weights = self.model.get_weights()
+                elif self.monitor_op(current - self.min_delta, self.best):
+                        self.best = current
+                        self.wait = 0
+                        if self.restore_best_weights:
+                            self.best_weights = self.model.get_weights()
+                else:
+                    self.wait += 1
+                    if self.wait >= self.patience:
+                        self.stopped_epoch = epoch
+                        self.model.stop_training = True
+                        if self.restore_best_weights:
+                            if self.verbose > 0:
+                                print('Restoring model weights from the end of '
+                                      'the best epoch')
+                            self.model.set_weights(self.best_weights)
+
+        early_stopping = CustomEarlyStopping(
             monitor=monitor,
             verbose=1,
             patience=self.patience,
-            mode='min',
-            restore_best_weights=True)
+            mode='max',
+            restore_best_weights=True,
+            threshold=0.8)
         if monitor or not self.evaluate:
             callbacks.append(early_stopping)
 
