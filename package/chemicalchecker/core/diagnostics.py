@@ -6,6 +6,7 @@ import collections
 from chemicalchecker.util import logged
 from chemicalchecker.util.plot import DiagnosisPlot
 from sklearn.neighbors import NearestNeighbors
+from sklearn.decomposition import PCA
 
 
 @logged
@@ -328,7 +329,7 @@ class Diagnosis(object):
             plotter_function = self.plotter.cross_roc,
             kw_plotter = {"sign": sign})
 
-    def projection(self, keys=None, focus_keys=None, max_keys=10000):
+    def projection(self, keys=None, focus_keys=None, max_keys=10000, perplexity=None, max_pca=100):
         """TSNE projection of CC signatures.
 
             Args:
@@ -369,7 +370,15 @@ class Diagnosis(object):
             if focus_keys is not None:
                 X = np.vstack((X, X_focus))
             self.__log.debug("Fit-transforming t-SNE")
-            tsne = TSNE()
+            if X.shape[1] > max_pca:
+                self.__log.debug("First doing a PCA")
+                X = PCA(n_components=max_pca).fit_transform(X)
+            if perplexity is None:
+                perp = int(np.sqrt(X.shape[0]))
+                perp = np.max([5, perp])
+                perp = np.min([50, perp])
+            self.__log.debug("Chosen perplexity %d" % perp)
+            tsne = TSNE(perplexity=perp)
             P_ = tsne.fit_transform(X)
             P = P_[:len(keys)]
             if focus_keys is not None:
@@ -391,21 +400,32 @@ class Diagnosis(object):
             plot = self.plot,
             plotter_function = self.plotter.projection)
 
-    def image(self, keys=None, max_keys=100):
+    def image(self, keys=None, max_keys=100, shuffle=False):
+        import h5py
         self.__log.debug("Image")
         fn = "image"
         if self._todo(fn):
             if keys is None:
                 X = self.V
                 keys = self.keys
-                idxs = np.random.choice(len(keys), np.min([max_keys, len(keys)]), replace=False)
-                X = X[idxs]
-                keys = np.array(keys)[idxs]
+                if shuffle:
+                    idxs = np.random.choice(len(keys), np.min([max_keys, len(keys)]), replace=False)
+                    X = X[idxs]
+                    keys = np.array(keys)[idxs]
+                else:
+                    X = X[:max_keys]
+                    keys = keys[:max_keys]
             else:
                 keys = set(keys).intersection(self.sign.keys)
                 self.__log.debug("%d keys found" % len(keys))
                 keys = np.array(sorted(random.sample(keys, np.min([max_keys, len(keys)]))))
                 X = self.sign.get_vectors(keys)[1]
+            # Sort features if available
+            with h5py.File(self.sign.data_path, "r") as hf:
+                if "features" in hf.keys():
+                    features = [f.decode() for f in hf["features"]]
+                    idxs = np.argsort(features)
+                    X = X[:,idxs]
             results = {
                 "X": X,
                 "keys": keys
@@ -642,7 +662,6 @@ class Diagnosis(object):
             plotter_function = self.plotter.intensities_projection)
 
     def _latent(self, sign):
-        from sklearn.decomposition import PCA
         fn = os.path.join(sign.stats_path, "latent-%d.pkl" % self.V.shape[0])
         if os.path.exists(fn):
             with open(fn, "rb") as f:
@@ -657,7 +676,7 @@ class Diagnosis(object):
     def dimensions(self, datasets=None, exemplary=True, cctype=None, molset=None, **kwargs):
         """Get dimensions of the signature and compare to other signatures"""
         self.__log.debug("Dimensions")
-        from sklearn.decomposition import PCA
+        
         fn = "dimensions"
         if cctype is None:
             cctype = self.cctype
@@ -947,7 +966,7 @@ class Diagnosis(object):
             plot = self.plot,
             plotter_function = self.plotter.redundancy)
 
-    def _cluster(self, expected_coverage, n_neighbors, min_samples):
+    def _cluster(self, expected_coverage, n_neighbors, min_samples, top_clusters):
         self.__log.debug("Clustering")
         from sklearn.cluster import DBSCAN
         from sklearn import metrics
@@ -955,23 +974,43 @@ class Diagnosis(object):
         P = self._load_diagnosis_pickle("projection.pkl")["P"]
         min_samples = int(np.max([np.min([P.shape[0]*0.01, min_samples]), 5]))
         self.__log.debug("Estimating epsilon")
-        nn = NearestNeighbors(n_neighbors+1)
-        nn.fit(P)
-        dists = nn.kneighbors(P)[0][:,n_neighbors]
-        h = np.histogram(dists, bins="auto")
-        y = np.cumsum(h[0])/np.sum(h[0])
-        x = h[1][1:]
-        eps = x[np.where(y > expected_coverage)[0][0]]
-        self.__log.debug("Running DBSCAN")
-        cl = DBSCAN(eps=eps, min_samples=min_samples).fit(P)
-        labels = cl.labels_
-        n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
-        n_noise_ = list(labels).count(-1)
-        silhouette = metrics.silhouette_score(P, labels)
-        lab_counts = collections.defaultdict(int)
-        for lab in labels:
-            lab_counts[lab] += 1
-        lab_counts = [(k, v) for k, v in sorted(lab_counts.items(), key=lambda item: -item[1])]
+        if n_neighbors is None:
+            n_neighbors = [1, 2, 3, 5, 10]
+        else:
+            n_neighbors = [n_neighbors]
+        def do_clustering(n_neigh):
+            nn = NearestNeighbors(n_neigh+1)
+            nn.fit(P)
+            dists = nn.kneighbors(P)[0][:,n_neigh]
+            h = np.histogram(dists, bins="auto")
+            y = np.cumsum(h[0])/np.sum(h[0])
+            x = h[1][1:]
+            eps = x[np.where(y > expected_coverage)[0][0]]
+            self.__log.debug("Running DBSCAN")
+            cl = DBSCAN(eps=eps, min_samples=min_samples).fit(P)
+            labels = cl.labels_
+            n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
+            n_noise_ = list(labels).count(-1)
+            lab_counts = collections.defaultdict(int)
+            for lab in labels:
+                lab_counts[lab] += 1
+            lab_counts = [(k, v) for k, v in sorted(lab_counts.items(), key=lambda item: -item[1])]
+            return (labels, lab_counts, eps, n_clusters_, n_noise_)
+        best_score = 0
+        best_n_neigh = None
+        for n_neigh in n_neighbors:
+            labels, lab_counts, eps, n_clusters_, n_noise_ = do_clustering(n_neigh)
+            lc = list([x[1] for x in lab_counts[:top_clusters]])
+            if len(lc) < top_clusters:
+                lc += [0]*(top_clusters-len(lc))
+            score = np.median(lc)
+            if best_n_neigh is None:
+                best_n_neigh = n_neigh
+                best_score = score
+            if best_score < score:
+                best_n_neigh = n_neigh
+                best_score = score
+        labels, lab_counts, eps, n_clusters_, n_noise_ = do_clustering(best_n_neigh)
         results = {
             "P": P,
             "min_samples": min_samples,
@@ -979,18 +1018,17 @@ class Diagnosis(object):
             "lab_counts": lab_counts,
             "epsilon": eps,
             "n_clusters": n_clusters_,
-            "n_noise": n_noise_,
-            "silhouette": silhouette
+            "n_noise": n_noise_
         }
         return results
         
-    def cluster_sizes(self, expected_coverage=0.95, n_neighbors=5, min_samples=10):
+    def cluster_sizes(self, expected_coverage=0.95, n_neighbors=None, min_samples=10, top_clusters=20):
         if self._todo("projection", inner=True):
             raise Exception("projection needs to be done first")
         self.__log.debug("Cluster sizes")
         fn = "clusters"
         if self._todo(fn):
-            results = self._cluster(expected_coverage, n_neighbors, min_samples)
+            results = self._cluster(expected_coverage, n_neighbors, min_samples, top_clusters)
         else:
             results = None
         return self._returner(
@@ -1120,7 +1158,7 @@ class Diagnosis(object):
     def available(self):
         return self.plotter.available()
 
-    def canvas(self, cctype=None):
+    def canvas(self, cctype=None, title=None):
         self.__log.debug("Getting all needed data.")
         plot = self.plot
         self.plot = False
@@ -1147,10 +1185,9 @@ class Diagnosis(object):
         self.key_coverage_projection()
         self.ranks_agreement(cctype=cctype)
         self.ranks_agreement_projection()
-        self.orthogonality()
         self.outliers()
         self.plot = plot
         self.save = save
         self.__log.debug("Plotting")
-        fig = self.plotter.canvas()
+        fig = self.plotter.canvas(title=title)
         return fig
