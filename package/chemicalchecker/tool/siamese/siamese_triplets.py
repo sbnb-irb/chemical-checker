@@ -326,7 +326,7 @@ class SiameseTriplets(object):
         def only_self_loss(y_true, y_pred):
             def only_self_regularization(y_pred):
                 anchor, positive, negative, only_self = split_output(y_pred)
-                return 1- K.sum(anchor * only_self, axis=-1)# mean_squared_error(anchor, only_self)
+                return mean_squared_error(anchor, only_self) # 1- K.sum(anchor * only_self, axis=-1)
 
             loss = orthogonal_tloss(y_true, y_pred)
             o_self = only_self_regularization(y_pred)
@@ -354,7 +354,7 @@ class SiameseTriplets(object):
         # this will be the encoder/transformer
         self.transformer = self.model.layers[-2]
 
-    def fit(self, monitor='val_accTot'):
+    def fit(self, monitor='val_loss'):
         """Fit the model.
 
         monitor(str): variable to monitor for early stopping.
@@ -456,7 +456,7 @@ class SiameseTriplets(object):
             monitor=monitor,
             verbose=1,
             patience=self.patience,
-            mode='max',
+            mode='min',
             restore_best_weights=True)
         if monitor or not self.evaluate:
             callbacks.append(early_stopping)
