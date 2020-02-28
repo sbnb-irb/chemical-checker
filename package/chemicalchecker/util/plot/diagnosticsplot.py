@@ -141,7 +141,7 @@ class DiagnosisPlot(object):
         results = self.load_diagnosis_pickle("atc_roc.pkl")
         ax = self._roc(ax, results, color)
         if title is None:
-            title = "ATC ROC (%.3f)" % results["auc"]
+            title = "ATC (%.3f)" % results["auc"]
         ax.set_title(title)
         return ax
 
@@ -151,7 +151,7 @@ class DiagnosisPlot(object):
         results = self.load_diagnosis_pickle("moa_roc.pkl")
         ax = self._roc(ax, results, color)
         if title is None:
-            title = "MoA ROC (%.3f)" % results["auc"]
+            title = "MoA (%.3f)" % results["auc"]
         ax.set_title(title)
         return ax
 
@@ -162,7 +162,7 @@ class DiagnosisPlot(object):
         if title is None:
             title = "Image"
         ax.set_ylabel("Keys")
-        ax.set_xlabel("Dimensions")
+        ax.set_xlabel("Features")
         ax.set_title(title)
         ax.grid()
         return ax
@@ -221,31 +221,29 @@ class DiagnosisPlot(object):
     def euclidean_distances(self, ax=None, color=None, title=None):
         results = self.load_diagnosis_pickle("euclidean_distances.pkl")
         ax = self._distance_distribution(results, ax=ax, color=color)
-        ax.set_xlabel("Euclidean distance")
+        ax.set_xlabel("Euclidean")
         if title is None:
-            title = "Euclidean distances"
+            title = "Euclidean dist."
         ax.set_title(title)
 
     def cosine_distances(self, ax=None, color=None, title=None):
         results = self.load_diagnosis_pickle("cosine_distances.pkl")
         ax = self._distance_distribution(results, ax=ax, color=color)
         if title is None:
-            title = "Cosine distances"
+            title = "Cosine dist."
         ax.set_title(title)
-        ax.set_xlabel("Cosine distance")
+        ax.set_xlabel("Cosine")
 
-    def values(self, ax=None, color=None, title=None):
+    def values(self, ax=None, s=1, cmap="coolwarm", title=None):
         ax = self._get_ax(ax)
-        color = self._get_color(color)
         results = self.load_diagnosis_pickle("values.pkl")
         x = results["x"]
         y = results["y"]
-        ax.plot(x, y, color=color)
-        ax.fill_between(x, y, color=color, alpha=0.2)
+        ax.scatter(x, y, c=x, cmap=cmap, s=s)
         ax.set_xlabel("Value")
         ax.set_ylabel("Density")
         if title is None:
-            title = "Values distribution"
+            title = "Values distr."
         ax.set_title(title)
         ax.set_ylim(0, np.max(y)*1.05)
 
@@ -268,7 +266,7 @@ class DiagnosisPlot(object):
         ax = self._iqr(results, ax=ax)
         ax.set_xlabel("Features (sorted)")
         if title is None:
-            title = "Values by feature"
+            title = "Values by feat."
         ax.set_title(title)
 
     def keys_iqr(self, ax=None, title=None):
@@ -292,7 +290,7 @@ class DiagnosisPlot(object):
         v = H.ravel()
         x = np.array(x_*H.shape[0])
         y = np.array([[yy]*H.shape[1] for yy in y_]).ravel()
-        ax.scatter(x, y, c=v, s=np.sqrt(v)/scaling, cmap=cmap, alpha=0.5, zorder=1)
+        ax.scatter(x, y, c=v, s=np.sqrt(v)/scaling, cmap=cmap, alpha=1, zorder=1)
         ax.set_ylabel("Value")
         return ax
 
@@ -317,7 +315,6 @@ class DiagnosisPlot(object):
         datasets = np.array(datasets)
         values = np.array(values)
         idxs = np.array(list(pd.DataFrame({"ds": datasets, "vl": -values}).sort_values(["vl", "ds"]).index)).astype(np.int)
-        #idxs = np.argsort(-values)
         datasets = datasets[idxs]
         values = values[idxs]
         colors = [coord_color(ds) for ds in datasets]
@@ -333,18 +330,28 @@ class DiagnosisPlot(object):
         ax.set_xlabel("Datasets")
         return ax
 
-    def across_coverage(self, ax=None, title=None, exemplary=True, cctype="sign1", molset="full"):
+    def across_coverage(self, ax=None, title=None, exemplary=True, cctype="sign1", molset="full", vs=True):
         results = self.load_diagnosis_pickle("across_coverage.pkl")
         datasets = []
         covs = []
+        if vs:
+            pref = "vs"
+        else:
+            pref = "my"
         for k,v in results.items():
             datasets += [k]
-            covs += [v["vs_overlap"]]
+            covs += [v["%s_overlap" % pref]]
         ax = self._across(covs, datasets, ax=ax, title=title, exemplary=exemplary, cctype=cctype, molset=molset)
         ax.set_ylabel("Coverage")
-        ax.set_ylim(-0.05, 1.05)
+        if vs:
+            ax.set_ylim(-np.max(covs)*0.05, np.min([1.05, np.max(covs)*1.1]))
+        else:
+            ax.set_ylim(-0.05, 1.05)
         if title is None:
-            title = "Coverage"
+            if vs:
+                title = "CC wrt Sign"
+            else:
+                title = "Sign wrt CC"
         ax.set_title(title)
 
     def across_roc(self, ax=None, title=None, exemplary=True, cctype="sign1", molset="full"):
@@ -385,10 +392,10 @@ class DiagnosisPlot(object):
         x = np.log10(x)
         y = np.log10(y)
         ax.scatter(x, y, color="white", edgecolor="black", s=80)
-        ax.set_xlabel("Latent variables (log10)")
-        ax.set_ylabel("Molecules (log10)")
+        ax.set_xlabel("Latent features (log10)")
+        ax.set_ylabel("Keys (log10)")
         if title is None:
-            title = "Latent dimensions"
+            title = "Keys: %d / Feat: %d (%d)" % (v["keys"], v["features"], len(v["expl"]))
         ax.set_title(title)
         return ax
 
@@ -400,7 +407,7 @@ class DiagnosisPlot(object):
         y = [np.log10(c[1]) for c in counts]
         ax.scatter(x, y, c=y, cmap="Spectral", s=10, zorder=100)
         if title is None:
-            title = "Redundancy (%.2f)" % (results["n_ref"]/results["n_full"])
+            title = "Redund. (%.2f)" % (1-results["n_ref"]/results["n_full"])
         ax.set_yticks(sorted(set(np.array(ax.get_yticks(), np.int))))
         ax.set_xlabel("Non-red. keys")
         ax.set_ylabel("Red. keys (log10)")
@@ -421,17 +428,19 @@ class DiagnosisPlot(object):
         x_ = x[:max_clusters]
         colors = self._categorical_colors(len(x_))
         ax.scatter(x_,y_, color=colors, zorder=100, s=s)
-        ax.axvline(max_clusters, color="gray", lw=1, linestyle="--")
-        # plot second part
-        y_ = y[max_clusters:]
-        xmax = max_clusters*2
-        x_ = list(np.linspace(max_clusters+1/len(y_), xmax, len(y_)))
-        ax.plot(x_, y_, color="gray", zorder=10)
-        if show_outliers:
-            ax.plot([xmax, xmax], [np.max(y), 1], lw = 1, color = "red")
+        if len(x) > max_clusters:
+            ax.axvline(max_clusters, color="gray", lw=1, linestyle="--")
+            # plot second part
+            y_ = y[max_clusters:]
+            if len(y_) > 0:
+                xmax = max_clusters*2
+                x_ = list(np.linspace(max_clusters+1/len(y_), xmax, len(y_)))
+                ax.plot(x_, y_, color="gray", zorder=10)
+            if show_outliers:
+                ax.plot([xmax, xmax], [np.max(y), 1], lw = 1, color = "red")
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticklabels)
         ax.set_ylim(-0.05, 1.05)
-        ax.set_xticks(xticks)
-        ax.set_xticklabels(xticklabels)
         ax.set_xlabel("Clusters")
         ax.set_ylabel("Prop. of keys")
         if title is None:
@@ -588,6 +597,7 @@ class DiagnosisPlot(object):
         ax = self._get_ax(ax)
         results = self.load_diagnosis_pickle("ranks_agreement.pkl")
         scores = results[stat]
+        scores = scores[~np.isnan(scores)]
         kernel = gaussian_kde(scores)
         x = np.linspace(np.min(scores), np.max(scores), 1000)
         y = kernel(x)
@@ -686,7 +696,7 @@ class DiagnosisPlot(object):
         ax = fig.add_subplot(gs[0,5])
         self.outliers(ax)
         ax = fig.add_subplot(gs[1,5])
-        self.orthogonality(ax)
+        self.values(ax)
         ax = fig.add_subplot(gs[0,1])
         self.intensities(ax)
         ax = fig.add_subplot(gs[0,2])
@@ -721,8 +731,10 @@ class DiagnosisPlot(object):
         self.atc_roc(ax)
         ax = fig.add_subplot(gs[-2:,:2])
         self.dimensions(ax)
-        ax = fig.add_subplot(gs[-2:,2:4])
-        self.across_coverage(ax)
+        ax = fig.add_subplot(gs[-2,2:4])
+        self.across_coverage(ax, vs=True)
+        ax = fig.add_subplot(gs[-1,2:4])
+        self.across_coverage(ax, vs=False)
         ax = fig.add_subplot(gs[-2:,4:6])
         self.across_roc(ax)
         if title is None:
