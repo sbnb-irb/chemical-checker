@@ -322,22 +322,30 @@ class sign4(BaseSignature, DataSignature):
         known_neig_file = os.path.join(self.model_path, 'known_neig.index')
         faiss.write_index(neig_index, known_neig_file)
         # predict with final model
-        preds = siamese.predict(known_x)
+        predicted = siamese.predict(known_x)
         # measure average distance from known
-        distances = np.mean(neig_index.search(preds, 50), axis=1).flatten()
+        dists, _ = neig_index.search(predicted, 50)
+        distances = np.mean(dists, axis=1).flatten()
         intensities, stddevs, consensus = self.conformal_prediction(
             siamese, known_x)
         # get prediction with only self
         self_preds = siamese.predict(mask_keep(self.dataset_idx, known_x))
         # get correlation between prediction and only self predictions
-        accuracies = row_wise_correlation(preds, self_preds, scaled=True)
+        correlations = row_wise_correlation(self_preds, predicted, scaled=True)
+        # calculate the error (what we want to predict)
+        log_mse = np.log10(np.mean(((self_preds - predicted)**2), axis=1))
+        log_mse_consensus = np.log10(
+            np.average(((self_preds - consensus)**2), axis=1))
         know_dist_file = os.path.join(self.model_path, 'known_dist.h5')
         with h5py.File(know_dist_file, "w") as hf:
             hf.create_dataset('stddev', data=stddevs, dtype=np.float32)
             hf.create_dataset('intensity', data=intensities, dtype=np.float32)
             hf.create_dataset('consensus', data=consensus, dtype=np.float32)
             hf.create_dataset('distance', data=distances, dtype=np.float32)
-            hf.create_dataset('accuracy', data=accuracies, dtype=np.float32)
+            hf.create_dataset('correlation', data=correlations, dtype=np.float32)
+            hf.create_dataset('log_mse', data=log_mse, dtype=np.float32)
+            hf.create_dataset('log_mse_consensus',
+                              data=log_mse_consensus, dtype=np.float32)
 
     def conformal_prediction(self, siamese, featues, nan_pred=None):
         # reference prediction (based on no information)
