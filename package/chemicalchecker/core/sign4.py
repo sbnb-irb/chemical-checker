@@ -10,6 +10,7 @@ import pandas as pd
 from tqdm import tqdm
 from time import time
 from functools import partial
+from sklearn.metrics import r2_score
 from scipy.spatial.distance import pdist
 from sklearn.preprocessing import robust_scale
 from scipy.stats import pearsonr, norm, rankdata
@@ -97,16 +98,14 @@ class sign4(BaseSignature, DataSignature):
         n_jobs = params.get('cpu', 4)
         default_err = {
             'LinearRegression': LinearRegression(),
-            'LinearSVR': LinearSVR(),
             'RandomForest': RandomForestRegressor(
                 n_estimators=100,
-                min_samples_leaf=5,
                 n_jobs=n_jobs
             ),
             'KNeighborsRegressor': KNeighborsRegressor(
                 n_jobs=n_jobs),
             'GaussianProcessRegressor': GaussianProcessRegressor(),
-            'MLPRegressor': MLPRegressor()
+            'MLPRegressor': MLPRegressor(hidden_layer_sizes=(64, 16, ))
         }
         default_err.update(params.get('error', {}))
         self.params['error'] = default_err
@@ -249,10 +248,12 @@ class sign4(BaseSignature, DataSignature):
             siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
             traintest_file = os.path.join(self.model_path,
                                           'traintest_%s.h5' % suffix)
+            err_path = os.path.join(self.model_path, 'error_%s' % suffix)
             params['traintest_file'] = params.get(
                 'traintest_file', traintest_file)
         else:
             siamese_path = os.path.join(self.model_path, 'siamese')
+            err_path = os.path.join(self.model_path, 'error')
         if 'model_dir' in params:
             siamese_path = params.get('model_dir')
         if not reuse or not os.path.isdir(siamese_path):
@@ -298,10 +299,15 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('Siamese training on %s' % traintest_file)
         siamese.fit()
         self.__log.debug('model saved to %s' % siamese_path)
+        # train error predictor
+        self.learn_error(siamese.predict, self.params['error'],
+                         suffix=suffix, evaluate=evaluate)
+        err_predictor_path = os.path.join(err_path, 'RandomForest.pkl')
+        err_predictor = pickle.load(open(err_predictor_path, 'rb'))
         # save known NN faiss index
-        known_mask = np.arange(min(100000, X.info_h5['x'][0]))
+        known_mask = np.arange(min(10000, X.info_h5['x'][0]))
         known_x = X.get_h5_dataset('x', mask=known_mask)
-        self.save_known_distributions(siamese, known_x)
+        self.save_known_distributions(siamese, known_x, err_predictor)
         # evaluate distance distributions
         self.plot_validations(siamese, dataset_idx, traintest_file)
         # when evaluating we update the nr of epoch to avoid
@@ -310,51 +316,86 @@ class sign4(BaseSignature, DataSignature):
             # update the parameters with the new nr_of epochs
             self.params['sign2']['epochs'] = siamese.last_epoch
 
-    def save_known_distributions(self, siamese, known_x):
+    def save_known_distributions(self, siamese, known_x, err_predictor):
         try:
             import faiss
         except ImportError as err:
             raise err
-        # save known neighbors faiss index
-        known_pred = siamese.predict(known_x)
+        # save neighbors faiss index for only self prediction
+        only_self = subsample(known_x, p_only_self=1,
+                              dataset_idx=[self.dataset_idx])
+        known_pred = siamese.predict(only_self)
         neig_index = faiss.IndexFlatL2(known_pred.shape[1])
         neig_index.add(known_pred.astype(np.float32))
         known_neig_file = os.path.join(self.model_path, 'known_neig.index')
         faiss.write_index(neig_index, known_neig_file)
         # predict with final model
         predicted = siamese.predict(known_x)
-        # measure average distance from known
-        dists, _ = neig_index.search(predicted, 50)
-        distances = np.mean(dists, axis=1).flatten()
+        # measure average distance from known (applicability domain)
+        # neighbors between 5 and 25 depending on the size of the dataset
+        app_thr = int(np.clip(np.log10(predicted.shape[0])**2, 5, 25))
+        dists, _ = neig_index.search(predicted, app_thr)
+        applicability = np.mean(dists, axis=1).flatten()
+        # neighbor overlap
+        _, self_known_idxs = neig_index.search(known_pred, app_thr)
+        pred_index = faiss.IndexFlatL2(predicted.shape[1])
+        pred_index.add(predicted.astype(np.float32))
+        _, self_pred_idxs = pred_index.search(predicted, app_thr)
+
+        def overlap(true_neig, pred_neig):
+            res = list()
+            for r1, r2 in zip(true_neig, pred_neig):
+                s1 = set(r1)
+                s2 = set(r2)
+                inter = len(set.intersection(s1, s2))
+                res.append(inter / float(len(s1)))
+            return np.array(res)
+        neighbor_accuracy = overlap(self_known_idxs, self_pred_idxs)
+        # measure null bias (average distance to all)
+        neig_index = faiss.IndexFlatL2(known_pred.shape[1])
+        bias_thr = min(known_pred.shape[0], 10000)
+        neig_index.add(known_pred[:bias_thr].astype(np.float32))
+        dists, _ = neig_index.search(predicted, bias_thr)
+        bias = np.mean(dists, axis=1).flatten()
+        # do conformal prediction (dropout)
         intensities, stddevs, consensus = self.conformal_prediction(
             siamese, known_x)
         # get prediction with only self
         self_preds = siamese.predict(mask_keep(self.dataset_idx, known_x))
         # get correlation between prediction and only self predictions
         correlations = row_wise_correlation(self_preds, predicted, scaled=True)
-        # calculate the error (what we want to predict)
+        r_squared = r2_score(self_preds.T, predicted.T,
+                             multioutput='raw_values')
+        # predict expected error
+        err_input = (~np.isnan(known_x[:, ::128])).astype(int)
+        exp_error = err_predictor.predict(err_input)
+        # calculate the error
         log_mse = np.log10(np.mean(((self_preds - predicted)**2), axis=1))
         log_mse_consensus = np.log10(
-            np.average(((self_preds - consensus)**2), axis=1))
+            np.mean(((self_preds - consensus)**2), axis=1))
         know_dist_file = os.path.join(self.model_path, 'known_dist.h5')
         with h5py.File(know_dist_file, "w") as hf:
-            hf.create_dataset('stddev', data=stddevs, dtype=np.float32)
-            hf.create_dataset('intensity', data=intensities, dtype=np.float32)
-            hf.create_dataset('consensus', data=consensus, dtype=np.float32)
-            hf.create_dataset('distance', data=distances, dtype=np.float32)
-            hf.create_dataset('correlation', data=correlations, dtype=np.float32)
-            hf.create_dataset('log_mse', data=log_mse, dtype=np.float32)
-            hf.create_dataset('log_mse_consensus',
-                              data=log_mse_consensus, dtype=np.float32)
+            hf.create_dataset('stddev', data=stddevs)
+            hf.create_dataset('intensity', data=intensities)
+            hf.create_dataset('consensus', data=consensus)
+            hf.create_dataset('applicability', data=applicability)
+            hf.create_dataset('bias', data=bias)
+            hf.create_dataset('exp_error', data=exp_error)
+            hf.create_dataset('neighbor_accuracy', data=neighbor_accuracy)
+            hf.create_dataset('correlation', data=correlations)
+            hf.create_dataset('r_squared', data=r_squared)
+            hf.create_dataset('log_mse', data=log_mse)
+            hf.create_dataset('log_mse_consensus', data=log_mse_consensus)
 
-    def conformal_prediction(self, siamese, featues, nan_pred=None):
+    def conformal_prediction(self, siamese, features, nan_pred=None):
         # reference prediction (based on no information)
         if nan_pred is None:
-            nan_feat = np.full((1, featues.shape[1]), np.nan, dtype=np.float32)
+            nan_feat = np.full(
+                (1, features.shape[1]), np.nan, dtype=np.float32)
             nan_pred = siamese.predict(nan_feat)
         # draw prediction with sub-sampling (dropout)
-        dropout_fn = partial(subsample, dataset_idx=self.dataset_idx)
-        samples = siamese.predict(featues, dropout_fn=dropout_fn,
+        dropout_fn = partial(subsample, dataset_idx=[self.dataset_idx])
+        samples = siamese.predict(features, dropout_fn=dropout_fn,
                                   dropout_samples=10)
         # summarize the predictions as consensus
         consensus = np.mean(samples, axis=1)
@@ -1281,9 +1322,7 @@ class sign4(BaseSignature, DataSignature):
         # update the subsampling function
         dataset_idx = np.argwhere(np.isin(self.src_datasets,
                                           self.dataset)).flatten()
-        p_nr, p_keep = subsampling_probs(self.sign2_coverage, dataset_idx)
-        subsample_fn = partial(subsample, dataset_idx=dataset_idx,
-                               p_nr=p_nr, p_keep=p_keep)
+        subsample_fn = partial(subsample, dataset_idx=dataset_idx)
 
         # if evaluating, perform the train-test split
         traintest_file = params.pop('traintest_file', traintest_file)
@@ -1304,7 +1343,6 @@ class sign4(BaseSignature, DataSignature):
 
         if evaluate:
             self.train_predictors(params, model_dir, traintest_file)
-            #self.save_performances(model_dir, sign2_plot, suffix, others)
         else:
             self.train_predictors(
                 params, model_dir, traintest_file, train_only=True)
@@ -1393,8 +1431,6 @@ class sign4(BaseSignature, DataSignature):
                                 scatter_kws={'alpha': .5}, ax=ax)
                     ax.set_xlabel('True')
                     ax.set_ylabel('Predicted')
-                    ax.set_xlim(-1, 1)
-                    ax.set_ylim(-1, 1)
                     ax.set_title(split)
                 for ax, split in zip(axes[1], splits):
                     preds = results[name]
@@ -1408,8 +1444,7 @@ class sign4(BaseSignature, DataSignature):
                     y_true = np.load(preds[split]['true'] + ".npy")
                     sns.distplot(y_pred, label='Pred', ax=ax)
                     sns.distplot(y_true, label='True', ax=ax)
-                    ax.set_xlabel('Pearsons rho')
-                    ax.set_xlim(-1, 1)
+                    ax.set_xlabel('Log10 MSE')
                     ax.set_title(split)
                 plt.tight_layout()
                 plot_file = os.path.join(save_path,
