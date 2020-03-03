@@ -364,7 +364,7 @@ class SiameseTriplets(object):
         # this will be the encoder/transformer
         self.transformer = self.model.layers[-2]
 
-    def fit(self, monitor='val_accTot'):
+    def fit(self, monitor='val_loss'):
         """Fit the model.
 
         monitor(str): variable to monitor for early stopping.
@@ -534,13 +534,12 @@ class SiameseTriplets(object):
                                       'the best epoch')
                             self.model.set_weights(self.best_weights)
 
-        early_stopping = CustomEarlyStopping(
+        early_stopping = EarlyStopping(
             monitor=monitor,
             verbose=1,
             patience=self.patience,
-            mode='max',
-            restore_best_weights=True,
-            threshold=0.8)
+            mode='min',
+            restore_best_weights=True)
         if monitor or not self.evaluate:
             callbacks.append(early_stopping)
 
