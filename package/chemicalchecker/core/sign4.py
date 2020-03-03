@@ -304,12 +304,13 @@ class sign4(BaseSignature, DataSignature):
                          suffix=suffix, evaluate=evaluate)
         err_predictor_path = os.path.join(err_path, 'RandomForest.pkl')
         err_predictor = pickle.load(open(err_predictor_path, 'rb'))
-        # save known NN faiss index
-        known_mask = np.arange(min(10000, X.info_h5['x'][0]))
+        # save validation plots
+        self.plot_validations(siamese, dataset_idx, traintest_file)
+        # save confidence scores distributions based on some known
+        max_dist_size = 10000
+        known_mask = np.arange(min(max_dist_size, X.info_h5['x'][0]))
         known_x = X.get_h5_dataset('x', mask=known_mask)
         self.save_known_distributions(siamese, known_x, err_predictor)
-        # evaluate distance distributions
-        self.plot_validations(siamese, dataset_idx, traintest_file)
         # when evaluating we update the nr of epoch to avoid
         # overfitting during final
         if evaluate:
@@ -321,67 +322,55 @@ class sign4(BaseSignature, DataSignature):
             import faiss
         except ImportError as err:
             raise err
-        # save neighbors faiss index for only self prediction
-        only_self = subsample(known_x, p_only_self=1,
-                              dataset_idx=[self.dataset_idx])
-        known_pred = siamese.predict(only_self)
-        neig_index = faiss.IndexFlatL2(known_pred.shape[1])
-        neig_index.add(known_pred.astype(np.float32))
-        known_neig_file = os.path.join(self.model_path, 'known_neig.index')
-        faiss.write_index(neig_index, known_neig_file)
-        # predict with final model
-        predicted = siamese.predict(known_x)
-        # measure average distance from known (applicability domain)
-        # neighbors between 5 and 25 depending on the size of the dataset
-        app_thr = int(np.clip(np.log10(predicted.shape[0])**2, 5, 25))
-        dists, _ = neig_index.search(predicted, app_thr)
-        applicability = np.mean(dists, axis=1).flatten()
-        # neighbor overlap
-        _, self_known_idxs = neig_index.search(known_pred, app_thr)
-        pred_index = faiss.IndexFlatL2(predicted.shape[1])
-        pred_index.add(predicted.astype(np.float32))
-        _, self_pred_idxs = pred_index.search(predicted, app_thr)
 
-        def overlap(true_neig, pred_neig):
-            res = list()
-            for r1, r2 in zip(true_neig, pred_neig):
-                s1 = set(r1)
-                s2 = set(r2)
-                inter = len(set.intersection(s1, s2))
-                res.append(inter / float(len(s1)))
-            return np.array(res)
-        neighbor_accuracy = overlap(self_known_idxs, self_pred_idxs)
+        # neighbors between 5 and 25 depending on the size of the dataset
+        app_thr = int(np.clip(np.log10(known_x.shape[0])**2, 5, 25))
+
+        # save neighbors faiss index for only self prediction
+        only_self = mask_keep(self.dataset_idx, known_x)
+        only_self_pred = siamese.predict(only_self)
+        only_self_neig_index = faiss.IndexFlatL2(only_self_pred.shape[1])
+        only_self_neig_index.add(only_self_pred.astype(np.float32))
+
+        # applicability is whether prediction with all data falls close to
+        # only self prediction
+        pred = siamese.predict(mask_exclude(self.dataset_idx, known_x))
+        only_self_dists, _ = only_self_neig_index.search(pred, app_thr)
+        distance = np.mean(only_self_dists, axis=1).flatten()
+
+        '''
         # measure null bias (average distance to all)
-        neig_index = faiss.IndexFlatL2(known_pred.shape[1])
-        bias_thr = min(known_pred.shape[0], 10000)
-        neig_index.add(known_pred[:bias_thr].astype(np.float32))
-        dists, _ = neig_index.search(predicted, bias_thr)
+        del only_self_neig_index
+        only_self_neig_index = faiss.IndexFlatL2(only_self_pred.shape[1])
+        bias_thr = min(only_self_pred.shape[0], 10000)
+        only_self_neig_index.add(only_self_pred.astype(np.float32))
+        dists, _ = neig_index.search(pred, 5)
         bias = np.mean(dists, axis=1).flatten()
+        '''
+
         # do conformal prediction (dropout)
         intensities, stddevs, consensus = self.conformal_prediction(
             siamese, known_x)
-        # get prediction with only self
-        self_preds = siamese.predict(mask_keep(self.dataset_idx, known_x))
+
         # get correlation between prediction and only self predictions
-        correlations = row_wise_correlation(self_preds, predicted, scaled=True)
-        r_squared = r2_score(self_preds.T, predicted.T,
+        correlations = row_wise_correlation(only_self_pred, pred, scaled=True)
+        r_squared = r2_score(only_self_pred.T, pred.T,
                              multioutput='raw_values')
         # predict expected error
         err_input = (~np.isnan(known_x[:, ::128])).astype(int)
         exp_error = err_predictor.predict(err_input)
         # calculate the error
-        log_mse = np.log10(np.mean(((self_preds - predicted)**2), axis=1))
+        log_mse = np.log10(np.mean(((only_self_pred - pred)**2), axis=1))
         log_mse_consensus = np.log10(
-            np.mean(((self_preds - consensus)**2), axis=1))
+            np.mean(((only_self_pred - consensus)**2), axis=1))
         know_dist_file = os.path.join(self.model_path, 'known_dist.h5')
         with h5py.File(know_dist_file, "w") as hf:
             hf.create_dataset('stddev', data=stddevs)
             hf.create_dataset('intensity', data=intensities)
             hf.create_dataset('consensus', data=consensus)
-            hf.create_dataset('applicability', data=applicability)
-            hf.create_dataset('bias', data=bias)
+            hf.create_dataset('distance', data=distance)
+            #hf.create_dataset('bias', data=bias)
             hf.create_dataset('exp_error', data=exp_error)
-            hf.create_dataset('neighbor_accuracy', data=neighbor_accuracy)
             hf.create_dataset('correlation', data=correlations)
             hf.create_dataset('r_squared', data=r_squared)
             hf.create_dataset('log_mse', data=log_mse)
