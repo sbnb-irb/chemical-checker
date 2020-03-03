@@ -595,9 +595,12 @@ class SiameseTriplets(object):
         # get default dropout function
         if dropout_fn is None:
             return self.transformer.predict(no_nans)
-        # sample with dropout
+        # sample with dropout (repeat input)
         repeat = no_nans[:].repeat(dropout_samples, axis=0)
-        sampling = self.transformer.predict(repeat)
+        # perform dropout and fix NaNs
+        dropped_ds = dropout_fn(repeat)
+        no_nans = np.nan_to_num(dropped_ds)
+        sampling = self.transformer.predict(no_nans)
         sampling = sampling.reshape(
             x_matrix.shape[0], dropout_samples, sampling.shape[1])
         return sampling
