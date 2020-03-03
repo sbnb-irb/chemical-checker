@@ -183,16 +183,14 @@ class NeighborErrorTraintest(object):
                 if idx + chunk_size > tot_x:
                     src_chunk = slice(idx, tot_x)
                 feat = features['x'][src_chunk]
-                feat_onlyself = subsample_fn(feat, p_only_self=1.0, )
+                feat_onlyself = subsample_fn(feat, p_only_self=1.0)
                 preds_onlyself[src_chunk] = predict_fn(feat_onlyself)
-                feat_noself = subsample_fn(
-                    feat, p_only_self=0.0, p_self=0.0)
+                feat_noself = subsample_fn(feat, p_only_self=0.0, p_self=0.0)
                 preds_noself[src_chunk] = predict_fn(feat_noself)
-                X[src_chunk] = (
-                    ~np.isnan(feat[:, ::128])).astype(int)
-            Y = np.expand_dims(row_wise_correlation(
-                robust_scale(preds_onlyself),
-                robust_scale(preds_noself)), 1)
+                X[src_chunk] = (~np.isnan(feat_noself[:, ::128])).astype(int)
+                delta = preds_onlyself[src_chunk] - preds_noself[src_chunk]
+                log_mse = np.log10(np.mean(((1e-6 + delta)**2), axis=1))
+                Y[src_chunk] = np.expand_dims(log_mse, 1)
 
         # reduce redundancy, keep full-ref mapping
         rnd = RNDuplicates(cpu=10)
@@ -272,7 +270,7 @@ class NeighborErrorTraintest(object):
                         full_y.append(y)
                 assert(len(full_idxs_flat) == len(full_y))
                 full_idxs_flat = np.array(full_idxs_flat)
-                full_y = np.expand_dims(np.array(full_y), 1)
+                full_y = np.array(full_y)
 
                 shuffle_idxs = np.arange(len(full_idxs_flat))
                 if shuffle:
