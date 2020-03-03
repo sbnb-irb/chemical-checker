@@ -542,3 +542,11 @@ class BaseSignature(object):
         new_path = '/'.join(folds)
         newsign = self.__class__(new_path, self.dataset)
         return newsign
+
+    def get_neig(self):
+        '''Return the neighbors signature, given a signature'''
+        from .neig import neig
+        folds = self.signature_path.split('/')
+        folds[-1] = "neig%s" % folds[-1][-1]
+        new_path = "/".join(folds)
+        return neig(new_path, self.dataset)
