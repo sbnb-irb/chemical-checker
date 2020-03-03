@@ -13,12 +13,13 @@ from chemicalchecker.util import logged
 class TripletSampler(object):
     """Sample triplets from a signature 0"""
 
-    def __init__(self, cc, sign0, save=True):
+    def __init__(self, cc, sign0, max_sampled_keys=10000, save=True):
         """Initialize triplet sampler"""
-        if sign0.cctype != "sign0":
-            raise Exception("Triplet sampling only makes sense for sign0!")
+        #if sign0.cctype != "sign0":
+        #    raise Exception("Triplet sampling only makes sense for sign0!")
         self.cc = cc
         self.sign = sign0
+        self.max_sampled_keys = max_sampled_keys
         self.save = save
 
     def choice(self, row, fmref_idxs, num_samp):
@@ -37,8 +38,8 @@ class TripletSampler(object):
         cands = np.random.choice(cands, num_samp, replace=True, p=probs)
         return list(cands)
             
-    def sample_triplets_from_dataset(self, keys, dataset, num_triplets, p_pos, p_neg, min_pos, max_neg):
-        # Represent our keys as
+    def sample_triplets_from_dataset(self, keys, dataset, num_triplets, p_pos, p_neg, min_pos, max_pos, max_neg):
+        # Represent our keys as indices
         keys_idxs = dict((k,i) for i,k in enumerate(keys))
         # Start with mappings
         sign_ds = self.cc.get_signature("sign1", "reference", dataset)
@@ -59,24 +60,41 @@ class TripletSampler(object):
         neig_ds = self.cc.get_signature("neig1", "reference", dataset)
         # Decide number of neighbors
         n_pos = int(np.max([neig_ds.shape[0]*p_pos, min_pos]))
+        n_pos = int(np.min([n_pos, max_pos]))
         n_neg = int(np.min([neig_ds.shape[0]*p_neg, neig_ds.shape[1], max_neg]))
+        self.__log.debug("Limiting the number of molecules")
+        # Limit the number of molecules to search in
+        toref_idxs_list = [(tidx,ridx) for tidx, ridx in toref_idxs.items()]
+        toref_idxs_list_asdict = dict((r[1],r[0]) for r in toref_idxs_list)
+        if self.max_sampled_keys < len(toref_idxs_list_asdict):
+            keys_toref = [k for k in toref_idxs_list_asdict.keys()]
+            keys_toref = random.sample(keys_toref, self.max_sampled_keys)
+            toref_idxs_list_asdict = dict((k,toref_idxs_list_asdict[k]) for k in keys_toref)
+        toref_idxs_list = [(v,k) for k,v in toref_idxs_list_asdict.items()]
+        toref_idxs_list = np.array(toref_idxs_list)
+        toref_idxs_list = toref_idxs_list[np.argsort(toref_idxs_list[:,1])]
         # Decide how much to sample
-        num_samp = int(num_triplets/len(toref_idxs))
+        num_samp = int(num_triplets/len(toref_idxs_list))
         if num_samp == 0:
             num_samp = int(num_triplets)
         # Sample from neighbors
-        nn = neig_ds.get_h5_dataset("indices")
+        self.__log.debug("Sampling from nearest neighbors")
+        with h5py.File(neig_ds.data_path, "r") as hf:
+            nn = hf["indices"][toref_idxs_list[:,1]]
+        self.__log.debug("Iterating over the nearest neighbors")
         triplets = []
-        for tidx, ridx in toref_idxs.items():
-            pidxs = self.choice(nn[ridx,:n_pos], fmref_idxs, num_samp)
-            nidxs = self.choice(nn[ridx,n_pos:n_neg], fmref_idxs, num_samp)
+        for i in range(0, toref_idxs_list.shape[0]):
+            tidx = toref_idxs_list[i,0]
+            ridx = toref_idxs_list[i,1]
+            pidxs = self.choice(nn[i,:n_pos], fmref_idxs, num_samp)
+            nidxs = self.choice(nn[i,n_pos:n_neg], fmref_idxs, num_samp)
             if len(pidxs) == 0 or len(nidxs) == 0: continue
             for pidx, nidx in zip(pidxs, nidxs):
                 if tidx == pidx: continue
                 triplets += [(tidx, pidx, nidx)]
         return set(triplets)
 
-    def sample_triplets(self, datasets, num_triplets, p_pos, p_neg, min_pos, max_neg, max_rounds):
+    def sample_triplets(self, datasets, num_triplets, p_pos, p_neg, min_pos, max_pos, max_neg, max_rounds):
         """Sample triplets from multiple exemplary datasets of the CC."""
         self.__log.debug("Sampling triplets")
         keys = self.sign.keys
@@ -89,7 +107,7 @@ class TripletSampler(object):
             for ds in datasets:
                 triplets_ds = self.sample_triplets_from_dataset(
                     keys=keys, dataset=ds, num_triplets=num_triplets_per_ds,
-                    p_pos=p_pos, p_neg=p_neg, min_pos=min_pos, max_neg=max_neg)
+                    p_pos=p_pos, p_neg=p_neg, min_pos=min_pos, max_pos=max_pos, max_neg=max_neg)
                 triplets.update(triplets_ds)
             if len(triplets) >= num_triplets:
                 break
@@ -119,7 +137,7 @@ class TripletSampler(object):
         with h5py.File(fn, "w") as hf:
             hf.create_dataset("triplets", data=triplets)
 
-    def sample(self, datasets=None, num_triplets=1000000, p_pos=0.001, p_neg=0.1, min_pos=10, max_neg=1000, max_rounds=3):
+    def sample(self, datasets=None, num_triplets=1000000, p_pos=0.001, p_neg=0.1, min_pos=10, max_pos=100, max_neg=1000, max_rounds=3):
         """Sample triplets from multiple exemplary datasets of the CC.
 
             Args:
@@ -131,7 +149,7 @@ class TripletSampler(object):
                 max_neg(int): Maximum number of neighbors considered to be negatives.
                 max_rounds(int): Triplets may be sampled redundantly. Number of rounds to be done before stopping trying (default=10).
         """
-        triplets_full = self.sample_triplets(datasets=datasets, num_triplets=num_triplets, p_pos=p_pos, p_neg=p_neg, min_pos=min_pos, max_neg=max_neg, max_rounds=max_rounds)
+        triplets_full = self.sample_triplets(datasets=datasets, num_triplets=num_triplets, p_pos=p_pos, p_neg=p_neg, min_pos=min_pos, max_pos=max_pos, max_neg=max_neg, max_rounds=max_rounds)
         triplets_reference = self.map_triplets_to_reference(triplets_full)
         results = {
             "full": triplets_full,

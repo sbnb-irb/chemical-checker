@@ -11,7 +11,9 @@ import h5py
 import numpy as np
 import datetime
 import shutil
+from scipy.signal import savgol_filter
 from tqdm import tqdm
+from sklearn.metrics import accuracy_score
 from scipy.spatial.distance import cosine
 from .signature_data import DataSignature
 from .signature_base import BaseSignature
@@ -79,22 +81,87 @@ class sign1(BaseSignature, DataSignature):
         pass
 
 
-    def score(self, max_triplets=100000):
+    def get_triplets(self, reference):
+        """Read triplets of signature"""
+        if reference:
+            fn = os.path.join(self.get_molset("reference").model_path, "triplets.h5")
+        else:
+            fn = os.path.join(self.model_path, "triplets.h5")
+        with h5py.File(fn, "r") as hf:
+            triplets = hf["triplets"][:]
+        return triplets
+
+    def score(self, reference, max_triplets=10000):
         """Score based on triplets"""
         self.__log.debug("Score the transformation based on triplets accuracy")
-        with h5py.File(os.path.join(self.model_path, "triplets.h5"), "r") as hf:
-            triplets = hf["triplets"][:]
-        V = self[:]
+        if reference:
+            sign = self.get_molset("reference")
+        else:
+            sign = self
+        triplets = self.get_triplets(reference)
         idxs = np.random.choice(triplets.shape[0], max_triplets, replace=False)
         triplets = triplets[idxs]
         acc = 0
-        for t in triplets:
-            if cosine(V[t[0]], V[t[1]]) < cosine(V[t[0]], V[t[2]]):
+        for t in tqdm(triplets):
+            a = sign[int(t[0])]
+            p = sign[int(t[1])]
+            n = sign[int(t[2])]
+            if cosine(a, p) < cosine(a, n):
                 acc += 1
         acc /= len(triplets)
         return acc
 
-    def get_triplets(self):
-        with h5py.File(os.path.join(self.model_path, "triplets.h5"), "r") as hf:
-            triplets = hf["triplets"][:]
-        return triplets
+    def optimal_t(self, max_triplets=10000):
+        """Find optimal (recommended) number of neighbors, based on the accuracy of triplets across the CC.
+        Neighbors class needs to be precomputed.
+        Only done for the reference set (it doesn't really make sense to do it for the full).
+        """
+        self.__log.debug("Getting neighbors instance")
+        neig = self.get_molset("reference").get_neig()
+        self.__log.debug("Reading triplets")
+        triplets = self.get_triplets(reference=True)
+        self.__log.debug("Selecting available anchors")
+        if len(triplets) > max_triplets:
+            idxs = np.random.choice(len(triplets), max_triplets, replace=False)
+            triplets = triplets[idxs]
+        anchors = sorted(set(triplets[:,0]))
+        anchors_idxs = dict((k,i) for i,k in enumerate(anchors))
+        self.__log.debug("Reading from nearest neighbors")
+        with h5py.File(neig.data_path, "r") as hf:
+            nn = hf["indices"][anchors][:,1:101]
+        self.__log.debug("Negatives and positives")
+        positives = [(anchors_idxs[t[0]], t[1]) for t in triplets]
+        negatives = [(anchors_idxs[t[0]], t[2]) for t in triplets]
+        pairs     = positives + negatives
+        truth     = [1]*len(positives) + [0]*len(negatives)
+        self.__log.debug("Setting the range of search")
+        N = neig.shape[0]
+        kranges = []
+        for i in range(5, 10):
+            kranges += [i]
+        for i in range(10, 50, 2):
+            kranges += [i]
+        for i in range(50, 100, 5):
+            kranges += [i]
+        self.__log.debug("Screening")
+        accus = []
+        for k in kranges:
+            n_pairs = []
+            for i in range(0, nn.shape[0]):
+                n_pairs += [(i, n) for n in nn[i,:k]]
+            pred = []
+            n_pairs = set(n_pairs)
+            for p in pairs:
+                if p in n_pairs:
+                    pred += [1]
+                else:
+                    pred += [0]
+            accus += [(k, accuracy_score(truth, pred))]
+        idx = np.argmax(savgol_filter([x[1] for x in accus], 11, 3))
+        opt_k = accus[idx][0]
+        opt_t = opt_k/neig.shape[0]
+        with h5py.File(os.path.join(self.get_molset("reference").model_path, "opt_t.h5"), "w") as hf:
+            hf.create_dataset("accuracies", data=np.array(accus).astype(np.int))
+            hf.create_dataset("opt_t", data=np.array([opt_t]))
+            hf.create_dataset("opt_k", data=np.array([opt_k]))
+        return opt_t
