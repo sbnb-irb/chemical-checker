@@ -90,6 +90,7 @@ class sign4(BaseSignature, DataSignature):
             'augment_scale': 1
         }
         default_sign2.update(params.get('sign2', {}))
+        self.params['sign2_lr'] = default_sign2.copy()
         self.params['sign2'] = default_sign2
         # parameters to learn from sign0
         default_sign0 = {
@@ -250,8 +251,8 @@ class sign4(BaseSignature, DataSignature):
                                   evaluate=False,
                                   **params)
         self.__log.debug('Siamese lr tuning on %s' % traintest_file)
-        min_lr, max_lr = siamese.find_lr()
-        return min_lr, max_lr
+        min_lr, max_lr, mean_lr = siamese.find_lr()
+        return min_lr, max_lr, mean_lr
 
     def learn_sign2(self, params, reuse=True, suffix=None, evaluate=True):
         """Learn the signature 3 model.
@@ -1906,17 +1907,18 @@ class sign4(BaseSignature, DataSignature):
         err_pred = None
         conf_mdl = None
 
-        lr_file = os.path.join(self.model_path, 'used_lrs.pkl')
+        lr_file = os.path.join(self.model_path, 'siamese_lr/used_lrs.pkl')
+
         if not os.path.isfile(lr_file):
-            min_lr, max_lr = self.learn_lr(self.params['sign2'], suffix='lr')
-            self.params['sign2']['min_lr'] = min_lr
-            self.params['sign2']['max_lr'] = max_lr
+            min_lr, max_lr, mean_lrs = self.learn_lr(self.params['sign2_lr'], suffix='lr')
+            self.params['sign2']['min_lr'] = mean_lrs
+            self.params['sign2']['max_lr'] = mean_lrs
         else:
             lrs = pickle.load(open(lr_file, "rb"))
-            self.params['sign2']['min_lr'] = lrs['min_lr']
-            self.params['sign2']['max_lr'] = lrs['max_lr']
+            self.params['sign2']['min_lr'] = lrs['mean']
+            self.params['sign2']['max_lr'] = lrs['mean']
 
-        self.__log.info('Min_lr: %f Max_lr: %f' % (self.params['sign2']['min_lr'], self.params['sign2']['max_lr']))
+        self.__log.info('Mean Lr: %f' % (mean_lrs))
 
         eval_model_path = os.path.join(self.model_path, 'siamese_eval')
         eval_file = os.path.join(eval_model_path, 'siamesetriplets_eval.h5')
