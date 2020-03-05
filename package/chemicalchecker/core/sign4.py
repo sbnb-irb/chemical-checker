@@ -268,7 +268,8 @@ class sign4(BaseSignature, DataSignature):
                     split_names=['train', 'test'],
                     split_fractions=[.8, .2],
                     suffix=suffix,
-                    num_triplets=num_triplets)
+                    num_triplets=num_triplets,
+                    t_per=self.t_per)
         else:
             num_triplets = params.get('num_triplets', 1e6)
             if not reuse or not os.path.isfile(traintest_file):
@@ -277,7 +278,8 @@ class sign4(BaseSignature, DataSignature):
                     split_names=['train'],
                     split_fractions=[1.0],
                     suffix=suffix,
-                    num_triplets=num_triplets)
+                    num_triplets=num_triplets,
+                    t_per=self.t_per)
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
@@ -1706,7 +1708,12 @@ class sign4(BaseSignature, DataSignature):
             import faiss
         except ImportError as err:
             raise err
-
+        t_file = os.path.join(sign1_self.get_molset("reference").model_path, "opt_t.h5")
+        if os.path.exists(t_file):
+            with h5py.File(t_file, "r") as hf:
+                self.t_per = hf["opt_t"][0]
+        else:
+            self.t_per = 0.01
         # define datasets that will be used
         self.src_datasets = [sign.dataset for sign in sign2_list]
         self.neig_sign = sign1_self
