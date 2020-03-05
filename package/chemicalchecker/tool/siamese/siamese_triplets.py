@@ -24,7 +24,7 @@ class SiameseTriplets(object):
     allows metric learning.
     """
 
-    def __init__(self, model_dir, evaluate=False, plot=True, **kwargs):
+    def __init__(self, model_dir, evaluate=False, predict_only=False, plot=True, **kwargs):
         """Initialize the Siamese class.
 
         Args:
@@ -81,7 +81,9 @@ class SiameseTriplets(object):
 
             # initialize train generator
             traintest_data = DataSignature(self.traintest_file)
-            self.sharedx = traintest_data.get_h5_dataset('x')
+            self.sharedx = None
+            if not predict_only:
+                self.sharedx = traintest_data.get_h5_dataset('x')
             tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
                 self.traintest_file,
                 'train_train',
@@ -612,7 +614,7 @@ class SiameseTriplets(object):
         """
         import matplotlib.pyplot as plt
 
-        metrics = list({k.split('_')[-1] for k in history})
+        metrics = sorted(list({k.split('_')[-1] for k in history}))
 
         rows = len(metrics)
         cols = len(vsets)
