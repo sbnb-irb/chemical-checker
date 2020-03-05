@@ -42,8 +42,8 @@ class SiameseTriplets(object):
         # read parameters
         self.epochs = int(kwargs.get("epochs", 10))
         self.batch_size = int(kwargs.get("batch_size", 100))
-        self.min_lr = float(kwargs.get("min_lr", 1e-5))
-        self.max_lr = float(kwargs.get("max_lr", 1e-4))
+        self.min_lr = float(kwargs.get("min_lr", 10e-10))
+        self.max_lr = float(kwargs.get("max_lr", 10e1))
         self.replace_nan = float(kwargs.get("replace_nan", 0.0))
         self.split = str(kwargs.get("split", 'train'))
         self.layers_sizes = kwargs.get("layers_sizes", [128])
@@ -376,15 +376,23 @@ class SiameseTriplets(object):
 
         lrf = LearningRateFinder(self.model)
 
-        lrf.find(self.tr_gen, self.min_lr, self.max_lr, epochs=2,
+        lrf.find(self.tr_gen, self.min_lr, self.max_lr, epochs=3,
         stepsPerEpoch=self.steps_per_epoch,
         batchSize=self.batch_size)
 
-        lrf.plot_loss()
-        lr_pkl_file = os.path.join(self.model_dir, "lr_evolution.pkl")
-        lrf.save_loss_evolution(lr_pkl_file)
+        min_lr, max_lr = lrf.find_bounds()
+        lrf.plot_loss(min_lr, max_lr)
         lr_plot_file = os.path.join(self.model_dir, "lr_evolution.png")
         plt.savefig(lr_plot_file)
+
+        lr_pkl_file = os.path.join(self.model_dir, "lr_evolution.pkl")
+        lrf.save_loss_evolution(lr_pkl_file)
+
+        lr_pkl_file = os.path.join(self.model_dir, "used_lrs.pkl")
+        min_lr, max_lr = 10**min_lr, 10**max_lr
+        lrs = {'min_lr': min_lr, 'max_lr': max_lr}
+        pickle.dump(lrs, open(lr_pkl_file, "wb" ))
+        return min_lr, max_lr
         
 
     def fit(self, monitor='val_loss'):
