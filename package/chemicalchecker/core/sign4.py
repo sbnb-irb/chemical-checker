@@ -230,12 +230,12 @@ class sign4(BaseSignature, DataSignature):
         num_triplets = params.get('num_triplets', 1e6)
         if not os.path.isfile(traintest_file):
             NeighborTripletTraintest.create(
-                    X, traintest_file, self.neig_sign,
-                    split_names=['train'],
-                    split_fractions=[1.0],
-                    suffix=suffix,
-                    num_triplets=num_triplets,
-                    t_per=self.t_per)
+                X, traintest_file, self.neig_sign,
+                split_names=['train'],
+                split_fractions=[1.0],
+                suffix=suffix,
+                num_triplets=num_triplets,
+                t_per=self.t_per)
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
@@ -252,7 +252,6 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('Siamese lr tuning on %s' % traintest_file)
         min_lr, max_lr = siamese.find_lr()
         return min_lr, max_lr
-
 
     def learn_sign2(self, params, reuse=True, suffix=None, evaluate=True):
         """Learn the signature 3 model.
@@ -434,7 +433,7 @@ class sign4(BaseSignature, DataSignature):
             test = ks_2samp
             ps = []
             ss_te = []
-            for p in np.linspace(0, 10, 100):
+            for p in np.linspace(0, 3, 10):
                 w = get_weights(y_tr, p=p)
                 mod.fit(x_tr, y_tr, sample_weight=w)
                 y_te_p = mod.predict(x_te)
@@ -451,12 +450,12 @@ class sign4(BaseSignature, DataSignature):
 
         self.__log.info('Training ERROR model')
         available_x = known_x.shape[0]
-        total_x = available_x
+        #total_x = available_x
         total_feat = known_x.shape[1]
         X = np.zeros((total_x, int(total_feat / 128)))
         Y = np.zeros((total_x, 1))
         # prepare X and Y in chunks
-        chunk_size = int(np.floor(available_x / 100))
+        chunk_size = int(np.floor(available_x / 10))
         reached_max = False
         for i in range(0, int(np.ceil(total_x / available_x))):
             for idx in range(0, available_x, chunk_size):
@@ -491,15 +490,28 @@ class sign4(BaseSignature, DataSignature):
                 if reached_max:
                     break
 
-        # split chunks, get indeces of chunks for each split
+        # get indeces for each split, save data
+        out_file = os.path.join(save_path, 'data.h5')
         if evaluate:
-            split_idxs = Traintest.get_split_indeces(X.shape[0], [0.8, 0.2])
+            split_names = ['train', 'test']
+            split_fractions = [0.8, 0.2]
+        else:
+            split_names = ['train']
+            split_fractions = [1.0]
+        split_idxs = Traintest.get_split_indeces(
+            X.shape[0], split_fractions)
+        with h5py.File(out_file, "w") as fh:
+            for split_idx, split_name in zip(split_idxs, split_names):
+                xs_name = "x_%s" % split_name
+                ys_name = "y_%s" % split_name
+                fh.create_dataset(xs_name, data=X[split_idx])
+                fh.create_dataset(ys_name, data=Y[split_idx])
+        if evaluate:
             x_tr = X[split_idxs[0]]
             y_tr = Y[split_idxs[0]].ravel()
             x_te = X[split_idxs[1]]
             y_te = Y[split_idxs[1]].ravel()
         else:
-            split_idxs = Traintest.get_split_indeces(X.shape[0], [1.0])
             x_tr = X[split_idxs[0]]
             y_tr = Y[split_idxs[0]].ravel()
             x_te = x_tr
@@ -509,12 +521,13 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('X test: %s' % str(x_te.shape))
         self.__log.debug('y test: %s' % str(y_te.shape))
 
+        # fit model
         model = LinearRegression()
         p = find_p(model, x_tr, y_tr, x_te, y_te)
         model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
         if plots:
             analyze(model, x_tr, y_tr, x_te, y_te)
-        predictor_path = os.path.join(save_path, 'error_predictor.pkl')
+        predictor_path = os.path.join(save_path, 'error.pkl')
         pickle.dump(model, open(predictor_path, 'wb'))
         return model
 
@@ -617,7 +630,7 @@ class sign4(BaseSignature, DataSignature):
             test = ks_2samp
             ps = []
             ss_te = []
-            for p in np.linspace(0, 10, 100):
+            for p in np.linspace(0, 3, 10):
                 w = get_weights(y_tr, p=p)
                 mod.fit(x_tr, y_tr, linearregression__sample_weight=w)
                 y_te_p = mod.predict(x_te)
@@ -721,7 +734,7 @@ class sign4(BaseSignature, DataSignature):
         # neighbors between 5 and 25 depending on the size of the dataset
         app_thr = int(np.clip(np.log10(self.neig_sign.shape[0])**2, 5, 25))
         only_self_dists, _ = neig_index.search(pred, app_thr)
-        applicability = 1 / np.mean(only_self_dists, axis=1).flatten()**2
+        applicability = np.mean(np.negative(only_self_dists), axis=1).flatten()
         # measure null centrality (average distance to all)
         centrality_thr = min(neig_index.ntotal, max_centrality)
         dists, _ = neig_index.search(pred, centrality_thr)
@@ -775,15 +788,20 @@ class sign4(BaseSignature, DataSignature):
         unknown = full_x.get_h5_dataset('x_test', mask=unknown_idxs[:limit])
 
         # predict
-        self.__log.info('VALIDATION: Predicting.')
-        known_pred = dict()
-        unknown_pred = dict()
-        for name, mask_fn in mask_fns.items():
-            known_pred[name] = siamese.predict(mask_fn(known))
-            if name == 'ONLY-SELF':
-                unknown_pred[name] = []
-            else:
-                unknown_pred[name] = siamese.predict(mask_fn(unknown))
+        pred = dict()
+        pred_file = os.path.join(siamese.model_dir, 'plot_preds.pkl')
+        if not os.path.isfile(pred_file):
+            self.__log.info('VALIDATION: Predicting.')
+            pred['known'] = dict()
+            pred['unknown'] = dict()
+            for name, mask_fn in mask_fns.items():
+                pred['known'][name] = siamese.predict(mask_fn(known))
+                if name == 'ONLY-SELF':
+                    pred['unknown'][name] = []
+                else:
+                    pred['unknown'][name] = siamese.predict(mask_fn(unknown))
+        else:
+            pred = pickle.load(open(pred_file, 'rb'))
 
         self.__log.info('VALIDATION: Plot correlations.')
         fig, axes = plt.subplots(
@@ -791,7 +809,7 @@ class sign4(BaseSignature, DataSignature):
         combos = itertools.combinations(mask_fns, 2)
         for ax, (n1, n2) in zip(axes.flatten(), combos):
             scaled_corrs = row_wise_correlation(
-                known_pred[n1], known_pred[n2], scaled=True)
+                pred['known'][n1], pred['known'][n2], scaled=True)
             sns.distplot(scaled_corrs, ax=ax)
             ax.set_title(label='%s vs. %s' % (n1, n2))
         fname = 'known_unknown_correlations.png'
@@ -805,11 +823,11 @@ class sign4(BaseSignature, DataSignature):
                 1, 3, sharex=True, sharey=True, figsize=(10, 3))
             for ax, name in zip(axes.flatten(), mask_fns):
                 ax.set_title(name)
-                dist_known = pdist(known_pred[name][:dist_limit],
+                dist_known = pdist(pred['known'][name][:dist_limit],
                                    metric=metric)
                 sns.distplot(dist_known, label='known', ax=ax)
-                if len(unknown_pred[name]) > 0:
-                    dist_unknown = pdist(unknown_pred[name][:dist_limit],
+                if len(pred['unknown'][name]) > 0:
+                    dist_unknown = pdist(pred['unknown'][name][:dist_limit],
                                          metric=metric)
                     sns.distplot(dist_unknown, label='unknown', ax=ax)
                 ax.legend()
@@ -1848,7 +1866,8 @@ class sign4(BaseSignature, DataSignature):
             import faiss
         except ImportError as err:
             raise err
-        t_file = os.path.join(sign1_self.get_molset("reference").model_path, "opt_t.h5")
+        t_file = os.path.join(sign1_self.get_molset(
+            "reference").model_path, "opt_t.h5")
         if os.path.exists(t_file):
             with h5py.File(t_file, "r") as hf:
                 self.t_per = hf["opt_t"][0]
