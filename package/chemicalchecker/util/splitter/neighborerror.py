@@ -131,8 +131,7 @@ class NeighborErrorTraintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def create(to_predict, out_file, predict_fn, subsample_fn,
-               neigbors_matrix=None, shuffle=True, max_x=10000,
+    def create(to_predict, out_file, predict_fn, subsample_fn, max_x=10000,
                split_names=['train', 'test'], split_fractions=[.8, .2],
                suffix='eval', x_dtype=np.float32, y_dtype=np.float32):
         """Create the HDF5 file with validation splits.
@@ -150,13 +149,6 @@ class NeighborErrorTraintest(object):
             y_dtype(type): numpy data type for Y (np.float32 for regression,
                 np.int32 for classification.
         """
-
-        def row_wise_correlation(X, Y):
-            var1 = (X.T - np.mean(X, axis=1)).T
-            var2 = (Y.T - np.mean(Y, axis=1)).T
-            cov = np.mean(var1 * var2, axis=1)
-            return cov / (np.std(X, axis=1) * np.std(Y, axis=1))
-
         NeighborErrorTraintest.__log.debug(
             "{:<20} shape: {:>10}".format("input to_predict",
                                           to_predict))
@@ -167,125 +159,65 @@ class NeighborErrorTraintest(object):
         # generate predictions and save coverage as X
         with h5py.File(to_predict, "r") as features:
             tot_x = features['x'].shape[0]
-            if len(neigbors_matrix) != tot_x:
-                raise Exception("neigbors_matrix should be same length as X.")
-            tot_x = min(max_x, tot_x)
             tot_feat = features['x'].shape[1]
+            X = np.zeros((max_x, int(tot_feat / 128)))
+            Y = np.zeros((max_x, 1))
+            # prepare X and Y in chunks
             chunk_size = int(np.floor(tot_x / 100))
-            X = np.zeros((tot_x, int(tot_feat / 128)))
-            Y = np.zeros((tot_x, 1))
-            preds_noself = np.zeros((tot_x, 128), dtype=np.float32)
-            preds_onlyself = np.zeros((tot_x, 128), dtype=np.float32)
-
-            # read input in chunks
-            for idx in tqdm(range(0, tot_x, chunk_size), desc='Predicting'):
-                src_chunk = slice(idx, idx + chunk_size)
-                if idx + chunk_size > tot_x:
-                    src_chunk = slice(idx, tot_x)
-                feat = features['x'][src_chunk]
-                feat_onlyself = subsample_fn(feat, p_only_self=1.0)
-                preds_onlyself[src_chunk] = predict_fn(feat_onlyself)
-                feat_noself = subsample_fn(feat, p_only_self=0.0, p_self=0.0)
-                preds_noself[src_chunk] = predict_fn(feat_noself)
-                X[src_chunk] = (~np.isnan(feat_noself[:, ::128])).astype(int)
-                delta = preds_onlyself[src_chunk] - preds_noself[src_chunk]
-                log_mse = np.log10(np.mean(((1e-6 + delta)**2), axis=1))
-                Y[src_chunk] = np.expand_dims(log_mse, 1)
-
-        # reduce redundancy, keep full-ref mapping
-        rnd = RNDuplicates(cpu=10)
-        _, ref_matrix, full_ref_map = rnd.remove(neigbors_matrix[:max_x])
-        ref_full_map = dict()
-        for key, value in full_ref_map.items():
-            ref_full_map.setdefault(value, list()).append(key)
-        full_refid_map = dict(
-            zip(rnd.final_ids, np.arange(len(rnd.final_ids))))
-        refid_full_map = {full_refid_map[k]: v
-                          for k, v in ref_full_map.items()}
+            reached_max = False
+            for i in range(0, int(np.ceil(max_x / tot_x))):
+                for idx in tqdm(range(0, tot_x, chunk_size), desc='Preds'):
+                    # check if enought
+                    if reached_max:
+                        break
+                    # define source chunk
+                    src_start = idx
+                    src_end = idx + chunk_size
+                    if src_end > tot_x:
+                        src_end = tot_x
+                    # define destination chunk
+                    dst_start = src_start + (int(tot_x) * i)
+                    dst_end = src_end + (tot_x * i)
+                    if dst_end > max_x:
+                        dst_end = max_x
+                        reached_max = True
+                        src_end = dst_end - (int(tot_x) * i)
+                    src_chunk = slice(src_start, src_end)
+                    dst_chunk = slice(dst_start, dst_end)
+                    # get only-self and not-self predictions
+                    feat = features['x'][src_chunk]
+                    feat_onlyself = subsample_fn(feat, p_only_self=1.0)
+                    preds_onlyself = predict_fn(feat_onlyself)
+                    feat_notself = subsample_fn(feat)
+                    preds_noself = predict_fn(feat_notself)
+                    # the error is only-self vs not-self predictions
+                    delta = preds_onlyself - preds_noself
+                    log_mse = np.log10(1e-6 + np.mean((delta**2), axis=1))
+                    Y[dst_chunk] = np.expand_dims(log_mse, 1)
+                    # the X is the dataset presence in the not-self
+                    presence = ~np.isnan(feat_notself[:, ::128])
+                    X[dst_chunk] = presence.astype(int)
 
         # split chunks, get indeces of chunks for each split
-        chunk_size = np.floor(ref_matrix.shape[0] / 100)
-        split_chunk_idx = NeighborErrorTraintest.get_split_indeces(
-            int(np.floor(ref_matrix.shape[0] / chunk_size)) + 1,
-            split_fractions)
-
-        # split ref matrix, keep ref-split mapping
-        nr_matrix = dict()
-        split_ref_map = dict()
-        for split_name, chunks in zip(split_names, split_chunk_idx):
-            # need total size and mapping of chunks
-            src_dst = list()
-            total_size = 0
-            for dst, src in enumerate(sorted(chunks)):
-                # source chunk start-end
-                src_start = src * chunk_size
-                src_end = (src * chunk_size) + chunk_size
-                # check current chunk size to avoid overflowing
-                curr_chunk_size = chunk_size
-                if src_end > ref_matrix.shape[0]:
-                    src_end = ref_matrix.shape[0]
-                    curr_chunk_size = src_end - src_start
-                # update total size
-                total_size += curr_chunk_size
-                # destination start-end
-                dst_start = dst * chunk_size
-                dst_end = (dst * chunk_size) + curr_chunk_size
-                src_slice = (int(src_start), int(src_end))
-                dst_slice = (int(dst_start), int(dst_end))
-                src_dst.append((src_slice, dst_slice))
-            # create chunk matrix
-            cols = ref_matrix.shape[1]
-            nr_matrix[split_name] = np.zeros((int(total_size), cols),
-                                             dtype=ref_matrix.dtype)
-            split_ref_map[split_name] = dict()
-            ref_idxs = np.arange(ref_matrix.shape[0])
-            for src_slice, dst_slice in tqdm(src_dst):
-                src_chunk = slice(*src_slice)
-                dst_chunk = slice(*dst_slice)
-                NeighborErrorTraintest.__log.debug(
-                    "writing src: %s  to dst: %s" % (src_slice, dst_slice))
-                ref_src_chunk = ref_idxs[src_chunk]
-                ref_dst_chunk = ref_idxs[dst_chunk]
-                for src_id, dst_id in zip(ref_src_chunk, ref_dst_chunk):
-                    split_ref_map[split_name][dst_id] = src_id
-                nr_matrix[split_name][dst_chunk] = ref_matrix[src_chunk]
-            NeighborErrorTraintest.__log.debug(
-                "nr_matrix %s %s", split_name, nr_matrix[split_name].shape)
+        split_idxs = NeighborErrorTraintest.get_split_indeces(
+            X.shape[0], split_fractions)
 
         # create dataset
         NeighborErrorTraintest.__log.info('Traintest saving to %s', out_file)
         with h5py.File(out_file, "w") as fh:
             # for each split
-            for split_name in split_names:
-                # map from split to ref to full expanding to all redundant
-                ref_idxs = split_ref_map[split_name].values()
-                ys = [Y[x] for x in ref_idxs]
-                full_idxs = [refid_full_map[x] for x in ref_idxs]
-                full_idxs_flat = list()
-                full_y = list()
-                assert(len(full_idxs) == len(ys))
-                for sublist, y in zip(full_idxs, ys):
-                    for item in sublist:
-                        full_idxs_flat.append(item)
-                        full_y.append(y)
-                assert(len(full_idxs_flat) == len(full_y))
-                full_idxs_flat = np.array(full_idxs_flat)
-                full_y = np.array(full_y)
-
-                shuffle_idxs = np.arange(len(full_idxs_flat))
-                if shuffle:
-                    np.random.shuffle(shuffle_idxs)
+            for split_idxs, split_name in zip(split_idxs, split_names):
 
                 NeighborErrorTraintest.__log.info(
-                    'X shape %s', X[full_idxs_flat[shuffle]][0].shape)
+                    'X shape %s', X[split_idxs].shape)
                 NeighborErrorTraintest.__log.info(
-                    'Y shape %s', full_y[shuffle][0].shape)
+                    'Y shape %s', Y[split_idxs].shape)
                 # save to h5
                 xs_name = "x_%s" % split_name
                 ys_name = "y_%s" % split_name
-                fh.create_dataset(xs_name, data=X[full_idxs_flat[shuffle]][0],
+                fh.create_dataset(xs_name, data=X[split_idxs],
                                   dtype=x_dtype)
-                fh.create_dataset(ys_name, data=full_y[shuffle][0],
+                fh.create_dataset(ys_name, data=Y[split_idxs],
                                   dtype=y_dtype)
 
         NeighborErrorTraintest.__log.info(
