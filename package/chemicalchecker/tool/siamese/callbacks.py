@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tempfile
 import pickle
+from chemicalchecker.tool.kneed.knee_locator import KneeLocator
+from scipy.signal import savgol_filter
 
 class CyclicLR(Callback):
 	"""This callback implements a cyclical learning rate policy (CLR).
@@ -259,14 +261,45 @@ class LearningRateFinder:
 		self.model.load_weights(self.weightsFile)
 		K.set_value(self.model.optimizer.lr, origLR)
 
-	def plot_loss(self, skipBegin=10, skipEnd=1, title=""):
+	def find_bounds(self, min_pad=1, max_pad=3, min_x=-7, max_x=0, window_length=51, polyorder=2):
+		x = np.log10(self.lrs)
+		y = self.losses
+		y = savgol_filter(y, window_length, polyorder)
+		# upper bound
+		idx = np.argmin(y)
+		ub = x[idx]
+		idx = np.argwhere(x<(ub-min_pad)).ravel()[-1]
+		x = x[:idx]
+		y = y[:idx]
+		# derivatives
+		dy=np.diff(y,1)
+		dx=np.diff(x,1)
+		yfirst=dy/dx
+		xfirst=0.5*(x[:-1]+x[1:])
+		dyfirst=np.diff(yfirst,1)
+		dxfirst=np.diff(xfirst,1)
+		ysecond=dyfirst/dxfirst
+		xsecond=0.5*(xfirst[:-1]+xfirst[1:])
+		ysecond=list(savgol_filter(ysecond, window_length, polyorder))
+		xsecond = np.array([xsecond[0]-1e-6] + list(xsecond) + [xsecond[-1]+1e-6])
+		ysecond = np.array([ysecond[0]] + list(ysecond) + [ysecond[-1]])
+		mask = np.logical_or(x<(ub-max_pad), ysecond < 0)
+		x = x[mask]
+		y = y[mask]
+		# lower bound
+		kn = KneeLocator(x, y, curve="concave",direction="decreasing",interp_method="polynomial")
+		lb = kn.elbow
+		return np.max([lb,min_x]), np.min([ub,max_x])
+
+	def plot_loss(self, min_lr, max_lr,skipBegin=10, skipEnd=1, title=""):
 		# grab the learning rate and losses values to plot
-		lrs = self.lrs[skipBegin:-skipEnd]
+		lrs = np.log10(self.lrs[skipBegin:-skipEnd])
 		losses = self.losses[skipBegin:-skipEnd]
 
 		# plot the learning rate vs. loss
 		plt.plot(lrs, losses)
-		plt.xscale("log")
+		plt.axvline(min_lr, color='black')
+		plt.axvline(max_lr, color='black')
 		plt.xlabel("Learning Rate (Log Scale)")
 		plt.ylabel("Loss")
 
