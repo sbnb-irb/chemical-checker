@@ -45,7 +45,6 @@ class SiameseTriplets(object):
         self.min_lr = float(kwargs.get("min_lr", 1e-5))
         self.max_lr = float(kwargs.get("max_lr", 1e-4))
         self.replace_nan = float(kwargs.get("replace_nan", 0.0))
-        self.suffix = str(kwargs.get("suffix", 'eval'))
         self.split = str(kwargs.get("split", 'train'))
         self.layers_sizes = kwargs.get("layers_sizes", [128])
         self.layers = kwargs.get("layers", [Dense] * len(self.layers_sizes))
@@ -62,7 +61,7 @@ class SiameseTriplets(object):
         self.traintest_file = kwargs.get("traintest_file", None)
 
         # internal variables
-        self.name = '%s_%s' % (self.__class__.__name__.lower(), self.suffix)
+        self.name = self.__class__.__name__.lower()
         self.time = 0
         self.model_dir = os.path.abspath(model_dir)
         self.model_file = os.path.join(self.model_dir, "%s.h5" % self.name)
