@@ -73,8 +73,8 @@ class sign4(BaseSignature, DataSignature):
             'layers_sizes': [1024, 512, 128],
             'activations': ['relu', 'relu', 'tanh'],
             'dropouts': [0.2, 0.2, 0.2],
-            'min_lr': 1e-6,
-            'max_lr': 1e-4,
+            'min_lr': 1e-10,
+            'max_lr': 1e+1,
             'batch_size': 128,
             'patience': 5,
             'loss_func': 'only_self_loss',
@@ -206,7 +206,7 @@ class sign4(BaseSignature, DataSignature):
                                 sum(available), self.dataset, ds)
                 del signs
 
-    def learn_lr(self, params, suffix='final'):
+    def learn_lr(self, params, suffix='lr'):
         '''Learns which learning rates to use for the CLR'''
         if suffix:
             siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
@@ -250,8 +250,7 @@ class sign4(BaseSignature, DataSignature):
                                   evaluate=False,
                                   **params)
         self.__log.debug('Siamese lr tuning on %s' % traintest_file)
-        siamese.find_lr()
-
+        min_lr, max_lr = siamese.find_lr()
         return min_lr, max_lr
 
 
@@ -1884,13 +1883,25 @@ class sign4(BaseSignature, DataSignature):
             sign4.save_sign2_universe(sign2_list, self.sign2_universe)
 
         # check if performance evaluations need to be done
+        siamese = None
+        err_pred = None
+        conf_mdl = None
+
+        lr_file = os.path.join(self.model_path, 'used_lrs.pkl')
+        if not os.path.isfile(lr_file):
+            min_lr, max_lr = self.learn_lr(self.params['sign2'], suffix='lr')
+            self.params['sign2']['min_lr'] = min_lr
+            self.params['sign2']['max_lr'] = max_lr
+        else:
+            lrs = pickle.load(open(lr_file, "rb"))
+            self.params['sign2']['min_lr'] = lrs['min_lr']
+            self.params['sign2']['max_lr'] = lrs['max_lr']
+
+        self.__log.info('Min_lr: %f Max_lr: %f' % (self.params['sign2']['min_lr'], self.params['sign2']['max_lr']))
+
         eval_model_path = os.path.join(self.model_path, 'siamese_eval')
         eval_file = os.path.join(eval_model_path, 'siamesetriplets_eval.h5')
-        siamese = None
-        err_mdl = None
-        conf_mdl = None
         if not os.path.isfile(eval_file):
-            min_lr, max_lr = self.learn_lr(self.params['sign2'], suffix='eval')
             siamese, err_mdl, conf_mdl = self.learn_sign2(
                 self.params['sign2'], suffix='eval', evaluate=True)
 
