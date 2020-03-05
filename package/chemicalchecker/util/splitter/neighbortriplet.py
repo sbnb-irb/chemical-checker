@@ -339,9 +339,10 @@ class NeighborTripletTraintest(object):
             for split1, split2 in combos:
                 combo = '_'.join([split1, split2])
                 # define F and T according to the split that is being used
-                F = np.clip(f_per * nr_matrix[split2].shape[0], 100, 1000)
-                F = int(min(F, (nr_matrix[split2].shape[0] - 1)))
                 T = int(np.clip(t_per * nr_matrix[split2].shape[0], 5, 100))
+                F = np.clip(10 * T, 100, 1000)
+                F = int(min(F, (nr_matrix[split2].shape[0] - 1)))
+                
                 NeighborTripletTraintest.__log.info("F and T: %s %s" % (F, T))
                 assert(T < F)
 
