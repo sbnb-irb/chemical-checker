@@ -10,17 +10,11 @@ import pandas as pd
 from tqdm import tqdm
 from time import time
 from functools import partial
-from sklearn.metrics import r2_score
+from scipy.stats import pearsonr
 from scipy.spatial.distance import pdist
 from sklearn.preprocessing import robust_scale
-from scipy.stats import pearsonr, norm, rankdata
 
-from sklearn.svm import LinearSVR
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.neural_network import MLPRegressor
 from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import RandomForestRegressor
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import QuantileTransformer
 
@@ -72,15 +66,27 @@ class sign4(BaseSignature, DataSignature):
         # get parameters or default values
         self.params = dict()
         # parameters to learn from sign2
+        from keras.layers import Dense
         default_sign2 = {
-            'epochs': 1,
-            'batch_size': 1000,
-            'augment_fn': None,
-            'num_triplets': 1000000,
-            'augment_scale': 1,
+            'epochs': 10,
+            'layers': [Dense, Dense, Dense],
+            'layers_sizes': [1024, 512, 128],
+            'activations': ['relu', 'relu', 'tanh'],
+            'dropouts': [0.2, 0.2, 0.2],
+            'learning_rate': 1e-5,
+            'batch_size': 128,
+            'patience': 5,
+            'loss_func': 'only_self_loss',
+            'margin': 1.0,
+            'alpha': 1.0,
+            'num_triplets': 50000,
+            'augment_fn': subsample,
             'augment_kwargs': {
-                'dataset': [dataset]
+                'dataset': [dataset],
+                'p_self': 0.1,
+                'p_only_self': 0.0
             },
+            'augment_scale': 1
         }
         default_sign2.update(params.get('sign2', {}))
         self.params['sign2'] = default_sign2
@@ -95,17 +101,7 @@ class sign4(BaseSignature, DataSignature):
         default_sign0_conf.update(params.get('sign0_conf', {}))
         self.params['sign0_conf'] = default_sign0_conf
         # predictors and parameters to learn error
-        n_jobs = params.get('cpu', 4)
         default_err = {
-            'LinearRegression': LinearRegression(),
-            'RandomForest': RandomForestRegressor(
-                n_estimators=100,
-                n_jobs=n_jobs
-            ),
-            'KNeighborsRegressor': KNeighborsRegressor(
-                n_jobs=n_jobs),
-            'GaussianProcessRegressor': GaussianProcessRegressor(),
-            'MLPRegressor': MLPRegressor(hidden_layer_sizes=(64, 16, ))
         }
         default_err.update(params.get('error', {}))
         self.params['error'] = default_err
@@ -248,12 +244,11 @@ class sign4(BaseSignature, DataSignature):
             siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
             traintest_file = os.path.join(self.model_path,
                                           'traintest_%s.h5' % suffix)
-            err_path = os.path.join(self.model_path, 'error_%s' % suffix)
             params['traintest_file'] = params.get(
                 'traintest_file', traintest_file)
+            params['suffix'] = params.get('suffix', suffix)
         else:
             siamese_path = os.path.join(self.model_path, 'siamese')
-            err_path = os.path.join(self.model_path, 'error')
         if 'model_dir' in params:
             siamese_path = params.get('model_dir')
         if not reuse or not os.path.isdir(siamese_path):
@@ -299,82 +294,124 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('Siamese training on %s' % traintest_file)
         siamese.fit()
         self.__log.debug('model saved to %s' % siamese_path)
+        # realistic subsampling function
+        p_nr, p_keep = subsampling_probs(self.sign2_coverage, self.dataset_idx)
+        realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
+                               dataset_idx=self.dataset_idx,
+                               p_nr=p_nr, p_keep=p_keep)
         # train error predictor
-        self.learn_error(siamese.predict, self.params['error'],
-                         suffix=suffix, evaluate=evaluate)
-        err_predictor_path = os.path.join(err_path, 'RandomForest.pkl')
-        err_predictor = pickle.load(open(err_predictor_path, 'rb'))
+        err_predictor = self.learn_error(siamese.predict, realistic_fn,
+                                         self.params['error'],
+                                         suffix=suffix, evaluate=evaluate)
         # save validation plots
         self.plot_validations(siamese, dataset_idx, traintest_file)
         # save confidence scores distributions based on some known
         max_dist_size = 10000
         known_mask = np.arange(min(max_dist_size, X.info_h5['x'][0]))
         known_x = X.get_h5_dataset('x', mask=known_mask)
-        self.save_known_distributions(siamese, known_x, err_predictor)
+        self.save_known_distributions(siamese, known_x, realistic_fn,
+                                      err_predictor)
         # when evaluating we update the nr of epoch to avoid
         # overfitting during final
         if evaluate:
             # update the parameters with the new nr_of epochs
             self.params['sign2']['epochs'] = siamese.last_epoch
 
-    def save_known_distributions(self, siamese, known_x, err_predictor):
+        return siamese, err_predictor
+
+    def save_known_distributions(self, siamese, known_x, realistic_fn,
+                                 err_predictor):
         try:
             import faiss
         except ImportError as err:
             raise err
-
-        # neighbors between 5 and 25 depending on the size of the dataset
-        app_thr = int(np.clip(np.log10(known_x.shape[0])**2, 5, 25))
-
-        # save neighbors faiss index for only self prediction
+        # save neighbors faiss index based on only self prediction
         only_self = mask_keep(self.dataset_idx, known_x)
         only_self_pred = siamese.predict(only_self)
-        only_self_neig_index = faiss.IndexFlatL2(only_self_pred.shape[1])
-        only_self_neig_index.add(only_self_pred.astype(np.float32))
+        only_self_neig = faiss.IndexFlatL2(only_self_pred.shape[1])
+        only_self_neig.add(only_self_pred.astype(np.float32))
+        only_self_neig_file = os.path.join(self.model_path, 'neig.index')
+        faiss.write_index(only_self_neig, only_self_neig_file)
 
-        # applicability is whether prediction with all data falls close to
-        # only self prediction
-        pred = siamese.predict(mask_exclude(self.dataset_idx, known_x))
-        only_self_dists, _ = only_self_neig_index.search(pred, app_thr)
-        distance = np.mean(only_self_dists, axis=1).flatten()
+        pred = siamese.predict(realistic_fn(known_x))
 
-        '''
-        # measure null bias (average distance to all)
-        del only_self_neig_index
-        only_self_neig_index = faiss.IndexFlatL2(only_self_pred.shape[1])
-        bias_thr = min(only_self_pred.shape[0], 10000)
-        only_self_neig_index.add(only_self_pred.astype(np.float32))
-        dists, _ = neig_index.search(pred, 5)
-        bias = np.mean(dists, axis=1).flatten()
-        '''
+        # do applicability domain prediction
+        applicability, bias = self.applicability_domain(only_self_neig, pred)
 
         # do conformal prediction (dropout)
         intensities, stddevs, consensus = self.conformal_prediction(
             siamese, known_x)
 
-        # get correlation between prediction and only self predictions
-        correlations = row_wise_correlation(only_self_pred, pred, scaled=True)
-        r_squared = r2_score(only_self_pred.T, pred.T,
-                             multioutput='raw_values')
         # predict expected error
         err_input = (~np.isnan(known_x[:, ::128])).astype(int)
         exp_error = err_predictor.predict(err_input)
+
         # calculate the error
         log_mse = np.log10(np.mean(((only_self_pred - pred)**2), axis=1))
         log_mse_consensus = np.log10(
             np.mean(((only_self_pred - consensus)**2), axis=1))
+
+        # get correlation between prediction and only self predictions
+        correlations = row_wise_correlation(only_self_pred, pred, scaled=True)
+
+        # save linear model combining confidence natural scores
+        model = LinearRegression()
+        X = np.vstack([applicability, bias, stddevs, exp_error]).T
+        model.fit(X, correlations)
+
+        model = LinearRegression()
+
+        def find_p(mod, x_tr, y_tr, x_te, y_te):
+            from scipy.stats import ks_2samp
+            test = ks_2samp
+            ps = []
+            ss_te = []
+            for p in np.linspace(0, 3, 10):
+                w = get_weights(y_tr, p=p)
+                mod.fit(x_tr, y_tr, sample_weight=w)
+                y_te_p = mod.predict(x_te)
+                s_te = test(y_te, y_te_p)[0]
+                ps += [p]
+                ss_te += [s_te]
+            p = ps[np.argmin(ss_te)]
+            return p
+
+        def get_weights(y, p=2):
+            h, b = np.histogram(y, 20)
+            b = [np.mean([b[i], b[i + 1]]) for i in range(0, len(h))]
+            w = np.interp(y, b, h).ravel()
+            w = (1 - w / np.max(w)) + 1e-6
+            return w**p
+
+        p = find_p(model, X, correlations, X, correlations)
+        model.fit(X, correlations, sample_weight=get_weights(correlations, p=p))
+
+        confidence_file = os.path.join(self.model_path, 'confidence.pkl')
+        pickle.dump(model, open(confidence_file, 'wb'))
+
         know_dist_file = os.path.join(self.model_path, 'known_dist.h5')
         with h5py.File(know_dist_file, "w") as hf:
             hf.create_dataset('stddev', data=stddevs)
             hf.create_dataset('intensity', data=intensities)
             hf.create_dataset('consensus', data=consensus)
-            hf.create_dataset('distance', data=distance)
-            #hf.create_dataset('bias', data=bias)
+            hf.create_dataset('applicability', data=applicability)
+            hf.create_dataset('bias', data=bias)
             hf.create_dataset('exp_error', data=exp_error)
             hf.create_dataset('correlation', data=correlations)
-            hf.create_dataset('r_squared', data=r_squared)
             hf.create_dataset('log_mse', data=log_mse)
             hf.create_dataset('log_mse_consensus', data=log_mse_consensus)
+
+    def applicability_domain(self, neig_index, pred, max_bias=10000):
+        # applicability is whether not-self preds is close to only-self preds
+        # neighbors between 5 and 25 depending on the size of the dataset
+        app_thr = int(np.clip(np.log10(self.neig_sign.shape[0])**2, 5, 25))
+        only_self_dists, _ = neig_index.search(pred, app_thr)
+        applicability = np.mean(only_self_dists, axis=1).flatten()
+        # measure null bias (average distance to all)
+        bias_thr = min(neig_index.ntotal, max_bias)
+        dists, _ = neig_index.search(pred, bias_thr)
+        bias = np.mean(dists[:, app_thr:], axis=1).flatten()
+        return applicability, bias
 
     def conformal_prediction(self, siamese, features, nan_pred=None):
         # reference prediction (based on no information)
@@ -1272,8 +1309,8 @@ class sign4(BaseSignature, DataSignature):
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix)
 
-    def learn_error(self, predict_fn, params, reuse=True, suffix=None,
-                    evaluate=True):
+    def learn_error(self, predict_fn, realistic_fn, params, reuse=True,
+                    suffix=None, evaluate=True):
         """Learn the signature 3 prediction error.
 
         This method is used twice. First to evaluate the performances of the
@@ -1308,140 +1345,137 @@ class sign4(BaseSignature, DataSignature):
         if not reuse or not os.path.isfile(sign2_matrix):
             self.save_sign2_matrix(self.sign2_list, sign2_matrix)
 
-        # update the subsampling function
-        dataset_idx = np.argwhere(np.isin(self.src_datasets,
-                                          self.dataset)).flatten()
-        subsample_fn = partial(subsample, dataset_idx=dataset_idx)
-
         # if evaluating, perform the train-test split
         traintest_file = params.pop('traintest_file', traintest_file)
         if evaluate:
             if not reuse or not os.path.isfile(traintest_file):
                 NeighborErrorTraintest.create(
-                    sign2_matrix, traintest_file, predict_fn, subsample_fn,
+                    sign2_matrix, traintest_file, predict_fn, realistic_fn,
                     split_names=['train', 'test'],
-                    split_fractions=[.8, .2],
-                    neigbors_matrix=self.neig_sign[:])
+                    split_fractions=[.8, .2])
         else:
             if not reuse or not os.path.isfile(traintest_file):
                 NeighborErrorTraintest.create(
-                    sign2_matrix, traintest_file, predict_fn, subsample_fn,
+                    sign2_matrix, traintest_file, predict_fn, realistic_fn,
                     split_names=['train'],
-                    split_fractions=[.1],
-                    neigbors_matrix=self.neig_sign[:])
+                    split_fractions=[1.0])
 
-        if evaluate:
-            self.train_predictors(params, model_dir, traintest_file)
-        else:
-            self.train_predictors(
-                params, model_dir, traintest_file, train_only=True)
+        return self.train_error_predictor(model_dir, traintest_file, evaluate)
 
-    def train_predictors(self, predictors, save_path, traintest_file,
-                         train_only=False):
-        """Train predictors for comparison."""
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-        from scipy.stats import pearsonr
+    def train_error_predictor(self, save_path, traintest_file, evaluate=False,
+                              plots=True):
+        """Train error predictor."""
+        def get_weights(y, p=2):
+            h, b = np.histogram(y, 20)
+            b = [np.mean([b[i], b[i + 1]]) for i in range(0, len(h))]
+            w = np.interp(y, b, h).ravel()
+            w = (1 - w / np.max(w)) + 1e-6
+            return w**p
 
-        def train_predict_save(name, model, x_true, y_true, split, save_path):
-            result = dict()
-            result['time'] = 0.
-            # train and save
-            if split is None or split == 'train':
-                self.__log.info('Training model: %s' % name)
-                t0 = time()
-                model.fit(x_true, y_true)
-                model_path = os.path.join(save_path, '%s.pkl' % name)
-                pickle.dump(model, open(model_path, 'wb'))
-                result['time'] = time() - t0
-                self.__log.info('Training took: %.1f sec' % result['time'])
-            # call predict
-            self.__log.info("Predicting for: %s", name)
-            y_pred = model.predict(x_true)
-            y_pred = np.expand_dims(y_pred, 1)
-            y_true = np.expand_dims(y_true, 1)
-            self.__log.info("%s Y: %s", name, y_pred.shape)
-            pr, pval = pearsonr(y_pred.ravel(), y_true.ravel())
-            self.__log.info("%s pearson r: %.2f pval: %.E" % (name, pr, pval))
-            if y_pred.shape[0] < 4:
-                return
-            file_true = os.path.join(
-                save_path, "_".join([name] + [str(split), 'true']))
-            np.save(file_true, y_true)
-            file_pred = os.path.join(
-                save_path, "_".join([name] + [str(split), 'pred']))
-            np.save(file_pred, y_pred)
-            result['true'] = file_true
-            result['pred'] = file_pred
-            result['coverage'] = 1.0
-            return result
+        def histograms(ax, yp, yt, title):
+            ax.hist(yp, 5, color="red", label="Pred", alpha=0.5)
+            ax.hist(yt, 5, color="blue", label="True", alpha=0.5)
+            ax.legend()
+            ax.set_xlabel("Value")
+            ax.set_ylabel("Counts")
+            ax.set_title(title)
 
-        # get results for each split or none if only training
-        results = dict()
-        if train_only:
-            splits = [None]
-        else:
-            splits = ['train', 'test']
-        for split in splits:
-            traintest = Traintest(traintest_file, split)
-            x_shape, y_shape = traintest.get_xy_shapes()
-            self.__log.info("%s X: %s Y: %s", split, x_shape, y_shape)
-            self.__log.info("%s Y: %s", split, y_shape)
-            traintest.open()
-            x_data = traintest.get_all_x()
-            y_data = traintest.get_all_y().flatten()
-            traintest.close()
-            for name, model in predictors.items():
-                if name not in results:
-                    results[name] = dict()
-                # predict and save
-                results[name][str(split)] = train_predict_save(
-                    name, model, x_data, y_data, split, save_path)
-        # save prerformances
-        if not train_only:
-            for name in sorted(results):
+        def scatter(ax, yp, yt):
+            from scipy.stats import gaussian_kde
+            x = yt
+            y = yp
+            xy = np.vstack([x, y])
+            z = gaussian_kde(xy)(xy)
+            idx = z.argsort()
+            x, y, z = x[idx], y[idx], z[idx]
+            ax.scatter(x, y, c=z, s=z * 10, edgecolor='')
+            ax.set_xlabel("True")
+            ax.set_ylabel("Pred")
+            xlim = ax.get_xlim()
+            ylim = ax.get_ylim()
+            lim = (np.min([xlim[0], ylim[0]]), np.max([xlim[1], ylim[1]]))
+            ax.set_xlim(lim)
+            ax.set_ylim(lim)
+            ax.plot([lim[0], lim[1]], [lim[0], lim[1]], color="red", lw=1)
+            title = "rho = %.2f" % pearsonr(x, y)[0]
+            ax.set_title(title)
 
-                fig, axes = plt.subplots(
-                    2, len(splits), sharex=True, sharey=False, figsize=(7, 7))
-                for ax, split in zip(axes[0], splits):
-                    preds = results[name]
-                    if split not in preds:
-                        self.__log.info("Skipping %s on %s", name, split)
-                        continue
-                    if preds[split] is None:
-                        self.__log.info("Skipping %s on %s", name, split)
-                        continue
-                    y_pred = np.load(preds[split]['pred'] + ".npy")
-                    y_true = np.load(preds[split]['true'] + ".npy")
-                    sns.regplot(y_true.flatten(), y_pred.flatten(),
-                                # x_estimator=np.mean,
-                                marker='.',
-                                truncate=False,
-                                scatter_kws={'alpha': .5}, ax=ax)
-                    ax.set_xlabel('True')
-                    ax.set_ylabel('Predicted')
-                    ax.set_title(split)
-                for ax, split in zip(axes[1], splits):
-                    preds = results[name]
-                    if split not in preds:
-                        self.__log.info("Skipping %s on %s", name, split)
-                        continue
-                    if preds[split] is None:
-                        self.__log.info("Skipping %s on %s", name, split)
-                        continue
-                    y_pred = np.load(preds[split]['pred'] + ".npy")
-                    y_true = np.load(preds[split]['true'] + ".npy")
-                    sns.distplot(y_pred, label='Pred', ax=ax)
-                    sns.distplot(y_true, label='True', ax=ax)
-                    ax.set_xlabel('Log10 MSE')
-                    ax.set_title(split)
-                plt.tight_layout()
-                plot_file = os.path.join(save_path,
-                                         '%s_correlations.png' % name)
-                plt.savefig(plot_file)
-                plt.close()
+        def importances(ax, mod):
+            from chemicalchecker.util.plot.style.util import coord_color
+            y = mod.coef_
+            datasets = ["%s%s" % (x, y) for x in "ABCDE" for y in "12345"]
+            datasets = np.array(datasets)
+            x = np.array([i for i in range(0, len(datasets))])
+            idxs = np.argsort(y)
+            datasets = datasets[idxs]
+            y = y[idxs]
+            colors = [coord_color(ds) for ds in datasets]
+            ax.scatter(y, x, color=colors)
+            ax.set_xlabel("Importance")
+            ax.set_yticks(x)
+            ax.set_yticklabels(datasets)
+            ax.set_title("Importance")
+            ax.axvline(0, color="red", lw=1)
 
-        return results
+        def analyze(mod):
+            import matplotlib.pyplot as plt
+            y_tr_p = mod.predict(x_tr)
+            y_te_p = mod.predict(x_te)
+            plt.close('all')
+            fig = plt.figure(constrained_layout=True, figsize=(8, 6))
+            gs = fig.add_gridspec(2, 3)
+            ax = fig.add_subplot(gs[0, 0])
+            histograms(ax, y_tr_p, y_tr, "Train")
+            ax = fig.add_subplot(gs[0, 1])
+            histograms(ax, y_te_p, y_te, "Test")
+            ax = fig.add_subplot(gs[1, 0])
+            scatter(ax, y_tr_p, y_tr)
+            ax = fig.add_subplot(gs[1, 1])
+            scatter(ax, y_te_p, y_te)
+            ax = fig.add_subplot(gs[0:2, 2])
+            importances(ax, mod)
+            if plots:
+                plt.savefig(os.path.join(save_path, 'analyze.png'))
+
+        def find_p(mod, x_tr, y_tr, x_te, y_te):
+            import matplotlib.pyplot as plt
+            from scipy.stats import ks_2samp
+            test = ks_2samp
+            ps = []
+            ss_te = []
+            for p in np.linspace(0, 3, 10):
+                w = get_weights(y_tr, p=p)
+                mod.fit(x_tr, y_tr, sample_weight=w)
+                y_te_p = mod.predict(x_te)
+                s_te = test(y_te, y_te_p)[0]
+                ps += [p]
+                ss_te += [s_te]
+            p = ps[np.argmin(ss_te)]
+            if plots:
+                plt.close('all')
+                plt.scatter(ps, ss_te)
+                plt.title("%.2f" % p)
+                plt.savefig(os.path.join(save_path, 'find_p.png'))
+            return p
+
+        with h5py.File(traintest_file, "r") as hf:
+            x_tr = hf["x_train"][:]
+            y_tr = hf["y_train"][:].ravel()
+            if evaluate:
+                x_te = hf["x_test"][:]
+                y_te = hf["y_test"][:].ravel()
+            else:
+                x_te = x_tr
+                y_te = y_tr
+
+        model = LinearRegression()
+        p = find_p(model, x_tr, y_tr, x_te, y_te)
+        model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
+        if plots:
+            analyze(model)
+        predictor_path = os.path.join(save_path, 'error_predictor.pkl')
+        pickle.dump(model, open(predictor_path, 'wb'))
+        return model
 
     def fit_sign0(self, sign0, include_confidence=True, extra_confidence=False):
         """Train an AdaNet model to predict sign4 from sign0.
@@ -1642,9 +1676,8 @@ class sign4(BaseSignature, DataSignature):
     def fit(self, sign2_list, sign2_self, sign1_self, sign2_universe=None,
             partial_universe=None,
             sign2_coverage=None, sign0=None,
-            model_confidence=False, save_correlations=False,
-            predict_novelty=False, update_preds=True, normalize_scores=False,
-            mask_features=False,
+            model_confidence=True, save_correlations=False,
+            predict_novelty=True, update_preds=True,
             validations=True, chunk_size=1000):
         """Fit the model to predict the signature 3.
 
@@ -1704,45 +1737,40 @@ class sign4(BaseSignature, DataSignature):
 
         # check if performance evaluations need to be done
         eval_model_path = os.path.join(self.model_path, 'siamese_eval')
-        eval_file = os.path.join(eval_model_path, 'siamese.h5')
+        eval_file = os.path.join(eval_model_path, 'siamesetriplets_eval.h5')
+        siamese = None
+        err_pred = None
         if not os.path.isfile(eval_file):
-            self.learn_sign2(self.params['sign2'],
-                             suffix='eval', evaluate=True)
+            siamese, err_pred = self.learn_sign2(
+                self.params['sign2'], suffix='eval', evaluate=True)
 
         # check if we have the final trained model
         final_model_path = os.path.join(self.model_path, 'siamese_final')
-        final_file = os.path.join(final_model_path, 'siamese.h5')
+        final_file = os.path.join(final_model_path, 'siamesetriplets_final.h5')
         if not os.path.isfile(final_file):
-            self.learn_sign2(self.params['sign2'],
-                             suffix='final', evaluate=False)
-        siamese = SiameseTriplets(final_model_path)
+            siamese, err_pred = self.learn_sign2(
+                self.params['sign2'], suffix='final', evaluate=False)
+        if siamese is None:
+            siamese = SiameseTriplets(final_model_path)
 
         if model_confidence:
-            # part of confidence is the expected error/accuracy
-            # generate prediction, measure error, fit regressor
-            predict_fn = siamese.predict
-            eval_err_path = os.path.join(self.model_path, 'error_eval')
-            if not os.path.isdir(eval_err_path):
-                # step1 learn dataset availability to error predictor
-                self.learn_error(predict_fn, self.params['error'],
-                                 suffix='eval', evaluate=True)
-            # final error predictor
-            final_err_path = os.path.join(self.model_path, 'error_final')
-            if not os.path.isdir(final_err_path):
-                self.learn_error(predict_fn, self.params['error'],
-                                 suffix='final', evaluate=False)
-            self.__log.debug('Loading model for error prediction')
-            rf = pickle.load(
-                open(os.path.join(final_err_path, 'RandomForest.pkl')), 'rb')
-            # another part of confidence is the intensity
-            # that is proportional to the distance to prediction of knowns
-            NN_file = os.path.join(self.model_path, 'known_nn.h5')
-            NN = faiss.read_index(NN_file)
+            # part of confidence is the expected error
+            if err_pred is None:
+                error_path = os.path.join(self.model_path, 'error_final')
+                error_file = os.path.join(error_path, 'error_predictor.pkl')
+                err_pred = pickle.load(open(error_file, 'rb'))
+
+            # another part of confidence is the applicability
+            neig_file = os.path.join(self.model_path, 'neig.index')
+            app_neig = faiss.read_index(neig_file)
+
+            # and finally the linear combination of scores
+            confidence_file = os.path.join(self.model_path, 'confidence.pkl')
+            conf_pred = pickle.load(open(confidence_file, 'rb'))
 
         # get sorted universe inchikeys
         self.universe_inchikeys = self.get_universe_inchikeys()
         tot_inks = len(self.universe_inchikeys)
-        tot_ds = len(self.src_datasets)
 
         # save universe sign4
         if update_preds:
@@ -1760,64 +1788,23 @@ class sign4(BaseSignature, DataSignature):
                     # the actual confidence value will be stored here
                     safe_create(results, 'confidence',
                                 (tot_inks,), dtype=np.float32)
-                    safe_create(results, 'confidence_raw',
-                                (tot_inks,), dtype=np.float32)
                     # this is to store standard deviation
                     safe_create(results, 'stddev',
                                 (tot_inks,), dtype=np.float32)
-                    safe_create(results, 'stddev_norm',
+                    # this is to store applicability
+                    safe_create(results, 'applicability',
                                 (tot_inks,), dtype=np.float32)
-                    # this is to store intensity
-                    safe_create(results, 'intensity',
-                                (tot_inks,), dtype=np.float32)
-                    safe_create(results, 'intensity_norm',
-                                (tot_inks,), dtype=np.float32)
-                    # this is to store distance
-                    safe_create(results, 'distance',
-                                (tot_inks,), dtype=np.float32)
-                    safe_create(results, 'distance_norm',
+                    # this is to store bias
+                    safe_create(results, 'bias',
                                 (tot_inks,), dtype=np.float32)
                     # this is to store error prediction
                     safe_create(results, 'exp_error',
                                 (tot_inks,), dtype=np.float32)
-                    safe_create(results, 'exp_error_norm',
-                                (tot_inks,), dtype=np.float32)
-                    # this is to store the consensus prediction
-                    safe_create(results, 'consensus',
-                                (tot_inks, 128), dtype=np.float32)
                 if predict_novelty:
                     safe_create(results, 'novelty',
                                 (tot_inks, ), dtype=np.float32)
-                    safe_create(results, 'novelty_norm',
-                                (tot_inks, ), dtype=np.float32)
                     safe_create(results, 'outlier',
                                 (tot_inks, ), dtype=np.float32)
-                if save_correlations:
-                    # read the correlations obtained evaluating on single
-                    # spaces
-                    df = pd.read_pickle(eval_stats)
-                    test_eval = df[(df.split != 'train') & (
-                        df.algo == 'AdaNet_eval')]
-                    train_eval = df[(df.split == 'train') & (
-                        df.algo == 'AdaNet_eval')]
-                    avg_pearsons = np.zeros(tot_ds, dtype=np.float32)
-                    avg_pearsons_test = np.zeros(tot_ds, dtype=np.float32)
-                    avg_pearsons_train = np.zeros(tot_ds, dtype=np.float32)
-                    for idx, ds in enumerate(self.src_datasets):
-                        ds_df = test_eval[test_eval['from'] == ds]
-                        ds_pearson = np.mean(ds_df['pearson'])
-                        if np.isnan(ds_pearson):
-                            ds_pearson = 0.0
-                        avg_pearsons_test[idx] = ds_pearson
-                        ds_df = train_eval[train_eval['from'] == ds]
-                        ds_pearson = np.mean(ds_df['pearson'])
-                        if np.isnan(ds_pearson):
-                            ds_pearson = 0.0
-                        avg_pearsons_train[idx] = ds_pearson
-                    avg_pearsons = avg_pearsons_test
-                    # this is to lookup correlations
-                    safe_create(results, 'datasets_correlation',
-                                data=avg_pearsons)
 
                 # predict signature 3 for universe molecules
                 with h5py.File(sign2_universe, "r") as features:
@@ -1838,22 +1825,21 @@ class sign4(BaseSignature, DataSignature):
                             continue
                         # save confidence natural scores
                         # compute estimated error from coverage
-                        coverage = ~np.isnan(feat[:, 0::128])
-                        results['exp_error'][chunk] = rf.predict(coverage)
+                        cov = ~np.isnan(feat[:, 0::128])
+                        exp_err = err_pred.predict(cov)
+                        results['exp_error'][chunk] = exp_err
                         # conformal prediction
                         ints, stds, cons = self.conformal_prediction(
                             siamese, feat, nan_pred=nan_pred)
-                        results['intensity'][chunk] = ints
                         results['stddev'][chunk] = stds
-                        results['consensus'][chunk] = cons
                         # distance from known predictions
-                        distances = NN.search(preds, 50)
-                        results['distance'][chunk] = np.mean(
-                            distances, axis=1).flatten()
-
-        # normalize consensus scores sampling distribution of known signatures
-        if normalize_scores:
-            self.normalize_scores()
+                        app, bias = self.applicability_domain(app_neig, preds)
+                        results['applicability'][chunk] = app
+                        results['bias'][chunk] = bias
+                        # and compute confidence
+                        conf_scores = np.vstack([app, bias, stds, exp_err]).T
+                        conf = conf_pred.predict(conf_scores)
+                        results['confidence'][chunk] = conf
 
         # use semi-supervised anomaly detection algorithm to predict novelty
         if predict_novelty:
@@ -1867,171 +1853,6 @@ class sign4(BaseSignature, DataSignature):
         if sign0 is not None:
             self.fit_sign0(sign0)
         self.mark_ready()
-
-    def normalize_scores(self, chunk_size=10000):
-        """Normalize confidence scores."""
-
-        # get distribution for normalization
-        distributions = self.confidence_distributions(self.sign2_self)
-        std_dist, int_dist, err_dist, correlation = distributions
-        weights = [abs(correlation['intensity']),
-                   abs(correlation['stddev']),
-                   abs(correlation['exp_error'])]
-        # fit quantile transformers for normalization
-        self.__log.info('Quatile transformation...')
-        std_qtr = QuantileTransformer(n_quantiles=len(std_dist)).fit(std_dist)
-        int_qtr = QuantileTransformer(n_quantiles=len(int_dist)).fit(int_dist)
-        err_qtr = QuantileTransformer(n_quantiles=len(err_dist)).fit(err_dist)
-        # add confidence scores and the normalized values
-        with h5py.File(self.data_path, "r+") as results:
-            safe_create(results, 'confidence_raw',
-                        (self.tot_inks,), dtype=np.float32)
-            for idx in tqdm(range(0, self.tot_inks, chunk_size)):
-                chunk = slice(idx, idx + chunk_size)
-                # get intensity and normalize wrt train distribution
-                intensity = np.expand_dims(results['intensity'][chunk], axis=1)
-                inten_norm = int_qtr.transform(intensity)
-                results['intensity_norm'][chunk] = inten_norm.flatten()
-                # get stddev and normalize wrt train distribution
-                stddev = np.expand_dims(results['stddev'][chunk], axis=1)
-                stddev_norm = std_qtr.transform(stddev)
-                results['stddev_norm'][chunk] = stddev_norm.flatten()
-                # get predicted error and normalize wrt train distribution
-                error = np.expand_dims(results['exp_error'][chunk], axis=1)
-                error_norm = err_qtr.transform(error)
-                results['exp_error_norm'][chunk] = error_norm.flatten()
-                # stddev, intensity and estimated error contribute
-                # to the raw confidence score based on error correlation
-                confidence_raw = np.average(
-                    [inten_norm, (1 - stddev_norm), (1 - error_norm)],
-                    weights=weights, axis=0)
-                # range [0,1] the higher the confidence the lower the error
-                results['confidence_raw'][chunk] = np.clip(
-                    confidence_raw, 0.0, 1.0).flatten()
-        self.__log.info('Confidence performance scaling...')
-        # final scaling according to performance on unseen data
-        ds_corr = self.get_h5_dataset('datasets_correlation')
-        # load adanet_eval and its test data
-        traintest_file = os.path.join(self.model_path, 'traintest.h5')
-        predict_fn = self.get_predict_fn('adanet_eval')
-        # get various 'difficulty' level correlations
-        dist_pars = list()
-        for corr_thr in [.7, .9, 1.0]:
-            # mask highly correlated spaces
-            corr_mask = ds_corr > corr_thr
-            corr_spaces = np.array(self.src_datasets)[corr_mask].tolist()
-            self.__log.debug('Masking %s' % str(corr_spaces))
-            corr_idxs = np.argwhere(corr_mask).flatten().tolist()
-            mask_fn = partial(mask_exclude, corr_idxs)
-            # predict and compute component correlations (using unseen data)
-            y_pred_test, y_true_test = AdaNet.predict_online(
-                traintest_file, 'test', predict_fn, mask_fn)
-            y_pred_val, y_true_val = AdaNet.predict_online(
-                traintest_file, 'validation', predict_fn, mask_fn)
-            y_pred = np.vstack([y_pred_test, y_pred_val])
-            y_true = np.vstack([y_true_test, y_true_val])
-            correlations = col_wise_correlation(y_pred, y_true)
-            dist_pars.append(
-                (corr_mask, np.mean(correlations), np.std(correlations)))
-            self.__log.debug('Distribution N(%.2f,%.2f)' % (dist_pars[-1][1:]))
-        # get mol indexes where to apply the different transformations
-        full_coverage = DataSignature(self.sign2_coverage).get_h5_dataset(
-            'x_test').astype(bool)
-        confidence_raw = self.get_h5_dataset('confidence_raw')
-        done = np.full(full_coverage.shape[0], False)
-        confidence = list()
-        for mask, mu, std in dist_pars:
-            # get molecules without any of the spaces in the mask
-            molmask = np.argwhere(
-                ~np.any(full_coverage & mask, axis=1)).flatten()
-            # exclude aready done molecules
-            molmask = molmask[~done[molmask]]
-            self.__log.debug('Scaling %s mols. to N(%.2f,%.2f)' %
-                             (molmask.shape[0], mu, std))
-            # get confidences
-            dist = confidence_raw[molmask]
-            # gaussianize the confidences
-            scaled = norm.ppf((rankdata(dist) - 0.5) / len(dist), mu, std)
-            # append to list for later sorting
-            confidence.extend(zip(molmask, scaled))
-            # these molecules are done, do include them in following
-            done[molmask] = True
-        confidence = np.array(sorted(confidence))
-        with h5py.File(self.data_path, "r+") as results:
-            if 'confidence' in results:
-                del results['confidence']
-            results['confidence'] = np.clip(
-                confidence[:, 1], 0.0, 1.0).flatten()
-
-    def confidence_distributions(self, sign2_self, max_sample=100000):
-        """Get distributions for confidence scores normalization.
-
-        Args:
-            sign2_self(sign2): The signature that we are training for.
-            max_sample(int): The maximum number of molecule to sample.
-        Returns:
-            stddev(np.array): Distribution of standard deviations.
-            intensity(np.array): Distribution of intensity.
-            exp_error(np.array): Distribution of predicted errors.
-            correlation(dict): Error correlation coefficients.
-        """
-        self.__log.debug('Generating confidence scores distributions')
-        # get current space inchikeys (limit to 20^4)
-        dataset_inks = sign2_self.keys
-        if len(dataset_inks) > max_sample:
-            dataset_inks = np.random.choice(dataset_inks, max_sample,
-                                            replace=False)
-        # get the features to train the estimator on
-        _, stddev = self.get_vectors(dataset_inks, dataset_name='stddev')
-        _, intensity = self.get_vectors(dataset_inks, dataset_name='intensity')
-        _, exp_error = self.get_vectors(
-            dataset_inks, dataset_name='exp_error')
-        # also get the predicted and actual sign2
-        _, consensus = self.get_vectors(dataset_inks, dataset_name='consensus')
-        _, predicted = self.get_vectors(dataset_inks)
-        _, actual = sign2_self.get_vectors(dataset_inks)
-        # calculate the error (what we want to predict)
-        log_mse = np.log10(np.mean(((actual - predicted)**2), axis=1))
-        log_mse_consensus = np.log10(
-            np.average(((actual - consensus)**2), axis=1))
-        # calculate correlations for scaling
-        correlation = dict()
-        corr_stddev_cons = pearsonr(stddev.flatten(), log_mse_consensus)[0]
-        self.__log.debug('stddev score correlation to consensus error:' +
-                         ' %.2f' % corr_stddev_cons)
-        corr_stddev = pearsonr(stddev.flatten(), log_mse)[0]
-        self.__log.debug('stddev score correlation to error:' +
-                         ' %.2f' % corr_stddev)
-        correlation['stddev'] = corr_stddev_cons
-        corr_intensity_cons = pearsonr(
-            intensity.flatten(), log_mse_consensus)[0]
-        self.__log.debug('intensity score correlation to consensus error:' +
-                         ' %.2f' % corr_intensity_cons)
-        corr_intensity = pearsonr(intensity.flatten(), log_mse)[0]
-        self.__log.debug('intensity score correlation to error:' +
-                         ' %.2f' % corr_intensity)
-        correlation['intensity'] = corr_intensity_cons
-        corr_exp_error_cons = pearsonr(
-            exp_error.flatten(), log_mse_consensus)[0]
-        self.__log.debug('exp_error score correlation to consensus error:' +
-                         ' %.2f' % corr_exp_error_cons)
-        corr_exp_error = pearsonr(exp_error.flatten(), log_mse)[0]
-        self.__log.debug('exp_error score correlation to error:' +
-                         ' %.2f' % corr_exp_error)
-        correlation['exp_error'] = corr_exp_error
-        # save data in the confidence model
-        error_file = os.path.join(self.model_path, 'error.h5')
-        with h5py.File(error_file, "w") as hf:
-            hf.create_dataset('keys',
-                              data=np.array(dataset_inks,
-                                            DataSignature.string_dtype()))
-            hf.create_dataset('stddev', data=stddev, dtype=np.float32)
-            hf.create_dataset('intensity', data=intensity, dtype=np.float32)
-            hf.create_dataset('exp_error', data=exp_error, dtype=np.float32)
-            hf.create_dataset('log_mse', data=log_mse, dtype=np.float32)
-            hf.create_dataset('log_mse_consensus',
-                              data=log_mse_consensus, dtype=np.float32)
-        return stddev, intensity, exp_error, correlation
 
     def predict_novelty(self, retrain=False, update_sign4=True):
         """Model novelty score via LocalOutlierFactor (semi-supervised).
@@ -2052,8 +1873,8 @@ class sign4(BaseSignature, DataSignature):
             # fit on molecules available in sign2
             _, predicted = self.get_vectors(s2_inks, dataset_name='V')
             t0 = time()
-            model = LocalOutlierFactor(novelty=True, metric='cosine',
-                                       n_jobs=self.params['error']['cpu'])
+            model = LocalOutlierFactor(novelty=True, metric='euclidean',
+                                       n_jobs=4)
             model.fit(predicted)
             delta = time() - t0
             self.__log.debug('Training took: %s' % delta)
@@ -2106,7 +1927,7 @@ class sign4(BaseSignature, DataSignature):
         from chemicalchecker.tool.siamese import SiameseTriplets
 
         if model_path is None:
-            model_path = os.path.join(self.model_path, 'siamese_test')
+            model_path = os.path.join(self.model_path, 'siamese_debug')
         self.__log.info('PREDICTING using model from: %s' % model_path)
         self.__log.info('INPUT from: %s' % src_file)
         self.__log.info('OUTPUT goes to: %s' % dst_file)
@@ -2236,7 +2057,7 @@ def subsample(tensor, sign_width=128,
     new_data = np.copy(tensor)
     # we will have a masking matrix at the end
     mask = np.zeros_like(new_data).astype(bool)
-    p_keep[dataset_idx] = 0.0
+    p_keep[tuple(dataset_idx)] = 0.0
     # if new_data.shape[1] % sign_width != 0:
     #    raise Exception('All signature should be of length %i.' % sign_width)
     for idx, row in enumerate(new_data):
