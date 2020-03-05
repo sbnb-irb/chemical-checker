@@ -389,10 +389,11 @@ class SiameseTriplets(object):
         lrf.save_loss_evolution(lr_pkl_file)
 
         lr_pkl_file = os.path.join(self.model_dir, "used_lrs.pkl")
-        min_lr, max_lr = 10**min_lr, 10**max_lr
-        lrs = {'min_lr': min_lr, 'max_lr': max_lr}
+        mean_lr = np.mean([min_lr, max_lr])
+        min_lr, max_lr, mean_lr = 10**min_lr, 10**max_lr, 10**mean_lr
+        lrs = {'min_lr': min_lr, 'max_lr': max_lr, 'mean': mean_lr}
         pickle.dump(lrs, open(lr_pkl_file, "wb" ))
-        return min_lr, max_lr
+        return min_lr, max_lr, mean_lr
         
 
     def fit(self, monitor='val_loss'):
@@ -574,12 +575,12 @@ class SiameseTriplets(object):
         #if monitor or not self.evaluate:
         #    callbacks.append(early_stopping)
 
-        clr = CyclicLR(
-            mode='triangular',
-            base_lr=self.min_lr,
-            max_lr=self.max_lr,
-            step_size= 8 * self.steps_per_epoch)
-        callbacks.append(clr)
+        #clr = CyclicLR(
+        #    mode='triangular2',
+        #    base_lr=self.min_lr,
+        #    max_lr=self.max_lr,
+        #    step_size= 8 * self.steps_per_epoch)
+        #callbacks.append(clr)
 
         # call fit and save model
         t0 = time()
