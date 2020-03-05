@@ -1809,7 +1809,7 @@ class sign4(BaseSignature, DataSignature):
             siamese, err_pred = self.learn_sign2(
                 self.params['sign2'], suffix='final', evaluate=False)
         if siamese is None:
-            siamese = SiameseTriplets(final_model_path)
+            siamese = SiameseTriplets(final_model_path, predict_only=True)
 
         if model_confidence:
             # part of confidence is the expected error
@@ -1989,18 +1989,21 @@ class sign4(BaseSignature, DataSignature):
         self.__log.info('PREDICTING using model from: %s' % model_path)
         self.__log.info('INPUT from: %s' % src_file)
         self.__log.info('OUTPUT goes to: %s' % dst_file)
-        siamese = SiameseTriplets(model_path)
+        siamese = SiameseTriplets(model_path, predict_only=True)
         with h5py.File(src_file, "r") as features:
             with h5py.File(dst_file, "w") as preds:
                 # create destination h5 dataset
                 tot_inks = features[src_h5_ds].shape[0]
                 preds_shape = (tot_inks, 128)
                 preds.create_dataset(dst_h5_ds, preds_shape, dtype=np.float32)
+                if 'keys' in features:
+                    preds.create_dataset('keys', data=features['keys'])
                 # predict in chunks
                 for idx in tqdm(range(0, tot_inks, chunk_size), desc='PRED'):
                     chunk = slice(idx, idx + chunk_size)
                     feat = features[src_h5_ds][chunk]
                     preds[dst_h5_ds][chunk] = siamese.predict(feat)
+
 
 
 def safe_create(h5file, *args, **kwargs):
