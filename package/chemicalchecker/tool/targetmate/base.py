@@ -50,16 +50,29 @@ class Model(ModelSetup):
             return np.load(ar)
         else:
             return ar
-
+    
+    def sampler(self, X, y, just_one):
+        spl = splitters.ToppedSampler(max_samples=self.max_train_samples,
+                                      max_ensemble_size=self.max_train_ensemble,
+                                      chance=self.train_sample_chance,
+                                      try_balance=True,
+                                      shuffle=self.shuffle)
+        if just_one:
+            self.__log.debug("Sample just one")
+            for shuff in spl.sample(X=X, y=y):
+                return shuff
+        else:
+            self.__log.debug("Sampling")
+            for shuff in spl.sample(X=X, y=y):
+                yield shuff
+        
     def find_base_mod(self, X, y, smiles, destination_dir=None):
         """Select a pipeline, for example, using HyperOpt."""
         X      = self.check_array_from_disk(X)
         y      = self.check_array_from_disk(y)
         smiles = self.check_array_from_disk(smiles)
         self.__log.info("Setting the base model")
-        shuff = np.array(range(len(y)))
-        if self.shuffle:
-            random.shuffle(shuff)        
+        shuff = self.sampler(X, y, just_one=True)
         base_mod = self.algo.as_pipeline(X=X[shuff], y=y[shuff], smiles=smiles[shuff])
         if destination_dir:
             self.__log.info("Saving base model in %s" % destination_dir)
@@ -80,10 +93,10 @@ class Model(ModelSetup):
         """Weight the association between a certain data type and an y variable using a cross-validation scheme, and a relatively simple model."""
         X = self.check_array_from_disk(X)
         y = self.check_array_from_disk(y)
-        shuff = np.array(range(len(y)))
-        if self.shuffle:
-            random.shuffle(shuff)
-        mod = self.weight_algo.as_pipeline(X[shuff], y[shuff])
+        shuff = self.sampler(X, y, just_one=True)
+        X = X[shuff]
+        y = y[shuff]
+        mod = self.weight_algo.as_pipeline(X, y)
         Spl = splitters.GetSplitter(is_cv=False,
                                     is_classifier=self.is_classifier,
                                     is_stratified=True,
@@ -114,45 +127,66 @@ class Model(ModelSetup):
         # Check if array is a file
         X = self.check_array_from_disk(X)
         y = self.check_array_from_disk(y)
-        # Get started
-        base_mod = self.find_base_mod(X, y, smiles, destination_dir = destination_dir)
-        shuff = np.array(range(len(y)))
-        if self.shuffle:
-            random.shuffle(shuff)
-        if self.conformity:
-            self.__log.info("Preparing cross-conformity")
-            # Cross-conformal prediction
-            mod = self.cross_conformal_func(base_mod)
-            # Do normal as well
-            mod_uncalib = base_mod
-        else:
-            self.__log.info("Using the selected pipeline")
-            mod = base_mod
-            mod_uncalib = None
-        # Fit the model
-        self.__log.info("Fitting")
-        mod.fit(X[shuff], y[shuff])
-        if mod_uncalib is not None:
-            self.__log.info("Fitting model, but without calibration")
-            mod_uncalib.fit(X[shuff], y[shuff])
-        # Save the destination directory of the model
+        # Setup
         if destination_dir:
-            self.__log.debug("Saving fitted model in %s" % self.mod_dir)
-            self.mod_dir = destination_dir
-            with open(destination_dir, "wb") as f:
-                joblib.dump(mod, f)
-            if mod_uncalib is not None:
-                self.__log.debug("Saving fitted uncalibrated model in %s-uncalib" % self.mod_dir)
-                self.mod_uncalib_dir = self.mod_dir+"-uncalib"
-                with open(self.mod_uncalib_dir, "wb") as f:
-                    joblib.dump(mod_uncalib, f)
-            else:
-                self.__log.debug("Calibrated and uncalibrated models are the same %s-uncalib" % self.mod_dir)
-                self.mod_uncalib_dir = self.mod_dir+"-uncalib"
-                os.symlink(self.mod_dir, self.mod_uncalib_dir)
+            if self.mod_dir is None: self.mod_dir = []
+            if self.mod_uncalib_dir is None: self.mod_uncalib_dir = []
         else:
-            self.mod = mod
-            self.mod_uncalib = mod_uncalib
+            self.mod = []
+            self.mod_uncalib = []
+        # Get started
+        base_mod = self.find_base_mod(X, y, smiles, destination_dir=destination_dir)
+        for i, shuff in enumerate(self.sampler(X, y, just_one=False)):
+            self.__log.debug("Sample %i" % i)
+            if self.conformity:
+                self.__log.info("Preparing cross-conformity")
+                # Cross-conformal prediction
+                mod = self.cross_conformal_func(base_mod)
+                # Do normal as well
+                mod_uncalib = base_mod
+            else:
+                self.__log.info("Using the selected pipeline")
+                mod = base_mod
+                mod_uncalib = None
+            # Fit the model
+            self.__log.info("Fitting")
+            mod.fit(X[shuff], y[shuff])
+            if mod_uncalib is not None:
+                self.__log.info("Fitting model, but without calibration")
+                mod_uncalib.fit(X[shuff], y[shuff])
+            # Save the destination directory of the model
+            if destination_dir:
+                destdir = destination_dir + "_%d" % i
+                self.mod_dir += [destdir]
+                self.__log.debug("Saving fitted model in %s" % destdir)
+                with open(destination_dir, "wb") as f:
+                    joblib.dump(mod, f)
+                if mod_uncalib is not None:
+                    self.__log.debug("Saving fitted uncalibrated model in %s-uncalib" % destdir)
+                    self.mod_uncalib_dir += [destdir+"-uncalib"]
+                    with open(destdir+"-uncalib", "wb") as f:
+                        joblib.dump(mod_uncalib, f)
+                else:
+                    self.__log.debug("Calibrated and uncalibrated models are the same %s-uncalib" % destdir)
+                    self.mod_uncalib_dir += [destdir+"-uncalib"]
+                    os.symlink(destdir, destdir+"-uncalib")
+            else:
+                self.mod += [mod]
+                self.mod_uncalib += [mod_uncalib]
+
+    def model_iterator(self, uncalib):
+        if uncalib:
+            mod_dir = self.mod_dir_uncalib
+            mod = self.mod_uncalib
+        else:
+            mod_dir = self.mod_dir
+            mod = self.mod
+        if mod_dir:
+            for m in mod_dir:
+                yield joblib.load(m)
+        else:
+            for m in mod:
+                yield m
 
     def _predict(self, X, destination_dir=None):
         """Make predictions
@@ -162,20 +196,17 @@ class Model(ModelSetup):
         """
         X = self.check_array_from_disk(X)
         self.__log.info("Predicting")
-        if self.mod_dir:
-            mod = joblib.load(self.mod_dir)
-        else:
-            mod = self.mod
-        if self.conformity:
-            preds = mod.predict(X)
-        else:
-            preds = mod.predict_proba(X)
-        if destination_dir:
-            self.__log.debug("Saving prediction in %s" % destination_dir)
-            with open(destination_dir, "wb") as f:
-                pickle.dump(preds, f)
-        else:
-            return preds
+        for i, mod in enumerate(self.model_iterator(uncalib=False)):
+            if self.conformity:
+                preds = mod.predict(X)
+            else:
+                preds = mod.predict_proba(X)
+            if destination_dir:
+                self.__log.debug("Saving prediction in %s" % destination_dir)
+                with open(destination_dir, "wb") as f:
+                    pickle.dump(preds, f)
+            else:
+                return preds
 
     def _explain(self, X, destination_dir=None):
         """Explain the output of a model.

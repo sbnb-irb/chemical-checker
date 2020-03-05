@@ -1,3 +1,5 @@
+"""Input/output function utilities"""
+
 import pandas as pd
 import numpy as np
 import random
@@ -220,7 +222,7 @@ class Prediction:
 
 
 class Explanation:
-
+    """Shapley explanation results"""
     def __init__(self, datasets, shaps, is_ensemble):
         self.is_ensemble = is_ensemble
         self.datasets = datasets
