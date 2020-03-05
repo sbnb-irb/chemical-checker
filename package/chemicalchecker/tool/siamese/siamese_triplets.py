@@ -575,12 +575,14 @@ class SiameseTriplets(object):
         #if monitor or not self.evaluate:
         #    callbacks.append(early_stopping)
 
-        #clr = CyclicLR(
-        #    mode='triangular2',
-        #    base_lr=self.min_lr,
-        #    max_lr=self.max_lr,
-        #    step_size= 8 * self.steps_per_epoch)
-        #callbacks.append(clr)
+        step_size = int(8 * self.steps_per_epoch)
+        print(step_size)
+        clr = CyclicLR(
+            mode='triangular',
+            base_lr=self.min_lr,
+            max_lr=self.max_lr,
+            step_size= step_size)
+        callbacks.append(clr)
 
         # call fit and save model
         t0 = time()
