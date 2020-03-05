@@ -3,6 +3,7 @@ from keras import backend as K
 import matplotlib.pyplot as plt
 import numpy as np
 import tempfile
+import pickle
 
 class CyclicLR(Callback):
 	"""This callback implements a cyclical learning rate policy (CLR).
@@ -214,23 +215,6 @@ class LearningRateFinder:
 		# reset our class-specific variables
 		self.reset()
 
-		# determine if we are using a data generator or not
-		useGen = self.is_data_iter(trainData)
-
-		# if we're using a generator and the steps per epoch is not
-		# supplied, raise an error
-		if useGen and stepsPerEpoch is None:
-			msg = "Using generator without supplying stepsPerEpoch"
-			raise Exception(msg)
-
-		# if we're not using a generator then our entire dataset must
-		# already be in memory
-		elif not useGen:
-			# grab the number of samples in the training data and
-			# then derive the number of steps per epoch
-			numSamples = len(trainData[0])
-			stepsPerEpoch = np.ceil(numSamples / float(batchSize))
-
 		# if no number of training epochs are supplied, compute the
 		# training epochs based on a default sample size
 		if epochs is None:
@@ -263,24 +247,13 @@ class LearningRateFinder:
 		callback = LambdaCallback(on_batch_end=lambda batch, logs:
 			self.on_batch_end(batch, logs))
 
-		# check to see if we are using a data iterator
-		if useGen:
-			self.model.fit_generator(
-				trainData,
-				steps_per_epoch=stepsPerEpoch,
-				epochs=epochs,
-				verbose=verbose,
-				callbacks=[callback])
-
-		# otherwise, our entire training data is already in memory
-		else:
-			# train our model using Keras' fit method
-			self.model.fit(
-				trainData[0], trainData[1],
-				batch_size=batchSize,
-				epochs=epochs,
-				callbacks=[callback],
-				verbose=verbose)
+		self.model.fit_generator(
+			trainData,
+			steps_per_epoch=stepsPerEpoch,
+			epochs=epochs,
+			verbose=verbose,
+			callbacks=[callback],
+			shuffle=True)
 
 		# restore the original model weights and learning rate
 		self.model.load_weights(self.weightsFile)
@@ -300,3 +273,7 @@ class LearningRateFinder:
 		# if the title is not empty, add it to the plot
 		if title != "":
 			plt.title(title)
+
+	def save_loss_evolution(self, fname):
+		evolution = {'lrs': self.lrs, 'losses':self.losses}
+		pickle.dump(evolution, open(fname, "wb" ))

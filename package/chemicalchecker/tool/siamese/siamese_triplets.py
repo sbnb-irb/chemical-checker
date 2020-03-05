@@ -14,6 +14,7 @@ from keras.losses import cosine_proximity, mean_squared_error, kullback_leibler_
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
+from .callbacks import *
 
 
 @logged
@@ -41,7 +42,8 @@ class SiameseTriplets(object):
         # read parameters
         self.epochs = int(kwargs.get("epochs", 10))
         self.batch_size = int(kwargs.get("batch_size", 100))
-        self.learning_rate = float(kwargs.get("learning_rate", 0.0001))
+        self.min_lr = float(kwargs.get("min_lr", 1e-5))
+        self.max_lr = float(kwargs.get("max_lr", 1e-4))
         self.replace_nan = float(kwargs.get("replace_nan", 0.0))
         self.suffix = str(kwargs.get("suffix", 'eval'))
         self.split = str(kwargs.get("split", 'train'))
@@ -143,7 +145,9 @@ class SiameseTriplets(object):
                 self.__log.info("{:<22}: {:>12}".format(
                     'test_test', str(tmp.get_ty_shapes())))
         self.__log.info("{:<22}: {:>12}".format(
-            "learning_rate", self.learning_rate))
+            "min_lr", self.min_lr))
+        self.__log.info("{:<22}: {:>12}".format(
+            "max_lr", self.max_lr))
         self.__log.info("{:<22}: {:>12}".format(
             "epochs", self.epochs))
         self.__log.info("{:<22}: {:>12}".format(
@@ -354,7 +358,7 @@ class SiameseTriplets(object):
         self.__log.info('Loss function: %s' %
                         lfuncs_dict[self.loss_func].__name__)
         model.compile(
-            optimizer=keras.optimizers.Adam(lr=self.learning_rate),
+            optimizer=keras.optimizers.Adam(lr=self.min_lr),
             loss=lfuncs_dict[self.loss_func],
             metrics=metrics)
         model.summary()
@@ -365,6 +369,24 @@ class SiameseTriplets(object):
             self.model.load_weights(self.model_file)
         # this will be the encoder/transformer
         self.transformer = self.model.layers[-2]
+
+    def find_lr(self):
+        # Initialize model
+        input_shape = (self.tr_shapes[0][1],)
+        self.build_model(input_shape)
+
+        lrf = LearningRateFinder(self.model)
+
+        lrf.find(self.tr_gen, self.min_lr, self.max_lr, epochs=2,
+        stepsPerEpoch=self.steps_per_epoch,
+        batchSize=self.batch_size)
+
+        lrf.plot_loss()
+        lr_pkl_file = os.path.join(self.model_dir, "lr_evolution.pkl")
+        lrf.save_loss_evolution(lr_pkl_file)
+        lr_plot_file = os.path.join(self.model_dir, "lr_evolution.png")
+        plt.savefig(lr_plot_file)
+        
 
     def fit(self, monitor='val_loss'):
         """Fit the model.
@@ -542,8 +564,15 @@ class SiameseTriplets(object):
             patience=self.patience,
             mode='min',
             restore_best_weights=True)
-        if monitor or not self.evaluate:
-            callbacks.append(early_stopping)
+        #if monitor or not self.evaluate:
+        #    callbacks.append(early_stopping)
+
+        clr = CyclicLR(
+            mode='triangular',
+            base_lr=self.min_lr,
+            max_lr=self.max_lr,
+            step_size= 8 * self.steps_per_epoch)
+        callbacks.append(clr)
 
         # call fit and save model
         t0 = time()
