@@ -1841,6 +1841,10 @@ class sign4(BaseSignature, DataSignature):
                 safe_create(results, 'datasets',
                             data=np.array(self.src_datasets,
                                           DataSignature.string_dtype()))
+                safe_create(results, 'known',
+                            data=np.isin(list(self.sign2_self.keys),
+                                         self.universe_inchikeys,
+                                         assume_unique=True))
                 safe_create(results, 'shape', data=(tot_inks, 128))
                 if model_confidence:
                     # the actual confidence value will be stored here
@@ -1912,7 +1916,7 @@ class sign4(BaseSignature, DataSignature):
             self.fit_sign0(sign0)
         self.mark_ready()
 
-    def predict_novelty(self, retrain=False, update_sign4=True):
+    def predict_novelty(self, retrain=False, update_sign4=True, cpu=4):
         """Model novelty score via LocalOutlierFactor (semi-supervised).
 
         Args:
@@ -1931,8 +1935,8 @@ class sign4(BaseSignature, DataSignature):
             # fit on molecules available in sign2
             _, predicted = self.get_vectors(s2_inks, dataset_name='V')
             t0 = time()
-            model = LocalOutlierFactor(novelty=True, metric='euclidean',
-                                       n_jobs=4)
+            model = LocalOutlierFactor(
+                novelty=True, metric='euclidean', n_jobs=cpu)
             model.fit(predicted)
             delta = time() - t0
             self.__log.debug('Training took: %s' % delta)
@@ -1957,25 +1961,14 @@ class sign4(BaseSignature, DataSignature):
             s3_outlier = model.predict(s3_pred_sign)
             assert(len(s3_inks) == s3_novelty.shape[0])
             ordered_scores = np.array(sorted(
-                zip(s2_idxs.flatten(), s2_novelty, s2_outlier) +
-                zip(s3_idxs.flatten(), s3_novelty, s3_outlier)))
+                list(zip(s2_idxs.flatten(), s2_novelty, s2_outlier)) +
+                list(zip(s3_idxs.flatten(), s3_novelty, s3_outlier))))
             ordered_novelty = ordered_scores[:, 1]
             ordered_outlier = ordered_scores[:, 2]
-            # novelty goes from 0 to -inf, we take the absolute to have
-            # most novel molecules with score 1.
-            abs_novelty = np.abs(np.expand_dims(ordered_novelty, 1))
-            nov_qtr = QuantileTransformer(
-                n_quantiles=100000).fit(abs_novelty[:100000])
-            nov_qtr_path = os.path.join(novelty_path, 'qtr.pkl')
-            pickle.dump(nov_qtr, open(nov_qtr_path, 'wb'))
             with h5py.File(self.data_path, "r+") as results:
                 if 'novelty' in results:
                     del results['novelty']
                 results['novelty'] = ordered_novelty
-                if 'novelty_norm' in results:
-                    del results['novelty_norm']
-                results['novelty_norm'] = nov_qtr.transform(
-                    abs_novelty).flatten()
                 if 'outlier' in results:
                     del results['outlier']
                 results['outlier'] = ordered_outlier
@@ -2003,7 +1996,6 @@ class sign4(BaseSignature, DataSignature):
                     chunk = slice(idx, idx + chunk_size)
                     feat = features[src_h5_ds][chunk]
                     preds[dst_h5_ds][chunk] = siamese.predict(feat)
-
 
 
 def safe_create(h5file, *args, **kwargs):
