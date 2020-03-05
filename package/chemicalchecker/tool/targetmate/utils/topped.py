@@ -3,7 +3,6 @@ from scipy.stats import mode
 from sklearn.base import clone
 from sklearn.model_selection import ShuffleSplit, StratifiedShuffleSplit
 
-
 class ToppedClassifier:
 
     def __init__(self, clf, max_samples=10000, max_ensemble_size=30,
@@ -77,3 +76,7 @@ class ToppedClassifier:
             y[:, j] = clf.predict_proba(X)[:, 1]
         y = np.mean(y, axis=1)
         return y
+
+    def explain(self, X):
+        pass
+        
