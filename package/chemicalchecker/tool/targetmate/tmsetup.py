@@ -32,6 +32,9 @@ class TargetMateSetup(HPCUtils):
                  overwrite = True,
                  n_jobs = None,
                  n_jobs_hpc = 8,
+                 max_train_samples = 10000,
+                 max_train_ensemble = 10,
+                 train_sample_chance = 0.95,
                  standardize = False,
                  is_cv = False,
                  is_stratified = True,
@@ -56,7 +59,10 @@ class TargetMateSetup(HPCUtils):
             is_classic(bool): Use a classical chemical fingerprint, instead of CC signatures (default=False).
             overwrite(bool): Clean models_path directory (default=True).
             n_jobs(int): Number of CPUs to use, all by default (default=None).
-            n_jobs(hpc): Number of CPUs to use in HPC (default=1).
+            n_jobs_hpc(int): Number of CPUs to use in HPC (default=1).
+            max_train_samples(int): Maximum number of training samples to use (default=10000).
+            max_train_ensemble(int): Maximum size of an ensemble (important when many samples are available) (default=10).
+            train_sample_chance(floag): Chance of visiting a sample (default=0.95).
             standardize(bool): Standardize small molecule structures (default=True).
             is_cv(bool): In hyper-parameter optimization, do cross-validation (default=False).
             is_stratified(bool): In hyper-parameter optimization, do stratified split (default=True).
@@ -110,6 +116,10 @@ class TargetMateSetup(HPCUtils):
         self.standardize = standardize
         # Do conformal modeling
         self.conformity = conformity
+        # Topping a classifier with a determined number of samples
+        self.max_train_samples = max_train_samples
+        self.max_train_ensemble = max_train_ensemble
+        self.train_sample_chance = train_sample_chance
         # Do cross-validation
         self.is_cv = is_cv
         # Stratified

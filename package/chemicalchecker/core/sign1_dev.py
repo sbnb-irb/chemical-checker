@@ -92,7 +92,11 @@ class sign1(BaseSignature, DataSignature):
         return triplets
 
     def score(self, reference, max_triplets=10000):
-        """Score based on triplets"""
+        """Score based on triplets.
+
+        Args:
+            max_triplets(int): Maximum number of triplets to consider.
+        """
         self.__log.debug("Score the transformation based on triplets accuracy")
         if reference:
             sign = self.get_molset("reference")
@@ -115,6 +119,9 @@ class sign1(BaseSignature, DataSignature):
         """Find optimal (recommended) number of neighbors, based on the accuracy of triplets across the CC.
         Neighbors class needs to be precomputed.
         Only done for the reference set (it doesn't really make sense to do it for the full).
+
+        Args:
+            max_triplets(int): Maximum number of triplets to consider (default=10000).
         """
         self.__log.debug("Getting neighbors instance")
         neig = self.get_molset("reference").get_neig()

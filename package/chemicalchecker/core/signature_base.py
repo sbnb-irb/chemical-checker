@@ -550,3 +550,30 @@ class BaseSignature(object):
         folds[-1] = "neig%s" % folds[-1][-1]
         new_path = "/".join(folds)
         return neig(new_path, self.dataset)
+
+    def remove_redundancy(self, cpu=2, overwrite=False):
+        '''Remove redundancy of a signature (it generates) new data in the references folders.
+        Only allowed for sign* (*not* sign1 or sign2).
+    
+        Args:
+            cpu(int): Number of CPUs (default=2),
+            overwrite(bool): Overwrite existing (default=False).
+        '''
+        if "sign" not in self.cctype:
+            raise Exception("Only sign* are allowed")
+        if self.cctype == "sign1" or self.cctype == "sign2":
+            raise Exception("Not allowed for sign1 or sign2")
+        from chemicalchecker.util.remove_near_duplicates import RNDuplicates
+        rnd = RNDuplicates(cpu=cpu)
+        sign_ref = self.get_molset("reference")
+        if os.path.exists(sign_ref.data_path):
+            if not overwrite:
+                raise Exception("%s exists" % sign_ref.data_path)
+        rnd.remove(self.data_path, save_dest=sign_ref.data_path)
+        f5 = h5py.File(self.data_path, "w")
+        if 'features' in f5.keys():
+            features = f5['features'][:]
+            f5.close()
+            with h5py.File(sign_ref.data_path, 'a') as hf:
+                hf.create_dataset('features', data=features)
+        return sign_ref

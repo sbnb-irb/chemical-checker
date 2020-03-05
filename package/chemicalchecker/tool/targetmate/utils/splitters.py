@@ -39,6 +39,97 @@ def generate_scaffolds(smiles):
 
 
 @logged
+class ToppedSampler(object):
+    """Sample so that coverage is maximized."""
+
+    def __init__(self, max_samples, max_ensemble_size, chance, try_balance, shuffle):
+        """Initialize the topped sampler.
+
+        Args:
+            max_samples(int): Maximum number of samples allow per draw.
+            max_ensemble_size(int): Maximum number of draws.
+            chance(float): Desired probability of drawing a sample at least once.
+            try_balance(bool): Try to balance, given the available samples. That is, instead of stratifying, give higher probability to the minority class.
+            shuffle(bool): Shuffle indices.
+        """
+        self.max_samples = max_samples
+        self.max_ensemble_size = max_ensemble_size
+        self.chance = chance
+        self.try_balance = try_balance
+        self.shuffle = shuffle
+
+    @staticmethod
+    def get_resamp(s, N, chance):
+        p = 1 - float(s) / N
+        return np.log(1-chance)/np.log(p)
+
+    def calc_ensemble_size(self):
+        if self.N <= self.max_samples:
+            self.samples = self.N
+            self.ensemble_size = 1
+        else:
+            self.samples = self.max_samples
+            self.ensemble_size = int(
+                np.ceil(self.get_resamp(self.samples, self.N, self.chance)))
+    
+    @staticmethod
+    def probabilities(y, bins):
+        h, b = np.histogram(y, bins)
+        min_b = np.min(b)
+        max_b = np.max(b)
+        b = b[:-1]
+        m = (max_b-min_b)/(np.max(b)-np.min(b))
+        n = min_b - m*np.min(b)
+        b = m*b+n   
+        w = np.interp(y, b, h).ravel()
+        w = (1 - w/np.sum(h))+1e-6
+        probas = w/np.sum(w)
+        return probas
+
+    def ret(self, idxs):
+        if self.shuffle:
+            return idxs
+        else:
+            idxs_ = np.argsort(idxs)
+            return idxs[idxs_]
+
+    def sample(self, X=None, y=None, bins=10):
+        """Main method"""
+        self.__log.debug("Sampling")
+        if X is None and y is None:
+            raise Exception("X and y are None")
+        if X is None:
+            self.N = len(y)
+        else:
+            self.N = X.shape[0]
+        if self.N <= self.max_samples:
+            idxs = np.array(range(len(y)))
+            if self.shuffle:
+                random.shuffle(idxs)
+            yield ret(idxs)
+        self.calc_ensemble_size()
+        if self.try_balance:
+            if y is None:
+                for _ in range(0, self.ensemble_size):
+                    idxs = np.random.choice(self.N, self.samples, replace=False)
+                    yield ret(idxs)
+            else:
+                for _ in range(0, self.ensemble_size):
+                    probas = self.probabilities(y, bins=bins)
+                    idxs = np.random.choice([i for i in range(0,self.N)], self.samples, p=probas, replace=False)
+                    yield ret(idxs)
+        else:
+            if y is None:
+                splits = ShuffleSplit(
+                    n_splits=self.ensemble_size, train_size=self.samples)
+            else:
+                splits = StratifiedShuffleSplit(
+                    n_splits=self.ensemble_size, train_size=self.samples)
+            for split in splits:
+                yield ret(split[0])
+
+
+@logged
 class ShuffleScaffoldSplit(Splitter):
     """Random sampling based on scaffolds. It tries to satisfy the desired proportion"""
 
