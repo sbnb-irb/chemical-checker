@@ -209,53 +209,6 @@ class sign4(BaseSignature, DataSignature):
                                 sum(available), self.dataset, ds)
                 del signs
 
-    def learn_lr(self, params, suffix='lr'):
-        '''Learns which learning rates to use for the CLR'''
-        if suffix:
-            siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
-            traintest_file = os.path.join(self.model_path,
-                                          'traintest_%s.h5' % suffix)
-            params['traintest_file'] = params.get(
-                'traintest_file', traintest_file)
-            params['suffix'] = params.get('suffix', suffix)
-        else:
-            siamese_path = os.path.join(self.model_path, 'siamese')
-        if 'model_dir' in params:
-            siamese_path = params.get('model_dir')
-        if not os.path.isdir(siamese_path):
-            os.makedirs(siamese_path)
-        # generate input matrix
-        sign2_matrix = os.path.join(self.model_path, 'train.h5')
-        if not os.path.isfile(sign2_matrix):
-            self.save_sign2_matrix(self.sign2_list, sign2_matrix)
-        traintest_file = params.get('traintest_file')
-        X = DataSignature(sign2_matrix)
-        num_triplets = params.get('num_triplets', 1e6)
-        if not os.path.isfile(traintest_file):
-            NeighborTripletTraintest.create(
-                X, traintest_file, self.neig_sign,
-                split_names=['train'],
-                split_fractions=[1.0],
-                suffix=suffix,
-                num_triplets=num_triplets,
-                t_per=params['t_per'])
-        # update the subsampling parameter
-        if 'augment_kwargs' in params:
-            ds = params['augment_kwargs']['dataset']
-            dataset_idx = np.argwhere(np.isin(self.src_datasets, ds)).flatten()
-            params['augment_kwargs']['dataset_idx'] = self.dataset_idx
-            # compute probabilities for subsampling
-            p_nr, p_keep = subsampling_probs(self.sign2_coverage, dataset_idx)
-            params['augment_kwargs']['p_nr'] = p_nr
-            params['augment_kwargs']['p_keep'] = p_keep
-        # init siamese NN
-        siamese = SiameseTriplets(siamese_path,
-                                  evaluate=False,
-                                  **params)
-        self.__log.debug('Siamese lr tuning on %s' % traintest_file)
-        min_lr, max_lr, mean_lr = siamese.find_lr()
-        return min_lr, max_lr, mean_lr
-
     def learn_sign2(self, params, reuse=True, suffix=None, evaluate=True):
         """Learn the signature 3 model.
 
@@ -361,6 +314,7 @@ class sign4(BaseSignature, DataSignature):
         if evaluate:
             # update the parameters with the new nr_of epochs
             self.params['sign2']['epochs'] = siamese.last_epoch
+            self.params['sign2']['learning_rate'] = siamese.learning_rate
 
         return siamese, prior_model, confidence_model
 
