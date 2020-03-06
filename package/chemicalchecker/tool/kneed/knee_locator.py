@@ -5,8 +5,45 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 import warnings
 from typing import Tuple, Optional, Iterable
+from numpy import matlib
 
-
+class SimpleKneeLocator(object):
+    def __init__(self, x, y, curve="concave", direction="increasing"):
+        if curve != "concave" and curve != "convex":
+            raise Exception("curve must be concave or convex")
+        if direction != "increasing" and direction != "decreasing":
+            raise Exception("direction must be increasing or decreasing")
+        self.curve = curve
+        self.direction = direction
+        self.x = np.array(x)
+        self.y = np.array(y)
+        curve = np.array(y)
+        idxs = np.array([i for i in range(0, len(curve))])
+        if self.direction == "increasing" and self.curve == "concave":
+            pass
+        if self.direction == "decreasing" and self.curve == "concave":
+            curve = curve[::-1]
+            idxs = idxs[::-1]
+        if self.direction == "decreasing" and self.curve == "convex":
+            curve = -curve
+        if self.direction == "increasing" and self.curve == "convex":
+            curve = -curve
+            curve = curve[::-1]
+            idxs = idxs[::-1]
+        nPoints = len(curve)
+        allCoord = np.vstack((range(nPoints), curve)).T
+        firstPoint = allCoord[0]
+        lineVec = allCoord[-1] - allCoord[0]
+        lineVecNorm = lineVec / np.sqrt(np.sum(lineVec**2))
+        vecFromFirst = allCoord - firstPoint
+        scalarProduct = np.sum(
+            vecFromFirst * matlib.repmat(lineVecNorm, nPoints, 1), axis=1)
+        vecFromFirstParallel = np.outer(scalarProduct, lineVecNorm)
+        vecToLine = vecFromFirst - vecFromFirstParallel
+        distToLine = np.sqrt(np.sum(vecToLine ** 2, axis=1))
+        idxOfBestPoint = np.argmax(distToLine)
+        self.elbow_idx = idxs[idxOfBestPoint]
+        
 class KneeLocator(object):
     def __init__(
         self,

@@ -71,6 +71,7 @@ class ToppedSampler(object):
             self.samples = self.max_samples
             self.ensemble_size = int(
                 np.ceil(self.get_resamp(self.samples, self.N, self.chance)))
+            self.ensemble_size = np.min([self.max_ensemble_size, self.ensemble_size])
     
     @staticmethod
     def probabilities(y, bins):
@@ -106,27 +107,28 @@ class ToppedSampler(object):
             idxs = np.array(range(len(y)))
             if self.shuffle:
                 random.shuffle(idxs)
-            yield ret(idxs)
-        self.calc_ensemble_size()
-        if self.try_balance:
-            if y is None:
-                for _ in range(0, self.ensemble_size):
-                    idxs = np.random.choice(self.N, self.samples, replace=False)
-                    yield ret(idxs)
-            else:
-                for _ in range(0, self.ensemble_size):
-                    probas = self.probabilities(y, bins=bins)
-                    idxs = np.random.choice([i for i in range(0,self.N)], self.samples, p=probas, replace=False)
-                    yield ret(idxs)
+            yield self.ret(idxs)
         else:
-            if y is None:
-                splits = ShuffleSplit(
-                    n_splits=self.ensemble_size, train_size=self.samples)
+            self.calc_ensemble_size()
+            if self.try_balance:
+                if y is None:
+                    for _ in range(0, self.ensemble_size):
+                        idxs = np.random.choice(self.N, self.samples, replace=False)
+                        yield self.ret(idxs)
+                else:
+                    for _ in range(0, self.ensemble_size):
+                        probas = self.probabilities(y, bins=bins)
+                        idxs = np.random.choice([i for i in range(0,self.N)], self.samples, p=probas, replace=False)
+                        yield self.ret(idxs)
             else:
-                splits = StratifiedShuffleSplit(
-                    n_splits=self.ensemble_size, train_size=self.samples)
-            for split in splits:
-                yield ret(split[0])
+                if y is None:
+                    splits = ShuffleSplit(
+                        n_splits=self.ensemble_size, train_size=self.samples)
+                else:
+                    splits = StratifiedShuffleSplit(
+                        n_splits=self.ensemble_size, train_size=self.samples)
+                for split in splits:
+                    yield self.ret(split[0])
 
 
 @logged
