@@ -20,7 +20,6 @@ class Pipeline():
         config(Config): a `Config` object.
         steps_path(str): the path containing the step directory.
         """
-
         self.tasks = []
 
         if config is None:
@@ -28,6 +27,9 @@ class Pipeline():
             self.config = None
 
             self.pipeline_path = kwargs.get("pipeline_path", None)
+
+            if self.pipeline_path is None:
+                raise Exception("pipeline_path parameter not set")
 
             self.readydir = os.path.join(self.pipeline_path, "ready")
             self.logdir = os.path.join(self.pipeline_path, "log")
@@ -82,7 +84,7 @@ class Pipeline():
         logger.addHandler(fh)
 
     def add_task(self, task):
-
+        """Add tasks to the pipeline."""
         task.set_dirs(self.readydir, self.tmpdir)
         self.tasks.append(task)
 
@@ -148,8 +150,7 @@ class Pipeline():
                     break
 
     def clean(self, step=None, substep=None):
-        """Clean all or some of the pipeline steps"""
-
+        """Clean all or some of the pipeline steps."""
         params = {}
         params["readydir"] = self.readydir
         params["tmpdir"] = self.tmpdir
