@@ -9,13 +9,13 @@ from keras import backend as K
 from keras.layers import concatenate
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
-from keras.layers import Input, Dropout, Lambda, Dense, Activation, Masking, BatchNormalization
-from keras.losses import cosine_proximity, mean_squared_error, kullback_leibler_divergence
+from keras.layers import Input, Dropout, Lambda, Dense
+from keras.layers import Activation, Masking, BatchNormalization
 from keras import regularizers
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
-from .callbacks import *
+from .callbacks import CyclicLR, LearningRateFinder
 
 
 @logged
@@ -43,8 +43,9 @@ class SiameseTriplets(object):
         # read parameters
         self.epochs = int(kwargs.get("epochs", 10))
         self.batch_size = int(kwargs.get("batch_size", 100))
-        self.min_lr = float(kwargs.get("min_lr", 10e-10))
-        self.max_lr = float(kwargs.get("max_lr", 10e1))
+        self.learning_rate = kwargs.get("learning_rate", 'auto')
+        self.min_lr = kwargs.get("min_lr", None)
+        self.max_lr = kwargs.get("max_lr", None)
         self.replace_nan = float(kwargs.get("replace_nan", 0.0))
         self.split = str(kwargs.get("split", 'train'))
         self.layers_sizes = kwargs.get("layers_sizes", [128])
@@ -126,6 +127,15 @@ class SiameseTriplets(object):
             self.val_gen = None
             self.validation_steps = None
 
+        if self.learning_rate == 'auto':
+            self.__log.debug("Searching for optimal larning rates.")
+            min_lr, max_lr, mean_lr = self.find_lr()
+            self.min_lr = min_lr
+            self.mean_lr = mean_lr
+            self.max_lr = max_lr
+            kwargs['min_lr'] = self.min_lr
+            kwargs['max_lr'] = self.max_lr
+
         # log parameters
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
         self.__log.info("{:<22}: {:>12}".format("model_dir", self.model_dir))
@@ -145,9 +155,11 @@ class SiameseTriplets(object):
                 self.__log.info("{:<22}: {:>12}".format(
                     'test_test', str(tmp.get_ty_shapes())))
         self.__log.info("{:<22}: {:>12}".format(
-            "min_lr", self.min_lr))
+            "learning_rate", self.learning_rate))
         self.__log.info("{:<22}: {:>12}".format(
-            "max_lr", self.max_lr))
+            "min_lr", str(self.min_lr)))
+        self.__log.info("{:<22}: {:>12}".format(
+            "max_lr", str(self.max_lr)))
         self.__log.info("{:<22}: {:>12}".format(
             "epochs", self.epochs))
         self.__log.info("{:<22}: {:>12}".format(
@@ -191,7 +203,9 @@ class SiameseTriplets(object):
                       use_bias=False, input_shape=False):
             if input_shape:
                 net.add(Masking(mask_value=0.0, input_shape=input_shape))
-            net.add(layer(layer_size, use_bias=use_bias, kernel_regularizer=regularizers.l2(0.001))) # kernel_regularizer=regularizers.l2(0.0001)
+            net.add(layer(layer_size, use_bias=use_bias,
+                          # kernel_regularizer=regularizers.l2(0.0001)
+                          kernel_regularizer=regularizers.l2(0.001)))
             net.add(BatchNormalization())
             net.add(Activation(activation))
             if dropout is not None:
@@ -219,18 +233,18 @@ class SiameseTriplets(object):
         basenet.add(Lambda(lambda x: K.l2_normalize(x, axis=-1)))
         basenet.summary()
 
-        encoded_a = basenet(input_a)
-        encoded_p = basenet(input_p)
-        encoded_n = basenet(input_n)
-        encoded_o = basenet(input_o)
-
-        merged_vector = concatenate(
-            [encoded_a, encoded_p, encoded_n, encoded_o], axis=-1, name='merged_layer')
+        encodeds = list()
+        encodeds.append(basenet(input_a))
+        encodeds.append(basenet(input_p))
+        encodeds.append(basenet(input_n))
+        encodeds.append(basenet(input_o))
+        merged_vector = concatenate(encodeds, axis=-1, name='merged_layer')
 
         model = Model(inputs=[input_a, input_p, input_n, input_o],
                       output=merged_vector)
 
-        def split_output(y_pred): # TODO NEED TO CHANGE IF WE USE 4 INPUTS INSTEAD OF 3
+        # TODO NEED TO CHANGE IF WE USE 4 INPUTS INSTEAD OF 3
+        def split_output(y_pred):
             total_lenght = y_pred.shape.as_list()[-1]
             anchor = y_pred[:, 0: int(total_lenght * 1 / 4)]
             positive = y_pred[
@@ -251,22 +265,25 @@ class SiameseTriplets(object):
         def accE(y_true, y_pred):
             anchor, positive, negative, _ = split_output(y_pred)
             msk = K.cast(K.equal(y_true, 0), 'float32')
-            acc = K.cast(euclidean_distance(anchor*msk, positive*msk) <
-                         euclidean_distance(anchor*msk, negative*msk), anchor.dtype)
+            acc = K.cast(
+                euclidean_distance(anchor * msk, positive * msk) <
+                euclidean_distance(anchor * msk, negative * msk), anchor.dtype)
             return K.mean(acc) * 3
 
         def accM(y_true, y_pred):
             anchor, positive, negative, _ = split_output(y_pred)
             msk = K.cast(K.equal(y_true, 1), 'float32')
-            acc = K.cast(euclidean_distance(anchor*msk, positive*msk) <
-                         euclidean_distance(anchor*msk, negative*msk), anchor.dtype)
+            acc = K.cast(
+                euclidean_distance(anchor * msk, positive * msk) <
+                euclidean_distance(anchor * msk, negative * msk), anchor.dtype)
             return K.mean(acc) * 3
 
         def accH(y_true, y_pred):
             anchor, positive, negative, _ = split_output(y_pred)
             msk = K.cast(K.equal(y_true, 2), 'float32')
-            acc = K.cast(euclidean_distance(anchor*msk, positive*msk) <
-                         euclidean_distance(anchor*msk, negative*msk), anchor.dtype)
+            acc = K.cast(
+                euclidean_distance(anchor * msk, positive * msk) <
+                euclidean_distance(anchor * msk, negative * msk), anchor.dtype)
             return K.mean(acc) * 3
 
         def pearson_r(y_true, y_pred):
@@ -284,7 +301,6 @@ class SiameseTriplets(object):
 
         def corr(y_true, y_pred):
             anchor, positive, negative, only_self = split_output(y_pred)
-            #
             return pearson_r(anchor, only_self)
 
         metrics = [
@@ -297,28 +313,22 @@ class SiameseTriplets(object):
 
         def tloss(y_true, y_pred):
             anchor, positive, negative, _ = split_output(y_pred)
-
             pos_dist = K.sum(K.square(anchor - positive), axis=1)
             neg_dist = K.sum(K.square(anchor - negative), axis=1)
-
             basic_loss = pos_dist - neg_dist + self.margin
             loss = K.maximum(basic_loss, 0.0)
-
             return loss
 
         def bayesian_tloss(y_true, y_pred):
             anchor, positive, negative, _ = split_output(y_pred)
-
             loss = 1.0 - K.sigmoid(
                 K.sum(anchor * positive, axis=-1, keepdims=True) -
                 K.sum(anchor * negative, axis=-1, keepdims=True))
-
             return K.mean(loss)
 
         def orthogonal_tloss(y_true, y_pred):
             def global_orthogonal_regularization(y_pred):
                 anchor, positive, negative, _ = split_output(y_pred)
-
                 neg_dis = K.sum(anchor * negative, axis=1)
                 dim = K.int_shape(y_pred)[1]
                 gor = K.pow(K.mean(neg_dis), 2) + \
@@ -332,22 +342,19 @@ class SiameseTriplets(object):
         def only_self_loss(y_true, y_pred):
             def only_self_regularization(y_pred):
                 anchor, positive, negative, only_self = split_output(y_pred)
-
                 pos_dist = K.sum(K.square(anchor - only_self), axis=1)
                 neg_dist = K.sum(K.square(anchor - negative), axis=1)
-
                 basic_loss = pos_dist - neg_dist + self.margin
                 loss = K.maximum(basic_loss, 0.0)
-
                 neg_dis = K.sum(anchor * negative, axis=1)
                 dim = K.int_shape(y_pred)[1]
                 gor = K.pow(K.mean(neg_dis), 2) + \
                     K.maximum(K.mean(K.pow(neg_dis, 2)) - 1.0 / dim, 0.0)
                 return loss + (gor * self.alpha)
+
             loss = orthogonal_tloss(y_true, y_pred)
             o_self = only_self_regularization(y_pred)
             return loss + o_self
-
 
         lfuncs_dict = {'tloss': tloss,
                        'bayesian_tloss': bayesian_tloss,
@@ -357,8 +364,14 @@ class SiameseTriplets(object):
         # compile and print summary
         self.__log.info('Loss function: %s' %
                         lfuncs_dict[self.loss_func].__name__)
+        # optimizer depends on learning rate approach
+        if self.learning_rate == 'auto':
+            optimizer = keras.optimizers.SGD()
+        else:
+            optimizer = keras.optimizers.Adam(lr=self.learning_rate)
+
         model.compile(
-            optimizer=keras.optimizers.SGD(), #keras.optimizers.Adam(lr=self.min_lr),
+            optimizer=optimizer,
             loss=lfuncs_dict[self.loss_func],
             metrics=metrics)
         model.summary()
@@ -377,14 +390,13 @@ class SiameseTriplets(object):
 
         lrf = LearningRateFinder(self.model)
 
-        lrf.find(self.tr_gen, self.min_lr, self.max_lr, epochs=3,
-        stepsPerEpoch=self.steps_per_epoch,
-        batchSize=self.batch_size)
+        lrf.find(self.tr_gen, 1e-8, 1e+1, epochs=3,
+                 stepsPerEpoch=self.steps_per_epoch,
+                 batchSize=self.batch_size)
 
         min_lr, max_lr = lrf.find_bounds()
-        lrf.plot_loss(min_lr, max_lr)
         lr_plot_file = os.path.join(self.model_dir, "lr_evolution.png")
-        plt.savefig(lr_plot_file)
+        lrf.plot_loss(min_lr, max_lr, lr_plot_file)
 
         lr_pkl_file = os.path.join(self.model_dir, "lr_evolution.pkl")
         lrf.save_loss_evolution(lr_pkl_file)
@@ -393,9 +405,8 @@ class SiameseTriplets(object):
         mean_lr = np.mean([min_lr, max_lr])
         min_lr, max_lr, mean_lr = 10**min_lr, 10**max_lr, 10**mean_lr
         lrs = {'min_lr': min_lr, 'max_lr': max_lr, 'mean': mean_lr}
-        pickle.dump(lrs, open(lr_pkl_file, "wb" ))
+        pickle.dump(lrs, open(lr_pkl_file, "wb"))
         return min_lr, max_lr, mean_lr
-        
 
     def fit(self, monitor='val_loss'):
         """Fit the model.
@@ -496,6 +507,7 @@ class SiameseTriplets(object):
             callbacks.append(additional_vals)
 
         class CustomEarlyStopping(EarlyStopping):
+
             def __init__(self,
                          monitor='val_loss',
                          min_delta=0,
@@ -503,7 +515,7 @@ class SiameseTriplets(object):
                          verbose=0,
                          mode='auto',
                          baseline=None,
-                         threshold = 0,
+                         threshold=0,
                          restore_best_weights=False):
                 super(EarlyStopping, self).__init__()
 
@@ -519,9 +531,6 @@ class SiameseTriplets(object):
                 self.threshold = threshold
 
                 if mode not in ['auto', 'min', 'max']:
-                    warnings.warn('EarlyStopping mode %s is unknown, '
-                                  'fallback to auto mode.' % mode,
-                                  RuntimeWarning)
                     mode = 'auto'
 
                 if mode == 'min':
@@ -545,17 +554,16 @@ class SiameseTriplets(object):
                 if current is None:
                     return
 
-
                 if self.threshold > threshold:
                     self.best = current
                     self.wait = 0
                     if self.restore_best_weights:
                         self.best_weights = self.model.get_weights()
                 elif self.monitor_op(current - self.min_delta, self.best):
-                        self.best = current
-                        self.wait = 0
-                        if self.restore_best_weights:
-                            self.best_weights = self.model.get_weights()
+                    self.best = current
+                    self.wait = 0
+                    if self.restore_best_weights:
+                        self.best_weights = self.model.get_weights()
                 else:
                     self.wait += 1
                     if self.wait >= self.patience:
@@ -573,17 +581,17 @@ class SiameseTriplets(object):
             patience=self.patience,
             mode='min',
             restore_best_weights=True)
-        #if monitor or not self.evaluate:
+        # if monitor or not self.evaluate:
         #    callbacks.append(early_stopping)
 
-        step_size = int(8 * self.steps_per_epoch)
-        print(step_size)
-        clr = CyclicLR(
-            mode='triangular2',
-            base_lr=self.min_lr,
-            max_lr=self.max_lr,
-            step_size= step_size)
-        callbacks.append(clr)
+        if self.learning_rate == 'auto':
+            step_size = int(8 * self.steps_per_epoch)
+            clr = CyclicLR(
+                mode='triangular2',
+                base_lr=self.min_lr,
+                max_lr=self.max_lr,
+                step_size=step_size)
+            callbacks.append(clr)
 
         # call fit and save model
         t0 = time()

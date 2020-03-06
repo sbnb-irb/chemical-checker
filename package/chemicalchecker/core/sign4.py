@@ -13,8 +13,6 @@ from functools import partial
 from scipy.stats import gaussian_kde
 from scipy.spatial.distance import pdist
 from scipy.stats import pearsonr, ks_2samp
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import RobustScaler
 from sklearn.preprocessing import robust_scale
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.linear_model import LinearRegression
@@ -73,8 +71,7 @@ class sign4(BaseSignature, DataSignature):
             'layers_sizes': [1024, 512, 128],
             'activations': ['relu', 'relu', 'tanh'],
             'dropouts': [0.2, 0.2, 0.2],
-            'min_lr': 1e-10,
-            'max_lr': 1e+1,
+            'learning_rate': 'auto',
             'batch_size': 128,
             'patience': 5,
             'loss_func': 'only_self_loss',
@@ -112,7 +109,6 @@ class sign4(BaseSignature, DataSignature):
         }
         default_sign0_conf.update(params.get('sign0_conf', {}))
         self.params['sign0_conf'] = default_sign0_conf
-
 
     @staticmethod
     def save_sign2_universe(sign2_list, destination):
@@ -1937,20 +1933,6 @@ class sign4(BaseSignature, DataSignature):
         siamese = None
         prior_mdl = None
         conf_mdl = None
-
-        lr_file = os.path.join(self.model_path, 'siamese_lr/used_lrs.pkl')
-
-        if not os.path.isfile(lr_file):
-            min_lr, max_lr, mean_lrs = self.learn_lr(self.params['sign2_lr'], suffix='lr')
-            self.params['sign2']['min_lr'] = mean_lrs
-            self.params['sign2']['max_lr'] = mean_lrs
-        else:
-            lrs = pickle.load(open(lr_file, "rb"))
-            mean_lrs = lrs['mean']
-            self.params['sign2']['min_lr'] = mean_lrs
-            self.params['sign2']['max_lr'] = mean_lrs
-
-        self.__log.info('Mean Lr: %f' % (mean_lrs))
 
         eval_model_path = os.path.join(self.model_path, 'siamese_eval')
         eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
