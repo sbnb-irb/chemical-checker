@@ -551,6 +551,20 @@ class BaseSignature(object):
         new_path = "/".join(folds)
         return neig(new_path, self.dataset)
 
+    def get_sign(self, sign_type):
+        '''Return the signature type for current dataset'''
+        from .sign0 import sign0
+        from .sign1 import sign1
+        from .sign2 import sign2
+        from .sign3 import sign3
+        from .sign4 import sign4
+        if sign_type not in ['sign%i' % i for i in range(5)]:
+            raise ValueError('Wrong signature type: %s' % sign_type)
+        folds = self.signature_path.split('/')
+        folds[-1] = sign_type
+        new_path = "/".join(folds)
+        return eval(sign_type)(new_path, self.dataset)
+
     def remove_redundancy(self, cpu=2, overwrite=False):
         '''Remove redundancy of a signature (it generates) new data in the references folders.
         Only allowed for sign* (*not* sign1 or sign2).
