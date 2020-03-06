@@ -4,7 +4,6 @@ import numpy as np
 from tensorflow.keras import backend as K
 import tensorflow as tf
 import json
-#from keras.engine.topology import Layer
 from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.layers import Input, Dense
 from chemicalchecker.util import logged
@@ -27,6 +26,14 @@ class NanMaskingLayer(tf.keras.layers.Layer):
         replace = tf.ones_like(input) * self.mask_value
         return tf.where(nan_idxs, replace, input)
 
+    def get_config(self):
+
+        config = super().get_config().copy()
+        config.update({
+            'mask_value': self.mask_value
+        })
+        return config
+
 
 class CustomRegularization(tf.keras.layers.Layer):
 
@@ -34,11 +41,8 @@ class CustomRegularization(tf.keras.layers.Layer):
         super(CustomRegularization, self).__init__(**kwargs)
 
     def latent_loss(self, x1, x2, z1, z2, batch_size):
-        #out = (tf.losses.mean_squared_error(x1, x2) - tf.losses.mean_squared_error(z1, z2))**2
         out = abs(tf.losses.cosine_distance(x1, x2, axis=0, reduction=tf.losses.Reduction.MEAN) -
                   tf.losses.cosine_distance(z1, z2, axis=0, reduction=tf.losses.Reduction.MEAN)) / batch_size
-        #x = tf.placeholder(tf.float32, shape=(64, 1))
-        #out = tf.ones_like(x)
         # print out
         return out
 
@@ -48,14 +52,26 @@ class CustomRegularization(tf.keras.layers.Layer):
         z1 = x[2]
         z2 = x[3]
 
-        mask_value = 0.0
-        nan_idxs = tf.is_nan(x1)
-        replace = tf.ones_like(x1) * mask_value
-        x1_masked = tf.where(nan_idxs, replace, x1)
+        # If mask is not None, we replace the missing data with the data in the pair if the pair does not contain
+        # missing data in those components. Otherwise, we put zeros. Thereby, only the components that do not
+        # contain missing data in both elements of the pair are used to calculate the loss.
+        if mask is not None:
+            mask_value = 0.0
+            nan_idxs = tf.is_nan(x1)
+            replace = tf.ones_like(x1) * mask_value
+            x1_masked = tf.where(nan_idxs, x2, x1)
+            nan_idxs = tf.is_nan(x1_masked)
+            x1_masked = tf.where(nan_idxs, replace, x1_masked)
 
-        nan_idxs = tf.is_nan(x2)
-        replace = tf.ones_like(x2) * mask_value
-        x2_masked = tf.where(nan_idxs, replace, x2)
+            nan_idxs = tf.is_nan(x2)
+            replace = tf.ones_like(x2) * mask_value
+            x2_masked = tf.where(nan_idxs, x1, x2)
+            nan_idxs = tf.is_nan(x2_masked)
+            x2_masked = tf.where(nan_idxs, replace, x2_masked)
+
+        else:
+            x1_masked = x1
+            x2_masked = x2
 
         loss = self.latent_loss(x1_masked, x2_masked, z1, z2, batch_size)
         self.add_loss(loss, x)
@@ -143,14 +159,6 @@ class AutoEncoderSiamese:
                     "Input data file needs to have a dataset called " + self.input_dataset)
 
             if self.mask_value is not None:
-                # size = hf[self.input_dataset].shape[0]
-                # chunk_size = 1000
-                # self.mask_value = np.zeros(hf['x'].shape[1])
-                # for i in range(0, size, chunk_size):
-                #     chunk = slice(i, i + chunk_size)
-                #     self.mask_value += np.nansum(hf['x'][chunk], axis=0)
-
-                # self.mask_value = self.mask_value / float(size)
                 self.mask_value = np.nanmean(hf[self.input_dataset][:], axis=0)
                 self.__log.debug(self.mask_value)
 
@@ -237,7 +245,7 @@ class AutoEncoderSiamese:
                                    activation=self.activation_last)(last_layer_right)
 
         cr = CustomRegularization()(
-            [input_dim_left, input_dim_right, self.encoded_left, self.encoded_right], batch_size=self.batch_size)
+            [input_dim_left, input_dim_right, self.encoded_left, self.encoded_right], mask=self.mask_value, batch_size=self.batch_size)
 
         self.autoencoder_model = Model(
             inputs=[input_dim_left, input_dim_right], outputs=[self.decoder_left, self.decoder_right, cr])
