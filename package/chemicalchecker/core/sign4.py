@@ -707,7 +707,7 @@ class sign4(BaseSignature, DataSignature):
         test_onlyself_pred = siamese.predict(test_onlyself)
 
         # do applicability domain prediction
-        applicability, centrality = self.applicability_domain(
+        applicability, centrality, app_range = self.applicability_domain(
             train_onlyself_neig, test_notself_pred)
 
         # do conformal prediction (dropout)
@@ -737,6 +737,7 @@ class sign4(BaseSignature, DataSignature):
             hf.create_dataset('intensity', data=intensities)
             hf.create_dataset('consensus', data=consensus)
             hf.create_dataset('applicability', data=applicability)
+            hf.create_dataset('applicability_range', data=app_range)
             hf.create_dataset('centrality', data=centrality)
             hf.create_dataset('prior', data=prior)
             hf.create_dataset('correlation', data=correlations)
@@ -745,20 +746,25 @@ class sign4(BaseSignature, DataSignature):
 
         return features, correlations
 
-    def applicability_domain(self, neig_index, pred, max_centrality=10000):
+    def applicability_domain(self, neig_index, pred, app_range=None,
+                             max_centrality=10000):
         # applicability is whether not-self preds is close to only-self preds
         # neighbors between 5 and 25 depending on the size of the dataset
         app_thr = int(np.clip(np.log10(self.neig_sign.shape[0])**2, 5, 25))
         only_self_dists, _ = neig_index.search(pred, app_thr)
-        d_max = np.max(only_self_dists)
-        d_min = np.min(only_self_dists)
+        if app_range is None:
+            d_min = np.min(only_self_dists)
+            d_max = np.max(only_self_dists)
+            app_range = np.array([d_min, d_max])
+        d_min = app_range[0]
+        d_max = app_range[1]
         only_self_dists = (only_self_dists - d_max) / (d_min - d_max)
         applicability = np.mean(only_self_dists, axis=1).flatten()
         # measure null centrality (average distance to all)
         centrality_thr = min(neig_index.ntotal, max_centrality)
         dists, _ = neig_index.search(pred, centrality_thr)
         centrality = np.mean(dists[:, app_thr:], axis=1).flatten()
-        return applicability, centrality
+        return applicability, centrality, app_range
 
     def conformal_prediction(self, siamese, features, nan_pred=None):
         # reference prediction (based on no information)
@@ -1968,6 +1974,9 @@ class sign4(BaseSignature, DataSignature):
             confidence_path = os.path.join(self.model_path, 'confidence_final')
             neig_file = os.path.join(confidence_path, 'neig.index')
             app_neig = faiss.read_index(neig_file)
+            known_dist = os.path.join(confidence_path, 'known_dist.h5')
+            app_range = DataSignature(known_dist).get_h5_dataset(
+                'applicability_range')
 
             # and finally the linear combination of scores
             if conf_mdl is None:
@@ -2042,7 +2051,7 @@ class sign4(BaseSignature, DataSignature):
                         results['robustness'][chunk] = robs
                         # distance from known predictions
                         app, centrality = self.applicability_domain(
-                            app_neig, preds)
+                            app_neig, preds, app_range)
                         results['applicability'][chunk] = app
                         # and compute confidence
                         conf_scores = np.vstack([app, robs, prior]).T
