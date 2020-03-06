@@ -293,7 +293,7 @@ class LearningRateFinder:
         # if the title is not empty, add it to the plot
         if title != "":
             plt.title(title)
-        plot_file
+        plt.savefig(plot_file)
 
     def save_loss_evolution(self, fname):
         evolution = {'lrs': self.lrs, 'losses': self.losses}
