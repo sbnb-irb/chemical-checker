@@ -9,8 +9,9 @@ from keras import backend as K
 from keras.layers import concatenate
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
-from keras.layers import Input, Dropout, Lambda, Dense, Activation, Masking
+from keras.layers import Input, Dropout, Lambda, Dense, Activation, Masking, BatchNormalization
 from keras.losses import cosine_proximity, mean_squared_error, kullback_leibler_divergence
+from keras import regularizers
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
@@ -190,8 +191,8 @@ class SiameseTriplets(object):
                       use_bias=False, input_shape=False):
             if input_shape:
                 net.add(Masking(mask_value=0.0, input_shape=input_shape))
-            net.add(layer(layer_size, use_bias=use_bias))
-            # net.add(BatchNormalization())
+            net.add(layer(layer_size, use_bias=use_bias, kernel_regularizer=regularizers.l2(0.001))) # kernel_regularizer=regularizers.l2(0.0001)
+            net.add(BatchNormalization())
             net.add(Activation(activation))
             if dropout is not None:
                 net.add(Dropout(dropout))
@@ -357,7 +358,7 @@ class SiameseTriplets(object):
         self.__log.info('Loss function: %s' %
                         lfuncs_dict[self.loss_func].__name__)
         model.compile(
-            optimizer=keras.optimizers.Adam(lr=self.min_lr),
+            optimizer=keras.optimizers.SGD(), #keras.optimizers.Adam(lr=self.min_lr),
             loss=lfuncs_dict[self.loss_func],
             metrics=metrics)
         model.summary()
@@ -578,7 +579,7 @@ class SiameseTriplets(object):
         step_size = int(8 * self.steps_per_epoch)
         print(step_size)
         clr = CyclicLR(
-            mode='triangular',
+            mode='triangular2',
             base_lr=self.min_lr,
             max_lr=self.max_lr,
             step_size= step_size)
