@@ -135,6 +135,8 @@ class SiameseTriplets(object):
             self.max_lr = max_lr
             kwargs['min_lr'] = self.min_lr
             kwargs['max_lr'] = self.max_lr
+            kwargs['learning_rate'] = self.mean_lr
+            self.learning_rate = self.mean_lr
 
         # log parameters
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
@@ -364,11 +366,11 @@ class SiameseTriplets(object):
         # compile and print summary
         self.__log.info('Loss function: %s' %
                         lfuncs_dict[self.loss_func].__name__)
-        # optimizer depends on learning rate approach
+
         if self.learning_rate == 'auto':
-            optimizer = keras.optimizers.SGD()
+            optimizer = keras.optimizers.SGD(1e-8)
         else:
-            optimizer = keras.optimizers.Adam(lr=self.learning_rate)
+            optimizer = keras.optimizers.SGD(lr=self.learning_rate)
 
         model.compile(
             optimizer=optimizer,
@@ -583,15 +585,6 @@ class SiameseTriplets(object):
             restore_best_weights=True)
         # if monitor or not self.evaluate:
         #    callbacks.append(early_stopping)
-
-        if self.learning_rate == 'auto':
-            step_size = int(8 * self.steps_per_epoch)
-            clr = CyclicLR(
-                mode='triangular2',
-                base_lr=self.min_lr,
-                max_lr=self.max_lr,
-                step_size=step_size)
-            callbacks.append(clr)
 
         # call fit and save model
         t0 = time()
