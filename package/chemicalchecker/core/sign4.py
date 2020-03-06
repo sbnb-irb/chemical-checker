@@ -80,7 +80,8 @@ class sign4(BaseSignature, DataSignature):
             'loss_func': 'only_self_loss',
             'margin': 1.0,
             'alpha': 1.0,
-            'num_triplets': 50000,
+            'num_triplets': 1000,
+            't_per': 0.01,
             'augment_fn': subsample,
             'augment_kwargs': {
                 'dataset': [dataset],
@@ -89,6 +90,15 @@ class sign4(BaseSignature, DataSignature):
             },
             'augment_scale': 1
         }
+
+        s1_ref = self.get_sign('sign1').get_molset("reference")
+        opt_t_file = os.path.join(s1_ref.model_path, "opt_t.h5")
+        try:
+            opt_t = DataSignature(opt_t_file).get_h5_dataset('opt_t')
+            default_sign2.update({'t_per': opt_t})
+        except Exception as ex:
+            self.__log.warning('Failed setting opt_t: %s' % str(ex))
+
         default_sign2.update(params.get('sign2', {}))
         self.params['sign2_lr'] = default_sign2.copy()
         self.params['sign2'] = default_sign2
@@ -102,11 +112,7 @@ class sign4(BaseSignature, DataSignature):
         }
         default_sign0_conf.update(params.get('sign0_conf', {}))
         self.params['sign0_conf'] = default_sign0_conf
-        # predictors and parameters to learn prior
-        default_err = {
-        }
-        default_err.update(params.get('prior', {}))
-        self.params['prior'] = default_err
+
 
     @staticmethod
     def save_sign2_universe(sign2_list, destination):
@@ -236,7 +242,7 @@ class sign4(BaseSignature, DataSignature):
                 split_fractions=[1.0],
                 suffix=suffix,
                 num_triplets=num_triplets,
-                t_per=self.t_per)
+                t_per=params['t_per'])
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
@@ -299,7 +305,7 @@ class sign4(BaseSignature, DataSignature):
                     split_fractions=[.8, .2],
                     suffix=suffix,
                     num_triplets=num_triplets,
-                    t_per=self.t_per)
+                    t_per=params['t_per'])
         else:
             num_triplets = params.get('num_triplets', 1e6)
             if not reuse or not os.path.isfile(traintest_file):
@@ -309,7 +315,7 @@ class sign4(BaseSignature, DataSignature):
                     split_fractions=[1.0],
                     suffix=suffix,
                     num_triplets=num_triplets,
-                    t_per=self.t_per)
+                    t_per=params['t_per'])
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
@@ -1891,13 +1897,6 @@ class sign4(BaseSignature, DataSignature):
             import faiss
         except ImportError as err:
             raise err
-        t_file = os.path.join(sign1_self.get_molset(
-            "reference").model_path, "opt_t.h5")
-        if os.path.exists(t_file):
-            with h5py.File(t_file, "r") as hf:
-                self.t_per = hf["opt_t"][0]
-        else:
-            self.t_per = 0.01
         # define datasets that will be used
         self.src_datasets = [sign.dataset for sign in sign2_list]
         self.neig_sign = sign1_self
