@@ -275,7 +275,7 @@ class LearningRateFinder:
 		lb = x[elb_idx]
 		return np.max([lb,min_x]), np.min([ub,max_x])
 
-	def plot_loss(self, min_lr, max_lr,skipBegin=10, skipEnd=1, title=""):
+	def plot_loss(self, min_lr, max_lr,lr_plot_file, skipBegin=10, skipEnd=1, title=""):
 		# grab the learning rate and losses values to plot
 		lrs = np.log10(self.lrs[skipBegin:-skipEnd])
 		losses = self.losses[skipBegin:-skipEnd]
@@ -290,6 +290,7 @@ class LearningRateFinder:
 		# if the title is not empty, add it to the plot
 		if title != "":
 			plt.title(title)
+        plt.savefig(lr_plot_file)
 
 	def save_loss_evolution(self, fname):
 		evolution = {'lrs': self.lrs, 'losses':self.losses}
