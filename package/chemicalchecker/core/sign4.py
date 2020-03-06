@@ -466,7 +466,7 @@ class sign4(BaseSignature, DataSignature):
                 plt.close()
             return p
 
-        self.__log.info('Training ERROR model')
+        self.__log.info('Training PRIOR model')
         available_x = test_x.shape[0]
         #total_x = available_x
         total_feat = test_x.shape[1]
@@ -707,14 +707,22 @@ class sign4(BaseSignature, DataSignature):
         faiss.write_index(train_onlyself_neig, train_onlyself_neig_file)
 
         # de test predictions
-        test_notself = realistic_fn(test_x)
-        test_notself_pred = siamese.predict(test_notself)
         test_onlyself = mask_keep(self.dataset_idx, test_x)
         test_onlyself_pred = siamese.predict(test_onlyself)
 
         # do applicability domain prediction
-        applicability, centrality, app_range = self.applicability_domain(
-            train_onlyself_neig, test_notself_pred)
+        apps, cents, ranges = list(), list(), list()
+        for i in range(10):
+            test_notself = realistic_fn(test_x)
+            test_notself_pred = siamese.predict(test_notself)
+            applicability, centrality, app_range = self.applicability_domain(
+                train_onlyself_neig, test_notself_pred)
+            apps.append(applicability)
+            cents.append(centrality)
+            ranges.append(app_range)
+        applicability = np.mean(np.vstack(apps), axis=0)
+        centrality = np.mean(np.vstack(cents), axis=0)
+        app_range = np.mean(np.vstack(ranges), axis=0)
 
         # do conformal prediction (dropout)
         intensities, robustness, consensus = self.conformal_prediction(
@@ -1945,14 +1953,14 @@ class sign4(BaseSignature, DataSignature):
         self.__log.info('Mean Lr: %f' % (mean_lrs))
 
         eval_model_path = os.path.join(self.model_path, 'siamese_eval')
-        eval_file = os.path.join(eval_model_path, 'siamesetriplets_eval.h5')
+        eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
         if not os.path.isfile(eval_file):
             siamese, prior_mdl, conf_mdl = self.learn_sign2(
                 self.params['sign2'], suffix='eval', evaluate=True)
 
         # check if we have the final trained model
         final_model_path = os.path.join(self.model_path, 'siamese_final')
-        final_file = os.path.join(final_model_path, 'siamesetriplets_final.h5')
+        final_file = os.path.join(final_model_path, 'siamesetriplets.h5')
         if not os.path.isfile(final_file):
             siamese, prior_mdl, conf_mdl = self.learn_sign2(
                 self.params['sign2'], suffix='final', evaluate=False)
@@ -2048,7 +2056,7 @@ class sign4(BaseSignature, DataSignature):
                             siamese, feat, nan_pred=nan_pred)
                         results['robustness'][chunk] = robs
                         # distance from known predictions
-                        app, centrality = self.applicability_domain(
+                        app, centrality, _ = self.applicability_domain(
                             app_neig, preds, app_range)
                         results['applicability'][chunk] = app
                         # and compute confidence
