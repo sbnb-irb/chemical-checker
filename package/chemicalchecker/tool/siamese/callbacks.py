@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tempfile
 import pickle
-from chemicalchecker.tool.kneed.knee_locator import KneeLocator
+from chemicalchecker.tool.kneed.knee_locator import SimpleKneeLocator
 from scipy.signal import savgol_filter
 
 class CyclicLR(Callback):
@@ -261,34 +261,18 @@ class LearningRateFinder:
 		self.model.load_weights(self.weightsFile)
 		K.set_value(self.model.optimizer.lr, origLR)
 
-	def find_bounds(self, min_pad=1, max_pad=3, min_x=-7, max_x=2, window_length=51, polyorder=2):
+	def find_bounds(self, min_pad=0, window_length=51, polyorder=2, min_x=-7, max_x=0):
 		x = np.log10(self.lrs)
 		y = self.losses
 		y = savgol_filter(y, window_length, polyorder)
-		# upper bound
 		idx = np.argmin(y)
 		ub = x[idx]
 		idx = np.argwhere(x<(ub-min_pad)).ravel()[-1]
 		x = x[:idx]
 		y = y[:idx]
-		# derivatives
-		dy=np.diff(y,1)
-		dx=np.diff(x,1)
-		yfirst=dy/dx
-		xfirst=0.5*(x[:-1]+x[1:])
-		dyfirst=np.diff(yfirst,1)
-		dxfirst=np.diff(xfirst,1)
-		ysecond=dyfirst/dxfirst
-		xsecond=0.5*(xfirst[:-1]+xfirst[1:])
-		ysecond=list(savgol_filter(ysecond, window_length, polyorder))
-		xsecond = np.array([xsecond[0]-1e-6] + list(xsecond) + [xsecond[-1]+1e-6])
-		ysecond = np.array([ysecond[0]] + list(ysecond) + [ysecond[-1]])
-		mask = np.logical_or(x<(ub-max_pad), ysecond < 0)
-		x = x[mask]
-		y = y[mask]
-		# lower bound
-		kn = KneeLocator(x, y, curve="concave",direction="decreasing",interp_method="polynomial")
-		lb = kn.elbow
+		el = SimpleKneeLocator(x,y,curve="concave",direction="decreasing")
+		elb_idx = el.elbow_idx
+		lb = x[elb_idx]
 		return np.max([lb,min_x]), np.min([ub,max_x])
 
 	def plot_loss(self, min_lr, max_lr,skipBegin=10, skipEnd=1, title=""):
