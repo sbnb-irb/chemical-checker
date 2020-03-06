@@ -94,10 +94,13 @@ class AE_SiameseTraintest(object):
                 np.where(np.isnan(features_right))] = self.replace_nan
         return [features_left, features_right], [features_left, features_right]
 
-    def get_xy(self, beg_idx, end_idx):
+    def get_xy(self, beg_idx, end_idx, shuffle):
         """Get a batch of X and Y."""
         features_left = self._f[self.x_name_left][beg_idx: end_idx]
         features_right = self._f[self.x_name_right][beg_idx: end_idx]
+        if shuffle:
+            np.random.shuffle(features_left)
+            np.random.shuffle(features_right)
         # handle NaNs
         if self.replace_nan is not None:
             features_left[
@@ -299,10 +302,10 @@ class AE_SiameseTraintest(object):
                         yield reader.get_x(beg_idx, end_idx)
                 else:
                     if sample_weights:
-                        yield reader.get_xy(beg_idx, end_idx), \
+                        yield reader.get_xy(beg_idx, end_idx, shuffle), \
                             reader.get_sw(beg_idx, end_idx)
                     else:
-                        yield reader.get_xy(beg_idx, end_idx)
+                        yield reader.get_xy(beg_idx, end_idx, shuffle)
                 batch_idx += 1
 
         return shapes, dtypes, example_generator_fn
