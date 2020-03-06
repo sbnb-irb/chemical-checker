@@ -333,20 +333,27 @@ class sign4(BaseSignature, DataSignature):
                                p_nr=p_nr, p_keep=p_keep)
         # get set of known for prior nd cofidence models
         max_known = 10000
-        known_mask = np.arange(min(max_known, X.info_h5['x'][0]))
-        known_x = X.get_h5_dataset('x', mask=known_mask)
+        tt = DataSignature(traintest_file)
+        test_inks = tt.get_h5_dataset('keys_test')[:max_known]
+        train_inks = tt.get_h5_dataset('keys_train')[:max_known]
+        test_mask = np.isin(list(self.sign2_self.keys), list(test_inks),
+                            assume_unique=True)
+        train_mask = np.isin(list(self.sign2_self.keys), list(train_inks),
+                             assume_unique=True)
+        test_x = X.get_h5_dataset('x', mask=test_mask)
+        train_x = X.get_h5_dataset('x', mask=train_mask)
         # train prior model
         prior_path = os.path.join(self.model_path, 'prior_%s' % suffix)
         os.makedirs(prior_path, exist_ok=True)
         prior_model = self.train_prior_model(
-            siamese, known_x, realistic_fn, prior_path, evaluate)
+            siamese, test_x, realistic_fn, prior_path, evaluate)
         # save known scores and confidence model
         confidence_path = os.path.join(self.model_path,
                                        'confidence_%s' % suffix)
         os.makedirs(confidence_path, exist_ok=True)
         confidence_model = self.train_confidence_model(
-            siamese, known_x, realistic_fn, prior_model, confidence_path,
-            evaluate)
+            siamese, train_x, test_x, realistic_fn, prior_model,
+            confidence_path, evaluate)
         # when evaluating we update the nr of epoch to avoid
         # overfitting during final
         if evaluate:
@@ -355,14 +362,14 @@ class sign4(BaseSignature, DataSignature):
 
         return siamese, prior_model, confidence_model
 
-    def train_prior_model(self, siamese, known_x, realistic_fn, save_path,
+    def train_prior_model(self, siamese, test_x, realistic_fn, save_path,
                           evaluate, total_x=10000, plots=True):
         """Train prior predictor."""
         def get_weights(y, p=2):
             h, b = np.histogram(y, 20)
-            b = [np.mean([b[i], b[i+1]]) for i in range(0, len(h))]
+            b = [np.mean([b[i], b[i + 1]]) for i in range(0, len(h))]
             w = np.interp(y, b, h).ravel()
-            w = -(w/np.sum(w))+1e-10
+            w = -(w / np.sum(w)) + 1e-10
             w = (w - np.min(w)) / (np.max(w) - np.min(w))
             w = w**p
             return w
@@ -430,6 +437,7 @@ class sign4(BaseSignature, DataSignature):
             importances(ax, mod)
             if plots:
                 plt.savefig(os.path.join(save_path, 'prior_stats.png'))
+                plt.close()
 
         def find_p(mod, x_tr, y_tr, x_te, y_te):
             import matplotlib.pyplot as plt
@@ -449,12 +457,13 @@ class sign4(BaseSignature, DataSignature):
                 plt.scatter(ps, ss_te)
                 plt.title("%.2f" % p)
                 plt.savefig(os.path.join(save_path, 'prior_p.png'))
+                plt.close()
             return p
 
         self.__log.info('Training ERROR model')
-        available_x = known_x.shape[0]
+        available_x = test_x.shape[0]
         #total_x = available_x
-        total_feat = known_x.shape[1]
+        total_feat = test_x.shape[1]
         X = np.zeros((total_x, int(total_feat / 128)))
         Y = np.zeros((total_x, 1))
         # prepare X and Y in chunks
@@ -477,7 +486,7 @@ class sign4(BaseSignature, DataSignature):
                 src_chunk = slice(src_start, src_end)
                 dst_chunk = slice(dst_start, dst_end)
                 # get only-self and not-self predictions
-                feat = known_x[src_chunk]
+                feat = test_x[src_chunk]
                 feat_onlyself = realistic_fn(feat, p_only_self=1.0)
                 preds_onlyself = siamese.predict(feat_onlyself)
                 feat_notself = realistic_fn(feat)
@@ -534,15 +543,15 @@ class sign4(BaseSignature, DataSignature):
         pickle.dump(model, open(predictor_path, 'wb'))
         return model
 
-    def train_confidence_model(self, siamese, known_x, realistic_fn,
+    def train_confidence_model(self, siamese, train_x, test_x, realistic_fn,
                                prior_model, save_path, evaluate, plots=True):
         # save linear model combining confidence natural scores
 
         def get_weights(y, p=2):
             h, b = np.histogram(y, 20)
-            b = [np.mean([b[i], b[i+1]]) for i in range(0, len(h))]
+            b = [np.mean([b[i], b[i + 1]]) for i in range(0, len(h))]
             w = np.interp(y, b, h).ravel()
-            w = -(w/np.sum(w))+1e-10
+            w = -(w / np.sum(w)) + 1e-10
             w = (w - np.min(w)) / (np.max(w) - np.min(w))
             w = w**p
             return w
@@ -576,8 +585,8 @@ class sign4(BaseSignature, DataSignature):
             ax.set_title(title)
 
         def importances(ax, mod):
-            y = model.named_steps.linearregression.coef_
-            features = ['applicability', 'stddev', 'prior']
+            y = model.coef_
+            features = ['applicability', 'robustness', 'prior']
             features = np.array(features)
             x = np.array([i for i in range(0, len(features))])
             idxs = np.argsort(y)
@@ -624,6 +633,7 @@ class sign4(BaseSignature, DataSignature):
             importances(ax, mod)
             if plots:
                 plt.savefig(os.path.join(save_path, 'confidence_stats.png'))
+                plt.close()
 
         def find_p(mod, x_tr, y_tr, x_te, y_te):
             import matplotlib.pyplot as plt
@@ -632,7 +642,7 @@ class sign4(BaseSignature, DataSignature):
             ss_te = []
             for p in np.linspace(0, 3, 10):
                 w = get_weights(y_tr, p=p)
-                mod.fit(x_tr, y_tr, linearregression__sample_weight=w)
+                mod.fit(x_tr, y_tr, sample_weight=w)
                 y_te_p = mod.predict(x_te)
                 s_te = test(y_te, y_te_p)[0]
                 ps += [p]
@@ -643,11 +653,12 @@ class sign4(BaseSignature, DataSignature):
                 plt.scatter(ps, ss_te)
                 plt.title("%.2f" % p)
                 plt.savefig(os.path.join(save_path, 'confidence_p.png'))
+                plt.close()
             return p
 
         self.__log.info('Training CONFIDENCE model')
-        X, Y = self.save_known_distributions(siamese, known_x, realistic_fn,
-                                             prior_model, save_path)
+        X, Y = self.save_known_distributions(
+            siamese, train_x, test_x,  realistic_fn,  prior_model, save_path)
         # split chunks, get indeces of chunks for each split
         if evaluate:
             split_idxs = Traintest.get_split_indeces(X.shape[0], [0.8, 0.2])
@@ -666,51 +677,56 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('X test: %s' % str(x_te.shape))
         self.__log.debug('y test: %s' % str(y_te.shape))
 
-        model = make_pipeline(RobustScaler(), LinearRegression())
+        model = LinearRegression()
         p = max(1, find_p(model, x_tr, y_tr, x_te, y_te))
-        model.fit(x_tr, y_tr,
-                  linearregression__sample_weight=get_weights(y_tr, p=p))
+        model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
         if plots:
             analyze(model, x_tr, y_tr, x_te, y_te)
         confidence_file = os.path.join(save_path, 'confidence.pkl')
         pickle.dump(model, open(confidence_file, 'wb'))
         return model
 
-    def save_known_distributions(self, siamese, known_x, realistic_fn,
+    def save_known_distributions(self, siamese, train_x, test_x, realistic_fn,
                                  prior_model, save_path):
         try:
             import faiss
         except ImportError as err:
             raise err
-        # save neighbors faiss index based on only self prediction
-        only_self = mask_keep(self.dataset_idx, known_x)
-        only_self_pred = siamese.predict(only_self)
-        only_self_neig = faiss.IndexFlatL2(only_self_pred.shape[1])
-        only_self_neig.add(only_self_pred.astype(np.float32))
-        only_self_neig_file = os.path.join(save_path, 'neig.index')
-        faiss.write_index(only_self_neig, only_self_neig_file)
+        # save neighbors faiss index based on only self train prediction
+        train_onlyself = mask_keep(self.dataset_idx, train_x)
+        train_onlyself_pred = siamese.predict(train_onlyself)
+        train_onlyself_neig = faiss.IndexFlatL2(train_onlyself_pred.shape[1])
+        train_onlyself_neig.add(train_onlyself_pred.astype(np.float32))
+        train_onlyself_neig_file = os.path.join(save_path, 'neig.index')
+        faiss.write_index(train_onlyself_neig, train_onlyself_neig_file)
 
-        pred = siamese.predict(realistic_fn(known_x))
+        # de test predictions
+        test_notself = realistic_fn(test_x)
+        test_notself_pred = siamese.predict(test_notself)
+        test_onlyself = mask_keep(self.dataset_idx, test_x)
+        test_onlyself_pred = siamese.predict(test_onlyself)
 
         # do applicability domain prediction
         applicability, centrality = self.applicability_domain(
-            only_self_neig, pred)
+            train_onlyself_neig, test_notself_pred)
 
         # do conformal prediction (dropout)
         intensities, robustness, consensus = self.conformal_prediction(
-            siamese, known_x)
+            siamese, test_notself)
 
         # predict expected prior
-        err_input = (~np.isnan(known_x[:, ::128])).astype(int)
-        prior = prior_model.predict(err_input)
+        test_notself_presence = ~np.isnan(test_notself[:, ::128])
+        prior = prior_model.predict(test_notself_presence.astype(int))
 
         # calculate the error
-        log_mse = np.log10(np.mean(((only_self_pred - pred)**2), axis=1))
+        log_mse = np.log10(
+            np.mean(((test_onlyself_pred - test_notself_pred)**2), axis=1))
         log_mse_consensus = np.log10(
-            np.mean(((only_self_pred - consensus)**2), axis=1))
+            np.mean(((test_onlyself_pred - consensus)**2), axis=1))
 
         # get correlation between prediction and only self predictions
-        correlations = row_wise_correlation(only_self_pred, pred, scaled=True)
+        correlations = row_wise_correlation(
+            test_onlyself_pred, test_notself_pred, scaled=True)
 
         # we have all the data to train the confidence model
         features = np.vstack([applicability, robustness, prior]).T
@@ -1912,13 +1928,14 @@ class sign4(BaseSignature, DataSignature):
         lr_file = os.path.join(self.model_path, 'siamese_lr/used_lrs.pkl')
 
         if not os.path.isfile(lr_file):
-            min_lr, max_lr, mean_lrs = self.learn_lr(self.params['sign2_lr'], suffix='lr')
-            self.params['sign2']['min_lr'] = mean_lrs/10
+            min_lr, max_lr, mean_lrs = self.learn_lr(
+                self.params['sign2_lr'], suffix='lr')
+            self.params['sign2']['min_lr'] = mean_lrs / 10
             self.params['sign2']['max_lr'] = mean_lrs * 10
         else:
             lrs = pickle.load(open(lr_file, "rb"))
             mean_lrs = lrs['mean']
-            self.params['sign2']['min_lr'] = mean_lrs/10
+            self.params['sign2']['min_lr'] = mean_lrs / 10
             self.params['sign2']['max_lr'] = mean_lrs * 10
 
         self.__log.info('Mean Lr: %f' % (mean_lrs))
