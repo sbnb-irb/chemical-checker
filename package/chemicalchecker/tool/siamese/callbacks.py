@@ -261,7 +261,7 @@ class LearningRateFinder:
 		self.model.load_weights(self.weightsFile)
 		K.set_value(self.model.optimizer.lr, origLR)
 
-	def find_bounds(self, min_pad=1, max_pad=3, min_x=-7, max_x=0, window_length=51, polyorder=2):
+	def find_bounds(self, min_pad=1, max_pad=3, min_x=-7, max_x=2, window_length=51, polyorder=2):
 		x = np.log10(self.lrs)
 		y = self.losses
 		y = savgol_filter(y, window_length, polyorder)
