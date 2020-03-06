@@ -51,37 +51,36 @@ class Model(ModelSetup):
         else:
             return ar
     
-    def sampler(self, X, y, just_one):
+    def sampler(self, X, y):
+        self.shuffle = True
         spl = splitters.ToppedSampler(max_samples=self.max_train_samples,
                                       max_ensemble_size=self.max_train_ensemble,
                                       chance=self.train_sample_chance,
                                       try_balance=True,
                                       shuffle=self.shuffle)
-        if just_one:
-            self.__log.debug("Sample just one")
-            for shuff in spl.sample(X=X, y=y):
-                return shuff
-        else:
-            self.__log.debug("Sampling")
-            for shuff in spl.sample(X=X, y=y):
-                yield shuff
+        self.__log.debug("Sampling")
+        for shuff in spl.sample(X=X, y=y):
+            yield shuff
         
-    def find_base_mod(self, X, y, smiles, destination_dir=None):
+    def find_base_mod(self, X, y, smiles, destination_dir):
         """Select a pipeline, for example, using HyperOpt."""
+        destdir = destination_dir + "---base_model"
         X      = self.check_array_from_disk(X)
         y      = self.check_array_from_disk(y)
         smiles = self.check_array_from_disk(smiles)
         self.__log.info("Setting the base model")
-        shuff = self.sampler(X, y, just_one=True)
+        for shuff in self.sampler(X, y):
+            break
         base_mod = self.algo.as_pipeline(X=X[shuff], y=y[shuff], smiles=smiles[shuff])
-        if destination_dir:
-            self.__log.info("Saving base model in %s" % destination_dir)
-            self.base_mod_dir = destination_dir
-            with open(destination_dir, "wb") as f:
-                joblib.dump(base_mod, f)
-        else:
-            self.base_mod = base_mod
-        return base_mod
+        self.__log.info("Saving base model in %s" % destdir)
+        self.base_mod_dir = destdir
+        with open(self.base_mod_dir, "wb") as f:
+            joblib.dump(base_mod, f)
+
+    def load_base_mod(self):
+        """Load base model"""
+        with open(self.base_mod_dir, "rb") as f:
+            return joblib.load(f)
         
     def metric_calc(self, y_true, y_pred, metric=None):
         """Calculate metric. Returns (value, weight) tuple."""
@@ -93,7 +92,8 @@ class Model(ModelSetup):
         """Weight the association between a certain data type and an y variable using a cross-validation scheme, and a relatively simple model."""
         X = self.check_array_from_disk(X)
         y = self.check_array_from_disk(y)
-        shuff = self.sampler(X, y, just_one=True)
+        for shuff in self.sampler(X, y):
+            break
         X = X[shuff]
         y = y[shuff]
         mod = self.weight_algo.as_pipeline(X, y)
@@ -124,20 +124,19 @@ class Model(ModelSetup):
             n_jobs(int): If jobs are specified, the number of CPUs per model are overwritten.
                 This is relevant when sending jobs to the cluster (default=None).
         """
+        # Set up
+        if destination_dir is None:
+            raise Exception("destination_dir cannot be None")
+        self.mod_dir = destination_dir
+        self.mod_uncalib_dir = destination_dir+"-uncalib"
         # Check if array is a file
         X = self.check_array_from_disk(X)
         y = self.check_array_from_disk(y)
-        # Setup
-        if destination_dir:
-            if self.mod_dir is None: self.mod_dir = []
-            if self.mod_uncalib_dir is None: self.mod_uncalib_dir = []
-        else:
-            self.mod = []
-            self.mod_uncalib = []
         # Get started
-        base_mod = self.find_base_mod(X, y, smiles, destination_dir=destination_dir)
-        for i, shuff in enumerate(self.sampler(X, y, just_one=False)):
-            self.__log.debug("Sample %i" % i)
+        self.find_base_mod(X, y, smiles, destination_dir=destination_dir)
+        base_mod = self.load_base_mod()
+        for i, shuff in enumerate(self.sampler(X, y)):
+            self.__log.info("Fitting round %i" % i)
             if self.conformity:
                 self.__log.info("Preparing cross-conformity")
                 # Cross-conformal prediction
@@ -149,44 +148,39 @@ class Model(ModelSetup):
                 mod = base_mod
                 mod_uncalib = None
             # Fit the model
-            self.__log.info("Fitting")
+            self.__log.info("Fitting (%d actives, %d inactives)" % (np.sum(y[shuff]), len(shuff) - np.sum(y[shuff])))
             mod.fit(X[shuff], y[shuff])
             if mod_uncalib is not None:
                 self.__log.info("Fitting model, but without calibration")
                 mod_uncalib.fit(X[shuff], y[shuff])
             # Save the destination directory of the model
-            if destination_dir:
-                destdir = destination_dir + "_%d" % i
-                self.mod_dir += [destdir]
-                self.__log.debug("Saving fitted model in %s" % destdir)
-                with open(destination_dir, "wb") as f:
-                    joblib.dump(mod, f)
-                if mod_uncalib is not None:
-                    self.__log.debug("Saving fitted uncalibrated model in %s-uncalib" % destdir)
-                    self.mod_uncalib_dir += [destdir+"-uncalib"]
-                    with open(destdir+"-uncalib", "wb") as f:
-                        joblib.dump(mod_uncalib, f)
-                else:
-                    self.__log.debug("Calibrated and uncalibrated models are the same %s-uncalib" % destdir)
-                    self.mod_uncalib_dir += [destdir+"-uncalib"]
-                    os.symlink(destdir, destdir+"-uncalib")
+            destdir = self.mod_dir + "---%d" % i
+            destdir_uncalib = self.mod_uncalib_dir + "---%d" % i
+            self.__log.debug("Saving fitted model in %s" % destdir)
+            with open(destdir, "wb") as f:
+                joblib.dump(mod, f)
+            if mod_uncalib is not None:
+                self.__log.debug("Saving fitted uncalibrated model in %s" % destdir_uncalib)
+                with open(destdir_uncalib, "wb") as f:
+                    joblib.dump(mod_uncalib, f)
             else:
-                self.mod += [mod]
-                self.mod_uncalib += [mod_uncalib]
+                self.__log.debug("Calibrated and uncalibrated models are the same %s" % destdir_uncalib)
+                os.symlink(destdir, destdir_uncalib)
 
     def model_iterator(self, uncalib):
         if uncalib:
             mod_dir = self.mod_dir_uncalib
-            mod = self.mod_uncalib
         else:
             mod_dir = self.mod_dir
-            mod = self.mod
-        if mod_dir:
-            for m in mod_dir:
-                yield joblib.load(m)
-        else:
-            for m in mod:
-                yield m
+        name = mod_dir.split("/")[-1]
+        path = os.path.dirname(mod_dir)
+        for m in os.listdir(path):
+            if m.split("---")[0] != name: continue
+            if m.split("---")[-1] == "base_model": continue
+            fn = os.path.join(path, m)
+            with open(fn, "rb") as f:
+                mod = joblib.load(fn)
+            yield mod
 
     def _predict(self, X, destination_dir=None):
         """Make predictions
@@ -196,17 +190,23 @@ class Model(ModelSetup):
         """
         X = self.check_array_from_disk(X)
         self.__log.info("Predicting")
+        preds = None
         for i, mod in enumerate(self.model_iterator(uncalib=False)):
             if self.conformity:
-                preds = mod.predict(X)
+                p = mod.predict(X)
             else:
-                preds = mod.predict_proba(X)
-            if destination_dir:
-                self.__log.debug("Saving prediction in %s" % destination_dir)
-                with open(destination_dir, "wb") as f:
-                    pickle.dump(preds, f)
+                p = mod.predict_proba(X)
+            if preds is None:
+                preds = p
             else:
-                return preds
+                preds = preds + p
+        preds = preds/(i+1)
+        if destination_dir:
+            self.__log.debug("Saving prediction in %s" % destination_dir)
+            with open(destination_dir, "wb") as f:
+                pickle.dump(preds, f)
+        else:
+            return preds
 
     def _explain(self, X, destination_dir=None):
         """Explain the output of a model.
@@ -215,18 +215,15 @@ class Model(ModelSetup):
         """
         X = self.check_array_from_disk(X)
         self.__log.info("Explaining")
-        if self.conformity:
-            if self.mod_uncalib_dir:
-                mod = joblib.load(self.mod_uncalib_dir)
+        shaps = None
+        for i, mod in enumerate(self.model_iterator(uncalib=True)):
+            explainer = shap.TreeExplainer(mod)  # TO-DO: Apply kernel explainer for non-tree methods. Perhaps use LIME when computational cost is high.
+            s = explainer.shap_values(X, check_additivity=False)
+            if shaps is None:
+                shaps = s
             else:
-                mod = self.mod_uncalib
-        else:
-            if self.mod_dir:
-                mod = joblib.load(self.mod_dir)
-            else:
-                mod = self.mod
-        explainer = shap.TreeExplainer(mod) # TO-DO: Apply kernel explainer for non-tree methods. Perhaps use LIME when computational cost is high.
-        shaps     = explainer.shap_values(X)
+                shaps = shaps+s
+        shaps = shaps/(i+1)
         if destination_dir:
             self.__log.debug("Saving explanations in %s" % destination_dir)
             with open(destination_dir, "wb") as f:
@@ -275,12 +272,13 @@ class StackedModel(SignaturedModel):
         self.pca = None
 
     def pca_fit(self, X):
-        if not self.n_components: return X
-        if self.n_components > X.shape[1]: return X
+        if not self.n_components: return
+        if self.n_components > X.shape[1]: return
         self.__log.debug("Doing PCA fit")
+        for shuff in self.sampler(X, y=None):
+            break
         self.pca = PCA(n_components = self.n_components)
-        self.pca.fit(X)
-        return self.pca.transform(X)
+        self.pca.fit(X[shuff])
 
     def pca_transform(self, X):
         self.__log.debug("Doing PCA transform")
@@ -298,7 +296,8 @@ class StackedModel(SignaturedModel):
             y = self.array_on_disk(y)
             smiles = self.array_on_disk(smiles)
         X = self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs, smiles=smiles)
-        X = self.pca_fit(X)
+        self.pca_fit(X)
+        X = self.pca_transform(X)
         self.__log.info("Samples: %d, Dimensions %s" % X.shape)
         jobs = []
         if self.is_tmp:
