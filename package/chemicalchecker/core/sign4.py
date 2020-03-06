@@ -1934,15 +1934,14 @@ class sign4(BaseSignature, DataSignature):
         lr_file = os.path.join(self.model_path, 'siamese_lr/used_lrs.pkl')
 
         if not os.path.isfile(lr_file):
-            min_lr, max_lr, mean_lrs = self.learn_lr(
-                self.params['sign2_lr'], suffix='lr')
-            self.params['sign2']['min_lr'] = mean_lrs / 10
-            self.params['sign2']['max_lr'] = mean_lrs * 10
+            min_lr, max_lr, mean_lrs = self.learn_lr(self.params['sign2_lr'], suffix='lr')
+            self.params['sign2']['min_lr'] = mean_lrs
+            self.params['sign2']['max_lr'] = mean_lrs
         else:
             lrs = pickle.load(open(lr_file, "rb"))
             mean_lrs = lrs['mean']
-            self.params['sign2']['min_lr'] = mean_lrs / 10
-            self.params['sign2']['max_lr'] = mean_lrs * 10
+            self.params['sign2']['min_lr'] = mean_lrs
+            self.params['sign2']['max_lr'] = mean_lrs
 
         self.__log.info('Mean Lr: %f' % (mean_lrs))
 
