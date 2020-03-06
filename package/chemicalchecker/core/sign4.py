@@ -445,7 +445,7 @@ class sign4(BaseSignature, DataSignature):
                 feat = test_x[src_chunk]
                 feat_onlyself = realistic_fn(feat, p_only_self=1.0)
                 preds_onlyself = siamese.predict(feat_onlyself)
-                feat_notself = realistic_fn(feat)
+                feat_notself = realistic_fn(feat, p_self=0.5)
                 preds_noself = siamese.predict(feat_notself)
                 # the prior is only-self vs not-self predictions
                 corrs = row_wise_correlation(
