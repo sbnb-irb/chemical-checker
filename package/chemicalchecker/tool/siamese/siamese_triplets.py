@@ -183,9 +183,10 @@ class SiameseTriplets(object):
             "augment_kwargs", str(self.augment_kwargs)))
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
 
-        self.__log.debug("Saving parameters to %s" % param_file)
-        with open(param_file, "wb") as f:
-            pickle.dump(kwargs, f)
+        if not os.path.isfile(param_file):
+            self.__log.debug("Saving parameters to %s" % param_file)
+            with open(param_file, "wb") as f:
+                pickle.dump(kwargs, f)
 
     def build_model(self, input_shape, load=False):
         """Compile Keras model
