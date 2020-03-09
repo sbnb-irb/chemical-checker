@@ -61,6 +61,7 @@ class SiameseTriplets(object):
         self.alpha = float(kwargs.get("alpha", 1.0))
         self.patience = float(kwargs.get("patience", 5))
         self.traintest_file = kwargs.get("traintest_file", None)
+        self.regularize = kwargs.get("regularize", True)
 
         # internal variables
         self.name = self.__class__.__name__.lower()
@@ -205,10 +206,11 @@ class SiameseTriplets(object):
                       use_bias=False, input_shape=False):
             if input_shape:
                 net.add(Masking(mask_value=0.0, input_shape=input_shape))
-            net.add(layer(layer_size, use_bias=use_bias,
-                          # kernel_regularizer=regularizers.l2(0.0001)
-                          kernel_regularizer=regularizers.l2(0.001)))
-            net.add(BatchNormalization())
+            if activation == 'relu' and self.regularize:
+                net.add(layer(layer_size, use_bias=use_bias, kernel_regularizer=regularizers.l2(0.0001)))
+                net.add(BatchNormalization())
+            else:
+                net.add(layer(layer_size, use_bias=use_bias))
             net.add(Activation(activation))
             if dropout is not None:
                 net.add(Dropout(dropout))
@@ -367,10 +369,16 @@ class SiameseTriplets(object):
         self.__log.info('Loss function: %s' %
                         lfuncs_dict[self.loss_func].__name__)
 
-        if self.learning_rate == 'auto':
-            optimizer = keras.optimizers.SGD(1e-8)
+        if self.regularize:
+            if self.learning_rate == 'auto':
+                optimizer = keras.optimizers.SGD(lr=1e-8)
+            else:
+                optimizer = keras.optimizers.SGD(lr=self.learning_rate)
         else:
-            optimizer = keras.optimizers.SGD(lr=self.learning_rate)
+            if self.learning_rate == 'auto':
+                optimizer = keras.optimizers.Adam(lr=1e-8)
+            else:
+                optimizer = keras.optimizers.Adam(lr=self.learning_rate)
 
         model.compile(
             optimizer=optimizer,
