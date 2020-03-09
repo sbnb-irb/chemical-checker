@@ -79,6 +79,7 @@ class sign4(BaseSignature, DataSignature):
             'alpha': 1.0,
             'num_triplets': 1000,
             't_per': 0.01,
+            'regularize': True,
             'augment_fn': subsample,
             'augment_kwargs': {
                 'dataset': [dataset],
@@ -88,8 +89,8 @@ class sign4(BaseSignature, DataSignature):
             'augment_scale': 1
         }
 
-        s1_ref = self.get_sign('sign1').get_molset("reference")
-        opt_t_file = os.path.join(s1_ref.model_path, "opt_t.h5")
+        #s1_ref = self.get_sign('sign1').get_molset("reference")
+        opt_t_file = os.path.join(self.model_path, "opt_t.h5")
         try:
             opt_t = DataSignature(opt_t_file).get_h5_dataset('opt_t')
             default_sign2.update({'t_per': opt_t})
@@ -1893,6 +1894,7 @@ class sign4(BaseSignature, DataSignature):
         if not os.path.isfile(eval_file):
             siamese, prior_mdl, conf_mdl = self.learn_sign2(
                 self.params['sign2'], suffix='eval', evaluate=True)
+
 
         # check if we have the final trained model
         final_model_path = os.path.join(self.model_path, 'siamese_final')
