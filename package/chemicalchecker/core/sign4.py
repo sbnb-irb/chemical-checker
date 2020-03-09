@@ -1895,7 +1895,6 @@ class sign4(BaseSignature, DataSignature):
             siamese, prior_mdl, conf_mdl = self.learn_sign2(
                 self.params['sign2'], suffix='eval', evaluate=True)
 
-
         # check if we have the final trained model
         final_model_path = os.path.join(self.model_path, 'siamese_final')
         final_file = os.path.join(final_model_path, 'siamesetriplets.h5')
@@ -2230,7 +2229,8 @@ def subsample(tensor, sign_width=128,
         # how many dataset are we keeping?
         nr_keep = np.random.choice(np.arange(1, len(p_nr_row) + 1), p=p_nr_row)
         # normalize dataset keep probabilities
-        p_keep_row = p_keep[presence] / np.sum(p_keep[presence])
+        p_keep_row = (p_keep[presence] + 1e-10) / \
+            (np.sum(p_keep[presence]) + 1e-10)
         nr_keep = np.min([nr_keep, np.sum(p_keep_row > 0)])
         # which ones?
         to_add = np.random.choice(
