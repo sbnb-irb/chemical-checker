@@ -343,6 +343,7 @@ class NeighborTripletTraintest(object):
                 F = np.clip(10 * T, 100, 1000)
                 F = int(min(F, (nr_matrix[split2].shape[0] - 1)))
                 
+                NeighborTripletTraintest.__log.info("T per: %s" % (t_per))
                 NeighborTripletTraintest.__log.info("F and T: %s %s" % (F, T))
                 assert(T < F)
 
