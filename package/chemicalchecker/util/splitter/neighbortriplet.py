@@ -561,6 +561,9 @@ class NeighborTripletTraintest(object):
         if mask_fn is None:
             def mask_fn(*data):
                 return data
+        if augment_fn is None:
+            def augment_fn(*data):
+                return data
         batch_beg_end = np.zeros((int(np.ceil(t_shape[0] / batch_size)), 2))
         last = 0
         for row in batch_beg_end:
