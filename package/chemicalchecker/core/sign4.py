@@ -13,7 +13,8 @@ from functools import partial
 from scipy.stats import gaussian_kde
 from scipy.spatial.distance import pdist
 from scipy.stats import pearsonr, ks_2samp
-from sklearn.preprocessing import robust_scale
+from sklearn.preprocessing import robust_scale, StandardScaler
+from sklearn.pipeline import make_pipeline
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
@@ -68,30 +69,28 @@ class sign4(BaseSignature, DataSignature):
         from keras.layers import Dense
         default_sign2 = {
             'epochs': 10,
-            'layers': [Dense, Dense, Dense],
-            'layers_sizes': [1024, 512, 128],
-            'activations': ['relu', 'relu', 'tanh'],
-            'dropouts': [0.2, 0.2, 0.2],
+            'layers': [Dense, Dense, Dense, Dense],
+            'layers_sizes': [1024, 512, 256, 128],
+            'activations': ['relu', 'relu', 'relu', 'tanh'],
+            'dropouts': [0.2, 0.2, 0.2, None],
             'learning_rate': 'auto',
             'batch_size': 128,
-            'patience': 5,
+            'patience': 200,
             'loss_func': 'only_self_loss',
             'margin': 1.0,
             'alpha': 1.0,
-            'num_triplets': 1000,
-            't_per': 0.01,
             'regularize': False,
+            'num_triplets': 10000,
+            't_per': 0.01,
             'augment_fn': subsample,
             'augment_kwargs': {
                 'dataset': [dataset],
-                'p_self': 0.1,
-                'p_only_self': 0.0
             },
             'augment_scale': 1
         }
 
-        #s1_ref = self.get_sign('sign1').get_molset("reference")
-        opt_t_file = os.path.join(self.model_path, "opt_t.h5")
+        s1_ref = self.get_sign('sign1').get_molset("reference")
+        opt_t_file = os.path.join(s1_ref.model_path, "opt_t.h5")
         try:
             opt_t = DataSignature(opt_t_file).get_h5_dataset('opt_t')
             default_sign2.update({'t_per': opt_t})
@@ -492,9 +491,9 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('y test: %s' % str(y_te.shape))
 
         # fit model
-        model = RandomForestRegressor(max_features=None)
+        model = RandomForestRegressor(n_estimators=100, max_features=None)
         p = max(1, find_p(model, x_tr, y_tr, x_te, y_te))
-        model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=0))
+        model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
         if plots:
             analyze(model, x_tr, y_tr, x_te, y_te)
         predictor_path = os.path.join(save_path, 'prior.pkl')
@@ -543,7 +542,7 @@ class sign4(BaseSignature, DataSignature):
             ax.set_title(title)
 
         def importances(ax, mod):
-            y = model.feature_importances_
+            y = model.coef_
             features = ['applicability', 'robustness', 'prior']
             features = np.array(features)
             x = np.array([i for i in range(0, len(features))])
@@ -587,8 +586,8 @@ class sign4(BaseSignature, DataSignature):
             ax.set_title('Prior (%s)' % ax.get_title())
             ax.set_xlabel("Prior")
             ax.set_ylabel("Correlation")
-            ax = fig.add_subplot(gs[1, 3])
-            importances(ax, mod)
+            #ax = fig.add_subplot(gs[1, 3])
+            #importances(ax, mod)
             if plots:
                 plt.savefig(os.path.join(save_path, 'confidence_stats.png'))
                 plt.close()
@@ -635,7 +634,7 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('X test: %s' % str(x_te.shape))
         self.__log.debug('y test: %s' % str(y_te.shape))
 
-        model = RandomForestRegressor()
+        model = LinearRegression()
         p = max(1, find_p(model, x_tr, y_tr, x_te, y_te))
         model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
         if plots:
@@ -651,6 +650,7 @@ class sign4(BaseSignature, DataSignature):
         except ImportError as err:
             raise err
         # save neighbors faiss index based on only self train prediction
+        self.__log.info('Computing neighbor index')
         train_onlyself = mask_keep(self.dataset_idx, train_x)
         train_onlyself_pred = siamese.predict(train_onlyself)
         train_onlyself_neig = faiss.IndexFlatL2(train_onlyself_pred.shape[1])
@@ -663,6 +663,7 @@ class sign4(BaseSignature, DataSignature):
         test_onlyself_pred = siamese.predict(test_onlyself)
 
         # do applicability domain prediction
+        self.__log.info('Computing applicability domain')
         apps, cents, ranges = list(), list(), list()
         for i in range(10):
             test_notself = realistic_fn(test_x)
@@ -677,6 +678,7 @@ class sign4(BaseSignature, DataSignature):
         app_range = np.mean(np.vstack(ranges), axis=0)
 
         # do conformal prediction (dropout)
+        self.__log.info('Computing conformal prediction')
         intensities, robustness, consensus = self.conformal_prediction(
             siamese, test_notself)
 
