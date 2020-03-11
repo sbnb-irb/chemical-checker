@@ -4,8 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tempfile
 import pickle
-from chemicalchecker.tool.kneed.knee_locator import SimpleKneeLocator
-from scipy.signal import savgol_filter
+from scipy.stats import linregress
 
 
 class CyclicLR(Callback):
@@ -264,7 +263,7 @@ class LearningRateFinder:
         self.model.load_weights(self.weightsFile)
         K.set_value(self.model.optimizer.lr, origLR)
 
-    def find_bounds_by_slope(self, min_x=-7, max_x=1, interval=0.5):
+    def find_bounds(self, min_x=-7, max_x=1, interval=0.5):
         x = np.log10(self.lrs)
         y = self.losses
         idx = np.argmin(y)
