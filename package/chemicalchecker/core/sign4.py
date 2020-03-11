@@ -16,6 +16,7 @@ from scipy.stats import pearsonr, ks_2samp
 from sklearn.preprocessing import robust_scale
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
 
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
@@ -79,7 +80,7 @@ class sign4(BaseSignature, DataSignature):
             'alpha': 1.0,
             'num_triplets': 1000,
             't_per': 0.01,
-            'regularize': True,
+            'regularize': False,
             'augment_fn': subsample,
             'augment_kwargs': {
                 'dataset': [dataset],
@@ -360,7 +361,7 @@ class sign4(BaseSignature, DataSignature):
 
         def importances(ax, mod):
             from chemicalchecker.util.plot.style.util import coord_color
-            y = mod.coef_
+            y = mod.feature_importances_
             datasets = ["%s%s" % (x, y) for x in "ABCDE" for y in "12345"]
             datasets = np.array(datasets)
             x = np.array([i for i in range(0, len(datasets))])
@@ -424,7 +425,7 @@ class sign4(BaseSignature, DataSignature):
         X = np.zeros((total_x, int(total_feat / 128)))
         Y = np.zeros((total_x, 1))
         # prepare X and Y in chunks
-        chunk_size = int(np.floor(available_x / 10))
+        chunk_size = max(1000, int(np.floor(available_x / 10)))
         reached_max = False
         for i in range(0, int(np.ceil(total_x / available_x))):
             for idx in range(0, available_x, chunk_size):
@@ -446,7 +447,7 @@ class sign4(BaseSignature, DataSignature):
                 feat = test_x[src_chunk]
                 feat_onlyself = realistic_fn(feat, p_only_self=1.0)
                 preds_onlyself = siamese.predict(feat_onlyself)
-                feat_notself = realistic_fn(feat, p_self=0.5)
+                feat_notself = realistic_fn(feat, p_self=0.1)
                 preds_noself = siamese.predict(feat_notself)
                 # the prior is only-self vs not-self predictions
                 corrs = row_wise_correlation(
@@ -491,9 +492,9 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('y test: %s' % str(y_te.shape))
 
         # fit model
-        model = LinearRegression()
+        model = RandomForestRegressor(max_features=None)
         p = max(1, find_p(model, x_tr, y_tr, x_te, y_te))
-        model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
+        model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=0))
         if plots:
             analyze(model, x_tr, y_tr, x_te, y_te)
         predictor_path = os.path.join(save_path, 'prior.pkl')
@@ -542,7 +543,7 @@ class sign4(BaseSignature, DataSignature):
             ax.set_title(title)
 
         def importances(ax, mod):
-            y = model.coef_
+            y = model.feature_importances_
             features = ['applicability', 'robustness', 'prior']
             features = np.array(features)
             x = np.array([i for i in range(0, len(features))])
@@ -634,7 +635,7 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('X test: %s' % str(x_te.shape))
         self.__log.debug('y test: %s' % str(y_te.shape))
 
-        model = LinearRegression()
+        model = RandomForestRegressor()
         p = max(1, find_p(model, x_tr, y_tr, x_te, y_te))
         model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
         if plots:
