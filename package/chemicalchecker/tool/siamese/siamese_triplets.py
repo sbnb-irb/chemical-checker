@@ -662,10 +662,11 @@ class SiameseTriplets(object):
             return self.transformer.predict(no_nans)
         # sample with dropout (repeat input)
         samples = list()
-        for i in range(dropout_samples):
-            dropped_ds = dropout_fn(no_nans)
-            no_nans = np.nan_to_num(dropped_ds)
-            samples.append(self.transformer.predict(no_nans))
+        for row in no_nans:
+            for i in range(dropout_samples):
+                dropped_ds = dropout_fn(np.expand_dims(row, 0))
+                no_nans = np.nan_to_num(dropped_ds)
+                samples.append(self.transformer.predict(no_nans))
         samples = np.vstack(samples)
         samples = samples.reshape(
             x_matrix.shape[0], dropout_samples, samples.shape[1])
