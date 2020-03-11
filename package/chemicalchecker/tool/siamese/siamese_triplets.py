@@ -53,7 +53,7 @@ class SiameseTriplets(object):
         self.layers = kwargs.get("layers", [Dense] * len(self.layers_sizes))
         self.activations = kwargs.get("activations",
                                       ['relu'] * len(self.layers_sizes))
-        self.dropouts = kwargs.get("dropouts", [0.2] * len(self.layers_sizes))
+        self.dropouts = kwargs.get("dropouts", ([0.2] * (len(self.layers_sizes) - 1)) + [None])
         self.augment_fn = kwargs.get("augment_fn", None)
         self.augment_kwargs = kwargs.get("augment_kwargs", {})
         self.augment_scale = int(kwargs.get("augment_scale", 1))
@@ -230,13 +230,15 @@ class SiameseTriplets(object):
         add_layer(basenet, self.layers[0], self.layers_sizes[0],
                   self.activations[0], self.dropouts[0],
                   input_shape=input_shape)
-        hidden_layers = zip(self.layers[1:],
-                            self.layers_sizes[1:],
-                            self.activations[1:],
-                            self.dropouts[1:])
+        hidden_layers = zip(self.layers[1:-1],
+                            self.layers_sizes[1:-1],
+                            self.activations[1:-1],
+                            self.dropouts[1:-1])
         assert(len(self.layers) == len(self.layers_sizes) == len(self.activations) == len(self.dropouts))
         for layer, layer_size, activation, dropout in hidden_layers:
             add_layer(basenet, layer, layer_size, activation, dropout)
+        add_layer(basenet, self.layers[-1], self.layers_sizes[-1],
+                  self.activations[-1], None)
         # last normalization layer for loss
         basenet.add(Lambda(lambda x: K.l2_normalize(x, axis=-1)))
         basenet.summary()
