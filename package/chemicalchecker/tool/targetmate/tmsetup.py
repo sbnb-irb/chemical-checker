@@ -216,12 +216,12 @@ class TargetMateSetup(HPCUtils):
         self.repath_predictions_by_set(is_train=is_train, is_tmp=is_tmp, reset=False)
 
     # Read input data
-    def read_data(self, data, smiles_idx, activity_idx, srcid_idx, standardize=None):
+    def read_data(self, data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey, standardize=None):
         if not standardize:
             standardize = self.standardize
         # Read data
         self.__log.info("Reading data, parsing smiles")
-        return read_data(data, smiles_idx, activity_idx, srcid_idx, standardize)
+        return read_data(data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, standardize, use_inchikey)
 
     # Loading functions
     @staticmethod
@@ -370,9 +370,9 @@ class TargetMateClassifierSetup(TargetMateSetup):
         self.__log.info("Reassembling activities. Convention: 1 = Active, -1 = Inactive, 0 = Sampled")
         return reassemble_activity_sets(act, inact, putinact)
 
-    def prepare_data(self, data, smiles_idx, activity_idx, srcid_idx):
+    def prepare_data(self, data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey):
         # Read data
-        data = self.read_data(data, smiles_idx, activity_idx, srcid_idx)
+        data = self.read_data(data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey)
         # Save training data
         self.save_data(data)
         # Sample inactives, if necessary
@@ -436,11 +436,11 @@ class ModelSetup(TargetMateClassifierSetup, TargetMateRegressorSetup):
             TargetMateRegressorSetup.__init__(self, **kwargs)
         self.is_classifier = is_classifier
 
-    def prepare_data(self, data, smiles_idx, activity_idx, srcid_idx):
+    def prepare_data(self, data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey):
         if self.is_classifier:
-            return TargetMateClassifierSetup.prepare_data(self, data, smiles_idx, activity_idx, srcid_idx)
+            return TargetMateClassifierSetup.prepare_data(self, data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey)
         else:
-            return TargetMateRegressorSetup.prepare_data(self, data, smiles_idx, activity_idx, srcid_idx)
+            return TargetMateRegressorSetup.prepare_data(self, data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey)
 
     def prepare_for_ml(self, data):
         if self.is_classifier:

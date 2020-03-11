@@ -154,12 +154,10 @@ class Gatherer:
             tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=False, is_tmp=True, reset=True)
             pred_test  = tm.load_predictions()
             expl_test  = tm.load_explanations()
-            data_train = data[tr_idx]
-            data_test  = data[te_idx]
             self.train_idx += [tr_idx]
             self.test_idx  += [te_idx]
-            self.y_true_train += [data_train.activity]
-            self.y_true_test  += [data_test.activity]
+            self.y_true_train += [pred_train.y_true]
+            self.y_true_test  += [pred_test.y_true]
             self.y_pred_train += [pred_train.y_pred]
             self.y_pred_test  += [pred_test.y_pred]
             if expl_train:
@@ -354,8 +352,10 @@ class BaseValidation(object):
                 "y_pred": gather.y_pred_ens_test,
                 "perfs" : scores.perfs_ens_test.as_dict()
             }
-        print("TRAIN AUROC", valid["train"]["perfs"]["auroc"])
-        print("TEST AUROC ", valid["test"]["perfs"]["auroc"])
+        self.__log.debug("Train AUROC", valid["train"]["perfs"]["auroc"])
+        self.__log.debug("Test  AUROC", valid["test"]["perfs"]["auroc"])
+        print("Train AUROC", valid["train"]["perfs"]["auroc"])
+        print("Test  AUROC", valid["test"]["perfs"]["auroc"])        
         return valid
     
     def as_dict(self):
@@ -389,7 +389,7 @@ class Validation(BaseValidation, HPCUtils):
         self.setup(tm)
         # Signaturize
         self.__log.info("Signaturizing all data")
-        tm.signaturize(data.smiles, is_tmp=True, wait=True)
+        tm.signaturize(smiles=data.smiles, is_tmp=True, wait=True)
         # Splits
         self.__log.info("Getting splits")
         splits = self.get_splits(tm, data, train_idx, test_idx)
@@ -427,7 +427,7 @@ class Validation(BaseValidation, HPCUtils):
         self.__log.info("Signaturizing all data")
         jobs = []
         for tm, data in zip(tm_list, data_list):
-            jobs += tm.signaturize(data.smiles, is_tmp=True, wait=False)
+            jobs += tm.signaturize(smiles=data.smiles, is_tmp=True, wait=False)
             if len(jobs) > MAXQUEUE:
                 self.waiter(jobs)
                 jobs = []

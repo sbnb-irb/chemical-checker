@@ -245,19 +245,48 @@ class Model(ModelSetup):
 class SignaturedModel(Model, SignaturizerSetup):
 
     def __init__(self, **kwargs):
-        """ """
+        """Initialize a signatured model."""
         Model.__init__(self, **kwargs)
-        SignaturizerSetup.__init__(self, do_init = False, **kwargs)
+        SignaturizerSetup.__init__(self, do_init=False, **kwargs)
 
-    def get_data_fit(self, data, smiles_idx=1, activity_idx=0, srcid_idx=None):
-        data = self.prepare_data(data, smiles_idx, activity_idx, srcid_idx)
+    def get_data_fit(self, data, smiles_idx=1, inchikey_idx=None, activity_idx=0, srcid_idx=None, use_inchikey=False):
+        data = self.prepare_data(data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey)
         data = self.prepare_for_ml(data)
         return data
 
-    def get_data_predict(self, data, smiles_idx=0, activity_idx=None, srcid_idx=None):
-        data = self.prepare_data(data, smiles_idx, activity_idx, srcid_idx)
-        data = self.prepare_for_ml(data) # TO-DO: Check that this is necessary...
+    def get_data_predict(self, data, smiles_idx=0, inchikey_idx=None, activity_idx=None, srcid_idx=None, use_inchikey=False):
+        data = self.prepare_data(data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey)
+        data = self.prepare_for_ml(data) # TODO: Check that this is necessary...
         return data
+
+    def get_Xy_from_data(self, data, idxs):
+        """Given data and certain idxs, get X and y (if available)"""
+        # filter data by specified indices
+        res = data.as_dict(idxs)
+        y = res["activity"]
+        idxs = res["idx"]
+        smiles = res["smiles"]
+        inchikeys = res["inchikey"]
+        X, idxs_ = self.read_signatures(datasets=self.datasets, idxs=idxs, smiles=smiles, inchikeys=inchikeys)
+        # filter again, this time by coverage
+        if y is not None:
+            y = y[idxs_]
+        idxs = idxs[idxs_]
+        smiles = smiles[idxs_]
+        inchikeys = inchikeys[idxs_]
+        # TODO: NOT SURE WHETHER THIS GOES HERE OR BEFORE...!
+        if self.hpc:
+            y = self.array_on_disk(y)
+            smiles = self.array_on_disk(smiles)
+            inchikeys = self.array_on_disk(inchikeys)
+        results = {
+            "X": X,
+            "y": y,
+            "idxs": idxs,
+            "smiles": smiles,
+            "inchikeys": inchikeys
+        }
+        return results
 
 
 @logged
@@ -286,16 +315,12 @@ class StackedModel(SignaturedModel):
         return self.pca.transform(X)
 
     def fit_stack(self, data, idxs, wait):
-        if idxs is None:
-            y = data.activity
-            smiles = data.smiles
-        else:
-            y = data.activity[idxs]
-            smiles = data.smiles
-        if self.hpc:
-            y = self.array_on_disk(y)
-            smiles = self.array_on_disk(smiles)
-        X = self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs, smiles=smiles)
+        self.__log.info("Reading signatures from data")
+        res = self.get_Xy_from_data(data, idxs)
+        X = res["X"]
+        y = res["y"]
+        smiles = res["smiles"]
+        self.__log.info("X shape: %d %d, y shape: %d" % (X.shape[0], X.shape[1], len(y)))
         self.pca_fit(X)
         X = self.pca_transform(X)
         self.__log.info("Samples: %d, Dimensions %s" % X.shape)
@@ -323,7 +348,7 @@ class StackedModel(SignaturedModel):
             is_tmp(bool): Save in the temporary directory or in the models directory.
         """
         self.is_tmp = is_tmp
-        self.signaturize(data.smiles)
+        self.signaturize(smiles=data.smiles)
         jobs = self.fit_stack(data, idxs=idxs, wait=wait)
         if not wait:
             return jobs
@@ -337,12 +362,23 @@ class StackedModel(SignaturedModel):
         self._predict(X, dest)
 
     def predict_stack(self, data, idxs, wait):
-        X = self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs, smiles=data.smiles)
+        self.__log.info("Reading signatures from data")
+        res = self.get_Xy_from_data(data, idxs)
+        X = res["X"]
+        y = res["y"]
         X = self.pca_transform(X)
         if self.is_tmp:
             dest = os.path.join(self.predictions_tmp_path, "Stacked")
         else:
             dest = os.path.join(self.predictions_models_path, "Stacked")
+        self.__log.info("Saving metadata in %s-meta" % dest)
+        meta = {
+            "y": y,
+            "idxs": idxs
+        }
+        with open(dest+"-meta", "wb") as f:
+             pickle.dump(meta, f)
+        self.__log.info("Starting predictions")
         jobs = []
         if self.hpc:
             X = self.array_on_disk(X)
@@ -362,8 +398,12 @@ class StackedModel(SignaturedModel):
             dest = os.path.join(self.predictions_models_path, "Stacked")
         with open(dest, "rb") as f:
             y_pred = pickle.load(f)
+        with open(dest+"-meta", "rb") as f:
+            meta = pickle.load(f)
+            y_true = meta["y"]
         return Prediction(
             datasets = datasets,
+            y_true = y_true,
             y_pred = y_pred,
             is_ensemble = self.is_ensemble,
             weights = None
@@ -372,7 +412,7 @@ class StackedModel(SignaturedModel):
     def predict(self, data, idxs=None, datasets=None, is_tmp=True, wait=True):
         self.is_tmp = is_tmp
         datasets = self.get_datasets(datasets)
-        self.signaturize(data.smiles, datasets=datasets)
+        self.signaturize(smiles=data.smiles, datasets=datasets)
         jobs = self.predict_stack(data, idxs=idxs, wait=wait)
         if wait:
             return self.load_predictions(datasets)
@@ -391,7 +431,8 @@ class StackedModel(SignaturedModel):
         self._explain(X, dest)
 
     def explain_stack(self, data, idxs, wait):
-        X = self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs, smiles=data.smiles)
+        self.__log.info("Getting signatures from data")
+        X, y, idxs_ = self.get_Xy_from_data(data, idxs)
         X = self.pca_transform(X)
         if self.is_tmp:
             dest = os.path.join(self.predictions_tmp_path, "Stacked-expl")
@@ -428,7 +469,7 @@ class StackedModel(SignaturedModel):
     def explain(self, data, idxs=None, datasets=None, is_tmp=True, wait=True):
         self.is_tmp = is_tmp
         datasets = self.get_datasets(datasets)
-        self.signaturize(data.smiles, datasets=datasets)
+        self.signaturize(smiles=data.smiles, datasets=datasets)
         jobs = self.explain_stack(data, idxs=idxs, wait=wait)
         if wait:
             return self.load_explanations(datasets)
@@ -436,6 +477,7 @@ class StackedModel(SignaturedModel):
             return jobs
 
 
+# ENSEMBLE MODEL IS WORK IN PROGRESS...
 @logged
 class EnsembleModel(SignaturedModel):
     """ """
