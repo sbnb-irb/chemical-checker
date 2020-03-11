@@ -264,31 +264,16 @@ class LearningRateFinder:
         self.model.load_weights(self.weightsFile)
         K.set_value(self.model.optimizer.lr, origLR)
 
-    def find_bounds(self, min_pad=0, window_length=51, polyorder=2, min_x=-7, max_x=1, max_dec=0.1):
+    def find_bounds_by_slope(self, min_x=-7, max_x=1, interval=0.5):
         x = np.log10(self.lrs)
         y = self.losses
-        # get minimum
         idx = np.argmin(y)
         ub = x[idx]
-        y_sm = savgol_filter(y, window_length, polyorder)
-        idx_sm = np.argmin(y_sm)
-        ub_sm = x[idx_sm]
-        ub = np.mean([ub, ub_sm])
-        ub_y = np.mean([y[idx], y_sm[idx_sm]])
-        # get elbow
-        idx = np.argwhere(x<(ub-min_pad)).ravel()[-1]
-        x = x[:idx]
-        y_sm = y_sm[:idx]
-        el = SimpleKneeLocator(x,y_sm,curve="concave",direction="decreasing")
-        elb_idx = el.elbow_idx
-        lb = x[elb_idx]
-        # get lb by simple percentage
-        up_y = y_sm[0]
-        dw_y = ub_y
-        y_lim = up_y - (up_y - dw_y)*max_dec
-        lim_idx = np.argwhere(y < y_lim).ravel()[0]
-        lb = np.min([x[lim_idx], lb])
-        # return
+        plat = int(idx*interval)+1
+        y_plat = np.mean(y[:plat])
+        slope = int(idx*(1-interval))+1
+        reg = linregress(x[slope:idx], y[slope:idx])
+        lb = (y_plat - reg.intercept)/reg.slope
         return np.max([lb,min_x]), np.min([ub,max_x])
 
     def plot_loss(self, min_lr, max_lr, plot_file, skipBegin=10, skipEnd=1, title=""):
