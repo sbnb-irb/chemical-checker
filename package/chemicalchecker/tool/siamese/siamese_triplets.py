@@ -206,12 +206,15 @@ class SiameseTriplets(object):
             return K.sqrt(K.maximum(sum_square, K.epsilon()))
 
         def add_layer(net, layer, layer_size, activation, dropout,
-                      use_bias=False, input_shape=False):
+                      use_bias=True, input_shape=False):
             if input_shape:
                 net.add(Masking(mask_value=0.0, input_shape=input_shape))
             if activation == 'relu' and self.regularize:
-                net.add(layer(layer_size, use_bias=use_bias, kernel_regularizer=regularizers.l2(0.001)))
-                net.add(BatchNormalization())
+                e = 0.0001
+                net.add(layer(layer_size, use_bias=use_bias, 
+                    kernel_regularizer=regularizers.l2(e),
+                    activity_regularizer=regularizers.l1(e)))
+                #net.add(BatchNormalization())
             else:
                 net.add(layer(layer_size, use_bias=use_bias))
             net.add(Activation(activation))
@@ -603,8 +606,8 @@ class SiameseTriplets(object):
             patience=self.patience,
             mode='min',
             restore_best_weights=True)
-        # if monitor or not self.evaluate:
-        #    callbacks.append(early_stopping)
+        if monitor or not self.evaluate:
+            callbacks.append(early_stopping)
 
         # call fit and save model
         t0 = time()
