@@ -526,7 +526,7 @@ class NeighborTripletTraintest(object):
             'NeighborTripletTraintest saved to %s', out_file)
 
     @staticmethod
-    def generator_fn(file_name, split, batch_size=None,
+    def generator_fn(file_name, split, epochs=None, batch_size=None,
                      replace_nan=None, augment_scale=1,
                      augment_fn=None, augment_kwargs={},
                      mask_fn=None, shuffle=True,
@@ -582,12 +582,19 @@ class NeighborTripletTraintest(object):
 
         def example_generator_fn():
             # generator function yielding data
+            step_size = 8
+            p_self_decay = (1.0 / step_size)
+            p_factor = -1
+            augment_kwargs['p_self'] = 1.0
+            
             epoch = 0
             batch_idx = 0
             while True:
                 if batch_idx == len(batch_beg_end):
                     batch_idx = 0
                     epoch += 1
+                    p_factor = -1
+                    augment_kwargs['p_self'] = 1.0
                     if shuffle:
                         np.random.shuffle(batch_beg_end)
                     # Traintest.__log.debug('EPOCH %i (caller: %s)', epoch,
@@ -627,6 +634,12 @@ class NeighborTripletTraintest(object):
                 # print(x1.shape, x2.shape, x3.shape, y.shape)
                 yield [x1, x2, x3, x4], y
                 batch_idx += 1
+                if p_factor > 0:
+                    augment_kwargs['p_self'] = min(1.0, augment_kwargs['p_self'] + (p_self_decay * p_factor))
+                else:
+                    augment_kwargs['p_self'] = max(0.0, augment_kwargs['p_self'] + (p_self_decay * p_factor))
+                if batch_idx % step_size == 0 and batch_idx != 0:
+                    p_factor = -p_factor
 
         pair_shape = (t_shape[0] * augment_scale, x_shape[1])
         shapes = (pair_shape, pair_shape, pair_shape, pair_shape)
