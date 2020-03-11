@@ -17,6 +17,7 @@ from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
 from .callbacks import CyclicLR, LearningRateFinder
 
+MIN_LR = 1e-8
 
 @logged
 class SiameseTriplets(object):
@@ -91,6 +92,7 @@ class SiameseTriplets(object):
             tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
                 self.traintest_file,
                 'train_train',
+                epochs=self.epochs,
                 batch_size=int(self.batch_size / self.augment_scale),
                 replace_nan=self.replace_nan,
                 sharedx=self.sharedx,
@@ -208,7 +210,7 @@ class SiameseTriplets(object):
             if input_shape:
                 net.add(Masking(mask_value=0.0, input_shape=input_shape))
             if activation == 'relu' and self.regularize:
-                net.add(layer(layer_size, use_bias=use_bias, kernel_regularizer=regularizers.l2(0.0001)))
+                net.add(layer(layer_size, use_bias=use_bias, kernel_regularizer=regularizers.l2(0.001)))
                 net.add(BatchNormalization())
             else:
                 net.add(layer(layer_size, use_bias=use_bias))
@@ -232,6 +234,7 @@ class SiameseTriplets(object):
                             self.layers_sizes[1:],
                             self.activations[1:],
                             self.dropouts[1:])
+        assert(len(self.layers) == len(self.layers_sizes) == len(self.activations) == len(self.dropouts))
         for layer, layer_size, activation, dropout in hidden_layers:
             add_layer(basenet, layer, layer_size, activation, dropout)
         # last normalization layer for loss
@@ -372,12 +375,12 @@ class SiameseTriplets(object):
 
         if self.regularize:
             if self.learning_rate == 'auto':
-                optimizer = keras.optimizers.SGD(lr=1e-8)
+                optimizer = keras.optimizers.SGD(lr=MIN_LR)
             else:
                 optimizer = keras.optimizers.SGD(lr=self.learning_rate)
         else:
             if self.learning_rate == 'auto':
-                optimizer = keras.optimizers.Adam(lr=1e-8)
+                optimizer = keras.optimizers.Adam(lr=MIN_LR)
             else:
                 optimizer = keras.optimizers.Adam(lr=self.learning_rate)
 
@@ -401,7 +404,13 @@ class SiameseTriplets(object):
 
         lrf = LearningRateFinder(self.model)
 
-        lrf.find(self.tr_gen, 1e-8, 1e+1, epochs=3,
+
+        if self.regularize:
+            min_lr, max_lr = MIN_LR, 1e+1
+        else:
+            min_lr, max_lr = MIN_LR, 1e-1
+
+        lrf.find(self.tr_gen, min_lr, max_lr, epochs=3,
                  stepsPerEpoch=self.steps_per_epoch,
                  batchSize=self.batch_size)
 
