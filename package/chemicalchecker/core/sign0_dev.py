@@ -1,5 +1,5 @@
 """Signature type 0 are basically raw features. Each bioactive space has
-a peculiar format which might be categorial, discrete or continuous.
+a peculiar format which might be categorical, discrete or continuous.
 """
 import os
 import imp
@@ -72,11 +72,11 @@ class sign0(BaseSignature, DataSignature):
                 features += ["feature_%s" % s]
         return np.array(features)
 
-    def fit(self, cc, pairs=None, X=None, keys=None, key_type="inchikey", features=None, preprocess_func=None, **params):
+    def fit(self, cc=None, pairs=None, X=None, keys=None, key_type="inchikey", features=None, preprocess_func=None, **params):
         """Process the input data. We produce a sign0 (full) and a sign0(reference). Data are sorted (keys and features).
         
         Args:
-            cc(Chemical Checker): .
+            cc(Chemical Checker): A CC instance. This is important to produce the triplets. If None specified, the same CC where the signature is present will be used (default=None).
             pairs(array of tuples): Data.
             X(matrix): Data.
             keys(array): Row names.
@@ -84,6 +84,8 @@ class sign0(BaseSignature, DataSignature):
             features(array): Column names (default=None).
             preprocess_func: A preprocessing function may be given. In this case X, keys and features are ignored (default=None).
         """
+        if cc is None:
+            cc = self.get_cc()
         if preprocess_func is not None:
             if X is not None or pairs is not None:
                 raise Exception("If you input a function, X or pairs should not be specified!")
