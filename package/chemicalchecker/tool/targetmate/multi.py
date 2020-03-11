@@ -30,7 +30,7 @@ class MultiSetup(object):
         smiles = read_smiles_from_multiple_data(data_list, smiles_idx=smiles_idx, sort=sort, standardize=standardize)
         self.__log.info("Will signaturize %d molecules" % len(smiles.smiles))
         sign = RawSignaturizerSetup(root=root, hpc=hpc, **kwargs)
-        sign.signaturize(smiles.smiles)
+        sign.signaturize(smiles=smiles.smiles)
         self.__log.info("Dictionary of signature paths done")
         sign_paths = sign.get_destination_dirs(**kwargs)
         return sign_paths

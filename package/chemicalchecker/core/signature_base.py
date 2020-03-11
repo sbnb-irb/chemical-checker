@@ -551,6 +551,12 @@ class BaseSignature(object):
         new_path = "/".join(folds)
         return neig(new_path, self.dataset)
 
+    def get_cc(self):
+        '''Return the CC where the signature is present'''
+        from chemicalchecker import ChemicalChecker
+        cc_path = "/".join(self.signature_path.split("/")[:-5])
+        return ChemicalChecker(cc_path)
+
     def get_sign(self, sign_type):
         '''Return the signature type for current dataset'''
         from .sign0 import sign0
@@ -584,7 +590,7 @@ class BaseSignature(object):
             if not overwrite:
                 raise Exception("%s exists" % sign_ref.data_path)
         rnd.remove(self.data_path, save_dest=sign_ref.data_path)
-        f5 = h5py.File(self.data_path, "w")
+        f5 = h5py.File(self.data_path, "r")
         if 'features' in f5.keys():
             features = f5['features'][:]
             f5.close()

@@ -21,19 +21,23 @@ def reader(data):
             yield r
 
 def read_data(data,
-              smiles_idx,
+              smiles_idx=None,
+              inchikey_idx=None,
               activity_idx=None,
               srcid_idx=None,
-              standardize=False):
+              standardize=False,
+              use_inchikey=False):
     """Read data.
 
     Args:
         data(str or list of tuples): 
-        smiles_idx: Tuple or column index where smiles is specified.        
+        smiles_idx: Tuple or column index where smiles is specified (default=None).
+        inchikey_idx: Column where the inchikey is present (default=None).        
         activity_idx: Tuple or column index where activity is specified (default=None).
         srcid_idx: Tuple or column index where the source id is specified (default=None).
         standardize(bool): Standardize structures.
-    
+        use_inchikey(bool): Use inchikey directly (default=False)
+
     Returns:
         InputData instance.
     """
@@ -42,18 +46,34 @@ def read_data(data,
     srcid    = []
     idx      = []
     inchikey = []
-
-    for i, r in enumerate(reader(data)):
-        smi = r[smiles_idx]
-        m = read_smiles(smi, standardize)
-        if not m: continue
-        idx      += [i]
-        smiles   += [m[1]]
-        inchikey += [m[0]]
-        if activity_idx is not None:
-            activity += [float(r[activity_idx])]
-        if srcid_idx is not None:
-            srcid    += [r[srcid_idx]]        
+    if not use_inchikey:
+        if smiles_idx is None:
+            raise Exception("smiles_idx needs to be specified")
+        for i, r in enumerate(reader(data)):
+            smi = r[smiles_idx]
+            m = read_smiles(smi, standardize)
+            if not m: continue
+            idx      += [i]
+            smiles   += [m[1]]
+            inchikey += [m[0]]
+            if activity_idx is not None:
+                activity += [float(r[activity_idx])]
+            if srcid_idx is not None:
+                srcid += [r[srcid_idx]]
+    else:
+        if inchikey_idx is None:
+            raise Exception("inchikey_idx needs to be specified")
+        for i, r in enumerate(reader(data)):
+            idx += [i]
+            inchikey += [r[inchikey_idx]]
+            if smiles_idx is not None:
+                smiles += [r[smiles_idx]]
+            else:
+                smiles += [None]
+            if activity_idx is not None:
+                activity += [float(r[activity_idx])]
+            if srcid_idx is not None:
+                srcid += [r[srcid_idx]]
     data = (idx, smiles, inchikey, activity, srcid)
     return InputData(data)
 
@@ -108,7 +128,7 @@ class InputData:
     
     def __init__(self, data=None):
         """Initialize input data class"""
-        if data:
+        if data is not None:
             idx   = np.array(data[0])
             order = np.argsort(idx)
             self.idx      = idx[order]
@@ -152,6 +172,24 @@ class InputData:
             })
         return df        
 
+    @staticmethod
+    def sel(ary, idxs):
+        if idxs is None:
+            return ary
+        if ary is None:
+            return None
+        return ary[idxs]
+
+    def as_dict(self, idxs):
+        res = {
+            "idx": self.sel(self.idx, idxs),
+            "activity": self.sel(self.activity, idxs),
+            "smiles": self.sel(self.smiles, idxs),
+            "inchikey": self.sel(self.inchikey, idxs),
+            "srcid": self.sel(self.srcid, idxs)
+        }
+        return res
+
     def shuffle(self, inplace=True):
         """Shuffle data"""
         ridxs = [i for i in range(0, len(self.idx))]
@@ -184,9 +222,10 @@ class SmilesData:
 class Prediction:
     """A simple prediction class"""
 
-    def __init__(self, datasets, y_pred, is_ensemble, weights=None):
+    def __init__(self, datasets, y_true, y_pred, is_ensemble, weights=None):
         self.is_ensemble = is_ensemble
         self.datasets = datasets
+        self.y_true = y_true
         if is_ensemble:
             self.y_pred_ens = y_pred
             self.weights = weights
