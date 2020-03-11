@@ -1,36 +1,26 @@
-"""Signature type 0.
-
-Signature type 0 are basically raw features. Each bioactive space has
-a peculiar format which might be categorial, discrete or continous.
-Given the diversity of formats and datasources the signaturization process
-is started here but performed in tailored pre-process scripts (available
-in the pipeline folder).
-The `fit` method invoke the pre-process script with a `fit` argument where
-we essentially `learn` the feature to consider.
-The `predict` argument (called by the `predict` method) allow deriving
-signatures without altering the feature set. This can also be used when mapping
-to a bioactive space different entities (i.e. not only compounds)
-E.g.
-categorical: "C0015230,C0016436..." which translates in n array of 0s or 1s.
-discrete: "GO:0006897(8),GO:0006796(3),..." which translates in an array of
-integers
-continous: "0.515,1.690,0.996" which is an array of floats
+"""Signature type 0 are basically raw features. Each bioactive space has
+a peculiar format which might be categorical, discrete or continuous.
 """
 import os
 import imp
 import h5py
 import numpy as np
 from tqdm import tqdm
+import collections
+import datetime
+import random
+import pickle
 
 from .signature_data import DataSignature
 from .signature_base import BaseSignature
 
 from chemicalchecker.util import logged
+from chemicalchecker.util.remove_near_duplicates import RNDuplicates
+from chemicalchecker.util.sampler.triplets import TripletSampler
 
 
 @logged
 class sign0(BaseSignature, DataSignature):
-    """Signature type 0 class."""
 
     def __init__(self, signature_path, dataset, **params):
         """Initialize the signature.
@@ -38,286 +28,172 @@ class sign0(BaseSignature, DataSignature):
         Args:
             signature_path(str): the path to the signature directory.
         """
-        # Calling init on the base class to trigger file existance checks
         BaseSignature.__init__(
             self, signature_path, dataset, **params)
-        self.__log.debug('signature path is: %s', signature_path)
+        self.__log.debug('signature path is: %s' % signature_path)
         self.data_path = os.path.join(self.signature_path, "sign0.h5")
-        DataSignature.__init__(self, self.data_path)
-        self.__log.debug('data_path: %s', self.data_path)
+        DataSignature.__init__(self, self.data_path, **params)
+        self.__log.debug('data path: %s' % self.data_path)
 
-        dir_path = os.path.dirname(os.path.realpath(__file__))
+    def process_keys(self, keys, key_type):
+        """Given keys, process them so they are acceptable CC types"""
+        keys_ = []
+        maps_ = []
+        if key_type == "inchikey":
+            self.__log.debug("Processing inchikeys. Only valids are kept.")
+            for i, k in enumerate(keys):
+                if len(k) == 27:
+                    if k[14] == "-" and k[25] == "-":
+                        keys_ += [k]
+                        maps_ += [i]
+        elif key_type == "smiles":
+            self.__log.debug(
+                "Processing smiles. Only standard smiles are kept")
+            from chemicalchecker.util.parser import Converter
+            conv = Converter()
+            for i, k in enumerate(keys):
+                try:
+                    keys_ += [conv.smiles_to_inchi(k)[0]]
+                    maps_ += [i]
+                except:
+                    continue
+        else:
+            raise "key_type must be 'inchikey' or 'smiles'"
+        self.__log.info("Initial keys: %d / Final keys: %d" %
+                        (len(keys), len(keys_)))
+        return np.array(keys_), np.array(maps_)
 
-        self.preprocess_script = os.path.join(
-            dir_path,
-            '../..',
-            "scripts/preprocess",
-            self.dataset,
-            "run.py")
-        if not os.path.isfile(self.preprocess_script):
-            self.__log.warning("Pre-process script not found! %s",
-                               self.preprocess_script)
-        for param, value in params.items():
-            self.__log.debug('parameter %s : %s', param, value)
+    def process_features(self, features, n):
+        """Process features. Give an arbitrary name to features if None are provided."""
+        if features is None:
+            self.__log.debug(
+                "No features were provided, giving arbitrary names")
+            l = int(np.log10(n)) + 1
+            features = []
+            for i in range(0, n):
+                s = "%d" % i
+                s = s.zfill(l)
+                features += ["feature_%s" % s]
+        return np.array(features)
 
-        self.entry_point = params.get('entry_point', None)
+    def fit(self, cc=None, pairs=None, X=None, keys=None, key_type="inchikey", features=None, **params):
+        """Process the input data. We produce a sign0 (full) and a sign0(reference). Data are sorted (keys and features).
 
-    def call_preprocess(self, output, method, infile=None, entry=None):
-        """Call the external pre-process script."""
-        # create argument list
-        arglist = ["-o", output, "-mp", self.model_path, "-m", method]
-        if infile:
-            arglist.extend(['-i', infile])
-        if entry:
-            arglist.extend(['-ep', entry])
-        # import and run the run.py
-        preprocess = imp.load_source('main', self.preprocess_script)
-        preprocess.main(arglist)
-
-    def fit(self):
-        """Call the external preprocess script to generate h5 data.
-
-        The preprocess script is invoked with the `fit` argument, which means
-        features are extracted from datasoruces and saved.
+        Args:
+            cc(Chemical Checker): A CC instance. This is important to produce the triplets. If None specified, the same CC where the signature is present will be used (default=None).
+            pairs(array of tuples or file): Data. If file it needs to H5 file with dataset called 'pairs'.
+            X(matrix or file): Data. If file it needs to H5 file with datasets called 'X', 'keys' and maybe 'features'.
+            keys(array): Row names.
+            key_type(str): Type of key. May be inchikey or smiles (default='inchikey').
+            features(array): Column names (default=None).
         """
-        # check that preprocess script is available and call it
-        self.__log.debug('Calling pre-process script %s',
-                         self.preprocess_script)
-        if not os.path.isfile(self.preprocess_script):
-            raise Exception("Pre-process script not found! %s",
-                            self.preprocess_script)
-        self.call_preprocess(self.data_path, "fit")
+        if cc is None:
+            cc = self.get_cc()
 
+        if pairs is not None:
+            if X is not None:
+                raise Exception(
+                    "If you input pairs, X should not be specified!")
+
+            if type(pairs) == str:
+                self.__log.debug("Pairs input file is: " + pairs)
+                if os.path.isfile(pairs) and pairs[-3:] == ".h5":
+                    dh5 = h5py.File(pairs, 'r')
+                    if "pairs" not in dh5.keys():
+                        raise Exception(
+                            "H5 file " + pairs + " does not contain datasets 'pairs'")
+                    pairs = dh5["pairs"][:]
+                    dh5.close()
+
+                else:
+                    raise Exception("This module only accepts .h5 files")
+
+            self.__log.info("Input data were pairs")
+            keys = list(set([x[0] for x in pairs]))
+            features = list(set([x[1] for x in pairs]))
+            self.__log.debug("Processing keys and features")
+            keys, key_maps = self.process_keys(keys, key_type)
+            features = self.process_features(features, len(features))
+            keys_dict = dict((k, i) for i, k in enumerate(keys))
+            features_dict = dict((k, i) for i, k in enumerate(features))
+            self.__log.debug("Iterating over pairs and doing matrix")
+            pairs_ = collections.defaultdict(list)
+            if len(pairs[0]) == 2:
+                self.__log.debug("Binary pairs")
+                for p in pairs:
+                    pairs_[(keys_dict[p[0]], features_dict[p[1]])] += [1]
+            else:
+                self.__log.debug("Valued pairs")
+                for p in pairs:
+                    pairs_[(keys_dict[p[1]], features_dict[p[1]])] += [p[2]]
+            X = np.zeros((len(keys), len(features)))
+            self.__log.debug("Aggregating duplicates")
+            for k, v in pairs_.items():
+                X[k[0], k[1]] = np.mean(v)
+        else:
+            if X is None:
+                raise Exception("No data were provided!")
+
+            if type(X) == str:
+                self.__log.debug("Pairs input file is: " + pairs)
+                if os.path.isfile(X) and X[-3:] == ".h5":
+                    dh5 = h5py.File(X, 'r')
+                    if "X" not in dh5.keys() or "keys" not in dh5.keys():
+                        raise Exception(
+                            "H5 file " + X + " does not contain datasets 'X' or 'keys'")
+                    X = dh5["X"][:]
+                    keys = dh5["keys"][:]
+                    if "features" in dh5.keys():
+                        features = dh5["features"][:]
+                    dh5.close()
+
+                else:
+                    raise Exception("This module only accepts .h5 files")
+
+            self.__log.debug("Processing keys")
+            keys, key_maps = self.process_keys(keys, key_type)
+            self.__log.debug("Processing features")
+            features = self.process_features(features, X.shape[1])
+        self.__log.debug("Sorting")
+        key_idxs = np.argsort(keys)
+        feature_idxs = np.argsort(features)
+        # sort all data
+        X = X[key_idxs]
+        X = X[:, feature_idxs]
+        # sort keys
+        keys = keys[key_idxs]
+        key_maps = key_maps[key_idxs]
+        # sort features
+        features = features[feature_idxs]
+        self.__log.debug("Saving dataset")
+        with h5py.File(self.data_path, "w") as hf:
+            hf.create_dataset(
+                "name", data=np.array([str(self.dataset) + "sig"], DataSignature.string_dtype()))
+            hf.create_dataset(
+                "date", data=np.array([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
+            hf.create_dataset("V", data=X)
+            hf.create_dataset("keys", data=np.array(
+                keys, DataSignature.string_dtype()))
+            hf.create_dataset("features", data=np.array(
+                features, DataSignature.string_dtype()))
+            hf.create_dataset("key_maps", data=key_maps)
+            hf.create_dataset("feature_idxs", data=feature_idxs)
+        self.__log.info("Removing redundancy")
+        sign0_ref = self.get_molset("reference")
+        rnd = RNDuplicates(cpu=10)
+        rnd.remove(self.data_path, save_dest=sign0_ref.data_path)
+        with h5py.File(self.data_path, "r") as hf:
+            features = hf["features"][:]
+        with h5py.File(sign0_ref.data_path, 'a') as hf:
+            hf.create_dataset('features', data=features)
+        self.features = features
+        # Making triplets
+        sampler = TripletSampler(cc, self, save=True)
+        sampler.sample(**params)
+        self.__log.debug("Done. Marking as ready.")
+        # Marking as ready
+        sign0_ref.mark_ready()
         self.mark_ready()
 
-    def predict(self, input_data_file, destination):
-        """Call the external preprocess script to generate h5 data."""
-        """
-        Args:
-            input_data_file(str): Path to the file with the raw to generate
-                the signature 0.
-            destination(str): Path to a .h5 file where the predicted signature
-                will be saved.
-            entry_point(str): Entry point of the input data for the
-                signaturization process. It depends on the type of data passed
-                at the input_data_file.
-        """
-        # check that preprocess script is available and call it
-        self.__log.debug('Calling pre-process script %s',
-                         self.preprocess_script)
-        if not os.path.isfile(self.preprocess_script):
-            raise Exception("Pre-process script not found! %s",
-                            self.preprocess_script)
-        self.call_preprocess(destination, "predict",
-                             input_data_file, self.entry_point)
-
-    def to_features(self, signatures):
-        """Convert signature to explicit feature names.
-
-        Args:
-            signatures(array): a signature 0 for 1 or more molecules
-        Returns:
-            list of dict: 1 dictionary per signature where keys are
-                feature_name and value as values.
-        """
-        # handle single signature
-        if len(signatures.shape) == 1:
-            signatures = [signatures]
-        # if no features file is available then the signature is just an array
-        feature_file = os.path.join(self.model_path, "features.h5")
-        if not os.path.isfile(feature_file):
-            features = np.arange(len(signatures[0]))
-        else:
-            # read features names from file
-            with h5py.File(feature_file, 'r') as hf:
-                features = hf["features"][:]
-        # return list of dicts with feature_name as key and value as value
-        result = list()
-        for sign in signatures:
-            keys = features[sign != 0]
-            values = sign[sign != 0]
-            result.append(dict(zip(keys, values)))
-        return result
-
-    def to_feature_string(self, signatures, string_func):
-        """Covert signature to a string with feature names.
-
-        Args:
-            signatures(array): Signature array(s).
-            string_func(func): A function taking a dictionary as input and
-                returning a single string.
-        """
-        result_dicts = self.to_features(signatures)
-        result_strings = list()
-        for res_dict in result_dicts:
-            result_strings.append(string_func(res_dict))
-        return result_strings
-
-    @staticmethod
-    def _feat_key_only(res_dict):
-        """Suited for discrete spaces."""
-        strings = list()
-        for k in sorted(res_dict.keys()):
-            strings.append("%s" % k)
-        return ','.join(strings)
-
-    @staticmethod
-    def _feat_value_only(res_dict):
-        """Suited for continuos spaces."""
-        strings = list()
-        for k in sorted(res_dict.keys()):
-            strings.append("%.3f" % res_dict[k])
-        return ','.join(strings)
-
-    @staticmethod
-    def _feat_key_values(res_dict):
-        """Suited for discrete spaces with values."""
-        strings = list()
-        for k in sorted(res_dict.keys()):
-            strings.append("%s(%s)" % (k, res_dict[k]))
-        return ','.join(strings)
-
-    def _compare_to_old(self, old_dbname, to_sample=1000):
-        """Compare current signature 0 to previous format.
-
-        Args:
-            old_dbname(str): the name of the old db (e.g. 'mosaic').
-            to_sample(int): Number of signatures to compare in the set of
-                shared moleules.
-
-        """
-        try:
-            from chemicalchecker.util import psql
-        except ImportError as err:
-            raise err
-
-        old_table_names = {
-            'A1': 'fp2d',
-            'A2': 'fp3d',
-            'A3': 'scaffolds',
-            'A4': 'subskeys',
-            'A5': 'physchem',
-            'B1': 'moa',
-            'B2': 'metabgenes',
-            'B3': 'crystals',
-            'B4': 'binding',
-            'B5': 'htsbioass',
-            'C1': 'molroles',
-            'C2': 'molpathways',
-            'C3': 'pathways',
-            'C4': 'bps',
-            'C5': 'networks',
-            'D1': 'transcript',
-            'D2': 'cellpanel',
-            'D3': 'chemgenet',
-            'D4': 'morphology',
-            'D5': 'cellbioass',
-            'E1': 'therapareas',
-            'E2': 'indications',
-            'E3': 'sideeffects',
-            'E4': 'phenotypes',
-            'E5': 'ddis'
-        }
-        table_name = old_table_names[self.dataset[:2]]
-        string_funcs = {
-            'A1': sign0._feat_key_only,
-            'A2': sign0._feat_key_only,
-            'A3': sign0._feat_key_only,
-            'A4': sign0._feat_key_only,
-            'A5': sign0._feat_value_only,
-            'B1': sign0._feat_key_only,
-            'B2': sign0._feat_key_only,
-            'B3': sign0._feat_key_only,
-            'B4': sign0._feat_key_values,
-            'B5': sign0._feat_key_only,
-            'C1': sign0._feat_key_only,
-            'C2': sign0._feat_key_values,
-            'C3': sign0._feat_key_values,
-            'C4': sign0._feat_key_values,
-            'C5': sign0._feat_key_values,
-            'D1': sign0._feat_key_values,
-            'D2': sign0._feat_value_only,
-            'D3': sign0._feat_key_values,
-            'D4': sign0._feat_value_only,
-            'D5': sign0._feat_key_only,
-            'E1': sign0._feat_key_only,
-            'E2': sign0._feat_key_only,
-            'E3': sign0._feat_key_only,
-            'E4': sign0._feat_key_only,
-            'E5': sign0._feat_key_only
-        }
-        continuous = ["A5", "D2", "D4"]
-        string_func = string_funcs[self.dataset[:2]]
-        if not self.dataset.startswith("A"):
-            # get old keys
-            res = psql.qstring('SELECT inchikey FROM %s;' %
-                               table_name, old_dbname)
-            old_keys = set(r[0] for r in res)
-            # compare to new
-            old_only_keys = old_keys - self.unique_keys
-            new_only_keys = self.unique_keys - old_keys
-            shared_keys = self.unique_keys & old_keys
-            frac_present = len(shared_keys) / float(len(old_keys))
-            self.__log.info("Among %s OLD molecules %.2f%% are still present:",
-                            len(old_keys),
-                            100 * frac_present)
-            self.__log.info("Old keys: %s", len(old_keys))
-            self.__log.info("New keys: %s", len(self.unique_keys))
-            self.__log.info("Shared keys: %s", len(shared_keys))
-            self.__log.info("Old only keys: %s", len(old_only_keys))
-            self.__log.info("New only keys: %s", len(new_only_keys))
-        else:
-            shared_keys = self.keys
-            frac_present = 1.0
-        # randomly check sample entries
-        total = 0.0
-        shared = 0.0
-        changed = 0
-        not_changed = 0
-        most_diff = {
-            'shared': 99999,
-            'key': None,
-            'old_sign': None,
-            'new_sign': None
-        }
-        to_sample = min(len(shared_keys), to_sample)
-        sample = np.random.choice(list(shared_keys), to_sample, replace=False)
-        res = psql.qstring(
-            "SELECT inchikey,raw FROM %s WHERE inchikey =  ANY('{%s}');" %
-            (table_name, ','.join(sample)), old_dbname)
-        res = dict(res)
-        for ink in tqdm(sample):
-            feat_old = set(res[ink].split(','))
-            if self.dataset[:2] in continuous:
-                feat_old = set(["%.3f" % float(x)
-                                for x in res[ink].split(',')])
-            feat_new = set(self.to_feature_string(
-                self[ink.encode()], string_func)[0].split(','))
-            if feat_new == feat_old:
-                not_changed += 1
-            else:
-                changed += 1
-                curr_shared = len(feat_new & feat_old)
-                shared += curr_shared
-                if curr_shared < most_diff['shared']:
-                    most_diff['shared'] = curr_shared
-                    most_diff['key'] = ink
-                    most_diff['old_sign'] = feat_old
-                    most_diff['new_sign'] = feat_new
-                total += len(feat_old)
-        frac_equal = not_changed / float(to_sample)
-        self.__log.info("Among %s shared sampled signatures %.2f%% are equal:",
-                        to_sample, 100 * frac_equal)
-        self.__log.info("Equal: %s Changed: %s", not_changed, changed)
-        if changed == 0:
-            return frac_present, frac_equal, 1.0
-        if total == 0.:
-            frac_equal_feat = 0.0
-        else:
-            frac_equal_feat = shared / float(total)
-        self.__log.info("Among changed %.2f%% of features are equal to old",
-                        100 * frac_equal_feat)
-        self.__log.info("Most different signature %s" % most_diff['key'])
-        self.__log.info("OLD: %s" % sorted(list(most_diff['old_sign'])))
-        self.__log.info("NEW: %s" % sorted(list(most_diff['new_sign'])))
-        return frac_present, frac_equal, frac_equal_feat
+    def predict(self, pairs=None, X=None, keys=None, features=None):
+        pass
