@@ -16,6 +16,7 @@ from .signature_base import BaseSignature
 from .signature_data import cached_property
 
 from chemicalchecker.util import logged
+from chemicalchecker.util.aggregate import Aggregate
 from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 from chemicalchecker.util.sampler.triplets import TripletSampler
 
@@ -79,29 +80,41 @@ class sign0(BaseSignature, DataSignature):
                 features += ["feature_%s" % s]
         return np.array(features)
 
-    def get_data(self, pairs, X, keys, features, key_type):
+    def get_data(self, pairs, X, keys, features, filedata, key_type):
+
+        if filedata is not None:
+
+            if os.path.isfile(filedata) and filedata[-3:] == ".h5":
+                dh5 = h5py.File(filedata, 'r')
+                if "pairs" in dh5.keys():
+                    pairs = dh5["pairs"][:]
+
+                    if "values" in dh5.keys():
+                        pairs = zip(pairs, dh5["values"][:])
+
+                if "X" in dh5.keys():
+                    X = dh5["X"][:]
+                if "keys" in dh5.keys():
+                    keys = dh5["keys"][:]
+                if "features" in dh5.keys():
+                    features = dh5["features"][:]
+                dh5.close()
+            else:
+                raise Exception("This module only accepts .h5 files")
+
+            if pairs is None and X is None:
+                raise Exception(
+                    "H5 file " + filedata + " does not contain datasets 'pairs' or 'X'")
+
         if pairs is not None:
             if X is not None:
                 raise Exception(
                     "If you input pairs, X should not be specified!")
-            if type(pairs) == str:
-                self.__log.debug("Pairs input file is: " + pairs)
-                if os.path.isfile(pairs) and pairs[-3:] == ".h5":
-                    dh5 = h5py.File(pairs, 'r')
-                    if "pairs" not in dh5.keys():
-                        raise Exception(
-                            "H5 file " + pairs + " does not contain datasets 'pairs'")
-                    pairs = dh5["pairs"][:]
-                    # TODO ORIOL
-                    dh5.close()
-                else:
-                    raise Exception("This module only accepts .h5 files")
+
+            if len(pairs[0]) == 2:
+                has_values = False
             else:
-                if len(pairs[0]) == 2:
-                    has_values = False
-                else:
-                    has_values = True
-                self.__log.debug("Data provided in memory.")
+                has_values = True
             self.__log.info("Input data were pairs")
             keys = list(set([x[0] for x in pairs]))
             features = list(set([x[1] for x in pairs]))
@@ -126,27 +139,13 @@ class sign0(BaseSignature, DataSignature):
                 X[k[0], k[1]] = np.mean(v)
         else:
             if X is None:
-                raise Exception("No data were provided! X cannot be None if pairs aren't provided")
-            if type(X) == str:
-                self.__log.debug("Data input file is: " + pairs)
-                if os.path.isfile(X) and X[-3:] == ".h5":
-                    dh5 = h5py.File(X, 'r')
-                    if "X" not in dh5.keys() or "keys" not in dh5.keys():
-                        raise Exception(
-                            "H5 file " + X + " does not contain datasets 'X' or 'keys'")
-                    X = dh5["X"][:]
-                    keys = dh5["keys"][:]
-                    if "features" in dh5.keys():
-                        features = dh5["features"][:]
-                    dh5.close()
-                else:
-                    raise Exception("This module only accepts .h5 files")
-            else:
-                self.__log.debug("Data provided in memory")
-                if keys is None:
-                    raise Exception("keys cannot be None")
-                if features is None:
-                    raise Exception("features cannot be None")
+                raise Exception(
+                    "No data were provided! X cannot be None if pairs aren't provided")
+
+            if keys is None:
+                raise Exception("keys cannot be None")
+            if features is None:
+                raise Exception("features cannot be None")
             self.__log.debug("Processing keys")
             keys, keys_raw = self.process_keys(keys, key_type)
             self.__log.debug("Processing features")
@@ -173,7 +172,7 @@ class sign0(BaseSignature, DataSignature):
             else:
                 return hf["agg_method"][0]
 
-    def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, key_type="inchikey", agg_method="average", **params):
+    def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, filedata=None, key_type="inchikey", agg_method="average", **params):
         """Process the input data. We produce a sign0 (full) and a sign0(reference). Data are sorted (keys and features).
 
         Args:
@@ -183,11 +182,13 @@ class sign0(BaseSignature, DataSignature):
             keys(array): Row names.
             key_type(str): Type of key. May be inchikey or smiles (default='inchikey').
             features(array): Column names (default=None).
+            filedata(str): Input data file in the form of H5 file and it shoud contain the required data in datasets.
         """
         if cc is None:
             cc = self.get_cc()
         self.__log.debug("Getting data")
-        res = self.get_data(pairs=pairs, X=X, keys=keys, features=features, key_type=key_type)
+        res = self.get_data(pairs=pairs, X=X, keys=keys,
+                            features=features, filedata=filedata, key_type=key_type)
         X = res["X"]
         keys = res["keys"]
         keys_raw = res["keys_raw"]
@@ -219,7 +220,8 @@ class sign0(BaseSignature, DataSignature):
                 features, DataSignature.string_dtype()))
             hf.create_dataset("keys_raw", data=np.array(
                 keys_raw, DataSignature.string_dtype()))
-            hf.create_dataset("agg_method", data=np.array([str(agg_method)], DataSignature.string_dtype()))
+            hf.create_dataset("agg_method", data=np.array(
+                [str(agg_method)], DataSignature.string_dtype()))
         self.__log.info("Removing redundancy")
         sign0_ref = self.get_molset("reference")
         rnd = RNDuplicates(cpu=10)
@@ -236,7 +238,7 @@ class sign0(BaseSignature, DataSignature):
         sign0_ref.mark_ready()
         self.mark_ready()
 
-    def predict(self, pairs=None, X=None, keys=None, features=None, key_type=None, merge=False, merge_method="new", destination=None):
+    def predict(self, pairs=None, X=None, keys=None, features=None, filedata=None, key_type=None, merge=False, merge_method="new", destination=None):
         """Given data, produce a sign0.
 
         Args:
@@ -257,14 +259,16 @@ class sign0(BaseSignature, DataSignature):
             keys_ = self.keys
             keys_raw_ = self.keys_raw
         else:
-            self.__log.info("Not merging. Just producing signature for the inputted data.")
+            self.__log.info(
+                "Not merging. Just producing signature for the inputted data.")
             V_ = None
             keys_ = None
             keys_raw_ = None
         features_ = self.features
-        features_idx = dict((k,i) for i,k in enumerate(features_))
+        features_idx = dict((k, i) for i, k in enumerate(features_))
         self.__log.debug("Preparing input data")
-        res = self.get_data(pairs=pairs, X=X, keys=keys, features=features, key_type=key_type)
+        res = self.get_data(pairs=pairs, X=X, keys=keys,
+                            features=features, filedata=filedata, key_type=key_type)
         X = res["X"]
         keys = res["keys"]
         keys_raw = res["keys_raw"]
@@ -272,14 +276,15 @@ class sign0(BaseSignature, DataSignature):
         agg = Aggregate(method=self.agg_method)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
         features = res["features"]
-        self.__log.debug("Putting input in the same features arrangement than the fitted signature.")
+        self.__log.debug(
+            "Putting input in the same features arrangement than the fitted signature.")
         W = np.zeros(len(keys), len(features_))
         for i in range(0, X.shape[0]):
             for j in range(0, X.shape[1]):
                 feat = features[j]
                 if feat not in features_idx:
                     continue
-                W[i, features_idx[feat]] = X[i,j]
+                W[i, features_idx[feat]] = X[i, j]
         self.__log.debug("Refactoring")
         features = features_
         if V_ is None:
@@ -290,12 +295,14 @@ class sign0(BaseSignature, DataSignature):
             keys = np.append(keys_, keys)
             keys_raw = np.append(keys_raw_, keys_raw)
             self.__log.debug("Aggregating (merging) again")
-            agg = Aggregate(method=agg_method)
-            V, keys, keys_raw = agg.transform(V=V, keys=keys, keys_raw=keys_raw)
-        
+            agg = Aggregate(method=self.agg_method)
+            V, keys, keys_raw = agg.transform(
+                V=V, keys=keys, keys_raw=keys_raw)
+
         self.__log.debug("Done")
         if destination is None:
-            self.__log.debug("Returning a dictionary of V, keys, features and keys_raw")
+            self.__log.debug(
+                "Returning a dictionary of V, keys, features and keys_raw")
             results = {
                 "V": V,
                 "keys": keys,

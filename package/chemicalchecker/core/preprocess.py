@@ -36,7 +36,22 @@ class preprocess():
         """
         # Calling init on the base class to trigger file existance checks
         self.__log.debug('signature path is: %s', signature_path)
-        self.data_path = os.path.join(self.signature_path, "preprocess.h5")
+
+        self.raw_path = os.path.join(signature_path, "raw")
+        self.raw_model_path = os.path.join(signature_path, "raw", "models")
+
+        if not os.path.isdir(self.raw_path):
+            preprocess.__log.info(
+                "Initializing new raw in: %s" % self.raw_path)
+            original_umask = os.umask(0)
+            os.makedirs(self.raw_path, 0o775)
+            os.umask(original_umask)
+
+        if not os.path.isdir(self.raw_model_path):
+            original_umask = os.umask(0)
+            os.makedirs(self.raw_model_path, 0o775)
+            os.umask(original_umask)
+        self.data_path = os.path.join(self.raw_path, "preprocess.h5")
         self.__log.debug('data_path: %s', self.data_path)
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -45,7 +60,7 @@ class preprocess():
             dir_path,
             '../..',
             "scripts/preprocess",
-            self.dataset,
+            dataset,
             "run.py")
         if not os.path.isfile(self.preprocess_script):
             self.__log.warning("Pre-process script not found! %s",
@@ -56,7 +71,7 @@ class preprocess():
     def call_preprocess(self, output, method, infile=None, entry=None):
         """Call the external pre-process script."""
         # create argument list
-        arglist = ["-o", output, "-mp", self.model_path, "-m", method]
+        arglist = ["-o", output, "-mp", self.raw_model_path, "-m", method]
         if infile:
             arglist.extend(['-i', infile])
         if entry:
