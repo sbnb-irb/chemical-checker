@@ -53,9 +53,31 @@ class DataSignature(object):
                 return hf[self.keys_name][:]
 
     @cached_property
+    def keys_raw(self):
+        """Get the list of keys in the signature."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if 'keys_raw' not in hf.keys():
+                self.__log.warn("No keys_raw available for this signature!")
+                return None
+            return hf['keys_raw'][:]
+
+    @cached_property
     def unique_keys(self):
         """Get the keys of the signature as a set."""
         return set(self.keys)
+
+    @cached_property
+    def features(self):
+        """Get the list of features in the signature."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if 'features' not in hf.keys():
+                self.__log.warn("No features available for this signature!")
+                return None
+            return hf['features'][:]
 
     def chunker(self, size=2000, n=None):
         """Iterate on signatures."""

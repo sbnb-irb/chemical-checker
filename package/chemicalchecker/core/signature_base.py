@@ -417,41 +417,6 @@ class BaseSignature(object):
             hf.create_dataset(
                 "date", data=[datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
 
-    @cached_property
-    def features(self):
-        """Get the list of keys in the signature."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
-        with h5py.File(self.data_path, 'r') as hf:
-            if 'features' not in hf.keys():
-                self.__log.warn("No features available for this signature!")
-                return None
-            return hf['features'][:]
-
-    # @cached_property
-    # def keys(self):
-    #     keys_name = 'keys'
-    #     """Get the list of keys (usually inchikeys) in the signature."""
-    #     if not os.path.isfile(self.data_path):
-    #         raise Exception("Data file %s not available." % self.data_path)
-    #     with h5py.File(self.data_path, 'r') as hf:
-    #         if 'keys' not in hf.keys():
-    #             if 'row_keys' in hf.keys():
-    #                 keys_name = 'row_keys'
-    #             else:
-    #                 raise Exception("HDF5 file has no 'keys' field.")
-    #         # if keys have a decode attriute they have been generated in py2
-    #         # for compatibility with new format we decode them
-    #         if hasattr(hf[keys_name][0], 'decode'):
-    #             return [k.decode() for k in hf[keys_name][:]]
-    #         else:
-    #             return hf[keys_name][:]
-
-    # @cached_property
-    # def unique_keys(self):
-    #     """Get the keys of the signature as a set."""
-    #     return set(self.keys)
-
     def __repr__(self):
         """String representig the signature."""
         return self.data_path
