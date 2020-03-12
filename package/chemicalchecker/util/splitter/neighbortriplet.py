@@ -582,7 +582,7 @@ class NeighborTripletTraintest(object):
 
         def example_generator_fn():
             # generator function yielding data
-            step_size = 8
+            step_size = int(min(1000, len(batch_beg_end) / 10)) + 1
             p_self_decay = (1.0 / step_size)
             p_factor = -1
             augment_kwargs['p_self'] = 1.0
