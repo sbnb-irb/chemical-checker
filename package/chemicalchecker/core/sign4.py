@@ -754,7 +754,21 @@ class sign4(BaseSignature, DataSignature):
         robustness = 1 - np.mean(np.std(samples, axis=1), axis=1).flatten()
         return intensities, robustness, consensus
 
-    def plot_validations(self, siamese, dataset_idx, chunk_size=10000,
+    @staticmethod
+    def read_h5(sign, idxs):
+        with h5py.File(sign.data_path, "r") as hf:
+            V = hf["x_test"][idxs]
+        return V
+
+    @staticmethod
+    def read_unknown(sign, forbidden_idxs, max_n=100000):
+        with h5py.File(sign.data_path, "r") as hf:
+            V = hf["x_test"][:max_n]
+        forbidden_idxs = set(forbidden_idxs)
+        unknown_idxs = [i for i in range(0, max_n) if i not in forbidden_idxs]
+        return V[unknown_idxs]
+
+    def plot_validations(self, siamese, dataset_idx, traintest_file, chunk_size=10000,
                          limit=1000, dist_limit=1000):
 
         def no_mask(idxs, x1_data):
@@ -763,6 +777,7 @@ class sign4(BaseSignature, DataSignature):
         import matplotlib.pyplot as plt
         import seaborn as sns
         import itertools
+        from MulticoreTSNE import MulticoreTSNE
 
         mask_fns = {
             'ALL': partial(no_mask, dataset_idx),
@@ -770,40 +785,59 @@ class sign4(BaseSignature, DataSignature):
             'ONLY-SELF': partial(mask_keep, dataset_idx),
         }
 
-        # get molecules where space is available
-        cov = DataSignature(self.sign2_coverage).get_h5_dataset('V')
-        known_idxs = np.argwhere(cov[:, dataset_idx[0]] == 1).flatten()
-        unknown_idxs = np.argwhere(cov[:, dataset_idx[0]] == 0).flatten()
-        self.__log.info('VALIDATION: total %s known, %s unknown' %
-                        (known_idxs.shape[0], unknown_idxs.shape[0]))
-        full_x = DataSignature(self.sign2_universe)
-        known = full_x.get_h5_dataset('x_test', mask=known_idxs[:limit])
-        unknown = full_x.get_h5_dataset('x_test', mask=unknown_idxs[:limit])
+        all_inchikeys = self.get_universe_inchikeys()
+        traintest = DataSignature(traintest_file)
+        train_inks = traintest.get_h5_dataset('keys_train')
+        test_inks = traintest.get_h5_dataset('keys_test')
+        train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks)).flatten()
+        test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks)).flatten()
 
-        # predict
+        #predict
         pred = dict()
         pred_file = os.path.join(siamese.model_dir, 'plot_preds.pkl')
         if not os.path.isfile(pred_file):
-            self.__log.info('VALIDATION: Predicting.')
-            pred['known'] = dict()
-            pred['unknown'] = dict()
+            self.__log.info('VALIDATION: Predicting train.')
+            pred['train'] = dict()
+            full_x = DataSignature(self.sign2_universe)
+            train = self.read_h5(full_x, train_idxs[:4000])
+            #train = full_x.get_h5_dataset('x_test', mask=train_idxs)
             for name, mask_fn in mask_fns.items():
-                pred['known'][name] = siamese.predict(mask_fn(known))
-                if name == 'ONLY-SELF':
-                    pred['unknown'][name] = []
-                else:
+                pred['train'][name] = siamese.predict(mask_fn(train))
+            del train
+            self.__log.info('VALIDATION: Predicting test.')
+            pred['test'] = dict()
+            #test = full_x.get_h5_dataset('x_test', mask=test_idxs)
+            test = self.read_h5(full_x, test_idxs[:1000])
+            for name, mask_fn in mask_fns.items():
+                pred['test'][name] = siamese.predict(mask_fn(test))
+            del test
+            self.__log.info('VALIDATION: Predicting unknown.')
+            pred['unknown'] = dict()
+            unknown = self.read_unknown(full_x, np.hstack((train_idxs, test_idxs)))
+            self.__log.info('Number of unknown %s' % len(unknown))
+            for name, mask_fn in mask_fns.items():
+                if name == 'ALL':
                     pred['unknown'][name] = siamese.predict(mask_fn(unknown))
+                else:
+                    pred['unknown'][name] = []
+            del unknown
+            pickle.dump(pred, open(pred_file, "wb" ))
         else:
             pred = pickle.load(open(pred_file, 'rb'))
 
+        #Plot
         self.__log.info('VALIDATION: Plot correlations.')
         fig, axes = plt.subplots(
             1, 3, sharex=True, sharey=False, figsize=(10, 3))
         combos = itertools.combinations(mask_fns, 2)
         for ax, (n1, n2) in zip(axes.flatten(), combos):
             scaled_corrs = row_wise_correlation(
-                pred['known'][n1], pred['known'][n2], scaled=True)
-            sns.distplot(scaled_corrs, ax=ax)
+                pred['train'][n1], pred['train'][n2], scaled=True)
+            sns.distplot(scaled_corrs, ax=ax, label='Train')
+            scaled_corrs = row_wise_correlation(
+                pred['test'][n1], pred['test'][n2], scaled=True)
+            sns.distplot(scaled_corrs, ax=ax, label='Test')
+            ax.legend()
             ax.set_title(label='%s vs. %s' % (n1, n2))
         fname = 'known_unknown_correlations.png'
         plot_file = os.path.join(siamese.model_dir, fname)
@@ -816,18 +850,53 @@ class sign4(BaseSignature, DataSignature):
                 1, 3, sharex=True, sharey=True, figsize=(10, 3))
             for ax, name in zip(axes.flatten(), mask_fns):
                 ax.set_title(name)
-                dist_known = pdist(pred['known'][name][:dist_limit],
+                dist_known = pdist(pred['train'][name][:dist_limit],
                                    metric=metric)
-                sns.distplot(dist_known, label='known', ax=ax)
+                sns.distplot(dist_known, label='Train', ax=ax)
+                dist_known = pdist(pred['test'][name][:dist_limit],
+                                   metric=metric)
+                sns.distplot(dist_known, label='Test', ax=ax)
                 if len(pred['unknown'][name]) > 0:
                     dist_unknown = pdist(pred['unknown'][name][:dist_limit],
                                          metric=metric)
-                    sns.distplot(dist_unknown, label='unknown', ax=ax)
+                    sns.distplot(dist_unknown, label='Unknown', ax=ax)
                 ax.legend()
             fname = 'known_unknown_dist_%s.png' % metric
             plot_file = os.path.join(siamese.model_dir, fname)
             plt.savefig(plot_file)
             plt.close()
+
+        self.__log.info('VALIDATION: Plot Projections.')
+        plt.figure(figsize=(10,10),dpi=200)
+        proj_model = MulticoreTSNE(n_components=2)
+        proj_train = np.vstack([
+                pred['train']['ALL'][:500],
+                pred['test']['ALL'][:500],
+                pred['unknown']['ALL'][:1000],
+                np.vstack([pred['train']['ONLY-SELF'][-250:], 
+                    pred['test']['ONLY-SELF'][-250:]])
+            ])
+        proj = proj_model.fit_transform(proj_train)
+        dist_tr = proj[:500]
+        dist_ts = proj[500:1000]
+        dist_uk = proj[1000:2000]
+        dist_os = proj[2000:]
+        plt.title('TSNE')
+        plt.scatter(dist_tr[:, 0], dist_tr[:, 1],
+                          alpha=.9, label='tr', s=10)
+        plt.scatter(dist_ts[:, 0], dist_ts[:, 1],
+                          alpha=.6, label='ts', s=10)
+        plt.scatter(dist_uk[:, 0], dist_uk[:, 1],
+                          alpha=.4, label='unk', s=10)
+        plt.scatter(dist_os[:, 0], dist_os[:, 1],
+                          alpha=.4, label='only-self', s=10)
+        plt.legend()
+
+        fname = 'known_unknown_projection.png'
+        plot_file = os.path.join(siamese.model_dir, fname)
+        plt.savefig(plot_file)
+        plt.close()
+        
 
     def plot_validations_2(self, siamese, dataset_idx, traintest_file,
                            chunk_size=10000, limit=1000, dist_limit=1000):
