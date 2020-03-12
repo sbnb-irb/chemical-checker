@@ -1,6 +1,6 @@
 """Given duplicated keys, aggregate"""
 import collections
-
+import numpy as np
 from chemicalchecker.util import logged
 
 @logged
