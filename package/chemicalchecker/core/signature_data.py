@@ -38,6 +38,36 @@ class DataSignature(object):
                                    list(np.arange(1, 100)) + [100]) / 100.
 
     @cached_property
+    def name(self):
+        """Get the name of the signature."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if "name" not in hf.keys():
+                self.__log.warn("No name available for this signature!")
+                return None            # if keys have a decode attribute they have been generated in py2
+            # for compatibility with new format we decode them
+            if hasattr(hf["name"][0], 'decode'):
+                return [k.decode() for k in hf["name"][:]][0]
+            else:
+                return hf["name"][0]
+
+    @cached_property
+    def date(self):
+        """Get the date of the signature."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if "date" not in hf.keys():
+                self.__log.warn("No date available for this signature!")
+                return None            # if keys have a decode attribute they have been generated in py2
+            # for compatibility with new format we decode them
+            if hasattr(hf["date"][0], 'decode'):
+                return [k.decode() for k in hf["date"][:]][0]
+            else:
+                return hf["date"][0]
+
+    @cached_property
     def keys(self):
         """Get the list of keys (usually inchikeys) in the signature."""
         if not os.path.isfile(self.data_path):

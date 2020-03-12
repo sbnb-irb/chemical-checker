@@ -13,6 +13,7 @@ import pickle
 
 from .signature_data import DataSignature
 from .signature_base import BaseSignature
+from .signature_data import cached_property
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.remove_near_duplicates import RNDuplicates
@@ -91,10 +92,15 @@ class sign0(BaseSignature, DataSignature):
                         raise Exception(
                             "H5 file " + pairs + " does not contain datasets 'pairs'")
                     pairs = dh5["pairs"][:]
+                    # TODO ORIOL
                     dh5.close()
                 else:
                     raise Exception("This module only accepts .h5 files")
             else:
+                if len(pairs[0]) == 2:
+                    has_values = False
+                else:
+                    has_values = True
                 self.__log.debug("Data provided in memory.")
             self.__log.info("Input data were pairs")
             keys = list(set([x[0] for x in pairs]))
@@ -106,7 +112,7 @@ class sign0(BaseSignature, DataSignature):
             features_dict = dict((k, i) for i, k in enumerate(features))
             self.__log.debug("Iterating over pairs and doing matrix")
             pairs_ = collections.defaultdict(list)
-            if len(pairs[0]) == 2:
+            if not has_values:
                 self.__log.debug("Binary pairs")
                 for p in pairs:
                     pairs_[(keys_dict[p[0]], features_dict[p[1]])] += [1]
@@ -153,7 +159,21 @@ class sign0(BaseSignature, DataSignature):
         }
         return results
 
-    def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, key_type="inchikey", **params):
+    @cached_property
+    def agg_method(self):
+        """Get the agg method of the signature."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if "agg_method" not in hf.keys():
+                self.__log.warn("No agg_method available for this signature!")
+                return None
+            if hasattr(hf["agg_method"][0], 'decode'):
+                return [k.decode() for k in hf["agg_method"][:]][0]
+            else:
+                return hf["agg_method"][0]
+
+    def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, key_type="inchikey", agg_method="average", **params):
         """Process the input data. We produce a sign0 (full) and a sign0(reference). Data are sorted (keys and features).
 
         Args:
@@ -183,6 +203,9 @@ class sign0(BaseSignature, DataSignature):
         keys_raw = keys_raw[key_idxs]
         # sort features
         features = features[feature_idxs]
+        self.__log.debug("Aggregating if necessary")
+        agg = Aggregate(method=agg_method)
+        X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
         self.__log.debug("Saving dataset")
         with h5py.File(self.data_path, "w") as hf:
             hf.create_dataset(
@@ -196,6 +219,7 @@ class sign0(BaseSignature, DataSignature):
                 features, DataSignature.string_dtype()))
             hf.create_dataset("keys_raw", data=np.array(
                 keys_raw, DataSignature.string_dtype()))
+            hf.create_dataset("agg_method", data=np.array([str(agg_method)], DataSignature.string_dtype()))
         self.__log.info("Removing redundancy")
         sign0_ref = self.get_molset("reference")
         rnd = RNDuplicates(cpu=10)
@@ -212,7 +236,7 @@ class sign0(BaseSignature, DataSignature):
         sign0_ref.mark_ready()
         self.mark_ready()
 
-    def predict(self, pairs=None, X=None, keys=None, features=None, key_type=None, merge=False, merge_method="average", destination=None):
+    def predict(self, pairs=None, X=None, keys=None, features=None, key_type=None, merge=False, merge_method="new", destination=None):
         """Given data, produce a sign0.
 
         Args:
@@ -225,26 +249,30 @@ class sign0(BaseSignature, DataSignature):
             merge_method(str): Merging method to be applied when a repeated key is found. Can be 'average', 'old' or 'new' (default=new).
             destination(str): Path to the H5 file. If none specified, a (V, keys, features) tuple is returned. 
         """
-        assert(self.is_fit(), "Signature is not fitted yet")
-        self.__log.debug("Setting up the signature data")
+        assert self.is_fit(), "Signature is not fitted yet"
+        self.__log.debug("Setting up the signature data based on fit")
         if merge:
             self.__log.info("Merging. Loading existing signature.")
             V_ = self[:]
             keys_ = self.keys
-            features_ = self.features
             keys_raw_ = self.keys_raw
         else:
             self.__log.info("Not merging. Just producing signature for the inputted data.")
             V_ = None
             keys_ = None
-            features_ = self.features
+            keys_raw_ = None
+        features_ = self.features
         features_idx = dict((k,i) for i,k in enumerate(features_))
         self.__log.debug("Preparing input data")
+        res = self.get_data(pairs=pairs, X=X, keys=keys, features=features, key_type=key_type)
         X = res["X"]
         keys = res["keys"]
         keys_raw = res["keys_raw"]
+        self.__log.debug("Aggregating as it was done at fit time")
+        agg = Aggregate(method=self.agg_method)
+        X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
         features = res["features"]
-        self.__log.debug("Putting input in the same arrangement than the fitted signature.")
+        self.__log.debug("Putting input in the same features arrangement than the fitted signature.")
         W = np.zeros(len(keys), len(features_))
         for i in range(0, X.shape[0]):
             for j in range(0, X.shape[1]):
@@ -252,13 +280,18 @@ class sign0(BaseSignature, DataSignature):
                 if feat not in features_idx:
                     continue
                 W[i, features_idx[feat]] = X[i,j]
+        self.__log.debug("Refactoring")
+        features = features_
         if V_ is None:
             V = W
         else:
+            self.__log.debug("Stacking")
             V = np.vstack((V_, W))
             keys = np.append(keys_, keys)
             keys_raw = np.append(keys_raw_, keys_raw)
-        features = features_ # reassign features
+            self.__log.debug("Aggregating (merging) again")
+            agg = Aggregate(method=agg_method)
+            V, keys, keys_raw = agg.transform(V=V, keys=keys, keys_raw=keys_raw)
         
         self.__log.debug("Done")
         if destination is None:
