@@ -10,7 +10,7 @@ from keras.layers import concatenate
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
 from keras.layers import Input, Dropout, Lambda, Dense
-from keras.layers import Activation, Masking, BatchNormalization
+from keras.layers import Activation, Masking, BatchNormalization, GaussianNoise, AlphaDropout, GaussianDropout
 from keras import regularizers
 
 from chemicalchecker.util import logged
@@ -208,18 +208,14 @@ class SiameseTriplets(object):
         def add_layer(net, layer, layer_size, activation, dropout,
                       use_bias=True, input_shape=False):
             if input_shape:
-                net.add(Masking(mask_value=0.0, input_shape=input_shape))
-            if activation == 'relu' and self.regularize:
-                e = 0.0001
-                net.add(layer(layer_size, use_bias=use_bias, 
-                    kernel_regularizer=regularizers.l2(e),
-                    activity_regularizer=regularizers.l1(e)))
-                #net.add(BatchNormalization())
+                net.add(GaussianDropout(rate=0.1, input_shape=input_shape))
+            if activation == 'selu':
+                net.add(layer(layer_size, use_bias=use_bias, kernel_initializer='lecun_normal'))
             else:
                 net.add(layer(layer_size, use_bias=use_bias))
             net.add(Activation(activation))
             if dropout is not None:
-                net.add(Dropout(dropout))
+                net.add(AlphaDropout(dropout))
 
         # we have two inputs
         input_a = Input(shape=input_shape)
@@ -415,7 +411,7 @@ class SiameseTriplets(object):
         else:
             min_lr, max_lr = MIN_LR, 1e-1
 
-        lrf.find(self.tr_gen, min_lr, max_lr, epochs=3,
+        lrf.find(self.tr_gen, min_lr, max_lr, epochs=1,
                  stepsPerEpoch=self.steps_per_epoch,
                  batchSize=self.batch_size)
 
