@@ -106,7 +106,7 @@ def parse_chembl(ACTS=None):
         act = dirs[r[3]]
         ACTS[(inchikey, uniprot_ac, inchikey_inchi[inchikey])] += [act]
 
-    ACTS = dict((k, decide(v)) for k, v in ACTS.iteritems())
+    ACTS = dict((k, decide(v)) for k, v in ACTS.items())
 
     return ACTS
 
@@ -212,8 +212,8 @@ def parse_drugbank(ACTS=None, drugbank_xml=None):
 
     # Save activities
 
-    for inchikey, targs in DB.iteritems():
-        for uniprot_ac, actions in targs.iteritems():
+    for inchikey, targs in DB.items():
+        for uniprot_ac, actions in targs.items():
             if (inchikey, uniprot_ac, inchikey_inchi[inchikey]) in ACTS:
                 continue
             d = []
@@ -339,12 +339,13 @@ def main(args):
 
     # save raw values
     main._log.info("Saving raws.")
-    inchikey_raw = collections.defaultdict(list)
+    inchikey_raw = list()
     for k, v in ACTS.items():
-        inchikey_raw[k[0]] += [(k[1] + "(" + str(v) + ")", 1)]
+        inchikey_raw.append((k[0], k[1] + "(" + str(v) + ")"))
 
-    save_output(args.output_file, inchikey_raw, args.method,
-                args.models_path, dataset.discrete, features)
+    with h5py.File(args.output_file, "w") as hf:
+        hf.create_dataset("pairs", data=np.array(
+            inchikey_raw, h5py.special_dtype(vlen=str)))
 
 
 if __name__ == '__main__':
