@@ -5,9 +5,10 @@ import os
 import collections
 import h5py
 import logging
-from chemicalchecker.util import logged, get_parser, save_output, features_file
+from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
+from chemicalchecker.core.preprocess import Preprocess
 
 from lxml import etree as ET
 import csv
@@ -82,7 +83,7 @@ def read_data(file_path):
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
-    args = get_parser().parse_args(args)
+    args = Preprocess.get_parser().parse_args(args)
 
     dataset = Dataset.get(dataset_code)
 
@@ -135,7 +136,7 @@ def main(args):
     # For sparse data, we can use [word] or [(word, integer)].
     key_raw = dict((k, sorted(v)) for k, v in key_enzyme.iteritems())
 
-    save_output(args.output_file, key_raw, args.method,
+    Preprocess.save_output(args.output_file, key_raw, args.method,
                 args.models_path, dataset.discrete, features)
 
 if __name__ == '__main__':
