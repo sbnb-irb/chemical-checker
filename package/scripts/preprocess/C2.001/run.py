@@ -11,28 +11,12 @@ from chemicalchecker.util import logged
 from chemicalchecker.util.network import HotnetNetwork
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
+from chemicalchecker.core.preprocess import Preprocess
 
 features_file = "features.h5"
 pcomms_file = "pcomms.tsv"
 entry_point_full = "metabolites_neighbors"
 dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
-
-def get_parser():
-    description = 'Run preprocess script.'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-i', '--input_file', type=str,
-                        required=False, default='.', help='Input file only for predict method')
-    parser.add_argument('-o', '--output_file', type=str,
-                        required=False, default='.', help='Output file')
-    parser.add_argument('-m', '--method', type=str,
-                        required=False, default='fit', help='Method: fit or predict')
-    parser.add_argument('-mp', '--models_path', type=str,
-                        required=False, default='', help='The models path')
-    parser.add_argument('-ep', '--entry_point', type=str,
-                        required=False, default=None, help='The predict entry point')
-    return parser
-# Variables
-
 
 def prepare_hotnet_input(outdir, all_binary_sif):
 
@@ -131,7 +115,7 @@ def read_hotnet_output(outdir):
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
-    args = get_parser().parse_args(args)
+    args = Preprocess.get_parser().parse_args(args)
 
     dataset = Dataset.get(dataset_code)
 
@@ -186,33 +170,8 @@ def main(args):
 
     main._log.info("Saving raws")
 
-    keys = []
-    words = set()
-    for k in sorted(inchikey_raw.keys()):
-
-        keys.append(str(k))
-        words.update([x[0] for x in inchikey_raw[k]])
-
-    if features is not None:
-        orderwords = features_list
-    else:
-        orderwords = list(words)
-        orderwords.sort()
-    raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
-    wordspos = {k: v for v, k in enumerate(orderwords)}
-
-    for i, k in enumerate(keys):
-        for word in inchikey_raw[k]:
-            raws[i][wordspos[word[0]]] += word[1]
-
-    with h5py.File(args.output_file, "w") as hf:
-        hf.create_dataset("keys", data=np.array(keys))
-        hf.create_dataset("V", data=raws)
-        hf.create_dataset("features", data=np.array(orderwords))
-
-    if args.method == "fit":
-        with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
-            hf.create_dataset("features", data=np.array(orderwords))
+    Preprocess.save_output(args.output_file, inchikey_raw, args.method,
+                args.models_path, dataset.discrete, features)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
