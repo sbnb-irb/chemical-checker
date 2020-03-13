@@ -11,9 +11,9 @@ import collections
 import h5py
 import csv
 import logging
-from chemicalchecker.util import logged, get_parser, save_output, features_file
+from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset, Molrepo
-
+from chemicalchecker.core.preprocess import Preprocess
 from chemicalchecker.util import psql
 
 # Variables
@@ -54,7 +54,7 @@ def parse_molrepo():
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
-    args = get_parser().parse_args(args)
+    args = Preprocess.get_parser().parse_args(args)
 
     dataset = Dataset.get(dataset_code)
 
@@ -84,14 +84,14 @@ def main(args):
             key_raw[pharmacodb_inchikey[src_id]].update([(feat, r[3])])
 
         key_raw = dict((k, [y[0] for y in sorted(v, key=lambda x: x[1])[
-                       :top_genes]]) for k, v in key_raw.iteritems())
-        features = sorted(set([x for v in key_raw.itervalues() for x in v]))
+                       :top_genes]]) for k, v in key_raw.items())
+        features = sorted(set([x for v in key_raw.values() for x in v]))
 
     if args.method == "predict":
 
         main._log.info("Predicting")
 
-        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+        with h5py.File(os.path.join(args.models_path, Preprocess.features_file)) as hf:
             features = hf["features"][:]
             features_set = set(features)
 
@@ -110,11 +110,11 @@ def main(args):
                 feats = ["%s(1)" % x for x in up] + ["%s(-1)" % x for x in dw]
                 feats = [x for x in feats if x in features_set]
                 key_raw[key].update(feats)
-        key_raw = dict((k, list(v)) for k, v in key_raw.iteritems())
+        key_raw = dict((k, list(v)) for k, v in key_raw.items())
 
     main._log.info("Saving raw data")
 
-    save_output(args.output_file, key_raw, args.method,
+    Preprocess.save_output(args.output_file, key_raw, args.method,
                 args.models_path, dataset.discrete, features)
 
 if __name__ == '__main__':
