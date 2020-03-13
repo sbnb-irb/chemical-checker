@@ -11,6 +11,7 @@ from chemicalchecker.database import Calcdata
 from chemicalchecker.database import Molrepo, Datasource
 from chemicalchecker.util.parser import DataCalculator
 from chemicalchecker.util.parser import Converter
+from chemicalchecker.core.preprocess import Preprocess
 
 
 # Variables
@@ -22,30 +23,13 @@ entry_point_smiles = "smiles"
 
 name = "morgan_fp_r2_2048"
 
-
-def get_parser():
-    description = 'Run preprocess script.'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-i', '--input_file', type=str,
-                        required=False, default='.', help='Input file only for predict method')
-    parser.add_argument('-o', '--output_file', type=str,
-                        required=False, default='.', help='Output file')
-    parser.add_argument('-m', '--method', type=str,
-                        required=False, default='fit', help='Method: fit or predict')
-    parser.add_argument('-mp', '--models_path', type=str,
-                        required=False, default='', help='The models path')
-    parser.add_argument('-ep', '--entry_point', type=str,
-                        required=False, default=None, help='The predict entry point')
-    return parser
-
-
 # Parse arguments
 
 
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
-    args = get_parser().parse_args(args)
+    args = Preprocess.get_parser().parse_args(args)
 
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
@@ -126,6 +110,7 @@ def main(args):
             ACTS.extend(props)
 
     main._log.info("Saving raws")
+
     RAW = collections.defaultdict(list)
     for k in ACTS:
         if features is None:
@@ -134,33 +119,8 @@ def main(args):
             vals = [str(t) for t in k[1].split(",") if str(t) in features]
         RAW[str(k[0])] = vals
 
-    keys = []
-    words = set()
-    for k in sorted(RAW.keys()):
-        keys.append(str(k))
-        words.update(RAW[k])
-
-    if features is not None:
-        orderwords = features_list
-    else:
-        orderwords = list(words)
-        orderwords.sort(key=int)
-
-    raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
-    wordspos = {k: v for v, k in enumerate(orderwords)}
-
-    for i, k in enumerate(keys):
-        for word in RAW[k]:
-            raws[i][wordspos[word]] = 1
-
-    with h5py.File(args.output_file, "w") as hf:
-        hf.create_dataset("keys", data=np.array(keys))
-        hf.create_dataset("V", data=raws)
-        hf.create_dataset("features", data=np.array(orderwords))
-
-    if args.method == "fit":
-        with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
-            hf.create_dataset("features", data=np.array(orderwords))
+    Preprocess.save_output(args.output_file, RAW, args.method,
+                args.models_path, dataset.discrete, features)
 
 
 if __name__ == '__main__':
