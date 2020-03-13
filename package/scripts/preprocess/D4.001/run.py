@@ -11,6 +11,8 @@ from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
 from chemicalchecker.util.performance import gaussian_scale_impute
+from chemicalchecker.core.preprocess import Preprocess
+
 import random
 from cmapPy.pandasGEXpress import parse
 # Variables
@@ -19,22 +21,6 @@ entry_point_full = "measure"
 cell_headers_file = "cell_names.pcl"
 features_file = "features.h5"
 up_down_file = "up_down.pcl"
-
-
-def get_parser():
-    description = 'Run preprocess script.'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-i', '--input_file', type=str,
-                        required=False, default='.', help='Input file only for predict method')
-    parser.add_argument('-o', '--output_file', type=str,
-                        required=False, default='.', help='Output file')
-    parser.add_argument('-m', '--method', type=str,
-                        required=False, default='fit', help='Method: fit or predict')
-    parser.add_argument('-mp', '--models_path', type=str,
-                        required=False, default='', help='The models path')
-    parser.add_argument('-ep', '--entry_point', type=str,
-                        required=False, default=None, help='The predict entry point')
-    return parser
 
 
 perc = 95
@@ -132,7 +118,7 @@ def filter_data(X, rownames, pertid_inchikey=None):
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
-    args = get_parser().parse_args(args)
+    args = Preprocess.get_parser().parse_args(args)
 
     dataset = Dataset.get(dataset_code)
 
@@ -224,20 +210,9 @@ def main(args):
             sigs[rownames[i]] = X[i]
 
     main._log.info("Saving raw data")
-    keys = []
-    for k in sigs.keys():
-        keys.append(str(k))
-    keys = np.array(keys)
-    inds = keys.argsort()
-    data = []
 
-    for i in inds:
-        data.append(sigs[keys[i]])
-
-    with h5py.File(args.output_file, "w") as hf:
-        hf.create_dataset("keys", data=keys[inds])
-        hf.create_dataset("V", data=np.array(data))
-        hf.create_dataset("features", data=np.array(features))
+    Preprocess.save_output(args.output_file, sigs, args.method,
+                args.models_path, dataset.discrete, features)
 
 
 if __name__ == '__main__':

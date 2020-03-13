@@ -16,6 +16,8 @@ from chemicalchecker.util.hpc import HPC
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
 from chemicalchecker.util.performance import gaussianize as g
+from chemicalchecker.core.preprocess import Preprocess
+
 # Variables
 dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 features_file = "features.h5"
@@ -276,28 +278,11 @@ def process(X):
     return Xcut
 
 
-# Parse arguments
-
-
-def get_parser():
-    description = 'Run preprocess script.'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-i', '--input_file', type=str,
-                        required=False, default='.', help='Input file only for predict method')
-    parser.add_argument('-o', '--output_file', type=str,
-                        required=False, default='.', help='Output file')
-    parser.add_argument('-m', '--method', type=str,
-                        required=False, default='fit', help='Method: fit or predict')
-    parser.add_argument('-mp', '--models_path', type=str,
-                        required=False, default='', help='The models path')
-    return parser
-
-
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 @profile
 def main(args):
 
-    args = get_parser().parse_args(args)
+    args = Preprocess.get_parser().parse_args(args)
 
     mini_sig_info_file = os.path.join(
         args.models_path, 'mini_sig_info.tsv')
@@ -514,13 +499,13 @@ def main(args):
             raws[i][wordspos[word[0]]] += word[1]
 
     with h5py.File(args.output_file, "w") as hf:
-        hf.create_dataset("keys", data=np.array(keys))
-        hf.create_dataset("V", data=raws)
-        hf.create_dataset("features", data=np.array(orderwords))
+        hf.create_dataset("keys", data=np.array(keys, h5py.special_dtype(vlen=str)))
+        hf.create_dataset("X", data=raws)
+        hf.create_dataset("features", data=np.array(orderwords, h5py.special_dtype(vlen=str)))
 
     if args.method == "fit":
         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
-            hf.create_dataset("features", data=np.array(orderwords))
+            hf.create_dataset("features", data=np.array(orderwords, h5py.special_dtype(vlen=str)))
 
     if args.method == 'predict':
         shutil.rmtree(mpath)

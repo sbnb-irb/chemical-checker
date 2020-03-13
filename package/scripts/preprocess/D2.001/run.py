@@ -12,28 +12,14 @@ from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
 from chemicalchecker.util.performance import gaussian_scale_impute
+from chemicalchecker.core.preprocess import Preprocess
+
 # Variables
 dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 entry_point_full = "profile"
 features_file = "features.h5"
 cell_headers_file = "cell_names.pcl"
 up_down_file = "up_down.pcl"
-
-
-def get_parser():
-    description = 'Run preprocess script.'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-i', '--input_file', type=str,
-                        required=False, default='.', help='Input file only for predict method')
-    parser.add_argument('-o', '--output_file', type=str,
-                        required=False, default='.', help='Output file')
-    parser.add_argument('-m', '--method', type=str,
-                        required=False, default='fit', help='Method: fit or predict')
-    parser.add_argument('-mp', '--models_path', type=str,
-                        required=False, default='', help='The models path')
-    parser.add_argument('-ep', '--entry_point', type=str,
-                        required=False, default=None, help='The predict entry point')
-    return parser
 
 
 def Float(x):
@@ -87,7 +73,7 @@ def parse_nci60(sigs, models_path=None, up=None, dw=None):
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
-    args = get_parser().parse_args(args)
+    args = Preprocess.get_parser().parse_args(args)
 
     dataset = Dataset.get(dataset_code)
 
@@ -140,7 +126,7 @@ def main(args):
                 sigs[inchikey] += [v]
 
         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
-            hf.create_dataset("features", data=np.array(cell_names))
+            hf.create_dataset("features", data=np.array(cell_names, h5py.special_dtype(vlen=str)))
             # pickle.dump({k: v for v, k in enumerate(cell_names)}, fh)
 
     if args.method == "predict":
@@ -181,6 +167,7 @@ def main(args):
             pickle.dump({"up": X[1], "dw": X[2]}, fh)
 
     main._log.info("Saving raw data")
+
     keys = []
     for k in rowNames:
         keys.append(str(k))
@@ -192,9 +179,9 @@ def main(args):
         data.append(X[0][i])
 
     with h5py.File(args.output_file, "w") as hf:
-        hf.create_dataset("keys", data=keys[inds])
-        hf.create_dataset("V", data=np.array(data))
-        hf.create_dataset("features", data=np.array(cell_names))
+        hf.create_dataset("keys", data=np.array(keys[inds], h5py.special_dtype(vlen=str)))
+        hf.create_dataset("X", data=np.array(data))
+        hf.create_dataset("features", data=np.array(cell_names, h5py.special_dtype(vlen=str)))
 
 
 if __name__ == '__main__':

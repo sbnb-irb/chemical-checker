@@ -4,8 +4,9 @@ import collections
 import h5py
 import csv
 
-from chemicalchecker.util import logged, get_parser, save_output, features_file
+from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset, Molrepo
+from chemicalchecker.core.preprocess import Preprocess
 
 from cmapPy.pandasGEXpress import parse
 import numpy as np
@@ -44,7 +45,7 @@ def main(args):
 
     which_datasources = ["touchstone_conn_SUMMLY"]
 
-    args = get_parser().parse_args(args)
+    args = Preprocess.get_parser().parse_args(args)
 
     dataset_code = 'D1.003'
 
@@ -89,9 +90,9 @@ def main(args):
                             v = 1
                     if col not in lincs_inchikey: continue
                     pairs[(lincs_inchikey[col], row)] += [v]
-        pairs = dict((k, np.max(v)) for k,v in pairs.iteritems())
+        pairs = dict((k, np.max(v)) for k,v in pairs.items())
         key_raw = collections.defaultdict(list)
-        for k, v in pairs.iteritems():
+        for k, v in pairs.items():
             key_raw[str(k[0])] += [(str(k[1]), v)]
         features = sorted(set([x[0] for v in key_raw.values() for x in v]))
 
@@ -99,7 +100,7 @@ def main(args):
 
         main._log.info("Predicting")
 
-        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+        with h5py.File(os.path.join(args.models_path, Preprocess.features_file)) as hf:
             features = hf["features"][:]
 
         # Read the data from the args.input_file
@@ -118,7 +119,7 @@ def main(args):
     # where the keys are inchikeys and the values are a list with the data.
     # For sparse data, we can use [word] or [(word, integer)].
 
-    save_output(args.output_file, key_raw, args.method,
+    Preprocess.save_output(args.output_file, key_raw, args.method,
                 args.models_path, dataset.discrete, features)
 
 if __name__ == '__main__':
