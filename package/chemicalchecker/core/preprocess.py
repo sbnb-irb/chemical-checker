@@ -20,6 +20,7 @@ import os
 import imp
 import h5py
 import numpy as np
+import argparse
 
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
@@ -228,7 +229,7 @@ class Preprocess():
                     if index != chunk:
                         chunk = index
                     with h5py.File(output_file, "r+") as hf:
-                        dataset = hf["V"]
+                        dataset = hf["X"]
                         dataset[end - chunk:end] = raws[:chunk]
 
                     raws = np.zeros((chunk, len(orderwords)), dtype=np.int8)
