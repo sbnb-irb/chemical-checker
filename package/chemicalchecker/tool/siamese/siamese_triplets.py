@@ -10,7 +10,8 @@ from keras.layers import concatenate
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
 from keras.layers import Input, Dropout, Lambda, Dense
-from keras.layers import Activation, Masking, BatchNormalization, GaussianNoise, AlphaDropout, GaussianDropout
+from keras.layers import Activation, Masking, BatchNormalization
+from keras.layers import GaussianNoise, AlphaDropout, GaussianDropout
 from keras import regularizers
 
 from chemicalchecker.util import logged
@@ -18,6 +19,49 @@ from chemicalchecker.util.splitter import NeighborTripletTraintest
 from .callbacks import CyclicLR, LearningRateFinder
 
 MIN_LR = 1e-8
+
+
+class AlphaDropoutCP(keras.layers.AlphaDropout):
+
+    def __init__(self, rate, cp=None, noise_shape=None, seed=None, **kwargs):
+        super(AlphaDropoutCP, self).__init__(**kwargs)
+        self.cp = cp
+        self.rate = rate
+        self.noise_shape = noise_shape
+        self.seed = seed
+        self.supports_masking = True
+
+    def _get_noise_shape(self, inputs):
+        return self.noise_shape if self.noise_shape else K.shape(inputs)
+
+    def call(self, inputs, training=None):
+        if 0. < self.rate < 1.:
+            noise_shape = self._get_noise_shape(inputs)
+
+            def dropped_inputs(inputs=inputs, rate=self.rate, seed=self.seed):
+                alpha = 1.6732632423543772848170429916717
+                scale = 1.0507009873554804934193349852946
+                alpha_p = -alpha * scale
+
+                kept_idx = K.greater_equal(K.random_uniform(noise_shape,
+                                                            seed=seed), rate)
+                kept_idx = K.cast(kept_idx, K.floatx())
+
+                # Get affine transformation params
+                a = ((1 - rate) * (1 + rate * alpha_p ** 2)) ** -0.5
+                b = -a * alpha_p * rate
+
+                # Apply mask
+                x = inputs * kept_idx + alpha_p * (1 - kept_idx)
+
+                # Do affine transformation
+                return a * x + b
+
+            if self.cp:
+                return dropped_inputs()
+            return K.in_train_phase(dropped_inputs, inputs, training=training)
+        return inputs
+
 
 @logged
 class SiameseTriplets(object):
@@ -53,7 +97,8 @@ class SiameseTriplets(object):
         self.layers = kwargs.get("layers", [Dense] * len(self.layers_sizes))
         self.activations = kwargs.get("activations",
                                       ['relu'] * len(self.layers_sizes))
-        self.dropouts = kwargs.get("dropouts", ([0.2] * (len(self.layers_sizes) - 1)) + [None])
+        self.dropouts = kwargs.get(
+            "dropouts", ([0.2] * (len(self.layers_sizes) - 1)) + [None])
         self.augment_fn = kwargs.get("augment_fn", None)
         self.augment_kwargs = kwargs.get("augment_kwargs", {})
         self.augment_scale = int(kwargs.get("augment_scale", 1))
@@ -190,7 +235,7 @@ class SiameseTriplets(object):
             with open(param_file, "wb") as f:
                 pickle.dump(kwargs, f)
 
-    def build_model(self, input_shape, load=False):
+    def build_model(self, input_shape, load=False, cp=None):
         """Compile Keras model
 
         input_shape(tuple): X dimensions (only nr feat is needed)
@@ -206,16 +251,17 @@ class SiameseTriplets(object):
             return K.sqrt(K.maximum(sum_square, K.epsilon()))
 
         def add_layer(net, layer, layer_size, activation, dropout,
-                      use_bias=True, input_shape=False):
+                      use_bias=False, input_shape=False):
             if input_shape:
                 net.add(GaussianDropout(rate=0.1, input_shape=input_shape))
             if activation == 'selu':
-                net.add(layer(layer_size, use_bias=use_bias, kernel_initializer='lecun_normal'))
+                net.add(layer(layer_size, use_bias=use_bias,
+                              kernel_initializer='lecun_normal'))
             else:
                 net.add(layer(layer_size, use_bias=use_bias))
             net.add(Activation(activation))
             if dropout is not None:
-                net.add(AlphaDropout(dropout))
+                net.add(AlphaDropoutCP(dropout, cp=cp))
 
         # we have two inputs
         input_a = Input(shape=input_shape)
@@ -233,7 +279,8 @@ class SiameseTriplets(object):
                             self.layers_sizes[1:-1],
                             self.activations[1:-1],
                             self.dropouts[1:-1])
-        assert(len(self.layers) == len(self.layers_sizes) == len(self.activations) == len(self.dropouts))
+        assert(len(self.layers) == len(self.layers_sizes) ==
+               len(self.activations) == len(self.dropouts))
         for layer, layer_size, activation, dropout in hidden_layers:
             add_layer(basenet, layer, layer_size, activation, dropout)
         add_layer(basenet, self.layers[-1], self.layers_sizes[-1],
@@ -404,7 +451,6 @@ class SiameseTriplets(object):
         self.build_model(input_shape)
 
         lrf = LearningRateFinder(self.model)
-
 
         if self.regularize:
             min_lr, max_lr = MIN_LR, 1e+1
@@ -637,7 +683,7 @@ class SiameseTriplets(object):
             if self.plot:
                 self._plot_anchor_dist(anchor_file)
 
-    def predict(self, x_matrix, dropout_fn=None, dropout_samples=10):
+    def predict(self, x_matrix, dropout_fn=None, dropout_samples=10, rebuild=False):
         """Do predictions.
 
         prediction_file(str): Path to input file containing Xs.
@@ -645,8 +691,11 @@ class SiameseTriplets(object):
         batch_size(int): batch size for prediction.
         """
         # load model if not alredy there
-        if self.model is None:
-            self.build_model((x_matrix.shape[1],), load=True)
+        if self.model is None or rebuild:
+            if dropout_fn is None:
+                self.build_model((x_matrix.shape[1],), load=True)
+            else:
+                self.build_model((x_matrix.shape[1],), load=True, cp=True)
         # apply input scaling
         scaled = x_matrix
         if hasattr(self, 'scaler'):
@@ -666,6 +715,7 @@ class SiameseTriplets(object):
         samples = np.vstack(samples)
         samples = samples.reshape(
             x_matrix.shape[0], dropout_samples, samples.shape[1])
+        self.model = None
         return samples
 
     def _plot_history(self, history, vsets, destination):
