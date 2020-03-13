@@ -3,10 +3,11 @@ import os
 import collections
 import h5py
 import logging
-from chemicalchecker.util import logged, get_parser, save_output, features_file
+from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset, Molrepo, Calcdata
 from chemicalchecker.util.parser import DataCalculator
 from chemicalchecker.util.parser import Converter
+from chemicalchecker.core.preprocess import Preprocess
 
 entry_point_keys = "inchikey"
 entry_point_inchi = "inchi"
@@ -39,7 +40,7 @@ def key_raw_from_props(props, key_raw=None, features=None):
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
-    args = get_parser().parse_args(args)
+    args = Preprocess.get_parser().parse_args(args)
 
     dataset = Dataset.get(dataset_code)
 
@@ -94,7 +95,7 @@ def main(args):
 
         data = []
 
-        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+        with h5py.File(os.path.join(args.models_path, Preprocess.features_file)) as hf:
             features = hf["features"][:]
 
         with open(args.input_file) as f:
@@ -157,7 +158,7 @@ def main(args):
 
     main._log.info("Saving raw data")
 
-    save_output(args.output_file, key_raw, args.method,
+    Preprocess.save_output(args.output_file, key_raw, args.method,
                 args.models_path, dataset.discrete, features)
 
 if __name__ == '__main__':
