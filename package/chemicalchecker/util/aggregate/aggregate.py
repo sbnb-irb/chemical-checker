@@ -19,12 +19,15 @@ class Aggregate(object):
 
     def get_agg_func(self):
         if self.method == "first":
+            self.__log.debug("Aggregation method = first")
             def agg_func(V, idxs):
                 return V[idxs[0],:]
         if self.method == "last":
+            self.__log.debug("Aggregation method = last")
             def agg_func(V, idxs):
                 return V[idxs[-1],:]
         if self.method == "average":
+            self.__log.debug("Aggregation method = average")
             def agg_func(V, idxs):
                 if len(idxs) == 1:
                     return V[idxs[0],:]
@@ -42,6 +45,13 @@ class Aggregate(object):
 
             Returns a (V, keys, keys_raw) tuple.
         """        
+        if np.isnan(V).any():
+            raise Exception("V matrix cannot have NaN values")
+        if np.isinf(V).any():
+            raise Exception("V matrix cannot have inf values")
+        if len(keys) == len(set(keys)):
+            self.__log.debug("Matrix does not need aggregation")
+            return V, keys, keys_raw
         self.__log.debug("Looking for duplicated keys")
         keys_idxs = collections.defaultdict(list)
         for i,k in enumerate(keys):
@@ -49,13 +59,16 @@ class Aggregate(object):
         keys_ = np.array(sorted(keys_idxs.keys()))
         if keys_raw is not None:
             keys_raw_ = []
-        V_ = np.zeros((len(keys_idxs), V.shape[1]), dtype=V.dtype())
+        else:
+            keys_raw_ = None
+        V_ = np.zeros((len(keys_idxs), V.shape[1]), dtype=V.dtype)
         self.__log.debug("Applying aggregation method")
-        agg_func = self.get_acc_func()
+        agg_func = self.get_agg_func()
         for i,k in enumerate(keys_):
             idxs = keys_idxs[k]
             V_[i,:] = agg_func(V, idxs)
             if keys_raw is not None:
                 keys_raw_ += ["|".join(keys_raw[idxs])]
-        keys_raw_ = np.array(keys_raw_)
+        if keys_raw_ is not None:
+            keys_raw_ = np.array(keys_raw_)
         return V_, keys_, keys_raw_
