@@ -120,7 +120,7 @@ def main(args):
         RAW[str(k[0])] = vals
 
     Preprocess.save_output(args.output_file, RAW, args.method,
-                args.models_path, True, features)
+                args.models_path, True, features, features_int=True)
 
 
 if __name__ == '__main__':
