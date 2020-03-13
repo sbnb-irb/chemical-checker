@@ -178,7 +178,7 @@ class Preprocess():
         return map_files
 
     @staticmethod
-    def save_output(output_file, inchikey_raw, method, models_path, discrete, features, chunk=2000):
+    def save_output(output_file, inchikey_raw, method, models_path, discrete, features, features_int=False, chunk=2000):
 
         keys = []
 
@@ -205,7 +205,10 @@ class Preprocess():
             else:
                 orderwords = list(words)
                 del words
-                orderwords.sort()
+                if features_int:
+                    orderwords.sort(key=int)
+                else:
+                    orderwords.sort()
 
             with h5py.File(output_file, "w") as hf:
                 hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
