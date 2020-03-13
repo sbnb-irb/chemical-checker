@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from time import time
+from scipy import stats
 from functools import partial
 from scipy.stats import gaussian_kde
 from scipy.spatial.distance import pdist
@@ -288,7 +289,7 @@ class sign4(BaseSignature, DataSignature):
                                dataset_idx=self.dataset_idx,
                                p_nr=p_nr, p_keep=p_keep)
         # get set of known for prior nd cofidence models
-        max_known = 10000
+        max_known = 50000
         tt = DataSignature(traintest_file)
         test_inks = tt.get_h5_dataset('keys_test')[:max_known]
         train_inks = tt.get_h5_dataset('keys_train')[:max_known]
@@ -332,31 +333,40 @@ class sign4(BaseSignature, DataSignature):
             return w
 
         def histograms(ax, yp, yt, title):
-            ax.hist(yp, 5, color="red", label="Pred", alpha=0.5)
-            ax.hist(yt, 5, color="blue", label="True", alpha=0.5)
+            ax.hist(yp, 10, range=(-1, 1), color="red",
+                    label="Pred", alpha=0.5)
+            ax.hist(yt, 10, range=(-1, 1), color="blue",
+                    label="True", alpha=0.5)
             ax.legend()
             ax.set_xlabel("Value")
             ax.set_ylabel("Counts")
             ax.set_title(title)
 
-        def scatter(ax, yp, yt):
-            x = yt
-            y = yp
+        def scatter(ax, yp, yt, joint_lim=True):
+            x = yp
+            y = yt
             xy = np.vstack([x, y])
             z = gaussian_kde(xy)(xy)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
-            ax.scatter(x, y, c=z, s=z * 10, edgecolor='')
-            ax.set_xlabel("True")
-            ax.set_ylabel("Pred")
+            ax.scatter(x, y, c=z, s=10, edgecolor='')
+            ax.set_xlabel("Pred")
+            ax.set_ylabel("True")
             xlim = ax.get_xlim()
             ylim = ax.get_ylim()
-            lim = (np.min([xlim[0], ylim[0]]), np.max([xlim[1], ylim[1]]))
-            ax.set_xlim(lim)
-            ax.set_ylim(lim)
-            ax.plot([lim[0], lim[1]], [lim[0], lim[1]], color="red", lw=1)
+            if joint_lim:
+                lim = (np.min([xlim[0], ylim[0]]), np.max([xlim[1], ylim[1]]))
+                ax.set_xlim(lim)
+                ax.set_ylim(lim)
+                ax.plot([lim[0], lim[1]], [lim[0], lim[1]],
+                        color="gray", ls='--', lw=1)
+            slope, intercept, r, p_val, stde = stats.linregress(x, y)
+            line = slope * x + intercept
+            ax.plot(x, line, 'r',
+                    label='y={:.2f}x+{:.2f}'.format(slope, intercept))
             title = "rho = %.2f" % pearsonr(x, y)[0]
             ax.set_title(title)
+            ax.legend()
 
         def importances(ax, mod):
             from chemicalchecker.util.plot.style.util import coord_color
@@ -514,32 +524,40 @@ class sign4(BaseSignature, DataSignature):
             return w
 
         def histograms(ax, yp, yt, title):
-            ax.hist(yp, 5, color="red", label="Pred", alpha=0.5)
-            ax.hist(yt, 5, color="blue", label="True", alpha=0.5)
+            ax.hist(yp, 10, range=(-1, 1), color="red",
+                    label="Pred", alpha=0.5)
+            ax.hist(yt, 10, range=(-1, 1), color="blue",
+                    label="True", alpha=0.5)
             ax.legend()
             ax.set_xlabel("Value")
             ax.set_ylabel("Counts")
             ax.set_title(title)
 
         def scatter(ax, yp, yt, joint_lim=True):
-            x = yt
-            y = yp
+            x = yp
+            y = yt
             xy = np.vstack([x, y])
             z = gaussian_kde(xy)(xy)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
-            ax.scatter(x, y, c=z, s=z * 10, edgecolor='')
-            ax.set_xlabel("True")
-            ax.set_ylabel("Pred")
+            ax.scatter(x, y, c=z, s=10, edgecolor='')
+            ax.set_xlabel("Pred")
+            ax.set_ylabel("True")
             xlim = ax.get_xlim()
             ylim = ax.get_ylim()
             if joint_lim:
                 lim = (np.min([xlim[0], ylim[0]]), np.max([xlim[1], ylim[1]]))
                 ax.set_xlim(lim)
                 ax.set_ylim(lim)
-                ax.plot([lim[0], lim[1]], [lim[0], lim[1]], color="red", lw=1)
+                ax.plot([lim[0], lim[1]], [lim[0], lim[1]],
+                        color="gray", ls='--', lw=1)
+            slope, intercept, r, p_val, stde = stats.linregress(x, y)
+            line = slope * x + intercept
+            ax.plot(x, line, 'r',
+                    label='y={:.2f}x+{:.2f}'.format(slope, intercept))
             title = "rho = %.2f" % pearsonr(x, y)[0]
             ax.set_title(title)
+            ax.legend()
 
         def importances(ax, mod):
             y = model.coef_
@@ -556,36 +574,47 @@ class sign4(BaseSignature, DataSignature):
             ax.set_title("Importance")
             ax.axvline(0, color="red", lw=1)
 
-        def analyze(mod, x_tr, y_tr, x_te, y_te):
+        def analyze(mod, cal, x_tr, y_tr, x_te, y_te):
             import matplotlib.pyplot as plt
             y_tr_p = mod.predict(x_tr)
             y_te_p = mod.predict(x_te)
+            y_tr_cal = cal.predict(np.expand_dims(y_tr_p, 1))
+            y_te_cal = cal.predict(np.expand_dims(y_te_p, 1))
             plt.close('all')
-            fig = plt.figure(constrained_layout=True, figsize=(12, 6))
-            gs = fig.add_gridspec(2, 4)
+            fig = plt.figure(constrained_layout=True, figsize=(9, 9))
+            gs = fig.add_gridspec(3, 3)
             ax = fig.add_subplot(gs[0, 0])
             histograms(ax, y_tr_p, y_tr, "Train")
             ax = fig.add_subplot(gs[0, 1])
             histograms(ax, y_te_p, y_te, "Test")
+
             ax = fig.add_subplot(gs[1, 0])
             scatter(ax, y_tr_p, y_tr)
             ax = fig.add_subplot(gs[1, 1])
             scatter(ax, y_te_p, y_te)
+
+            ax = fig.add_subplot(gs[2, 0])
+            scatter(ax, y_tr_cal, y_tr)
+            ax.set_xlabel("Pred Calibrated")
+            ax = fig.add_subplot(gs[2, 1])
+            scatter(ax, y_te_cal, y_te)
+            ax.set_xlabel("Pred Calibrated")
+
             ax = fig.add_subplot(gs[0, 2])
             scatter(ax, y_tr, x_tr[:, 0].ravel(), joint_lim=False)
             ax.set_title('Applicability (%s)' % ax.get_title())
-            ax.set_xlabel("Applicability")
-            ax.set_ylabel("Correlation")
+            ax.set_ylabel("Applicability")
+            ax.set_xlabel("Correlation")
             ax = fig.add_subplot(gs[1, 2])
             scatter(ax, y_tr, x_tr[:, 1].ravel(), joint_lim=False)
             ax.set_title('Robustness (%s)' % ax.get_title())
-            ax.set_xlabel("Robustness")
-            ax.set_ylabel("Correlation")
-            ax = fig.add_subplot(gs[0, 3])
+            ax.set_ylabel("Robustness")
+            ax.set_xlabel("Correlation")
+            ax = fig.add_subplot(gs[2, 2])
             scatter(ax, y_tr, x_tr[:, 2].ravel(), joint_lim=False)
             ax.set_title('Prior (%s)' % ax.get_title())
-            ax.set_xlabel("Prior")
-            ax.set_ylabel("Correlation")
+            ax.set_ylabel("Prior")
+            ax.set_xlabel("Correlation")
             #ax = fig.add_subplot(gs[1, 3])
             #importances(ax, mod)
             if plots:
@@ -599,7 +628,7 @@ class sign4(BaseSignature, DataSignature):
             ss_te = []
             for p in np.linspace(0, 3, 10):
                 w = get_weights(y_tr, p=p)
-                mod.fit(x_tr, y_tr, sample_weight=w)
+                mod.fit(x_tr, y_tr, linearregression__sample_weight=w)
                 y_te_p = mod.predict(x_te)
                 s_te = test(y_te, y_te_p)[0]
                 ps += [p]
@@ -634,13 +663,19 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('X test: %s' % str(x_te.shape))
         self.__log.debug('y test: %s' % str(y_te.shape))
 
-        model = LinearRegression()
+        model = make_pipeline(StandardScaler(), LinearRegression())
         p = max(1, find_p(model, x_tr, y_tr, x_te, y_te))
-        model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
+        model.fit(x_tr, y_tr,
+                  linearregression__sample_weight=get_weights(y_tr, p=p))
+        calibration_model = make_pipeline(StandardScaler(), LinearRegression())
+        y_pr = np.expand_dims(model.predict(x_te), 1)
+        calibration_model.fit(y_pr, y_te)
         if plots:
-            analyze(model, x_tr, y_tr, x_te, y_te)
-        confidence_file = os.path.join(save_path, 'confidence.pkl')
-        pickle.dump(model, open(confidence_file, 'wb'))
+            analyze(model, calibration_model, x_tr, y_tr, x_te, y_te)
+        model_file = os.path.join(save_path, 'confidence.pkl')
+        pickle.dump(model, open(model_file, 'wb'))
+        calibration_file = os.path.join(save_path, 'calibration.pkl')
+        pickle.dump(calibration_model, open(calibration_file, 'wb'))
         return model
 
     def save_known_distributions(self, siamese, train_x, test_x, realistic_fn,
@@ -680,7 +715,7 @@ class sign4(BaseSignature, DataSignature):
         # do conformal prediction (dropout)
         self.__log.info('Computing conformal prediction')
         intensities, robustness, consensus = self.conformal_prediction(
-            siamese, test_notself)
+            siamese, test_notself, dropout_fn=realistic_fn)
 
         # predict expected prior
         test_notself_presence = ~np.isnan(test_notself[:, ::128])
@@ -734,16 +769,18 @@ class sign4(BaseSignature, DataSignature):
         centrality = np.mean(dists[:, app_thr:], axis=1).flatten()
         return applicability, centrality, app_range
 
-    def conformal_prediction(self, siamese, features, nan_pred=None):
+    def conformal_prediction(self, siamese, features, nan_pred=None,
+                             dropout_fn=None):
         # reference prediction (based on no information)
         if nan_pred is None:
             nan_feat = np.full(
                 (1, features.shape[1]), np.nan, dtype=np.float32)
             nan_pred = siamese.predict(nan_feat)
         # draw prediction with sub-sampling (dropout)
-        dropout_fn = partial(subsample, dataset_idx=[self.dataset_idx])
+        if dropout_fn is None:
+            dropout_fn = partial(subsample, dataset_idx=[self.dataset_idx])
         samples = siamese.predict(features, dropout_fn=dropout_fn,
-                                  dropout_samples=10)
+                                  dropout_samples=10, rebuild=True)
         # summarize the predictions as consensus
         consensus = np.mean(samples, axis=1)
         # zeros input (no info) as intensity reference
