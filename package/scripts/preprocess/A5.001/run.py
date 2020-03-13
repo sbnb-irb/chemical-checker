@@ -11,7 +11,7 @@ from chemicalchecker.database import Calcdata
 from chemicalchecker.database import Molrepo
 from chemicalchecker.util.parser import DataCalculator
 from chemicalchecker.util.parser import Converter
-
+from chemicalchecker.core.preprocess import Preprocess
 
 # Variables
 dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
@@ -23,29 +23,10 @@ features_file = "features.h5"
 name = "general_physchem_properties"
 
 
-def get_parser():
-    description = 'Run preprocess script.'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-i', '--input_file', type=str,
-                        required=False, default='.', help='Input file only for predict method')
-    parser.add_argument('-o', '--output_file', type=str,
-                        required=False, default='.', help='Output file')
-    parser.add_argument('-m', '--method', type=str,
-                        required=False, default='fit', help='Method: fit or predict')
-    parser.add_argument('-mp', '--models_path', type=str,
-                        required=False, default='', help='The models path')
-    parser.add_argument('-ep', '--entry_point', type=str,
-                        required=False, default=None, help='The predict entry point')
-    return parser
-
-
-# Parse arguments
-
-
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
-    args = get_parser().parse_args(args)
+    args = Preprocess.get_parser().parse_args(args)
 
     main._log.debug(
         "Running preprocess for dataset " + dataset_code + ". Saving output in " + args.output_file)
@@ -137,25 +118,8 @@ def main(args):
         sigs[str(k[0])] = vals
         first = False
 
-    keys = []
-    for k in sigs.keys():
-        keys.append(str(k))
-    keys = np.array(keys)
-    inds = keys.argsort()
-    data = []
-
-    features = words
-    for i in inds:
-        data.append(sigs[keys[i]])
-
-    with h5py.File(args.output_file, "w") as hf:
-        hf.create_dataset("keys", data=keys[inds])
-        hf.create_dataset("V", data=np.array(data))
-        hf.create_dataset("features", data=np.array(features))
-
-    if args.method == "fit":
-        with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
-            hf.create_dataset("features", data=np.array(features))
+    Preprocess.save_output(args.output_file, sigs, args.method,
+                args.models_path, False, features)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
