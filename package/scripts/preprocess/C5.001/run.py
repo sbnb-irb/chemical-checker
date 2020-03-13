@@ -9,11 +9,12 @@ import numpy as np
 import shutil
 from sklearn.preprocessing import normalize
 import logging
-from chemicalchecker.util import logged, Config, save_output
+from chemicalchecker.util import logged, Config
 from chemicalchecker.util import HPC
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import psql
 from chemicalchecker.database import Molrepo
+from chemicalchecker.core.preprocess import Preprocess
 
 chembl_dbname = 'chembl'
 features_file = "features.h5"
@@ -51,23 +52,6 @@ script_lines = [
     'net_class.run()',
     "print('JOB DONE')"
 ]
-
-
-def get_parser():
-    description = 'Run preprocess script.'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-i', '--input_file', type=str,
-                        required=False, default='.', help='Input file only for predict method')
-    parser.add_argument('-o', '--output_file', type=str,
-                        required=False, default='.', help='Output file')
-    parser.add_argument('-m', '--method', type=str,
-                        required=False, default='fit', help='Method: fit or predict')
-    parser.add_argument('-mp', '--models_path', type=str,
-                        required=False, default='', help='The models path')
-    parser.add_argument('-ep', '--entry_point', type=str,
-                        required=False, default=None, help='The predict entry point')
-    return parser
-# Variables
 
 
 def parse_chembl(ACTS=None):
@@ -472,7 +456,7 @@ def read_hotnet_output(outdir, ACTS):
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
 
-    args = get_parser().parse_args(args)
+    args = Preprocess.get_parser().parse_args(args)
 
     features = None
 
@@ -640,7 +624,7 @@ def main(args):
 
     main._log.info("Saving raws")
 
-    save_output(args.output_file, inchikey_raw, args.method,
+    Preprocess.save_output(args.output_file, inchikey_raw, args.method,
                 args.models_path, dataset.discrete, features)
 
 if __name__ == '__main__':
