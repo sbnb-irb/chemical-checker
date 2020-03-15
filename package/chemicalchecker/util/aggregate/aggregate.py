@@ -4,17 +4,9 @@ import numpy as np
 from chemicalchecker.util import logged
 
 @logged
-class Aggregate(object):
+class AggregateAsMatrix(object):
     """Given a matrix with keys with potential duplicates, aggregate them"""
     def __init__(self, method):
-        """Initialize class
-            
-            Args:
-                method(str): The aggregation method to be used. Must be one of:
-                    -first: The first occurrence of the signature is kept.
-                    -last: The last occurrence of the signature is kept.
-                    -average: The average of the signature is kept.
-        """
         self.method = method
 
     def get_agg_func(self):
@@ -35,7 +27,87 @@ class Aggregate(object):
                     return np.mean(V[idxs,:], axis=0)
         return agg_func
         
-    def transform(self, V, keys, keys_raw=None):
+
+@logged
+class AggregateAsPairs(object):
+    """Given a matrix with potential duplicates, aggregate them"""
+    def __init__(self, method):
+        """Initialize class
+            
+            Args:
+                method(str): The aggregation method to be used. Must be one of:
+                    -first: The first occurrence of the signature is kept.
+                    -last: The last occurrence of the signature is kept.
+                    -average: The average of the signature is kept.
+        """
+        self.method = method
+
+    def get_agg_func(self):
+        if self.method == "first":
+            self.__log.debug("Aggregation method = first")
+            def agg_func(V, idxs):
+                if len(idxs) == 1:
+                    return V[idxs[0],:]
+                else:
+                    v0 = V[idxs[0],:]
+                    for idx in idxs[1:]:
+                        v1 = V[idx,:]
+                        zero_idxs = np.where(np.logical_and(v0 == 0, v1 != 0))[0]
+                        for zidx in zero_idxs:
+                            v0[zidx] = v1[zidx]
+                    return v0
+        if self.method == "last":
+            self.__log.debug("Aggregation method = last")
+            def agg_func(V, idxs):
+                if len(idxs) == 1:
+                    return V[idxs[0],:]
+                else:
+                    idxs = np.array(idxs)[::-1]
+                    v0 = V[idxs[0],:]
+                    for idx in idxs[1:]:
+                        v1 = V[idx,:]
+                        zero_idxs = np.where(np.logical_and(v0 == 0, v1 != 0))[0]
+                        for zidx in zero_idxs:
+                            v0[zidx] = v1[zidx]
+                    return v0
+
+        if self.method == "average":
+            self.__log.debug("Aggregation method = average")
+            def agg_func(V, idxs):
+                if len(idxs) == 1:
+                    return V[idxs[0],:]
+                else:
+                    idxs = np.array(idxs)[::-1]
+                    num  = np.sum(V[idxs,:], axis=0)
+                    den  = np.sum(V[idxs,:]!=0, axis=0)
+                    mask = den > 0
+                    v    = np.zeros(len(num))
+                    v[mask] = num[mask]/den[mask]
+                    return v
+        return agg_func
+
+
+@logged
+class Aggregate(object):
+    """Aggregate samples."""
+    def __init__(self, method, input_type):
+        """Initialize class
+            
+            Args:
+                method(str): The aggregation method to be used. Must be one of:
+                    -first: The first occurrence of the signature is kept.
+                    -last: The last occurrence of the signature is kept.
+                    -average: The average of the signature is kept.
+                input_type(str): One of 'pairs' or 'matrix'.
+        """
+        if input_type not in ['pairs', 'matrix']:
+            raise Exception("Input type must be 'pairs' or 'matrix'")
+        if input_type == 'pairs':
+            self.agg = AggregateAsPairs(method=method)
+        else:
+            self.agg = AggregateAsMatrix(method=method)
+
+    def transform(self, V, keys, keys_raw):
         """Do the aggregation.
 
             Args:
@@ -44,7 +116,7 @@ class Aggregate(object):
                 keys_raw(array): The raw keys (default=None).
 
             Returns a (V, keys, keys_raw) tuple.
-        """        
+        """
         if np.isnan(V).any():
             raise Exception("V matrix cannot have NaN values")
         if np.isinf(V).any():
@@ -63,7 +135,7 @@ class Aggregate(object):
             keys_raw_ = None
         V_ = np.zeros((len(keys_idxs), V.shape[1]), dtype=V.dtype)
         self.__log.debug("Applying aggregation method")
-        agg_func = self.get_agg_func()
+        agg_func = self.agg.get_agg_func()
         for i,k in enumerate(keys_):
             idxs = keys_idxs[k]
             V_[i,:] = agg_func(V, idxs)
@@ -72,3 +144,4 @@ class Aggregate(object):
         if keys_raw_ is not None:
             keys_raw_ = np.array(keys_raw_)
         return V_, keys_, keys_raw_
+
