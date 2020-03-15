@@ -85,7 +85,7 @@ class sign0(BaseSignature, DataSignature):
                 features += ["feature_%s" % s]
         return np.array(features)
 
-    def get_data(self, pairs, X, keys, features, data_file, key_type):
+    def get_data(self, pairs, X, keys, features, data_file, key_type, agg_method):
         if data_file is not None:
             if os.path.isfile(data_file) and data_file[-3:] == ".h5":
                 dh5 = h5py.File(data_file, 'r')
@@ -119,22 +119,34 @@ class sign0(BaseSignature, DataSignature):
             self.__log.debug("Processing keys and features")
             keys, keys_raw, _ = self.process_keys(keys, key_type)
             features = self.process_features(features, len(features))
-            keys_dict = dict((k, i) for i, k in enumerate(keys))
+            keys_dict = dict((k, i) for i, k in enumerate(keys_raw))
             features_dict = dict((k, i) for i, k in enumerate(features))
             self.__log.debug("Iterating over pairs and doing matrix")
             pairs_ = collections.defaultdict(list)
             if not has_values:
                 self.__log.debug("Binary pairs")
                 for p in pairs:
+                    if p[0] not in keys_dict or p[1] not in features_dict:
+                        continue
                     pairs_[(keys_dict[p[0]], features_dict[p[1]])] += [1]
             else:
                 self.__log.debug("Valued pairs")
                 for p in pairs:
+                    if p[0] not in keys_dict or p[1] not in features_dict:
+                        continue
                     pairs_[(keys_dict[p[1]], features_dict[p[1]])] += [p[2]]
             X = np.zeros((len(keys), len(features)))
             self.__log.debug("Aggregating duplicates")
+            if agg_method == "average":
+                def do_agg(v): return np.mean(v)
+            if agg_method == "first":
+                def do_agg(v): return v[0]
+            if agg_method == "last":
+                def do_agg(v): return v[-1]
             for k, v in pairs_.items():
-                X[k[0], k[1]] = np.mean(v)
+                X[k[0], k[1]] = do_agg(v)
+            self.__log.debug("Setting input type")
+            input_type = "pairs"
         else:
             if X is None:
                 raise Exception(
@@ -155,13 +167,16 @@ class sign0(BaseSignature, DataSignature):
             features = self.process_features(features, X.shape[1])
             self.__log.debug("Only keeping idxs of relevance")
             X = X[idxs]
+            self.__log.debug("Setting input type")
+            input_type = "matrix"
         if X.shape[0] != len(keys):
             raise Exception("after processing, number of rows does not equal number of columns")
         results = {
             "X": X,
             "keys": keys,
             "keys_raw": keys_raw,
-            "features": features
+            "features": features,
+            "input_type": input_type
         }
         return results
 
@@ -178,6 +193,34 @@ class sign0(BaseSignature, DataSignature):
                 return [k.decode() for k in hf["agg_method"][:]][0]
             else:
                 return hf["agg_method"][0]
+
+    @cached_property
+    def input_type(self):
+        """Get the input type done at fit time."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if "input_type" not in hf.keys():
+                self.__log.warn("No input_type available for this signature!")
+                return None
+            if hasattr(hf["input_type"][0], 'decode'):
+                return [k.decode() for k in hf["input_type"][:]][0]
+            else:
+                return hf["input_type"][0]
+
+    @cached_property
+    def key_type(self):
+        """Get the key type done at fit time."""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+        with h5py.File(self.data_path, 'r') as hf:
+            if "key_type" not in hf.keys():
+                self.__log.warn("No key_type available for this signature!")
+                return None
+            if hasattr(hf["key_type"][0], 'decode'):
+                return [k.decode() for k in hf["key_type"][:]][0]
+            else:
+                return hf["key_type"][0]
 
     def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, **params):
         """Process the input data. We produce a sign0 (full) and a sign0(reference). Data are sorted (keys and features).
@@ -209,11 +252,13 @@ class sign0(BaseSignature, DataSignature):
             cc = self.get_cc()
         self.__log.debug("Getting data")
         res = self.get_data(pairs=pairs, X=X, keys=keys,
-                            features=features, data_file=data_file, key_type=key_type)
+                            features=features, data_file=data_file, key_type=key_type,
+                            agg_method=agg_method)
         X = res["X"]
         keys = res["keys"]
         keys_raw = res["keys_raw"]
         features = res["features"]
+        input_type = res["input_type"]
         self.__log.debug("Sorting")
         key_idxs = np.argsort(keys)
         feature_idxs = np.argsort(features)
@@ -229,7 +274,7 @@ class sign0(BaseSignature, DataSignature):
         san = Sanitizer()
         X = san.transform(V=X, sign=None)
         self.__log.debug("Aggregating if necessary")
-        agg = Aggregate(method=agg_method)
+        agg = Aggregate(method=agg_method, input_type=input_type)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
         self.__log.debug("Saving dataset")
         with h5py.File(self.data_path, "w") as hf:
@@ -246,6 +291,8 @@ class sign0(BaseSignature, DataSignature):
                 keys_raw, DataSignature.string_dtype()))
             hf.create_dataset("agg_method", data=np.array(
                 [str(agg_method)], DataSignature.string_dtype()))
+            hf.create_dataset("input_type", data=np.array(
+                [str(input_type)], DataSignature.string_dtype()))
         self.__log.info("Removing redundancy")
         sign0_ref = self.get_molset("reference")
         rnd = RNDuplicates(cpu=10)
@@ -288,6 +335,9 @@ class sign0(BaseSignature, DataSignature):
             V_ = self[:]
             keys_ = self.keys
             keys_raw_ = self.keys_raw
+            if merge_method is not None:
+                if merge_method not in ["average", "new", "old"]:
+                    raise Exception("merge_method must be None, 'average', 'new' or 'old'")
         else:
             self.__log.info(
                 "Not merging. Just producing signature for the inputted data.")
@@ -297,10 +347,15 @@ class sign0(BaseSignature, DataSignature):
         features_ = self.features
         features_idx = dict((k, i) for i, k in enumerate(features_))
         self.__log.debug("Preparing input data")
-        res = self.get_data(pairs=pairs, X=X, keys=keys, features=features, data_file=data_file, key_type=key_type)
+        res = self.get_data(pairs=pairs, X=X, keys=keys, features=features, data_file=data_file, key_type=key_type,
+                            agg_method=self.agg_method)
         X = res["X"]
         keys = res["keys"]
         keys_raw = res["keys_raw"]
+        input_type = res["input_type"]
+        features = res["features"]
+        if input_type != self.input_type:
+            raise Exception("Input type must be %s" % self.input_type)
         self.__log.debug(
             "Putting input in the same features arrangement than the fitted signature.")
         W = np.full((len(keys), len(features_)), np.nan)
@@ -315,7 +370,7 @@ class sign0(BaseSignature, DataSignature):
         san = Sanitizer()
         X = san.transform(V=X, sign=self)
         self.__log.debug("Aggregating as it was done at fit time")
-        agg = Aggregate(method=self.agg_method)
+        agg = Aggregate(method=self.agg_method, input_type=input_type)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
         features = res["features"]
         features = features_
@@ -327,7 +382,15 @@ class sign0(BaseSignature, DataSignature):
             keys = np.append(keys_, keys)
             keys_raw = np.append(keys_raw_, keys_raw)
             self.__log.debug("Aggregating (merging) again")
-            agg = Aggregate(method=self.agg_method)
+            if merge_method is None:
+                agg_method = self.agg_method
+            if merge_method == 'new':
+                agg_method = 'first'
+            if merge_method == 'old':
+                agg_method = 'last'
+            if merge_method == 'average':
+                agg_method = merge_method
+            agg = Aggregate(method=agg_method, input_type=input_type)
             V, keys, keys_raw = agg.transform(
                 V=V, keys=keys, keys_raw=keys_raw)
         self.__log.debug("Done")

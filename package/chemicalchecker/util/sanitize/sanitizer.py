@@ -33,12 +33,12 @@ class Sanitizer(object):
             maxs = np.max(W, axis=0)
             mins = np.min(W, axis=0)
             for j in range(0, V.shape[1]):
-                mask = np.isinf(V[:,j])
+                mask = np.isposinf(V[:,j])
                 V[mask,j] = maxs[j]
-                mask = np.isinf(-V[:,j])
+                mask = np.isneginf(V[:,j])
                 V[mask,j] = mins[j]
             self.__log.debug("Removing NaN values if necessary")
-            meds = np.median(W, axis=0)
+            meds = np.nanmedian(W, axis=0)
             for j in range(0, V.shape[1]):
                 mask = np.isnan(V[:,j])
                 V[mask,j] = meds[j]
@@ -46,12 +46,12 @@ class Sanitizer(object):
             self.__log.debug("Sanitizing using the signature itself.")
             self.__log.debug("Capping inf values if necessary")
             for j in range(0, V.shape[1]):
-                mask = np.isinf(V[:,j])
+                mask = np.isposinf(V[:,j])
                 V[mask,j] = np.max(V[~mask,j])
-                mask = np.isinf(-V[:,j])
+                mask = np.isneginf(V[:,j])
                 V[mask,j] = np.min(V[~mask,j])
             self.__log.debug("Removing NaN values if necessary")
-            for j in range(0, ):
+            for j in range(0, V.shape[1]):
                 mask = np.isnan(V[:,j])
                 V[mask,j] = np.median(V[~mask,j])
         return V
