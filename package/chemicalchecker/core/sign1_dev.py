@@ -61,20 +61,36 @@ class sign1(BaseSignature, DataSignature):
                 hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
         self.__log.debug("Copying triplets")
         fn0 = os.path.join(s0.model_path, "triplets.h5")
-        fn1 = os.path.join(s1.model_path, "triplets.h5")
-        shutil.copyfile(fn0, fn1)
+        if os.path.exists(fn0):
+            self.__log.debug("Triplets are available.")
+            fn1 = os.path.join(s1.model_path, "triplets.h5")
+            shutil.copyfile(fn0, fn1)
+        else:
+            self.__log.warn("No triplets available! Please fit sign0 with option do_triplets=True")
 
-    def backup(self):
-        """Do a backup of the sign1 dataset (HDF5). This is important for the pipeline"""
-        if not os.path.exists(self.data_path):
-            raise Exception("Data path does not exist: %s" % self.data_path)
-        os.path.copyfile(self.data_path, self.data_path+".bkp")
-        self.__log.debug("Data file backed up")
-
-    def get_backup(self, overwrite=False):
-        if not os.path.exists(self.data_path+".bkp") or overwrite:
-            self.backup()
-        return self.__class__(signature_path=self.data_path+".bkp", dataset=self.dataset)
+    def copy_sign1_to_tmp(self, s1, s1_tmp):
+        """Copy from sign1 to a temporary branch"""
+        if s1.cctype != s1_tmp.cctype:
+            raise Exception("Copying must be between signatures of the same type (sign1)")
+        self.__log.debug("Copying HDF5 dataset")
+        with h5py.File(s1_tmp.data_path, "w") as hf:
+            hf.create_dataset(
+                "name", data=np.array([str(self.dataset) + "sig"], DataSignature.string_dtype()))
+            hf.create_dataset(
+                "date", data=np.array([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
+            hf.create_dataset("V", data=s1[:])
+            hf.create_dataset("keys", data=np.array(s1.keys, DataSignature.string_dtype()))
+            if s1.molset == "reference":
+                mappings = s1.get_h5_dataset("mappings")
+                hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
+        self.__log.debug("Copying triplets")
+        fn0 = os.path.join(s1.model_path, "triplets.h5")
+        if os.path.exists(fn0):
+            self.__log.debug("Triplets are available.")
+            fn1 = os.path.join(s1_tmp.model_path, "triplets.h5")
+            shutil.copyfile(fn0, fn1)
+        else:
+            self.__log.warn("No triplets available!")
 
     def was_sparse(self, max_keys=1000, zero_prop=0.5):
         """Guess if the matrix was sparse"""
@@ -108,7 +124,7 @@ class sign1(BaseSignature, DataSignature):
         self.__log.debug("Placing sign0 to sign1 (done for full)")
         self.copy_sign0_to_sign1(sign0, self)
         self.__log.debug("Backing up signature")
-        sign1_ref_bkp = sign1_ref.get_backup()
+        sign1_tmp = sign1_ref.get_molset("tmp")
         self.__log.debug("Checking if matrix was sparse or not")
         if latent:
             self.__log.debug("Looking for latent variables")
