@@ -61,7 +61,7 @@ SIGN3_SCRIPT_F = [
 SIGN0_SCRIPT_FR = [
     "if len(pars) == 0:",
     "    prepro_file = cc.preprocess(sign_full)",
-    "    cc_old = ChemicalChecker('<CC_OLD_PATH>')"
+    "    cc_old = ChemicalChecker(CC_OLD_PATH)"
     "    pars['data_file'] = prepro_file",
     "    pars['cc'] = cc_old",
     "sign_full.fit(**pars)"
@@ -244,10 +244,10 @@ class CCFit(BaseTask, BaseOperator):
         job_path = None
 
         if self.cc_old_path is not None:
-            SPECIFIC_SCRIPTS['sign0'] = (SIGN0_SCRIPT_FR.replace('<CC_OLD_PATH>', self.cc_old_path), 
-                                        SIGN0_SCRIPT_FR.replace('<CC_OLD_PATH>', self.cc_old_path))
+            SIGN0_SCRIPT_FR.insert(0,"CC_OLD_PATH = '%s'" % self.cc_old_path)
         else:
-            SPECIFIC_SCRIPTS['sign0'] = (SIGN0_SCRIPT_FR, SIGN0_SCRIPT_FR)
+            SIGN0_SCRIPT_FR.insert(0,"CC_OLD_PATH = None")
+        SPECIFIC_SCRIPTS['sign0'] = (SIGN0_SCRIPT_FR, SIGN0_SCRIPT_FR)
 
         if len(dataset_codes) > 0:
 
