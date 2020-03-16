@@ -41,7 +41,7 @@ class MetricLearn(BaseTransform):
         # Get signatures
         V = self.sign_ref[:]
         if self.is_unsupervised:
-            triplets = 
+            triplets = ""
         else:
             triplets = self.sign_ref.get_triplets()
         dest_h5 = os.path.join(self.model_path, self.name+"_eval.h5")
@@ -82,10 +82,23 @@ class MetricLearn(BaseTransform):
 
 
 @logged
-class UnsupervisedMetricLearn(BaseTransform):
+class NoMetricLearn(MetricLearn):
 
     def __init__(self, sign1):
-        BaseTransform.__init__(self, sign1, "unsupml", max_keys=None)
+        MetricLearn.__init__(self, sign1, "noml", max_keys=None)
+
+    def fit(self):
+        pass
+
+    def predict(self):
+        pass
+        
+
+@logged
+class UnsupervisedMetricLearn(MetricLearn):
+
+    def __init__(self, sign1):
+        MetricLearn.__init__(self, sign1, "unsupml", max_keys=None)
 
     def fit(self):
         # Get signatures
@@ -97,10 +110,10 @@ class UnsupervisedMetricLearn(BaseTransform):
 
 
 @logged
-class SemiSupervisedMetricLearn(BaseTransform):
+class SemiSupervisedMetricLearn(MetricLearn):
 
     def __init__(self, sign1):
-        BaseTransform.__init__(self, sign1, "semiml", max_keys=None)
+        MetricLearn.__init__(self, sign1, "semiml", max_keys=None)
 
     def fit(self):
         # Get signatures
