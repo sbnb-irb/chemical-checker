@@ -118,7 +118,8 @@ def main(args):
             map_files["CTD_diseases"], "CTD_diseases.tsv")
 
         main._log.info("Parsing CTD...")
-        inchikey_raw = parse_ctd(disfile, chemdis_file)
+        inchikey_raw_temp = parse_ctd(disfile, chemdis_file)
+        inchikey_raw = {k: list(v) for k,v in inchikey_raw_temp.items()}
 
     if args.method == "predict":
 
