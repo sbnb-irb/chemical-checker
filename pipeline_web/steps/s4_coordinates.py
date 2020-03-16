@@ -1,7 +1,7 @@
 import os
 import json
 from chemicalchecker.util import logged
-from chemicalchecker.util import BaseStep
+from chemicalchecker.util import BaseTask
 from chemicalchecker.util import psql
 from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
@@ -43,11 +43,11 @@ COUNT = "SELECT COUNT(DISTINCT coord) FROM coordinates"
 
 
 @logged
-class Coordinates(BaseStep):
+class Coordinates(BaseTask):
 
     def __init__(self, config, name, **params):
 
-        BaseStep.__init__(self, config, name, **params)
+        BaseTask.__init__(self, config, name, **params)
 
     def run(self):
         """Run the coordinates step."""

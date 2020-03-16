@@ -1,7 +1,7 @@
 import os
 import h5py
 from chemicalchecker.util import logged
-from chemicalchecker.util import BaseStep
+from chemicalchecker.util import BaseTask
 from chemicalchecker.util import psql
 from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
@@ -19,11 +19,11 @@ COUNT = "SELECT COUNT(DISTINCT inchikey) FROM projections"
 
 
 @logged
-class Projections(BaseStep):
+class Projections(BaseTask):
 
     def __init__(self, config, name, **params):
 
-        BaseStep.__init__(self, config, name, **params)
+        BaseTask.__init__(self, config, name, **params)
 
     def run(self):
         """Run the projections step."""

@@ -7,7 +7,7 @@ import json
 import shutil
 from chemicalchecker.util import logged
 from chemicalchecker.util import HPC
-from chemicalchecker.util import BaseStep
+from chemicalchecker.util import BaseTask
 from chemicalchecker.util import psql
 from chemicalchecker.util import Config
 
@@ -47,11 +47,11 @@ COUNT = "SELECT COUNT(DISTINCT inchikey) FROM pubchem"
 
 
 @logged
-class Pubchem(BaseStep):
+class Pubchem(BaseTask):
 
     def __init__(self, config, name, **params):
 
-        BaseStep.__init__(self, config, name, **params)
+        BaseTask.__init__(self, config, name, **params)
 
     def run(self):
         """Run the pubchem step."""
@@ -100,7 +100,7 @@ class Pubchem(BaseStep):
         command = command.format(cc_package, cc_config_path, singularity_image,
                                  script_path, universe_file, self.config.OLD_DB, self.config.DB)
         # submit jobs
-        cluster = HPC(config_cc)
+        cluster = HPC.from_config(config_cc)
         jobs = cluster.submitMultiJob(command, **params)
 
         try:

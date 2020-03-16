@@ -32,9 +32,12 @@ class DB_universe(BaseStep):
 
         universe_file = os.path.join(self.tmpdir, "universe.h5")
 
+        universe_list = [str(i[0]) for i in inchikeys]
+
+        universe_list.sort()
+
         with h5py.File(universe_file, "w") as h5:
-            h5.create_dataset("keys", data=np.array(
-                [str(i[0]) for i in inchikeys]))
+            h5.create_dataset("keys", data=np.array(universe_list))
 
         con = psql.get_connection(self.config.OLD_DB)
 
