@@ -19,6 +19,9 @@ def draw(inchikey, inchi, path):
         os.umask(original_umask)
 
     mol = Chem.rdinchi.InchiToMol(inchi)[0]
+    # convert to smiles
+    # use openeye to obtain canonical smiles (isomeric)
+    # read mol again from smiles
     AllChem.Compute2DCoords(mol)
     with open(path + "/2d.mol", "w") as f:
         try:

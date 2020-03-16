@@ -4,7 +4,7 @@ import collections
 from sbnb.uniprotkb import UniprotKB
 
 from chemicalchecker.util import logged
-from chemicalchecker.util import BaseStep
+from chemicalchecker.util import BaseTask
 from chemicalchecker.util import psql
 from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
@@ -49,11 +49,11 @@ ref_spaces = ['B1.001', 'B2.001', 'B4.001', 'B5.001']
 
 
 @logged
-class ShowTargets(BaseStep):
+class ShowTargets(BaseTask):
 
     def __init__(self, config, name, **params):
 
-        BaseStep.__init__(self, config, name, **params)
+        BaseTask.__init__(self, config, name, **params)
 
     def run(self):
         """Run the show targets step."""

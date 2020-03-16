@@ -3,9 +3,10 @@ import os
 import shutil
 import h5py
 import json
+from tqdm import tqdm
 from chemicalchecker.util import logged
 from chemicalchecker.util import HPC
-from chemicalchecker.util import BaseStep
+from chemicalchecker.util import BaseTask
 from chemicalchecker.util import psql
 from chemicalchecker.util import Config
 
@@ -14,11 +15,11 @@ from chemicalchecker.util import Config
 
 
 @logged
-class Similars(BaseStep):
+class Similars(BaseTask):
 
     def __init__(self, config, name, **params):
 
-        BaseStep.__init__(self, config, name, **params)
+        BaseTask.__init__(self, config, name, **params)
 
     def run(self):
         """Run the molecular info step."""
@@ -30,7 +31,7 @@ class Similars(BaseStep):
         cc_config_path = os.environ['CC_CONFIG']
         cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
         script_path = os.path.join(
-            config_cc.PATH.CC_REPO, "pipeline_web", "steps", "scripts", "libraries.py")
+            config_cc.PATH.CC_REPO, "pipeline_web", "steps", "scripts", "similars.py")
 
         universe_file = os.path.join(self.tmpdir, "universe.h5")
 
@@ -61,36 +62,31 @@ class Similars(BaseStep):
                         str(len(universe_keys)) + " molecules")
 
         job_path = tempfile.mkdtemp(
-            prefix='jobs_libraries_', dir=self.tmpdir)
-
-        libraries_path = os.path.join(self.tmpdir, "libraries_files")
-
-        if not os.path.exists(libraries_path):
-            original_umask = os.umask(0)
-            os.makedirs(libraries_path, 0o775)
-            os.umask(original_umask)
+            prefix='jobs_similars_', dir=self.tmpdir)
 
         version = self.config.DB.replace("cc_web_", '')
         mol_path = self.config.MOLECULES_PATH
 
         params = {}
-        params["num_jobs"] = len(universe_keys) / 500
+        params["num_jobs"] = len(universe_keys) / 200
         params["jobdir"] = job_path
         params["job_name"] = "CC_JSONSIM"
         params["elements"] = universe_keys
+        params["memory"] = 6
         params["wait"] = True
         # job command
         singularity_image = config_cc.PATH.SINGULARITY_IMAGE
-        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {}"
+        command = "OMP_NUM_THREADS=1 SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {}"
         command = command.format(
             cc_package, cc_config_path, singularity_image, script_path, ik_names_file, mol_path, self.config.DB, version)
         # submit jobs
-        cluster = HPC(config_cc)
+        cluster = HPC.from_config(config_cc)
         jobs = cluster.submitMultiJob(command, **params)
 
         self.__log.info("Checking results")
         missing_keys = list()
-        for inchikey in universe_keys:
+        for i in tqdm(range(len(universe_keys))):
+            inchikey = universe_keys[i]
             PATH = mol_path + "/%s/%s/%s/%s" % (
                 inchikey[:2], inchikey[2:4], inchikey, 'explore_' + version + '.json')
             if not os.path.exists(PATH):
