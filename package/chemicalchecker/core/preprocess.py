@@ -223,7 +223,7 @@ class Preprocess():
             index = 0
 
             for i, k in enumerate(keys):
-                shared_features = inchikey_raw[k] & set(orderwords)
+                shared_features = set(inchikey_raw[k]) & set(orderwords)
                 if len(shared_features) == 0:
                     self._log.warn("%s has no shared features with trainset.", k)
                 for word in inchikey_raw[k]:
