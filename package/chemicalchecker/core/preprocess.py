@@ -47,7 +47,7 @@ class Preprocess():
         self.raw_model_path = os.path.join(signature_path, "raw", "models")
 
         if not os.path.isdir(self.raw_path):
-            preprocess.__log.info(
+            Preprocess.__log.info(
                 "Initializing new raw in: %s" % self.raw_path)
             original_umask = os.umask(0)
             os.makedirs(self.raw_path, 0o775)
