@@ -32,8 +32,10 @@ class TripletSampler(object):
             for k in fmref_idxs[r]:
                 cands += [k]
                 probs += [n-i]
-        if not cands: return []
+        if len(cands) < 1 : return []
+        if len(cands) == 1: return cands
         probs = np.array(probs)/np.sum(probs)
+        if np.sum(probs) != 1: return []
         cands = np.array(cands)
         cands = np.random.choice(cands, num_samp, replace=True, p=probs)
         return list(cands)
