@@ -279,9 +279,6 @@ class BaseSignature(object):
 
         plot.roc_curve_plot(y_t, y_p, cctype, sign.dataset,
                             len(common_conn), frac_shared)
-        # performance
-        # fpr, tpr, _ = roc_curve(y_t, y_p)
-        # auroc = auc(fpr, tpr)
 
     def validate(self, apply_mappings=True, metric='cosine'):
         """Perform validations.
@@ -313,6 +310,9 @@ class BaseSignature(object):
         results = dict()
         validation_path = self.signature_path + \
             '/../../../../../tests/validation_sets/'
+        if not os.path.exists(validation_path):
+            self.__log.warn("Standard validation path does not exist, taking validations from examples")
+            validation_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "examples/validation_sets/")
         validation_files = os.listdir(validation_path)
         self.__log.info(validation_path)
         plot = Plot(self.dataset, self.stats_path, validation_path)
