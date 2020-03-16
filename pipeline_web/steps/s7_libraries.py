@@ -3,7 +3,7 @@ import os
 import shutil
 from chemicalchecker.util import logged
 from chemicalchecker.util import HPC
-from chemicalchecker.util import BaseStep
+from chemicalchecker.util import BaseTask
 from chemicalchecker.util import psql
 from chemicalchecker.util import Config
 
@@ -50,11 +50,11 @@ CHECK = "select distinct(lib) from libraries"
 
 
 @logged
-class Libraries(BaseStep):
+class Libraries(BaseTask):
 
     def __init__(self, config, name, **params):
 
-        BaseStep.__init__(self, config, name, **params)
+        BaseTask.__init__(self, config, name, **params)
 
     def run(self):
         """Run the molecular info step."""
@@ -113,7 +113,7 @@ class Libraries(BaseStep):
         command = command.format(
             cc_package, cc_config_path, singularity_image, script_path, universe_file, libraries_path, self.config.DB)
         # submit jobs
-        cluster = HPC(config_cc)
+        cluster = HPC.from_config(config_cc)
         jobs = cluster.submitMultiJob(command, **params)
 
         try:

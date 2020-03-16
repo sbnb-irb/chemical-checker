@@ -3,8 +3,7 @@ import time
 import numpy as np
 import os
 import sys
-import string
-import commands
+import collections
 import json
 import math
 import pickle
@@ -13,6 +12,7 @@ from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
 from chemicalchecker.util import psql
+
 #inchikey = 'ZZVUWRFHKOJYTH-UHFFFAOYSA-N'
 
 cutoff = 5
@@ -25,7 +25,9 @@ text_bio = "select  library_description.name as lib,lib.inchikey from libraries 
 # HAVE THIS IN MEMMORY!
 
 def get_integer(d):
-    return bisect.bisect_left(bg_vals["distance"], d)
+    if d < 0:
+        return d
+    return bisect.bisect_left(bg_vals, d)
 
 
 def index_sign(coord, pred):
@@ -57,7 +59,6 @@ inchikeys = inputs[task_id]
 
 references = {}
 ref_bioactive = {}
-iks_coord_set = {}
 dataset_pairs = {}
 all_datasets = Dataset.get()
 
@@ -66,16 +67,83 @@ config_cc = Config()
 cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
 
 get_integers = np.vectorize(get_integer)
+metric_obs = None
+map_coords_obs = collections.defaultdict(list)
 
 for ds in all_datasets:
     if not ds.exemplary:
         continue
 
-    sign1 = cc.get_signature('sign1', 'reference', ds.dataset_code)
-
-    iks = sign1.keys
-    iks_coord_set[ds.coordinate] = set(list(iks))
     dataset_pairs[ds.coordinate] = ds.dataset_code
+
+    if metric_obs is None:
+        sign1 = cc.get_signature("sign1", "reference", ds.dataset_code)
+        metric_obs = sign1.get_h5_dataset('metric')
+
+    sign1 = cc.get_signature("sign1", "full", ds.dataset_code)
+
+    keys = sign1.unique_keys
+    for ik in inchikeys:
+        if ik in keys:
+            map_coords_obs[ik] += [ds.coordinate]
+
+bg_vals_obs = {}
+bg_vals_pred = {}
+
+for coord in dataset_pairs.keys():
+    sign1 = cc.get_signature("sign1", "reference", dataset_pairs[coord])
+    bg_vals_obs[coord] = sign1.background_distances(
+        metric_obs[0])["distance"]
+
+    sign2 = cc.get_signature("sign2", "reference", dataset_pairs[coord])
+    bg_vals_pred[coord] = sign2.background_distances("cosine")["distance"]
+
+keys = [k + "_obs" for k in dataset_pairs.keys()] + \
+    [k + "_prd" for k in dataset_pairs.keys()]
+
+
+data_keys_map = {}
+
+for dataset in keys:
+    coord, type_data = dataset.split("_")
+
+    sim_values = {}
+
+    if type_data == 'obs':
+        similars = cc.get_signature("neig1", "full", dataset_pairs[coord])
+        _, sim_values["distances"] = similars.get_vectors(
+            inchikeys, include_nan=True, dataset_name='distances')
+        _, sim_values["keys"] = similars.get_vectors(
+            inchikeys, include_nan=True, dataset_name='indices')
+        bg_vals = bg_vals_obs[coord]
+        cutoff_sim = bg_vals[cutoff]
+
+    else:
+        # Actually, we are not using neig2 but the class methods to access
+        # this kind of data
+        similars = cc.get_signature("neig2", "full", dataset_pairs[coord])
+        sign3 = cc.get_signature("sign3", "full", dataset_pairs[coord])
+        similars.data_path = os.path.join(
+            sign3.signature_path, "similars.h5")
+        _, sim_values["distances"] = similars.get_vectors(
+            inchikeys, include_nan=True, dataset_name='distances')
+        _, sim_values["keys"] = similars.get_vectors(
+            inchikeys, include_nan=True, dataset_name='indices')
+        bg_vals = bg_vals_pred[coord]
+        cutoff_sim = bg_vals[cutoff]
+
+    mask = sim_values["distances"] <= cutoff_sim
+    iksm = np.where(mask, sim_values["keys"], '')
+    # iksm = sim_values["keys"][mask].tolist()
+
+    # list1 = np.array(iksm)
+    # list2 = np.array(sim_values["distances"][mask])
+    # idx = np.argsort(list2)
+    # new_iksm = np.array(list1)[idx]
+    max_idx = len(bg_vals) - 1
+    integers = get_integers(np.where(mask, sim_values["distances"], -1.0))
+    integers[integers > max_idx] = max_idx
+    data_keys_map[dataset] = (iksm, integers)
 
 
 lib_refs = psql.qstring(text_lib, dbname)
@@ -106,47 +174,36 @@ for index, inchikey in enumerate(inchikeys):
     PATH = save_file_path + "/%s/%s/%s/" % (
         inchikey[:2], inchikey[2:4], inchikey)
     print(PATH)
-    keys = [k + "_obs" for k in iks_coord_set.keys() if inchikey in iks_coord_set[k]] + \
-        [k + "_prd" for k in iks_coord_set.keys()]
+    keys = [k + "_obs" for k in map_coords_obs[inchikey]] + \
+        [k + "_prd" for k in dataset_pairs.keys()]
 
     S = set()
     X = []
 
+    empty_spaces = list()
+
     for dataset in keys:
         coord, type_data = dataset.split("_")
 
-        if type_data == 'obs':
-            similars = cc.get_signature("neig1", "full", dataset_pairs[coord])
-            sign1 = cc.get_signature(
-                "sign1", "reference", dataset_pairs[coord])
-            metric = sign1.get_h5_dataset('metric')
-            bg_vals = sign1.background_distances(metric[0])
-            sim_values = similars[inchikey]
-            cutoff_sim = bg_vals["distance"][cutoff]
-        else:
-            neig2_ref = cc.get_signature(
-                "neig2", "reference", dataset_pairs[coord])
-            sign3 = cc.get_signature("sign3", "full", dataset_pairs[coord])
-            sign2 = cc.get_signature(
-                "sign2", "reference", dataset_pairs[coord])
-            bg_vals = sign2.background_distances("cosine")
-            signature = sign3[inchikey]
-            sim_values = neig2_ref.get_kth_nearest([signature])
-            cutoff_sim = bg_vals["distance"][cutoff]
+        iksm = data_keys_map[dataset][0][index][
+            data_keys_map[dataset][0][index] != ''].tolist()
 
-        mask = sim_values["distances"] <= cutoff_sim
-        iksm = sim_values["keys"][mask].tolist()
+        if len(iksm) == 0:
+            print dataset
+            empty_spaces.append(dataset)
+            continue
 
         S.update(iksm)
-        list1 = np.array(iksm)
-        list2 = np.array(sim_values["distances"][mask])
-        idx = np.argsort(list2)
-        new_iksm = np.array(list1)[idx]
-        max_idx = len(bg_vals["distance"]) - 1
-        integers = get_integers(sim_values["distances"][mask])
-        integers[integers > max_idx] = max_idx
 
-        X += [(iksm, integers, new_iksm)]
+        integers = data_keys_map[dataset][1][index][
+            data_keys_map[dataset][1][index] >= 0]
+
+        dict_iks_dist = dict(zip(iksm, integers))
+
+        X += [(dict_iks_dist, iksm)]
+
+    for ds in empty_spaces:
+        keys.remove(ds)
 
     S = np.array(list(S))
 
@@ -185,24 +242,27 @@ for index, inchikey in enumerate(inchikeys):
         else:
             pos, sign = index_sign(square, True)
 
-        iksm = X[c][0]
-        simsm = X[c][1]
-        ordered_iksm = X[c][2]
-        iksmset = set(iksm)
+        dict_iks_dist = X[c][0]
+        # simsm = X[c][1]
+        ordered_iksm = X[c][1]
+        # iksmset = set(iksm)
         t = 0
         index = 0
         found = False
         for ik in S:
-            if ik in iksmset and (np.isnan(M[t, pos]) or M[t, pos] == dummy):
-                index = bisect.bisect_left(iksm, ik)
-                M[t][pos] = sign * (simsm[index] + 1)
+            if ik in dict_iks_dist and (np.isnan(M[t, pos]) or M[t, pos] == dummy):
+                # index2 = iksm.index(ik)
+
+                # index = bisect.bisect_left(iksm, ik)
+                # print index2, index
+                M[t][pos] = sign * (dict_iks_dist[ik] + 1)
                 if sign > 0:
                     M[t, 25] += 2
                 else:
                     M[t, 25] += 1
 
             else:
-                if ik in iks_coord_set[square] and np.isnan(M[t, pos]):
+                if square in map_coords_obs[ik] and np.isnan(M[t, pos]):
                     M[t, pos] = sign * dummy
 
             t += 1
