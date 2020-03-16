@@ -401,6 +401,10 @@ class Plot():
         S, D, d, frac = self.get_same_different(
             sign, prefix, mappings)
 
+        if len(S) == 0 or len(D) == 0:
+            self.__log.warn("Not enough pairs to validate...")
+            return (-999,-999), -999, -999
+
         if distance == "euclidean":
             distance_metric = euclidean
         elif distance == "cosine":

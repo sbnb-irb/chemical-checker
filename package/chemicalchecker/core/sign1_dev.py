@@ -22,7 +22,7 @@ from chemicalchecker.util import logged
 from chemicalchecker.util.transform.scale import Scale
 from chemicalchecker.util.transform.lsi import Lsi
 from chemicalchecker.util.transform.pca import Pca
-from chemicalchecker.util.outlier_removal import OutlierRemover
+from chemicalchecker.util.transform.outlier_removal import OutlierRemover
 from chemicalchecker.util.transform.metric_learn import NoMetricLearn, UnsupervisedMetricLearn, SemiSupervisedMetricLearn
 
 
@@ -64,6 +64,18 @@ class sign1(BaseSignature, DataSignature):
         fn1 = os.path.join(s1.model_path, "triplets.h5")
         shutil.copyfile(fn0, fn1)
 
+    def backup(self):
+        """Do a backup of the sign1 dataset (HDF5). This is important for the pipeline"""
+        if not os.path.exists(self.data_path):
+            raise Exception("Data path does not exist: %s" % self.data_path)
+        os.path.copyfile(self.data_path, self.data_path+".bkp")
+        self.__log.debug("Data file backed up")
+
+    def get_backup(self, overwrite=False):
+        if not os.path.exists(self.data_path+".bkp") or overwrite:
+            self.backup()
+        return self.__class__(signature_path=self.data_path+".bkp", dataset=self.dataset)
+
     def was_sparse(self, max_keys=1000, zero_prop=0.5):
         """Guess if the matrix was sparse"""
         vals = self.subsample(max_keys)[0].ravel()
@@ -95,6 +107,8 @@ class sign1(BaseSignature, DataSignature):
         self.copy_sign0_to_sign1(sign0_ref, sign1_ref)
         self.__log.debug("Placing sign0 to sign1 (done for full)")
         self.copy_sign0_to_sign1(sign0, self)
+        self.__log.debug("Backing up signature")
+        sign1_ref_bkp = sign1_ref.get_backup()
         self.__log.debug("Checking if matrix was sparse or not")
         if latent:
             self.__log.debug("Looking for latent variables")
@@ -175,7 +189,7 @@ class sign1(BaseSignature, DataSignature):
         if pipeline["sparse"]:
             pass
         else:
-            
+            pass
         if pipeline["metric_learning"]:
             self.__log.debug("Metric learning was done. Using it to project.")
             "XXXX"
