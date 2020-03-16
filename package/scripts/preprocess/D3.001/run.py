@@ -119,7 +119,7 @@ def main(args):
 
     main._log.info("Saving raws")
 
-    Preprocess.save_output(args.output_file, key_raw, args.method,
+    Preprocess.save_output(args.output_file, inchikey_raw, args.method,
                 args.models_path, dataset.discrete, features)
 
 if __name__ == '__main__':
