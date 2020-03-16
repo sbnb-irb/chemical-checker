@@ -13,6 +13,7 @@ from chemicalchecker.util import psql
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
+from chemicalchecker.core.preprocess import Preprocess
 
 
 # Variables
@@ -21,39 +22,6 @@ features_file = "features.h5"
 chembl_dbname = 'chembl'
 # Parse arguments
 entry_point_full = "atc"
-
-
-def get_parser():
-    description = 'Run preprocess script.'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-i', '--input_file',
-                        type=str,
-                        required=False,
-                        default='.',
-                        help='Input file only for predict method')
-    parser.add_argument('-o', '--output_file',
-                        type=str,
-                        required=False,
-                        default='.',
-                        help='Output file')
-    parser.add_argument('-m', '--method',
-                        type=str,
-                        required=False,
-                        default='fit',
-                        help='Method: fit or predict')
-    parser.add_argument('-mp', '--models_path',
-                        type=str,
-                        required=False,
-                        default='',
-                        help='The models path')
-    parser.add_argument('-ep', '--entry_point',
-                        type=str,
-                        required=False,
-                        default=None,
-                        help='The predict entry point')
-    return parser
-
-# Functions
 
 
 def parse_repodb(repodb, umls2mesh, IND=None):
@@ -181,7 +149,7 @@ def include_mesh(ctd_diseases, IND):
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
     # Reading arguments and getting datasource
-    args = get_parser().parse_args(args)
+    args = Preprocess.get_parser().parse_args(args)
     main._log.debug("Running preprocess. Saving output to %s",
                     args.output_file)
     dataset = Dataset.get(dataset_code)
@@ -223,6 +191,7 @@ def main(args):
 
         # features will be calculated later
         features = None
+        features_list = None
 
     # main PREDICT section
     if args.method == "predict":
@@ -246,39 +215,8 @@ def main(args):
     # save raw values
     main._log.info("Saving raw data.")
 
-    keys = []
-    words = set()
-    for k in sorted(inchikey_raw.keys()):
-        keys.append(str(k))
-        words.update(inchikey_raw[k].keys())
-
-    if features is not None:
-        orderwords = features_list
-        main._log.info("Predict entries have a total of %s features," +
-                       " %s overlap with trainset and will be considered.",
-                       len(words), len(features & words))
-    else:
-        orderwords = sorted(list(words))
-    raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
-    wordspos = {k: v for v, k in enumerate(orderwords)}
-
-    for i, k in enumerate(keys):
-        shared_features = set(inchikey_raw[k].keys()) & set(orderwords)
-        if len(shared_features) == 0:
-            main._log.warn("%s has no shared features with trainset.", k)
-        for word in shared_features:
-            raws[i][wordspos[word]] = inchikey_raw[k][word]
-
-    with h5py.File(args.output_file, "w") as hf:
-        hf.create_dataset("keys", data=np.array(keys))
-        hf.create_dataset("V", data=raws)
-        hf.create_dataset("features", data=np.array(orderwords))
-
-    if args.method == "fit":
-        features_path = os.path.join(args.models_path, features_file)
-        with h5py.File(features_path, "w") as hf:
-            hf.create_dataset("features", data=np.array(orderwords))
-
+    Preprocess.save_output(args.output_file, inchikey_raw, args.method,
+                args.models_path, dataset.discrete, features_list)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
