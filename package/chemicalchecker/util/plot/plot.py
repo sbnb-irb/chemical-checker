@@ -517,7 +517,7 @@ class Plot():
 
         sns.set_style("white")
 
-        with h5py.File(data_path) as hf:
+        with h5py.File(data_path, "r") as hf:
             Mols = len(hf["keys"])
             Vars = len(hf["V"][0])
 
