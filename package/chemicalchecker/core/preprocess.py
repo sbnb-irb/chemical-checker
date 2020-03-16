@@ -202,6 +202,9 @@ class Preprocess():
 
             if features is not None:
                 orderwords = features
+                self._log.info("Predict entries have a total of %s features," +
+                       " %s overlap with trainset and will be considered.",
+                       len(words), len(set(features) & words))
             else:
                 orderwords = list(words)
                 del words
@@ -220,6 +223,9 @@ class Preprocess():
             index = 0
 
             for i, k in enumerate(keys):
+                shared_features = inchikey_raw[k] & set(orderwords)
+                if len(shared_features) == 0:
+                    self._log.warn("%s has no shared features with trainset.", k)
                 for word in inchikey_raw[k]:
                     if categ:
                         raws[index][wordspos[word[0]]] = word[1]
