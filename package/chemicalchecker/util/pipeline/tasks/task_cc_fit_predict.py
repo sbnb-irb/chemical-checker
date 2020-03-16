@@ -60,8 +60,9 @@ SIGN3_SCRIPT_F = [
 
 SIGN0_SCRIPT_F = [
     "if len(pars) == 0:",
-    "    prepro_file = cc.preprocess(sign0)",
+    "    prepro_file = cc.preprocess(sign_full)",
     "    pars['data_file'] = prepro_file",
+    "    pars['do_triplets'] = False",
     "sign_full.fit(**pars)"
 ]
 
@@ -227,6 +228,8 @@ class CCFit(BaseTask, BaseOperator):
 
         for dependency in CC_TYPES_DEPENDENCIES[self.cc_type]:
             for ds in dataset_codes:
+                if dependency == self.cc_type:
+                    continue
                 if self.full_reference:
                     branch = "reference"
                 else:
@@ -299,7 +302,7 @@ class CCFit(BaseTask, BaseOperator):
             params["jobdir"] = job_path
             params["job_name"] = "CC_" + self.cc_type.upper()
             params["elements"] = dataset_params
-            params["wait"] = True
+            params["wait"] = False
             params["memory"] = CC_TYPES_MEM_CPU[self.cc_type][0]
             params["cpu"] = CC_TYPES_MEM_CPU[self.cc_type][1]
             # job command
