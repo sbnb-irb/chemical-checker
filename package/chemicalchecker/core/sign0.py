@@ -309,6 +309,7 @@ class sign0(BaseSignature, DataSignature):
         if validations:
             self.__log.debug("Validate")
             self.validate()
+            sign0_ref.validate()
         # Marking as ready
         self.__log.debug("Mark as ready")
         sign0_ref.mark_ready()
