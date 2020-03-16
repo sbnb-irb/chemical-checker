@@ -58,18 +58,16 @@ SIGN3_SCRIPT_F = [
     "sign3_full.fit(sign2_list,sign_full)"
 ]
 
-SIGN0_SCRIPT_F = [
+SIGN0_SCRIPT_FR = [
     "if len(pars) == 0:",
     "    prepro_file = cc.preprocess(sign_full)",
+    "    cc_old = ChemicalChecker('<CC_OLD_PATH>')"
     "    pars['data_file'] = prepro_file",
-    "    pars['do_triplets'] = False",
+    "    pars['cc'] = cc_old",
     "sign_full.fit(**pars)"
 ]
 
-SIGN0_SCRIPT_FR = SIGN0_SCRIPT_F
-
-SPECIFIC_SCRIPTS = {'sign0': (SIGN0_SCRIPT_FR, SIGN0_SCRIPT_F),
-                    'sign2': (SIGN2_SCRIPT_FR, SIGN2_SCRIPT_F)}
+SPECIFIC_SCRIPTS = {'sign2': (SIGN2_SCRIPT_FR, SIGN2_SCRIPT_F)}
 
 SPECIAL_PARAMS = {'sign2': {'adanet': {'cpu': 16}, 'node2vec': {'cpu': 4}},
                   'neig1': {'cpu': 15},
@@ -105,6 +103,10 @@ class CCFit(BaseTask, BaseOperator):
         self.general_data_params = params.get('general_params', None)
         self.target_datasets = params.get('target_datasets', None)
         self.ref_datasets = params.get('reference_datasets', None)
+        self.cc_old_path = params.get('cc_old_path', None)
+
+        if self.cc_type == 'sign0' and self.ds_data_params is None and self.cc_old_path is None:
+            raise Exception("CCFit for sign0 requires cc_old_path if no parameters provided")
 
     def run(self):
         """Run the CCFit task."""
@@ -240,6 +242,13 @@ class CCFit(BaseTask, BaseOperator):
                         dependency + " CC type is not available and it is required for " + self.cc_type)
 
         job_path = None
+
+        if self.cc_old_path is not None:
+            SPECIFIC_SCRIPTS['sign0'] = (SIGN0_SCRIPT_FR.replace('<CC_OLD_PATH>', self.cc_old_path), 
+                                        SIGN0_SCRIPT_FR.replace('<CC_OLD_PATH>', self.cc_old_path))
+        else:
+            SPECIFIC_SCRIPTS['sign0'] = (SIGN0_SCRIPT_FR, SIGN0_SCRIPT_FR)
+
         if len(dataset_codes) > 0:
 
             dataset_codes.sort()
