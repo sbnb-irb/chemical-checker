@@ -62,6 +62,7 @@ SIGN0_SCRIPT_F = [
     "if len(pars) == 0:",
     "    prepro_file = cc.preprocess(sign0)",
     "    pars['data_file'] = prepro_file",
+    "    pars['do_triplets'] = False",
     "sign_full.fit(**pars)"
 ]
 
