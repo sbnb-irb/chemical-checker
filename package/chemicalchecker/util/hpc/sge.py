@@ -88,6 +88,7 @@ fi
                 yield i
         elif isinstance(l, dict):
             keys = list(l.keys())
+            keys.sort()
             for i in np.array_split(keys, n):
                 yield {k: l[k] for k in i}
         else:
