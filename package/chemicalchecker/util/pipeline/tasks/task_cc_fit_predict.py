@@ -59,22 +59,13 @@ SIGN3_SCRIPT_F = [
 ]
 
 SIGN0_SCRIPT_F = [
-    "sign_full.fit()"
+    "if len(pars) == 0:",
+    "    prepro_file = cc.preprocess(sign0)",
+    "    pars['data_file'] = prepro_file",
+    "sign_full.fit(**pars)"
 ]
 
-SIGN0_SCRIPT_FR = [
-    "from chemicalchecker.util.remove_near_duplicates import RNDuplicates",
-    "sign_full.fit()",
-    "rnd = RNDuplicates(cpu=%d)" % CC_TYPES_MEM_CPU['sign0'][1],
-    "rnd.remove(sign_full.data_path, save_dest=sign_ref.data_path)",
-    "f5 = h5py.File(sign_full.data_path)",
-    "if 'features' in f5.keys():"
-    "    features = f5['features'][:]",
-    "    f5.close()",
-    "    with h5py.File(sign_ref.data_path, 'a') as hf:",
-    "        hf.create_dataset('features', data=features)",
-    "    sign_ref.mark_ready()"
-]
+SIGN0_SCRIPT_FR = SIGN0_SCRIPT_F
 
 SPECIFIC_SCRIPTS = {'sign0': (SIGN0_SCRIPT_FR, SIGN0_SCRIPT_F),
                     'sign2': (SIGN2_SCRIPT_FR, SIGN2_SCRIPT_F)}
