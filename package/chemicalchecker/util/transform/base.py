@@ -53,7 +53,8 @@ class BaseTransform(object):
 
     def overwrite(self, sign1, V, keys):
         self.reindex_triplets(sign1, keys)
-        with h5py.File(sign1.data_path, "r+") as hf:
+        data_path = sign1.data_path
+        with h5py.File(data_path, "r+") as hf:
             del hf["V"]
             hf["V"] = V
             del hf["keys"]
