@@ -34,6 +34,8 @@ def main(args):
     if args.entry_point is None:
         args.entry_point = entry_point_keys
 
+    features = None
+
     if args.method == "fit":
 
         molrepos = Molrepo.get_universe_molrepos()
