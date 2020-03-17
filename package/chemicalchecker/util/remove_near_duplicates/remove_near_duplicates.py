@@ -30,7 +30,7 @@ class RNDuplicates():
         self.nbits = nbits
         self.only_duplicates = only_duplicates
         self.cpu = cpu
-        self.threshold = 1000000
+        self.threshold = 100000
         self.chunk = 1000
         self.data_file = ''
         self.__log.debug('RNDuplicates to use ' + str(self.nbits) + " bits")
@@ -64,7 +64,7 @@ class RNDuplicates():
                     raise Exception(
                         "H5 file " + data + " does not contain datasets 'keys' and 'V'")
                 data_size = dh5["V"].shape
-                if data_size[0] < self.threshold or self.only_duplicates:
+                if (data_size[0] < self.threshold and data_size[1] < self.threshold) or self.only_duplicates:
                     self.data = np.array(dh5["V"][:], dtype=np.float32)
                 else:
                     self.data = None
@@ -129,11 +129,11 @@ class RNDuplicates():
 
             indexlsh = faiss.IndexLSH(data_size[1], self.nbits)
 
-            if data_size[0] > self.threshold:
+            if self.data is None:
 
                 starts = range(0, data_size[0], self.chunk)
 
-                dh5 = h5py.File(data, 'r')
+                dh5 = h5py.File(self.data_file, 'r')
 
                 for start in starts:
 
