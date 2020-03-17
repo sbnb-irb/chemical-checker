@@ -137,11 +137,11 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
                     max_tas = x[2]
         return sel
 
-    sigs = dict((k, get_exemplar(v)) for k, v in sigs.iteritems())
+    sigs = dict((k, get_exemplar(v)) for k, v in sigs.items())
 
     cids = []
     with open(mini_sig_info_file, "w") as f:
-        for k, v in sigs.iteritems():
+        for k, v in sigs.items():
             if v[1] == 1:
                 x = sig_info_i[v[0]]
             else:

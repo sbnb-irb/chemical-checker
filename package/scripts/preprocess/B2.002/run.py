@@ -134,7 +134,7 @@ def main(args):
     # To save the signature0, the data needs to be in the form of a dictionary
     # where the keys are inchikeys and the values are a list with the data.
     # For sparse data, we can use [word] or [(word, integer)].
-    key_raw = dict((k, sorted(v)) for k, v in key_enzyme.iteritems())
+    key_raw = dict((k, sorted(v)) for k, v in key_enzyme.items())
 
     Preprocess.save_output(args.output_file, key_raw, args.method,
                 args.models_path, dataset.discrete, features)

@@ -366,7 +366,7 @@ class DataCalculator():
                 targs_ = collections.defaultdict(list)
                 for t in targs:
                     targs_[t[0]] += [t[1]]
-                targs_ = dict((k, np.max(v)) for k, v in targs_.iteritems())
+                targs_ = dict((k, np.max(v)) for k, v in targs_.items())
                 targs = sorted(targs_.items(), key=lambda x: -x[1])
                 dense = ",".join("%s(%d)" % x for x in targs)
                 result = {
