@@ -259,6 +259,9 @@ class Preprocess():
             for i in inds:
                 data.append(inchikey_raw[keys[i]])
 
+            if features is None:
+                features = [str(i) for i in range(1,len(data[0]) + 1)]
+
             with h5py.File(output_file, "w") as hf:
                 hf.create_dataset("keys", data=np.array(keys[inds], DataSignature.string_dtype()))
                 hf.create_dataset("X", data=np.array(data))
