@@ -76,7 +76,7 @@ def dcx_to_cc_dicts(map_files):
     pertid_meta = pertid_to_meta(map_files)
     dcx_cc = collections.defaultdict(set)
     cc_dcx = collections.defaultdict(set)
-    for dcx, pertids in dcx_pertid.iteritems():
+    for dcx, pertids in dcx_pertid.items():
         for pertid in pertids:
             if pertid in lincs_inchikey:
                 k = (lincs_inchikey[pertid], "cp")
@@ -171,7 +171,7 @@ def main(args):
                     key_pairs[(cc, hit[0])] += [hit[1]]
         key_pairs = dict((k, np.max(v)) for k, v in key_pairs.items())
         key_raw = collections.defaultdict(list)
-        for k, v in key_pairs.iteritems():
+        for k, v in key_pairs.items():
             key_raw[str(k[0][0])] += [(str(k[1][0] + "_" + k[1][1]), v)]
         features = sorted(set([x[0] for v in key_raw.values() for x in v]))
 

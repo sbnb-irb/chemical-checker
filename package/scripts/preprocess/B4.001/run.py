@@ -200,13 +200,13 @@ def create_class_prot():
         G.add_edge(r[1], r[0])  # The tree
 
     kinase_idx = set([x for w in kinase_idx for k, v in nx.dfs_successors(
-        G, w).iteritems() for x in v] + kinase_idx)
+        G, w).items() for x in v] + kinase_idx)
     gpcr_idx = set([x for w in gpcr_idx for k, v in nx.dfs_successors(
-        G, w).iteritems() for x in v] + gpcr_idx)
+        G, w).items() for x in v] + gpcr_idx)
     nuclear_idx = set([x for w in nuclear_idx for k, v in nx.dfs_successors(
-        G, w).iteritems() for x in v] + nuclear_idx)
+        G, w).items() for x in v] + nuclear_idx)
     ionchannel_idx = set([x for w in ionchannel_idx for k, v in nx.dfs_successors(
-        G, w).iteritems() for x in v] + ionchannel_idx)
+        G, w).items() for x in v] + ionchannel_idx)
 
     R = psql.qstring("SELECT cs.accession, cc.protein_class_id FROM component_sequences cs, component_class cc WHERE cs.component_id = cc.component_id AND cs.accession IS NOT NULL", chembl_dbname)
 

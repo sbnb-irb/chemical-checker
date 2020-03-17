@@ -107,7 +107,7 @@ def parse_chembl(ACTS=None):
         act = dirs[r[3]]
         ACTS[(inchikey, uniprot_ac, inchikey_inchi[inchikey])] += [act]
 
-    ACTS = dict((k, decide(v)) for k, v in ACTS.iteritems())
+    ACTS = dict((k, decide(v)) for k, v in ACTS.items())
 
     return ACTS
 
@@ -213,8 +213,8 @@ def parse_drugbank(ACTS=None, drugbank_xml=None):
 
     # Save activities
 
-    for inchikey, targs in DB.iteritems():
-        for uniprot_ac, actions in targs.iteritems():
+    for inchikey, targs in DB.items():
+        for uniprot_ac, actions in targs.items():
             if (inchikey, uniprot_ac, inchikey_inchi[inchikey]) in ACTS:
                 continue
             d = []
@@ -248,7 +248,7 @@ def put_hierarchy(ACTS):
 
     classACTS = {}
 
-    for k, v in ACTS.iteritems():
+    for k, v in ACTS.items():
         classACTS[k] = v
         if k[1] not in class_prot:
             continue
