@@ -735,7 +735,6 @@ class sign4(BaseSignature, DataSignature):
             hf.create_dataset('consensus', data=consensus)
             hf.create_dataset('applicability', data=applicability)
             hf.create_dataset('applicability_range', data=app_range)
-            hf.create_dataset('centrality', data=centrality)
             hf.create_dataset('prior', data=prior)
             hf.create_dataset('correlation', data=correlations)
             hf.create_dataset('log_mse', data=log_mse)
@@ -750,7 +749,7 @@ class sign4(BaseSignature, DataSignature):
         # neighbors between 5 and 25 depending on the size of the dataset
         app_thr = int(np.clip(np.log10(self.neig_sign.shape[0])**2, 5, 25))
         preds, apps, ranges = list(), list(), list()
-        for i in range(n_samples):
+        for i in tqdm(range(n_samples)):
             pred = siamese.predict(dropout_fn(features))
             only_self_dists, _ = neig_index.search(pred, app_thr)
             if app_range is None:
