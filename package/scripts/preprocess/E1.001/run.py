@@ -99,10 +99,13 @@ def break_atcs(inchikey_atc):
         E = "E:%s" % atc
         return [A, B, C, D, E]
 
-    inchikey_raw = collections.defaultdict(set)
+    inchikey_raw_temp = collections.defaultdict(set)
     for k, v in inchikey_atc.items():
         for x in v:
-            inchikey_raw[k].update(break_atc(x))
+            inchikey_raw_temp[k].update(break_atc(x))
+
+    inchikey_raw = {k: list(v) for k,v in inchikey_raw_temp.items()}
+    del inchikey_raw_temp
 
     return inchikey_raw
 
