@@ -7,8 +7,8 @@ from .base import BaseTransform
 
 class Scale(BaseTransform):
     """Robustly scale a dataset"""
-    def __init__(self, sign1, percentile=99.9, z_extreme=10, max_keys=10000, **kwargs):
-        BaseTransform.__init__(self, sign1, "scale", max_keys)
+    def __init__(self, sign1, tmp=False, percentile=99.9, z_extreme=10, max_keys=10000, **kwargs):
+        BaseTransform.__init__(self, sign1, "scale", max_keys, tmp)
         self.percentile = percentile
         self.z_extreme = z_extreme
 
