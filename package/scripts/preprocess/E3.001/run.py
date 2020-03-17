@@ -26,14 +26,17 @@ def parse_sider(sider_file):
             continue
         cid_inchikey[molrepo.src_id] = molrepo.inchikey
 
-    inchikey_raw = collections.defaultdict(set)
+    inchikey_raw_temp = collections.defaultdict(set)
     with open(sider_file, "r") as f:
         for l in f:
             l = l.rstrip("\n").split("\t")
             cid = l[1]
             if cid not in cid_inchikey:
                 continue
-            inchikey_raw[cid_inchikey[cid]].update([l[2]])
+            inchikey_raw_temp[cid_inchikey[cid]].update([l[2]])
+
+    inchikey_raw = {k: list(v) for k,v in inchikey_raw_temp.items()}
+    del inchikey_raw_temp
 
     return inchikey_raw
 
