@@ -92,6 +92,7 @@ class sign4(BaseSignature, DataSignature):
 
         s1_ref = self.get_sign('sign1').get_molset("reference")
         opt_t_file = os.path.join(s1_ref.model_path, "opt_t.h5")
+        #opt_t_file = os.path.join(self.model_path, "opt_t.h5")
         try:
             opt_t = DataSignature(opt_t_file).get_h5_dataset('opt_t')
             default_sign2.update({'t_per': opt_t})
@@ -828,6 +829,8 @@ class sign4(BaseSignature, DataSignature):
         test_inks = traintest.get_h5_dataset('keys_test')
         train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks)).flatten()
         test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks)).flatten()
+        unknown_idxs = np.array(list(set(np.arange(len(all_inchikeys))) - (set(train_idxs) | set(test_idxs))))
+        unknown_idxs = np.sort(np.random.choice(unknown_idxs, 5000, replace=False))
 
         # predict
         pred = dict()
@@ -850,8 +853,7 @@ class sign4(BaseSignature, DataSignature):
             del test
             self.__log.info('VALIDATION: Predicting unknown.')
             pred['unknown'] = dict()
-            unknown = self.read_unknown(
-                full_x, np.hstack((train_idxs, test_idxs)))
+            unknown = self.read_h5(full_x, unknown_idxs[:5000])
             self.__log.info('Number of unknown %s' % len(unknown))
             for name, mask_fn in mask_fns.items():
                 if name == 'ALL':
@@ -905,35 +907,55 @@ class sign4(BaseSignature, DataSignature):
             plt.close()
 
         self.__log.info('VALIDATION: Plot Projections.')
-        plt.figure(figsize=(10, 10), dpi=200)
+        fig, axes = plt.subplots(2, 2, sharex=True, sharey=True, 
+            figsize=(10, 10), dpi=200)
         proj_model = MulticoreTSNE(n_components=2)
+        proj_limit = min(500, len(pred['test']['ALL']))
         proj_train = np.vstack([
-            pred['train']['ALL'][:500],
-            pred['test']['ALL'][:500],
-            pred['unknown']['ALL'][:1000],
-            np.vstack([pred['train']['ONLY-SELF'][-250:],
-                       pred['test']['ONLY-SELF'][-250:]])
-        ])
+                pred['train']['ALL'][:proj_limit],
+                pred['test']['ALL'][:proj_limit],
+                pred['unknown']['ALL'][:(proj_limit*2)],
+                pred['test']['ONLY-SELF'][-proj_limit:]
+            ])
         proj = proj_model.fit_transform(proj_train)
-        dist_tr = proj[:500]
-        dist_ts = proj[500:1000]
-        dist_uk = proj[1000:2000]
-        dist_os = proj[2000:]
-        plt.title('TSNE')
-        plt.scatter(dist_tr[:, 0], dist_tr[:, 1],
-                    alpha=.9, label='tr', s=10)
-        plt.scatter(dist_ts[:, 0], dist_ts[:, 1],
-                    alpha=.6, label='ts', s=10)
-        plt.scatter(dist_uk[:, 0], dist_uk[:, 1],
-                    alpha=.4, label='unk', s=10)
-        plt.scatter(dist_os[:, 0], dist_os[:, 1],
-                    alpha=.4, label='only-self', s=10)
-        plt.legend()
+        dist_tr = proj[:proj_limit]
+        dist_ts = proj[proj_limit:(proj_limit*2)]
+        dist_uk = proj[(proj_limit*2):(proj_limit*4)]
+        dist_os = proj[(proj_limit*4):]
+
+        axes[0][0].set_title('Train')
+        axes[0][0].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="grey")
+        axes[0][0].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="grey")
+        axes[0][0].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="grey")
+        axes[0][0].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="#1f77b4")
+
+        axes[0][1].set_title('Test')
+        axes[0][1].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="grey")
+        axes[0][1].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="grey")
+        axes[0][1].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="grey")
+        axes[0][1].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="#ff7f0e")
+
+        axes[1][0].set_title('Unknown')
+        axes[1][0].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="grey")
+        axes[1][0].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="grey")
+        axes[1][0].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="grey")
+        axes[1][0].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="#2ca02c")
+
+        axes[1][1].set_title('ONLY-SELF')
+        axes[1][1].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="grey")
+        axes[1][1].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="grey")
+        axes[1][1].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="grey")
+        axes[1][1].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="#d62728")
 
         fname = 'known_unknown_projection.png'
         plot_file = os.path.join(siamese.model_dir, fname)
         plt.savefig(plot_file)
         plt.close()
+
+        self.__log.info('VALIDATION: Plot Subsampling.')
+        fname = 'known_unknown_sampling.png'
+        plot_file = os.path.join(siamese.model_dir, fname)
+        plot_subsample(plot_file, ds=self.dataset)
 
     def plot_validations_2(self, siamese, dataset_idx, traintest_file,
                            chunk_size=10000, limit=1000, dist_limit=1000):
@@ -1937,7 +1959,7 @@ class sign4(BaseSignature, DataSignature):
             sign2_coverage=None, sign0=None,
             model_confidence=True, save_correlations=False,
             predict_novelty=True, update_preds=True,
-            validations=True, chunk_size=1000):
+            validations=True, chunk_size=1000, suffix=None):
         """Fit the model to predict the signature 3.
 
         Args:
@@ -1998,11 +2020,19 @@ class sign4(BaseSignature, DataSignature):
         prior_mdl = None
         conf_mdl = None
 
-        eval_model_path = os.path.join(self.model_path, 'siamese_eval')
-        eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
-        if not os.path.isfile(eval_file):
-            siamese, prior_mdl, conf_mdl = self.learn_sign2(
-                self.params['sign2'], suffix='eval', evaluate=True)
+        if suffix == None:
+            eval_model_path = os.path.join(self.model_path, 'siamese_eval')
+            eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
+            if not os.path.isfile(eval_file):
+                siamese, prior_mdl, conf_mdl = self.learn_sign2(
+                    self.params['sign2'], suffix='eval', evaluate=True)
+        else:
+            eval_model_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
+            eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
+            if not os.path.isfile(eval_file):
+                siamese, prior_mdl, conf_mdl = self.learn_sign2(
+                    self.params['sign2'], suffix=suffix, evaluate=True)
+            return False
 
         # check if we have the final trained model
         final_model_path = os.path.join(self.model_path, 'siamese_final')
@@ -2363,7 +2393,7 @@ def subsample(tensor, sign_width=128,
     return new_data
 
 
-def plot_subsample(traintest_file=None, ds='B1.001', limit=10000):
+def plot_subsample(plotpath, ds='B1.001', p_self=.1, p_only_self=0., limit=10000):
     import os
     import numpy as np
     import pandas as pd
@@ -2509,5 +2539,5 @@ def plot_subsample(traintest_file=None, ds='B1.001', limit=10000):
                 palette=['gold', 'forestgreen', 'crimson', 'royalblue'])
 
     plt.tight_layout()
-    plt.savefig('subsample_dataset.png')
+    plt.savefig(plotpath)
     plt.close()
