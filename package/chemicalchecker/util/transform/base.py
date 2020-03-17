@@ -13,14 +13,17 @@ from chemicalchecker.util import logged
 @logged
 class BaseTransform(object):
     """Base transform class"""
-    def __init__(self, sign1, name, max_keys):
+    def __init__(self, sign1, name, max_keys, tmp):
         """Initialize with a full sign1"""
         self.sign = sign1
         if self.sign.cctype != "sign1":
             raise Exception("Transformations are only allowed for signature 1")
         if self.sign.molset != "full":
             raise Exception("This is a high level functionality of the CC. Only 'full' molset is allowed.")
-        self.sign_ref = self.sign.get_molset("reference")
+        if tmp:
+            self.sign_ref = self.sign.get_molset("tmp")
+        else:
+            self.sign_ref = self.sign.get_molset("reference")
         self.name = name
         self.model_path = self.sign_ref.model_path
         self.max_keys = max_keys

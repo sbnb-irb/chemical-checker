@@ -42,7 +42,6 @@ class sign1(BaseSignature, DataSignature):
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(self.signature_path, "sign1.h5")
         DataSignature.__init__(self, self.data_path)
-        self.data_path_tmp = os.path.join(self.signature_path, "sign1_tmp.h5")
 
     def copy_sign0_to_sign1(self, s0, s1):
         """Copy from sign0 to sign1"""
@@ -92,10 +91,14 @@ class sign1(BaseSignature, DataSignature):
         else:
             self.__log.warn("No triplets available!")
 
+    def delete(self):
+        """Delete the folder where the signature is stored"""
+        shutil.rmtree(self.signature_path)
+
     def was_sparse(self, max_keys=1000, zero_prop=0.5):
         """Guess if the matrix was sparse"""
         vals = self.subsample(max_keys)[0].ravel()
-        if np.sum(vals != 0)/len(vals) > zero_prop:
+        if np.sum(vals == 0)/len(vals) > zero_prop:
             self.__log.debug("Matrix was probably sparse")
             return True
         else:
@@ -106,67 +109,116 @@ class sign1(BaseSignature, DataSignature):
         fn = os.path.join(self.get_molset("reference").model_path, "pipeline.pkl")
         return fn
 
+    def filter_keys(self, keys):
+        """Filter keys of the signature. It overwrites the current signature!"""
+        mask = np.isin(self.keys[:], keys)
+        if np.sum(mask) == 0:
+            raise Exception("No keys are in common...")
+        self.__log.debug("Filtering dataset")
+        V = self[:][mask]
+        keys = self.keys[:][mask]
+        self.__log.debug("Checking if mappings exist")
+        if "mappings" in self.info_h5:
+            mappings = self.get_h5_dataset("mappings")[:][mask]
+        else:
+            mappings = None
+        self.__log.debug("Checking if triplets exist")
+        tfn = os.path.join(self.model_path, "triplets.h5")
+        if os.path.exists(tfn):
+            self.__log.debug("Triplets found. Reindexing")
+            idxs = {}
+            j = 0
+            for i, m in enumerate(mask):
+                if m:
+                    idxs[i] = j
+                    j += 1
+            with h5py.File(tfn, "r") as hf:
+                triplets = hf["triplets"][:]
+            print(triplets)
+            triplets_ = []
+            for i in range(triplets.shape[0]):
+                t = "pass"
+
+        else:
+            triplets = None
+        self.__log.debug("Overwriting H5 dataset")
+        with h5py.File(self.data_path, "w") as hf:
+            
+            hf.create_dataset("V", data=V)
+            hf.create_dataset("keys", data=keys)
+            
+
+        return mask
+
     def fit(self, sign0, latent=True, scale=True, remove_outliers=False, metric_learning=True, semisupervised=False):
         """Fit a signature 1, given a signature 0
 
             Args:
                 sign0: A signature 0.
         """
+        self.clean()
+        s0 = sign0
         self.__log.debug("Fitting")
-        if sign0.cctype != "sign0":
+        if s0.cctype != "sign0":
             raise Exception("A signature type 0 is expected..!")
-        if sign0.molset != "full":
+        if s0.molset != "full":
             raise Exception("Fit should be done with the full signature 0 (even if inside reference is used)")
-        sign0_ref = sign0.get_molset("reference")
-        sign1_ref = self.get_molset("reference")
+        s0_ref = s0.get_molset("reference")
+        s1_ref = self.get_molset("reference")
         self.__log.debug("Placing sign0 to sign1 (done for reference)")
-        self.copy_sign0_to_sign1(sign0_ref, sign1_ref)
+        self.copy_sign0_to_sign1(s0_ref, s1_ref)
         self.__log.debug("Placing sign0 to sign1 (done for full)")
-        self.copy_sign0_to_sign1(sign0, self)
+        self.copy_sign0_to_sign1(s0, self)
         self.__log.debug("Backing up signature")
-        sign1_tmp = sign1_ref.get_molset("tmp")
+        s1_tmp = s1_ref.get_molset("tmp")
+        self.__log.debug("Placing sign1 to tmp (done for reference")
+        self.copy_sign1_to_tmp(s1_ref, s1_tmp)
         self.__log.debug("Checking if matrix was sparse or not")
-        if latent:
-            self.__log.debug("Looking for latent variables")
-            sparse = sign1_ref.was_sparse(max_keys=max_keys, zero_prop=zero_prop)
-            if sparse:
-                self.__log.debug("Starting pipeline for sparse matrix (TFIDF LSI)")
-                mod = Lsi()
+        sparse = s1_tmp.was_sparse()
+        if sparse:
+            self.__log.debug("Sparse matrix pipeline")
+            if latent:
+                self.__log.debug("Looking for latent variables with TFIDF-LSI")
+                mod = Lsi(self, tmp=True)
                 mod.fit()
             else:
-                self.__log.debug("Starting pipeline for dense matrix")
-                if scale:
-                    self.__log.debug("Scaling")
-                    mod = Scale()
-                    mod.fit()
-                else:
-                    self.__log.debug("Not scaling")
-                self.__log.debug("PCA")
-                mod = Pca()
-                mod.fit()
+                self.__log.debug("Not looking for latent variables")
         else:
-            self.__log.debug("Not looking for latent variables")
-            sparse = None
+            self.__log.debug("Dense matrix pipeline")
+            if scale:
+                self.__log.debug("Scaling (done for tmp and reference)")
+                mod = Scale(self, tmp=True)
+                mod.fit()
+                mod.predict(s1_ref)
+            else:
+                self.__log.debug("Not scaling")
+            if latent:
+                mod = Pca(self, tmp=True)
+                mod.fit()
+            else:
+                self.__log.debug("Not looking for latent variables")
         if remove_outliers:
             self.__log.debug("Looking for further outliers")
-            mod = OutlierRemover()
+            mod = OutlierRemover(s1_tmp)
             mod.fit()
         else:
             self.__log.debug("Not looking for further outliers")
             pass
+        self.__log.debug("Filtering reference (keep only molecules that passed previous steps)")
+        s1_ref = s1_ref.filter_keys(s1_tmp.keys)
         self.__log.debug("Pipeline done, now doing metric learning")
         if metric_learning:
             self.__log.debug("Not learning any metric")
-            mod = NoMetricLearn()
+            mod = NoMetricLearn(s1_ref)
             mod.fit()
         else:
             if semisupervised:
-                self.__log.debug("")
-                mod = SemiSupervisedMetricLearn()
+                self.__log.debug("Semi-supervised metric learning")
+                mod = SemiSupervisedMetricLearn(s1_ref)
                 mod.fit()
             else:
                 self.__log.debug("Unsupervised metric learning")
-                mod = UnsupervisedMetricLearn()
+                mod = UnsupervisedMetricLearn(s1_ref)
                 mod.fit()
         self.__log.debug("Saving pipeline")
         pipeline = {
@@ -180,6 +232,10 @@ class sign1(BaseSignature, DataSignature):
         fn = self.pipeline_file()
         with open(fn, "wb") as f:
             pickle.dump(pipeline, f)
+        self.__log.debug("Moving models from tmp to reference")
+        
+        self.__log.debug("Deleting tmp folder")
+        s1_tmp.delete()
         
     def predict(self, sign0):
         """Predict sign1 from sign0"""
