@@ -24,7 +24,7 @@ MIN_LR = 1e-8
 class AlphaDropoutCP(keras.layers.AlphaDropout):
 
     def __init__(self, rate, cp=None, noise_shape=None, seed=None, **kwargs):
-        super(AlphaDropoutCP, self).__init__(**kwargs)
+        super(AlphaDropoutCP, self).__init__(rate, **kwargs)
         self.cp = cp
         self.rate = rate
         self.noise_shape = noise_shape
