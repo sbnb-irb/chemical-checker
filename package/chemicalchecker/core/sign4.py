@@ -829,7 +829,7 @@ class sign4(BaseSignature, DataSignature):
         train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks)).flatten()
         test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks)).flatten()
 
-        #predict
+        # predict
         pred = dict()
         pred_file = os.path.join(siamese.model_dir, 'plot_preds.pkl')
         if not os.path.isfile(pred_file):
@@ -850,7 +850,8 @@ class sign4(BaseSignature, DataSignature):
             del test
             self.__log.info('VALIDATION: Predicting unknown.')
             pred['unknown'] = dict()
-            unknown = self.read_unknown(full_x, np.hstack((train_idxs, test_idxs)))
+            unknown = self.read_unknown(
+                full_x, np.hstack((train_idxs, test_idxs)))
             self.__log.info('Number of unknown %s' % len(unknown))
             for name, mask_fn in mask_fns.items():
                 if name == 'ALL':
@@ -858,11 +859,11 @@ class sign4(BaseSignature, DataSignature):
                 else:
                     pred['unknown'][name] = []
             del unknown
-            pickle.dump(pred, open(pred_file, "wb" ))
+            pickle.dump(pred, open(pred_file, "wb"))
         else:
             pred = pickle.load(open(pred_file, 'rb'))
 
-        #Plot
+        # Plot
         self.__log.info('VALIDATION: Plot correlations.')
         fig, axes = plt.subplots(
             1, 3, sharex=True, sharey=False, figsize=(10, 3))
@@ -904,15 +905,15 @@ class sign4(BaseSignature, DataSignature):
             plt.close()
 
         self.__log.info('VALIDATION: Plot Projections.')
-        plt.figure(figsize=(10,10),dpi=200)
+        plt.figure(figsize=(10, 10), dpi=200)
         proj_model = MulticoreTSNE(n_components=2)
         proj_train = np.vstack([
-                pred['train']['ALL'][:500],
-                pred['test']['ALL'][:500],
-                pred['unknown']['ALL'][:1000],
-                np.vstack([pred['train']['ONLY-SELF'][-250:], 
-                    pred['test']['ONLY-SELF'][-250:]])
-            ])
+            pred['train']['ALL'][:500],
+            pred['test']['ALL'][:500],
+            pred['unknown']['ALL'][:1000],
+            np.vstack([pred['train']['ONLY-SELF'][-250:],
+                       pred['test']['ONLY-SELF'][-250:]])
+        ])
         proj = proj_model.fit_transform(proj_train)
         dist_tr = proj[:500]
         dist_ts = proj[500:1000]
@@ -920,20 +921,19 @@ class sign4(BaseSignature, DataSignature):
         dist_os = proj[2000:]
         plt.title('TSNE')
         plt.scatter(dist_tr[:, 0], dist_tr[:, 1],
-                          alpha=.9, label='tr', s=10)
+                    alpha=.9, label='tr', s=10)
         plt.scatter(dist_ts[:, 0], dist_ts[:, 1],
-                          alpha=.6, label='ts', s=10)
+                    alpha=.6, label='ts', s=10)
         plt.scatter(dist_uk[:, 0], dist_uk[:, 1],
-                          alpha=.4, label='unk', s=10)
+                    alpha=.4, label='unk', s=10)
         plt.scatter(dist_os[:, 0], dist_os[:, 1],
-                          alpha=.4, label='only-self', s=10)
+                    alpha=.4, label='only-self', s=10)
         plt.legend()
 
         fname = 'known_unknown_projection.png'
         plot_file = os.path.join(siamese.model_dir, fname)
         plt.savefig(plot_file)
         plt.close()
-        
 
     def plot_validations_2(self, siamese, dataset_idx, traintest_file,
                            chunk_size=10000, limit=1000, dist_limit=1000):
@@ -2356,65 +2356,151 @@ def subsample(tensor, sign_width=128,
     return new_data
 
 
-def plot_subsample(ds='B1.001', p_self=.1, p_only_self=0., limit=10000):
+def plot_subsample(traintest_file=None, ds='B1.001', limit=10000):
     import os
     import numpy as np
+    import pandas as pd
+    import seaborn as sns
+    from functools import partial
     import matplotlib.pyplot as plt
     from chemicalchecker import ChemicalChecker
     from chemicalchecker.core.signature_data import DataSignature
+    from chemicalchecker.util.splitter import NeighborTripletTraintest
     from chemicalchecker.core.sign4 import subsample, subsampling_probs
 
+    # get traintest file
     cc = ChemicalChecker()
-    s4 = cc.get_signature("sign3", "full", ds)
-    s4_X = os.path.join(s4.model_path, 'train.h5')
-    data_X = DataSignature(s4_X)
-    shape_X = data_X.info_h5['x']
-    limit = min(shape_X[0], limit)
-    X = data_X.get_h5_dataset('x', mask=np.arange(limit))
-    sign_width = 128
+    s4 = cc.get_signature("sign4", "full", ds)
+    traintest_file = os.path.join(s4.model_path, 'traintest_eval.h5')
 
+    # get triplet generator
     dataset_idx = np.argwhere(
         np.isin(list(cc.datasets_exemplary()), ds)).flatten()
     sign2_coverage = '/aloy/web_checker/current/full/all_sign2_coverage.h5'
     p_nr, p_keep = subsampling_probs(sign2_coverage, dataset_idx)
+    augment_kwargs = {
+        'p_nr': p_nr, 'p_keep': p_keep, 'dataset_idx': dataset_idx,
+        'p_only_self': 0.0}
+    tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
+        traintest_file,
+        'train_train',
+        batch_size=10,
+        replace_nan=np.nan,
+        augment_fn=subsample,
+        augment_kwargs=augment_kwargs,
+        train=True)
+    tr_gen = tr_shape_type_gen[2]
 
-    X1 = subsample(X, dataset_idx=[dataset_idx], p_nr=p_nr, p_keep=p_keep,
-                   p_self=p_self, p_only_self=p_only_self)
+    # get known unknown
+    cov = DataSignature(sign2_coverage).get_h5_dataset('V')
+    unknown = cov[(cov[:, dataset_idx] == 0).flatten()]
+    known = cov[(cov[:, dataset_idx] == 1).flatten()]
 
-    presence_X = ~np.isnan(X[:, 0::sign_width])
-    presence_X1 = ~np.isnan(X1[:, 0::sign_width])
+    # get dataset probabilities
+    probs_ds = {
+        'space': np.array([d[:2] for d in cc.datasets_exemplary()]),
+        'known': np.sum(known, axis=0) / known.shape[0],
+        'unknown': np.sum(unknown, axis=0) / unknown.shape[0],
+        'p_keep': p_keep}
+    df_probs_ds = pd.DataFrame(probs_ds)
+    df_probs_ds = df_probs_ds.melt(id_vars=['space'])
+    df_probs_ds['probabilities'] = df_probs_ds['value']
 
-    _, freq_nr_X = np.unique(
-        np.sum(presence_X, axis=1).astype(int), return_counts=True)
-    _, freq_nr_X1 = np.unique(
-        np.sum(presence_X1, axis=1).astype(int), return_counts=True)
-    freq_nr_noself = p_nr * limit
+    # get nr probabilities
+    nnrs, freq_nrs = np.unique(
+        np.sum(unknown, axis=1).astype(int), return_counts=True)
+    unknown_nr = np.zeros((25,))
+    unknown_nr[nnrs] = freq_nrs
+    nnrs, freq_nrs = np.unique(
+        np.sum(known, axis=1).astype(int), return_counts=True)
+    known_nr = np.zeros((25,))
+    known_nr[nnrs] = freq_nrs
+    probs_nr = {
+        'nr_ds': np.arange(25),
+        'known': known_nr / np.sum(known_nr),
+        'unknown': unknown_nr / np.sum(unknown_nr),
+        'p_nr': p_nr}  # == p_nr
+    df_probs_nr = pd.DataFrame(probs_nr)
+    df_probs_nr = df_probs_nr.melt(id_vars=['nr_ds'])
+    df_probs_nr['probabilities'] = df_probs_nr['value']
 
-    plt.figure(figsize=(12, 12), dpi=100)
-    plt.subplot(2, 1, 1)
-    plt.title('which dataset')
-    plt.bar(np.arange(25) - 0.2, np.sum(presence_X, axis=0),
-            width=.2, alpha=.8, label='original')
-    plt.bar(np.arange(25) + 0.2, np.sum(presence_X1, axis=0),
-            width=.2, alpha=.8, label='subsampled')
-    plt.xlim(-1, 25)
-    plt.xticks(np.arange(25), [x[:2] for x in cc.datasets_exemplary()])
+    # get sampled dataset presence counts
+    ds_a = np.zeros((25,))
+    ds_p = np.zeros((25,))
+    ds_n = np.zeros((25,))
+    ds_o = np.zeros((25,))
+    batch = 0
+    for (a, p, n, o), y in tr_gen():
+        ds_a += np.sum(~np.isnan(a[:, ::128]), axis=0)
+        ds_p += np.sum(~np.isnan(p[:, ::128]), axis=0)
+        ds_n += np.sum(~np.isnan(n[:, ::128]), axis=0)
+        ds_o += np.sum(~np.isnan(o[:, ::128]), axis=0)
+        batch += 1
+        if batch == 1000:
+            break
+    sampled_ds = {
+        'space': np.array([d[:2] for d in cc.datasets_exemplary()]),
+        'anchor': ds_a,
+        'positive': ds_p,
+        'negative': ds_n,
+        'onlyself': ds_o}
+    df_sampled_ds = pd.DataFrame(sampled_ds)
+    df_sampled_ds = df_sampled_ds.melt(id_vars=['space'])
+    df_sampled_ds['sampled'] = df_sampled_ds['value']
 
-    plt.legend()
+    # get sampled nr dataset
+    nr_a = np.zeros((25,))
+    nr_p = np.zeros((25,))
+    nr_n = np.zeros((25,))
+    nr_o = np.zeros((25,))
+    batch = 0
+    for (a, p, n, o), y in tr_gen():
+        nr_batch_a = np.sum(~np.isnan(a[:, ::128]), axis=1).astype(int)
+        nnrs, freq_nrs = np.unique(nr_batch_a, return_counts=True)
+        nr_a[nnrs] += freq_nrs
+        nr_batch_p = np.sum(~np.isnan(p[:, ::128]), axis=1).astype(int)
+        nnrs, freq_nrs = np.unique(nr_batch_p, return_counts=True)
+        nr_p[nnrs] += freq_nrs
+        nr_batch_n = np.sum(~np.isnan(n[:, ::128]), axis=1).astype(int)
+        nnrs, freq_nrs = np.unique(nr_batch_n, return_counts=True)
+        nr_n[nnrs] += freq_nrs
+        nr_batch_o = np.sum(~np.isnan(o[:, ::128]), axis=1).astype(int)
+        nnrs, freq_nrs = np.unique(nr_batch_o, return_counts=True)
+        nr_o[nnrs] += freq_nrs
+        batch += 1
+        if batch == 1000:
+            break
+    sampled_nr = {
+        'nr_ds': np.arange(nr_a.shape[0]),
+        'anchor': nr_a,
+        'positive': nr_p,
+        'negative': nr_n,
+        'onlyself': nr_o}
+    df_sampled_nr = pd.DataFrame(sampled_nr)
+    df_sampled_nr = df_sampled_nr.melt(id_vars=['nr_ds'])
+    df_sampled_nr['sampled'] = df_sampled_nr['value']
 
-    plt.subplot(2, 1, 2)
-    plt.title('how many dataset')
-    plt.bar(np.arange(1, len(freq_nr_X) + 1) - 0.2,
-            freq_nr_X, width=.2, alpha=.8, label='original')
-    plt.bar(np.arange(1, len(freq_nr_X1) + 1),
-            freq_nr_X1, width=.2, alpha=.8, label='subsampled')
-    plt.bar(np.arange(1, len(freq_nr_noself) + 1) + 0.2,
-            freq_nr_noself, width=.2, alpha=.8, label='not self')
-    plt.legend()
-    plt.xticks(np.arange(26))
-    plt.xlim(0, 26)
+    # plot
+    sns.set_style("whitegrid")
+    sns.set_context("talk")
+
+    fig = plt.figure(constrained_layout=True, figsize=(24, 12))
+    gs = fig.add_gridspec(2, 2)
+    ax = fig.add_subplot(gs[0, 0])
+    sns.barplot(x="space", y="probabilities", hue='variable',
+                data=df_probs_ds, ax=ax)
+    ax = fig.add_subplot(gs[0, 1])
+    sns.barplot(x="nr_ds", y="probabilities", hue='variable',
+                data=df_probs_nr, ax=ax)
+    ax = fig.add_subplot(gs[1, 0])
+    sns.barplot(x="space", y="sampled", hue='variable',
+                data=df_sampled_ds, ax=ax,
+                palette=['gold', 'forestgreen', 'crimson', 'royalblue'])
+    ax = fig.add_subplot(gs[1, 1])
+    sns.barplot(x="nr_ds", y="sampled", hue='variable',
+                data=df_sampled_nr, ax=ax,
+                palette=['gold', 'forestgreen', 'crimson', 'royalblue'])
 
     plt.tight_layout()
-    plt.savefig('subsample_dataset_%s_pself_%.2f_ponly_%.2f.png' %
-                (ds, p_self, p_only_self))
+    plt.savefig('subsample_dataset.png')
     plt.close()
