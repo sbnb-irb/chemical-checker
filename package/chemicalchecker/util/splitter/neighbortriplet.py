@@ -252,7 +252,9 @@ class NeighborTripletTraintest(object):
 
         # Set triplet_factor
         triplet_per_mol = int(
-            np.ceil((num_triplets / 3) / ref_matrix.shape[0]))
+            np.ceil((num_triplets / 2) / ref_matrix.shape[0]))
+        NeighborTripletTraintest.__log.info(
+            "Triplet_per_mol: %s" % triplet_per_mol)
 
         # split chunks, get indeces of chunks for each split
         chunk_size = np.floor(ref_matrix.shape[0] / 100)
@@ -437,7 +439,7 @@ class NeighborTripletTraintest(object):
 
                 # stack triplets
                 easy_triplets = np.vstack(
-                    (anchors_full, easy_p_full, easy_n_full)).T
+                    (anchors_full, easy_p_full, easy_n_full)).T[:1000]
                 medium_triplets = np.vstack(
                     (anchors_full, medi_p_full, medi_n_full)).T
                 hard_triplets = np.vstack(
@@ -450,10 +452,6 @@ class NeighborTripletTraintest(object):
                     np.full((medium_triplets.shape[0],), 1),
                     np.full((hard_triplets.shape[0],), 2)))
 
-                # shuffling
-                shuffle_idxs = np.arange(triplets.shape[0])
-                if shuffle:
-                    np.random.shuffle(shuffle_idxs)
                 unique_ids = np.unique(triplets)
                 NeighborTripletTraintest.__log.info(
                     'Using %s molecules in triplets' %
@@ -469,12 +467,20 @@ class NeighborTripletTraintest(object):
                 # save to h5
                 ds_name = "t_%s_%s" % (split1, split2)
                 ys_name = "y_%s_%s" % (split1, split2)
+                triplets, unique_idx = np.unique(triplets, axis=0, return_index=True)
+                y = y[unique_idx]
+                # shuffling
+                shuffle_idxs = np.arange(triplets.shape[0])
+                if shuffle:
+                    np.random.shuffle(shuffle_idxs)
+                triplets = triplets[shuffle_idxs]
+                y = y[shuffle_idxs]
+                NeighborTripletTraintest.__log.info('Using %s unique triplets' % len(y))
                 NeighborTripletTraintest.__log.info(
-                    'writing %s %s %s %s %s %s', ds_name, easy_triplets.shape,
-                    medium_triplets.shape, hard_triplets.shape, triplets.shape,
-                    y.shape)
-                fh.create_dataset(ds_name, data=triplets[shuffle_idxs])
-                fh.create_dataset(ys_name, data=y[shuffle_idxs])
+                    'writing Name: %s E: %s M: %s H: %s T: %s', ds_name, y[y == 0].shape[0],
+                    y[y == 1].shape[0], y[y == 2].shape[0], triplets.shape[0])
+                fh.create_dataset(ds_name, data=triplets)
+                fh.create_dataset(ys_name, data=y)
 
                 if check_distances:
                     import matplotlib.pyplot as plt
@@ -580,6 +586,9 @@ class NeighborTripletTraintest(object):
         only_args = augment_kwargs.copy()
         only_args['p_only_self'] = 1.0
 
+        notself_args = augment_kwargs.copy()
+        notself_args['p_only_self'] = 0.0
+
         def example_generator_fn():
             # generator function yielding data
             step_size = int(min(1000, len(batch_beg_end) / 10)) + 1
@@ -609,6 +618,7 @@ class NeighborTripletTraintest(object):
                 x2 = X[pairs[:, 1]]
                 x3 = X[pairs[:, 2]]
                 x4 = augment_fn(X[pairs[:, 0]], **only_args)
+                x5 = augment_fn(X[pairs[:, 0]], **notself_args)
                 if train:
                     tmp_x1 = list()
                     tmp_x2 = list()
@@ -632,8 +642,9 @@ class NeighborTripletTraintest(object):
                     x2[np.where(np.isnan(x2))] = replace_nan
                     x3[np.where(np.isnan(x3))] = replace_nan
                     x4[np.where(np.isnan(x4))] = replace_nan
+                    x5[np.where(np.isnan(x5))] = replace_nan
                 # print(x1.shape, x2.shape, x3.shape, y.shape)
-                yield [x1, x2, x3, x4], y
+                yield [x1, x2, x3, x4, x5], y
                 batch_idx += 1
                 if p_factor > 0:
                     augment_kwargs['p_self'] = min(1.0, augment_kwargs['p_self'] + (p_self_decay * p_factor))
