@@ -183,8 +183,8 @@ class SiameseTriplets(object):
             self.max_lr = max_lr
             kwargs['min_lr'] = self.min_lr
             kwargs['max_lr'] = self.max_lr
-            kwargs['learning_rate'] = self.mean_lr
-            self.learning_rate = self.mean_lr
+            kwargs['learning_rate'] = self.min_lr
+            self.learning_rate = self.min_lr
 
         # log parameters
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
@@ -251,7 +251,7 @@ class SiameseTriplets(object):
             return K.sqrt(K.maximum(sum_square, K.epsilon()))
 
         def add_layer(net, layer, layer_size, activation, dropout,
-                      use_bias=False, input_shape=False):
+                      use_bias=True, input_shape=False):
             if input_shape:
                 net.add(GaussianDropout(rate=0.1, input_shape=input_shape))
             if activation == 'selu':
@@ -268,6 +268,7 @@ class SiameseTriplets(object):
         input_p = Input(shape=input_shape)
         input_n = Input(shape=input_shape)
         input_o = Input(shape=input_shape)
+        input_s = Input(shape=input_shape)
 
         # each goes to a network with the same architechture
         basenet = Sequential()
@@ -294,53 +295,61 @@ class SiameseTriplets(object):
         encodeds.append(basenet(input_p))
         encodeds.append(basenet(input_n))
         encodeds.append(basenet(input_o))
+        encodeds.append(basenet(input_s))
         merged_vector = concatenate(encodeds, axis=-1, name='merged_layer')
 
-        model = Model(inputs=[input_a, input_p, input_n, input_o],
+        model = Model(inputs=[input_a, input_p, input_n, input_o, input_s],
                       output=merged_vector)
 
         # TODO NEED TO CHANGE IF WE USE 4 INPUTS INSTEAD OF 3
         def split_output(y_pred):
             total_lenght = y_pred.shape.as_list()[-1]
-            anchor = y_pred[:, 0: int(total_lenght * 1 / 4)]
+            anchor = y_pred[:, 0: int(total_lenght * 1 / 5)]
             positive = y_pred[
-                :, int(total_lenght * 1 / 4): int(total_lenght * 2 / 4)]
+                :, int(total_lenght * 1 / 5): int(total_lenght * 2 / 5)]
             negative = y_pred[
-                :, int(total_lenght * 2 / 4): int(total_lenght * 3 / 4)]
+                :, int(total_lenght * 2 / 5): int(total_lenght * 3 / 5)]
             only = y_pred[
-                :, int(total_lenght * 3 / 4): int(total_lenght * 4 / 4)]
-            return anchor, positive, negative, only
+                :, int(total_lenght * 3 / 5): int(total_lenght * 4 / 5)]
+            n_self = y_pred[
+                :, int(total_lenght * 4 / 5): int(total_lenght * 5 / 5)]
+            return anchor, positive, negative, only, n_self
 
         # define monitored metrics
         def accTot(y_true, y_pred):
-            anchor, positive, negative, _ = split_output(y_pred)
+            anchor, positive, negative, _, _ = split_output(y_pred)
             acc = K.cast(euclidean_distance(anchor, positive) <
                          euclidean_distance(anchor, negative), anchor.dtype)
             return K.mean(acc)
 
         def accE(y_true, y_pred):
-            anchor, positive, negative, _ = split_output(y_pred)
+            anchor, positive, negative, _, _ = split_output(y_pred)
             msk = K.cast(K.equal(y_true, 0), 'float32')
+            t = str(K.int_shape(y_true))
+            self.__log.info('Msk shape %s' % t)
+            prd = self.batch_size / K.sum(msk)
             acc = K.cast(
                 euclidean_distance(anchor * msk, positive * msk) <
                 euclidean_distance(anchor * msk, negative * msk), anchor.dtype)
-            return K.mean(acc) * 3
+            return K.mean(acc) * prd
 
         def accM(y_true, y_pred):
-            anchor, positive, negative, _ = split_output(y_pred)
+            anchor, positive, negative, _, _ = split_output(y_pred)
             msk = K.cast(K.equal(y_true, 1), 'float32')
+            prd = self.batch_size / K.sum(msk)
             acc = K.cast(
                 euclidean_distance(anchor * msk, positive * msk) <
                 euclidean_distance(anchor * msk, negative * msk), anchor.dtype)
-            return K.mean(acc) * 3
+            return K.mean(acc) * prd
 
         def accH(y_true, y_pred):
-            anchor, positive, negative, _ = split_output(y_pred)
+            anchor, positive, negative, _, _ = split_output(y_pred)
             msk = K.cast(K.equal(y_true, 2), 'float32')
+            prd = self.batch_size / K.sum(msk)
             acc = K.cast(
                 euclidean_distance(anchor * msk, positive * msk) <
                 euclidean_distance(anchor * msk, negative * msk), anchor.dtype)
-            return K.mean(acc) * 3
+            return K.mean(acc) * prd
 
         def pearson_r(y_true, y_pred):
             x = y_true
@@ -355,20 +364,30 @@ class SiameseTriplets(object):
             r = r_num / r_den
             return K.mean(r)
 
-        def corr(y_true, y_pred):
-            anchor, positive, negative, only_self = split_output(y_pred)
+        def cor1(y_true, y_pred):
+            anchor, positive, negative, only_self, not_self = split_output(y_pred)
+            return pearson_r(anchor, not_self)
+
+        def cor2(y_true, y_pred):
+            anchor, positive, negative, only_self, not_self = split_output(y_pred)
             return pearson_r(anchor, only_self)
+
+        def cor3(y_true, y_pred):
+            anchor, positive, negative, only_self, not_self = split_output(y_pred)
+            return pearson_r(not_self, only_self)
 
         metrics = [
             accTot,
             accE,
             accM,
             accH,
-            corr
+            cor1,
+            cor2,
+            cor3
         ]
 
         def tloss(y_true, y_pred):
-            anchor, positive, negative, _ = split_output(y_pred)
+            anchor, positive, negative, _, _ = split_output(y_pred)
             pos_dist = K.sum(K.square(anchor - positive), axis=1)
             neg_dist = K.sum(K.square(anchor - negative), axis=1)
             basic_loss = pos_dist - neg_dist + self.margin
@@ -376,7 +395,7 @@ class SiameseTriplets(object):
             return loss
 
         def bayesian_tloss(y_true, y_pred):
-            anchor, positive, negative, _ = split_output(y_pred)
+            anchor, positive, negative, _, _ = split_output(y_pred)
             loss = 1.0 - K.sigmoid(
                 K.sum(anchor * positive, axis=-1, keepdims=True) -
                 K.sum(anchor * negative, axis=-1, keepdims=True))
@@ -384,7 +403,7 @@ class SiameseTriplets(object):
 
         def orthogonal_tloss(y_true, y_pred):
             def global_orthogonal_regularization(y_pred):
-                anchor, positive, negative, _ = split_output(y_pred)
+                anchor, positive, negative, _, _ = split_output(y_pred)
                 neg_dis = K.sum(anchor * negative, axis=1)
                 dim = K.int_shape(y_pred)[1]
                 gor = K.pow(K.mean(neg_dis), 2) + \
@@ -397,7 +416,7 @@ class SiameseTriplets(object):
 
         def only_self_loss(y_true, y_pred):
             def only_self_regularization(y_pred):
-                anchor, positive, negative, only_self = split_output(y_pred)
+                anchor, positive, negative, only_self,_ = split_output(y_pred)
                 pos_dist = K.sum(K.square(anchor - only_self), axis=1)
                 neg_dist = K.sum(K.square(anchor - negative), axis=1)
                 basic_loss = pos_dist - neg_dist + self.margin
@@ -412,10 +431,30 @@ class SiameseTriplets(object):
             o_self = only_self_regularization(y_pred)
             return loss + o_self
 
+        def penta_loss(y_true, y_pred):
+            def not_self_regularization(y_pred):
+                anchor, positive, negative, only_self, not_self = split_output(y_pred)
+                pos_dist = K.sum(K.square(not_self - only_self), axis=1)
+                neg_dist = K.sum(K.square(not_self - negative), axis=1)
+                basic_loss = pos_dist - neg_dist + self.margin
+                loss = K.maximum(basic_loss, 0.0)
+                neg_dis = K.sum(anchor * negative, axis=1)
+                dim = K.int_shape(y_pred)[1]
+                gor = K.pow(K.mean(neg_dis), 2) + \
+                    K.maximum(K.mean(K.pow(neg_dis, 2)) - 1.0 / dim, 0.0)
+                return loss + (gor * self.alpha)
+
+            loss = orthogonal_tloss(y_true, y_pred)
+            #o_self = only_self_regularization(y_pred)
+            n_self = not_self_regularization(y_pred)
+            return loss + n_self
+
+
         lfuncs_dict = {'tloss': tloss,
                        'bayesian_tloss': bayesian_tloss,
                        'orthogonal_tloss': orthogonal_tloss,
-                       'only_self_loss': only_self_loss}
+                       'only_self_loss': only_self_loss,
+                       'penta_loss': penta_loss}
 
         # compile and print summary
         self.__log.info('Loss function: %s' %
@@ -760,19 +799,31 @@ class SiameseTriplets(object):
         def sim(a, b):
             return -(cosine(a, b) - 1)
 
+        #Need to create a new train_train generator without train=False
+        tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
+            self.traintest_file,
+            'train_train',
+            batch_size=self.batch_size,
+            replace_nan=self.replace_nan,
+            sharedx=self.sharedx,
+            augment_fn=self.augment_fn,
+            train=False,
+            shuffle=False)
+
+        tr_gen = tr_shape_type_gen[2]()
+
         val_shape_type_gen = NeighborTripletTraintest.generator_fn(
             self.traintest_file,
             'train_test',
             batch_size=self.batch_size,
             replace_nan=self.replace_nan,
             sharedx=self.sharedx,
-            augment_kwargs=self.augment_kwargs,
             augment_fn=self.augment_fn,
             train=False,
             shuffle=False)
         trval_gen = val_shape_type_gen[2]()
 
-        vset_dict = {'train_train': self.tr_gen,
+        vset_dict = {'train_train': tr_gen,
                      'train_test': trval_gen, 'test_test': self.val_gen}
 
         fig, axes = plt.subplots(3, 4, figsize=(22, 15))
@@ -790,7 +841,7 @@ class SiameseTriplets(object):
                 positives.extend(self.predict(inputs[1]))
                 negatives.extend(self.predict(inputs[2]))
                 labels.extend(y)
-                if len(anchors) >= 1000:
+                if len(anchors) >= 10000:
                     break
             anchors = np.array(anchors)
             positives = np.array(positives)
@@ -822,11 +873,11 @@ class SiameseTriplets(object):
             ax = axes[i]
             i += 1
 
-            ax.scatter(ap_dists[mask_e], an_dists[mask_e],
+            ax.scatter(ap_dists[mask_e][:1000], an_dists[mask_e][:1000],
                        label='easy', color='green', s=2)
-            ax.scatter(ap_dists[mask_m], an_dists[mask_m],
+            ax.scatter(ap_dists[mask_m][:1000], an_dists[mask_m][:1000],
                        label='medium', color='goldenrod', s=2, alpha=0.7)
-            ax.scatter(ap_dists[mask_h], an_dists[mask_h],
+            ax.scatter(ap_dists[mask_h][:1000], an_dists[mask_h][:1000],
                        label='hard', color='red', s=2, alpha=0.7)
             ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
             ax.set_xlabel('Euc dis positives')
@@ -858,11 +909,11 @@ class SiameseTriplets(object):
             ax = axes[i]
             i += 1
 
-            ax.scatter(ap_sim[mask_e], an_sim[mask_e],
+            ax.scatter(ap_sim[mask_e][:1000], an_sim[mask_e][:1000],
                        label='easy', color='green', s=2)
-            ax.scatter(ap_sim[mask_m], an_sim[mask_m],
+            ax.scatter(ap_sim[mask_m][:1000], an_sim[mask_m][:1000],
                        label='medium', color='goldenrod', s=2, alpha=0.7)
-            ax.scatter(ap_sim[mask_h], an_sim[mask_h],
+            ax.scatter(ap_sim[mask_h][:1000], an_sim[mask_h][:1000],
                        label='hard', color='red', s=2, alpha=0.7)
             ax.set_xlim(-1, 1)
             ax.set_ylim(-1, 1)
