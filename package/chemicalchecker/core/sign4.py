@@ -2332,7 +2332,7 @@ def subsample(tensor, sign_width=128,
         # datasets that I can select
         present_idxs = np.argwhere(presence).flatten()
         # how many dataset at most?
-        max_add = present_idxs.shape[0]
+        max_add = max(1, present_idxs.shape[0] - 1)
         # normalize nr dataset probabilities
         p_nr_row = p_nr[:max_add] / np.sum(p_nr[:max_add])
         # how many dataset are we keeping?
