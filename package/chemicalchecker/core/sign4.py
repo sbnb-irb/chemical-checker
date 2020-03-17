@@ -676,7 +676,7 @@ class sign4(BaseSignature, DataSignature):
         pickle.dump(model, open(model_file, 'wb'))
         calibration_file = os.path.join(save_path, 'calibration.pkl')
         pickle.dump(calibration_model, open(calibration_file, 'wb'))
-        return model
+        return model, calibration_model
 
     def save_known_distributions(self, siamese, train_x, test_x, realistic_fn,
                                  prior_model, save_path):
@@ -2034,7 +2034,10 @@ class sign4(BaseSignature, DataSignature):
             if conf_mdl is None:
                 confidence_file = os.path.join(
                     confidence_path, 'confidence.pkl')
-                conf_mdl = pickle.load(open(confidence_file, 'rb'))
+                calibration_file = os.path.join(
+                    confidence_path, 'calibration.pkl')
+                conf_mdl = (pickle.load(open(confidence_file, 'rb')),
+                            pickle.load(open(calibration_file, 'rb')))
 
         # get sorted universe inchikeys
         self.universe_inchikeys = self.get_universe_inchikeys()
@@ -2105,10 +2108,14 @@ class sign4(BaseSignature, DataSignature):
                         app, centrality, _ = self.applicability_domain(
                             app_neig, preds, app_range)
                         results['applicability'][chunk] = app
-                        # and compute confidence
+                        # and estimate confidence
                         conf_scores = np.vstack([app, robs, prior]).T
-                        conf = conf_mdl.predict(conf_scores)
-                        results['confidence'][chunk] = conf
+                        conf = conf_mdl[0].predict(conf_scores)
+                        np.expand_dims(model.predict(x_te), 1)
+                        calib_conf = conf_mdl[1].predict(
+                            np.expand_dims(conf_scores, 1))
+                        results['confidence'][chunk] = calib_conf
+                        # conpute confidence where self is known
 
         # use semi-supervised anomaly detection algorithm to predict novelty
         if predict_novelty:
