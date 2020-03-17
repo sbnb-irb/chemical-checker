@@ -559,10 +559,10 @@ class NeighborTripletTraintest(object):
             X = reader.get_all_x()
         # default mask is not mask
         if mask_fn is None:
-            def mask_fn(data):
+            def mask_fn(*data):
                 return data
         if augment_fn is None:
-            def augment_fn(data, **kwargs):
+            def augment_fn(*data, **kwargs):
                 return data
         batch_beg_end = np.zeros((int(np.ceil(t_shape[0] / batch_size)), 2))
         last = 0
@@ -590,6 +590,7 @@ class NeighborTripletTraintest(object):
             epoch = 0
             batch_idx = 0
             while True:
+                #print('epoch', epoch, 'p_factor', p_factor, 'p_self', augment_kwargs['p_self'])
                 if batch_idx == len(batch_beg_end):
                     batch_idx = 0
                     epoch += 1
