@@ -151,10 +151,13 @@ def main(args):
         main._log.info("Reading Cellosaurus")
         cell_hier = parse_cellosaurus(R, cellosaurus_obo)
 
-        inchikey_raw = collections.defaultdict(set)
+        inchikey_raw_temp = collections.defaultdict(set)
         for r in R:
             for c in cell_hier[r[-1]]:
-                inchikey_raw[r[0]].update([r[-1]])
+                inchikey_raw_temp[r[0]].update([r[-1]])
+
+        inchikey_raw = {k: list(v) for k,v in inchikey_raw_temp.items()}
+        del inchikey_raw_temp
 
     if args.method == "predict":
 
