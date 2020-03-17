@@ -2465,12 +2465,14 @@ def plot_subsample(plotpath, ds='B1.001', p_self=.1, p_only_self=0., limit=10000
     ds_p = np.zeros((25,))
     ds_n = np.zeros((25,))
     ds_o = np.zeros((25,))
+    ds_ns = np.zeros((25,))
     batch = 0
-    for (a, p, n, o), y in tr_gen():
+    for (a, p, n, o, ns), y in tr_gen():
         ds_a += np.sum(~np.isnan(a[:, ::128]), axis=0)
         ds_p += np.sum(~np.isnan(p[:, ::128]), axis=0)
         ds_n += np.sum(~np.isnan(n[:, ::128]), axis=0)
         ds_o += np.sum(~np.isnan(o[:, ::128]), axis=0)
+        ds_ns += np.sum(~np.isnan(ns[:, ::128]), axis=0)
         batch += 1
         if batch == 1000:
             break
@@ -2479,7 +2481,8 @@ def plot_subsample(plotpath, ds='B1.001', p_self=.1, p_only_self=0., limit=10000
         'anchor': ds_a,
         'positive': ds_p,
         'negative': ds_n,
-        'onlyself': ds_o}
+        'only-self': ds_o,
+        'not-self': ds_ns}
     df_sampled_ds = pd.DataFrame(sampled_ds)
     df_sampled_ds = df_sampled_ds.melt(id_vars=['space'])
     df_sampled_ds['sampled'] = df_sampled_ds['value']
@@ -2489,8 +2492,9 @@ def plot_subsample(plotpath, ds='B1.001', p_self=.1, p_only_self=0., limit=10000
     nr_p = np.zeros((25,))
     nr_n = np.zeros((25,))
     nr_o = np.zeros((25,))
+    nr_ns = np.zeros((25,))
     batch = 0
-    for (a, p, n, o), y in tr_gen():
+    for (a, p, n, o, ns), y in tr_gen():
         nr_batch_a = np.sum(~np.isnan(a[:, ::128]), axis=1).astype(int)
         nnrs, freq_nrs = np.unique(nr_batch_a, return_counts=True)
         nr_a[nnrs] += freq_nrs
@@ -2503,6 +2507,9 @@ def plot_subsample(plotpath, ds='B1.001', p_self=.1, p_only_self=0., limit=10000
         nr_batch_o = np.sum(~np.isnan(o[:, ::128]), axis=1).astype(int)
         nnrs, freq_nrs = np.unique(nr_batch_o, return_counts=True)
         nr_o[nnrs] += freq_nrs
+        nr_batch_ns = np.sum(~np.isnan(ns[:, ::128]), axis=1).astype(int)
+        nnrs, freq_nrs = np.unique(nr_batch_ns, return_counts=True)
+        nr_ns[nnrs] += freq_nrs
         batch += 1
         if batch == 1000:
             break
@@ -2511,7 +2518,8 @@ def plot_subsample(plotpath, ds='B1.001', p_self=.1, p_only_self=0., limit=10000
         'anchor': nr_a,
         'positive': nr_p,
         'negative': nr_n,
-        'onlyself': nr_o}
+        'only-self': nr_o,
+        'not-self': nr_ns}
     df_sampled_nr = pd.DataFrame(sampled_nr)
     df_sampled_nr = df_sampled_nr.melt(id_vars=['nr_ds'])
     df_sampled_nr['sampled'] = df_sampled_nr['value']
@@ -2531,11 +2539,11 @@ def plot_subsample(plotpath, ds='B1.001', p_self=.1, p_only_self=0., limit=10000
     ax = fig.add_subplot(gs[1, 0])
     sns.barplot(x="space", y="sampled", hue='variable',
                 data=df_sampled_ds, ax=ax,
-                palette=['gold', 'forestgreen', 'crimson', 'royalblue'])
+                palette=['gold', 'forestgreen', 'crimson', 'royalblue', 'k'])
     ax = fig.add_subplot(gs[1, 1])
     sns.barplot(x="nr_ds", y="sampled", hue='variable',
                 data=df_sampled_nr, ax=ax,
-                palette=['gold', 'forestgreen', 'crimson', 'royalblue'])
+                palette=['gold', 'forestgreen', 'crimson', 'royalblue', 'k'])
 
     plt.tight_layout()
     plt.savefig(plotpath)
