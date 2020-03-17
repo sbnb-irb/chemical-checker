@@ -187,13 +187,13 @@ def process_activity_according_to_pharos(ACTS):
         G.add_edge(r[1], r[0])  # The tree
 
     kinase_idx = set([x for w in kinase_idx for k, v in nx.dfs_successors(
-        G, w).iteritems() for x in v] + kinase_idx)
+        G, w).items() for x in v] + kinase_idx)
     gpcr_idx = set([x for w in gpcr_idx for k, v in nx.dfs_successors(
-        G, w).iteritems() for x in v] + gpcr_idx)
+        G, w).items() for x in v] + gpcr_idx)
     nuclear_idx = set([x for w in nuclear_idx for k, v in nx.dfs_successors(
-        G, w).iteritems() for x in v] + nuclear_idx)
+        G, w).items() for x in v] + nuclear_idx)
     ionchannel_idx = set([x for w in ionchannel_idx for k, v in nx.dfs_successors(
-        G, w).iteritems() for x in v] + ionchannel_idx)
+        G, w).items() for x in v] + ionchannel_idx)
 
     R = psql.qstring("SELECT cs.accession, cc.protein_class_id FROM component_sequences cs, component_class cc WHERE cs.component_id = cc.component_id AND cs.accession IS NOT NULL", chembl_dbname)
 
@@ -214,7 +214,7 @@ def process_activity_according_to_pharos(ACTS):
 
     protein_cutoffs = collections.defaultdict(list)
 
-    for k, v in class_prot.iteritems():
+    for k, v in class_prot.items():
         for idx in v:
             if idx in ionchannel_idx:
                 protein_cutoffs[k] += [cuts['ionchannel']]
@@ -228,9 +228,9 @@ def process_activity_according_to_pharos(ACTS):
                 protein_cutoffs[k] += [cuts['other']]
 
     protein_cutoffs = dict((k, np.min(v))
-                           for k, v in protein_cutoffs.iteritems())
+                           for k, v in protein_cutoffs.items())
 
-    ACTS = dict((k, np.max(v)) for k, v in ACTS.iteritems())
+    ACTS = dict((k, np.max(v)) for k, v in ACTS.items())
 
     R = psql.qstring(
         "SELECT protein_class_id, parent_id, pref_name FROM protein_classification", chembl_dbname)
@@ -247,7 +247,7 @@ def process_activity_according_to_pharos(ACTS):
     for r in R:
         class_prot[r[0]] += [r[1]]
 
-    classes = set([c for k, v in class_prot.iteritems() for c in v])
+    classes = set([c for k, v in class_prot.items() for c in v])
     class_path = collections.defaultdict(set)
     for c in classes:
         path = set()
@@ -257,7 +257,7 @@ def process_activity_according_to_pharos(ACTS):
 
     classACTS = collections.defaultdict(list)
 
-    for k, v in ACTS.iteritems():
+    for k, v in ACTS.items():
         if k[1] in protein_cutoffs:
             cut = protein_cutoffs[k[1]]
         else:
@@ -275,7 +275,7 @@ def process_activity_according_to_pharos(ACTS):
             for p in class_path[c]:
                 classACTS[(k[0], "Class:%d" % p, k[2])] += [V]
 
-    classACTS = dict((k, np.max(v)) for k, v in classACTS.iteritems())
+    classACTS = dict((k, np.max(v)) for k, v in classACTS.items())
 
     return classACTS
 

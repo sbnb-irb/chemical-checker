@@ -37,7 +37,7 @@ def parse_ctd(disfile, chemdis_file):
     f.close()
 
     tree_dis = collections.defaultdict(list)
-    for k, v in dis_tree.iteritems():
+    for k, v in dis_tree.items():
         for x in v:
             tree_dis[x] += [k]
 

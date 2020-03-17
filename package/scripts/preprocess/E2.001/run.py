@@ -110,7 +110,7 @@ def parse_chembl(IND=None):
             continue
         IND[(chemblid_inchikey[r[0]], r[1])] += [r[2]]
 
-    IND = dict((k, np.max(v)) for k, v in IND.iteritems())
+    IND = dict((k, np.max(v)) for k, v in IND.items())
 
     return IND
 
@@ -131,7 +131,7 @@ def include_mesh(ctd_diseases, IND):
                 G.add_edge(pardisid, disid)
 
     classIND = collections.defaultdict(list)
-    for k, v in tqdm(IND.iteritems()):
+    for k, v in tqdm(IND.items()):
         classIND[k] = [v]
         node = "MESH:" + k[1]
         if node not in G:
@@ -141,7 +141,7 @@ def include_mesh(ctd_diseases, IND):
         for d in dis:
             classIND[(k[0], d)] += [v]
 
-    classIND = dict((k, np.max(v)) for k, v in classIND.iteritems())
+    classIND = dict((k, np.max(v)) for k, v in classIND.items())
 
     return classIND
 
@@ -186,7 +186,7 @@ def main(args):
         classIND = include_mesh(ctd_diseases, IND)
 
         inchikey_raw = collections.defaultdict(dict)
-        for k, v in classIND.iteritems():
+        for k, v in classIND.items():
             inchikey_raw[k[0]][k[1] + "(" + str(v) + ")"] = 1
 
         # features will be calculated later

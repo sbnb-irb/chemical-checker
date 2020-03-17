@@ -73,7 +73,7 @@ def load_matrix(net_folder):
 
 def network_impact(sm, node_scores):
     P, S = [], []
-    for n, s in node_scores.iteritems():
+    for n, s in node_scores.items():
         prof = sm.get_profile(sm, n)
         if not prof:
             continue
