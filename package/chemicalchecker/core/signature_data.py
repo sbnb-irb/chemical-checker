@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 import h5py
 from bisect import bisect_left
 import numpy as np
@@ -434,3 +435,18 @@ class DataSignature(object):
             hf.create_dataset("distance", data=bg_distances["distance"])
             hf.create_dataset("pvalue", data=bg_distances["pvalue"])
         return bg_distances
+
+    def clean(self):
+        self.__log.debug("Removing anything that was there before")
+        if os.path.exists(self.data_path):
+            self.__log.warn("A sign H5 file has been removed")
+            os.remove(self.data_path)
+        if os.path.exists(self.model_path):
+            self.__log.warn("A models folder has been emptied")
+            shutil.rmtree(self.model_path)
+            os.mkdir(self.model_path)
+        if os.path.exists(self.stats_path):
+            self.__log.warn("A stats folder has been emptied")
+            shutil.rmtree(self.stats_path)
+            os.mkdir(self.stats_path)
+

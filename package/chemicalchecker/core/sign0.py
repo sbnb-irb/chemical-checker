@@ -236,18 +236,7 @@ class sign0(BaseSignature, DataSignature):
             validations(boolean): Create validation files(plots, files,etc)(default=True).
             do_triplets(boolean): Draw triplets from the CC (default=True).
         """
-        self.__log.debug("Removing anything that was there before")
-        if os.path.exists(self.data_path):
-            self.__log.warn("A sign H5 file has been removed")
-            os.remove(self.data_path)
-        if os.path.exists(self.model_path):
-            self.__log.warn("A models folder has been emptied")
-            shutil.rmtree(self.model_path)
-            os.mkdir(self.model_path)
-        if os.path.exists(self.stats_path):
-            self.__log.warn("A stats folder has been emptied")
-            shutil.rmtree(self.stats_path)
-            os.mkdir(self.stats_path)
+        self.clean()
         if cc is None:
             cc = self.get_cc()
         self.__log.debug("Getting data")
