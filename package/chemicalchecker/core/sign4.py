@@ -686,6 +686,7 @@ class sign4(BaseSignature, DataSignature):
         except ImportError as err:
             raise err
         # save neighbors faiss index based on only self train prediction
+        # train is used only to generate neighbors file
         self.__log.info('Computing neighbor index')
         train_onlyself = mask_keep(self.dataset_idx, train_x)
         train_onlyself_pred = siamese.predict(train_onlyself)
@@ -694,43 +695,35 @@ class sign4(BaseSignature, DataSignature):
         train_onlyself_neig_file = os.path.join(save_path, 'neig.index')
         faiss.write_index(train_onlyself_neig, train_onlyself_neig_file)
 
-        # de test predictions
+        # only self prediction is the ground truth
         test_onlyself = mask_keep(self.dataset_idx, test_x)
         test_onlyself_pred = siamese.predict(test_onlyself)
 
         # do applicability domain prediction
         self.__log.info('Computing applicability domain')
-        apps, cents, ranges = list(), list(), list()
-        for i in range(10):
-            test_notself = realistic_fn(test_x)
-            test_notself_pred = siamese.predict(test_notself)
-            applicability, centrality, app_range = self.applicability_domain(
-                train_onlyself_neig, test_notself_pred)
-            apps.append(applicability)
-            cents.append(centrality)
-            ranges.append(app_range)
-        applicability = np.mean(np.vstack(apps), axis=0)
-        centrality = np.mean(np.vstack(cents), axis=0)
-        app_range = np.mean(np.vstack(ranges), axis=0)
+        applicability, app_range, notself_consensus = \
+            self.applicability_domain(train_onlyself_neig, test_x, siamese,
+                                      realistic_fn)
 
         # do conformal prediction (dropout)
         self.__log.info('Computing conformal prediction')
         intensities, robustness, consensus = self.conformal_prediction(
-            siamese, test_notself, dropout_fn=realistic_fn)
+            siamese, test_x, realistic_fn)
 
         # predict expected prior
-        test_notself_presence = ~np.isnan(test_notself[:, ::128])
+        test_notself_presence = ~np.isnan(test_x[:, ::128])
+        test_notself_presence[:, self.dataset_idx] = False
         prior = prior_model.predict(test_notself_presence.astype(int))
 
         # calculate the error
         log_mse = np.log10(
-            np.mean(((test_onlyself_pred - test_notself_pred)**2), axis=1))
+            np.mean(((test_onlyself_pred - notself_consensus)**2), axis=1))
         log_mse_consensus = np.log10(
             np.mean(((test_onlyself_pred - consensus)**2), axis=1))
 
         # get correlation between prediction and only self predictions
         correlations = row_wise_correlation(
-            test_onlyself_pred, test_notself_pred, scaled=True)
+            test_onlyself_pred, notself_consensus, scaled=True)
 
         # we have all the data to train the confidence model
         features = np.vstack([applicability, robustness, prior]).T
@@ -750,28 +743,35 @@ class sign4(BaseSignature, DataSignature):
 
         return features, correlations
 
-    def applicability_domain(self, neig_index, pred, app_range=None,
-                             max_centrality=10000):
+    def applicability_domain(self, neig_index, features, siamese, dropout_fn,
+                             app_range=None, max_centrality=10000,
+                             n_samples=10):
         # applicability is whether not-self preds is close to only-self preds
         # neighbors between 5 and 25 depending on the size of the dataset
         app_thr = int(np.clip(np.log10(self.neig_sign.shape[0])**2, 5, 25))
-        only_self_dists, _ = neig_index.search(pred, app_thr)
-        if app_range is None:
-            d_min = np.min(only_self_dists)
-            d_max = np.max(only_self_dists)
-            app_range = np.array([d_min, d_max])
-        d_min = app_range[0]
-        d_max = app_range[1]
-        only_self_dists = (only_self_dists - d_max) / (d_min - d_max)
-        applicability = np.mean(only_self_dists, axis=1).flatten()
-        # measure null centrality (average distance to all)
-        centrality_thr = min(neig_index.ntotal, max_centrality)
-        dists, _ = neig_index.search(pred, centrality_thr)
-        centrality = np.mean(dists[:, app_thr:], axis=1).flatten()
-        return applicability, centrality, app_range
+        preds, apps, ranges = list(), list(), list()
+        for i in range(n_samples):
+            pred = siamese.predict(dropout_fn(features))
+            only_self_dists, _ = neig_index.search(pred, app_thr)
+            if app_range is None:
+                d_min = np.min(only_self_dists)
+                d_max = np.max(only_self_dists)
+                app_range = np.array([d_min, d_max])
+            d_min = app_range[0]
+            d_max = app_range[1]
+            # scale and invert distances to get applicability
+            only_self_dists = (only_self_dists - d_max) / (d_min - d_max)
+            applicability = np.mean(only_self_dists, axis=1).flatten()
+            preds.append(preds)
+            apps.append(applicability)
+            ranges.append(app_range)
+        predictions = np.mean(np.vstack(preds), axis=0)
+        applicability = np.mean(np.vstack(apps), axis=0)
+        app_range = np.mean(np.vstack(ranges), axis=0)
+        return predictions, applicability, app_range
 
-    def conformal_prediction(self, siamese, features, nan_pred=None,
-                             dropout_fn=None):
+    def conformal_prediction(self, siamese, features, dropout_fn,
+                             nan_pred=None, n_samples=10):
         # reference prediction (based on no information)
         if nan_pred is None:
             nan_feat = np.full(
@@ -781,7 +781,7 @@ class sign4(BaseSignature, DataSignature):
         if dropout_fn is None:
             dropout_fn = partial(subsample, dataset_idx=[self.dataset_idx])
         samples = siamese.predict(features, dropout_fn=dropout_fn,
-                                  dropout_samples=10, rebuild=True)
+                                  dropout_samples=n_samples, rebuild=True)
         # summarize the predictions as consensus
         consensus = np.mean(samples, axis=1)
         # zeros input (no info) as intensity reference
