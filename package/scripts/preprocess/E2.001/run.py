@@ -202,7 +202,7 @@ def main(args):
             features = set(features_list)
 
         # read input file format: INK MESH (Phase)
-        inchikey_raw = collections.defaultdict(dict)
+        inchikey_raw = collections.defaultdict(list)
         with open(args.input_file) as f:
             for l in f:
                 items = l.rstrip().split("\t")
@@ -210,7 +210,7 @@ def main(args):
                     val = 2  # default value
                 else:
                     val = int(items[2])
-                inchikey_raw[items[0]][items[1] + "(" + str(val) + ")"] = 1
+                inchikey_raw[items[0]] += [items[1] + "(" + str(val) + ")"] 
 
     # save raw values
     main._log.info("Saving raw data.")
