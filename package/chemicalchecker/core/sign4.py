@@ -687,28 +687,31 @@ class sign4(BaseSignature, DataSignature):
             raise err
         # save neighbors faiss index based on only self train prediction
         # train is used only to generate neighbors file
-        self.__log.info('Computing neighbor index')
+        self.__log.info('Computing Neighbor Index')
         train_onlyself = mask_keep(self.dataset_idx, train_x)
         train_onlyself_pred = siamese.predict(train_onlyself)
         train_onlyself_neig = faiss.IndexFlatL2(train_onlyself_pred.shape[1])
         train_onlyself_neig.add(train_onlyself_pred.astype(np.float32))
         train_onlyself_neig_file = os.path.join(save_path, 'neig.index')
         faiss.write_index(train_onlyself_neig, train_onlyself_neig_file)
+        self.__log.info('Neighbor Index saved: %s' % train_onlyself_neig_file)
 
         # only self prediction is the ground truth
         test_onlyself = mask_keep(self.dataset_idx, test_x)
         test_onlyself_pred = siamese.predict(test_onlyself)
 
         # do applicability domain prediction
-        self.__log.info('Computing applicability domain')
+        self.__log.info('Computing Applicability Domain')
         applicability, app_range, notself_consensus = \
             self.applicability_domain(train_onlyself_neig, test_x, siamese,
                                       realistic_fn)
+        self.__log.info('Applicability Domain DONE')
 
         # do conformal prediction (dropout)
-        self.__log.info('Computing conformal prediction')
+        self.__log.info('Computing Conformal Prediction')
         intensities, robustness, consensus = self.conformal_prediction(
             siamese, test_x, realistic_fn)
+        self.__log.info('Conformal Prediction DONE')
 
         # predict expected prior
         test_notself_presence = ~np.isnan(test_x[:, ::128])
@@ -749,7 +752,7 @@ class sign4(BaseSignature, DataSignature):
         # neighbors between 5 and 25 depending on the size of the dataset
         app_thr = int(np.clip(np.log10(self.neig_sign.shape[0])**2, 5, 25))
         preds, apps, ranges = list(), list(), list()
-        for i in tqdm(range(n_samples)):
+        for i in range(n_samples):
             pred = siamese.predict(dropout_fn(features))
             only_self_dists, _ = neig_index.search(pred, app_thr)
             if app_range is None:
@@ -761,13 +764,13 @@ class sign4(BaseSignature, DataSignature):
             # scale and invert distances to get applicability
             only_self_dists = (only_self_dists - d_max) / (d_min - d_max)
             applicability = np.mean(only_self_dists, axis=1).flatten()
-            preds.append(preds)
+            preds.append(pred)
             apps.append(applicability)
             ranges.append(app_range)
-        predictions = np.mean(np.vstack(preds), axis=0)
+        consensus = np.mean(np.stack(preds, axis=2), axis=2)
         applicability = np.mean(np.vstack(apps), axis=0)
         app_range = np.mean(np.vstack(ranges), axis=0)
-        return predictions, applicability, app_range
+        return applicability, app_range, consensus
 
     def conformal_prediction(self, siamese, features, dropout_fn,
                              nan_pred=None, n_samples=10):
