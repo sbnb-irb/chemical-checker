@@ -248,15 +248,15 @@ class DataSignature(object):
                 raise Exception("HDF5 file has no '%s'." % h5_dataset_name)
             if mask is None:
                 ndim = hf[h5_dataset_name].ndim
-                if hasattr(hf[h5_dataset_name][(0,) * ndim], 'encode'):
-                    encoder = np.vectorize(lambda x: x.encode())
+                if hasattr(hf[h5_dataset_name][(0,) * ndim], 'decode'):
+                    encoder = np.vectorize(lambda x: x.decode())
                     return encoder(hf[h5_dataset_name][:])
                 else:
                     return hf[h5_dataset_name][:]
             else:
                 ndim = hf[h5_dataset_name].ndim
-                if hasattr(hf[h5_dataset_name][(0,) * ndim], 'encode'):
-                    encoder = np.vectorize(lambda x: x.encode())
+                if hasattr(hf[h5_dataset_name][(0,) * ndim], 'decode'):
+                    encoder = np.vectorize(lambda x: x.decode())
                     return encoder(hf[h5_dataset_name][mask])
                 else:
                     return hf[h5_dataset_name][mask, :]
