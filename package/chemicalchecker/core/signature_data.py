@@ -144,6 +144,13 @@ class DataSignature(object):
         return self._get_all('keys')
 
     @cached_property
+    def row_keys(self):
+        """Get the list of keys (usually inchikeys) in the signature."""
+        self._check_data()
+        self._check_dataset('row_keys')
+        return self._get_all('row_keys')
+
+    @cached_property
     def keys_raw(self):
         """Get the list of keys in the signature."""
         self._check_data()
