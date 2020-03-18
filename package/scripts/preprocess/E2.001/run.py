@@ -52,7 +52,7 @@ def parse_repodb(repodb, umls2mesh, IND=None):
 
     # Parse RepoDB
     f = open(repodb, "r")
-    f.next()
+    f.readline()
     for l in csv.reader(f):
         if l[1] not in dbid_inchikey:
             continue

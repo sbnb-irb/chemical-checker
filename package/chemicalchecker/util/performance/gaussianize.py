@@ -254,7 +254,7 @@ if __name__ == '__main__':
         if options.nc:
             variable_names = None
         else:
-            variable_names = reader.next()[(1 - options.nr):]
+            variable_names = next(reader)[(1 - options.nr):]
         sample_names = []
         data = []
         for row in reader:

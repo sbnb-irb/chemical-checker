@@ -148,7 +148,7 @@ def parse_bindingdb(ACTS=None, bindingdb_file=None):
     # Now get the activity.
 
     f = open(bindingdb_file, "r")
-    f.next()
+    f.readline()
     for l in f:
 
         l = l.rstrip("\n").split("\t")
