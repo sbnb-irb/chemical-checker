@@ -36,7 +36,7 @@ class GlobalNeighborTripletTraintest(object):
             maps_ref_ = sign_ref.mappings
             maps_ref  = []
             for i in range(0, maps_ref_.shape[0]):
-                maps_ref += [[maps_ref_[i][0].decode(), maps_ref_[i][1].decode()]]
+                maps_ref += [[maps_ref_[i][0], maps_ref_[i][1]]]
             maps_ref  = np.array(maps_ref)
             results[ds] = (keys_full, keys_ref, maps_ref)
         self.__log.debug("Refactoring")

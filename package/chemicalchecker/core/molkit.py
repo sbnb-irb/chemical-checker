@@ -5,6 +5,7 @@ import h5py
 import os
 from chemicalchecker.util.parser.converter import Converter
 from chemicalchecker.util import logged
+from .signature_data import DataSignature
 
 @logged
 class Mol(object):
@@ -30,28 +31,16 @@ class Mol(object):
         self.mol = conv.inchi_to_mol(self.inchi)
         self.cc = cc
 
-    @staticmethod
-    def _decode(x):
-        if type(x) is str:
-            return x
-        else:
-            return x.decode()
-
     def isin(self, cctype, dataset_code, molset="full"):
         """Check if the molecule is in the dataset of interest"""
         sign_path = self.cc.get_signature_path(cctype, molset, dataset_code)
         h5_file = [x for x in os.listdir(sign_path) if ".h5" in x][0]
         sign_path = os.path.join(self.cc.get_signature_path(cctype, molset, dataset_code), h5_file)
-        with h5py.File(sign_path, "r") as hf:
-            ds = hf.keys()
-            if "keys" in ds:
-                ds = "keys"
-            else:
-                if "row_keys" in ds:
-                    ds = "row_keys"
-                else:
-                    raise "Keys cannot be found in %s" % sign_path
-            keys = set([self._decode(k) for k in hf[ds][:]])
+        sign = DataSignature(sign_path)
+        try:
+            keys = set(sign.keys)
+        except Exception:
+            keys = set(sign.row_keys)
         return self.inchikey in keys
 
     def report_available(self, dataset_code="*", cctype="*", molset="full"):
