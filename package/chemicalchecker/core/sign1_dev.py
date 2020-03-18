@@ -17,6 +17,7 @@ from tqdm import tqdm
 from sklearn.metrics import accuracy_score
 from scipy.spatial.distance import cosine
 import faiss
+import uuid
 from numpy import linalg as LA
 
 from .signature_data import DataSignature
@@ -27,7 +28,7 @@ from chemicalchecker.util.transform.lsi import Lsi
 from chemicalchecker.util.transform.pca import Pca
 from chemicalchecker.util.transform.outlier_removal import OutlierRemover
 from chemicalchecker.util.transform.metric_learn import UnsupervisedMetricLearn, SemiSupervisedMetricLearn
-
+from chemicalchecker import ChemicalChecker
 
 @logged
 class sign1(BaseSignature, DataSignature):
@@ -46,7 +47,7 @@ class sign1(BaseSignature, DataSignature):
         self.data_path = os.path.join(self.signature_path, "sign1.h5")
         DataSignature.__init__(self, self.data_path)
 
-    def copy_sign0_to_sign1(self, s0, s1):
+    def copy_sign0_to_sign1(self, s0, s1, just_data=False):
         """Copy from sign0 to sign1"""
         if s0.molset != s1.molset:
             raise Exception("Copying from signature 0 to 1 is only allowed for same molsets (reference or full)")
@@ -61,14 +62,15 @@ class sign1(BaseSignature, DataSignature):
             if s0.molset == "reference":
                 mappings = s0.get_h5_dataset("mappings")
                 hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
-        self.__log.debug("Copying triplets")
-        fn0 = os.path.join(s0.model_path, "triplets.h5")
-        if os.path.exists(fn0):
-            self.__log.debug("Triplets are available.")
-            fn1 = os.path.join(s1.model_path, "triplets.h5")
-            shutil.copyfile(fn0, fn1)
-        else:
-            self.__log.warn("No triplets available! Please fit sign0 with option do_triplets=True")
+        if not just_data:
+            self.__log.debug("Copying triplets")
+            fn0 = os.path.join(s0.model_path, "triplets.h5")
+            if os.path.exists(fn0):
+                self.__log.debug("Triplets are available.")
+                fn1 = os.path.join(s1.model_path, "triplets.h5")
+                shutil.copyfile(fn0, fn1)
+            else:
+                self.__log.warn("No triplets available! Please fit sign0 with option do_triplets=True")
 
     def duplicate(self, s1):
         self.__log.debug("Duplicating V matrix to V_tmp")
@@ -91,6 +93,11 @@ class sign1(BaseSignature, DataSignature):
     def pipeline_file(self):
         fn = os.path.join(self.get_molset("reference").model_path, "pipeline.pkl")
         return fn
+
+    def load_model(self, name):
+        s1 = self.get_molset("reference")
+        mod = os.path.join(s1.model_path, "%s.pkl" % name)
+        return mod
 
     def delete_tmp(self, s1):
         self.__log.debug("Deleting V_tmp")
@@ -135,6 +142,7 @@ class sign1(BaseSignature, DataSignature):
                 mod.fit()
             else:
                 self.__log.debug("Not looking for outliers")
+                max_outliers = None
         else:
             self.__log.debug("Not looking for outliers")
         self.__log.debug("Checking if matrix was sparse or not")
@@ -175,7 +183,7 @@ class sign1(BaseSignature, DataSignature):
         self.__log.debug("Saving pipeline")
         pipeline = {
             "sparse": sparse,
-            "remove_outliers": max_outliers,
+            "max_outliers": max_outliers,
             "latent": latent,
             "scale" : scale,
             "metric_learning": metric_learning,
@@ -187,40 +195,52 @@ class sign1(BaseSignature, DataSignature):
         with open(fn, "wb") as f:
             pickle.dump(pipeline, f)
         
-    def predict(self, sign0):
+    def predict(self, sign0, destination=None, max_outliers=None):
         """Predict sign1 from sign0"""
+        self.__log.debug("Generating temporary directory")
+        tmp_path = os.path.join(self.model_path, str(uuid.uuid4()))
+        cc = ChemicalChecker(tmp_path)
+        s1 = cc.signature(self.dataset, "sign1")
+        self.copy_sign0_to_sign1(sign0, s1, just_data=True)
         self.__log.debug("Reading pipeline")
         fn = self.pipeline_file()
         with open(fn, "rb") as f:
             pipeline = pickle.load(f)
         self.__log.debug("Starting pipeline")
+        if pipeline["max_outliers"] is not None:
+            mod = self.load_model("outliers")
+            if max_outliers is None:
+                max_outliers=pipeline["max_outliers"]
+            mod.predict(s1, max_outliers=max_outliers)
         if not pipeline["sparse"] and pipeline["scale"]:
-            sign0 = ""
+            mod = self.load_model("scale")
+            mod.predict(s1)
+        self.__log.debug("Transformation")
         if pipeline["metric_learning"]:
-            if pipeline["sparse"]:
-                pass
+            if pipeline["semisupervised"]:
+                mod = self.load_model("semiml")
             else:
-                if pipeline["scale"]:
-                    scale = ""
-                else:
-                    ""
+                mod = self.load_model("unsupml")
         else:
-            if pipeline["sparse"]:
-                ""
-            
-        if pipeline["sparse"]:
-            pass
-        else:
-            pass
-        if pipeline["metric_learning"]:
-            self.__log.debug("Metric learning was done. Using it to project.")
-            "XXXX"
-        else:
-            self.__log.debug("No metric learning was done")
             if pipeline["latent"]:
-                "XXXX"
+                if pipeline["sparse"]:
+                    mod = self.load_model("lsi")
+                else:
+                    mod = self.load_model("pca")
             else:
-                "XXXX"
+                pass
+        mod.predict(s1)
+        self.__log.debug("Prediction done!")
+        if destination is None:
+            self.__log.debug("Returning a dictionary of V and keys")
+            results  = {
+                "V": s1[:],
+                "keys": s1.keys
+            }
+            return results
+        else:
+            self.__log.debug("Saving H5 file in %s" % destination)
+            shutil.copyfile(s1.data_path, destination)
 
     def neighbors(self, tmp, metric="cosine", k_neig=1000, cpu=4):
         """Neighbors"""
