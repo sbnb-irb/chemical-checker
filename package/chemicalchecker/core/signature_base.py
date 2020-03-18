@@ -210,7 +210,7 @@ class BaseSignature(object):
                 self.__log.warning("Cannot apply mappings in validation.")
                 inchikey_mappings = None
             else:
-                inchikey_mappings = dict(self.get_h5_dataset('mappings'))
+                inchikey_mappings = dict(self.mappings)
         else:
             inchikey_mappings = None
         plot = Plot(self.dataset, self.stats_path, None)
@@ -302,7 +302,7 @@ class BaseSignature(object):
                 self.__log.warning("Cannot apply mappings in validation.")
                 inchikey_mappings = None
             else:
-                inchikey_mappings = dict(self.get_h5_dataset('mappings'))
+                inchikey_mappings = dict(self.mappings)
         else:
             inchikey_mappings = None
 

@@ -6,7 +6,7 @@ imported and initialized.
 """
 import os
 import h5py
-
+import numpy as np
 from chemicalchecker.util import logged
 
 
@@ -43,6 +43,7 @@ class DataFactory():
         from .sign2 import sign2
         from .sign3 import sign3
         from .sign4 import sign4
+        from .signature_data import DataSignature
 
         from .clus import clus
         from .neig import neig
@@ -54,7 +55,7 @@ class DataFactory():
         if not dataset_code:
             dataset_code = "XX.001"
         with h5py.File(data_path, 'w') as hf:
-            hf.create_dataset("keys", data=keys)
+            hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
             hf.create_dataset("V", data=matrix)
             hf.create_dataset("shape", data=matrix.shape)
         if cctype[:4] in ['clus', 'neig', 'proj']:

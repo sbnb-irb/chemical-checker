@@ -13,6 +13,7 @@ from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
 from chemicalchecker.util.performance import gaussian_scale_impute
 from chemicalchecker.core.preprocess import Preprocess
+from chemicalchecker.core.signature_data import DataSignature
 
 # Variables
 dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
@@ -126,7 +127,7 @@ def main(args):
                 sigs[inchikey] += [v]
 
         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
-            hf.create_dataset("features", data=np.array(cell_names, h5py.special_dtype(vlen=str)))
+            hf.create_dataset("features", data=np.array(cell_names, DataSignature.string_dtype()))
             # pickle.dump({k: v for v, k in enumerate(cell_names)}, fh)
 
     if args.method == "predict":
@@ -179,9 +180,9 @@ def main(args):
         data.append(X[0][i])
 
     with h5py.File(args.output_file, "w") as hf:
-        hf.create_dataset("keys", data=np.array(keys[inds], h5py.special_dtype(vlen=str)))
+        hf.create_dataset("keys", data=np.array(keys[inds], DataSignature.string_dtype()))
         hf.create_dataset("X", data=np.array(data))
-        hf.create_dataset("features", data=np.array(cell_names, h5py.special_dtype(vlen=str)))
+        hf.create_dataset("features", data=np.array(cell_names, DataSignature.string_dtype()))
 
 
 if __name__ == '__main__':

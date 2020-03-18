@@ -2704,7 +2704,7 @@ class MultiPlot():
             exp_error = error_dist.get_h5_dataset('exp_error').flatten()
             log_mse = error_dist.get_h5_dataset('log_mse')
             log_mse_consensus = error_dist.get_h5_dataset('log_mse_consensus')
-            keys = error_dist.get_h5_dataset('keys')
+            keys = error_dist.keys
 
             confidence = s3.get_h5_dataset('confidence_raw').flatten()
             mask = np.isin(list(s3.keys), list(keys), assume_unique=True)
