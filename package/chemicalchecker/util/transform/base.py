@@ -54,8 +54,11 @@ class BaseTransform(object):
 
     def remap(self, sign1):
         self.__log.debug("Re-doing the mappings")
-        s1_full  = sign1.get_molset("full")
-        s1_ref   = sign1.get_molset("reference")
+        s1_full = sign1.get_molset("full")
+        s1_ref  = sign1.get_molset("reference")
+        if not os.path.exists(s1_ref.data_path):
+            self.__log.debug("Reference not available")
+            return
         mappings = s1_ref.get_h5_dataset("mappings")
         keys = s1_full.keys
         mask = np.isin(mappings[:,0], keys)
