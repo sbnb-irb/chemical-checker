@@ -7,8 +7,8 @@ from .base import BaseTransform
 
 class Pca(BaseTransform):
     """Do a PCA"""
-    def __init__(self, sign1, n_components=0.9, max_keys=10000):
-        BaseTransform.__init__(self, sign1, "pca", max_keys)
+    def __init__(self, sign1, tmp=False, n_components=0.9, max_keys=10000):
+        BaseTransform.__init__(self, sign1, "pca", max_keys, tmp)
         self.n_components = n_components
 
     def fit(self):

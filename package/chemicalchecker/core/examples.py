@@ -103,9 +103,9 @@ class Example(BaseExample):
         """
         self.__log.info("Getting cell sensitivity data (example of continuous data)")
         df = pd.read_csv(os.path.join(self.path, "ctrp_auc.csv"), delimiter=",")
-        keys = np.array(df[df.columns[0]])
-        features = np.array(df.columns[1:])
-        X = np.array(df[df.columns[1:]])
+        keys = np.array(df[df.columns[0]]).astype(str)
+        features = np.array(df.columns[1:]).astype(str)
+        X = np.array(df[df.columns[1:]]).astype(float)
         return X, keys, features
 
     
