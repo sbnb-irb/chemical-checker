@@ -32,7 +32,7 @@ def read_mosaic_predictions(all_conditions, comb_gt_preds):
 
     conds = {}
     f = open(all_conditions, "r")
-    H = f.next().split("\t")[1:]
+    H = f.readline().split("\t")[1:]
     f.close()
 
     for h in H:
