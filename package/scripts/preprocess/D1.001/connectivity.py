@@ -135,7 +135,7 @@ if __name__ == '__main__':
 
     touch = set()
     with open(gene_info, "r") as f:
-        f.next()
+        f.readline()
         for l in f:
             l = l.rstrip("\n").split("\t")
             trt = l[2]

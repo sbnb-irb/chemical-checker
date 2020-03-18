@@ -397,9 +397,9 @@ class sign1(BaseSignature, DataSignature):
         if destination is None:
             destination = self.data_path
         with open(FILE, "r") as f:
-            i = f.next()
-            n = f.next()
-            d = f.next()
+            i = f.readline()
+            n = f.readline()
+            d = f.readline()
             if "not_integerize" in i:
                 self.integerize = False
             else:
@@ -472,8 +472,8 @@ class sign1(BaseSignature, DataSignature):
             self.__log.info("Reading number of topics")
 
             with open(self.model_path + "/cut.txt", "r") as f:
-                cut_i = int(f.next().rstrip())
-                elb_i = int(f.next().rstrip())
+                cut_i = int(f.readline().rstrip())
+                elb_i = int(f.readline().rstrip())
 
             self.__log.info("%.1f topics: %d" %
                             (self.variance_cutoff, cut_i + 1))
@@ -565,8 +565,8 @@ class sign1(BaseSignature, DataSignature):
 
             self.__log.info("Reading number of topics")
             with open(self.model_path + "/cut.txt", "r") as f:
-                cut_i = int(f.next().rstrip())
-                elb_i = int(f.next().rstrip())
+                cut_i = int(f.readline().rstrip())
+                elb_i = int(f.readline().rstrip())
 
             self.__log.info("Projecting")
 

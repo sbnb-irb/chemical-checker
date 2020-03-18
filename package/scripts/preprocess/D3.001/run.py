@@ -43,7 +43,7 @@ def read_mosaic_predictions(all_conditions, comb_gt_preds):
 
     sig = collections.defaultdict(list)
     with open(comb_gt_preds, "r") as f:
-        f.next()
+        f.readline()
         for l in f:
             l = l.rstrip("\n").split("\t")
             if l[0] not in conds:
