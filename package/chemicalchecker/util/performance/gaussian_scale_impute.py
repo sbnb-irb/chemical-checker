@@ -1,7 +1,7 @@
 import os
 import pickle
 import numpy as np
-from sklearn.preprocessing import Imputer, RobustScaler
+from sklearn.preprocessing import SimpleImputer, RobustScaler
 from fancyimpute import IterativeImputer as fancyImputer
 
 perc = 99.9
@@ -33,7 +33,7 @@ def scaleimpute(X, z_extreme=10, models_path=None, up=None, dw=None):
         fancy_file = os.path.join(models_path, fancy_file)
 
     if imputer_file is None or not os.path.exists(imputer_file):
-        imputer = Imputer(strategy="median")
+        imputer = SimpleImputer(strategy="median")
         imputer.fit(X)
         with open(imputer_file, 'wb') as fh:
             pickle.dump(imputer, fh)
