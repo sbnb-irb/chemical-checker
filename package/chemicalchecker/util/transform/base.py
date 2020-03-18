@@ -20,14 +20,12 @@ class BaseTransform(object):
             raise Exception("Transformations are only allowed for signature 1")
         if self.sign.molset != "full":
             raise Exception("This is a high level functionality of the CC. Only 'full' molset is allowed.")
-        if tmp:
-            self.sign_ref = self.sign.get_molset("tmp")
-        else:
-            self.sign_ref = self.sign.get_molset("reference")
+        self.sign_ref = self.sign.get_molset("reference")
         self.name = name
         self.model_path = self.sign_ref.model_path
         self.max_keys = max_keys
         self.categorical = self.is_categorical()
+        self.tmp = tmp
 
     def reindex_triplets(self, sign1, keys):
         fn = os.path.join(sign1.model_path, "triplets.h5")
@@ -54,15 +52,40 @@ class BaseTransform(object):
             del hf["triplets"]
             hf["triplets"] = triplets
 
+    def remap(self, sign1):
+        self.__log.debug("Re-doing the mappings")
+        s1_full  = sign1.get_molset("full")
+        s1_ref   = sign1.get_molset("reference")
+        mappings = s1_ref.get_h5_dataset("mappings")
+        keys = s1_full.keys
+        mask = np.isin(mappings[:,0], keys)
+        mappings = mappings[mask]
+        with h5py.File(s1_ref.data_path, "r+") as hf:
+            del hf["mappings"]
+            hf["mappings"] = mappings
+        
     def overwrite(self, sign1, V, keys):
         self.reindex_triplets(sign1, keys)
         data_path = sign1.data_path
         with h5py.File(data_path, "r+") as hf:
-            del hf["V"]
-            hf["V"] = V
+            if self.tmp:
+                keys_ = hf["keys"][:]
+                mask  = np.isin(keys_, keys)
+                del hf["V_tmp"]
+                hf["V_tmp"] = V
+                V = hf["V"][:][mask]
+                del hf["V"]
+                hf["V"] = V
+            else:
+                del hf["V"]
+                hf["V"] = V
+                if "V_tmp" in hf.keys():
+                    self.__log.debug("Overwriting tmp with the actual dataset")
+                    del hf["V_tmp"]
+                    hf["V_tmp"] = V
             del hf["keys"]
             hf["keys"] = np.array(keys, DataSignature.string_dtype())
-        sign1.keys = keys
+        self.remap(sign1)
 
     def save(self):
         self.__log.debug("Saving transformer object")
@@ -81,10 +104,20 @@ class BaseTransform(object):
                 max_keys = None
         if max_keys is None:
             self.__log.debug("Considering all data")
-            V, keys = self.sign_ref[:], self.sign_ref.keys
+            keys = self.sign_ref.keys
+            if self.tmp:
+                V = self.sign_ref.get_h5_dataset("V_tmp")[:]
+            else:
+                V = self.sign_ref[:]
         else:
             self.__log.debug("Subsampling data")
-            V, keys = self.sign_ref.subsample(max_keys)
+            idxs = np.array(sorted(np.random.choice(len(self.sign_ref.keys), max_keys, replace=False)))
+            with h5py.File(self.sign_ref.data_path, "r") as hf:
+                if self.tmp:
+                    V = hf["V_tmp"][idxs]
+                else:
+                    V = hf["V"][idxs]
+            keys = np.array(self.sign_ref.keys)[idxs]
         features = np.array(["f%d" % i for i in range(self.sign_ref.shape[1])])
         if self.categorical:
             V = V.astype(np.int)
