@@ -418,14 +418,9 @@ class Diagnosis(object):
                 keys = np.array(sorted(random.sample(keys, np.min([max_keys, len(keys)]))))
                 X = self.sign.get_vectors(keys)[1]
             # Sort features if available
-            with h5py.File(self.sign.data_path, "r") as hf:
-                if "features" in hf.keys():
-                    try:
-                        features = [f.decode() for f in hf["features"][:]]
-                    except:
-                        features = hf["features"][:]
-                    idxs = np.argsort(features)
-                    X = X[:,idxs]
+            features = self.sign.features
+            idxs = np.argsort(features)
+            X = X[:,idxs]
             results = {
                 "X": X,
                 "keys": keys

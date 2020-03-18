@@ -603,7 +603,7 @@ class RawSignatureStacker(object):
                 keys_ = sign.keys
                 conf  = []
                 for i, k in enumerate(keys_):
-                    if k.decode() in my_keys:
+                    if k in my_keys:
                         conf += [conf_[i]]
                 confidence[:,j] = np.array(conf)
         self.__log.debug("Saving: %s" % self.filename)
