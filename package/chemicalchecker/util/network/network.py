@@ -333,7 +333,8 @@ class HotnetNetwork():
                 G.add_edge(l[0], l[1])
 
         if not all_nodes:
-            G = max(nx.connected_component_subgraphs(G), key=len)
+
+            G = max(list(G.subgraph(c) for c in nx.connected_components(G)), key=len)
 
         # Writing files
 
