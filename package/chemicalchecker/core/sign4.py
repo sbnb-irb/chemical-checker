@@ -831,8 +831,10 @@ class sign4(BaseSignature, DataSignature):
         test_inks = traintest.get_h5_dataset('keys_test')
         train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks)).flatten()
         test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks)).flatten()
-        unknown_idxs = np.array(list(set(np.arange(len(all_inchikeys))) - (set(train_idxs) | set(test_idxs))))
-        unknown_idxs = np.sort(np.random.choice(unknown_idxs, 5000, replace=False))
+        unknown_idxs = np.array(
+            list(set(np.arange(len(all_inchikeys))) - (set(train_idxs) | set(test_idxs))))
+        unknown_idxs = np.sort(np.random.choice(
+            unknown_idxs, 5000, replace=False))
 
         # predict
         pred = dict()
@@ -909,21 +911,21 @@ class sign4(BaseSignature, DataSignature):
             plt.close()
 
         self.__log.info('VALIDATION: Plot Projections.')
-        fig, axes = plt.subplots(2, 2, sharex=True, sharey=True, 
-            figsize=(10, 10), dpi=200)
+        fig, axes = plt.subplots(2, 2, sharex=True, sharey=True,
+                                 figsize=(10, 10), dpi=200)
         proj_model = MulticoreTSNE(n_components=2)
         proj_limit = min(500, len(pred['test']['ALL']))
         proj_train = np.vstack([
-                pred['train']['ALL'][:proj_limit],
-                pred['test']['ALL'][:proj_limit],
-                pred['unknown']['ALL'][:(proj_limit*2)],
-                pred['test']['ONLY-SELF'][-proj_limit:]
-            ])
+            pred['train']['ALL'][:proj_limit],
+            pred['test']['ALL'][:proj_limit],
+            pred['unknown']['ALL'][:(proj_limit * 2)],
+            pred['test']['ONLY-SELF'][-proj_limit:]
+        ])
         proj = proj_model.fit_transform(proj_train)
         dist_tr = proj[:proj_limit]
-        dist_ts = proj[proj_limit:(proj_limit*2)]
-        dist_uk = proj[(proj_limit*2):(proj_limit*4)]
-        dist_os = proj[(proj_limit*4):]
+        dist_ts = proj[proj_limit:(proj_limit * 2)]
+        dist_uk = proj[(proj_limit * 2):(proj_limit * 4)]
+        dist_os = proj[(proj_limit * 4):]
 
         axes[0][0].set_title('Train')
         axes[0][0].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="grey")
@@ -2022,18 +2024,19 @@ class sign4(BaseSignature, DataSignature):
         prior_mdl = None
         conf_mdl = None
 
-        if suffix == None:
+        if suffix is None:
             eval_model_path = os.path.join(self.model_path, 'siamese_eval')
             eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
             if not os.path.isfile(eval_file):
                 siamese, prior_mdl, conf_mdl = self.learn_sign2(
-                    self.params['sign2'], suffix='eval', evaluate=True)
+                    self.params['sign2'].copy(), suffix='eval', evaluate=True)
         else:
-            eval_model_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
+            eval_model_path = os.path.join(self.model_path,
+                                           'siamese_%s' % suffix)
             eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
             if not os.path.isfile(eval_file):
                 siamese, prior_mdl, conf_mdl = self.learn_sign2(
-                    self.params['sign2'], suffix=suffix, evaluate=True)
+                    self.params['sign2'].copy(), suffix=suffix, evaluate=True)
             return False
 
         # check if we have the final trained model
@@ -2041,7 +2044,7 @@ class sign4(BaseSignature, DataSignature):
         final_file = os.path.join(final_model_path, 'siamesetriplets.h5')
         if not os.path.isfile(final_file):
             siamese, prior_mdl, conf_mdl = self.learn_sign2(
-                self.params['sign2'], suffix='final', evaluate=False)
+                self.params['sign2'].copy(), suffix='final', evaluate=False)
 
         # load models if not already available
         if siamese is None:
