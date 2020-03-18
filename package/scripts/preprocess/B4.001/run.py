@@ -128,7 +128,7 @@ def parse_bindingdb(ACTS=None, bindingdb_file=None):
 
     f = open(bindingdb_file, "r")
 
-    header = f.next()
+    header = f.readline()
     header = header.rstrip("\n").split("\t")
     bdlig_idx = header.index("Ligand InChI Key")
     smiles_idx = header.index("Ligand SMILES")
