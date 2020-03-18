@@ -83,6 +83,7 @@ class sign4(BaseSignature, DataSignature):
             'regularize': False,
             'num_triplets': 10000,
             't_per': 0.01,
+            'standard': False,
             'augment_fn': subsample,
             'augment_kwargs': {
                 'dataset': [dataset],
