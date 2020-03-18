@@ -100,12 +100,12 @@ class SiameseTriplets(object):
             "dropouts", ([0.2] * (len(self.layers_sizes) - 1)) + [None])
         self.augment_fn = kwargs.get("augment_fn", None)
         self.augment_kwargs = kwargs.get("augment_kwargs", {})
-        self.augment_scale = int(kwargs.get("augment_scale", 1))
         self.loss_func = str(kwargs.get("loss_func", 'orthogonal_tloss'))
         self.margin = float(kwargs.get("margin", 1.0))
         self.alpha = float(kwargs.get("alpha", 1.0))
         self.patience = float(kwargs.get("patience", 5))
         self.traintest_file = kwargs.get("traintest_file", None)
+        self.standard = kwargs.get("standard", True)
 
         # internal variables
         self.name = self.__class__.__name__.lower()
@@ -136,12 +136,12 @@ class SiameseTriplets(object):
                 self.traintest_file,
                 'train_train',
                 epochs=self.epochs,
-                batch_size=int(self.batch_size / self.augment_scale),
+                batch_size=self.batch_size,
                 replace_nan=self.replace_nan,
                 sharedx=self.sharedx,
                 augment_fn=self.augment_fn,
                 augment_kwargs=self.augment_kwargs,
-                train=True)
+                train=True, standard=self.standard)
             self.tr_shapes = tr_shape_type_gen[0]
             self.tr_gen = tr_shape_type_gen[2]()
             self.steps_per_epoch = np.ceil(
@@ -163,7 +163,8 @@ class SiameseTriplets(object):
                 augment_fn=self.augment_fn,
                 sharedx=self.sharedx,
                 train=False,
-                shuffle=False)
+                shuffle=False,
+                standard=self.standard)
             self.val_shapes = val_shape_type_gen[0]
             self.val_gen = val_shape_type_gen[2]()
             self.validation_steps = np.ceil(
@@ -214,8 +215,6 @@ class SiameseTriplets(object):
         self.__log.info("{:<22}: {:>12}".format(
             "augment_fn", str(self.augment_fn)))
         self.__log.info("{:<22}: {:>12}".format(
-            "augment_scale", self.augment_scale))
-        self.__log.info("{:<22}: {:>12}".format(
             "augment_kwargs", str(self.augment_kwargs)))
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
 
@@ -256,8 +255,9 @@ class SiameseTriplets(object):
         input_a = Input(shape=input_shape)
         input_p = Input(shape=input_shape)
         input_n = Input(shape=input_shape)
-        input_o = Input(shape=input_shape)
-        input_s = Input(shape=input_shape)
+        if not self.standard:
+            input_o = Input(shape=input_shape)
+            input_s = Input(shape=input_shape)
 
         # each goes to a network with the same architechture
         basenet = Sequential()
@@ -283,26 +283,39 @@ class SiameseTriplets(object):
         encodeds.append(basenet(input_a))
         encodeds.append(basenet(input_p))
         encodeds.append(basenet(input_n))
-        encodeds.append(basenet(input_o))
-        encodeds.append(basenet(input_s))
+        if not self.standard:
+            encodeds.append(basenet(input_o))
+            encodeds.append(basenet(input_s))
         merged_vector = concatenate(encodeds, axis=-1, name='merged_layer')
 
-        model = Model(inputs=[input_a, input_p, input_n, input_o, input_s],
-                      output=merged_vector)
+        inputs = [input_a, input_p, input_n]
+        if not self.standard:
+            inputs.extend([input_o, input_s])
+        model = Model(inputs=inputs, output=merged_vector)
 
         # TODO NEED TO CHANGE IF WE USE 4 INPUTS INSTEAD OF 3
-        def split_output(y_pred):
-            total_lenght = y_pred.shape.as_list()[-1]
-            anchor = y_pred[:, 0: int(total_lenght * 1 / 5)]
-            positive = y_pred[
-                :, int(total_lenght * 1 / 5): int(total_lenght * 2 / 5)]
-            negative = y_pred[
-                :, int(total_lenght * 2 / 5): int(total_lenght * 3 / 5)]
-            only = y_pred[
-                :, int(total_lenght * 3 / 5): int(total_lenght * 4 / 5)]
-            n_self = y_pred[
-                :, int(total_lenght * 4 / 5): int(total_lenght * 5 / 5)]
-            return anchor, positive, negative, only, n_self
+        if self.standard:
+            def split_output(y_pred):
+                total_lenght = y_pred.shape.as_list()[-1]
+                anchor = y_pred[:, 0: int(total_lenght * 1 / 3)]
+                positive = y_pred[
+                    :, int(total_lenght * 1 / 3): int(total_lenght * 2 / 3)]
+                negative = y_pred[
+                    :, int(total_lenght * 2 / 3): int(total_lenght * 3 / 3)]
+                return anchor, positive, negative, None, None
+        else:
+            def split_output(y_pred):
+                total_lenght = y_pred.shape.as_list()[-1]
+                anchor = y_pred[:, 0: int(total_lenght * 1 / 5)]
+                positive = y_pred[
+                    :, int(total_lenght * 1 / 5): int(total_lenght * 2 / 5)]
+                negative = y_pred[
+                    :, int(total_lenght * 2 / 5): int(total_lenght * 3 / 5)]
+                only = y_pred[
+                    :, int(total_lenght * 3 / 5): int(total_lenght * 4 / 5)]
+                n_self = y_pred[
+                    :, int(total_lenght * 4 / 5): int(total_lenght * 5 / 5)]
+                return anchor, positive, negative, only, n_self
 
         # define monitored metrics
         def accTot(y_true, y_pred):
@@ -363,15 +376,14 @@ class SiameseTriplets(object):
             anchor, positive, negative, only_self, not_self = split_output(y_pred)
             return pearson_r(not_self, only_self)
 
-        metrics = [
-            accTot,
-            accE,
+        metrics = [accTot]
+        if not self.standard:
+            metrics.extend([accE,
             accM,
             accH,
             cor1,
             cor2,
-            cor3
-        ]
+            cor3])
 
         def tloss(y_true, y_pred):
             anchor, positive, negative, _, _ = split_output(y_pred)
@@ -483,7 +495,7 @@ class SiameseTriplets(object):
         min_lr, max_lr = lrf.find_bounds()
         lr_plot_file = os.path.join(self.model_dir, "lr_evolution.png")
         lrf.plot_loss(min_lr, max_lr, lr_plot_file)
-        
+
         lr_pkl_file = os.path.join(self.model_dir, "lr_evolution.pkl")
         lrf.save_loss_evolution(lr_pkl_file)
 
@@ -498,6 +510,7 @@ class SiameseTriplets(object):
         lr_increase = (max_lr + min_lr) / (num_lr - 1)
         lr_iters = []
         lr_params = params.copy()
+        lr_params['epochs'] = 1
         for i in range(num_lr):
             self.__log.info('Lr finder iteration: %s' % i)
             lr = min_lr + (i * lr_increase)
@@ -632,7 +645,8 @@ class SiameseTriplets(object):
                         augment_kwargs=self.augment_kwargs,
                         augment_fn=self.augment_fn,
                         train=False,
-                        shuffle=False)
+                        shuffle=False,
+                        standard=self.standard)
                     validation_sets.append((gen, shapes, name))
             additional_vals = AdditionalValidationSets(
                 validation_sets, self.model, batch_size=self.batch_size)
@@ -835,7 +849,8 @@ class SiameseTriplets(object):
             sharedx=self.sharedx,
             augment_fn=self.augment_fn,
             train=False,
-            shuffle=False)
+            shuffle=False,
+            standard=self.standard)
 
         tr_gen = tr_shape_type_gen[2]()
 
@@ -847,7 +862,8 @@ class SiameseTriplets(object):
             sharedx=self.sharedx,
             augment_fn=self.augment_fn,
             train=False,
-            shuffle=False)
+            shuffle=False,
+            standard=self.standard)
         trval_gen = val_shape_type_gen[2]()
 
         vset_dict = {'train_train': tr_gen,
