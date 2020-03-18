@@ -483,7 +483,7 @@ class SiameseTriplets(object):
         min_lr, max_lr = lrf.find_bounds()
         lr_plot_file = os.path.join(self.model_dir, "lr_evolution.png")
         lrf.plot_loss(min_lr, max_lr, lr_plot_file)
-find_
+        
         lr_pkl_file = os.path.join(self.model_dir, "lr_evolution.pkl")
         lrf.save_loss_evolution(lr_pkl_file)
 
