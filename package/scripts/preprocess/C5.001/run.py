@@ -147,7 +147,7 @@ def parse_bindingdb(ACTS=None, bindingdb_file=None):
 
     f = open(bindingdb_file, "r")
 
-    header = f.next()
+    header = f.readline()
     header = header.rstrip("\n").split("\t")
     bdlig_idx = header.index("Ligand InChI Key")
     smiles_idx = header.index("Ligand SMILES")
@@ -167,7 +167,7 @@ def parse_bindingdb(ACTS=None, bindingdb_file=None):
     # Now get the activity.
 
     f = open(bindingdb_file, "r")
-    f.next()
+    f.readline()
     for l in f:
 
         l = l.rstrip("\n").split("\t")
@@ -316,7 +316,7 @@ def human_metaphors(id_conversion, file_9606, human_proteome):
 
     metaphorsid_uniprot = collections.defaultdict(set)
     f = open(id_conversion, "r")
-    f.next()
+    f.readline()
     for l in f:
         l = l.rstrip("\n").split("\t")
         if l[1] == "SwissProt" or l[1] == "TrEMBL":
@@ -325,7 +325,7 @@ def human_metaphors(id_conversion, file_9606, human_proteome):
 
     any_human = collections.defaultdict(set)
     f = open(file_9606, "r")
-    f.next()
+    f.readline()
     for l in f:
         l = l.rstrip("\n").split("\t")
         if l[3] not in metaphorsid_uniprot:
@@ -339,7 +339,7 @@ def human_metaphors(id_conversion, file_9606, human_proteome):
     f.close()
 
     f = open(human_proteome, "r")
-    f.next()
+    f.readline()
     for l in f:
         p = l.split("\t")[0]
         any_human[p].update([p])

@@ -954,7 +954,7 @@ class Parser():
             index_smi = 0
             index_id = 2
             min_items = 3
-            f.next()
+            f.readline()
 
         chunk = list()
 

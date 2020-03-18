@@ -33,7 +33,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
         map_files["GSE92742_Broad_LINCS_pert_info"], "GSE92742_Broad_LINCS_pert_info.txt")
     touchstone = set()
     with open(GSE92742_Broad_LINCS_pert_info, "r") as f:
-        f.next()
+        f.readline()
         for l in f:
             l = l.rstrip("\n").split("\t")
             trt = l[2]
@@ -48,7 +48,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
         map_files["GSE92742_Broad_LINCS_gene_info"], "GSE92742_Broad_LINCS_gene_info.txt")
     genes = {}
     with open(GSE92742_Broad_LINCS_gene_info, "r") as f:
-        f.next()
+        f.readline()
         for l in f:
             l = l.split("\t")
             genes[l[0]] = l[1]
@@ -57,7 +57,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
 
     for file_name in glob.glob(os.path.join(map_files["GSE70138_Broad_LINCS_sig_info"], "*.txt")):
         with open(file_name, "r") as f:
-            f.next()
+            f.readline()
             for l in f:
                 l = l.rstrip("\n").split("\t")
                 if l[1] in touchstone:
@@ -71,7 +71,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
     sigs = collections.defaultdict(list)
     for file_name in glob.glob(os.path.join(map_files["GSE70138_Broad_LINCS_sig_metrics"], "*.txt")):
         with open(file_name, "r") as f:
-            f.next()
+            f.readline()
             for l in f:
                 l = l.rstrip("\n").split("\t")[1:]
                 if float(l[1]) < 0.2:
@@ -92,7 +92,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
     GSE92742_Broad_LINCS_sig_info = os.path.join(
         map_files["GSE92742_Broad_LINCS_sig_info"], "GSE92742_Broad_LINCS_sig_info.txt")
     with open(GSE92742_Broad_LINCS_sig_info, "r") as f:
-        f.next()
+        f.readline()
         for l in f:
             l = l.rstrip("\n").split("\t")
             if l[1] in touchstone:
@@ -104,7 +104,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
     GSE92742_Broad_LINCS_sig_metrics = os.path.join(
         map_files["GSE92742_Broad_LINCS_sig_metrics"], "GSE92742_Broad_LINCS_sig_metrics.txt")
     with open(GSE92742_Broad_LINCS_sig_metrics, "r") as f:
-        f.next()
+        f.readline()
         for l in f:
             l = l.rstrip("\n").split("\t")
             if float(l[4]) < 0.2:

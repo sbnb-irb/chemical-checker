@@ -46,7 +46,7 @@ class Word2VecWrapper():
             with open(in_file, 'r') as fh:
                 words = list()
                 vectors = list()
-                fh.next()  # skip first row
+                fh.readline()  # skip first row
                 skipped = 0
                 for line in fh:
                     fields = line.split()

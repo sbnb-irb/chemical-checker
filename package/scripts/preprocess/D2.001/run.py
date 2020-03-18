@@ -147,7 +147,7 @@ def main(args):
         post_data = np.empty((len(cell_names_map)))
 
         with open(args.input_file, "r") as f:
-            l = f.next()
+            l = f.readline()
             headers = l.rstrip().split("\t")[1:]
             for l in f:
                 l = l.rstrip().split("\t")
