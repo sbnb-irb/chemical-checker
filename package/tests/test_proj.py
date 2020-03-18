@@ -8,6 +8,7 @@ import functools
 import numpy as np
 
 from chemicalchecker.core import ChemicalChecker
+from chemicalchecker.core.signature_data import DataSignature
 
 
 def skip_if_import_exception(function):
@@ -42,8 +43,8 @@ class TestProj(unittest.TestCase):
         self.cc_root = cc_root
         self.assertFalse(os.path.isdir(cc_root))
 
-        sign1 = mock.Mock()
-        sign1.data_path = os.path.join(self.data_dir, "mock_sign1.h5")
+        data_path = os.path.join(self.data_dir, "mock_sign1.h5")
+        sign1 = DataSignature(data_path)
         sign1.background_distances = self.background_distances
         cc = ChemicalChecker(cc_root)
         self.assertTrue(os.path.isdir(cc_root))

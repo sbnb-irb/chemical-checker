@@ -45,7 +45,7 @@ class TripletSampler(object):
         keys_idxs = dict((k,i) for i,k in enumerate(keys))
         # Start with mappings
         sign_ds = self.cc.get_signature("sign1", "reference", dataset)
-        maps_ds = np.array([(x[0].decode("ascii"), x[1].decode("ascii")) for x in sign_ds.get_h5_dataset("mappings")])
+        maps_ds = np.array([(x[0].decode("ascii"), x[1].decode("ascii")) for x in sign_ds.mappings])
         keys_ds = sign_ds.keys
         keys_ds_idxs = dict((k,i) for i,k in enumerate(keys_ds))
         toref_idxs = {}
@@ -123,7 +123,7 @@ class TripletSampler(object):
         sign_ref = self.sign.get_molset("reference")
         triplets_ref = list()
         key2idx = dict((k,i) for i,k in enumerate(sign_ref.keys))
-        mappings_ = sign_ref.get_h5_dataset("mappings")
+        mappings_ = sign_ref.mappings
         mappings = []
         for m in mappings_[:,1]:
             mappings += [key2idx[m.decode()]]

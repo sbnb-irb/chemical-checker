@@ -250,7 +250,7 @@ class sign1(BaseSignature, DataSignature):
             sort_idxs = np.argsort(inchikeys)
 
             with h5py.File(self.data_path, 'w') as hf:
-                hf.create_dataset("keys", data=inchikeys[sort_idxs])
+                hf.create_dataset("keys", data=np.array(inchikeys[sort_idxs], DataSignature.string_dtype()))
                 hf.create_dataset("V", data=V[sort_idxs])
                 hf.create_dataset("shape", data=V.shape)
                 hf.create_dataset("elbow", data=[elb_i])
@@ -358,7 +358,7 @@ class sign1(BaseSignature, DataSignature):
                 # Sometimes sign1 might reduce the number of output signatures
                 # If so, we should update the mappings in the sign1.h5 file
                 mask = np.isin(list(mappings[:, 1]), hf["keys"][:])
-                hf.create_dataset("mappings", data=mappings[mask])
+                hf.create_dataset("mappings", data=np.array(mappings[mask], DataSignature.string_dtype()))
 
         self.background_distances("cosine")
         self.background_distances("euclidean")
@@ -519,7 +519,7 @@ class sign1(BaseSignature, DataSignature):
             sort_idxs = np.argsort(inchikeys)
 
             with h5py.File(destination, 'w') as hf:
-                hf.create_dataset("keys", data=inchikeys[sort_idxs])
+                hf.create_dataset("keys", data=np.array(inchikeys[sort_idxs], DataSignature.string_dtype()))
                 hf.create_dataset("V", data=V[sort_idxs])
                 hf.create_dataset("shape", data=V.shape)
 
@@ -596,7 +596,7 @@ class sign1(BaseSignature, DataSignature):
             sort_idxs = np.argsort(inchikeys)
 
             with h5py.File(destination, "w") as hf:
-                hf.create_dataset("keys", data=inchikeys[sort_idxs])
+                hf.create_dataset("keys", data=np.array(inchikeys[sort_idxs], DataSignature.string_dtype()))
                 hf.create_dataset("V", data=V[sort_idxs])
                 hf.create_dataset("shape", data=V[sort_idxs].shape)
 
@@ -617,7 +617,7 @@ class sign1(BaseSignature, DataSignature):
                 # Sometimes sign1 reduce the number of output signatures
                 # If so, we should update the mappings in the sign1.h5 file
                 mask = np.isin(list(mappings[:, 1]), hf["keys"][:])
-                hf.create_dataset("mappings", data=mappings[mask])
+                hf.create_dataset("mappings", data=np.array(mappings[mask], DataSignature.string_dtype()))
 
         self.__log.info("Cleaning")
         gc.collect()

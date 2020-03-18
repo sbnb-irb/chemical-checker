@@ -98,11 +98,8 @@ class Diagnosis(object):
 
     def _apply_mappings(self, sign):
         keys = sign.keys
-        if 'mappings' not in self.sign.info_h5:
-            self.__log.warning("Cannot apply mappings in validation.")
-        else:
-            inchikey_mappings = dict(self.sign.get_h5_dataset('mappings'))
-            keys = [inchikey_mappings[k] for k in keys]
+        inchikey_mappings = dict(self.sign.mappings)
+        keys = [inchikey_mappings[k] for k in keys]
         return keys
 
     def _paired_keys(self, my_keys, vs_keys):
@@ -941,7 +938,7 @@ class Diagnosis(object):
         fn = "redundancy"
         if self._todo(fn):
             sign_ref = self.sign.get_molset("reference")
-            mappings = sign_ref.get_h5_dataset("mappings")
+            mappings = sign_ref.mappings
             mps = []
             for i in range(0, mappings.shape[0]):
                 mps += [(mappings[i,0].decode(), mappings[i,1].decode())]

@@ -187,7 +187,8 @@ class RNDuplicates():
         list_maps = sorted(self.mappings.items())
         self.__log.info("Starting to write to : " + destination)
         with h5py.File(destination, 'w') as hf:
-            hf.create_dataset("keys", data=self.keys[np.array(self.final_ids)])
+            keys = self.keys[np.array(self.final_ids)]
+            hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
             if self.data is None:
                 dh5 = h5py.File(self.data_file, 'r')
                 V = np.array(

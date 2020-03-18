@@ -9,6 +9,7 @@ from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
+from chemicalchecker.core.signature_data import DataSignature
 from chemicalchecker.util.pipeline import BaseTask
 from chemicalchecker.util import HPC
 
@@ -88,7 +89,7 @@ class CCLongShort(BaseTask, BaseOperator):
 
             with h5py.File(s_long.data_path, "w") as hf:
                 hf.create_dataset("keys", data=np.array(
-                    [str(k) for k in s.keys]))
+                    [str(k) for k in s.keys], DataSignature.string_dtype()))
                 hf.create_dataset("V", (rows, cols))
 
             for i, code in enumerate(dataset_codes):
