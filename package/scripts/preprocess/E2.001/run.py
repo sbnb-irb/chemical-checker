@@ -185,9 +185,9 @@ def main(args):
             map_files["CTD_diseases"], "CTD_diseases.tsv")
         classIND = include_mesh(ctd_diseases, IND)
 
-        inchikey_raw = collections.defaultdict(dict)
+        inchikey_raw = collections.defaultdict(list)
         for k, v in classIND.items():
-            inchikey_raw[k[0]][k[1] + "(" + str(v) + ")"] = 1
+            inchikey_raw[k[0]] += [k[1] + "(" + str(v) + ")"]
 
         # features will be calculated later
         features = None
