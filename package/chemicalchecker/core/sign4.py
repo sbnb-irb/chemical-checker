@@ -2175,6 +2175,7 @@ class sign4(BaseSignature, DataSignature):
                             np.expand_dims(conf_estimate, 1))
                         results['confidence'][chunk] = conf_calib
                         # conpute confidence where self is known
+                        # TODO correlation ALL vs. ONLY-SELF
 
         # use semi-supervised anomaly detection algorithm to predict novelty
         if predict_novelty:
