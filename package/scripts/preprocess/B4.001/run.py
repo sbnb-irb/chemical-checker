@@ -108,7 +108,7 @@ def parse_bindingdb(ACTS=None, bindingdb_file=None):
         acts += to_float(ec50)
         if acts:
             pchembl = pchemblize(np.min(acts))
-            if pchembl < 5:
+            if pchembl is None or pchembl < 5:
                 return None
             return pchembl
         return None
