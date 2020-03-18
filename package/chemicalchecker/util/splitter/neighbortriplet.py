@@ -536,7 +536,7 @@ class NeighborTripletTraintest(object):
                      replace_nan=None, augment_scale=1,
                      augment_fn=None, augment_kwargs={},
                      mask_fn=None, shuffle=True,
-                     sharedx=None, train=True):
+                     sharedx=None, train=True, standard=True):
         """Return the generator function that we can query for batches.
 
         file_name(str): The H5 generated via `create`
@@ -617,34 +617,25 @@ class NeighborTripletTraintest(object):
                 x1 = X[pairs[:, 0]]
                 x2 = X[pairs[:, 1]]
                 x3 = X[pairs[:, 2]]
-                x4 = augment_fn(X[pairs[:, 0]], **only_args)
-                x5 = augment_fn(X[pairs[:, 0]], **notself_args)
-                if train:
-                    tmp_x1 = list()
-                    tmp_x2 = list()
-                    tmp_x3 = list()
-                    tmp_y = list()
-                    for i in range(augment_scale):
-                        tmp_x1.append(augment_fn(
-                            x1, **augment_kwargs))
-                        tmp_x2.append(augment_fn(
-                            x2, **augment_kwargs))
-                        tmp_x3.append(augment_fn(
-                            x3, **augment_kwargs))
-                        tmp_y.append(y)
-                    x1 = np.vstack(tmp_x1)
-                    x2 = np.vstack(tmp_x2)
-                    x3 = np.vstack(tmp_x3)
-                    y = np.hstack(tmp_y)
+                if not standard:
+                    x4 = augment_fn(X[pairs[:, 0]], **only_args)
+                    x5 = augment_fn(X[pairs[:, 0]], **notself_args)
+                if train and not standard:
+                    x1 = augment_fn(x1, **augment_kwargs)
+                    x2 = augment_fn(x2, **augment_kwargs)
+                    x3 = augment_fn(x3, **augment_kwargs)
                 x1, x2, x3 = mask_fn(x1, x2, x3)
                 if replace_nan is not None:
                     x1[np.where(np.isnan(x1))] = replace_nan
                     x2[np.where(np.isnan(x2))] = replace_nan
                     x3[np.where(np.isnan(x3))] = replace_nan
-                    x4[np.where(np.isnan(x4))] = replace_nan
-                    x5[np.where(np.isnan(x5))] = replace_nan
-                # print(x1.shape, x2.shape, x3.shape, y.shape)
-                yield [x1, x2, x3, x4, x5], y
+                    if not standard:
+                        x4[np.where(np.isnan(x4))] = replace_nan
+                        x5[np.where(np.isnan(x5))] = replace_nan
+                if standard:
+                    yield [x1, x2, x3], y
+                else:
+                    yield [x1, x2, x3, x4, x5], y
                 batch_idx += 1
                 if p_factor > 0:
                     augment_kwargs['p_self'] = min(1.0, augment_kwargs['p_self'] + (p_self_decay * p_factor))
