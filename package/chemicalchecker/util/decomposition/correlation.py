@@ -8,7 +8,7 @@ from sklearn.cross_decomposition import PLSRegression
 
 
 def batcher(X, size):
-    for pos in xrange(0, X.shape[0], size):
+    for pos in range(0, X.shape[0], size):
         yield (pos, pos + size)
 
 
@@ -37,7 +37,7 @@ def pls(X, Y, B=100):
     r1, r2 = pls_single(X, Y)
     r1rand, r2rand = [], []
     Xr = X.copy()
-    for _ in tqdm(xrange(B)):
+    for _ in tqdm(range(B)):
         np.random.shuffle(Xr)
         r1r, r2r = pls_single(Xr, Y)
         r1rand += [r1r]

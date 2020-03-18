@@ -124,11 +124,11 @@ if __name__ == '__main__':
                 filename = sigid + "---" + ik
             with h5py.File("%s/%s.h5" % (connectivitydir, filename), "r") as hf:
                 nes = hf["nes"][:]
-            for i in xrange(len(signatures)):
+            for i in range(len(signatures)):
                 neses[(sigid, siginfo[signatures[i]])] += [nes[i]]
         neses = dict((x, get_summary(y)) for x, y in neses.items())
         rows = sorted(set([k[0] for k in neses.keys()]))
-        rows_d = dict((rows[i], i) for i in xrange(len(rows)))
+        rows_d = dict((rows[i], i) for i in range(len(rows)))
         X = np.zeros((len(rows), len(cols))).astype(np.int16)
         for x, y in neses.items():
             i = rows_d[x[0]]

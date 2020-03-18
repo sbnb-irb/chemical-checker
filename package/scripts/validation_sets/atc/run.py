@@ -164,7 +164,7 @@ def main():
     keys = sorted(d.keys())
 
     f = open(args.output_file, "w")
-    for i in xrange(len(keys) - 1):
+    for i in range(len(keys) - 1):
         for j in range(i + 1, len(keys)):
             if keys[i].split("-")[0] == keys[j].split("-")[0]:
                 continue

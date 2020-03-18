@@ -44,7 +44,7 @@ def parse_ctd(disfile, chemdis_file):
     def expand_tree(tn):
         tns = []
         x = tn.split("/")[0].split(".")
-        for i in xrange(len(x)):
+        for i in range(len(x)):
             tns += [".".join(x[:i + 1])]
         tns += [tn]
         return tns

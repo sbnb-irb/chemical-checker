@@ -433,7 +433,7 @@ def read_hotnet_output(outdir, ACTS):
         for prot in myprots:
             P = []
             prof = sm.get_profile(prot)
-            for i in xrange(len(prof)):
+            for i in range(len(prof)):
                 w = int(prof[i] * 10)  # Convert weights to integers
                 if w == 0:
                     continue
