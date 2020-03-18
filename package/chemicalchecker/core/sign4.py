@@ -284,12 +284,10 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('model saved to: %s' % siamese_path)
         # save validation plots
         self.plot_validations(siamese, dataset_idx, traintest_file)
-        # realistic subsampling function
-        p_nr, p_keep = subsampling_probs(self.sign2_coverage, self.dataset_idx)
-        realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
-                               dataset_idx=self.dataset_idx,
-                               p_nr=p_nr, p_keep=p_keep)
-        # get set of known for prior nd cofidence models
+        if not evaluate:
+            return siamese
+        # when evaluating also save prior and confidence models
+        # get set of known
         max_known = 50000
         tt = DataSignature(traintest_file)
         test_inks = tt.get_h5_dataset('keys_test')[:max_known]
@@ -304,25 +302,21 @@ class sign4(BaseSignature, DataSignature):
         prior_path = os.path.join(self.model_path, 'prior_%s' % suffix)
         os.makedirs(prior_path, exist_ok=True)
         prior_model = self.train_prior_model(
-            siamese, test_x, realistic_fn, prior_path, evaluate)
-        # save known scores and confidence model
+            siamese, test_x, prior_path, evaluate)
+        # train confidence model
         confidence_path = os.path.join(self.model_path,
                                        'confidence_%s' % suffix)
         os.makedirs(confidence_path, exist_ok=True)
         confidence_model = self.train_confidence_model(
-            siamese, train_x, test_x, realistic_fn, prior_model,
+            siamese, train_x, test_x, prior_model,
             confidence_path, evaluate)
-        # when evaluating we update the nr of epoch to avoid
-        # overfitting during final
-        if evaluate:
-            # update the parameters with the new nr_of epochs
-            self.params['sign2']['epochs'] = siamese.last_epoch
-            self.params['sign2']['learning_rate'] = siamese.learning_rate
-
+        # update the parameters with the new nr_of epochs and lr
+        self.params['sign2']['epochs'] = siamese.last_epoch
+        self.params['sign2']['learning_rate'] = siamese.learning_rate
         return siamese, prior_model, confidence_model
 
-    def train_prior_model(self, siamese, test_x, realistic_fn, save_path,
-                          evaluate, total_x=10000, plots=True):
+    def train_prior_model(self, siamese, test_x, save_path, evaluate,
+                          realistic_fn=None, total_x=10000, plots=True):
         """Train prior predictor."""
         def get_weights(y, p=2):
             h, b = np.histogram(y, 20)
@@ -428,6 +422,13 @@ class sign4(BaseSignature, DataSignature):
                 plt.close()
             return p
 
+        if realistic_fn is None:
+            # realistic subsampling function
+            p_nr, p_keep = subsampling_probs(self.sign2_coverage,
+                                             self.dataset_idx)
+            realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
+                                   dataset_idx=self.dataset_idx,
+                                   p_nr=p_nr, p_keep=p_keep)
         self.__log.info('Training PRIOR model')
         available_x = test_x.shape[0]
         #total_x = available_x
@@ -511,8 +512,8 @@ class sign4(BaseSignature, DataSignature):
         pickle.dump(model, open(predictor_path, 'wb'))
         return model
 
-    def train_confidence_model(self, siamese, train_x, test_x, realistic_fn,
-                               prior_model, save_path, evaluate, plots=True):
+    def train_confidence_model(self, siamese, train_x, test_x, prior_model,
+                               save_path, evaluate, plots=True):
         # save linear model combining confidence natural scores
 
         def get_weights(y, p=2):
@@ -644,8 +645,9 @@ class sign4(BaseSignature, DataSignature):
             return p
 
         self.__log.info('Training CONFIDENCE model')
+
         X, Y = self.save_known_distributions(
-            siamese, train_x, test_x,  realistic_fn,  prior_model, save_path)
+            siamese, train_x, test_x, prior_model, save_path)
         # split chunks, get indeces of chunks for each split
         if evaluate:
             split_idxs = Traintest.get_split_indeces(X.shape[0], [0.8, 0.2])
@@ -679,12 +681,21 @@ class sign4(BaseSignature, DataSignature):
         pickle.dump(calibration_model, open(calibration_file, 'wb'))
         return model, calibration_model
 
-    def save_known_distributions(self, siamese, train_x, test_x, realistic_fn,
-                                 prior_model, save_path):
+    def save_known_distributions(self, siamese, train_x, test_x, prior_model,
+                                 save_path, realistic_fn=None):
         try:
             import faiss
         except ImportError as err:
             raise err
+
+        if realistic_fn is None:
+            # realistic subsampling function
+            p_nr, p_keep = subsampling_probs(self.sign2_coverage,
+                                             self.dataset_idx)
+            realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
+                                   dataset_idx=self.dataset_idx,
+                                   p_nr=p_nr, p_keep=p_keep)
+
         # save neighbors faiss index based on only self train prediction
         # train is used only to generate neighbors file
         self.__log.info('Computing Neighbor Index')
@@ -704,13 +715,13 @@ class sign4(BaseSignature, DataSignature):
         self.__log.info('Computing Applicability Domain')
         applicability, app_range, notself_consensus = \
             self.applicability_domain(train_onlyself_neig, test_x, siamese,
-                                      realistic_fn)
+                                      dropout_fn=realistic_fn)
         self.__log.info('Applicability Domain DONE')
 
         # do conformal prediction (dropout)
         self.__log.info('Computing Conformal Prediction')
         intensities, robustness, consensus = self.conformal_prediction(
-            siamese, test_x, realistic_fn)
+            siamese, test_x, dropout_fn=realistic_fn)
         self.__log.info('Conformal Prediction DONE')
 
         # predict expected prior
@@ -745,9 +756,16 @@ class sign4(BaseSignature, DataSignature):
 
         return features, correlations
 
-    def applicability_domain(self, neig_index, features, siamese, dropout_fn,
-                             app_range=None, max_centrality=10000,
-                             n_samples=10):
+    def applicability_domain(self, neig_index, features, siamese,
+                             dropout_fn=None, app_range=None, n_samples=10):
+
+        if dropout_fn is None:
+            # realistic subsampling function
+            p_nr, p_keep = subsampling_probs(self.sign2_coverage,
+                                             self.dataset_idx)
+            dropout_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
+                                 dataset_idx=self.dataset_idx,
+                                 p_nr=p_nr, p_keep=p_keep)
         # applicability is whether not-self preds is close to only-self preds
         # neighbors between 5 and 25 depending on the size of the dataset
         app_thr = int(np.clip(np.log10(self.neig_sign.shape[0])**2, 5, 25))
@@ -772,8 +790,15 @@ class sign4(BaseSignature, DataSignature):
         app_range = np.mean(np.vstack(ranges), axis=0)
         return applicability, app_range, consensus
 
-    def conformal_prediction(self, siamese, features, dropout_fn,
+    def conformal_prediction(self, siamese, features, dropout_fn=None,
                              nan_pred=None, n_samples=10):
+        if dropout_fn is None:
+            # realistic subsampling function
+            p_nr, p_keep = subsampling_probs(self.sign2_coverage,
+                                             self.dataset_idx)
+            dropout_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
+                                 dataset_idx=self.dataset_idx,
+                                 p_nr=p_nr, p_keep=p_keep)
         # reference prediction (based on no information)
         if nan_pred is None:
             nan_feat = np.full(
@@ -2043,7 +2068,7 @@ class sign4(BaseSignature, DataSignature):
         final_model_path = os.path.join(self.model_path, 'siamese_final')
         final_file = os.path.join(final_model_path, 'siamesetriplets.h5')
         if not os.path.isfile(final_file):
-            siamese, prior_mdl, conf_mdl = self.learn_sign2(
+            siamese = self.learn_sign2(
                 self.params['sign2'].copy(), suffix='final', evaluate=False)
 
         # load models if not already available
@@ -2053,12 +2078,12 @@ class sign4(BaseSignature, DataSignature):
         if model_confidence:
             # part of confidence is the priors
             if prior_mdl is None:
-                prior_path = os.path.join(self.model_path, 'prior_final')
+                prior_path = os.path.join(self.model_path, 'prior_eval')
                 prior_file = os.path.join(prior_path, 'prior.pkl')
                 prior_mdl = pickle.load(open(prior_file, 'rb'))
 
             # another part of confidence is the applicability
-            confidence_path = os.path.join(self.model_path, 'confidence_final')
+            confidence_path = os.path.join(self.model_path, 'confidence_eval')
             neig_file = os.path.join(confidence_path, 'neig.index')
             app_neig = faiss.read_index(neig_file)
             known_dist = os.path.join(confidence_path, 'known_dist.h5')
@@ -2141,15 +2166,14 @@ class sign4(BaseSignature, DataSignature):
                         results['robustness'][chunk] = robs
                         # distance from known predictions
                         app, centrality, _ = self.applicability_domain(
-                            app_neig, preds, app_range)
+                            app_neig, preds, siamese, app_range=app_range)
                         results['applicability'][chunk] = app
                         # and estimate confidence
-                        conf_scores = np.vstack([app, robs, prior]).T
-                        conf = conf_mdl[0].predict(conf_scores)
-                        np.expand_dims(model.predict(x_te), 1)
-                        calib_conf = conf_mdl[1].predict(
-                            np.expand_dims(conf_scores, 1))
-                        results['confidence'][chunk] = calib_conf
+                        conf_feats = np.vstack([app, robs, prior]).T
+                        conf_estimate = conf_mdl[0].predict(conf_feats)
+                        conf_calib = conf_mdl[1].predict(
+                            np.expand_dims(conf_estimate, 1))
+                        results['confidence'][chunk] = conf_calib
                         # conpute confidence where self is known
 
         # use semi-supervised anomaly detection algorithm to predict novelty
@@ -2398,12 +2422,12 @@ def subsample(tensor, sign_width=128,
     return new_data
 
 
-def plot_subsample(plotpath, ds='B1.001', p_self=.1, p_only_self=0., limit=10000):
+def plot_subsample(plotpath, ds='B1.001', p_self=.1, p_only_self=0.,
+                   limit=10000):
     import os
     import numpy as np
     import pandas as pd
     import seaborn as sns
-    from functools import partial
     import matplotlib.pyplot as plt
     from chemicalchecker import ChemicalChecker
     from chemicalchecker.core.signature_data import DataSignature
@@ -2531,8 +2555,6 @@ def plot_subsample(plotpath, ds='B1.001', p_self=.1, p_only_self=0., limit=10000
     df_sampled_nr['sampled'] = df_sampled_nr['value']
 
     # plot
-    sns.set_style("whitegrid")
-    sns.set_context("talk")
 
     fig = plt.figure(constrained_layout=True, figsize=(24, 12))
     gs = fig.add_gridspec(2, 2)
