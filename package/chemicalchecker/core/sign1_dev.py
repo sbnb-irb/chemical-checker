@@ -17,8 +17,8 @@ from tqdm import tqdm
 from sklearn.metrics import accuracy_score
 from scipy.spatial.distance import cosine
 import faiss
-import uuid
 from numpy import linalg as LA
+import uuid
 
 from .signature_data import DataSignature
 from .signature_base import BaseSignature
@@ -29,6 +29,7 @@ from chemicalchecker.util.transform.pca import Pca
 from chemicalchecker.util.transform.outlier_removal import OutlierRemover
 from chemicalchecker.util.transform.metric_learn import UnsupervisedMetricLearn, SemiSupervisedMetricLearn
 from chemicalchecker import ChemicalChecker
+
 
 @logged
 class sign1(BaseSignature, DataSignature):
@@ -94,11 +95,6 @@ class sign1(BaseSignature, DataSignature):
         fn = os.path.join(self.get_molset("reference").model_path, "pipeline.pkl")
         return fn
 
-    def load_model(self, name):
-        s1 = self.get_molset("reference")
-        mod = os.path.join(s1.model_path, "%s.pkl" % name)
-        return mod
-
     def delete_tmp(self, s1):
         self.__log.debug("Deleting V_tmp")
         with h5py.File(s1.data_path, "r+") as hf:
@@ -141,8 +137,8 @@ class sign1(BaseSignature, DataSignature):
                 mod = OutlierRemover(self, tmp=False)
                 mod.fit()
             else:
+                max_outliers=None
                 self.__log.debug("Not looking for outliers")
-                max_outliers = None
         else:
             self.__log.debug("Not looking for outliers")
         self.__log.debug("Checking if matrix was sparse or not")
@@ -183,7 +179,7 @@ class sign1(BaseSignature, DataSignature):
         self.__log.debug("Saving pipeline")
         pipeline = {
             "sparse": sparse,
-            "max_outliers": max_outliers,
+            "remove_outliers": max_outliers,
             "latent": latent,
             "scale" : scale,
             "metric_learning": metric_learning,
@@ -195,10 +191,10 @@ class sign1(BaseSignature, DataSignature):
         with open(fn, "wb") as f:
             pickle.dump(pipeline, f)
         
-    def predict(self, sign0, destination=None, max_outliers=None):
+    def predict(self, sign0, destination=None):
         """Predict sign1 from sign0"""
-        self.__log.debug("Generating temporary directory")
-        tmp_path = os.path.join(self.model_path, str(uuid.uuid4()))
+        tag = str(uuid.uuid4())
+        tmp_path = os.path.join(self.model_path, tag)
         cc = ChemicalChecker(tmp_path)
         s1 = cc.signature(self.dataset, "sign1")
         self.copy_sign0_to_sign1(sign0, s1, just_data=True)
@@ -207,39 +203,45 @@ class sign1(BaseSignature, DataSignature):
         with open(fn, "rb") as f:
             pipeline = pickle.load(f)
         self.__log.debug("Starting pipeline")
-        if pipeline["max_outliers"] is not None:
-            mod = self.load_model("outliers")
-            if max_outliers is None:
-                max_outliers=pipeline["max_outliers"]
-            mod.predict(s1, max_outliers=max_outliers)
+        if 
+        print(pipeline)
+        return
+        self.__log.debug("Starting pipeline")
         if not pipeline["sparse"] and pipeline["scale"]:
-            mod = self.load_model("scale")
-            mod.predict(s1)
-        self.__log.debug("Transformation")
+            sign0 = ""
         if pipeline["metric_learning"]:
-            if pipeline["semisupervised"]:
-                mod = self.load_model("semiml")
-            else:
-                mod = self.load_model("unsupml")
-        else:
-            if pipeline["latent"]:
-                if pipeline["sparse"]:
-                    mod = self.load_model("lsi")
-                else:
-                    mod = self.load_model("pca")
-            else:
+            if pipeline["sparse"]:
                 pass
-        mod.predict(s1)
-        self.__log.debug("Prediction done!")
+            else:
+                if pipeline["scale"]:
+                    scale = ""
+                else:
+                    ""
+        else:
+            if pipeline["sparse"]:
+                ""
+            
+        if pipeline["sparse"]:
+            pass
+        else:
+            pass
+        if pipeline["metric_learning"]:
+            self.__log.debug("Metric learning was done. Using it to project.")
+            "XXXX"
+        else:
+            self.__log.debug("No metric learning was done")
+            if pipeline["latent"]:
+                "XXXX"
+            else:
+                "XXXX"
+
         if destination is None:
-            self.__log.debug("Returning a dictionary of V and keys")
-            results  = {
+            self.__log.debug()
+            results = {
                 "V": s1[:],
                 "keys": s1.keys
             }
-            return results
         else:
-            self.__log.debug("Saving H5 file in %s" % destination)
             shutil.copyfile(s1.data_path, destination)
 
     def neighbors(self, tmp, metric="cosine", k_neig=1000, cpu=4):
