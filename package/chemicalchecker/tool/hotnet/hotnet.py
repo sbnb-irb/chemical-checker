@@ -45,11 +45,11 @@ class Hotnet():
                                    stderr=subprocess.PIPE)
 
         # stream output as get generated
-        for line in iter(process.stdout.readline, ''):
-            self.__log.info(line.strip())
+        for line in process.stdout:
+            self.__log.info(line.decode().strip())
 
-        for line in iter(process.stderr.readline, ''):
-            self.__log.error(line.strip())
+        for line in process.stderr:
+            self.__log.info(line.decode().strip())
 
     def create_similarity_matrix(self, i, o, **kwargs):
         """Call external python with given parameters.
@@ -86,9 +86,9 @@ class Hotnet():
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
 
-        # stream output as get generated
-        for line in iter(process.stdout.readline, ''):
-            self.__log.info(line.strip())
+        for line in process.stdout:
+            self.__log.info(line.decode().strip())
 
-        for line in iter(process.stderr.readline, ''):
-            self.__log.error(line.strip())
+        for line in process.stderr:
+            self.__log.info(line.decode().strip())
+
