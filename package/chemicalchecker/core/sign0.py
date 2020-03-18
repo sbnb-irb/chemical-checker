@@ -83,7 +83,7 @@ class sign0(BaseSignature, DataSignature):
                 s = "%d" % i
                 s = s.zfill(l)
                 features += ["feature_%s" % s]
-        return np.array(features)
+        return np.array(features).astype(str)
 
     def get_data(self, pairs, X, keys, features, data_file, key_type, agg_method):
         if data_file is not None:
@@ -266,6 +266,7 @@ class sign0(BaseSignature, DataSignature):
         agg = Aggregate(method=agg_method, input_type=input_type)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
         self.__log.debug("Saving dataset")
+        print(features.dtype)
         with h5py.File(self.data_path, "w") as hf:
             hf.create_dataset(
                 "name", data=np.array([str(self.dataset) + "sig"], DataSignature.string_dtype()))

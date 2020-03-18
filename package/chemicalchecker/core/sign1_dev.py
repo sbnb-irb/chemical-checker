@@ -11,19 +11,22 @@ import h5py
 import numpy as np
 import datetime
 import shutil
+import pickle
 from scipy.signal import savgol_filter
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score
 from scipy.spatial.distance import cosine
+import faiss
+from numpy import linalg as LA
+
 from .signature_data import DataSignature
 from .signature_base import BaseSignature
 from chemicalchecker.util import logged
-
 from chemicalchecker.util.transform.scale import Scale
 from chemicalchecker.util.transform.lsi import Lsi
 from chemicalchecker.util.transform.pca import Pca
 from chemicalchecker.util.transform.outlier_removal import OutlierRemover
-from chemicalchecker.util.transform.metric_learn import NoMetricLearn, UnsupervisedMetricLearn, SemiSupervisedMetricLearn
+from chemicalchecker.util.transform.metric_learn import UnsupervisedMetricLearn, SemiSupervisedMetricLearn
 
 
 @logged
@@ -56,7 +59,7 @@ class sign1(BaseSignature, DataSignature):
             hf.create_dataset("V", data=s0[:])
             hf.create_dataset("keys", data=np.array(s0.keys, DataSignature.string_dtype()))
             if s0.molset == "reference":
-                mappings = s0.mappings
+                mappings = s0.get_h5_dataset("mappings")
                 hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
         self.__log.debug("Copying triplets")
         fn0 = os.path.join(s0.model_path, "triplets.h5")
@@ -67,33 +70,13 @@ class sign1(BaseSignature, DataSignature):
         else:
             self.__log.warn("No triplets available! Please fit sign0 with option do_triplets=True")
 
-    def copy_sign1_to_tmp(self, s1, s1_tmp):
-        """Copy from sign1 to a temporary branch"""
-        if s1.cctype != s1_tmp.cctype:
-            raise Exception("Copying must be between signatures of the same type (sign1)")
-        self.__log.debug("Copying HDF5 dataset")
-        with h5py.File(s1_tmp.data_path, "w") as hf:
-            hf.create_dataset(
-                "name", data=np.array([str(self.dataset) + "sig"], DataSignature.string_dtype()))
-            hf.create_dataset(
-                "date", data=np.array([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
-            hf.create_dataset("V", data=s1[:])
-            hf.create_dataset("keys", data=np.array(s1.keys, DataSignature.string_dtype()))
-            if s1.molset == "reference":
-                mappings = s1.mappings
-                hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
-        self.__log.debug("Copying triplets")
-        fn0 = os.path.join(s1.model_path, "triplets.h5")
-        if os.path.exists(fn0):
-            self.__log.debug("Triplets are available.")
-            fn1 = os.path.join(s1_tmp.model_path, "triplets.h5")
-            shutil.copyfile(fn0, fn1)
-        else:
-            self.__log.warn("No triplets available!")
-
-    def delete(self):
-        """Delete the folder where the signature is stored"""
-        shutil.rmtree(self.signature_path)
+    def duplicate(self, s1):
+        self.__log.debug("Duplicating V matrix to V_tmp")
+        with h5py.File(s1.data_path, "a") as hf:
+            if "V_tmp" in hf.keys():
+                self.__log.debug("Deleting V_tmp")
+                del hf["V_tmp"]
+            hf.create_dataset("V_tmp", data=hf["V"][:])
 
     def was_sparse(self, max_keys=1000, zero_prop=0.5):
         """Guess if the matrix was sparse"""
@@ -109,48 +92,13 @@ class sign1(BaseSignature, DataSignature):
         fn = os.path.join(self.get_molset("reference").model_path, "pipeline.pkl")
         return fn
 
-    def filter_keys(self, keys):
-        """Filter keys of the signature. It overwrites the current signature!"""
-        mask = np.isin(self.keys[:], keys)
-        if np.sum(mask) == 0:
-            raise Exception("No keys are in common...")
-        self.__log.debug("Filtering dataset")
-        V = self[:][mask]
-        keys = self.keys[:][mask]
-        self.__log.debug("Checking if mappings exist")
-        if "mappings" in self.info_h5:
-            mappings = self.mappings[mask]
-        else:
-            mappings = None
-        self.__log.debug("Checking if triplets exist")
-        tfn = os.path.join(self.model_path, "triplets.h5")
-        if os.path.exists(tfn):
-            self.__log.debug("Triplets found. Reindexing")
-            idxs = {}
-            j = 0
-            for i, m in enumerate(mask):
-                if m:
-                    idxs[i] = j
-                    j += 1
-            with h5py.File(tfn, "r") as hf:
-                triplets = hf["triplets"][:]
-            print(triplets)
-            triplets_ = []
-            for i in range(triplets.shape[0]):
-                t = "pass"
+    def delete_tmp(self, s1):
+        self.__log.debug("Deleting V_tmp")
+        with h5py.File(s1.data_path, "r+") as hf:
+            if "V_tmp" in hf.keys():
+                del hf["V_tmp"]
 
-        else:
-            triplets = None
-        self.__log.debug("Overwriting H5 dataset")
-        with h5py.File(self.data_path, "w") as hf:
-            
-            hf.create_dataset("V", data=V)
-            hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
-            
-
-        return mask
-
-    def fit(self, sign0, latent=True, scale=True, remove_outliers=False, metric_learning=True, semisupervised=False):
+    def fit(self, sign0, latent=True, scale=True, max_outliers=0.0, metric_learning=True, semisupervised=False):
         """Fit a signature 1, given a signature 0
 
             Args:
@@ -165,77 +113,79 @@ class sign1(BaseSignature, DataSignature):
             raise Exception("Fit should be done with the full signature 0 (even if inside reference is used)")
         s0_ref = s0.get_molset("reference")
         s1_ref = self.get_molset("reference")
+        s1_ref.clean()
         self.__log.debug("Placing sign0 to sign1 (done for reference)")
         self.copy_sign0_to_sign1(s0_ref, s1_ref)
         self.__log.debug("Placing sign0 to sign1 (done for full)")
         self.copy_sign0_to_sign1(s0, self)
-        self.__log.debug("Backing up signature")
-        s1_tmp = s1_ref.get_molset("tmp")
-        self.__log.debug("Placing sign1 to tmp (done for reference")
-        self.copy_sign1_to_tmp(s1_ref, s1_tmp)
+        self.__log.debug("Duplicating signature (tmp) (done for reference)")
+        self.duplicate(s1_ref)
+        self.__log.debug("Duplicating signature (tmp) (done for full)")
+        self.duplicate(self)
+        if metric_learning:
+            tmp = True
+        else:
+            tmp = False
+        if max_outliers is not None:
+            if max_outliers > 0:
+                if max_outliers > 1:
+                    raise Exception("max_outliers is a proportion and cannot be greater than one")
+                self.__log.debug("Looking for outliers (done for both)")
+                mod = OutlierRemover(self, tmp=False)
+                mod.fit()
+            else:
+                self.__log.debug("Not looking for outliers")
+        else:
+            self.__log.debug("Not looking for outliers")
         self.__log.debug("Checking if matrix was sparse or not")
-        sparse = s1_tmp.was_sparse()
+        sparse = s1_ref.was_sparse()
         if sparse:
             self.__log.debug("Sparse matrix pipeline")
             if latent:
-                self.__log.debug("Looking for latent variables with TFIDF-LSI")
-                mod = Lsi(self, tmp=True)
+                self.__log.debug("Looking for latent variables with TFIDF-LSI (done for tmp)")
+                mod = Lsi(self, tmp=tmp)
                 mod.fit()
             else:
                 self.__log.debug("Not looking for latent variables")
         else:
             self.__log.debug("Dense matrix pipeline")
             if scale:
-                self.__log.debug("Scaling (done for tmp and reference)")
-                mod = Scale(self, tmp=True)
+                self.__log.debug("Scaling (not for all)")
+                mod = Scale(self, tmp=False)
                 mod.fit()
                 mod.predict(s1_ref)
             else:
                 self.__log.debug("Not scaling")
             if latent:
-                mod = Pca(self, tmp=True)
+                self.__log.debug("PCA (done for tmp)")
+                mod = Pca(self, tmp=tmp)
                 mod.fit()
             else:
                 self.__log.debug("Not looking for latent variables")
-        if remove_outliers:
-            self.__log.debug("Looking for further outliers")
-            mod = OutlierRemover(s1_tmp)
-            mod.fit()
-        else:
-            self.__log.debug("Not looking for further outliers")
-            pass
-        self.__log.debug("Filtering reference (keep only molecules that passed previous steps)")
-        s1_ref = s1_ref.filter_keys(s1_tmp.keys)
-        self.__log.debug("Pipeline done, now doing metric learning")
         if metric_learning:
-            self.__log.debug("Not learning any metric")
-            mod = NoMetricLearn(s1_ref)
-            mod.fit()
-        else:
             if semisupervised:
                 self.__log.debug("Semi-supervised metric learning")
-                mod = SemiSupervisedMetricLearn(s1_ref)
+                mod = SemiSupervisedMetricLearn(self, tmp=False)
                 mod.fit()
             else:
                 self.__log.debug("Unsupervised metric learning")
-                mod = UnsupervisedMetricLearn(s1_ref)
+                self.__log.debug("First doing neighbors")
+                mod = UnsupervisedMetricLearn(self, tmp=False)
                 mod.fit()
         self.__log.debug("Saving pipeline")
         pipeline = {
             "sparse": sparse,
+            "remove_outliers": max_outliers,
             "latent": latent,
             "scale" : scale,
-            "remove_outliers": remove_outliers,
             "metric_learning": metric_learning,
             "semisupervised": semisupervised
         }
+        self.delete_tmp(self)
+        self.delete_tmp(s1_ref)
         fn = self.pipeline_file()
         with open(fn, "wb") as f:
             pickle.dump(pipeline, f)
-        self.__log.debug("Moving models from tmp to reference")
-        
-        self.__log.debug("Deleting tmp folder")
-        s1_tmp.delete()
         
     def predict(self, sign0):
         """Predict sign1 from sign0"""
@@ -272,16 +222,117 @@ class sign1(BaseSignature, DataSignature):
             else:
                 "XXXX"
 
+    def neighbors(self, tmp, metric="cosine", k_neig=1000, cpu=4):
+        """Neighbors"""
+        s1 = self.get_molset("reference")
+        if metric not in ["cosine", "euclidean"]:
+            raise Exception("Metric must be 'cosine' or 'euclidean'")
+        faiss.omp_set_num_threads(cpu)
+        if tmp:
+            V_name = "V_tmp"
+        else:
+            V_name = "V"
+        data_path = os.path.join(s1.model_path, "neig.h5")
+        self.__log.debug("Calculating nearest neighbors. Saving in: %s" % data_path)
+        with h5py.File(s1.data_path, 'r') as dh5, h5py.File(data_path, 'w') as dh5out:
+            datasize = dh5[V_name].shape
+            data_type = dh5[V_name].dtype
+            k = min(datasize[0], k_neig)
+            dh5out.create_dataset("row_keys", data=dh5["keys"][:])
+            dh5out["col_keys"] = h5py.SoftLink('/row_keys')
+            dh5out.create_dataset(
+                "indices", (datasize[0], k), dtype=np.int32)
+            dh5out.create_dataset(
+                "distances", (datasize[0], k), dtype=np.float32)
+            dh5out.create_dataset("shape", data=(datasize[0], k))
+            dh5out.create_dataset(
+                "metric", data=[metric.encode(encoding='UTF-8', errors='strict')])
+            if metric == "euclidean":
+                index = faiss.IndexFlatL2(datasize[1])
+            else:
+                index = faiss.IndexFlatIP(datasize[1])
+            for chunk in s1.chunker():
+                data_temp = np.array(dh5[V_name][chunk], dtype=np.float32)
+                if metric == "cosine":
+                    normst = LA.norm(data_temp, axis=1)
+                    index.add(data_temp / normst[:, None])
+                else:
+                    index.add(data_temp)
+            for chunk in s1.chunker():
+                data_temp = np.array(dh5[V_name][chunk], dtype=np.float32)
+                if metric == "cosine":
+                    normst = LA.norm(data_temp, axis=1)
+                    Dt, It = index.search(data_temp / normst[:, None], k)
+                else:
+                    Dt, It = index.search(data_temp, k)
+                dh5out["indices"][chunk] = It
+                if metric == "cosine":
+                    dh5out["distances"][chunk] = np.maximum(0.0, 1.0 - Dt)
+                else:
+                    dh5out["distances"][chunk] = Dt
+
     def get_triplets(self, reference):
-        """Read triplets of signature"""
+        """Read triplets of signature across the CC"""
         if reference:
             fn = os.path.join(self.get_molset("reference").model_path, "triplets.h5")
         else:
             fn = os.path.join(self.model_path, "triplets.h5")
+        if not os.path.exists(fn):
+            return None
         with h5py.File(fn, "r") as hf:
             triplets = hf["triplets"][:]
         return triplets
 
+    def get_self_triplets(self, local_neig_path, num_triplets=1000000):
+        """Get triplets of signatures only looking at itself"""
+        s1 = self.get_molset("reference")
+        if local_neig_path:
+            neig_path = os.path.join(s1.model_path, "neig.h5")
+        else:
+            neig_path = s1.get_neighbors().data_path
+        opt_t = self.optimal_t(local_neig_path=local_neig_path, save=False)
+        with h5py.File(neig_path, "r") as hf:
+            N, kn = hf["indices"].shape
+            opt_t = np.min([opt_t, 0.01])
+            k = np.clip(opt_t*N, 5, 100)
+            k = np.min([k, kn*0.5+1])
+            k = np.max([k, 5])
+            k = int(k)
+            nn_pos = hf["indices"][:,1:(k+1)]
+            nn_neg = hf["indices"][:,(k+1):]
+        self.__log.debug("Starting sampling (pos:%d, neg:%d)" % (nn_pos.shape[1], nn_neg.shape[1]))
+        n_sample = min(int(num_triplets/N), 100)
+        triplets = []
+        med_neg  = nn_neg.shape[1]
+        for i in range(0, N):
+            # sample positives with replacement
+            pos = np.random.choice(nn_pos[i], n_sample, replace=True)
+            if n_sample > med_neg:
+                # sample "medium" negatives
+                neg = np.random.choice(nn_neg[i], med_neg, replace=False)
+                # for the rest, sample "easy" negatives
+                forb = set(list(nn_pos[i])+list(nn_neg[i]))
+                cand = [i for i in range(0, N) if i not in forb]
+                if len(cand) > 0:
+                    neg_ = np.random.choice(cand, min(len(cand),n_sample-med_neg), replace=True)
+                    neg = np.array(list(neg)+list(neg_))
+            else:
+                neg = np.random.choice(nn_neg[i], n_sample, replace=False)
+            if len(pos) > len(neg):
+                neg = np.random.choice(neg, len(pos), replace=True)
+            elif len(pos) < len(neg):
+                neg = np.random.choice(neg, len(pos), replace=False)
+            else:
+                pass
+            for p, n in zip(pos, neg):
+                triplets += [(i, p, n)]
+        triplets = np.array(triplets).astype(np.int)
+        fn = os.path.join(s1.model_path, "triplets_self.h5")
+        self.__log.debug("Triplets path: %s" % fn)
+        with h5py.File(fn, "w") as hf:
+            hf.create_dataset("triplets", data=triplets)
+        return triplets
+            
     def score(self, reference, max_triplets=10000):
         """Score based on triplets.
 
@@ -306,18 +357,20 @@ class sign1(BaseSignature, DataSignature):
         acc /= len(triplets)
         return acc
 
-    def optimal_t(self, max_triplets=10000):
+    def optimal_t(self, max_triplets=10000, local_neig_path=False, save=True):
         """Find optimal (recommended) number of neighbors, based on the accuracy of triplets across the CC.
         Neighbors class needs to be precomputed.
         Only done for the reference set (it doesn't really make sense to do it for the full).
 
         Args:
             max_triplets(int): Maximum number of triplets to consider (default=10000).
+            save(bool): Store an opt_t.h5 file (default=True).
         """
-        self.__log.debug("Getting neighbors instance")
-        neig = self.get_molset("reference").get_neig()
         self.__log.debug("Reading triplets")
         triplets = self.get_triplets(reference=True)
+        if triplets is None:
+            self.__log.debug("No triplets were found. Returning ")
+            return 0.01
         self.__log.debug("Selecting available anchors")
         if len(triplets) > max_triplets:
             idxs = np.random.choice(len(triplets), max_triplets, replace=False)
@@ -325,7 +378,14 @@ class sign1(BaseSignature, DataSignature):
         anchors = sorted(set(triplets[:,0]))
         anchors_idxs = dict((k,i) for i,k in enumerate(anchors))
         self.__log.debug("Reading from nearest neighbors")
-        with h5py.File(neig.data_path, "r") as hf:
+        if not local_neig_path:
+            self.__log.debug("Getting neighbors data from a proper neig instance")
+            neig = self.get_molset("reference").get_neig()
+            neig_path = neig.data_path
+        else:
+            neig_path = os.path.join(self.get_molset("reference").model_path, "neig.h5")
+            self.__log.debug("Getting neighbors data from file: %s" % neig_path)
+        with h5py.File(neig_path, "r") as hf:
             nn = hf["indices"][anchors][:,1:101]
         self.__log.debug("Negatives and positives")
         positives = [(anchors_idxs[t[0]], t[1]) for t in triplets]
@@ -333,7 +393,7 @@ class sign1(BaseSignature, DataSignature):
         pairs     = positives + negatives
         truth     = [1]*len(positives) + [0]*len(negatives)
         self.__log.debug("Setting the range of search")
-        N = neig.shape[0]
+        N = nn.shape[0]
         kranges = []
         for i in range(5, 10):
             kranges += [i]
@@ -357,9 +417,11 @@ class sign1(BaseSignature, DataSignature):
             accus += [(k, accuracy_score(truth, pred))]
         idx = np.argmax(savgol_filter([x[1] for x in accus], 11, 3))
         opt_k = accus[idx][0]
-        opt_t = opt_k/neig.shape[0]
-        with h5py.File(os.path.join(self.get_molset("reference").model_path, "opt_t.h5"), "w") as hf:
-            hf.create_dataset("accuracies", data=np.array(accus).astype(np.int))
-            hf.create_dataset("opt_t", data=np.array([opt_t]))
-            hf.create_dataset("opt_k", data=np.array([opt_k]))
+        opt_t = opt_k/nn.shape[0]
+        if save:
+            self.__log.debug("Saving")
+            with h5py.File(os.path.join(self.get_molset("reference").model_path, "opt_t.h5"), "w") as hf:
+                hf.create_dataset("accuracies", data=np.array(accus).astype(np.int))
+                hf.create_dataset("opt_t", data=np.array([opt_t]))
+                hf.create_dataset("opt_k", data=np.array([opt_k]))
         return opt_t

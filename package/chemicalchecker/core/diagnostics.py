@@ -420,7 +420,10 @@ class Diagnosis(object):
             # Sort features if available
             with h5py.File(self.sign.data_path, "r") as hf:
                 if "features" in hf.keys():
-                    features = [f.decode() for f in hf["features"]]
+                    try:
+                        features = [f.decode() for f in hf["features"][:]]
+                    except:
+                        features = hf["features"][:]
                     idxs = np.argsort(features)
                     X = X[:,idxs]
             results = {
@@ -941,7 +944,7 @@ class Diagnosis(object):
             mappings = sign_ref.mappings
             mps = []
             for i in range(0, mappings.shape[0]):
-                mps += [(mappings[i,0].decode(), mappings[i,1].decode())]
+                mps += [(mappings[i,0], mappings[i,1])]
             mps = np.array(mps)
             n_full = mps.shape[0]
             n_ref  = len(set(mps[:,1]))
