@@ -106,17 +106,10 @@ class Default(BaseSignature, DataSignature):
         faiss.omp_set_num_threads(self.cpu)
 
         if os.path.isfile(signature.data_path):
-            dh5 = h5py.File(signature.data_path, 'r')
-            if "keys" not in dh5.keys() or "V" not in dh5.keys():
-                raise Exception(
-                    "H5 file " + signature.data_path + " does not contain datasets 'keys' and 'V'")
-            self.data = np.array(dh5["V"][:], dtype=np.float32)
-            self.data_type = dh5["V"].dtype
-            self.keys = dh5["keys"][:]
-            if "mappings" in dh5.keys():
-                mappings = dh5["mappings"][:]
-            dh5.close()
-
+            self.data = signature.data
+            self.data_type = signature.data_type
+            self.keys = signature.keys
+            mappings = signature.mappings
         else:
             raise Exception(
                 "The file " + signature.data_path + " does not exist")
@@ -242,7 +235,7 @@ class Default(BaseSignature, DataSignature):
                 k = self.keys[i]
                 inchikey_proj[k] = projections[i]
             hf.create_dataset("V", data=projections)
-            hf.create_dataset("keys", data=self.keys)
+            hf.create_dataset("keys", data=np.array(self.keys, DataSignature.string_dtype()))
             name = str(self.dataset) + "_proj"
             hf.create_dataset(
                 "name", data=[name.encode(encoding='UTF-8', errors='strict')])
@@ -251,7 +244,7 @@ class Default(BaseSignature, DataSignature):
             hf.create_dataset("metric", data=[self.metric.encode(
                 encoding='UTF-8', errors='strict')])
             if mappings is not None:
-                hf.create_dataset("mappings", data=mappings)
+                hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
 
         faiss.write_index(index, os.path.join(
             self.model_path, self.index_file))
@@ -358,7 +351,7 @@ class Default(BaseSignature, DataSignature):
                 k = self.keys[i]
                 inchikey_proj[k] = projections[i]
             hf.create_dataset("V", data=projections)
-            hf.create_dataset("keys", data=self.keys)
+            hf.create_dataset("keys", data=np.array(self.keys, DataSignature.string_dtype()))
             name = str(self.dataset) + "_proj"
             hf.create_dataset(
                 "name", data=[name.encode(encoding='UTF-8', errors='strict')])
@@ -367,7 +360,7 @@ class Default(BaseSignature, DataSignature):
             hf.create_dataset("metric", data=[self.metric.encode(
                 encoding='UTF-8', errors='strict')])
             if mappings is not None:
-                hf.create_dataset("mappings", data=mappings)
+                hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
 
     def _get_weights(self, index, data, neigh):
         """Get weights for the first 'neigh' neighbours ."""

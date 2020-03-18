@@ -4,6 +4,7 @@ import h5py
 import numpy as np
 
 from chemicalchecker.database import Dataset
+from chemicalchecker.core.signature_data import DataSignature
 
 
 features_file = "features.h5"
@@ -67,7 +68,7 @@ def save_output(output_file, inchikey_raw, method, models_path, discrete, featur
             orderwords.sort()
 
         with h5py.File(output_file, "w") as hf:
-            hf.create_dataset("keys", data=np.array(keys))
+            hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
             hf.create_dataset("V", (len(keys), len(orderwords)), dtype=np.int8)
             hf.create_dataset("features", data=np.array(orderwords))
 

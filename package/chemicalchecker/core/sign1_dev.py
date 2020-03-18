@@ -56,7 +56,7 @@ class sign1(BaseSignature, DataSignature):
             hf.create_dataset("V", data=s0[:])
             hf.create_dataset("keys", data=np.array(s0.keys, DataSignature.string_dtype()))
             if s0.molset == "reference":
-                mappings = s0.get_h5_dataset("mappings")
+                mappings = s0.mappings
                 hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
         self.__log.debug("Copying triplets")
         fn0 = os.path.join(s0.model_path, "triplets.h5")
@@ -80,7 +80,7 @@ class sign1(BaseSignature, DataSignature):
             hf.create_dataset("V", data=s1[:])
             hf.create_dataset("keys", data=np.array(s1.keys, DataSignature.string_dtype()))
             if s1.molset == "reference":
-                mappings = s1.get_h5_dataset("mappings")
+                mappings = s1.mappings
                 hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
         self.__log.debug("Copying triplets")
         fn0 = os.path.join(s1.model_path, "triplets.h5")
@@ -119,7 +119,7 @@ class sign1(BaseSignature, DataSignature):
         keys = self.keys[:][mask]
         self.__log.debug("Checking if mappings exist")
         if "mappings" in self.info_h5:
-            mappings = self.get_h5_dataset("mappings")[:][mask]
+            mappings = self.mappings[mask]
         else:
             mappings = None
         self.__log.debug("Checking if triplets exist")
@@ -145,7 +145,7 @@ class sign1(BaseSignature, DataSignature):
         with h5py.File(self.data_path, "w") as hf:
             
             hf.create_dataset("V", data=V)
-            hf.create_dataset("keys", data=keys)
+            hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
             
 
         return mask

@@ -286,7 +286,7 @@ class sign2(BaseSignature, DataSignature):
         for sign in signs:
             # copy reduced-full mappingsfrom sign1
             if "mappings" not in self.info_h5 and "mappings" in sign.info_h5:
-                mappings.update(dict(sign.get_h5_dataset('mappings').tolist()))
+                mappings.update(dict(sign.mappings.tolist()))
             else:
                 self.__log.warn(
                     "Cannot copy 'mappings' from sign: %s" % sign.data_path)

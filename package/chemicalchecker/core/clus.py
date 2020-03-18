@@ -110,17 +110,10 @@ class clus(BaseSignature, DataSignature):
         mappings = None
 
         if os.path.isfile(sign1.data_path):
-            dh5 = h5py.File(sign1.data_path, 'r')
-            if "keys" not in dh5.keys() or "V" not in dh5.keys():
-                raise Exception(
-                    "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
-            self.data = np.float32(np.array(dh5["V"][:], dtype=np.float32))
-            self.data_type = dh5["V"].dtype
-            self.keys = dh5["keys"][:]
-            if "mappings" in dh5.keys():
-                mappings = dh5["mappings"][:]
-            dh5.close()
-
+            self.data = sign1.data
+            self.data_type = sign1.data_type
+            self.keys = sign1.keys
+            mappings = sign1.mappings
         else:
             raise Exception("The file " + sign1.data_path + " does not exist")
 
@@ -151,7 +144,7 @@ class clus(BaseSignature, DataSignature):
 
             with h5py.File(self.data_path, "w") as hf:
                 hf.create_dataset("labels", data=labels)
-                hf.create_dataset("keys", data=self.keys)
+                hf.create_dataset("keys", data=np.array(self.keys, DataSignature.string_dtype()))
                 hf.create_dataset("strengths", data=strengths)
 
             if validations:
@@ -273,7 +266,7 @@ class clus(BaseSignature, DataSignature):
 
             with h5py.File(self.data_path, "w") as hf:
                 hf.create_dataset("labels", data=labels)
-                hf.create_dataset("keys", data=self.keys)
+                hf.create_dataset("keys", data=np.array(self.keys, DataSignature.string_dtype()))
                 hf.create_dataset("V", data=self.data)
 
             if validations:
@@ -329,7 +322,7 @@ class clus(BaseSignature, DataSignature):
             hf.create_dataset("integerized", data=[False])
             hf.create_dataset("principal_components", data=[False])
             if mappings is not None:
-                hf.create_dataset("mappings", data=mappings)
+                hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
 
         self.mark_ready()
 
@@ -351,17 +344,10 @@ class clus(BaseSignature, DataSignature):
         mappings = None
 
         if os.path.isfile(sign1.data_path):
-            dh5 = h5py.File(sign1.data_path, 'r')
-            if "keys" not in dh5.keys() or "V" not in dh5.keys():
-                raise Exception(
-                    "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
-            self.data = np.array(dh5["V"][:], dtype=np.float32)
-            self.data_type = dh5["V"].dtype
-            self.keys = dh5["keys"][:]
-            if "mappings" in dh5.keys():
-                mappings = dh5["mappings"][:]
-            dh5.close()
-
+            self.data = sign1.data
+            self.data_type = sign1.data_type
+            self.keys = sign1.keys
+            mappings = sign1.mappings
         else:
             raise Exception("The file " + sign1.data_path + " does not exist")
 
@@ -391,7 +377,7 @@ class clus(BaseSignature, DataSignature):
 
             with h5py.File(destination, "w") as hf:
                 hf.create_dataset("labels", data=labels)
-                hf.create_dataset("keys", data=self.keys)
+                hf.create_dataset("keys", data=np.array(self.keys, DataSignature.string_dtype()))
                 hf.create_dataset("strengths", data=strengths)
 
             if validations:
@@ -433,7 +419,7 @@ class clus(BaseSignature, DataSignature):
                 hf.create_dataset("integerized", data=[False])
                 hf.create_dataset("principal_components", data=[False])
                 if mappings is not None:
-                    hf.create_dataset("mappings", data=mappings)
+                    hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
 
         if self.type == "kmeans":
 
@@ -459,7 +445,7 @@ class clus(BaseSignature, DataSignature):
 
             with h5py.File(destination, "w") as hf:
                 hf.create_dataset("labels", data=labels)
-                hf.create_dataset("keys", data=self.keys)
+                hf.create_dataset("keys", data=np.array(self.keys, DataSignature.string_dtype()))
                 hf.create_dataset("V", data=self.data)
 
             if validations:
@@ -500,7 +486,7 @@ class clus(BaseSignature, DataSignature):
                 hf.create_dataset("integerized", data=[False])
                 hf.create_dataset("principal_components", data=[False])
                 if mappings is not None:
-                    hf.create_dataset("mappings", data=mappings)
+                    hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
 
     def _smooth(self, x, max_k, window_len=None, window='hanning'):
         if window_len is None:

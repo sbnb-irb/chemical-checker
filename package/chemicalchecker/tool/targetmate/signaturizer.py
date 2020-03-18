@@ -600,7 +600,7 @@ class RawSignatureStacker(object):
             if self.sign_type == "sign3":
                 my_keys = set(keys)
                 conf_ = sign.get_h5_dataset("confidence")
-                keys_ = sign.get_h5_dataset("keys")
+                keys_ = sign.keys
                 conf  = []
                 for i, k in enumerate(keys_):
                     if k.decode() in my_keys:

@@ -38,61 +38,117 @@ class DataSignature(object):
         self.PVALRANGES = np.array([0, 0.001, 0.01, 0.1] +
                                    list(np.arange(1, 100)) + [100]) / 100.
 
+    def _check_data(self):
+        """Test if data file is available"""
+        if not os.path.isfile(self.data_path):
+            raise Exception("Data file %s not available." % self.data_path)
+
+    def _check_dataset(self, key):
+        """Test if dataset is available"""
+        with h5py.File(self.data_path, 'r') as hf:
+            if key not in hf.keys():
+                raise Exception("No '%s' dataset in this signature!" % key)
+
+    @staticmethod
+    def _decode(arg):
+        """Apply decode function to input"""
+        decoder = np.vectorize(lambda x: x.decode())
+        return decoder(arg)
+
+    def _get_shape(self, key):
+        """Get shape of dataset"""
+        with h5py.File(self.data_path, 'r') as hf:
+            data = hf[key].shape
+            return data
+
+    def _get_dtype(self, key):
+        """Get shape of dataset"""
+        with h5py.File(self.data_path, 'r') as hf:
+            data = hf[key][0].flat[0].dtype
+            return data
+
+    def _get_all(self, key):
+        """Get complete dataset"""
+        with h5py.File(self.data_path, 'r') as hf:
+            data = hf[key][:]
+            if hasattr(data.flat[0], 'decode'):
+                return self._decode(data)
+            return data
+
+    def _get_chunk(self, key, chunk):
+        """Get chunk of dataset"""
+        with h5py.File(self.data_path, 'r') as hf:
+            data = hf[key][chunk]
+            if hasattr(data.flat[0], 'decode'):
+                return self._decode(data)
+            return data
+
+    def chunk_iter(self, key, chunk_size):
+        """Iterator on chunks of data"""
+        self._check_data()
+        self._check_dataset(key)
+        tot_size = self._get_shape(key)[0]
+        for i in range(0, tot_size, chunk_size):
+            chunk = slice(i, i + chunk_size)
+            yield self._get_chunk(key, chunk)
+
+    def __iter__(self):
+        """By default iterate on signatures V."""
+        self._check_data()
+        self._check_dataset(self.ds_data)
+        with h5py.File(self.data_path, 'r') as hf:
+            for i in range(self.shape[0]):
+                yield hf[self.ds_data][i]
+
+    def chunker(self, size=2000, n=None):
+        """Iterate on signatures."""
+        self._check_data()
+        if n is None:
+            n = self.shape[0]
+        for i in range(0, n, size):
+            yield slice(i, i + size)
+
     @cached_property
     def name(self):
         """Get the name of the signature."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
-        with h5py.File(self.data_path, 'r') as hf:
-            if "name" not in hf.keys():
-                self.__log.warn("No name available for this signature!")
-                return None            # if keys have a decode attribute they have been generated in py2
-            # for compatibility with new format we decode them
-            if hasattr(hf["name"][0], 'decode'):
-                return [k.decode() for k in hf["name"][:]][0]
-            else:
-                return hf["name"][0]
+        self._check_data()
+        self._check_dataset('name')
+        return self._get_all('name')
 
     @cached_property
     def date(self):
         """Get the date of the signature."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
-        with h5py.File(self.data_path, 'r') as hf:
-            if "date" not in hf.keys():
-                self.__log.warn("No date available for this signature!")
-                return None            # if keys have a decode attribute they have been generated in py2
-            # for compatibility with new format we decode them
-            if hasattr(hf["date"][0], 'decode'):
-                return [k.decode() for k in hf["date"][:]][0]
-            else:
-                return hf["date"][0]
+        self._check_data()
+        self._check_dataset('date')
+        return self._get_all('date')
+
+    @cached_property
+    def data(self):
+        """Get the data of the signature."""
+        self._check_data()
+        self._check_dataset(self.ds_data)
+        return self._get_all(self.ds_data)
+
+    @cached_property
+    def data_type(self):
+        """Get the data of the signature."""
+        self._check_data()
+        self._check_dataset(self.ds_data)
+        return self._get_dtype(self.ds_data)
 
     @cached_property
     def keys(self):
         """Get the list of keys (usually inchikeys) in the signature."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
-        with h5py.File(self.data_path, 'r') as hf:
-            if self.keys_name not in hf.keys():
-                raise Exception("HDF5 file has no 'keys' field.")
-            # if keys have a decode attriute they have been generated in py2
-            # for compatibility with new format we decode them
-            if hasattr(hf[self.keys_name][0], 'decode'):
-                return [k.decode() for k in hf[self.keys_name][:]]
-            else:
-                return hf[self.keys_name][:]
+        self._check_data()
+        self._check_dataset('keys')
+        return self._get_all('keys')
 
     @cached_property
     def keys_raw(self):
         """Get the list of keys in the signature."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
-        with h5py.File(self.data_path, 'r') as hf:
-            if 'keys_raw' not in hf.keys():
-                self.__log.warn("No keys_raw available for this signature!")
-                return None
-            return hf['keys_raw'][:]
+        self._check_data()
+        self._check_dataset('keys_raw')
+        return self._get_all('keys_raw')
 
     @cached_property
     def unique_keys(self):
@@ -102,27 +158,26 @@ class DataSignature(object):
     @cached_property
     def features(self):
         """Get the list of features in the signature."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
-        with h5py.File(self.data_path, 'r') as hf:
-            if 'features' not in hf.keys():
-                self.__log.warn("No features available for this signature!")
-                return None
-            return hf['features'][:]
+        self._check_data()
+        self._check_dataset('features')
+        return self._get_all('features')
 
-    def chunker(self, size=2000, n=None):
-        """Iterate on signatures."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
-        if n is None: n = self.shape[0]
-        for i in range(0, n, size):
-            yield slice(i, i + size)
+    @cached_property
+    def mappings(self):
+        """Get the list of features in the signature."""
+        self._check_data()
+        try:
+            self._check_dataset('mappings')
+            return self._get_all('mappings')
+        except Exception:
+            self.__log.warning('Mappings are not available,' +
+                               ' using implicit key-key mappings.')
+            return np.hstack([self.keys, self.keys])
 
     @property
     def info_h5(self):
         """Get the dictionary of dataset and shapes."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
+        self._check_data()
         infos = dict()
         with h5py.File(self.data_path, 'r') as hf:
             for key in hf.keys():
@@ -131,14 +186,11 @@ class DataSignature(object):
 
     @property
     def shape(self):
-        """Get the V matrix sizes."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
+        """Get the V matrix shape."""
+        self._check_data()
+        self._check_dataset(self.ds_data)
         with h5py.File(self.data_path, 'r') as hf:
-            if 'V' not in hf.keys():
-                raise Exception("Data file %s has no 'V' dataset." %
-                                self.data_path)
-            return hf['V'].shape
+            return hf[self.ds_data].shape
 
     @staticmethod
     def string_dtype():
@@ -156,9 +208,8 @@ class DataSignature(object):
             sign(SignatureBase): The source signature.
             key(str): The dataset to copy from.
         """
-        if key not in sign.info_h5:
-            raise Exception("Data file %s has no dataset named '%s'." %
-                            (sign.data_path, key))
+        sign._check_data()
+        sign._check_dataset(key)
         with h5py.File(sign.data_path, 'r') as hf:
             src = hf[key][:]
         with h5py.File(self.data_path, 'a') as hf:
@@ -195,7 +246,7 @@ class DataSignature(object):
         with h5py.File(destination, "w") as results:
             results.create_dataset('keys', data=np.array(
                 sign_list[0].keys, DataSignature.string_dtype()))
-            results.create_dataset("V", (vsizes[0], sum(hsizes)))
+            results.create_dataset('V', (vsizes[0], sum(hsizes)))
 
             for idx, sign in enumerate(sign_list):
                 with h5py.File(sign.data_path, 'r') as hf_in:
@@ -242,23 +293,22 @@ class DataSignature(object):
     def get_h5_dataset(self, h5_dataset_name, mask=None):
         """Get a specific dataset in the signature."""
         self.__log.debug("Fetching dataset %s" % h5_dataset_name)
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
+        self._check_data()
         with h5py.File(self.data_path, 'r') as hf:
             if h5_dataset_name not in hf.keys():
                 raise Exception("HDF5 file has no '%s'." % h5_dataset_name)
             if mask is None:
                 ndim = hf[h5_dataset_name].ndim
                 if hasattr(hf[h5_dataset_name][(0,) * ndim], 'decode'):
-                    encoder = np.vectorize(lambda x: x.decode())
-                    return encoder(hf[h5_dataset_name][:])
+                    decoder = np.vectorize(lambda x: x.decode())
+                    return decoder(hf[h5_dataset_name][:])
                 else:
                     return hf[h5_dataset_name][:]
             else:
                 ndim = hf[h5_dataset_name].ndim
                 if hasattr(hf[h5_dataset_name][(0,) * ndim], 'decode'):
-                    encoder = np.vectorize(lambda x: x.decode())
-                    return encoder(hf[h5_dataset_name][mask])
+                    decoder = np.vectorize(lambda x: x.decode())
+                    return decoder(hf[h5_dataset_name][mask])
                 else:
                     return hf[h5_dataset_name][mask, :]
 
@@ -325,8 +375,7 @@ class DataSignature(object):
         int.
         Works fast with bisect, but should return None if the key is not in
         keys (ideally, keep a set to do this)."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file not available.")
+        self._check_data()
         if isinstance(key, slice):
             with h5py.File(self.data_path, 'r') as hf:
                 return hf[self.ds_data][key]
@@ -341,14 +390,6 @@ class DataSignature(object):
                 return hf[self.ds_data][key]
         else:
             raise Exception("Key type %s not recognized." % type(key))
-
-    def __iter__(self):
-        """Iterate on signatures."""
-        if not os.path.isfile(self.data_path):
-            raise Exception("Data file %s not available." % self.data_path)
-        with h5py.File(self.data_path, 'r') as hf:
-            for i in range(self.shape[0]):
-                yield hf['V'][i]
 
     def background_distances(self, metric, sample_pairs=100000, unflat=True,
                              memory_safe=False):
@@ -449,4 +490,3 @@ class DataSignature(object):
             self.__log.warn("A stats folder has been emptied")
             shutil.rmtree(self.stats_path)
             os.mkdir(self.stats_path)
-
