@@ -19,6 +19,7 @@ from chemicalchecker.util.splitter import NeighborTripletTraintest
 from .callbacks import CyclicLR, LearningRateFinder
 
 MIN_LR = 1e-8
+MAX_LR = 1e-1
 
 
 class AlphaDropoutCP(keras.layers.AlphaDropout):
@@ -71,7 +72,7 @@ class SiameseTriplets(object):
     allows metric learning.
     """
 
-    def __init__(self, model_dir, evaluate=False, predict_only=False, plot=True, **kwargs):
+    def __init__(self, model_dir, evaluate=False, predict_only=False, plot=True, save_params=True, **kwargs):
         """Initialize the Siamese class.
 
         Args:
@@ -89,8 +90,6 @@ class SiameseTriplets(object):
         self.epochs = int(kwargs.get("epochs", 10))
         self.batch_size = int(kwargs.get("batch_size", 100))
         self.learning_rate = kwargs.get("learning_rate", 'auto')
-        self.min_lr = kwargs.get("min_lr", None)
-        self.max_lr = kwargs.get("max_lr", None)
         self.replace_nan = float(kwargs.get("replace_nan", 0.0))
         self.split = str(kwargs.get("split", 'train'))
         self.layers_sizes = kwargs.get("layers_sizes", [128])
@@ -107,7 +106,6 @@ class SiameseTriplets(object):
         self.alpha = float(kwargs.get("alpha", 1.0))
         self.patience = float(kwargs.get("patience", 5))
         self.traintest_file = kwargs.get("traintest_file", None)
-        self.regularize = kwargs.get("regularize", True)
 
         # internal variables
         self.name = self.__class__.__name__.lower()
@@ -177,14 +175,9 @@ class SiameseTriplets(object):
 
         if self.learning_rate == 'auto':
             self.__log.debug("Searching for optimal larning rates.")
-            min_lr, max_lr, mean_lr = self.find_lr()
-            self.min_lr = min_lr
-            self.mean_lr = mean_lr
-            self.max_lr = max_lr
-            kwargs['min_lr'] = self.min_lr
-            kwargs['max_lr'] = self.max_lr
-            kwargs['learning_rate'] = self.min_lr
-            self.learning_rate = self.min_lr
+            lr = self.find_lr(kwargs)
+            self.learning_rate = lr
+            kwargs['learning_rate'] = self.learning_rate
 
         # log parameters
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
@@ -207,10 +200,6 @@ class SiameseTriplets(object):
         self.__log.info("{:<22}: {:>12}".format(
             "learning_rate", self.learning_rate))
         self.__log.info("{:<22}: {:>12}".format(
-            "min_lr", str(self.min_lr)))
-        self.__log.info("{:<22}: {:>12}".format(
-            "max_lr", str(self.max_lr)))
-        self.__log.info("{:<22}: {:>12}".format(
             "epochs", self.epochs))
         self.__log.info("{:<22}: {:>12}".format(
             "batch_size", self.batch_size))
@@ -230,7 +219,7 @@ class SiameseTriplets(object):
             "augment_kwargs", str(self.augment_kwargs)))
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
 
-        if not os.path.isfile(param_file):
+        if not os.path.isfile(param_file) and save_params:
             self.__log.debug("Saving parameters to %s" % param_file)
             with open(param_file, "wb") as f:
                 pickle.dump(kwargs, f)
@@ -325,8 +314,6 @@ class SiameseTriplets(object):
         def accE(y_true, y_pred):
             anchor, positive, negative, _, _ = split_output(y_pred)
             msk = K.cast(K.equal(y_true, 0), 'float32')
-            t = str(K.int_shape(y_true))
-            self.__log.info('Msk shape %s' % t)
             prd = self.batch_size / K.sum(msk)
             acc = K.cast(
                 euclidean_distance(anchor * msk, positive * msk) <
@@ -460,16 +447,10 @@ class SiameseTriplets(object):
         self.__log.info('Loss function: %s' %
                         lfuncs_dict[self.loss_func].__name__)
 
-        if self.regularize:
-            if self.learning_rate == 'auto':
-                optimizer = keras.optimizers.SGD(lr=MIN_LR)
-            else:
-                optimizer = keras.optimizers.SGD(lr=self.learning_rate)
+        if self.learning_rate == 'auto':
+            optimizer = keras.optimizers.Adam(lr=MIN_LR)
         else:
-            if self.learning_rate == 'auto':
-                optimizer = keras.optimizers.Adam(lr=MIN_LR)
-            else:
-                optimizer = keras.optimizers.Adam(lr=self.learning_rate)
+            optimizer = keras.optimizers.Adam(lr=self.learning_rate)
 
         model.compile(
             optimizer=optimizer,
@@ -484,18 +465,17 @@ class SiameseTriplets(object):
         # this will be the encoder/transformer
         self.transformer = self.model.layers[-2]
 
-    def find_lr(self):
+    def find_lr(self, params, num_lr=5):
+        import matplotlib.pyplot as plt
         # Initialize model
         input_shape = (self.tr_shapes[0][1],)
         self.build_model(input_shape)
 
         lrf = LearningRateFinder(self.model)
 
-        if self.regularize:
-            min_lr, max_lr = MIN_LR, 1e+1
-        else:
-            min_lr, max_lr = MIN_LR, 1e-1
-
+        min_lr, max_lr = MIN_LR, MAX_LR
+        #Find lr curve
+        self.__log.info('Finding lr curve')
         lrf.find(self.tr_gen, min_lr, max_lr, epochs=1,
                  stepsPerEpoch=self.steps_per_epoch,
                  batchSize=self.batch_size)
@@ -503,7 +483,7 @@ class SiameseTriplets(object):
         min_lr, max_lr = lrf.find_bounds()
         lr_plot_file = os.path.join(self.model_dir, "lr_evolution.png")
         lrf.plot_loss(min_lr, max_lr, lr_plot_file)
-
+find_
         lr_pkl_file = os.path.join(self.model_dir, "lr_evolution.pkl")
         lrf.save_loss_evolution(lr_pkl_file)
 
@@ -512,9 +492,54 @@ class SiameseTriplets(object):
         min_lr, max_lr, mean_lr = 10**min_lr, 10**max_lr, 10**mean_lr
         lrs = {'min_lr': min_lr, 'max_lr': max_lr, 'mean': mean_lr}
         pickle.dump(lrs, open(lr_pkl_file, "wb"))
-        return min_lr, max_lr, mean_lr
 
-    def fit(self, monitor='val_loss'):
+        #Find perfect lr by grid search
+        self.__log.info('Finding best lr')
+        lr_increase = (max_lr + min_lr) / (num_lr - 1)
+        lr_iters = []
+        lr_params = params.copy()
+        for i in range(num_lr):
+            self.__log.info('Lr finder iteration: %s' % i)
+            lr = min_lr + (i * lr_increase)
+            lr_params['learning_rate'] = lr
+            #siamese_path = os.path.join(self.model_dir, 'lr_iter_%s' % num_lr)
+            siamese = SiameseTriplets(self.model_dir, evaluate=True, plot=False, save_params=False, **lr_params)
+            siamese.fit(save=False)
+            h_file = os.path.join(self.model_dir, 'siamesetriplets_history.pkl')
+            h_metrics = pickle.load(open(h_file, "rb" ))
+            loss = h_metrics['loss'][0]
+            val_loss = h_metrics['val_loss'][0]
+            distance = abs(val_loss - loss)
+            lr_score = distance + val_loss + loss
+            lr_iters.append([lr, lr_score, loss, val_loss, distance])
+            self.__log.info('Lr %s, lr_score %s' % (lr, lr_score))
+
+        lr_iters.sort(key=lambda x: x[1])
+        lr_iters = np.array(lr_iters)
+
+        fname = 'lr_score.pkl'
+        pkl_file = os.path.join(self.model_dir, fname)
+        pickle.dump(lr_iters, open(pkl_file, "wb"))
+
+        fig, axes = plt.subplots(1, 2, figsize=(10, 3))
+        for i in range(num_lr):
+            axes[0].scatter(lr_iters[i:,2],lr_iters[i:,3], label='lr_%f' % lr_iters[i][0])
+        axes[0].set_xlabel('loss')
+        axes[0].set_ylabel('val_loss')
+        axes[0].legend()
+        
+        axes[1].scatter(lr_iters[:,0],lr_iters[:,1])
+        axes[1].set_xlabel('lr')
+        axes[1].set_ylabel('lr_score')
+
+        fname = 'lr_score.png'
+        plot_file = os.path.join(self.model_dir, fname)
+        plt.savefig(plot_file)
+        plt.close()
+        lr = lr_iters[0][0]
+        return lr
+
+    def fit(self, monitor='val_loss', save=True):
         """Fit the model.
 
         monitor(str): variable to monitor for early stopping.
@@ -579,7 +604,8 @@ class SiameseTriplets(object):
             x3_data_transf = x3_data_transf[not_nan]
             return x1_data_transf, x2_data_transf, x3_data_transf
 
-        if self.evaluate:
+        vsets = ['train_test', 'test_test']
+        if self.evaluate and self.plot:
             # additional validation sets
             if "dataset_idx" in self.augment_kwargs:
                 space_idx = self.augment_kwargs['dataset_idx']
@@ -593,7 +619,7 @@ class SiameseTriplets(object):
                     'ALL': None
                 }
             validation_sets = list()
-            vsets = ['train_test', 'test_test']
+
             for split in vsets:
                 for set_name, mask_fn in mask_fns.items():
                     name = '_'.join([split, set_name])
@@ -701,8 +727,9 @@ class SiameseTriplets(object):
             validation_steps=self.validation_steps,
             shuffle=True)
         self.time = time() - t0
-        self.model.save(self.model_file)
-        if self.evaluate:
+        if save:
+            self.model.save(self.model_file)
+        if self.evaluate and self.plot:
             self.history.history.update(additional_vals.history)
 
         # check early stopping
