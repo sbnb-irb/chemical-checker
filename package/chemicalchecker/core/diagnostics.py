@@ -1153,7 +1153,7 @@ class Diagnosis(object):
     def available(self):
         return self.plotter.available()
 
-    def canvas(self, cctype=None, title=None):
+    def canvas(self, cctype="sign1", title=None):
         self.__log.debug("Getting all needed data.")
         plot = self.plot
         self.plot = False

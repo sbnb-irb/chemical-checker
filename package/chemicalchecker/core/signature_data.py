@@ -166,8 +166,12 @@ class DataSignature(object):
     def features(self):
         """Get the list of features in the signature."""
         self._check_data()
-        self._check_dataset('features')
-        return self._get_all('features')
+        try:
+            self._check_dataset('features')
+            return self._get_all('features')
+        except Exception:
+            self.__log.warning("Features are not available")
+            return np.array([i for i in range(0, self.shape[1])])
 
     @cached_property
     def mappings(self):
