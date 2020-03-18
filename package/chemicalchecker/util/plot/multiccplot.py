@@ -79,7 +79,7 @@ class MultiCCPlot():
         cdict = {}
         for ki, key in enumerate(('red', 'green', 'blue')):
             cdict[key] = [(indices[i], colors_rgba[i - 1, ki],
-                           colors_rgba[i, ki]) for i in xrange(N + 1)]
+                           colors_rgba[i, ki]) for i in range(N + 1)]
         # Return colormap object.
         return matplotlib.colors.LinearSegmentedColormap(cmap.name + "_%d" % N, cdict, 1024)
 

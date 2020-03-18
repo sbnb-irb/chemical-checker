@@ -234,7 +234,7 @@ def do_consensus(ik_matrices, consensus):
         with h5py.File("%s/%s.h5" % (ik_matrices, ik), "r") as hf:
             X = hf["X"][:]
         # It could be max, min...
-        return [np.int16(get_summary(X[:, j])) for j in xrange(X.shape[1])]
+        return [np.int16(get_summary(X[:, j])) for j in range(X.shape[1])]
 
     X = np.array([consensus_signature(ik) for ik in inchikeys])
 
@@ -251,7 +251,7 @@ def process(X):
 
         Xw = np.zeros(X.shape)
 
-        for j in xrange(X.shape[1]):
+        for j in range(X.shape[1]):
             V = X[:, j]
             V = rankdata(V, "ordinal")
             gauss = g.Gaussianize(strategy="brute")
@@ -262,12 +262,12 @@ def process(X):
         return Xw
 
     def cutoffs(X):
-        return [np.percentile(X[:, j], 99) for j in xrange(X.shape[1])]
+        return [np.percentile(X[:, j], 99) for j in range(X.shape[1])]
 
     cuts = cutoffs(X)
 
     Xcut = []
-    for j in xrange(len(cuts)):
+    for j in range(len(cuts)):
         c = cuts[j]
         v = np.zeros(X.shape[0])
         v[X[:, j] > c] = 1

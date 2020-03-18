@@ -138,8 +138,8 @@ def random_adjacency_matrix(n,seed=np.random.randint(0,4294967295),sparsity=0.0,
         components = strongly_connected_components(A)
         m = len(components)
         if m>1:
-            for i in xrange(m):
-                for j in xrange(m):
+            for i in range(m):
+                for j in range(m):
                         if i!=j:
                             p = np.random.randint(len(components[i]))
                             q = np.random.randint(len(components[j]))

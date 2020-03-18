@@ -33,7 +33,7 @@ class PerformanceBinary():
         self.auc_pr = average_precision_score(y_true, y_pred)
         max_bacc = 0
         self.thr = 0
-        for i in xrange(len(thresholds)):
+        for i in range(len(thresholds)):
             bacc = np.mean([(1. - fpr[i]), tpr[i]])
             if bacc > max_bacc:
                 self.thr = thresholds[i]

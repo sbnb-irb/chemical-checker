@@ -41,7 +41,7 @@ def parse_nci60(sigs, models_path=None, up=None, dw=None):
             return v[0]
         my_i = 0
         my_nonan = 0
-        for i in xrange(len(v)):
+        for i in range(len(v)):
             nonan = len([1 for x in v[i] if not np.isnan(x)])
             if nonan > my_nonan:
                 my_i = i
