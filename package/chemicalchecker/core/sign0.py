@@ -222,6 +222,12 @@ class sign0(BaseSignature, DataSignature):
             else:
                 return hf["key_type"][0]
 
+    def refesh(self):
+        DataSignature.refesh()
+        self._refresh("key_type")
+        self._refresh("input_type")
+        self._refresh("agg_method")
+
     def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, **params):
         """Process the input data. We produce a sign0 (full) and a sign0(reference). Data are sorted (keys and features).
 
@@ -266,7 +272,6 @@ class sign0(BaseSignature, DataSignature):
         agg = Aggregate(method=agg_method, input_type=input_type)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
         self.__log.debug("Saving dataset")
-        print(features.dtype)
         with h5py.File(self.data_path, "w") as hf:
             hf.create_dataset(
                 "name", data=np.array([str(self.dataset) + "sig"], DataSignature.string_dtype()))
