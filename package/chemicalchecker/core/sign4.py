@@ -985,7 +985,7 @@ class sign4(BaseSignature, DataSignature):
         self.__log.info('VALIDATION: Plot Subsampling.')
         fname = 'known_unknown_sampling.png'
         plot_file = os.path.join(siamese.model_dir, fname)
-        plot_subsample(plot_file, ds=self.dataset)
+        plot_subsample(plot_file, self.sign2_coverage, ds=self.dataset)
 
     def plot_validations_2(self, siamese, dataset_idx, traintest_file,
                            chunk_size=10000, limit=1000, dist_limit=1000):
@@ -2424,8 +2424,8 @@ def subsample(tensor, sign_width=128,
     return new_data
 
 
-def plot_subsample(plotpath, ds='B1.001', p_self=.1, p_only_self=0.,
-                   limit=10000):
+def plot_subsample(plotpath, sign2_coverage, ds='B1.001', p_self=.1,
+                   p_only_self=0., limit=10000):
     import os
     import numpy as np
     import pandas as pd
@@ -2444,7 +2444,6 @@ def plot_subsample(plotpath, ds='B1.001', p_self=.1, p_only_self=0.,
     # get triplet generator
     dataset_idx = np.argwhere(
         np.isin(list(cc.datasets_exemplary()), ds)).flatten()
-    sign2_coverage = '/aloy/web_checker/current/full/all_sign2_coverage.h5'
     p_nr, p_keep = subsampling_probs(sign2_coverage, dataset_idx)
     augment_kwargs = {
         'p_nr': p_nr, 'p_keep': p_keep, 'dataset_idx': dataset_idx,
