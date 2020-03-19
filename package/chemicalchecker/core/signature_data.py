@@ -108,10 +108,23 @@ class DataSignature(object):
         for i in range(0, n, size):
             yield slice(i, i + size)
 
-    def refresh(self, key):
+    def _refresh(self, key):
         """Delete a cached property"""
         if hasattr(self, key):
             delattr(self, key)
+
+    def refresh(self):
+        """Refresh all cached properties"""
+        self._refresh("name")
+        self._refresh("date")
+        self._refresh("data")
+        self._refresh("data_type")
+        self._refresh("keys")
+        self._refresh("row_keys")
+        self._refresh("keys_raw")
+        self._refresh("unique_keys")
+        self._refresh("features")
+        self._refresh("mappings")
 
     @cached_property
     def name(self):
@@ -188,7 +201,7 @@ class DataSignature(object):
         except Exception:
             self.__log.warning('Mappings are not available,' +
                                ' using implicit key-key mappings.')
-            return np.hstack([self.keys, self.keys])
+            return np.vstack([self.keys, self.keys]).T
 
     @property
     def info_h5(self):
