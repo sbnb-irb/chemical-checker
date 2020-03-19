@@ -6,24 +6,42 @@ from chemicalchecker.util import logged
 @logged
 class Sanitizer(object):
 
-    def __init__(self, max_keys=1000):
+    def __init__(self, trim, max_keys=1000, max_features=5000):
         """Initialize
 
             Args:
                 max_keys(int): Maximum number of keys to be used when using a sign as a reference (default=1000).
+                max_features(int): Maximum number of features to keep (default=5000).
         """
+        self.trim = trim
         self.max_keys = max_keys
+        self.max_features = max_features
 
-    def transform(self, V, sign=None):
+    def transform(self, V, keys, keys_raw, features, sign=None):
         """Sanitize data
         
             Args:
                 V(matrix): Input matrix.
                 sign(CC signature): Auxiliary CC signature used to impute (default=None).
         """
+        if self.trim:
+            if V.shape[1] >= self.max_features:
+                self.__log.debug("More than %d features, trimming the least informative ones" % self.max_features)
+                sums = np.nansum(V, axis=0)
+                idxs = np.argsort(-sums)[:self.max_features]
+                V    = V[:,idxs]
+                features = features[idxs]
+                idxs = np.argsort(features)
+                V    = V[:,idxs]
+                features = features[idxs]
+            self.__log.debug("Removing keys with no data")
+            mask = np.nansum(V, axis=1) > 0
+            V = V[mask]
+            keys = keys[mask]
+            keys_raw = keys_raw[mask]
         if not np.any(np.isnan(V)) and not np.any(np.isinf(V)):
             self.__log.debug("Matrix does not need sanitization")
-            return V
+            return V, keys, keys_raw, features
         if sign is not None:
             self.__log.debug("Sanitizing using the signature of reference.")
             W = sign.subsample(self.max_keys)[0]
@@ -54,4 +72,4 @@ class Sanitizer(object):
             for j in range(0, V.shape[1]):
                 mask = np.isnan(V[:,j])
                 V[mask,j] = np.median(V[~mask,j])
-        return V
+        return V, keys, keys_raw, features

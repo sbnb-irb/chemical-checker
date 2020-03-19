@@ -72,6 +72,9 @@ class sign1(BaseSignature, DataSignature):
                 shutil.copyfile(fn0, fn1)
             else:
                 self.__log.warn("No triplets available! Please fit sign0 with option do_triplets=True")
+        self.refresh()
+        s0.refresh()
+        s1.refresh()
 
     def duplicate(self, s1):
         self.__log.debug("Duplicating V matrix to V_tmp")
@@ -106,9 +109,6 @@ class sign1(BaseSignature, DataSignature):
         with h5py.File(s1.data_path, "r+") as hf:
             if "V_tmp" in hf.keys():
                 del hf["V_tmp"]
-
-    def refresh(self):
-        return self.__class__(self.signature_path, self.dataset)
 
     def fit(self, sign0, latent=True, scale=True, max_outliers=0.0, metric_learning=True, semisupervised=False):
         """Fit a signature 1, given a signature 0
@@ -217,12 +217,10 @@ class sign1(BaseSignature, DataSignature):
                 max_outliers = pipeline[max_outliers]
             mod = self.load_model("outliers")
             mod.predict(s1)
-            s1 = s1.refresh()
         self.__log.debug("Scaling if necessary")
         if not pipeline["sparse"] and pipeline["scale"]:
             mod = self.load_model("scale")
             mod.predict(s1)
-            s1 = s1.refresh()
         self.__log.debug("Transformation")
         if pipeline["metric_learning"]:
             if pipeline["semisupervised"]:
@@ -239,7 +237,6 @@ class sign1(BaseSignature, DataSignature):
                 mod = None
         if mod is not None:
             mod.predict(s1)
-            s1 = s1.refresh()
         self.__log.debug("Prediction done!")
         if destination is None:
             self.__log.debug("Returning a V, keys dictionary")

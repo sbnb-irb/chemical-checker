@@ -53,6 +53,7 @@ class BaseTransform(object):
             hf["triplets"] = triplets
 
     def remap(self, sign1):
+        sign1.refresh()
         self.__log.debug("Re-doing the mappings")
         s1_full = sign1.get_molset("full")
         s1_ref  = sign1.get_molset("reference")
@@ -66,8 +67,10 @@ class BaseTransform(object):
         with h5py.File(s1_ref.data_path, "r+") as hf:
             del hf["mappings"]
             hf["mappings"] = mappings
+        sign1.refresh()
         
     def overwrite(self, sign1, V, keys):
+        sign1.refresh()
         self.reindex_triplets(sign1, keys)
         data_path = sign1.data_path
         with h5py.File(data_path, "r+") as hf:
