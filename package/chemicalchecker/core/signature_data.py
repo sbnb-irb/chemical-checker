@@ -496,8 +496,12 @@ class DataSignature(object):
         if os.path.exists(self.model_path):
             self.__log.warn("A models folder has been emptied")
             shutil.rmtree(self.model_path)
-            os.mkdir(self.model_path)
+            original_umask = os.umask(0)
+            os.makedirs(self.model_path, 0o775)
+            os.umask(original_umask)
         if os.path.exists(self.stats_path):
             self.__log.warn("A stats folder has been emptied")
             shutil.rmtree(self.stats_path)
-            os.mkdir(self.stats_path)
+            original_umask = os.umask(0)
+            os.makedirs(self.stats_path, 0o775)
+            os.umask(original_umask)
