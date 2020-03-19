@@ -98,11 +98,11 @@ class UnsupervisedMetricLearn(MetricLearn):
 class SemiSupervisedMetricLearn(MetricLearn):
 
     def __init__(self, sign1, tmp):
-        MetricLearn.__init__(self, sign1, "semiml", max_keys=None, params=params)
+        MetricLearn.__init__(self, sign1, tmp, "semiml", max_keys=None, params=params)
 
     def fit(self):
         self.__log.debug("Getting precalculated triplets throughout the CC")
-        triplets = self.sign_ref.get_triplets()
+        triplets = self.sign_ref.get_triplets(True)
         self._fit(triplets)
 
     def predict(self, sign1):

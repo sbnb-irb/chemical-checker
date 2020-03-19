@@ -110,8 +110,11 @@ class DataSignature(object):
 
     def _refresh(self, key):
         """Delete a cached property"""
-        if hasattr(self, key):
-            delattr(self, key)
+        try:
+            if hasattr(self, key):
+                delattr(self, key)
+        except:
+            self.__log.warn("No %s in this signature" % key)
 
     def refresh(self):
         """Refresh all cached properties"""

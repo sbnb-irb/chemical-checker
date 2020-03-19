@@ -171,6 +171,7 @@ class sign0(BaseSignature, DataSignature):
             input_type = "matrix"
         if X.shape[0] != len(keys):
             raise Exception("after processing, number of rows does not equal number of columns")
+        X, keys, keys_raw, features = self.sort(X, keys, keys_raw, features)
         results = {
             "X": X,
             "keys": keys,
@@ -228,7 +229,21 @@ class sign0(BaseSignature, DataSignature):
         self._refresh("input_type")
         self._refresh("agg_method")
 
-    def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, **params):
+    def sort(self, X, keys, keys_raw, features):
+        self.__log.debug("Sorting")
+        key_idxs = np.argsort(keys)
+        feature_idxs = np.argsort(features)
+        # sort all data
+        X = X[key_idxs]
+        X = X[:, feature_idxs]
+        # sort keys
+        keys = keys[key_idxs]
+        keys_raw = keys_raw[key_idxs]
+        # sort features
+        features = features[feature_idxs]
+        return X, keys, keys_raw, features
+        
+    def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, max_features=10000, **params):
         """Process the input data. We produce a sign0 (full) and a sign0(reference). Data are sorted (keys and features).
 
         Args:
@@ -254,20 +269,9 @@ class sign0(BaseSignature, DataSignature):
         keys_raw = res["keys_raw"]
         features = res["features"]
         input_type = res["input_type"]
-        self.__log.debug("Sorting")
-        key_idxs = np.argsort(keys)
-        feature_idxs = np.argsort(features)
-        # sort all data
-        X = X[key_idxs]
-        X = X[:, feature_idxs]
-        # sort keys
-        keys = keys[key_idxs]
-        keys_raw = keys_raw[key_idxs]
-        # sort features
-        features = features[feature_idxs]
         self.__log.debug("Sanitizing")
-        san = Sanitizer()
-        X = san.transform(V=X, sign=None)
+        san = Sanitizer(trim=True, max_features=max_features)
+        X, keys, keys_raw, features = san.transform(V=X, keys=keys, keys_raw=keys_raw, features=features, sign=None)
         self.__log.debug("Aggregating if necessary")
         agg = Aggregate(method=agg_method, input_type=input_type)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
@@ -288,6 +292,7 @@ class sign0(BaseSignature, DataSignature):
                 [str(agg_method)], DataSignature.string_dtype()))
             hf.create_dataset("input_type", data=np.array(
                 [str(input_type)], DataSignature.string_dtype()))
+        self.refresh()
         self.__log.info("Removing redundancy")
         sign0_ref = self.get_molset("reference")
         rnd = RNDuplicates(cpu=10)
@@ -363,8 +368,9 @@ class sign0(BaseSignature, DataSignature):
                 W[i, features_idx[feat]] = X[i, j]
         X = W
         self.__log.debug("Sanitizing if necessary")
-        san = Sanitizer()
-        X = san.transform(V=X, sign=self)
+        self.refresh()
+        san = Sanitizer(trim=False)
+        X, keys, keys_raw, features = san.transform(V=X, keys=keys, keys_raw=keys_raw, features=features, sign=self)
         self.__log.debug("Aggregating as it was done at fit time")
         agg = Aggregate(method=self.agg_method, input_type=input_type)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
