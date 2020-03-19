@@ -61,7 +61,7 @@ def query_missing_data(missing_keys):
             input_data = pubchempy.get_compounds(missing_keys, 'inchikey')
             break
         except Exception as e:
-            print "Connection failed to REST Pubchem API. Retrying..."
+            print ("Connection failed to REST Pubchem API. Retrying...")
             attempts -= 1
 
     if attempts == 0:
@@ -81,7 +81,7 @@ def query_missing_data(missing_keys):
                     properties=['synonyms', 'cid', 'iupac_name', 'inchikey'])
                 break
             except Exception as e:
-                print "Connection failed to REST Pubchem API. Retrying..."
+                print ("Connection failed to REST Pubchem API. Retrying...")
                 attempts -= 1
 
         if attempts == 0:
@@ -113,13 +113,13 @@ def query_missing_data(missing_keys):
 
         items.remove(ik)
 
-    print len(items), len(rows)
+    print (len(items), len(rows))
 
     if len(items) > 0:
 
         for ik in items:
 
-            print len(rows), ik
+            print (len(rows), ik)
 
             name = ''
             direct_parent = query_direct(ik)
@@ -161,20 +161,20 @@ for chunk in slices:
 
     missing = set(keys).difference(found_keys)
 
-    print len(missing), len(keys), len(found_keys)
-    print missing
+    print (len(missing), len(keys), len(found_keys))
+    print (missing)
 
     if len(missing) > 0:
 
         rows += query_missing_data(missing)
 
-    print len(keys), len(rows)
+    print (len(keys), len(rows))
 
     values = ', '.join(map(formatting, rows))
 
     try:
 
         psql.query(INSERT % values, DB)
-    except Exception, e:
+    except Exception as e:
 
         print(e)

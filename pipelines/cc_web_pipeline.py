@@ -8,6 +8,7 @@ from chemicalchecker import ChemicalChecker
 from chemicalchecker.database import Datasource
 from chemicalchecker.util import HPC
 from chemicalchecker.util import psql
+from chemicalchecker.core import DataSignature
 from chemicalchecker.database import Molrepo
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem
 
@@ -48,20 +49,24 @@ def universe(tmpdir):
     universe_list.sort()
 
     with h5py.File(universe_file, "w") as h5:
-        h5.create_dataset("keys", data=np.array(universe_list))
+        h5.create_dataset("keys", data=np.array(universe_list, DataSignature.string_dtype()))
 
     con = psql.get_connection(OLD_DB)
 
     con.autocommit = True
 
+    success = False
     cur = con.cursor()
     try:
         cur.execute('CREATE DATABASE {};'.format(DB))
-    except Exception, e:
-        raise Exception(e)
+        success = True
+    except Exception as e:
+        print(e)
     finally:
         con.close()
 
+    if not success:
+        raise Exception("Universe file and DB not created successfully") 
 
 ##### TASK: Create universe file and DB #######
 
