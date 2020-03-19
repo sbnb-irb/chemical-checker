@@ -108,6 +108,11 @@ class DataSignature(object):
         for i in range(0, n, size):
             yield slice(i, i + size)
 
+    def refresh(self, key):
+        """Delete a cached property"""
+        if hasattr(self, key):
+            delattr(self, key)
+
     @cached_property
     def name(self):
         """Get the name of the signature."""
