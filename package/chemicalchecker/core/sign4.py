@@ -2456,7 +2456,8 @@ def plot_subsample(plotpath, ds='B1.001', p_self=.1, p_only_self=0.,
         replace_nan=np.nan,
         augment_fn=subsample,
         augment_kwargs=augment_kwargs,
-        train=True)
+        train=True,
+        standard=False)
     tr_gen = tr_shape_type_gen[2]
 
     # get known unknown
