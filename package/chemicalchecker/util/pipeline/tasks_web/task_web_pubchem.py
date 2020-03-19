@@ -86,13 +86,13 @@ class Pubchem(BaseTask, BaseOperator):
             psql.query(CREATE_TABLE, self.DB)
             # psql.query(CREATE_INDEX, self.DB)
 
-        except Exception, e:
+        except Exception as e:
 
             self.__log.error(e)
 
         universe_file = os.path.join(self.tmpdir, "universe.h5")
 
-        with h5py.File(universe_file) as h5:
+        with h5py.File(universe_file, 'r') as h5:
             data_size = h5["keys"].shape[0]
 
         self.__log.info("Genretaing pubchem data for " +
@@ -135,7 +135,7 @@ class Pubchem(BaseTask, BaseOperator):
                 psql.query(CREATE_INDEX, self.DB)
                 shutil.rmtree(job_path)
                 self.mark_ready()
-        except Exception, e:
+        except Exception as e:
 
             self.__log.error(e)
 
@@ -217,13 +217,13 @@ class Pubchem(BaseTask, BaseOperator):
 
             items.remove(ik)
 
-        print len(items), len(rows)
+        print (len(items), len(rows))
 
         if len(items) > 0:
 
             for ik in items:
 
-                print len(rows), ik
+                print (len(rows), ik)
 
                 name = ''
                 direct_parent = self.__query_direct(ik)
