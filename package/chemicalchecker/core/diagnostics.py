@@ -162,7 +162,7 @@ class Diagnosis(object):
             Args:
                 n_pairs(int): Number of pairs to sample (default=10000)
         """
-        self.__log.debug("Cosine distances")
+        self.__log.debug("Euclidean distances")
         fn = "euclidean_distances"
         if self._todo(fn):
             results = self._distance_distribution(n_pairs=n_pairs, metric="euclidean")
