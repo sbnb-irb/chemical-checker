@@ -27,7 +27,15 @@ class OutlierRemover(object):
 
     def predict(self, sign1, max_outliers=None):
         """Predict outliers"""
+        self.predict_check(sign1)
         if max_outliers is None: max_outliers = self.max_outliers
         mod = joblib.load(self.model_path)
         X = ""
         model.predict()
+
+
+    def predict(self, sign1):
+        self.predict_check(sign1)
+        pca = joblib.load(os.path.join(self.model_path, self.name+".joblib"))
+        V = pca.transform(sign1[:])
+        self.overwrite(sign1=sign1, V=V, keys=sign1.keys)

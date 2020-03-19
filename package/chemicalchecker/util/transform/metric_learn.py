@@ -62,7 +62,7 @@ class MetricLearn(BaseTransform):
         # train siamese network
         model_dir = os.path.join(self.model_path, self.name)
         params["traintest_file"] = dest_h5
-        params["epochs"] = mod.last_epoch
+        params["learning_rate"] = mod.learning_rate
         mod = SiameseTriplets(model_dir, evaluate=False, plot=False, **params)
         mod.fit()
         # Save and predict
