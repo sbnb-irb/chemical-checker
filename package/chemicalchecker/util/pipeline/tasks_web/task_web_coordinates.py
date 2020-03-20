@@ -79,7 +79,7 @@ class Coordinates(BaseTask, BaseOperator):
             psql.query(CREATE_TABLE_STATS, self.DB)
             # psql.query(CREATE_INDEX, self.config.DB)
 
-        except Exception, e:
+        except Exception as e:
 
             self.__log.error("Error while creating coordinates tables")
             if not self.custom_ready():
@@ -124,7 +124,7 @@ class Coordinates(BaseTask, BaseOperator):
                 psql.query(INSERT_STATS % (coord, size, d["xlim"][1], d[
                            "xlim"][0], d["ylim"][1], d["ylim"][0]), self.DB)
 
-            except Exception, e:
+            except Exception as e:
 
                 self.__log.error("Error while filling coordinate_stats table")
                 if not self.custom_ready():
