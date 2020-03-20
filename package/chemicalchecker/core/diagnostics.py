@@ -931,12 +931,15 @@ class Diagnosis(object):
             plot = self.plot,
             plotter_function = self.plotter.moa_roc)
 
-    def redundancy(self):
+    def redundancy(self, cpu=4):
+        from chemicalchecker.util.remove_near_duplicates import RNDuplicates
         self.__log.debug("Redundancy")
         fn = "redundancy"
         if self._todo(fn):
-            sign_ref = self.sign.get_molset("reference")
-            mappings = sign_ref.mappings
+            self.__log.debug("Removing near duplicates")
+            rnd = RNDuplicates(cpu=cpu)
+            keys1, keys2, mappings = rnd.remove(self.sign.data_path, save_dest=None)
+            mappings = np.array(sorted(mappings.items()))
             mps = []
             for i in range(0, mappings.shape[0]):
                 mps += [(mappings[i,0], mappings[i,1])]
@@ -1130,11 +1133,13 @@ class Diagnosis(object):
             plot = self.plot,
             plotter_function = self.plotter.orthogonality)
 
-    def outliers(self, n_estimators=500):
+    def outliers(self, n_estimators=1000):
         from sklearn.ensemble import IsolationForest
         fn = "outliers"
         if self._todo(fn):
-            mod = IsolationForest(n_estimators=n_estimators)
+            max_features = int(np.sqrt(self.V.shape[1])+1)
+            max_samples  = min(1000, int(self.V.shape[0]/2+1))
+            mod = IsolationForest(n_estimators=n_estimators, contamination=0.1, max_samples=max_samples, max_features=max_features)
             pred = mod.fit_predict(self.V)
             scores = mod.score_samples(self.V)
             results = {
