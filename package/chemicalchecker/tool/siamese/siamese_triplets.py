@@ -572,7 +572,7 @@ class SiameseTriplets(object):
         axes[0].set_ylabel('val_loss')
         axes[0].legend()
         
-        axes[1].scatter(lr_iters[:,0],lr_iters[:,1])
+        axes[1].scatter(np.log10(lr_iters[:,0]),np.log10(lr_iters[:,1]))
         axes[1].set_xlabel('lr')
         axes[1].set_ylabel('lr_score')
 
