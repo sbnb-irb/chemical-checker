@@ -308,6 +308,7 @@ class NeighborTripletTraintest(object):
         # for each split generate NN
         NeighborTripletTraintest.__log.info('Generating NN indexes')
         NN = dict()
+        faiss.omp_set_num_threads(8)
         for split_name in split_names:
             # create faiss index
             NN[split_name] = faiss.IndexFlatL2(nr_matrix[split_name].shape[1])
@@ -345,7 +346,7 @@ class NeighborTripletTraintest(object):
                 NeighborTripletTraintest.__log.debug("SPLIT: %s" % combo)
                 # define F and T according to the split that is being used
                 T = int(np.clip(t_per * nr_matrix[split2].shape[0], 5, 100))
-                F = np.clip(10 * T, 100, 500)
+                F = np.clip(10 * T, 100, 1000)
                 F = int(min(F, (nr_matrix[split2].shape[0] - 1)))
                 
                 NeighborTripletTraintest.__log.info("T per: %s" % (t_per))
@@ -357,8 +358,9 @@ class NeighborTripletTraintest(object):
                 if split1 == split2:
                     # search NN in chunks
                     neig_idxs = list()
-                    for i in tqdm(range(0, len(nr_matrix[split2]), 1000)):
-                        chunk = slice(i, i + 1000)
+                    csize = 10000
+                    for i in tqdm(range(0, len(nr_matrix[split2]), csize)):
+                        chunk = slice(i, i + csize)
                         _, neig_idxs_chunk = NN[split1].search(
                             nr_matrix[split2][chunk], F + 1)
                         neig_idxs.append(neig_idxs_chunk)
