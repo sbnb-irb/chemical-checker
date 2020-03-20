@@ -3,6 +3,8 @@
 We first determine the number of dimensions by a PCA.
 """
 import os
+import pickle
+import numpy as np
 from keras.layers import Dense
 
 from chemicalchecker.util import logged
@@ -67,13 +69,24 @@ class MetricLearn(BaseTransform):
         mod.fit()
         # Save and predict
         self.model_dir = model_dir
-        self.predict(self.sign_ref)
-        self.predict(self.sign)
+        self._predict(self.sign_ref, find_scale=True)
+        self._predict(self.sign, find_scale=False)
         self.save()
 
-    def _predict(self, sign1):
+    def _predict(self, sign1, find_scale=False):
         mod = SiameseTriplets(self.model_dir)
         V = mod.predict(sign1[:])
+        if find_scale:
+            p25 = np.percentile(V.ravel(), 25)
+            p75 = np.percentile(V.ravel(), 75)
+            with open(os.path.join(self.model_dir, "ml_percs.pkl"), "wb") as f:
+                pickle.dump((p25, p75), f)
+        else:
+            with open(os.path.join(self.model_dir, "ml_percs.pkl"), "rb") as f:
+                p25, p75 = pickle.load(f)
+        m = 2. / (p75 - p25)
+        n = 1 - m*p75
+        V = m*V + n
         self.overwrite(sign1=sign1, V=V, keys=sign1.keys)
 
 
@@ -91,7 +104,7 @@ class UnsupervisedMetricLearn(MetricLearn):
         self._fit(triplets)
 
     def predict(self, sign1):
-        self._predict(sign1)
+        self._predict(sign1, find_scale=False)
         
 
 @logged
@@ -106,5 +119,5 @@ class SemiSupervisedMetricLearn(MetricLearn):
         self._fit(triplets)
 
     def predict(self, sign1):
-        self._predict(sign1)
+        self._predict(sign1, find_scale=False)
 

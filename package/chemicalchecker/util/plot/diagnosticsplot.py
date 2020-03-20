@@ -408,11 +408,14 @@ class DiagnosisPlot(object):
         ax.scatter(x, y, c=y, cmap="Spectral", s=10, zorder=100)
         if title is None:
             title = "Redund. (%.2f)" % (1-results["n_ref"]/results["n_full"])
-        ax.set_yticks(sorted(set(np.array(ax.get_yticks(), np.int))))
+        yticks = sorted(set(np.array(ax.get_yticks(), np.int)))
+        if len(yticks) == 1:
+            yticks = [0,1]
+        ax.set_yticks(yticks)
         ax.set_xlabel("Non-red. keys")
         ax.set_ylabel("Red. keys (log10)")
         ax.set_title(title)
-        ax.set_ylim(-0.2, np.max(y)+0.2)
+        ax.set_ylim(-0.1, max(1, np.max(y))+0.1)
         return ax
 
     def cluster_sizes(self, ax=None, max_clusters=20, s=5, show_outliers=False, title=None):
@@ -647,25 +650,17 @@ class DiagnosisPlot(object):
         scs = scs[idxs]
         pds = pds[idxs]
         x = [i+1 for i in range(0, len(scs))]
-        colors = []
-        decision = None
-        for i, p in enumerate(pds):
-            if p == -1:
-                colors += [coord_color("A")]
-                if decision is None:
-                    decision = scs[i]
-            else:
-                colors += ["gray"]
-        if decision is None:
-            decision = 0.5
-        ax.scatter(x, scs, color=colors, s=s)
+
+        norm = mpl.colors.Normalize(vmin=0.3, vmax=0.7)
+        cmap = cm.get_cmap(cmap)
+        colors = cmap(norm(np.clip(scs, 0.3, 0.7)))
+        ax.scatter(x=x, y=scs, color=colors, s=s)
         if title is None:
             title = "Outliers"
         ax.set_title(title)
         ax.set_xlabel("Keys")
         ax.set_ylabel("Outlier score")
         xlim = ax.get_xlim()
-        ax.plot([xlim[0], xlim[1]], [decision, decision], color=coord_color("A"), linestyle="--")
         ax.set_xlim(xlim)
         return ax
 
