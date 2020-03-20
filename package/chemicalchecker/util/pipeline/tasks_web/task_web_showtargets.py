@@ -3,7 +3,7 @@ import collections
 from sbnb.uniprotkb import UniprotKB
 
 from chemicalchecker.util import logged
-from chemicalchecker.util import BaseTask
+from chemicalchecker.util.pipeline import BaseTask
 from chemicalchecker.util import psql
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.database import Dataset
@@ -410,14 +410,14 @@ class ShowTargets(BaseTask, BaseOperator):
             showtargs[key] += prots
 
         displays = {}
-        for k, v in showtarg_d.iteritems():
+        for k, v in showtarg_d.items():
             if v[0] is None:
                 displays[k] = k
             else:
                 displays[k] = v[0]
 
         R = []
-        for k, v in showtargs.iteritems():
+        for k, v in showtargs.items():
             already_disp = set()
             rank = 1
             for p in v:
@@ -455,6 +455,10 @@ class ShowTargets(BaseTask, BaseOperator):
             return "'%s'" % s.replace("'", "")
 
     def __sort_alphabet(self, prots, showtarg_d):
+        def nonesorter(a):
+            if not a:
+               return ""
+            return a
         P0 = []
         P1 = []
         for p in prots:
@@ -462,7 +466,7 @@ class ShowTargets(BaseTask, BaseOperator):
                 P1 += [(p, p)]
             else:
                 P0 += [(p, showtarg_d[p][0])]
-        return [r[0] for r in sorted(P0, key=lambda tup: tup[1])] + [r[0] for r in sorted(P1, key=lambda tup: tup[1])]
+        return [r[0] for r in sorted(P0, key=lambda tup: nonesorter(tup[1]))] + [r[0] for r in sorted(P1, key=lambda tup: nonesorter(tup[1]))]
 
     def __chunker(self, data, size=2000):
 
