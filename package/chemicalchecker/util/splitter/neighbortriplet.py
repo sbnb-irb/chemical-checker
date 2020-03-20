@@ -306,6 +306,7 @@ class NeighborTripletTraintest(object):
                 "nr_matrix %s %s", split_name, nr_matrix[split_name].shape)
 
         # for each split generate NN
+        NeighborTripletTraintest.__log.info('Generating NN indexes')
         NN = dict()
         for split_name in split_names:
             # create faiss index
@@ -315,6 +316,7 @@ class NeighborTripletTraintest(object):
 
         # mean centering columns
         if mean_center_x:
+            NeighborTripletTraintest.__log.info('Mean centering X')
             scaler = RobustScaler()
             X = scaler.fit_transform(X)
             if suffix is None:
@@ -343,7 +345,7 @@ class NeighborTripletTraintest(object):
                 NeighborTripletTraintest.__log.debug("SPLIT: %s" % combo)
                 # define F and T according to the split that is being used
                 T = int(np.clip(t_per * nr_matrix[split2].shape[0], 5, 100))
-                F = np.clip(10 * T, 100, 1000)
+                F = np.clip(10 * T, 100, 500)
                 F = int(min(F, (nr_matrix[split2].shape[0] - 1)))
                 
                 NeighborTripletTraintest.__log.info("T per: %s" % (t_per))
@@ -353,9 +355,14 @@ class NeighborTripletTraintest(object):
                 NeighborTripletTraintest.__log.info("Searching Neighbors")
                 # remove self neighbors when splits are the same
                 if split1 == split2:
-                    # search NN
-                    _, neig_idxs = NN[split1].search(
-                        nr_matrix[split2], F + 1)
+                    # search NN in chunks
+                    neig_idxs = list()
+                    for i in tqdm(range(0, len(nr_matrix[split2]), 1000)):
+                        chunk = slice(i, i + 1000)
+                        _, neig_idxs_chunk = NN[split1].search(
+                            nr_matrix[split2][chunk], F + 1)
+                        neig_idxs.append(neig_idxs_chunk)
+                    neig_idxs = np.vstack(neig_idxs)
                     # the nearest neig between same groups is the molecule
                     # itself
                     assert(all(neig_idxs[:, 0] ==
