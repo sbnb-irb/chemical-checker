@@ -340,6 +340,7 @@ class NeighborTripletTraintest(object):
             combos = itertools.combinations_with_replacement(split_names, 2)
             for split1, split2 in combos:
                 combo = '_'.join([split1, split2])
+                NeighborTripletTraintest.__log.debug("SPLIT: %s" % combo)
                 # define F and T according to the split that is being used
                 T = int(np.clip(t_per * nr_matrix[split2].shape[0], 5, 100))
                 F = np.clip(10 * T, 100, 1000)
@@ -349,6 +350,7 @@ class NeighborTripletTraintest(object):
                 NeighborTripletTraintest.__log.info("F and T: %s %s" % (F, T))
                 assert(T < F)
 
+                NeighborTripletTraintest.__log.info("Searching Neighbors")
                 # remove self neighbors when splits are the same
                 if split1 == split2:
                     # search NN
@@ -377,6 +379,7 @@ class NeighborTripletTraintest(object):
                 hard_p_split = list()
                 hard_n_split = list()
 
+                NeighborTripletTraintest.__log.info("Generating triplets")
                 # idx refere split2, all else to split1
                 for idx, row in enumerate(neig_idxs):
                     # anchors are repeated num_triplets times
@@ -413,6 +416,7 @@ class NeighborTripletTraintest(object):
                     hard_n_split.extend(hard_n)
 
                 # get reference ids
+                NeighborTripletTraintest.__log.info("Mapping triplets")
                 anchors_ref = [split_ref_map[split2][x] for x in anchors_split]
                 easy_p_ref = [split_ref_map[split1][x] for x in easy_p_split]
                 easy_n_ref = [split_ref_map[split1][x] for x in easy_n_split]
@@ -422,6 +426,7 @@ class NeighborTripletTraintest(object):
                 hard_n_ref = [split_ref_map[split1][x] for x in hard_n_split]
 
                 # choose random from full analogs
+                NeighborTripletTraintest.__log.info("Resolving multiple options")
                 anchors_full = np.array(
                     [np.random.choice(refid_full_map[x]) for x in anchors_ref])
                 easy_p_full = np.array(
@@ -438,6 +443,7 @@ class NeighborTripletTraintest(object):
                     [np.random.choice(refid_full_map[x]) for x in hard_n_ref])
 
                 # stack triplets
+                NeighborTripletTraintest.__log.info("Stacking triplets")
                 easy_triplets = np.vstack(
                     (anchors_full, easy_p_full, easy_n_full)).T[:1000]
                 medium_triplets = np.vstack(
