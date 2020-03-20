@@ -431,7 +431,31 @@ class SiameseTriplets(object):
             return loss + o_self
 
         def penta_loss(y_true, y_pred):
+            def only_self_regularization(y_pred):
+                anchor, positive, negative, only_self, not_self = split_output(y_pred)
+                pos_dist = K.sum(K.square(anchor - only_self), axis=1)
+                neg_dist = K.sum(K.square(anchor - negative), axis=1)
+                basic_loss = pos_dist - neg_dist + self.margin
+                loss = K.maximum(basic_loss, 0.0)
+                neg_dis = K.sum(anchor * negative, axis=1)
+                dim = K.int_shape(y_pred)[1]
+                gor = K.pow(K.mean(neg_dis), 2) + \
+                    K.maximum(K.mean(K.pow(neg_dis, 2)) - 1.0 / dim, 0.0)
+                return loss + (gor * self.alpha)
+
             def not_self_regularization(y_pred):
+                anchor, positive, negative, only_self, not_self = split_output(y_pred)
+                pos_dist = K.sum(K.square(anchor - not_self), axis=1)
+                neg_dist = K.sum(K.square(anchor - negative), axis=1)
+                basic_loss = pos_dist - neg_dist + self.margin
+                loss = K.maximum(basic_loss, 0.0)
+                neg_dis = K.sum(anchor * negative, axis=1)
+                dim = K.int_shape(y_pred)[1]
+                gor = K.pow(K.mean(neg_dis), 2) + \
+                    K.maximum(K.mean(K.pow(neg_dis, 2)) - 1.0 / dim, 0.0)
+                return loss + (gor * self.alpha)
+
+            def both_self_regularization(y_pred):
                 anchor, positive, negative, only_self, not_self = split_output(y_pred)
                 pos_dist = K.sum(K.square(not_self - only_self), axis=1)
                 neg_dist = K.sum(K.square(not_self - negative), axis=1)
@@ -444,9 +468,18 @@ class SiameseTriplets(object):
                 return loss + (gor * self.alpha)
 
             loss = orthogonal_tloss(y_true, y_pred)
-            #o_self = only_self_regularization(y_pred)
+            o_self = only_self_regularization(y_pred)
             n_self = not_self_regularization(y_pred)
-            return loss + n_self
+            b_self = both_self_regularization(y_pred)
+            return loss + ((o_self + n_self + b_self) / 3)
+
+        def mse_loss(y_true, y_pred):
+            def mse_loss(y_pred):
+                anchor, positive, negative, anchor_sign3, _ = split_output(y_pred)
+                return keras.losses.mean_squared_error(anchor_sign3, anchor)
+            loss = orthogonal_tloss(y_true, y_pred)
+            mse_loss = mse_loss(y_pred)
+            return loss + mse_loss
 
 
         lfuncs_dict = {'tloss': tloss,
