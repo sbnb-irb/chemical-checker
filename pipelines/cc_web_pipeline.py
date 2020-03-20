@@ -10,12 +10,12 @@ from chemicalchecker.util import HPC
 from chemicalchecker.util import psql
 from chemicalchecker.core import DataSignature
 from chemicalchecker.database import Molrepo
-from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem, ShowTargets
+from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem, ShowTargets, Coordinates
 
 os.environ['CC_CONFIG'] = '/aloy/home/oguitart/projects/source/chemical_checker/pipelines/cc_web_update.json'
 
 
-CC_PATH = "/aloy/web_checker/package_cc/2019_05/"
+CC_PATH = "/aloy/web_checker/package_cc/newpipe/"
 
 OLD_DB = 'mosaic'
 DB = 'cc_web_2019_05'
@@ -94,5 +94,9 @@ targets_params = {'DB': DB, 'CC_ROOT': CC_PATH,
 targets_task = ShowTargets(name='showtargets', **targets_params)
 pp.add_task(targets_task)
 
+# TASK: Fill coordinates
+coords_params = {'DB': DB, 'CC_ROOT': CC_PATH}
+coords_task = Coordinates(name='coordinates', **coords_params)
+pp.add_task(coords_task)
 
 pp.run()
