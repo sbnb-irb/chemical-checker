@@ -61,7 +61,7 @@ SIGN3_SCRIPT_F = [
 SIGN0_SCRIPT_FR = [
     "if len(pars) == 0:",
     "    prepro_file = cc.preprocess(sign_full)",
-    "    cc_old = ChemicalChecker(CC_OLD_PATH)"
+    "    cc_old = ChemicalChecker(CC_OLD_PATH)",
     "    pars['data_file'] = prepro_file",
     "    pars['cc'] = cc_old",
     "sign_full.fit(**pars)"
