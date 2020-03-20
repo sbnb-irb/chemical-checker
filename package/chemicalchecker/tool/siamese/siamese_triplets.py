@@ -516,7 +516,7 @@ class SiameseTriplets(object):
         input_shape = (self.tr_shapes[0][1],)
         self.build_model(input_shape)
 
-        lrf = LearningRateFinder(self.model)
+        """lrf = LearningRateFinder(self.model)
 
         min_lr, max_lr = MIN_LR, MAX_LR
         #Find lr curve
@@ -537,16 +537,14 @@ class SiameseTriplets(object):
         min_lr, max_lr, mean_lr = 10**min_lr, 10**max_lr, 10**mean_lr
         lrs = {'min_lr': min_lr, 'max_lr': max_lr, 'mean': mean_lr}
         pickle.dump(lrs, open(lr_pkl_file, "wb"))
-
+        """
         #Find perfect lr by grid search
         self.__log.info('Finding best lr')
-        lr_increase = (max_lr + min_lr) / (num_lr - 1)
         lr_iters = []
         lr_params = params.copy()
         lr_params['epochs'] = 1
-        for i in range(num_lr):
-            self.__log.info('Lr finder iteration: %s' % i)
-            lr = min_lr + (i * lr_increase)
+        for lr in [1e-6, 1e-5, 1e-4, 1e-3, 1e-2]:
+            self.__log.info('Trying lr %s' % lr)
             lr_params['learning_rate'] = lr
             #siamese_path = os.path.join(self.model_dir, 'lr_iter_%s' % num_lr)
             siamese = SiameseTriplets(self.model_dir, evaluate=True, plot=False, save_params=False, **lr_params)
