@@ -72,7 +72,7 @@ class sign4(BaseSignature, DataSignature):
             'epochs': 10,
             'layers': [Dense, Dense, Dense, Dense],
             'layers_sizes': [1024, 512, 256, 128],
-            'activations': ['relu', 'relu', 'relu', 'tanh'],
+            'activations': ['selu', 'selu', 'selu', 'tanh'],
             'dropouts': [0.2, 0.2, 0.2, None],
             'learning_rate': 'auto',
             'batch_size': 128,
@@ -80,15 +80,13 @@ class sign4(BaseSignature, DataSignature):
             'loss_func': 'only_self_loss',
             'margin': 1.0,
             'alpha': 1.0,
-            'regularize': False,
             'num_triplets': 10000,
             't_per': 0.01,
             'standard': False,
             'augment_fn': subsample,
             'augment_kwargs': {
                 'dataset': [dataset],
-            },
-            'augment_scale': 1
+            }
         }
 
         s1_ref = self.get_sign('sign1').get_molset("reference")
@@ -97,14 +95,30 @@ class sign4(BaseSignature, DataSignature):
         try:
             opt_t = DataSignature(opt_t_file).get_h5_dataset('opt_t')
             default_sign2.update({'t_per': opt_t})
+            self.t_per = opt_t
         except Exception as ex:
             self.__log.warning('Failed setting opt_t: %s' % str(ex))
+            self.t_per = 0.01
 
         default_sign2.update(params.get('sign2', {}))
         self.params['sign2_lr'] = default_sign2.copy()
         self.params['sign2'] = default_sign2
         # parameters to learn from sign0
         default_sign0 = {
+            'epochs': 10,
+            'layers': [Dense, Dense, Dense],
+            'layers_sizes': [128, 128, 128],
+            'activations': ['relu', 'relu', 'tanh'],
+            'learning_rate': 'auto',
+            'batch_size': 128,
+            'patience': 200,
+            'loss_func': 'mse_loss',
+            'num_triplets': 1000000,
+            't_per': self.t_per,
+            'margin': 1.0,
+            'alpha': 1.0,
+            'standard': False,
+
         }
         default_sign0.update(params.get('sign0', {}))
         self.params['sign0'] = default_sign0
@@ -854,7 +868,10 @@ class sign4(BaseSignature, DataSignature):
         all_inchikeys = self.get_universe_inchikeys()
         traintest = DataSignature(traintest_file)
         train_inks = traintest.get_h5_dataset('keys_train')
-        test_inks = traintest.get_h5_dataset('keys_test')
+        try:
+            test_inks = traintest.get_h5_dataset('keys_test')
+        except:
+            test_inks = np.array([])
         train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks)).flatten()
         test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks)).flatten()
         unknown_idxs = np.array(
@@ -1618,7 +1635,7 @@ class sign4(BaseSignature, DataSignature):
                     hf_out['x'][out_chunk] = sign0[out_chunk]
                     out_start += out_size
 
-    def learn_sign0(self, sign0, params, reuse=True, suffix=None,
+    def learn_sign0(self, sign0, neig_matrix, params, reuse=True, suffix=None,
                     evaluate=True, include_confidence=True):
         """Learn the signature 3 from sign0.
 
@@ -1637,50 +1654,39 @@ class sign4(BaseSignature, DataSignature):
                 confidence scores)
             include_confidence(bool): whether to include confidences.
         """
-        try:
-            from chemicalchecker.tool.adanet import AdaNet
-        except ImportError as err:
-            raise err
-        # adanet parameters
-        self.__log.debug('AdaNet fit sign0 %s based on %s', self.dataset,
-                         sign0.dataset)
+
         # get params and set folder
         if suffix:
-            adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
+            model_path = os.path.join(self.model_path, 'smiles_%s' % suffix)
         else:
-            adanet_path = os.path.join(self.model_path, 'adanet')
+            model_path = os.path.join(self.model_path, 'smiles')
         if 'model_dir' in params:
-            adanet_path = params.pop('model_dir')
-        if not reuse or not os.path.isdir(adanet_path):
-            os.makedirs(adanet_path)
+            model_path = params.pop('model_dir')
+        if not reuse or not os.path.isdir(model_path):
+            os.makedirs(model_path)
         # generate input matrix
-        sign0_matrix = os.path.join(self.model_path, 'train_sign0.h5')
-        if not reuse or not os.path.isfile(sign0_matrix):
-            self.save_sign0_matrix(sign0, sign0_matrix, include_confidence)
-        # if evaluating, perform the train-test split
-        if evaluate:
-            traintest_file = os.path.join(self.model_path,
-                                          'traintest_sign0.h5')
-            traintest_file = params.pop(
-                'traintest_file', traintest_file)
-            if not reuse or not os.path.isfile(traintest_file):
-                Traintest.split_h5_blocks(sign0_matrix, traintest_file)
-        else:
-            traintest_file = sign0_matrix
-            traintest_file = params.pop(
-                'traintest_file', traintest_file)
+        traintest_file = os.path.join(self.model_path, 'train_sign0.h5')
+        if not reuse or not os.path.isfile(traintest_file):
+        #    self.save_sign0_matrix(sign0, sign0_matrix, include_confidence)
+            NeighborTripletTraintest.create(
+                        sign0, traintest_file, neig_matrix,
+                        split_names=['train', 'test'],
+                        split_fractions=[.8, .2],
+                        suffix=suffix,
+                        num_triplets=num_triplets,
+                        t_per=params['t_per'])
+
         # initialize adanet and start learning
-        ada = AdaNet(model_dir=adanet_path,
-                     traintest_file=traintest_file,
-                     **params)
-        self.__log.debug('AdaNet training on %s' % traintest_file)
-        ada.train_and_evaluate(evaluate=evaluate)
-        self.__log.debug('model saved to %s' % adanet_path)
+        params['traintest_file'] = traintest_file
+        siamese = SiameseTriplets(model_dir=model_path, evaluate=True, **params)
+        self.__log.debug('Siamese training on %s' % traintest_file)
+        siamese.fit()
+        self.__log.debug('model saved to %s' % model_path)
         # when evaluating also save the performances
         if evaluate:
             # save AdaNet performances and plots
-            sign2_plot = Plot(self.dataset, adanet_path)
-            ada.save_performances(adanet_path, sign2_plot, suffix)
+            sign2_plot = Plot(self.dataset, model_path)
+            ada.save_performances(model_path, sign2_plot, suffix)
 
     def save_sign0_conf_matrix(self, sign0, destination, chunk_size=1000):
         """Save matrix of signature 0 confidence values.
@@ -1788,7 +1794,7 @@ class sign4(BaseSignature, DataSignature):
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix)
 
-    def fit_sign0(self, sign0, include_confidence=True, extra_confidence=False):
+    def fit_sign0(self, sign0, neig_matrix, include_confidence=True, extra_confidence=False):
         """Train an AdaNet model to predict sign4 from sign0.
 
         This method is fitting a model that uses Morgan fingerprint as features
@@ -1806,16 +1812,17 @@ class sign4(BaseSignature, DataSignature):
         """
 
         # check if performance evaluations need to be done
-        s0_code = sign0.dataset
+        s0_code = 'test'
         eval_adanet_path = os.path.join(self.model_path,
                                         'adanet_sign0_%s_eval' % s0_code)
         eval_stats = os.path.join(eval_adanet_path,
                                   'stats_sign0_%s_eval.pkl' % s0_code)
         if not os.path.isfile(eval_stats):
-            self.learn_sign0(sign0, self.params['sign0'],
-                             suffix='sign0_%s_eval' % s0_code,
+            self.learn_sign0(sign0, neig_matrix, self.params['sign0'],
+                             suffix='sign0__eval',
                              evaluate=True,
                              include_confidence=include_confidence)
+        return False
         # learn confidence predictor
         if extra_confidence:
             conf_eval_adanet_path = os.path.join(
