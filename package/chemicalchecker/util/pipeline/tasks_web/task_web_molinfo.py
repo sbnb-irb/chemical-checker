@@ -7,7 +7,7 @@ from scipy.stats import rankdata
 import shutil
 from chemicalchecker.util import logged
 from chemicalchecker.util import HPC
-from chemicalchecker.util import BaseTask
+from chemicalchecker.util.pipeline import BaseTask
 from chemicalchecker.util import psql
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util import Config
