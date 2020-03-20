@@ -282,6 +282,18 @@ class ChemicalChecker():
                 raise Exception("File %s exists already.", dst)
         shutil.copyfile(src, dst)
 
+    def compare(self, other_cc, cctypes=['sign1', 'sign2', 'sign3'],
+                molsets=['full', 'reference']):
+        """Compare two ChemicalChecker objects"""
+        for ds in self.datasets_exemplary():
+            for cctype in ['sign1', 'sign2']:
+                for molset in ['full', 'reference']:
+                    s1 = self.get_signature(cctype, molset, ds)
+                    s2 = other_cc.get_signature(cctype, molset, ds)
+                    assert(all(s1[0] == s2[0]))
+                    assert(all(s1[-1] == s2[-1]))
+                    assert(s1.info_h5 == s2.info_h5)
+
     def get_sign3_short_from_smiles(self, smiles, dest_file, chunk_size=1000):
         """Get the full signature3 short for a list of smiles.
 
