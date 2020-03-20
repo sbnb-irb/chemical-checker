@@ -26,7 +26,6 @@ from chemicalchecker.util import logged
 from chemicalchecker.util.transform.scale import Scale
 from chemicalchecker.util.transform.lsi import Lsi
 from chemicalchecker.util.transform.pca import Pca
-from chemicalchecker.util.transform.outlier_removal import OutlierRemover
 from chemicalchecker.util.transform.metric_learn import UnsupervisedMetricLearn, SemiSupervisedMetricLearn
 from chemicalchecker import ChemicalChecker
 
@@ -110,7 +109,7 @@ class sign1(BaseSignature, DataSignature):
             if "V_tmp" in hf.keys():
                 del hf["V_tmp"]
 
-    def fit(self, sign0, latent=True, scale=True, max_outliers=0.0, metric_learning=True, semisupervised=False):
+    def fit(self, sign0, latent=True, scale=True, metric_learning=True, semisupervised=False):
         """Fit a signature 1, given a signature 0
 
             Args:
@@ -138,18 +137,6 @@ class sign1(BaseSignature, DataSignature):
             tmp = True
         else:
             tmp = False
-        if max_outliers is not None:
-            if max_outliers > 0:
-                if max_outliers > 1:
-                    raise Exception("max_outliers is a proportion and cannot be greater than one")
-                self.__log.debug("Looking for outliers (done for both)")
-                mod = OutlierRemover(self, tmp=False)
-                mod.fit()
-            else:
-                max_outliers=None
-                self.__log.debug("Not looking for outliers")
-        else:
-            self.__log.debug("Not looking for outliers")
         self.__log.debug("Checking if matrix was sparse or not")
         sparse = s1_ref.was_sparse()
         if sparse:
@@ -188,7 +175,6 @@ class sign1(BaseSignature, DataSignature):
         self.__log.debug("Saving pipeline")
         pipeline = {
             "sparse": sparse,
-            "max_outliers": max_outliers,
             "latent": latent,
             "scale" : scale,
             "metric_learning": metric_learning,
@@ -200,7 +186,7 @@ class sign1(BaseSignature, DataSignature):
         with open(fn, "wb") as f:
             pickle.dump(pipeline, f)
         
-    def predict(self, sign0, destination=None, max_outliers=None):
+    def predict(self, sign0, destination=None):
         """Predict sign1 from sign0"""
         tag = str(uuid.uuid4())
         tmp_path = os.path.join(self.model_path, tag)
@@ -212,11 +198,6 @@ class sign1(BaseSignature, DataSignature):
         with open(fn, "rb") as f:
             pipeline = pickle.load(f)
         self.__log.debug("Starting pipeline")
-        if pipeline["max_outliers"] is not None:
-            if max_outliers is None:
-                max_outliers = pipeline[max_outliers]
-            mod = self.load_model("outliers")
-            mod.predict(s1)
         self.__log.debug("Scaling if necessary")
         if not pipeline["sparse"] and pipeline["scale"]:
             mod = self.load_model("scale")
@@ -334,12 +315,16 @@ class sign1(BaseSignature, DataSignature):
         n_sample = min(int(num_triplets/N), 100)
         triplets = []
         med_neg  = nn_neg.shape[1]
+        nn_pos_prob = [(len(nn_pos)-i) for i in range(0, nn_pos.shape[1])]
+        nn_neg_prob = [(len(nn_neg)-i) for i in range(0, nn_neg.shape[1])]
+        nn_pos_prob = np.array(nn_pos_prob)/np.sum(nn_pos_prob)
+        nn_neg_prob = np.array(nn_neg_prob)/np.sum(nn_neg_prob)
         for i in range(0, N):
             # sample positives with replacement
-            pos = np.random.choice(nn_pos[i], n_sample, replace=True)
+            pos = np.random.choice(nn_pos[i], n_sample, p=nn_pos_prob, replace=True)
             if n_sample > med_neg:
                 # sample "medium" negatives
-                neg = np.random.choice(nn_neg[i], med_neg, replace=False)
+                neg = np.random.choice(nn_neg[i], med_neg, p=nn_neg_prob, replace=False)
                 # for the rest, sample "easy" negatives
                 forb = set(list(nn_pos[i])+list(nn_neg[i]))
                 cand = [i for i in range(0, N) if i not in forb]
