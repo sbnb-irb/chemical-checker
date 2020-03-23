@@ -15,11 +15,11 @@ VALID_TYPES = ['sign', 'neig', 'clus', 'proj']
 
 CC_TYPES_DEPENDENCIES = {'sign0': ['sign0'], 'sign1': ['sign0'], 'sign2': [
     'sign1', 'neig1'], 'sign3': ['sign2'], 'neig1': ['sign1'],
-    'neig2': ['sign2'], 'clus1': ['sign1'], 'proj1': ['sign1']}
+    'neig2': ['sign2'], 'clus1': ['sign1'], 'proj1': ['sign1'],'proj2': ['sign2']}
 
 CC_TYPES_MEM_CPU = {'sign0': (32, 16), 'sign1': (20, 10), 'sign2': (
     20, 16), 'sign3': (2, 32), 'neig1': (30, 15),
-    'clus1': (20, 10), 'proj1': (20, 10)}
+    'clus1': (20, 10), 'proj1': (20, 10), 'proj2': (20, 10),}
 
 CC_SCRIPT_FR = [
     'sign_new_ref = cc.get_signature("<CC_TYPE>", "reference", data,**pars)',
