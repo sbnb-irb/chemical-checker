@@ -104,4 +104,9 @@ projs_params = {'DB': DB, 'CC_ROOT': CC_PATH}
 projs_task = Coordinates(name='projections', **projs_params)
 pp.add_task(projs_task)
 
+# TASK: Create all plots
+plots_params = {'DB': DB, 'CC_ROOT': CC_PATH}
+plots_task = Coordinates(name='plots', **plots_params)
+pp.add_task(plots_task)
+
 pp.run()
