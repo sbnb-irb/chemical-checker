@@ -380,7 +380,8 @@ class NeighborTripletTraintest(object):
                 assert(sum(t_prob) > 0.99)
 
                 # save list of split indeces
-                anchors_split = list()
+                
+                anchors_split = np.repeat(np.arange(len(neig_idxs)), triplet_per_mol)
                 easy_p_split = list()
                 easy_n_split = list()
                 medi_p_split = list()
@@ -389,21 +390,22 @@ class NeighborTripletTraintest(object):
                 hard_n_split = list()
 
                 NeighborTripletTraintest.__log.info("Generating triplets")
+                nn_set = set(range(neig_idxs.shape[0]))
                 # idx refere split2, all else to split1
-                for idx, row in tqdm(enumerate(neig_idxs)):
+                for idx, row in enumerate(tqdm(neig_idxs)):
                     # anchors are repeated num_triplets times
-                    anchors = [idx] * triplet_per_mol
-                    anchors_split.extend(anchors)
+                    #anchors = [idx] * triplet_per_mol
+                    #anchors_split.extend(anchors)
                     # positives are sampled from top T NNs for each category
                     p_indexes = np.random.choice(
                         T, triplet_per_mol, replace=True, p=t_prob)
-                    positives = neig_idxs[idx][:T][p_indexes]
+                    positives = neig_idxs[idx, p_indexes]
                     easy_p_split.extend(positives)
                     medi_p_split.extend(positives)
                     hard_p_split.extend(positives)
 
                     # easy negatives are sampled from outside NN
-                    no_nn = set(range(neig_idxs.shape[0])) - set(row)
+                    no_nn = nn_set - set(row)
                     # avoid fetching itself as negative!
                     if split1 == split2:
                         no_nn = no_nn - set([idx])
@@ -419,11 +421,10 @@ class NeighborTripletTraintest(object):
 
                     # hard negatives are from T
                     hard_n = [np.random.choice(
-                        neig_idxs[idx][p_i + 1:T + 1], 1,
-                        p=(t_prob[p_i:] / sum(t_prob[p_i:]))[::-1])[0]
-                        for p_i in p_indexes]
+                        neig_idxs[idx][p_i + 1:T + 1], 1)[0] for p_i in p_indexes] 
+                        # p=(t_prob[p_i:] / sum(t_prob[p_i:]))[::-1]
                     hard_n_split.extend(hard_n)
-
+                    
                 # get reference ids
                 NeighborTripletTraintest.__log.info("Mapping triplets")
                 anchors_ref = [split_ref_map[split2][x] for x in anchors_split]
