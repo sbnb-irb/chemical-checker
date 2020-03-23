@@ -390,7 +390,7 @@ class NeighborTripletTraintest(object):
 
                 NeighborTripletTraintest.__log.info("Generating triplets")
                 # idx refere split2, all else to split1
-                for idx, row in enumerate(neig_idxs):
+                for idx, row in tqdm(enumerate(neig_idxs)):
                     # anchors are repeated num_triplets times
                     anchors = [idx] * triplet_per_mol
                     anchors_split.extend(anchors)
