@@ -61,6 +61,7 @@ if len(missing_keys) > 0:
           str(len(missing_keys)) + " molecules")
 
     mappings_inchi = Molecule.get_inchikey_inchi_mapping(missing_keys)
+    data_set = set(missing_keys)
 
     attempts = 20
     while attempts > 0:
@@ -77,25 +78,33 @@ if len(missing_keys) > 0:
 
     if attempts == 0:
         print("Failed to get data from pubchem")
-        continue
+        for key, inchi in mappings_inchi.items():
 
-    data_set = set(missing_keys)
+            key_path = os.path.join(
+                MOLECULES_PATH, key[0:2], key[2:4], key)
 
-    for prop in props:
+            draw(str(key), None, str(inchi), key_path)
 
-        key = prop["InChIKey"]
-        smile = None
-        if key not in data_set:
-            continue
-        inchi = mappings_inchi[str(key)]
-        if "IsomericSMILES" in prop and prop["IsomericSMILES"] is not None:
-            smile = prop["IsomericSMILES"]
+            if not os.path.exists(key_path + "/2d.svg"):
+                raise Exception(
+                    "Molecular plot for inchikey " + key + " not present.")
+    else:
 
-        key_path = os.path.join(
-            MOLECULES_PATH, key[0:2], key[2:4], key)
+        for prop in props:
 
-        draw(str(key), smile, str(inchi), key_path)
+            key = prop["InChIKey"]
+            smile = None
+            if key not in data_set:
+                continue
+            inchi = mappings_inchi[str(key)]
+            if "IsomericSMILES" in prop and prop["IsomericSMILES"] is not None:
+                smile = prop["IsomericSMILES"]
 
-        if not os.path.exists(key_path + "/2d.svg"):
-            raise Exception(
-                "Molecular plot for inchikey " + key + " not present.")
+            key_path = os.path.join(
+                MOLECULES_PATH, key[0:2], key[2:4], key)
+
+            draw(str(key), smile, str(inchi), key_path)
+
+            if not os.path.exists(key_path + "/2d.svg"):
+                raise Exception(
+                    "Molecular plot for inchikey " + key + " not present.")
