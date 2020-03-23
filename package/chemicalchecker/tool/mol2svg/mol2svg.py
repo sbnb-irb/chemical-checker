@@ -31,8 +31,8 @@ class Mol2svg():
                                    stderr=subprocess.PIPE)
 
         # stream output as get generated
-        for line in iter(process.stdout.readline, ''):
-            self.__log.info(line.strip())
+        for line in process.stdout:
+            self.__log.info(line.decode().strip())
 
-        for line in iter(process.stderr.readline, ''):
-            self.__log.error(line.strip())
+        for line in process.stderr:
+            self.__log.info(line.decode().strip())
