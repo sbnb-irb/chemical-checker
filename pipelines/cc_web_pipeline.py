@@ -16,6 +16,7 @@ os.environ['CC_CONFIG'] = '/aloy/home/oguitart/projects/source/chemical_checker/
 
 
 CC_PATH = "/aloy/web_checker/package_cc/newpipe/"
+MOLECULES_PATH = '/aloy/web_checker/molecules/'
 
 OLD_DB = 'mosaic'
 DB = 'cc_web_2019_05'
@@ -105,7 +106,7 @@ projs_task = Coordinates(name='projections', **projs_params)
 pp.add_task(projs_task)
 
 # TASK: Create all plots
-plots_params = {'DB': DB, 'CC_ROOT': CC_PATH}
+plots_params = {'DB': DB, 'CC_ROOT': CC_PATH, 'MOLECULES_PATH': MOLECULES_PATH}
 plots_task = Plots(name='plots', **plots_params)
 pp.add_task(plots_task)
 
