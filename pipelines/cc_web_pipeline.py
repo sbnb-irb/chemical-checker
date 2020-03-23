@@ -10,7 +10,7 @@ from chemicalchecker.util import HPC
 from chemicalchecker.util import psql
 from chemicalchecker.core import DataSignature
 from chemicalchecker.database import Molrepo
-from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem, ShowTargets, Coordinates, Projections, Plots
+from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem, ShowTargets, Coordinates, Projections, Plots, MolecularInfo
 
 os.environ['CC_CONFIG'] = '/aloy/home/oguitart/projects/source/chemical_checker/pipelines/cc_web_update.json'
 
@@ -109,5 +109,10 @@ pp.add_task(projs_task)
 plots_params = {'DB': DB, 'CC_ROOT': CC_PATH, 'MOLECULES_PATH': MOLECULES_PATH}
 plots_task = Plots(name='plots', **plots_params)
 pp.add_task(plots_task)
+
+# TASK: Generate molecular info
+minfo_params = {'DB': DB, 'CC_ROOT': CC_PATH}
+minfo_task = MolecularInfo(name='molinfo', **minfo_params)
+pp.add_task(minfo_task)
 
 pp.run()
