@@ -301,10 +301,10 @@ class sign4(BaseSignature, DataSignature):
         siamese = SiameseTriplets(siamese_path, evaluate=evaluate, **params)
         siamese.fit()
         self.__log.debug('model saved to: %s' % siamese_path)
-        # save validation plots
-        self.plot_validations(siamese, dataset_idx, traintest_file)
         if not evaluate:
             return siamese
+        # save validation plots
+        self.plot_validations(siamese, dataset_idx, traintest_file)
         # when evaluating also save prior and confidence models
         # get set of known
         max_known = 50000
@@ -2118,10 +2118,10 @@ class sign4(BaseSignature, DataSignature):
                 safe_create(results, 'datasets',
                             data=np.array(self.src_datasets,
                                           DataSignature.string_dtype()))
-                safe_create(results, 'known',
-                            data=np.isin(list(self.universe_inchikeys),
-                                         list(self.sign2_self.keys),
-                                         assume_unique=True))
+                known_mask = np.isin(list(self.universe_inchikeys),
+                                     list(self.sign2_self.keys),
+                                     assume_unique=True)
+                safe_create(results, 'known', data=known_mask)
                 safe_create(results, 'shape', data=(tot_inks, 128))
                 if model_confidence:
                     # the actual confidence value will be stored here
@@ -2170,7 +2170,8 @@ class sign4(BaseSignature, DataSignature):
                         results['robustness'][chunk] = robs
                         # distance from known predictions
                         app, centrality, _ = self.applicability_domain(
-                            app_neig, preds, siamese, app_range=app_range)
+                            app_neig, feat, siamese, app_range=app_range,
+                            n_samples=1)
                         results['applicability'][chunk] = app
                         # and estimate confidence
                         conf_feats = np.vstack([app, robs, prior]).T
@@ -2178,8 +2179,22 @@ class sign4(BaseSignature, DataSignature):
                         conf_calib = conf_mdl[1].predict(
                             np.expand_dims(conf_estimate, 1))
                         results['confidence'][chunk] = conf_calib
-                        # conpute confidence where self is known
-                        # TODO correlation ALL vs. ONLY-SELF
+                    # conpute confidence where self is known
+                    known_idxs = np.argwhere(known_mask).flatten()
+                    # iterate on chunks of knowns
+                    for idx in tqdm(range(0, len(known_idxs), 10000),
+                                    desc='Computing Confidence'):
+                        chunk = slice(idx, idx + 10000)
+                        feat = features['x_test'][known_idxs[chunk]]
+                        # predict with all features
+                        preds_all = siamese.predict(feat)
+                        # predict with only-self features
+                        feat_onlyself = realistic_fn(feat, p_only_self=1.0)
+                        preds_onlyself = siamese.predict(feat_onlyself)
+                        # confidence is correlation ALL vs. ONLY-SELF
+                        corrs = row_wise_correlation(
+                            preds_onlyself, preds_all, scaled=True)
+                        results['confidence'][known_idxs[chunk]] = corrs
 
         # use semi-supervised anomaly detection algorithm to predict novelty
         if predict_novelty:
