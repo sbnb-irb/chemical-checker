@@ -334,6 +334,15 @@ class sign4(BaseSignature, DataSignature):
         self.params['sign2']['learning_rate'] = siamese.learning_rate
         return siamese, prior_model, confidence_model
 
+    def realistic_subsampling_fn(self):
+        # realistic subsampling function
+        p_nr, p_keep = subsampling_probs(self.sign2_coverage,
+                                         self.dataset_idx)
+        realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
+                               dataset_idx=self.dataset_idx,
+                               p_nr=p_nr, p_keep=p_keep)
+        return realistic_fn
+
     def train_prior_model(self, siamese, test_x, save_path, evaluate,
                           realistic_fn=None, total_x=10000, plots=True):
         """Train prior predictor."""
@@ -442,12 +451,7 @@ class sign4(BaseSignature, DataSignature):
             return p
 
         if realistic_fn is None:
-            # realistic subsampling function
-            p_nr, p_keep = subsampling_probs(self.sign2_coverage,
-                                             self.dataset_idx)
-            realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
-                                   dataset_idx=self.dataset_idx,
-                                   p_nr=p_nr, p_keep=p_keep)
+            realistic_fn = self.realistic_subsampling_fn()
         self.__log.info('Training PRIOR model')
         available_x = test_x.shape[0]
         #total_x = available_x
@@ -708,12 +712,7 @@ class sign4(BaseSignature, DataSignature):
             raise err
 
         if realistic_fn is None:
-            # realistic subsampling function
-            p_nr, p_keep = subsampling_probs(self.sign2_coverage,
-                                             self.dataset_idx)
-            realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
-                                   dataset_idx=self.dataset_idx,
-                                   p_nr=p_nr, p_keep=p_keep)
+            realistic_fn = self.realistic_subsampling_fn()
 
         # save neighbors faiss index based on only self train prediction
         # train is used only to generate neighbors file
@@ -779,12 +778,7 @@ class sign4(BaseSignature, DataSignature):
                              dropout_fn=None, app_range=None, n_samples=10):
 
         if dropout_fn is None:
-            # realistic subsampling function
-            p_nr, p_keep = subsampling_probs(self.sign2_coverage,
-                                             self.dataset_idx)
-            dropout_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
-                                 dataset_idx=self.dataset_idx,
-                                 p_nr=p_nr, p_keep=p_keep)
+            dropout_fn = self.realistic_subsampling_fn()
         # applicability is whether not-self preds is close to only-self preds
         # neighbors between 5 and 25 depending on the size of the dataset
         app_thr = int(np.clip(np.log10(self.neig_sign.shape[0])**2, 5, 25))
@@ -812,18 +806,13 @@ class sign4(BaseSignature, DataSignature):
     def conformal_prediction(self, siamese, features, dropout_fn=None,
                              nan_pred=None, n_samples=10):
         if dropout_fn is None:
-            # realistic subsampling function
-            p_nr, p_keep = subsampling_probs(self.sign2_coverage,
-                                             self.dataset_idx)
-            dropout_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
-                                 dataset_idx=self.dataset_idx,
-                                 p_nr=p_nr, p_keep=p_keep)
+            dropout_fn = self.realistic_subsampling_fn()
         # reference prediction (based on no information)
         if nan_pred is None:
             nan_feat = np.full(
                 (1, features.shape[1]), np.nan, dtype=np.float32)
             nan_pred = siamese.predict(nan_feat)
-        # draw prediction with sub-sampling (dropout)
+        # draw prediction with uniform sub-sampling
         if dropout_fn is None:
             dropout_fn = partial(subsample, dataset_idx=[self.dataset_idx])
         samples = siamese.predict(features, dropout_fn=dropout_fn,
@@ -2112,6 +2101,7 @@ class sign4(BaseSignature, DataSignature):
                     confidence_path, 'calibration.pkl')
                 conf_mdl = (pickle.load(open(confidence_file, 'rb')),
                             pickle.load(open(calibration_file, 'rb')))
+            realistic_fn = self.realistic_subsampling_fn()
 
         # get sorted universe inchikeys
         self.universe_inchikeys = self.get_universe_inchikeys()
