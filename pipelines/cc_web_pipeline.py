@@ -10,7 +10,7 @@ from chemicalchecker.util import HPC
 from chemicalchecker.util import psql
 from chemicalchecker.core import DataSignature
 from chemicalchecker.database import Molrepo
-from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem, ShowTargets, Coordinates, Projections
+from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem, ShowTargets, Coordinates, Projections, Plots
 
 os.environ['CC_CONFIG'] = '/aloy/home/oguitart/projects/source/chemical_checker/pipelines/cc_web_update.json'
 
@@ -106,7 +106,7 @@ pp.add_task(projs_task)
 
 # TASK: Create all plots
 plots_params = {'DB': DB, 'CC_ROOT': CC_PATH}
-plots_task = Coordinates(name='plots', **plots_params)
+plots_task = Plots(name='plots', **plots_params)
 pp.add_task(plots_task)
 
 pp.run()
