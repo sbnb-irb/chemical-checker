@@ -193,11 +193,10 @@ class NeighborTripletTraintest(object):
 
     @staticmethod
     def create(X, out_file, neigbors_sign, f_per=0.1, t_per=0.01,
-               mean_center_x=True, shuffle=True,
-               check_distances=True,
+               mean_center_x=True, shuffle=True, check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
-               suffix='eval',
-               x_dtype=np.float32, y_dtype=np.float32, num_triplets=1e6, limit=100000):
+               suffix='eval', x_dtype=np.float32, y_dtype=np.float32,
+               num_triplets=1e6, limit=1000000, cpu=1):
         """Create the HDF5 file with validation splits.
 
         Args:
@@ -218,6 +217,8 @@ class NeighborTripletTraintest(object):
             from chemicalchecker.core.signature_data import DataSignature
         except ImportError as err:
             raise err
+        faiss.omp_set_num_threads(cpu)
+
         # train test validation splits
         if len(split_names) != len(split_fractions):
             raise Exception("Split names and fraction should be same amount.")
@@ -238,7 +239,7 @@ class NeighborTripletTraintest(object):
             "{:<20} shape: {:>10}".format("input X", str(X.shape)))
 
         # reduce redundancy, keep full-ref mapping
-        rnd = RNDuplicates(cpu=10)
+        rnd = RNDuplicates(cpu=cpu)
         _, ref_matrix, full_ref_map = rnd.remove(
             neigbors_matrix.astype(np.float32))
         ref_full_map = dict()
@@ -308,7 +309,6 @@ class NeighborTripletTraintest(object):
         # for each split generate NN
         NeighborTripletTraintest.__log.info('Generating NN indexes')
         NN = dict()
-        faiss.omp_set_num_threads(8)
         for split_name in split_names:
             # create faiss index
             NN[split_name] = faiss.IndexFlatL2(nr_matrix[split_name].shape[1])
@@ -348,7 +348,7 @@ class NeighborTripletTraintest(object):
                 T = int(np.clip(t_per * nr_matrix[split2].shape[0], 5, 100))
                 F = np.clip(10 * T, 100, 1000)
                 F = int(min(F, (nr_matrix[split2].shape[0] - 1)))
-                
+
                 NeighborTripletTraintest.__log.info("T per: %s" % (t_per))
                 NeighborTripletTraintest.__log.info("F and T: %s %s" % (F, T))
                 assert(T < F)
@@ -435,7 +435,8 @@ class NeighborTripletTraintest(object):
                 hard_n_ref = [split_ref_map[split1][x] for x in hard_n_split]
 
                 # choose random from full analogs
-                NeighborTripletTraintest.__log.info("Resolving multiple options")
+                NeighborTripletTraintest.__log.info(
+                    "Resolving multiple options")
                 anchors_full = np.array(
                     [np.random.choice(refid_full_map[x]) for x in anchors_ref])
                 easy_p_full = np.array(
@@ -482,7 +483,8 @@ class NeighborTripletTraintest(object):
                 # save to h5
                 ds_name = "t_%s_%s" % (split1, split2)
                 ys_name = "y_%s_%s" % (split1, split2)
-                triplets, unique_idx = np.unique(triplets, axis=0, return_index=True)
+                triplets, unique_idx = np.unique(
+                    triplets, axis=0, return_index=True)
                 y = y[unique_idx]
                 # shuffling
                 shuffle_idxs = np.arange(triplets.shape[0])
@@ -490,9 +492,11 @@ class NeighborTripletTraintest(object):
                     np.random.shuffle(shuffle_idxs)
                 triplets = triplets[shuffle_idxs]
                 y = y[shuffle_idxs]
-                NeighborTripletTraintest.__log.info('Using %s unique triplets' % len(y))
                 NeighborTripletTraintest.__log.info(
-                    'writing Name: %s E: %s M: %s H: %s T: %s', ds_name, y[y == 0].shape[0],
+                    'Using %s unique triplets' % len(y))
+                NeighborTripletTraintest.__log.info(
+                    'writing Name: %s E: %s M: %s H: %s T: %s', ds_name, y[
+                        y == 0].shape[0],
                     y[y == 1].shape[0], y[y == 2].shape[0], triplets.shape[0])
                 fh.create_dataset(ds_name, data=triplets)
                 fh.create_dataset(ys_name, data=y)
@@ -610,7 +614,7 @@ class NeighborTripletTraintest(object):
             p_self_decay = (1.0 / step_size)
             p_factor = -1
             augment_kwargs['p_self'] = 1.0
-            
+
             epoch = 0
             batch_idx = 0
             while True:
@@ -653,9 +657,11 @@ class NeighborTripletTraintest(object):
                     yield [x1, x2, x3, x4, x5], y
                 batch_idx += 1
                 if p_factor > 0:
-                    augment_kwargs['p_self'] = min(1.0, augment_kwargs['p_self'] + (p_self_decay * p_factor))
+                    augment_kwargs['p_self'] = min(
+                        1.0, augment_kwargs['p_self'] + (p_self_decay * p_factor))
                 else:
-                    augment_kwargs['p_self'] = max(0.0, augment_kwargs['p_self'] + (p_self_decay * p_factor))
+                    augment_kwargs['p_self'] = max(
+                        0.0, augment_kwargs['p_self'] + (p_self_decay * p_factor))
                 if batch_idx % step_size == 0 and batch_idx != 0:
                     p_factor = -p_factor
 
