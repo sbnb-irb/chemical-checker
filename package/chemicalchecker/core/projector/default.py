@@ -106,7 +106,7 @@ class Default(BaseSignature, DataSignature):
         faiss.omp_set_num_threads(self.cpu)
 
         if os.path.isfile(signature.data_path):
-            self.data = signature.data
+            self.data = np.float32(signature.data)
             self.data_type = signature.data_type
             self.keys = signature.keys
             mappings = signature.mappings
@@ -118,7 +118,7 @@ class Default(BaseSignature, DataSignature):
 
         size = self.data.shape[0]
 
-        self.k = max(self.start_k, min(15000, size / 2))
+        self.k = int(max(self.start_k, min(15000, size / 2)))
 
         if self.k > size:
             self.k = size
