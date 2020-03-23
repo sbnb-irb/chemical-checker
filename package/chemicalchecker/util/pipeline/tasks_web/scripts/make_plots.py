@@ -55,44 +55,47 @@ for key in iks:
     if not os.path.exists(key_path + "/2d.svg"):
         missing_keys.append(key)
 
-print("Generating molecule plots for " +
-      str(len(missing_keys)) + " molecules")
+if len(missing_keys) > 0:
 
-mappings_inchi = Molecule.get_inchikey_inchi_mapping(missing_keys)
+    print("Generating molecule plots for " +
+          str(len(missing_keys)) + " molecules")
 
-attempts = 20
-while attempts > 0:
+    mappings_inchi = Molecule.get_inchikey_inchi_mapping(missing_keys)
 
-    try:
+    attempts = 20
+    while attempts > 0:
 
-        props = pubchempy.get_properties(
-            ['IsomericSMILES', 'InChIKey'], missing_keys, "inchikey")
-        break
-    except Exception as e:
-        print "Connection failed to REST Pubchem API. Retrying..."
-        time.sleep(4)
-        attempts -= 1
+        try:
 
-if attempts == 0:
-    print("Failed to get data from pubchem")
+            props = pubchempy.get_properties(
+                ['IsomericSMILES', 'InChIKey'], missing_keys, "inchikey")
+            break
+        except Exception as e:
+            print ("Connection failed to REST Pubchem API. Retrying...")
+            time.sleep(4)
+            attempts -= 1
 
-data_set = set(missing_keys)
-
-for prop in props:
-
-    key = prop["InChIKey"]
-    smile = None
-    if key not in data_set:
+    if attempts == 0:
+        print("Failed to get data from pubchem")
         continue
-    inchi = mappings_inchi[str(key)]
-    if "IsomericSMILES" in prop and prop["IsomericSMILES"] is not None:
-        smile = prop["IsomericSMILES"]
 
-    key_path = os.path.join(
-        MOLECULES_PATH, key[0:2], key[2:4], key)
+    data_set = set(missing_keys)
 
-    draw(str(key), smile, str(inchi), key_path)
+    for prop in props:
 
-    if not os.path.exists(key_path + "/2d.svg"):
-        raise Exception(
-            "Molecular plot for inchikey " + key + " not present.")
+        key = prop["InChIKey"]
+        smile = None
+        if key not in data_set:
+            continue
+        inchi = mappings_inchi[str(key)]
+        if "IsomericSMILES" in prop and prop["IsomericSMILES"] is not None:
+            smile = prop["IsomericSMILES"]
+
+        key_path = os.path.join(
+            MOLECULES_PATH, key[0:2], key[2:4], key)
+
+        draw(str(key), smile, str(inchi), key_path)
+
+        if not os.path.exists(key_path + "/2d.svg"):
+            raise Exception(
+                "Molecular plot for inchikey " + key + " not present.")

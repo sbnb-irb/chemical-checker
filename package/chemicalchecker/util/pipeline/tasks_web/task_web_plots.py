@@ -106,7 +106,10 @@ class Plots(BaseTask, BaseOperator):
             self.mark_ready()
             shutil.rmtree(job_path)
         else:
-            raise Exception("Some molecules did not get the plots right.")
+            if not self.custom_ready():
+                        raise AirflowException("Some molecules did not get the plots right.")
+            else:
+                self.__log.error("Some molecules did not get the plots right.")
 
     def execute(self, context):
         """Run the molprops step."""
