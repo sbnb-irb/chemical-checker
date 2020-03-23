@@ -161,3 +161,9 @@ class Coordinates(BaseTask, BaseOperator):
                 raise AirflowException(e)
             else:
                 self.__log.error(e)
+
+    def execute(self, context):
+        """Run the molprops step."""
+        self.tmpdir = context['params']['tmpdir']
+
+        self.run()

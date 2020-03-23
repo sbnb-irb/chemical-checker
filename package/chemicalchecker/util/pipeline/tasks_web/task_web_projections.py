@@ -151,3 +151,9 @@ class Projections(BaseTask, BaseOperator):
 
         for i in range(0, len(data), size):
             yield data[slice(i, i + size)]
+
+    def execute(self, context):
+        """Run the molprops step."""
+        self.tmpdir = context['params']['tmpdir']
+
+        self.run()
