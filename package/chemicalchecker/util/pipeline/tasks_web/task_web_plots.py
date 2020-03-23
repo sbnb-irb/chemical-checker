@@ -33,6 +33,9 @@ class Plots(BaseTask, BaseOperator):
         self.CC_ROOT = params.get('CC_ROOT', None)
         if self.CC_ROOT is None:
             raise Exception('CC_ROOT parameter is not set')
+        self.MOLECULES_PATH = params.get('MOLECULES_PATH', None)
+        if self.MOLECULES_PATH is None:
+            raise Exception('MOLECULES_PATH parameter is not set')
 
 
     def run(self):
@@ -74,7 +77,7 @@ class Plots(BaseTask, BaseOperator):
 
         universe_file = os.path.join(self.tmpdir, "universe.h5")
 
-        with h5py.File(universe_file) as h5:
+        with h5py.File(universe_file, 'r') as h5:
             keys = h5["keys"][:]
 
         datasize = keys.shape[0]
@@ -94,7 +97,7 @@ class Plots(BaseTask, BaseOperator):
         singularity_image = config_cc.PATH.SINGULARITY_IMAGE
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {}"
         command = command.format(
-            cc_package, cc_config_path, singularity_image, script_path, self.config.MOLECULES_PATH)
+            cc_package, cc_config_path, singularity_image, script_path, self.MOLECULES_PATH)
         # submit jobs
         cluster = HPC.from_config(config_cc)
         cluster.submitMultiJob(command, **params)
