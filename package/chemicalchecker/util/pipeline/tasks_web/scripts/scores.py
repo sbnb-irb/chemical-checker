@@ -86,7 +86,11 @@ cut_idx = None
 with h5py.File(consensus, "r") as hf:
     W = 1. - hf["Kn"][:]
     W[np.diag_indices(W.shape[0])] = 0.
-    coord_idxs = dict((c, i) for i, c in enumerate(hf["coords"][:]))
+    data = hf["coords"][:]
+    if hasattr(data.flat[0], 'decode'):
+        coord_idxs = dict((c.decode(), i) for i, c in enumerate(data))
+    else:
+        coord_idxs = dict((c, i) for i, c in enumerate(data))
 
 max_popu = np.sum(weights(
     ["%s%d" % (j, i) for j in ["A", "B", "C", "D", "E"] for i in [1, 2, 3, 4, 5]], coord_idxs))
