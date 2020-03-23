@@ -77,13 +77,14 @@ task_id = sys.argv[1]
 filename = sys.argv[2]
 consensus = sys.argv[3]
 output_path = sys.argv[4]
+CC_ROOT = sys.argv[5]
 inputs = pickle.load(open(filename, 'rb'))
 iks = inputs[task_id]
 
 cut_idx = None
 
 with h5py.File(consensus, "r") as hf:
-    W = 1. - hf["correlations"][:]
+    W = 1. - hf["K"][:]
     W[np.diag_indices(W.shape[0])] = 0.
     coord_idxs = dict((c, i) for i, c in enumerate(hf["coords"][:]))
 
@@ -97,7 +98,7 @@ min_popu = np.sum(weights(["A%d" % i for i in [1, 2, 3, 4, 5]], coord_idxs))
 all_datasets = Dataset.get()
 config_cc = Config()
 
-cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
+cc = ChemicalChecker(CC_ROOT)
 
 dataset_pairs = dict()
 map_coords_obs = collections.defaultdict(list)
