@@ -8,6 +8,8 @@ from bisect import bisect_left
 
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
+from .signature_data import cached_property
+
 
 from chemicalchecker.util import logged
 
@@ -177,6 +179,18 @@ class neig(BaseSignature, DataSignature):
         else:
             raise Exception("The file " + sign1.data_path + " does not exist")
 
+    @cached_property
+    def keys(self):
+        """Get the list of keys (usually inchikeys) in the signature."""
+        self._check_data()
+        self._check_dataset('row_keys')
+        return self._get_all('row_keys')
+
+    @cached_property
+    def unique_keys(self):
+        """Get the keys of the signature as a set."""
+        return set(self.keys)
+
     def __getitem__(self, key):
         """Return the neighbours corresponding to the key.
 
@@ -234,16 +248,16 @@ class neig(BaseSignature, DataSignature):
         """
         self.__log.debug("Fetching %s rows from dataset %s" %
                          (len(keys), dataset_name))
-        valid_keys = list(self.unique_keys & set(keys))
+        valid_keys = list(set(self.row_keys) & set(keys))
         idxs = np.argwhere(
-            np.isin(list(self.keys), list(valid_keys), assume_unique=True))
+            np.isin(list(self.row_keys), list(valid_keys), assume_unique=True))
         inks, signs = list(), list()
         with h5py.File(self.data_path, 'r') as hf:
             dset = hf[dataset_name]
             col_keys = hf['col_keys'][:]
             dset_shape = dset.shape
             for idx in sorted(idxs.flatten()):
-                inks.append(self.keys[idx])
+                inks.append(self.row_keys[idx])
                 if dataset_name == 'indices':
                     signs.append(col_keys[dset[idx]])
                 else:
