@@ -42,6 +42,8 @@ class proj(BaseSignature, DataSignature):
         self.__log.debug('data_path: %s', self.data_path)
 
         self.projector = eval(proj_type)(signature_path, dataset, **kwargs)
+        self.stats_path = self.projector.stats_path
+        self.model_path = self.projector.model_path
 
     def pre_fit_transform(self, signature, n_components=15, batch_size=100):
         """Preprocess the input signature reducing by PCA."""
