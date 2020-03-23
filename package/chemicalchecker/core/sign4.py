@@ -70,6 +70,7 @@ class sign4(BaseSignature, DataSignature):
         from keras.layers import Dense
         default_sign2 = {
             'epochs': 10,
+            'cpu': 8,
             'layers': [Dense, Dense, Dense, Dense],
             'layers_sizes': [1024, 512, 256, 128],
             'activations': ['selu', 'selu', 'selu', 'tanh'],
@@ -91,7 +92,6 @@ class sign4(BaseSignature, DataSignature):
 
         s1_ref = self.get_sign('sign1').get_molset("reference")
         opt_t_file = os.path.join(s1_ref.model_path, "opt_t.h5")
-        #opt_t_file = os.path.join(self.model_path, "opt_t.h5")
         try:
             opt_t = DataSignature(opt_t_file).get_h5_dataset('opt_t')
             default_sign2.update({'t_per': opt_t})
@@ -265,6 +265,7 @@ class sign4(BaseSignature, DataSignature):
         X = DataSignature(sign2_matrix)
         if evaluate:
             num_triplets = params.get('num_triplets', 1e6)
+            cpu = params.get('cpu', 1)
             if not reuse or not os.path.isfile(traintest_file):
                 NeighborTripletTraintest.create(
                     X, traintest_file, self.neig_sign,
@@ -272,9 +273,11 @@ class sign4(BaseSignature, DataSignature):
                     split_fractions=[.8, .2],
                     suffix=suffix,
                     num_triplets=num_triplets,
-                    t_per=params['t_per'])
+                    t_per=params['t_per'],
+                    cpu=cpu)
         else:
             num_triplets = params.get('num_triplets', 1e6)
+            cpu = params.get('cpu', 1)
             if not reuse or not os.path.isfile(traintest_file):
                 NeighborTripletTraintest.create(
                     X, traintest_file, self.neig_sign,
@@ -282,7 +285,8 @@ class sign4(BaseSignature, DataSignature):
                     split_fractions=[1.0],
                     suffix=suffix,
                     num_triplets=num_triplets,
-                    t_per=params['t_per'])
+                    t_per=params['t_per'],
+                    cpu=cpu)
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
