@@ -26,7 +26,6 @@ CC_SCRIPT_FR = [
     "sign_new_ref.fit(sign_ref)",
     "sign_new_full = cc.get_signature('<CC_TYPE>', 'full', data,**pars)",
     "sign_new_ref.predict(sign_full, destination=sign_new_full.data_path)",
-    "sign_new_full.validate()",
     "sign_new_full.mark_ready()"
 ]
 
