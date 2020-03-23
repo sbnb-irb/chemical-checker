@@ -90,23 +90,8 @@ class MolecularInfo(BaseTask, BaseOperator):
 
         universe_file = os.path.join(self.tmpdir, "universe.h5")
 
-        consensus_file = os.path.join(self.tmpdir, "consensus.h5")
-
-        cc = ChemicalChecker(self.CC_ROOT)
-
-        matrix = list()
-        coords = list()
-        for ds in all_datasets:
-            if not ds.exemplary:
-                continue
-            s3 = cc.get_signature('sign3', 'full', ds.dataset_code)
-            coords.append(str(ds.coordinate))
-            matrix.append(s3.get_h5_dataset('datasets_correlation'))
-        matrix = np.vstack(matrix)
-
-        with h5py.File(consensus_file, "w") as h5:
-            h5.create_dataset("correlations", data=np.array(matrix))
-            h5.create_dataset("coords", data=np.array(coords))
+        consensus_file = os.path.join(os.path.dirname(
+            os.path.realpath(__file__)), "data/consensus.h5")
 
         with h5py.File(universe_file) as h5:
             keys = h5["keys"][:]
@@ -133,9 +118,9 @@ class MolecularInfo(BaseTask, BaseOperator):
         params["cpu"] = 1
         # job command
         singularity_image = config_cc.PATH.SINGULARITY_IMAGE
-        command = "OMP_NUM_THREADS=1 SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {}"
+        command = "OMP_NUM_THREADS=1 SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {}"
         command = command.format(
-            cc_package, cc_config_path, singularity_image, script_path, consensus_file, data_files_path)
+            cc_package, cc_config_path, singularity_image, script_path, consensus_file, data_files_path, self.CC_ROOT)
         # submit jobs
         cluster = HPC.from_config(config_cc)
         jobs = cluster.submitMultiJob(command, **params)
