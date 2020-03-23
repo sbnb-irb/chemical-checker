@@ -84,7 +84,7 @@ iks = inputs[task_id]
 cut_idx = None
 
 with h5py.File(consensus, "r") as hf:
-    W = 1. - hf["K"][:]
+    W = 1. - hf["Kn"][:]
     W[np.diag_indices(W.shape[0])] = 0.
     coord_idxs = dict((c, i) for i, c in enumerate(hf["coords"][:]))
 
