@@ -1006,7 +1006,8 @@ class sign4(BaseSignature, DataSignature):
         self.__log.info('VALIDATION: Plot Subsampling.')
         fname = 'known_unknown_sampling.png'
         plot_file = os.path.join(siamese.model_dir, fname)
-        plot_subsample(plot_file, self.sign2_coverage, ds=self.dataset)
+        plot_subsample(plot_file, self.sign2_coverage, traintest_file,
+                       ds=self.dataset)
 
     def plot_validations_2(self, siamese, dataset_idx, traintest_file,
                            chunk_size=10000, limit=1000, dist_limit=1000):
@@ -1671,18 +1672,19 @@ class sign4(BaseSignature, DataSignature):
         # generate input matrix
         traintest_file = os.path.join(self.model_path, 'train_sign0.h5')
         if not reuse or not os.path.isfile(traintest_file):
-        #    self.save_sign0_matrix(sign0, sign0_matrix, include_confidence)
+            #    self.save_sign0_matrix(sign0, sign0_matrix, include_confidence)
             NeighborTripletTraintest.create(
-                        sign0, traintest_file, neig_matrix,
-                        split_names=['train', 'test'],
-                        split_fractions=[.8, .2],
-                        suffix=suffix,
-                        num_triplets=num_triplets,
-                        t_per=params['t_per'])
+                sign0, traintest_file, neig_matrix,
+                split_names=['train', 'test'],
+                split_fractions=[.8, .2],
+                suffix=suffix,
+                num_triplets=num_triplets,
+                t_per=params['t_per'])
 
         # initialize adanet and start learning
         params['traintest_file'] = traintest_file
-        siamese = SiameseTriplets(model_dir=model_path, evaluate=True, **params)
+        siamese = SiameseTriplets(
+            model_dir=model_path, evaluate=True, **params)
         self.__log.debug('Siamese training on %s' % traintest_file)
         siamese.fit()
         self.__log.debug('model saved to %s' % model_path)
@@ -2435,22 +2437,15 @@ def subsample(tensor, sign_width=128,
     return new_data
 
 
-def plot_subsample(plotpath, sign2_coverage, ds='B1.001', p_self=.1,
-                   p_only_self=0., limit=10000):
-    import os
+def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
+                   p_self=.1, p_only_self=0., limit=10000):
     import numpy as np
     import pandas as pd
     import seaborn as sns
     import matplotlib.pyplot as plt
     from chemicalchecker import ChemicalChecker
-    from chemicalchecker.core.signature_data import DataSignature
-    from chemicalchecker.util.splitter import NeighborTripletTraintest
-    from chemicalchecker.core.sign4 import subsample, subsampling_probs
 
-    # get traintest file
     cc = ChemicalChecker()
-    s4 = cc.get_signature("sign4", "full", ds)
-    traintest_file = os.path.join(s4.model_path, 'traintest_eval.h5')
 
     # get triplet generator
     dataset_idx = np.argwhere(
