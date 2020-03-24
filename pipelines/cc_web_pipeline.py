@@ -10,7 +10,8 @@ from chemicalchecker.util import HPC
 from chemicalchecker.util import psql
 from chemicalchecker.core import DataSignature
 from chemicalchecker.database import Molrepo
-from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem, ShowTargets, Coordinates, Projections, Plots, MolecularInfo
+from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem, ShowTargets
+from chemicalchecker.util.pipeline import Coordinates, Projections, Plots, MolecularInfo, SimilarsSign3
 
 os.environ['CC_CONFIG'] = '/aloy/home/oguitart/projects/source/chemical_checker/pipelines/cc_web_update.json'
 
@@ -102,13 +103,18 @@ pp.add_task(coords_task)
 
 # TASK: Fill coordinates
 projs_params = {'DB': DB, 'CC_ROOT': CC_PATH}
-projs_task = Coordinates(name='projections', **projs_params)
+projs_task = Projections(name='projections', **projs_params)
 pp.add_task(projs_task)
 
 # TASK: Create all plots
 plots_params = {'DB': DB, 'CC_ROOT': CC_PATH, 'MOLECULES_PATH': MOLECULES_PATH}
 plots_task = Plots(name='plots', **plots_params)
 pp.add_task(plots_task)
+
+# TASK: Generate similars for sign3
+sim3_params = {'CC_ROOT': CC_PATH}
+sim3_task = SimilarsSign3(name='sim3', **sim3_params)
+pp.add_task(sim3_task)
 
 # TASK: Generate molecular info
 minfo_params = {'DB': DB, 'CC_ROOT': CC_PATH}
