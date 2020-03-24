@@ -161,8 +161,8 @@ class DataSignature(object):
     def keys(self):
         """Get the list of keys (usually inchikeys) in the signature."""
         self._check_data()
-        self._check_dataset('keys')
-        return self._get_all('keys')
+        self._check_dataset(self.keys_name)
+        return self._get_all(self.keys_name)
 
     @cached_property
     def row_keys(self):
