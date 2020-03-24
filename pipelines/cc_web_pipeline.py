@@ -22,23 +22,23 @@ OLD_DB = 'mosaic'
 DB = 'cc_web_2019_05'
 uniprot_db_version = '2019_01'
 
-libraries = {"apd": "['Approved drugs','Approved drug molecules from DrugBank',\
-                'http://zinc15.docking.org/catalogs/dbap/items.txt?count=all&output_fields=smiles%20zinc_id','zinc']",
-             "exd": "['Experimental drugs','Experimental and investigational drug molecules from DrugBank',\
-             'http://zinc15.docking.org/catalogs/dbex/items.txt?count=all&output_fields=smiles%20zinc_id;http://zinc15.docking.org/catalogs/dbin/items.txt?count=all&output_fields=smiles%20zinc_id','zinc']",
-             "met": "['Human metabolites','Endogenous human metabolites from Human Metabolome Database (HMDb)',\
-             'http://zinc15.docking.org/catalogs/hmdbendo/items.txt?count=all&output_fields=smiles%20zinc_id','zinc']",
-             "tcm": "['Tradicional Chinese medicines','Compounds extracted from traditional Chinese medicinal plants',\
-             'http://zinc15.docking.org/catalogs/tcmnp/items.txt?count=all&output_fields=smiles%20zinc_id','zinc']",
-             "lincs": "['LINCS compounds','Collection of compounds of the LINCS initiative',\
-             'http://zinc15.docking.org/catalogs/lincs/items.txt?count=all&output_fields=smiles%20zinc_id','zinc']",
-             "pwck": "['Prestwick chemical library','Prestwick commercial collection',\
-             'http://zinc15.docking.org/catalogs/prestwick/items.txt?count=all&output_fields=smiles%20zinc_id','zinc']",
-             "nihcc": "['NIH clinical collection','NIH clinical collection',\
-             'http://zinc15.docking.org/catalogs/nihcc/items.txt?count=all&output_fields=smiles%20zinc_id','zinc']",
-             "ncidiv": "['NCI diversity collection','NCI diversity collection',\
-             'http://zinc15.docking.org/catalogs/ncidiv/items.txt?count=all&output_fields=smiles%20zinc_id','zinc']",
-             "tool": "['Tool compounds','Tool compounds','http://zinc15.docking.org/toolcompounds.smi?count=all','zinc']"
+libraries = {"apd": ['Approved drugs', 'Approved drug molecules from DrugBank',
+                     'http://zinc15.docking.org/catalogs/dbap/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
+             "exd": ['Experimental drugs', 'Experimental and investigational drug molecules from DrugBank',
+                     'http://zinc15.docking.org/catalogs/dbex/items.txt?count=all&output_fields=smiles%20zinc_id;http://zinc15.docking.org/catalogs/dbin/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
+             "met": ['Human metabolites', 'Endogenous human metabolites from Human Metabolome Database (HMDb)',
+                     'http://zinc15.docking.org/catalogs/hmdbendo/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
+             "tcm": ['Tradicional Chinese medicines', 'Compounds extracted from traditional Chinese medicinal plants',
+                     'http://zinc15.docking.org/catalogs/tcmnp/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
+             "lincs": ['LINCS compounds', 'Collection of compounds of the LINCS initiative',
+                       'http://zinc15.docking.org/catalogs/lincs/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
+             "pwck": ['Prestwick chemical library', 'Prestwick commercial collection',
+                      'http://zinc15.docking.org/catalogs/prestwick/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
+             "nihcc": ['NIH clinical collection', 'NIH clinical collection',
+                       'http://zinc15.docking.org/catalogs/nihcc/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
+             "ncidiv": ['NCI diversity collection', 'NCI diversity collection',
+                        'http://zinc15.docking.org/catalogs/ncidiv/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
+             "tool": ['Tool compounds', 'Tool compounds', 'http://zinc15.docking.org/toolcompounds.smi?count=all', 'zinc']
              }
 
 
@@ -141,7 +141,8 @@ libs_task = Libraries(name='libraries', **libs_params)
 pp.add_task(libs_task)
 
 # TASK: Create all plots
-similars_params = {'DB': DB, 'CC_ROOT': CC_PATH, 'MOLECULES_PATH': MOLECULES_PATH}
+similars_params = {'DB': DB, 'CC_ROOT': CC_PATH,
+                   'MOLECULES_PATH': MOLECULES_PATH}
 similars_task = Similars(name='similars', **similars_params)
 pp.add_task(similars_task)
 
