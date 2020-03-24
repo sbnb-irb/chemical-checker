@@ -61,7 +61,7 @@ class Projections(BaseTask, BaseOperator):
 
         try:
             self.__log.info("Creating table")
-            psql.query(DROP_TABLE, self.config.DB)
+            psql.query(DROP_TABLE, self.DB)
 
             S = "CREATE TABLE projections (inchikey TEXT, "
 
