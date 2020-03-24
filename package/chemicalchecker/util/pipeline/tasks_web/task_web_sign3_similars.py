@@ -67,15 +67,13 @@ class SimilarsSign3(BaseTask, BaseOperator):
             # cc_config location
             "os.environ['CC_CONFIG'] = '%s'" % cc_config_path,
             "sys.path.append('%s')" % cc_package,  # allow package import
-            "from chemicalchecker.util import Config",
             "from chemicalchecker.core import ChemicalChecker",
-            "config = Config()",
             "task_id = sys.argv[1]",  # <TASK_ID>
             "filename = sys.argv[2]",  # <FILE>
             "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
             "data = str(inputs[task_id][0])",  # elements for current job
             # elements are indexes
-            'cc = ChemicalChecker(config.PATH.CC_ROOT )',
+            "cc = ChemicalChecker( '%s')" % self.CC_ROOT,
             # start import
             'sign3 = cc.get_signature("sign3", "full", data)',
             # start import

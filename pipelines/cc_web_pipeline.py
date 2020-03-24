@@ -10,13 +10,13 @@ from chemicalchecker.util import HPC
 from chemicalchecker.util import psql
 from chemicalchecker.core import DataSignature
 from chemicalchecker.database import Molrepo
-from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem, ShowTargets, Libraries
+from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem, ShowTargets, Libraries, Similars
 from chemicalchecker.util.pipeline import Coordinates, Projections, Plots, MolecularInfo, SimilarsSign3
 
 os.environ['CC_CONFIG'] = '/aloy/home/oguitart/projects/source/chemical_checker/pipelines/cc_web_update.json'
 
 
-CC_PATH = "/aloy/web_checker/package_cc/newpipe/"
+CC_PATH = "/aloy/web_checker/package_cc/2019_05/"
 MOLECULES_PATH = '/aloy/web_checker/molecules/'
 OLD_DB = 'mosaic'
 DB = 'cc_web_2019_05'
@@ -139,5 +139,11 @@ pp.add_task(minfo_task)
 libs_params = {'DB': DB, 'CC_ROOT': CC_PATH, 'libraries': libraries}
 libs_task = Libraries(name='libraries', **libs_params)
 pp.add_task(libs_task)
+
+# TASK: Create all plots
+similars_params = {'DB': DB, 'CC_ROOT': CC_PATH, 'MOLECULES_PATH': MOLECULES_PATH}
+similars_task = Similars(name='similars', **similars_params)
+pp.add_task(similars_task)
+
 
 pp.run()
