@@ -144,7 +144,7 @@ for coord in coord_idxs.keys():
     sign3 = cc.get_signature("sign3", "full", dataset_pairs[coord])
     bg_vals_pred = sign2.background_distances("cosine")["distance"][cut_idx]
     similars = DataSignature(os.path.join(
-        sign3.signature_path, "similars.h5"), ds_data='distances')
+        sign3.signature_path, "similars.h5"), ds_data='distances', keys_name='row_keys')
 
     _, distances = similars.get_vectors(
         iks, include_nan=True, dataset_name='distances')
