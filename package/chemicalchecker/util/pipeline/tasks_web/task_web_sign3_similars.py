@@ -13,7 +13,7 @@ from airflow import AirflowException
 
 
 @logged
-class SimilarsSign3(BaseTask):
+class SimilarsSign3(BaseTask, BaseOperator):
 
     def __init__(self, config=None, name=None, **params):
 
