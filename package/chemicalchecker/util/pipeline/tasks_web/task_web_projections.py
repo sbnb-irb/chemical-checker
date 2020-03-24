@@ -110,8 +110,8 @@ class Projections(BaseTask, BaseOperator):
                 D[ik][wh[2]] = V[w, 1]
 
         self.__log.info("Filling projections table")
-
-        for c in self.__chunker(D.keys(), 10000):
+        d_keys = list(D.keys())
+        for c in self.__chunker(d_keys, 10000):
             s = []
             for x in c:
                 s += ["(" + ",".join(["'%s'" % x] + ["%s" % y for y in D[x]]) + ")"]
@@ -148,7 +148,6 @@ class Projections(BaseTask, BaseOperator):
                 self.__log.error(e)
 
     def __chunker(self, data, size=2000):
-
         for i in range(0, len(data), size):
             yield data[slice(i, i + size)]
 
