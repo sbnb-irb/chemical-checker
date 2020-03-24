@@ -47,6 +47,7 @@ class clus(BaseSignature, DataSignature):
         BaseSignature.__init__(self, signature_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
         self.data_path = os.path.join(signature_path, "clus.h5")
+        DataSignature.__init__(self, self.data_path)
         self.__log.debug('data_path: %s', self.data_path)
         self.clustencoder_file = "clustencoder.h5"
         self.clustcentroids_file = "clustcentroids.h5"
