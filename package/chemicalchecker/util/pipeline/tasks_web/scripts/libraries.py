@@ -9,7 +9,6 @@ from chemicalchecker.util.download import Downloader
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util.parser import Parser
 from chemicalchecker.database import Dataset
-from chemicalchecker.util import Config
 from chemicalchecker.util import psql
 
 INSERT = "INSERT INTO libraries VALUES %s"
@@ -23,7 +22,7 @@ def chunker(data, size=2000):
 
 def select_landmarks(inchikeys, N, dbname):
 
-    sqiks_ = dict((k, v.intersection(inchikeys)) for k, v in sqiks.iteritems())
+    sqiks_ = dict((k, v.intersection(inchikeys)) for k, v in sqiks.items())
 
     # Start with the more popular molecule
 
@@ -49,12 +48,12 @@ def select_landmarks(inchikeys, N, dbname):
 
     while len(landmarks) < N:
 
-        S = [v for k, v in square_mols.iteritems() if len(sqiks_[k]) > 0]
+        S = [v for k, v in square_mols.items() if len(sqiks_[k]) > 0]
         if len(S) == 0:
             break
         minsize = np.min(S)
         cand_mols = set()
-        for coord, v in square_mols.iteritems():
+        for coord, v in square_mols.items():
             if v != minsize:
                 continue
             cand_mols.update(sqiks_[coord])
@@ -78,7 +77,7 @@ def select_landmarks(inchikeys, N, dbname):
         for i, ik in enumerate(pop_score):
             rankings[ik] += [i]
 
-        rankings = dict((k, np.mean(v)) for k, v in rankings.iteritems())
+        rankings = dict((k, np.mean(v)) for k, v in rankings.items())
 
         ik = min(rankings, key=lambda k: rankings[k])
 
@@ -99,6 +98,7 @@ filename = sys.argv[2]
 universe = sys.argv[3]
 save_file_path = sys.argv[4]
 dbname = sys.argv[5]
+CC_ROOT = sys.argv[6]
 inputs = pickle.load(open(filename, 'rb'))
 lib = inputs[task_id]
 
@@ -148,7 +148,7 @@ parse_fn = Parser.parse_fn(lib_parser)
 keys = set()
 for fpath in files:
     map_files[lib_id] = fpath
-    print fpath
+    print (fpath)
     for chunk in parse_fn(map_files, lib_id, 1000):
         for data in chunk:
             if data["inchikey"] is not None:
@@ -156,8 +156,7 @@ for fpath in files:
 
 
 all_datasets = Dataset.get()
-config_cc = Config()
-cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
+cc = ChemicalChecker(CC_ROOT)
 
 dataset_pairs = dict()
 coords = list()
@@ -188,7 +187,7 @@ for coord in coords:
 
 # Get landmarks
 aux = bioactive.intersection(keys)
-print len(aux), len(keys)
+print (len(aux), len(keys))
 landmark = select_landmarks(aux, N, dbname)
 # Start iterating
 alreadies = set()
@@ -217,4 +216,4 @@ for x in keys:
 for c in chunker(R, 1000):
     psql.query(INSERT % ",".join(c), dbname)
 
-print 'JOB DONE'
+print ('JOB DONE')
