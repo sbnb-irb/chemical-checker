@@ -10,7 +10,6 @@ import pickle
 
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.database import Dataset
-from chemicalchecker.util import Config
 from chemicalchecker.util import psql
 
 #inchikey = 'ZZVUWRFHKOJYTH-UHFFFAOYSA-N'
@@ -54,6 +53,7 @@ names_jason = sys.argv[3]
 save_file_path = sys.argv[4]
 dbname = sys.argv[5]
 version = sys.argv[6]
+CC_ROOT = sys.argv[7]
 inputs = pickle.load(open(filename, 'rb'))
 inchikeys = inputs[task_id]
 
@@ -62,9 +62,7 @@ ref_bioactive = {}
 dataset_pairs = {}
 all_datasets = Dataset.get()
 
-config_cc = Config()
-
-cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
+cc = ChemicalChecker(CC_ROOT)
 
 get_integers = np.vectorize(get_integer)
 metric_obs = None
@@ -156,7 +154,7 @@ for lib in lib_refs:
         references[lib[0]].append({'inchikey': lib[1], 'name': lib[2]})
 
 
-print references.keys()
+print (references.keys())
 lib_bio = psql.qstring(text_bio, dbname)
 
 for lib in lib_bio:
@@ -189,7 +187,7 @@ for index, inchikey in enumerate(inchikeys):
             data_keys_map[dataset][0][index] != ''].tolist()
 
         if len(iksm) == 0:
-            print dataset
+            print (dataset)
             empty_spaces.append(dataset)
             continue
 
