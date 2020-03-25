@@ -31,24 +31,25 @@ def select_landmarks(inchikeys, N, dbname):
     square_mols = dict((k, 0) for k in sqiks_.keys())
     s = "(%s)" % ",".join(["'%s'" % ik for ik in inchikeys])
     pop = np.array([r for r in psql.qstring("SELECT inchikey, popularity FROM molecular_info WHERE inchikey IN %s" %
-                                            s, dbname)], dtype=np.dtype([('ik', '|S300'), ('pop', np.float)]))
+                                            s, dbname)], dtype=np.dtype([('ik', h5py.special_dtype(vlen=str)), ('pop', np.float)]))
     pop = np.sort(pop, order="pop")[::-1]
     ik = pop['ik'][0]
     landmarks = set([ik])
 
     done_connects.update([ik.split("-")[0]])
     done_clusts.update(clusts[ik])
+
     for sq in squares[ik]:
         square_mols[sq] += 1
     for sq in sqiks_.keys():
         sqiks_[sq] = set([ik for ik in list(sqiks_[sq]) if ik.split(
             "-")[0] not in done_connects]).difference(landmarks)
-
     # Keep adding molecules
 
     while len(landmarks) < N:
 
         S = [v for k, v in square_mols.items() if len(sqiks_[k]) > 0]
+
         if len(S) == 0:
             break
         minsize = np.min(S)
@@ -57,15 +58,13 @@ def select_landmarks(inchikeys, N, dbname):
             if v != minsize:
                 continue
             cand_mols.update(sqiks_[coord])
-
         # Use, also, popularity score (already sorted!)
 
         # Only consider top-10 by popularity (reasonable enough).
         pop_score = [r['ik'] for r in pop if r['ik'] in cand_mols][:10]
         # Count number of covered clusters per molecule (overlap)
-
         clust_score = np.array([(ik, len(clusts[ik].intersection(done_clusts)) / len(clusts[ik]))
-                                for ik in pop_score], dtype=np.dtype([('ik', '|S300'), ('o', np.float)]))
+                                for ik in pop_score], dtype=np.dtype([('ik', h5py.special_dtype(vlen=str)), ('o', np.float)]))
         clust_score = [r['ik'] for r in np.sort(clust_score, order="o")]
 
         # Merge the two rankings
@@ -78,7 +77,6 @@ def select_landmarks(inchikeys, N, dbname):
             rankings[ik] += [i]
 
         rankings = dict((k, np.mean(v)) for k, v in rankings.items())
-
         ik = min(rankings, key=lambda k: rankings[k])
 
         landmarks.update([ik])
@@ -105,7 +103,7 @@ lib = inputs[task_id]
 N = 100  # Number of landmarks
 
 
-lib_id = lib.keys()[0]
+lib_id = list(lib.keys())[0]
 
 lib_name = lib[lib_id][0]
 lib_desc = lib[lib_id][1]
