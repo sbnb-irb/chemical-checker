@@ -471,7 +471,7 @@ class SiameseTriplets(object):
             o_self = only_self_regularization(y_pred)
             n_self = not_self_regularization(y_pred)
             b_self = both_self_regularization(y_pred)
-            return loss + ((o_self + n_self + b_self) / 3)
+            return loss + ((o_self + n_self + b_self) / 3) #n_self
 
         def mse_loss(y_true, y_pred):
             def mse_loss(y_pred):
@@ -512,75 +512,83 @@ class SiameseTriplets(object):
 
     def find_lr(self, params, num_lr=5):
         import matplotlib.pyplot as plt
+        from scipy.stats import rankdata
         # Initialize model
         input_shape = (self.tr_shapes[0][1],)
         self.build_model(input_shape)
 
-        """lrf = LearningRateFinder(self.model)
-
-        min_lr, max_lr = MIN_LR, MAX_LR
-        #Find lr curve
-        self.__log.info('Finding lr curve')
-        lrf.find(self.tr_gen, min_lr, max_lr, epochs=1,
-                 stepsPerEpoch=self.steps_per_epoch,
-                 batchSize=self.batch_size)
-
-        min_lr, max_lr = lrf.find_bounds()
-        lr_plot_file = os.path.join(self.model_dir, "lr_evolution.png")
-        lrf.plot_loss(min_lr, max_lr, lr_plot_file)
-
-        lr_pkl_file = os.path.join(self.model_dir, "lr_evolution.pkl")
-        lrf.save_loss_evolution(lr_pkl_file)
-
-        lr_pkl_file = os.path.join(self.model_dir, "used_lrs.pkl")
-        mean_lr = np.mean([min_lr, max_lr])
-        min_lr, max_lr, mean_lr = 10**min_lr, 10**max_lr, 10**mean_lr
-        lrs = {'min_lr': min_lr, 'max_lr': max_lr, 'mean': mean_lr}
-        pickle.dump(lrs, open(lr_pkl_file, "wb"))
-        """
-        #Find perfect lr by grid search
+        #Find lr by grid search
         self.__log.info('Finding best lr')
         lr_iters = []
         lr_params = params.copy()
         lr_params['epochs'] = 1
-        for lr in [1e-6, 1e-5, 1e-4, 1e-3, 1e-2]:
+        lrs = [1e-6, 1e-5, 1e-4, 1e-3, 1e-2]
+        for lr in lrs:
             self.__log.info('Trying lr %s' % lr)
             lr_params['learning_rate'] = lr
-            #siamese_path = os.path.join(self.model_dir, 'lr_iter_%s' % num_lr)
             siamese = SiameseTriplets(self.model_dir, evaluate=True, plot=False, save_params=False, **lr_params)
             siamese.fit(save=False)
             h_file = os.path.join(self.model_dir, 'siamesetriplets_history.pkl')
             h_metrics = pickle.load(open(h_file, "rb" ))
             loss = h_metrics['loss'][0]
             val_loss = h_metrics['val_loss'][0]
-            distance = abs(val_loss - loss)
-            lr_score = distance + val_loss + loss
-            lr_iters.append([lr, lr_score, loss, val_loss, distance])
-            self.__log.info('Lr %s, lr_score %s' % (lr, lr_score))
+            acc = h_metrics['accTot'][0]
+            val_acc = h_metrics['val_accTot'][0]
+            if not self.standard:
+                val_cor1 = h_metrics['val_cor1'][0]
+                val_cor2 = h_metrics['val_cor2'][0]
+                val_cor3 = h_metrics['val_cor3'][0]
+                lr_iters.append([loss, val_loss, val_acc, val_cor1, val_cor2, val_cor3])
+            else:
+                lr_iters.append([loss, val_loss, val_acc, 0, 0, 0])
 
-        lr_iters.sort(key=lambda x: x[1])
         lr_iters = np.array(lr_iters)
-
+        lr_scores = np.mean(np.array([rankdata(1/col) if i != 0 else rankdata(col) 
+            for i, col in enumerate(lr_iters.T)]).T, axis=1)
+        lr_index = np.argmin(lr_scores)
+        lr = lrs[lr_index]
+        lr_results = {'lr_iters': lr_iters, 'lr_scores': lr_scores, 'lr': lr, 'lrs': lrs}
+        
         fname = 'lr_score.pkl'
         pkl_file = os.path.join(self.model_dir, fname)
-        pickle.dump(lr_iters, open(pkl_file, "wb"))
+        pickle.dump(lr_results, open(pkl_file, "wb"))
 
-        fig, axes = plt.subplots(1, 2, figsize=(10, 3))
-        for i in range(num_lr):
-            axes[0].scatter(lr_iters[i:,2],lr_iters[i:,3], label='lr_%f' % lr_iters[i][0])
-        axes[0].set_xlabel('loss')
-        axes[0].set_ylabel('val_loss')
-        axes[0].legend()
-        
-        axes[1].scatter(np.log10(lr_iters[:,0]),np.log10(lr_iters[:,1]))
-        axes[1].set_xlabel('lr')
-        axes[1].set_ylabel('lr_score')
+        fig, axes = plt.subplots(2, 3, figsize=(10, 5))
+        ax = axes.flatten()
+        log_lrs = np.log10(lrs)
+
+        ax[0].set_title('Loss')
+        ax[0].set_xlabel('lrs')
+        ax[0].scatter(log_lrs, lr_iters[:,0], label='train')
+        ax[0].scatter(log_lrs, lr_iters[:,1], label='test')
+        ax[0].legend()
+
+        ax[1].set_title('ValAccT')
+        ax[1].set_xlabel('lrs')
+        ax[1].scatter(log_lrs, lr_iters[:,2], label='train')
+
+        ax[2].set_title('Val cor1')
+        ax[2].set_xlabel('lrs')
+        ax[2].scatter(log_lrs, lr_iters[:,3])
+
+        ax[3].set_title('Val cor2')
+        ax[3].set_xlabel('lrs')
+        ax[3].scatter(log_lrs, lr_iters[:,4])
+
+        ax[4].set_title('Val cor3')
+        ax[4].set_xlabel('lrs')
+        ax[4].scatter(log_lrs, lr_iters[:,5])
+
+        ax[5].set_title('Lr score')
+        ax[5].set_xlabel('lrs')
+        ax[5].scatter(log_lrs, lr_scores)
+        fig.tight_layout()
 
         fname = 'lr_score.png'
         plot_file = os.path.join(self.model_dir, fname)
         plt.savefig(plot_file)
         plt.close()
-        lr = lr_iters[0][0]
+
         return lr
 
     def fit(self, monitor='val_loss', save=True):
@@ -879,6 +887,7 @@ class SiameseTriplets(object):
             replace_nan=self.replace_nan,
             sharedx=self.sharedx,
             augment_fn=self.augment_fn,
+            augment_kwargs=self.augment_kwargs,
             train=False,
             shuffle=False,
             standard=self.standard)
@@ -892,6 +901,7 @@ class SiameseTriplets(object):
             replace_nan=self.replace_nan,
             sharedx=self.sharedx,
             augment_fn=self.augment_fn,
+            augment_kwargs=self.augment_kwargs,
             train=False,
             shuffle=False,
             standard=self.standard)
