@@ -14,7 +14,7 @@ from chemicalchecker.util import HPC
 VALID_TYPES = ['sign', 'neig', 'clus', 'proj']
 
 CC_TYPES_DEPENDENCIES = {'sign0': ['sign0'], 'sign1': ['sign0'], 'sign2': [
-    'sign1', 'neig1'], 'sign3': ['sign2'], 'neig1': ['sign1'],
+    'sign1', 'neig1'], 'sign3': ['sign2'], 'neig1': ['sign1'], 'neig3': ['sign3'],
     'neig2': ['sign2'], 'clus1': ['sign1'], 'proj1': ['sign1'], 'proj2': ['sign2']}
 
 CC_TYPES_MEM_CPU = {'sign0': (44, 22), 'sign1': (20, 10), 'sign2': (
@@ -80,7 +80,8 @@ SPECIAL_PARAMS = {'sign2': {'adanet': {'cpu': 16}, 'node2vec': {'cpu': 4}},
                   'sign3': {'cpu': 32},
                   'clus1': {'cpu': 10},
                   'proj1': {'cpu': 10},
-                  'proj2': {'cpu': 10}}
+                  'proj2': {'cpu': 10},
+                  'neig3': {'cpu': 15}}
 
 
 @logged
@@ -111,6 +112,9 @@ class CCFit(BaseTask, BaseOperator):
         self.target_datasets = params.get('target_datasets', None)
         self.ref_datasets = params.get('reference_datasets', None)
         self.cc_old_path = params.get('cc_old_path', None)
+        self.CC_ROOT = params.get('CC_ROOT', None)
+        if self.CC_ROOT is None:
+            raise Exception('CC_ROOT parameter is not set')
 
         if self.cc_type == 'sign0' and self.ds_data_params is None and self.cc_old_path is None:
             raise Exception(
@@ -121,7 +125,7 @@ class CCFit(BaseTask, BaseOperator):
 
         config_cc = Config()
         dataset_codes = list()
-        cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
+        cc = ChemicalChecker(self.CC_ROOT)
 
         if self.cc_type == 'sign3':
 
@@ -283,7 +287,7 @@ class CCFit(BaseTask, BaseOperator):
                 "data = inputs[task_id][0][0]",  # elements for current job
                 "pars = inputs[task_id][0][1]",  # elements for current job
                 # elements are indexes
-                'cc = ChemicalChecker(config.PATH.CC_ROOT )',
+                "cc = ChemicalChecker( '%s')" % self.CC_ROOT,
                 'if pars is None: pars = {}',
                 # start import
                 'sign_full = cc.get_signature("%s","full",data)' % CC_TYPES_DEPENDENCIES[
@@ -319,7 +323,7 @@ class CCFit(BaseTask, BaseOperator):
             params["jobdir"] = job_path
             params["job_name"] = "CC_" + self.cc_type.upper()
             params["elements"] = dataset_params
-            params["wait"] = False
+            params["wait"] = True
             params["memory"] = CC_TYPES_MEM_CPU[self.cc_type][0]
             params["cpu"] = CC_TYPES_MEM_CPU[self.cc_type][1]
             # job command
