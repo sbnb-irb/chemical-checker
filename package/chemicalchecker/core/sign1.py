@@ -25,7 +25,6 @@ from chemicalchecker.util import logged
 from chemicalchecker.util.transform.scale import Scale
 from chemicalchecker.util.transform.lsi import Lsi
 from chemicalchecker.util.transform.pca import Pca
-from chemicalchecker.util.transform.metric_learn import UnsupervisedMetricLearn, SemiSupervisedMetricLearn
 from chemicalchecker import ChemicalChecker
 
 
@@ -114,6 +113,11 @@ class sign1(BaseSignature, DataSignature):
             Args:
                 sign0: A signature 0.
         """
+        try:
+            from chemicalchecker.util.transform.metric_learn import UnsupervisedMetricLearn, SemiSupervisedMetricLearn
+        except ImportError:
+            raise ImportError("requires tensorflow " +
+                              "https://tensorflow.org")
         self.clean()
         s0 = sign0
         self.__log.debug("Fitting")
