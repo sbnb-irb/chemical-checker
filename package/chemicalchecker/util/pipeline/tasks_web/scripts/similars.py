@@ -305,4 +305,4 @@ for index, inchikey in enumerate(inchikeys):
     with open(PATH + '/explore_' + version + '.json', 'w') as outfile:
         json.dump(inchies, outfile)
 
-    print time.time() - t0
+    print (time.time() - t0)
