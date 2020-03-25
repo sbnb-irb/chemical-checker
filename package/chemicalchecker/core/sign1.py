@@ -16,7 +16,6 @@ from scipy.signal import savgol_filter
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score
 from scipy.spatial.distance import cosine
-import faiss
 from numpy import linalg as LA
 import uuid
 
@@ -235,6 +234,11 @@ class sign1(BaseSignature, DataSignature):
 
     def neighbors(self, tmp, metric="cosine", k_neig=1000, cpu=4):
         """Neighbors"""
+        try:
+            import faiss
+        except ImportError:
+            raise ImportError("requires faiss " +
+                              "https://github.com/facebookresearch/faiss")
         s1 = self.get_molset("reference")
         if metric not in ["cosine", "euclidean"]:
             raise Exception("Metric must be 'cosine' or 'euclidean'")
