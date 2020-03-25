@@ -553,7 +553,7 @@ class NeighborTripletTraintest(object):
 
     @staticmethod
     def generator_fn(file_name, split, epochs=None, batch_size=None,
-                     replace_nan=None, augment_scale=1,
+                     replace_nan=None, ds_index=[15],
                      augment_fn=None, augment_kwargs={},
                      mask_fn=None, shuffle=True,
                      sharedx=None, train=True, standard=True):
@@ -563,10 +563,21 @@ class NeighborTripletTraintest(object):
         split(str): One of 'train_train', 'train_test', or 'test_test'
         batch_size(int): Size of a batch of data.
         replace_nan(bool): Value used for NaN replacement.
-        augment_scale(int): Augment the train size by this factor.
         augment_fn(func): Function to augment data.
         augment_kwargs(dict): Parameters for the aument functions.
         """
+        def notself(idxs, x1_data):
+            x1_data_transf = np.copy(x1_data)
+            for idx in idxs:
+                # set current space to nan
+                col_slice = slice(idx * 128, (idx + 1) * 128)
+                x1_data_transf[:, col_slice] = np.nan
+            # drop rows that only contain NaNs
+            not_nan1 = np.isfinite(x1_data_transf).any(axis=1)
+            not_nan = np.logical_and(not_nan1, not_nan1)
+            x1_data_transf = x1_data_transf[not_nan]
+            return x1_data_transf
+
         reader = NeighborTripletTraintest(file_name, split)
         reader.open()
         # read shapes
@@ -637,13 +648,13 @@ class NeighborTripletTraintest(object):
                 x1 = X[pairs[:, 0]]
                 x2 = X[pairs[:, 1]]
                 x3 = X[pairs[:, 2]]
-                if not standard:
-                    x4 = augment_fn(X[pairs[:, 0]], **only_args)
-                    x5 = augment_fn(X[pairs[:, 0]], **notself_args)
                 if train and not standard:
                     x1 = augment_fn(x1, **augment_kwargs)
                     x2 = augment_fn(x2, **augment_kwargs)
                     x3 = augment_fn(x3, **augment_kwargs)
+                if not standard:
+                    x4 = augment_fn(X[pairs[:, 0]], **only_args)
+                    x5 = notself(ds_index, x1)
                 x1, x2, x3 = mask_fn(x1, x2, x3)
                 if replace_nan is not None:
                     x1[np.where(np.isnan(x1))] = replace_nan
@@ -666,7 +677,7 @@ class NeighborTripletTraintest(object):
                 if batch_idx % step_size == 0 and batch_idx != 0:
                     p_factor = -p_factor
 
-        pair_shape = (t_shape[0] * augment_scale, x_shape[1])
+        pair_shape = (t_shape[0], x_shape[1])
         shapes = (pair_shape, pair_shape, pair_shape, pair_shape)
         dtypes = (x_dtype, x_dtype, x_dtype, x_dtype)
         return shapes, dtypes, example_generator_fn
