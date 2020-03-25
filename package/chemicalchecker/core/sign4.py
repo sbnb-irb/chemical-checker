@@ -26,7 +26,6 @@ from .signature_data import DataSignature
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import Traintest, NeighborTripletTraintest
-from chemicalchecker.tool.siamese import SiameseTriplets
 
 
 @logged
@@ -243,6 +242,11 @@ class sign4(BaseSignature, DataSignature):
                 evaluating the performances (N.B. this is required for complete
                 confidence scores)
         """
+        try:
+            from chemicalchecker.tool.siamese import SiameseTriplets
+        except ImportError:
+            raise ImportError("requires tensorflow " +
+                              "https://tensorflow.org")
         # get params and set folder
         if suffix:
             siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
@@ -1648,7 +1652,11 @@ class sign4(BaseSignature, DataSignature):
                 confidence scores)
             include_confidence(bool): whether to include confidences.
         """
-
+        try:
+            from chemicalchecker.tool.siamese import SiameseTriplets
+        except ImportError:
+            raise ImportError("requires tensorflow " +
+                              "https://tensorflow.org")
         # get params and set folder
         if suffix:
             model_path = os.path.join(self.model_path, 'smiles_%s' % suffix)
@@ -2016,6 +2024,11 @@ class sign4(BaseSignature, DataSignature):
             chunk_size(int): Chunk size when writing to sign4.h5
         """
         try:
+            from chemicalchecker.tool.siamese import SiameseTriplets
+        except ImportError:
+            raise ImportError("requires tensorflow " +
+                              "https://tensorflow.org")
+        try:
             import faiss
         except ImportError as err:
             raise err
@@ -2268,7 +2281,11 @@ class sign4(BaseSignature, DataSignature):
 
     def predict(self, src_file, dst_file, src_h5_ds='x_test',
                 dst_h5_ds='V', model_path=None, chunk_size=1000):
-        from chemicalchecker.tool.siamese import SiameseTriplets
+        try:
+            from chemicalchecker.tool.siamese import SiameseTriplets
+        except ImportError:
+            raise ImportError("requires tensorflow " +
+                              "https://tensorflow.org")
 
         if model_path is None:
             model_path = os.path.join(self.model_path, 'siamese_debug')
