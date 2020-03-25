@@ -18,7 +18,7 @@ CC_TYPES_DEPENDENCIES = {'sign0': ['sign0'], 'sign1': ['sign0'], 'sign2': [
     'neig2': ['sign2'], 'clus1': ['sign1'], 'proj1': ['sign1'], 'proj2': ['sign2']}
 
 CC_TYPES_MEM_CPU = {'sign0': (44, 22), 'sign1': (20, 10), 'sign2': (
-    20, 16), 'sign3': (2, 32), 'neig1': (30, 15), 'neig2': (30, 15),
+    20, 16), 'sign3': (2, 32), 'neig1': (30, 15), 'neig2': (30, 15), 'neig3': (30, 15),
     'clus1': (20, 10), 'proj1': (20, 10), 'proj2': (20, 10)}
 
 CC_SCRIPT_FR = [
