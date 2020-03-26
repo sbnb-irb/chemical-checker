@@ -16,7 +16,8 @@ from chemicalchecker.util.pipeline import Pipeline, PythonCallable, CCFit, CCLon
 os.environ['CC_CONFIG'] = '/aloy/home/oguitart/projects/source/chemical_checker/pipelines/dream_ctd2_config.json'
 
 
-CC_PATH = "/aloy/web_checker/package_cc/dream_ctd2/"
+CC_ROOT = "/aloy/web_checker/package_cc/2019_05/"
+CC_OLD_ROOT = '/aloy/web_checker/package_cc/paper'
 
 data_calculators = ['morgan_fp_r2_2048', 'e3fp_3conf_1024', 'murcko_1024_cframe_1024',
                     'maccs_keys_166', 'general_physchem_properties', 'chembl_target_predictions_v23_10um']
@@ -79,7 +80,7 @@ def calculate_data(type_data, tmpdir, iks):
 
 def create_val_set(set_name):
 
-    cc = ChemicalChecker(CC_PATH)
+    cc = ChemicalChecker(CC_ROOT)
 
     val = Validation(cc.get_validation_path(), set_name)
 
@@ -95,7 +96,7 @@ def create_exemplary_links(sign_ref):
 
     all_datasets = Dataset.get()
 
-    cc = ChemicalChecker(CC_PATH)
+    cc = ChemicalChecker(CC_ROOT)
 
     dataset_codes = list()
     for ds in all_datasets:
@@ -104,7 +105,7 @@ def create_exemplary_links(sign_ref):
 
         dataset_codes.append(str(ds.dataset_code))
 
-    target_path = os.path.join(CC_PATH, "exemplary")
+    target_path = os.path.join(CC_ROOT, "exemplary")
 
     if not os.path.isdir(target_path):
         os.mkdir(target_path)
@@ -196,75 +197,49 @@ for val_set in validation_sets:
 
 
 # TASK: Calculate signatures 0
-s0_params = {'cc_old_path': '/aloy/web_checker/package_cc/paper'}
+s0_params = s0_params = {'CC_ROOT' : CC_ROOT, 'cc_old_path': CC_OLD_ROOT}
 s0_task = CCFit(cc_type='sign0', **s0_params)
 pp.add_task(s0_task)
 
 
 # TASK: Calculate signatures 1
-s1_params = {}
-s1_params["ds_params"] = {"A1.001": {"num_topics": "1600", "max_freq": "0.8", "multipass": "True"},
-                          "A2.001": {"num_topics": "1000", "max_freq": "0.8", "multipass": "True"},
-                          "A3.001": {"num_topics": "1500", "max_freq": "0.8", "multipass": "True"},
-                          "A4.001": {"num_topics": "70", "max_freq": "0.9", "multipass": "True"},
-                          "A5.001": {"discrete": False},
-                          "B1.001": {"num_topics": "200"},
-                          "B2.001": {"num_topics": "200"},
-                          "B3.001": {"num_topics": "500"},
-                          "B4.001": {"num_topics": "800"},
-                          "B5.001": {"num_topics": "800"},
-                          "C1.001": {"num_topics": "600"},
-                          "C2.001": {"num_topics": "500"},
-                          "C3.001": {"num_topics": "200"},
-                          "C4.001": {"num_topics": "500"},
-                          "C5.001": {"num_topics": "500"},
-                          "D1.001": {"num_topics": "4600"},
-                          "D2.001": {"discrete": False},
-                          "D3.001": {"num_topics": "800"},
-                          "D4.001": {"discrete": False},
-                          "D5.001": {"num_topics": "100"},
-                          "E1.001": {"num_topics": "250"},
-                          "E2.001": {"num_topics": "600"},
-                          "E3.001": {"num_topics": "700"},
-                          "E4.001": {"num_topics": "800"},
-                          "E5.001": {"num_topics": "250"}}
-
+s1_params = {'CC_ROOT': CC_ROOT}
 s1_task = CCFit(cc_type='sign1', **s1_params)
 pp.add_task(s1_task)
 
 ##### TASK: Calculate clustering for signatures 1 #######
-c1_params = {}
+c1_params = {'CC_ROOT': CC_ROOT}
 c1_params['general_params'] = {'balance': 1.5}
 c1_task = CCFit(cc_type='clus1', **c1_params)
 pp.add_task(c1_task)
 
 ##### TASK: Calculate nearest neighbors for signatures 1 #######
-n1_params = {}
+n1_params = {'CC_ROOT': CC_ROOT}
 n1_task = CCFit(cc_type='neig1', **n1_params)
 pp.add_task(n1_task)
 
 ##### TASK: Calculate projections for signatures 1  ########
-p1_params = {}
+p1_params = {'CC_ROOT': CC_ROOT}
 p1_task = CCFit(cc_type='proj1', **p1_params)
 pp.add_task(p1_task)
 
 # TASK: Calculate signatures 2
-s2_params = {}
+s2_params = {'CC_ROOT': CC_ROOT}
 s2_task = CCFit(cc_type='sign2', **s2_params)
 pp.add_task(s2_task)
 
 ##### TASK: Calculate nearest neighbors for signatures 2 #######
-n2_params = {}
+n2_params = {'CC_ROOT': CC_ROOT}
 n2_task = CCFit(cc_type='neig2', **n2_params)
 pp.add_task(n2_task)
 
 ##### TASK: Calculate projections for signatures 2  ########
-p2_params = {}
+p2_params = {'CC_ROOT': CC_ROOT}
 p2_task = CCFit(cc_type='proj2', **p2_params)
-pp.add_task(p1_task)
+pp.add_task(p2_task)
 
 # TASK: Calculate signatures 3
-s3_params = {}
+s3_params = {'CC_ROOT': CC_ROOT}
 s3_task = CCFit(cc_type='sign3', **s3_params)
 pp.add_task(s3_task)
 
