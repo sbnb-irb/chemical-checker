@@ -13,19 +13,28 @@ from chemicalchecker.util import HPC
 
 VALID_TYPES = ['sign', 'neig', 'clus', 'proj']
 
-CC_TYPES_DEPENDENCIES = {'sign0': '', 'sign1': 'sign0', 'sign2':
-                         'sign1', 'sign3': 'sign2', 'neig1': 'sign1', 'proj1': 'sign1',
-                         'clus1': 'sign1', 'neig2': 'sign2', 'proj2': 'sign2'}
+CC_TYPES_DEPENDENCIES = {'sign0': ['sign0'], 'sign1': ['sign0'],
+                         'sign2': ['sign1', 'neig1'], 'sign3': ['sign2'],
+                         'neig1': ['sign1'], 'neig2': ['sign2'], 'neig3': ['sign3'],
+                         'clus1': ['sign1'], 'clus2': ['sign2'], 'clus3': ['sign3'],
+                         'proj1': ['sign1'], 'proj2': ['sign2'], 'proj3': ['sign3']}
 
-CC_TYPES_MEM_CPU = {'sign0': (32, 16), 'sign1': (20, 10), 'sign2': (
-    20, 16), 'sign3': (2, 32), 'neig1': (30, 15),
-    'clus1': (20, 10), 'proj1': (20, 10)}
+CC_TYPES_MEM_CPU = {'sign0': (44, 22), 'sign1': (20, 10), 'sign2': (20, 16), 'sign3': (2, 32),
+                    'neig1': (30, 15), 'neig2': (30, 15), 'neig3': (30, 15),
+                    'clus1': (20, 10), 'clus2': (20, 10), 'clus3': (20, 10),
+                    'proj1': (20, 10), 'proj2': (20, 10), 'proj3': (20, 10)}
 
 SPECIAL_PARAMS = {'sign2': {'adanet': {'cpu': 16}, 'node2vec': {'cpu': 4}},
                   'neig1': {'cpu': 15},
+                  'neig2': {'cpu': 15},
+                  'neig3': {'cpu': 15},
                   'sign3': {'cpu': 32},
                   'clus1': {'cpu': 10},
-                  'proj1': {'cpu': 10}}
+                  'clus2': {'cpu': 10},
+                  'clus3': {'cpu': 10},
+                  'proj1': {'cpu': 10},
+                  'proj2': {'cpu': 10},
+                  'proj3': {'cpu': 10}}
 
 
 @logged
