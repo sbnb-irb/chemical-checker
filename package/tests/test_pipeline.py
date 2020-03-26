@@ -36,22 +36,24 @@ class TestPipeline(unittest.TestCase):
     def test_pipeline(self):
         from chemicalchecker.util.pipeline import Pipeline, CCPredict
 
+        CC_ROOT = '/aloy/web_checker/current'
+
         self.pp = Pipeline(pipeline_path=self.pp_dir)
         self.assertTrue(os.path.isdir(self.pp.readydir))
         output_path = self.pp_dir
-        s0_params = {"output_path": output_path,
+        s0_params = {"output_path": output_path, 'CC_ROOT': CC_ROOT,
                      "datasets_input_files": {"B4.001": '/aloy/scratch/oguitart/tmp/entry_profile.tsv'}}
 
         s0_pred_task = CCPredict(cc_type='sign0', **s0_params)
         self.pp.add_task(s0_pred_task)
 
-        s1_params = {"output_path": output_path,
+        s1_params = {"output_path": output_path, 'CC_ROOT': CC_ROOT,
                      "datasets_input_files": ["B4.001"]}
 
         s1_pred_task = CCPredict(cc_type='sign1', **s1_params)
         self.pp.add_task(s1_pred_task)
 
-        s2_params = {"output_path": output_path,
+        s2_params = {"output_path": output_path, 'CC_ROOT': CC_ROOT,
                      "datasets_input_files": ["B4.001"]}
 
         s2_pred_task = CCPredict(cc_type='sign2', **s2_params)

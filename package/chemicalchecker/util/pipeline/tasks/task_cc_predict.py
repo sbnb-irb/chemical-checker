@@ -61,6 +61,10 @@ class CCPredict(BaseTask, BaseOperator):
 
         self.cc_type = cc_type
 
+        self.CC_ROOT = params.get('CC_ROOT', None)
+        if self.CC_ROOT is None:
+            raise Exception('CC_ROOT parameter is not set')
+
         self.ds_data_params = params.get('ds_params', None)
         self.general_data_params = params.get('general_params', None)
 
@@ -83,7 +87,7 @@ class CCPredict(BaseTask, BaseOperator):
 
         config_cc = Config()
         dataset_codes = list()
-        cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
+        cc = ChemicalChecker(self.CC_ROOT)
 
         branch = 'reference'
 
@@ -172,7 +176,7 @@ class CCPredict(BaseTask, BaseOperator):
                 "pars = inputs[task_id][0][2]",  # elements for current job
                 # elements for current job
                 "input_file = dataset_file",
-                "cc = ChemicalChecker('%s' )" % config_cc.PATH.CC_ROOT,
+                "cc = ChemicalChecker('%s' )" % self.CC_ROOT,
                 'if pars is None: pars = {}',
                 "output_file=os.path.join('%s', dataset, '%s')" % (
                     self.output_path, self.output_file),
