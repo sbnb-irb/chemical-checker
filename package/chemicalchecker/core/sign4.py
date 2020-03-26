@@ -865,16 +865,16 @@ class sign4(BaseSignature, DataSignature):
         all_inchikeys = self.get_universe_inchikeys()
         traintest = DataSignature(traintest_file)
         train_inks = traintest.get_h5_dataset('keys_train')
-        try:
-            test_inks = traintest.get_h5_dataset('keys_test')
-        except:
-            test_inks = np.array([])
+        test_inks = traintest.get_h5_dataset('keys_test')
         train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks)).flatten()
         test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks)).flatten()
-        unknown_idxs = np.array(
-            list(set(np.arange(len(all_inchikeys))) - (set(train_idxs) | set(test_idxs))))
-        unknown_idxs = np.sort(np.random.choice(
-            unknown_idxs, 5000, replace=False))
+        try:
+            unknown_idxs = np.array(
+                list(set(np.arange(len(all_inchikeys))) - (set(train_idxs) | set(test_idxs))))
+            unknown_idxs = np.sort(np.random.choice(
+                unknown_idxs, 5000, replace=False))
+        except:
+            unknown_idxs = np.array([])
 
         # predict
         pred = dict()
@@ -884,27 +884,30 @@ class sign4(BaseSignature, DataSignature):
             pred['train'] = dict()
             full_x = DataSignature(self.sign2_universe)
             train = self.read_h5(full_x, train_idxs[:4000])
-            #train = full_x.get_h5_dataset('x_test', mask=train_idxs)
+            
             for name, mask_fn in mask_fns.items():
                 pred['train'][name] = siamese.predict(mask_fn(train))
             del train
             self.__log.info('VALIDATION: Predicting test.')
             pred['test'] = dict()
-            #test = full_x.get_h5_dataset('x_test', mask=test_idxs)
             test = self.read_h5(full_x, test_idxs[:1000])
             for name, mask_fn in mask_fns.items():
                 pred['test'][name] = siamese.predict(mask_fn(test))
             del test
             self.__log.info('VALIDATION: Predicting unknown.')
-            pred['unknown'] = dict()
-            unknown = self.read_h5(full_x, unknown_idxs[:5000])
-            self.__log.info('Number of unknown %s' % len(unknown))
-            for name, mask_fn in mask_fns.items():
-                if name == 'ALL':
-                    pred['unknown'][name] = siamese.predict(mask_fn(unknown))
-                else:
+            if np.any(unknown_idxs):
+                pred['unknown'] = dict()
+                unknown = self.read_h5(full_x, unknown_idxs[:5000])
+                self.__log.info('Number of unknown %s' % len(unknown))
+                for name, mask_fn in mask_fns.items():
+                    if name == 'ALL':
+                        pred['unknown'][name] = siamese.predict(mask_fn(unknown))
+                    else:
+                        pred['unknown'][name] = []
+                del unknown
+            else:
+                for name, mask_fn in mask_fns.items():
                     pred['unknown'][name] = []
-            del unknown
             pickle.dump(pred, open(pred_file, "wb"))
         else:
             pred = pickle.load(open(pred_file, 'rb'))
@@ -955,27 +958,41 @@ class sign4(BaseSignature, DataSignature):
                                  figsize=(10, 10), dpi=200)
         proj_model = MulticoreTSNE(n_components=2)
         proj_limit = min(500, len(pred['test']['ALL']))
-        proj_train = np.vstack([
-            pred['train']['ALL'][:proj_limit],
-            pred['test']['ALL'][:proj_limit],
-            pred['unknown']['ALL'][:(proj_limit * 2)],
-            pred['test']['ONLY-SELF'][-proj_limit:]
-        ])
-        proj = proj_model.fit_transform(proj_train)
-        dist_tr = proj[:proj_limit]
-        dist_ts = proj[proj_limit:(proj_limit * 2)]
-        dist_uk = proj[(proj_limit * 2):(proj_limit * 4)]
-        dist_os = proj[(proj_limit * 4):]
+        if np.any(pred['unknown']['ALL']):
+            proj_train = np.vstack([
+                pred['train']['ALL'][:proj_limit],
+                pred['test']['ALL'][:proj_limit],
+                pred['unknown']['ALL'][:proj_limit],
+                pred['test']['ONLY-SELF'][-proj_limit:]
+            ])
+            proj = proj_model.fit_transform(proj_train)
+            dist_tr = proj[:proj_limit]
+            dist_ts = proj[proj_limit:(proj_limit * 2)]
+            dist_uk = proj[(proj_limit * 2):(proj_limit * 3)]
+            dist_os = proj[(proj_limit * 3):]
+        else:
+            proj_train = np.vstack([
+                pred['train']['ALL'][:proj_limit],
+                pred['test']['ALL'][:proj_limit],
+                pred['test']['ONLY-SELF'][-proj_limit:]
+            ])
+            proj = proj_model.fit_transform(proj_train)
+            dist_tr = proj[:proj_limit]
+            dist_ts = proj[proj_limit:(proj_limit * 2)]
+            dist_os = proj[(proj_limit * 2):]
+
 
         axes[0][0].set_title('Train')
         axes[0][0].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="grey")
-        axes[0][0].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="grey")
+        if np.any(pred['unknown']['ALL']):
+            axes[0][0].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="grey")
         axes[0][0].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="grey")
         axes[0][0].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="#1f77b4")
 
         axes[0][1].set_title('Test')
         axes[0][1].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="grey")
-        axes[0][1].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="grey")
+        if np.any(pred['unknown']['ALL']):
+            axes[0][1].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="grey")
         axes[0][1].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="grey")
         axes[0][1].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="#ff7f0e")
 
@@ -983,12 +1000,14 @@ class sign4(BaseSignature, DataSignature):
         axes[1][0].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="grey")
         axes[1][0].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="grey")
         axes[1][0].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="grey")
-        axes[1][0].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="#2ca02c")
+        if np.any(pred['unknown']['ALL']):
+            axes[1][0].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="#2ca02c")
 
         axes[1][1].set_title('ONLY-SELF')
         axes[1][1].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="grey")
         axes[1][1].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="grey")
-        axes[1][1].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="grey")
+        if np.any(pred['unknown']['ALL']):
+            axes[1][1].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="grey")
         axes[1][1].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="#d62728")
 
         fname = 'known_unknown_projection.png'
