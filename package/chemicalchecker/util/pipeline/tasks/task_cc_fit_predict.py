@@ -203,9 +203,6 @@ class CCFit(BaseTask, BaseOperator):
                     if sign.is_fit():
                         continue
 
-                    if self.cc_type == 'sign1':
-                        self.ds_data_params[ds.dataset_code][
-                            'discrete'] = ds.discrete
                     if os.path.exists(sign.signature_path):
                         shutil.rmtree(sign.signature_path)
 
