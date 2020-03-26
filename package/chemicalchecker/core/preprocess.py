@@ -203,8 +203,8 @@ class Preprocess():
             if features is not None:
                 orderwords = features
                 Preprocess.__log.info("Predict entries have a total of %s features," +
-                       " %s overlap with trainset and will be considered.",
-                       len(words), len(set(features) & words))
+                                      " %s overlap with trainset and will be considered.",
+                                      len(words), len(set(features) & words))
             else:
                 orderwords = list(words)
                 del words
@@ -214,9 +214,12 @@ class Preprocess():
                     orderwords.sort()
 
             with h5py.File(output_file, "w") as hf:
-                hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
-                hf.create_dataset("X", (len(keys), len(orderwords)), dtype=np.int8)
-                hf.create_dataset("features", data=np.array(orderwords, DataSignature.string_dtype()))
+                hf.create_dataset("keys", data=np.array(
+                    keys, DataSignature.string_dtype()))
+                hf.create_dataset(
+                    "X", (len(keys), len(orderwords)), dtype=np.int8)
+                hf.create_dataset("features", data=np.array(
+                    orderwords, DataSignature.string_dtype()))
 
             raws = np.zeros((chunk, len(orderwords)), dtype=np.int8)
             wordspos = {k: v for v, k in enumerate(orderwords)}
@@ -225,7 +228,8 @@ class Preprocess():
             for i, k in enumerate(keys):
                 shared_features = set(inchikey_raw[k]) & set(orderwords)
                 if len(shared_features) == 0:
-                    Preprocess.__log.warn("%s has no shared features with trainset.", k)
+                    Preprocess.__log.warn(
+                        "%s has no shared features with trainset.", k)
                 for word in inchikey_raw[k]:
                     if categ:
                         raws[index][wordspos[word[0]]] = word[1]
@@ -246,7 +250,8 @@ class Preprocess():
 
             if method == "fit":
                 with h5py.File(os.path.join(models_path, features_file), "w") as hf:
-                    hf.create_dataset("features", data=np.array(orderwords, DataSignature.string_dtype()))
+                    hf.create_dataset("features", data=np.array(
+                        orderwords, DataSignature.string_dtype()))
 
         else:
 
@@ -260,16 +265,19 @@ class Preprocess():
                 data.append(inchikey_raw[keys[i]])
 
             if features is None:
-                features = [str(i) for i in range(1,len(data[0]) + 1)]
+                features = [str(i) for i in range(1, len(data[0]) + 1)]
 
             with h5py.File(output_file, "w") as hf:
-                hf.create_dataset("keys", data=np.array(keys[inds], DataSignature.string_dtype()))
+                hf.create_dataset("keys", data=np.array(
+                    keys[inds], DataSignature.string_dtype()))
                 hf.create_dataset("X", data=np.array(data))
-                hf.create_dataset("features", data=np.array(features, DataSignature.string_dtype()))
+                hf.create_dataset("features", data=np.array(
+                    features, DataSignature.string_dtype()))
 
             if method == "fit":
                 with h5py.File(os.path.join(models_path, features_file), "w") as hf:
-                    hf.create_dataset("features", data=np.array(features, DataSignature.string_dtype()))
+                    hf.create_dataset("features", data=np.array(
+                        features, DataSignature.string_dtype()))
 
     def to_feature_string(self, signatures, string_func):
         """Covert signature to a string with feature names.
