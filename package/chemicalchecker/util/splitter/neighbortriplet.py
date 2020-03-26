@@ -393,37 +393,26 @@ class NeighborTripletTraintest(object):
                 nn_set = set(range(neig_idxs.shape[0]))
                 # idx refere split2, all else to split1
                 for idx, row in enumerate(tqdm(neig_idxs)):
-                    # anchors are repeated num_triplets times
-                    #anchors = [idx] * triplet_per_mol
-                    #anchors_split.extend(anchors)
-                    # positives are sampled from top T NNs for each category
-                    p_indexes = np.random.choice(
-                        T, triplet_per_mol, replace=True, p=t_prob)
+                    # positives are samples from tot T NNs for each category
+                    p_indexes = np.random.choice(T, triplet_per_mol, replace=True, p=t_prob)
                     positives = neig_idxs[idx, p_indexes]
                     easy_p_split.extend(positives)
                     medi_p_split.extend(positives)
                     hard_p_split.extend(positives)
-
-                    # easy negatives are sampled from outside NN
-                    no_nn = nn_set - set(row)
-                    # avoid fetching itself as negative!
-                    if split1 == split2:
-                        no_nn = no_nn - set([idx])
-                    no_nn = list(no_nn)
-                    easy_n = np.random.choice(
-                        no_nn, triplet_per_mol, replace=True)
-                    easy_n_split.extend(easy_n)
-
-                    # medium negatives are from F (in NN but not T)
-                    medi_n = np.random.choice(
-                        neig_idxs[idx][T:], triplet_per_mol, replace=True)
-                    medi_n_split.extend(medi_n)
-
-                    # hard negatives are from T
-                    hard_n = [np.random.choice(
-                        neig_idxs[idx][p_i + 1:T + 1], 1)[0] for p_i in p_indexes] 
-                        # p=(t_prob[p_i:] / sum(t_prob[p_i:]))[::-1]
-                    hard_n_split.extend(hard_n)
+                    # medium negatives are sampled from F (in NN but not T)
+                    m_negatives = np.random.choice(neig_idxs[idx][T:], triplet_per_mol, replace=True)
+                    medi_n_split.extend(m_negatives)
+                    # hard negatives are sampled from T (but higher than positives)
+                    hn_shifts  = np.random.choice(int(np.ceil(T/2)), triplet_per_mol, replace=True)+1
+                    hn_indexes = hn_shifts + p_indexes
+                    h_negatives = neig_idxs[idx, hn_indexes]
+                    hard_n_split.extend(h_negatives)
+                    # easy negatives (sampled from everywhere; in general should be fine altough it may sample positives...)
+                    #e_negatives = set(np.random.choice(len(neig_idxs), triplet_per_mol*2, replace=True))
+                    #e_negatives = np.random.choice(e_negatives.difference(neig[idx]), triplet_per_mol, replace=True)
+                    # if too slow just uncomment the following and comment the above
+                    e_negatives = np.random.choice(len(neig_idxs), triplet_per_mol, replace=True)
+                    easy_n_split.extend(e_negatives)
                     
                 # get reference ids
                 NeighborTripletTraintest.__log.info("Mapping triplets")
@@ -572,10 +561,6 @@ class NeighborTripletTraintest(object):
                 # set current space to nan
                 col_slice = slice(idx * 128, (idx + 1) * 128)
                 x1_data_transf[:, col_slice] = np.nan
-            # drop rows that only contain NaNs
-            not_nan1 = np.isfinite(x1_data_transf).any(axis=1)
-            not_nan = np.logical_and(not_nan1, not_nan1)
-            x1_data_transf = x1_data_transf[not_nan]
             return x1_data_transf
 
         reader = NeighborTripletTraintest(file_name, split)
