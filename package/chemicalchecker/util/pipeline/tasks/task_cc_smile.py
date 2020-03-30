@@ -35,12 +35,16 @@ class CCSmileConverter(BaseTask, BaseOperator):
 
         self.datasets = params.get('datasets', None)
 
+        self.CC_ROOT = params.get('CC_ROOT', None)
+        if self.CC_ROOT is None:
+            raise Exception('CC_ROOT parameter is not set')
+
     def run(self):
         """Run the CCLongShort task."""
 
         config_cc = Config()
         dataset_codes = list()
-        cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
+        cc = ChemicalChecker(self.CC_ROOT)
 
         if self.datasets is None:
             all_datasets = Dataset.get()
@@ -93,7 +97,7 @@ class CCSmileConverter(BaseTask, BaseOperator):
                 "inputs = pickle.load(open(filename, 'rb'))",
                 "data = str(inputs[task_id][0])",  # elements for current job
                 # elements are indexes
-                'cc = ChemicalChecker(config.PATH.CC_ROOT )',
+                "cc = ChemicalChecker('%s' )" % self.CC_ROOT,
                 'pars = %s' % dataset_params,
                 "sign_full = cc.get_signature('%s', 'full', data,**pars)" % self.cc_type,
                 "sign0_full = cc.get_signature('sign0', 'full', 'A1.001')",
