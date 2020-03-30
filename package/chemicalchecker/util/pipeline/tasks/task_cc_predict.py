@@ -100,7 +100,7 @@ class CCPredict(BaseTask, BaseOperator):
                 dataset_codes_files = {}
                 for code in self.datasets_input_files:
                     dataset_codes_files[code] = os.path.join(
-                        self.output_path, code, CC_TYPES_DEPENDENCIES[self.cc_type] + ".h5")
+                        self.output_path, code, CC_TYPES_DEPENDENCIES[self.cc_type][0] + ".h5")
                     dataset_codes.append(code)
                 self.datasets_input_files = dataset_codes_files
             else:
