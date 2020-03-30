@@ -39,13 +39,16 @@ class CCLongShort(BaseTask, BaseOperator):
         self.dataset_sign_short = params.get('dataset_sign_short', 'ZZ.000')
         self.epochs = params.get('epochs', 800)
         self.encoding_dim = params.get('encoding_dim', 512)
+        self.CC_ROOT = params.get('CC_ROOT', None)
+        if self.CC_ROOT is None:
+            raise Exception('CC_ROOT parameter is not set')
 
     def run(self):
         """Run the CCLongShort task."""
 
         config_cc = Config()
         dataset_codes = list()
-        cc = ChemicalChecker(config_cc.PATH.CC_ROOT)
+        cc = ChemicalChecker(self.CC_ROOT)
 
         if self.datasets is None:
             all_datasets = Dataset.get()
@@ -123,7 +126,7 @@ class CCLongShort(BaseTask, BaseOperator):
                 "from chemicalchecker.tool.autoencoder import AutoEncoderSiamese",
                 "config = Config()",
                 # elements are indexes
-                'cc = ChemicalChecker(config.PATH.CC_ROOT )',
+                "cc = ChemicalChecker('%s')" % self.CC_ROOT,
                 # start import
                 'sign_full = cc.get_signature("%s", "full", "%s")' % (
                     self.cc_type, self.dataset_sign_long),
