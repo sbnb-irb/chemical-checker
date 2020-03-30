@@ -534,13 +534,7 @@ class SiameseTriplets(object):
             val_loss = h_metrics['val_loss'][0]
             acc = h_metrics['accTot'][0]
             val_acc = h_metrics['val_accTot'][0]
-            if not self.standard:
-                val_cor1 = h_metrics['val_cor1'][0]
-                val_cor2 = h_metrics['val_cor2'][0]
-                val_cor3 = h_metrics['val_cor3'][0]
-                lr_iters.append([loss, val_loss, val_acc, val_cor1, val_cor2, val_cor3])
-            else:
-                lr_iters.append([loss, val_loss, val_acc, 0, 0, 0])
+            lr_iters.append([loss, val_loss, val_acc])
 
         lr_iters = np.array(lr_iters)
         lr_scores = np.mean(np.array([rankdata(1/col) if i != 0 else rankdata(col) 
@@ -553,7 +547,7 @@ class SiameseTriplets(object):
         pkl_file = os.path.join(self.model_dir, fname)
         pickle.dump(lr_results, open(pkl_file, "wb"))
 
-        fig, axes = plt.subplots(2, 3, figsize=(10, 5))
+        fig, axes = plt.subplots(1, 3, figsize=(10, 5))
         ax = axes.flatten()
         log_lrs = np.log10(lrs)
 
@@ -567,21 +561,9 @@ class SiameseTriplets(object):
         ax[1].set_xlabel('lrs')
         ax[1].scatter(log_lrs, lr_iters[:,2], label='train')
 
-        ax[2].set_title('Val cor1')
+        ax[2].set_title('Lr score')
         ax[2].set_xlabel('lrs')
-        ax[2].scatter(log_lrs, lr_iters[:,3])
-
-        ax[3].set_title('Val cor2')
-        ax[3].set_xlabel('lrs')
-        ax[3].scatter(log_lrs, lr_iters[:,4])
-
-        ax[4].set_title('Val cor3')
-        ax[4].set_xlabel('lrs')
-        ax[4].scatter(log_lrs, lr_iters[:,5])
-
-        ax[5].set_title('Lr score')
-        ax[5].set_xlabel('lrs')
-        ax[5].scatter(log_lrs, lr_scores)
+        ax[2].scatter(log_lrs, lr_scores)
         fig.tight_layout()
 
         fname = 'lr_score.png'
