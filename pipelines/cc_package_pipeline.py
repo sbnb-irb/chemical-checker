@@ -197,7 +197,7 @@ for val_set in validation_sets:
 
 
 # TASK: Calculate signatures 0
-s0_params = s0_params = {'CC_ROOT' : CC_ROOT, 'cc_old_path': CC_OLD_ROOT}
+s0_params = s0_params = {'CC_ROOT': CC_ROOT, 'cc_old_path': CC_OLD_ROOT}
 s0_task = CCFit(cc_type='sign0', **s0_params)
 pp.add_task(s0_task)
 
@@ -244,12 +244,12 @@ s3_task = CCFit(cc_type='sign3', **s3_params)
 pp.add_task(s3_task)
 
 # TASK: Calculate consensus signature 3
-s3_short_params = {}
+s3_short_params = {'CC_ROOT': CC_ROOT}
 s3_short_task = CCLongShort(cc_type='sign3', **s3_short_params)
 pp.add_task(s3_short_task)
 
 # TASK: Calculate smiles to signature 3
-s3_smile_params = {}
+s3_smile_params = {'CC_ROOT': CC_ROOT}
 s3_smile_task = CCSmileConverter(cc_type='sign3', **s3_smile_params)
 pp.add_task(s3_smile_task)
 
