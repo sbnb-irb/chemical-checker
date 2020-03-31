@@ -547,7 +547,7 @@ class SiameseTriplets(object):
         pkl_file = os.path.join(self.model_dir, fname)
         pickle.dump(lr_results, open(pkl_file, "wb"))
 
-        fig, axes = plt.subplots(1, 3, figsize=(10, 5))
+        fig, axes = plt.subplots(1, 3, figsize=(9, 3))
         ax = axes.flatten()
         log_lrs = np.log10(lrs)
 
