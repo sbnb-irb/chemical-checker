@@ -183,6 +183,8 @@ class CCPredict(BaseTask, BaseOperator):
 
             if self.cc_type == 'sign0':
                 script_lines += [
+                    'sign_full = cc.get_signature("%s","%s",dataset)' % (
+                        self.cc_type, branch),
                     "if len(pars) == 0:",
                     "    pars['destination'] = output_file",
                     "sign_full.predict(**pars)"]
