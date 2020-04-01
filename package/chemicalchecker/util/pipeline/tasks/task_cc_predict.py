@@ -93,19 +93,21 @@ class CCPredict(BaseTask, BaseOperator):
         if self.cc_type == 'sign0' or self.cc_type == 'sign3':
             branch = 'full'
 
-        if self.datasets_input_files is None and self.cc_type != 'sign0':
+        # If not in sign0 then we need to get input data files
+        if self.cc_type != 'sign0':
+            if self.datasets_input_files is None:
 
-            dataset_codes_files = {}
-            for code in self.datasets:
-                dataset_codes_files[code] = os.path.join(
-                    self.output_path, code, CC_TYPES_DEPENDENCIES[self.cc_type][0] + ".h5")
-            self.datasets_input_files = dataset_codes_files
+                dataset_codes_files = {}
+                for code in self.datasets:
+                    dataset_codes_files[code] = os.path.join(
+                        self.output_path, code, CC_TYPES_DEPENDENCIES[self.cc_type][0] + ".h5")
+                self.datasets_input_files = dataset_codes_files
 
-        else:
-            for ds, filename in self.datasets_input_files.items():
-                if not os.path.exists(self.datasets_input_files[ds]):
-                    raise Exception(
-                        "Expected input file %s not present" % self.datasets_input_files[code])
+            else:
+                for ds, filename in self.datasets_input_files.items():
+                    if not os.path.exists(self.datasets_input_files[ds]):
+                        raise Exception(
+                            "Expected input file %s not present" % self.datasets_input_files[code])
 
         for ds in self.datasets:
             sign = cc.get_signature(self.cc_type, branch, ds)
