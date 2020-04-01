@@ -14,7 +14,7 @@ from chemicalchecker.util import HPC
 VALID_TYPES = ['sign', 'neig', 'clus', 'proj']
 
 CC_TYPES_DEPENDENCIES = {'sign0': ['sign0'], 'sign1': ['sign0'],
-                         'sign2': ['sign1', 'neig1'], 'sign3': ['sign2'],
+                         'sign2': ['sign1'], 'sign3': ['sign2'],
                          'neig1': ['sign1'], 'neig2': ['sign2'], 'neig3': ['sign3'],
                          'clus1': ['sign1'], 'clus2': ['sign2'], 'clus3': ['sign3'],
                          'proj1': ['sign1'], 'proj2': ['sign2'], 'proj3': ['sign3']}
@@ -79,7 +79,7 @@ class CCPredict(BaseTask, BaseOperator):
         if self.output_path is None:
             raise Exception("No output_path defined")
 
-        if self.datasets_input_files is None:
+        if self.cc_type != 'sign0' and self.datasets_input_files is None:
             raise Exception("There is no dataset to predict " + self.cc_type)
 
     def run(self):
@@ -115,8 +115,8 @@ class CCPredict(BaseTask, BaseOperator):
                     "Expected input file %s not present" % self.datasets_input_files[code])
 
         for ds in dataset_codes:
-            sign0 = cc.get_signature(self.cc_type, branch, ds)
-            if not sign0.is_fit():
+            sign = cc.get_signature(self.cc_type, branch, ds)
+            if not sign.is_fit():
                 raise Exception("Dataset %s is not trained yet" % ds)
 
         dataset_params = list()
@@ -181,16 +181,19 @@ class CCPredict(BaseTask, BaseOperator):
                 "output_file=os.path.join('%s', dataset, '%s')" % (
                     self.output_path, self.output_file),
                 "if not os.path.exists(os.path.dirname(output_file)):",
-                "    os.makedirs(os.path.dirname(output_file))",
-                # start import
-                'sign_full = cc.get_signature("%s","%s",dataset, **pars)' % (
-                    self.cc_type, branch)
+                "    os.makedirs(os.path.dirname(output_file))"
+
             ]
 
             if self.cc_type == 'sign0':
-                script_lines += ["sign_full.predict(input_file,output_file)"]
+                script_lines += [
+                    "if len(pars) == 0:",
+                    "    pars['destination'] = output_file",
+                    "sign_full.predict(**pars)"]
             else:
                 script_lines += [
+                    'sign_full = cc.get_signature("%s","%s",dataset, **pars)' % (
+                        self.cc_type, branch),
                     "sign_full.predict(DataSignature(input_file),output_file)"]
 
             script_lines += ["print('JOB DONE')"]
