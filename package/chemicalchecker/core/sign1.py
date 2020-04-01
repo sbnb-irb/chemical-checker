@@ -31,6 +31,7 @@ from chemicalchecker import ChemicalChecker
 @logged
 class sign1(BaseSignature, DataSignature):
     """Signature type 1 class."""
+
     def __init__(self, signature_path, dataset, **params):
         """Initialize the signature.
 
@@ -48,7 +49,8 @@ class sign1(BaseSignature, DataSignature):
     def copy_sign0_to_sign1(self, s0, s1, just_data=False):
         """Copy from sign0 to sign1"""
         if s0.molset != s1.molset:
-            raise Exception("Copying from signature 0 to 1 is only allowed for same molsets (reference or full)")
+            raise Exception(
+                "Copying from signature 0 to 1 is only allowed for same molsets (reference or full)")
         self.__log.debug("Copying HDF5 dataset")
         with h5py.File(s1.data_path, "w") as hf:
             hf.create_dataset(
@@ -56,10 +58,12 @@ class sign1(BaseSignature, DataSignature):
             hf.create_dataset(
                 "date", data=np.array([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
             hf.create_dataset("V", data=s0[:])
-            hf.create_dataset("keys", data=np.array(s0.keys, DataSignature.string_dtype()))
+            hf.create_dataset("keys", data=np.array(
+                s0.keys, DataSignature.string_dtype()))
             if s0.molset == "reference":
                 mappings = s0.get_h5_dataset("mappings")
-                hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
+                hf.create_dataset("mappings", data=np.array(
+                    mappings, DataSignature.string_dtype()))
         if not just_data:
             self.__log.debug("Copying triplets")
             fn0 = os.path.join(s0.model_path, "triplets.h5")
@@ -68,7 +72,8 @@ class sign1(BaseSignature, DataSignature):
                 fn1 = os.path.join(s1.model_path, "triplets.h5")
                 shutil.copyfile(fn0, fn1)
             else:
-                self.__log.warn("No triplets available! Please fit sign0 with option do_triplets=True")
+                self.__log.warn(
+                    "No triplets available! Please fit sign0 with option do_triplets=True")
         self.refresh()
         s0.refresh()
         s1.refresh()
@@ -84,7 +89,7 @@ class sign1(BaseSignature, DataSignature):
     def was_sparse(self, max_keys=1000, zero_prop=0.5):
         """Guess if the matrix was sparse"""
         vals = self.subsample(max_keys)[0].ravel()
-        if np.sum(vals == 0)/len(vals) > zero_prop:
+        if np.sum(vals == 0) / len(vals) > zero_prop:
             self.__log.debug("Matrix was probably sparse")
             return True
         else:
@@ -92,11 +97,13 @@ class sign1(BaseSignature, DataSignature):
             return False
 
     def pipeline_file(self):
-        fn = os.path.join(self.get_molset("reference").model_path, "pipeline.pkl")
+        fn = os.path.join(self.get_molset(
+            "reference").model_path, "pipeline.pkl")
         return fn
 
     def load_model(self, name):
-        fn = os.path.join(self.get_molset("reference").model_path, "%s.pkl" % name)
+        fn = os.path.join(self.get_molset(
+            "reference").model_path, "%s.pkl" % name)
         with open(fn, "rb") as f:
             mod = pickle.load(f)
         return mod
@@ -124,7 +131,8 @@ class sign1(BaseSignature, DataSignature):
         if s0.cctype != "sign0":
             raise Exception("A signature type 0 is expected..!")
         if s0.molset != "full":
-            raise Exception("Fit should be done with the full signature 0 (even if inside reference is used)")
+            raise Exception(
+                "Fit should be done with the full signature 0 (even if inside reference is used)")
         s0_ref = s0.get_molset("reference")
         s1_ref = self.get_molset("reference")
         s1_ref.clean()
@@ -145,7 +153,8 @@ class sign1(BaseSignature, DataSignature):
         if sparse:
             self.__log.debug("Sparse matrix pipeline")
             if latent:
-                self.__log.debug("Looking for latent variables with TFIDF-LSI (done for tmp)")
+                self.__log.debug(
+                    "Looking for latent variables with TFIDF-LSI (done for tmp)")
                 mod = Lsi(self, tmp=tmp)
                 mod.fit()
             else:
@@ -179,7 +188,7 @@ class sign1(BaseSignature, DataSignature):
         pipeline = {
             "sparse": sparse,
             "latent": latent,
-            "scale" : scale,
+            "scale": scale,
             "metric_learning": metric_learning,
             "semisupervised": semisupervised
         }
@@ -188,7 +197,15 @@ class sign1(BaseSignature, DataSignature):
         fn = self.pipeline_file()
         with open(fn, "wb") as f:
             pickle.dump(pipeline, f)
-        
+        s1_ref.background_distances("cosine")
+        with h5py.File(s1_ref.data_path, "a") as hf:
+            hf.create_dataset("metric", data=np.array(
+                ["cosine"], DataSignature.string_dtype()))
+        # Marking as ready
+        self.__log.debug("Mark as ready")
+        s1_ref.mark_ready()
+        self.mark_ready()
+
     def predict(self, sign0, destination=None):
         """Predict sign1 from sign0"""
         tag = str(uuid.uuid4())
@@ -252,7 +269,8 @@ class sign1(BaseSignature, DataSignature):
         else:
             V_name = "V"
         data_path = os.path.join(s1.model_path, "neig.h5")
-        self.__log.debug("Calculating nearest neighbors. Saving in: %s" % data_path)
+        self.__log.debug(
+            "Calculating nearest neighbors. Saving in: %s" % data_path)
         with h5py.File(s1.data_path, 'r') as dh5, h5py.File(data_path, 'w') as dh5out:
             datasize = dh5[V_name].shape
             data_type = dh5[V_name].dtype
@@ -293,7 +311,8 @@ class sign1(BaseSignature, DataSignature):
     def get_triplets(self, reference):
         """Read triplets of signature across the CC"""
         if reference:
-            fn = os.path.join(self.get_molset("reference").model_path, "triplets.h5")
+            fn = os.path.join(self.get_molset(
+                "reference").model_path, "triplets.h5")
         else:
             fn = os.path.join(self.model_path, "triplets.h5")
         if not os.path.exists(fn):
@@ -313,32 +332,36 @@ class sign1(BaseSignature, DataSignature):
         with h5py.File(neig_path, "r") as hf:
             N, kn = hf["indices"].shape
             opt_t = np.min([opt_t, 0.01])
-            k = np.clip(opt_t*N, 5, 100)
-            k = np.min([k, kn*0.5+1])
+            k = np.clip(opt_t * N, 5, 100)
+            k = np.min([k, kn * 0.5 + 1])
             k = np.max([k, 5])
             k = int(k)
-            nn_pos = hf["indices"][:,1:(k+1)]
-            nn_neg = hf["indices"][:,(k+1):]
-        self.__log.debug("Starting sampling (pos:%d, neg:%d)" % (nn_pos.shape[1], nn_neg.shape[1]))
-        n_sample = min(int(num_triplets/N), 100)
+            nn_pos = hf["indices"][:, 1:(k + 1)]
+            nn_neg = hf["indices"][:, (k + 1):]
+        self.__log.debug("Starting sampling (pos:%d, neg:%d)" %
+                         (nn_pos.shape[1], nn_neg.shape[1]))
+        n_sample = min(int(num_triplets / N), 100)
         triplets = []
-        med_neg  = nn_neg.shape[1]
-        nn_pos_prob = [(len(nn_pos)-i) for i in range(0, nn_pos.shape[1])]
-        nn_neg_prob = [(len(nn_neg)-i) for i in range(0, nn_neg.shape[1])]
-        nn_pos_prob = np.array(nn_pos_prob)/np.sum(nn_pos_prob)
-        nn_neg_prob = np.array(nn_neg_prob)/np.sum(nn_neg_prob)
+        med_neg = nn_neg.shape[1]
+        nn_pos_prob = [(len(nn_pos) - i) for i in range(0, nn_pos.shape[1])]
+        nn_neg_prob = [(len(nn_neg) - i) for i in range(0, nn_neg.shape[1])]
+        nn_pos_prob = np.array(nn_pos_prob) / np.sum(nn_pos_prob)
+        nn_neg_prob = np.array(nn_neg_prob) / np.sum(nn_neg_prob)
         for i in range(0, N):
             # sample positives with replacement
-            pos = np.random.choice(nn_pos[i], n_sample, p=nn_pos_prob, replace=True)
+            pos = np.random.choice(
+                nn_pos[i], n_sample, p=nn_pos_prob, replace=True)
             if n_sample > med_neg:
                 # sample "medium" negatives
-                neg = np.random.choice(nn_neg[i], med_neg, p=nn_neg_prob, replace=False)
+                neg = np.random.choice(
+                    nn_neg[i], med_neg, p=nn_neg_prob, replace=False)
                 # for the rest, sample "easy" negatives
-                forb = set(list(nn_pos[i])+list(nn_neg[i]))
+                forb = set(list(nn_pos[i]) + list(nn_neg[i]))
                 cand = [i for i in range(0, N) if i not in forb]
                 if len(cand) > 0:
-                    neg_ = np.random.choice(cand, min(len(cand),n_sample-med_neg), replace=True)
-                    neg = np.array(list(neg)+list(neg_))
+                    neg_ = np.random.choice(
+                        cand, min(len(cand), n_sample - med_neg), replace=True)
+                    neg = np.array(list(neg) + list(neg_))
             else:
                 neg = np.random.choice(nn_neg[i], n_sample, replace=False)
             if len(pos) > len(neg):
@@ -355,7 +378,7 @@ class sign1(BaseSignature, DataSignature):
         with h5py.File(fn, "w") as hf:
             hf.create_dataset("triplets", data=triplets)
         return triplets
-            
+
     def score(self, reference, max_triplets=10000):
         """Score based on triplets.
 
@@ -398,23 +421,26 @@ class sign1(BaseSignature, DataSignature):
         if len(triplets) > max_triplets:
             idxs = np.random.choice(len(triplets), max_triplets, replace=False)
             triplets = triplets[idxs]
-        anchors = sorted(set(triplets[:,0]))
-        anchors_idxs = dict((k,i) for i,k in enumerate(anchors))
+        anchors = sorted(set(triplets[:, 0]))
+        anchors_idxs = dict((k, i) for i, k in enumerate(anchors))
         self.__log.debug("Reading from nearest neighbors")
         if not local_neig_path:
-            self.__log.debug("Getting neighbors data from a proper neig instance")
+            self.__log.debug(
+                "Getting neighbors data from a proper neig instance")
             neig = self.get_molset("reference").get_neig()
             neig_path = neig.data_path
         else:
-            neig_path = os.path.join(self.get_molset("reference").model_path, "neig.h5")
-            self.__log.debug("Getting neighbors data from file: %s" % neig_path)
+            neig_path = os.path.join(self.get_molset(
+                "reference").model_path, "neig.h5")
+            self.__log.debug(
+                "Getting neighbors data from file: %s" % neig_path)
         with h5py.File(neig_path, "r") as hf:
-            nn = hf["indices"][anchors][:,1:101]
+            nn = hf["indices"][anchors][:, 1:101]
         self.__log.debug("Negatives and positives")
         positives = [(anchors_idxs[t[0]], t[1]) for t in triplets]
         negatives = [(anchors_idxs[t[0]], t[2]) for t in triplets]
-        pairs     = positives + negatives
-        truth     = [1]*len(positives) + [0]*len(negatives)
+        pairs = positives + negatives
+        truth = [1] * len(positives) + [0] * len(negatives)
         self.__log.debug("Setting the range of search")
         N = nn.shape[0]
         kranges = []
@@ -429,7 +455,7 @@ class sign1(BaseSignature, DataSignature):
         for k in kranges:
             n_pairs = []
             for i in range(0, nn.shape[0]):
-                n_pairs += [(i, n) for n in nn[i,:k]]
+                n_pairs += [(i, n) for n in nn[i, :k]]
             pred = []
             n_pairs = set(n_pairs)
             for p in pairs:
@@ -440,11 +466,12 @@ class sign1(BaseSignature, DataSignature):
             accus += [(k, accuracy_score(truth, pred))]
         idx = np.argmax(savgol_filter([x[1] for x in accus], 11, 3))
         opt_k = accus[idx][0]
-        opt_t = opt_k/nn.shape[0]
+        opt_t = opt_k / nn.shape[0]
         if save:
             self.__log.debug("Saving")
             with h5py.File(os.path.join(self.get_molset("reference").model_path, "opt_t.h5"), "w") as hf:
-                hf.create_dataset("accuracies", data=np.array(accus).astype(np.int))
+                hf.create_dataset(
+                    "accuracies", data=np.array(accus).astype(np.int))
                 hf.create_dataset("opt_t", data=np.array([opt_t]))
                 hf.create_dataset("opt_k", data=np.array([opt_k]))
         return opt_t
