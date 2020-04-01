@@ -603,6 +603,7 @@ class SiameseTriplets(object):
                 col_slice = slice(idx * 128, (idx + 1) * 128)
                 x3_data_transf[:, col_slice] = x3_data[:, col_slice]
             # keep rows containing at least one not-NaN value
+            """
             not_nan1 = np.isfinite(x1_data_transf).any(axis=1)
             not_nan2 = np.isfinite(x2_data_transf).any(axis=1)
             not_nan3 = np.isfinite(x3_data_transf).any(axis=1)
@@ -610,6 +611,7 @@ class SiameseTriplets(object):
             x1_data_transf = x1_data_transf[not_nan]
             x2_data_transf = x2_data_transf[not_nan]
             x3_data_transf = x3_data_transf[not_nan]
+            """
             return x1_data_transf, x2_data_transf, x3_data_transf
 
         def mask_exclude(idxs, x1_data, x2_data, x3_data):
@@ -629,6 +631,7 @@ class SiameseTriplets(object):
                 col_slice = slice(idx * 128, (idx + 1) * 128)
                 x3_data_transf[:, col_slice] = np.nan
             # drop rows that only contain NaNs
+            """
             not_nan1 = np.isfinite(x1_data_transf).any(axis=1)
             not_nan2 = np.isfinite(x2_data_transf).any(axis=1)
             not_nan3 = np.isfinite(x3_data_transf).any(axis=1)
@@ -636,6 +639,7 @@ class SiameseTriplets(object):
             x1_data_transf = x1_data_transf[not_nan]
             x2_data_transf = x2_data_transf[not_nan]
             x3_data_transf = x3_data_transf[not_nan]
+            """
             return x1_data_transf, x2_data_transf, x3_data_transf
 
         vsets = ['train_test', 'test_test']
