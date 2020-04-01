@@ -135,8 +135,12 @@ class CCPredict(BaseTask, BaseOperator):
                 dataset_params.append(
                     (ds_code, self.datasets_input_files[ds_code], dict_params))
             else:
-                dataset_params.append(
-                    (ds_code, self.datasets_input_files[ds_code], None))
+                if self.datasets_input_files is None:
+                    dataset_params.append(
+                        (ds_code, None, None))
+                else:
+                    dataset_params.append(
+                        (ds_code, self.datasets_input_files[ds_code], None))
 
         job_path = None
         if len(self.datasets) > 0:
