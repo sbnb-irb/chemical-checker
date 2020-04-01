@@ -117,6 +117,11 @@ class CCPredict(BaseTask, BaseOperator):
         dataset_params = list()
 
         for ds_code in self.datasets:
+
+            input_data_file = None
+            if self.datasets_input_files is not None:
+                input_data_file = self.datasets_input_files[ds_code]
+
             if isinstance(self.ds_data_params, Config):
                 temp_dict = self.ds_data_params.asdict()
             else:
@@ -133,14 +138,10 @@ class CCPredict(BaseTask, BaseOperator):
                     dict_params.update(self.general_data_params)
 
                 dataset_params.append(
-                    (ds_code, self.datasets_input_files[ds_code], dict_params))
+                    (ds_code, input_data_file, dict_params))
             else:
-                if self.datasets_input_files is None:
-                    dataset_params.append(
-                        (ds_code, None, None))
-                else:
-                    dataset_params.append(
-                        (ds_code, self.datasets_input_files[ds_code], None))
+                dataset_params.append(
+                    (ds_code, input_data_file, None))
 
         job_path = None
         if len(self.datasets) > 0:
