@@ -537,7 +537,7 @@ class SiameseTriplets(object):
             lr_iters.append([loss, val_loss, val_acc])
 
         lr_iters = np.array(lr_iters)
-        lr_scores = np.mean(np.array([rankdata(1/col) if i != 0 else rankdata(col) 
+        lr_scores = np.mean(np.array([rankdata(1/col) if i > 1 else rankdata(col) 
             for i, col in enumerate(lr_iters.T)]).T, axis=1)
         lr_index = np.argmin(lr_scores)
         lr = lrs[lr_index]
