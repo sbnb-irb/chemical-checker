@@ -185,8 +185,7 @@ class CCPredict(BaseTask, BaseOperator):
                 script_lines += [
                     'sign_full = cc.get_signature("%s","%s",dataset)' % (
                         self.cc_type, branch),
-                    "if len(pars) == 0:",
-                    "    pars['destination'] = output_file",
+                    "pars['destination'] = output_file",
                     "sign_full.predict(**pars)"]
             else:
                 script_lines += [
@@ -222,7 +221,7 @@ class CCPredict(BaseTask, BaseOperator):
         dataset_not_done = []
         time.sleep(5)
 
-        for code in self.datasets_input_files.keys():
+        for code in self.datasets:
 
             check_file = os.path.join(self.output_path, code, self.output_file)
 
