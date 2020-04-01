@@ -132,10 +132,6 @@ class CCPredict(BaseTask, BaseOperator):
                 if self.general_data_params is not None:
                     dict_params.update(self.general_data_params)
 
-                if self.datasets_entry_point is not None:
-                    for ds in self.datasets_entry_point.keys():
-                        dict_params.update(
-                            {'entry_point': self.datasets_entry_point[ds]})
                 dataset_params.append(
                     (ds_code, self.datasets_input_files[ds_code], dict_params))
             else:
