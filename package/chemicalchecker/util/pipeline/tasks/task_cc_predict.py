@@ -71,7 +71,7 @@ class CCPredict(BaseTask, BaseOperator):
         self.output_path = params.get("output_path", None)
         self.output_file = params.get("output_file", None)
         self.datasets_input_files = params.get("datasets_input_files", None)
-        self.datasets_entry_point = params.get("datasets_entry_point", None)
+        self.datasets = params.get("datasets", None)
 
         if self.output_file is None:
             self.output_file = self.cc_type + ".h5"
@@ -79,14 +79,13 @@ class CCPredict(BaseTask, BaseOperator):
         if self.output_path is None:
             raise Exception("No output_path defined")
 
-        if self.cc_type != 'sign0' and self.datasets_input_files is None:
-            raise Exception("There is no dataset to predict " + self.cc_type)
+        if self.datasets is None:
+            raise Exception("There is no datasets to predict " + self.cc_type)
 
     def run(self):
         """Run the CCPredict task."""
 
         config_cc = Config()
-        dataset_codes = list()
         cc = ChemicalChecker(self.CC_ROOT)
 
         branch = 'reference'
@@ -94,34 +93,28 @@ class CCPredict(BaseTask, BaseOperator):
         if self.cc_type == 'sign0' or self.cc_type == 'sign3':
             branch = 'full'
 
-        if type(self.datasets_input_files) is dict or type(self.datasets_input_files) is list:
+        if self.datasets_input_files is None and self.cc_type != 'sign0':
 
-            if type(self.datasets_input_files) is list:
-                dataset_codes_files = {}
-                for code in self.datasets_input_files:
-                    dataset_codes_files[code] = os.path.join(
-                        self.output_path, code, CC_TYPES_DEPENDENCIES[self.cc_type][0] + ".h5")
-                    dataset_codes.append(code)
-                self.datasets_input_files = dataset_codes_files
-            else:
-                dataset_codes = list(self.datasets_input_files.keys())
+            dataset_codes_files = {}
+            for code in self.datasets:
+                dataset_codes_files[code] = os.path.join(
+                    self.output_path, code, CC_TYPES_DEPENDENCIES[self.cc_type][0] + ".h5")
+            self.datasets_input_files = dataset_codes_files
+
         else:
-            raise Exception(
-                "Input dataset_codes parameter is neither a list nor a dict")
+            for ds, filename in self.datasets_input_files.items():
+                if not os.path.exists(self.datasets_input_files[ds]):
+                    raise Exception(
+                        "Expected input file %s not present" % self.datasets_input_files[code])
 
-        for ds, filename in self.datasets_input_files.items():
-            if not os.path.exists(self.datasets_input_files[ds]):
-                raise Exception(
-                    "Expected input file %s not present" % self.datasets_input_files[code])
-
-        for ds in dataset_codes:
+        for ds in self.datasets:
             sign = cc.get_signature(self.cc_type, branch, ds)
             if not sign.is_fit():
                 raise Exception("Dataset %s is not trained yet" % ds)
 
         dataset_params = list()
 
-        for ds_code in dataset_codes:
+        for ds_code in self.datasets:
             if isinstance(self.ds_data_params, Config):
                 temp_dict = self.ds_data_params.asdict()
             else:
@@ -148,9 +141,9 @@ class CCPredict(BaseTask, BaseOperator):
                     (ds_code, self.datasets_input_files[ds_code], None))
 
         job_path = None
-        if len(dataset_codes) > 0:
+        if len(self.datasets) > 0:
 
-            dataset_codes.sort()
+            self.datasets.sort()
 
             job_path = tempfile.mkdtemp(
                 prefix='jobs_' + self.cc_type + '_pred_', dir=self.tmpdir)
@@ -206,7 +199,7 @@ class CCPredict(BaseTask, BaseOperator):
             # hpc parameters
 
             params = {}
-            params["num_jobs"] = len(dataset_codes)
+            params["num_jobs"] = len(self.datasets)
             params["jobdir"] = job_path
             params["job_name"] = "CC_PRD_" + self.cc_type.upper()
             params["elements"] = dataset_params
