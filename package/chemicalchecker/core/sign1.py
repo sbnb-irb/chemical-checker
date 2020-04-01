@@ -210,45 +210,50 @@ class sign1(BaseSignature, DataSignature):
         """Predict sign1 from sign0"""
         tag = str(uuid.uuid4())
         tmp_path = os.path.join(self.model_path, tag)
-        cc = ChemicalChecker(tmp_path)
-        s1 = cc.signature(self.dataset, "sign1")
-        self.copy_sign0_to_sign1(sign0, s1, just_data=True)
-        self.__log.debug("Reading pipeline")
-        fn = self.pipeline_file()
-        with open(fn, "rb") as f:
-            pipeline = pickle.load(f)
-        self.__log.debug("Starting pipeline")
-        self.__log.debug("Scaling if necessary")
-        if not pipeline["sparse"] and pipeline["scale"]:
-            mod = self.load_model("scale")
-            mod.predict(s1)
-        self.__log.debug("Transformation")
-        if pipeline["metric_learning"]:
-            if pipeline["semisupervised"]:
-                mod = self.load_model("semiml")
-            else:
-                mod = self.load_model("unsupml")
-        else:
-            if pipeline["latent"]:
-                if pipeline["sparse"]:
-                    mod = self.load_model("lsi")
+        try:
+            cc = ChemicalChecker(tmp_path)
+            s1 = cc.signature(self.dataset, "sign1")
+            self.copy_sign0_to_sign1(sign0, s1, just_data=True)
+            self.__log.debug("Reading pipeline")
+            fn = self.pipeline_file()
+            with open(fn, "rb") as f:
+                pipeline = pickle.load(f)
+            self.__log.debug("Starting pipeline")
+            self.__log.debug("Scaling if necessary")
+            if not pipeline["sparse"] and pipeline["scale"]:
+                mod = self.load_model("scale")
+                mod.predict(s1)
+            self.__log.debug("Transformation")
+            if pipeline["metric_learning"]:
+                if pipeline["semisupervised"]:
+                    mod = self.load_model("semiml")
                 else:
-                    mod = self.load_model("pca")
+                    mod = self.load_model("unsupml")
             else:
-                mod = None
-        if mod is not None:
-            mod.predict(s1)
-        self.__log.debug("Prediction done!")
-        if destination is None:
-            self.__log.debug("Returning a V, keys dictionary")
-            results = {
-                "V": s1[:],
-                "keys": s1.keys
-            }
-        else:
-            self.__log.debug("Saving H5 file in %s" % destination)
-            shutil.copyfile(s1.data_path, destination)
-            results = None
+                if pipeline["latent"]:
+                    if pipeline["sparse"]:
+                        mod = self.load_model("lsi")
+                    else:
+                        mod = self.load_model("pca")
+                else:
+                    mod = None
+            if mod is not None:
+                mod.predict(s1)
+            self.__log.debug("Prediction done!")
+            if destination is None:
+                self.__log.debug("Returning a V, keys dictionary")
+                results = {
+                    "V": s1[:],
+                    "keys": s1.keys
+                }
+            else:
+                self.__log.debug("Saving H5 file in %s" % destination)
+                shutil.copyfile(s1.data_path, destination)
+                results = None
+        except Exception as e:
+            shutil.rmtree(tmp_path)
+            raise Exception(e)
+
         self.__log.debug("Deleting tmp folder")
         shutil.rmtree(tmp_path)
         return results
