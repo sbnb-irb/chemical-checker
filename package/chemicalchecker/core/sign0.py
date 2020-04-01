@@ -408,7 +408,7 @@ class sign0(BaseSignature, DataSignature):
             return results
         else:
             self.__log.debug("Saving H5 file in %s" % destination)
-            with h5py.File(self.data_path, "w") as hf:
+            with h5py.File(destination, "w") as hf:
                 hf.create_dataset(
                     "name", data=np.array([str(self.dataset) + "sig"], DataSignature.string_dtype()))
                 hf.create_dataset(
