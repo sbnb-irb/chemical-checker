@@ -196,7 +196,7 @@ class NeighborTripletTraintest(object):
                mean_center_x=True, shuffle=True, check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
                suffix='eval', x_dtype=np.float32, y_dtype=np.float32,
-               num_triplets=1e6, limit=1000000, cpu=1):
+               num_triplets=1e6, limit=100000, cpu=1):
         """Create the HDF5 file with validation splits.
 
         Args:
@@ -228,9 +228,9 @@ class NeighborTripletTraintest(object):
         shuffle_idx = np.arange(neigbors_matrix.shape[0])
         np.random.shuffle(shuffle_idx)
 
-        neigbors_matrix = neigbors_matrix[shuffle_idx[:limit]]
-        X = X.get_h5_dataset('x')[shuffle_idx[:limit]]
-        X_inks = np.array(neigbors_sign.keys)[shuffle_idx[:limit]]
+        neigbors_matrix = neigbors_matrix[shuffle_idx]
+        X = X.get_h5_dataset('x')[shuffle_idx]
+        X_inks = np.array(neigbors_sign.keys)[shuffle_idx]
 
         if len(neigbors_matrix) != len(X):
             raise Exception("neigbors_matrix should be same length as X.")
@@ -238,24 +238,43 @@ class NeighborTripletTraintest(object):
         NeighborTripletTraintest.__log.debug(
             "{:<20} shape: {:>10}".format("input X", str(X.shape)))
 
+        fullpath, _ = os.path.split(out_file)
+        redundancy_path = os.path.join(fullpath, "redundancy_dict.pkl")
         # reduce redundancy, keep full-ref mapping
-        rnd = RNDuplicates(cpu=cpu)
-        _, ref_matrix, full_ref_map = rnd.remove(
-            neigbors_matrix.astype(np.float32))
-        ref_full_map = dict()
-        for key, value in full_ref_map.items():
-            ref_full_map.setdefault(value, list()).append(key)
-        full_refid_map = dict(
-            zip(rnd.final_ids, np.arange(len(rnd.final_ids))))
-        refid_full_map = {full_refid_map[k]: v
-                          for k, v in ref_full_map.items()}
-        # ref_full_all_map = np.array(rnd.final_ids)
+        if not os.path.isfile(redundancy_path):
+            NeighborTripletTraintest.__log.info("Reducing redundancy")
+            rnd = RNDuplicates(cpu=cpu)
+            _, ref_matrix, full_ref_map = rnd.remove(
+                neigbors_matrix.astype(np.float32))
+            ref_full_map = dict()
+            for key, value in full_ref_map.items():
+                ref_full_map.setdefault(value, list()).append(key)
+            full_refid_map = dict(
+                zip(rnd.final_ids, np.arange(len(rnd.final_ids))))
+            refid_full_map = {full_refid_map[k]: v
+                              for k, v in ref_full_map.items()}
+            redundancy_dict = {'ref_matrix': ref_matrix, 'refid_full_map': refid_full_map}
+            pickle.dump(redundancy_dict, open(redundancy_path, "wb"))
+        else:
+            NeighborTripletTraintest.__log.info("Loading nonredundancy matrix")
+            redundancy_dict = pickle.load(open(redundancy_path, "rb"))
+            ref_matrix = redundancy_dict['ref_matrix']
+            refid_full_map = redundancy_dict['refid_full_map']
 
-        # Set triplet_factor
-        triplet_per_mol = int(
-            np.ceil((num_triplets / 2) / ref_matrix.shape[0]))
-        NeighborTripletTraintest.__log.info(
-            "Triplet_per_mol: %s" % triplet_per_mol)
+        # Limit signatures by limit value
+        NeighborTripletTraintest.__log.info("Limit of %s" % limit)
+        ref_matrix = ref_matrix[:limit]
+
+        # Set triplet_factors
+        triplet_per_mol = max([int(np.ceil(num_triplets / ref_matrix.shape[0])), 3])
+        easy_triplet_per_mol = int(np.floor(triplet_per_mol * 0.05))
+        medium_triplet_per_mol = triplet_per_mol - (2 * easy_triplet_per_mol)
+        hard_triplet_per_mol = easy_triplet_per_mol
+        NeighborTripletTraintest.__log.info("Triplet_per_mol: %s" % triplet_per_mol)
+        NeighborTripletTraintest.__log.info("E triplet per mol: %s" % easy_triplet_per_mol)
+        NeighborTripletTraintest.__log.info("M triplet per mol: %s" % medium_triplet_per_mol)
+        NeighborTripletTraintest.__log.info("H triplet per mol: %s" % hard_triplet_per_mol)
+        assert(triplet_per_mol == (easy_triplet_per_mol + medium_triplet_per_mol + hard_triplet_per_mol))
 
         # split chunks, get indeces of chunks for each split
         chunk_size = np.floor(ref_matrix.shape[0] / 100)
@@ -348,7 +367,7 @@ class NeighborTripletTraintest(object):
                 T = int(np.clip(t_per * nr_matrix[split2].shape[0], 5, 100))
                 F = np.clip(10 * T, 100, 1000)
                 F = int(min(F, (nr_matrix[split2].shape[0] - 1)))
-
+                
                 NeighborTripletTraintest.__log.info("T per: %s" % (t_per))
                 NeighborTripletTraintest.__log.info("F and T: %s %s" % (F, T))
                 assert(T < F)
@@ -408,8 +427,8 @@ class NeighborTripletTraintest(object):
                     h_negatives = neig_idxs[idx, hn_indexes]
                     hard_n_split.extend(h_negatives)
                     # easy negatives (sampled from everywhere; in general should be fine altough it may sample positives...)
-                    #e_negatives = set(np.random.choice(len(neig_idxs), triplet_per_mol*2, replace=True))
-                    #e_negatives = np.random.choice(e_negatives.difference(neig[idx]), triplet_per_mol, replace=True)
+                    #e_negatives = np.random.choice(len(neig_idxs), triplet_per_mol*2, replace=True)
+                    #e_negatives = np.random.choice(list(e_negatives.difference(neig_idxs[idx])), triplet_per_mol, replace=True)
                     # if too slow just uncomment the following and comment the above
                     e_negatives = np.random.choice(len(neig_idxs), triplet_per_mol, replace=True)
                     easy_n_split.extend(e_negatives)
@@ -444,12 +463,13 @@ class NeighborTripletTraintest(object):
 
                 # stack triplets
                 NeighborTripletTraintest.__log.info("Stacking triplets")
+                total_trpls = int(ref_matrix.shape[0] * triplet_per_mol)
                 easy_triplets = np.vstack(
-                    (anchors_full, easy_p_full, easy_n_full)).T[:1000]
+                    (anchors_full, easy_p_full, easy_n_full)).T[:ref_matrix.shape[0]*easy_triplet_per_mol]
                 medium_triplets = np.vstack(
-                    (anchors_full, medi_p_full, medi_n_full)).T
+                    (anchors_full, medi_p_full, medi_n_full)).T[:ref_matrix.shape[0]*medium_triplet_per_mol]
                 hard_triplets = np.vstack(
-                    (anchors_full, hard_p_full, hard_n_full)).T
+                    (anchors_full, hard_p_full, hard_n_full)).T[:ref_matrix.shape[0]*hard_triplet_per_mol]
                 triplets = np.vstack(
                     (easy_triplets, medium_triplets, hard_triplets))
                 # stack categories
