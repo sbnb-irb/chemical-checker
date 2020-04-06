@@ -241,25 +241,25 @@ class NeighborTripletTraintest(object):
         fullpath, _ = os.path.split(out_file)
         redundancy_path = os.path.join(fullpath, "redundancy_dict.pkl")
         # reduce redundancy, keep full-ref mapping
-        if not os.path.isfile(redundancy_path):
-            NeighborTripletTraintest.__log.info("Reducing redundancy")
-            rnd = RNDuplicates(cpu=cpu)
-            _, ref_matrix, full_ref_map = rnd.remove(
-                neigbors_matrix.astype(np.float32))
-            ref_full_map = dict()
-            for key, value in full_ref_map.items():
-                ref_full_map.setdefault(value, list()).append(key)
-            full_refid_map = dict(
-                zip(rnd.final_ids, np.arange(len(rnd.final_ids))))
-            refid_full_map = {full_refid_map[k]: v
-                              for k, v in ref_full_map.items()}
-            redundancy_dict = {'ref_matrix': ref_matrix, 'refid_full_map': refid_full_map}
-            pickle.dump(redundancy_dict, open(redundancy_path, "wb"))
-        else:
-            NeighborTripletTraintest.__log.info("Loading nonredundancy matrix")
-            redundancy_dict = pickle.load(open(redundancy_path, "rb"))
-            ref_matrix = redundancy_dict['ref_matrix']
-            refid_full_map = redundancy_dict['refid_full_map']
+        #if not os.path.isfile(redundancy_path):
+        NeighborTripletTraintest.__log.info("Reducing redundancy")
+        rnd = RNDuplicates(cpu=cpu)
+        _, ref_matrix, full_ref_map = rnd.remove(
+            neigbors_matrix.astype(np.float32))
+        ref_full_map = dict()
+        for key, value in full_ref_map.items():
+            ref_full_map.setdefault(value, list()).append(key)
+        full_refid_map = dict(
+            zip(rnd.final_ids, np.arange(len(rnd.final_ids))))
+        refid_full_map = {full_refid_map[k]: v
+                          for k, v in ref_full_map.items()}
+        #    redundancy_dict = {'ref_matrix': ref_matrix, 'refid_full_map': refid_full_map}
+        #    pickle.dump(redundancy_dict, open(redundancy_path, "wb"))
+        #else:
+        #    NeighborTripletTraintest.__log.info("Loading nonredundancy matrix")
+        #    redundancy_dict = pickle.load(open(redundancy_path, "rb"))
+        #    ref_matrix = redundancy_dict['ref_matrix']
+        #    refid_full_map = redundancy_dict['refid_full_map']
 
         # Limit signatures by limit value
         NeighborTripletTraintest.__log.info("Limit of %s" % limit)
@@ -267,7 +267,7 @@ class NeighborTripletTraintest(object):
 
         # Set triplet_factors
         triplet_per_mol = max([int(np.ceil(num_triplets / ref_matrix.shape[0])), 3])
-        easy_triplet_per_mol = int(np.floor(triplet_per_mol * 0.05))
+        easy_triplet_per_mol = int(np.ceil(triplet_per_mol * 0.05))
         medium_triplet_per_mol = triplet_per_mol - (2 * easy_triplet_per_mol)
         hard_triplet_per_mol = easy_triplet_per_mol
         NeighborTripletTraintest.__log.info("Triplet_per_mol: %s" % triplet_per_mol)
@@ -364,8 +364,14 @@ class NeighborTripletTraintest(object):
                 combo = '_'.join([split1, split2])
                 NeighborTripletTraintest.__log.debug("SPLIT: %s" % combo)
                 # define F and T according to the split that is being used
-                T = int(np.clip(t_per * nr_matrix[split2].shape[0], 5, 100))
-                F = np.clip(10 * T, 100, 1000)
+                if len(ref_matrix) <= 10000:
+                    t_limit = 50
+                    f_limit = 300
+                else:
+                    t_limit = 5
+                    f_limit = 200
+                T = int(np.clip(t_per * nr_matrix[split2].shape[0], 5, t_limit))
+                F = np.clip(10 * T, 100, f_limit)
                 F = int(min(F, (nr_matrix[split2].shape[0] - 1)))
                 
                 NeighborTripletTraintest.__log.info("T per: %s" % (t_per))
@@ -515,9 +521,9 @@ class NeighborTripletTraintest(object):
                     import matplotlib.pyplot as plt
                     import seaborn as sns
 
-                    limit = min(10000, len(shuffle_idxs))
-                    dists = np.empty((limit, 3))
-                    for idx, row in enumerate(shuffle_idxs[:limit]):
+                    dis_limit = min(10000, len(shuffle_idxs))
+                    dists = np.empty((dis_limit, 3))
+                    for idx, row in enumerate(shuffle_idxs[:dis_limit]):
                         anchor = neigbors_matrix[triplets[row][0]]
                         positive = neigbors_matrix[triplets[row][1]]
                         negative = neigbors_matrix[triplets[row][2]]
