@@ -2342,8 +2342,6 @@ def mask_keep(idxs, x1_data):
         col_slice = slice(idx * 128, (idx + 1) * 128)
         x1_data_transf[:, col_slice] = x1_data[:, col_slice]
     # keep rows containing at least one not-NaN value
-    not_nan = np.isfinite(x1_data_transf).any(axis=1)
-    x1_data_transf = x1_data_transf[not_nan]
     return x1_data_transf
 
 
@@ -2354,8 +2352,6 @@ def mask_exclude(idxs, x1_data):
         col_slice = slice(idx * 128, (idx + 1) * 128)
         x1_data_transf[:, col_slice] = np.nan
     # drop rows that only contain NaNs
-    not_nan = np.isfinite(x1_data_transf).any(axis=1)
-    x1_data_transf = x1_data_transf[not_nan]
     return x1_data_transf
 
 
