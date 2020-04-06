@@ -522,7 +522,7 @@ class SiameseTriplets(object):
         lr_iters = []
         lr_params = params.copy()
         lr_params['epochs'] = 1
-        lrs = [1e-6, 1e-5, 1e-4, 1e-3, 1e-2]
+        lrs = [1e-6, 1e-5, 1e-4]
         for lr in lrs:
             self.__log.info('Trying lr %s' % lr)
             lr_params['learning_rate'] = lr
