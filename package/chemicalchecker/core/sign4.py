@@ -80,14 +80,14 @@ class sign4(BaseSignature, DataSignature):
             'loss_func': 'only_self_loss',
             'margin': 1.0,
             'alpha': 1.0,
-            'num_triplets': 10000,
+            'num_triplets': 1000000,
             't_per': 0.01,
             'standard': False,
             'augment_fn': subsample,
             'augment_kwargs': {
                 'dataset': [dataset],
             },
-            'limit_mols': 50000
+            'limit_mols': 100000
         }
 
         s1_ref = self.get_sign('sign1').get_molset("reference")
