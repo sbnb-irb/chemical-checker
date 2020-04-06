@@ -86,7 +86,8 @@ class sign4(BaseSignature, DataSignature):
             'augment_fn': subsample,
             'augment_kwargs': {
                 'dataset': [dataset],
-            }
+            },
+            'limit_mols': 50000
         }
 
         s1_ref = self.get_sign('sign1').get_molset("reference")
@@ -278,7 +279,8 @@ class sign4(BaseSignature, DataSignature):
                     suffix=suffix,
                     num_triplets=num_triplets,
                     t_per=params['t_per'],
-                    cpu=cpu)
+                    cpu=cpu,
+                    limit=params['limit_mols'])
         else:
             num_triplets = params.get('num_triplets', 1e6)
             cpu = params.get('cpu', 1)
