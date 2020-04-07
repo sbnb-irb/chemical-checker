@@ -292,7 +292,8 @@ class sign4(BaseSignature, DataSignature):
                     suffix=suffix,
                     num_triplets=num_triplets,
                     t_per=params['t_per'],
-                    cpu=cpu)
+                    cpu=cpu,
+                    limit=params['limit_mols'])
         # update the subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
