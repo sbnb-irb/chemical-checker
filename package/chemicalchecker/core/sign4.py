@@ -249,6 +249,7 @@ class sign4(BaseSignature, DataSignature):
             raise ImportError("requires tensorflow " +
                               "https://tensorflow.org")
         # get params and set folder
+        self.__log.debug('Siamese suffix %s' % suffix)
         if suffix:
             siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
             traintest_file = os.path.join(self.model_path,
