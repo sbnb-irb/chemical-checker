@@ -262,8 +262,11 @@ class NeighborTripletTraintest(object):
         #    refid_full_map = redundancy_dict['refid_full_map']
 
         # Limit signatures by limit value
+        size_original_ref_matrix = len(ref_matrix)
+        NeighborTripletTraintest.__log.info("Original size ref_matrix: %s" % size_original_ref_matrix)
         NeighborTripletTraintest.__log.info("Limit of %s" % limit)
         ref_matrix = ref_matrix[:limit]
+        NeighborTripletTraintest.__log.info("Final size: %s" % len(ref_matrix))
 
         # Set triplet_factors
         triplet_per_mol = max([int(np.ceil(num_triplets / ref_matrix.shape[0])), 3])
@@ -364,12 +367,20 @@ class NeighborTripletTraintest(object):
                 combo = '_'.join([split1, split2])
                 NeighborTripletTraintest.__log.debug("SPLIT: %s" % combo)
                 # define F and T according to the split that is being used
-                if len(ref_matrix) <= 10000:
-                    t_limit = 50
-                    f_limit = 300
-                else:
-                    t_limit = 5
-                    f_limit = 200
+                
+                LB   = 10000
+                UB   = 100000
+                TMAX = 50
+                TMIN = 5
+                def get_t_max(N):
+                    N = np.clip(N, LB, UB)
+                    a = (TMAX-TMIN)/(LB-UB)
+                    b = TMIN - a*UB
+                    return int(a*N + b)
+
+                t_limit = get_t_max(size_original_ref_matrix)
+                f_limit = 250
+
                 T = int(np.clip(t_per * nr_matrix[split2].shape[0], 5, t_limit))
                 F = np.clip(10 * T, 100, f_limit)
                 F = int(min(F, (nr_matrix[split2].shape[0] - 1)))
