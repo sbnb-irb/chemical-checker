@@ -327,14 +327,14 @@ class sign4(BaseSignature, DataSignature):
         prior_path = os.path.join(self.model_path, 'prior_%s' % suffix)
         os.makedirs(prior_path, exist_ok=True)
         prior_model = self.train_prior_model(
-            siamese, test_x, prior_path, evaluate)
+            siamese, test_x, prior_path, total_x=max_known)
         # train confidence model
         confidence_path = os.path.join(self.model_path,
                                        'confidence_%s' % suffix)
         os.makedirs(confidence_path, exist_ok=True)
         confidence_model = self.train_confidence_model(
             siamese, train_x, test_x, prior_model,
-            confidence_path, evaluate)
+            confidence_path)
         # update the parameters with the new nr_of epochs and lr
         self.params['sign2']['epochs'] = siamese.last_epoch
         self.params['sign2']['learning_rate'] = siamese.learning_rate
@@ -349,7 +349,7 @@ class sign4(BaseSignature, DataSignature):
                                p_nr=p_nr, p_keep=p_keep)
         return realistic_fn
 
-    def train_prior_model(self, siamese, test_x, save_path, evaluate,
+    def train_prior_model(self, siamese, test_x, save_path, evaluate=True,
                           realistic_fn=None, total_x=10000, plots=True):
         """Train prior predictor."""
         def get_weights(y, p=2):
