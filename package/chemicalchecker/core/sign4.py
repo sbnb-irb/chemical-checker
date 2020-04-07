@@ -309,13 +309,22 @@ class sign4(BaseSignature, DataSignature):
         siamese = SiameseTriplets(siamese_path, evaluate=evaluate, **params)
         siamese.fit()
         self.__log.debug('model saved to: %s' % siamese_path)
+        # if final we are done
         if not evaluate:
             return siamese
         # save validation plots
         self.plot_validations(siamese, dataset_idx, traintest_file)
         # when evaluating also save prior and confidence models
-        # get set of known
-        max_known = 50000
+        prior_model, confidence_model = self.train_confidence(
+            traintest_file, X, suffix, siamese)
+        # update the parameters with the new nr_of epochs and lr
+        self.params['sign2']['epochs'] = siamese.last_epoch
+        self.params['sign2']['learning_rate'] = siamese.learning_rate
+        return siamese, prior_model, confidence_model
+
+    def train_confidence(self, traintest_file, X, suffix, siamese,
+                         max_known=50000):
+        """Train confidence and prior models."""
         tt = DataSignature(traintest_file)
         test_inks = tt.get_h5_dataset('keys_test')[:max_known]
         train_inks = tt.get_h5_dataset('keys_train')[:max_known]
@@ -337,10 +346,7 @@ class sign4(BaseSignature, DataSignature):
         confidence_model = self.train_confidence_model(
             siamese, train_x, test_x, prior_model,
             confidence_path)
-        # update the parameters with the new nr_of epochs and lr
-        self.params['sign2']['epochs'] = siamese.last_epoch
-        self.params['sign2']['learning_rate'] = siamese.learning_rate
-        return siamese, prior_model, confidence_model
+        return prior_model, confidence_model
 
     def realistic_subsampling_fn(self):
         # realistic subsampling function
@@ -544,7 +550,7 @@ class sign4(BaseSignature, DataSignature):
         return model
 
     def train_confidence_model(self, siamese, train_x, test_x, prior_model,
-                               save_path, evaluate, plots=True):
+                               save_path, evaluate=True, plots=True):
         # save linear model combining confidence natural scores
 
         def get_weights(y, p=2):
@@ -888,7 +894,7 @@ class sign4(BaseSignature, DataSignature):
             pred['train'] = dict()
             full_x = DataSignature(self.sign2_universe)
             train = self.read_h5(full_x, train_idxs[:4000])
-            
+
             for name, mask_fn in mask_fns.items():
                 pred['train'][name] = siamese.predict(mask_fn(train))
             del train
@@ -905,7 +911,8 @@ class sign4(BaseSignature, DataSignature):
                 self.__log.info('Number of unknown %s' % len(unknown))
                 for name, mask_fn in mask_fns.items():
                     if name == 'ALL':
-                        pred['unknown'][name] = siamese.predict(mask_fn(unknown))
+                        pred['unknown'][name] = siamese.predict(
+                            mask_fn(unknown))
                     else:
                         pred['unknown'][name] = []
                 del unknown
@@ -985,18 +992,19 @@ class sign4(BaseSignature, DataSignature):
             dist_ts = proj[proj_limit:(proj_limit * 2)]
             dist_os = proj[(proj_limit * 2):]
 
-
         axes[0][0].set_title('Train')
         axes[0][0].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="grey")
         if np.any(pred['unknown']['ALL']):
-            axes[0][0].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="grey")
+            axes[0][0].scatter(dist_uk[:, 0], dist_uk[
+                               :, 1], s=10, color="grey")
         axes[0][0].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="grey")
         axes[0][0].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="#1f77b4")
 
         axes[0][1].set_title('Test')
         axes[0][1].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="grey")
         if np.any(pred['unknown']['ALL']):
-            axes[0][1].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="grey")
+            axes[0][1].scatter(dist_uk[:, 0], dist_uk[
+                               :, 1], s=10, color="grey")
         axes[0][1].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="grey")
         axes[0][1].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="#ff7f0e")
 
@@ -1005,13 +1013,15 @@ class sign4(BaseSignature, DataSignature):
         axes[1][0].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="grey")
         axes[1][0].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="grey")
         if np.any(pred['unknown']['ALL']):
-            axes[1][0].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="#2ca02c")
+            axes[1][0].scatter(dist_uk[:, 0], dist_uk[
+                               :, 1], s=10, color="#2ca02c")
 
         axes[1][1].set_title('ONLY-SELF')
         axes[1][1].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="grey")
         axes[1][1].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="grey")
         if np.any(pred['unknown']['ALL']):
-            axes[1][1].scatter(dist_uk[:, 0], dist_uk[:, 1], s=10, color="grey")
+            axes[1][1].scatter(dist_uk[:, 0], dist_uk[
+                               :, 1], s=10, color="grey")
         axes[1][1].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="#d62728")
 
         fname = 'known_unknown_projection.png'
