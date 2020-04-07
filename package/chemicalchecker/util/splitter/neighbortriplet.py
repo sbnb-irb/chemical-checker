@@ -379,10 +379,10 @@ class NeighborTripletTraintest(object):
                     return int(a*N + b)
 
                 t_limit = get_t_max(size_original_ref_matrix)
-                f_limit = 250
+                f_limit = 300
 
                 T = int(np.clip(t_per * nr_matrix[split2].shape[0], 5, t_limit))
-                F = np.clip(10 * T, 100, f_limit)
+                F = np.clip(10 * T, 200, f_limit)
                 F = int(min(F, (nr_matrix[split2].shape[0] - 1)))
                 
                 NeighborTripletTraintest.__log.info("T per: %s" % (t_per))
