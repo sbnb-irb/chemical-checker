@@ -148,10 +148,16 @@ class SiameseTriplets(object):
                 self.tr_shapes[0][0] / self.batch_size)
 
             # load the scaler
-            if 'scaler' in traintest_data.info_h5:
+            scaler_path = os.path.join(self.model_dir, 'scaler.pkl')
+            if os.path.isfile(scaler_path):
+                self.scaler = pickle.load(open(scaler_path, 'rb'))
+            elif 'scaler' in traintest_data.info_h5:
                 scaler_path = traintest_data.get_h5_dataset('scaler')[0]
                 self.__log.info("Using scaler: %s", scaler_path)
                 self.scaler = pickle.load(open(scaler_path, 'rb'))
+            else:
+                self.__log.warning("No scaler has been loaded")
+            os.mkdir(self.model_dir)
         # initialize validation/test generator
         if evaluate:
             val_shape_type_gen = NeighborTripletTraintest.generator_fn(
