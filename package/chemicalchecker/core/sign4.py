@@ -323,7 +323,7 @@ class sign4(BaseSignature, DataSignature):
         return siamese, prior_model, confidence_model
 
     def train_confidence(self, traintest_file, X, suffix, siamese,
-                         max_known=50000):
+                         max_known=10000, p_self=0.0):
         """Train confidence and prior models."""
         tt = DataSignature(traintest_file)
         test_inks = tt.get_h5_dataset('keys_test')[:max_known]
@@ -338,14 +338,14 @@ class sign4(BaseSignature, DataSignature):
         prior_path = os.path.join(self.model_path, 'prior_%s' % suffix)
         os.makedirs(prior_path, exist_ok=True)
         prior_model = self.train_prior_model(
-            siamese, test_x, prior_path, total_x=max_known)
+            siamese, test_x, prior_path, total_x=max_known, p_self=p_self)
         # train confidence model
         confidence_path = os.path.join(self.model_path,
                                        'confidence_%s' % suffix)
         os.makedirs(confidence_path, exist_ok=True)
         confidence_model = self.train_confidence_model(
             siamese, train_x, test_x, prior_model,
-            confidence_path)
+            confidence_path, p_self=p_self)
         return prior_model, confidence_model
 
     def realistic_subsampling_fn(self):
@@ -358,7 +358,8 @@ class sign4(BaseSignature, DataSignature):
         return realistic_fn
 
     def train_prior_model(self, siamese, test_x, save_path, evaluate=True,
-                          realistic_fn=None, total_x=10000, plots=True):
+                          realistic_fn=None, total_x=10000, n_samples=5,
+                          p_self=0.0, plots=True):
         """Train prior predictor."""
         def get_weights(y, p=2):
             h, b = np.histogram(y, 20)
@@ -468,7 +469,7 @@ class sign4(BaseSignature, DataSignature):
             realistic_fn = self.realistic_subsampling_fn()
         self.__log.info('Training PRIOR model')
         available_x = test_x.shape[0]
-        #total_x = available_x
+        # total_x = available_x
         total_feat = test_x.shape[1]
         X = np.zeros((total_x, int(total_feat / 128)))
         Y = np.zeros((total_x, 1))
@@ -495,8 +496,11 @@ class sign4(BaseSignature, DataSignature):
                 feat = test_x[src_chunk]
                 feat_onlyself = realistic_fn(feat, p_only_self=1.0)
                 preds_onlyself = siamese.predict(feat_onlyself)
-                feat_notself = realistic_fn(feat, p_self=0.1)
-                preds_noself = siamese.predict(feat_notself)
+                preds = list()
+                for i in range(n_samples):
+                    feat_notself = realistic_fn(feat, p_self=p_self)
+                    preds.append(siamese.predict(feat_notself))
+                preds_noself = np.mean(np.stack(preds, axis=2), axis=2)
                 # the prior is only-self vs not-self predictions
                 corrs = row_wise_correlation(
                     preds_onlyself, preds_noself, scaled=True)
@@ -541,7 +545,7 @@ class sign4(BaseSignature, DataSignature):
 
         # fit model
         model = RandomForestRegressor(n_estimators=100, max_features=None)
-        p = max(1, find_p(model, x_tr, y_tr, x_te, y_te))
+        p = find_p(model, x_tr, y_tr, x_te, y_te)
         model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
         if plots:
             analyze(model, x_tr, y_tr, x_te, y_te)
@@ -550,7 +554,8 @@ class sign4(BaseSignature, DataSignature):
         return model
 
     def train_confidence_model(self, siamese, train_x, test_x, prior_model,
-                               save_path, evaluate=True, plots=True):
+                               save_path, evaluate=True, p_self=0.0,
+                               plots=True):
         # save linear model combining confidence natural scores
 
         def get_weights(y, p=2):
@@ -654,8 +659,8 @@ class sign4(BaseSignature, DataSignature):
             ax.set_title('Prior (%s)' % ax.get_title())
             ax.set_ylabel("Prior")
             ax.set_xlabel("Correlation")
-            #ax = fig.add_subplot(gs[1, 3])
-            #importances(ax, mod)
+            # ax = fig.add_subplot(gs[1, 3])
+            # importances(ax, mod)
             if plots:
                 plt.savefig(os.path.join(save_path, 'confidence_stats.png'))
                 plt.close()
@@ -684,10 +689,10 @@ class sign4(BaseSignature, DataSignature):
         self.__log.info('Training CONFIDENCE model')
 
         X, Y = self.save_known_distributions(
-            siamese, train_x, test_x, prior_model, save_path)
+            siamese, train_x, test_x, prior_model, save_path, p_self=p_self)
         # split chunks, get indeces of chunks for each split
         if evaluate:
-            split_idxs = Traintest.get_split_indeces(X.shape[0], [0.8, 0.2])
+            split_idxs = Traintest.get_split_indeces(X.shape[0], [0.5, 0.5])
             x_tr = X[split_idxs[0]]
             y_tr = Y[split_idxs[0]].ravel()
             x_te = X[split_idxs[1]]
@@ -704,7 +709,7 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug('y test: %s' % str(y_te.shape))
 
         model = make_pipeline(StandardScaler(), LinearRegression())
-        p = max(1, find_p(model, x_tr, y_tr, x_te, y_te))
+        p = find_p(model, x_tr, y_tr, x_te, y_te)
         model.fit(x_tr, y_tr,
                   linearregression__sample_weight=get_weights(y_tr, p=p))
         calibration_model = make_pipeline(StandardScaler(), LinearRegression())
@@ -719,7 +724,7 @@ class sign4(BaseSignature, DataSignature):
         return model, calibration_model
 
     def save_known_distributions(self, siamese, train_x, test_x, prior_model,
-                                 save_path, realistic_fn=None):
+                                 save_path, realistic_fn=None, p_self=0.0):
         try:
             import faiss
         except ImportError as err:
@@ -742,18 +747,20 @@ class sign4(BaseSignature, DataSignature):
         # only self prediction is the ground truth
         test_onlyself = mask_keep(self.dataset_idx, test_x)
         test_onlyself_pred = siamese.predict(test_onlyself)
+        test_notself = mask_exclude(self.dataset_idx, test_x)
+        test_notself_pred = siamese.predict(test_notself)
 
         # do applicability domain prediction
         self.__log.info('Computing Applicability Domain')
-        applicability, app_range, notself_consensus = \
+        applicability, app_range, consensus_ad = \
             self.applicability_domain(train_onlyself_neig, test_x, siamese,
-                                      dropout_fn=realistic_fn)
+                                      dropout_fn=realistic_fn, p_self=p_self)
         self.__log.info('Applicability Domain DONE')
 
         # do conformal prediction (dropout)
         self.__log.info('Computing Conformal Prediction')
-        intensities, robustness, consensus = self.conformal_prediction(
-            siamese, test_x, dropout_fn=realistic_fn)
+        intensities, robustness, consensus_cp = self.conformal_prediction(
+            siamese, test_x, dropout_fn=realistic_fn, p_self=p_self)
         self.__log.info('Conformal Prediction DONE')
 
         # predict expected prior
@@ -763,13 +770,19 @@ class sign4(BaseSignature, DataSignature):
 
         # calculate the error
         log_mse = np.log10(
-            np.mean(((test_onlyself_pred - notself_consensus)**2), axis=1))
-        log_mse_consensus = np.log10(
-            np.mean(((test_onlyself_pred - consensus)**2), axis=1))
+            np.mean(((test_onlyself_pred - test_notself_pred)**2), axis=1))
+        log_mse_cp = np.log10(
+            np.mean(((test_onlyself_pred - consensus_cp)**2), axis=1))
+        log_mse_ad = np.log10(
+            np.mean(((test_onlyself_pred - consensus_ad)**2), axis=1))
 
         # get correlation between prediction and only self predictions
-        correlations = row_wise_correlation(
-            test_onlyself_pred, notself_consensus, scaled=True)
+        correlation = row_wise_correlation(
+            test_onlyself_pred, test_notself_pred, scaled=True)
+        correlation_cp = row_wise_correlation(
+            test_onlyself_pred, consensus_cp, scaled=True)
+        correlation_ad = row_wise_correlation(
+            test_onlyself_pred, consensus_ad, scaled=True)
 
         # we have all the data to train the confidence model
         features = np.vstack([applicability, robustness, prior]).T
@@ -778,47 +791,88 @@ class sign4(BaseSignature, DataSignature):
         with h5py.File(know_dist_file, "w") as hf:
             hf.create_dataset('robustness', data=robustness)
             hf.create_dataset('intensity', data=intensities)
-            hf.create_dataset('consensus', data=consensus)
+            hf.create_dataset('consensus', data=consensus_cp)
             hf.create_dataset('applicability', data=applicability)
             hf.create_dataset('applicability_range', data=app_range)
             hf.create_dataset('prior', data=prior)
-            hf.create_dataset('correlation', data=correlations)
+            hf.create_dataset('correlation', data=correlation)
+            hf.create_dataset('correlation_consensus', data=correlation_ad)
             hf.create_dataset('log_mse', data=log_mse)
-            hf.create_dataset('log_mse_consensus', data=log_mse_consensus)
+            hf.create_dataset('log_mse_consensus', data=log_mse_ad)
 
-        return features, correlations
+        # save plot
+        import pandas as pd
+        import seaborn as sns
+        import matplotlib.pyplot as plt
+        variables = ['applicability', 'robustness', 'prior',
+                     'correlation', 'correlation_consensus_cp',
+                     'correlation_consensus_ad']
+
+        def corr(x, y, **kwargs):
+            coef = np.corrcoef(x, y)[0][1]
+            label = r'$\rho$ = ' + str(round(coef, 2))
+            ax = plt.gca()
+            ax.annotate(label, xy=(0.2, 0.95), size=20, xycoords=ax.transAxes)
+
+        # Create a pair grid instance
+        df = pd.DataFrame(columns=variables)
+        df['applicability'] = applicability
+        df['robustness'] = robustness
+        df['prior'] = prior
+        df['correlation'] = correlation
+        df['correlation_consensus_cp'] = correlation_cp
+        df['correlation_consensus_ad'] = correlation_ad
+
+        # Map the plots to the locations
+        grid = sns.PairGrid(data=df, vars=variables, size=4)
+        grid = grid.map_upper(plt.scatter, color='darkred')
+        grid = grid.map_upper(corr)
+        grid = grid.map_lower(sns.kdeplot, cmap='Reds')
+        grid = grid.map_diag(plt.hist, bins=10, edgecolor='k', color='darkred')
+        plot_file = os.path.join(save_path, 'known_dist.png')
+        plt.savefig(plot_file)
+
+        return features, correlation_ad
 
     def applicability_domain(self, neig_index, features, siamese,
-                             dropout_fn=None, app_range=None, n_samples=10):
+                             dropout_fn=None, app_range=None, n_samples=5,
+                             p_self=0.0):
 
         if dropout_fn is None:
             dropout_fn = self.realistic_subsampling_fn()
         # applicability is whether not-self preds is close to only-self preds
         # neighbors between 5 and 25 depending on the size of the dataset
         app_thr = int(np.clip(np.log10(self.neig_sign.shape[0])**2, 5, 25))
-        preds, apps, ranges = list(), list(), list()
+        preds, dists, ranges = list(), list(), list()
         for i in range(n_samples):
-            pred = siamese.predict(dropout_fn(features))
+            pred = siamese.predict(dropout_fn(features, p_self=p_self))
             only_self_dists, _ = neig_index.search(pred, app_thr)
             if app_range is None:
                 d_min = np.min(only_self_dists)
                 d_max = np.max(only_self_dists)
-                app_range = np.array([d_min, d_max])
+            else:
+                d_min = app_range[0]
+                d_max = app_range[1]
+            curr_app_range = np.array([d_min, d_max])
+            preds.append(pred)
+            dists.append(only_self_dists)
+            ranges.append(curr_app_range)
+        consensus = np.mean(np.stack(preds, axis=2), axis=2)
+        app_range = [np.min(np.vstack(ranges)[:, 0]),
+                     np.max(np.vstack(ranges)[:, 1])]
+        # scale and invert distances to get applicability
+        apps = list()
+        for dist in dists:
             d_min = app_range[0]
             d_max = app_range[1]
-            # scale and invert distances to get applicability
-            only_self_dists = (only_self_dists - d_max) / (d_min - d_max)
-            applicability = np.mean(only_self_dists, axis=1).flatten()
-            preds.append(pred)
+            norm_dist = (dist - d_max) / (d_min - d_max)
+            applicability = np.mean(norm_dist, axis=1).flatten()
             apps.append(applicability)
-            ranges.append(app_range)
-        consensus = np.mean(np.stack(preds, axis=2), axis=2)
         applicability = np.mean(np.vstack(apps), axis=0)
-        app_range = np.mean(np.vstack(ranges), axis=0)
         return applicability, app_range, consensus
 
     def conformal_prediction(self, siamese, features, dropout_fn=None,
-                             nan_pred=None, n_samples=10):
+                             nan_pred=None, n_samples=5, p_self=0.0):
         if dropout_fn is None:
             dropout_fn = self.realistic_subsampling_fn()
         # reference prediction (based on no information)
@@ -829,7 +883,9 @@ class sign4(BaseSignature, DataSignature):
         # draw prediction with uniform sub-sampling
         if dropout_fn is None:
             dropout_fn = partial(subsample, dataset_idx=[self.dataset_idx])
-        samples = siamese.predict(features, dropout_fn=dropout_fn,
+        samples = siamese.predict(features,
+                                  dropout_fn=partial(
+                                      dropout_fn, p_self=p_self),
                                   dropout_samples=n_samples, rebuild=True)
         # summarize the predictions as consensus
         consensus = np.mean(samples, axis=1)
@@ -1045,8 +1101,8 @@ class sign4(BaseSignature, DataSignature):
                 col_slice = slice(idx * 128, (idx + 1) * 128)
                 x1_data_transf[:, col_slice] = x1_data[:, col_slice]
             # keep rows containing at least one not-NaN value
-            #not_nan = np.isfinite(x1_data_transf).any(axis=1)
-            #x1_data_transf = x1_data_transf[not_nan]
+            # not_nan = np.isfinite(x1_data_transf).any(axis=1)
+            # x1_data_transf = x1_data_transf[not_nan]
             return x1_data_transf
 
         def mask_exclude(idxs, x1_data):
@@ -1056,8 +1112,8 @@ class sign4(BaseSignature, DataSignature):
                 col_slice = slice(idx * 128, (idx + 1) * 128)
                 x1_data_transf[:, col_slice] = np.nan
             # drop rows that only contain NaNs
-            #not_nan = np.isfinite(x1_data_transf).any(axis=1)
-            #x1_data_transf = x1_data_transf[not_nan]
+            # not_nan = np.isfinite(x1_data_transf).any(axis=1)
+            # x1_data_transf = x1_data_transf[not_nan]
             return x1_data_transf
 
         def no_mask(idxs, x1_data):
