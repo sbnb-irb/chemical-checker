@@ -108,4 +108,17 @@ class Example(BaseExample):
         X = np.array(df[df.columns[1:]]).astype(float)
         return X, keys, features
 
-    
+    def fingerprints(self):
+        """Morgan fingerprints from LINCS
+        
+            Returns:
+                X, keys, features
+        """
+        self.__log.info("Getting fingerprint data for LINCS molecules")
+        with open(os.path.join(self.path, "fps.pkl"), "rb") as f:
+            d = pickle.load(f)
+            X = d["V"]
+            keys = np.array(d["keys"])
+            features = np.array(d["features"])
+        return X, keys, features
+        

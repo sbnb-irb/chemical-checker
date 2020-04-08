@@ -295,6 +295,7 @@ class sign0(BaseSignature, DataSignature):
         self.refresh()
         self.__log.info("Removing redundancy")
         sign0_ref = self.get_molset("reference")
+        sign0_ref.clean()
         rnd = RNDuplicates(cpu=10)
         rnd.remove(self.data_path, save_dest=sign0_ref.data_path)
         with h5py.File(self.data_path, "r") as hf:
