@@ -157,7 +157,6 @@ class SiameseTriplets(object):
                 self.scaler = pickle.load(open(scaler_path, 'rb'))
             else:
                 self.__log.warning("No scaler has been loaded")
-            os.mkdir(self.model_dir)
         # initialize validation/test generator
         if evaluate:
             val_shape_type_gen = NeighborTripletTraintest.generator_fn(
