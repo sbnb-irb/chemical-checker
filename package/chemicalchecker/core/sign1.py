@@ -28,6 +28,8 @@ from chemicalchecker.util.transform.pca import Pca
 from chemicalchecker import ChemicalChecker
 
 
+DEFAULT_T = 0.01
+
 @logged
 class sign1(BaseSignature, DataSignature):
     """Signature type 1 class."""
@@ -279,6 +281,7 @@ class sign1(BaseSignature, DataSignature):
         with h5py.File(s1.data_path, 'r') as dh5, h5py.File(data_path, 'w') as dh5out:
             datasize = dh5[V_name].shape
             data_type = dh5[V_name].dtype
+            self.__log.debug("...data size is (%d, %d)" % (datasize[0], datasize[1]))
             k = min(datasize[0], k_neig)
             dh5out.create_dataset("row_keys", data=dh5["keys"][:])
             dh5out["col_keys"] = h5py.SoftLink('/row_keys')
@@ -322,6 +325,7 @@ class sign1(BaseSignature, DataSignature):
             fn = os.path.join(self.model_path, "triplets.h5")
         if not os.path.exists(fn):
             return None
+        self.__log.debug("Getting triplets from %s" % fn)
         with h5py.File(fn, "r") as hf:
             triplets = hf["triplets"][:]
         return triplets
@@ -334,13 +338,25 @@ class sign1(BaseSignature, DataSignature):
         else:
             neig_path = s1.get_neighbors().data_path
         opt_t = self.optimal_t(local_neig_path=local_neig_path, save=False)
+        # Heuristic to correct opt_t, dependent on the size of the data
+        LB = 10000
+        UB = 100000
+        TMAX = 50
+        TMIN = 10
+        def get_t_max(n):
+            n = np.clip(n, LB, UB)
+            a = (TMAX-TMIN)/(LB-UB)
+            b = TMIN - a*UB
+            return a*n+b
         with h5py.File(neig_path, "r") as hf:
             N, kn = hf["indices"].shape
             opt_t = np.min([opt_t, 0.01])
             k = np.clip(opt_t * N, 5, 100)
             k = np.min([k, kn * 0.5 + 1])
             k = np.max([k, 5])
+            k = np.min([k, get_t_max(N)])
             k = int(k)
+            self.__log.debug("... selected T is %d" % k)
             nn_pos = hf["indices"][:, 1:(k + 1)]
             nn_neg = hf["indices"][:, (k + 1):]
         self.__log.debug("Starting sampling (pos:%d, neg:%d)" %
@@ -408,7 +424,7 @@ class sign1(BaseSignature, DataSignature):
         acc /= len(triplets)
         return acc
 
-    def optimal_t(self, max_triplets=10000, local_neig_path=False, save=True):
+    def optimal_t(self, max_triplets=10000, min_triplets=1000, local_neig_path=False, save=True):
         """Find optimal (recommended) number of neighbors, based on the accuracy of triplets across the CC.
         Neighbors class needs to be precomputed.
         Only done for the reference set (it doesn't really make sense to do it for the full).
@@ -421,7 +437,10 @@ class sign1(BaseSignature, DataSignature):
         triplets = self.get_triplets(reference=True)
         if triplets is None:
             self.__log.debug("No triplets were found. Returning ")
-            return 0.01
+            return DEFAULT_T
+        if len(triplets) < min_triplets:
+            self.__log.warning("Not enough triplets... t is %f" % DEFAULT_T)
+            return DEFAULT_T
         self.__log.debug("Selecting available anchors")
         if len(triplets) > max_triplets:
             idxs = np.random.choice(len(triplets), max_triplets, replace=False)

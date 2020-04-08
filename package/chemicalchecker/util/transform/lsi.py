@@ -38,11 +38,11 @@ class MyCorpus(object):
 
 class Lsi(BaseTransform):
     """Do TFIDF+LSI"""
-    def __init__(self, sign1, tmp=False, variance_explained=0.9, min_freq=5, max_freq=0.25, num_topics=None, B_val=10, N_val=1000, multipass=True, max_keys=100000, **kwargs):
+    def __init__(self, sign1, tmp=False, variance_explained=0.9, num_topics=None, B_val=10, N_val=1000, multipass=True, max_keys=100000, **kwargs):
         BaseTransform.__init__(self, sign1, "lsi", max_keys, tmp)
         self.variance_explained = variance_explained
-        self.min_freq = min_freq
-        self.max_freq = max_freq
+        self.min_freq = 1
+        self.max_freq = 0.999
         self.multipass = multipass
         self.num_topics = num_topics
         self.B_val = B_val

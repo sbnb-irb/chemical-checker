@@ -6,6 +6,7 @@ import os
 import h5py
 import numpy as np
 import pickle
+import random
 
 from chemicalchecker.core.signature_data import DataSignature
 from chemicalchecker.util import logged
@@ -33,20 +34,26 @@ class BaseTransform(object):
             self.__log.debug("No triplets file found in %s" % fn)
             return
         keys_old = sign1.keys
+        if not np.any(keys != keys_old):
+            self.__log.debug("...reindexing is not necessary!")
+            return
         self.__log.debug("Reindexing triplets")
         with h5py.File(fn, "r") as hf:
             triplets_old = hf["triplets"][:]
         keys_dict = dict((k,i) for i,k in enumerate(keys))
         maps_dict = {}
+        self.__log.debug("...enumerating old keys")
         for i,k in enumerate(keys_old):
             if k not in keys_dict: continue
             maps_dict[i] = keys_dict[k]
+        self.__log.debug("...redoing triplets")
         triplets = []
         for t in triplets_old:
             if t[0] not in maps_dict: continue
             if t[1] not in maps_dict: continue
             if t[2] not in maps_dict: continue
             triplets += [(maps_dict[t[0]], maps_dict[t[1]], maps_dict[t[2]])]
+        self.__log.debug("...Saving triplets to %s" % fn)
         triplets = np.array(triplets, dtype=np.int)
         with h5py.File(fn, "r+") as hf:
             del hf["triplets"]
@@ -54,7 +61,7 @@ class BaseTransform(object):
 
     def remap(self, sign1):
         sign1.refresh()
-        self.__log.debug("Re-doing the mappings")
+        self.__log.debug("Re-doing the mappings (if necessary)")
         s1_full = sign1.get_molset("full")
         s1_ref  = sign1.get_molset("reference")
         if not os.path.exists(s1_ref.data_path):
@@ -62,6 +69,8 @@ class BaseTransform(object):
             return
         mappings = s1_ref.get_h5_dataset("mappings")
         keys = s1_full.keys
+        if not np.any(mappings[:,0] != keys):
+            self.__log.debug("...mappings not necessary!")
         mask = np.isin(mappings[:,0], keys)
         mappings = mappings[mask]
         with h5py.File(s1_ref.data_path, "r+") as hf:
@@ -106,6 +115,8 @@ class BaseTransform(object):
     def subsample(self):
         max_keys = self.max_keys
         if max_keys is not None:
+            if max_keys < self.sign_ref.shape[1]:
+                max_keys = self.sign_ref.shape[1]
             if max_keys >= self.sign_ref.shape[0]:
                 max_keys = None
         if max_keys is None:
@@ -116,14 +127,31 @@ class BaseTransform(object):
             else:
                 V = self.sign_ref[:]
         else:
-            self.__log.debug("Subsampling data")
-            idxs = np.array(sorted(np.random.choice(len(self.sign_ref.keys), max_keys, replace=False)))
+            self.__log.debug("Subsampling data (ensuring coverage of at least one feature)")
+            idxs = set()
+            with h5py.File(self.sign_ref.data_path, "r") as hf:
+                if self.tmp:
+                    dkey = "V_tmp"
+                else:
+                    dkey = "V"
+                for j in tqdm(range(0, self.sign_ref.shape[1])):
+                    v = hf[dkey][:,j]
+                    cand = random.choice(list(set(np.argwhere(v != 0).ravel()).difference(idxs)))
+                    idxs.update([cand])
+            if len(idxs) < max_keys:
+                remaining_idxs = list(set([i for i in range(0, self.sign_ref.shape[0])]).difference(idxs))
+                n = max_keys < len(idxs)
+                more_idxs = set(np.random.choice(remaining_idxs, n, replace=False))
+                idxs = idxs.union(more_idxs)
+            idxs = np.array(sorted(idxs))
+            self.__log.debug("...%d subsampled" % len(idxs))
             with h5py.File(self.sign_ref.data_path, "r") as hf:
                 if self.tmp:
                     V = hf["V_tmp"][idxs]
                 else:
                     V = hf["V"][idxs]
             keys = np.array(self.sign_ref.keys)[idxs]
+        self.__log.debug("...subsampling done")
         features = np.array(["f%d" % i for i in range(self.sign_ref.shape[1])])
         if self.categorical:
             V = V.astype(np.int)
