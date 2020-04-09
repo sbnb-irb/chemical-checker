@@ -2217,18 +2217,20 @@ class sign4(BaseSignature, DataSignature):
                 safe_create(results, 'keys',
                             data=np.array(self.universe_inchikeys,
                                           DataSignature.string_dtype()))
+                # dataset used to generate the signature
                 safe_create(results, 'datasets',
                             data=np.array(self.src_datasets,
                                           DataSignature.string_dtype()))
                 known_mask = np.isin(list(self.universe_inchikeys),
                                      list(self.sign2_self.keys),
                                      assume_unique=True)
+                # save the mask for know/inknown
                 safe_create(results, 'known', data=known_mask)
                 safe_create(results, 'shape', data=(tot_inks, 128))
+                # the actual confidence value will be stored here
+                safe_create(results, 'confidence', (tot_inks,),
+                            dtype=np.float32)
                 if model_confidence:
-                    # the actual confidence value will be stored here
-                    safe_create(results, 'confidence',
-                                (tot_inks,), dtype=np.float32)
                     # this is to store robustness
                     safe_create(results, 'robustness',
                                 (tot_inks,), dtype=np.float32)
@@ -2291,7 +2293,7 @@ class sign4(BaseSignature, DataSignature):
                         # predict with all features
                         preds_all = siamese.predict(feat)
                         # predict with only-self features
-                        feat_onlyself = realistic_fn(feat, p_only_self=1.0)
+                        feat_onlyself = mask_keep(self.dataset_idx, feat)
                         preds_onlyself = siamese.predict(feat_onlyself)
                         # confidence is correlation ALL vs. ONLY-SELF
                         corrs = row_wise_correlation(
