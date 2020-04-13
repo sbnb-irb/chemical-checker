@@ -154,12 +154,13 @@ class Traintest(object):
         Traintest.create(X, Y, out_filename)
 
     @staticmethod
-    def get_split_indeces(rows, fractions):
+    def get_split_indeces(rows, fractions, random_state=None):
         """Get random indeces for different splits."""
         if not sum(fractions) == 1.0:
             raise Exception("Split fractions should sum to 1.0")
         # shuffle indeces
         idxs = list(range(rows))
+        np.random.seed(random_state)
         np.random.shuffle(idxs)
         # from frequs to indices
         splits = np.cumsum(fractions)
