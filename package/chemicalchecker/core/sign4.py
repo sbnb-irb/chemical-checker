@@ -679,7 +679,7 @@ class sign4(BaseSignature, DataSignature):
         y_te = traintest.get_h5_dataset('y_test').ravel()
         # fit model
         model = RandomForestRegressor(n_estimators=1000, max_features=None,
-                                      min_samples_leaf=0.05, n_jobs=4)
+                                      min_samples_leaf=0.01, n_jobs=4)
         p = find_p(model, x_tr, y_tr, x_te, y_te)
         model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
         if plots:
@@ -858,8 +858,8 @@ class sign4(BaseSignature, DataSignature):
         x_te = traintest.get_h5_dataset('x_test')
         y_te = traintest.get_h5_dataset('y_test').ravel()
         # fit model
-        model = RandomForestRegressor(n_estimators=1000, max_features='log2',
-                                      min_samples_leaf=0.1, n_jobs=4)
+        model = RandomForestRegressor(n_estimators=1000, max_features='sqrt',
+                                      min_samples_leaf=0.01, n_jobs=4)
         p = find_p(model, x_tr, y_tr, x_te, y_te)
         model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
         if plots:
