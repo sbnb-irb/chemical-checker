@@ -9,9 +9,9 @@ from chemicalchecker.util.pipeline import BaseTask
 @logged
 class PythonCallable(BaseTask):
 
-    def __init__(self, config=None, name='python', **params):
+    def __init__(self, name='python', **params):
 
-        BaseTask.__init__(self, config, name, **params)
+        BaseTask.__init__(self, name, **params)
 
         self.python_callable = params.get('python_callable', None)
         self.op_args = params.get('op_args', [])

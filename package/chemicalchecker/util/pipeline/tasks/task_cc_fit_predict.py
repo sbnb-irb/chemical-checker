@@ -93,8 +93,26 @@ SPECIFIC_SCRIPTS = {'sign2': (SIGN2_SCRIPT_FR, SIGN2_SCRIPT_F),
 @logged
 class CCFit(BaseTask, BaseOperator):
 
-    def __init__(self, config=None, name=None, cc_type=None, **params):
+    def __init__(self, name=None, cc_type=None, **params):
+        """Initialize CC fit task.
 
+        This class allows to pipe different fit tasks in the Pipeline framework.
+        It tries to work for all possible CC elements but considering that signatures are changing
+        quite often it might need to be updated.
+
+        Args:
+            name(str): The name of the task (default:None)
+            cc_type(str): The CC type where the fit is applied (Required)
+            CC_ROOT(str): The CC root path (Required)
+            cc_old_path(str): The CC root path for a previous release of CC
+            datasets(list): The list of dataset codes to apply the fit(Optional, all datasets taken by default)
+            full_reference(bool): The fit is for full & reference branches (default:True)
+            ds_data_params(dict): A dictionary with key is dataset code and value is  another dictionary
+                                 with all specific parameters for that dataset. (Optional)
+            general_data_params(dict): A dictionary with general parameters for all datasets (Optional)
+            target_datasets(list): List of dataset codes to taget for sign3
+            ref_datasets(list): List of reference datasets for sign3
+        """
         if cc_type is None:
             raise Exception("CCFit requires a cc_type")
 
@@ -106,7 +124,7 @@ class CCFit(BaseTask, BaseOperator):
         if task_id is None:
             params['task_id'] = name
 
-        BaseTask.__init__(self, config, name, **params)
+        BaseTask.__init__(self, name, **params)
         BaseOperator.__init__(self, *args, **params)
 
         self.cc_type = cc_type
@@ -358,7 +376,7 @@ class CCFit(BaseTask, BaseOperator):
                 raise AirflowException("Not all dataset fits are done")
 
     def execute(self, context):
-        """Run the molprops step."""
+        """Same than run but for Airflow."""
 
         self.tmpdir = context['params']['tmpdir']
 
