@@ -538,6 +538,8 @@ class sign4(BaseSignature, DataSignature):
             ax.scatter(x, y, c=z, s=10, edgecolor='')
             ax.set_xlabel("Pred")
             ax.set_ylabel("True")
+            ax.set_xlim((-1, 1))
+            ax.set_ylim((-1, 1))
             xlim = ax.get_xlim()
             ylim = ax.get_ylim()
             if joint_lim:
@@ -676,8 +678,8 @@ class sign4(BaseSignature, DataSignature):
         x_te = traintest.get_h5_dataset('x_test')
         y_te = traintest.get_h5_dataset('y_test').ravel()
         # fit model
-        model = RandomForestRegressor(n_estimators=100, max_features='sqrt',
-                                      max_depth=7, n_jobs=4)
+        model = RandomForestRegressor(n_estimators=1000, max_features=None,
+                                      min_samples_leaf=0.05, n_jobs=4)
         p = find_p(model, x_tr, y_tr, x_te, y_te)
         model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
         if plots:
@@ -720,6 +722,8 @@ class sign4(BaseSignature, DataSignature):
             ax.scatter(x, y, c=z, s=10, edgecolor='')
             ax.set_xlabel("Pred")
             ax.set_ylabel("True")
+            ax.set_xlim((-1, 1))
+            ax.set_ylim((-1, 1))
             xlim = ax.get_xlim()
             ylim = ax.get_ylim()
             if joint_lim:
@@ -854,8 +858,8 @@ class sign4(BaseSignature, DataSignature):
         x_te = traintest.get_h5_dataset('x_test')
         y_te = traintest.get_h5_dataset('y_test').ravel()
         # fit model
-        model = RandomForestRegressor(n_estimators=100, max_features='log2',
-                                      max_depth=8, n_jobs=4)
+        model = RandomForestRegressor(n_estimators=1000, max_features='log2',
+                                      min_samples_leaf=0.1, n_jobs=4)
         p = find_p(model, x_tr, y_tr, x_te, y_te)
         model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
         if plots:
@@ -886,6 +890,7 @@ class sign4(BaseSignature, DataSignature):
             ax.legend()
             ax.set_xlabel("Value")
             ax.set_ylabel("Counts")
+            ax.set_xlim((-1, 1))
             ax.set_title(title)
 
         def scatter(ax, yp, yt, joint_lim=True):
@@ -898,6 +903,8 @@ class sign4(BaseSignature, DataSignature):
             ax.scatter(x, y, c=z, s=10, edgecolor='')
             ax.set_xlabel("Pred")
             ax.set_ylabel("True")
+            ax.set_xlim((-1, 1))
+            ax.set_ylim((-1, 1))
             xlim = ax.get_xlim()
             ylim = ax.get_ylim()
             if joint_lim:
@@ -1044,8 +1051,8 @@ class sign4(BaseSignature, DataSignature):
 
         model = make_pipeline(StandardScaler(), LinearRegression())
         p = find_p(model, x_tr, y_tr, x_te, y_te)
-        model.fit(x_tr, y_tr,
-                  linearregression__sample_weight=get_weights(y_tr, p=p))
+        model.fit(x_te, y_te,
+                  linearregression__sample_weight=get_weights(y_te, p=p))
         calibration_model = make_pipeline(StandardScaler(), LinearRegression())
         y_pr = np.expand_dims(model.predict(x_te), 1)
         calibration_model.fit(y_pr, y_te)
