@@ -17,7 +17,7 @@ from chemicalchecker.util import HPC
 @logged
 class CCLongShort(BaseTask, BaseOperator):
 
-    def __init__(self, config=None, name=None, cc_type=None, **params):
+    def __init__(self, name=None, cc_type=None, **params):
 
         if cc_type is None:
             raise Exception("CCLongShort requires a cc_type")
@@ -29,7 +29,7 @@ class CCLongShort(BaseTask, BaseOperator):
         if task_id is None:
             params['task_id'] = name
 
-        BaseTask.__init__(self, config, name, **params)
+        BaseTask.__init__(self, name, **params)
         BaseOperator.__init__(self, *args, **params)
 
         self.cc_type = cc_type

@@ -15,7 +15,7 @@ from airflow import AirflowException
 @logged
 class SimilarsSign3(BaseTask, BaseOperator):
 
-    def __init__(self, config=None, name=None, **params):
+    def __init__(self, name=None, **params):
 
         args = []
 
@@ -24,7 +24,7 @@ class SimilarsSign3(BaseTask, BaseOperator):
         if task_id is None:
             params['task_id'] = name
 
-        BaseTask.__init__(self, config, name, **params)
+        BaseTask.__init__(self, name, **params)
         BaseOperator.__init__(self, *args, **params)
 
         self.CC_ROOT = params.get('CC_ROOT', None)

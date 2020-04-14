@@ -54,7 +54,7 @@ CHECK = "select distinct(lib) from libraries"
 @logged
 class Libraries(BaseTask, BaseOperator):
 
-    def __init__(self, config=None, name=None, **params):
+    def __init__(self, name=None, **params):
 
         args = []
 
@@ -63,7 +63,7 @@ class Libraries(BaseTask, BaseOperator):
         if task_id is None:
             params['task_id'] = name
 
-        BaseTask.__init__(self, config, name, **params)
+        BaseTask.__init__(self, name, **params)
         BaseOperator.__init__(self, *args, **params)
 
         self.DB = params.get('DB', None)
