@@ -21,18 +21,13 @@ class BaseTask(object):
     """
 
     @abstractmethod
-    def __init__(self, config, name, **params):
-        """Initialize the Step with the config at the given path."""
+    def __init__(self, name, **params):
+        """Initialize the Step."""
         self.name = name
         self.readyfile = name + ".ready"
 
-        if config is None:
-            self.readydir = ''
-            self.tmpdir = ''
-        else:
-            self.readydir = params["readydir"]
-            self.tmpdir = params["tmpdir"]
-        self.config = config
+        self.readydir = params.get("readydir", '')
+        self.tmpdir = params.get("tmpdir", '')
 
     @abstractmethod
     def run(self):

@@ -50,7 +50,7 @@ ref_spaces = ['B1.001', 'B2.001', 'B4.001', 'B5.001']
 @logged
 class ShowTargets(BaseTask, BaseOperator):
 
-    def __init__(self, config=None, name=None, **params):
+    def __init__(self, name=None, **params):
 
         args = []
 
@@ -59,7 +59,7 @@ class ShowTargets(BaseTask, BaseOperator):
         if task_id is None:
             params['task_id'] = name
 
-        BaseTask.__init__(self, config, name, **params)
+        BaseTask.__init__(self, name, **params)
         BaseOperator.__init__(self, *args, **params)
 
         self.DB = params.get('DB', None)

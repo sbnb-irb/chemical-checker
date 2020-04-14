@@ -16,7 +16,7 @@ from chemicalchecker.util import HPC
 @logged
 class CCSmileConverter(BaseTask, BaseOperator):
 
-    def __init__(self, config=None, name=None, cc_type='sign3', **params):
+    def __init__(self, name=None, cc_type='sign3', **params):
 
         if cc_type is None:
             raise Exception("CCSmileConverter requires a cc_type")
@@ -28,7 +28,7 @@ class CCSmileConverter(BaseTask, BaseOperator):
         if task_id is None:
             params['task_id'] = name
 
-        BaseTask.__init__(self, config, name, **params)
+        BaseTask.__init__(self, name, **params)
         BaseOperator.__init__(self, *args, **params)
 
         self.cc_type = cc_type

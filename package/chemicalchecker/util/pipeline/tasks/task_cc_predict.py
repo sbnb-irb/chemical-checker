@@ -40,8 +40,25 @@ SPECIAL_PARAMS = {'sign2': {'adanet': {'cpu': 16}, 'node2vec': {'cpu': 4}},
 @logged
 class CCPredict(BaseTask, BaseOperator):
 
-    def __init__(self, config=None, name=None, cc_type=None, **params):
+    def __init__(self, name=None, cc_type=None, **params):
+        """Initialize CC predict task.
 
+        This class allows to pipe different predict tasks in the Pipeline framework.
+        It tries to work for all possible CC elements but considering that signatures are changing
+        quite often it might need to be updated.
+
+        Args:
+            name(str): The name of the task (default:None)
+            cc_type(str): The CC type where the fit is applied (Required)
+            CC_ROOT(str): The CC root path (Required)
+            datasets(list): The list of dataset codes to apply the fit(Optional, all datasets taken by default)
+            ds_data_params(dict): A dictionary with key is dataset code and value is another dictionary
+                                 with all specific parameters for that dataset. (Optional)
+            general_data_params(dict): A dictionary with general parameters for all datasets (Optional)
+            datasets_input_files(dict): A dictionary with is a dataset code and value the input file for the predict
+            output_path(str): The path where to save the output files from the predict
+            output_file(str): Name of the output file for the prediction
+        """
         if cc_type is None:
             raise Exception("CCPredict requires a cc_type")
 
@@ -51,10 +68,8 @@ class CCPredict(BaseTask, BaseOperator):
         task_id = params.get('task_id', None)
         if task_id is None:
             params['task_id'] = name
-        BaseTask.__init__(self, config, name, **params)
+        BaseTask.__init__(self, name, **params)
         BaseOperator.__init__(self, *args, **params)
-
-        # BaseTask.__init__(self, config, name, **params)
 
         if cc_type not in CC_TYPES_DEPENDENCIES.keys():
             raise Exception('CC Type ' + cc_type + ' not supported')
