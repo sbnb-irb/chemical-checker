@@ -744,6 +744,8 @@ class Diagnosis(object):
     def _sample_accuracy_individual(self, sign, n_neighbors, min_shared, metric):
         # do nearest neighbors (start by the target signature)
         keys, V1 = sign.get_vectors(self.keys)
+        if keys is None:
+            return None
         if len(keys) < min_shared:
             return None
         n_neighbors = np.min([V1.shape[0], n_neighbors])
@@ -860,6 +862,67 @@ class Diagnosis(object):
             plot = self.plot,
             plotter_function = self.plotter.ranks_agreement_projection)
 
+    def global_ranks_agreement(self, n_neighbors=100, min_shared=100, metric="minkowski", p=0.9, **kwargs):
+        """Sample-specific accuracy, estimated as general agreement with the rest of the CC, based on a Z-global ranking"""        
+        self.__log.debug("Sample-specific agreement to the rest of CC, based on a Z-global ranking")
+        fn = "global_ranks_agreement"
+        
+        def q67(r):
+            return np.percentile(r, 67)
+
+        def stat(R, func):
+            s = []
+            for r in R:
+                if len(r) == 0:
+                    s += [np.nan]
+                else:
+                    s += [func(r)]
+            return np.array(s)
+
+        if self._todo(fn):
+            datasets = self._select_datasets(datasets, exemplary)
+            results_datasets = {}
+            for ds in datasets:
+                sign = self.cc.get_signature(cctype, molset, ds)
+                dn = self._sample_accuracy_individual(sign, n_neighbors, min_shared, metric)
+                if dn is None: continue
+                sc = self._rbo(dn["neighs0"], dn["neighs1"], p=p)
+                results_datasets[ds] = [r for r in zip(dn["rows"], sc)]
+            d = {}
+            for k in self.keys:
+                d[k] = []
+            for k,v in results_datasets.items():
+                for r in v:
+                    d[self.keys[r[0]]] += [(k,r[1])]
+            R = []
+            for k in self.keys:
+                R += [d[k]]
+            R_ = [[x[1] for x in r] for r in R]
+            results = {
+                "all": R,
+                "max": stat(R_, np.max),
+                "median": stat(R_, np.median),
+                "mean": stat(R_, np.mean),
+                "q67": stat(R_, q67),
+                "size": np.array([len(r) for r in R_]),
+                "keys": self.keys
+            }
+        else:
+            results = None
+        return self._returner(
+            results = results,
+            fn = fn,
+            save = self.save,
+            plot = self.plot,
+            plotter_function = self.plotter.ranks_agreement,
+            kw_plotter = {
+                "exemplary": exemplary,
+                "cctype": cctype,
+                "molset": molset})
+
+
+
+
     def across_roc(self, datasets=None, exemplary=True, cctype="sign1", molset="full", **kwargs):
         """Check coverage against a collection of other CC signatures.
         
@@ -938,7 +1001,7 @@ class Diagnosis(object):
         if self._todo(fn):
             self.__log.debug("Removing near duplicates")
             rnd = RNDuplicates(cpu=cpu)
-            keys1, keys2, mappings = rnd.remove(self.sign.data_path, save_dest=None)
+            mappings = rnd.remove(self.sign.data_path, save_dest=None, just_mappings=True)
             mappings = np.array(sorted(mappings.items()))
             mps = []
             for i in range(0, mappings.shape[0]):
