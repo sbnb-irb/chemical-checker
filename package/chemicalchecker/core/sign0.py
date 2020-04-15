@@ -235,7 +235,9 @@ class sign0(BaseSignature, DataSignature):
         feature_idxs = np.argsort(features)
         # sort all data
         X = X[key_idxs]
-        X = X[:, feature_idxs]
+        for i in range(0, X.shape[0], 2000):
+            chunk = slice(i, i + 2000)
+            X[chunk] = X[chunk, feature_idxs]
         # sort keys
         keys = keys[key_idxs]
         keys_raw = keys_raw[key_idxs]
