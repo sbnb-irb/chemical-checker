@@ -587,7 +587,7 @@ class NeighborTripletTraintest(object):
 
     @staticmethod
     def generator_fn(file_name, split, epochs=None, batch_size=None,
-                     replace_nan=None, ds_index=[15],
+                     replace_nan=None,
                      augment_fn=None, augment_kwargs={},
                      mask_fn=None, shuffle=True, trim_mask=None,
                      sharedx=None, train=True, standard=True):
@@ -653,6 +653,7 @@ class NeighborTripletTraintest(object):
 
         notself_args = augment_kwargs.copy()
         notself_args['p_only_self'] = 0.0
+        ds_index = [augment_kwargs['dataset_idx']]
 
         def example_generator_fn():
             # generator function yielding data
