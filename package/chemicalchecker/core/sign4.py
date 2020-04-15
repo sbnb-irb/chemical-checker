@@ -1302,8 +1302,8 @@ class sign4(BaseSignature, DataSignature):
                 pred['test'][name] = siamese.predict(mask_fn(test))
             del test
             self.__log.info('VALIDATION: Predicting unknown.')
+            pred['unknown'] = dict()
             if np.any(unknown_idxs):
-                pred['unknown'] = dict()
                 unknown = self.read_h5(full_x, unknown_idxs[:5000])
                 self.__log.info('Number of unknown %s' % len(unknown))
                 for name, mask_fn in mask_fns.items():
