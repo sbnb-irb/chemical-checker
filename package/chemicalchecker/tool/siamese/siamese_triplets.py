@@ -151,12 +151,15 @@ class SiameseTriplets(object):
             scaler_path = os.path.join(self.model_dir, 'scaler.pkl')
             if os.path.isfile(scaler_path):
                 self.scaler = pickle.load(open(scaler_path, 'rb'))
-            elif 'scaler' in traintest_data.info_h5:
-                scaler_path = traintest_data.get_h5_dataset('scaler')[0]
                 self.__log.info("Using scaler: %s", scaler_path)
-                self.scaler = pickle.load(open(scaler_path, 'rb'))
+            elif 'scaler' in traintest_data.info_h5:
+                scaler_path_tt = traintest_data.get_h5_dataset('scaler')[0]
+                self.__log.info("Using scaler: %s", scaler_path_tt)
+                self.scaler = pickle.load(open(scaler_path_tt, 'rb'))
+                pickle.dump(self.scaler, open(scaler_file, 'wb'))
             else:
                 self.__log.warning("No scaler has been loaded")
+
         # initialize validation/test generator
         if evaluate:
             val_shape_type_gen = NeighborTripletTraintest.generator_fn(
@@ -236,9 +239,11 @@ class SiameseTriplets(object):
         """
         def get_model_arch(input_dim, space_dim=128, num_layers=3):
             if input_dim >= space_dim * (2**num_layers):
-                layers = [int(space_dim * 2**i) for i in reversed(range(num_layers))]
+                layers = [int(space_dim * 2**i)
+                          for i in reversed(range(num_layers))]
             else:
-                layers = [max(128, int(input_dim/2**i)) for i in range(1, num_layers + 1)]
+                layers = [max(128, int(input_dim / 2**i))
+                          for i in range(1, num_layers + 1)]
             return layers
 
         def dist_output_shape(shapes):
@@ -270,9 +275,10 @@ class SiameseTriplets(object):
             input_o = Input(shape=input_shape)
             input_s = Input(shape=input_shape)
 
-        #Update layers
+        # Update layers
         if self.layers_sizes = None
-            self.layers_sizes = get_model_arch(input_shape[1], num_layers=len(self.layers))
+            self.layers_sizes = get_model_arch(
+                input_shape[1], num_layers=len(self.layers))
 
         # each goes to a network with the same architechture
         basenet = Sequential()
@@ -380,25 +386,28 @@ class SiameseTriplets(object):
             return K.mean(r)
 
         def cor1(y_true, y_pred):
-            anchor, positive, negative, only_self, not_self = split_output(y_pred)
+            anchor, positive, negative, only_self, not_self = split_output(
+                y_pred)
             return pearson_r(anchor, not_self)
 
         def cor2(y_true, y_pred):
-            anchor, positive, negative, only_self, not_self = split_output(y_pred)
+            anchor, positive, negative, only_self, not_self = split_output(
+                y_pred)
             return pearson_r(anchor, only_self)
 
         def cor3(y_true, y_pred):
-            anchor, positive, negative, only_self, not_self = split_output(y_pred)
+            anchor, positive, negative, only_self, not_self = split_output(
+                y_pred)
             return pearson_r(not_self, only_self)
 
         metrics = [accTot]
         if not self.standard:
             metrics.extend([accE,
-            accM,
-            accH,
-            cor1,
-            cor2,
-            cor3])
+                            accM,
+                            accH,
+                            cor1,
+                            cor2,
+                            cor3])
 
         def tloss(y_true, y_pred):
             anchor, positive, negative, _, _ = split_output(y_pred)
@@ -430,7 +439,7 @@ class SiameseTriplets(object):
 
         def only_self_loss(y_true, y_pred):
             def only_self_regularization(y_pred):
-                anchor, positive, negative, only_self,_ = split_output(y_pred)
+                anchor, positive, negative, only_self, _ = split_output(y_pred)
                 pos_dist = K.sum(K.square(anchor - only_self), axis=1)
                 neg_dist = K.sum(K.square(anchor - negative), axis=1)
                 basic_loss = pos_dist - neg_dist + self.margin
@@ -447,7 +456,8 @@ class SiameseTriplets(object):
 
         def penta_loss(y_true, y_pred):
             def only_self_regularization(y_pred):
-                anchor, positive, negative, only_self, not_self = split_output(y_pred)
+                anchor, positive, negative, only_self, not_self = split_output(
+                    y_pred)
                 pos_dist = K.sum(K.square(anchor - only_self), axis=1)
                 neg_dist = K.sum(K.square(anchor - negative), axis=1)
                 basic_loss = pos_dist - neg_dist + self.margin
@@ -459,7 +469,8 @@ class SiameseTriplets(object):
                 return loss + (gor * self.alpha)
 
             def not_self_regularization(y_pred):
-                anchor, positive, negative, only_self, not_self = split_output(y_pred)
+                anchor, positive, negative, only_self, not_self = split_output(
+                    y_pred)
                 pos_dist = K.sum(K.square(anchor - not_self), axis=1)
                 neg_dist = K.sum(K.square(anchor - negative), axis=1)
                 basic_loss = pos_dist - neg_dist + self.margin
@@ -471,7 +482,8 @@ class SiameseTriplets(object):
                 return loss + (gor * self.alpha)
 
             def both_self_regularization(y_pred):
-                anchor, positive, negative, only_self, not_self = split_output(y_pred)
+                anchor, positive, negative, only_self, not_self = split_output(
+                    y_pred)
                 pos_dist = K.sum(K.square(not_self - only_self), axis=1)
                 neg_dist = K.sum(K.square(not_self - negative), axis=1)
                 basic_loss = pos_dist - neg_dist + self.margin
@@ -486,16 +498,16 @@ class SiameseTriplets(object):
             o_self = only_self_regularization(y_pred)
             n_self = not_self_regularization(y_pred)
             b_self = both_self_regularization(y_pred)
-            return loss + ((o_self + n_self + b_self) / 3) #n_self
+            return loss + ((o_self + n_self + b_self) / 3)  # n_self
 
         def mse_loss(y_true, y_pred):
             def mse_loss(y_pred):
-                anchor, positive, negative, anchor_sign3, _ = split_output(y_pred)
+                anchor, positive, negative, anchor_sign3, _ = split_output(
+                    y_pred)
                 return keras.losses.mean_squared_error(anchor_sign3, anchor)
             loss = orthogonal_tloss(y_true, y_pred)
             mse_loss = mse_loss(y_pred)
             return loss + mse_loss
-
 
         lfuncs_dict = {'tloss': tloss,
                        'bayesian_tloss': bayesian_tloss,
@@ -532,7 +544,7 @@ class SiameseTriplets(object):
         input_shape = (self.tr_shapes[0][1],)
         self.build_model(input_shape)
 
-        #Find lr by grid search
+        # Find lr by grid search
         self.__log.info('Finding best lr')
         lr_iters = []
         lr_params = params.copy()
@@ -541,10 +553,12 @@ class SiameseTriplets(object):
         for lr in lrs:
             self.__log.info('Trying lr %s' % lr)
             lr_params['learning_rate'] = lr
-            siamese = SiameseTriplets(self.model_dir, evaluate=True, plot=False, save_params=False, **lr_params)
+            siamese = SiameseTriplets(
+                self.model_dir, evaluate=True, plot=False, save_params=False, **lr_params)
             siamese.fit(save=False)
-            h_file = os.path.join(self.model_dir, 'siamesetriplets_history.pkl')
-            h_metrics = pickle.load(open(h_file, "rb" ))
+            h_file = os.path.join(
+                self.model_dir, 'siamesetriplets_history.pkl')
+            h_metrics = pickle.load(open(h_file, "rb"))
             loss = h_metrics['loss'][0]
             val_loss = h_metrics['val_loss'][0]
             acc = h_metrics['accTot'][0]
@@ -552,12 +566,13 @@ class SiameseTriplets(object):
             lr_iters.append([loss, val_loss, val_acc])
 
         lr_iters = np.array(lr_iters)
-        lr_scores = np.mean(np.array([rankdata(1/col) if i > 1 else rankdata(col) 
-            for i, col in enumerate(lr_iters.T)]).T, axis=1)
+        lr_scores = np.mean(np.array([rankdata(1 / col) if i > 1 else rankdata(col)
+                                      for i, col in enumerate(lr_iters.T)]).T, axis=1)
         lr_index = np.argmin(lr_scores)
         lr = lrs[lr_index]
-        lr_results = {'lr_iters': lr_iters, 'lr_scores': lr_scores, 'lr': lr, 'lrs': lrs}
-        
+        lr_results = {'lr_iters': lr_iters,
+                      'lr_scores': lr_scores, 'lr': lr, 'lrs': lrs}
+
         fname = 'lr_score.pkl'
         pkl_file = os.path.join(self.model_dir, fname)
         pickle.dump(lr_results, open(pkl_file, "wb"))
@@ -568,13 +583,13 @@ class SiameseTriplets(object):
 
         ax[0].set_title('Loss')
         ax[0].set_xlabel('lrs')
-        ax[0].scatter(log_lrs, lr_iters[:,0], label='train')
-        ax[0].scatter(log_lrs, lr_iters[:,1], label='test')
+        ax[0].scatter(log_lrs, lr_iters[:, 0], label='train')
+        ax[0].scatter(log_lrs, lr_iters[:, 1], label='test')
         ax[0].legend()
 
         ax[1].set_title('ValAccT')
         ax[1].set_xlabel('lrs')
-        ax[1].scatter(log_lrs, lr_iters[:,2], label='train')
+        ax[1].scatter(log_lrs, lr_iters[:, 2], label='train')
 
         ax[2].set_title('Lr score')
         ax[2].set_xlabel('lrs')
@@ -880,7 +895,7 @@ class SiameseTriplets(object):
         def sim(a, b):
             return -(cosine(a, b) - 1)
 
-        #Need to create a new train_train generator without train=False
+        # Need to create a new train_train generator without train=False
         tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
             self.traintest_file,
             'train_train',
