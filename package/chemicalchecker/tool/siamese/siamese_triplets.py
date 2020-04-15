@@ -234,6 +234,12 @@ class SiameseTriplets(object):
         input_shape(tuple): X dimensions (only nr feat is needed)
         load(bool): Whether to load the pretrained model.
         """
+        def get_model_arch(input_dim, space_dim=128, num_layers=3):
+            if input_dim >= space_dim * (2**num_layers):
+                layers = [int(space_dim * 2**i) for i in reversed(range(num_layers))]
+            else:
+                layers = [max(128, int(input_dim/2**i)) for i in range(1, num_layers + 1)]
+            return layers
 
         def dist_output_shape(shapes):
             shape1, shape2 = shapes
@@ -263,6 +269,10 @@ class SiameseTriplets(object):
         if not self.standard:
             input_o = Input(shape=input_shape)
             input_s = Input(shape=input_shape)
+
+        #Update layers
+        if self.layers_sizes = None
+            self.layers_sizes = get_model_arch(input_shape[1], num_layers=len(self.layers))
 
         # each goes to a network with the same architechture
         basenet = Sequential()
