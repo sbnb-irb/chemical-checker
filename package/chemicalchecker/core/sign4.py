@@ -2858,10 +2858,9 @@ def subsampling_probs(sign2_coverage, dataset_idx, trim_threshold=0.1,
         p_keep = np.sum(coverage, axis=0) / coverage.shape[0]
         return min_p_nr, p_keep
 
+    p_nr_known, p_keep_known = compute_probs(known[:, trim_mask])
+    unknown[:, dataset_idx] = 0
     p_nr_unknown, p_keep_unknown = compute_probs(unknown[:, trim_mask])
-    _, p_keep_known = compute_probs(known[:, trim_mask])
-    known[:, dataset_idx] = 0
-    p_nr_known, _ = compute_probs(known[:, trim_mask])
     return trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known
 
 
