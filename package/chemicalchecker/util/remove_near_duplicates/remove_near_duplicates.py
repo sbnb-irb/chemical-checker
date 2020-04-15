@@ -35,7 +35,7 @@ class RNDuplicates():
         self.data_file = ''
         self.__log.debug('RNDuplicates to use ' + str(self.nbits) + " bits")
 
-    def remove(self, data, keys=None, save_dest=None):
+    def remove(self, data, keys=None, save_dest=None, just_mappings=False):
         """Remove near duplicates from data.
 
         Args:
@@ -43,6 +43,7 @@ class RNDuplicates():
                          or a file path to a .h5 file
             keys(array): Array of keys for the input data
             save_dest(str): If the resulyt needs to be saved in a file, the path to the file( default: None)
+            just_mappings(bool): Only applies if save_dest is None. Just return the mappings (default=False).
         Returns:
             keys(array):
             data(array):
@@ -169,7 +170,13 @@ class RNDuplicates():
         if save_dest is not None:
             self.save(save_dest)
         else:
-            return self.keys[np.array(self.final_ids)], np.array(self.data[np.array(self.final_ids)], dtype=self.data_type), self.mappings
+            if just_mappings:
+                return self.mappings
+            else:
+                if self.data is None:
+                    dh5 = h5py.File(self.data_file, "r")
+                    self.data = dh5["V"][:]
+                return self.keys[np.array(self.final_ids)], np.array(self.data[np.array(self.final_ids)], dtype=self.data_type), self.mappings
 
     def save(self, destination):
         """Save data after removing to a h5 file.
