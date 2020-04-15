@@ -2099,7 +2099,7 @@ class sign4(BaseSignature, DataSignature):
         # generate input matrix
         traintest_file = os.path.join(self.model_path, 'train_sign0.h5')
         if not reuse or not os.path.isfile(traintest_file):
-            #    self.save_sign0_matrix(sign0, sign0_matrix, include_confidence)
+            # self.save_sign0_matrix(sign0, sign0_matrix, include_confidence)
             NeighborTripletTraintest.create(
                 sign0, traintest_file, neig_matrix,
                 split_names=['train', 'test'],
@@ -2824,44 +2824,59 @@ def epoch_per_iteration_heuristic(samples, features, clip=(16, 1024)):
     return np.clip(pow2, *clip)
 
 
-def subsampling_probs(sign2_coverage, dataset_idx):
-    cov = DataSignature(sign2_coverage).get_h5_dataset('V')
-    no_self = cov[(cov[:, dataset_idx] == 0).flatten()]
-    # chemistry spaces have very few not selfs
-    if no_self.shape[0] < 100000:
-        no_self = np.vstack((no_self, cov[:100000]))
-    # how many dataset per molecule?
-    nrs, freq_nrs = np.unique(
-        np.sum(no_self, axis=1).astype(int), return_counts=True)
-    # frequency based probabilities
-    p_nrs = freq_nrs / no_self.shape[0]
-    # add minimum probability (corner cases where to use 1 or 2 datasets)
-    min_p_nr = np.full(cov.shape[1], min(p_nrs), dtype=np.float32)
-    for nr, p_nr in zip(nrs, p_nrs):
-        min_p_nr[nr] = p_nr
-    # but leave out too large nrs
-    min_p_nr[max(nrs):] = 0.0
-    # normalize (sum of probabilities must be one)
-    min_p_nr = min_p_nr / np.sum(min_p_nr)
-    # print(np.log10(min_p_nr + 1e-10).astype(int))
-    # probabilities to keep a dataset?
-    p_keep = np.sum(no_self, axis=0) / no_self.shape[0]
-    return min_p_nr, p_keep
+def subsampling_probs(sign2_coverage, dataset_idx, trim_threshold=0.1,
+                      min_unknown=10000):
+    """Extract probabilities for known and unknown of a given dataset."""
+    if type(sign2_coverage) == str:
+        cov = DataSignature(sign2_coverage).get_h5_dataset('V')
+    else:
+        cov = sign2_coverage
+    unknown = cov[(cov[:, dataset_idx] == 0).ravel()]
+    known = cov[(cov[:, dataset_idx] == 1).ravel()]
+    if unknown.shape[0] < min_unknown:
+        unknown = known[:min_unknown]
+    # decide which spaces are frequent enought in known (used for trainint)
+    trim_mask = (np.sum(known, axis=0) / known.shape[0]) > trim_threshold
+
+    def compute_probs(coverage, max_nr=25):
+        # how many dataset per molecule?
+        nrs, freq_nrs = np.unique(
+            np.sum(coverage, axis=1).astype(int), return_counts=True)
+        # frequency based probabilities
+        p_nrs = freq_nrs / coverage.shape[0]
+        # add minimum probability (corner cases where to use 1 or 2 datasets)
+        min_p_nr = np.full(max_nr + 1, min(p_nrs), dtype=np.float32)
+        for nr, p_nr in zip(nrs, p_nrs):
+            min_p_nr[nr] = p_nr
+        # but leave out too large nrs
+        min_p_nr[max(nrs) + 1:] = 0.0
+        min_p_nr[0] = 0.0
+        # normalize (sum of probabilities must be one)
+        min_p_nr = min_p_nr / np.sum(min_p_nr)
+        # print(np.log10(min_p_nr + 1e-10).astype(int))
+        # probabilities to keep a dataset?
+        p_keep = np.sum(coverage, axis=0) / coverage.shape[0]
+        return min_p_nr, p_keep
+
+    p_nr_unknown, p_keep_unknown = compute_probs(unknown[:, trim_mask])
+    _, p_keep_known = compute_probs(known[:, trim_mask])
+    known[:, dataset_idx] = 0
+    p_nr_known, _ = compute_probs(known[:, trim_mask])
+    return trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known
 
 
 def subsample(tensor, sign_width=128,
-              p_nr=np.array([1 / 25.] * 25),
+              p_nr=(np.array([1 / 25.] * 25), np.array([1 / 25.] * 25)),
+              p_keep=(np.array([1 / 25.] * 25), np.array([1 / 25.] * 25)),
               p_only_self=0.0,
               p_self=0.1,
               dataset_idx=[0],
-              p_keep=np.array([1 / 25.] * 25),
               **kwargs):
     """Function to subsample stacked data."""
     # it is safe to make a local copy of the input matrix
     new_data = np.copy(tensor)
     # we will have a masking matrix at the end
     mask = np.zeros_like(new_data).astype(bool)
-    p_keep[tuple(dataset_idx)] = 0.0
     # if new_data.shape[1] % sign_width != 0:
     #    raise Exception('All signature should be of length %i.' % sign_width)
     for idx, row in enumerate(new_data):
@@ -2873,23 +2888,32 @@ def subsample(tensor, sign_width=128,
             presence_add[dataset_idx] = True
             mask[idx] = np.repeat(presence_add, sign_width)
             continue
+        # decide to use probabilities from known or unknown
+        if np.random.rand() < p_self:
+            p_nr_curr = p_nr[0]
+            p_keep_curr = p_keep[0]
+        else:
+            p_nr_curr = p_nr[1]
+            p_keep_curr = p_keep[1]
         # datasets that I can select
         present_idxs = np.argwhere(presence).flatten()
         # how many dataset at most?
-        max_add = max(1, present_idxs.shape[0] - 1)
+        max_add = present_idxs.shape[0]
         # normalize nr dataset probabilities
-        p_nr_row = p_nr[:max_add] / np.sum(p_nr[:max_add])
+        p_nr_row = p_nr_curr[1:max_add] / np.sum(p_nr_curr[1:max_add])
         # how many dataset are we keeping?
-        nr_keep = np.random.choice(np.arange(1, len(p_nr_row) + 1), p=p_nr_row)
+        try:
+            nr_keep = np.random.choice(np.arange(1, len(p_nr_row) + 1),
+                                       p=p_nr_row)
+        except Exception:
+            nr_keep = 1
         # normalize dataset keep probabilities
-        p_keep_row = (p_keep[presence] + 1e-10) / \
-            (np.sum(p_keep[presence]) + 1e-10)
+        p_keep_row = (p_keep_curr[presence] + 1e-10) / \
+            (np.sum(p_keep_curr[presence]) + 1e-10)
         nr_keep = np.min([nr_keep, np.sum(p_keep_row > 0)])
         # which ones?
         to_add = np.random.choice(
             present_idxs, nr_keep, p=p_keep_row, replace=False)
-        if np.random.rand() < p_self:
-            to_add = np.append(to_add, dataset_idx)
         # dataset mask
         presence_add = np.zeros(presence.shape).astype(bool)
         presence_add[to_add] = True
@@ -2901,7 +2925,7 @@ def subsample(tensor, sign_width=128,
 
 
 def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
-                   p_self=.1, p_only_self=0., limit=10000):
+                   p_self=.1, p_only_self=0., limit=10000, max_ds=25):
     import numpy as np
     import pandas as pd
     import seaborn as sns
@@ -2912,10 +2936,15 @@ def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
 
     # get triplet generator
     dataset_idx = np.argwhere(
-        np.isin(list(cc.datasets_exemplary()), ds)).flatten()
-    p_nr, p_keep = subsampling_probs(sign2_coverage, dataset_idx)
+        np.isin(list(cc.datasets_exemplary()), ds)).ravel()
+    trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = \
+        subsampling_probs(sign2_coverage, dataset_idx)
+    trim_dataset_idx = np.argwhere(np.arange(len(trim_mask))[
+        trim_mask] == dataset_idx).ravel()[0]
     augment_kwargs = {
-        'p_nr': p_nr, 'p_keep': p_keep, 'dataset_idx': dataset_idx,
+        'p_nr': (p_nr_unknown, p_nr_known),
+        'p_keep': (p_keep_unknown, p_keep_known),
+        'dataset_idx': trim_dataset_idx,
         'p_only_self': 0.0}
     tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
         traintest_file,
@@ -2924,6 +2953,7 @@ def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
         replace_nan=np.nan,
         augment_fn=subsample,
         augment_kwargs=augment_kwargs,
+        trim_mask=trim_mask,
         train=True,
         standard=False)
     tr_gen = tr_shape_type_gen[2]
@@ -2935,10 +2965,9 @@ def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
 
     # get dataset probabilities
     probs_ds = {
-        'space': np.array([d[:2] for d in cc.datasets_exemplary()]),
-        'known': np.sum(known, axis=0) / known.shape[0],
-        'unknown': np.sum(unknown, axis=0) / unknown.shape[0],
-        'p_keep': p_keep}
+        'space': np.array([d[:2] for d in cc.datasets_exemplary()])[trim_mask],
+        'p_keep_known': p_keep_known,
+        'p_keep_unknown': p_keep_unknown}
     df_probs_ds = pd.DataFrame(probs_ds)
     df_probs_ds = df_probs_ds.melt(id_vars=['space'])
     df_probs_ds['probabilities'] = df_probs_ds['value']
@@ -2946,27 +2975,26 @@ def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
     # get nr probabilities
     nnrs, freq_nrs = np.unique(
         np.sum(unknown, axis=1).astype(int), return_counts=True)
-    unknown_nr = np.zeros((25,))
+    unknown_nr = np.zeros((max_ds + 1,))
     unknown_nr[nnrs] = freq_nrs
     nnrs, freq_nrs = np.unique(
         np.sum(known, axis=1).astype(int), return_counts=True)
-    known_nr = np.zeros((25,))
+    known_nr = np.zeros((max_ds + 1,))
     known_nr[nnrs] = freq_nrs
     probs_nr = {
-        'nr_ds': np.arange(25),
-        'known': known_nr / np.sum(known_nr),
-        'unknown': unknown_nr / np.sum(unknown_nr),
-        'p_nr': p_nr}  # == p_nr
+        'nr_ds': np.arange(max_ds + 1),
+        'p_nr_known': p_nr_known,
+        'p_nr_unknown': p_nr_unknown}  # == p_nr
     df_probs_nr = pd.DataFrame(probs_nr)
     df_probs_nr = df_probs_nr.melt(id_vars=['nr_ds'])
     df_probs_nr['probabilities'] = df_probs_nr['value']
 
     # get sampled dataset presence counts
-    ds_a = np.zeros((25,))
-    ds_p = np.zeros((25,))
-    ds_n = np.zeros((25,))
-    ds_o = np.zeros((25,))
-    ds_ns = np.zeros((25,))
+    ds_a = np.zeros((max_ds,))[trim_mask]
+    ds_p = np.zeros((max_ds,))[trim_mask]
+    ds_n = np.zeros((max_ds,))[trim_mask]
+    ds_o = np.zeros((max_ds,))[trim_mask]
+    ds_ns = np.zeros((max_ds,))[trim_mask]
     batch = 0
     for (a, p, n, o, ns), y in tr_gen():
         ds_a += np.sum(~np.isnan(a[:, ::128]), axis=0)
@@ -2977,8 +3005,9 @@ def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
         batch += 1
         if batch == 1000:
             break
+    trimmed_ds = np.array(list(cc.datasets_exemplary()))[trim_mask]
     sampled_ds = {
-        'space': np.array([d[:2] for d in cc.datasets_exemplary()]),
+        'space': np.array([d[:2] for d in trimmed_ds]),
         'anchor': ds_a,
         'positive': ds_p,
         'negative': ds_n,
@@ -2989,11 +3018,11 @@ def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
     df_sampled_ds['sampled'] = df_sampled_ds['value']
 
     # get sampled nr dataset
-    nr_a = np.zeros((25,))
-    nr_p = np.zeros((25,))
-    nr_n = np.zeros((25,))
-    nr_o = np.zeros((25,))
-    nr_ns = np.zeros((25,))
+    nr_a = np.zeros((max_ds + 1,))
+    nr_p = np.zeros((max_ds + 1,))
+    nr_n = np.zeros((max_ds + 1,))
+    nr_o = np.zeros((max_ds + 1,))
+    nr_ns = np.zeros((max_ds + 1,))
     batch = 0
     for (a, p, n, o, ns), y in tr_gen():
         nr_batch_a = np.sum(~np.isnan(a[:, ::128]), axis=1).astype(int)
@@ -3015,7 +3044,7 @@ def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
         if batch == 1000:
             break
     sampled_nr = {
-        'nr_ds': np.arange(nr_a.shape[0]),
+        'nr_ds': np.arange(max_ds + 1),
         'anchor': nr_a,
         'positive': nr_p,
         'negative': nr_n,
