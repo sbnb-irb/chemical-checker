@@ -50,9 +50,16 @@ class sign1(BaseSignature, DataSignature):
 
     def copy_sign0_to_sign1(self, s0, s1, just_data=False):
         """Copy from sign0 to sign1"""
-        if s0.molset != s1.molset:
-            raise Exception(
-                "Copying from signature 0 to 1 is only allowed for same molsets (reference or full)")
+        if type(s0) is DataSignature:
+            if type(s1) is DataSignature:
+                is_datasig = True
+            else:
+                Exception("Both should be datasignature")
+        else:
+            is_datasig = False
+            if s0.molset != s1.molset:
+                raise Exception(
+                    "Copying from signature 0 to 1 is only allowed for same molsets (reference or full)")
         self.__log.debug("Copying HDF5 dataset")
         with h5py.File(s1.data_path, "w") as hf:
             hf.create_dataset(
@@ -62,10 +69,11 @@ class sign1(BaseSignature, DataSignature):
             hf.create_dataset("V", data=s0[:])
             hf.create_dataset("keys", data=np.array(
                 s0.keys, DataSignature.string_dtype()))
-            if s0.molset == "reference":
-                mappings = s0.get_h5_dataset("mappings")
-                hf.create_dataset("mappings", data=np.array(
-                    mappings, DataSignature.string_dtype()))
+            if not is_datasig:
+                if s0.molset == "reference":
+                    mappings = s0.get_h5_dataset("mappings")
+                    hf.create_dataset("mappings", data=np.array(
+                        mappings, DataSignature.string_dtype()))
         if not just_data:
             self.__log.debug("Copying triplets")
             fn0 = os.path.join(s0.model_path, "triplets.h5")
