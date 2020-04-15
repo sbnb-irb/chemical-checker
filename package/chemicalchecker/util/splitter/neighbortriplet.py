@@ -104,6 +104,14 @@ class NeighborTripletTraintest(object):
             features[np.where(np.isnan(features))] = self.replace_nan
         return features
 
+    def get_x_columns(self, mask):
+        """Get full X."""
+        features = self._f[self.x_name][:, mask]
+        # handle NaNs
+        if self.replace_nan is not None:
+            features[np.where(np.isnan(features))] = self.replace_nan
+        return features
+
     def get_all_p(self):
         """Get full X."""
         features = self._f[self.t_name][:]
@@ -581,7 +589,7 @@ class NeighborTripletTraintest(object):
     def generator_fn(file_name, split, epochs=None, batch_size=None,
                      replace_nan=None, ds_index=[15],
                      augment_fn=None, augment_kwargs={},
-                     mask_fn=None, shuffle=True,
+                     mask_fn=None, shuffle=True, trim_mask=None,
                      sharedx=None, train=True, standard=True):
         """Return the generator function that we can query for batches.
 
@@ -610,12 +618,16 @@ class NeighborTripletTraintest(object):
         # no batch size -> return everything
         if not batch_size:
             batch_size = t_shape[0]
+        # default trim mask is not mask
+        if trim_mask is None:
+            trim_mask = np.ones(25).astype(bool)
         # keep X in memory for resolving pairs quickly
         if sharedx is not None:
-            X = sharedx
+            X = sharedx[:, np.repeat(trim_mask, 128)]
         else:
             NeighborTripletTraintest.__log.debug('Reading X in memory')
-            X = reader.get_all_x()
+            X = reader.get_x_columns(np.repeat(trim_mask, 128))
+        NeighborTripletTraintest.__log.debug('X shape: %s' % str(X.shape))
         # default mask is not mask
         if mask_fn is None:
             def mask_fn(*data):
