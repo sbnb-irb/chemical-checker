@@ -50,13 +50,12 @@ class sign1(BaseSignature, DataSignature):
 
     def copy_sign0_to_sign1(self, s0, s1, just_data=False):
         """Copy from sign0 to sign1"""
-        if type(s0) is DataSignature:
-            if type(s1) is DataSignature:
-                is_datasig = True
-            else:
-                Exception("Both should be datasignature")
-        else:
-            is_datasig = False
+        is_basesig = False
+        if type(s0) is BaseSignature:
+            if type(s1) is BaseSignature:
+                is_basesig = True
+
+        if is_basesig:
             if s0.molset != s1.molset:
                 raise Exception(
                     "Copying from signature 0 to 1 is only allowed for same molsets (reference or full)")
@@ -69,7 +68,7 @@ class sign1(BaseSignature, DataSignature):
             hf.create_dataset("V", data=s0[:])
             hf.create_dataset("keys", data=np.array(
                 s0.keys, DataSignature.string_dtype()))
-            if not is_datasig:
+            if is_basesig:
                 if s0.molset == "reference":
                     mappings = s0.get_h5_dataset("mappings")
                     hf.create_dataset("mappings", data=np.array(
@@ -218,6 +217,11 @@ class sign1(BaseSignature, DataSignature):
 
     def predict(self, sign0, destination=None):
         """Predict sign1 from sign0"""
+
+        if type(sign0) is not DataSignature:
+            raise Exception("Predict requires a DataSignature as input parameter")
+        if not os.path.isfile(sign0.data_path):
+            raise Exception("The file " + sign0.data_path + " does not exist")
         tag = str(uuid.uuid4())
         tmp_path = os.path.join(self.model_path, tag)
         try:
