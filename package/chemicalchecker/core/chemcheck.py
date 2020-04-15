@@ -13,14 +13,17 @@ import itertools
 from glob import glob
 import pprint
 import numpy as np
+from tqdm import tqdm
 
 from .data import DataFactory
 from .signature_data import DataSignature
 from .molkit import Mol
+from .preprocess import Preprocess
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import Config
 from chemicalchecker.util.hpc import HPC
+from chemicalchecker.util.parser.converter import Converter
 
 
 @logged
@@ -236,6 +239,19 @@ class ChemicalChecker():
             return None
         return DataSignature(data.data_path)
 
+    def preprocess(self, sign):
+        """Return the file with the raw data preprocessed.
+
+        Args:
+            dataset_code(str): The dataset code of the Chemical Checker.
+        Returns:
+            datafile(str): The name of the file where the data in pairs is saved.
+        """
+        prepro = Preprocess(sign.signature_path, sign.dataset)
+        prepro.fit()
+
+        return prepro.data_path
+
     def sign_name(self, sign):
         """Get a signature name (e.g. 'B1.001-sign1-full')"""
         folds = sign.data_path.split("/")
@@ -294,7 +310,18 @@ class ChemicalChecker():
                     assert(all(s1[-1] == s2[-1]))
                     assert(s1.info_h5 == s2.info_h5)
 
-    def get_sign3_short_from_smiles(self, smiles, dest_file, chunk_size=1000):
+    def get_molecule(self, mol_str, str_type):
+        return Mol(self, mol_str, str_type)
+
+    def get_diagnosisplot(self):
+        from chemicalchecker.util.plot.diagnosticsplot import DiagnosisPlot
+        return DiagnosisPlot(cc=self)
+
+    def get_diagnosis(self, sign, save=True, plot=True, overwrite=False, n=10000):
+        from chemicalchecker.core.diagnostics import Diagnosis
+        return Diagnosis(cc=self, sign=sign, save=save, plot=plot, overwrite=overwrite, n=n)
+
+    def get_sign3_short_from_smiles(self, smiles, dest_file, ids=None, include_nans=False, chunk_size=1000):
         """Get the full signature3 short for a list of smiles.
 
         Args:
@@ -308,54 +335,55 @@ class ChemicalChecker():
         # initialize destination
         try:
             from chemicalchecker.tool.adanet import AdaNet
-            from chemicalchecker.tool.autoencoder import AutoEncoder
             from rdkit import Chem
             from rdkit.Chem import AllChem
         except ImportError as err:
             raise err
-        ds_code_suffix = '001'
         predict_fn = {}
+        converter = Converter()
 
         sign3_short = self.get_signature(
             "sign3", "full", self.sign3_full_map_short_dataset)
 
-        for coord in self.coordinates:
-            sign3 = self.get_signature(
-                "sign3", "full", coord + "." + ds_code_suffix)
+        sign0_adanet_path = os.path.join(sign3_short.model_path,
+                                         'adanet_sign0_A1.001_eval',
+                                         'savedmodel')
 
-            sign0_adanet_path = os.path.join(sign3.model_path,
-                                             'adanet_sign0_A1.001_final',
-                                             'savedmodel')
+        predict_fn = AdaNet.predict_fn(sign0_adanet_path)
 
-            predict_fn[coord + "." +
-                       ds_code_suffix] = AdaNet.predict_fn(sign0_adanet_path)
+        if ids is not None and len(ids) != len(smiles):
+            raise Exception(
+                "Specified ids do not contain same number of elements as smiles")
 
-        ds_codes = predict_fn.keys()
-        ds_codes.sort()
-        dest_dir = os.path.dirname(dest_file)
         # we return a simple DataSignature object (basic HDF5 access)
-        temp_full_sign3 = os.path.join(dest_dir, "temp_sign3_full.h5")
-        with h5py.File(temp_full_sign3, "w") as results:
+        with h5py.File(dest_file, "w") as results:
             # initialize V (with NaN in case of failing rdkit) and smiles keys
-            results.create_dataset('keys', data=np.array(
-                smiles, DataSignature.string_dtype()))
+            if ids is None:
+                results.create_dataset('keys', data=np.array(
+                    smiles, DataSignature.string_dtype()), maxshape=(len(smiles),))
+            else:
+                results.create_dataset('keys', data=np.array(
+                    ids, DataSignature.string_dtype()), maxshape=(len(ids),))
             results.create_dataset(
-                'V', (len(smiles), 128 * len(ds_codes)), dtype=np.float32)
+                'V', (len(smiles), 512), dtype=np.float32, maxshape=(len(smiles), 512))
             results.create_dataset("shape", data=(
-                len(smiles), 128 * len(ds_codes)))
+                len(smiles), 512))
             # compute sign0 (i.e. Morgan fingerprint)
             nBits = 2048
             radius = 2
+            iks = []
+            missing = 0
+            total_failed = []
             # predict by chunk
-            for i in range(0, len(smiles), chunk_size):
+            for i in tqdm(range(0, len(smiles), chunk_size)):
                 chunk = slice(i, i + chunk_size)
                 sign0s = list()
-                sign3s = list()
                 failed = list()
                 for idx, mol_smiles in enumerate(smiles[chunk]):
                     try:
                         # read SMILES as molecules
                         mol = Chem.MolFromSmiles(mol_smiles)
+                        inchikey, inchi = converter.smiles_to_inchi(mol_smiles)
                         if mol is None:
                             raise Exception("Cannot get molecule from smiles.")
                         info = {}
@@ -367,37 +395,50 @@ class ChemicalChecker():
                         # in case of failure append a NaN vector
                         self.__log.warn("%s: %s", mol_smiles, str(err))
                         failed.append(idx)
+                        total_failed.append(idx)
                         calc_s0 = np.full((nBits, ), np.nan)
+                        inchikey = 'nan'
+                        missing += 1
                     finally:
                         sign0s.append(calc_s0)
+                        iks.append(inchikey)
                 # stack input signatures and generate predictions
                 sign0s = np.vstack(sign0s)
-                for ds in ds_codes:
 
-                    preds = predict_fn[ds]({'x': sign0s})['predictions']
-                    # add NaN when SMILES conversion failed
-                    if failed:
-                        preds[np.array(failed)] = np.full((128, ), np.nan)
-                    sign3s.append(preds)
+                preds = predict_fn({'x': sign0s})['predictions'][:, :512]
+                # add NaN when SMILES conversion failed
+                if failed:
+                    preds[np.array(failed)] = np.full((512, ), np.nan)
                 # save chunk to H5
-                results['V'][chunk] = np.hstack(sign3s)
+                results['V'][chunk] = preds
 
-        ae = AutoEncoder(sign3_short.model_path)
+        if not include_nans:
 
-        pred_s3 = ae.encode(temp_full_sign3, dest_file)
+            order_idx = np.argsort(iks)
 
-        return pred_s3
+            with h5py.File(dest_file, 'r+') as hf:
 
-    def get_molecule(self, mol_str, str_type):
-        return Mol(self, mol_str, str_type)
+                hf.create_dataset('smiles', data=np.array(
+                    smiles, DataSignature.string_dtype())[order_idx], maxshape=(len(smiles),))
+                data = hf["V"][:]
+                hf["V"][:] = data[order_idx]
+                if ids is None:
+                    hf["keys"][:] = np.array(
+                        iks, DataSignature.string_dtype())[order_idx]
+                else:
+                    hf["keys"][:] = np.array(
+                        ids, DataSignature.string_dtype())[order_idx]
 
-    def get_diagnosisplot(self):
-        from chemicalchecker.util.plot.diagnosticsplot import DiagnosisPlot
-        return DiagnosisPlot(cc=self)
+                del data
 
-    def get_diagnosis(self, sign, save=True, plot=True, overwrite=False, n=10000):
-        from chemicalchecker.core.diagnostics import Diagnosis
-        return Diagnosis(cc=self, sign=sign, save=save, plot=plot, overwrite=overwrite, n=n)
+                hf["smiles"].resize((len(smiles) - missing,))
+                hf["V"].resize((len(smiles) - missing, 512))
+                hf["keys"].resize((len(smiles) - missing,))
+
+                self.__log.warn("removing smiles %s",
+                                np.array(smiles)[np.array(total_failed)])
+
+        return DataSignature(dest_file)
 
     @staticmethod
     def remove_near_duplicates_hpc(job_path, cc_root, cctype, datasets):
