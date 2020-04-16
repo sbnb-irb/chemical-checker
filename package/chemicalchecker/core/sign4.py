@@ -503,15 +503,10 @@ class sign4(BaseSignature, DataSignature):
 
     def realistic_subsampling_fn(self):
         # realistic subsampling function
-<< << << < HEAD
-        trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = subsampling_probs(self.sign2_coverage,
-                                         self.dataset_idx)
-== == == =
         trim_mask, p_nr_unk, p_keep_unk, p_nr_kno, p_keep_kno = \
             subsampling_probs(self.sign2_coverage, self.dataset_idx)
         p_nr = (p_nr_unk, p_nr_kno)
         p_keep = (p_keep_unk, p_keep_kno)
->>>>>> > passing trim_mask to siamese, updated realistic subsampling fn
         realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
                                dataset_idx=self.dataset_idx,
                                p_nr=p_nr, p_keep=p_keep)
