@@ -154,19 +154,17 @@ class SiameseTriplets(object):
             if os.path.isfile(scaler_path):
                 self.scaler = pickle.load(open(scaler_path, 'rb'))
                 self.__log.info("Using scaler: %s", scaler_path)
-                if self.scaler.scale_.shape[0] == 3200:
-                    self.scaler.scale_ = self.scaler.scale_[np.repeat(self.trim_mask, 128)]
-                    self.scaler.center_ = self.scaler.center_[np.repeat(self.trim_mask, 128)]
             elif 'scaler' in traintest_data.info_h5:
                 scaler_path_tt = traintest_data.get_h5_dataset('scaler')[0]
                 self.__log.info("Using scaler: %s", scaler_path_tt)
                 self.scaler = pickle.load(open(scaler_path_tt, 'rb'))
-                if self.scaler.scale_.shape[0] == 3200:
-                    self.scaler.scale_ = self.scaler.scale_[np.repeat(self.trim_mask, 128)]
-                    self.scaler.center_ = self.scaler.center_[np.repeat(self.trim_mask, 128)]
-                pickle.dump(self.scaler, open(scaler_path_tt, 'wb'))
+                pickle.dump(self.scaler, open(scaler_path, 'wb'))
             else:
                 self.__log.warning("No scaler has been loaded")
+            self.scaler.scale_ = self.scaler.scale_[
+                np.repeat(self.trim_mask, 128)]
+            self.scaler.center_ = self.scaler.center_[
+                np.repeat(self.trim_mask, 128)]
 
         # initialize validation/test generator
         if evaluate:
@@ -840,7 +838,10 @@ class SiameseTriplets(object):
             else:
                 self.build_model((x_matrix.shape[1],), load=True, cp=True)
         # apply input scaling
-        scaled = x_matrix #[:,np.repeat(self.trim_mask, 128)]
+        if self.trim_mask is not None:
+            scaled = x_matrix[:,np.repeat(self.trim_mask, 128)]
+        else:
+            scaled = x_matrix
         if hasattr(self, 'scaler'):
             scaled = self.scaler.transform(x_matrix)
         # get rid of NaNs
@@ -914,10 +915,22 @@ class SiameseTriplets(object):
             augment_kwargs=self.augment_kwargs,
             train=False,
             shuffle=False,
-            standard=self.standard,
-            trim_mask=self.trim_mask)
+            standard=self.standard)
 
         tr_gen = tr_shape_type_gen[2]()
+
+        trval_shape_type_gen = NeighborTripletTraintest.generator_fn(
+            self.traintest_file,
+            'train_test',
+            batch_size=self.batch_size,
+            replace_nan=self.replace_nan,
+            sharedx=self.sharedx,
+            augment_fn=self.augment_fn,
+            augment_kwargs=self.augment_kwargs,
+            train=False,
+            shuffle=False,
+            standard=self.standard)
+        trval_gen = trval_shape_type_gen[2]()
 
         val_shape_type_gen = NeighborTripletTraintest.generator_fn(
             self.traintest_file,
@@ -929,12 +942,11 @@ class SiameseTriplets(object):
             augment_kwargs=self.augment_kwargs,
             train=False,
             shuffle=False,
-            standard=self.standard,
-            trim_mask=self.trim_mask)
-        trval_gen = val_shape_type_gen[2]()
+            standard=self.standard)
+        val_gen = val_shape_type_gen[2]()
 
         vset_dict = {'train_train': tr_gen,
-                     'train_test': trval_gen, 'test_test': self.val_gen}
+                     'train_test': trval_gen, 'test_test': val_gen}
 
         fig, axes = plt.subplots(3, 4, figsize=(22, 15))
         axes = axes.flatten()
