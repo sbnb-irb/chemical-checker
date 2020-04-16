@@ -299,11 +299,11 @@ class sign4(BaseSignature, DataSignature):
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
             dataset_idx = np.argwhere(np.isin(self.src_datasets, ds)).flatten()
-            #params['augment_kwargs']['dataset_idx'] = self.dataset_idx
             # compute probabilities for subsampling
-            trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = subsampling_probs(self.sign2_coverage, dataset_idx)
-            trim_dataset_idx = np.argwhere(np.arange(len(trim_mask))[
-            trim_mask] == dataset_idx).ravel()[0]
+            trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = subsampling_probs(
+                self.sign2_coverage, dataset_idx)
+            trim_dataset_idx = np.argwhere(
+                np.arange(len(trim_mask))[trim_mask] == dataset_idx).ravel()[0]
             params['augment_kwargs']['p_nr'] = (p_nr_unknown, p_nr_known)
             params['augment_kwargs']['p_keep'] = (p_keep_unknown, p_keep_known)
             params['augment_kwargs']['dataset_idx'] = [trim_dataset_idx]
@@ -503,8 +503,15 @@ class sign4(BaseSignature, DataSignature):
 
     def realistic_subsampling_fn(self):
         # realistic subsampling function
+<< << << < HEAD
         trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = subsampling_probs(self.sign2_coverage,
                                          self.dataset_idx)
+== == == =
+        trim_mask, p_nr_unk, p_keep_unk, p_nr_kno, p_keep_kno = \
+            subsampling_probs(self.sign2_coverage, self.dataset_idx)
+        p_nr = (p_nr_unk, p_nr_kno)
+        p_keep = (p_keep_unk, p_keep_kno)
+>>>>>> > passing trim_mask to siamese, updated realistic subsampling fn
         realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
                                dataset_idx=self.dataset_idx,
                                p_nr=p_nr, p_keep=p_keep)
