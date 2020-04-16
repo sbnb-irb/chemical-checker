@@ -70,7 +70,6 @@ class AggregateAsPairs(object):
                         for zidx in zero_idxs:
                             v0[zidx] = v1[zidx]
                     return v0
-
         if self.method == "average":
             self.__log.debug("Aggregation method = average")
             def agg_func(V, idxs):
