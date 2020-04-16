@@ -2941,7 +2941,7 @@ def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
     cc = ChemicalChecker()
 
     # get triplet generator
-    dataset_idx = np.argwhere(np.isin(list(cc.datasets_exemplary()), ds))
+    dataset_idx = np.argwhere(np.isin(list(cc.datasets_exemplary()), ds)).flatten()
     trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = \
         subsampling_probs(sign2_coverage, dataset_idx)
     trim_dataset_idx = np.argwhere(np.arange(len(trim_mask))[
@@ -2949,7 +2949,7 @@ def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
     augment_kwargs = {
         'p_nr': (p_nr_unknown, p_nr_known),
         'p_keep': (p_keep_unknown, p_keep_known),
-        'dataset_idx': trim_dataset_idx,
+        'dataset_idx': [trim_dataset_idx],
         'p_only_self': 0.0}
     tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
         traintest_file,
