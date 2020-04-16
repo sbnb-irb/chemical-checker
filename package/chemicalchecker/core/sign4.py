@@ -345,8 +345,7 @@ class sign4(BaseSignature, DataSignature):
             self.sign2_coverage, self.dataset_idx)
         confidence_train_x = X.get_h5_dataset('x', mask=test_mask)[
             :, np.repeat(trim_mask, 128)]
-        s2_test = self.sign2_self.get_h5_dataset('V', mask=test_mask)[
-            :, np.repeat(trim_mask, 128)]
+        s2_test = self.sign2_self.get_h5_dataset('V', mask=test_mask)
         s2_test_x = confidence_train_x[:, self.dataset_idx[0]
                                        * 128: (self.dataset_idx[0] + 1) * 128]
         assert(np.all(s2_test == s2_test_x))
@@ -365,6 +364,7 @@ class sign4(BaseSignature, DataSignature):
         os.makedirs(prior_path, exist_ok=True)
         prior_model = self.train_prior_model(siamese, confidence_train_x,
                                              splits, prior_path,
+                                             width_x=len(trim_mask == True),
                                              max_x=max_x, p_self=p_self)
 
         # train prior signature model
@@ -373,6 +373,7 @@ class sign4(BaseSignature, DataSignature):
         os.makedirs(prior_sign_path, exist_ok=True)
         prior_sign_model = self.train_prior_signature_model(
             siamese, confidence_train_x, splits, prior_sign_path,
+            width_x=len(trim_mask == True)*128,
             max_x=max_x, p_self=p_self)
 
         # train confidence model
@@ -518,7 +519,7 @@ class sign4(BaseSignature, DataSignature):
 
     def train_prior_model(self, siamese, train_x, splits, save_path,
                           realistic_fn=None, max_x=10000, n_samples=5,
-                          p_self=0.0, plots=True):
+                          p_self=0.0, plots=True, width_x=25):
         """Train prior predictor."""
         def get_weights(y, p=2):
             h, b = np.histogram(y, 20)
@@ -637,7 +638,7 @@ class sign4(BaseSignature, DataSignature):
                 split_x = train_x[split_idx]
                 split_total_x = int(max_x * split_frac)
                 available_x = split_x.shape[0]
-                X = np.zeros((split_total_x, 25))
+                X = np.zeros((split_total_x, width_x))
                 Y = np.zeros((split_total_x, 1))
                 # prepare X and Y in chunks
                 chunk_size = max(10000, int(np.floor(available_x / 10)))
