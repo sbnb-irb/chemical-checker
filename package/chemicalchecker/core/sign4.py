@@ -509,7 +509,7 @@ class sign4(BaseSignature, DataSignature):
         p_keep = (p_keep_unk, p_keep_kno)
         realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
                                dataset_idx=self.dataset_idx,
-                               p_nr=p_nr, p_keep=p_keep)
+                               p_nr=p_nr, p_keep=p_keep, trim_mask=trim_mask)
         return realistic_fn
 
     def train_prior_model(self, siamese, train_x, splits, save_path,
@@ -2877,10 +2877,13 @@ def subsample(tensor, sign_width=128,
               p_only_self=0.0,
               p_self=0.1,
               dataset_idx=[0],
+              trim_mask=None,
               **kwargs):
     """Function to subsample stacked data."""
     # it is safe to make a local copy of the input matrix
     new_data = np.copy(tensor)
+    if trim_mask:
+        new_data = new_data[np.repeat(trim_mask, sign_width)]
     # we will have a masking matrix at the end
     mask = np.zeros_like(new_data).astype(bool)
     # if new_data.shape[1] % sign_width != 0:
@@ -2941,7 +2944,8 @@ def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
     cc = ChemicalChecker()
 
     # get triplet generator
-    dataset_idx = np.argwhere(np.isin(list(cc.datasets_exemplary()), ds)).flatten()
+    dataset_idx = np.argwhere(
+        np.isin(list(cc.datasets_exemplary()), ds)).flatten()
     trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = \
         subsampling_probs(sign2_coverage, dataset_idx)
     trim_dataset_idx = np.argwhere(np.arange(len(trim_mask))[
