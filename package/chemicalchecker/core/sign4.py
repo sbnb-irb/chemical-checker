@@ -364,7 +364,7 @@ class sign4(BaseSignature, DataSignature):
         os.makedirs(prior_path, exist_ok=True)
         prior_model = self.train_prior_model(siamese, confidence_train_x,
                                              splits, prior_path,
-                                             width_x=len(trim_mask == True),
+                                             trim_mask=trim_mask,
                                              max_x=max_x, p_self=p_self)
 
         # train prior signature model
@@ -519,7 +519,7 @@ class sign4(BaseSignature, DataSignature):
 
     def train_prior_model(self, siamese, train_x, splits, save_path,
                           realistic_fn=None, max_x=10000, n_samples=5,
-                          p_self=0.0, plots=True, width_x=25):
+                          p_self=0.0, plots=True, trim_mask=None):
         """Train prior predictor."""
         def get_weights(y, p=2):
             h, b = np.histogram(y, 20)
@@ -572,7 +572,10 @@ class sign4(BaseSignature, DataSignature):
             from chemicalchecker.util.plot.style.util import coord_color
             y = mod.feature_importances_
             datasets = ["%s%s" % (x, y) for x in "ABCDE" for y in "12345"]
-            datasets = np.array(datasets)
+            if trim_mask is not None:
+                datasets = np.array(datasets)[trim_mask]
+            else:
+                datasets = np.array(datasets)
             x = np.array([i for i in range(0, len(datasets))])
             idxs = np.argsort(y)
             datasets = datasets[idxs]
@@ -638,7 +641,7 @@ class sign4(BaseSignature, DataSignature):
                 split_x = train_x[split_idx]
                 split_total_x = int(max_x * split_frac)
                 available_x = split_x.shape[0]
-                X = np.zeros((split_total_x, width_x))
+                X = np.zeros((split_total_x, np.sum(trim_mask)))
                 Y = np.zeros((split_total_x, 1))
                 # prepare X and Y in chunks
                 chunk_size = max(10000, int(np.floor(available_x / 10)))
