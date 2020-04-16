@@ -98,7 +98,7 @@ def intensity_plot(dataset, sign_type="sign2"):
     I = np.sum(np.abs(V), axis=1)
     I_o = I[:-32]
     I_d = I[-32:]
-    print len(I[mask_s2]), len(I_o)
+    #print len(I[mask_s2]), len(I_o)
     ax.hist(I_o, density=True, zorder=100, color="gray", alpha=0.6)
     # ax.hist(I[mask_s2], density=True, zorder=100, color="blue", alpha=0.6)
     ax.hist(I_d, density=True, zorder=200, color="red", alpha=0.6)
@@ -216,7 +216,9 @@ s1_params["ds_params"] = {"H1.001": {"discrete": True},
                           "H3.002": {"discrete": False},
                           "H3.003": {"discrete": False},
                           "H3.004": {"discrete": False},
-                          "H3.005": {"discrete": False}}
+                          "H3.005": {"discrete": False},
+                          "H3.011": {"discrete": False},
+                          "H3.055": {"discrete": False}}
 
 s1_task = CCFit(cc_type='sign1', **s1_params)
 
