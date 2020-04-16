@@ -47,6 +47,12 @@ class Sanitizer(object):
             m = hf[name].shape[1]
         return m
 
+    @staticmethod
+    def data_shape(data, name="V"):
+        with h5py.File(data, "r") as hf:
+            s = hf[name].shape
+        return s
+
     def chunker(self, n):
         size = self.chunk_size
         for i in range(0, n, size):
@@ -122,9 +128,6 @@ class Sanitizer(object):
                 ds = hf.keys()
                 if "V" not in ds or "keys" not in ds or "keys_raw" not in ds or "features" not in ds:
                     raise Exception("data should have V, keys, keys_raw and features...")
-        with h5py.File(data, "r") as hf:
-            self._n = hf["V"].shape[0]
-            self._m = hf["V"].shape[1]
         self.__log.debug("Determining type of data (categorical/continuous)")
         if sign is not None:
             vals = sign[:N_DET].ravel()
@@ -158,27 +161,26 @@ class Sanitizer(object):
                 sums = np.array(sums)
                 return sums
 
-        def rewrite_str_array_h5(data, mask_or_idxs, name):
-            idxs = mask_or_idxs
+        def rewrite_str_array_h5(data, mask, name):
             name_tmp = "%s_tmp" % name
             with h5py.File(data, "a") as hf:
-                array_tmp = hf[name][:][idxs]
+                array_tmp = hf[name][:][mask]
                 hf.create_dataset(name_tmp, data=np.array(array_tmp, DataSignature.string_dtype()))
                 del hf[name]
                 hf[name] = hf[name_tmp]
                 del hf[name_tmp]
 
-        def rewrite_matrix_h5(data, mask_or_idxs, axis, name):
-            idxs = mask_or_idxs
-            n = self.data_n(data)
+        def rewrite_matrix_h5(data, mask, axis, name):
             name_tmp = "%s_tmp" % name
             with h5py.File(data, "a") as hf:
+                n = hf[name].shape[0]
                 create = True
                 for chunk in self.chunker(n):
                     if axis == 1:
-                        M_tmp = hf[name][chunk][:,idxs]
+                        M_tmp = hf[name][chunk][:,mask]
                     else:
-                        M_tmp = hf[name][chunk][idxs]
+                        mask_ = mask[chunk]
+                        M_tmp = hf[name][chunk][mask_]
                     if create:
                         hf.create_dataset(name_tmp, data=M_tmp, maxshape=(None, M_tmp.shape[1])) 
                         create = False
@@ -189,25 +191,28 @@ class Sanitizer(object):
                 hf[name] = hf[name_tmp]
                 del hf[name_tmp]
 
-        def rewrite_features_h5(data, mask_or_idxs):
-            rewrite_str_array_h5(data, mask_or_idxs, "features")
+        def rewrite_features_h5(data, mask):
+            rewrite_str_array_h5(data, mask, "features")
 
-        def rewrite_keys_h5(data, mask_or_idxs):
-            rewrite_str_array_h5(data, mask_or_idxs, "keys")
-            rewrite_str_array_h5(data, mask_or_idxs, "keys_raw")
+        def rewrite_keys_h5(data, mask):
+            rewrite_str_array_h5(data, mask, "keys")
+            rewrite_str_array_h5(data, mask, "keys_raw")
 
         if self.trim:
-            if self._m >= self.max_features:
+            m = self.data_m(data)
+            if m >= self.max_features:
                 self.__log.debug("More than %d features, trimming the least informative ones" % self.max_features)
                 if is_sparse:
                     sums = do_sums(data, "B", axis=0)
                 else:
                     sums = do_sums(data, "V", axis=0)
                 idxs = np.argsort(-sums)[:self.max_features]
-                rewrite_features_h5(data, idxs)
-                rewrite_matrix_h5(data, idxs, axis=1, name="V")
+                mask = np.array([False]*m)
+                mask[idxs] = True
+                rewrite_features_h5(data, mask)
+                rewrite_matrix_h5(data, mask, axis=1, name="V")
                 if is_sparse:
-                    rewrite_matrix_h5(data, idxs, axis=1, name="B")
+                    rewrite_matrix_h5(data, mask, axis=1, name="B")
             if is_sparse:
                 sums = do_sums(data, "B", axis=0)
                 mask = sums >= self.min_feature_freq
