@@ -106,7 +106,7 @@ class SiameseTriplets(object):
         self.patience = float(kwargs.get("patience", 5))
         self.traintest_file = kwargs.get("traintest_file", None)
         self.standard = kwargs.get("standard", True)
-        self.trim_mask = kwargs.get("trim_mask", np.array([True] * 25))
+        self.trim_mask = kwargs.get("trim_mask", None)
 
         # internal variables
         self.name = self.__class__.__name__.lower()
@@ -839,11 +839,11 @@ class SiameseTriplets(object):
                 self.build_model((x_matrix.shape[1],), load=True, cp=True)
         # apply input scaling
         if self.trim_mask is not None:
-            scaled = x_matrix[:,np.repeat(self.trim_mask, 128)]
+            trimmed = x_matrix[:,np.repeat(self.trim_mask, 128)]
         else:
-            scaled = x_matrix
+            trimmed = x_matrix
         if hasattr(self, 'scaler'):
-            scaled = self.scaler.transform(x_matrix)
+            scaled = self.scaler.transform(trimmed)
         # get rid of NaNs
         no_nans = np.nan_to_num(scaled)
         # get default dropout function
@@ -858,7 +858,7 @@ class SiameseTriplets(object):
                 samples.append(self.transformer.predict(no_nans))
         samples = np.vstack(samples)
         samples = samples.reshape(
-            x_matrix.shape[0], dropout_samples, samples.shape[1])
+            trimmed.shape[0], dropout_samples, samples.shape[1])
         self.model = None
         return samples
 
@@ -934,7 +934,7 @@ class SiameseTriplets(object):
 
         val_shape_type_gen = NeighborTripletTraintest.generator_fn(
             self.traintest_file,
-            'train_test',
+            'test_test',
             batch_size=self.batch_size,
             replace_nan=self.replace_nan,
             sharedx=self.sharedx,
