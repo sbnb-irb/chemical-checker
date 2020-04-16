@@ -18,7 +18,22 @@ from chemicalchecker.util import HPC
 class CCLongShort(BaseTask, BaseOperator):
 
     def __init__(self, name=None, cc_type=None, **params):
+        """Initialize CC LongShort task.
 
+        This class allows to pipe a long-short task in the Pipeline framework.
+        Given a list of datasets it first concatenates all of them to create a Long
+        signature and then it produces a short version by using autoencoders.
+
+        Args:
+            name(str): The name of the task (default:None)
+            cc_type(str): The CC type where the fit is applied (Required)
+            CC_ROOT(str): The CC root path (Required)
+            datasets(list): The list of dataset codes to create the long signature(Optional, all datasets taken by default)
+            dataset_sign_long(str): The dataset code for the long signature (default: ZZ.001)
+            dataset_sign_short(str): The dataset code for the short signature (default: ZZ.000)
+            epochs(int): The number of epochs for the autoencoder fit (default: 400)
+            encoding_dim(int): The dimension for the short signature (default: 512)
+        """
         if cc_type is None:
             raise Exception("CCLongShort requires a cc_type")
 
@@ -37,7 +52,7 @@ class CCLongShort(BaseTask, BaseOperator):
         self.datasets = params.get('datasets', None)
         self.dataset_sign_long = params.get('dataset_sign_long', 'ZZ.001')
         self.dataset_sign_short = params.get('dataset_sign_short', 'ZZ.000')
-        self.epochs = params.get('epochs', 800)
+        self.epochs = params.get('epochs', 400)
         self.encoding_dim = params.get('encoding_dim', 512)
         self.CC_ROOT = params.get('CC_ROOT', None)
         if self.CC_ROOT is None:
@@ -153,7 +168,6 @@ class CCLongShort(BaseTask, BaseOperator):
             params["jobdir"] = job_path
             params["job_name"] = "CC_SH_" + self.cc_type.upper()
             params["wait"] = True
-            params["memory"] = 2
             params["cpu"] = 32
             # job command
             singularity_image = Config().PATH.SINGULARITY_IMAGE
