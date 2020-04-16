@@ -867,6 +867,10 @@ class Diagnosis(object):
         self.__log.debug("Sample-specific agreement to the rest of CC, based on a Z-global ranking")
         fn = "global_ranks_agreement"
         
+        cctype = "sign3"
+        molset = "full"
+        datasets = ["ZZ.004"]
+
         def q67(r):
             return np.percentile(r, 67)
 
@@ -880,7 +884,6 @@ class Diagnosis(object):
             return np.array(s)
 
         if self._todo(fn):
-            datasets = self._select_datasets(datasets, exemplary)
             results_datasets = {}
             for ds in datasets:
                 sign = self.cc.get_signature(cctype, molset, ds)
@@ -914,14 +917,29 @@ class Diagnosis(object):
             fn = fn,
             save = self.save,
             plot = self.plot,
-            plotter_function = self.plotter.ranks_agreement,
-            kw_plotter = {
-                "exemplary": exemplary,
-                "cctype": cctype,
-                "molset": molset})
+            plotter_function = self.plotter.global_ranks_agreement)
 
-
-
+    def global_ranks_agreement_projection(self, n_bins=20):
+        self.__log.debug("Global ranks agreement projection")
+        if self._todo("global_ranks_agreement", inner=True):
+            raise Exception("global_ranks_agreement must be done first")
+        if self._todo("projection", inner=True):
+            raise Exception("projection must be done first")
+        fn = "global_ranks_agreement_projection"
+        if self._todo(fn):
+            results_proj = self._load_diagnosis_pickle("projection.pkl")
+            results_rnks = self._load_diagnosis_pickle("global_ranks_agreement.pkl")
+            if np.any(results_proj["keys"] != results_rnks["keys"]):
+                raise Exception("keys do not coincide...")
+            results = self._projection_binned(results_proj["P"], results_rnks["mean"], n_bins)
+        else:
+            results = None
+        return self._returner(
+            results = results,
+            fn = fn,
+            save = self.save,
+            plot = self.plot,
+            plotter_function = self.plotter.global_ranks_agreement_projection)
 
     def across_roc(self, datasets=None, exemplary=True, cctype="sign1", molset="full", **kwargs):
         """Check coverage against a collection of other CC signatures.
@@ -1246,8 +1264,8 @@ class Diagnosis(object):
         self.clusters_projection()
         self.key_coverage(cctype=cctype)
         self.key_coverage_projection()
-        self.ranks_agreement(cctype=cctype)
-        self.ranks_agreement_projection()
+        self.global_ranks_agreement()
+        self.global_ranks_agreement_projection()
         self.outliers()
         self.plot = plot
         self.save = save

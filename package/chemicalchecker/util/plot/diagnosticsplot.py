@@ -72,6 +72,8 @@ class DiagnosisPlot(object):
             "euclidean_distances": "Euclidean distance distribution",
             "features_bins": "Binned features values",
             "features_iqr": "IQR of the features values",
+            "global_ranks_agreement": "Agreement between similarity ranks and a CC consensus signature",
+            "global_ranks_agreement_projection": "Projections of global ranks agreements",
             "image": "Signature seen as a heatmap",
             "intensities": "Intensities of the signatures",
             "intensities_projection": "Projection with intensities",
@@ -624,6 +626,34 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
+    def global_ranks_agreement(self, ax=None, stat="mean", s=1, title=None, cmap="Spectral"):
+        ax = self._get_ax(ax)
+        results = self.load_diagnosis_pickle("global_ranks_agreement.pkl")
+        scores = results[stat]
+        scores = scores[~np.isnan(scores)]
+        kernel = gaussian_kde(scores)
+        x = np.linspace(np.min(scores), np.max(scores), 1000)
+        y = kernel(x)
+        vmin = np.min(x)
+        vmax = np.max(x)
+        pad = (vmax - vmin)*pad_factor
+        ax.scatter(x, y, c=x, cmap=cmap, s=s, vmin=vmin+pad, vmax=vmax-pad)
+        ax.set_xlabel("RBO")
+        ax.set_ylabel("Density")
+        if title is None:
+            title = "CC ranks agree."
+        ax.set_title(title)
+        ax.set_ylim(0, np.max(y)*1.05)
+        return ax
+
+    def global_ranks_agreement_projection(self, ax=None, s=10, title=None, cmap="Spectral"):
+        results = self.load_diagnosis_pickle("global_ranks_agreement_projection.pkl")
+        ax = self._binned_projection(ax, results, cmap, s)
+        if title is None:
+            title = "CC ranks agree."
+        ax.set_title(title)
+        return ax
+
     def orthogonality(self, ax=None, title=None, s=1, cmap="coolwarm"):
         ax = self._get_ax(ax)
         results = self.load_diagnosis_pickle("orthogonality.pkl")
@@ -701,9 +731,9 @@ class DiagnosisPlot(object):
         ax = fig.add_subplot(gs[1,2])
         self.key_coverage_projection(ax)
         ax = fig.add_subplot(gs[0,3])
-        self.ranks_agreement_projection(ax)
+        self.global_ranks_agreement_projection(ax)
         ax = fig.add_subplot(gs[0,4])
-        self.ranks_agreement(ax)
+        self.global_ranks_agreement(ax)
         ax = fig.add_subplot(gs[1,3])
         self.clusters_projection(ax)
         ax = fig.add_subplot(gs[1,4])
