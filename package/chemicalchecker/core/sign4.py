@@ -320,8 +320,10 @@ class sign4(BaseSignature, DataSignature):
         # save validation plots
         self.plot_validations(siamese, dataset_idx, traintest_file)
         # when evaluating also save prior and confidence models
+        trim_mask, _, _, _, _ = subsampling_probs(
+            self.sign2_coverage, dataset_idx)
         prior_model, prior_sign_model, confidence_model = self.train_confidence(
-            traintest_file, X, suffix, siamese)
+            traintest_file, X[np.repeat(trim_mask, 128)], suffix, siamese)
         # update the parameters with the new nr_of epochs and lr
         self.params['sign2']['epochs'] = siamese.last_epoch
         self.params['sign2']['learning_rate'] = siamese.learning_rate
@@ -409,8 +411,10 @@ class sign4(BaseSignature, DataSignature):
         siamese = SiameseTriplets(siamese_path, predict_only=True)
         traintest_file = os.path.join(
             self.model_path, 'traintest_%s.h5' % suffix)
-        X = DataSignature(os.path.join(self.model_path, 'train.h5'))
-
+        trim_mask, _, _, _, _ = subsampling_probs(
+            self.sign2_coverage, dataset_idx)
+        X = DataSignature(os.path.join(self.model_path, 'train.h5'))[
+            np.repeat(trim_mask, 128)]
         prior_mdl, prior_sign_mdl, conf_mdl = self.train_confidence(
             traintest_file, X, suffix, siamese)
         if not update_sign:
@@ -509,7 +513,7 @@ class sign4(BaseSignature, DataSignature):
         p_keep = (p_keep_unk, p_keep_kno)
         realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
                                dataset_idx=self.dataset_idx,
-                               p_nr=p_nr, p_keep=p_keep, trim_mask=trim_mask)
+                               p_nr=p_nr, p_keep=p_keep)
         return realistic_fn
 
     def train_prior_model(self, siamese, train_x, splits, save_path,
@@ -2877,13 +2881,10 @@ def subsample(tensor, sign_width=128,
               p_only_self=0.0,
               p_self=0.1,
               dataset_idx=[0],
-              trim_mask=None,
               **kwargs):
     """Function to subsample stacked data."""
     # it is safe to make a local copy of the input matrix
     new_data = np.copy(tensor)
-    if trim_mask:
-        new_data = new_data[np.repeat(trim_mask, sign_width)]
     # we will have a masking matrix at the end
     mask = np.zeros_like(new_data).astype(bool)
     # if new_data.shape[1] % sign_width != 0:
