@@ -343,13 +343,16 @@ class sign4(BaseSignature, DataSignature):
         # confidence is going to be trained only on siamese test data
         trim_mask, _, _, _, _ = subsampling_probs(
             self.sign2_coverage, self.dataset_idx)
-        confidence_train_x = X.get_h5_dataset('x', mask=test_mask)[np.repeat(trim_mask,128)]
-        s2_test = self.sign2_self.get_h5_dataset('V', mask=test_mask)[np.repeat(trim_mask,128)]
+        confidence_train_x = X.get_h5_dataset('x', mask=test_mask)[
+            :, np.repeat(trim_mask, 128)]
+        s2_test = self.sign2_self.get_h5_dataset('V', mask=test_mask)[
+            :, np.repeat(trim_mask, 128)]
         s2_test_x = confidence_train_x[:, self.dataset_idx[0]
                                        * 128: (self.dataset_idx[0] + 1) * 128]
         assert(np.all(s2_test == s2_test_x))
         # siamese train is going to be used for appticability domain
-        known_x = X.get_h5_dataset('x', mask=train_mask)[np.repeat(trim_mask,128)]
+        known_x = X.get_h5_dataset('x', mask=train_mask)[
+            :, np.repeat(trim_mask, 128)]
         # generate train-test split for confidence estimation
         split_names = ['train', 'test']
         split_fractions = [0.8, 0.2]
