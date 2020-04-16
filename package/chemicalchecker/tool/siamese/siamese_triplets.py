@@ -142,7 +142,7 @@ class SiameseTriplets(object):
                 sharedx=self.sharedx,
                 augment_fn=self.augment_fn,
                 augment_kwargs=self.augment_kwargs,
-                train=True, standard=self.standard, 
+                train=True, standard=self.standard,
                 trim_mask=self.trim_mask)
             self.tr_shapes = tr_shape_type_gen[0]
             self.tr_gen = tr_shape_type_gen[2]()
@@ -707,7 +707,7 @@ class SiameseTriplets(object):
                         augment_fn=self.augment_fn,
                         train=False,
                         shuffle=False,
-                        standard=self.standard,trim_mask=self.trim_mask)
+                        standard=self.standard, trim_mask=self.trim_mask)
                     validation_sets.append((gen, shapes, name))
             additional_vals = AdditionalValidationSets(
                 validation_sets, self.model, batch_size=self.batch_size)
@@ -824,24 +824,22 @@ class SiameseTriplets(object):
             if self.plot:
                 self._plot_anchor_dist(anchor_file)
 
-    def predict(self, x_matrix, dropout_fn=None, dropout_samples=10, rebuild=False):
+    def predict(self, x_matrix, dropout_fn=None, dropout_samples=10, cp=False):
         """Do predictions.
 
         prediction_file(str): Path to input file containing Xs.
         split(str): which split to predict.
         batch_size(int): batch size for prediction.
         """
-        # load model if not alredy there
-        if self.model is None or rebuild:
-            if dropout_fn is None:
-                self.build_model((x_matrix.shape[1],), load=True)
-            else:
-                self.build_model((x_matrix.shape[1],), load=True, cp=True)
-        # apply input scaling
+        # apply trimming of input matrix
         if self.trim_mask is not None:
-            trimmed = x_matrix[:,np.repeat(self.trim_mask, 128)]
+            trimmed = x_matrix[:, np.repeat(self.trim_mask, 128)]
         else:
             trimmed = x_matrix
+        # load model if not alredy there
+        if self.model is None or cp:
+            self.build_model((trimmed.shape[1],), load=True, cp=cp)
+        # apply input scaling
         if hasattr(self, 'scaler'):
             scaled = self.scaler.transform(trimmed)
         # get rid of NaNs
@@ -859,7 +857,10 @@ class SiameseTriplets(object):
         samples = np.vstack(samples)
         samples = samples.reshape(
             trimmed.shape[0], dropout_samples, samples.shape[1])
-        self.model = None
+        # if we used conformal prediction we drop the model (otherwise
+        # we will generate dropout predictions!)
+        if cp:
+            self.model = None
         return samples
 
     def _plot_history(self, history, vsets, destination):

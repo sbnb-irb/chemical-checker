@@ -380,7 +380,7 @@ class sign4(BaseSignature, DataSignature):
             confidence_path, p_self=p_self)
         return prior_model, prior_sign_model, confidence_model
 
-    def rerun_confidence(self, cc, suffix, update_sign=True, chunk_size=10000):
+    def rerun_confidence(self, cc, suffix, train=True, update_sign=True, chunk_size=10000):
         """Rerun confidence trainining and estimation"""
         try:
             import faiss
@@ -407,13 +407,35 @@ class sign4(BaseSignature, DataSignature):
 
         siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
         siamese = SiameseTriplets(siamese_path, predict_only=True)
-        traintest_file = os.path.join(
-            self.model_path, 'traintest_%s.h5' % suffix)
-        X = DataSignature(os.path.join(self.model_path, 'train.h5'))
-        prior_mdl, prior_sign_mdl, conf_mdl = self.train_confidence(
-            traintest_file, X, suffix, siamese)
-        if not update_sign:
-            return
+
+        if train:
+            traintest_file = os.path.join(
+                self.model_path, 'traintest_%s.h5' % suffix)
+            X = DataSignature(os.path.join(self.model_path, 'train.h5'))
+            prior_mdl, prior_sign_mdl, conf_mdl = self.train_confidence(
+                traintest_file, X, suffix, siamese)
+            if not update_sign:
+                return
+        else:
+            # part of confidence is the priors
+            prior_path = os.path.join(self.model_path, 'prior_eval')
+            prior_file = os.path.join(prior_path, 'prior.pkl')
+            prior_mdl = pickle.load(open(prior_file, 'rb'))
+
+            # part of confidence is the priors based on signatures
+            prior_sign_path = os.path.join(
+                self.model_path, 'prior_sign_eval')
+            prior_sign_file = os.path.join(prior_sign_path, 'prior.pkl')
+            prior_sign_mdl = pickle.load(open(prior_sign_file, 'rb'))
+
+            # and finally the linear combination of scores
+            confidence_path = os.path.join(self.model_path, 'confidence_eval')
+            confidence_file = os.path.join(
+                confidence_path, 'confidence.pkl')
+            calibration_file = os.path.join(
+                confidence_path, 'calibration.pkl')
+            conf_mdl = (pickle.load(open(confidence_file, 'rb')),
+                        pickle.load(open(calibration_file, 'rb')))
 
         # another part of confidence is the applicability
         confidence_path = os.path.join(self.model_path, 'confidence_eval')
@@ -422,6 +444,7 @@ class sign4(BaseSignature, DataSignature):
         known_dist = os.path.join(confidence_path, 'known_dist.h5')
         app_range = DataSignature(known_dist).get_h5_dataset(
             'applicability_range')
+        _, trim_mask = self.realistic_subsampling_fn()
 
         # get sorted universe inchikeys
         self.universe_inchikeys = self.get_universe_inchikeys()
@@ -461,7 +484,7 @@ class sign4(BaseSignature, DataSignature):
                     # save confidence natural scores
                     # compute prior from coverage
                     cov = ~np.isnan(feat[:, 0::128])
-                    prior = prior_mdl.predict(cov)
+                    prior = prior_mdl.predict(cov[:, trim_mask])
                     results['prior'][chunk] = prior
                     # and from prediction
                     preds = siamese.predict(feat)
@@ -656,20 +679,23 @@ class sign4(BaseSignature, DataSignature):
                         dst_chunk = slice(dst_start, dst_end)
                         # get only-self and not-self predictions
                         feat = split_x[src_chunk]
-                        feat_onlyself = realistic_fn(feat, p_only_self=1.0)
-                        preds_onlyself = siamese.predict(feat_onlyself)
-                        preds = list()
-                        for _ in range(n_samples):
-                            feat_notself = realistic_fn(feat, p_self=p_self)
-                            preds.append(siamese.predict(feat_notself))
-                        preds_noself = np.mean(np.stack(preds, axis=2), axis=2)
+                        preds_onlyself = siamese.predict(
+                            feat, dropout_fn=partial(
+                                realistic_fn, p_only_self=1.0),
+                            dropout_samples=1)
+                        preds_onlyself = np.mean(preds_onlyself, axis=1)
+                        samples = siamese.predict(
+                            feat, dropout_fn=partial(
+                                realistic_fn, p_self=p_self),
+                            dropout_samples=n_samples)
+                        preds_noself = np.mean(samples, axis=1)
                         # the prior is only-self vs not-self predictions
                         corrs = row_wise_correlation(
                             preds_onlyself, preds_noself, scaled=True)
                         Y[dst_chunk] = np.expand_dims(corrs, 1)
                         # the X is the dataset presence in the not-self
-                        presence = ~np.isnan(feat_notself[:, ::128])
-                        X[dst_chunk] = presence[trim_mask].astype(int)
+                        presence = ~np.isnan(feat[:, ::128])[:, trim_mask]
+                        X[dst_chunk] = presence.astype(int)
                         # check if enought
                         if reached_max:
                             break
@@ -836,13 +862,16 @@ class sign4(BaseSignature, DataSignature):
                         dst_chunk = slice(dst_start, dst_end)
                         # get only-self and not-self predictions
                         feat = split_x[src_chunk]
-                        feat_onlyself = realistic_fn(feat, p_only_self=1.0)
-                        preds_onlyself = siamese.predict(feat_onlyself)
-                        preds = list()
-                        for _ in range(n_samples):
-                            feat_notself = realistic_fn(feat, p_self=p_self)
-                            preds.append(siamese.predict(feat_notself))
-                        preds_noself = np.mean(np.stack(preds, axis=2), axis=2)
+                        preds_onlyself = siamese.predict(
+                            feat, dropout_fn=partial(
+                                realistic_fn, p_only_self=1.0),
+                            dropout_samples=1)
+                        preds_onlyself = np.mean(preds_onlyself, axis=1)
+                        samples = siamese.predict(
+                            feat, dropout_fn=partial(
+                                realistic_fn, p_self=p_self),
+                            dropout_samples=n_samples)
+                        preds_noself = np.mean(samples, axis=1)
                         # the prior is only-self vs not-self predictions
                         corrs = row_wise_correlation(
                             preds_onlyself, preds_noself, scaled=True)
@@ -1109,7 +1138,7 @@ class sign4(BaseSignature, DataSignature):
         self.__log.info('Conformal Prediction DONE')
 
         # predict expected prior
-        unk_notself_presence = ~np.isnan(unk_notself[:, ::128])[trim_mask]
+        unk_notself_presence = ~np.isnan(unk_notself[:, ::128])[:, trim_mask]
         prior = prior_model.predict(unk_notself_presence.astype(int))
         prior_sign = prior_sign_model.predict(consensus_ad)
 
@@ -1190,7 +1219,11 @@ class sign4(BaseSignature, DataSignature):
         app_thr = int(np.clip(np.log10(self.neig_sign.shape[0])**2, 5, 25))
         preds, dists, ranges = list(), list(), list()
         for i in range(n_samples):
-            pred = siamese.predict(dropout_fn(features, p_self=p_self))
+            pred = siamese.predict(features,
+                                   dropout_fn=partial(
+                                       dropout_fn, p_self=p_self),
+                                   dropout_samples=1)
+            pred = np.mean(pred, axis=1)
             only_self_dists, _ = neig_index.search(pred, app_thr)
             if app_range is None:
                 d_min = np.min(only_self_dists)
@@ -1225,13 +1258,13 @@ class sign4(BaseSignature, DataSignature):
             nan_feat = np.full(
                 (1, features.shape[1]), np.nan, dtype=np.float32)
             nan_pred = siamese.predict(nan_feat)
-        # draw prediction with uniform sub-sampling
+        # draw prediction with sub-sampling
         if dropout_fn is None:
             dropout_fn = partial(subsample, dataset_idx=[self.dataset_idx])
         samples = siamese.predict(features,
                                   dropout_fn=partial(
                                       dropout_fn, p_self=p_self),
-                                  dropout_samples=n_samples, rebuild=True)
+                                  dropout_samples=n_samples, cp=True)
         # summarize the predictions as consensus
         consensus = np.mean(samples, axis=1)
         # zeros input (no info) as intensity reference
@@ -2547,6 +2580,7 @@ class sign4(BaseSignature, DataSignature):
             known_dist = os.path.join(confidence_path, 'known_dist.h5')
             app_range = DataSignature(known_dist).get_h5_dataset(
                 'applicability_range')
+            _, trim_mask = self.realistic_subsampling_fn()
 
             # and finally the linear combination of scores
             if conf_mdl is None:
@@ -2621,7 +2655,7 @@ class sign4(BaseSignature, DataSignature):
                         # save confidence natural scores
                         # compute prior from coverage
                         cov = ~np.isnan(feat[:, 0::128])
-                        prior = prior_mdl.predict(cov)
+                        prior = prior_mdl.predict(cov[:, trim_mask])
                         results['prior'][chunk] = prior
                         # and from prediction
                         prior_sign = prior_sign_mdl.predict(preds)
