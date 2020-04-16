@@ -154,10 +154,16 @@ class SiameseTriplets(object):
             if os.path.isfile(scaler_path):
                 self.scaler = pickle.load(open(scaler_path, 'rb'))
                 self.__log.info("Using scaler: %s", scaler_path)
+                if self.scaler.scale_.shape[0] == 3200:
+                    self.scaler.scale_ = self.scaler.scale_[np.repeat(self.trim_mask, 128)]
+                    self.scaler.center_ = self.scaler.center_[np.repeat(self.trim_mask, 128)]
             elif 'scaler' in traintest_data.info_h5:
                 scaler_path_tt = traintest_data.get_h5_dataset('scaler')[0]
                 self.__log.info("Using scaler: %s", scaler_path_tt)
                 self.scaler = pickle.load(open(scaler_path_tt, 'rb'))
+                if self.scaler.scale_.shape[0] == 3200:
+                    self.scaler.scale_ = self.scaler.scale_[np.repeat(self.trim_mask, 128)]
+                    self.scaler.center_ = self.scaler.center_[np.repeat(self.trim_mask, 128)]
                 pickle.dump(self.scaler, open(scaler_path_tt, 'wb'))
             else:
                 self.__log.warning("No scaler has been loaded")
