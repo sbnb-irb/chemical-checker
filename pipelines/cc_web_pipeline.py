@@ -14,7 +14,7 @@ from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem, Sho
 from chemicalchecker.util.pipeline import Coordinates, Projections, Plots, MolecularInfo, SimilarsSign3
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-os.environ['CC_CONFIG'] = os.path.join(current_dir,'config/cc_web_update.json')
+os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/cc_web_update.json')
 
 
 CC_PATH = "/aloy/web_checker/package_cc/2019_05/"

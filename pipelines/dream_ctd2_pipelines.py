@@ -11,7 +11,7 @@ from chemicalchecker import ChemicalChecker
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, CCFit
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-os.environ['CC_CONFIG'] = os.path.join(current_dir,'config/dream_ctd2_config.json')
+os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/dream_ctd2_config.json')
 
 CC_PATH = "/aloy/web_checker/package_cc/dream_ctd2/"
 
