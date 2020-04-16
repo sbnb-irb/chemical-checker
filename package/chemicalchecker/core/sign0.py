@@ -245,7 +245,7 @@ class sign0(BaseSignature, DataSignature):
         features = features[feature_idxs]
         return X, keys, keys_raw, features
         
-    def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, max_features=10000, **params):
+    def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, max_features=10000, chunk_size=10000, **params):
         """Process the input data. We produce a sign0 (full) and a sign0(reference). Data are sorted (keys and features).
 
         Args:
@@ -272,7 +272,7 @@ class sign0(BaseSignature, DataSignature):
         features = res["features"]
         input_type = res["input_type"]
         self.__log.debug("Sanitizing")
-        san = Sanitizer(trim=True, max_features=max_features)
+        san = Sanitizer(trim=True, max_features=max_features, chunk_size=chunk_size)
         X, keys, keys_raw, features = san.transform(V=X, keys=keys, keys_raw=keys_raw, features=features, sign=None)
         self.__log.debug("Aggregating if necessary")
         agg = Aggregate(method=agg_method, input_type=input_type)
@@ -372,7 +372,7 @@ class sign0(BaseSignature, DataSignature):
         X = W
         self.__log.debug("Sanitizing if necessary")
         self.refresh()
-        san = Sanitizer(trim=False)
+        san = Sanitizer(trim=False, chunk_size=chunk_size)
         X, keys, keys_raw, features = san.transform(V=X, keys=keys, keys_raw=keys_raw, features=features, sign=self)
         self.__log.debug("Aggregating as it was done at fit time")
         agg = Aggregate(method=self.agg_method, input_type=input_type)
