@@ -13,7 +13,8 @@ from chemicalchecker.database import Calcdata
 from chemicalchecker.database import Dataset
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, CCFit, CCLongShort, CCSmileConverter
 
-os.environ['CC_CONFIG'] = '/aloy/home/oguitart/projects/source/chemical_checker/pipelines/dream_ctd2_config.json'
+current_dir = os.path.dirname(os.path.abspath(__file__))
+os.environ['CC_CONFIG'] = os.path.join(current_dir,'config/dream_ctd2_config.json')
 
 
 CC_ROOT = "/aloy/web_checker/package_cc/2019_05/"
