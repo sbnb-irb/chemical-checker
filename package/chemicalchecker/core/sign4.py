@@ -2941,8 +2941,7 @@ def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
     cc = ChemicalChecker()
 
     # get triplet generator
-    dataset_idx = np.argwhere(
-        np.isin(list(cc.datasets_exemplary()), ds)).ravel()
+    dataset_idx = np.argwhere(np.isin(list(cc.datasets_exemplary()), ds))
     trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = \
         subsampling_probs(sign2_coverage, dataset_idx)
     trim_dataset_idx = np.argwhere(np.arange(len(trim_mask))[
