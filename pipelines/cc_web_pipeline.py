@@ -13,7 +13,8 @@ from chemicalchecker.database import Molrepo
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem, ShowTargets, Libraries, Similars
 from chemicalchecker.util.pipeline import Coordinates, Projections, Plots, MolecularInfo, SimilarsSign3
 
-os.environ['CC_CONFIG'] = '/aloy/home/oguitart/projects/source/chemical_checker/pipelines/cc_web_update.json'
+current_dir = os.path.dirname(os.path.abspath(__file__))
+os.environ['CC_CONFIG'] = os.path.join(current_dir,'config/cc_web_update.json')
 
 
 CC_PATH = "/aloy/web_checker/package_cc/2019_05/"
