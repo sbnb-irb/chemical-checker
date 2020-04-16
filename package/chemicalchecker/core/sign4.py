@@ -341,17 +341,13 @@ class sign4(BaseSignature, DataSignature):
         train_mask = np.isin(list(self.sign2_self.keys), list(train_inks),
                              assume_unique=True)
         # confidence is going to be trained only on siamese test data
-        trim_mask, _, _, _, _ = subsampling_probs(
-            self.sign2_coverage, self.dataset_idx)
-        confidence_train_x = X.get_h5_dataset('x', mask=test_mask)[
-            :, np.repeat(trim_mask, 128)]
+        confidence_train_x = X.get_h5_dataset('x', mask=test_mask)
         s2_test = self.sign2_self.get_h5_dataset('V', mask=test_mask)
         s2_test_x = confidence_train_x[:, self.dataset_idx[0]
                                        * 128: (self.dataset_idx[0] + 1) * 128]
         assert(np.all(s2_test == s2_test_x))
         # siamese train is going to be used for appticability domain
-        known_x = X.get_h5_dataset('x', mask=train_mask)[
-            :, np.repeat(trim_mask, 128)]
+        known_x = X.get_h5_dataset('x', mask=train_mask)
         # generate train-test split for confidence estimation
         split_names = ['train', 'test']
         split_fractions = [0.8, 0.2]
@@ -362,10 +358,8 @@ class sign4(BaseSignature, DataSignature):
         # train prior model
         prior_path = os.path.join(self.model_path, 'prior_%s' % suffix)
         os.makedirs(prior_path, exist_ok=True)
-        siamese.trim_mask = None
         prior_model = self.train_prior_model(siamese, confidence_train_x,
                                              splits, prior_path,
-                                             trim_mask=trim_mask,
                                              max_x=max_x, p_self=p_self)
 
         # train prior signature model
@@ -515,11 +509,10 @@ class sign4(BaseSignature, DataSignature):
         realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
                                dataset_idx=self.dataset_idx,
                                p_nr=p_nr, p_keep=p_keep)
-        return realistic_fn
+        return realistic_fn, trim_mask
 
     def train_prior_model(self, siamese, train_x, splits, save_path,
-                          realistic_fn=None, max_x=10000, n_samples=5,
-                          p_self=0.0, plots=True, trim_mask=None):
+                          max_x=10000, n_samples=5, p_self=0.0, plots=True):
         """Train prior predictor."""
         def get_weights(y, p=2):
             h, b = np.histogram(y, 20)
@@ -568,7 +561,7 @@ class sign4(BaseSignature, DataSignature):
             ax.set_title(title)
             ax.legend()
 
-        def importances(ax, mod):
+        def importances(ax, mod, trim_mask):
             from chemicalchecker.util.plot.style.util import coord_color
             y = mod.feature_importances_
             datasets = ["%s%s" % (x, y) for x in "ABCDE" for y in "12345"]
@@ -588,7 +581,7 @@ class sign4(BaseSignature, DataSignature):
             ax.set_title("Importance")
             ax.axvline(0, color="red", lw=1)
 
-        def analyze(mod, x_tr, y_tr, x_te, y_te):
+        def analyze(mod, x_tr, y_tr, x_te, y_te, trim_mask):
             import matplotlib.pyplot as plt
             y_tr_p = mod.predict(x_tr)
             y_te_p = mod.predict(x_te)
@@ -604,7 +597,7 @@ class sign4(BaseSignature, DataSignature):
             ax = fig.add_subplot(gs[1, 1])
             scatter(ax, y_te_p, y_te)
             ax = fig.add_subplot(gs[0:2, 2])
-            importances(ax, mod)
+            importances(ax, mod, trim_mask)
             if plots:
                 plt.savefig(os.path.join(save_path, 'prior_stats.png'))
                 plt.close()
@@ -632,8 +625,7 @@ class sign4(BaseSignature, DataSignature):
 
         self.__log.info('Training PRIOR model')
         # define subsampling
-        if realistic_fn is None:
-            realistic_fn = self.realistic_subsampling_fn()
+        realistic_fn, trim_mask = self.realistic_subsampling_fn()
         # generate train test split
         out_file = os.path.join(save_path, 'data.h5')
         with h5py.File(out_file, "w") as fh:
@@ -677,7 +669,7 @@ class sign4(BaseSignature, DataSignature):
                         Y[dst_chunk] = np.expand_dims(corrs, 1)
                         # the X is the dataset presence in the not-self
                         presence = ~np.isnan(feat_notself[:, ::128])
-                        X[dst_chunk] = presence.astype(int)
+                        X[dst_chunk] = presence[trim_mask].astype(int)
                         # check if enought
                         if reached_max:
                             break
@@ -698,14 +690,13 @@ class sign4(BaseSignature, DataSignature):
         p = find_p(model, x_tr, y_tr, x_te, y_te)
         model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
         if plots:
-            analyze(model, x_tr, y_tr, x_te, y_te)
+            analyze(model, x_tr, y_tr, x_te, y_te, trim_mask)
         predictor_path = os.path.join(save_path, 'prior.pkl')
         pickle.dump(model, open(predictor_path, 'wb'))
         return model
 
     def train_prior_signature_model(self, siamese, train_x, splits,
-                                    save_path, realistic_fn=None,
-                                    max_x=10000, n_samples=5,
+                                    save_path, max_x=10000, n_samples=5,
                                     p_self=0.0, plots=True):
         """Train prior predictor."""
         def get_weights(y, p=2):
@@ -814,8 +805,7 @@ class sign4(BaseSignature, DataSignature):
 
         self.__log.info('Training PRIOR SIGNATURE model')
         # define subsampling
-        if realistic_fn is None:
-            realistic_fn = self.realistic_subsampling_fn()
+        realistic_fn, trim_mask = self.realistic_subsampling_fn()
         # generate train test split
         out_file = os.path.join(save_path, 'data.h5')
         with h5py.File(out_file, "w") as fh:
@@ -1081,14 +1071,13 @@ class sign4(BaseSignature, DataSignature):
 
     def save_confidence_distributions(self, siamese, known_x, train_x,
                                       prior_model, prior_sign_model, save_path,
-                                      splits, realistic_fn=None, p_self=0.0):
+                                      splits, p_self=0.0):
         try:
             import faiss
         except ImportError as err:
             raise err
 
-        if realistic_fn is None:
-            realistic_fn = self.realistic_subsampling_fn()
+        realistic_fn, trim_mask = self.realistic_subsampling_fn()
 
         # save neighbors faiss index based on only self train prediction
         self.__log.info('Computing Neighbor Index')
@@ -1109,18 +1098,18 @@ class sign4(BaseSignature, DataSignature):
         # do applicability domain prediction
         self.__log.info('Computing Applicability Domain')
         applicability, app_range, consensus_ad = \
-            self.applicability_domain(known_onlyself_neig, train_x, siamese,
-                                      dropout_fn=realistic_fn, p_self=p_self)
+            self.applicability_domain(
+                known_onlyself_neig, train_x, siamese, p_self=p_self)
         self.__log.info('Applicability Domain DONE')
 
         # do conformal prediction (dropout)
         self.__log.info('Computing Conformal Prediction')
         intensities, robustness, consensus_cp = self.conformal_prediction(
-            siamese, train_x, dropout_fn=realistic_fn, p_self=p_self)
+            siamese, train_x, p_self=p_self)
         self.__log.info('Conformal Prediction DONE')
 
         # predict expected prior
-        unk_notself_presence = ~np.isnan(unk_notself[:, ::128])
+        unk_notself_presence = ~np.isnan(unk_notself[:, ::128])[trim_mask]
         prior = prior_model.predict(unk_notself_presence.astype(int))
         prior_sign = prior_sign_model.predict(consensus_ad)
 
@@ -1195,7 +1184,7 @@ class sign4(BaseSignature, DataSignature):
                              p_self=0.0):
 
         if dropout_fn is None:
-            dropout_fn = self.realistic_subsampling_fn()
+            dropout_fn, _ = self.realistic_subsampling_fn()
         # applicability is whether not-self preds is close to only-self preds
         # neighbors between 5 and 25 depending on the size of the dataset
         app_thr = int(np.clip(np.log10(self.neig_sign.shape[0])**2, 5, 25))
@@ -1230,7 +1219,7 @@ class sign4(BaseSignature, DataSignature):
     def conformal_prediction(self, siamese, features, dropout_fn=None,
                              nan_pred=None, n_samples=5, p_self=0.0):
         if dropout_fn is None:
-            dropout_fn = self.realistic_subsampling_fn()
+            dropout_fn, _ = self.realistic_subsampling_fn()
         # reference prediction (based on no information)
         if nan_pred is None:
             nan_feat = np.full(
