@@ -712,7 +712,7 @@ class NeighborTripletTraintest(object):
                 if batch_idx % step_size == 0 and batch_idx != 0:
                     p_factor = -p_factor
 
-        pair_shape = (t_shape[0], x_shape[1])
+        pair_shape = (t_shape[0], sum(trim_mask) * 128) #x_shape[1])
         shapes = (pair_shape, pair_shape, pair_shape, pair_shape)
         dtypes = (x_dtype, x_dtype, x_dtype, x_dtype)
         return shapes, dtypes, example_generator_fn

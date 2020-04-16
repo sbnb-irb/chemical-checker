@@ -93,11 +93,11 @@ class SiameseTriplets(object):
         self.replace_nan = float(kwargs.get("replace_nan", 0.0))
         self.split = str(kwargs.get("split", 'train'))
         self.layers_sizes = kwargs.get("layers_sizes", [128])
-        self.layers = kwargs.get("layers", [Dense] * len(self.layers_sizes))
+        self.layers = kwargs.get("layers", [Dense])
         self.activations = kwargs.get("activations",
-                                      ['relu'] * len(self.layers_sizes))
+                                      ['relu'])
         self.dropouts = kwargs.get(
-            "dropouts", ([0.2] * (len(self.layers_sizes) - 1)) + [None])
+            "dropouts", [None])
         self.augment_fn = kwargs.get("augment_fn", None)
         self.augment_kwargs = kwargs.get("augment_kwargs", {})
         self.loss_func = str(kwargs.get("loss_func", 'orthogonal_tloss'))
@@ -116,11 +116,6 @@ class SiameseTriplets(object):
         self.model = None
         self.evaluate = evaluate
         self.plot = plot
-        self.trim_mask = np.array([True, True, False, True, True, 
-                                   False, True, False, False, False,
-                                   False, False, False, False, False,
-                                   False, False, False, False, False,
-                                   False, False, False, False, False])
 
         # check output path
         if not os.path.exists(model_dir):
@@ -147,7 +142,8 @@ class SiameseTriplets(object):
                 sharedx=self.sharedx,
                 augment_fn=self.augment_fn,
                 augment_kwargs=self.augment_kwargs,
-                train=True, standard=self.standard, trim_mask=trim_mask)
+                train=True, standard=self.standard, 
+                trim_mask=self.trim_mask)
             self.tr_shapes = tr_shape_type_gen[0]
             self.tr_gen = tr_shape_type_gen[2]()
             self.steps_per_epoch = np.ceil(
@@ -178,7 +174,7 @@ class SiameseTriplets(object):
                 sharedx=self.sharedx,
                 train=False,
                 shuffle=False,
-                standard=self.standard, trim_mask=trim_mask)
+                standard=self.standard, trim_mask=self.trim_mask)
             self.val_shapes = val_shape_type_gen[0]
             self.val_gen = val_shape_type_gen[2]()
             self.validation_steps = np.ceil(
@@ -707,7 +703,7 @@ class SiameseTriplets(object):
                         augment_fn=self.augment_fn,
                         train=False,
                         shuffle=False,
-                        standard=self.standard,trim_mask=trim_mask)
+                        standard=self.standard,trim_mask=self.trim_mask)
                     validation_sets.append((gen, shapes, name))
             additional_vals = AdditionalValidationSets(
                 validation_sets, self.model, batch_size=self.batch_size)
@@ -838,7 +834,7 @@ class SiameseTriplets(object):
             else:
                 self.build_model((x_matrix.shape[1],), load=True, cp=True)
         # apply input scaling
-        scaled = x_matrix[:,np.repeat(self.trim_mask, 128)]
+        scaled = x_matrix #[:,np.repeat(self.trim_mask, 128)]
         if hasattr(self, 'scaler'):
             scaled = self.scaler.transform(x_matrix)
         # get rid of NaNs
@@ -913,7 +909,7 @@ class SiameseTriplets(object):
             train=False,
             shuffle=False,
             standard=self.standard,
-            trim_mask=trim_mask)
+            trim_mask=self.trim_mask)
 
         tr_gen = tr_shape_type_gen[2]()
 
@@ -928,7 +924,7 @@ class SiameseTriplets(object):
             train=False,
             shuffle=False,
             standard=self.standard,
-            trim_mask=trim_mask)
+            trim_mask=self.trim_mask)
         trval_gen = val_shape_type_gen[2]()
 
         vset_dict = {'train_train': tr_gen,

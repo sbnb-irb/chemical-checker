@@ -118,8 +118,8 @@ class sign4(BaseSignature, DataSignature):
             'margin': 1.0,
             'alpha': 1.0,
             'standard': False,
-
         }
+
         default_sign0.update(params.get('sign0', {}))
         self.params['sign0'] = default_sign0
         # parameters to learn confidence from sign0
@@ -299,11 +299,16 @@ class sign4(BaseSignature, DataSignature):
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
             dataset_idx = np.argwhere(np.isin(self.src_datasets, ds)).flatten()
-            params['augment_kwargs']['dataset_idx'] = self.dataset_idx
+            #params['augment_kwargs']['dataset_idx'] = self.dataset_idx
             # compute probabilities for subsampling
-            p_nr, p_keep = subsampling_probs(self.sign2_coverage, dataset_idx)
-            params['augment_kwargs']['p_nr'] = p_nr
-            params['augment_kwargs']['p_keep'] = p_keep
+            trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = subsampling_probs(self.sign2_coverage, dataset_idx)
+            trim_dataset_idx = np.argwhere(np.arange(len(trim_mask))[
+            trim_mask] == dataset_idx).ravel()[0]
+            params['augment_kwargs']['p_nr'] = (p_nr_unknown, p_nr_known)
+            params['augment_kwargs']['p_keep'] = (p_keep_unknown, p_keep_known)
+            params['augment_kwargs']['dataset_idx'] = [trim_dataset_idx]
+            params['augment_kwargs']['p_only_self'] = 0.0
+            params['trim_mask'] = trim_mask
         # train siamese network
         self.__log.debug('Siamese training on %s' % traintest_file)
         siamese = SiameseTriplets(siamese_path, evaluate=evaluate, **params)
@@ -498,7 +503,7 @@ class sign4(BaseSignature, DataSignature):
 
     def realistic_subsampling_fn(self):
         # realistic subsampling function
-        p_nr, p_keep = subsampling_probs(self.sign2_coverage,
+        trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = subsampling_probs(self.sign2_coverage,
                                          self.dataset_idx)
         realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
                                dataset_idx=self.dataset_idx,
