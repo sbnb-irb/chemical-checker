@@ -320,10 +320,8 @@ class sign4(BaseSignature, DataSignature):
         # save validation plots
         self.plot_validations(siamese, dataset_idx, traintest_file)
         # when evaluating also save prior and confidence models
-        trim_mask, _, _, _, _ = subsampling_probs(
-            self.sign2_coverage, dataset_idx)
         prior_model, prior_sign_model, confidence_model = self.train_confidence(
-            traintest_file, X[np.repeat(trim_mask, 128)], suffix, siamese)
+            traintest_file, X, suffix, siamese)
         # update the parameters with the new nr_of epochs and lr
         self.params['sign2']['epochs'] = siamese.last_epoch
         self.params['sign2']['learning_rate'] = siamese.learning_rate
@@ -343,13 +341,15 @@ class sign4(BaseSignature, DataSignature):
         train_mask = np.isin(list(self.sign2_self.keys), list(train_inks),
                              assume_unique=True)
         # confidence is going to be trained only on siamese test data
-        confidence_train_x = X.get_h5_dataset('x', mask=test_mask)
-        s2_test = self.sign2_self.get_h5_dataset('V', mask=test_mask)
+        trim_mask, _, _, _, _ = subsampling_probs(
+            self.sign2_coverage, self.dataset_idx)
+        confidence_train_x = X.get_h5_dataset('x', mask=test_mask)[np.repeat(trim_mask,128)]
+        s2_test = self.sign2_self.get_h5_dataset('V', mask=test_mask)[np.repeat(trim_mask,128)]
         s2_test_x = confidence_train_x[:, self.dataset_idx[0]
                                        * 128: (self.dataset_idx[0] + 1) * 128]
         assert(np.all(s2_test == s2_test_x))
         # siamese train is going to be used for appticability domain
-        known_x = X.get_h5_dataset('x', mask=train_mask)
+        known_x = X.get_h5_dataset('x', mask=train_mask)[np.repeat(trim_mask,128)]
         # generate train-test split for confidence estimation
         split_names = ['train', 'test']
         split_fractions = [0.8, 0.2]
@@ -411,10 +411,7 @@ class sign4(BaseSignature, DataSignature):
         siamese = SiameseTriplets(siamese_path, predict_only=True)
         traintest_file = os.path.join(
             self.model_path, 'traintest_%s.h5' % suffix)
-        trim_mask, _, _, _, _ = subsampling_probs(
-            self.sign2_coverage, dataset_idx)
-        X = DataSignature(os.path.join(self.model_path, 'train.h5'))[
-            np.repeat(trim_mask, 128)]
+        X = DataSignature(os.path.join(self.model_path, 'train.h5'))
         prior_mdl, prior_sign_mdl, conf_mdl = self.train_confidence(
             traintest_file, X, suffix, siamese)
         if not update_sign:
