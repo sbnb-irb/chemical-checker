@@ -653,7 +653,7 @@ class NeighborTripletTraintest(object):
 
         notself_args = augment_kwargs.copy()
         notself_args['p_only_self'] = 0.0
-        ds_index = [augment_kwargs['dataset_idx']]
+        ds_index = augment_kwargs['dataset_idx']
 
         def example_generator_fn():
             # generator function yielding data

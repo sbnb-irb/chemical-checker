@@ -158,7 +158,7 @@ class SiameseTriplets(object):
                 scaler_path_tt = traintest_data.get_h5_dataset('scaler')[0]
                 self.__log.info("Using scaler: %s", scaler_path_tt)
                 self.scaler = pickle.load(open(scaler_path_tt, 'rb'))
-                pickle.dump(self.scaler, open(scaler_file, 'wb'))
+                pickle.dump(self.scaler, open(scaler_path_tt, 'wb'))
             else:
                 self.__log.warning("No scaler has been loaded")
 
@@ -278,9 +278,9 @@ class SiameseTriplets(object):
             input_s = Input(shape=input_shape)
 
         # Update layers
-        if self.layers_sizes = None
+        if self.layers_sizes == None:
             self.layers_sizes = get_model_arch(
-                input_shape[1], num_layers=len(self.layers))
+                input_shape[0], num_layers=len(self.layers))
 
         # each goes to a network with the same architechture
         basenet = Sequential()
