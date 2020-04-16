@@ -374,7 +374,6 @@ class sign4(BaseSignature, DataSignature):
         os.makedirs(prior_sign_path, exist_ok=True)
         prior_sign_model = self.train_prior_signature_model(
             siamese, confidence_train_x, splits, prior_sign_path,
-            width_x=len(trim_mask == True)*128,
             max_x=max_x, p_self=p_self)
 
         # train confidence model
