@@ -618,15 +618,18 @@ class NeighborTripletTraintest(object):
         # no batch size -> return everything
         if not batch_size:
             batch_size = t_shape[0]
-        # default trim mask is not mask
-        if trim_mask is None:
-            trim_mask = np.ones(25).astype(bool)
         # keep X in memory for resolving pairs quickly
         if sharedx is not None:
-            X = sharedx[:, np.repeat(trim_mask, 128)]
+            if trim_mask is None:
+                X = sharedx
+            else:
+                X = sharedx[:, np.repeat(trim_mask, 128)]
         else:
             NeighborTripletTraintest.__log.debug('Reading X in memory')
-            X = reader.get_x_columns(np.repeat(trim_mask, 128))
+            if trim_mask is None:
+                X = reader.get_all_x()
+            else:
+                X = reader.get_x_columns(np.repeat(trim_mask, 128))
         NeighborTripletTraintest.__log.debug('X shape: %s' % str(X.shape))
         # default mask is not mask
         if mask_fn is None:
