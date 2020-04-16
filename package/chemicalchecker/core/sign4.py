@@ -362,6 +362,7 @@ class sign4(BaseSignature, DataSignature):
         # train prior model
         prior_path = os.path.join(self.model_path, 'prior_%s' % suffix)
         os.makedirs(prior_path, exist_ok=True)
+        siamese.trim_mask = None
         prior_model = self.train_prior_model(siamese, confidence_train_x,
                                              splits, prior_path,
                                              trim_mask=trim_mask,
