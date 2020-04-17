@@ -7,6 +7,7 @@ import h5py
 import numpy as np
 import pickle
 import random
+from tqdm import tqdm
 
 from chemicalchecker.core.signature_data import DataSignature
 from chemicalchecker.util import logged
