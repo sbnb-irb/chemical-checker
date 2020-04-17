@@ -625,7 +625,6 @@ class NeighborTripletTraintest(object):
 
         NeighborTripletTraintest.__log.info(
             'NeighborTripletTraintest saved to %s', out_file)
-        assert(False)
 
     @staticmethod
     def generator_fn(file_name, split, epochs=None, batch_size=None,
