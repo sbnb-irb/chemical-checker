@@ -821,8 +821,8 @@ class SiameseTriplets(object):
         anchor_file = os.path.join(self.model_dir, "anchor_distr.png")
         if self.evaluate:
             self._plot_history(self.history.history, vsets, history_file)
-            if self.plot:
-                self._plot_anchor_dist(anchor_file)
+        if not self.standard:
+            self._plot_anchor_dist(anchor_file)
 
     def predict(self, x_matrix, dropout_fn=None, dropout_samples=10, cp=False):
         """Do predictions.
@@ -922,34 +922,37 @@ class SiameseTriplets(object):
 
         tr_gen = tr_shape_type_gen[2]()
 
-        trval_shape_type_gen = NeighborTripletTraintest.generator_fn(
-            self.traintest_file,
-            'train_test',
-            batch_size=self.batch_size,
-            replace_nan=self.replace_nan,
-            sharedx=self.sharedx,
-            augment_fn=self.augment_fn,
-            augment_kwargs=self.augment_kwargs,
-            train=False,
-            shuffle=False,
-            standard=self.standard)
-        trval_gen = trval_shape_type_gen[2]()
+        if self.evaluate:
+            trval_shape_type_gen = NeighborTripletTraintest.generator_fn(
+                self.traintest_file,
+                'train_test',
+                batch_size=self.batch_size,
+                replace_nan=self.replace_nan,
+                sharedx=self.sharedx,
+                augment_fn=self.augment_fn,
+                augment_kwargs=self.augment_kwargs,
+                train=False,
+                shuffle=False,
+                standard=self.standard)
+            trval_gen = trval_shape_type_gen[2]()
 
-        val_shape_type_gen = NeighborTripletTraintest.generator_fn(
-            self.traintest_file,
-            'test_test',
-            batch_size=self.batch_size,
-            replace_nan=self.replace_nan,
-            sharedx=self.sharedx,
-            augment_fn=self.augment_fn,
-            augment_kwargs=self.augment_kwargs,
-            train=False,
-            shuffle=False,
-            standard=self.standard)
-        val_gen = val_shape_type_gen[2]()
+            val_shape_type_gen = NeighborTripletTraintest.generator_fn(
+                self.traintest_file,
+                'test_test',
+                batch_size=self.batch_size,
+                replace_nan=self.replace_nan,
+                sharedx=self.sharedx,
+                augment_fn=self.augment_fn,
+                augment_kwargs=self.augment_kwargs,
+                train=False,
+                shuffle=False,
+                standard=self.standard)
+            val_gen = val_shape_type_gen[2]()
 
-        vset_dict = {'train_train': tr_gen,
-                     'train_test': trval_gen, 'test_test': val_gen}
+            vset_dict = {'train_train': tr_gen,
+                         'train_test': trval_gen, 'test_test': val_gen}
+        else:
+            vset_dict = {'train_train': tr_gen}
 
         fig, axes = plt.subplots(3, 4, figsize=(22, 15))
         axes = axes.flatten()
