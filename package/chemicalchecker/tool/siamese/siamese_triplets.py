@@ -842,6 +842,8 @@ class SiameseTriplets(object):
         # apply input scaling
         if hasattr(self, 'scaler'):
             scaled = self.scaler.transform(trimmed)
+        else:
+            scaled = trimmed
         # get rid of NaNs
         no_nans = np.nan_to_num(scaled)
         # get default dropout function
