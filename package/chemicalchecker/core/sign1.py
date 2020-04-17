@@ -51,8 +51,8 @@ class sign1(BaseSignature, DataSignature):
     def copy_sign0_to_sign1(self, s0, s1, just_data=False):
         """Copy from sign0 to sign1"""
         is_basesig = False
-        if type(s0) is BaseSignature:
-            if type(s1) is BaseSignature:
+        if isinstance(s0, BaseSignature):
+            if isinstance(s1, BaseSignature):
                 is_basesig = True
 
         if is_basesig:
