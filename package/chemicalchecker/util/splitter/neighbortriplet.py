@@ -13,7 +13,7 @@ from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 
 @logged
 class NeighborTripletTraintest(object):
-    """Convenience batch reader from HDF5 files of pairs.
+    """Convenience batch reader from HDF5 files of tripets.
 
     This class allow creation and access to HDF5 train-test sets and expose
     the generator functions which tensorflow likes.
@@ -611,14 +611,13 @@ class NeighborTripletTraintest(object):
         reader = NeighborTripletTraintest(file_name, split)
         reader.open()
         # read shapes
-        x_shape = reader._f[reader.x_name].shape
         t_shape = reader._f[reader.t_name].shape
         # read data types
         x_dtype = reader._f[reader.x_name].dtype
         # no batch size -> return everything
         if not batch_size:
             batch_size = t_shape[0]
-        # keep X in memory for resolving pairs quickly
+        # keep X in memory for resolving tripets quickly
         if sharedx is not None:
             if trim_mask is None:
                 X = sharedx
@@ -631,13 +630,15 @@ class NeighborTripletTraintest(object):
             else:
                 X = reader.get_x_columns(np.repeat(trim_mask, 128))
         NeighborTripletTraintest.__log.debug('X shape: %s' % str(X.shape))
-        # default mask is not mask
+        # default mask is not masking
         if mask_fn is None:
             def mask_fn(*data):
                 return data
+        # default augment is doing nothing
         if augment_fn is None:
             def augment_fn(*data, **kwargs):
                 return data
+        # this variable is goin to be used to shuffle batches
         batch_beg_end = np.zeros((int(np.ceil(t_shape[0] / batch_size)), 2))
         last = 0
         for row in batch_beg_end:
@@ -645,55 +646,52 @@ class NeighborTripletTraintest(object):
             row[1] = last + batch_size
             last = row[1]
         batch_beg_end = batch_beg_end.astype(int)
-        for idx, row in enumerate(batch_beg_end):
-            beg_idx, end_idx = batch_beg_end[idx]
-            pairs = reader.get_t(beg_idx, end_idx)
-            # print(beg_idx, end_idx, 'batch_beg_end', idx, pairs.shape)
+        # in non standard cases we ned the folling to handle x4 and x5
+        if not standard:
+            only_args = augment_kwargs.copy()
+            only_args['p_only_self'] = 1.0
+            ds_index = augment_kwargs['dataset_idx']
+
         NeighborTripletTraintest.__log.debug('Generator ready')
 
-        only_args = augment_kwargs.copy()
-        only_args['p_only_self'] = 1.0
-
-        notself_args = augment_kwargs.copy()
-        notself_args['p_only_self'] = 0.0
-        ds_index = augment_kwargs['dataset_idx']
-
         def example_generator_fn():
-            # generator function yielding data
-            step_size = int(min(1000, len(batch_beg_end) / 10)) + 1
-            p_self_decay = (1.0 / step_size)
-            p_factor = -1
-            augment_kwargs['p_self'] = 1.0
+            """Generator function yields data in batches"""
+            if not standard:
+                step_size = int(min(1000, len(batch_beg_end) / 10)) + 1
+                p_self_decay = (1.0 / step_size)
+                p_factor = -1
+                augment_kwargs['p_self'] = 1.0
 
             epoch = 0
             batch_idx = 0
             while True:
-                #print('epoch', epoch, 'p_factor', p_factor, 'p_self', augment_kwargs['p_self'])
+                # here we handles what happens at the last batch
                 if batch_idx == len(batch_beg_end):
                     batch_idx = 0
                     epoch += 1
-                    p_factor = -1
-                    augment_kwargs['p_self'] = 1.0
                     if shuffle:
                         np.random.shuffle(batch_beg_end)
-                    # Traintest.__log.debug('EPOCH %i (caller: %s)', epoch,
-                    #                      inspect.stack()[1].function)
-                # print('EPOCH %i' % epoch)
-                # print('batch_idx %i' % batch_idx)
+                    if not standard:
+                        p_factor = -1
+                        augment_kwargs['p_self'] = 1.0
+                # select the batch start/end and fetch triplets
                 beg_idx, end_idx = batch_beg_end[batch_idx]
-                pairs = reader.get_t(beg_idx, end_idx)
+                tripets = reader.get_t(beg_idx, end_idx)
                 y = reader.get_y(beg_idx, end_idx)
-                x1 = X[pairs[:, 0]]
-                x2 = X[pairs[:, 1]]
-                x3 = X[pairs[:, 2]]
+                x1 = X[tripets[:, 0]]
+                x2 = X[tripets[:, 1]]
+                x3 = X[tripets[:, 2]]
                 if train and not standard:
+                    # at train time we want to apply subsampling
                     x1 = augment_fn(x1, **augment_kwargs)
                     x2 = augment_fn(x2, **augment_kwargs)
                     x3 = augment_fn(x3, **augment_kwargs)
                 if not standard:
-                    x4 = augment_fn(X[pairs[:, 0]], **only_args)
+                    x4 = augment_fn(X[tripets[:, 0]], **only_args)
                     x5 = notself(ds_index, x1)
+                # apply the mask function
                 x1, x2, x3 = mask_fn(x1, x2, x3)
+                # replace NaNs with specified value
                 if replace_nan is not None:
                     x1[np.where(np.isnan(x1))] = replace_nan
                     x2[np.where(np.isnan(x2))] = replace_nan
@@ -701,21 +699,27 @@ class NeighborTripletTraintest(object):
                     if not standard:
                         x4[np.where(np.isnan(x4))] = replace_nan
                         x5[np.where(np.isnan(x5))] = replace_nan
+                # yield the triplets
                 if standard:
                     yield [x1, x2, x3], y
                 else:
                     yield [x1, x2, x3, x4, x5], y
+                # go to next batch
                 batch_idx += 1
-                if p_factor > 0:
-                    augment_kwargs['p_self'] = min(
-                        1.0, augment_kwargs['p_self'] + (p_self_decay * p_factor))
-                else:
-                    augment_kwargs['p_self'] = max(
-                        0.0, augment_kwargs['p_self'] + (p_self_decay * p_factor))
-                if batch_idx % step_size == 0 and batch_idx != 0:
-                    p_factor = -p_factor
+                # update subsampling parameters
+                if not standard:
+                    p_score = p_self_decay * p_factor
+                    if p_factor > 0:
+                        augment_kwargs['p_self'] = min(
+                            1.0, augment_kwargs['p_self'] + p_score)
+                    else:
+                        augment_kwargs['p_self'] = max(
+                            0.0, augment_kwargs['p_self'] + p_score)
+                    if batch_idx % step_size == 0 and batch_idx != 0:
+                        p_factor = -p_factor
 
-        pair_shape = (t_shape[0], X.shape[1]) #x_shape[1])
-        shapes = (pair_shape, pair_shape, pair_shape, pair_shape)
+        # return shapes and dtypes along with iterator
+        triplet_shape = (t_shape[0], X.shape[1])
+        shapes = (triplet_shape, triplet_shape, triplet_shape, triplet_shape)
         dtypes = (x_dtype, x_dtype, x_dtype, x_dtype)
         return shapes, dtypes, example_generator_fn
