@@ -278,14 +278,14 @@ class NeighborTripletTraintest(object):
 
         # Set triplet_factors
         triplet_per_mol = max([int(np.ceil(num_triplets / ref_matrix.shape[0])), 3])
-        easy_triplet_per_mol = int(np.ceil(triplet_per_mol * 0.8))
-        medi_triplet_per_mol = int(np.ceil(triplet_per_mol * 0.15))#triplet_per_mol - (2 * easy_triplet_per_mol)
-        hard_triplet_per_mol = triplet_per_mol - (easy_triplet_per_mol + medi_triplet_per_mol)#easy_triplet_per_mol
+        easy_triplet_per_mol = max([int(np.ceil(triplet_per_mol * 0.8)), 1])
+        medi_triplet_per_mol = max([int(np.ceil(triplet_per_mol * 0.15)), 1])#triplet_per_mol - (2 * easy_triplet_per_mol)
+        hard_triplet_per_mol = max([triplet_per_mol - (easy_triplet_per_mol + medi_triplet_per_mol), 1])#easy_triplet_per_mol
         NeighborTripletTraintest.__log.info("Triplet_per_mol: %s" % triplet_per_mol)
         NeighborTripletTraintest.__log.info("E triplet per mol: %s" % easy_triplet_per_mol)
         NeighborTripletTraintest.__log.info("M triplet per mol: %s" % medi_triplet_per_mol)
         NeighborTripletTraintest.__log.info("H triplet per mol: %s" % hard_triplet_per_mol)
-        assert(triplet_per_mol == (easy_triplet_per_mol + medi_triplet_per_mol + hard_triplet_per_mol))
+        assert(triplet_per_mol <= (easy_triplet_per_mol + medi_triplet_per_mol + hard_triplet_per_mol))
 
         # split chunks, get indeces of chunks for each split
         chunk_size = np.floor(ref_matrix.shape[0] / 100)
