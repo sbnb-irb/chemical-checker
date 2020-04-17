@@ -529,8 +529,10 @@ class sign4(BaseSignature, DataSignature):
             subsampling_probs(self.sign2_coverage, self.dataset_idx)
         p_nr = (p_nr_unk, p_nr_kno)
         p_keep = (p_keep_unk, p_keep_kno)
+        trim_dataset_idx = np.argwhere(
+            np.arange(len(trim_mask))[trim_mask] == self.dataset_idx).ravel()[0]
         realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
-                               dataset_idx=self.dataset_idx,
+                               dataset_idx=trim_dataset_idx,
                                p_nr=p_nr, p_keep=p_keep)
         return realistic_fn, trim_mask
 
@@ -658,6 +660,9 @@ class sign4(BaseSignature, DataSignature):
                 available_x = split_x.shape[0]
                 X = np.zeros((split_total_x, np.sum(trim_mask)))
                 Y = np.zeros((split_total_x, 1))
+                preds_onlyselfs = np.zeros((split_total_x, 128))
+                preds_noselfs = np.zeros((split_total_x, 128))
+                feats = np.zeros((split_total_x, 3200))
                 # prepare X and Y in chunks
                 chunk_size = max(10000, int(np.floor(available_x / 10)))
                 reached_max = False
@@ -679,16 +684,19 @@ class sign4(BaseSignature, DataSignature):
                         dst_chunk = slice(dst_start, dst_end)
                         # get only-self and not-self predictions
                         feat = split_x[src_chunk]
+                        feats[dst_chunk] = feat
                         preds_onlyself = siamese.predict(
                             feat, dropout_fn=partial(
                                 realistic_fn, p_only_self=1.0),
                             dropout_samples=1)
                         preds_onlyself = np.mean(preds_onlyself, axis=1)
+                        preds_onlyselfs[dst_chunk] = preds_onlyself
                         samples = siamese.predict(
                             feat, dropout_fn=partial(
                                 realistic_fn, p_self=p_self),
                             dropout_samples=n_samples)
                         preds_noself = np.mean(samples, axis=1)
+                        preds_noselfs[dst_chunk] = preds_noself
                         # the prior is only-self vs not-self predictions
                         corrs = row_wise_correlation(
                             preds_onlyself, preds_noself, scaled=True)
@@ -699,12 +707,12 @@ class sign4(BaseSignature, DataSignature):
                         # check if enought
                         if reached_max:
                             break
-                xs_name = "x_%s" % split_name
-                ys_name = "y_%s" % split_name
-                self.__log.debug('writing %s: %s' % (xs_name, str(X.shape)))
-                fh.create_dataset(xs_name, data=X)
-                self.__log.debug('writing %s: %s' % (ys_name, str(Y.shape)))
-                fh.create_dataset(ys_name, data=Y)
+                variables = [X, Y, feat, preds_onlyselfs, preds_noselfs]
+                names = ['x', 'y', 'feat', 'preds_onlyselfs', 'preds_noselfs']
+                for var, name in zip(variables, names):
+                    ds_name = '%s_%s' % (name, split_name)
+                    self.__log.debug('writing %s: %s' % (ds_name, var.shape))
+                    fh.create_dataset(ds_name, data=var)
         traintest = DataSignature(out_file)
         x_tr = traintest.get_h5_dataset('x_train')
         y_tr = traintest.get_h5_dataset('y_train').ravel()
