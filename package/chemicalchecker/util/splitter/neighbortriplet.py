@@ -285,6 +285,7 @@ class NeighborTripletTraintest(object):
         NeighborTripletTraintest.__log.info("E triplet per mol: %s" % easy_triplet_per_mol)
         NeighborTripletTraintest.__log.info("M triplet per mol: %s" % medi_triplet_per_mol)
         NeighborTripletTraintest.__log.info("H triplet per mol: %s" % hard_triplet_per_mol)
+        NeighborTripletTraintest.__log.info("Triplet_per_mol: %s" % (easy_triplet_per_mol + medi_triplet_per_mol + hard_triplet_per_mol))
         assert(triplet_per_mol <= (easy_triplet_per_mol + medi_triplet_per_mol + hard_triplet_per_mol))
 
         # split chunks, get indeces of chunks for each split
@@ -389,7 +390,7 @@ class NeighborTripletTraintest(object):
                 t_limit = get_t_max(size_original_ref_matrix)
                 f_limit = 300
 
-                T = int(np.clip(t_per * nr_matrix[split2].shape[0], 5, t_limit))
+                T = int(np.clip(t_per * nr_matrix[split2].shape[0], 10, t_limit))
                 F = np.clip(10 * T, 200, f_limit)
                 F = int(min(F, (nr_matrix[split2].shape[0] - 1)))
                 
