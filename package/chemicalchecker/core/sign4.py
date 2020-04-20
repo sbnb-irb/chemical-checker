@@ -686,16 +686,10 @@ class sign4(BaseSignature, DataSignature):
                         feat = split_x[src_chunk]
                         feats[dst_chunk] = feat
                         preds_onlyself = siamese.predict(
-                            feat, dropout_fn=partial(
-                                realistic_fn, p_only_self=1.0),
-                            dropout_samples=1)
-                        preds_onlyself = np.mean(preds_onlyself, axis=1)
+                            mask_keep(self.dataset_idx, feat))
                         preds_onlyselfs[dst_chunk] = preds_onlyself
-                        samples = siamese.predict(
-                            feat, dropout_fn=partial(
-                                realistic_fn, p_self=p_self),
-                            dropout_samples=n_samples)
-                        preds_noself = np.mean(samples, axis=1)
+                        preds_noself = siamese.predict(
+                            mask_exclude(self.dataset_idx, feat))
                         preds_noselfs[dst_chunk] = preds_noself
                         # the prior is only-self vs not-self predictions
                         corrs = row_wise_correlation(
@@ -849,6 +843,9 @@ class sign4(BaseSignature, DataSignature):
                 available_x = split_x.shape[0]
                 X = np.zeros((split_total_x, 128))
                 Y = np.zeros((split_total_x, 1))
+                preds_onlyselfs = np.zeros((split_total_x, 128))
+                preds_noselfs = np.zeros((split_total_x, 128))
+                feats = np.zeros((split_total_x, 3200))
                 # prepare X and Y in chunks
                 chunk_size = max(10000, int(np.floor(available_x / 10)))
                 reached_max = False
@@ -870,16 +867,13 @@ class sign4(BaseSignature, DataSignature):
                         dst_chunk = slice(dst_start, dst_end)
                         # get only-self and not-self predictions
                         feat = split_x[src_chunk]
+                        feats[dst_chunk] = feat
                         preds_onlyself = siamese.predict(
-                            feat, dropout_fn=partial(
-                                realistic_fn, p_only_self=1.0),
-                            dropout_samples=1)
-                        preds_onlyself = np.mean(preds_onlyself, axis=1)
-                        samples = siamese.predict(
-                            feat, dropout_fn=partial(
-                                realistic_fn, p_self=p_self),
-                            dropout_samples=n_samples)
-                        preds_noself = np.mean(samples, axis=1)
+                            mask_keep(self.dataset_idx, feat))
+                        preds_onlyselfs[dst_chunk] = preds_onlyself
+                        preds_noself = siamese.predict(
+                            mask_exclude(self.dataset_idx, feat))
+                        preds_noselfs[dst_chunk] = preds_noself
                         # the prior is only-self vs not-self predictions
                         corrs = row_wise_correlation(
                             preds_onlyself, preds_noself, scaled=True)
@@ -888,12 +882,12 @@ class sign4(BaseSignature, DataSignature):
                         # check if enought
                         if reached_max:
                             break
-                xs_name = "x_%s" % split_name
-                ys_name = "y_%s" % split_name
-                self.__log.debug('writing %s: %s' % (xs_name, str(X.shape)))
-                fh.create_dataset(xs_name, data=X)
-                self.__log.debug('writing %s: %s' % (ys_name, str(Y.shape)))
-                fh.create_dataset(ys_name, data=Y)
+                variables = [X, Y, feat, preds_onlyselfs, preds_noselfs]
+                names = ['x', 'y', 'feat', 'preds_onlyselfs', 'preds_noselfs']
+                for var, name in zip(variables, names):
+                    ds_name = '%s_%s' % (name, split_name)
+                    self.__log.debug('writing %s: %s' % (ds_name, var.shape))
+                    fh.create_dataset(ds_name, data=var)
         traintest = DataSignature(out_file)
         x_tr = traintest.get_h5_dataset('x_train')
         y_tr = traintest.get_h5_dataset('y_train').ravel()
@@ -1134,7 +1128,7 @@ class sign4(BaseSignature, DataSignature):
 
         # do applicability domain prediction
         self.__log.info('Computing Applicability Domain')
-        applicability, app_range, consensus_ad = \
+        applicability, app_range, _ = \
             self.applicability_domain(
                 known_onlyself_neig, train_x, siamese, p_self=p_self)
         self.__log.info('Applicability Domain DONE')
@@ -1148,34 +1142,45 @@ class sign4(BaseSignature, DataSignature):
         # predict expected prior
         unk_notself_presence = ~np.isnan(unk_notself[:, ::128])[:, trim_mask]
         prior = prior_model.predict(unk_notself_presence.astype(int))
-        prior_sign = prior_sign_model.predict(consensus_ad)
+        prior_sign = prior_sign_model.predict(unk_notself_pred)
 
         # calculate the error
         log_mse = np.log10(
             np.mean(((unk_onlyself_pred - unk_notself_pred)**2), axis=1))
         log_mse_ad = np.log10(
-            np.mean(((unk_onlyself_pred - consensus_ad)**2), axis=1))
+            np.mean(((unk_onlyself_pred - consensus_cp)**2), axis=1))
 
         # get correlation between prediction and only self predictions
         correlation = row_wise_correlation(
             unk_onlyself_pred, unk_notself_pred, scaled=True)
-        correlation_ad = row_wise_correlation(
-            unk_onlyself_pred, consensus_ad, scaled=True)
+        correlation_cp = row_wise_correlation(
+            unk_onlyself_pred, consensus_cp, scaled=True)
 
         # we have all the data to train the confidence model
-        features = np.vstack(
-            [applicability, robustness, prior, prior_sign, intensities]).T
+        self.__log.debug('Saving Confidence Features...')
+        conf_features = (
+            ('applicability', applicability),
+            ('robustness', robustness),
+            ('prior', prior),
+            ('prior_sign', prior_sign),
+            ('intensities', intensities)
+        )
+        for name, arr in conf_features:
+            self.__log.debug('%s %s' % (name, arr.shape))
+
+        features = np.vstack([x[1] for x in conf_features]).T
 
         know_dist_file = os.path.join(save_path, 'known_dist.h5')
         with h5py.File(know_dist_file, "w") as hf:
             hf.create_dataset('robustness', data=robustness)
             hf.create_dataset('intensity', data=intensities)
-            hf.create_dataset('consensus', data=consensus_ad)
+            hf.create_dataset('consensus', data=consensus_cp)
             hf.create_dataset('applicability', data=applicability)
             hf.create_dataset('applicability_range', data=app_range)
             hf.create_dataset('prior', data=prior)
+            hf.create_dataset('prior_sign', data=prior_sign)
             hf.create_dataset('correlation', data=correlation)
-            hf.create_dataset('correlation_consensus', data=correlation_ad)
+            hf.create_dataset('correlation_consensus', data=correlation_cp)
             hf.create_dataset('log_mse', data=log_mse)
             hf.create_dataset('log_mse_consensus', data=log_mse_ad)
 
@@ -1184,7 +1189,7 @@ class sign4(BaseSignature, DataSignature):
         import seaborn as sns
         import matplotlib.pyplot as plt
         variables = ['applicability', 'robustness', 'intensity', 'prior',
-                     'prior_sign', 'correlation', 'correlation_consensus_ad']
+                     'prior_sign', 'correlation', 'correlation_consensus_cp']
 
         def corr(x, y, **kwargs):
             coef = np.corrcoef(x, y)[0][1]
@@ -1200,7 +1205,7 @@ class sign4(BaseSignature, DataSignature):
         df['prior'] = prior
         df['prior_sign'] = prior_sign
         df['correlation'] = correlation
-        df['correlation_consensus_ad'] = correlation_ad
+        df['correlation_consensus_cp'] = correlation_cp
 
         # Map the plots to the locations
         for split_name, split_frac, split_idx in splits:
@@ -1214,48 +1219,57 @@ class sign4(BaseSignature, DataSignature):
                 save_path, 'known_dist_%s.png' % split_name)
             plt.savefig(plot_file)
 
-        return features, correlation_ad
+        return features, correlation
 
     def applicability_domain(self, neig_index, features, siamese,
-                             dropout_fn=None, app_range=None, n_samples=5,
-                             p_self=0.0):
-
-        if dropout_fn is None:
-            dropout_fn, _ = self.realistic_subsampling_fn()
+                             dropout_fn=None, app_range=None, n_samples=1,
+                             p_self=0.0, subsampling=False):
         # applicability is whether not-self preds is close to only-self preds
         # neighbors between 5 and 25 depending on the size of the dataset
         app_thr = int(np.clip(np.log10(self.neig_sign.shape[0])**2, 5, 25))
-        preds, dists, ranges = list(), list(), list()
-        for i in range(n_samples):
-            pred = siamese.predict(features,
-                                   dropout_fn=partial(
-                                       dropout_fn, p_self=p_self),
-                                   dropout_samples=1)
-            pred = np.mean(pred, axis=1)
-            only_self_dists, _ = neig_index.search(pred, app_thr)
-            if app_range is None:
-                d_min = np.min(only_self_dists)
-                d_max = np.max(only_self_dists)
-            else:
+        if subsampling:
+            if dropout_fn is None:
+                dropout_fn, _ = self.realistic_subsampling_fn()
+            preds, dists, ranges = list(), list(), list()
+            for i in range(n_samples):
+                pred = siamese.predict(features,
+                                       dropout_fn=partial(
+                                           dropout_fn, p_self=p_self),
+                                       dropout_samples=1)
+                pred = np.mean(pred, axis=1)
+                only_self_dists, _ = neig_index.search(pred, app_thr)
+                if app_range is None:
+                    d_min = np.min(only_self_dists)
+                    d_max = np.max(only_self_dists)
+                else:
+                    d_min = app_range[0]
+                    d_max = app_range[1]
+                curr_app_range = np.array([d_min, d_max])
+                preds.append(pred)
+                dists.append(only_self_dists)
+                ranges.append(curr_app_range)
+            consensus = np.mean(np.stack(preds, axis=2), axis=2)
+            app_range = [np.min(np.vstack(ranges)[:, 0]),
+                         np.max(np.vstack(ranges)[:, 1])]
+            # scale and invert distances to get applicability
+            apps = list()
+            for dist in dists:
                 d_min = app_range[0]
                 d_max = app_range[1]
-            curr_app_range = np.array([d_min, d_max])
-            preds.append(pred)
-            dists.append(only_self_dists)
-            ranges.append(curr_app_range)
-        consensus = np.mean(np.stack(preds, axis=2), axis=2)
-        app_range = [np.min(np.vstack(ranges)[:, 0]),
-                     np.max(np.vstack(ranges)[:, 1])]
-        # scale and invert distances to get applicability
-        apps = list()
-        for dist in dists:
-            d_min = app_range[0]
-            d_max = app_range[1]
-            norm_dist = (dist - d_max) / (d_min - d_max)
+                norm_dist = (dist - d_max) / (d_min - d_max)
+                applicability = np.mean(norm_dist, axis=1).flatten()
+                apps.append(applicability)
+            applicability = np.mean(np.vstack(apps), axis=0)
+            return applicability, app_range, consensus
+        else:
+            pred = siamese.predict(mask_exclude(self.dataset_idx, features))
+            dists, _ = neig_index.search(pred, app_thr)
+            d_min = np.min(dists)
+            d_max = np.max(dists)
+            app_range = np.array([d_min, d_max])
+            norm_dist = (dists - d_max) / (d_min - d_max)
             applicability = np.mean(norm_dist, axis=1).flatten()
-            apps.append(applicability)
-        applicability = np.mean(np.vstack(apps), axis=0)
-        return applicability, app_range, consensus
+            return applicability, app_range, None
 
     def conformal_prediction(self, siamese, features, dropout_fn=None,
                              nan_pred=None, n_samples=5, p_self=0.0):
@@ -1269,7 +1283,7 @@ class sign4(BaseSignature, DataSignature):
         # draw prediction with sub-sampling
         if dropout_fn is None:
             dropout_fn = partial(subsample, dataset_idx=[self.dataset_idx])
-        samples = siamese.predict(features,
+        samples = siamese.predict(mask_exclude(self.dataset_idx, features),
                                   dropout_fn=partial(
                                       dropout_fn, p_self=p_self),
                                   dropout_samples=n_samples, cp=True)
@@ -1283,25 +1297,24 @@ class sign4(BaseSignature, DataSignature):
         robustness = 1 - np.mean(np.std(samples, axis=1), axis=1).flatten()
         return intensities, robustness, consensus
 
-    @staticmethod
-    def read_h5(sign, idxs):
-        with h5py.File(sign.data_path, "r") as hf:
-            V = hf["x_test"][idxs]
-        return V
-
-    @staticmethod
-    def read_unknown(sign, forbidden_idxs, max_n=100000):
-        with h5py.File(sign.data_path, "r") as hf:
-            V = hf["x_test"][:max_n]
-        forbidden_idxs = set(forbidden_idxs)
-        unknown_idxs = [i for i in range(0, max_n) if i not in forbidden_idxs]
-        return V[unknown_idxs]
-
     def plot_validations(self, siamese, dataset_idx, traintest_file, chunk_size=10000,
                          limit=1000, dist_limit=1000):
 
         def no_mask(idxs, x1_data):
             return x1_data
+
+        def read_h5(sign, idxs):
+            with h5py.File(sign.data_path, "r") as hf:
+                V = hf["x_test"][idxs]
+            return V
+
+        def read_unknown(sign, forbidden_idxs, max_n=100000):
+            with h5py.File(sign.data_path, "r") as hf:
+                V = hf["x_test"][:max_n]
+            forbidden_idxs = set(forbidden_idxs)
+            unknown_idxs = [i for i in range(
+                0, max_n) if i not in forbidden_idxs]
+            return V[unknown_idxs]
 
         import matplotlib.pyplot as plt
         import seaborn as sns
@@ -1335,21 +1348,21 @@ class sign4(BaseSignature, DataSignature):
             self.__log.info('VALIDATION: Predicting train.')
             pred['train'] = dict()
             full_x = DataSignature(self.sign2_universe)
-            train = self.read_h5(full_x, train_idxs[:4000])
+            train = read_h5(full_x, train_idxs[:4000])
 
             for name, mask_fn in mask_fns.items():
                 pred['train'][name] = siamese.predict(mask_fn(train))
             del train
             self.__log.info('VALIDATION: Predicting test.')
             pred['test'] = dict()
-            test = self.read_h5(full_x, test_idxs[:1000])
+            test = read_h5(full_x, test_idxs[:1000])
             for name, mask_fn in mask_fns.items():
                 pred['test'][name] = siamese.predict(mask_fn(test))
             del test
             self.__log.info('VALIDATION: Predicting unknown.')
             pred['unknown'] = dict()
             if np.any(unknown_idxs):
-                unknown = self.read_h5(full_x, unknown_idxs[:5000])
+                unknown = read_h5(full_x, unknown_idxs[:5000])
                 self.__log.info('Number of unknown %s' % len(unknown))
                 for name, mask_fn in mask_fns.items():
                     if name == 'ALL':
@@ -2332,13 +2345,14 @@ class sign4(BaseSignature, DataSignature):
                                       suffix='sign0_%s_conf_final' % s0_code,
                                       evaluate=False)
 
-    def get_predict_fn(self, model='adanet_sign0_A1.001_final'):
+    def get_predict_fn(self, model='siamese_final'):
         try:
-            from chemicalchecker.tool.adanet import AdaNet
+            from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError as err:
             raise err
-        modelpath = os.path.join(self.model_path, model, 'savedmodel')
-        return AdaNet.predict_fn(modelpath)
+        modelpath = os.path.join(self.model_path, model)
+        siamese = SiameseTriplets(modelpath, predict_only=True)
+        return siamese.predict
 
     def predict_from_smiles(self, smiles, dest_file, chunk_size=1000,
                             predict_fn=None, accurate_novelty=False,
@@ -2969,7 +2983,7 @@ def subsample(tensor, sign_width=128,
     return new_data
 
 
-def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
+def plot_subsample(s4, plotpath, sign2_coverage, traintest_file, ds='B1.001',
                    p_self=.1, p_only_self=0., limit=10000, max_ds=25):
     import numpy as np
     import pandas as pd
@@ -2991,13 +3005,14 @@ def plot_subsample(plotpath, sign2_coverage, traintest_file, ds='B1.001',
         'p_keep': (p_keep_unknown, p_keep_known),
         'dataset_idx': [trim_dataset_idx],
         'p_only_self': 0.0}
+    realistic_fn, trim_mask = s4.realistic_subsampling_fn()
     tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
         traintest_file,
         'train_train',
         batch_size=10,
         replace_nan=np.nan,
-        augment_fn=subsample,
-        augment_kwargs=augment_kwargs,
+        augment_fn=realistic_fn,
+        augment_kwargs={'dataset_idx': [trim_dataset_idx]},
         trim_mask=trim_mask,
         train=True,
         standard=False)
