@@ -2682,112 +2682,114 @@ class MultiPlot():
 
         from chemicalchecker.core.signature_data import DataSignature
 
-        # sns.set_style("ticks")
-        # sns.set_context("paper")
-        # sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
-        f, axes = plt.subplots(5, 5, figsize=(
-            10, 10), sharex=True, sharey=True)
-        plt.subplots_adjust(left=0.08, right=1, bottom=0.08,
-                            top=1, wspace=0, hspace=0)
-        f.text(0.55, 0.02, 'Error (Log10 MSE)',
-               ha='center', va='center',
-               name='Arial', size=16)
-        f.text(0.02, 0.55, 'Confidence', ha='center',
-               va='center', rotation='vertical',
-               name='Arial', size=16)
-        for ds, ax in zip(self.datasets, axes.flatten()):
-            s3 = self.cc.get_signature('sign3', 'full', ds)
+        fig = plt.figure(constrained_layout=True, figsize=(12, 12))
+        gs = fig.add_gridspec(5, 5)
+        plt.subplots_adjust(left=0.08, right=.95, bottom=0.08, top=.95)
+        axes = list()
+        for row, col in itertools.product(range(5), range(5)):
+            axes.append(fig.add_subplot(gs[row, col]))
+        fig.add_subplot(111, frameon=False)
+        plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+        plt.grid(False)
+        plt.xlabel("Correlation", labelpad=25, size=18)
+        plt.ylabel("Confidence", labelpad=25, size=18)
 
-            error_dist = DataSignature(os.path.join(s3.model_path, 'error.h5'))
-            stddev = error_dist.get_h5_dataset('stddev').flatten()
-            intensity = error_dist.get_h5_dataset('intensity').flatten()
-            exp_error = error_dist.get_h5_dataset('exp_error').flatten()
-            log_mse = error_dist.get_h5_dataset('log_mse')
-            log_mse_consensus = error_dist.get_h5_dataset('log_mse_consensus')
-            keys = error_dist.keys
+        for ds, ax in zip(self.datasets, axes):
+            sign = self.cc.get_signature('sign4', 'full', ds)
 
-            confidence = s3.get_h5_dataset('confidence_raw').flatten()
-            mask = np.isin(list(s3.keys), list(keys), assume_unique=True)
-            confidence = confidence[mask]
-            pc_confidence = stats.pearsonr(log_mse_consensus, confidence)[0]
-            pc_stddev = abs(stats.pearsonr(log_mse_consensus, stddev)[0])
-            pc_intensity = abs(stats.pearsonr(log_mse_consensus, intensity)[0])
-            pc_exp_error = abs(stats.pearsonr(log_mse, exp_error)[0])
+            # get data
+            confidence_path = os.path.join(sign.model_path, 'confidence_eval')
+            known_dist = DataSignature(os.path.join(
+                confidence_path, 'data.h5'))
+            correlation = known_dist.get_h5_dataset('y_test')
+            conf_feats = known_dist.get_h5_dataset('x_test')
+            applicability = conf_feats[:, 0]
+            robustness = conf_feats[:, 1]
+            prior = conf_feats[:, 2]
+            prior_sign = conf_feats[:, 3]
+            intensity = conf_feats[:, 4]
+
+            # get confidence
+            confidence_file = os.path.join(confidence_path, 'confidence.pkl')
+            calibration_file = os.path.join(confidence_path, 'calibration.pkl')
+            conf_mdl = (pickle.load(open(confidence_file, 'rb')),
+                        pickle.load(open(calibration_file, 'rb')))
+            # and estimate confidence
+            conf_feats = np.vstack(
+                [applicability, robustness, prior, prior_sign, intensity]).T
+            conf_estimate = conf_mdl[0].predict(conf_feats)
+            confidence = conf_mdl[1].predict(np.expand_dims(conf_estimate, 1))
+
+            # compute pearson rho
+            rhos = dict()
+            rho_confidence = stats.pearsonr(correlation, confidence)[0]
+            rhos['a'] = abs(stats.pearsonr(correlation, applicability)[0])
+            rhos['r'] = abs(stats.pearsonr(correlation, robustness)[0])
+            rhos['p'] = abs(stats.pearsonr(correlation, prior)[0])
+            rhos['s'] = abs(stats.pearsonr(correlation, prior_sign)[0])
+            rhos['i'] = abs(stats.pearsonr(correlation, intensity)[0])
+
+            # scatter gaussian
             x, y, c, order = self.quick_gaussian_kde(
-                log_mse_consensus, confidence, limit)
-
-            white = self._rgb2hex(250, 250, 250)
-            colors = [white, self.cc_colors(ds, 1)]
+                correlation, confidence, limit)
+            colors = [self.cc_colors(ds, 2), self.cc_colors(ds, 0)]
             cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
                 '', colors)
             ax.scatter(x[order], y[order], c=c[order],
-                       cmap=cmap, s=5, edgecolor='', alpha=.8)
-            ax.text(0.05, 0.1, r"$\rho$: {:.2f}".format(pc_confidence),
-                    transform=ax.transAxes, name='Arial', size=10,
+                       cmap=cmap, s=15, edgecolor='', alpha=.9)
+            ax.text(0.05, 0.85, r"$\rho$: {:.2f}".format(rho_confidence),
+                    transform=ax.transAxes, name='Arial', size=14,
                     bbox=dict(facecolor='white', alpha=0.8))
 
-            ax.set_ylim(-0.0, 1.1)
-            ax.set_xlim(-3.1, -1.4)
+            ax.set_ylim(-1.0, 1.0)
+            ax.set_xlim(-1.0, 1.0)
             ax.set_ylabel('Confidence')
             ax.set_ylabel('')
-            ax.set_xlabel('Error (Log10 MSE)')
+            ax.set_xlabel('Correlation')
             ax.set_xlabel('')
 
-            ax.set_yticks([0.0, 1.0])
-            ax.set_yticklabels(['0', '1'])
-            ax.set_xticks([-3.0, -2])
-            ax.set_xticklabels(['-3', '-1.5'])
+            ax.set_yticks([-1.0, 0.0, 1.0])
+            ax.set_yticklabels(['-1', '0', '1'])
+            ax.set_xticks([-1.0, 0.0, 1.0])
+            ax.set_xticklabels(['-1', '0', '1'])
             ax.tick_params(labelsize=14, direction='inout')
 
             if ds[:2] == 'E1':
-                sns.despine(ax=ax, offset=3, trim=True)
                 # set the alignment for outer ticklabels
                 ticklabels = ax.get_yticklabels()
                 ticklabels[0].set_va("bottom")
                 ticklabels[-1].set_va("top")
             elif ds[1] == '1':
-                sns.despine(ax=ax, bottom=True, offset=3, trim=True)
-                ax.tick_params(bottom=False)
+                ax.set_ylabel(ds[0], fontsize=18, rotation=0, va='center',
+                              labelpad=10)
                 # set the alignment for outer ticklabels
                 ticklabels = ax.get_yticklabels()
                 ticklabels[0].set_va("bottom")
                 ticklabels[-1].set_va("top")
+                ax.xaxis.set_ticklabels([])
             elif ds[0] == 'E':
-                sns.despine(ax=ax, left=True, offset=3, trim=True)
-                ax.tick_params(left=False)
+                ax.set_xlabel(ds[1], fontsize=18)
+                ax.yaxis.set_ticklabels([])
             else:
-                sns.despine(ax=ax, bottom=True, left=True, offset=3, trim=True)
-                ax.tick_params(bottom=False, left=False)
+                ax.xaxis.set_ticklabels([])
+                ax.yaxis.set_ticklabels([])
 
             # pies
             wp = {'linewidth': 0, 'antialiased': True}
             colors = [self.cc_colors(ds, 1), 'lightgrey']
-            bbox = (.5, .5, .5, .5)
-            inset_ax = inset_axes(ax, 0.35, 0.35,
-                                  bbox_to_anchor=bbox,
-                                  bbox_transform=ax.transAxes,  loc=2)
-
-            inset_ax.pie([pc_stddev, 1 - pc_stddev], wedgeprops=wp,
-                         counterclock=False, startangle=90, colors=colors)
-            inset_ax.pie([1.0], radius=0.5, colors=['white'], wedgeprops=wp)
-            inset_ax.text(0.5, 0.5, r"$\sigma$", ha='center', va='center',
-                          transform=inset_ax.transAxes, name='Arial', size=10)
-            inset_ax = inset_axes(ax, 0.35, 0.35,
-                                  bbox_to_anchor=bbox,
-                                  bbox_transform=ax.transAxes,  loc=1)
-            inset_ax.pie([pc_intensity, 1 - pc_intensity], wedgeprops=wp,
-                         counterclock=False, startangle=90, colors=colors)
-            inset_ax.pie([1.0], radius=0.5, colors=['white'], wedgeprops=wp)
-            inset_ax.text(0.5, 0.5, r"$I$", ha='center', va='center',
-                          transform=inset_ax.transAxes, name='Arial', size=10)
-            inset_ax = inset_axes(ax, 0.35, 0.35,
-                                  bbox_to_anchor=bbox,
-                                  bbox_transform=ax.transAxes, loc=4)
-            inset_ax.pie([pc_exp_error, 1 - pc_exp_error], wedgeprops=wp,
-                         counterclock=False, startangle=90, colors=colors)
-            inset_ax.pie([1.0], radius=0.5, colors=['white'], wedgeprops=wp)
-            inset_ax.text(0.5, 0.5, r"$e$", ha='center', va='center',
-                          transform=inset_ax.transAxes, name='Arial', size=10)
+            i = 0
+            for name, rho in rhos.items():
+                # [x0, y0, width, height]
+                bounds = [0.05 + (0.18 * i), 0.05, 0.18, 0.18]
+                i += 1
+                inset_ax = ax.inset_axes(bounds)
+                inset_ax.pie([abs(rho), 1 - abs(rho)], wedgeprops=wp,
+                             counterclock=False, startangle=90, colors=colors)
+                inset_ax.pie([1.0], radius=0.5, colors=[
+                             'white'], wedgeprops=wp)
+                inset_ax.text(0.5, 1.2, name, ha='center', va='center',
+                              transform=inset_ax.transAxes, name='Arial',
+                              size=12)
 
             outfile = os.path.join(self.plot_path,
                                    'sign3_confidence_summary.png')
