@@ -1,0 +1,590 @@
+import os
+import keras
+import pickle
+import numpy as np
+from time import time
+from functools import partial
+
+from keras import backend as K
+from keras.layers import concatenate
+from keras.models import Model, Sequential
+from keras.callbacks import EarlyStopping, Callback
+from keras.layers import Input, Dropout, Lambda, Dense
+from keras.layers import Activation, Masking, BatchNormalization
+from keras.layers import GaussianNoise, AlphaDropout, GaussianDropout
+from keras import regularizers
+
+from chemicalchecker.util import logged
+from chemicalchecker.util.splitter import SmilesTripletTraintest
+from .callbacks import CyclicLR, LearningRateFinder
+
+
+@logged
+class SiameseSmiles(object):
+    """Siamese class.
+
+    This class implements a simple siamese neural network based on Keras that
+    allows metric learning.
+    """
+
+    def __init__(self, model_dir, sign, evaluate=False, predict_only=False, plot=True, save_params=True, **kwargs):
+        """Initialize the Siamese class.
+
+        Args:
+            model_dir(str): Directorty where models will be stored.
+            traintest_file(str): Path to the traintest file.
+            evaluate(bool): Whether to run evaluation.
+        """
+        from chemicalchecker.core.signature_data import DataSignature
+        self.sign = sign[:]
+        # check if parameter file exists
+        param_file = os.path.join(model_dir, 'params.pkl')
+        if os.path.isfile(param_file):
+            kwargs = pickle.load(open(param_file, 'rb'))
+            self.__log.info('Parameters loaded from: %s' % param_file)
+        # read parameters
+        self.epochs = int(kwargs.get("epochs", 10))
+        self.batch_size = int(kwargs.get("batch_size", 100))
+        self.learning_rate = kwargs.get("learning_rate", 'auto')
+        self.split = str(kwargs.get("split", 'train'))
+        self.layers_sizes = kwargs.get("layers_sizes", [128])
+        self.layers = kwargs.get("layers", [Dense])
+        self.activations = kwargs.get("activations",
+                                      ['relu'])
+        self.dropouts = kwargs.get(
+            "dropouts", [None])
+        self.margin = float(kwargs.get("margin", 1.0))
+        self.alpha = float(kwargs.get("alpha", 1.0))
+        self.traintest_file = kwargs.get("traintest_file", None)
+
+        # internal variables
+        self.name = self.__class__.__name__.lower()
+        self.time = 0
+        self.model_dir = os.path.abspath(model_dir)
+        self.model_file = os.path.join(self.model_dir, "%s.h5" % self.name)
+        self.model = None
+        self.evaluate = evaluate
+
+        # check output path
+        if not os.path.exists(model_dir):
+            self.__log.warning("Creating model directory: %s", self.model_dir)
+            os.mkdir(self.model_dir)
+
+        # check input path
+        if self.traintest_file is not None:
+            self.traintest_file = os.path.abspath(self.traintest_file)
+            if not os.path.exists(self.traintest_file):
+                raise Exception('Input data file does not exists!')
+
+            # initialize train generator
+            traintest_data = DataSignature(self.traintest_file)
+            self.sharedx = None
+            if not predict_only:
+                self.sharedx = traintest_data.get_h5_dataset('x')
+            tr_shape_type_gen = SmilesTripletTraintest.generator_fn(
+                self.traintest_file,
+                'train_train',
+                self.sign,
+                epochs=self.epochs,
+                batch_size=self.batch_size,
+                sharedx=self.sharedx,
+                train=True)
+            self.tr_shapes = tr_shape_type_gen[0]
+            self.tr_gen = tr_shape_type_gen[2]()
+            self.steps_per_epoch = np.ceil(
+                self.tr_shapes[0][0] / self.batch_size)
+
+        # initialize validation/test generator
+        if evaluate:
+            val_shape_type_gen = SmilesTripletTraintest.generator_fn(
+                self.traintest_file,
+                'test_test',
+                self.sign,
+                batch_size=self.batch_size,
+                sharedx=self.sharedx,
+                train=False,
+                shuffle=False)
+            self.val_shapes = val_shape_type_gen[0]
+            self.val_gen = val_shape_type_gen[2]()
+            self.validation_steps = np.ceil(
+                self.val_shapes[0][0] / self.batch_size)
+        else:
+            self.val_shapes = None
+            self.val_gen = None
+            self.validation_steps = None
+
+        # log parameters
+        self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
+        self.__log.info("{:<22}: {:>12}".format("model_dir", self.model_dir))
+        if self.traintest_file is not None:
+            self.__log.info("{:<22}: {:>12}".format(
+                "traintest_file", self.traintest_file))
+            tmp = SmilesTripletTraintest(self.traintest_file, 'train_train')
+            self.__log.info("{:<22}: {:>12}".format(
+                'train_train', str(tmp.get_ty_shapes())))
+            if evaluate:
+                tmp = SmilesTripletTraintest(
+                    self.traintest_file, 'train_test')
+                self.__log.info("{:<22}: {:>12}".format(
+                    'train_test', str(tmp.get_ty_shapes())))
+                tmp = SmilesTripletTraintest(
+                    self.traintest_file, 'test_test')
+                self.__log.info("{:<22}: {:>12}".format(
+                    'test_test', str(tmp.get_ty_shapes())))
+        self.__log.info("{:<22}: {:>12}".format(
+            "learning_rate", self.learning_rate))
+        self.__log.info("{:<22}: {:>12}".format(
+            "epochs", self.epochs))
+        self.__log.info("{:<22}: {:>12}".format(
+            "batch_size", self.batch_size))
+        self.__log.info("{:<22}: {:>12}".format(
+            "layers", str(self.layers)))
+        self.__log.info("{:<22}: {:>12}".format(
+            "layers_sizes", str(self.layers_sizes)))
+        self.__log.info("{:<22}: {:>12}".format(
+            "activations", str(self.activations)))
+        self.__log.info("{:<22}: {:>12}".format(
+            "dropouts", str(self.dropouts)))
+        self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
+
+        if not os.path.isfile(param_file) and save_params:
+            self.__log.debug("Saving parameters to %s" % param_file)
+            with open(param_file, "wb") as f:
+                pickle.dump(kwargs, f)
+
+    def build_model(self, input_shape, load=False, cp=None):
+        """Compile Keras model
+
+        input_shape(tuple): X dimensions (only nr feat is needed)
+        load(bool): Whether to load the pretrained model.
+        """
+        def euclidean_distance(x, y):
+            sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
+            return K.sqrt(K.maximum(sum_square, K.epsilon()))
+
+        def add_layer(net, layer, layer_size, activation, dropout,
+                      use_bias=True, input_shape=False):
+            if input_shape:
+                net.add(GaussianDropout(rate=0.1, input_shape=input_shape))
+            if activation == 'selu':
+                net.add(layer(layer_size, use_bias=use_bias,
+                              kernel_initializer='lecun_normal'))
+            else:
+                net.add(layer(layer_size, use_bias=use_bias))
+            net.add(Activation(activation))
+            if dropout is not None:
+                net.add(AlphaDropout(dropout))
+
+        # we have two inputs
+        input_a = Input(shape=input_shape)
+        input_p = Input(shape=input_shape)
+        input_n = Input(shape=input_shape)
+        input_s = Input(shape=(self.sign.shape[1],))
+
+        # each goes to a network with the same architechture
+        basenet = Sequential()
+        # first layer
+        add_layer(basenet, self.layers[0], self.layers_sizes[0],
+                  self.activations[0], self.dropouts[0],
+                  input_shape=input_shape)
+        hidden_layers = zip(self.layers[1:-1],
+                            self.layers_sizes[1:-1],
+                            self.activations[1:-1],
+                            self.dropouts[1:-1])
+        assert(len(self.layers) == len(self.layers_sizes) ==
+               len(self.activations) == len(self.dropouts))
+        for layer, layer_size, activation, dropout in hidden_layers:
+            add_layer(basenet, layer, layer_size, activation, dropout)
+        add_layer(basenet, self.layers[-1], self.layers_sizes[-1],
+                  self.activations[-1], None)
+        # last normalization layer for loss
+        basenet.add(Lambda(lambda x: K.l2_normalize(x, axis=-1)))
+        basenet.summary()
+
+        encodeds = list()
+        encodeds.append(basenet(input_a))
+        encodeds.append(basenet(input_p))
+        encodeds.append(basenet(input_n))
+        encodeds.append(input_s)
+        merged_vector = concatenate(encodeds, axis=-1, name='merged_layer')
+
+        inputs = [input_a, input_p, input_n, input_s]
+        model = Model(inputs=inputs, output=merged_vector)
+
+        def split_output(y_pred):
+            #This assumes that all signs have same length
+            total_lenght = y_pred.shape.as_list()[-1]
+            anchor = y_pred[:, 0: int(total_lenght * 1 / 4)]
+            positive = y_pred[
+                :, int(total_lenght * 1 / 4): int(total_lenght * 2 / 4)]
+            negative = y_pred[
+                :, int(total_lenght * 2 / 4): int(total_lenght * 3 / 4)]
+            o_sign = y_pred[
+                :, int(total_lenght * 3 / 4): int(total_lenght * 4 / 4)]
+            return anchor, positive, negative, o_sign
+
+        # define monitored metrics
+        def accTot(y_true, y_pred):
+            anchor, positive, negative, _ = split_output(y_pred)
+            acc = K.cast(euclidean_distance(anchor, positive) <
+                         euclidean_distance(anchor, negative), anchor.dtype)
+            return K.mean(acc)
+
+        def accE(y_true, y_pred):
+            anchor, positive, negative, _ = split_output(y_pred)
+            msk = K.cast(K.equal(y_true, 0), 'float32')
+            prd = self.batch_size / K.sum(msk)
+            acc = K.cast(
+                euclidean_distance(anchor * msk, positive * msk) <
+                euclidean_distance(anchor * msk, negative * msk), anchor.dtype)
+            return K.mean(acc) * prd
+
+        def accM(y_true, y_pred):
+            anchor, positive, negative, _ = split_output(y_pred)
+            msk = K.cast(K.equal(y_true, 1), 'float32')
+            prd = self.batch_size / K.sum(msk)
+            acc = K.cast(
+                euclidean_distance(anchor * msk, positive * msk) <
+                euclidean_distance(anchor * msk, negative * msk), anchor.dtype)
+            return K.mean(acc) * prd
+
+        def accH(y_true, y_pred):
+            anchor, positive, negative, _ = split_output(y_pred)
+            msk = K.cast(K.equal(y_true, 2), 'float32')
+            prd = self.batch_size / K.sum(msk)
+            acc = K.cast(
+                euclidean_distance(anchor * msk, positive * msk) <
+                euclidean_distance(anchor * msk, negative * msk), anchor.dtype)
+            return K.mean(acc) * prd
+
+        def pearson_r(y_true, y_pred):
+            x = y_true
+            y = y_pred
+            mx = K.mean(x, axis=0)
+            my = K.mean(y, axis=0)
+            xm, ym = x - mx, y - my
+            r_num = K.sum(xm * ym)
+            x_square_sum = K.sum(xm * xm)
+            y_square_sum = K.sum(ym * ym)
+            r_den = K.sqrt(x_square_sum * y_square_sum)
+            r = r_num / r_den
+            return K.mean(r)
+
+        def corr(y_true, y_pred):
+            anchor, positive, negative, o_sign = split_output(
+                y_pred)
+            return pearson_r(anchor, o_sign)
+
+
+        metrics = [accTot]
+        metrics.extend([accE,
+                        accM,
+                        accH,
+                        corr])
+
+        def mse_gor_tloss(y_true, y_pred):
+            anchor, positive, negative, o_sign = split_output(y_pred)
+            #Compute tloss
+            pos_dist = K.sum(K.square(anchor - positive), axis=1)
+            neg_dist = K.sum(K.square(anchor - negative), axis=1)
+            basic_loss = pos_dist - neg_dist + self.margin
+            loss = K.maximum(basic_loss, 0.0)
+
+            #Compute GOR
+            neg_dis = K.sum(anchor * negative, axis=1)
+            dim = K.int_shape(y_pred)[1]
+            gor = K.pow(K.mean(neg_dis), 2) + \
+                K.maximum(K.mean(K.pow(neg_dis, 2)) - 1.0 / dim, 0.0)
+
+            #Compute t-gor loss
+            gor_loss = loss + (gor * self.alpha)
+
+            #Compute mse_loss
+            mse_loss = keras.losses.mean_squared_error(anchor, o_sign)
+
+            #COmpute final loss
+            final_loss = mse_loss
+            return final_loss
+
+        # compile and print summary
+        self.__log.info('Loss function: %s' %
+                        mse_gor_tloss.__name__)
+
+        optimizer = keras.optimizers.Adam(lr=self.learning_rate)
+
+        model.compile(
+            optimizer=optimizer,
+            loss=mse_gor_tloss,
+            metrics=metrics)
+        model.summary()
+        self.model = model
+        # if pre-trained model is specified, load its weights
+        if load:
+            self.model.load_weights(self.model_file)
+        # this will be the encoder/transformer
+        self.transformer = self.model.layers[-2]
+
+    def fit(self, save=True):
+        """Fit the model.
+
+        monitor(str): variable to monitor for early stopping.
+        """
+        # builf model
+        input_shape = (self.tr_shapes[0][1],)
+        self.build_model(input_shape)
+
+        # call fit and save model
+        t0 = time()
+        self.history = self.model.fit_generator(
+            generator=self.tr_gen,
+            steps_per_epoch=self.steps_per_epoch,
+            epochs=self.epochs,
+            validation_data=self.val_gen,
+            validation_steps=self.validation_steps,
+            shuffle=True)
+        self.time = time() - t0
+        if save:
+            self.model.save(self.model_file)
+
+        # save and plot history
+        history_file = os.path.join(
+            self.model_dir, "%s_history.pkl" % self.name)
+        pickle.dump(self.history.history, open(history_file, 'wb'))
+        history_file = os.path.join(self.model_dir, "history.png")
+        anchor_file = os.path.join(self.model_dir, "anchor_distr.png")
+        if self.evaluate:
+            self._plot_history(self.history.history, history_file)
+            #self._plot_anchor_dist(anchor_file)
+
+    def predict(self, x_matrix):
+        """Do predictions.
+
+        prediction_file(str): Path to input file containing Xs.
+        split(str): which split to predict.
+        batch_size(int): batch size for prediction.
+        """
+        # apply trimming of input matrix
+        # load model if not alredy there
+        if self.model is None or cp:
+            self.build_model((x_matrix.shape[1],), load=True)
+
+        return self.transformer.predict(x_matrix)
+
+    def _plot_history(self, history, destination):
+        """Plot history.
+
+        history(dict): history result from Keras fit method.
+        destination(str): path to output file.
+        """
+        import matplotlib.pyplot as plt
+
+        metrics = sorted(list({k.split('_')[-1] for k in history}))
+        plt.figure(figsize=(10, 7), dpi=200)
+        c = 1
+        for metric in metrics:
+            plt.subplot(2, 3, c)
+            plt.title(metric.capitalize())
+            plt.plot(history[metric], label="Train", lw=2, ls='--')
+            plt.plot(history['val_' + metric], label="Val", lw=2, ls='--')
+            plt.legend()
+            c += 1
+        plt.tight_layout()
+        if destination is not None:
+            plt.savefig(destination)
+        plt.close('all')
+
+    def _plot_anchor_dist(self, plot_file):
+        from scipy.spatial.distance import cosine
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+
+        def sim(a, b):
+            return -(cosine(a, b) - 1)
+
+        # Need to create a new train_train generator without train=False
+        tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
+            self.traintest_file,
+            'train_train',
+            batch_size=self.batch_size,
+            replace_nan=self.replace_nan,
+            sharedx=self.sharedx,
+            augment_fn=self.augment_fn,
+            augment_kwargs=self.augment_kwargs,
+            train=False,
+            shuffle=False,
+            standard=self.standard)
+
+        tr_gen = tr_shape_type_gen[2]()
+
+        if self.evaluate:
+            trval_shape_type_gen = NeighborTripletTraintest.generator_fn(
+                self.traintest_file,
+                'train_test',
+                batch_size=self.batch_size,
+                replace_nan=self.replace_nan,
+                sharedx=self.sharedx,
+                augment_fn=self.augment_fn,
+                augment_kwargs=self.augment_kwargs,
+                train=False,
+                shuffle=False,
+                standard=self.standard)
+            trval_gen = trval_shape_type_gen[2]()
+
+            val_shape_type_gen = NeighborTripletTraintest.generator_fn(
+                self.traintest_file,
+                'test_test',
+                batch_size=self.batch_size,
+                replace_nan=self.replace_nan,
+                sharedx=self.sharedx,
+                augment_fn=self.augment_fn,
+                augment_kwargs=self.augment_kwargs,
+                train=False,
+                shuffle=False,
+                standard=self.standard)
+            val_gen = val_shape_type_gen[2]()
+
+            vset_dict = {'train_train': tr_gen,
+                         'train_test': trval_gen, 'test_test': val_gen}
+        else:
+            vset_dict = {'train_train': tr_gen}
+
+        fig, axes = plt.subplots(3, 4, figsize=(22, 15))
+        axes = axes.flatten()
+        i = 0
+        for vset in vset_dict:
+            ax = axes[i]
+            i += 1
+            anchors = list()
+            positives = list()
+            negatives = list()
+            labels = list()
+            for inputs, y in vset_dict[vset]:
+                anchors.extend(self.predict(inputs[0]))
+                positives.extend(self.predict(inputs[1]))
+                negatives.extend(self.predict(inputs[2]))
+                labels.extend(y)
+                if len(anchors) >= 10000:
+                    break
+            anchors = np.array(anchors)
+            positives = np.array(positives)
+            negatives = np.array(negatives)
+            labels = np.array(labels)
+
+            ap_dists = np.linalg.norm(anchors - positives, axis=1)
+            an_dists = np.linalg.norm(anchors - negatives, axis=1)
+
+            mask_e = labels == 0
+            mask_m = labels == 1
+            mask_h = labels == 2
+
+            ax.set_title('Euclidean ' + vset)
+            sns.kdeplot(ap_dists[mask_e], label='pos_e',
+                        ax=ax, color='limegreen')
+            sns.kdeplot(ap_dists[mask_m], label='pos_m',
+                        ax=ax, color='forestgreen')
+            sns.kdeplot(ap_dists[mask_h], label='pos_h',
+                        ax=ax, color='darkgreen')
+
+            sns.kdeplot(an_dists[mask_e], label='neg_e', ax=ax, color='salmon')
+            sns.kdeplot(an_dists[mask_m], label='neg_m', ax=ax, color='red')
+            sns.kdeplot(an_dists[mask_h], label='neg_h',
+                        ax=ax, color='darkred')
+
+            ax.legend()
+
+            ax = axes[i]
+            i += 1
+
+            ax.scatter(ap_dists[mask_e][:1000], an_dists[mask_e][:1000],
+                       label='easy', color='green', s=2)
+            ax.scatter(ap_dists[mask_m][:1000], an_dists[mask_m][:1000],
+                       label='medium', color='goldenrod', s=2, alpha=0.7)
+            ax.scatter(ap_dists[mask_h][:1000], an_dists[mask_h][:1000],
+                       label='hard', color='red', s=2, alpha=0.7)
+            ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
+            ax.set_xlabel('Euc dis positives')
+            ax.set_ylabel('Euc dis negatives')
+
+            ax = axes[i]
+            i += 1
+
+            ap_sim = np.array([sim(anchors[i], positives[i])
+                               for i in range(len(anchors))])
+            an_sim = np.array([sim(anchors[i], negatives[i])
+                               for i in range(len(anchors))])
+
+            ax.set_title('Cosine ' + vset)
+            sns.kdeplot(ap_sim[mask_e], label='pos_e',
+                        ax=ax, color='limegreen')
+            sns.kdeplot(ap_sim[mask_m], label='pos_m',
+                        ax=ax, color='forestgreen')
+            sns.kdeplot(ap_sim[mask_h], label='pos_h',
+                        ax=ax, color='darkgreen')
+            plt.xlim(-1, 1)
+
+            sns.kdeplot(an_sim[mask_e], label='neg_e', ax=ax, color='salmon')
+            sns.kdeplot(an_sim[mask_m], label='neg_m', ax=ax, color='red')
+            sns.kdeplot(an_sim[mask_h], label='neg_h', ax=ax, color='darkred')
+            plt.xlim(-1, 1)
+            ax.legend()
+
+            ax = axes[i]
+            i += 1
+
+            ax.scatter(ap_sim[mask_e][:1000], an_sim[mask_e][:1000],
+                       label='easy', color='green', s=2)
+            ax.scatter(ap_sim[mask_m][:1000], an_sim[mask_m][:1000],
+                       label='medium', color='goldenrod', s=2, alpha=0.7)
+            ax.scatter(ap_sim[mask_h][:1000], an_sim[mask_h][:1000],
+                       label='hard', color='red', s=2, alpha=0.7)
+            ax.set_xlim(-1, 1)
+            ax.set_ylim(-1, 1)
+            ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
+            ax.set_xlabel('Cos sim positives')
+            ax.set_ylabel('Cos sim negatives')
+
+        plt.savefig(plot_file)
+        plt.close()
+
+
+class AdditionalValidationSets(Callback):
+
+    def __init__(self, validation_sets, model, verbose=1, batch_size=None):
+        """
+        validation_sets(list): list of 3-tuples (val_data, val_targets,
+        val_set_name) or 4-tuples (val_data, val_targets, sample_weights,
+        val_set_name).
+        verbose(int): verbosity mode, 1 or 0.
+        batch_size(int): batch size to be used when evaluating on the
+        additional datasets.
+        """
+        super(AdditionalValidationSets, self).__init__()
+        self.validation_sets = validation_sets
+        self.epoch = []
+        self.history = {}
+        self.verbose = verbose
+        self.batch_size = batch_size
+        self.model = model
+
+    def on_train_begin(self, logs=None):
+        self.epoch = []
+        self.history = {}
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        self.epoch.append(epoch)
+
+        # record the same values as History() as well
+        for k, v in logs.items():
+            self.history.setdefault(k, []).append(v)
+
+        # evaluate on the additional validation sets
+        for val_gen, val_shapes, val_set_name in self.validation_sets:
+            results = self.model.evaluate_generator(
+                val_gen(),
+                steps=np.ceil(val_shapes[0][0] / self.batch_size),
+                verbose=self.verbose)
+
+            for i, result in enumerate(results):
+                name = '_'.join([val_set_name, self.model.metrics_names[i]])
+                self.history.setdefault(name, []).append(result)
