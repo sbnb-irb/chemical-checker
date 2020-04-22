@@ -25,7 +25,7 @@ from .signature_data import DataSignature
 
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
-from chemicalchecker.util.splitter import Traintest, NeighborTripletTraintest
+from chemicalchecker.util.splitter import Traintest, NeighborTripletTraintest, SmilesTripletTraintest
 
 
 @logged
@@ -105,22 +105,19 @@ class sign4(BaseSignature, DataSignature):
         self.params['sign2'] = default_sign2
         # parameters to learn from sign0
         default_sign0 = {
-            'epochs': 10,
-            'layers': [Dense, Dense, Dense],
-            'layers_sizes': [128, 128, 128],
-            'activations': ['relu', 'relu', 'tanh'],
-            'learning_rate': 'auto',
+            'epochs': 5,
+            'cpu': 8,
+            'learning_rate': 1e-3,
+            'layers': [Dense, Dense, Dense, Dense],
+            'layers_sizes': [1024, 512, 256, 128],
+            'activations': ['selu', 'selu', 'selu', 'tanh'],
+            'dropouts': [0.2, 0.2, 0.2, None],
             'batch_size': 128,
-            'patience': 200,
-            'loss_func': 'mse_loss',
-            'num_triplets': 1000000,
-            't_per': self.t_per,
+            'num_triplets': 100000,
             'margin': 1.0,
-            'alpha': 1.0,
-            'standard': False,
+            'alpha': 0.5,
         }
-
-        default_sign0.update(params.get('sign0', {}))
+        #default_sign0.update(params.get('sign0', {}))
         self.params['sign0'] = default_sign0
         # parameters to learn confidence from sign0
         default_sign0_conf = {
@@ -1490,590 +1487,6 @@ class sign4(BaseSignature, DataSignature):
         plot_subsample(plot_file, self.sign2_coverage, traintest_file,
                        ds=self.dataset)
 
-    def plot_validations_2(self, siamese, dataset_idx, traintest_file,
-                           chunk_size=10000, limit=1000, dist_limit=1000):
-        def mask_keep(idxs, x1_data):
-            # we will fill an array of NaN with values we want to keep
-            x1_data_transf = np.zeros_like(x1_data, dtype=np.float32) * np.nan
-            for idx in idxs:
-                # copy column from original data
-                col_slice = slice(idx * 128, (idx + 1) * 128)
-                x1_data_transf[:, col_slice] = x1_data[:, col_slice]
-            # keep rows containing at least one not-NaN value
-            # not_nan = np.isfinite(x1_data_transf).any(axis=1)
-            # x1_data_transf = x1_data_transf[not_nan]
-            return x1_data_transf
-
-        def mask_exclude(idxs, x1_data):
-            x1_data_transf = np.copy(x1_data)
-            for idx in idxs:
-                # set current space to nan
-                col_slice = slice(idx * 128, (idx + 1) * 128)
-                x1_data_transf[:, col_slice] = np.nan
-            # drop rows that only contain NaNs
-            # not_nan = np.isfinite(x1_data_transf).any(axis=1)
-            # x1_data_transf = x1_data_transf[not_nan]
-            return x1_data_transf
-
-        def no_mask(idxs, x1_data):
-            return x1_data
-
-        from MulticoreTSNE import MulticoreTSNE
-        from sklearn.decomposition import PCA
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-        import itertools
-        from sklearn.preprocessing import robust_scale
-        from sklearn.linear_model import LogisticRegressionCV
-        import faiss
-        from chemicalchecker.util.remove_near_duplicates import RNDuplicates
-        from tqdm import tqdm
-
-        mask_fns = {
-            'ALL': partial(no_mask, dataset_idx),
-            'NOT-SELF': partial(mask_exclude, dataset_idx),
-            'ONLY-SELF': partial(mask_keep, dataset_idx),
-        }
-
-        # get molecules where space is available
-        if self.sign2_coverage is None:
-            self.__log.info('VALIDATION: fetching Xs.')
-            known = list()
-            unknown = list()
-            enough_known = False
-            enough_unknown = False
-            with h5py.File(self.sign2_universe, "r") as features:
-                # read input in chunks
-                for idx in range(0, features['x_test'].shape[0], chunk_size):
-                    chunk = slice(idx, idx + chunk_size)
-                    feat = features['x_test'][chunk]
-                    nan_ds = np.isnan(feat[:, dataset_idx[0] * 128])
-                    if len(known) < limit:
-                        chunk_known = feat[~nan_ds]
-                        if len(chunk_known) == 0:
-                            continue
-                        known.extend(chunk_known)
-                    else:
-                        enough_known = True
-                    if len(unknown) < limit:
-                        chunk_unknown = feat[nan_ds]
-                        if len(chunk_unknown) == 0:
-                            continue
-                        unknown.extend(chunk_unknown)
-                    else:
-                        enough_unknown = True
-                    if enough_known and enough_unknown:
-                        break
-            known = np.vstack(known[:limit])
-            unknown = np.vstack(unknown[:limit])
-        else:
-            # get known and unknown idxs
-            cov = DataSignature(self.sign2_coverage).get_h5_dataset('V')
-            unknown_idxs = np.argwhere(cov[:, dataset_idx[0]] == 0).flatten()
-
-            if len(unknown_idxs) > 50000:
-                unknown_idxs = np.random.choice(
-                    len(unknown_idxs), 50000, replace=False)
-            # get train and test idxs
-            all_inchikeys = self.get_universe_inchikeys()
-            traintest = DataSignature(traintest_file)
-            train_inks = traintest.get_h5_dataset('keys_train')[:4000]
-            test_inks = traintest.get_h5_dataset('keys_test')[:1000]
-            train_idxs = np.argwhere(
-                np.isin(all_inchikeys, train_inks)).flatten()
-            test_idxs = np.argwhere(
-                np.isin(all_inchikeys, test_inks)).flatten()
-            train_idxs.sort()
-            test_idxs.sort()
-            tr_nn_idxs = np.argwhere(
-                np.isin(self.neig_sign.keys, train_inks)).flatten()
-            ts_nn_idxs = np.argwhere(
-                np.isin(self.neig_sign.keys, test_inks)).flatten()
-
-        # 6.6 GB - 3.4GB = 3.2 GB
-        # predict FIXME we don't really need all the predictions
-        self.__log.info('VALIDATION: Predicting.')
-        preds = dict()
-        pred_signs_name = os.path.join(self.model_path, 'pred_signs.pkl')
-
-        if not os.path.isfile(pred_signs_name):
-            for name, mask_fn in mask_fns.items():
-                with h5py.File(self.sign2_universe, "r") as features:
-                    # read input in chunks
-                    preds[name] = np.zeros((features['x_test'].shape[0], 128))
-                    for idx in tqdm(range(0, features['x_test'].shape[0], chunk_size)):
-                        chunk = slice(idx, idx + chunk_size)
-                        feat = features['x_test'][chunk]
-                        preds[name][chunk] = siamese.predict(mask_fn(feat))
-
-            with open(pred_signs_name, 'wb') as f:
-                pickle.dump(preds, f)
-        else:
-            with open(pred_signs_name, 'rb') as f:
-                preds = pickle.load(f)
-
-        # we only need train test and a bunch of unknowns
-        preds.setdefault('tr', {})
-        preds.setdefault('ts', {})
-        preds.setdefault('unk', {})
-        preds['tr']['ALL'] = preds['ALL'][train_idxs].astype(np.float32)
-        preds['ts']['ALL'] = preds['ALL'][test_idxs].astype(np.float32)
-        preds['unk']['ALL'] = preds['ALL'][unknown_idxs].astype(np.float32)
-        del preds['ALL']
-        preds['tr'][
-            'NOT-SELF'] = preds['NOT-SELF'][train_idxs].astype(np.float32)
-        preds['ts'][
-            'NOT-SELF'] = preds['NOT-SELF'][test_idxs].astype(np.float32)
-        del preds['NOT-SELF']
-        preds['tr'][
-            'ONLY-SELF'] = preds['ONLY-SELF'][train_idxs].astype(np.float32)
-        preds['ts'][
-            'ONLY-SELF'] = preds['ONLY-SELF'][test_idxs].astype(np.float32)
-        del preds['ONLY-SELF']
-
-        # find nearest neighbors for train and test
-        neig_pred = faiss.IndexFlatL2(preds['unk']['ALL'].shape[1])
-        neig_pred.add(preds['unk']['ALL'])
-        unknown_n_dis, unknown_n_idx = neig_pred.search(
-            np.vstack([preds['tr']['ALL'], preds['ts']['ALL']]), 5)
-        K1_unknown = preds['unk']['ALL'][unknown_n_idx[:, 0]]
-        K5_unknown = preds['unk']['ALL'][unknown_n_idx[:, -1]]
-
-        metrics = dict()
-        feat_type = 'continuos'
-        fname = '%s_known_unknown' % feat_type
-        self.__log.info(
-            'VALIDATION: Plot correlations %s.' % feat_type)
-
-        fig, axes = plt.subplots(
-            1, 3, sharex=True, sharey=True, figsize=(10, 3))
-        combos = itertools.combinations(mask_fns, 2)
-        for ax, (n1, n2) in zip(axes, combos):
-            corrs_train = row_wise_correlation(
-                preds['tr'][n1], preds['tr'][n2], scaled=True)
-            corrs_test = row_wise_correlation(
-                preds['ts'][n1], preds['ts'][n2], scaled=True)
-            ax.set_title('Scaled  %s %s' % (n1, n2))
-            sns.distplot(corrs_train, ax=ax, label='train')
-            sns.distplot(corrs_test, ax=ax, label='test')
-            metrics['corr train %s %s' % (n1, n2)] = np.mean(corrs_train)
-            metrics['corr test %s %s' % (n1, n2)] = np.mean(corrs_test)
-            del corrs_train
-            del corrs_test
-        plot_file = os.path.join(siamese.model_dir,
-                                 '%s_correlations.png' % fname)
-        plt.savefig(plot_file)
-        plt.close()
-
-        for m in ['euclidean', 'cosine']:
-            self.__log.info(
-                'VALIDATION: Plot %s distances %s.' % (m, feat_type))
-            fig, axes = plt.subplots(
-                3, 2, sharex=True, sharey=True, figsize=(8, 10))
-            dist_unknown = pdist(preds['unk']['ALL'][:dist_limit], metric=m)
-            mean_d_unknown = np.mean(dist_unknown)
-            for ax_row, name in zip(axes, ['Train-Train', 'Train-Test', 'Test-Test']):
-                if name == 'Train-Train':
-                    dist_all = pdist(preds['tr']['ALL'][np.random.choice(
-                        len(preds['tr']['ALL']), dist_limit, replace=False)], metric=m)
-                    dist_only = pdist(preds['tr']['ONLY-SELF'][np.random.choice(
-                        len(preds['tr']['ONLY-SELF']), dist_limit, replace=False)], metric=m)
-                    mean_dist = np.mean(dist_all)
-                    metrics['%s_trtr_all' % m] = abs(
-                        mean_dist - mean_d_unknown)
-                    metrics['%s_trtr_only' % m] = abs(
-                        mean_dist - np.mean(dist_only))
-                elif name == 'Train-Test':
-                    known_all = np.vstack(
-                        [preds['tr']['ALL'], preds['ts']['ALL']])
-                    dist_all = pdist(known_all[np.random.choice(len(known_all), min(
-                        dist_limit, len(known_all)), replace=False)], metric=m)
-                    del known_all
-                    known_only = np.vstack(
-                        [preds['tr']['ONLY-SELF'], preds['ts']['ONLY-SELF']])
-                    dist_only = pdist(known_only[np.random.choice(len(known_only), min(
-                        dist_limit, len(known_only)), replace=False)], metric=m)
-                    del known_only
-                    mean_dist = np.mean(dist_all)
-                    metrics['%s_trts_all' % m] = abs(
-                        mean_dist - mean_d_unknown)
-                    metrics['%s_trts_only' % m] = abs(
-                        mean_dist - np.mean(dist_only))
-                else:
-                    dist_all = pdist(preds['ts']['ALL'][np.random.choice(len(preds['ts']['ALL']), min(
-                        dist_limit, len(preds['ts']['ALL'])), replace=False)], metric=m)
-                    dist_only = pdist(preds['ts']['ONLY-SELF'][np.random.choice(len(preds['ts'][
-                                      'ONLY-SELF']), min(dist_limit, len(preds['ts']['ALL'])), replace=False)], metric=m)
-                    mean_dist = np.mean(dist_all)
-                    metrics['%s_tsts' % m] = abs(mean_dist - mean_d_unknown)
-                    metrics['%s_tsts_only' % m] = abs(
-                        mean_dist - np.mean(dist_only))
-                ax_row[0].set_title(name + ' ALL')
-                sns.distplot(dist_all, label='known', ax=ax_row[0])
-                sns.distplot(dist_unknown, label='unknown', ax=ax_row[0])
-                ax_row[0].legend()
-                ax_row[1].set_title(name + ' ONLY-SELF')
-                sns.distplot(dist_only, ax=ax_row[1])
-                del dist_all
-                del dist_only
-            plot_file = os.path.join(siamese.model_dir,
-                                     '%s_dists_%s.png' % (fname, m))
-            plt.savefig(plot_file)
-            plt.close()
-
-        return True
-        self.__log.info('VALIDATION: Plot intensities %s.' % feat_type)
-        plt.figure(figsize=(10, 3))
-        data = np.array([np.sum(np.abs(preds['tr']['ALL']), axis=1),
-                         np.sum(np.abs(preds['ts']['ALL']), axis=1),
-                         np.sum(np.abs(
-                             np.vstack([preds['tr']['ONLY-SELF'], preds['ts']['ONLY-SELF']])), axis=1),
-                         np.sum(np.abs(preds['unk']['ALL']), axis=1),
-                         np.sum(np.abs(K1_unknown), axis=1),
-                         np.sum(np.abs(K5_unknown), axis=1)])
-        plt.title('Intensities', fontsize=20)
-        sns.violinplot(data=data, inner="quartile")
-        labels = ['tr', 'te', 'ONLY-SELF', 'unk_naive', 'unk_K1', 'unk_K5']
-        plt.xticks(range(len(labels)), labels)
-        plot_file = os.path.join(
-            siamese.model_dir, '%s_intensity.png' % fname)
-        plt.savefig(plot_file)
-        plt.close()
-        del data
-
-        self.__log.info('VALIDATION: Plot NN accuracy %s.' % feat_type)
-
-        def get_nn_matrix(in_data, unk_data=np.array([])):
-            NN = faiss.IndexFlatL2(in_data.shape[1])
-            NN.add(in_data.astype(np.float32))
-            neig_dis, neig_idx = NN.search(in_data.astype(np.float32), 20)
-            # remove self
-            NN_neig = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
-            NN_dis = np.zeros((neig_idx.shape[0], neig_idx.shape[1] - 1))
-            for idx, row in enumerate(neig_idx):
-                NN_neig[idx] = row[np.argwhere(row != idx).flatten()][
-                    :NN_neig.shape[1]]
-                NN_dis[idx] = neig_dis[idx][np.argwhere(row != idx).flatten()][
-                    :NN_dis.shape[1]]
-            unk_neig_dist = False
-            if unk_data.any():
-                unk_neig_dist, _ = NN.search(unk_data.astype(np.float32), 5)
-            return NN_dis, NN_neig, unk_neig_dist
-
-        def overlap(n1, n2):
-            res = list()
-            for r1, r2 in zip(n1, n2):
-                s1 = set(r1)
-                s2 = set(r2)
-                inter = len(set.intersection(s1, s2))
-                res.append(inter / float(len(s1)))
-            return np.array(res)
-
-        fig, axes = plt.subplots(
-            1, 3, sharex=True, sharey=True, figsize=(10, 3))
-
-        nn_range = range(5, 21, 5)
-
-        NN_true = dict()
-        NN_pred = dict()
-        dis_unk = dict()
-        dis_knw = dict()
-
-        nn_matrix = self.neig_sign.get_h5_dataset('V')
-
-        axes[0].set_title('Accuracy Train-Train')
-        _, NN_true['trtr'], _ = get_nn_matrix(nn_matrix[tr_nn_idxs])
-        dis_knw['trtr'], NN_pred['trtr'], dis_unk['trtr'] = get_nn_matrix(
-            preds['tr']['ALL'], unk_data=preds['unk']['ALL'])
-        assert(len(NN_true['trtr']) == len(NN_pred['trtr']))
-        trtr_jaccs = []
-        for top in nn_range:
-            jaccs = overlap(NN_pred['trtr'][:, :top], NN_true['trtr'][:, :top])
-            trtr_jaccs.append(jaccs)
-            sns.distplot(jaccs, ax=axes[0],
-                         label='top %s NN' % top, hist=False)
-            axes[0].set_xlim(0, 1)
-            axes[0].legend()
-        metrics['KNNacc_trtr'] = np.mean(trtr_jaccs)
-        axes[1].set_title('Accuracy Train-Test')
-        trts_jaccs = []
-        _, NN_true['trts'], _ = get_nn_matrix(
-            np.vstack([nn_matrix[tr_nn_idxs], nn_matrix[ts_nn_idxs]]))
-        dis_knw['trts'], NN_pred['trts'], dis_unk['trts'] = get_nn_matrix(np.vstack(
-            [preds['tr']['ALL'], preds['ts']['ALL']]), unk_data=preds['unk']['ALL'])
-        assert(len(NN_true['trts']) == len(NN_pred['trts']))
-        for top in nn_range:
-            jaccs = overlap(NN_pred['trts'][:, :top], NN_true['trts'][:, :top])
-            trts_jaccs.append(jaccs)
-            sns.distplot(jaccs, ax=axes[1],
-                         label='top %s NN' % top, hist=False)
-            axes[1].set_xlim(0, 1)
-            axes[1].legend()
-        metrics['KNNacc_trts'] = np.mean(trts_jaccs)
-        axes[2].set_title('Accuracy Test-Test')
-        tsts_jaccs = []
-        _, NN_true['tsts'], _ = get_nn_matrix(nn_matrix[ts_nn_idxs])
-        dis_knw['tsts'], NN_pred['tsts'], dis_unk['tsts'] = get_nn_matrix(
-            preds['ts']['ALL'], unk_data=preds['unk']['ALL'])
-        assert(len(NN_true['tsts']) == len(NN_pred['tsts']))
-        for top in nn_range:
-            jaccs = overlap(NN_pred['tsts'][:, :top], NN_true['tsts'][:, :top])
-            tsts_jaccs.append(jaccs)
-            sns.distplot(jaccs, ax=axes[2],
-                         label='top %s NN' % top, hist=False)
-            axes[2].set_xlim(0, 1)
-            axes[2].legend()
-        metrics['KNNacc_tsts'] = np.mean(tsts_jaccs)
-        plot_file = os.path.join(
-            siamese.model_dir, '%s_NN_accuracy.png' % fname)
-        plt.savefig(plot_file)
-        plt.close()
-
-        del nn_matrix
-        del NN_true
-
-        self.__log.info('VALIDATION: Plot KNN %s.' % feat_type)
-        fig, axes = plt.subplots(2, 3, figsize=(15, 9))
-        for ax_row, k in zip(axes, ['K1', 'K5']):
-
-            ax_row[0].set_title('%s Train-Train' % k)
-            if k == 'K1':
-                sns.distplot(dis_knw['trtr'][:, 0],
-                             label='known', ax=ax_row[0])
-                sns.distplot(dis_unk['trtr'][:, 0],
-                             label='unknown', ax=ax_row[0])
-            else:
-                sns.distplot(dis_knw['trtr'][:, 4],
-                             label='known', ax=ax_row[0])
-                sns.distplot(dis_unk['trtr'][:, 4],
-                             label='unknown', ax=ax_row[0])
-            ax_row[0].legend()
-            ax_row[1].set_title('%s Train-Test' % k)
-            if k == 'K1':
-                sns.distplot(dis_knw['trts'][:, 0],
-                             label='known', ax=ax_row[1])
-                sns.distplot(dis_unk['trts'][:, 0],
-                             label='unknown', ax=ax_row[1])
-            else:
-                sns.distplot(dis_knw['trts'][:, 4],
-                             label='known', ax=ax_row[1])
-                sns.distplot(dis_unk['trts'][:, 4],
-                             label='unknown', ax=ax_row[1])
-            ax_row[1].legend()
-            ax_row[2].set_title('%s Test-Test' % k)
-            if k == 'K1':
-                sns.distplot(dis_knw['tsts'][:, 0],
-                             label='known', ax=ax_row[2])
-                sns.distplot(dis_unk['tsts'][:, 0],
-                             label='unknown', ax=ax_row[2])
-            else:
-                sns.distplot(dis_knw['tsts'][:, 4],
-                             label='known', ax=ax_row[2])
-                sns.distplot(dis_unk['tsts'][:, 4],
-                             label='unknown', ax=ax_row[2])
-            ax_row[2].legend()
-        filename = os.path.join(
-            siamese.model_dir, "%s_KNN.png" % fname)
-        plt.savefig(filename, dpi=100)
-        plt.close()
-
-        del NN_pred
-        del dis_unk
-        del dis_knw
-
-        self.__log.info(
-            'VALIDATION: Plot feature distribution 1 %s.' % feat_type)
-        fig = plt.figure(figsize=(20, 6), dpi=100)
-        fig, axes = plt.subplots(
-            4, 1, sharex=True, sharey=True, figsize=(20, 12))
-        order = np.argsort(
-            np.mean(np.vstack([preds['tr']['ALL'], preds['ts']['ALL']]), axis=0))[::-1]
-        for ax, name in zip(axes.flatten(), mask_fns):
-            df = pd.DataFrame(np.vstack([preds['tr'][name], preds['ts'][name]])[
-                              :, order]).melt().dropna()
-            sns.pointplot(x='variable', y='value', ci='sd',
-                          data=df, ax=ax, label=name)
-            ax.set_ylabel('known %s' % name)
-            ax.axhline(0)
-        df = pd.DataFrame(preds['unk']['ALL'][:, order]).melt().dropna()
-        ax2 = axes[-1]
-        sns.pointplot(x='variable', y='value', ci='sd', data=df, ax=ax2)
-        ax2.set_ylabel('unknown ALL')
-        ax2.axhline(0)
-        filename = os.path.join(
-            siamese.model_dir, "%s_features_1.png" % fname)
-        plt.savefig(filename, dpi=100)
-        plt.close()
-
-        self.__log.info(
-            'VALIDATION: Plot feature distribution 2 %s.' % feat_type)
-        plt.figure(figsize=(10, 3))
-        data = np.array([
-            preds['tr']['ALL'].flatten(),
-            preds['ts']['ALL'].flatten(),
-            np.vstack([preds['tr']['ONLY-SELF'],
-                       preds['tr']['ONLY-SELF']]).flatten(),
-            preds['unk']['ALL'].flatten(),
-            K1_unknown.flatten(),
-            K5_unknown.flatten()
-        ])
-        plt.title('Feature distribution', fontsize=20)
-        sns.violinplot(data=data, inner="quartile")
-        labels = ['tr', 'te', 'ONLY-SELF', 'unk_naive', 'unk_K1', 'unk_K5']
-        plt.xticks(range(len(labels)), labels)
-        plot_file = os.path.join(
-            siamese.model_dir, '%s_features_2.png' % fname)
-        plt.savefig(plot_file)
-        plt.close()
-        del data
-
-        self.__log.info('VALIDATION: Plot Projections 1 %s.' % feat_type)
-        fig, axes = plt.subplots(2, 3, figsize=(10, 7), dpi=200)
-        for ax_row, name in zip(axes, ['TSNE', 'PCA']):
-            if name == 'TSNE':
-                proj_model = MulticoreTSNE(n_components=2)
-            else:
-                proj_model = PCA(n_components=2)
-
-            tr_idx = np.random.choice(len(preds['tr']['ALL']), min(
-                1600, len(preds['tr']['ALL'])), replace=False)
-            ts_idx = np.random.choice(len(preds['ts']['ALL']), min(
-                400, len(preds['ts']['ALL'])), replace=False)
-            uk_idx = np.random.choice(len(K1_unknown), min(
-                2000, len(K1_unknown)), replace=False)
-
-            proj_train = np.vstack([
-                preds['tr']['ALL'][tr_idx],
-                preds['ts']['ALL'][ts_idx],
-                K1_unknown[uk_idx]
-            ])
-            proj = proj_model.fit_transform(proj_train)
-            dist_tr = proj[:len(tr_idx)]
-            dist_ts = proj[len(tr_idx):len(tr_idx) + len(ts_idx)]
-            dist_uk = proj[-len(uk_idx):]
-            ax_row[0].set_title('%s K1' % name)
-            ax_row[0].scatter(dist_tr[:, 0], dist_tr[:, 1],
-                              alpha=.9, label='tr', s=1)
-            ax_row[0].scatter(dist_ts[:, 0], dist_ts[:, 1],
-                              alpha=.6, label='ts', s=1)
-            ax_row[0].scatter(dist_uk[:, 0], dist_uk[:, 1],
-                              alpha=.4, label='unk', s=1)
-            ax_row[0].legend()
-
-            uk_idx = np.random.choice(len(K5_unknown), min(
-                2000, len(K5_unknown)), replace=False)
-            proj_train = np.vstack([
-                preds['tr']['ALL'][tr_idx],
-                preds['ts']['ALL'][ts_idx],
-                K5_unknown[uk_idx]
-            ])
-            proj = proj_model.fit_transform(proj_train)
-            dist_tr = proj[:len(tr_idx)]
-            dist_ts = proj[len(tr_idx):len(tr_idx) + len(ts_idx)]
-            dist_uk = proj[-len(uk_idx):]
-            ax_row[1].set_title('%s K5' % name)
-            ax_row[1].scatter(dist_tr[:, 0], dist_tr[:, 1],
-                              alpha=.9, label='tr', s=1)
-            ax_row[1].scatter(dist_ts[:, 0], dist_ts[:, 1],
-                              alpha=.6, label='ts', s=1)
-            ax_row[1].scatter(dist_uk[:, 0], dist_uk[:, 1],
-                              alpha=.4, label='unk', s=1)
-            ax_row[1].legend()
-
-            uk_idx = np.random.choice(len(preds['unk']['ALL']), min(
-                2000, len(preds['unk']['ALL'])), replace=False)
-            proj_train = np.vstack([
-                preds['tr']['ALL'][tr_idx],
-                preds['ts']['ALL'][ts_idx],
-                preds['unk']['ALL'][uk_idx]
-            ])
-            proj = proj_model.fit_transform(proj_train)
-            dist_tr = proj[:len(tr_idx)]
-            dist_ts = proj[len(tr_idx):len(tr_idx) + len(ts_idx)]
-            dist_uk = proj[-len(uk_idx):]
-            ax_row[2].set_title('%s Naive unknown' % name)
-            ax_row[2].scatter(dist_tr[:, 0], dist_tr[:, 1],
-                              alpha=.9, label='tr', s=1)
-            ax_row[2].scatter(dist_ts[:, 0], dist_ts[:, 1],
-                              alpha=.6, label='ts', s=1)
-            ax_row[2].scatter(dist_uk[:, 0], dist_uk[:, 1],
-                              alpha=.4, label='unk', s=1)
-            ax_row[2].legend()
-
-            del proj
-            del dist_tr
-            del dist_ts
-            del dist_uk
-
-        plot_file = os.path.join(
-            siamese.model_dir, '%s_proj_1.png' % fname)
-        plt.savefig(plot_file)
-        plt.close()
-
-        self.__log.info('VALIDATION: Plot Projections 2 %s.' % feat_type)
-        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
-        middle = int(np.ceil(len(tr_idx) / 2))
-        tr_all = preds['tr']['ALL'][tr_idx[:middle]]
-        tr_not = preds['tr']['NOT-SELF'][tr_idx[middle:]]
-        middle = int(np.ceil(len(ts_idx) / 2))
-        ts_all = preds['ts']['ALL'][ts_idx[:middle]]
-        ts_not = preds['ts']['NOT-SELF'][ts_idx[middle:]]
-
-        fig, axes = plt.subplots(2, 2, figsize=(15, 15))
-        axes = axes.flatten()
-        proj_model = MulticoreTSNE(n_components=2)
-        proj_train = np.vstack([
-            tr_all,
-            tr_not,
-            ts_all,
-            ts_not
-        ])
-        proj = proj_model.fit_transform(proj_train)
-
-        axes[0].set_title('TSNE tr ALL', fontsize=15)
-        p = proj[:len(tr_all)]
-        p_esle = proj[len(tr_all):]
-        axes[0].scatter(p_esle[:, 0], p_esle[:, 1], color='grey', s=20)
-        axes[0].scatter(p[:, 0], p[:, 1], label='tr ALL', s=20)
-        axes[0].legend()
-
-        axes[1].set_title('TSNE tr NOT-SELF', fontsize=15)
-        p = proj[len(tr_all):len(tr_all) + len(tr_not)]
-        p_esle = np.vstack(
-            [proj[:len(tr_all)], proj[len(tr_all) + len(tr_not):]])
-        axes[1].scatter(p_esle[:, 0], p_esle[:, 1], color='grey', s=20)
-        axes[1].scatter(p[:, 0], p[:, 1], label='tr NOT-SELF',
-                        s=20, color='orange')
-        axes[1].legend()
-
-        axes[2].set_title('TSNE ts ALL', fontsize=15)
-        p = proj[len(tr_all) + len(tr_not):len(tr_all) +
-                 len(tr_not) + len(ts_all)]
-        p_esle = np.vstack(
-            [proj[:len(tr_all) + len(tr_not)], proj[-len(ts_not):]])
-        axes[2].scatter(p_esle[:, 0], p_esle[:, 1], color='grey', s=20)
-        axes[2].scatter(p[:, 0], p[:, 1], label='tr NOT-SELF',
-                        s=20, color='green')
-        axes[2].legend()
-
-        axes[3].set_title('TSNE ts NOT-SELF', fontsize=15)
-        p = proj[-len(ts_not):]
-        p_esle = proj[:-len(ts_not):]
-        axes[3].scatter(p_esle[:, 0], p_esle[:, 1], color='grey', s=20)
-        axes[3].scatter(p[:, 0], p[:, 1], label='tr NOT-SELF',
-                        s=20, color='red')
-        axes[3].legend()
-
-        plot_file = os.path.join(
-            siamese.model_dir, '%s_proj_2.png' % fname)
-        plt.savefig(plot_file)
-        plt.close()
-
-        metrics_file = os.path.join(siamese.model_dir,
-                                    '%s_metrics.pkl' % fname)
-        with open(metrics_file, 'wb') as output:
-            pickle.dump(metrics, output, pickle.HIGHEST_PROTOCOL)
-
     def save_sign0_matrix(self, sign0, destination, include_confidence=True,
                           chunk_size=1000):
         """Save matrix of signature 0 and confidence values.
@@ -2121,7 +1534,7 @@ class sign4(BaseSignature, DataSignature):
                     hf_out['x'][out_chunk] = sign0[out_chunk]
                     out_start += out_size
 
-    def learn_sign0(self, sign0, neig_matrix, params, reuse=True, suffix=None,
+    def learn_sign0(self, sign0, params, suffix=None,
                     evaluate=True, include_confidence=True):
         """Learn the signature 3 from sign0.
 
@@ -2132,47 +1545,40 @@ class sign4(BaseSignature, DataSignature):
             sign0(list): Signature 0 object to learn from.
             params(dict): Dictionary with algorithm parameters.
             reuse(bool): Whether to reuse intermediate files (e.g. the
-                aggregated signature 2 matrix).
-            suffix(str): A suffix for the AdaNet model path (e.g.
-                'sign4/models/adanet_<suffix>').
+                aggregated signature 3 matrix).
+            suffix(str): A suffix for the siamese model path (e.g.
+                'sign4/models/smiles_<suffix>').
             evaluate(bool): Whether we are performing a train-test split and
                 evaluating the performances (N.B. this is required for complete
                 confidence scores)
             include_confidence(bool): whether to include confidences.
         """
         try:
-            from chemicalchecker.tool.siamese import SiameseTriplets
+            from chemicalchecker.tool.siamese import SiameseSmiles
         except ImportError:
             raise ImportError("requires tensorflow " +
                               "https://tensorflow.org")
         # get params and set folder
-        if suffix:
-            model_path = os.path.join(self.model_path, 'smiles_%s' % suffix)
-        else:
-            model_path = os.path.join(self.model_path, 'smiles')
-        if 'model_dir' in params:
-            model_path = params.pop('model_dir')
-        if not reuse or not os.path.isdir(model_path):
+        model_path = os.path.join(self.model_path, 'smiles_%s' % suffix)
+        if not os.path.isdir(model_path):
             os.makedirs(model_path)
         # generate input matrix
-        traintest_file = os.path.join(self.model_path, 'train_sign0.h5')
-        if not reuse or not os.path.isfile(traintest_file):
-            # self.save_sign0_matrix(sign0, sign0_matrix, include_confidence)
-            NeighborTripletTraintest.create(
-                sign0, traintest_file, neig_matrix,
+        traintest_file = os.path.join(self.model_path, 'sign0_triplets_%s.h5' % suffix)
+        if not os.path.isfile(traintest_file):
+            SmilesTripletTraintest.create(
+                sign0, traintest_file, self,
                 split_names=['train', 'test'],
                 split_fractions=[.8, .2],
                 suffix=suffix,
-                num_triplets=num_triplets,
-                t_per=params['t_per'])
-
+                num_triplets=params['num_triplets'])
         # initialize adanet and start learning
         params['traintest_file'] = traintest_file
-        siamese = SiameseTriplets(
-            model_dir=model_path, evaluate=True, **params)
+        siamese = SiameseSmiles(
+            model_dir=model_path, sign=self, evaluate=True, **params)
         self.__log.debug('Siamese training on %s' % traintest_file)
         siamese.fit()
         self.__log.debug('model saved to %s' % model_path)
+        return False
         # when evaluating also save the performances
         if evaluate:
             # save AdaNet performances and plots
@@ -2285,8 +1691,8 @@ class sign4(BaseSignature, DataSignature):
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix)
 
-    def fit_sign0(self, sign0, neig_matrix, include_confidence=True, extra_confidence=False):
-        """Train an AdaNet model to predict sign4 from sign0.
+    def fit_sign0(self, sign0, suffix=None, include_confidence=True, extra_confidence=False):
+        """Train a siamese model to predict sign3 from sign0 (Morgan Finguerprint).
 
         This method is fitting a model that uses Morgan fingerprint as features
         to predict signature 3. In future other featurization approaches can be
@@ -2295,7 +1701,7 @@ class sign4(BaseSignature, DataSignature):
         Args:
             chemchecker(ChemicalChecker): The CC object used to fetch input
                 signature 0.
-            sign0_traintest(str): Path to the train file.
+            sign0(str): Path to the MF file.
             include_confidence(bool): Whether to include confidence score in
                 regression problem.
             extra_confidence(bool): Whether to train an additional regressor
@@ -2303,17 +1709,17 @@ class sign4(BaseSignature, DataSignature):
         """
 
         # check if performance evaluations need to be done
-        s0_code = 'test'
-        eval_adanet_path = os.path.join(self.model_path,
-                                        'adanet_sign0_%s_eval' % s0_code)
-        eval_stats = os.path.join(eval_adanet_path,
-                                  'stats_sign0_%s_eval.pkl' % s0_code)
-        if not os.path.isfile(eval_stats):
-            self.learn_sign0(sign0, neig_matrix, self.params['sign0'],
-                             suffix='sign0__eval',
+        if suffix is not None:
+            self.learn_sign0(sign0, self.params['sign0'],
+                             suffix=suffix,
                              evaluate=True,
                              include_confidence=include_confidence)
-        return False
+            return True
+        else:
+            self.learn_sign0(sign0, self.params['sign0'],
+                             suffix='eval',
+                             evaluate=True,
+                             include_confidence=include_confidence)
         # learn confidence predictor
         if extra_confidence:
             conf_eval_adanet_path = os.path.join(
@@ -2326,12 +1732,10 @@ class sign4(BaseSignature, DataSignature):
                                       evaluate=True)
 
         # check if we have the final trained model
-        final_adanet_path = os.path.join(self.model_path,
-                                         'adanet_sign0_%s_final' % s0_code,
-                                         'savedmodel')
-        if not os.path.isdir(final_adanet_path):
+        final_path = os.path.join(self.model_path, 'smiles_final')
+        if not os.path.isdir(final_path):
             self.learn_sign0(sign0, self.params['sign0'],
-                             suffix='sign0_%s_final' % s0_code,
+                             suffix='final',
                              evaluate=False,
                              include_confidence=include_confidence)
         # learn the final confidence predictor
@@ -2724,7 +2128,7 @@ class sign4(BaseSignature, DataSignature):
         # at the very end we learn how to get from A1 sign0 to sign4 directly
         # in order to enable SMILES to sign4 predictions
         if sign0 is not None:
-            self.fit_sign0(sign0)
+            self.fit_sign0(sign0, suffix=suffix)
         self.mark_ready()
 
     def predict_novelty(self, retrain=False, update_sign4=True, cpu=4):

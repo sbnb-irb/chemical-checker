@@ -231,7 +231,7 @@ class NeighborTripletTraintest(object):
         if len(split_names) != len(split_fractions):
             raise Exception("Split names and fraction should be same amount.")
 
-        # Limit total X size
+        # Load neigh matrix and shuffle it
         neigbors_matrix = neigbors_sign[:]
         shuffle_idx = np.arange(neigbors_matrix.shape[0])
         np.random.shuffle(shuffle_idx)
