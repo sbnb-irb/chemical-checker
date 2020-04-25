@@ -81,7 +81,7 @@ class Smilespred(object):
 
     def fit(self, save=True):
         self.build_model()
-        self.history = self.model.fit(x=self.sign0, y=self.sign3, epochs=1, 
+        self.history = self.model.fit(x=self.sign0, y=self.sign3, epochs=30, 
             batch_size=128, validation_split=self.e_split, verbose=2)
         if save:
             self.model.save(self.model_file)
