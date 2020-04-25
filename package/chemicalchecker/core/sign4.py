@@ -1534,7 +1534,7 @@ class sign4(BaseSignature, DataSignature):
                     hf_out['x'][out_chunk] = sign0[out_chunk]
                     out_start += out_size
 
-    def learn_sign0(self, sign0, params, suffix=None,
+    def learn_sign0(self, sign0, suffix=None,
                     evaluate=True, include_confidence=True):
         """Learn the signature 3 from sign0.
 
@@ -1554,7 +1554,7 @@ class sign4(BaseSignature, DataSignature):
             include_confidence(bool): whether to include confidences.
         """
         try:
-            from chemicalchecker.tool.siamese import SiameseSmiles
+            from chemicalchecker.tool.smilespred import Smilespred
         except ImportError:
             raise ImportError("requires tensorflow " +
                               "https://tensorflow.org")
@@ -1562,28 +1562,16 @@ class sign4(BaseSignature, DataSignature):
         model_path = os.path.join(self.model_path, 'smiles_%s' % suffix)
         if not os.path.isdir(model_path):
             os.makedirs(model_path)
-        # generate input matrix
-        traintest_file = os.path.join(self.model_path, 'sign0_triplets_%s.h5' % suffix)
-        if not os.path.isfile(traintest_file):
-            SmilesTripletTraintest.create(
-                sign0, traintest_file, self,
-                split_names=['train', 'test'],
-                split_fractions=[.8, .2],
-                suffix=suffix,
-                num_triplets=params['num_triplets'])
-        # initialize adanet and start learning
-        params['traintest_file'] = traintest_file
-        siamese = SiameseSmiles(
-            model_dir=model_path, sign=self, evaluate=True, **params)
-        self.__log.debug('Siamese training on %s' % traintest_file)
-        siamese.fit()
+        # initialize model and start learning
+        smpred = Smilespred(
+            model_dir=model_path, sign0=sign0, sign3=self, evaluate=evaluate)
+        self.__log.debug('Smiles pred training on %s' % model_path)
+        smpred.fit()
+        self.smiles_predictor = smpred
         self.__log.debug('model saved to %s' % model_path)
-        return False
-        # when evaluating also save the performances
         if evaluate:
-            # save AdaNet performances and plots
-            sign2_plot = Plot(self.dataset, model_path)
-            ada.save_performances(model_path, sign2_plot, suffix)
+            smpred.evaluate()
+            
 
     def save_sign0_conf_matrix(self, sign0, destination, chunk_size=1000):
         """Save matrix of signature 0 confidence values.
@@ -1691,7 +1679,7 @@ class sign4(BaseSignature, DataSignature):
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix)
 
-    def fit_sign0(self, sign0, suffix=None, include_confidence=True, extra_confidence=False):
+    def fit_sign0(self, sign0, suffix=None, include_confidence=False, extra_confidence=False):
         """Train a siamese model to predict sign3 from sign0 (Morgan Finguerprint).
 
         This method is fitting a model that uses Morgan fingerprint as features
@@ -1709,54 +1697,34 @@ class sign4(BaseSignature, DataSignature):
         """
 
         # check if performance evaluations need to be done
+        #Open sign0:
+        sign0 = DataSignature(sign0).get_h5_dataset('x')[:]
         if suffix is not None:
-            self.learn_sign0(sign0, self.params['sign0'],
+            self.learn_sign0(sign0,
                              suffix=suffix,
                              evaluate=True,
                              include_confidence=include_confidence)
-            return True
+            return False
         else:
-            self.learn_sign0(sign0, self.params['sign0'],
+            self.learn_sign0(sign0,
                              suffix='eval',
                              evaluate=True,
                              include_confidence=include_confidence)
-        # learn confidence predictor
-        if extra_confidence:
-            conf_eval_adanet_path = os.path.join(
-                self.model_path, 'adanet_sign0_%s_conf_eval' % s0_code)
-            conf_eval_stats = os.path.join(
-                conf_eval_adanet_path, 'stats_conf_eval.pkl')
-            if not os.path.isfile(conf_eval_stats):
-                self.learn_sign0_conf(sign0, self.params['sign0_conf'],
-                                      suffix='sign0_%s_conf_eval' % s0_code,
-                                      evaluate=True)
 
         # check if we have the final trained model
-        final_path = os.path.join(self.model_path, 'smiles_final')
-        if not os.path.isdir(final_path):
-            self.learn_sign0(sign0, self.params['sign0'],
-                             suffix='final',
-                             evaluate=False,
-                             include_confidence=include_confidence)
-        # learn the final confidence predictor
-        if extra_confidence:
-            conf_final_adanet_path = os.path.join(
-                self.model_path, 'adanet_sign0_%s_conf_final' % s0_code)
-            conf_final_stats = os.path.join(
-                conf_final_adanet_path, 'stats_conf_final.pkl')
-            if not os.path.isfile(conf_final_stats):
-                self.learn_sign0_conf(sign0, self.params['sign0_conf'],
-                                      suffix='sign0_%s_conf_final' % s0_code,
-                                      evaluate=False)
+        self.learn_sign0(sign0,
+                         suffix='final',
+                         evaluate=False,
+                         include_confidence=include_confidence)
 
-    def get_predict_fn(self, model='siamese_final'):
+    def get_predict_fn(self, model='smiles_final'):
         try:
-            from chemicalchecker.tool.siamese import SiameseTriplets
+            from chemicalchecker.tool.smilespred import Smilespred
         except ImportError as err:
             raise err
         modelpath = os.path.join(self.model_path, model)
-        siamese = SiameseTriplets(modelpath, predict_only=True)
-        return siamese.predict
+        smpred = Smilespred(modelpath)
+        return smpred.predict
 
     def predict_from_smiles(self, smiles, dest_file, chunk_size=1000,
                             predict_fn=None, accurate_novelty=False,
@@ -1782,24 +1750,6 @@ class sign4(BaseSignature, DataSignature):
         # we return a simple DataSignature object (basic HDF5 access)
         pred_s3 = DataSignature(dest_file)
         # load novelty model for more accurate novelty scores (slower)
-        if accurate_novelty:
-            novelty_path = os.path.join(self.model_path, 'novelty', 'lof.pkl')
-            try:
-                novelty_model = pickle.load(open(novelty_path, 'rb'))
-            except Exception:
-                import dill
-                dill._dill._reverse_typemap["ObjectType"] = object
-                novelty_model = pickle.load(open(novelty_path, 'rb'),
-                                            encoding="bytes")
-
-            nov_qtr_path = os.path.join(self.model_path, 'novelty', 'qtr.pkl')
-            try:
-                nov_qtr = pickle.load(open(nov_qtr_path, 'rb'))
-            except Exception:
-                import dill
-                dill._dill._reverse_typemap["ObjectType"] = object
-                nov_qtr = pickle.load(open(nov_qtr_path, 'rb'),
-                                      encoding="bytes")
         with h5py.File(dest_file, "w") as results:
             # initialize V (with NaN in case of failing rdkit) and smiles keys
             results.create_dataset('smiles', data=np.array(
@@ -1812,17 +1762,6 @@ class sign4(BaseSignature, DataSignature):
                     smiles, DataSignature.string_dtype()))
             results.create_dataset(
                 'V', (len(smiles), components), dtype=np.float32)
-            if include_confidence:
-                results.create_dataset(
-                    'stddev_norm', (len(smiles), ), dtype=np.float32)
-                results.create_dataset(
-                    'intensity_norm', (len(smiles), ), dtype=np.float32)
-                results.create_dataset(
-                    'prior_norm', (len(smiles), ), dtype=np.float32)
-                results.create_dataset(
-                    'novelty_norm', (len(smiles), ), dtype=np.float32)
-                results.create_dataset(
-                    'confidence', (len(smiles), ), dtype=np.float32)
             results.create_dataset("shape", data=(len(smiles), components))
             # compute sign0 (i.e. Morgan fingerprint)
             nBits = 2048
@@ -1852,29 +1791,13 @@ class sign4(BaseSignature, DataSignature):
                         sign0s.append(calc_s0)
                 # stack input signatures and generate predictions
                 sign0s = np.vstack(sign0s)
-                preds = predict_fn({'x': sign0s})['predictions']
+                preds = predict_fn(sign0s)
                 # add NaN when SMILES conversion failed
                 if failed:
-                    if include_confidence:
-                        preds[np.array(failed)] = np.full(
-                            (components + 5, ),  np.nan)
-                    else:
-                        preds[np.array(failed)] = np.full(
-                            (components, ),  np.nan)
+                    preds[np.array(failed)] = np.full(
+                        (components, ),  np.nan)
                 # save chunk to H5
                 results['V'][chunk] = preds[:, :components]
-                if include_confidence:
-                    results['stddev_norm'][chunk] = preds[:, components]
-                    results['intensity_norm'][chunk] = preds[:, components + 1]
-                    results['prior_norm'][chunk] = preds[:, components + 2]
-                    results['novelty_norm'][chunk] = preds[:, components + 3]
-                    results['confidence'][chunk] = preds[:, components + 4]
-                    if accurate_novelty:
-                        novelty = novelty_model.score_samples(
-                            preds[:, :components])
-                        abs_novelty = np.abs(np.expand_dims(novelty, 1))
-                        results['novelty_norm'][chunk] = nov_qtr.transform(
-                            abs_novelty).flatten()
         return pred_s3
 
     def get_universe_inchikeys(self):
@@ -2128,7 +2051,7 @@ class sign4(BaseSignature, DataSignature):
         # at the very end we learn how to get from A1 sign0 to sign4 directly
         # in order to enable SMILES to sign4 predictions
         if sign0 is not None:
-            self.fit_sign0(sign0, suffix=suffix)
+            self.fit_sign0(sign0)
         self.mark_ready()
 
     def predict_novelty(self, retrain=False, update_sign4=True, cpu=4):
