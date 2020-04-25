@@ -25,7 +25,6 @@ from .signature_data import DataSignature
 
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
-from chemicalchecker.util.splitter import Traintest, NeighborTripletTraintest, SmilesTripletTraintest
 
 
 @logged
