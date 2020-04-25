@@ -101,6 +101,8 @@ class Smilespred(object):
     def _plot_history(self, h_file):
         fig, axes = plt.subplots(2, 1, figsize=(10, 10))
         axes = axes.flatten()
+        self.history.history.setdefault('val_loss', [])
+        self.history.history.setdefault('val_corr', [])
         axes[0].set_title('Loss', fontsize=19)
         axes[0].plot(self.history.history['loss'], label='train')
         axes[0].plot(self.history.history['val_loss'], label='test')
