@@ -290,6 +290,8 @@ class Plot():
             shared_inks = validation_inks & sign.unique_keys
             self.__log.info("shares with signature %s molecules",
                             len(shared_inks))
+            if len(shared_inks) == 0:
+                return [], [], [], []
             # get signature for all shared molecule
             all_signs_dict = dict(zip(*sign.get_vectors(shared_inks)))
             # only consider pairs for available molecules
@@ -306,6 +308,8 @@ class Plot():
             shared_inks = validation_inks & set(mappings.keys())
             self.__log.info("shares with signature %s molecules (mappings)",
                             len(shared_inks))
+            if len(shared_inks) == 0:
+                return [], [], [], []
             # no shortcut, let's go one by one
             all_signs_dict = dict()
             # only consider pairs for available molecules
@@ -477,6 +481,7 @@ class Plot():
         Truth = np.array(len(S) * [1] + len(D) * [0])
 
         auc_score = self.roc_curve_plot(Truth, Scores, cctype, prefix, N, frac)
+        plt.close('All')
 
         return ks, auc_score, frac
 
