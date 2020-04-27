@@ -1825,14 +1825,15 @@ class MultiPlot():
                     nr = cdf[cdf.control == False].jaccard.count()
                     odf = odf.append({
                         'dataset': ds,
-                        'log-odds-ratio': np.log2(jac / min(rnd,1e-5)),
+                        'log-odds-ratio': np.log2(jac / min(rnd, 1e-5)),
                         'nr': nr,
                         'confidence': name,
                         'nthr': nthr,
                         'dthr': dthr,
                     }, ignore_index=True)
 
-        max_odds = odf[odf['log-odds-ratio'] != np.inf].dropna()['log-odds-ratio'].max()
+        max_odds = odf[odf['log-odds-ratio'] !=
+                       np.inf].dropna()['log-odds-ratio'].max()
         for nthr, dthr in itertools.product(nthrs, dthrs):
             fodf = odf[(odf.nthr == nthr) & (odf.dthr == dthr)]
             fig = plt.figure(constrained_layout=True, figsize=(12, 12))
@@ -1986,11 +1987,11 @@ class MultiPlot():
         plt.close('all')
 
     def sign_property_distribution(self, cctype, molset, prop, xlim=None,
-                                   ylim=None):
+                                   ylim=None, known_delta=True):
         # sns.set_style("whitegrid")
         # sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
 
-        fig, axes = plt.subplots(5, 5, figsize=(8, 8), constrained_layout=True,
+        fig, axes = plt.subplots(5, 5, figsize=(4, 4), constrained_layout=True,
                                  sharex=False, sharey=False)
 
         main_ax = fig.add_subplot(111, frameon=False)
@@ -2020,15 +2021,25 @@ class MultiPlot():
                 continue
             # decide sample molecules
             prop_data = sign.get_h5_dataset(prop)
-            print(ds, prop, min(prop_data), max(prop_data))
+            if known_delta:
+                known_mask = sign.get_h5_dataset('known')
+                plot_data = [prop_data[known_mask], prop_data[~known_mask]]
+                colors = [self.cc_colors(ds, 0), self.cc_colors(ds, 2)]
+                print(ds, prop, np.min(plot_data[0]), np.max(plot_data[0]))
+                print(ds, prop, np.min(plot_data[1]), np.max(plot_data[1]))
+            else:
+                plot_data = [prop_data]
+                colors = [self.cc_colors(ds, 0)]
+                print(ds, prop, np.min(plot_data[0]), np.max(plot_data[0]))
             # get idx of nearest neighbors of s2
             if xlim:
-                ax.hist(prop_data, color=self.cc_colors(ds, 0),
+                ax.hist(plot_data, color=colors,
+                        histtype='barstacked',
                         density=False, bins=20, log=True,
                         range=xlim, alpha=.9, stacked=True)
                 ax.set_xlim(xlim)
             else:
-                ax.hist(prop_data, color=self.cc_colors(ds, 0),
+                ax.hist(plot_data, color=colors,
                         density=False, log=True)
             if ylim:
                 ax.set_ylim(ylim)
@@ -2060,7 +2071,7 @@ class MultiPlot():
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
 
-            #axis labels
+            # axis labels
             if ds[0] == 'A':
                 ax.set_xlabel(ds[1], fontsize=18, labelpad=15)
                 ax.xaxis.set_label_position('top')
@@ -2735,7 +2746,7 @@ class MultiPlot():
                 ax.xaxis.set_ticklabels([])
                 ax.yaxis.set_ticklabels([])
 
-            #axis labels
+            # axis labels
             if ds[0] == 'A':
                 ax.set_xlabel(ds[1], fontsize=18, labelpad=15)
                 ax.xaxis.set_label_position('top')
