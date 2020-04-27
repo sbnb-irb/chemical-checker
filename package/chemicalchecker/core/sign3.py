@@ -1,8 +1,6 @@
-"""Signature type 3.
+"""Signature type 4.
 
-Inferred network embedding of similarity networks. Their added
-value, compared to signatures type 2, is that they can be derived for
-virtually *any* molecule in *any* dataset.
+First attempt on Siamese network to derive a new signature.
 """
 import os
 import h5py
@@ -11,25 +9,27 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from time import time
+from scipy import stats
 from functools import partial
-from scipy.stats import pearsonr, norm, rankdata
-
+from scipy.stats import gaussian_kde
+from scipy.spatial.distance import pdist
+from scipy.stats import pearsonr, ks_2samp
+from sklearn.preprocessing import robust_scale, StandardScaler
+from sklearn.pipeline import make_pipeline
+from sklearn.neighbors import LocalOutlierFactor
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.neighbors import LocalOutlierFactor
-from sklearn.preprocessing import QuantileTransformer
 
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
 
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
-from chemicalchecker.util.splitter import Traintest
 
 
 @logged
 class sign3(BaseSignature, DataSignature):
-    """Signature type 3 class."""
+    """Signature type 4 class."""
 
     def __init__(self, signature_path, dataset, **params):
         """Initialize the signature.
@@ -37,8 +37,11 @@ class sign3(BaseSignature, DataSignature):
         Args:
             signature_path(str): The signature root directory.
             dataset(`Dataset`): `chemicalchecker.database.Dataset` object.
-            params(): Parameters, expected keys are 'graph', 'node2vec', and
-                'adanet'.
+            params(): Parameters, expected keys are:
+                * 'sign2' for learning based on sign2
+                * 'sign0' for learning based on sign0 (Morgan Fingerprint)
+                * 'sign0_conf' for learning confidences based on MFP
+                * 'prior' for learning prior in predictions
         """
         # Calling init on the base class to trigger file existence checks
         BaseSignature.__init__(self, signature_path,
@@ -61,44 +64,65 @@ class sign3(BaseSignature, DataSignature):
         self.__log.debug('stats_path: %s', self.stats_path)
         # get parameters or default values
         self.params = dict()
-        default_adanet = {
-            'adanet_iterations': 10,
-            'shuffles': 5,
-            'augmentation': subsample,
-            'subnetwork_generator': 'StackDNNGenerator',
-            'cpu': params.get('cpu', 4)
+        # parameters to learn from sign2
+        from keras.layers import Dense
+        default_sign2 = {
+            'epochs': 10,
+            'cpu': 8,
+            'layers': [Dense, Dense, Dense, Dense],
+            'layers_sizes': [1024, 512, 256, 128],
+            'activations': ['selu', 'selu', 'selu', 'tanh'],
+            'dropouts': [0.2, 0.2, 0.2, None],
+            'learning_rate': 'auto',
+            'batch_size': 128,
+            'patience': 200,
+            'loss_func': 'only_self_loss',
+            'margin': 1.0,
+            'alpha': 1.0,
+            'num_triplets': 1000000,
+            't_per': 0.01,
+            'standard': False,
+            'augment_fn': subsample,
+            'augment_kwargs': {
+                'dataset': [dataset],
+            },
+            'limit_mols': 100000
         }
-        default_adanet.update(params.get('adanet', {}))
-        self.params['adanet'] = default_adanet
 
+        s1_ref = self.get_sign('sign1').get_molset("reference")
+        opt_t_file = os.path.join(s1_ref.model_path, "opt_t.h5")
+        try:
+            opt_t = DataSignature(opt_t_file).get_h5_dataset('opt_t')
+            default_sign2.update({'t_per': opt_t})
+            self.t_per = opt_t
+        except Exception as ex:
+            self.__log.warning('Failed setting opt_t: %s' % str(ex))
+            self.t_per = 0.01
+
+        default_sign2.update(params.get('sign2', {}))
+        self.params['sign2_lr'] = default_sign2.copy()
+        self.params['sign2'] = default_sign2
+        # parameters to learn from sign0
         default_sign0 = {
-            'adanet_iterations': 10,
-            'augmentation': False,
-            'subnetwork_generator': 'StackDNNGenerator',
-            'cpu': params.get('cpu', 4)
+            'epochs': 5,
+            'cpu': 8,
+            'learning_rate': 1e-3,
+            'layers': [Dense, Dense, Dense, Dense],
+            'layers_sizes': [1024, 512, 256, 128],
+            'activations': ['selu', 'selu', 'selu', 'tanh'],
+            'dropouts': [0.2, 0.2, 0.2, None],
+            'batch_size': 128,
+            'num_triplets': 100000,
+            'margin': 1.0,
+            'alpha': 0.5,
         }
-        default_sign0.update(params.get('sign0', {}))
+        #default_sign0.update(params.get('sign0', {}))
         self.params['sign0'] = default_sign0
-
+        # parameters to learn confidence from sign0
         default_sign0_conf = {
-            'adanet_iterations': 10,
-            'augmentation': False,
-            'subnetwork_generator': 'StackDNNGenerator',
-            'cpu': params.get('cpu', 4)
         }
         default_sign0_conf.update(params.get('sign0_conf', {}))
         self.params['sign0_conf'] = default_sign0_conf
-
-        default_err = {
-            'adanet_iterations': 1,
-            'augmentation': False,
-            'layer_size': 25,
-            'initial_architecture': [3, 2],
-            'subnetwork_generator': 'ExtendDNNGenerator',
-            'cpu': params.get('cpu', 4)
-        }
-        default_err.update(params.get('error', {}))
-        self.params['error'] = default_err
 
     @staticmethod
     def save_sign2_universe(sign2_list, destination):
@@ -166,12 +190,14 @@ class sign3(BaseSignature, DataSignature):
                 fh['x_test'][:, idx:(idx + 1)] = np.expand_dims(coverage, 1)
 
     def save_sign2_matrix(self, sign2_list, destination):
-        """Save matrix of horizontally stacked signature 2.
+        """Save matrix of pairs of horizontally stacked signature 2.
 
-        This is the matrix for training the signature 3. It is defined for all
-        molecules or which we have a signature 2 in the current space, i.e. the
-        Y. The X is the collections of signature 2 from other spaces
-        horizontally stacked (and NaN filled).
+        This is the matrix for training the signature 4. It is defined for all
+        molecules or which we have a signature 2 in the current space.
+        The X is the collections of signature 2 from other spaces
+        horizontally stacked (and NaN filled) for 2 molecules.
+        The Y is 0/1 depending whether the two signatures are similar as
+        derived from the nearest neighbors.
 
         Args:
             sign2_list(list): List of signature 2 objects to learn from.
@@ -183,8 +209,6 @@ class sign3(BaseSignature, DataSignature):
         feat_shape = (self.sign2_self.shape[0],
                       ref_dimension * len(self.src_datasets))
         with h5py.File(destination, 'w') as hf:
-            hf.create_dataset('y', data=self.sign2_self[
-                              :], dtype=np.float32)
             hf.create_dataset('x', feat_shape, dtype=np.float32)
             # for each dataset fetch signatures for the molecules of current
             # space, if missing we add NaN.
@@ -199,75 +223,1268 @@ class sign3(BaseSignature, DataSignature):
                                 sum(available), self.dataset, ds)
                 del signs
 
-    def learn_sign2(self, adanet_params, reuse=True, suffix=None,
-                    evaluate=True):
+    def learn_sign2(self, params, reuse=True, suffix=None, evaluate=True):
         """Learn the signature 3 model.
 
         This method is used twice. First to evaluate the performances of the
-        AdaNet model. Second to train the final model on the full set of data.
+        Siamese model. Second to train the final model on the full set of data.
 
         Args:
-            adanet_params(dict): Dictionary with algorithm parameters.
+            params(dict): Dictionary with algorithm parameters.
             reuse(bool): Whether to reuse intermediate files (e.g. the
                 aggregated signature 2 matrix).
-            suffix(str): A suffix for the AdaNet model path (e.g.
-                'sign3/models/adanet_<suffix>').
+            suffix(str): A suffix for the Siamese model path (e.g.
+                'sign3/models/siamese_<suffix>').
             evaluate(bool): Whether we are performing a train-test split and
                 evaluating the performances (N.B. this is required for complete
                 confidence scores)
         """
         try:
-            from chemicalchecker.tool.adanet import AdaNet
-        except ImportError as err:
-            raise err
+            from chemicalchecker.tool.siamese import SiameseTriplets
+        except ImportError:
+            raise ImportError("requires tensorflow " +
+                              "https://tensorflow.org")
         # get params and set folder
+        self.__log.debug('Siamese suffix %s' % suffix)
         if suffix:
-            adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
+            siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
+            traintest_file = os.path.join(self.model_path,
+                                          'traintest_%s.h5' % suffix)
+            params['traintest_file'] = params.get(
+                'traintest_file', traintest_file)
         else:
-            adanet_path = os.path.join(self.model_path, 'adanet')
-        if 'model_dir' in adanet_params:
-            adanet_path = adanet_params.pop('model_dir')
-        if not reuse or not os.path.isdir(adanet_path):
-            os.makedirs(adanet_path)
+            siamese_path = os.path.join(self.model_path, 'siamese')
+        if 'model_dir' in params:
+            siamese_path = params.get('model_dir')
+        if not reuse or not os.path.isdir(siamese_path):
+            os.makedirs(siamese_path)
         # generate input matrix
         sign2_matrix = os.path.join(self.model_path, 'train.h5')
         if not reuse or not os.path.isfile(sign2_matrix):
             self.save_sign2_matrix(self.sign2_list, sign2_matrix)
         # if evaluating, perform the train-test split
+        traintest_file = params.get('traintest_file')
+        X = DataSignature(sign2_matrix)
         if evaluate:
-            traintest_file = os.path.join(self.model_path, 'traintest.h5')
-            traintest_file = adanet_params.pop(
-                'traintest_file', traintest_file)
+            num_triplets = params.get('num_triplets', 1e6)
+            cpu = params.get('cpu', 1)
             if not reuse or not os.path.isfile(traintest_file):
-                Traintest.split_h5_blocks(sign2_matrix, traintest_file)
+                NeighborTripletTraintest.create(
+                    X, traintest_file, self.neig_sign,
+                    split_names=['train', 'test'],
+                    split_fractions=[.8, .2],
+                    suffix=suffix,
+                    num_triplets=num_triplets,
+                    t_per=params['t_per'],
+                    cpu=cpu,
+                    limit=params['limit_mols'])
         else:
-            traintest_file = sign2_matrix
-            if adanet_params:
-                traintest_file = adanet_params.pop(
-                    'traintest_file', traintest_file)
-        # parameter heuristics
-        with h5py.File(sign2_matrix, 'r') as hf:
-            mat_shape = hf['x'].shape
-        if 'layer_size' not in adanet_params:
-            adanet_params['layer_size'] = layer_size_heuristic(*mat_shape)
-        if 'batch_size' not in adanet_params:
-            adanet_params['batch_size'] = batch_size_heuristic(*mat_shape)
-        if 'epoch_per_iteration' not in adanet_params:
-            adanet_params['epoch_per_iteration'] = epoch_per_iteration_heuristic(
-                *mat_shape)
-        ada = AdaNet(model_dir=adanet_path,
-                     traintest_file=traintest_file,
-                     **adanet_params)
-        self.__log.debug('AdaNet training on %s' % traintest_file)
-        ada.train_and_evaluate(evaluate=evaluate)
-        self.__log.debug('model saved to %s' % adanet_path)
-        # when evaluating also save the performances
-        if evaluate:
-            singles = self.adanet_single_spaces(adanet_path, traintest_file,
-                                                suffix)
-            # save AdaNet performances and plots
-            sign2_plot = Plot(self.dataset, adanet_path)
-            ada.save_performances(adanet_path, sign2_plot, suffix, singles)
+            num_triplets = params.get('num_triplets', 1e6)
+            cpu = params.get('cpu', 1)
+            if not reuse or not os.path.isfile(traintest_file):
+                NeighborTripletTraintest.create(
+                    X, traintest_file, self.neig_sign,
+                    split_names=['train'],
+                    split_fractions=[1.0],
+                    suffix=suffix,
+                    num_triplets=num_triplets,
+                    t_per=params['t_per'],
+                    cpu=cpu,
+                    limit=params['limit_mols'])
+        # update the subsampling parameter
+        if 'augment_kwargs' in params:
+            ds = params['augment_kwargs']['dataset']
+            dataset_idx = np.argwhere(np.isin(self.src_datasets, ds)).flatten()
+            # compute probabilities for subsampling
+            trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = subsampling_probs(
+                self.sign2_coverage, dataset_idx)
+            trim_dataset_idx = np.argwhere(
+                np.arange(len(trim_mask))[trim_mask] == dataset_idx).ravel()[0]
+            params['augment_kwargs']['p_nr'] = (p_nr_unknown, p_nr_known)
+            params['augment_kwargs']['p_keep'] = (p_keep_unknown, p_keep_known)
+            params['augment_kwargs']['dataset_idx'] = [trim_dataset_idx]
+            params['augment_kwargs']['p_only_self'] = 0.0
+            params['trim_mask'] = trim_mask
+        # train siamese network
+        self.__log.debug('Siamese training on %s' % traintest_file)
+        siamese = SiameseTriplets(siamese_path, evaluate=evaluate, **params)
+        siamese.fit()
+        self.__log.debug('model saved to: %s' % siamese_path)
+        # if final we are done
+        if not evaluate:
+            return siamese
+        # save validation plots
+        self.plot_validations(siamese, dataset_idx, traintest_file)
+        # when evaluating also save prior and confidence models
+        prior_model, prior_sign_model, confidence_model = self.train_confidence(
+            traintest_file, X, suffix, siamese)
+        # update the parameters with the new nr_of epochs and lr
+        self.params['sign2']['epochs'] = siamese.last_epoch
+        self.params['sign2']['learning_rate'] = siamese.learning_rate
+        return siamese, prior_model, prior_sign_model, confidence_model
+
+    def train_confidence(self, traintest_file, X, suffix, siamese,
+                         max_x=10000, max_neig=50000, p_self=0.0):
+        """Train confidence and prior models."""
+        # get sorted keys from siamese traintest file
+        tt = DataSignature(traintest_file)
+        test_inks = tt.get_h5_dataset('keys_test')[:max_x]
+        test_inks = np.sort(test_inks)
+        train_inks = tt.get_h5_dataset('keys_train')[:max_neig]
+        train_inks = np.sort(train_inks)
+        test_mask = np.isin(list(self.sign2_self.keys), list(test_inks),
+                            assume_unique=True)
+        train_mask = np.isin(list(self.sign2_self.keys), list(train_inks),
+                             assume_unique=True)
+        # confidence is going to be trained only on siamese test data
+        confidence_train_x = X.get_h5_dataset('x', mask=test_mask)
+        s2_test = self.sign2_self.get_h5_dataset('V', mask=test_mask)
+        s2_test_x = confidence_train_x[:, self.dataset_idx[0]
+                                       * 128: (self.dataset_idx[0] + 1) * 128]
+        assert(np.all(s2_test == s2_test_x))
+        # siamese train is going to be used for appticability domain
+        known_x = X.get_h5_dataset('x', mask=train_mask)
+        # generate train-test split for confidence estimation
+        split_names = ['train', 'test']
+        split_fractions = [0.8, 0.2]
+        split_idxs = Traintest.get_split_indeces(
+            confidence_train_x.shape[0], split_fractions, random_state=42)
+        splits = list(zip(split_names, split_fractions, split_idxs))
+
+        # train prior model
+        prior_path = os.path.join(self.model_path, 'prior_%s' % suffix)
+        os.makedirs(prior_path, exist_ok=True)
+        prior_model = self.train_prior_model(siamese, confidence_train_x,
+                                             splits, prior_path,
+                                             max_x=max_x, p_self=p_self)
+
+        # train prior signature model
+        prior_sign_path = os.path.join(self.model_path,
+                                       'prior_sign_%s' % suffix)
+        os.makedirs(prior_sign_path, exist_ok=True)
+        prior_sign_model = self.train_prior_signature_model(
+            siamese, confidence_train_x, splits, prior_sign_path,
+            max_x=max_x, p_self=p_self)
+
+        # train confidence model
+        confidence_path = os.path.join(self.model_path,
+                                       'confidence_%s' % suffix)
+        os.makedirs(confidence_path, exist_ok=True)
+        confidence_model = self.train_confidence_model(
+            siamese, known_x, confidence_train_x, splits,
+            prior_model, prior_sign_model,
+            confidence_path, p_self=p_self)
+        return prior_model, prior_sign_model, confidence_model
+
+    def rerun_confidence(self, cc, suffix, train=True, update_sign=True, chunk_size=10000):
+        """Rerun confidence trainining and estimation"""
+        try:
+            import faiss
+            from chemicalchecker.tool.siamese import SiameseTriplets
+        except ImportError:
+            raise ImportError("requires tensorflow " +
+                              "https://tensorflow.org")
+        sign1_self = cc.get_signature("sign1", "full", self.dataset)
+        sign2_self = cc.get_signature("sign2", "full", self.dataset)
+        sign2_list = [cc.get_signature("sign2", "full", d)
+                      for d in cc.datasets_exemplary()]
+        sign2_universe = os.path.join(cc.cc_root, 'full', 'all_sign2.h5')
+        sign2_coverage = os.path.join(
+            cc.cc_root, 'full', 'all_sign2_coverage.h5')
+
+        self.src_datasets = [sign.dataset for sign in sign2_list]
+        self.neig_sign = sign1_self
+        self.sign2_self = sign2_self
+        self.sign2_list = sign2_list
+        self.sign2_coverage = sign2_coverage
+        self.sign2_universe = sign2_universe
+        self.dataset_idx = np.argwhere(
+            np.isin(self.src_datasets, self.dataset)).flatten()
+
+        siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
+        siamese = SiameseTriplets(siamese_path, predict_only=True)
+
+        if train:
+            traintest_file = os.path.join(
+                self.model_path, 'traintest_%s.h5' % suffix)
+            X = DataSignature(os.path.join(self.model_path, 'train.h5'))
+            prior_mdl, prior_sign_mdl, conf_mdl = self.train_confidence(
+                traintest_file, X, suffix, siamese)
+            if not update_sign:
+                return
+        else:
+            # part of confidence is the priors
+            prior_path = os.path.join(self.model_path, 'prior_eval')
+            prior_file = os.path.join(prior_path, 'prior.pkl')
+            prior_mdl = pickle.load(open(prior_file, 'rb'))
+
+            # part of confidence is the priors based on signatures
+            prior_sign_path = os.path.join(
+                self.model_path, 'prior_sign_eval')
+            prior_sign_file = os.path.join(prior_sign_path, 'prior.pkl')
+            prior_sign_mdl = pickle.load(open(prior_sign_file, 'rb'))
+
+            # and finally the linear combination of scores
+            confidence_path = os.path.join(self.model_path, 'confidence_eval')
+            confidence_file = os.path.join(
+                confidence_path, 'confidence.pkl')
+            calibration_file = os.path.join(
+                confidence_path, 'calibration.pkl')
+            conf_mdl = (pickle.load(open(confidence_file, 'rb')),
+                        pickle.load(open(calibration_file, 'rb')))
+
+        # another part of confidence is the applicability
+        confidence_path = os.path.join(self.model_path, 'confidence_eval')
+        neig_file = os.path.join(confidence_path, 'neig.index')
+        app_neig = faiss.read_index(neig_file)
+        known_dist = os.path.join(confidence_path, 'known_dist.h5')
+        app_range = DataSignature(known_dist).get_h5_dataset(
+            'applicability_range')
+        _, trim_mask = self.realistic_subsampling_fn()
+
+        # get sorted universe inchikeys
+        self.universe_inchikeys = self.get_universe_inchikeys()
+        tot_inks = len(self.universe_inchikeys)
+        known_mask = np.isin(list(self.universe_inchikeys),
+                             list(self.sign2_self.keys),
+                             assume_unique=True)
+
+        with h5py.File(self.data_path, "a") as results:
+            # the actual confidence value will be stored here
+            safe_create(results, 'confidence', (tot_inks,),
+                        dtype=np.float32)
+            # this is to store robustness
+            safe_create(results, 'robustness',
+                        (tot_inks,), dtype=np.float32)
+            # this is to store applicability
+            safe_create(results, 'applicability',
+                        (tot_inks,), dtype=np.float32)
+            # this is to store priors
+            safe_create(results, 'prior',
+                        (tot_inks,), dtype=np.float32)
+            # this is to store priors based on signature
+            safe_create(results, 'prior_signature',
+                        (tot_inks,), dtype=np.float32)
+
+            # predict signature 3 for universe molecules
+            with h5py.File(sign2_universe, "r") as features:
+                # reference prediction (based on no information)
+                nan_feat = np.full((1, features['x_test'].shape[1]),
+                                   np.nan, dtype=np.float32)
+                nan_pred = siamese.predict(nan_feat)
+                # read input in chunks
+                for idx in tqdm(range(0, tot_inks, chunk_size),
+                                desc='Predicting'):
+                    chunk = slice(idx, idx + chunk_size)
+                    feat = features['x_test'][chunk]
+                    # save confidence natural scores
+                    # compute prior from coverage
+                    cov = ~np.isnan(feat[:, 0::128])
+                    prior = prior_mdl.predict(cov[:, trim_mask])
+                    results['prior'][chunk] = prior
+                    # and from prediction
+                    preds = siamese.predict(feat)
+                    prior_sign = prior_sign_mdl.predict(preds)
+                    results['prior_signature'][chunk] = prior_sign
+                    # conformal prediction
+                    ints, robs, cons = self.conformal_prediction(
+                        siamese, feat, nan_pred=nan_pred)
+                    results['robustness'][chunk] = robs
+                    # distance from known predictions
+                    app, centrality, _ = self.applicability_domain(
+                        app_neig, feat, siamese, app_range=app_range,
+                        n_samples=1)
+                    results['applicability'][chunk] = app
+                    # and estimate confidence
+                    conf_feats = np.vstack(
+                        [app, robs, prior, prior_sign, ints]).T
+                    conf_estimate = conf_mdl[0].predict(conf_feats)
+                    conf_calib = conf_mdl[1].predict(
+                        np.expand_dims(conf_estimate, 1))
+                    results['confidence'][chunk] = conf_calib
+                # conpute confidence where self is known
+                known_idxs = np.argwhere(known_mask).flatten()
+                # iterate on chunks of knowns
+                for idx in tqdm(range(0, len(known_idxs), 10000),
+                                desc='Computing Confidence'):
+                    chunk = slice(idx, idx + 10000)
+                    feat = features['x_test'][known_idxs[chunk]]
+                    # predict with all features
+                    preds_all = siamese.predict(feat)
+                    # predict with only-self features
+                    feat_onlyself = mask_keep(self.dataset_idx, feat)
+                    preds_onlyself = siamese.predict(feat_onlyself)
+                    # confidence is correlation ALL vs. ONLY-SELF
+                    corrs = row_wise_correlation(
+                        preds_onlyself, preds_all, scaled=True)
+                    results['confidence'][known_idxs[chunk]] = corrs
+
+    def realistic_subsampling_fn(self):
+        # realistic subsampling function
+        trim_mask, p_nr_unk, p_keep_unk, p_nr_kno, p_keep_kno = \
+            subsampling_probs(self.sign2_coverage, self.dataset_idx)
+        p_nr = (p_nr_unk, p_nr_kno)
+        p_keep = (p_keep_unk, p_keep_kno)
+        trim_dataset_idx = np.argwhere(
+            np.arange(len(trim_mask))[trim_mask] == self.dataset_idx).ravel()[0]
+        realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
+                               dataset_idx=trim_dataset_idx,
+                               p_nr=p_nr, p_keep=p_keep)
+        return realistic_fn, trim_mask
+
+    def train_prior_model(self, siamese, train_x, splits, save_path,
+                          max_x=10000, n_samples=5, p_self=0.0, plots=True):
+        """Train prior predictor."""
+        def get_weights(y, p=2):
+            h, b = np.histogram(y, 20)
+            b = [np.mean([b[i], b[i + 1]]) for i in range(0, len(h))]
+            w = np.interp(y, b, h).ravel()
+            w = -(w / np.sum(w)) + 1e-10
+            w = (w - np.min(w)) / (np.max(w) - np.min(w))
+            w = w**p
+            return w
+
+        def histograms(ax, yp, yt, title):
+            ax.hist(yp, 10, range=(-1, 1), color="red",
+                    label="Pred", alpha=0.5)
+            ax.hist(yt, 10, range=(-1, 1), color="blue",
+                    label="True", alpha=0.5)
+            ax.legend()
+            ax.set_xlabel("Value")
+            ax.set_ylabel("Counts")
+            ax.set_title(title)
+
+        def scatter(ax, yp, yt, joint_lim=True):
+            x = yp
+            y = yt
+            xy = np.vstack([x, y])
+            z = gaussian_kde(xy)(xy)
+            idx = z.argsort()
+            x, y, z = x[idx], y[idx], z[idx]
+            ax.scatter(x, y, c=z, s=10, edgecolor='')
+            ax.set_xlabel("Pred")
+            ax.set_ylabel("True")
+            ax.set_xlim((-1, 1))
+            ax.set_ylim((-1, 1))
+            xlim = ax.get_xlim()
+            ylim = ax.get_ylim()
+            if joint_lim:
+                lim = (np.min([xlim[0], ylim[0]]), np.max([xlim[1], ylim[1]]))
+                ax.set_xlim(lim)
+                ax.set_ylim(lim)
+                ax.plot([lim[0], lim[1]], [lim[0], lim[1]],
+                        color="gray", ls='--', lw=1)
+            slope, intercept, r, p_val, stde = stats.linregress(x, y)
+            line = slope * x + intercept
+            ax.plot(x, line, 'r',
+                    label='y={:.2f}x+{:.2f}'.format(slope, intercept))
+            title = "rho = %.2f" % pearsonr(x, y)[0]
+            ax.set_title(title)
+            ax.legend()
+
+        def importances(ax, mod, trim_mask):
+            from chemicalchecker.util.plot.style.util import coord_color
+            y = mod.feature_importances_
+            datasets = ["%s%s" % (x, y) for x in "ABCDE" for y in "12345"]
+            if trim_mask is not None:
+                datasets = np.array(datasets)[trim_mask]
+            else:
+                datasets = np.array(datasets)
+            x = np.array([i for i in range(0, len(datasets))])
+            idxs = np.argsort(y)
+            datasets = datasets[idxs]
+            y = y[idxs]
+            colors = [coord_color(ds) for ds in datasets]
+            ax.scatter(y, x, color=colors)
+            ax.set_xlabel("Importance")
+            ax.set_yticks(x)
+            ax.set_yticklabels(datasets)
+            ax.set_title("Importance")
+            ax.axvline(0, color="red", lw=1)
+
+        def analyze(mod, x_tr, y_tr, x_te, y_te, trim_mask):
+            import matplotlib.pyplot as plt
+            y_tr_p = mod.predict(x_tr)
+            y_te_p = mod.predict(x_te)
+            plt.close('all')
+            fig = plt.figure(constrained_layout=True, figsize=(8, 6))
+            gs = fig.add_gridspec(2, 3)
+            ax = fig.add_subplot(gs[0, 0])
+            histograms(ax, y_tr_p, y_tr, "Train")
+            ax = fig.add_subplot(gs[0, 1])
+            histograms(ax, y_te_p, y_te, "Test")
+            ax = fig.add_subplot(gs[1, 0])
+            scatter(ax, y_tr_p, y_tr)
+            ax = fig.add_subplot(gs[1, 1])
+            scatter(ax, y_te_p, y_te)
+            ax = fig.add_subplot(gs[0:2, 2])
+            importances(ax, mod, trim_mask)
+            if plots:
+                plt.savefig(os.path.join(save_path, 'prior_stats.png'))
+                plt.close()
+
+        def find_p(mod, x_tr, y_tr, x_te, y_te):
+            import matplotlib.pyplot as plt
+            test = ks_2samp
+            ps = []
+            ss_te = []
+            for p in np.linspace(0, 3, 10):
+                w = get_weights(y_tr, p=p)
+                mod.fit(x_tr, y_tr, sample_weight=w)
+                y_te_p = mod.predict(x_te)
+                s_te = test(y_te, y_te_p)[0]
+                ps += [p]
+                ss_te += [s_te]
+            p = ps[np.argmin(ss_te)]
+            if plots:
+                plt.close('all')
+                plt.scatter(ps, ss_te)
+                plt.title("%.2f" % p)
+                plt.savefig(os.path.join(save_path, 'prior_p.png'))
+                plt.close()
+            return p
+
+        self.__log.info('Training PRIOR model')
+        # define subsampling
+        realistic_fn, trim_mask = self.realistic_subsampling_fn()
+        # generate train test split
+        out_file = os.path.join(save_path, 'data.h5')
+        with h5py.File(out_file, "w") as fh:
+            for split_name, split_frac, split_idx in splits:
+                split_x = train_x[split_idx]
+                split_total_x = int(max_x * split_frac)
+                available_x = split_x.shape[0]
+                X = np.zeros((split_total_x, np.sum(trim_mask)))
+                Y = np.zeros((split_total_x, 1))
+                preds_onlyselfs = np.zeros((split_total_x, 128))
+                preds_noselfs = np.zeros((split_total_x, 128))
+                feats = np.zeros((split_total_x, 3200))
+                # prepare X and Y in chunks
+                chunk_size = max(10000, int(np.floor(available_x / 10)))
+                reached_max = False
+                for i in range(0, int(np.ceil(split_total_x / available_x))):
+                    for idx in range(0, available_x, chunk_size):
+                        # define source chunk
+                        src_start = idx
+                        src_end = idx + chunk_size
+                        if src_end > available_x:
+                            src_end = available_x
+                        # define destination chunk
+                        dst_start = src_start + (int(available_x) * i)
+                        dst_end = src_end + (available_x * i)
+                        if dst_end > split_total_x:
+                            dst_end = split_total_x
+                            reached_max = True
+                            src_end = dst_end - (int(available_x) * i)
+                        src_chunk = slice(src_start, src_end)
+                        dst_chunk = slice(dst_start, dst_end)
+                        # get only-self and not-self predictions
+                        feat = split_x[src_chunk]
+                        feats[dst_chunk] = feat
+                        preds_onlyself = siamese.predict(
+                            mask_keep(self.dataset_idx, feat))
+                        preds_onlyselfs[dst_chunk] = preds_onlyself
+                        preds_noself = siamese.predict(
+                            mask_exclude(self.dataset_idx, feat))
+                        preds_noselfs[dst_chunk] = preds_noself
+                        # the prior is only-self vs not-self predictions
+                        corrs = row_wise_correlation(
+                            preds_onlyself, preds_noself, scaled=True)
+                        Y[dst_chunk] = np.expand_dims(corrs, 1)
+                        # the X is the dataset presence in the not-self
+                        presence = ~np.isnan(feat[:, ::128])[:, trim_mask]
+                        X[dst_chunk] = presence.astype(int)
+                        # check if enought
+                        if reached_max:
+                            break
+                variables = [X, Y, feat, preds_onlyselfs, preds_noselfs]
+                names = ['x', 'y', 'feat', 'preds_onlyselfs', 'preds_noselfs']
+                for var, name in zip(variables, names):
+                    ds_name = '%s_%s' % (name, split_name)
+                    self.__log.debug('writing %s: %s' % (ds_name, var.shape))
+                    fh.create_dataset(ds_name, data=var)
+        traintest = DataSignature(out_file)
+        x_tr = traintest.get_h5_dataset('x_train')
+        y_tr = traintest.get_h5_dataset('y_train').ravel()
+        x_te = traintest.get_h5_dataset('x_test')
+        y_te = traintest.get_h5_dataset('y_test').ravel()
+        # fit model
+        model = RandomForestRegressor(n_estimators=1000, max_features=None,
+                                      min_samples_leaf=0.01, n_jobs=4)
+        p = find_p(model, x_tr, y_tr, x_te, y_te)
+        model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
+        if plots:
+            analyze(model, x_tr, y_tr, x_te, y_te, trim_mask)
+        predictor_path = os.path.join(save_path, 'prior.pkl')
+        pickle.dump(model, open(predictor_path, 'wb'))
+        return model
+
+    def train_prior_signature_model(self, siamese, train_x, splits,
+                                    save_path, max_x=10000, n_samples=5,
+                                    p_self=0.0, plots=True):
+        """Train prior predictor."""
+        def get_weights(y, p=2):
+            h, b = np.histogram(y, 20)
+            b = [np.mean([b[i], b[i + 1]]) for i in range(0, len(h))]
+            w = np.interp(y, b, h).ravel()
+            w = -(w / np.sum(w)) + 1e-10
+            w = (w - np.min(w)) / (np.max(w) - np.min(w))
+            w = w**p
+            return w
+
+        def histograms(ax, yp, yt, title):
+            ax.hist(yp, 10, range=(-1, 1), color="red",
+                    label="Pred", alpha=0.5)
+            ax.hist(yt, 10, range=(-1, 1), color="blue",
+                    label="True", alpha=0.5)
+            ax.legend()
+            ax.set_xlabel("Value")
+            ax.set_ylabel("Counts")
+            ax.set_title(title)
+
+        def scatter(ax, yp, yt, joint_lim=True):
+            x = yp
+            y = yt
+            xy = np.vstack([x, y])
+            z = gaussian_kde(xy)(xy)
+            idx = z.argsort()
+            x, y, z = x[idx], y[idx], z[idx]
+            ax.scatter(x, y, c=z, s=10, edgecolor='')
+            ax.set_xlabel("Pred")
+            ax.set_ylabel("True")
+            ax.set_xlim((-1, 1))
+            ax.set_ylim((-1, 1))
+            xlim = ax.get_xlim()
+            ylim = ax.get_ylim()
+            if joint_lim:
+                lim = (np.min([xlim[0], ylim[0]]), np.max([xlim[1], ylim[1]]))
+                ax.set_xlim(lim)
+                ax.set_ylim(lim)
+                ax.plot([lim[0], lim[1]], [lim[0], lim[1]],
+                        color="gray", ls='--', lw=1)
+            slope, intercept, r, p_val, stde = stats.linregress(x, y)
+            line = slope * x + intercept
+            ax.plot(x, line, 'r',
+                    label='y={:.2f}x+{:.2f}'.format(slope, intercept))
+            title = "rho = %.2f" % pearsonr(x, y)[0]
+            ax.set_title(title)
+            ax.legend()
+
+        def importances(ax, mod):
+            y = mod.feature_importances_
+            datasets = np.arange(128)
+            datasets = np.array(datasets)
+            x = np.array([i for i in range(0, len(datasets))])
+            idxs = np.argsort(y)
+            datasets = datasets[idxs]
+            y = y[idxs]
+            ax.scatter(y, x)
+            ax.set_xlabel("Importance")
+            ax.set_yticks(x)
+            ax.set_yticklabels(datasets)
+            ax.set_title("Importance")
+            ax.axvline(0, color="red", lw=1)
+
+        def analyze(mod, x_tr, y_tr, x_te, y_te):
+            import matplotlib.pyplot as plt
+            y_tr_p = mod.predict(x_tr)
+            y_te_p = mod.predict(x_te)
+            plt.close('all')
+            fig = plt.figure(constrained_layout=True, figsize=(8, 6))
+            gs = fig.add_gridspec(2, 3)
+            ax = fig.add_subplot(gs[0, 0])
+            histograms(ax, y_tr_p, y_tr, "Train")
+            ax = fig.add_subplot(gs[0, 1])
+            histograms(ax, y_te_p, y_te, "Test")
+            ax = fig.add_subplot(gs[1, 0])
+            scatter(ax, y_tr_p, y_tr)
+            ax = fig.add_subplot(gs[1, 1])
+            scatter(ax, y_te_p, y_te)
+            ax = fig.add_subplot(gs[0:2, 2])
+            importances(ax, mod)
+            if plots:
+                plt.savefig(os.path.join(save_path, 'prior_stats.png'))
+                plt.close()
+
+        def find_p(mod, x_tr, y_tr, x_te, y_te):
+            import matplotlib.pyplot as plt
+            test = ks_2samp
+            ps = []
+            ss_te = []
+            for p in np.linspace(0, 3, 10):
+                w = get_weights(y_tr, p=p)
+                mod.fit(x_tr, y_tr, sample_weight=w)
+                y_te_p = mod.predict(x_te)
+                s_te = test(y_te, y_te_p)[0]
+                ps += [p]
+                ss_te += [s_te]
+            p = ps[np.argmin(ss_te)]
+            if plots:
+                plt.close('all')
+                plt.scatter(ps, ss_te)
+                plt.title("%.2f" % p)
+                plt.savefig(os.path.join(save_path, 'prior_p.png'))
+                plt.close()
+            return p
+
+        self.__log.info('Training PRIOR SIGNATURE model')
+        # define subsampling
+        realistic_fn, trim_mask = self.realistic_subsampling_fn()
+        # generate train test split
+        out_file = os.path.join(save_path, 'data.h5')
+        with h5py.File(out_file, "w") as fh:
+            for split_name, split_frac, split_idx in splits:
+                split_x = train_x[split_idx]
+                split_total_x = int(max_x * split_frac)
+                available_x = split_x.shape[0]
+                X = np.zeros((split_total_x, 128))
+                Y = np.zeros((split_total_x, 1))
+                preds_onlyselfs = np.zeros((split_total_x, 128))
+                preds_noselfs = np.zeros((split_total_x, 128))
+                feats = np.zeros((split_total_x, 3200))
+                # prepare X and Y in chunks
+                chunk_size = max(10000, int(np.floor(available_x / 10)))
+                reached_max = False
+                for i in range(0, int(np.ceil(split_total_x / available_x))):
+                    for idx in range(0, available_x, chunk_size):
+                        # define source chunk
+                        src_start = idx
+                        src_end = idx + chunk_size
+                        if src_end > available_x:
+                            src_end = available_x
+                        # define destination chunk
+                        dst_start = src_start + (int(available_x) * i)
+                        dst_end = src_end + (available_x * i)
+                        if dst_end > split_total_x:
+                            dst_end = split_total_x
+                            reached_max = True
+                            src_end = dst_end - (int(available_x) * i)
+                        src_chunk = slice(src_start, src_end)
+                        dst_chunk = slice(dst_start, dst_end)
+                        # get only-self and not-self predictions
+                        feat = split_x[src_chunk]
+                        feats[dst_chunk] = feat
+                        preds_onlyself = siamese.predict(
+                            mask_keep(self.dataset_idx, feat))
+                        preds_onlyselfs[dst_chunk] = preds_onlyself
+                        preds_noself = siamese.predict(
+                            mask_exclude(self.dataset_idx, feat))
+                        preds_noselfs[dst_chunk] = preds_noself
+                        # the prior is only-self vs not-self predictions
+                        corrs = row_wise_correlation(
+                            preds_onlyself, preds_noself, scaled=True)
+                        Y[dst_chunk] = np.expand_dims(corrs, 1)
+                        X[dst_chunk] = preds_noself
+                        # check if enought
+                        if reached_max:
+                            break
+                variables = [X, Y, feat, preds_onlyselfs, preds_noselfs]
+                names = ['x', 'y', 'feat', 'preds_onlyselfs', 'preds_noselfs']
+                for var, name in zip(variables, names):
+                    ds_name = '%s_%s' % (name, split_name)
+                    self.__log.debug('writing %s: %s' % (ds_name, var.shape))
+                    fh.create_dataset(ds_name, data=var)
+        traintest = DataSignature(out_file)
+        x_tr = traintest.get_h5_dataset('x_train')
+        y_tr = traintest.get_h5_dataset('y_train').ravel()
+        x_te = traintest.get_h5_dataset('x_test')
+        y_te = traintest.get_h5_dataset('y_test').ravel()
+        # fit model
+        model = RandomForestRegressor(n_estimators=1000, max_features='sqrt',
+                                      min_samples_leaf=0.01, n_jobs=4)
+        p = find_p(model, x_tr, y_tr, x_te, y_te)
+        model.fit(x_tr, y_tr, sample_weight=get_weights(y_tr, p=p))
+        if plots:
+            analyze(model, x_tr, y_tr, x_te, y_te)
+        predictor_path = os.path.join(save_path, 'prior.pkl')
+        pickle.dump(model, open(predictor_path, 'wb'))
+        return model
+
+    def train_confidence_model(self, siamese, neig_x, train_x, splits,
+                               prior_model, prior_sign_model, save_path,
+                               p_self=0.0, plots=True):
+        # save linear model combining confidence natural scores
+
+        def get_weights(y, p=2):
+            h, b = np.histogram(y, 20)
+            b = [np.mean([b[i], b[i + 1]]) for i in range(0, len(h))]
+            w = np.interp(y, b, h).ravel()
+            w = -(w / np.sum(w)) + 1e-10
+            w = (w - np.min(w)) / (np.max(w) - np.min(w))
+            w = w**p
+            return w
+
+        def histograms(ax, yp, yt, title):
+            ax.hist(yp, 10, range=(-1, 1), color="red",
+                    label="Pred", alpha=0.5)
+            ax.hist(yt, 10, range=(-1, 1), color="blue",
+                    label="True", alpha=0.5)
+            ax.legend()
+            ax.set_xlabel("Value")
+            ax.set_ylabel("Counts")
+            ax.set_xlim((-1, 1))
+            ax.set_title(title)
+
+        def scatter(ax, yp, yt, joint_lim=True):
+            x = yp
+            y = yt
+            xy = np.vstack([x, y])
+            z = gaussian_kde(xy)(xy)
+            idx = z.argsort()
+            x, y, z = x[idx], y[idx], z[idx]
+            ax.scatter(x, y, c=z, s=10, edgecolor='')
+            ax.set_xlabel("Pred")
+            ax.set_ylabel("True")
+            ax.set_xlim((-1, 1))
+            ax.set_ylim((-1, 1))
+            xlim = ax.get_xlim()
+            ylim = ax.get_ylim()
+            if joint_lim:
+                lim = (np.min([xlim[0], ylim[0]]), np.max([xlim[1], ylim[1]]))
+                ax.set_xlim(lim)
+                ax.set_ylim(lim)
+                ax.plot([lim[0], lim[1]], [lim[0], lim[1]],
+                        color="gray", ls='--', lw=1)
+            slope, intercept, r, p_val, stde = stats.linregress(x, y)
+            line = slope * x + intercept
+            ax.plot(x, line, 'r',
+                    label='y={:.2f}x+{:.2f}'.format(slope, intercept))
+            title = "rho = %.2f" % pearsonr(x, y)[0]
+            ax.set_title(title)
+            ax.legend()
+
+        def analyze(mod, cal, x_tr, y_tr, x_te, y_te):
+            import matplotlib.pyplot as plt
+            y_tr_p = mod.predict(x_tr)
+            y_te_p = mod.predict(x_te)
+            y_tr_cal = cal.predict(np.expand_dims(y_tr_p, 1))
+            y_te_cal = cal.predict(np.expand_dims(y_te_p, 1))
+            plt.close('all')
+            fig = plt.figure(constrained_layout=True, figsize=(14, 10))
+            gs = fig.add_gridspec(4, 5)
+            ax = fig.add_subplot(gs[0, 0])
+            histograms(ax, y_tr_p, y_tr, "Train")
+            ax = fig.add_subplot(gs[1, 0])
+            histograms(ax, y_te_p, y_te, "Test")
+
+            ax = fig.add_subplot(gs[0, 1])
+            scatter(ax, y_tr_p, y_tr)
+            ax = fig.add_subplot(gs[1, 1])
+            scatter(ax, y_te_p, y_te)
+
+            ax = fig.add_subplot(gs[0, 2])
+            scatter(ax, y_tr_cal, y_tr)
+            ax.set_xlabel("Pred Calibrated")
+            ax = fig.add_subplot(gs[1, 2])
+            scatter(ax, y_te_cal, y_te)
+            ax.set_xlabel("Pred Calibrated")
+
+            ax = fig.add_subplot(gs[2, 0])
+            scatter(ax, y_tr, x_tr[:, 0].ravel(), joint_lim=False)
+            ax.set_title('Applicability (%s) Train' % ax.get_title())
+            ax.set_ylabel("Applicability")
+            ax.set_xlabel("Correlation")
+            ax = fig.add_subplot(gs[2, 1])
+            scatter(ax, y_tr, x_tr[:, 1].ravel(), joint_lim=False)
+            ax.set_title('Robustness (%s) Train' % ax.get_title())
+            ax.set_ylabel("Robustness")
+            ax.set_xlabel("Correlation")
+            ax = fig.add_subplot(gs[2, 2])
+            scatter(ax, y_tr, x_tr[:, 2].ravel(), joint_lim=False)
+            ax.set_title('Prior (%s) Train' % ax.get_title())
+            ax.set_ylabel("Prior")
+            ax.set_xlabel("Correlation")
+            ax = fig.add_subplot(gs[2, 3])
+            scatter(ax, y_tr, x_tr[:, 3].ravel(), joint_lim=False)
+            ax.set_title('Prior Signature (%s) Train' % ax.get_title())
+            ax.set_ylabel("Prior")
+            ax.set_xlabel("Correlation")
+            ax = fig.add_subplot(gs[2, 4])
+            scatter(ax, y_tr, x_tr[:, 4].ravel(), joint_lim=False)
+            ax.set_title('Intensity (%s) Train' % ax.get_title())
+            ax.set_ylabel("Intensity")
+            ax.set_xlabel("Correlation")
+
+            ax = fig.add_subplot(gs[3, 0])
+            scatter(ax, y_te, x_te[:, 0].ravel(), joint_lim=False)
+            ax.set_title('Applicability (%s) Test' % ax.get_title())
+            ax.set_ylabel("Applicability")
+            ax.set_xlabel("Correlation")
+            ax = fig.add_subplot(gs[3, 1])
+            scatter(ax, y_te, x_te[:, 1].ravel(), joint_lim=False)
+            ax.set_title('Robustness (%s) Test' % ax.get_title())
+            ax.set_ylabel("Robustness")
+            ax.set_xlabel("Correlation")
+            ax = fig.add_subplot(gs[3, 2])
+            scatter(ax, y_te, x_te[:, 2].ravel(), joint_lim=False)
+            ax.set_title('Prior (%s) Test' % ax.get_title())
+            ax.set_ylabel("Prior")
+            ax.set_xlabel("Correlation")
+            ax = fig.add_subplot(gs[3, 3])
+            scatter(ax, y_te, x_te[:, 3].ravel(), joint_lim=False)
+            ax.set_title('Prior Signature (%s) Test' % ax.get_title())
+            ax.set_ylabel("Prior")
+            ax.set_xlabel("Correlation")
+            ax = fig.add_subplot(gs[3, 4])
+            scatter(ax, y_te, x_te[:, 4].ravel(), joint_lim=False)
+            ax.set_title('Intensity (%s) Test' % ax.get_title())
+            ax.set_ylabel("Intensity")
+            ax.set_xlabel("Correlation")
+
+            # ax = fig.add_subplot(gs[1, 3])
+            if plots:
+                plt.savefig(os.path.join(save_path, 'confidence_stats.png'))
+                plt.close()
+
+        def find_p(mod, x_tr, y_tr, x_te, y_te):
+            import matplotlib.pyplot as plt
+            test = ks_2samp
+            ps = []
+            ss_te = []
+            for p in np.linspace(0, 3, 10):
+                w = get_weights(y_tr, p=p)
+                mod.fit(x_tr, y_tr, linearregression__sample_weight=w)
+                y_te_p = mod.predict(x_te)
+                s_te = test(y_te, y_te_p)[0]
+                ps += [p]
+                ss_te += [s_te]
+            p = ps[np.argmin(ss_te)]
+            if plots:
+                plt.close('all')
+                plt.scatter(ps, ss_te)
+                plt.title("%.2f" % p)
+                plt.savefig(os.path.join(save_path, 'confidence_p.png'))
+                plt.close()
+            return p
+
+        self.__log.info('Training CONFIDENCE model')
+
+        X, Y = self.save_confidence_distributions(
+            siamese, neig_x, train_x, prior_model, prior_sign_model,
+            save_path, splits, p_self=p_self)
+
+        # generate train test split
+        out_file = os.path.join(save_path, 'data.h5')
+        with h5py.File(out_file, "w") as fh:
+            for split_name, split_frac, split_idx in splits:
+                xs_name = "x_%s" % split_name
+                ys_name = "y_%s" % split_name
+                self.__log.debug('writing %s: %s' %
+                                 (xs_name, str(X[split_idx].shape)))
+                fh.create_dataset(xs_name, data=X[split_idx])
+                self.__log.debug('writing %s: %s' %
+                                 (ys_name, str(Y[split_idx].shape)))
+                fh.create_dataset(ys_name, data=Y[split_idx])
+        traintest = DataSignature(out_file)
+        x_tr = traintest.get_h5_dataset('x_train')
+        y_tr = traintest.get_h5_dataset('y_train').ravel()
+        x_te = traintest.get_h5_dataset('x_test')
+        y_te = traintest.get_h5_dataset('y_test').ravel()
+
+        model = make_pipeline(StandardScaler(), LinearRegression())
+        p = find_p(model, x_tr, y_tr, x_te, y_te)
+        model.fit(x_te, y_te,
+                  linearregression__sample_weight=get_weights(y_te, p=p))
+        calibration_model = make_pipeline(StandardScaler(), LinearRegression())
+        y_pr = np.expand_dims(model.predict(x_te), 1)
+        calibration_model.fit(y_pr, y_te)
+        if plots:
+            analyze(model, calibration_model, x_tr, y_tr, x_te, y_te)
+        model_file = os.path.join(save_path, 'confidence.pkl')
+        pickle.dump(model, open(model_file, 'wb'))
+        calibration_file = os.path.join(save_path, 'calibration.pkl')
+        pickle.dump(calibration_model, open(calibration_file, 'wb'))
+        return model, calibration_model
+
+    def save_confidence_distributions(self, siamese, known_x, train_x,
+                                      prior_model, prior_sign_model, save_path,
+                                      splits, p_self=0.0):
+        try:
+            import faiss
+        except ImportError as err:
+            raise err
+
+        realistic_fn, trim_mask = self.realistic_subsampling_fn()
+
+        # save neighbors faiss index based on only self train prediction
+        self.__log.info('Computing Neighbor Index')
+        known_onlyself = mask_keep(self.dataset_idx, known_x)
+        known_onlyself_pred = siamese.predict(known_onlyself)
+        known_onlyself_neig = faiss.IndexFlatL2(known_onlyself_pred.shape[1])
+        known_onlyself_neig.add(known_onlyself_pred.astype(np.float32))
+        known_onlyself_neig_file = os.path.join(save_path, 'neig.index')
+        faiss.write_index(known_onlyself_neig, known_onlyself_neig_file)
+        self.__log.info('Neighbor Index saved: %s' % known_onlyself_neig_file)
+
+        # only self prediction is the ground truth
+        unk_onlyself = mask_keep(self.dataset_idx, train_x)
+        unk_onlyself_pred = siamese.predict(unk_onlyself)
+        unk_notself = mask_exclude(self.dataset_idx, train_x)
+        unk_notself_pred = siamese.predict(unk_notself)
+
+        # do applicability domain prediction
+        self.__log.info('Computing Applicability Domain')
+        applicability, app_range, _ = \
+            self.applicability_domain(
+                known_onlyself_neig, train_x, siamese, p_self=p_self)
+        self.__log.info('Applicability Domain DONE')
+
+        # do conformal prediction (dropout)
+        self.__log.info('Computing Conformal Prediction')
+        intensities, robustness, consensus_cp = self.conformal_prediction(
+            siamese, train_x, p_self=p_self)
+        self.__log.info('Conformal Prediction DONE')
+
+        # predict expected prior
+        unk_notself_presence = ~np.isnan(unk_notself[:, ::128])[:, trim_mask]
+        prior = prior_model.predict(unk_notself_presence.astype(int))
+        prior_sign = prior_sign_model.predict(unk_notself_pred)
+
+        # calculate the error
+        log_mse = np.log10(
+            np.mean(((unk_onlyself_pred - unk_notself_pred)**2), axis=1))
+        log_mse_ad = np.log10(
+            np.mean(((unk_onlyself_pred - consensus_cp)**2), axis=1))
+
+        # get correlation between prediction and only self predictions
+        correlation = row_wise_correlation(
+            unk_onlyself_pred, unk_notself_pred, scaled=True)
+        correlation_cp = row_wise_correlation(
+            unk_onlyself_pred, consensus_cp, scaled=True)
+
+        # we have all the data to train the confidence model
+        self.__log.debug('Saving Confidence Features...')
+        conf_features = (
+            ('applicability', applicability),
+            ('robustness', robustness),
+            ('prior', prior),
+            ('prior_sign', prior_sign),
+            ('intensities', intensities)
+        )
+        for name, arr in conf_features:
+            self.__log.debug('%s %s' % (name, arr.shape))
+
+        features = np.vstack([x[1] for x in conf_features]).T
+
+        know_dist_file = os.path.join(save_path, 'known_dist.h5')
+        with h5py.File(know_dist_file, "w") as hf:
+            hf.create_dataset('robustness', data=robustness)
+            hf.create_dataset('intensity', data=intensities)
+            hf.create_dataset('consensus', data=consensus_cp)
+            hf.create_dataset('applicability', data=applicability)
+            hf.create_dataset('applicability_range', data=app_range)
+            hf.create_dataset('prior', data=prior)
+            hf.create_dataset('prior_sign', data=prior_sign)
+            hf.create_dataset('correlation', data=correlation)
+            hf.create_dataset('correlation_consensus', data=correlation_cp)
+            hf.create_dataset('log_mse', data=log_mse)
+            hf.create_dataset('log_mse_consensus', data=log_mse_ad)
+
+        # save plot
+        import pandas as pd
+        import seaborn as sns
+        import matplotlib.pyplot as plt
+        variables = ['applicability', 'robustness', 'intensity', 'prior',
+                     'prior_sign', 'correlation', 'correlation_consensus_cp']
+
+        def corr(x, y, **kwargs):
+            coef = np.corrcoef(x, y)[0][1]
+            label = r'$\rho$ = ' + str(round(coef, 2))
+            ax = plt.gca()
+            ax.annotate(label, xy=(0.2, 0.95), size=20, xycoords=ax.transAxes)
+
+        # Create a pair grid instance
+        df = pd.DataFrame(columns=variables)
+        df['applicability'] = applicability
+        df['robustness'] = robustness
+        df['intensity'] = intensities
+        df['prior'] = prior
+        df['prior_sign'] = prior_sign
+        df['correlation'] = correlation
+        df['correlation_consensus_cp'] = correlation_cp
+
+        # Map the plots to the locations
+        for split_name, split_frac, split_idx in splits:
+            grid = sns.PairGrid(data=df.loc[split_idx], vars=variables, size=4)
+            grid = grid.map_upper(plt.scatter, color='darkred')
+            grid = grid.map_upper(corr)
+            grid = grid.map_lower(sns.kdeplot, cmap='Reds')
+            grid = grid.map_diag(
+                plt.hist, bins=10, edgecolor='k', color='darkred')
+            plot_file = os.path.join(
+                save_path, 'known_dist_%s.png' % split_name)
+            plt.savefig(plot_file)
+
+        return features, correlation
+
+    def applicability_domain(self, neig_index, features, siamese,
+                             dropout_fn=None, app_range=None, n_samples=1,
+                             p_self=0.0, subsampling=False):
+        # applicability is whether not-self preds is close to only-self preds
+        # neighbors between 5 and 25 depending on the size of the dataset
+        app_thr = int(np.clip(np.log10(self.neig_sign.shape[0])**2, 5, 25))
+        if subsampling:
+            if dropout_fn is None:
+                dropout_fn, _ = self.realistic_subsampling_fn()
+            preds, dists, ranges = list(), list(), list()
+            for i in range(n_samples):
+                pred = siamese.predict(features,
+                                       dropout_fn=partial(
+                                           dropout_fn, p_self=p_self),
+                                       dropout_samples=1)
+                pred = np.mean(pred, axis=1)
+                only_self_dists, _ = neig_index.search(pred, app_thr)
+                if app_range is None:
+                    d_min = np.min(only_self_dists)
+                    d_max = np.max(only_self_dists)
+                else:
+                    d_min = app_range[0]
+                    d_max = app_range[1]
+                curr_app_range = np.array([d_min, d_max])
+                preds.append(pred)
+                dists.append(only_self_dists)
+                ranges.append(curr_app_range)
+            consensus = np.mean(np.stack(preds, axis=2), axis=2)
+            app_range = [np.min(np.vstack(ranges)[:, 0]),
+                         np.max(np.vstack(ranges)[:, 1])]
+            # scale and invert distances to get applicability
+            apps = list()
+            for dist in dists:
+                d_min = app_range[0]
+                d_max = app_range[1]
+                norm_dist = (dist - d_max) / (d_min - d_max)
+                applicability = np.mean(norm_dist, axis=1).flatten()
+                apps.append(applicability)
+            applicability = np.mean(np.vstack(apps), axis=0)
+            return applicability, app_range, consensus
+        else:
+            pred = siamese.predict(mask_exclude(self.dataset_idx, features))
+            dists, _ = neig_index.search(pred, app_thr)
+            d_min = np.min(dists)
+            d_max = np.max(dists)
+            app_range = np.array([d_min, d_max])
+            norm_dist = (dists - d_max) / (d_min - d_max)
+            applicability = np.mean(norm_dist, axis=1).flatten()
+            return applicability, app_range, None
+
+    def conformal_prediction(self, siamese, features, dropout_fn=None,
+                             nan_pred=None, n_samples=5, p_self=0.0):
+        if dropout_fn is None:
+            dropout_fn, _ = self.realistic_subsampling_fn()
+        # reference prediction (based on no information)
+        if nan_pred is None:
+            nan_feat = np.full(
+                (1, features.shape[1]), np.nan, dtype=np.float32)
+            nan_pred = siamese.predict(nan_feat)
+        # draw prediction with sub-sampling
+        if dropout_fn is None:
+            dropout_fn = partial(subsample, dataset_idx=[self.dataset_idx])
+        samples = siamese.predict(mask_exclude(self.dataset_idx, features),
+                                  dropout_fn=partial(
+                                      dropout_fn, p_self=p_self),
+                                  dropout_samples=n_samples, cp=True)
+        # summarize the predictions as consensus
+        consensus = np.mean(samples, axis=1)
+        # zeros input (no info) as intensity reference
+        centered = consensus - nan_pred
+        # measure the intensity (mean of absolute comps)
+        intensities = np.mean(np.abs(centered), axis=1).flatten()
+        # summarize the standard deviation of components
+        robustness = 1 - np.mean(np.std(samples, axis=1), axis=1).flatten()
+        return intensities, robustness, consensus
+
+    def plot_validations(self, siamese, dataset_idx, traintest_file, chunk_size=10000,
+                         limit=1000, dist_limit=1000):
+
+        def no_mask(idxs, x1_data):
+            return x1_data
+
+        def read_h5(sign, idxs):
+            with h5py.File(sign.data_path, "r") as hf:
+                V = hf["x_test"][idxs]
+            return V
+
+        def read_unknown(sign, forbidden_idxs, max_n=100000):
+            with h5py.File(sign.data_path, "r") as hf:
+                V = hf["x_test"][:max_n]
+            forbidden_idxs = set(forbidden_idxs)
+            unknown_idxs = [i for i in range(
+                0, max_n) if i not in forbidden_idxs]
+            return V[unknown_idxs]
+
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        import itertools
+        from MulticoreTSNE import MulticoreTSNE
+
+        mask_fns = {
+            'ALL': partial(no_mask, dataset_idx),
+            'NOT-SELF': partial(mask_exclude, dataset_idx),
+            'ONLY-SELF': partial(mask_keep, dataset_idx),
+        }
+
+        all_inchikeys = self.get_universe_inchikeys()
+        traintest = DataSignature(traintest_file)
+        train_inks = traintest.get_h5_dataset('keys_train')
+        test_inks = traintest.get_h5_dataset('keys_test')
+        train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks)).flatten()
+        test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks)).flatten()
+        try:
+            unknown_idxs = np.array(
+                list(set(np.arange(len(all_inchikeys))) - (set(train_idxs) | set(test_idxs))))
+            unknown_idxs = np.sort(np.random.choice(
+                unknown_idxs, 5000, replace=False))
+        except:
+            unknown_idxs = np.array([])
+
+        # predict
+        pred = dict()
+        pred_file = os.path.join(siamese.model_dir, 'plot_preds.pkl')
+        if not os.path.isfile(pred_file):
+            self.__log.info('VALIDATION: Predicting train.')
+            pred['train'] = dict()
+            full_x = DataSignature(self.sign2_universe)
+            train = read_h5(full_x, train_idxs[:4000])
+
+            for name, mask_fn in mask_fns.items():
+                pred['train'][name] = siamese.predict(mask_fn(train))
+            del train
+            self.__log.info('VALIDATION: Predicting test.')
+            pred['test'] = dict()
+            test = read_h5(full_x, test_idxs[:1000])
+            for name, mask_fn in mask_fns.items():
+                pred['test'][name] = siamese.predict(mask_fn(test))
+            del test
+            self.__log.info('VALIDATION: Predicting unknown.')
+            pred['unknown'] = dict()
+            if np.any(unknown_idxs):
+                unknown = read_h5(full_x, unknown_idxs[:5000])
+                self.__log.info('Number of unknown %s' % len(unknown))
+                for name, mask_fn in mask_fns.items():
+                    if name == 'ALL':
+                        pred['unknown'][name] = siamese.predict(
+                            mask_fn(unknown))
+                    else:
+                        pred['unknown'][name] = []
+                del unknown
+            else:
+                for name, mask_fn in mask_fns.items():
+                    pred['unknown'][name] = []
+            pickle.dump(pred, open(pred_file, "wb"))
+        else:
+            pred = pickle.load(open(pred_file, 'rb'))
+
+        # Plot
+        self.__log.info('VALIDATION: Plot correlations.')
+        fig, axes = plt.subplots(
+            1, 3, sharex=True, sharey=False, figsize=(10, 3))
+        combos = itertools.combinations(mask_fns, 2)
+        for ax, (n1, n2) in zip(axes.flatten(), combos):
+            scaled_corrs = row_wise_correlation(
+                pred['train'][n1], pred['train'][n2], scaled=True)
+            sns.distplot(scaled_corrs, ax=ax, label='Train')
+            scaled_corrs = row_wise_correlation(
+                pred['test'][n1], pred['test'][n2], scaled=True)
+            sns.distplot(scaled_corrs, ax=ax, label='Test')
+            ax.legend()
+            ax.set_title(label='%s vs. %s' % (n1, n2))
+        fname = 'known_unknown_correlations.png'
+        plot_file = os.path.join(siamese.model_dir, fname)
+        plt.savefig(plot_file)
+        plt.close()
+
+        for metric in ['euclidean', 'cosine']:
+            self.__log.info('VALIDATION: Plot %s distances.' % metric)
+            fig, axes = plt.subplots(
+                1, 3, sharex=True, sharey=True, figsize=(10, 3))
+            for ax, name in zip(axes.flatten(), mask_fns):
+                ax.set_title(name)
+                dist_known = pdist(pred['train'][name][:dist_limit],
+                                   metric=metric)
+                sns.distplot(dist_known, label='Train', ax=ax)
+                dist_known = pdist(pred['test'][name][:dist_limit],
+                                   metric=metric)
+                sns.distplot(dist_known, label='Test', ax=ax)
+                if len(pred['unknown'][name]) > 0:
+                    dist_unknown = pdist(pred['unknown'][name][:dist_limit],
+                                         metric=metric)
+                    sns.distplot(dist_unknown, label='Unknown', ax=ax)
+                ax.legend()
+            fname = 'known_unknown_dist_%s.png' % metric
+            plot_file = os.path.join(siamese.model_dir, fname)
+            plt.savefig(plot_file)
+            plt.close()
+
+        self.__log.info('VALIDATION: Plot Projections.')
+        fig, axes = plt.subplots(2, 2, sharex=True, sharey=True,
+                                 figsize=(10, 10), dpi=200)
+        proj_model = MulticoreTSNE(n_components=2)
+        proj_limit = min(500, len(pred['test']['ALL']))
+        if np.any(pred['unknown']['ALL']):
+            proj_train = np.vstack([
+                pred['train']['ALL'][:proj_limit],
+                pred['test']['ALL'][:proj_limit],
+                pred['unknown']['ALL'][:proj_limit],
+                pred['test']['ONLY-SELF'][-proj_limit:]
+            ])
+            proj = proj_model.fit_transform(proj_train)
+            dist_tr = proj[:proj_limit]
+            dist_ts = proj[proj_limit:(proj_limit * 2)]
+            dist_uk = proj[(proj_limit * 2):(proj_limit * 3)]
+            dist_os = proj[(proj_limit * 3):]
+        else:
+            proj_train = np.vstack([
+                pred['train']['ALL'][:proj_limit],
+                pred['test']['ALL'][:proj_limit],
+                pred['test']['ONLY-SELF'][-proj_limit:]
+            ])
+            proj = proj_model.fit_transform(proj_train)
+            dist_tr = proj[:proj_limit]
+            dist_ts = proj[proj_limit:(proj_limit * 2)]
+            dist_os = proj[(proj_limit * 2):]
+
+        axes[0][0].set_title('Train')
+        axes[0][0].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="grey")
+        if np.any(pred['unknown']['ALL']):
+            axes[0][0].scatter(dist_uk[:, 0], dist_uk[
+                               :, 1], s=10, color="grey")
+        axes[0][0].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="grey")
+        axes[0][0].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="#1f77b4")
+
+        axes[0][1].set_title('Test')
+        axes[0][1].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="grey")
+        if np.any(pred['unknown']['ALL']):
+            axes[0][1].scatter(dist_uk[:, 0], dist_uk[
+                               :, 1], s=10, color="grey")
+        axes[0][1].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="grey")
+        axes[0][1].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="#ff7f0e")
+
+        axes[1][0].set_title('Unknown')
+        axes[1][0].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="grey")
+        axes[1][0].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="grey")
+        axes[1][0].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="grey")
+        if np.any(pred['unknown']['ALL']):
+            axes[1][0].scatter(dist_uk[:, 0], dist_uk[
+                               :, 1], s=10, color="#2ca02c")
+
+        axes[1][1].set_title('ONLY-SELF')
+        axes[1][1].scatter(dist_tr[:, 0], dist_tr[:, 1], s=10, color="grey")
+        axes[1][1].scatter(dist_ts[:, 0], dist_ts[:, 1], s=10, color="grey")
+        if np.any(pred['unknown']['ALL']):
+            axes[1][1].scatter(dist_uk[:, 0], dist_uk[
+                               :, 1], s=10, color="grey")
+        axes[1][1].scatter(dist_os[:, 0], dist_os[:, 1], s=10, color="#d62728")
+
+        fname = 'known_unknown_projection.png'
+        plot_file = os.path.join(siamese.model_dir, fname)
+        plt.savefig(plot_file)
+        plt.close()
+
+        self.__log.info('VALIDATION: Plot Subsampling.')
+        fname = 'known_unknown_sampling.png'
+        plot_file = os.path.join(siamese.model_dir, fname)
+        plot_subsample(plot_file, self.sign2_coverage, traintest_file,
+                       ds=self.dataset)
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True,
                           chunk_size=1000):
@@ -301,14 +1518,14 @@ class sign3(BaseSignature, DataSignature):
                         stddev = np.expand_dims(stddev, 1)
                         intensity = hf_in['intensity_norm'][chunk][mask[chunk]]
                         intensity = np.expand_dims(intensity, 1)
-                        exp_error = hf_in['exp_error_norm'][chunk][mask[chunk]]
-                        exp_error = np.expand_dims(exp_error, 1)
+                        prior = hf_in['prior_norm'][chunk][mask[chunk]]
+                        prior = np.expand_dims(prior, 1)
                         novelty = hf_in['novelty_norm'][chunk][mask[chunk]]
                         novelty = np.expand_dims(novelty, 1)
                         confidence = hf_in['confidence'][chunk][mask[chunk]]
                         confidence = np.expand_dims(confidence, 1)
                         labels = np.hstack((labels, stddev, intensity,
-                                            exp_error, novelty, confidence))
+                                            prior, novelty, confidence))
                     out_size = labels.shape[0]
                     out_chunk = slice(out_start, out_start + out_size)
                     hf_out['y'][out_chunk] = labels
@@ -316,7 +1533,7 @@ class sign3(BaseSignature, DataSignature):
                     hf_out['x'][out_chunk] = sign0[out_chunk]
                     out_start += out_size
 
-    def learn_sign0(self, sign0, adanet_params, reuse=True, suffix=None,
+    def learn_sign0(self, sign0, suffix=None,
                     evaluate=True, include_confidence=True):
         """Learn the signature 3 from sign0.
 
@@ -325,60 +1542,35 @@ class sign3(BaseSignature, DataSignature):
 
         Args:
             sign0(list): Signature 0 object to learn from.
-            adanet_params(dict): Dictionary with algorithm parameters.
+            params(dict): Dictionary with algorithm parameters.
             reuse(bool): Whether to reuse intermediate files (e.g. the
-                aggregated signature 2 matrix).
-            suffix(str): A suffix for the AdaNet model path (e.g.
-                'sign3/models/adanet_<suffix>').
+                aggregated signature 3 matrix).
+            suffix(str): A suffix for the siamese model path (e.g.
+                'sign3/models/smiles_<suffix>').
             evaluate(bool): Whether we are performing a train-test split and
                 evaluating the performances (N.B. this is required for complete
                 confidence scores)
             include_confidence(bool): whether to include confidences.
         """
         try:
-            from chemicalchecker.tool.adanet import AdaNet
-        except ImportError as err:
-            raise err
-        # adanet parameters
-        self.__log.debug('AdaNet fit sign0 %s based on %s', self.dataset,
-                         sign0.dataset)
+            from chemicalchecker.tool.smilespred import Smilespred
+        except ImportError:
+            raise ImportError("requires tensorflow " +
+                              "https://tensorflow.org")
         # get params and set folder
-        if suffix:
-            adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
-        else:
-            adanet_path = os.path.join(self.model_path, 'adanet')
-        if 'model_dir' in adanet_params:
-            adanet_path = adanet_params.pop('model_dir')
-        if not reuse or not os.path.isdir(adanet_path):
-            os.makedirs(adanet_path)
-        # generate input matrix
-        sign0_matrix = os.path.join(self.model_path, 'train_sign0.h5')
-        if not reuse or not os.path.isfile(sign0_matrix):
-            self.save_sign0_matrix(sign0, sign0_matrix, include_confidence)
-        # if evaluating, perform the train-test split
+        model_path = os.path.join(self.model_path, 'smiles_%s' % suffix)
+        if not os.path.isdir(model_path):
+            os.makedirs(model_path)
+        # initialize model and start learning
+        smpred = Smilespred(
+            model_dir=model_path, sign0=sign0, sign3=self, evaluate=evaluate)
+        self.__log.debug('Smiles pred training on %s' % model_path)
+        smpred.fit()
+        self.smiles_predictor = smpred
+        self.__log.debug('model saved to %s' % model_path)
         if evaluate:
-            traintest_file = os.path.join(self.model_path,
-                                          'traintest_sign0.h5')
-            traintest_file = adanet_params.pop(
-                'traintest_file', traintest_file)
-            if not reuse or not os.path.isfile(traintest_file):
-                Traintest.split_h5_blocks(sign0_matrix, traintest_file)
-        else:
-            traintest_file = sign0_matrix
-            traintest_file = adanet_params.pop(
-                'traintest_file', traintest_file)
-        # initialize adanet and start learning
-        ada = AdaNet(model_dir=adanet_path,
-                     traintest_file=traintest_file,
-                     **adanet_params)
-        self.__log.debug('AdaNet training on %s' % traintest_file)
-        ada.train_and_evaluate(evaluate=evaluate)
-        self.__log.debug('model saved to %s' % adanet_path)
-        # when evaluating also save the performances
-        if evaluate:
-            # save AdaNet performances and plots
-            sign2_plot = Plot(self.dataset, adanet_path)
-            ada.save_performances(adanet_path, sign2_plot, suffix)
+            smpred.evaluate()
+            
 
     def save_sign0_conf_matrix(self, sign0, destination, chunk_size=1000):
         """Save matrix of signature 0 confidence values.
@@ -408,21 +1600,21 @@ class sign3(BaseSignature, DataSignature):
                     stddev = np.expand_dims(stddev, 1)
                     intensity = hf_in['intensity_norm'][chunk][mask[chunk]]
                     intensity = np.expand_dims(intensity, 1)
-                    exp_error = hf_in['exp_error_norm'][chunk][mask[chunk]]
-                    exp_error = np.expand_dims(exp_error, 1)
+                    prior = hf_in['prior_norm'][chunk][mask[chunk]]
+                    prior = np.expand_dims(prior, 1)
                     novelty = hf_in['novelty_norm'][chunk][mask[chunk]]
                     novelty = np.expand_dims(novelty, 1)
                     confidence = hf_in['confidence'][chunk][mask[chunk]]
                     confidence = np.expand_dims(confidence, 1)
                     conf_scores = np.hstack((stddev, intensity,
-                                             exp_error, novelty, confidence))
+                                             prior, novelty, confidence))
                     out_size = conf_scores.shape[0]
                     out_chunk = slice(out_start, out_start + out_size)
                     hf_out['y'][out_chunk] = conf_scores
                     hf_out['x'][out_chunk] = sign0[out_chunk]
                     out_start += out_size
 
-    def learn_sign0_conf(self, sign0, adanet_params, reuse=True, suffix=None,
+    def learn_sign0_conf(self, sign0, params, reuse=True, suffix=None,
                          evaluate=True):
         """Learn the signature 3 confidence from sign0.
 
@@ -431,7 +1623,7 @@ class sign3(BaseSignature, DataSignature):
 
         Args:
             sign0(list): Signature 0 object to learn from.
-            adanet_params(dict): Dictionary with algorithm parameters.
+            params(dict): Dictionary with algorithm parameters.
             reuse(bool): Whether to reuse intermediate files (e.g. the
                 aggregated signature 2 matrix).
             suffix(str): A suffix for the AdaNet model path (e.g.
@@ -453,8 +1645,8 @@ class sign3(BaseSignature, DataSignature):
             adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
         else:
             adanet_path = os.path.join(self.model_path, 'adanet')
-        if 'model_dir' in adanet_params:
-            adanet_path = adanet_params.pop('model_dir')
+        if 'model_dir' in params:
+            adanet_path = params.pop('model_dir')
         if not reuse or not os.path.isdir(adanet_path):
             os.makedirs(adanet_path)
         # generate input matrix
@@ -465,18 +1657,18 @@ class sign3(BaseSignature, DataSignature):
         if evaluate:
             traintest_file = os.path.join(self.model_path,
                                           'traintest_sign0_conf.h5')
-            traintest_file = adanet_params.pop(
+            traintest_file = params.pop(
                 'traintest_file', traintest_file)
             if not reuse or not os.path.isfile(traintest_file):
                 Traintest.split_h5_blocks(sign0_matrix, traintest_file)
         else:
             traintest_file = sign0_matrix
-            traintest_file = adanet_params.pop(
+            traintest_file = params.pop(
                 'traintest_file', traintest_file)
         # initialize adanet and start learning
         ada = AdaNet(model_dir=adanet_path,
                      traintest_file=traintest_file,
-                     **adanet_params)
+                     **params)
         self.__log.debug('AdaNet training on %s' % traintest_file)
         ada.train_and_evaluate(evaluate=evaluate)
         self.__log.debug('model saved to %s' % adanet_path)
@@ -486,144 +1678,8 @@ class sign3(BaseSignature, DataSignature):
             sign2_plot = Plot(self.dataset, adanet_path)
             ada.save_performances(adanet_path, sign2_plot, suffix)
 
-    def save_error_matrix(self, sign3_train_file, predict_fn, destination,
-                          max_total=1000000, chunk_size=100):
-        """Save matrix of error in sign3 prediction.
-
-        This is the matrix for training the signature 3 error estimator
-        based on sign2 presence/absence.
-
-        Args:
-            sign3_train_file(list): The original train file with sign2s.
-            predict_fn(func): Trained Adanet predict function.
-            destination(str): Path where to save the matrix (HDF5 file).
-            sampling(int): How much subsampling per molecule.
-        """
-        self.__log.debug('Saving error traintest to: %s' % destination)
-        # get current space shape
-        self_len = self.sign2_self.shape[0]
-        # we calculate the sampling to fill a maximum total
-        if self_len > max_total:
-            # lower it can be is 1
-            sampling = 1
-        else:
-            sampling = int(np.floor(max_total / float(self_len)))
-        feat_shape = (self_len * sampling, len(self.src_datasets))
-        # create a new file with x and y
-        with h5py.File(destination, 'w') as hf_out:
-            hf_out.create_dataset('x', feat_shape, dtype=np.float32)
-            hf_out.create_dataset('y', (feat_shape[0], 1), dtype=np.float32)
-            # perform sampling for each input and measure distance
-            with h5py.File(sign3_train_file, 'r') as hf_in:
-                offset = 0
-                for i in tqdm(range(0, self_len, chunk_size)):
-                    # source input is repeated sampling times
-                    for r in range(sampling):
-                        # last chunk has different size
-                        csize = chunk_size
-                        if i + csize > hf_in['x'].shape[0]:
-                            csize = hf_in['x'].shape[0] - i
-                        src_chunk = slice(i, i + csize)
-                        # destination chunk is shifted by input length
-                        dst_chunk = slice(offset + (r * csize),
-                                          offset + csize + (r * csize))
-                        in_x = hf_in['x'][src_chunk]
-                        in_y = hf_in['y'][src_chunk]
-                        sub_x, _ = subsample(in_x, in_y, prob_original=0.2)
-                        coverage = ~np.isnan(sub_x[:, 0::128])
-                        # save coverage as X
-                        hf_out['x'][dst_chunk] = coverage
-                        # run prediction on subsampled input
-                        y_pred = predict_fn({'x': sub_x})['predictions']
-                        # save log mean squared error as Y
-                        mse = np.mean(((in_y - y_pred)**2), axis=1)
-                        log_mse = np.log10(mse)
-                        hf_out['y'][dst_chunk] = np.expand_dims(log_mse, 1)
-                    offset = dst_chunk.stop
-                assert(offset == feat_shape[0])
-
-    def learn_error(self, predict_fn, adanet_params, reuse=True, suffix=None,
-                    evaluate=True):
-        """Learn the signature 3 prediction error.
-
-        This method is used twice. First to evaluate the performances of the
-        model. Second to train the final model on the full set of data.
-
-        Args:
-            sign2_list(list): List of signature 2 objects to learn from.
-            reuse(bool): Whether to reuse intermediate files (e.g. the
-                aggregated signature 2 matrix).
-            suffix(str): A suffix for the AdaNet model path (e.g.
-                'sign3/models/adanet_<suffix>').
-            evaluate(bool): Whether we are performing a train-test split and
-                evaluating the performances (N.B. this is required for complete
-                confidence scores)
-        """
-        try:
-            from chemicalchecker.tool.adanet import AdaNet
-        except ImportError as err:
-            raise err
-        # get params and set folder
-        if suffix:
-            adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
-        else:
-            adanet_path = os.path.join(self.model_path, 'adanet')
-        if adanet_params:
-            if 'model_dir' in adanet_params:
-                adanet_path = adanet_params.pop('model_dir')
-        if not reuse or not os.path.isdir(adanet_path):
-            os.makedirs(adanet_path)
-        # generate input matrix
-        sign3_train_file = os.path.join(self.model_path, 'train.h5')
-        error_matrix = os.path.join(self.model_path, 'train_error.h5')
-        if not reuse or not os.path.isfile(error_matrix):
-            self.save_error_matrix(sign3_train_file, predict_fn, error_matrix)
-        # if evaluating, perform the train-test split
-        if evaluate:
-            traintest_file = os.path.join(
-                self.model_path, 'traintest_error.h5')
-            if adanet_params:
-                traintest_file = adanet_params.pop(
-                    'traintest_file', traintest_file)
-            if not reuse or not os.path.isfile(traintest_file):
-                Traintest.split_h5_blocks(error_matrix, traintest_file)
-        else:
-            traintest_file = error_matrix
-            if adanet_params:
-                traintest_file = adanet_params.pop(
-                    'traintest_file', traintest_file)
-        # initialize adanet and start learning
-        if adanet_params:
-            # parameter heuristics
-            ada = AdaNet(model_dir=adanet_path,
-                         traintest_file=traintest_file,
-                         **adanet_params)
-        else:
-            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
-        self.__log.debug('AdaNet training on %s' % traintest_file)
-        ada.train_and_evaluate(evaluate=evaluate)
-        self.__log.debug('model saved to %s' % adanet_path)
-        # when evaluating also save the performances
-        other_predictors = {
-            ('LinearRegression', 'ALL'): LinearRegression(
-                n_jobs=adanet_params['cpu']),
-            ('RandomForest', 'ALL'): RandomForestRegressor(
-                n_estimators=100,
-                min_samples_leaf=50,
-                n_jobs=adanet_params['cpu'])
-        }
-        if evaluate:
-            others = self.train_other(
-                other_predictors, adanet_path, traintest_file)
-            # save AdaNet performances and plots
-            sign2_plot = Plot(self.dataset, adanet_path)
-            ada.save_performances(adanet_path, sign2_plot, suffix, others)
-        else:
-            self.train_other(
-                other_predictors, adanet_path, traintest_file, train_only=True)
-
-    def fit_sign0(self, sign0, include_confidence=True, extra_confidence=False):
-        """Train an AdaNet model to predict sign3 from sign0.
+    def fit_sign0(self, sign0, suffix=None, include_confidence=False, extra_confidence=False):
+        """Train a siamese model to predict sign3 from sign0 (Morgan Finguerprint).
 
         This method is fitting a model that uses Morgan fingerprint as features
         to predict signature 3. In future other featurization approaches can be
@@ -632,7 +1688,7 @@ class sign3(BaseSignature, DataSignature):
         Args:
             chemchecker(ChemicalChecker): The CC object used to fetch input
                 signature 0.
-            sign0_traintest(str): Path to the train file.
+            sign0(str): Path to the MF file.
             include_confidence(bool): Whether to include confidence score in
                 regression problem.
             extra_confidence(bool): Whether to train an additional regressor
@@ -640,54 +1696,38 @@ class sign3(BaseSignature, DataSignature):
         """
 
         # check if performance evaluations need to be done
-        s0_code = sign0.dataset
-        eval_adanet_path = os.path.join(self.model_path,
-                                        'adanet_sign0_%s_eval' % s0_code)
-        eval_stats = os.path.join(eval_adanet_path,
-                                  'stats_sign0_%s_eval.pkl' % s0_code)
-        if not os.path.isfile(eval_stats):
-            self.learn_sign0(sign0, self.params['sign0'],
-                             suffix='sign0_%s_eval' % s0_code,
+        #Open sign0:
+        sign0 = DataSignature(sign0).get_h5_dataset('x')[:]
+        if suffix is not None:
+            self.learn_sign0(sign0,
+                             suffix=suffix,
                              evaluate=True,
                              include_confidence=include_confidence)
-        # learn confidence predictor
-        if extra_confidence:
-            conf_eval_adanet_path = os.path.join(
-                self.model_path, 'adanet_sign0_%s_conf_eval' % s0_code)
-            conf_eval_stats = os.path.join(
-                conf_eval_adanet_path, 'stats_conf_eval.pkl')
-            if not os.path.isfile(conf_eval_stats):
-                self.learn_sign0_conf(sign0, self.params['sign0_conf'],
-                                      suffix='sign0_%s_conf_eval' % s0_code,
-                                      evaluate=True)
+            return False
+        else:
+            self.learn_sign0(sign0,
+                             suffix='eval',
+                             evaluate=True,
+                             include_confidence=include_confidence)
 
         # check if we have the final trained model
-        final_adanet_path = os.path.join(self.model_path,
-                                         'adanet_sign0_%s_final' % s0_code,
-                                         'savedmodel')
-        if not os.path.isdir(final_adanet_path):
-            self.learn_sign0(sign0, self.params['sign0'],
-                             suffix='sign0_%s_final' % s0_code,
-                             evaluate=False,
-                             include_confidence=include_confidence)
-        # learn the final confidence predictor
-        if extra_confidence:
-            conf_final_adanet_path = os.path.join(
-                self.model_path, 'adanet_sign0_%s_conf_final' % s0_code)
-            conf_final_stats = os.path.join(
-                conf_final_adanet_path, 'stats_conf_final.pkl')
-            if not os.path.isfile(conf_final_stats):
-                self.learn_sign0_conf(sign0, self.params['sign0_conf'],
-                                      suffix='sign0_%s_conf_final' % s0_code,
-                                      evaluate=False)
+        self.learn_sign0(sign0,
+                         suffix='final',
+                         evaluate=False,
+                         include_confidence=include_confidence)
 
-    def get_predict_fn(self, model='adanet_sign0_A1.001_final'):
+    def get_predict_fn(self, smiles=True, model='smiles_final'):
         try:
-            from chemicalchecker.tool.adanet import AdaNet
+            from chemicalchecker.tool.smilespred import Smilespred
+            from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError as err:
             raise err
-        modelpath = os.path.join(self.model_path, model, 'savedmodel')
-        return AdaNet.predict_fn(modelpath)
+        model_path = os.path.join(self.model_path, model)
+        if smiles:
+            model = Smilespred(model_path)
+        else:
+            model = SiameseTriplets(model_path, predict_only=True)
+        return model.predict
 
     def predict_from_smiles(self, smiles, dest_file, chunk_size=1000,
                             predict_fn=None, accurate_novelty=False,
@@ -713,24 +1753,6 @@ class sign3(BaseSignature, DataSignature):
         # we return a simple DataSignature object (basic HDF5 access)
         pred_s3 = DataSignature(dest_file)
         # load novelty model for more accurate novelty scores (slower)
-        if accurate_novelty:
-            novelty_path = os.path.join(self.model_path, 'novelty', 'lof.pkl')
-            try:
-                novelty_model = pickle.load(open(novelty_path, 'rb'))
-            except Exception:
-                import dill
-                dill._dill._reverse_typemap["ObjectType"] = object
-                novelty_model = pickle.load(open(novelty_path, 'rb'),
-                                            encoding="bytes")
-
-            nov_qtr_path = os.path.join(self.model_path, 'novelty', 'qtr.pkl')
-            try:
-                nov_qtr = pickle.load(open(nov_qtr_path, 'rb'))
-            except Exception:
-                import dill
-                dill._dill._reverse_typemap["ObjectType"] = object
-                nov_qtr = pickle.load(open(nov_qtr_path, 'rb'),
-                                      encoding="bytes")
         with h5py.File(dest_file, "w") as results:
             # initialize V (with NaN in case of failing rdkit) and smiles keys
             results.create_dataset('smiles', data=np.array(
@@ -741,18 +1763,8 @@ class sign3(BaseSignature, DataSignature):
             else:
                 results.create_dataset('keys', data=np.array(
                     smiles, DataSignature.string_dtype()))
-            results.create_dataset('V', (len(smiles), components), dtype=np.float32)
-            if include_confidence:
-                results.create_dataset(
-                    'stddev_norm', (len(smiles), ), dtype=np.float32)
-                results.create_dataset(
-                    'intensity_norm', (len(smiles), ), dtype=np.float32)
-                results.create_dataset(
-                    'exp_error_norm', (len(smiles), ), dtype=np.float32)
-                results.create_dataset(
-                    'novelty_norm', (len(smiles), ), dtype=np.float32)
-                results.create_dataset(
-                    'confidence', (len(smiles), ), dtype=np.float32)
+            results.create_dataset(
+                'V', (len(smiles), components), dtype=np.float32)
             results.create_dataset("shape", data=(len(smiles), components))
             # compute sign0 (i.e. Morgan fingerprint)
             nBits = 2048
@@ -782,33 +1794,31 @@ class sign3(BaseSignature, DataSignature):
                         sign0s.append(calc_s0)
                 # stack input signatures and generate predictions
                 sign0s = np.vstack(sign0s)
-                preds = predict_fn({'x': sign0s})['predictions']
+                preds = predict_fn(sign0s)
                 # add NaN when SMILES conversion failed
                 if failed:
-                    if include_confidence:
-                        preds[np.array(failed)] = np.full((components + 5, ),  np.nan)
-                    else:
-                        preds[np.array(failed)] = np.full((components, ),  np.nan)
+                    preds[np.array(failed)] = np.full(
+                        (components, ),  np.nan)
                 # save chunk to H5
                 results['V'][chunk] = preds[:, :components]
-                if include_confidence:
-                    results['stddev_norm'][chunk] = preds[:, components]
-                    results['intensity_norm'][chunk] = preds[:, components + 1]
-                    results['exp_error_norm'][chunk] = preds[:, components + 2]
-                    results['novelty_norm'][chunk] = preds[:, components + 3]
-                    results['confidence'][chunk] = preds[:, components + 4]
-                    if accurate_novelty:
-                        novelty = novelty_model.score_samples(preds[:, :components])
-                        abs_novelty = np.abs(np.expand_dims(novelty, 1))
-                        results['novelty_norm'][chunk] = nov_qtr.transform(
-                            abs_novelty).flatten()
         return pred_s3
 
-    def fit(self, sign2_list, sign2_self, sign2_universe=None,
+    def get_universe_inchikeys(self):
+        # get sorted universe inchikeys
+        if hasattr(self, 'universe_inchikeys'):
+            return self.universe_inchikeys
+        inchikeys = set()
+        for ds, sign in zip(self.src_datasets, self.sign2_list):
+            inchikeys.update(sign.unique_keys)
+        inchikeys = sorted(list(inchikeys))
+        return inchikeys
+
+    def fit(self, sign2_list, sign2_self, sign1_self, sign2_universe=None,
+            partial_universe=None,
             sign2_coverage=None, sign0=None,
-            model_confidence=True, save_correlations=True,
-            predict_novelty=True, update_preds=True, normalize_scores=True,
-            validations=True, chunk_size=1000):
+            model_confidence=True, save_correlations=False,
+            predict_novelty=True, update_preds=True,
+            validations=True, chunk_size=1000, suffix=None):
         """Fit the model to predict the signature 3.
 
         Args:
@@ -833,184 +1843,206 @@ class sign3(BaseSignature, DataSignature):
             chunk_size(int): Chunk size when writing to sign3.h5
         """
         try:
-            from chemicalchecker.tool.adanet import AdaNet
+            from chemicalchecker.tool.siamese import SiameseTriplets
+        except ImportError:
+            raise ImportError("requires tensorflow " +
+                              "https://tensorflow.org")
+        try:
+            import faiss
         except ImportError as err:
             raise err
-
-        # define dataset that will be used
+        # define datasets that will be used
         self.src_datasets = [sign.dataset for sign in sign2_list]
+        self.neig_sign = sign1_self
         self.sign2_self = sign2_self
         self.sign2_list = sign2_list
-        self.__log.debug('AdaNet fit %s based on %s', self.dataset,
+        self.sign2_coverage = sign2_coverage
+        self.dataset_idx = np.argwhere(
+            np.isin(self.src_datasets, self.dataset)).flatten()
+        if self.sign2_coverage is None:
+            self.sign2_coverage = os.path.join(self.model_path,
+                                               'all_sign2_coverage.h5')
+        if not os.path.isfile(self.sign2_coverage):
+            sign3.save_sign2_coverage(sign2_list, self.sign2_coverage)
+
+        self.__log.debug('Siamese fit %s based on %s', self.dataset,
                          str(self.src_datasets))
-        # check if performance evaluations need to be done
-        eval_adanet_path = os.path.join(self.model_path, 'adanet_eval')
-        eval_stats = os.path.join(eval_adanet_path, 'stats_eval.pkl')
-        if not os.path.isfile(eval_stats):
-            self.learn_sign2(self.params['adanet'],
-                             suffix='eval', evaluate=True)
-
-        # check if we have the final trained model
-        final_adanet_path = os.path.join(self.model_path, 'adanet_final')
-        if not os.path.isdir(final_adanet_path):
-            self.learn_sign2(self.params['adanet'],
-                             suffix='final', evaluate=False)
-
-        # part of confidence is the expected error
-        if model_confidence:
-            # generate prediction, measure error, fit regressor
-            eval_err_path = os.path.join(self.model_path, 'adanet_error_eval')
-            if not os.path.isdir(eval_err_path):
-                predict_fn = self.get_predict_fn('adanet_eval')
-                # step1 learn dataset availability to error predictor
-                self.learn_error(predict_fn, self.params['error'],
-                                 suffix='error_eval', evaluate=True)
-
-            # final error predictor
-            final_err_path = os.path.join(
-                self.model_path, 'adanet_error_final')
-            if not os.path.isdir(final_err_path):
-                predict_fn = self.get_predict_fn('adanet_final')
-                self.learn_error(predict_fn, self.params['error'],
-                                 suffix='error_final', evaluate=False)
-            self.__log.debug('Loading model for error prediction')
-            rf = pickle.load(
-                open(os.path.join(final_err_path, 'RandomForest.pkl'), 'rb'))
-
-        # get sorted universe inchikeys
-        inchikeys = set()
-        for ds, sign in zip(self.src_datasets, sign2_list):
-            inchikeys.update(sign.unique_keys)
-        inchikeys = sorted(list(inchikeys))
-        tot_inks = len(inchikeys)
-        self.tot_inks = tot_inks
-        tot_ds = len(self.src_datasets)
 
         # build input matrix if not provided (should be since is shared)
-        if sign2_universe is None:
-            sign2_universe = os.path.join(self.model_path, 'all_sign2.h5')
-        if not os.path.isfile(sign2_universe):
-            sign3.save_sign2_universe(sign2_list, sign2_universe)
-        if sign2_coverage is None:
-            sign2_coverage = os.path.join(self.model_path,
-                                          'all_sign2_coverage.h5')
-        if not os.path.isfile(sign2_coverage):
-            sign3.save_sign2_coverage(sign2_list, sign2_coverage)
+        self.sign2_universe = sign2_universe
+        if self.sign2_universe is None:
+            self.sign2_universe = os.path.join(self.model_path, 'all_sign2.h5')
+        if partial_universe is not None:
+            sign3.complete_sign2_universe(
+                sign2_list, sign2_self,
+                partial_universe, self.sign2_universe)
+        if not os.path.isfile(self.sign2_universe):
+            sign3.save_sign2_universe(sign2_list, self.sign2_universe)
+
+        # check if performance evaluations need to be done
+        siamese = None
+        prior_mdl = None
+        prior_sign_mdl = None
+        conf_mdl = None
+
+        if suffix is None:
+            eval_model_path = os.path.join(self.model_path, 'siamese_eval')
+            eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
+            if not os.path.isfile(eval_file):
+                siamese, prior_mdl, prior_sign_mdl, conf_mdl = self.learn_sign2(
+                    self.params['sign2'].copy(), suffix='eval', evaluate=True)
+        else:
+            eval_model_path = os.path.join(self.model_path,
+                                           'siamese_%s' % suffix)
+            eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
+            if not os.path.isfile(eval_file):
+                siamese, prior_mdl, prior_sign_mdl, conf_mdl = self.learn_sign2(
+                    self.params['sign2'].copy(), suffix=suffix, evaluate=True)
+            return False
+
+        # check if we have the final trained model
+        final_model_path = os.path.join(self.model_path, 'siamese_final')
+        final_file = os.path.join(final_model_path, 'siamesetriplets.h5')
+        if not os.path.isfile(final_file):
+            siamese = self.learn_sign2(
+                self.params['sign2'].copy(), suffix='final', evaluate=False)
+
+        # load models if not already available
+        if siamese is None:
+            siamese = SiameseTriplets(final_model_path, predict_only=True)
+
+        if model_confidence:
+            # part of confidence is the priors
+            if prior_mdl is None:
+                prior_path = os.path.join(self.model_path, 'prior_eval')
+                prior_file = os.path.join(prior_path, 'prior.pkl')
+                prior_mdl = pickle.load(open(prior_file, 'rb'))
+
+            # part of confidence is the priors based on signatures
+            if prior_sign_mdl is None:
+                prior_sign_path = os.path.join(
+                    self.model_path, 'prior_sign_eval')
+                prior_sign_file = os.path.join(prior_sign_path, 'prior.pkl')
+                prior_sign_mdl = pickle.load(open(prior_sign_file, 'rb'))
+
+            # another part of confidence is the applicability
+            confidence_path = os.path.join(self.model_path, 'confidence_eval')
+            neig_file = os.path.join(confidence_path, 'neig.index')
+            app_neig = faiss.read_index(neig_file)
+            known_dist = os.path.join(confidence_path, 'known_dist.h5')
+            app_range = DataSignature(known_dist).get_h5_dataset(
+                'applicability_range')
+            _, trim_mask = self.realistic_subsampling_fn()
+
+            # and finally the linear combination of scores
+            if conf_mdl is None:
+                confidence_file = os.path.join(
+                    confidence_path, 'confidence.pkl')
+                calibration_file = os.path.join(
+                    confidence_path, 'calibration.pkl')
+                conf_mdl = (pickle.load(open(confidence_file, 'rb')),
+                            pickle.load(open(calibration_file, 'rb')))
+
+        # get sorted universe inchikeys
+        self.universe_inchikeys = self.get_universe_inchikeys()
+        tot_inks = len(self.universe_inchikeys)
 
         # save universe sign3
         if update_preds:
-            predict_fn = self.get_predict_fn('adanet_final')
             with h5py.File(self.data_path, "a") as results:
                 # initialize V and keys datasets
                 safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
                 safe_create(results, 'keys',
-                            data=np.array(inchikeys,
+                            data=np.array(self.universe_inchikeys,
                                           DataSignature.string_dtype()))
+                # dataset used to generate the signature
                 safe_create(results, 'datasets',
                             data=np.array(self.src_datasets,
                                           DataSignature.string_dtype()))
+                known_mask = np.isin(list(self.universe_inchikeys),
+                                     list(self.sign2_self.keys),
+                                     assume_unique=True)
+                # save the mask for know/inknown
+                safe_create(results, 'known', data=known_mask)
                 safe_create(results, 'shape', data=(tot_inks, 128))
+                # the actual confidence value will be stored here
+                safe_create(results, 'confidence', (tot_inks,),
+                            dtype=np.float32)
                 if model_confidence:
-                    # the actual confidence value will be stored here
-                    safe_create(results, 'confidence',
+                    # this is to store robustness
+                    safe_create(results, 'robustness',
                                 (tot_inks,), dtype=np.float32)
-                    safe_create(results, 'confidence_raw',
+                    # this is to store applicability
+                    safe_create(results, 'applicability',
                                 (tot_inks,), dtype=np.float32)
-                    # this is to store standard deviation
-                    safe_create(results, 'stddev',
+                    # this is to store priors
+                    safe_create(results, 'prior',
                                 (tot_inks,), dtype=np.float32)
-                    safe_create(results, 'stddev_norm',
+                    # this is to store priors based on signature
+                    safe_create(results, 'prior_signature',
                                 (tot_inks,), dtype=np.float32)
-                    # this is to store intensity
-                    safe_create(results, 'intensity',
-                                (tot_inks,), dtype=np.float32)
-                    safe_create(results, 'intensity_norm',
-                                (tot_inks,), dtype=np.float32)
-                    # this is to store error prediction
-                    safe_create(results, 'exp_error',
-                                (tot_inks,), dtype=np.float32)
-                    safe_create(results, 'exp_error_norm',
-                                (tot_inks,), dtype=np.float32)
-                    # this is to store the consensus prediction
-                    safe_create(results, 'consensus',
-                                (tot_inks, 128), dtype=np.float32)
                 if predict_novelty:
                     safe_create(results, 'novelty',
                                 (tot_inks, ), dtype=np.float32)
-                    safe_create(results, 'novelty_norm',
-                                (tot_inks, ), dtype=np.float32)
                     safe_create(results, 'outlier',
                                 (tot_inks, ), dtype=np.float32)
-                if save_correlations:
-                    # read the correlations obtained evaluating on single
-                    # spaces
-                    df = pd.read_pickle(eval_stats)
-                    test_eval = df[(df.split != 'train') & (
-                        df.algo == 'AdaNet_eval')]
-                    train_eval = df[(df.split == 'train') & (
-                        df.algo == 'AdaNet_eval')]
-                    avg_pearsons = np.zeros(tot_ds, dtype=np.float32)
-                    avg_pearsons_test = np.zeros(tot_ds, dtype=np.float32)
-                    avg_pearsons_train = np.zeros(tot_ds, dtype=np.float32)
-                    for idx, ds in enumerate(self.src_datasets):
-                        ds_df = test_eval[test_eval['from'] == ds]
-                        ds_pearson = np.mean(ds_df['pearson'])
-                        if np.isnan(ds_pearson):
-                            ds_pearson = 0.0
-                        avg_pearsons_test[idx] = ds_pearson
-                        ds_df = train_eval[train_eval['from'] == ds]
-                        ds_pearson = np.mean(ds_df['pearson'])
-                        if np.isnan(ds_pearson):
-                            ds_pearson = 0.0
-                        avg_pearsons_train[idx] = ds_pearson
-                    avg_pearsons = avg_pearsons_test
-                    # this is to lookup correlations
-                    safe_create(results, 'datasets_correlation',
-                                data=avg_pearsons)
 
                 # predict signature 3 for universe molecules
                 with h5py.File(sign2_universe, "r") as features:
                     # reference prediction (based on no information)
                     nan_feat = np.full((1, features['x_test'].shape[1]),
                                        np.nan, dtype=np.float32)
-                    nan_pred = predict_fn({'x': nan_feat})['predictions']
+                    nan_pred = siamese.predict(nan_feat)
                     # read input in chunks
-                    for idx in tqdm(range(0, tot_inks, chunk_size)):
+                    for idx in tqdm(range(0, tot_inks, chunk_size),
+                                    desc='Predicting'):
                         chunk = slice(idx, idx + chunk_size)
                         feat = features['x_test'][chunk]
                         # predict with final model
+                        preds = siamese.predict(feat)
+                        results['V'][chunk] = preds
+                        # skip modelling confidence if not required
                         if not model_confidence:
-                            results['V'][chunk] = AdaNet.predict(
-                                feat, predict_fn)
                             continue
                         # save confidence natural scores
-                        # compute estimated error from coverage
-                        coverage = ~np.isnan(feat[:, 0::128])
-                        results['exp_error'][chunk] = rf.predict(coverage)
-                        # draw prediction with sub-sampling (dropout)
-                        pred, samples = AdaNet.predict(feat, predict_fn,
-                                                       subsample_x_only,
-                                                       consensus=True,
-                                                       samples=10)
-                        results['V'][chunk] = pred
-                        # summarize the predictions as consensus
-                        consensus = np.mean(samples, axis=1)
-                        results['consensus'][chunk] = consensus
-                        # zeros input (no info) as intensity reference
-                        centered = consensus - nan_pred
-                        # measure the intensity (mean of absolute comps)
-                        intensities = np.abs(centered)
-                        results['intensity'][chunk] = np.mean(
-                            intensities, axis=1).flatten()
-                        # summarize the standard deviation of components
-                        stddevs = np.std(samples, axis=1)
-                        # just save the average stddev over the components
-                        results['stddev'][chunk] = np.mean(
-                            stddevs, axis=1).flatten()
-
-        # normalize consensus scores sampling distribution of known signatures
-        if normalize_scores:
-            self.normalize_scores(sign2_coverage)
+                        # compute prior from coverage
+                        cov = ~np.isnan(feat[:, 0::128])
+                        prior = prior_mdl.predict(cov[:, trim_mask])
+                        results['prior'][chunk] = prior
+                        # and from prediction
+                        prior_sign = prior_sign_mdl.predict(preds)
+                        results['prior_signature'][chunk] = prior_sign
+                        # conformal prediction
+                        ints, robs, _ = self.conformal_prediction(
+                            siamese, feat, nan_pred=nan_pred)
+                        results['robustness'][chunk] = robs
+                        # distance from known predictions
+                        app, centrality, cons = self.applicability_domain(
+                            app_neig, feat, siamese, app_range=app_range,
+                            n_samples=1)
+                        results['applicability'][chunk] = app
+                        # and estimate confidence
+                        conf_feats = np.vstack([app, robs, prior]).T
+                        conf_estimate = conf_mdl[0].predict(conf_feats)
+                        conf_calib = conf_mdl[1].predict(
+                            np.expand_dims(conf_estimate, 1))
+                        results['confidence'][chunk] = conf_calib
+                    # conpute confidence where self is known
+                    known_idxs = np.argwhere(known_mask).flatten()
+                    # iterate on chunks of knowns
+                    for idx in tqdm(range(0, len(known_idxs), 10000),
+                                    desc='Computing Confidence'):
+                        chunk = slice(idx, idx + 10000)
+                        feat = features['x_test'][known_idxs[chunk]]
+                        # predict with all features
+                        preds_all = siamese.predict(feat)
+                        # predict with only-self features
+                        feat_onlyself = mask_keep(self.dataset_idx, feat)
+                        preds_onlyself = siamese.predict(feat_onlyself)
+                        # confidence is correlation ALL vs. ONLY-SELF
+                        corrs = row_wise_correlation(
+                            preds_onlyself, preds_all, scaled=True)
+                        results['confidence'][known_idxs[chunk]] = corrs
 
         # use semi-supervised anomaly detection algorithm to predict novelty
         if predict_novelty:
@@ -1025,176 +2057,7 @@ class sign3(BaseSignature, DataSignature):
             self.fit_sign0(sign0)
         self.mark_ready()
 
-    def normalize_scores(self, sign2_coverage, chunk_size=10000):
-        """Normalize confidence scores."""
-        try:
-            from chemicalchecker.tool.adanet import AdaNet
-        except ImportError as err:
-            raise err
-
-        # get distribution for normalization
-        distributions = self.confidence_distributions(self.sign2_self)
-        std_dist, int_dist, err_dist, correlation = distributions
-        weights = [abs(correlation['intensity']),
-                   abs(correlation['stddev']),
-                   abs(correlation['exp_error'])]
-        # fit quantile transformers for normalization
-        self.__log.info('Quatile transformation...')
-        std_qtr = QuantileTransformer(n_quantiles=len(std_dist)).fit(std_dist)
-        int_qtr = QuantileTransformer(n_quantiles=len(int_dist)).fit(int_dist)
-        err_qtr = QuantileTransformer(n_quantiles=len(err_dist)).fit(err_dist)
-        # add confidence scores and the normalized values
-        with h5py.File(self.data_path, "r+") as results:
-            safe_create(results, 'confidence_raw',
-                        (self.tot_inks,), dtype=np.float32)
-            for idx in tqdm(range(0, self.tot_inks, chunk_size)):
-                chunk = slice(idx, idx + chunk_size)
-                # get intensity and normalize wrt train distribution
-                intensity = np.expand_dims(results['intensity'][chunk], axis=1)
-                inten_norm = int_qtr.transform(intensity)
-                results['intensity_norm'][chunk] = inten_norm.flatten()
-                # get stddev and normalize wrt train distribution
-                stddev = np.expand_dims(results['stddev'][chunk], axis=1)
-                stddev_norm = std_qtr.transform(stddev)
-                results['stddev_norm'][chunk] = stddev_norm.flatten()
-                # get predicted error and normalize wrt train distribution
-                error = np.expand_dims(results['exp_error'][chunk], axis=1)
-                error_norm = err_qtr.transform(error)
-                results['exp_error_norm'][chunk] = error_norm.flatten()
-                # stddev, intensity and estimated error contribute
-                # to the raw confidence score based on error correlation
-                confidence_raw = np.average(
-                    [inten_norm, (1 - stddev_norm), (1 - error_norm)],
-                    weights=weights, axis=0)
-                # range [0,1] the higher the confidence the lower the error
-                results['confidence_raw'][chunk] = np.clip(
-                    confidence_raw, 0.0, 1.0).flatten()
-        self.__log.info('Confidence performance scaling...')
-        # final scaling according to performance on unseen data
-        ds_corr = self.get_h5_dataset('datasets_correlation')
-        # load adanet_eval and its test data
-        traintest_file = os.path.join(self.model_path, 'traintest.h5')
-        predict_fn = self.get_predict_fn('adanet_eval')
-        # get various 'difficulty' level correlations
-        dist_pars = list()
-        for corr_thr in [.7, .9, 1.0]:
-            # mask highly correlated spaces
-            corr_mask = ds_corr > corr_thr
-            corr_spaces = np.array(self.src_datasets)[corr_mask].tolist()
-            self.__log.debug('Masking %s' % str(corr_spaces))
-            corr_idxs = np.argwhere(corr_mask).flatten().tolist()
-            mask_fn = partial(mask_exclude, corr_idxs)
-            # predict and compute component correlations (using unseen data)
-            y_pred_test, y_true_test = AdaNet.predict_online(
-                traintest_file, 'test', predict_fn, mask_fn)
-            y_pred_val, y_true_val = AdaNet.predict_online(
-                traintest_file, 'validation', predict_fn, mask_fn)
-            y_pred = np.vstack([y_pred_test, y_pred_val])
-            y_true = np.vstack([y_true_test, y_true_val])
-            correlations = col_wise_correlation(y_pred, y_true)
-            dist_pars.append(
-                (corr_mask, np.mean(correlations), np.std(correlations)))
-            self.__log.debug('Distribution N(%.2f,%.2f)' % (dist_pars[-1][1:]))
-        # get mol indexes where to apply the different transformations
-        full_coverage = DataSignature(sign2_coverage).get_h5_dataset(
-            'x_test').astype(bool)
-        confidence_raw = self.get_h5_dataset('confidence_raw')
-        done = np.full(full_coverage.shape[0], False)
-        confidence = list()
-        for mask, mu, std in dist_pars:
-            # get molecules without any of the spaces in the mask
-            molmask = np.argwhere(
-                ~np.any(full_coverage & mask, axis=1)).flatten()
-            # exclude aready done molecules
-            molmask = molmask[~done[molmask]]
-            self.__log.debug('Scaling %s mols. to N(%.2f,%.2f)' %
-                             (molmask.shape[0], mu, std))
-            # get confidences
-            dist = confidence_raw[molmask]
-            # gaussianize the confidences
-            scaled = norm.ppf((rankdata(dist) - 0.5) / len(dist), mu, std)
-            # append to list for later sorting
-            confidence.extend(zip(molmask, scaled))
-            # these molecules are done, do include them in following
-            done[molmask] = True
-        confidence = np.array(sorted(confidence))
-        with h5py.File(self.data_path, "r+") as results:
-            if 'confidence' in results:
-                del results['confidence']
-            results['confidence'] = np.clip(
-                confidence[:, 1], 0.0, 1.0).flatten()
-
-    def confidence_distributions(self, sign2_self, max_sample=100000):
-        """Get distributions for confidence scores normalization.
-
-        Args:
-            sign2_self(sign2): The signature that we are training for.
-            max_sample(int): The maximum number of molecule to sample.
-        Returns:
-            stddev(np.array): Distribution of standard deviations.
-            intensity(np.array): Distribution of intensity.
-            exp_error(np.array): Distribution of predicted errors.
-            correlation(dict): Error correlation coefficients.
-        """
-        self.__log.debug('Generating confidence scores distributions')
-        # get current space inchikeys (limit to 20^4)
-        dataset_inks = sign2_self.keys
-        if len(dataset_inks) > max_sample:
-            dataset_inks = np.random.choice(dataset_inks, max_sample,
-                                            replace=False)
-        # get the features to train the estimator on
-        _, stddev = self.get_vectors(dataset_inks, dataset_name='stddev')
-        _, intensity = self.get_vectors(dataset_inks, dataset_name='intensity')
-        _, exp_error = self.get_vectors(
-            dataset_inks, dataset_name='exp_error')
-        # also get the predicted and actual sign2
-        _, consensus = self.get_vectors(dataset_inks, dataset_name='consensus')
-        _, predicted = self.get_vectors(dataset_inks)
-        _, actual = sign2_self.get_vectors(dataset_inks)
-        # calculate the error (what we want to predict)
-        log_mse = np.log10(np.mean(((actual - predicted)**2), axis=1))
-        log_mse_consensus = np.log10(
-            np.average(((actual - consensus)**2), axis=1))
-        # calculate correlations for scaling
-        correlation = dict()
-        corr_stddev_cons = pearsonr(stddev.flatten(), log_mse_consensus)[0]
-        self.__log.debug('stddev score correlation to consensus error:' +
-                         ' %.2f' % corr_stddev_cons)
-        corr_stddev = pearsonr(stddev.flatten(), log_mse)[0]
-        self.__log.debug('stddev score correlation to error:' +
-                         ' %.2f' % corr_stddev)
-        correlation['stddev'] = corr_stddev_cons
-        corr_intensity_cons = pearsonr(
-            intensity.flatten(), log_mse_consensus)[0]
-        self.__log.debug('intensity score correlation to consensus error:' +
-                         ' %.2f' % corr_intensity_cons)
-        corr_intensity = pearsonr(intensity.flatten(), log_mse)[0]
-        self.__log.debug('intensity score correlation to error:' +
-                         ' %.2f' % corr_intensity)
-        correlation['intensity'] = corr_intensity_cons
-        corr_exp_error_cons = pearsonr(
-            exp_error.flatten(), log_mse_consensus)[0]
-        self.__log.debug('exp_error score correlation to consensus error:' +
-                         ' %.2f' % corr_exp_error_cons)
-        corr_exp_error = pearsonr(exp_error.flatten(), log_mse)[0]
-        self.__log.debug('exp_error score correlation to error:' +
-                         ' %.2f' % corr_exp_error)
-        correlation['exp_error'] = corr_exp_error
-        # save data in the confidence model
-        error_file = os.path.join(self.model_path, 'error.h5')
-        with h5py.File(error_file, "w") as hf:
-            hf.create_dataset('keys',
-                              data=np.array(dataset_inks,
-                                            DataSignature.string_dtype()))
-            hf.create_dataset('stddev', data=stddev, dtype=np.float32)
-            hf.create_dataset('intensity', data=intensity, dtype=np.float32)
-            hf.create_dataset('exp_error', data=exp_error, dtype=np.float32)
-            hf.create_dataset('log_mse', data=log_mse, dtype=np.float32)
-            hf.create_dataset('log_mse_consensus',
-                              data=log_mse_consensus, dtype=np.float32)
-        return stddev, intensity, exp_error, correlation
-
-    def predict_novelty(self, retrain=False, update_sign3=True):
+    def predict_novelty(self, retrain=False, update_sign3=True, cpu=4):
         """Model novelty score via LocalOutlierFactor (semi-supervised).
 
         Args:
@@ -1213,8 +2076,8 @@ class sign3(BaseSignature, DataSignature):
             # fit on molecules available in sign2
             _, predicted = self.get_vectors(s2_inks, dataset_name='V')
             t0 = time()
-            model = LocalOutlierFactor(novelty=True, metric='cosine',
-                                       n_jobs=self.params['error']['cpu'])
+            model = LocalOutlierFactor(
+                novelty=True, metric='euclidean', n_jobs=cpu)
             model.fit(predicted)
             delta = time() - t0
             self.__log.debug('Training took: %s' % delta)
@@ -1239,288 +2102,45 @@ class sign3(BaseSignature, DataSignature):
             s3_outlier = model.predict(s3_pred_sign)
             assert(len(s3_inks) == s3_novelty.shape[0])
             ordered_scores = np.array(sorted(
-                zip(s2_idxs.flatten(), s2_novelty, s2_outlier) +
-                zip(s3_idxs.flatten(), s3_novelty, s3_outlier)))
+                list(zip(s2_idxs.flatten(), s2_novelty, s2_outlier)) +
+                list(zip(s3_idxs.flatten(), s3_novelty, s3_outlier))))
             ordered_novelty = ordered_scores[:, 1]
             ordered_outlier = ordered_scores[:, 2]
-            # novelty goes from 0 to -inf, we take the absolute to have
-            # most novel molecules with score 1.
-            abs_novelty = np.abs(np.expand_dims(ordered_novelty, 1))
-            nov_qtr = QuantileTransformer(
-                n_quantiles=100000).fit(abs_novelty[:100000])
-            nov_qtr_path = os.path.join(novelty_path, 'qtr.pkl')
-            pickle.dump(nov_qtr, open(nov_qtr_path, 'wb'))
             with h5py.File(self.data_path, "r+") as results:
                 if 'novelty' in results:
                     del results['novelty']
                 results['novelty'] = ordered_novelty
-                if 'novelty_norm' in results:
-                    del results['novelty_norm']
-                results['novelty_norm'] = nov_qtr.transform(
-                    abs_novelty).flatten()
                 if 'outlier' in results:
                     del results['outlier']
                 results['outlier'] = ordered_outlier
 
-    def predict(self):
-        # TODO decide default prediction mode.
-        pass
-
-    def train_other(self, predictors, save_path, traintest_file,
-                    train_only=False):
-        """Train other predictors for comparison."""
-
-        def train_predict_save(name, model, x_true, y_true, split, save_path):
-            result = dict()
-            result['time'] = 0.
-            # train and save
-            if split is None or split == 'train':
-                self.__log.info('Training model: %s' % name[0])
-                t0 = time()
-                model.fit(x_true, y_true)
-                model_path = os.path.join(save_path, '%s.pkl' % name[0])
-                pickle.dump(model, open(model_path, 'wb'))
-                result['time'] = time() - t0
-                self.__log.info('Training took: %s' % result['time'])
-            # call predict
-            self.__log.info("Predicting for: %s", name[0])
-            y_pred = model.predict(x_true)
-            y_pred = np.expand_dims(y_pred, 1)
-            y_true = np.expand_dims(y_true, 1)
-            self.__log.info("%s Y: %s", name[0], y_pred.shape)
-            if y_pred.shape[0] < 4:
-                return
-            file_true = os.path.join(
-                save_path, "_".join([name[0]] + [str(split), 'true']))
-            np.save(file_true, y_true)
-            file_pred = os.path.join(
-                save_path, "_".join([name[0]] + [str(split), 'pred']))
-            np.save(file_pred, y_pred)
-            result['true'] = file_true
-            result['pred'] = file_pred
-            result['coverage'] = 1.0
-            return result
-
-        # get results for each split
-        results = dict()
-        if train_only:
-            splits = [None]
-        else:
-            splits = ['train', 'test', 'validation']
-        for split in splits:
-            traintest = Traintest(traintest_file, split)
-            x_shape, y_shape = traintest.get_xy_shapes()
-            self.__log.info("%s X: %s Y: %s", split, x_shape, y_shape)
-            self.__log.info("%s Y: %s", split, y_shape)
-            traintest.open()
-            x_data = traintest.get_all_x()
-            y_data = traintest.get_all_y().flatten()
-            traintest.close()
-            for name, model in predictors.items():
-                if name not in results:
-                    results[name] = dict()
-                # predict and save
-                results[name][str(split)] = train_predict_save(
-                    name, model, x_data, y_data, split, save_path)
-        return results
-
-    def adanet_single_spaces(self, adanet_path, traintest_file, suffix):
-        """Prediction of adanet using single space signatures.
-
-        We want to compare the performances of trained adanet to those of
-        predictors based on single space. This is done filling the matrix
-        with NaNs spaces not being evaluated. Also particular combinations
-        can be assesses (e.g. excluding all spaces from level A).
-
-        Args:
-            adanet_path(str): Path to the AdaNet SavedModel.
-            traintest_file(str): Path to the traintest file.
-            suffix(str): Suffix string for the predictor name.
-        """
+    def predict(self, src_file, dst_file, src_h5_ds='x_test',
+                dst_h5_ds='V', model_path=None, chunk_size=1000):
         try:
-            from chemicalchecker.tool.adanet import AdaNet
-        except ImportError as err:
-            raise err
+            from chemicalchecker.tool.siamese import SiameseTriplets
+        except ImportError:
+            raise ImportError("requires tensorflow " +
+                              "https://tensorflow.org")
 
-        def predict_and_save(name, idxs, save_dir, traintest_file, split,
-                             predict_fn, mask_fn, adanet_path, total_size):
-            # call predict
-            self.__log.info("Predicting for: %s", name)
-            y_pred, y_true = AdaNet.predict_online(
-                traintest_file, split,
-                predict_fn=predict_fn,
-                mask_fn=partial(mask_fn, idxs),
-                limit=1000)
-            self.__log.info("%s Y: %s", name, y_pred.shape)
-            if y_pred.shape[0] < 4:
-                return
-            file_true = os.path.join(
-                adanet_path, "_".join(list(name) + [split, 'true']))
-            np.save(file_true, y_true)
-            y_true_shape = y_true.shape[0]
-            del y_true
-            file_pred = os.path.join(
-                adanet_path, "_".join(list(name) + [split, 'pred']))
-            np.save(file_pred, y_pred)
-            del y_pred
-            result = dict()
-            result['true'] = file_true
-            result['pred'] = file_pred
-            result['coverage'] = y_true_shape / total_size
-            result['time'] = 0.
-            return result
-
-        # get predict function (loads the neural network)
-        self.__log.info("Loading AdaNet model")
-        save_dir = os.path.join(adanet_path, 'savedmodel')
-        predict_fn = AdaNet.predict_fn(save_dir)
-        # get results for each split
-        results = dict()
-        all_dss = list(self.src_datasets)
-        for split in ['train', 'test', 'validation']:
-            traintest = Traintest(traintest_file, split)
-            x_shape, y_shape = traintest.get_xy_shapes()
-            total_size = float(y_shape[0])
-            self.__log.info("%s X: %s Y: %s", split, x_shape, y_shape)
-            self.__log.info("%s Y: %s", split, y_shape)
-
-            # make prediction keeping only a single space
-            for idx, ds in enumerate(all_dss):
-                # algo name, prepare results
-                name = ("AdaNet", ds)
-                if suffix:
-                    name = ("AdaNet_%s" % suffix, ds)
-                if name not in results:
-                    results[name] = dict()
-                # predict and save
-                results[name][split] = predict_and_save(name, [idx], save_dir,
-                                                        traintest_file, split,
-                                                        predict_fn, mask_keep,
-                                                        adanet_path,
-                                                        total_size)
-            # make prediction excluding space to predict
-            ds = self.dataset
-            idx = all_dss.index(ds)
-            # algo name, prepare results
-            name = ("AdaNet", "not-%s" % ds)
-            if suffix:
-                name = ("AdaNet_%s" % suffix, "not-%s" % ds)
-            if name not in results:
-                results[name] = dict()
-            # predict and save
-            results[name][split] = predict_and_save(name, [idx], save_dir,
-                                                    traintest_file, split,
-                                                    predict_fn, mask_exclude,
-                                                    adanet_path, total_size)
-            # exclude level to predict
-            dss = [d for d in all_dss if d.startswith(self.dataset[0])]
-            idxs = [all_dss.index(d) for d in dss]
-            # algo name, prepare results
-            name = ("AdaNet", "not-%sX" % self.dataset[0])
-            if suffix:
-                name = ("AdaNet_%s" % suffix, "not-%sX" % self.dataset[0])
-            if name not in results:
-                results[name] = dict()
-            # predict and save
-            results[name][split] = predict_and_save(name, idxs, save_dir,
-                                                    traintest_file, split,
-                                                    predict_fn, mask_exclude,
-                                                    adanet_path, total_size)
-            # check special combinations
-            dss = [d for d in all_dss if d.startswith('B')] + \
-                [d for d in all_dss if d.startswith('C')]
-            idxs = [all_dss.index(d) for d in dss]
-            # algo name, prepare results
-            name = ("AdaNet", "not-BX|CX")
-            if suffix:
-                name = ("AdaNet_%s" % suffix, "not-BX|CX")
-            if name not in results:
-                results[name] = dict()
-            # predict and save
-            results[name][split] = predict_and_save(name, idxs, save_dir,
-                                                    traintest_file, split,
-                                                    predict_fn, mask_exclude,
-                                                    adanet_path, total_size)
-        return results
-
-    def grid_search_adanet(self, job_path, parameters, **kwargs):
-        """Perform a grid search.
-
-        parameters = {
-            'boosting_iterations': [10, 25, 50],
-            'adanet_lambda': [1e-3, 5 * 1e-3, 1e-2],
-            'layer_size': [8, 128, 512, 1024]
-        }
-        """
-        from chemicalchecker.util.hpc import HPC
-        from sklearn.model_selection import ParameterGrid
-        from chemicalchecker.util import Config
-
-        # read config file
-        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
-        cfg = Config(cc_config)
-
-        # root grid search directory
-        grid_search_path = kwargs.get("grid_search_path", 'adanet_grid_search')
-        grid_search_root = os.path.join(self.model_path, grid_search_path)
-        if not os.path.isdir(grid_search_root):
-            os.makedirs(grid_search_root)
-
-        # cpus
-        cpu = kwargs.get("cpu", 1)
-
-        # create job directory if not available
-        if not os.path.isdir(job_path):
-            os.mkdir(job_path)
-
-        # elements to parallelize on are parameters combinations
-        elements = list()
-        for params in ParameterGrid(parameters):
-            model_dir = '-'.join("%s_%s" % kv for kv in params.items())
-            params.update(
-                {'model_dir': os.path.join(grid_search_root, model_dir)})
-            elements.append((self, params))
-
-        # create script file
-        cc_package_path = os.path.join(cfg.PATH.CC_REPO, 'package')
-        script_lines = [
-            "import sys, os",
-            "import pickle",
-            "sys.path.append('%s')" % cc_package_path,
-            "from chemicalchecker.core import ChemicalChecker",
-            "cc = ChemicalChecker()",
-            "task_id = sys.argv[1]",  # <TASK_ID>
-            "filename = sys.argv[2]",  # <FILE>
-            "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
-            "data = inputs[task_id]",  # elements for current job
-            "for s3, params in data:",  # elements are indexes
-            "    params['cpu'] = %s" % cpu,
-            "    s3.learn_sign2(params)",
-            "print('JOB DONE')"
-        ]
-        script_name = os.path.join(job_path, 'sign3_grid_search_adanet.py')
-        with open(script_name, 'w') as fh:
-            for line in script_lines:
-                fh.write(line + '\n')
-        # hpc parameters
-        params = {}
-        params["num_jobs"] = len(elements)
-        params["jobdir"] = job_path
-        params["job_name"] = "CC_SIGN3_GRID_SEARCH_ADANET"
-        params["elements"] = elements
-        params["wait"] = False
-        params["memory"] = 32
-        # job command
-        singularity_image = cfg.PATH.SINGULARITY_IMAGE
-        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
-            " singularity exec {} python {} <TASK_ID> <FILE>"
-        command = command.format(
-            os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
-            singularity_image, script_name)
-        # submit jobs
-        cluster = HPC.from_config(Config())
-        cluster.submitMultiJob(command, **params)
-        return cluster
+        if model_path is None:
+            model_path = os.path.join(self.model_path, 'siamese_debug')
+        self.__log.info('PREDICTING using model from: %s' % model_path)
+        self.__log.info('INPUT from: %s' % src_file)
+        self.__log.info('OUTPUT goes to: %s' % dst_file)
+        siamese = SiameseTriplets(model_path, predict_only=True)
+        with h5py.File(src_file, "r") as features:
+            with h5py.File(dst_file, "w") as preds:
+                # create destination h5 dataset
+                tot_inks = features[src_h5_ds].shape[0]
+                preds_shape = (tot_inks, 128)
+                preds.create_dataset(dst_h5_ds, preds_shape, dtype=np.float32)
+                if 'keys' in features:
+                    preds.create_dataset('keys', data=features['keys'])
+                # predict in chunks
+                for idx in tqdm(range(0, tot_inks, chunk_size), desc='PRED'):
+                    chunk = slice(idx, idx + chunk_size)
+                    feat = features[src_h5_ds][chunk]
+                    preds[dst_h5_ds][chunk] = siamese.predict(feat)
 
 
 def safe_create(h5file, *args, **kwargs):
@@ -1528,38 +2148,38 @@ def safe_create(h5file, *args, **kwargs):
         h5file.create_dataset(*args, **kwargs)
 
 
-def mask_keep(idxs, x_data, y_data):
+def mask_keep(idxs, x1_data):
     # we will fill an array of NaN with values we want to keep
-    x_data_transf = np.zeros_like(x_data, dtype=np.float32) * np.nan
+    x1_data_transf = np.zeros_like(x1_data, dtype=np.float32) * np.nan
     for idx in idxs:
         # copy column from original data
         col_slice = slice(idx * 128, (idx + 1) * 128)
-        x_data_transf[:, col_slice] = x_data[:, col_slice]
+        x1_data_transf[:, col_slice] = x1_data[:, col_slice]
     # keep rows containing at least one not-NaN value
-    not_nan = np.isfinite(x_data_transf).any(axis=1)
-    x_data_transf = x_data_transf[not_nan]
-    y_data_transf = y_data[not_nan]
-    return x_data_transf, y_data_transf
+    return x1_data_transf
 
 
-def mask_exclude(idxs, x_data, y_data):
-    x_data_transf = np.copy(x_data)
+def mask_exclude(idxs, x1_data):
+    x1_data_transf = np.copy(x1_data)
     for idx in idxs:
         # set current space to nan
         col_slice = slice(idx * 128, (idx + 1) * 128)
-        x_data_transf[:, col_slice] = np.nan
+        x1_data_transf[:, col_slice] = np.nan
     # drop rows that only contain NaNs
-    not_nan = np.isfinite(x_data_transf).any(axis=1)
-    x_data_transf = x_data_transf[not_nan]
-    y_data_transf = y_data[not_nan]
-    return x_data_transf, y_data_transf
+    return x1_data_transf
 
 
-def col_wise_correlation(X, Y):
+def col_wise_correlation(X, Y, scaled=False):
+    if scaled:
+        X = robust_scale(X)
+        Y = robust_scale(Y)
     return row_wise_correlation(X.T, Y.T)
 
 
-def row_wise_correlation(X, Y):
+def row_wise_correlation(X, Y, scaled=False):
+    if scaled:
+        X = robust_scale(X)
+        Y = robust_scale(Y)
     var1 = (X.T - np.mean(X, axis=1)).T
     var2 = (Y.T - np.mean(Y, axis=1)).T
     cov = np.mean(var1 * var2, axis=1)
@@ -1594,63 +2214,255 @@ def epoch_per_iteration_heuristic(samples, features, clip=(16, 1024)):
     return np.clip(pow2, *clip)
 
 
-def subsample_x_only(tensor, label=None, prob_original=0.05):
-    return subsample(tensor, label=None, prob_original=prob_original)[0]
+def subsampling_probs(sign2_coverage, dataset_idx, trim_threshold=0.1,
+                      min_unknown=10000):
+    """Extract probabilities for known and unknown of a given dataset."""
+    if type(sign2_coverage) == str:
+        cov = DataSignature(sign2_coverage).get_h5_dataset('V')
+    else:
+        cov = sign2_coverage
+    unknown = cov[(cov[:, dataset_idx] == 0).ravel()]
+    known = cov[(cov[:, dataset_idx] == 1).ravel()]
+    if unknown.shape[0] < min_unknown:
+        unknown = known[:min_unknown]
+    # decide which spaces are frequent enought in known (used for trainint)
+    trim_mask = (np.sum(known, axis=0) / known.shape[0]) > trim_threshold
+
+    def compute_probs(coverage, max_nr=25):
+        # how many dataset per molecule?
+        nrs, freq_nrs = np.unique(
+            np.sum(coverage, axis=1).astype(int), return_counts=True)
+        # frequency based probabilities
+        p_nrs = freq_nrs / coverage.shape[0]
+        # add minimum probability (corner cases where to use 1 or 2 datasets)
+        min_p_nr = np.full(max_nr + 1, min(p_nrs), dtype=np.float32)
+        for nr, p_nr in zip(nrs, p_nrs):
+            min_p_nr[nr] = p_nr
+        # but leave out too large nrs
+        min_p_nr[max(nrs) + 1:] = 0.0
+        min_p_nr[0] = 0.0
+        # normalize (sum of probabilities must be one)
+        min_p_nr = min_p_nr / np.sum(min_p_nr)
+        # print(np.log10(min_p_nr + 1e-10).astype(int))
+        # probabilities to keep a dataset?
+        p_keep = np.sum(coverage, axis=0) / coverage.shape[0]
+        return min_p_nr, p_keep
+
+    p_nr_known, p_keep_known = compute_probs(known[:, trim_mask])
+    unknown[:, dataset_idx] = 0
+    p_nr_unknown, p_keep_unknown = compute_probs(unknown[:, trim_mask])
+    return trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known
 
 
-def subsample(tensor, label, prob_original=0.05):
+def subsample(tensor, sign_width=128,
+              p_nr=(np.array([1 / 25.] * 25), np.array([1 / 25.] * 25)),
+              p_keep=(np.array([1 / 25.] * 25), np.array([1 / 25.] * 25)),
+              p_only_self=0.0,
+              p_self=0.1,
+              dataset_idx=[0],
+              **kwargs):
     """Function to subsample stacked data."""
     # it is safe to make a local copy of the input matrix
     new_data = np.copy(tensor)
     # we will have a masking matrix at the end
     mask = np.zeros_like(new_data).astype(bool)
+    # if new_data.shape[1] % sign_width != 0:
+    #    raise Exception('All signature should be of length %i.' % sign_width)
     for idx, row in enumerate(new_data):
-        # the following assume the stacked signature to have a fixed width
-        presence = ~np.isnan(row[0::128])
-        # low probability of keeping the original sample
-        if np.random.rand() < prob_original:
-            presence_add = presence
+        # the following assumes the stacked signature have a fixed width
+        presence = ~np.isnan(row[0::sign_width])
+        # case where we show only the space itself
+        if np.random.rand() < p_only_self:
+            presence_add = np.full_like(presence, False)
+            presence_add[dataset_idx] = True
+            mask[idx] = np.repeat(presence_add, sign_width)
+            continue
+        # decide to use probabilities from known or unknown
+        if np.random.rand() < p_self:
+            p_nr_curr = p_nr[0]
+            p_keep_curr = p_keep[0]
         else:
-            # present datasets
-            present_idxs = np.argwhere(presence).flatten()
-            # how many dataset in this subsampling?
-            max_add = present_idxs.shape[0]
-            n_to_add = np.random.choice(max_add) + 1
-            # which ones?
-            to_add = np.random.choice(
-                present_idxs, n_to_add, replace=False)
-            # dataset mask
-            presence_add = np.zeros(presence.shape).astype(bool)
-            presence_add[to_add] = True
+            p_nr_curr = p_nr[1]
+            p_keep_curr = p_keep[1]
+        # datasets that I can select
+        present_idxs = np.argwhere(presence).flatten()
+        # how many dataset at most?
+        max_add = present_idxs.shape[0]
+        # normalize nr dataset probabilities
+        p_nr_row = p_nr_curr[1:max_add] / np.sum(p_nr_curr[1:max_add])
+        # how many dataset are we keeping?
+        try:
+            nr_keep = np.random.choice(np.arange(1, len(p_nr_row) + 1),
+                                       p=p_nr_row)
+        except Exception:
+            nr_keep = 1
+        # normalize dataset keep probabilities
+        p_keep_row = (p_keep_curr[presence] + 1e-10) / \
+            (np.sum(p_keep_curr[presence]) + 1e-10)
+        nr_keep = np.min([nr_keep, np.sum(p_keep_row > 0)])
+        # which ones?
+        to_add = np.random.choice(
+            present_idxs, nr_keep, p=p_keep_row, replace=False)
+        # dataset mask
+        presence_add = np.zeros(presence.shape).astype(bool)
+        presence_add[to_add] = True
         # from dataset mask to signature mask
-        mask[idx] = np.repeat(presence_add, 128)
+        mask[idx] = np.repeat(presence_add, sign_width)
     # make masked dataset NaN
     new_data[~mask] = np.nan
-    return new_data, label
+    return new_data
 
 
-def subsample_coverage(tensor, prob_original=0.05):
-    """Function to subsample stacked data."""
-    # it is safe to make a local copy of the input matrix
-    new_data = np.copy(tensor)
-    # we will have a masking matrix at the end
-    mask = np.zeros_like(new_data).astype(bool)
-    for idx, presence in enumerate(new_data):
-        # low probability of keeping the original sample
-        if np.random.rand() < prob_original:
-            presence_add = presence
-        else:
-            # present datasets
-            present_idxs = np.argwhere(presence).flatten()
-            # how many dataset in this subsampling?
-            max_add = present_idxs.shape[0]
-            n_to_add = np.random.choice(max_add) + 1
-            # which ones?
-            to_add = np.random.choice(
-                present_idxs, n_to_add, replace=False)
-            # dataset mask
-            presence_add = np.zeros(presence.shape).astype(bool)
-            presence_add[to_add] = True
-        # from dataset mask to signature mask
-        mask[idx] = presence_add
-    return mask
+def plot_subsample(s4, plotpath, sign2_coverage, traintest_file, ds='B1.001',
+                   p_self=.1, p_only_self=0., limit=10000, max_ds=25):
+    import numpy as np
+    import pandas as pd
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    from chemicalchecker import ChemicalChecker
+
+    cc = ChemicalChecker()
+
+    # get triplet generator
+    dataset_idx = np.argwhere(
+        np.isin(list(cc.datasets_exemplary()), ds)).flatten()
+    trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = \
+        subsampling_probs(sign2_coverage, dataset_idx)
+    trim_dataset_idx = np.argwhere(np.arange(len(trim_mask))[
+        trim_mask] == dataset_idx).ravel()[0]
+    augment_kwargs = {
+        'p_nr': (p_nr_unknown, p_nr_known),
+        'p_keep': (p_keep_unknown, p_keep_known),
+        'dataset_idx': [trim_dataset_idx],
+        'p_only_self': 0.0}
+    realistic_fn, trim_mask = s4.realistic_subsampling_fn()
+    tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
+        traintest_file,
+        'train_train',
+        batch_size=10,
+        replace_nan=np.nan,
+        augment_fn=realistic_fn,
+        augment_kwargs={'dataset_idx': [trim_dataset_idx]},
+        trim_mask=trim_mask,
+        train=True,
+        standard=False)
+    tr_gen = tr_shape_type_gen[2]
+
+    # get known unknown
+    cov = DataSignature(sign2_coverage).get_h5_dataset('V')
+    unknown = cov[(cov[:, dataset_idx] == 0).flatten()]
+    known = cov[(cov[:, dataset_idx] == 1).flatten()]
+
+    # get dataset probabilities
+    probs_ds = {
+        'space': np.array([d[:2] for d in cc.datasets_exemplary()])[trim_mask],
+        'p_keep_known': p_keep_known,
+        'p_keep_unknown': p_keep_unknown}
+    df_probs_ds = pd.DataFrame(probs_ds)
+    df_probs_ds = df_probs_ds.melt(id_vars=['space'])
+    df_probs_ds['probabilities'] = df_probs_ds['value']
+
+    # get nr probabilities
+    nnrs, freq_nrs = np.unique(
+        np.sum(unknown, axis=1).astype(int), return_counts=True)
+    unknown_nr = np.zeros((max_ds + 1,))
+    unknown_nr[nnrs] = freq_nrs
+    nnrs, freq_nrs = np.unique(
+        np.sum(known, axis=1).astype(int), return_counts=True)
+    known_nr = np.zeros((max_ds + 1,))
+    known_nr[nnrs] = freq_nrs
+    probs_nr = {
+        'nr_ds': np.arange(max_ds + 1),
+        'p_nr_known': p_nr_known,
+        'p_nr_unknown': p_nr_unknown}  # == p_nr
+    df_probs_nr = pd.DataFrame(probs_nr)
+    df_probs_nr = df_probs_nr.melt(id_vars=['nr_ds'])
+    df_probs_nr['probabilities'] = df_probs_nr['value']
+
+    # get sampled dataset presence counts
+    ds_a = np.zeros((max_ds,))[trim_mask]
+    ds_p = np.zeros((max_ds,))[trim_mask]
+    ds_n = np.zeros((max_ds,))[trim_mask]
+    ds_o = np.zeros((max_ds,))[trim_mask]
+    ds_ns = np.zeros((max_ds,))[trim_mask]
+    batch = 0
+    for (a, p, n, o, ns), y in tr_gen():
+        ds_a += np.sum(~np.isnan(a[:, ::128]), axis=0)
+        ds_p += np.sum(~np.isnan(p[:, ::128]), axis=0)
+        ds_n += np.sum(~np.isnan(n[:, ::128]), axis=0)
+        ds_o += np.sum(~np.isnan(o[:, ::128]), axis=0)
+        ds_ns += np.sum(~np.isnan(ns[:, ::128]), axis=0)
+        batch += 1
+        if batch == 1000:
+            break
+    trimmed_ds = np.array(list(cc.datasets_exemplary()))[trim_mask]
+    sampled_ds = {
+        'space': np.array([d[:2] for d in trimmed_ds]),
+        'anchor': ds_a,
+        'positive': ds_p,
+        'negative': ds_n,
+        'only-self': ds_o,
+        'not-self': ds_ns}
+    df_sampled_ds = pd.DataFrame(sampled_ds)
+    df_sampled_ds = df_sampled_ds.melt(id_vars=['space'])
+    df_sampled_ds['sampled'] = df_sampled_ds['value']
+
+    # get sampled nr dataset
+    nr_a = np.zeros((max_ds + 1,))
+    nr_p = np.zeros((max_ds + 1,))
+    nr_n = np.zeros((max_ds + 1,))
+    nr_o = np.zeros((max_ds + 1,))
+    nr_ns = np.zeros((max_ds + 1,))
+    batch = 0
+    for (a, p, n, o, ns), y in tr_gen():
+        nr_batch_a = np.sum(~np.isnan(a[:, ::128]), axis=1).astype(int)
+        nnrs, freq_nrs = np.unique(nr_batch_a, return_counts=True)
+        nr_a[nnrs] += freq_nrs
+        nr_batch_p = np.sum(~np.isnan(p[:, ::128]), axis=1).astype(int)
+        nnrs, freq_nrs = np.unique(nr_batch_p, return_counts=True)
+        nr_p[nnrs] += freq_nrs
+        nr_batch_n = np.sum(~np.isnan(n[:, ::128]), axis=1).astype(int)
+        nnrs, freq_nrs = np.unique(nr_batch_n, return_counts=True)
+        nr_n[nnrs] += freq_nrs
+        nr_batch_o = np.sum(~np.isnan(o[:, ::128]), axis=1).astype(int)
+        nnrs, freq_nrs = np.unique(nr_batch_o, return_counts=True)
+        nr_o[nnrs] += freq_nrs
+        nr_batch_ns = np.sum(~np.isnan(ns[:, ::128]), axis=1).astype(int)
+        nnrs, freq_nrs = np.unique(nr_batch_ns, return_counts=True)
+        nr_ns[nnrs] += freq_nrs
+        batch += 1
+        if batch == 1000:
+            break
+    sampled_nr = {
+        'nr_ds': np.arange(max_ds + 1),
+        'anchor': nr_a,
+        'positive': nr_p,
+        'negative': nr_n,
+        'only-self': nr_o,
+        'not-self': nr_ns}
+    df_sampled_nr = pd.DataFrame(sampled_nr)
+    df_sampled_nr = df_sampled_nr.melt(id_vars=['nr_ds'])
+    df_sampled_nr['sampled'] = df_sampled_nr['value']
+
+    # plot
+
+    fig = plt.figure(constrained_layout=True, figsize=(24, 12))
+    gs = fig.add_gridspec(2, 2)
+    ax = fig.add_subplot(gs[0, 0])
+    sns.barplot(x="space", y="probabilities", hue='variable',
+                data=df_probs_ds, ax=ax)
+    ax = fig.add_subplot(gs[0, 1])
+    sns.barplot(x="nr_ds", y="probabilities", hue='variable',
+                data=df_probs_nr, ax=ax)
+    ax = fig.add_subplot(gs[1, 0])
+    sns.barplot(x="space", y="sampled", hue='variable',
+                data=df_sampled_ds, ax=ax,
+                palette=['gold', 'forestgreen', 'crimson', 'royalblue', 'k'])
+    ax = fig.add_subplot(gs[1, 1])
+    sns.barplot(x="nr_ds", y="sampled", hue='variable',
+                data=df_sampled_nr, ax=ax,
+                palette=['gold', 'forestgreen', 'crimson', 'royalblue', 'k'])
+
+    plt.tight_layout()
+    plt.savefig(plotpath)
+    plt.close()
