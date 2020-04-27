@@ -1683,10 +1683,13 @@ class MultiPlot():
             self.plot_path, '%s_simsearch.pkl' % cctype)
         if not os.path.isfile(outfile):
             df = pd.DataFrame(
-                columns=['dataset', 'control', 'nthr', 'cthr', 'dthr', 'jaccard'])
-            for ds_idx, ds in list(enumerate(self.datasets))[5:]:
+                columns=['dataset', 'nthr', 'cthr', 'dthr', 'jaccard',
+                         'log-odds-ratio'])
+            for ds_idx, ds in list(enumerate(self.datasets)):
                 sign = self.cc.get_signature(cctype, 'full', ds)
                 signref = self.cc.get_signature(cctype_ref, 'full', ds)
+                if signref.shape[0] > 100000:
+                    continue
                 # get siamese train/test inks
                 traintest_file = os.path.join(
                     sign.model_path, 'traintest_eval.h5')
@@ -1708,7 +1711,8 @@ class MultiPlot():
                     'x', mask=train_mask)
                 test_input = DataSignature(input_file).get_h5_dataset(
                     'x', mask=test_mask)
-                predict_fn = sign.get_predict_fn(model='siamese_eval')
+                predict_fn = sign.get_predict_fn(
+                    smiles=False, model='siamese_eval')
                 train_sign = predict_fn(train_input)
                 test_sign = predict_fn(mask_exclude([ds_idx], test_input))
                 # get confidence for test sign4
@@ -1733,15 +1737,18 @@ class MultiPlot():
                 # get sign ref background distances thresholds
                 back = background_distances(train_signref, 'euclidean')
                 dthrs = list(zip(back['distance'][:6], back['pvalue'][:6]))
-                nthrs = [5, 10, 20, 40]  # top neighbors
-                cthrs = [-1, 0.5, .8]  # confidence
+                nthrs = [5, 10, 20]  # top neighbors
+                cthrs = [-1, .5, .8]  # confidence
+                max_conf = np.sum(test_confidence > cthrs[-1])
                 for nthr, cthr, dthr in itertools.product(nthrs, cthrs, dthrs):
                     # limit original space neighbors by distance
                     d_mask = signref_neig_dist < dthr[0]
                     # limit signature molecule by confidence
                     c_mask = test_confidence > cthr
                     scores = list()
-                    for row in range(signref_neig_dist.shape[0]):
+                    logodds_scores = list()
+                    count = 0
+                    for row in tqdm(range(signref_neig_dist.shape[0])):
                         # skip if we exclude by confidence
                         if not c_mask[row]:
                             continue
@@ -1752,91 +1759,56 @@ class MultiPlot():
                             continue
                         # compare to sign neighbors
                         sign_neig = sign_neig_idx[row][:nthr]
-                        scores.append(jaccard_similarity(ref_neig, sign_neig))
+                        jac = jaccard_similarity(ref_neig, sign_neig)
+                        scores.append(jac)
+                        # compute random background
+                        rnd_idxs = np.arange(train_sign.shape[0])
+                        rnd_nr = max(sign_neig.shape[0], 10)
+                        rnd_scores = list()
+                        for _ in range(100):
+                            rnd_neig = np.random.choice(rnd_idxs, rnd_nr)
+                            rnd_jac = jaccard_similarity(ref_neig, rnd_neig)
+                            rnd_scores.append(rnd_jac)
+                        logodds = np.log2(
+                            1 + (jac / max(1e-5, np.mean(rnd_scores))))
+                        if np.isinf(logodds):
+                            print('ref_neig', ref_neig)
+                            print('sign_neig', sign_neig)
+                        logodds_scores.append(logodds)
+                        count += 1
+                        if count == max_conf:
+                            break
+
                     # compare neighbors only high confidence
                     df = df.append(pd.DataFrame({
-                        'control': False,
                         'dataset': ds,
                         'nthr': nthr,
                         'cthr': cthr,
                         'dthr': dthr[1],
-                        'jaccard': scores
+                        'jaccard': scores,
+                        'log-odds-ratio': logodds_scores,
                     }), ignore_index=True)
-                shuffle_idxs = np.arange(signref_neig_dist.shape[0])
-                np.random.shuffle(shuffle_idxs)
-                signref_neig_dist = signref_neig_dist[shuffle_idxs]
-                np.random.shuffle(shuffle_idxs)
-                test_confidence = test_confidence[shuffle_idxs]
-                np.random.shuffle(shuffle_idxs)
-                signref_neig_idx = signref_neig_idx[shuffle_idxs]
-                np.random.shuffle(shuffle_idxs)
-                sign_neig_idx = sign_neig_idx[shuffle_idxs]
-                for nthr, cthr, dthr in itertools.product(nthrs, cthrs, dthrs):
-                    # limit original space neighbors by distance
-                    d_mask = signref_neig_dist < dthr[0]
-                    # limit signature molecule by confidence
-                    c_mask = test_confidence > cthr
-                    scores = list()
-                    for row in range(signref_neig_dist.shape[0]):
-                        # skip if we exclude by confidence
-                        if not c_mask[row]:
-                            continue
-                        # select top n valid neighbors
-                        ref_neig = signref_neig_idx[row][d_mask[row]][:nthr]
-                        # if no neighbors we skip the molecule
-                        if len(ref_neig) == 0:
-                            continue
-                        # compare to sign neighbors
-                        sign_neig = sign_neig_idx[row][:nthr]
-                        scores.append(jaccard_similarity(ref_neig, sign_neig))
-                    # compare neighbors only high confidence
-                    df = df.append(pd.DataFrame({
-                        'control': True,
-                        'dataset': ds,
-                        'nthr': nthr,
-                        'cthr': cthr,
-                        'dthr': dthr[1],
-                        'jaccard': scores
-                    }), ignore_index=True)
+
                 # more options can be specified also
                 with pd.option_context('display.max_rows', None,
                                        'display.max_columns', None):
                     print(df[df.dataset == ds].groupby(
-                        ['dataset', 'dthr', 'nthr', 'cthr', 'control']).agg(
+                        ['dataset', 'dthr', 'nthr', 'cthr', ]).agg(
                         count=('jaccard', 'count'),
                         jaccard_mean=('jaccard', 'mean'),
-                        jaccard_std=('jaccard', 'std')))
+                        jaccard_std=('jaccard', 'std'),
+                        odds_mean=('log-odds-ratio', 'mean'),
+                        odds_std=('log-odds-ratio', 'std'),))
             df.to_pickle(outfile)
         df = pd.read_pickle(outfile)
 
-        # make score an odds-ratio
-        conf_names = ['0', ' 0.5', '0.8']
-        odf = pd.DataFrame(
-            columns=['dataset', 'log-odds-ratio', 'nr', 'confidence', 'nthr', 'dthr'])
-        dthrs = df.dthr.unique()
-        nthrs = df.nthr.unique()
+        max_odds = df['log-odds-ratio'].describe()['75%'] * 1.5
+        min_odds = 0
         for nthr, dthr in itertools.product(nthrs, dthrs):
-            fdf = df[(df.nthr == nthr) & (df.dthr == dthr)]
-            for ds in self.datasets:
-                for name, cthr in zip(conf_names, fdf.cthr.unique()):
-                    cdf = fdf[(fdf.dataset == ds) & (fdf.cthr == cthr)]
-                    jac = cdf[cdf.control == False].jaccard.mean()
-                    rnd = cdf[cdf.control == True].jaccard.mean()
-                    nr = cdf[cdf.control == False].jaccard.count()
-                    odf = odf.append({
-                        'dataset': ds,
-                        'log-odds-ratio': np.log2(jac / min(rnd, 1e-5)),
-                        'nr': nr,
-                        'confidence': name,
-                        'nthr': nthr,
-                        'dthr': dthr,
-                    }, ignore_index=True)
-
-        max_odds = odf[odf['log-odds-ratio'] !=
-                       np.inf].dropna()['log-odds-ratio'].max()
-        for nthr, dthr in itertools.product(nthrs, dthrs):
-            fodf = odf[(odf.nthr == nthr) & (odf.dthr == dthr)]
-            fig = plt.figure(constrained_layout=True, figsize=(12, 12))
+            fdf = df[(df.nthr == nthr) & (df.dthr == dthr[1])]
+            if len(fdf) == 0:
+                continue
+            fig = plt.figure(constrained_layout=True, figsize=(10, 10))
             gs = fig.add_gridspec(5, 5, wspace=0.1, hspace=0.1)
             plt.subplots_adjust(left=0.08, right=.95, bottom=0.08, top=.95)
             axes = list()
@@ -1846,42 +1818,52 @@ class MultiPlot():
             plt.tick_params(labelcolor='none', top=False,
                             bottom=False, left=False, right=False)
             plt.grid(False)
-            plt.xlabel("Confidence", labelpad=25, size=18)
-            plt.ylabel("Log-dds-ratio", labelpad=25, size=18)
+            plt.xlabel("Confidence", size=18)
+            plt.ylabel("Log-Odds Ratio", size=18)
 
             for ds, ax in zip(self.datasets[:], axes):
-                sns.barplot(data=fodf[fodf.dataset == ds], y='log-odds-ratio',
-                            x='confidence', ax=ax,
-                            palette=[self.cc_colors(ds, 2),
-                                     self.cc_colors(ds, 0)])
+                dsdf = fdf[fdf.dataset == ds]
+                if len(dsdf) == 0:
+                    continue
+                sns.pointplot(data=dsdf, y='jaccard',
+                              capsize=.2, join=True,
+                              markers=["."],
+                              x='cthr', ax=ax,
+                              palette=[self.cc_colors(ds, 2),
+                                       self.cc_colors(ds, 1),
+                                       self.cc_colors(ds, 0)])
                 ax.set_ylabel('')
                 ax.set_xlabel('')
-                ax.set_ylim(0, max_odds)
+                ax.set_ylim(0, 1)
+                # axis ticks
                 if ds[:2] == 'E1':
                     # set the alignment for outer ticklabels
                     ticklabels = ax.get_yticklabels()
                     ticklabels[0].set_va("bottom")
                     ticklabels[-1].set_va("top")
-                    ax.set_xlabel(ds[1], fontsize=18)
-                    ax.set_ylabel(ds[0], fontsize=18, rotation=0, va='center',
-                                  labelpad=8)
                 elif ds[1] == '1':
-                    ax.set_ylabel(ds[0], fontsize=18, rotation=0, va='center',
-                                  labelpad=8)
                     # set the alignment for outer ticklabels
                     ticklabels = ax.get_yticklabels()
                     ticklabels[0].set_va("bottom")
                     ticklabels[-1].set_va("top")
                     ax.xaxis.set_ticklabels([])
                 elif ds[0] == 'E':
-                    ax.set_xlabel(ds[1], fontsize=18)
                     ax.yaxis.set_ticklabels([])
                 else:
                     ax.xaxis.set_ticklabels([])
                     ax.yaxis.set_ticklabels([])
 
+                # axis labels
+                if ds[0] == 'A':
+                    ax.set_xlabel(ds[1], fontsize=18, labelpad=15)
+                    ax.xaxis.set_label_position('top')
+                if ds[1] == '5':
+                    ax.set_ylabel(ds[0], fontsize=18, rotation=0, va='center',
+                                  labelpad=15)
+                    ax.yaxis.set_label_position('right')
+
             outfile = os.path.join(
-                self.plot_path, 'simsearch_%s_%s.png' % (nthr, dthr))
+                self.plot_path, 'simsearch_%s_%s.png' % (nthr, dthr[1]))
             print(outfile)
             plt.savefig(outfile, dpi=self.dpi)
             plt.close('all')
@@ -1991,17 +1973,9 @@ class MultiPlot():
         # sns.set_style("whitegrid")
         # sns.set_style({'font.family': 'sans-serif', 'font.serif': ['Arial']})
 
-        fig, axes = plt.subplots(5, 5, figsize=(4, 4), constrained_layout=True,
-                                 sharex=False, sharey=False)
-
-        main_ax = fig.add_subplot(111, frameon=False)
-        main_ax.set_xlabel(prop.capitalize(), fontsize=16)
-        main_ax.set_ylabel('Molecules', fontsize=16)
-        main_ax.set_axis_off()
-
-        fig = plt.figure(constrained_layout=True, figsize=(10, 10))
+        fig = plt.figure(constrained_layout=True, figsize=(6, 6))
         gs = fig.add_gridspec(5, 5, wspace=0.1, hspace=0.1)
-        plt.subplots_adjust(left=0.08, right=.95, bottom=0.08, top=.95)
+        plt.subplots_adjust(left=0.1, right=.95, bottom=0.1, top=.95)
         axes = list()
         for row, col in itertools.product(range(5), range(5)):
             axes.append(fig.add_subplot(gs[row, col]))
@@ -2009,8 +1983,8 @@ class MultiPlot():
         plt.tick_params(labelcolor='none', top=False,
                         bottom=False, left=False, right=False)
         plt.grid(False)
-        plt.xlabel(prop.capitalize(), labelpad=25, size=18)
-        plt.ylabel("Molecules", labelpad=25, size=18)
+        plt.xlabel(prop.capitalize(), size=18)
+        plt.ylabel("Molecules", size=18)
 
         for ds, ax in zip(self.datasets, axes):
             try:
@@ -2027,20 +2001,25 @@ class MultiPlot():
                 colors = [self.cc_colors(ds, 0), self.cc_colors(ds, 2)]
                 print(ds, prop, np.min(plot_data[0]), np.max(plot_data[0]))
                 print(ds, prop, np.min(plot_data[1]), np.max(plot_data[1]))
+                ax.hist(prop_data, color=self.cc_colors(ds, 2),
+                        histtype='step', fill=True,
+                        density=False, bins=10, log=True,
+                        range=xlim, alpha=.9, stacked=True)
+                ax.hist(plot_data[0], color=self.cc_colors(ds, 0),
+                        histtype='step', fill=True,
+                        density=False, bins=10, log=True,
+                        range=xlim, alpha=.9, stacked=True)
             else:
                 plot_data = [prop_data]
                 colors = [self.cc_colors(ds, 0)]
                 print(ds, prop, np.min(plot_data[0]), np.max(plot_data[0]))
-            # get idx of nearest neighbors of s2
-            if xlim:
                 ax.hist(plot_data, color=colors,
-                        histtype='barstacked',
+                        histtype='step',
                         density=False, bins=20, log=True,
                         range=xlim, alpha=.9, stacked=True)
+            # set limits
+            if xlim:
                 ax.set_xlim(xlim)
-            else:
-                ax.hist(plot_data, color=colors,
-                        density=False, log=True)
             if ylim:
                 ax.set_ylim(ylim)
             # ax.set_yscale('log')
@@ -2065,7 +2044,6 @@ class MultiPlot():
                 ticklabels[-1].set_va("top")
                 ax.xaxis.set_ticklabels([])
             elif ds[0] == 'E':
-                ax.set_xlabel(ds[1], fontsize=18)
                 ax.yaxis.set_ticklabels([])
             else:
                 ax.xaxis.set_ticklabels([])
@@ -2073,15 +2051,14 @@ class MultiPlot():
 
             # axis labels
             if ds[0] == 'A':
-                ax.set_xlabel(ds[1], fontsize=18, labelpad=15)
+                ax.set_xlabel(ds[1], fontsize=16, labelpad=8)
                 ax.xaxis.set_label_position('top')
             if ds[1] == '5':
-                ax.set_ylabel(ds[0], fontsize=18, rotation=0, va='center',
-                              labelpad=15)
+                ax.set_ylabel(ds[0], fontsize=16, rotation=0, va='center',
+                              labelpad=12)
                 ax.yaxis.set_label_position('right')
 
         # plt.minorticks_off()
-
         outfile = os.path.join(
             self.plot_path, '%s.png' % '_'.join([cctype, molset, prop]))
         plt.savefig(outfile, dpi=self.dpi)
