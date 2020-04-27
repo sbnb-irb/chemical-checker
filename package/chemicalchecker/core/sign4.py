@@ -1716,14 +1716,18 @@ class sign4(BaseSignature, DataSignature):
                          evaluate=False,
                          include_confidence=include_confidence)
 
-    def get_predict_fn(self, model='smiles_final'):
+    def get_predict_fn(self, smiles=True, model='smiles_final'):
         try:
             from chemicalchecker.tool.smilespred import Smilespred
+            from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError as err:
             raise err
-        modelpath = os.path.join(self.model_path, model)
-        smpred = Smilespred(modelpath)
-        return smpred.predict
+        model_path = os.path.join(self.model_path, model)
+        if smiles:
+            model = Smilespred(model_path)
+        else:
+            model = SiameseTriplets(model_path, predict_only=True)
+        return model.predict
 
     def predict_from_smiles(self, smiles, dest_file, chunk_size=1000,
                             predict_fn=None, accurate_novelty=False,
