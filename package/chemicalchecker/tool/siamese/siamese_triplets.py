@@ -133,21 +133,21 @@ class SiameseTriplets(object):
             self.sharedx = None
             if not predict_only:
                 self.sharedx = traintest_data.get_h5_dataset('x')
-            tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
-                self.traintest_file,
-                'train_train',
-                epochs=self.epochs,
-                batch_size=self.batch_size,
-                replace_nan=self.replace_nan,
-                sharedx=self.sharedx,
-                augment_fn=self.augment_fn,
-                augment_kwargs=self.augment_kwargs,
-                train=True, standard=self.standard,
-                trim_mask=self.trim_mask)
-            self.tr_shapes = tr_shape_type_gen[0]
-            self.tr_gen = tr_shape_type_gen[2]()
-            self.steps_per_epoch = np.ceil(
-                self.tr_shapes[0][0] / self.batch_size)
+                tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
+                    self.traintest_file,
+                    'train_train',
+                    epochs=self.epochs,
+                    batch_size=self.batch_size,
+                    replace_nan=self.replace_nan,
+                    sharedx=self.sharedx,
+                    augment_fn=self.augment_fn,
+                    augment_kwargs=self.augment_kwargs,
+                    train=True, standard=self.standard,
+                    trim_mask=self.trim_mask)
+                self.tr_shapes = tr_shape_type_gen[0]
+                self.tr_gen = tr_shape_type_gen[2]()
+                self.steps_per_epoch = np.ceil(
+                    self.tr_shapes[0][0] / self.batch_size)
 
             # load the scaler
             scaler_path = os.path.join(self.model_dir, 'scaler.pkl')
