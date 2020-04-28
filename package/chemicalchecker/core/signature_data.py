@@ -387,6 +387,47 @@ class DataSignature(object):
         sort_idx = np.argsort(inks)
         return inks[sort_idx], signs[sort_idx]
 
+    def get_vectors_lite(self, keys, chunk_size=2000, chunk_above=10000):
+        """Iterate on signatures."""
+        from tqdm import tqdm
+        keys = set(keys)
+        idxs = []
+        mask = []
+        kept_keys = []
+        for i, key in enumerate(self.keys):
+            if key not in keys:
+                mask += [False]
+                continue
+            else:
+                idxs += [i]
+                kept_keys += [key]
+                mask += [True]
+        idxs = np.array(idxs)
+        kept_keys = np.array(kept_keys)
+        if len(idxs) > chunk_above:
+            with h5py.File(self.data_path, "r") as hf:
+                dset = hf["V"]
+                V = None
+                for chunk in tqdm(self.chunker(size=chunk_size)):
+                    mask_ = mask[chunk]
+                    if not np.any(mask_):
+                        continue
+                    v = dset[chunk][mask_]
+                    if V is None:
+                        V = v
+                    else:
+                        V = np.vstack([V,v])
+        else:
+            with h5py.File(self.data_path, "r") as hf:
+                dset = hf["V"]
+                v = dset[0]
+                V = np.zeros((len(idxs), self.shape[1]), dtype=v.dtype)
+                for i, idx in tqdm(enumerate(idxs)):
+                    V[i,:] = dset[idx]
+        if len(kept_keys) != len(keys):
+            self.__log.warn("There are %d missing keys" % (len(keys)-len(kept_keys)))
+        return kept_keys, V
+
     def index(self, key):
         """Give the index according to the key.
 

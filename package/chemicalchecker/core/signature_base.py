@@ -80,6 +80,13 @@ class BaseSignature(object):
             original_umask = os.umask(0)
             os.makedirs(self.stats_path, 0o775)
             os.umask(original_umask)
+        self.diags_path = os.path.join(self.signature_path, "diags")
+        if not os.path.isdir(self.diags_path):
+            BaseSignature.__log.info(
+                "Creating diags_path in: %s" % self.diags_path)
+            original_umask = os.umask(0)
+            os.makedirs(self.diags_path, 0o775)
+            os.umask(original_umask)
 
     @abstractmethod
     def fit(self):

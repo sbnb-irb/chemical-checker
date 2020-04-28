@@ -46,6 +46,8 @@ class Model(ModelSetup):
         return fn
 
     def check_array_from_disk(self, ar):
+        if ar is None:
+            return None
         if type(ar) == str:
             return np.load(ar)
         else:
@@ -113,6 +115,28 @@ class Model(ModelSetup):
             y_true += list(y[test_idx])
         return self.metric_calc(np.array(y_true), np.array(y_pred))[1]
 
+    def _check_y(self, y):
+        """Randomly sample positives or negatives if not enough in the class. Should be a corner case."""
+        y   = np.array(y)
+        act = np.sum(y)
+        ina = len(y) - act
+        if act >= self.min_class_size and ina >= self.min_class_size:
+            return y
+        if act < self.min_class_size:
+            m = self.min_class_size - act
+            idxs = np.argwhere(y == 0).ravel()
+            np.random.shuffle(idxs)
+            idxs = idxs[:m]
+            y[idxs] = 1
+            return y
+        if ina < self.min_class_size:
+            m = self.min_class_size - ina
+            idxs = np.argwhere(y == 1).ravel()
+            np.random.shuffle(idxs)
+            idxs = idxs[:m]
+            y[idxs] = 0
+            return y
+
     def _fit(self, X, y, smiles=None, destination_dir=None):
         """Fit a model, using a specified pipeline.
         
@@ -132,15 +156,20 @@ class Model(ModelSetup):
         # Check if array is a file
         X = self.check_array_from_disk(X)
         y = self.check_array_from_disk(y)
+        smiles = self.check_array_from_disk(smiles)
         # Get started
-        self.find_base_mod(X, y, smiles, destination_dir=destination_dir)
+        self.find_base_mod(X, self._check_y(y), smiles, destination_dir=destination_dir)
         base_mod = self.load_base_mod()
         for i, shuff in enumerate(self.sampler(X, y)):
+            X_ = X[shuff]
+            y_ = y[shuff]
+            y_ = self._check_y(y_)
             self.__log.info("Fitting round %i" % i)
             if self.conformity:
-                self.__log.info("Preparing cross-conformity")
+                n_models = min(self.ccp_folds, np.sum(y_))
+                self.__log.info("Preparing cross-conformity (n_models = %d)" % n_models)
                 # Cross-conformal prediction
-                mod = self.cross_conformal_func(base_mod)
+                mod = self.cross_conformal_func(base_mod, n_models=n_models)
                 # Do normal as well
                 mod_uncalib = base_mod
             else:
@@ -148,11 +177,11 @@ class Model(ModelSetup):
                 mod = base_mod
                 mod_uncalib = None
             # Fit the model
-            self.__log.info("Fitting (%d actives, %d inactives)" % (np.sum(y[shuff]), len(shuff) - np.sum(y[shuff])))
-            mod.fit(X[shuff], y[shuff])
+            self.__log.info("Fitting (%d actives, %d inactives)" % (np.sum(y_), len(shuff) - np.sum(y_)))
+            mod.fit(X_, y_)
             if mod_uncalib is not None:
                 self.__log.info("Fitting model, but without calibration")
-                mod_uncalib.fit(X[shuff], y[shuff])
+                mod_uncalib.fit(X_, y_)
             # Save the destination directory of the model
             destdir = self.mod_dir + "---%d" % i
             destdir_uncalib = self.mod_uncalib_dir + "---%d" % i
@@ -274,11 +303,14 @@ class SignaturedModel(Model, SignaturizerSetup):
         idxs = idxs[idxs_]
         smiles = smiles[idxs_]
         inchikeys = inchikeys[idxs_]
-        # TODO: NOT SURE WHETHER THIS GOES HERE OR BEFORE...!
-        if self.hpc:
+        self.__log.info("X shape: (%d, %d) / Y length: %d" % (X.shape[0], X.shape[1], len(y)))
+        # saving arrays on disk
+        X = self.array_on_disk(X)
+        if y is not None:
             y = self.array_on_disk(y)
-            smiles = self.array_on_disk(smiles)
-            inchikeys = self.array_on_disk(inchikeys)
+        smiles = self.array_on_disk(smiles)
+        inchikeys = self.array_on_disk(inchikeys)
+        idxs = self.array_on_disk(idxs)
         results = {
             "X": X,
             "y": y,
@@ -286,6 +318,7 @@ class SignaturedModel(Model, SignaturizerSetup):
             "smiles": smiles,
             "inchikeys": inchikeys
         }
+        self.__log.info("Arrays saved on disk %s" % results)
         return results
 
 
@@ -320,18 +353,15 @@ class StackedModel(SignaturedModel):
         X = res["X"]
         y = res["y"]
         smiles = res["smiles"]
-        self.__log.info("X shape: %d %d, y shape: %d" % (X.shape[0], X.shape[1], len(y)))
-        self.pca_fit(X)
-        X = self.pca_transform(X)
-        self.__log.info("Samples: %d, Dimensions %s" % X.shape)
+        #self.pca_fit(X)
+        #X = self.pca_transform(X)
         jobs = []
         if self.is_tmp:
             dest = os.path.join(self.bases_tmp_path, "Stacked")
         else:
             dest = os.path.join(self.bases_models_path, "Stacked")
         if self.hpc:
-            X = self.array_on_disk(X)
-            jobs += [self.func_hpc("_fit", X, y, smiles, dest, cpu=self.n_jobs_hpc)]
+            jobs += [self.func_hpc("_fit", X, y, smiles, dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
         else:
             self._fit(X, y, smiles=smiles, destination_dir=dest)
         if wait:
@@ -366,14 +396,14 @@ class StackedModel(SignaturedModel):
         res = self.get_Xy_from_data(data, idxs)
         X = res["X"]
         y = res["y"]
-        X = self.pca_transform(X)
+        #X = self.pca_transform(X)
         if self.is_tmp:
             dest = os.path.join(self.predictions_tmp_path, "Stacked")
         else:
             dest = os.path.join(self.predictions_models_path, "Stacked")
         self.__log.info("Saving metadata in %s-meta" % dest)
         meta = {
-            "y": y,
+            "y": self.check_array_from_disk(y),
             "idxs": idxs
         }
         with open(dest+"-meta", "wb") as f:
@@ -381,8 +411,7 @@ class StackedModel(SignaturedModel):
         self.__log.info("Starting predictions")
         jobs = []
         if self.hpc:
-            X = self.array_on_disk(X)
-            jobs += [self.func_hpc("_predict_", X, dest, cpu=self.n_jobs_hpc)]
+            jobs += [self.func_hpc("_predict_", X, dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
         else:
             self._predict_(X, dest)
         if wait:
@@ -433,15 +462,14 @@ class StackedModel(SignaturedModel):
     def explain_stack(self, data, idxs, wait):
         self.__log.info("Getting signatures from data")
         X, y, idxs_ = self.get_Xy_from_data(data, idxs)
-        X = self.pca_transform(X)
+        #X = self.pca_transform(X)
         if self.is_tmp:
             dest = os.path.join(self.predictions_tmp_path, "Stacked-expl")
         else:
             dest = os.path.join(self.predictions_models_path, "Stacked-expl")
         jobs = []
         if self.hpc:
-            X = self.array_on_disk(X)
-            jobs += [self.func_hpc("_explain_", X, dest, cpu=self.n_jobs_hpc)]
+            jobs += [self.func_hpc("_explain_", X, dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
         else:
             self._explain_(X, dest)
         if wait:
@@ -510,7 +538,7 @@ class EnsembleModel(SignaturedModel):
             self.weights[self.datasets[i]] = self._weight(X, y)
             if self.hpc:
                 X = self.array_on_disk(X)
-                jobs += [self.func_hpc("_fit", X, y, smiles, dest, cpu=self.n_jobs_hpc)]
+                jobs += [self.func_hpc("_fit", X, y, smiles, dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
             else:
                 self._fit(X, y, smiles=smiles, destination_dir=dest)
         if wait:
@@ -543,7 +571,7 @@ class EnsembleModel(SignaturedModel):
                 dest = os.path.join(self.predictions_models_path, self.datasets[i])
             if self.hpc:
                 X = self.array_on_disk(X)
-                jobs += [self.func_hpc("_single_predict", X, datasets[i], dest, cpu=self.n_jobs_hpc)]
+                jobs += [self.func_hpc("_single_predict", X, datasets[i], dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
             else:
                 self._single_predict(X, datasets[i], dest)
         if wait:
