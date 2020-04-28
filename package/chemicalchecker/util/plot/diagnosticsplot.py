@@ -77,6 +77,8 @@ class DiagnosisPlot(object):
             "image": "Signature seen as a heatmap",
             "intensities": "Intensities of the signatures",
             "intensities_projection": "Projection with intensities",
+            "confidence": "Confidence of the signatures",
+            "confidence_projection": "Projection with confidences",
             "keys_bins": "Binned keys values",
             "key_coverage": "Dataset coverage of the keys across the CC",
             "key_coverage_projection": "Projections with coverage of keys across the CC",
@@ -499,6 +501,23 @@ class DiagnosisPlot(object):
         ax.set_ylim(0, np.max(y)*1.05)
         return ax
 
+    def confidences(self, ax=None, s=1, title=None, cmap="Spectral"):
+        ax = self._get_ax(ax)
+        results = self.load_diagnosis_pickle("confidences.pkl")
+        x = results["x"]
+        y = results["y"]
+        vmin = np.min(x)
+        vmax = np.max(x)
+        pad = (vmax-vmin)*pad_factor
+        ax.scatter(x, y, c=x, cmap=cmap, s=s, vmin=vmin+pad, vmax=vmax-pad)
+        ax.set_xlabel("Confidence")
+        ax.set_ylabel("Density")
+        if title is None:
+            title = "Confidence"
+        ax.set_title(title)
+        ax.set_ylim(0, np.max(y)*1.05)
+        return ax
+
     def _binned_projection(self, ax, results, cmap, s, vmin=None, vmax=None):
         ax = self._get_ax(ax)
         H = results["H"]
@@ -550,6 +569,14 @@ class DiagnosisPlot(object):
         ax = self._binned_projection(ax, results, cmap, s)
         if title is None:
             title = "Intensities"
+        ax.set_title(title)
+        return ax
+
+    def confidences_projection(self, ax=None, s=10, title=None, cmap="Spectral"):
+        results = self.load_diagnosis_pickle("confidences_projection.pkl")
+        ax = self._binned_projection(ax, results, cmap, s)
+        if title is None:
+            title = "Confidence"
         ax.set_title(title)
         return ax
 

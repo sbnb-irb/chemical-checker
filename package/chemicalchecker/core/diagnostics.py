@@ -607,6 +607,58 @@ class Diagnosis(object):
         }
         return results
 
+    def confidences(self):
+        self.__log.debug("Confidences")
+        from scipy.stats import gaussian_kde
+        fn = "confidences"
+        if self._todo(fn):
+            V = self.V
+            keys = self.keys
+            mask = np.isin(
+                    list(self.sign.keys), list(keys), assume_unique=True)
+            confidences = self.sign.get_h5_dataset('confidence')[mask]
+            confidences = np.array(confidences)
+            kernel = gaussian_kde(confidences)
+            positions = np.linspace(np.min(confidences), np.max(confidences), 1000)
+            values = kernel(positions)
+            results = {
+                "keys": self.keys,
+                "confidences": confidences,
+                "x": positions,
+                "y": values
+            }
+        else:
+            results = None
+        return self._returner(
+            results = results,
+            fn = fn,
+            save = self.save,
+            plot = self.plot,
+            plotter_function = self.plotter.confidences)
+
+    def confidences_projection(self, n_bins=20):
+        self.__log.debug("Confidences projection")
+        if self._todo("confidences", inner=True):
+            raise Exception("confidences must be done first")
+        if self._todo("projection", inner=True):
+            raise Exception("projection must be done first")
+        fn = "confidences_projection"
+        if self._todo(fn):
+            results_proj = self._load_diagnosis_pickle("projection.pkl")
+            results_inte = self._load_diagnosis_pickle("confidences.pkl")
+            if np.any(results_proj["keys"] != results_inte["keys"]):
+                raise Exception("keys do not coincide...")
+            results = self._projection_binned(results_proj["P"], results_inte["confidences"], n_bins)
+        else:
+            results = None
+        return self._returner(
+            results = results,
+            fn = fn,
+            save = self.save,
+            plot = self.plot,
+            plotter_function = self.plotter.confidences_projection)
+
+
     def intensities(self):
         self.__log.debug("Intensities")
         from scipy.stats import gaussian_kde
