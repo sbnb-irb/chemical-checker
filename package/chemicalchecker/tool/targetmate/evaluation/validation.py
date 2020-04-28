@@ -8,6 +8,7 @@ from sklearn import model_selection
 from ..utils import metrics
 from ..utils import HPCUtils
 from ..utils import splitters
+from ..io import data_from_disk
 
 SEED = 42
 MAXQUEUE = 100
@@ -62,7 +63,12 @@ class Performances:
                 bedroc = metrics.bedroc_score(yt, yp)[0]
             else:
                 assert shape[1] == 2, "Too many classes. For the moment, TargetMate only works with active/inactive (1/0)"
-                assert set(yt) == set([0,1]), "Only 1/0 is accepted for the moment."
+                # corner case, just assign a three 1's randomly if it is all 0's.
+                if set(yt) == set([0]):
+                    self.__log.warn("Only zeroes in a split... randomly assigning ones")
+                    idxs = np.random.choice(len(yt), 3, replace=False)
+                    for i in idxs:
+                        yt[i] = 1
                 if len(shape) == 2:
                     self.__log.debug("Prediction has two dimensions (active/inactive). Not ensemble.")
                     auroc  = np.zeros(2)
@@ -367,6 +373,10 @@ class BaseValidation(object):
             filename = os.path.join(valid["models_path"], "validation.pkl")
             with open(filename, "wb") as f:
                 pickle.dump(valid, f)
+            filename_txt = os.path.join(valid["models_path"], "validation.txt")
+            with open(filename_txt, "w") as f:
+                f.write("Train AUROC: %s\n" % valid["train"]["perfs"]["auroc"])
+                f.write("Test  AUROC: %s\n" % valid["test"]["perfs"]["auroc"])
 
 
 @logged
@@ -427,6 +437,7 @@ class Validation(BaseValidation, HPCUtils):
         self.__log.info("Signaturizing all data")
         jobs = []
         for tm, data in zip(tm_list, data_list):
+            data = data_from_disk(data)
             jobs += tm.signaturize(smiles=data.smiles, is_tmp=True, wait=False)
             if len(jobs) > MAXQUEUE:
                 self.waiter(jobs)
@@ -436,11 +447,13 @@ class Validation(BaseValidation, HPCUtils):
         self.__log.info("Getting splits")
         splits_list = []
         for tm, data in zip(tm_list, data_list):
+            data = data_from_disk(data)
             splits_list += [self.get_splits(tm, data, None, None)]
         # Fit
         self.__log.info("Fit with train")
         jobs = []
         for tm, data, splits in zip(tm_list, data_list, splits_list):
+            data = data_from_disk(data)
             jobs += self.fit(tm, data, splits)
             if len(jobs) > MAXQUEUE:
                 self.waiter(jobs)
@@ -450,6 +463,7 @@ class Validation(BaseValidation, HPCUtils):
         self.__log.info("Predict for train")
         jobs = []
         for tm, data, splits in zip(tm_list, data_list, splits_list):
+            data = data_from_disk(data)
             jobs += self.predict(tm, data, splits, is_train=True)
             if len(jobs) > MAXQUEUE:
                 self.waiter(jobs)
@@ -459,6 +473,7 @@ class Validation(BaseValidation, HPCUtils):
         self.__log.info("Predict for test")
         jobs = []
         for tm, data, splits in zip(tm_list, data_list, splits_list):
+            data = data_from_disk(data)
             jobs += self.predict(tm, data, splits, is_train=False)
             if len(jobs) > MAXQUEUE:
                 self.waiter(jobs)
@@ -467,6 +482,7 @@ class Validation(BaseValidation, HPCUtils):
         # Gather
         self.__log.info("Gather")
         for tm, data, splits in zip(tm_list, data_list, splits_list):
+            data = data_from_disk(data)
             self.gather(tm, data, splits)
         # Score
         self.__log.info("Scores")

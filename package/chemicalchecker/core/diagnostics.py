@@ -3,6 +3,7 @@ import random
 import pickle
 import os
 import collections
+import shutil
 from chemicalchecker.util import logged
 from chemicalchecker.util.plot import DiagnosisPlot
 from sklearn.neighbors import NearestNeighbors
@@ -18,8 +19,8 @@ class Diagnosis(object):
         Args:
             cc(ChemicalChecker): A CC instance.
             sign(CC signature): The CC signature object to be diagnosed.
-            save(bool): Whether to save results in the `stats` folder of the signature (default=True).
-            plot(bool): Whether to save plots in the `stats` folder of the signature (default=True).
+            save(bool): Whether to save results in the `diags` folder of the signature (default=True).
+            plot(bool): Whether to save plots in the `diags` folder of the signature (default=True).
             overwrite(bool): Whether to overwrite the results of the diagnosis (default=False).
             n(int): Number of molecules to sample (default=10000)
         """
@@ -28,6 +29,10 @@ class Diagnosis(object):
         self.plot = plot
         self.plotter = DiagnosisPlot(cc, sign)
         self.overwrite = overwrite
+        if self.overwrite:
+            self.__log.debug("Deleting all files in %s" % sign.diags_path)
+            shutil.rmtree(sign.diags_path)
+            os.mkdir(sign.diags_path)
         if self.plot and not self.save:
             self.__log.warning("Saving is necessary to plot. Setting 'save' to True.")
             self.save=True
@@ -36,7 +41,7 @@ class Diagnosis(object):
         self.cctype = folds[-2]
         self.dataset = folds[-3]
         self.molset = folds[-6]
-        fn = os.path.join(self.sign.stats_path, "subsampled_data.pkl")
+        fn = os.path.join(self.sign.diags_path, "subsampled_data.pkl")
         if self.save:
             if not os.path.exists(fn):
                 self.__log.debug("Subsampling")
@@ -53,7 +58,7 @@ class Diagnosis(object):
         self.keys = keys
  
     def _todo(self, fn, inner=False):
-        if os.path.exists(os.path.join(self.sign.stats_path, fn+".pkl")):
+        if os.path.exists(os.path.join(self.sign.diags_path, fn+".pkl")):
             if inner:
                 return False
             else:
@@ -65,13 +70,13 @@ class Diagnosis(object):
             return True
 
     def _load_diagnosis_pickle(self, fn):
-        with open(os.path.join(self.sign.stats_path, fn), "rb") as f:
+        with open(os.path.join(self.sign.diags_path, fn), "rb") as f:
             results = pickle.load(f)
         return results
 
     def _returner(self, results, fn, save, plot, plotter_function, kw_plotter=None):
         if results is None:
-            fn_ = os.path.join(self.sign.stats_path, fn+".pkl")
+            fn_ = os.path.join(self.sign.diags_path, fn+".pkl")
             with open(fn_, "rb") as f:
                 results = pickle.load(f)
             if plot:
@@ -83,7 +88,7 @@ class Diagnosis(object):
                 return results
         else:
             if save:
-                fn_ = os.path.join(self.sign.stats_path, fn+".pkl")
+                fn_ = os.path.join(self.sign.diags_path, fn+".pkl")
                 with open(fn_, "wb") as f:
                     pickle.dump(results, f)
                 if plot:
@@ -200,7 +205,7 @@ class Diagnosis(object):
         Args:
             sign(signature object): A CC signature object to check against.
         """
-        fn = os.path.join(self.sign.stats_path, "cross_coverage_%s" % self.cc.sign_name(sign))
+        fn = os.path.join(self.sign.diags_path, "cross_coverage_%s" % self.cc.sign_name(sign))
         if self._todo(fn) or force_redo:
             # apply mappings if necessary
             if apply_mappings:
@@ -231,7 +236,7 @@ class Diagnosis(object):
             plotter_function = self.plotter.cross_coverage,
             kw_plotter = {"sign": sign})
 
-    def cross_roc(self, sign, n_samples=1000, n_neighbors=5, neg_pos_ratio=1, apply_mappings=False, try_conn_layer=False, metric='cosine', save=None, force_redo=False, **kwargs):
+    def cross_roc(self, sign, n_samples=10000, n_neighbors=5, neg_pos_ratio=1, apply_mappings=False, try_conn_layer=False, metric='cosine', save=None, force_redo=False, **kwargs):
         """Perform validations.
 
         Args:
@@ -246,7 +251,7 @@ class Diagnosis(object):
             metric(str): 'cosine' or 'euclidean' (default='cosine').
             save(bool): Specific save parameter. If not specified, the global is set (default=None).
         """
-        fn = os.path.join(self.sign.stats_path, "cross_roc_%s" % self.cc.sign_name(sign))
+        fn = os.path.join(self.sign.diags_path, "cross_roc_%s" % self.cc.sign_name(sign))
         if self._todo(fn) or force_redo:
             r = self.cross_coverage(sign, apply_mappings=apply_mappings, try_conn_layer=try_conn_layer, save=False, force_redo=force_redo)
             if r["inter"] < n_neighbors:
@@ -657,7 +662,7 @@ class Diagnosis(object):
             plotter_function = self.plotter.intensities_projection)
 
     def _latent(self, sign):
-        fn = os.path.join(sign.stats_path, "latent-%d.pkl" % self.V.shape[0])
+        fn = os.path.join(sign.diags_path, "latent-%d.pkl" % self.V.shape[0])
         if os.path.exists(fn):
             with open(fn, "rb") as f:
                 results = pickle.load(fn)
@@ -869,7 +874,7 @@ class Diagnosis(object):
         
         cctype = "sign3"
         molset = "full"
-        datasets = ["ZZ.004"]
+        datasets = ["Z0.001"]
 
         def q67(r):
             return np.percentile(r, 67)
@@ -1239,7 +1244,7 @@ class Diagnosis(object):
     def available(self):
         return self.plotter.available()
 
-    def canvas(self, cctype="sign1", title=None):
+    def canvas_medium(self, cctype, title):
         self.__log.debug("Getting all needed data.")
         plot = self.plot
         self.plot = False
@@ -1270,5 +1275,15 @@ class Diagnosis(object):
         self.plot = plot
         self.save = save
         self.__log.debug("Plotting")
-        fig = self.plotter.canvas(title=title)
+        fig = self.plotter.canvas_medium(title=title)
         return fig
+
+    def canvas(self, cctype="sign1", size="medium", title=None):
+        if   size == "small":
+            return self.canvas_small(cctype=cctype, title=title)
+        elif size == "medium":
+            return self.canvas_medium(cctype=cctype, title=title)
+        elif size == "large":
+            return self.canvas_large(cctype=cctype, title=title)
+        else:
+            return None

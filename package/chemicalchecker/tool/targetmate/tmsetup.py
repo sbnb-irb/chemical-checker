@@ -99,8 +99,9 @@ class TargetMateSetup(HPCUtils):
         self._bases_models_path, self._signatures_models_path, self._predictions_models_path = self.bases_models_path, self.signatures_models_path, self.predictions_models_path 
         # Temporary path
         if not tmp_path:
+            subpath = self.models_path.rstrip("/").split("/")[-1]
             self.tmp_path = os.path.join(
-                Config().PATH.CC_TMP, str(uuid.uuid4()))
+                Config().PATH.CC_TMP, "targetmate", subpath, str(uuid.uuid4()))
         else:
             self.tmp_path = os.path.abspath(tmp_path)
         if not os.path.exists(self.tmp_path): os.makedirs(self.tmp_path, exist_ok = True)
