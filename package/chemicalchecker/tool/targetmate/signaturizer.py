@@ -320,7 +320,9 @@ class BaseSignaturizer(TargetMateSetup, HPCUtils):
             dataset = self.dataset
         self.__log.info("Reading signature of type %s" % self.cctype)
         sign = self.cc.signature(dataset, self.cctype)
-        keys, V = sign.get_vectors(inchikeys)
+        self.__log.info("...data path: %s" % sign.data_path)
+        keys, V = sign.get_vectors_lite(inchikeys)
+        self.__log.info("Signature read")
         idxs = np.array([iks_dict[k] for k in keys if k in iks_dict]).astype(np.int)
         return V, idxs
 
@@ -393,9 +395,9 @@ class Fingerprinter(BaseSignaturizer):
             self.datasets = ["FP.000"]
             self.dataset  = self.datasets[0]
         else:
-            self.datasets = ["A1.001"]
+            self.datasets = ["A1.002"]
             self.dataset  = self.datasets[0]
-            self.cctype = "sign1"
+            self.cctype   = "sign0"
 
     def featurizer(self, smiles, destination_dir):
         V = self.featurizer_func(smiles)
@@ -442,6 +444,7 @@ class Signaturizer(BaseSignaturizer):
     def __init__(self,
                  datasets=None,
                  sign_predict_paths=None,
+                 prestacked_dataset="Z0.002",
                  **kwargs):
         """Set up a Signaturizer
         
@@ -454,6 +457,7 @@ class Signaturizer(BaseSignaturizer):
         """
         # Inherit
         BaseSignaturizer.__init__(self, **kwargs)
+        self.sign_dim = 128
         # Datasets
         if not datasets:
             self.datasets = []
@@ -461,6 +465,10 @@ class Signaturizer(BaseSignaturizer):
                 self.datasets += [ds]
         else:
             self.datasets = datasets
+        if sorted(self.datasets) != list(self.datasets):
+            raise Exception("Datasets must be sorted!")
+        # prestacked dataset
+        self.prestacked_dataset  = prestacked_dataset
         # preloaded neural networks
         if not sign_predict_paths:
             self.sign_predict_paths = {}
@@ -470,6 +478,37 @@ class Signaturizer(BaseSignaturizer):
                 self.sign_predict_paths[ds] = s3
         else:
             self.sign_predict_paths = sign_predict_paths
+
+    def _dataseter(self, datasets):
+        if not datasets: datasets = self.datasets
+        if type(datasets) == str: datasets = [datasets]
+        if sorted(datasets) != list(datasets):
+            raise Exception("Datasets not sorted")
+        return datasets        
+
+    def _check_prestack_friendly(self, datasets):
+        datasets = self._dataseter(datasets)
+        s3 = self.cc.signature(self.prestacked_dataset, "sign3")
+        with h5py.File(s3.data_path, "r") as hf:
+            prestacked_datasets = list(hf["datasets"][:])
+        # Check datasets of pre-stacked signature 
+        if len(set(datasets).difference(prestacked_datasets)) == 0:
+            prestacked_friendly = True
+            if list(datasets) == list(prestacked_datasets):
+                prestacked_mask = None
+            else:
+                datasets_set    = set(datasets)
+                prestacked_mask = []
+                for ds in prestacked_datasets:
+                    if ds in datasets_set:
+                        prestacked_mask += [True]*self.sign_dim
+                    else:
+                        prestacked_mask += [False]*self.sign_dim
+                prestacked_mask = np.array(prestacked_mask)
+        else:
+            prestacked_friendly = False
+            prestacked_mask   = None
+        return prestacked_friendly, prestacked_mask
 
     # Calculate signatures
     def signaturize(self, smiles, datasets=None, is_tmp=None, chunk_size=1000, wait=True, **kwargs):
@@ -504,14 +543,13 @@ class Signaturizer(BaseSignaturizer):
     # Read signatures
     def read_signatures_ensemble(self, datasets, smiles, inchikeys, idxs, is_tmp, sign_folder):
         """Return signatures as an ensemble"""
-        if not datasets: datasets = self.datasets
+        datasets = self._dataseter(datasets)
         for ds in datasets:
             yield BaseSignaturizer.read_signatures(self, dataset=ds, smiles=smiles, inchikeys=inchikeys, idxs=idxs, is_tmp=is_tmp, sign_folder=sign_folder)
 
     def read_signatures_stacked(self, datasets, smiles, inchikeys, idxs, is_tmp, sign_folder):
         """Return signatures in a stacked form"""
-        if not datasets: datasets = self.datasets
-        if type(datasets) == str: datasets = [datasets]
+        datasets = self._dataseter(datasets)
         V = []
         idxs = None
         for ds in datasets:
@@ -523,11 +561,24 @@ class Signaturizer(BaseSignaturizer):
                 raise Exception("When stacking signatures exactly the same keys need to be available for all molecules")
         return np.hstack(V), idxs
 
+    def read_signatures_prestacked(self, mask, datasets, smiles, inchikeys, idxs, is_tmp, sign_folder):
+        """Return signatures in a stacke form from an already prestacked file"""
+        datasets = self._dataseter(datasets)
+        V, idxs = BaseSignaturizer.read_signatures(self, dataset=self.prestacked_dataset, smiles=smiles, inchikeys=inchikeys, idxs=idxs, is_tmp=is_tmp, sign_folder=sign_folder)
+        if mask is None:
+            return V, idxs
+        else:
+            return V[:,mask], idxs
+
     def read_signatures(self, is_ensemble, datasets, idxs, smiles, inchikeys, is_tmp, sign_folder):
         if is_ensemble:
             return self.read_signatures_ensemble(datasets=datasets, idxs=idxs, smiles=smiles, inchikeys=inchikeys, is_tmp=is_tmp, sign_folder=sign_folder)
         else:
-            return self.read_signatures_stacked(datasets=datasets, idxs=idxs, smiles=smiles, inchikeys=inchikeys, is_tmp=is_tmp, sign_folder=sign_folder)
+            prestack_friendly, prestack_mask = self._check_prestack_friendly(datasets)
+            if prestack_friendly:
+                return self.read_signatures_prestacked(mask=prestack_mask, datasets=datasets, idxs=idxs, smiles=smiles, inchikeys=inchikeys, is_tmp=is_tmp, sign_folder=sign_folder)
+            else:
+                return self.read_signatures_stacked(datasets=datasets, idxs=idxs, smiles=smiles, inchikeys=inchikeys, is_tmp=is_tmp, sign_folder=sign_folder)
 
 
 class SignaturizerSetup(Signaturizer, Fingerprinter):
@@ -553,6 +604,57 @@ class SignaturizerSetup(Signaturizer, Fingerprinter):
 
     def read_signatures(self, datasets=None, idxs=None, smiles=None, inchikeys=None, is_tmp=None, sign_folder=None):
         return self._read_signatures_(datasets=datasets, idxs=idxs, smiles=smiles, inchikeys=inchikeys, is_tmp=is_tmp, sign_folder=sign_folder)
+
+
+@logged
+class Sign3SignatureStacker(object):
+
+    def __init__(self, cc, output_dataset="Z0.001", datasets=None, chunk_size=10000):
+        z3 = cc.signature(output_dataset, "sign3")
+        self.destination_dir = z3.data_path
+        if os.path.exists(self.destination_dir):
+            os.remove(self.destination_dir)
+        self.cc = cc
+        if not datasets:
+            self.datasets = []
+            for ds in self.cc.datasets_exemplary():
+                self.datasets += [ds]
+        else:
+            self.datasets = datasets
+        self.chunk_size = chunk_size
+        s3 = self.cc.signature("A1.001", "sign3")
+        self.shape = s3.shape
+        self.keys  = s3.keys
+        self.data_paths = []
+        for ds in self.datasets:
+            s3 = self.cc.signature(ds, "sign3")
+            self.data_paths += [s3.data_path]
+        
+    def chunker(self, n):
+        size = self.chunk_size
+        for i in range(0, n, size):
+            yield slice(i, i+size)
+
+    def stack(self):
+        from tqdm import tqdm
+        with h5py.File(self.destination_dir, "a") as hf:
+            hf.create_dataset("keys", data=np.array(self.keys, DataSignature.string_dtype()))
+            hf.create_dataset("datasets", data=np.array(self.datasets, DataSignature.string_dtype()))
+            for chunk in tqdm(self.chunker(self.shape[0])):
+                V = None
+                for dp in self.data_paths:
+                    with h5py.File(dp, "r") as sf:
+                        if V is None:
+                            V = sf["V"][chunk]
+                        else:
+                            V = np.hstack((V, sf["V"][chunk]))
+                if "V" not in hf.keys():
+                    hf.create_dataset("V", data=V, maxshape=(self.shape[0], V.shape[1]))
+                else:
+                    hf["V"].resize((hf["V"].shape[0]+V.shape[0]), axis=0)
+                    hf["V"][-V.shape[0]:] = V
+
+
 
 # Signatures in a raw HDF5 format
 #  Utils functions to assemble signatures
@@ -644,3 +746,4 @@ class FileByFileSignatureStacker(object):
         with h5py.File(self.filename, "w") as hf:
             hf.create_dataset("V", data=V.astype(dtype))
             hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
+

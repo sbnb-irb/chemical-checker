@@ -23,16 +23,19 @@ class MultiValidation(MultiSetup):
         MultiSetup.__init__(self, data=data, models_path=models_path, **kwargs)
         self.validation = Validation(**kwargs)
 
-    def run(self, TargetMate, **kwargs):
-        self.__log.info("Precalculating signatures of merged data")
-        sign_paths = self.precalc_signatures(**kwargs)
+    def run(self, TargetMate, use_cc, use_inchikey, **kwargs):
+        if not use_cc:
+            self.__log.info("Precalculating signatures of merged data")
+            sign_paths = self.precalc_signatures(**kwargs)
+        else:
+            sign_paths = None
         self.__log.info("Multiple trainings")
         tm_list   = []
         data_list = []
         for data, models_path, _ in self.tasks:
-            tm = TargetMate(models_path=models_path, master_sign_paths=sign_paths, **kwargs)
+            tm = TargetMate(models_path=models_path, use_cc=use_cc, use_inchikey=use_inchikey, master_sign_paths=sign_paths, **kwargs)
             tm_list   += [tm]
-            data_list += [tm.get_data_fit(data)]
+            data_list += [tm.get_data_fit(data, inchikey_idx=-1, use_inchikey=use_inchikey).on_disk(tm.tmp_path)]
         self.validation.validate(tm=tm_list, data=data_list)
 
 

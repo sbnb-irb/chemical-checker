@@ -54,7 +54,7 @@ class DiagnosisPlot(object):
         return colors
 
     def load_diagnosis_pickle(self, fn):
-        with open(os.path.join(self.sign.stats_path, fn), "rb") as f:
+        with open(os.path.join(self.sign.diags_path, fn), "rb") as f:
             results = pickle.load(f)
         return results
 
@@ -99,7 +99,7 @@ class DiagnosisPlot(object):
     def cross_coverage(self, sign=None, ax=None, title=None, color=None):
         ax = self._get_ax(ax)
         color = self._get_color(color)
-        fn = os.path.join(self.sign.stats_path, "cross_coverage_%s.pkl" % self.cc.sign_name(sign))
+        fn = os.path.join(self.sign.diags_path, "cross_coverage_%s.pkl" % self.cc.sign_name(sign))
         results = self.load_diagnosis_pickle(fn)
         ax.bar([0, 1], [results["my_overlap"], results["vs_overlap"]], hatch="////", edgecolor=color, lw=2, color="white")
         ax.set_ylim(0, 1.05)
@@ -129,7 +129,7 @@ class DiagnosisPlot(object):
     def cross_roc(self, sign=None, ax=None, title=None, color=None):
         ax = self._get_ax(ax)
         color = self._get_color(color)
-        fn = os.path.join(self.sign.stats_path, "cross_roc_%s.pkl" % self.cc.sign_name(sign))
+        fn = os.path.join(self.sign.diags_path, "cross_roc_%s.pkl" % self.cc.sign_name(sign))
         results = self.load_diagnosis_pickle(fn)
         ax = self._roc(ax, results, color)
         if title is None:
@@ -711,7 +711,15 @@ class DiagnosisPlot(object):
         ax.set_title("CC levels")
         return ax
 
-    def canvas(self, title=None):
+    def canvas_small(self, title):
+        fig = plt.figure(constrained_layout=True, figsize=(12,8))
+
+
+        fig.suptitle(title, fontweight="bold")
+        plt.close()
+        return fig
+
+    def canvas_medium(self, title):
         fig = plt.figure(constrained_layout=True, figsize=(12,12))
         gs = fig.add_gridspec(6, 6)
         ax = fig.add_subplot(gs[0,0])
@@ -767,3 +775,17 @@ class DiagnosisPlot(object):
         fig.suptitle(title, fontweight="bold")
         plt.close()
         return fig
+
+    def canvas_large(self, title):
+        pass
+
+    def canvas(self, size="medium", title=None):
+        if   size == "small":
+            return self.canvas_small(title=title)
+        elif size == "medium":
+            return self.canvas_medium(title=title)
+        elif size == "large":
+            return self.canvas_large(title=title)
+        else:
+            return None
+
