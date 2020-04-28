@@ -124,14 +124,14 @@ class SiameseTriplets(object):
 
         # check input path
         if self.traintest_file is not None:
-            self.traintest_file = os.path.abspath(self.traintest_file)
-            if not os.path.exists(self.traintest_file):
-                raise Exception('Input data file does not exists!')
-
-            # initialize train generator
-            traintest_data = DataSignature(self.traintest_file)
-            self.sharedx = None
             if not predict_only:
+                self.traintest_file = os.path.abspath(self.traintest_file)
+                if not os.path.exists(self.traintest_file):
+                    raise Exception('Input data file does not exists!')
+
+                # initialize train generator
+                traintest_data = DataSignature(self.traintest_file)
+                self.sharedx = None
                 self.sharedx = traintest_data.get_h5_dataset('x')
                 tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
                     self.traintest_file,
@@ -197,7 +197,7 @@ class SiameseTriplets(object):
         # log parameters
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
         self.__log.info("{:<22}: {:>12}".format("model_dir", self.model_dir))
-        if self.traintest_file is not None:
+        if self.traintest_file is not None and not predict_only:
             self.__log.info("{:<22}: {:>12}".format(
                 "traintest_file", self.traintest_file))
             tmp = NeighborTripletTraintest(self.traintest_file, 'train_train')
