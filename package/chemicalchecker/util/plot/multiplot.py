@@ -8,6 +8,7 @@ import pickle
 import itertools
 import numpy as np
 import pandas as pd
+import collections
 from tqdm import tqdm
 from scipy import interpolate
 from scipy import stats
@@ -32,6 +33,7 @@ from matplotlib.collections import LineCollection
 from chemicalchecker.util.parser import Converter
 from chemicalchecker.util import logged
 from chemicalchecker.util.decomposition import dataset_correlation
+from chemicalchecker.util.plot.diagnosticsplot import DiagnosisPlot
 
 
 @logged
@@ -1593,7 +1595,8 @@ class MultiPlot():
             plt.close('all')
         """
 
-    def cctype_similarity_search(self, cctype='sign4', cctype_ref='sign1', limit=1000, limit_neig=50000):
+    def cctype_similarity_search(self, cctype='sign4', cctype_ref='sign1',
+                                 limit=10000, limit_neig=50000, sign_cap=200000):
 
         from chemicalchecker.core.signature_data import DataSignature
         import faiss
@@ -1679,17 +1682,23 @@ class MultiPlot():
             uni = len(set.union(s1, s2))
             return inter / float(uni)
 
+        def overlap(n1, n2):
+            """Compute Overlap."""
+            s1 = set(n1)
+            s2 = set(n2)
+            uni = len(set.intersection(s1, s2))
+            return float(uni) / len(s1)
+
         outfile = os.path.join(
             self.plot_path, '%s_simsearch.pkl' % cctype)
         if not os.path.isfile(outfile):
             df = pd.DataFrame(
-                columns=['dataset', 'nthr', 'cthr', 'dthr', 'jaccard',
-                         'log-odds-ratio'])
+                columns=['dataset', 'nthr', 'cthr', 'dthr',
+                         'log-odds-ratio', 'logodds_err'])
+            # [(5,'B1.001'),(15,'D1.001')]:
             for ds_idx, ds in list(enumerate(self.datasets)):
                 sign = self.cc.get_signature(cctype, 'full', ds)
                 signref = self.cc.get_signature(cctype_ref, 'full', ds)
-                if signref.shape[0] > 100000:
-                    continue
                 # get siamese train/test inks
                 traintest_file = os.path.join(
                     sign.model_path, 'traintest_eval.h5')
@@ -1703,28 +1712,43 @@ class MultiPlot():
                 test_mask = np.isin(
                     list(signref.keys), list(test_inks), assume_unique=True)
                 # get train/test sign1
-                train_signref = signref.get_h5_dataset('V', mask=train_mask)
-                test_signref = signref.get_h5_dataset('V', mask=test_mask)
+                slice_cap = slice(0, sign_cap)
+                signref_V = signref.get_h5_dataset('V', mask=slice_cap)
+                train_signref = signref_V[train_mask[slice_cap]]
+                test_signref = signref_V[test_mask[slice_cap]]
                 # predict train/test sign4
-                input_file = os.path.join(sign.model_path, 'train.h5')
-                train_input = DataSignature(input_file).get_h5_dataset(
-                    'x', mask=train_mask)
-                test_input = DataSignature(input_file).get_h5_dataset(
-                    'x', mask=test_mask)
+                print('REFERENCE SIGNATURE:', cctype_ref)
+                print('train_signref', train_signref.shape)
+                print('test_signref', test_signref.shape)
+                # predict train/test sign4
+                input_file = DataSignature(
+                    os.path.join(sign.model_path, 'train.h5'))
+                input_x = input_file.get_h5_dataset('x', mask=slice_cap)
+                train_input = input_x[train_mask[slice_cap]]
+                test_input = input_x[test_mask[slice_cap]]
+                print('PREDICTION INPUT:', traintest_file)
+                print('train_input', train_input.shape)
+                print('test_input', test_input.shape)
+                # laod eval siamese predictor
                 predict_fn = sign.get_predict_fn(
                     smiles=False, model='siamese_eval')
                 train_sign = predict_fn(train_input)
                 test_sign = predict_fn(mask_exclude([ds_idx], test_input))
+                print('PREDICTION OUTPUT:', traintest_file)
+                print('train_sign', train_sign.shape)
+                print('test_sign', test_sign.shape)
                 # get confidence for test sign4
                 conf_mask = np.isin(
                     list(sign.keys), list(test_inks), assume_unique=True)
-                test_confidence = sign.get_h5_dataset('confidence')[conf_mask]
-                # make train sign4 neig
-                train_sign_neig = faiss.IndexFlatL2(train_sign.shape[1])
-                train_sign_neig.add(train_sign.astype(np.float32))
+                test_confidence = sign.get_h5_dataset(
+                    'confidence')[conf_mask][:len(test_sign)]
+                print('test_confidence', test_confidence.shape)
                 # make train sign1 neig
                 train_signref_neig = faiss.IndexFlatL2(train_signref.shape[1])
                 train_signref_neig.add(train_signref.astype(np.float32))
+                # make train sign4 neig
+                train_sign_neig = faiss.IndexFlatL2(train_sign.shape[1])
+                train_sign_neig.add(train_sign.astype(np.float32))
                 # find test sign1 neighbors
                 signref_neig_dist, signref_neig_idx = train_signref_neig.search(
                     test_signref.astype(np.float32), 100)
@@ -1736,20 +1760,20 @@ class MultiPlot():
                 # check various thresholds
                 # get sign ref background distances thresholds
                 back = background_distances(train_signref, 'euclidean')
-                dthrs = list(zip(back['distance'][:6], back['pvalue'][:6]))
-                nthrs = [5, 10, 20]  # top neighbors
-                cthrs = [-1, .5, .8]  # confidence
-                max_conf = np.sum(test_confidence > cthrs[-1])
+                dthrs = list()
+                dthrs.append((back['distance'][1], back['pvalue'][1]))
+                dthrs.append((back['distance'][5], back['pvalue'][5]))
+                dthrs.append((back['distance'][-1], back['pvalue'][-1]))
+                nthrs = [10]  # top neighbors
+                cthrs = [0, .5, .8]  # confidence
                 for nthr, cthr, dthr in itertools.product(nthrs, cthrs, dthrs):
-                    # limit original space neighbors by distance
-                    d_mask = signref_neig_dist < dthr[0]
-                    # limit signature molecule by confidence
-                    c_mask = test_confidence > cthr
-                    scores = list()
-                    logodds_scores = list()
-                    count = 0
+                    hits = 0
+                    rnd_hits = collections.defaultdict(int)
                     for row in tqdm(range(signref_neig_dist.shape[0])):
-                        # skip if we exclude by confidence
+                        # limit original space neighbors by distance
+                        d_mask = signref_neig_dist < dthr[0]
+                        # limit signature molecule by confidence
+                        c_mask = test_confidence > cthr
                         if not c_mask[row]:
                             continue
                         # select top n valid neighbors
@@ -1759,58 +1783,43 @@ class MultiPlot():
                             continue
                         # compare to sign neighbors
                         sign_neig = sign_neig_idx[row][:nthr]
-                        jac = jaccard_similarity(ref_neig, sign_neig)
-                        scores.append(jac)
+                        hits += len(set(ref_neig).intersection(sign_neig))
                         # compute random background
-                        rnd_idxs = np.arange(train_sign.shape[0])
-                        rnd_nr = max(sign_neig.shape[0], 10)
-                        rnd_scores = list()
-                        for _ in range(100):
-                            rnd_neig = np.random.choice(rnd_idxs, rnd_nr)
-                            rnd_jac = jaccard_similarity(ref_neig, rnd_neig)
-                            rnd_scores.append(rnd_jac)
-                        logodds = np.log2(
-                            1 + (jac / max(1e-5, np.mean(rnd_scores))))
-                        if np.isinf(logodds):
-                            print('ref_neig', ref_neig)
-                            print('sign_neig', sign_neig)
-                        logodds_scores.append(logodds)
-                        count += 1
-                        if count == max_conf:
-                            break
+                        rnd_idxs = np.arange(train_signref_neig.ntotal)
+                        for i in range(1000):
+                            rnd_neig = np.random.choice(rnd_idxs, nthr)
+                            rnd_hits[
+                                i] += len(set(ref_neig).intersection(rnd_neig))
 
-                    # compare neighbors only high confidence
-                    df = df.append(pd.DataFrame({
+                    rnd_hits = [v for k, v in rnd_hits.items()]
+                    rnd_mean = np.mean(rnd_hits)
+                    rnd_std = np.std(rnd_hits)
+                    logodds = np.log2(hits / rnd_mean)
+                    logodds_std = np.log2(hits / (rnd_mean + rnd_std))
+                    logodds_err = abs(logodds - logodds_std)
+                    print(nthr, cthr, dthr, 'log-odds-ratio', logodds)
+                    df.loc[len(df)] = pd.Series({
                         'dataset': ds,
                         'nthr': nthr,
                         'cthr': cthr,
                         'dthr': dthr[1],
-                        'jaccard': scores,
-                        'log-odds-ratio': logodds_scores,
-                    }), ignore_index=True)
-
-                # more options can be specified also
-                with pd.option_context('display.max_rows', None,
-                                       'display.max_columns', None):
-                    print(df[df.dataset == ds].groupby(
-                        ['dataset', 'dthr', 'nthr', 'cthr', ]).agg(
-                        count=('jaccard', 'count'),
-                        jaccard_mean=('jaccard', 'mean'),
-                        jaccard_std=('jaccard', 'std'),
-                        odds_mean=('log-odds-ratio', 'mean'),
-                        odds_std=('log-odds-ratio', 'std'),))
+                        'log-odds-ratio': logodds,
+                        'logodds_err': logodds_err,
+                    })
             df.to_pickle(outfile)
         df = pd.read_pickle(outfile)
 
+        nthrs = df['nthr'].unique()
+        dthrs = df['dthr'].unique()
         max_odds = df['log-odds-ratio'].describe()['75%'] * 1.5
         min_odds = 0
         for nthr, dthr in itertools.product(nthrs, dthrs):
-            fdf = df[(df.nthr == nthr) & (df.dthr == dthr[1])]
+            fdf = df[(df.nthr == nthr) & (df.dthr == dthr)]
             if len(fdf) == 0:
                 continue
-            fig = plt.figure(constrained_layout=True, figsize=(10, 10))
+            fig = plt.figure(constrained_layout=True, figsize=(5, 10))
             gs = fig.add_gridspec(5, 5, wspace=0.1, hspace=0.1)
-            plt.subplots_adjust(left=0.08, right=.95, bottom=0.08, top=.95)
+            plt.subplots_adjust(left=0.14, right=.92, bottom=0.06, top=.95)
             axes = list()
             for row, col in itertools.product(range(5), range(5)):
                 axes.append(fig.add_subplot(gs[row, col]))
@@ -1825,16 +1834,17 @@ class MultiPlot():
                 dsdf = fdf[fdf.dataset == ds]
                 if len(dsdf) == 0:
                     continue
-                sns.pointplot(data=dsdf, y='jaccard',
-                              capsize=.2, join=True,
-                              markers=["."],
-                              x='cthr', ax=ax,
-                              palette=[self.cc_colors(ds, 2),
-                                       self.cc_colors(ds, 1),
-                                       self.cc_colors(ds, 0)])
+                ax.errorbar([1, 2, 3], dsdf['log-odds-ratio'],
+                            yerr=dsdf['logodds_err'], fmt='-',
+                            color=self.cc_colors(ds, 0),
+                            ecolor=self.cc_colors(ds, 1),
+                            elinewidth=2, capsize=0)
                 ax.set_ylabel('')
                 ax.set_xlabel('')
-                ax.set_ylim(0, 1)
+                ax.set_ylim(min_odds, max_odds)
+                ax.set_xlim(0.5, 3.5)
+                x = [str(i) for i in dsdf['cthr'].unique()]
+                ax.xaxis.set_ticklabels(x)
                 # axis ticks
                 if ds[:2] == 'E1':
                     # set the alignment for outer ticklabels
@@ -1863,10 +1873,174 @@ class MultiPlot():
                     ax.yaxis.set_label_position('right')
 
             outfile = os.path.join(
-                self.plot_path, 'simsearch_%s_%s.png' % (nthr, dthr[1]))
+                self.plot_path, 'simsearch_%s_%s.png' % (nthr, dthr))
             print(outfile)
             plt.savefig(outfile, dpi=self.dpi)
             plt.close('all')
+
+    def diagnosis_projections(self, cctype):
+        fig = plt.figure(constrained_layout=True, figsize=(8, 8))
+        gs = fig.add_gridspec(5, 5, wspace=0.1, hspace=0.1)
+        plt.subplots_adjust(left=0.08, right=.95, bottom=0.08, top=.95)
+        axes = list()
+        for row, col in itertools.product(range(5), range(5)):
+            axes.append(fig.add_subplot(gs[row, col]))
+        fig.add_subplot(111, frameon=False)
+        plt.tick_params(labelcolor='none', top=False,
+                        bottom=False, left=False, right=False)
+        plt.grid(False)
+        plt.xlabel("Dim 1", size=18)
+        plt.ylabel("Dim 2", size=18)
+
+        for ds, ax in zip(self.datasets[:], axes):
+            sign = self.cc.get_signature(cctype, 'full', ds)
+            diag = DiagnosisPlot(self.cc, sign)
+            diag.projection(ax=ax)
+            ax.set_xlabel("")
+            ax.set_ylabel("")
+            ax.set_title('')
+            # axis ticks
+            if ds[:2] == 'E1':
+                # set the alignment for outer ticklabels
+                ticklabels = ax.get_yticklabels()
+                ticklabels[0].set_va("bottom")
+                ticklabels[-1].set_va("top")
+            elif ds[1] == '1':
+                # set the alignment for outer ticklabels
+                ticklabels = ax.get_yticklabels()
+                ticklabels[0].set_va("bottom")
+                ticklabels[-1].set_va("top")
+                ax.xaxis.set_ticklabels([])
+            elif ds[0] == 'E':
+                ax.yaxis.set_ticklabels([])
+            else:
+                ax.xaxis.set_ticklabels([])
+                ax.yaxis.set_ticklabels([])
+
+            # axis labels
+            if ds[0] == 'A':
+                ax.set_xlabel(ds[1], fontsize=18, labelpad=15)
+                ax.xaxis.set_label_position('top')
+            if ds[1] == '5':
+                ax.set_ylabel(ds[0], fontsize=18, rotation=0, va='center',
+                              labelpad=15)
+                ax.yaxis.set_label_position('right')
+
+        outfile = os.path.join(
+            self.plot_path, 'diagnosis_projections.png')
+        print(outfile)
+        plt.savefig(outfile, dpi=self.dpi)
+        plt.close('all')
+
+    def diagnosis_confidences_projection(self, cctype):
+        fig = plt.figure(constrained_layout=True, figsize=(7, 7))
+        gs = fig.add_gridspec(5, 5, wspace=0.1, hspace=0.1)
+        plt.subplots_adjust(left=0.08, right=.95, bottom=0.08, top=.95)
+        axes = list()
+        for row, col in itertools.product(range(5), range(5)):
+            axes.append(fig.add_subplot(gs[row, col]))
+        fig.add_subplot(111, frameon=False)
+        plt.tick_params(labelcolor='none', top=False,
+                        bottom=False, left=False, right=False)
+        plt.grid(False)
+        plt.xlabel("Dim 1", size=18)
+        plt.ylabel("Dim 2", size=18)
+
+        for ds, ax in zip(self.datasets[:], axes):
+            sign = self.cc.get_signature(cctype, 'full', ds)
+            diag = DiagnosisPlot(self.cc, sign)
+            diag.confidences_projection(ax=ax)
+            ax.set_xlabel("")
+            ax.set_ylabel("")
+            ax.set_title('')
+            # axis ticks
+            if ds[:2] == 'E1':
+                # set the alignment for outer ticklabels
+                ticklabels = ax.get_yticklabels()
+                ticklabels[0].set_va("bottom")
+                ticklabels[-1].set_va("top")
+            elif ds[1] == '1':
+                # set the alignment for outer ticklabels
+                ticklabels = ax.get_yticklabels()
+                ticklabels[0].set_va("bottom")
+                ticklabels[-1].set_va("top")
+                ax.xaxis.set_ticklabels([])
+            elif ds[0] == 'E':
+                ax.yaxis.set_ticklabels([])
+            else:
+                ax.xaxis.set_ticklabels([])
+                ax.yaxis.set_ticklabels([])
+
+            # axis labels
+            if ds[0] == 'A':
+                ax.set_xlabel(ds[1], fontsize=18, labelpad=15)
+                ax.xaxis.set_label_position('top')
+            if ds[1] == '5':
+                ax.set_ylabel(ds[0], fontsize=18, rotation=0, va='center',
+                              labelpad=15)
+                ax.yaxis.set_label_position('right')
+
+        outfile = os.path.join(
+            self.plot_path, 'diagnosis_confidences_projection.png')
+        print(outfile)
+        plt.savefig(outfile, dpi=self.dpi)
+        plt.close('all')
+
+    def diagnosis_euclidean_distances(self, cctype):
+        fig = plt.figure(constrained_layout=True, figsize=(10, 10))
+        gs = fig.add_gridspec(5, 5, wspace=0.1, hspace=0.1)
+        plt.subplots_adjust(left=0.08, right=.95, bottom=0.08, top=.95)
+        axes = list()
+        for row, col in itertools.product(range(5), range(5)):
+            axes.append(fig.add_subplot(gs[row, col]))
+        fig.add_subplot(111, frameon=False)
+        plt.tick_params(labelcolor='none', top=False,
+                        bottom=False, left=False, right=False)
+        plt.grid(False)
+        plt.xlabel("Euclidean Distance", size=18)
+        plt.ylabel("Density", size=18)
+
+        for ds, ax in zip(self.datasets[:], axes):
+            sign = self.cc.get_signature(cctype, 'full', ds)
+            diag = DiagnosisPlot(self.cc, sign)
+            diag.euclidean_distances(ax=ax)
+            ax.set_xlabel("")
+            ax.set_ylabel("")
+            ax.set_title('')
+            ax.set_xlim(0, 2)
+            ax.set_ylim(0, 5)
+            # axis ticks
+            if ds[:2] == 'E1':
+                # set the alignment for outer ticklabels
+                ticklabels = ax.get_yticklabels()
+                ticklabels[0].set_va("bottom")
+                ticklabels[-1].set_va("top")
+            elif ds[1] == '1':
+                # set the alignment for outer ticklabels
+                ticklabels = ax.get_yticklabels()
+                ticklabels[0].set_va("bottom")
+                ticklabels[-1].set_va("top")
+                ax.xaxis.set_ticklabels([])
+            elif ds[0] == 'E':
+                ax.yaxis.set_ticklabels([])
+            else:
+                ax.xaxis.set_ticklabels([])
+                ax.yaxis.set_ticklabels([])
+
+            # axis labels
+            if ds[0] == 'A':
+                ax.set_xlabel(ds[1], fontsize=18, labelpad=15)
+                ax.xaxis.set_label_position('top')
+            if ds[1] == '5':
+                ax.set_ylabel(ds[0], fontsize=18, rotation=0, va='center',
+                              labelpad=15)
+                ax.yaxis.set_label_position('right')
+
+        outfile = os.path.join(
+            self.plot_path, 'diagnosis_moa.png')
+        print(outfile)
+        plt.savefig(outfile, dpi=self.dpi)
+        plt.close('all')
 
     def sign3_neig2_jaccard(self, limit=2000):
 
@@ -2856,7 +3030,7 @@ class MultiPlot():
         for ds in examplary_ds:
             ds_idx = np.argwhere(np.isin(self.datasets, ds)).flatten()
             s2 = self.cc.get_signature('sign2', 'full', ds)
-            s4 = self.cc.get_signature('sign4', 'full', ds)
+            s4 = self.cc.get_signature('sign3', 'full', ds)
             traintest_file = os.path.join(s4.model_path, 'traintest_eval.h5')
             traintest = DataSignature(traintest_file)
             inks = traintest.get_h5_dataset('keys_train')[:100000]
@@ -2866,7 +3040,7 @@ class MultiPlot():
             sign2_matrix = os.path.join(s4.model_path, 'train.h5')
             X = DataSignature(sign2_matrix)
             feat = X.get_h5_dataset('x', mask=test_mask)
-            predict_fn = s4.get_predict_fn(model='siamese_eval')
+            predict_fn = s4.get_predict_fn(smiles=False, model='siamese_eval')
             y_true = predict_fn(mask_keep(ds_idx, feat))
             y_pred = predict_fn(mask_exclude(ds_idx, feat))
 
