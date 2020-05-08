@@ -103,7 +103,7 @@ class SiameseTriplets(object):
         self.loss_func = str(kwargs.get("loss_func", 'orthogonal_tloss'))
         self.margin = float(kwargs.get("margin", 1.0))
         self.alpha = float(kwargs.get("alpha", 1.0))
-        self.patience = float(kwargs.get("patience", 5))
+        self.patience = float(kwargs.get("patience", self.epochs))
         self.traintest_file = kwargs.get("traintest_file", None)
         self.standard = kwargs.get("standard", True)
         self.trim_mask = kwargs.get("trim_mask", None)
@@ -262,16 +262,25 @@ class SiameseTriplets(object):
 
         def add_layer(net, layer, layer_size, activation, dropout,
                       use_bias=True, input_shape=False):
-            if input_shape:
-                net.add(GaussianDropout(rate=0.1, input_shape=input_shape))
-            if activation == 'selu':
-                net.add(layer(layer_size, use_bias=use_bias,
+            if input_shape is not None:
+                if activation == 'selu':
+                    net.add(GaussianDropout(rate=0.1, input_shape=input_shape))
+                    net.add(layer(layer_size, use_bias=use_bias,
                               kernel_initializer='lecun_normal'))
+                else:
+                    net.add(layer(layer_size, use_bias=use_bias, input_shape=input_shape))
             else:
-                net.add(layer(layer_size, use_bias=use_bias))
+                if activation == 'selu':
+                    net.add(layer(layer_size, use_bias=use_bias,
+                              kernel_initializer='lecun_normal'))
+                else:
+                    net.add(layer(layer_size, use_bias=use_bias))
             net.add(Activation(activation))
             if dropout is not None:
-                net.add(AlphaDropoutCP(dropout, cp=cp))
+                if activation == 'selu':
+                    net.add(AlphaDropoutCP(dropout, cp=cp))
+                else:
+                    net.add(Dropout(dropout))
 
         # we have two inputs
         input_a = Input(shape=input_shape)
@@ -287,21 +296,30 @@ class SiameseTriplets(object):
                 input_shape[0], num_layers=len(self.layers))
 
         # each goes to a network with the same architechture
+        assert(len(self.layers) == len(self.layers_sizes) ==
+           len(self.activations) == len(self.dropouts))
         basenet = Sequential()
+        for i, tple in enumerate(zip(self.layers, self.layers_sizes, self.activations, self.dropouts)):
+            layer, layer_size, activation, dropout = tple
+            i_shape = None
+            if i == 0:
+                i_shape = input_shape
+            if i == (len(self.layers)-1):
+                dropout = None
+            add_layer(basenet, layer, layer_size, activation, dropout, input_shape=i_shape)
+
         # first layer
-        add_layer(basenet, self.layers[0], self.layers_sizes[0],
+        """add_layer(basenet, self.layers[0], self.layers_sizes[0],
                   self.activations[0], self.dropouts[0],
                   input_shape=input_shape)
         hidden_layers = zip(self.layers[1:-1],
                             self.layers_sizes[1:-1],
                             self.activations[1:-1],
                             self.dropouts[1:-1])
-        assert(len(self.layers) == len(self.layers_sizes) ==
-               len(self.activations) == len(self.dropouts))
         for layer, layer_size, activation, dropout in hidden_layers:
             add_layer(basenet, layer, layer_size, activation, dropout)
         add_layer(basenet, self.layers[-1], self.layers_sizes[-1],
-                  self.activations[-1], None)
+                  self.activations[-1], None)"""
         # last normalization layer for loss
         basenet.add(Lambda(lambda x: K.l2_normalize(x, axis=-1)))
         basenet.summary()
