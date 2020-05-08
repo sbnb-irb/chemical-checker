@@ -150,21 +150,22 @@ class SiameseTriplets(object):
                     self.tr_shapes[0][0] / self.batch_size)
 
             # load the scaler
-            scaler_path = os.path.join(self.model_dir, 'scaler.pkl')
-            if os.path.isfile(scaler_path):
-                self.scaler = pickle.load(open(scaler_path, 'rb'))
-                self.__log.info("Using scaler: %s", scaler_path)
-            elif 'scaler' in traintest_data.info_h5:
-                scaler_path_tt = traintest_data.get_h5_dataset('scaler')[0]
-                self.__log.info("Using scaler: %s", scaler_path_tt)
-                self.scaler = pickle.load(open(scaler_path_tt, 'rb'))
-                pickle.dump(self.scaler, open(scaler_path, 'wb'))
-            else:
-                self.__log.warning("No scaler has been loaded")
-            self.scaler.scale_ = self.scaler.scale_[
-                np.repeat(self.trim_mask, 128)]
-            self.scaler.center_ = self.scaler.center_[
-                np.repeat(self.trim_mask, 128)]
+            if not self.standard:
+                scaler_path = os.path.join(self.model_dir, 'scaler.pkl')
+                if os.path.isfile(scaler_path):
+                    self.scaler = pickle.load(open(scaler_path, 'rb'))
+                    self.__log.info("Using scaler: %s", scaler_path)
+                elif 'scaler' in traintest_data.info_h5:
+                    scaler_path_tt = traintest_data.get_h5_dataset('scaler')[0]
+                    self.__log.info("Using scaler: %s", scaler_path_tt)
+                    self.scaler = pickle.load(open(scaler_path_tt, 'rb'))
+                    pickle.dump(self.scaler, open(scaler_path, 'wb'))
+                else:
+                    self.__log.warning("No scaler has been loaded")
+                self.scaler.scale_ = self.scaler.scale_[
+                    np.repeat(self.trim_mask, 128)]
+                self.scaler.center_ = self.scaler.center_[
+                    np.repeat(self.trim_mask, 128)]
 
         # initialize validation/test generator
         if evaluate:
