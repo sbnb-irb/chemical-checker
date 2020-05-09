@@ -132,6 +132,166 @@ class ToppedSampler(object):
 
 
 @logged
+class OutOfUniverseStratified(Splitter):
+    """In a stratified skaffold split, only molecules that are not present in the universe are accepted at testing time"""
+
+    def __init__(self, cc=None, datasets = ["A1.001"],
+                 cctype="sign1", inchikeys_universe=None, **kwargs):
+        """Initialize.
+
+            Args:
+                cc(ChemicalChecker): ChemicalChecker instance.
+                datasets_universe(list): Datasets to consider as the universe.
+                cctype(str): Signature type corresponding to the datasets.
+                inchikeys_universe(list): List of inchikeys to be considered as the universe. If not None, overwrites datasets (default=None).
+        """
+        Splitter.__init__(self, **kwargs)
+        if inchikeys_universe is None:
+            if cc is None:
+                raise Exception("ChemicalChecker instance need be specified")
+            univ = set()
+            for ds in datasets:
+                s = cc.signature(ds, cctype)
+                univ.update(list(s.keys))
+            univ = list(univ)
+        else:
+            univ = inchikeys_universe
+        self.univ = set([k.split("-")[0] for k in univ])
+
+    def one_split(self, ins_idxs, out_idxs, y, seed):
+        assert set(y) == set([0,1]), "Labels are different than 0/1"
+        y = np.array(y)
+        # Expected numbers
+        exp_n_te   = int(np.round(len(y)*self.test_size, 0))
+        exp_n_tr   = len(y) - exp_n_te
+        prop_1_0   = np.sum(y) / len(y)
+        exp_n_tr_0 = max(1, int(np.round(exp_n_tr*(1-prop_1_0),0)))
+        exp_n_tr_1 = max(1, int(np.round(exp_n_tr*(prop_1_0),0)))
+        exp_n_te_0 = max(1, int(np.round(exp_n_te*(1-prop_1_0),0)))
+        exp_n_te_1 = max(1, int(np.round(exp_n_te*(prop_1_0),0)))
+        # Masks
+        ins_mask   = np.array([False]*len(y))
+        out_mask   = np.array([False]*len(y))
+        ins_mask[ins_idxs] = True
+        out_mask[out_idxs] = True
+        mask_0 = y == 0
+        mask_1 = y == 1
+        # Check availability
+        obs_ins_0   = np.argwhere(np.logical_and(ins_mask, mask_0)).ravel()
+        obs_ins_1   = np.argwhere(np.logical_and(ins_mask, mask_1)).ravel()
+        obs_out_0   = np.argwhere(np.logical_and(out_mask, mask_0)).ravel()
+        obs_out_1   = np.argwhere(np.logical_and(out_mask, mask_1)).ravel()
+        obs_ins_n_0 = len(obs_ins_0)
+        obs_ins_n_1 = len(obs_ins_1)
+        obs_out_n_0 = len(obs_out_0)
+        obs_out_n_1 = len(obs_out_1)
+        if obs_out_n_1 == 0 or obs_out_n_0 == 0:
+            self.__log.warn("Unfortunately, not enough out-of-universe samples are available")
+            return None, None
+        # Decide how to sample
+        #  start with test set
+        self.__log.info("... sampling test first")
+        test_idxs = []
+        #    negatives
+        if obs_out_n_0 >= exp_n_te_0:
+            self.__log.info("More 0s than needed, subsampling")
+            n = exp_n_te_0
+            np.random.seed(seed)
+            test_idxs += list(np.random.choice(obs_out_0, size=n, replace=False))
+        else:
+            self.__log.info("Less 0s than needed, that's ok...")
+            test_idxs += list(obs_out_0)
+        #    positives
+        if obs_out_n_1 >= exp_n_te_1:
+            self.__log.info("More 1s than needed, subsampling")
+            n = exp_n_te_1
+            np.random.seed(seed)
+            test_idxs += list(np.random.choice(obs_out_1, size=n, replace=False))
+        else:
+            self.__log.info("Less 1s than needed, that's ok...")
+            test_idxs += list(obs_out_1)
+        # rebalance if necessary
+        self.__log.debug("Re-balance if necessary")
+        test_prop_1_0 = np.sum(y[test_idxs])/len(test_idxs)
+        self.__log.info("Observed test prop 1/0: %.3f, full prop 1/0: %.3f" % (test_prop_1_0, prop_1_0))
+        idxs_0 = np.argwhere(y == 0).ravel()
+        idxs_1 = np.argwhere(y == 1).ravel()
+        test_idxs_0 = list(set(test_idxs).intersection(idxs_0))
+        test_idxs_1 = list(set(test_idxs).intersection(idxs_1))
+        if test_prop_1_0 > prop_1_0:
+            n_1 = int(np.round(len(test_idxs)*prop_1_0,0))
+            np.random.seed(seed)
+            test_idxs_1 = np.random.choice(test_idxs_1, size=min(len(test_idxs_1), n_1), replace=False)
+        else:
+            n_0 = int(np.round(len(test_idxs)*(1-prop_1_0),0))
+            np.random.seed(seed)
+            test_idxs_0 = np.random.choice(test_idxs_0, size=min(len(test_idxs_0), n_0), replace=False)
+        test_idxs = list(test_idxs_0) + list(test_idxs_1)
+        if len(test_idxs_0) == 0 or len(test_idxs_1) == 0:
+            return None, None
+        #  continue with train set
+        self.__log.info("... sampling train now")
+        train_idxs  = []
+        #    negatives
+        if obs_ins_n_0 >= exp_n_tr_0:
+            self.__log.info("More 0s than needed, subsampling")
+            n = exp_n_tr_0
+            np.random.seed(seed)
+            train_idxs += list(np.random.choice(obs_ins_0, size=n, replace=False))
+        else:
+            self.__log.info("Less 0s than needed, sampling from out-of-universe")
+            train_idxs += list(obs_ins_0)
+            n = exp_n_tr_0 - obs_out_n_0
+            eligible = list(set(obs_out_0).difference(test_idxs))
+            n = min(n, len(eligible))
+            if n > 0:
+                np.random.seed(seed)
+                train_idxs += list(np.random.choice(eligible, size=min(n, len(eligible)), replace=False))
+        #    positives
+        if obs_ins_n_1 >= exp_n_tr_1:
+            self.__log.info("More 1s than needed, subsampling")
+            n = exp_n_tr_1
+            np.random.seed(seed)
+            train_idxs += list(np.random.choice(obs_ins_1, size=n, replace=False))
+        else:
+            self.__log.info("Less 1s than needed, sampling from out-of-universe")
+            train_idxs += list(obs_ins_1)
+            n = exp_n_tr_1 - obs_ins_n_1
+            eligible = list(set(obs_out_1).difference(test_idxs))
+            n = min(n, len(eligible))
+            if n > 0:
+                np.random.seed(seed)
+                train_idxs += list(np.random.choice(eligible, size=n, replace=False))
+        # Sort
+        train_idxs = np.array(train_idxs).astype(np.int)
+        test_idxs  = np.array(test_idxs).astype(np.int)
+        np.random.seed(seed)
+        np.random.shuffle(train_idxs)
+        np.random.seed(seed)
+        np.random.shuffle(test_idxs)
+        return train_idxs, test_idxs
+
+    def split(self, X, y):
+        seed = self.random_state
+        inchikeys = X
+        inchikeys_conn = np.array([k.split("-")[0] for k in inchikeys])
+        ins_idxs = []
+        out_idxs = []
+        for i, k in enumerate(inchikeys_conn):
+            if k in self.univ:
+                ins_idxs += [i]
+            else:
+                out_idxs += [i]
+        ins_idxs = np.array(ins_idxs)
+        out_idxs = np.array(out_idxs)
+        self.__log.info("Inside universe: %d, Outside universe: %d" % (len(ins_idxs), len(out_idxs)))
+        for _ in range(0, self.n_splits):
+            train_idx, test_idx = self.one_split(ins_idxs, out_idxs, y, seed)
+            seed += 1
+            yield train_idx, test_idx
+
+
+@logged
 class ShuffleScaffoldSplit(Splitter):
     """Random sampling based on scaffolds. It tries to satisfy the desired proportion"""
 
@@ -282,7 +442,23 @@ class DeepchemScaffoldSplit(Splitter):
         yield train_idx, test_idx
 
 
-def GetSplitter(is_cv, is_classifier, is_stratified, scaffold_split):
+@logged
+class StandardStratifiedShuffleSplit(Splitter):
+    """A wrapper for the sklearn stratified shuffle split"""
+
+    def __init__(self, **kwargs):
+        self.__log.info("Standard stratified shuffle splitter")
+        Splitter.__init__(self, **kwargs)
+
+    def split(self, X, y):
+        spl = model_selection.StratifiedShuffleSplit(n_splits=self.n_splits,
+                                                     test_size=self.test_size,
+                                                     random_state=self.random_state)
+        for train_idx, test_idx in spl.split(X=X, y=y):
+            yield train_idx, test_idx
+
+
+def GetSplitter(is_cv, is_classifier, is_stratified, scaffold_split, outofuniverse_split):
     """Select the splitter, depending on the characteristics of the problem"""
     if is_classifier:
         if is_cv:
@@ -291,16 +467,19 @@ def GetSplitter(is_cv, is_classifier, is_stratified, scaffold_split):
             else:
                 spl = model_selection.KFold
         else:
-            if scaffold_split:
-                if is_stratified:
-                    spl = StratifiedShuffleScaffoldSplit
+            if outofuniverse_split:
+                spl = OutOfUniverseStratified
+            else:        
+                if scaffold_split:
+                    if is_stratified:
+                        spl = StratifiedShuffleScaffoldSplit
+                    else:
+                        spl = ShuffleScaffoldSplit
                 else:
-                    spl = ShuffleScaffoldSplit
-            else:
-                if is_stratified:
-                    spl = model_selection.ShuffleSplit
-                else:
-                    spl = model_selection.StratifiedShuffleSplit
+                    if is_stratified:
+                        spl = StandardStratifiedShuffleSplit
+                    else:
+                        spl = model_selection.ShuffleSplit
     else:
         # TO-DO
         pass
