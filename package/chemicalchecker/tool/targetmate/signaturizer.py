@@ -395,9 +395,9 @@ class Fingerprinter(BaseSignaturizer):
             self.datasets = ["FP.000"]
             self.dataset  = self.datasets[0]
         else:
-            self.datasets = ["A1.002"]
+            self.datasets = [self.classic_dataset]
             self.dataset  = self.datasets[0]
-            self.cctype   = "sign0"
+            self.cctype   = self.classic_cctype
 
     def featurizer(self, smiles, destination_dir):
         V = self.featurizer_func(smiles)

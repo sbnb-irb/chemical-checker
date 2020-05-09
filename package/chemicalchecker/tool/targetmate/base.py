@@ -347,23 +347,36 @@ class StackedModel(SignaturedModel):
         if not self.pca: return X
         return self.pca.transform(X)
 
-    def fit_stack(self, data, idxs, wait):
+    def _prepare_fit_stack(self, data, idxs):
         self.__log.info("Reading signatures from data")
         res = self.get_Xy_from_data(data, idxs)
         X = res["X"]
         y = res["y"]
         smiles = res["smiles"]
-        #self.pca_fit(X)
-        #X = self.pca_transform(X)
-        jobs = []
         if self.is_tmp:
             dest = os.path.join(self.bases_tmp_path, "Stacked")
         else:
             dest = os.path.join(self.bases_models_path, "Stacked")
-        if self.hpc:
-            jobs += [self.func_hpc("_fit", X, y, smiles, dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
+        return X, y, smiles, dest
+
+    def _fit_stack(self, data, idxs):
+        X, y, smiles, dest = self._prepare_fit_stack(data, idxs)
+        return self._fit(X, y, smiles=smiles, destination_dir=dest)
+        
+    def fit_stack(self, data, idxs, wait):
+        jobs = []
+        if self.use_cc:
+            self.__log.info("Reading and fitting altogether")
+            if self.hpc:              
+                jobs += [self.func_hpc("_fit_stack", data, idxs, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
+            else:
+                self._fit_stack(data, idxs)
         else:
-            self._fit(X, y, smiles=smiles, destination_dir=dest)
+            X, y, smiles, dest = self._prepare_fit_stack(data, idxs)
+            if self.hpc:
+                jobs += [self.func_hpc("_fit", X, y, smiles, dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
+            else:
+                self._fit(X, y, smiles=smiles, destination_dir=dest)
         if wait:
             self.waiter(jobs)
         return jobs
@@ -391,7 +404,7 @@ class StackedModel(SignaturedModel):
         self.mod_dir = dest_
         self._predict(X, dest)
 
-    def predict_stack(self, data, idxs, wait):
+    def _prepare_predict_stack(self, data, idxs):
         self.__log.info("Reading signatures from data")
         res = self.get_Xy_from_data(data, idxs)
         X = res["X"]
@@ -408,12 +421,27 @@ class StackedModel(SignaturedModel):
         }
         with open(dest+"-meta", "wb") as f:
              pickle.dump(meta, f)
-        self.__log.info("Starting predictions")
+        return X, dest
+
+    def _predict_stack(self, data, idxs):
+        X, dest = self._prepare_predict_stack(data, idxs)
+        return self._predict_(X, dest)
+
+    def predict_stack(self, data, idxs, wait):
         jobs = []
-        if self.hpc:
-            jobs += [self.func_hpc("_predict_", X, dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
+        if self.use_cc:
+            if self.hpc:
+                jobs += [self.func_hpc("_predict_stack", data, idxs, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
+            else:
+                self._predict_stack(data, idxs)
         else:
-            self._predict_(X, dest)
+            X, dest = self._prepare_predict_stack(data, idxs)
+            self.__log.info("Starting predictions")
+            jobs = []
+            if self.hpc:
+                jobs += [self.func_hpc("_predict_", X, dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
+            else:
+                self._predict_(X, dest)
         if wait:
             self.waiter(jobs)
         return jobs
@@ -459,19 +487,34 @@ class StackedModel(SignaturedModel):
             self.mod_dir = dest_
         self._explain(X, dest)
 
-    def explain_stack(self, data, idxs, wait):
+    def _prepare_explain_stack(self, data, idxs):
         self.__log.info("Getting signatures from data")
-        X, y, idxs_ = self.get_Xy_from_data(data, idxs)
+        res = self.get_Xy_from_data(data, idxs)
+        X   = res["X"]
         #X = self.pca_transform(X)
         if self.is_tmp:
             dest = os.path.join(self.predictions_tmp_path, "Stacked-expl")
         else:
             dest = os.path.join(self.predictions_models_path, "Stacked-expl")
+        return X, dest
+
+    def _explain_stack(self, data, idxs):
+        X, dest = self._prepare_explain_stack(data, idxs)
+        self._explain_(self, X, dest)
+
+    def explain_stack(self, data, idxs, wait):
         jobs = []
-        if self.hpc:
-            jobs += [self.func_hpc("_explain_", X, dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
+        if self.use_cc:
+            if self.hpc:
+                jobs += [self.func_hpc("_explain_stack", data, idxs, cpu=n_jobs_hpc, job_base_path=self.tmp_path)]
+            else:
+                self._explain_stack(data, idxs)
         else:
-            self._explain_(X, dest)
+            X, dest = self._prepare_explain_stack(data, idxs)
+            if self.hpc:
+                jobs += [self.func_hpc("_explain_", X, dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
+            else:
+                self._explain_(X, dest)
         if wait:
             self.waiter(jobs)
         return jobs

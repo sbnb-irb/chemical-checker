@@ -72,41 +72,22 @@ class OneConformalClassifierPlot(object):
             x += [i]
             y += [perfs[k][0][j]]
         ax.scatter(x, y, color = "grey")
-
-    def _ranking_metrics(self, ax, label):
-        self.__log.debug("Ranking metrics plot")
-        j = self._get_j(label)
-        mets = ["auroc", "aupr", "bedroc"]
-        perfs = self.valid["test"]["perfs"]
-        y = []
-        for spl in range(0, self.valid["n_splits"]):
-            x = []
-            y_ = []
-            for i, k in enumerate(mets):
-                y_ += [perfs[k][spl][j]]
-                x += [i]
-            y += [y]
-        print(x, y)
-        y = np.array(y)
-        y = np.mean(y, axis = 0)
-        ax.scatter(x, y, color = "grey")
-        ax.set_xticks(x)
-        ax.set_xticklabels([m.upper() for m in mets])
-        ax.set_ylabel("Performance")
-        ax.set_title("Ranking metrics")
             
     def classification_metrics(self, ax, label, significance=None):
         self.__log.debug("Classification metrics plot")    
         mets = [
-            ("Kappa", metrics.cohen_kappa_score),
+            ("K", metrics.cohen_kappa_score),
             ("MCC"  , metrics.matthews_corrcoef),
-            ("Prec.", metrics.precision_score),
-            ("Rec." , metrics.recall_score)
+            ("Prec", metrics.precision_score),
+            ("Rec" , metrics.recall_score),
+            ("F1", metrics.f1_score),
+            ("Bacc", metrics.balanced_accuracy_score)
         ]
         j = self._get_j(label)
         if not significance:
             significance = self.find_significance_threshold(label)
-        y_pred = self.valid["test"]["y_pred"][:,j]
+        y_pred = self.valid["train"]["y_pred"][0][:,j]
+        y_true = self.valid["train"]["y_true"][0]
         x = []
         v = []
         y = np.zeros(y_pred.shape)
@@ -115,11 +96,24 @@ class OneConformalClassifierPlot(object):
             m = k[1]
             v += [m(y_true, y)]
             x += [i]
-        ax.scatter(x, v, color = "grey")
+        ax.scatter(x, v, color = coord_color("B"), zorder=100, label="Train")
+        y_pred = self.valid["test"]["y_pred"][0][:,j]
+        y_true = self.valid["test"]["y_true"][0]
+        x = []
+        v = []
+        y = np.zeros(y_pred.shape)
+        y[y_pred > significance] = 1
+        for i, k in enumerate(mets):
+            m = k[1]
+            v += [m(y_true, y)]
+            x += [i]
+        ax.scatter(x, v, color = coord_color("E"), zorder=1000, label="Test")     
         ax.set_xticks(x)
         ax.set_xticklabels([k[0] for k in mets])
         ax.set_ylabel("Performance")
+        ax.set_xlabel("Score")
         ax.set_title("PS %.2f" % significance)
+        ax.legend()
         
     def pvalue_distributions(self, ax, label):
         self.__log.debug("P-values plot")
@@ -157,12 +151,12 @@ class OneConformalClassifierPlot(object):
         y_pred_tr = self.valid["train"]["y_pred"][0][:,j]
         fpr, tpr, _ = roc_curve(y_true_tr, y_pred_tr)
         auc_tr = auc(fpr, tpr)
-        ax.plot(fpr, tpr, label = "Train", color = coord_color("C"))
+        ax.plot(fpr, tpr, label = "Train", color = coord_color("B"))
         y_true_tr = np.abs(self.valid["test"]["y_true"][0] - (1-j))
         y_pred_tr = self.valid["test"]["y_pred"][0][:,j]
         fpr, tpr, _ = roc_curve(y_true_tr, y_pred_tr)
         auc_ts = auc(fpr, tpr)
-        ax.plot(fpr, tpr, label = "Test", color = coord_color("A"))
+        ax.plot(fpr, tpr, label = "Test", color = coord_color("E"))
         ax.set_xlabel("FPR")
         ax.set_ylabel("TPR")
         ax.set_title("ROC %.2f / %.2f" % (auc_tr, auc_ts))
@@ -175,12 +169,12 @@ class OneConformalClassifierPlot(object):
         y_pred_tr = self.valid["train"]["y_pred"][0][:,j]
         pre, rec, _ = precision_recall_curve(y_true_tr, y_pred_tr)
         auc_tr = auc(rec, pre)
-        ax.plot(rec, pre, label = "Train", color = coord_color("C"))
+        ax.plot(rec, pre, label = "Train", color = coord_color("B"))
         y_true_ts = np.abs(self.valid["test"]["y_true"][0] - (1-j))
         y_pred_ts = self.valid["test"]["y_pred"][0][:,j]
         pre, rec, _ = precision_recall_curve(y_true_ts, y_pred_ts)
         auc_ts = auc(rec, pre)
-        ax.plot(rec, pre, label = "Test", color = coord_color("A"))
+        ax.plot(rec, pre, label = "Test", color = coord_color("E"))
         ax.set_xlabel("Recall")
         ax.set_ylabel("Precision")
         ax.set_title("PR %.2f / %.2f" % (auc_tr, auc_ts))
@@ -295,34 +289,38 @@ class OneConformalClassifierPlot(object):
         ax.set_xlabel("Test set compounds")
         ax.set_ylabel("PS")
         ax.set_ylim(0,1)
-                        
+
+    def various_counts(self, ax):
+        tr = self.valid["train"]["y_true"][0]
+        te = self.valid["test"]["y_true"][0]
+        act = np.sum(tr) + np.sum(te)
+        ina = len(tr) + len(te) - act
+        ax.bar([0,1,2,3], height=[ina, act, len(tr), len(te)],
+            tick_label=["Inactive", "Active", "Train", "Test"],
+            facecolor="none",
+            edgecolor=[coord_color("C"), coord_color("A"), coord_color("B"), coord_color("E")],
+            hatch="////////")
+        ax.set_ylabel("Counts")
+        ax.set_xlabel("Class")
+        ax.set_title("Sample counts")
+
     def _canvas(self):
         self.__log.debug("Canvas")
-        fig, axs = plt.subplots(4,4, figsize = (10,10))
-        #self.classification_metrics(axs[0,0], "Active")
-        self.ranking_metrics(axs[0,1], "Active")
-        self.roc_curve(axs[0,2], "Active")
-        self.pr_curve(axs[0,3], "Active")
-        self.pvalue_distributions(axs[1,0], "Active")
-        self.pvalue_distributions(axs[1,1], "Inactive")
-        # Calibration
-        self.calibration(axs[1,2], "Active")
-        self.calibration(axs[1,3], "Inactive")
-        # Others
-        self.confidence_level(axs[2,0])
-        self.both_pvalues(axs[2,1])
-        self.validity(axs[2,2])
-        self.efficiency(axs[2,3])
-        self.heatmap(axs[3,0], "Active")
-        self.sorted_by_precision(axs[3,1], label = "Active", significance = 0.9)
-        self.sorted_by_precision(axs[3,2], label = "Active", significance = 0.75)
-        self.sorted_by_precision(axs[3,3], label = "Active", significance = 0.5)
+        fig, axs = plt.subplots(2, 3, figsize = (9, 6))
+        axs = axs.flatten()
+        self.various_counts(axs[0])
+        self.pvalue_distributions(axs[1], "Active")
+        self.validity(axs[2])   
+        self.roc_curve(axs[3], "Active")
+        self.pr_curve(axs[4], "Active")
+        self.classification_metrics(axs[5], "Active")
         plt.tight_layout()
         plt.savefig(os.path.join(self.outpath, "validation.png"), dpi=300)
+        return fig
 
     def canvas(self):
         try:
-            self._canvas()
+            return self._canvas()
         except:
             self.__log.warning("Plots were not successful")
 
