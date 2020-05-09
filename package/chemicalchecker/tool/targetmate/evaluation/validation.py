@@ -3,15 +3,18 @@ import os
 import numpy as np
 import h5py
 import pickle
+import shutil
 from chemicalchecker.util import logged
 from sklearn import model_selection
 from ..utils import metrics
 from ..utils import HPCUtils
 from ..utils import splitters
 from ..io import data_from_disk
+from ..ml import tm_from_disk
 
 SEED = 42
-MAXQUEUE = 100
+MAXQUEUE = 30
+MAXPARALLEL = 10
 
 def load_validation(destination_dir):
     with open(destination_dir, "rb") as f:
@@ -252,11 +255,22 @@ class BaseValidation(object):
                 Spl = splitters.GetSplitter(is_cv=self.is_cv,
                                             is_stratified=self.is_stratified,
                                             is_classifier=tm.is_classifier,
-                                            scaffold_split=tm.scaffold_split)
-                kf = Spl(n_splits=self._n_splits, test_size=self.test_size, random_state=SEED)
+                                            scaffold_split=tm.scaffold_split,
+                                            outofuniverse_split=tm.outofuniverse_split)
+                kf = Spl(n_splits=self._n_splits,
+                         test_size=self.test_size,
+                         random_state=SEED,
+                         cc=tm.cc,
+                         datasets=tm.outofuniverse_datasets,
+                         cctype=tm.outofuniverse_cctype)
             else:
                 kf = self.splitter
-        splits = [(train_idx, test_idx) for train_idx, test_idx in kf.split(X=data.smiles, y=data.activity)]
+        if tm.outofuniverse_split:
+            keys = data.inchikey
+        else:
+            keys = data.smiles
+        splits = [(train_idx, test_idx) for train_idx, test_idx in kf.split(X=keys, y=data.activity)]
+        splits = [sp for sp in splits if sp[0] is not None and sp[1] is not None]
         self.n_splits += [len(splits)]
         return splits
 
@@ -395,6 +409,7 @@ class Validation(BaseValidation, HPCUtils):
 
     def single_validate(self, tm, data, train_idx, test_idx, wipe, **kwargs):
         # Initialize
+        tm = tm_from_disk(tm)
         self.__log.info("Setting up")
         self.setup(tm)
         # Signaturize
@@ -428,31 +443,60 @@ class Validation(BaseValidation, HPCUtils):
         if wipe:
             tm.wipe()
 
-    def multi_validate(self, tm_list, data_list, wipe, **kwargs):
-        # Initialize
-        self.__log.info("Setting up")
-        for tm in tm_list:
-            self.setup(tm)
+    def multi_validate(self, tm_list, data_list, wipe, keep_only_validations, **kwargs):
         # Signaturize
         self.__log.info("Signaturizing all data")
         jobs = []
         for tm, data in zip(tm_list, data_list):
+            tm   = tm_from_disk(tm)
             data = data_from_disk(data)
             jobs += tm.signaturize(smiles=data.smiles, is_tmp=True, wait=False)
             if len(jobs) > MAXQUEUE:
                 self.waiter(jobs)
                 jobs = []
+            tm.on_disk()
         self.waiter(jobs)
         # Splits
         self.__log.info("Getting splits")
         splits_list = []
         for tm, data in zip(tm_list, data_list):
+            tm   = tm_from_disk(tm)
             data = data_from_disk(data)
             splits_list += [self.get_splits(tm, data, None, None)]
+            tm.on_disk()
+        # Re-evaluating in light of the splits feasibility
+        self.__log.info("... checking validity of splits")
+        n_list       = len(tm_list)
+        tm_list_     = []
+        data_list_   = []
+        splits_list_ = []
+        for i, sp in enumerate(splits_list):
+            if len(sp) == 0:
+                tm = tm_list[i]
+                tm = tm_from_disk(tm)
+                path = os.path.join(tm.models_path, "validation.txt")
+                with open(path, "w") as f:
+                    f.write("SPLITS NOT AVAILABLE")
+            else:
+                tm_list_     += [tm_list[i]]
+                data_list_   += [data_list[i]]
+                splits_list_ += [splits_list[i]]
+        tm_list     = tm_list_
+        data_list   = data_list_
+        splits_list = splits_list_
+        if len(tm_list) < n_list:
+            self.__log.warn("%d of the %d desired models could be splitted" % (len(tm_list), n_list))
+        # Initialize
+        self.__log.info("Setting up")
+        for tm in tm_list:
+            tm = tm_from_disk(tm)
+            self.setup(tm)
+            tm.on_disk()
         # Fit
         self.__log.info("Fit with train")
         jobs = []
         for tm, data, splits in zip(tm_list, data_list, splits_list):
+            tm   = tm_from_disk(tm)
             data = data_from_disk(data)
             jobs += self.fit(tm, data, splits)
             if len(jobs) > MAXQUEUE:
@@ -463,27 +507,33 @@ class Validation(BaseValidation, HPCUtils):
         self.__log.info("Predict for train")
         jobs = []
         for tm, data, splits in zip(tm_list, data_list, splits_list):
+            tm   = tm_from_disk(tm)
             data = data_from_disk(data)
             jobs += self.predict(tm, data, splits, is_train=True)
             if len(jobs) > MAXQUEUE:
                 self.waiter(jobs)
                 jobs = []
+            tm.on_disk()
         self.waiter(jobs)
         # Predict for test
         self.__log.info("Predict for test")
         jobs = []
         for tm, data, splits in zip(tm_list, data_list, splits_list):
+            tm   = tm_from_disk(tm)
             data = data_from_disk(data)
             jobs += self.predict(tm, data, splits, is_train=False)
             if len(jobs) > MAXQUEUE:
                 self.waiter(jobs)
                 jobs = []
+            tm.on_disk()
         self.waiter(jobs)
         # Gather
         self.__log.info("Gather")
         for tm, data, splits in zip(tm_list, data_list, splits_list):
+            tm   = tm_from_disk(tm)
             data = data_from_disk(data)
             self.gather(tm, data, splits)
+            tm.on_disk()
         # Score
         self.__log.info("Scores")
         self.score()
@@ -492,10 +542,23 @@ class Validation(BaseValidation, HPCUtils):
         self.save()
         # Wipe
         if wipe:
+            self.__log.info("Wipping files")
             for tm in tm_list:
+                tm = tm_from_disk(tm)
+                if keep_only_validations:
+                    self.__log.info("Keeping only validation file")
+                    for path in os.listdir(tm.models_path):
+                        if path == "validation.pkl" or path == "validation.txt":
+                            continue
+                        path = os.path.join(tm.models_path, path)
+                        if os.path.isdir(path):
+                            shutil.rmtree(path)
+                        if os.path.isfile(path):
+                            os.remove(path)
+                self.__log.info("Wiping temporary directories")
                 tm.wipe()
 
-    def validate(self, tm, data, train_idx=None, test_idx=None, wipe=True):
+    def validate(self, tm, data, train_idx=None, test_idx=None, wipe=True, keep_only_validations=True):
         """Validate a TargetMate model using train-test splits.
 
         Args:
@@ -504,8 +567,9 @@ class Validation(BaseValidation, HPCUtils):
             train_idx(array): Precomputed indices for the train set (default=None). 
             test_idx(array): Precomputed indices for the test set (default=None).
             wipe(bool): Clean temporary directory once done (default=True).
+            keep_only_validations(bool): Only the validations files pkl and txt files are kept (default=True).
         """
         if type(tm) != list:
             self.single_validate(tm=tm, data=data, train_idx=train_idx, test_idx=test_idx, wipe=wipe)
         else:
-            self.multi_validate(tm_list=tm, data_list=data, wipe=wipe)
+            self.multi_validate(tm_list=tm, data_list=data, wipe=wipe, keep_only_validations=keep_only_validations)

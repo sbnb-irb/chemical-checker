@@ -29,6 +29,8 @@ class TargetMateSetup(HPCUtils):
                  tmp_path = None,
                  cc_root = None,
                  is_classic = False,
+                 classic_dataset = "A1.003",
+                 classic_cctype = "sign0",
                  overwrite = True,
                  n_jobs = None,
                  n_jobs_hpc = 8,
@@ -41,6 +43,9 @@ class TargetMateSetup(HPCUtils):
                  n_splits = 3,
                  test_size = 0.2,
                  scaffold_split = False,
+                 outofuniverse_split = False,
+                 outofuniverse_datasets = ["A1.001"],
+                 outofuniverse_cctype = "sign1",
                  conformity = True,
                  hpc = False,
                  do_init = True,
@@ -57,6 +62,8 @@ class TargetMateSetup(HPCUtils):
                 (relevant at predict time) (default=None).
             cc_root(str): CC root folder (default=None).
             is_classic(bool): Use a classical chemical fingerprint, instead of CC signatures (default=False).
+            classic_dataset(str): Dataset code for the classic fingerprint.
+            classic_cctype(str): Signature for the classic dataset.
             overwrite(bool): Clean models_path directory (default=True).
             n_jobs(int): Number of CPUs to use, all by default (default=None).
             n_jobs_hpc(int): Number of CPUs to use in HPC (default=1).
@@ -69,6 +76,9 @@ class TargetMateSetup(HPCUtils):
             n_splits(int): If hyper-parameter optimization is done, number of splits (default=3).
             test_size(int): If hyper-parameter optimization is done, size of the test (default=0.2).
             scaffold_split(bool): Model should be evaluated with scaffold splits (default=False).
+            outofuniverse_split(bool): Model should be evaluated with out-of-universe splits (default=False).
+            outofuniverse_datasets(list): Datasets to consider as part of the universe in the out-of-universe split.
+            outofuniverse_cctype(str): Signature type of the datasets considered to be part of the out-of-universe split.
             conformity(bool): Do cross-conformal prediction (default=True)
             hpc(bool): Use HPC (default=False)
             search_n_iter(int): Number of iterations in a search for hyperparameters (default=25).
@@ -113,6 +123,8 @@ class TargetMateSetup(HPCUtils):
         self.cc = ChemicalChecker(cc_root)
         # Use classical or CC fingerprint
         self.is_classic = is_classic
+        self.classic_dataset = classic_dataset
+        self.classic_cctype = classic_cctype
         # Standardize
         self.standardize = standardize
         # Do conformal modeling
@@ -131,6 +143,13 @@ class TargetMateSetup(HPCUtils):
         self.test_size = test_size
         # Scaffold splits
         self.scaffold_split = scaffold_split
+        # Out-of-universe splits
+        self.outofuniverse_split = outofuniverse_split
+        if outofuniverse_datasets is None:
+            self.outofuniverse_datasets = ["A1.001"]
+        else:
+            self.outofuniverse_datasets = outofuniverse_datasets
+        self.outofuniverse_cctype = outofuniverse_cctype
         # Use HPC
         self.n_jobs_hpc = n_jobs_hpc
         self.hpc = hpc
