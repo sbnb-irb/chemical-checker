@@ -17,7 +17,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/cc_package.json')
 
 
-CC_ROOT = "/aloy/web_checker/package_cc/2019_05/"
+CC_ROOT = "/aloy/web_checker/package_cc/2020_01/"
 CC_OLD_ROOT = '/aloy/web_checker/package_cc/paper'
 
 data_calculators = ['morgan_fp_r2_2048', 'e3fp_3conf_1024', 'murcko_1024_cframe_1024',
@@ -25,8 +25,8 @@ data_calculators = ['morgan_fp_r2_2048', 'e3fp_3conf_1024', 'murcko_1024_cframe_
 
 validation_sets = ['moa', 'atc']
 
-pp = Pipeline(pipeline_path="/aloy/scratch/oguitart/package_cc")
-
+#pp = Pipeline(pipeline_path="/aloy/scratch/oguitart/package_cc")
+pp = Pipeline(pipeline_path="/aloy/scratch/nsoler/package_cc")
 
 def downloads(tmpdir):
 
@@ -137,7 +137,10 @@ downloads_task = PythonCallable(name="downloads", **downloads_params)
 
 pp.add_task(downloads_task)
 
-
+#Nico: first step only
+pp.run()
+print("End of the first step: Download all datasources")
+sys.exit(0)
 ##### TASK: Parse molrepos #######
 
 molrepos_params = {}
