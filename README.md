@@ -75,7 +75,7 @@ For an advanced usage of the CC package capabilities, we recomend creating the C
 
 4. Download the [setup_chemicalchecker.sh](setup_chemicalchecker.sh) script to your home folder:
 
-        wget http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker/raw/master/setup_chemicalchecker.sh
+        wget http://chemicalchecker.org/api/db/getFile/setup_chemicalchecker.sh
 
 5. Run the script (this script will require to type your password) with:
 
