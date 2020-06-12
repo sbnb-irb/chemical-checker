@@ -2,7 +2,7 @@
 
 LOCAL_CCREPO=$HOME/chemical_checker
 
-REMOTE_CCREPO=http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker/raw/master/
+REMOTE_CCREPO=https://chemicalchecker.com/downloads/
 
 LOCAL_IMAGE=$LOCAL_CCREPO/cc.simg
 
@@ -109,7 +109,7 @@ then
     cd $LOCAL_CCREPO;
     # download the definition file
     sudo rm -f cc-full.def;
-    wget $REMOTE_CCREPO/container/singularity/cc-full.def;
+    wget $REMOTE_CCREPO/cc-full.def;
     if [ $? -eq 0 ]
     then
         printf -- '\033[32m SUCCESS: Singularity definition file downloaded. \033[0m\n';
