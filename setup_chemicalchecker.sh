@@ -2,7 +2,7 @@
 
 LOCAL_CCREPO=$HOME/chemical_checker
 
-REMOTE_CCREPO=https://chemicalchecker.com/downloads/
+REMOTE_CCREPO=http://chemicalchecker.org/api/db/getFile/
 
 LOCAL_IMAGE=$LOCAL_CCREPO/cc.simg
 
