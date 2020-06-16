@@ -1,10 +1,10 @@
 {
     "PATH": {
-        "CC_ROOT": "'/aloy/web_checker/package_cc/2019_05/'",
-        "CC_DATA": "'/aloy/scratch/oguitart/download/'",
-        "CC_TMP": "'/aloy/scratch/oguitart/'",
-        "CC_REPO": "'/aloy/home/oguitart/projects/source/chemical_checker'",
-        "SINGULARITY_IMAGE": "'/aloy/web_checker/images/cc.simg'",
+        "CC_ROOT": "'/aloy/web_checker/package_cc/2020_01/'",
+        "CC_DATA": "'/aloy/scratch/nsoler/CC/download/'",
+        "CC_TMP": "'/aloy/scratch/nsoler/cc/tmp_jobs/'",
+        "CC_REPO": "'/aloy/home/nsoler/projects/source/chemical_checker'",
+        "SINGULARITY_IMAGE": "'/aloy/home/nsoler/CC/IMAGE/cc.simg'",
         "validation_path": "'/aloy/web_checker/package_cc/validation_sets/'"
     },
     "DB": {
