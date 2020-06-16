@@ -26,7 +26,7 @@ data_calculators = ['morgan_fp_r2_2048', 'e3fp_3conf_1024', 'murcko_1024_cframe_
 validation_sets = ['moa', 'atc']
 
 #pp = Pipeline(pipeline_path="/aloy/scratch/oguitart/package_cc")
-pp = Pipeline(pipeline_path="/aloy/scratch/nsoler/package_cc")
+pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
 
 def downloads(tmpdir):
 
