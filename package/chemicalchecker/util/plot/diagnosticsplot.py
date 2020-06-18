@@ -556,7 +556,7 @@ class DiagnosisPlot(object):
         colors = cmap(norm(z))
         v = v/np.max(v)
         #ax.scatter(x,y,color=colors, s=np.sqrt(v)*s)
-        ax.scatter(x,y,c=z, cmap="Spectral", s=np.sqrt(v)*s)
+        ax.scatter(x,y,c=z, cmap=cmap, s=np.sqrt(v)*s)
         xlim, ylim = self._proj_lims(results["lims"])
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
