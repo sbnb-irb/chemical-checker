@@ -2814,10 +2814,10 @@ class MultiPlot():
                         bottom=False, left=False, right=False)
         plt.grid(False)
         plt.xlabel("Correlation", labelpad=25, size=18)
-        plt.ylabel("Confidence", labelpad=25, size=18)
+        plt.ylabel("Applicability", labelpad=25, size=18)
 
         for ds, ax in zip(self.datasets, axes):
-            sign = self.cc.get_signature('sign4', 'full', ds)
+            sign = self.cc.get_signature('sign3', 'full', ds)
 
             # get data
             confidence_path = os.path.join(sign.model_path, 'confidence_eval')
@@ -2845,7 +2845,7 @@ class MultiPlot():
             # compute pearson rho
             rhos = dict()
             rho_confidence = stats.pearsonr(correlation, confidence)[0]
-            rhos['a'] = abs(stats.pearsonr(correlation, applicability)[0])
+            rhos['d'] = abs(stats.pearsonr(correlation, applicability)[0])
             rhos['r'] = abs(stats.pearsonr(correlation, robustness)[0])
             rhos['p'] = abs(stats.pearsonr(correlation, prior)[0])
             rhos['s'] = abs(stats.pearsonr(correlation, prior_sign)[0])
@@ -2865,7 +2865,7 @@ class MultiPlot():
 
             ax.set_ylim(-1.0, 1.0)
             ax.set_xlim(-1.0, 1.0)
-            ax.set_ylabel('Confidence')
+            ax.set_ylabel('Applicability')
             ax.set_ylabel('')
             ax.set_xlabel('Correlation')
             ax.set_xlabel('')
@@ -2891,7 +2891,6 @@ class MultiPlot():
                 ticklabels[-1].set_va("top")
                 ax.xaxis.set_ticklabels([])
             elif ds[0] == 'E':
-                ax.set_xlabel(ds[1], fontsize=18)
                 ax.yaxis.set_ticklabels([])
             else:
                 ax.xaxis.set_ticklabels([])
