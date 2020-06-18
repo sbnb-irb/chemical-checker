@@ -26,6 +26,19 @@ from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util.parser.converter import Converter
 
 
+class cached_property(object):
+    """Decorator for properties calculated/stored on-demand on first use."""
+
+    def __init__(self, func):
+        self._attr_name = func.__name__
+        self._func = func
+
+    def __get__(self, instance, owner):
+        attr = self._func(instance)
+        setattr(instance, self._attr_name, attr)
+        return attr
+
+
 @logged
 class ChemicalChecker():
     """Explore the Chemical Checker."""
@@ -90,6 +103,15 @@ class ChemicalChecker():
         """Iterator on Chemical Checker datasets."""
         for dataset in self.coordinates:
             yield dataset + '.001'
+
+    @cached_property
+    def universe(self):
+        """Get the list of molecules in the CC universe."""
+        universe = set()
+        for ds in self.datasets_exemplary():
+            s1 = self.get_signature('sign1', 'full', ds)
+            universe.update(s1.unique_keys)
+        return sorted(list(universe))
 
     @property
     def sign3_full_map_dataset(self):
