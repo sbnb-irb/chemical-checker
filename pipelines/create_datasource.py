@@ -7,7 +7,7 @@ if not Datasource._table_exists():
     # create the Datasource table
     Datasource._create_table()
     # populate it with Datasources needed for exemplary Datasets
-    Datasource.from_cvs(CSVfileIn)
+    Datasource.from_csv(CSVfileIn)
     print("TABLE CREATED---->datasource")
 # start 45 download jobs (one per Datasource), job will wait until finished
 #job = Datasource.download_hpc('/aloy/scratch/sbnb-adm/tmp_job_download')
