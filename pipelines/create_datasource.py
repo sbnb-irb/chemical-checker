@@ -3,6 +3,7 @@
 # Don't forget to remove the prvious datasource table first
 
 from chemicalchecker.database import Datasource
+import os
 
 CSVfileIn="configs/datasource_19Jun2020.csv"
 
