@@ -99,6 +99,10 @@ class Datasource(Base):
         """
         import pandas as pd
         df = pd.read_csv(filename)
+
+        # NS: the last column has to be changed to boolean values otherwise SQLalchmy passes strings
+        df.calcdata=df.calcdata.apply(lambda x: False if x=='f' else True)        
+
         # check columns
         needed_cols = Datasource._table_attributes()
         if needed_cols != list(df.columns):
