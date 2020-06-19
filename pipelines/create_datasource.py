@@ -1,6 +1,13 @@
+# Nico, 19/06/2020
+# Update the datasource table from cc_package database on aloy-dbsrv
+# Don't forget to remove the prvious datasource table first
+
 from chemicalchecker.database import Datasource
 
 CSVfileIn="configs/datasource_19Jun2020.csv"
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/cc_package.json')
 
 # check if Datasource table is there
 if not Datasource._table_exists():
