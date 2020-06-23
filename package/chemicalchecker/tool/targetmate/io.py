@@ -23,13 +23,47 @@ def reader(data):
         for r in data:
             yield r
 
+def filter_validity(data, valid_inchikeys, only_molecules=False):
+    valid_inchikeys = set(valid_inchikeys)
+    if not only_molecules:
+        idx       = data[0]
+        smiles    = data[1]
+        inchikey  = data[2]
+        activity  = data[3]
+        srcid     = data[4]
+        idx_      = []
+        smiles_   = []
+        inchikey_ = []
+        activity_ = []
+        srcid_    = []
+        for i, ik in enumerate(inchikey):
+            if ik not in valid_inchikeys: continue
+            idx_      += [idx[i]]
+            smiles_   += [smiles[i]]
+            inchikey_ += [inchikey[i]]
+            activity_ += [activity[i]]
+            srcid_    += [srcid[i]]
+        data = (idx_, smiles_, inchikey_, activity_, srcid_)
+    else:
+        smiles    = data[0]
+        inchikey  = data[1]
+        smiles_   = []
+        inchikey_ = []
+        for i, ik in enumerate(inchikey):
+            if ik not in valid_inchikeys: continue
+            smiles_   += [smiles[i]]
+            inchikey_ += [inchikey[i]]
+        data = (smiles_, inchikey_)
+    return data
+    
 def read_data(data,
               smiles_idx=None,
               inchikey_idx=None,
               activity_idx=None,
               srcid_idx=None,
               standardize=False,
-              use_inchikey=False):
+              use_inchikey=False,
+              valid_inchikeys=None):
     """Read data.
 
     Args:
@@ -61,8 +95,12 @@ def read_data(data,
             inchikey += [m[0]]
             if activity_idx is not None:
                 activity += [float(r[activity_idx])]
+            else:
+                activity += [None]
             if srcid_idx is not None:
                 srcid += [r[srcid_idx]]
+            else:
+                srcid += [None]
     else:
         if inchikey_idx is None:
             raise Exception("inchikey_idx needs to be specified")
@@ -75,13 +113,19 @@ def read_data(data,
                 smiles += [None]
             if activity_idx is not None:
                 activity += [float(r[activity_idx])]
+            else:
+                activity += [None]
             if srcid_idx is not None:
                 srcid += [r[srcid_idx]]
+            else:
+                srcid += [None]        
     data = (idx, smiles, inchikey, activity, srcid)
+    if valid_inchikeys is not None:
+        data = filter_validity(data, valid_inchikeys)
     return InputData(data)
 
 
-def reassemble_activity_sets(act, inact, putinact):
+def reassemble_activity_sets(act, inact, putinact, valid_inchikeys=None):
     """Reassemble activity sets, relevant when sampling from Universe"""
     data = []
     for x in list(act):
@@ -102,10 +146,12 @@ def reassemble_activity_sets(act, inact, putinact):
         inchikey += [d[3]]
         activity += [d[1]]
     data = (idx, smiles, inchikey, activity, srcid)
+    if valid_inchikeys is not None:
+        data = filter_validity(data, valid_inchikeys)
     return InputData(data)
 
 
-def read_smiles_from_multiple_data(data_list, smiles_idx, standardize=False, sort=True, **kwargs):
+def read_smiles_from_multiple_data(data_list, smiles_idx, standardize=False, sort=True, valid_inchikeys=None, **kwargs):
     """Read smiles from multiple datasets"""
     smiles_ = set()
     for data in data_list:
@@ -122,6 +168,8 @@ def read_smiles_from_multiple_data(data_list, smiles_idx, standardize=False, sor
         smiles += [m[1]]
         inchikey += [m[0]]
     data = (smiles, inchikey)
+    if valid_inchikeys is not None:
+        data = filter_validity(data, valid_inchikeys, only_molecules=True)
     return SmilesData(data, sort=sort)
 
 
@@ -234,7 +282,7 @@ class InputData:
         return data_path
 
 
-class SmilesData:
+class SmilesData(object):
     """A simple smiles data container"""
 
     def __init__(self, data, sort):
@@ -249,7 +297,7 @@ class SmilesData:
         self.inchikey = inchikey
 
 
-class Prediction:
+class Prediction(object):
     """A simple prediction class"""
 
     def __init__(self, datasets, y_true, y_pred, is_ensemble, weights=None):
@@ -290,7 +338,7 @@ class Prediction:
         return y_pred
 
 
-class Explanation:
+class Explanation(object):
     """Shapley explanation results"""
     def __init__(self, datasets, shaps, is_ensemble):
         self.is_ensemble = is_ensemble

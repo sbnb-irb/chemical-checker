@@ -48,9 +48,11 @@ class MultiValidation(MultiSetup):
             if not self.overwrite:
                 if self._is_done(models_path):
                     continue
-            tm = TargetMate(models_path=models_path, use_cc=use_cc, use_inchikey=use_inchikey, master_sign_paths=sign_paths, **kwargs)
-            tm_list   += [tm.on_disk()]
-            data_list += [tm.get_data_fit(data, inchikey_idx=-1, use_inchikey=use_inchikey).on_disk(tm.tmp_path)]
+            tm  = TargetMate(models_path=models_path, use_cc=use_cc, use_inchikey=use_inchikey, master_sign_paths=sign_paths, **kwargs)
+            dat = tm.get_data_fit(data, inchikey_idx=-1, use_inchikey=use_inchikey)
+            if dat is not None:
+                tm_list   += [tm.on_disk()]
+                data_list += [dat.on_disk(tm.tmp_path)]
         if len(tm_list) > 0:
             self.validation.validate(tm=tm_list, data=data_list)
 
