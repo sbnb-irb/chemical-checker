@@ -3,7 +3,8 @@ from scipy.stats import mode
 from sklearn.base import clone
 from sklearn.model_selection import ShuffleSplit, StratifiedShuffleSplit
 
-class ToppedClassifier:
+
+class ToppedClassifier(object):
 
     def __init__(self, clf, max_samples=10000, max_ensemble_size=30,
                  chance=0.95):

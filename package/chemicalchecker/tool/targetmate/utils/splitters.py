@@ -42,21 +42,24 @@ def generate_scaffolds(smiles):
 class ToppedSampler(object):
     """Sample so that coverage is maximized."""
 
-    def __init__(self, max_samples, max_ensemble_size, chance, try_balance, shuffle):
+    def __init__(self, max_samples, max_ensemble_size, chance, try_balance, shuffle, brute=True):
         """Initialize the topped sampler.
 
         Args:
-            max_samples(int): Maximum number of samples allow per draw.
+            max_samples(int): Maximum number of samples allowed per draw.
             max_ensemble_size(int): Maximum number of draws.
             chance(float): Desired probability of drawing a sample at least once.
             try_balance(bool): Try to balance, given the available samples. That is, instead of stratifying, give higher probability to the minority class.
             shuffle(bool): Shuffle indices.
+            brute(bool): When trying to balance, be brute and do not sample by probability (default=True).
         """
         self.max_samples = max_samples
         self.max_ensemble_size = max_ensemble_size
         self.chance = chance
         self.try_balance = try_balance
         self.shuffle = shuffle
+        self.brute = brute
+        self.min_ensemble_size = 3
 
     @staticmethod
     def get_resamp(s, N, chance):
@@ -72,6 +75,7 @@ class ToppedSampler(object):
             self.ensemble_size = int(
                 np.ceil(self.get_resamp(self.samples, self.N, self.chance)))
             self.ensemble_size = np.min([self.max_ensemble_size, self.ensemble_size])
+            self.ensemble_size = np.max([self.min_ensemble_size, self.ensemble_size])
     
     @staticmethod
     def probabilities(y, bins):
@@ -87,6 +91,36 @@ class ToppedSampler(object):
         probas = w/np.sum(w)
         return probas
 
+    def brute_sample(self, y):
+        if len(y) <= self.max_samples:
+            idx = np.array([i for i in range(0, len(y))], dtype=np.int)
+            np.random.shuffle(idx)
+            return idx
+        y0_idx = np.argwhere(y == 0).ravel()
+        y1_idx = np.argwhere(y == 1).ravel()
+        n0 = len(y0_idx)
+        n1 = len(y1_idx)
+        max_minority = int(self.max_samples/2)
+        if n0 >= n1:
+            self.__log.info("0 >= 1 : %d %d" % (n0, n1))
+            if n1 > max_minority:
+                y1_idx = np.random.choice(y1_idx, max_minority, replace=False)
+            n = self.max_samples - len(y1_idx)
+            if n0 > n:
+                y0_idx = np.random.choice(y0_idx, n, replace=False)
+        else:
+            self.__log.info("0 < 1 : %d %d" % (n0, n1))
+            if n0 > max_minority:
+                y0_idx = np.random.choice(y0_idx, max_minority, replace=False)
+            n = self.max_samples - len(y0_idx)
+            if n1 > n:
+                y1_idx = np.random.choice(y1_idx, n, replace=False)
+        idx = list(y0_idx) + list(y1_idx)
+        idx = np.array(idx, dtype=np.int)
+        np.random.shuffle(idx)
+        self.__log.info("...1: %d total: %d" % (np.sum(y[idx]), len(idx)))
+        return idx
+
     def ret(self, idxs):
         if self.shuffle:
             return idxs
@@ -96,7 +130,7 @@ class ToppedSampler(object):
 
     def sample(self, X=None, y=None, bins=10):
         """Main method"""
-        self.__log.debug("Sampling")
+        self.__log.info("Topped Sampling | max samples %d" % (self.max_samples))
         if X is None and y is None:
             raise Exception("X and y are None")
         if X is None:
@@ -104,6 +138,7 @@ class ToppedSampler(object):
         else:
             self.N = X.shape[0]
         if self.N <= self.max_samples:
+            self.__log.info("...topped sampling not necessary")
             idxs = np.array(range(len(y)))
             if self.shuffle:
                 random.shuffle(idxs)
@@ -117,8 +152,11 @@ class ToppedSampler(object):
                         yield self.ret(idxs)
                 else:
                     for _ in range(0, self.ensemble_size):
-                        probas = self.probabilities(y, bins=bins)
-                        idxs = np.random.choice([i for i in range(0,self.N)], self.samples, p=probas, replace=False)
+                        if self.brute:
+                            idxs = self.brute_sample(y)
+                        else:
+                            probas = self.probabilities(y, bins=bins)
+                            idxs = np.random.choice([i for i in range(0,self.N)], self.samples, p=probas, replace=False)
                         yield self.ret(idxs)
             else:
                 if y is None:

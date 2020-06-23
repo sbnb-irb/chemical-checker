@@ -444,7 +444,6 @@ class Signaturizer(BaseSignaturizer):
     def __init__(self,
                  datasets=None,
                  sign_predict_paths=None,
-                 prestacked_dataset="Z0.002",
                  **kwargs):
         """Set up a Signaturizer
         
@@ -467,8 +466,6 @@ class Signaturizer(BaseSignaturizer):
             self.datasets = datasets
         if sorted(self.datasets) != list(self.datasets):
             raise Exception("Datasets must be sorted!")
-        # prestacked dataset
-        self.prestacked_dataset  = prestacked_dataset
         # preloaded neural networks
         if not sign_predict_paths:
             self.sign_predict_paths = {}

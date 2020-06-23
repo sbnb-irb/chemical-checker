@@ -31,6 +31,7 @@ class TargetMateSetup(HPCUtils):
                  is_classic = False,
                  classic_dataset = "A1.003",
                  classic_cctype = "sign0",
+                 prestacked_dataset = "Z0.002",
                  overwrite = True,
                  n_jobs = None,
                  n_jobs_hpc = 8,
@@ -64,6 +65,7 @@ class TargetMateSetup(HPCUtils):
             is_classic(bool): Use a classical chemical fingerprint, instead of CC signatures (default=False).
             classic_dataset(str): Dataset code for the classic fingerprint.
             classic_cctype(str): Signature for the classic dataset.
+            prestacked_dataset(str): Prestacked dataset signature.
             overwrite(bool): Clean models_path directory (default=True).
             n_jobs(int): Number of CPUs to use, all by default (default=None).
             n_jobs_hpc(int): Number of CPUs to use in HPC (default=1).
@@ -125,6 +127,8 @@ class TargetMateSetup(HPCUtils):
         self.is_classic = is_classic
         self.classic_dataset = classic_dataset
         self.classic_cctype = classic_cctype
+        # Stacked signature
+        self.prestacked_dataset = prestacked_dataset
         # Standardize
         self.standardize = standardize
         # Do conformal modeling
@@ -236,12 +240,12 @@ class TargetMateSetup(HPCUtils):
         self.repath_predictions_by_set(is_train=is_train, is_tmp=is_tmp, reset=False)
 
     # Read input data
-    def read_data(self, data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey, standardize=None):
+    def read_data(self, data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey, standardize=None, valid_inchikeys=None):
         if not standardize:
             standardize = self.standardize
         # Read data
         self.__log.info("Reading data, parsing smiles")
-        return read_data(data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, standardize, use_inchikey)
+        return read_data(data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, standardize, use_inchikey, valid_inchikeys=valid_inchikeys)
 
     # Loading functions
     @staticmethod
@@ -392,7 +396,17 @@ class TargetMateClassifierSetup(TargetMateSetup):
 
     def prepare_data(self, data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey):
         # Read data
-        data = self.read_data(data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey)
+        if self.use_cc:
+            if self.is_classic:
+                s = self.cc.signature(self.classic_dataset, self.classic_cctype)
+            else:
+                s = self.cc.signature(self.prestacked_dataset, "sign3")
+            valid_inchikeys = s.keys
+        data = self.read_data(data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey, valid_inchikeys=valid_inchikeys)
+        self.ny = np.sum(data.activity == 1)
+        if self.ny < self.min_class_size or (len(data.activity) - self.ny) < self.min_class_size:
+            self.__log.warning("Not enough data (%d)" % self.ny)
+            return None
         # Save training data
         self.save_data(data)
         # Sample inactives, if necessary
@@ -421,6 +435,8 @@ class TargetMateClassifierSetup(TargetMateSetup):
         return data
 
     def prepare_for_ml(self, data):
+        if data is None:
+            return None
         """Prepare data for ML, i.e. convert to 1/0 and check that there are enough samples for training"""
         self.__log.debug("Prepare for machine learning (converting to 1/0")
         # Consider putative inactives as inactives (e.g. set -1 to 0)
@@ -433,8 +449,8 @@ class TargetMateClassifierSetup(TargetMateSetup):
                 "Not enough valid molecules in the minority class..." +
                 "Just keeping training data")
             self._is_fitted = True
-            self.save()
-            return
+            #self.save()
+            return None
         self.__log.info("Actives %d / Merged inactives %d" % (self.ny, len(data.activity) - self.ny))
         return data
 

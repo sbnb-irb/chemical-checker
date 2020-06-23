@@ -59,7 +59,8 @@ class Model(ModelSetup):
                                       max_ensemble_size=self.max_train_ensemble,
                                       chance=self.train_sample_chance,
                                       try_balance=True,
-                                      shuffle=self.shuffle)
+                                      shuffle=self.shuffle,
+                                      brute=True)
         self.__log.debug("Sampling")
         for shuff in spl.sample(X=X, y=y):
             yield shuff
@@ -198,7 +199,7 @@ class Model(ModelSetup):
 
     def model_iterator(self, uncalib):
         if uncalib:
-            mod_dir = self.mod_dir_uncalib
+            mod_dir = self.mod_uncalib_dir
         else:
             mod_dir = self.mod_dir
         name = mod_dir.split("/")[-1]
@@ -247,12 +248,8 @@ class Model(ModelSetup):
         shaps = None
         for i, mod in enumerate(self.model_iterator(uncalib=True)):
             explainer = shap.TreeExplainer(mod)  # TO-DO: Apply kernel explainer for non-tree methods. Perhaps use LIME when computational cost is high.
-            s = explainer.shap_values(X, check_additivity=False)
-            if shaps is None:
-                shaps = s
-            else:
-                shaps = shaps+s
-        shaps = shaps/(i+1)
+            shaps = explainer.shap_values(X, check_additivity=False)
+            break 
         if destination_dir:
             self.__log.debug("Saving explanations in %s" % destination_dir)
             with open(destination_dir, "wb") as f:
@@ -485,6 +482,7 @@ class StackedModel(SignaturedModel):
             self.mod_uncalib_dir = dest_+"-uncalib"
         else:
             self.mod_dir = dest_
+            self.mod_uncalib_dir = dest_+"-uncalib"
         self._explain(X, dest)
 
     def _prepare_explain_stack(self, data, idxs):
@@ -500,13 +498,13 @@ class StackedModel(SignaturedModel):
 
     def _explain_stack(self, data, idxs):
         X, dest = self._prepare_explain_stack(data, idxs)
-        self._explain_(self, X, dest)
+        self._explain_(X, dest)
 
     def explain_stack(self, data, idxs, wait):
         jobs = []
         if self.use_cc:
             if self.hpc:
-                jobs += [self.func_hpc("_explain_stack", data, idxs, cpu=n_jobs_hpc, job_base_path=self.tmp_path)]
+                jobs += [self.func_hpc("_explain_stack", data, idxs, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
             else:
                 self._explain_stack(data, idxs)
         else:
@@ -548,102 +546,3 @@ class StackedModel(SignaturedModel):
             return jobs
 
 
-# ENSEMBLE MODEL IS WORK IN PROGRESS...
-@logged
-class EnsembleModel(SignaturedModel):
-    """ """
-
-    def __init__(self, **kwargs):
-        """ """
-        SignaturedModel.__init__(self, **kwargs)
-        self.is_ensemble = True
-        self.ensemble_dir = {}
-        self.weights = {}
-
-    def fit_ensemble(self, data, idxs, wait):
-        if idxs is None:
-            y = data.activity
-            smiles = data.smiles
-        else:
-            y = data.activity[idxs]
-            smiles = data.smiles[idxs]
-        if self.hpc:
-            y = self.array_on_disk(y)
-            smiles = self.array_on_disk(smiles)
-        jobs = []
-        for i, X in enumerate(self.read_signatures(is_ensemble=self.is_ensemble, datasets=self.datasets, idxs=idxs, smiles=data.smiles)):  
-            self.__log.info("Fitting on %s" % self.datasets[i])
-            if self.is_tmp:
-                dest = os.path.join(self.bases_tmp_path, self.datasets[i])
-            else:
-                dest = os.path.join(self.bases_models_path, self.datasets[i])
-            self.ensemble_dir[self.datasets[i]] = self.is_tmp
-            self.weights[self.datasets[i]] = self._weight(X, y)
-            if self.hpc:
-                X = self.array_on_disk(X)
-                jobs += [self.func_hpc("_fit", X, y, smiles, dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
-            else:
-                self._fit(X, y, smiles=smiles, destination_dir=dest)
-        if wait:
-            self.waiter(jobs)
-        return jobs
-
-    def fit(self, data, idxs=None, is_tmp=False, wait=True):
-        self.is_tmp = is_tmp
-        self.signaturize(data.smiles)
-        jobs = self.fit_ensemble(data, idxs=idxs, wait=wait)
-        if not wait:
-            return jobs
-        
-    def _single_predict(self, X, dataset, dest):
-        if self.ensemble_dir[dataset]:
-            indiv_dest = os.path.join(self.bases_tmp_path, dataset)
-        else:
-            indiv_dest = os.path.join(self.bases_models_path, dataset)
-        self.mod_dir = indiv_dest
-        self._predict(X, destination_dir = dest)
-
-    def predict_ensemble(self, data, idxs, datasets, wait):
-        datasets = self.get_datasets(datasets)
-        jobs = []
-        for i, X in enumerate(self.read_signatures(is_ensemble=self.is_ensemble, datasets=datasets, idxs=idxs, smiles=data.smiles)):
-            self.__log.info("Predicting on %s (n = %d)" % (self.datasets[i], X.shape[0]))
-            if self.is_tmp:
-                dest = os.path.join(self.predictions_tmp_path, self.datasets[i])
-            else:
-                dest = os.path.join(self.predictions_models_path, self.datasets[i])
-            if self.hpc:
-                X = self.array_on_disk(X)
-                jobs += [self.func_hpc("_single_predict", X, datasets[i], dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
-            else:
-                self._single_predict(X, datasets[i], dest)
-        if wait:
-            self.waiter(jobs)
-            self.__log.info("Predictions done")
-        return jobs
-
-    def load_predictions(self, datasets=None):
-        datasets = self.get_datasets(datasets)
-        y_pred = []
-        for i, dataset in enumerate(datasets):
-            if self.is_tmp:
-                dest = os.path.join(self.predictions_tmp_path, dataset)
-            else:
-                dest = os.path.join(self.predictions_models_path, dataset)
-            with open(dest, "rb") as f:
-                y_pred += [pickle.load(f)]
-        y_pred = np.stack(y_pred, axis=2)
-        return Prediction(datasets = datasets,
-                          y_pred   = y_pred,
-                          is_ensemble = self.is_ensemble,
-                          weights = self.weights)
-
-    def predict(self, data, idxs=None, datasets=None, is_tmp=True, wait=True):
-        self.is_tmp = is_tmp
-        datasets = self.get_datasets(datasets)
-        self.signaturize(data.smiles, datasets=datasets)
-        jobs = self.predict_ensemble(data, idxs=idxs, datasets=datasets, wait=wait)
-        if wait:
-            return self.load_predictions(datasets)
-        else:
-            return jobs

@@ -3,7 +3,7 @@ import pickle
 import os
 
 from chemicalchecker.util import logged
-from .base import EnsembleModel, StackedModel
+from .base import StackedModel
 
 
 def tm_from_disk(tm):
@@ -27,12 +27,3 @@ class TargetMateStackedClassifier(StackedModel):
         with open(path, "wb") as f:
             pickle.dump(self, f)
         return path
-
-
-@logged
-class TargetMateEnsembleClassifier(EnsembleModel):
-    """Ensemble predictions targetmate"""
-
-    def __init__(self, **kwargs):
-        EnsembleModel.__init__(self, is_classifier=True, **kwargs)
-
