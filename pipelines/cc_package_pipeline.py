@@ -13,6 +13,8 @@ from chemicalchecker.database import Calcdata
 from chemicalchecker.database import Dataset
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, CCFit, CCLongShort, CCSmileConverter
 
+from generate_chembl_files import generate_chembl_files # Nico
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/cc_package.json')
 
@@ -30,8 +32,11 @@ pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
 
 def downloads(tmpdir):
 
-    job_path = tempfile.mkdtemp(
-        prefix='jobs_download_', dir=tmpdir)
+	# (Nico) Generate the Chembl files drugtargets and drugindications via the Chembl Python API
+	# In /aloy/web_checker/repo_data
+	generate_chembl_files()
+
+    job_path = tempfile.mkdtemp(prefix='jobs_download_', dir=tmpdir)
     # start download jobs (one per Datasource), job will wait until
     # finished
     job = Datasource.download_hpc(job_path, only_essential=True)
