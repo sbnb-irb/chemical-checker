@@ -32,9 +32,9 @@ pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
 
 def downloads(tmpdir):
 
-	# (Nico) Generate the Chembl files drugtargets and drugindications via the Chembl Python API
-	# In /aloy/web_checker/repo_data
-	generate_chembl_files()
+    # (Nico) Generate the Chembl files drugtargets and drugindications via the Chembl Python API
+    # In /aloy/web_checker/repo_data
+    generate_chembl_files()
 
     job_path = tempfile.mkdtemp(prefix='jobs_download_', dir=tmpdir)
     # start download jobs (one per Datasource), job will wait until
