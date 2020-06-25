@@ -298,7 +298,7 @@ class Molrepo(Base):
         molrepos_names = set()
         molrepos = Molrepo.get()
         for molrepo in molrepos:
-            if only_essential and not molrepos.essential:
+            if only_essential and not molrepo.essential:  # NS SHERLOCK molrepos.essential -> molrepo.essential
                 continue
             molrepos_names.add(molrepo.molrepo_name)
 
