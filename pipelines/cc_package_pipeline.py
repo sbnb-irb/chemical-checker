@@ -142,16 +142,12 @@ downloads_task = PythonCallable(name="downloads", **downloads_params)
 
 pp.add_task(downloads_task)
 
-#Nico: first step only
-pp.run()
-print("End of the first step: Download all datasources")
-sys.exit(0)
+
 ##### TASK: Parse molrepos #######
 
 molrepos_params = {}
 
-job_path = tempfile.mkdtemp(
-    prefix='jobs_molrepos_', dir=pp.tmpdir)
+job_path = tempfile.mkdtemp(prefix='jobs_molrepos_', dir=pp.tmpdir)
 
 molrepos_params['python_callable'] = Molrepo.molrepo_hpc
 molrepos_params['op_args'] = [job_path]
@@ -161,6 +157,8 @@ molrepos_task = PythonCallable(name="molrepos", **molrepos_params)
 
 pp.add_task(molrepos_task)
 
+pp.run()
+print("End of the second step: Parse molrepos")
 
 ##### TASK: Get inchikey/inchi pairs and calculate data #######
 
