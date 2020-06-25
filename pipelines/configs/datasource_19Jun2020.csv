@@ -33,8 +33,8 @@ GSE92742_Broad_LINCS_sig_metrics,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92n
 hgnc_complete,,f,ftp://ftp.ebi.ac.uk/pub/databases/genenames/new/tsv/hgnc_complete_set.txt,,,,f
 disease_mappings,,f,http://www.disgenet.org/static/disgenet_ap1/files/downloads/disease_mappings.tsv.gz,,,,f
 deepcodex_download,DeepCodex uses a deep-learned embedding of gene expression profiles to find chemical and genetic perturbations with similar biological effects.,f,file:///aloy/web_checker/repo_data/deepcodex/download.zip,,,,f
-chembl_drugtargets,,f,https://www.ebi.ac.uk/chembl/api/data/target,,,,f
-chembl_indications,,f,https://www.ebi.ac.uk/chembl/api/data/drug_indication,,,,f
+chembl_drugtargets,,f,file:///aloy/web_checker/repo_data/chembl_drugtargets.tsv,,,,f
+chembl_indications,,f,file:///aloy/web_checker/repo_data/chembl_indications.tsv,,,,f
 CTD_chemicals,,f,http://ctdbase.org/reports/CTD_chemicals.tsv.gz,,,,f
 CTD_diseases,,f,http://ctdbase.org/reports/CTD_diseases.tsv.gz,,,,f
 ecod,,f,http://prodata.swmed.edu/ecod/distributions/ecod.latest.domains.txt,,,,f
