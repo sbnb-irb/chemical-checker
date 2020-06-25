@@ -16,7 +16,7 @@ if Datasource._table_exists():
     Datasource._drop_table()
 
 # create the Datasource table
-print("Creating the table 'datasource' in database 'cc_package'"
+print("Creating the table 'datasource' in database 'cc_package'")
 Datasource._create_table()
 
 # populate it with Datasources needed for exemplary Datasets
