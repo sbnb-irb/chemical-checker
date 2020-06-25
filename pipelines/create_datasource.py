@@ -11,11 +11,13 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/cc_package.json')
 
 # check if Datasource table is there
-if not Datasource._table_exists():
-    # create the Datasource table
-    Datasource._create_table()
-else:
+if Datasource._table_exists():
+    print("Removing previous table 'datasource' in database 'cc_package'")
     Datasource._drop_table()
+
+# create the Datasource table
+print("Creating the table 'datasource' in database 'cc_package'"
+Datasource._create_table()
 
 # populate it with Datasources needed for exemplary Datasets
 Datasource.from_csv(CSVfileIn)
