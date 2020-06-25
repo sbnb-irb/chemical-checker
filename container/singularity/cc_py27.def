@@ -113,6 +113,9 @@ From: centos
     pip install umap-learn                        # UMAP algo
     pip install fancyimpute==0.4.3                # matrix completion and imputation algorithms
 
+    # Chembl API (Nico)
+    pip chembl_webresource_client
+
     # install local SBNB devpi packages
     DEVPI_HOST=gitlabsbnb.irbbarcelona.org
     DEVPI_PORT=3141
