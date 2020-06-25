@@ -165,8 +165,10 @@ class Downloader():
                 Config().DB.user + ' ' + self.dbname + ' && '
             cmd2run += 'PGPASSWORD=' + Config().DB.password + " createdb -h " + Config().DB.host + \
                 " -U " + Config().DB.user + ' ' + self.dbname + " && "
-            cmd2run += 'PGPASSWORD=' + Config().DB.password + ' pg_restore -h ' + Config().DB.host + " -U " + Config().DB.user + '  -d ' + self.dbname + \
-                ' ' + file_path
+
+            cmd2run += 'PGPASSWORD=' + Config().DB.password + ' psql -h ' + Config().DB.host + " -U " + Config().DB.user + ' -d ' + self.dbname + ' <' + file_path
+#            cmd2run += 'PGPASSWORD=' + Config().DB.password + ' pg_restore -h ' + Config().DB.host + " -U " + Config().DB.user + '  -d ' + self.dbname + \
+ #               ' ' + file_path
 
             try:
                 self.__log.debug('calling script: ' + cmd2run)
