@@ -53,7 +53,7 @@ def checkNone(inputElem, clau, isList=False, subfield=None):
 def generate_chembl_files():
 
 	outPutDir="/aloy/web_checker/repo_data"
-	output=os.path.join(outPutDir, "chembldrugtargets.tsv")
+	output=os.path.join(outPutDir, "chembl_drugtargets.tsv")
 
 
 	if not os.path.exists(output):
