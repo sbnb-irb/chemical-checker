@@ -1,10 +1,10 @@
 #!/bin/sh
 
-LOCAL_CCREPO=$HOME/chemical_checker
+INSTALL_DIR=$HOME/chemical_checker
 
-LOCAL_IMAGE=$LOCAL_CCREPO/cc.simg
+LOCAL_IMAGE=$INSTALL_DIR/cc.simg
 
-JUPYTER_DIR=$LOCAL_CCREPO/run_user_sing
+JUPYTER_DIR=$INSTALL_DIR/run_user_sing
 
 # display usage for current script
 usage () {
