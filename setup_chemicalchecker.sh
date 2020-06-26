@@ -1,8 +1,6 @@
 #!/bin/sh
 
-INSTALL_DIR=$HOME/chemical_checker_tmp
-
-REMOTE_CCREPO=http://chemicalchecker.org/api/db/getFile/
+INSTALL_DIR=$HOME/chemical_checker
 
 LOCAL_REPO="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
