@@ -1,17 +1,19 @@
 #!/bin/sh
 
-LOCAL_CCREPO=$HOME/chemical_checker
+INSTALL_DIR=$HOME/chemical_checker
 
 REMOTE_CCREPO=http://chemicalchecker.org/api/db/getFile/
 
-LOCAL_IMAGE=$LOCAL_CCREPO/cc.simg
+LOCAL_REPO=`dirname $0`
 
-LOCAL_IMAGE_SANDBOX=$LOCAL_CCREPO/sandbox
+LOCAL_IMAGE=$INSTALL_DIR/cc.simg
+
+LOCAL_IMAGE_SANDBOX=$INSTALL_DIR/sandbox
 
 # display usage for current script
 usage () {
     echo ""
-    echo "Install the Chemical Checker in $LOCAL_CCREPO."
+    echo "Install the Chemical Checker in $INSTALL_DIR."
     echo "Usage: $ bash $0 [-ueh] [-d path_to_CC_package]"
     echo ""
     echo "  -u      update chemical checker"
@@ -100,30 +102,21 @@ fi;
 # if we are creating the image we remove image and sandbox
 if [ "$CREATE_IMAGE" = true ]
 then
-    if [ -d "$LOCAL_CCREPO" ]
+    if [ -d "$INSTALL_DIR" ]
     then
-        printf -- '\033[33m WARNING: %s already exists, delete it to proceed. \033[0m\n' $LOCAL_CCREPO;
+        printf -- '\033[33m WARNING: %s already exists, delete it to proceed. \033[0m\n' $INSTALL_DIR;
         exit 0;
     fi
-    mkdir $LOCAL_CCREPO;
-    cd $LOCAL_CCREPO;
-    # download the definition file
-    sudo rm -f cc-full.def;
-    wget $REMOTE_CCREPO/cc-full.def;
-    if [ $? -eq 0 ]
-    then
-        printf -- '\033[32m SUCCESS: Singularity definition file downloaded. \033[0m\n';
-    else
-        printf -- '\033[31m ERROR: Could not download definition file. \033[0m\n';
-        exit 4;
-    fi
+    mkdir $INSTALL_DIR;
+    cd $INSTALL_DIR;
+    SINGULARITY_DEFINITION=$LOCAL_REPO/container/cc-full.def;
 
     printf -- 'Removing old singularity image...\n';
     sudo rm -f $LOCAL_IMAGE;
     sudo rm -rf $LOCAL_IMAGE_SANDBOX;
 
     printf -- 'Creating singularity sandbox image... \n';
-    sudo singularity build --sandbox $LOCAL_IMAGE_SANDBOX cc-full.def;
+    sudo singularity build --sandbox $LOCAL_IMAGE_SANDBOX $SINGULARITY_DEFINITION;
     if [ $? -eq 0 ]; then
         printf -- '\033[32m SUCCESS: Image sandbox created correctly. \033[0m\n';
     else
@@ -141,16 +134,14 @@ then
     fi
 
     # add alias to bashrc
-    sudo rm -f run_chemicalchecker.sh;
-    wget $REMOTE_CCREPO/run_chemicalchecker.sh;
-    echo "alias chemcheck=\"sh ${LOCAL_CCREPO}/run_chemicalchecker.sh\"" >> ~/.bashrc;
+    echo "alias chemcheck=\"sh ${LOCAL_REPO}/run_chemicalchecker.sh\"" >> ~/.bashrc;
 
 fi
 
 # check if a local singularity image is available, otherwise copy
 if [ "$UPDATE_IMAGE" = true ]
 then
-    cd $LOCAL_CCREPO;
+    cd $INSTALL_DIR;
     # remove the previous image
     sudo rm -f $LOCAL_IMAGE;
 
@@ -179,7 +170,7 @@ then
     # modify the config file
     if [ "$EDIT_CONFIG" = true ]
     then
-        cd $LOCAL_CCREPO;
+        cd $INSTALL_DIR;
         sudo singularity exec  --writable $LOCAL_IMAGE_SANDBOX vi /opt/chemical_checker/cc_config.json
         # generate image from sandbox
         sudo singularity build $LOCAL_IMAGE $LOCAL_IMAGE_SANDBOX
@@ -199,8 +190,4 @@ then
         printf -- '\033[31m ERROR: Cannot create image. \033[0m\n';
         exit 8;
     fi
-
-    # update the run script
-    sudo rm -f run_chemicalchecker.sh;
-    wget $REMOTE_CCREPO/run_chemicalchecker.sh;
 fi
