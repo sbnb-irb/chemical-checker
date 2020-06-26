@@ -69,4 +69,3 @@ From: centos
     # unittest utils
     pip install pytest
     pip install mock
-    pip chembl_webresource_client

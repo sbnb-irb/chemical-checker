@@ -128,7 +128,7 @@ From: centos:8
     pip install umap-learn                        # UMAP algo
 
     # Chembl API (Nico)
-    pip chembl_webresource_client 
+    pip install chembl_webresource_client 
 
     # install local SBNB devpi packages
     DEVPI_HOST=gitlabsbnb.irbbarcelona.org
