@@ -1,10 +1,10 @@
 #!/bin/sh
 
-INSTALL_DIR=$HOME/chemical_checker
+INSTALL_DIR=$HOME/chemical_checker_tmp
 
 REMOTE_CCREPO=http://chemicalchecker.org/api/db/getFile/
 
-LOCAL_REPO=`dirname $0`
+LOCAL_REPO="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
 LOCAL_IMAGE=$INSTALL_DIR/cc.simg
 
@@ -110,13 +110,14 @@ then
     mkdir $INSTALL_DIR;
     cd $INSTALL_DIR;
     SINGULARITY_DEFINITION=$LOCAL_REPO/container/singularity/cc-full.def;
+    cp $SINGULARITY_DEFINITION $INSTALL_DIR;
 
     printf -- 'Removing old singularity image...\n';
     sudo rm -f $LOCAL_IMAGE;
     sudo rm -rf $LOCAL_IMAGE_SANDBOX;
 
     printf -- 'Creating singularity sandbox image... \n';
-    sudo singularity build --sandbox $LOCAL_IMAGE_SANDBOX $SINGULARITY_DEFINITION;
+    sudo singularity build --sandbox $LOCAL_IMAGE_SANDBOX cc-full.def;
     if [ $? -eq 0 ]; then
         printf -- '\033[32m SUCCESS: Image sandbox created correctly. \033[0m\n';
     else
