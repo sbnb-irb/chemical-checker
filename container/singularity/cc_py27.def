@@ -114,7 +114,7 @@ From: centos
     pip install fancyimpute==0.4.3                # matrix completion and imputation algorithms
 
     # Chembl API (Nico)
-    pip chembl_webresource_client
+    pip install chembl_webresource_client
 
     # install local SBNB devpi packages
     DEVPI_HOST=gitlabsbnb.irbbarcelona.org
