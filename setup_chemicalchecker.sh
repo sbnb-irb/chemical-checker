@@ -109,7 +109,7 @@ then
     fi
     mkdir $INSTALL_DIR;
     cd $INSTALL_DIR;
-    SINGULARITY_DEFINITION=$LOCAL_REPO/container/cc-full.def;
+    SINGULARITY_DEFINITION=$LOCAL_REPO/container/singularity/cc-full.def;
 
     printf -- 'Removing old singularity image...\n';
     sudo rm -f $LOCAL_IMAGE;
