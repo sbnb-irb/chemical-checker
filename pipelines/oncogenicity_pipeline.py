@@ -14,7 +14,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/oncogenicity.json')
 
 #CC_PATH = "/aloy/web_checker/package_cc/dream_ctd2/"
-CC_PATH = "/aloy/home/lmateo/cc_oncogenicity/"
+CC_ROOT = "/aloy/home/lmateo/cc_oncogenicity/"
 
 #pp = Pipeline(pipeline_path="/aloy/scratch/oguitart/dream_ctd2")
 pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/cc_oncogenicity_pipeline")
