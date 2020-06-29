@@ -12,7 +12,7 @@ from chemicalchecker.util.pipeline import Pipeline, PythonCallable, CCFit
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/oncogenicity.json')
-os.environ['CC_ROOT'] = os.path.join('/aloy/home/lmateo/cc_oncogenicity/')
+#os.environ['CC_ROOT'] = os.path.join('/aloy/home/lmateo/cc_oncogenicity/')
 
 #CC_PATH = "/aloy/web_checker/package_cc/dream_ctd2/"
 CC_PATH = "/aloy/home/lmateo/cc_oncogenicity/"
@@ -191,6 +191,7 @@ datasets = get_available_datasets(sign_type='sign0')
 
 s0_params = {}
 
+s0_params["CC_ROOT"] = CC_PATH
 s0_params['python_callable'] = make_eval_plots
 s0_params['op_args'] = [datasets, 'sign0']
 
@@ -201,6 +202,7 @@ pp.add_task(s0_task)
 s1_params = {}
 
 s1_params["datasets"] = datasets
+s1_params["CC_ROOT"] = CC_PATH
 s1_params["full_reference"] = False
 # s1_params["ds_params"] = {"H1.001": {"discrete": True},
 #                           "H1.002": {"discrete": True},
@@ -232,6 +234,7 @@ pp.add_task(s1_task)
 
 s1_plots_params = {}
 
+s1_plots_params["CC_ROOT"] = CC_PATH
 s1_plots_params['python_callable'] = make_eval_plots
 s1_plots_params['op_args'] = [datasets, 'sign1']
 
@@ -241,6 +244,7 @@ pp.add_task(s1_plots_task)
 
 n1_params = {}
 
+n1_params["CC_ROOT"] = CC_PATH
 n1_params["datasets"] = datasets
 n1_params["full_reference"] = False
 
@@ -249,7 +253,7 @@ n1_task = CCFit(cc_type='neig1', **n1_params)
 pp.add_task(n1_task)
 
 s2_params = {}
-
+s2_params["CC_ROOT"] = CC_PATH
 s2_params["datasets"] = datasets
 s2_params["full_reference"] = False
 
@@ -268,7 +272,7 @@ pp.add_task(s2_plots_task)
 
 s3_params = {}
 
-
+s3_params["CC_ROOT"] = CC_PATH
 s3_params["target_datasets"] = datasets
 
 s3_task = CCFit(cc_type='sign3', **s3_params)
@@ -289,7 +293,7 @@ s4_plots_params = {}
 datasets = get_available_datasets(sign_type='sign4')
 
 # datasets.remove('H2.002')
-
+s4_plots_params["CC_ROOT"] = CC_PATH
 s4_plots_params['python_callable'] = make_eval_plots
 s4_plots_params['op_args'] = [datasets, 'sign4']
 
