@@ -25,7 +25,7 @@ pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/cc_oncogenicity_pipeline")
 #             'H2.003', 'H2.004', 'H2.005', 'H2.006', 'H2.007',
 #             'H3.001', 'H3.002', 'H3.003']
 
-#size_target_keys = 32
+size_target_keys = 32
 
 
 def get_available_datasets(root="L", sign_type="sign3"):
