@@ -20,6 +20,8 @@ CC_PATH = "/aloy/home/lmateo/cc_oncogenicity/"
 #pp = Pipeline(pipeline_path="/aloy/scratch/oguitart/dream_ctd2")
 pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/cc_oncogenicity_pipeline")
 
+# Input H5 (NS)
+input_h5 = "/aloy/home/lmateo/cc_oncogenicity/sign0.h5"
 
 # datasets = ['H1.001', 'H1.002', 'H1.003', 'H2.001',
 #             'H2.003', 'H2.004', 'H2.005', 'H2.006', 'H2.007',
@@ -198,6 +200,13 @@ s0_params['op_args'] = [datasets, 'sign0']
 s0_task = PythonCallable(name="s0_val_plots", **s0_params)
 
 pp.add_task(s0_task)
+
+# NS: Add s0fit
+s0f_params =  {'CC_ROOT': CC_PATH, 'data_file': input_h5}
+s0f_task = CCFit(cc_type='sign0', **s0f_params)
+pp.add_task(s0f_task)
+
+
 
 s1_params = {}
 

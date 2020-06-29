@@ -159,6 +159,7 @@ pp.add_task(molrepos_task)
 
 pp.run()
 print("End of the second step: Parse molrepos")
+sys.exit(1)
 
 ##### TASK: Get inchikey/inchi pairs and calculate data #######
 
@@ -204,7 +205,7 @@ for val_set in validation_sets:
 
 
 # TASK: Calculate signatures 0
-s0_params = s0_params = {'CC_ROOT': CC_ROOT, 'cc_old_path': CC_OLD_ROOT}
+s0_params = {'CC_ROOT': CC_ROOT, 'cc_old_path': CC_OLD_ROOT}
 s0_task = CCFit(cc_type='sign0', **s0_params)
 pp.add_task(s0_task)
 
