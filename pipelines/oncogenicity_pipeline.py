@@ -16,6 +16,7 @@ os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/oncogenicity.json')
 
 #CC_PATH = "/aloy/web_checker/package_cc/dream_ctd2/"
 CC_PATH = "/aloy/home/lmateo/cc_oncogenicity/"
+CC_OLD_ROOT = '/aloy/web_checker/package_cc/paper'
 
 #pp = Pipeline(pipeline_path="/aloy/scratch/oguitart/dream_ctd2")
 pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/cc_oncogenicity_pipeline")
@@ -202,7 +203,7 @@ s0_task = PythonCallable(name="s0_val_plots", **s0_params)
 pp.add_task(s0_task)
 
 # NS: Add s0fit
-s0f_params =  {'CC_ROOT': CC_PATH, 'data_file': input_h5}
+s0f_params =  {'CC_ROOT': CC_PATH, 'data_file': input_h5, 'cc_old_path': CC_OLD_ROOT}
 s0f_task = CCFit(cc_type='sign0', **s0f_params)
 pp.add_task(s0f_task)
 
