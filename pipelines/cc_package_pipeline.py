@@ -157,9 +157,6 @@ molrepos_task = PythonCallable(name="molrepos", **molrepos_params)
 
 pp.add_task(molrepos_task)
 
-pp.run()
-print("End of the second step: Parse molrepos")
-sys.exit(1)
 
 ##### TASK: Get inchikey/inchi pairs and calculate data #######
 
@@ -190,6 +187,10 @@ for data_calc in data_calculators:
         name="calc_data_" + data_calc, **calc_data_params)
 
     pp.add_task(calc_data_task)
+
+pp.run()
+print("End of the third step: Get inchikey/inchi pairs and calculate data")
+sys.exit(1)
 
 ##### TASK: Generate validation sets #######
 
