@@ -226,7 +226,7 @@ s1_params["full_reference"] = False
 #                           "H3.011": {"discrete": False},
 #                           "H3.055": {"discrete": False}}
 
-s1_params["ds_params"] = {"L1.004": {"discrete": False},}
+#s1_params["ds_params"] = {"L1.004": {"discrete": False}}
 
 s1_task = CCFit(cc_type='sign1', **s1_params)
 
