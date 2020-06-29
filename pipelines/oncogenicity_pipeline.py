@@ -13,7 +13,7 @@ from chemicalchecker.util.pipeline import Pipeline, PythonCallable, CCFit
 current_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/oncogenicity.json')
 
-#CC_PATH = "/aloy/web_checker/package_cc/dream_ctd2/"
+#CC_ROOT = "/aloy/web_checker/package_cc/dream_ctd2/"
 CC_ROOT = "/aloy/home/lmateo/cc_oncogenicity/"
 
 #pp = Pipeline(pipeline_path="/aloy/scratch/oguitart/dream_ctd2")
@@ -29,7 +29,7 @@ pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/cc_oncogenicity_pipeline")
 
 def get_available_datasets(root="L", sign_type="sign3"):
     datasets = []
-    path = "%s/full/%s" % (CC_PATH, root)
+    path = "%s/full/%s" % (CC_ROOT, root)
     datasets = []
     for f1 in os.listdir(path):
         path_1 = "%s/%s" % (path, f1)
@@ -42,7 +42,7 @@ def get_available_datasets(root="L", sign_type="sign3"):
 
 def projection_plot(dataset, sign_type="sign2"):
     fig, ax = plt.subplots(1, 1, figsize=(3, 3))
-    cc = ChemicalChecker(CC_PATH)
+    cc = ChemicalChecker(CC_ROOT)
     sign = cc.get_signature(sign_type, "full", dataset)
     sign1 = cc.get_signature('sign1', "full", dataset)
     if os.path.exists(sign1.data_path):
@@ -76,7 +76,7 @@ def projection_plot(dataset, sign_type="sign2"):
 
 def intensity_plot(dataset, sign_type="sign2"):
     fig, ax = plt.subplots(1, 1, figsize=(3, 3))
-    cc = ChemicalChecker(CC_PATH)
+    cc = ChemicalChecker(CC_ROOT)
     sign = cc.get_signature(sign_type, "full", dataset)
 
     sign1 = cc.get_signature('sign1', "full", dataset)
@@ -115,7 +115,7 @@ def intensity_plot(dataset, sign_type="sign2"):
 
 def auc_plots(dataset, sign_type="sign2"):
     fig, ax = plt.subplots(1, 1, figsize=(3, 3))
-    cc = ChemicalChecker(CC_PATH)
+    cc = ChemicalChecker(CC_ROOT)
     sign = cc.get_signature(sign_type, "full", dataset)
     from sklearn.metrics import auc
     path = sign.stats_path
@@ -148,7 +148,7 @@ def auc_plots(dataset, sign_type="sign2"):
 
 def make_eval_plots(datasets, sign_type):
 
-    cc = ChemicalChecker(CC_PATH)
+    cc = ChemicalChecker(CC_ROOT)
     cc_new = ChemicalChecker('/aloy/web_checker/package_cc/newpipe/')
 
     for ds in datasets:
