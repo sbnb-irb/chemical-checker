@@ -4,7 +4,7 @@
         "CC_DATA": "'/aloy/scratch/sbnb-adm/CC/download/'",
         "CC_TMP": "'/aloy/scratch/sbnb-adm/CC/tmp_jobs/'",
         "CC_REPO": "'/home/sbnb-adm/chemical_checker'",
-        "SINGULARITY_IMAGE": "'/aloy/home/sbnb-adm/CC/IMAGE/cc.simg'",
+        "SINGULARITY_IMAGE": "'/aloy/home/sbnb-adm/CC/IMAGE/cc_updt.simg'",
         "validation_path": "'/aloy/web_checker/package_cc/validation_sets/'"
     },
     "DB": {
