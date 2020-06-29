@@ -295,9 +295,11 @@ class CCFit(BaseTask, BaseOperator):
             # create script file
             cc_config_path = os.environ['CC_CONFIG']
             cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
+            # NS-> added sys.path.append('/opt/chemical_checker/package/chemicalchecker/../')
             script_lines = [
                 "import sys, os",
                 "import pickle",
+                "sys.path.append('/opt/chemical_checker/package/chemicalchecker/../')",
                 "from chemicalchecker.util import Config",
                 "from chemicalchecker.core import ChemicalChecker",
                 "config = Config()",
