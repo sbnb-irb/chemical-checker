@@ -9,6 +9,7 @@ from chemicalchecker.util import logged
 from chemicalchecker.util import Config
 from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util.parser import DataCalculator
+from chemicalchecker.core.signature_data import DataSignature
 from .database import Base, get_session, get_engine
 from .molecule import Molecule
 from sqlalchemy.ext.declarative import declarative_base
@@ -44,7 +45,8 @@ def Calcdata(table_name):
                 raise Exception("Input data is not a dictionary.")
 
             if Molecule.get(prop.inchikey) is None:
-                raise Exception("The inchikey " + str(prop.inchikey) + " is not present in table molecule.")
+                raise Exception("The inchikey " + str(prop.inchikey) +
+                                " is not present in table molecule.")
 
             GenericCalcdata.__log.debug(prop.inchikey)
             session = get_session(GenericCalcdata.dbname)
@@ -76,7 +78,8 @@ def Calcdata(table_name):
             session = get_session(GenericCalcdata.dbname)
             for pos in range(0, len(keys), size):
                 query = session.query(GenericCalcdata).filter(
-                    GenericCalcdata.inchikey.in_(keys[pos:pos + size]), GenericCalcdata.raw.isnot(None))
+                    GenericCalcdata.inchikey.in_(keys[pos:pos + size]),
+                    GenericCalcdata.raw.isnot(None))
                 res = query.with_entities(
                     GenericCalcdata.inchikey, GenericCalcdata.raw).all()
                 props.update(res)
@@ -108,14 +111,17 @@ def Calcdata(table_name):
             return keys.difference(present)
 
         @staticmethod
-        def from_inchikey_inchi(inchikey_inchi, missing_only=True, chunksize=1000):
-            """Method to fill the property table from an inchikey to inchi map."""
+        def from_inchikey_inchi(inchikey_inchi, missing_only=True,
+                                chunksize=1000):
+            """Fill the property table given inchikey to inchi map."""
             # calc_fn yield a list of dictionaries with keys as a molprop
             # entry
 
             if isinstance(inchikey_inchi, list):
                 if len(inchikey_inchi[0]) != 2:
-                    raise Exception("Inchikey_inchi variable is not a list of tuples (inchikey,inchi)")
+                    raise Exception(
+                        "Inchikey_inchi variable is not a list of tuples " +
+                        "(inchikey,inchi)")
                 inchikey_inchi_final = dict(inchikey_inchi)
             else:
                 inchikey_inchi_final = inchikey_inchi
@@ -131,7 +137,8 @@ def Calcdata(table_name):
                 GenericCalcdata.__log.debug(
                     "Size final data to add: " + str(len(todo_iks)))
 
-                dict_inchikey_inchi = {k: inchikey_inchi_final[k] for k in todo_iks}
+                dict_inchikey_inchi = {
+                    k: inchikey_inchi_final[k] for k in todo_iks}
 
             else:
                 dict_inchikey_inchi = inchikey_inchi_final
@@ -148,12 +155,15 @@ def Calcdata(table_name):
                 GenericCalcdata.__log.debug(
                     "Loading chunk of size: " + str(len(chunk)))
 
-                engine.execute(postgresql.insert(GenericCalcdata.__table__).values(
-                    chunk).on_conflict_do_nothing(index_elements=[GenericCalcdata.inchikey]))
+                engine.execute(
+                    postgresql.insert(GenericCalcdata.__table__).values(
+                        chunk).on_conflict_do_nothing(
+                        index_elements=[GenericCalcdata.inchikey]))
             t_end = time()
             t_delta = str(datetime.timedelta(seconds=t_end - t_start))
             GenericCalcdata.__log.info(
-                "Loading Mol properties Name %s took %s", GenericCalcdata.__tablename__, t_delta)
+                "Loading Mol properties Name %s took %s",
+                GenericCalcdata.__tablename__, t_delta)
 
         @staticmethod
         def calcdata_hpc(job_path, inchikey_inchi, **kwargs):
@@ -166,7 +176,8 @@ def Calcdata(table_name):
             wait: Wait for the job to finish (default:True)
             memory: Maximum memory the job can take in Gigabytes(default: 5)
             chunk: Number of elements per HPC job(default: 200)
-            chunk_dbload: Number of elements loaded to the database(default: 1000)
+            chunk_dbload: Number of elements loaded to the database
+                (default: 1000)
             """
             # create job directory if not available
             if not os.path.isdir(job_path):
@@ -197,12 +208,13 @@ def Calcdata(table_name):
                 # elements for current job
                 "start_index = int(inputs[task_id])",
                 "with h5py.File(h5_file, 'r') as hf:",
-                "    inchikey_inchi = dict(hf['ik_inchi'][start_index:start_index+" + str(
-                    chunk) + "])",
+                "    inchikey_inchi = dict(hf['ik_inchi']" +
+                "[start_index:start_index+" + str(chunk) + "])",
                 # elements are indexes
                 "mol = Calcdata('" + GenericCalcdata.__tablename__ + "')",
                 # start import
-                'mol.from_inchikey_inchi(inchikey_inchi,missing_only=False,chunksize=%d)' % chunk_dbload,
+                'mol.from_inchikey_inchi(inchikey_inchi,' +
+                'missing_only=False,chunksize=%d)' % chunk_dbload,
                 "print('JOB DONE')"
             ]
             script_name = os.path.join(job_path, 'molprop_script.py')
@@ -238,7 +250,9 @@ def Calcdata(table_name):
 
             with h5py.File(h5_file_name, "w") as hf:
                 hf.create_dataset(
-                    "ik_inchi", data=np.array(list_inchikey_inchi))
+                    "ik_inchi",
+                    data=np.array(list_inchikey_inchi,
+                                  dtype=DataSignature.string_dtype))
 
             indices = range(0, len(list_inchikey_inchi), chunk)
 
@@ -253,7 +267,8 @@ def Calcdata(table_name):
             params["memory"] = memory
             # job command
             singularity_image = Config().PATH.SINGULARITY_IMAGE
-            command = "singularity exec {} python {} <TASK_ID> <FILE> {}".format(
+            command = "singularity exec {} python {} <TASK_ID> <FILE> {}"
+            command = command.format(
                 singularity_image, script_name, h5_file_name)
             # submit jobs
             cluster = HPC.from_config(Config())
