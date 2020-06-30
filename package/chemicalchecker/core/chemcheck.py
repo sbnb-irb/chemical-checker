@@ -192,10 +192,15 @@ class ChemicalChecker():
                 molset_dataset_sign[molset] = dict()
             if dataset not in molset_dataset_sign[molset]:
                 molset_dataset_sign[molset][dataset] = dict()
-            with h5py.File(path, 'r') as fh:
-                if matrix not in fh.keys():
-                    continue
-                molset_dataset_sign[molset][dataset][sign] = fh[matrix].shape
+            try:
+                with h5py.File(path, 'r') as fh:
+                    if matrix not in fh.keys():
+                        continue
+                    molset_dataset_sign[molset][
+                        dataset][sign] = fh[matrix].shape
+            except Exception as ex:
+                self.__log.warning(
+                    'problem reading file %s: %s' % (path, str(ex)))
         return molset_dataset_sign
 
     def get_signature_path(self, cctype, molset, dataset_code):
