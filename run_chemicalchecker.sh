@@ -1,10 +1,10 @@
 #!/bin/sh
 
-INSTALL_DIR=$HOME/chemical_checker
+LOCAL_CCREPO="$HOME/CC/CC_IMAGE"
+IMAGE_NAME="cc.simg"
 
-LOCAL_IMAGE=$INSTALL_DIR/cc.simg
-
-JUPYTER_DIR=$INSTALL_DIR/run_user_sing
+JUPYTER_DIR=$LOCAL_CCREPO/run_user_sing
+I
 
 # display usage for current script
 usage () {
@@ -16,6 +16,7 @@ usage () {
     echo "  -d      use external Chemical Checker (develop mode)"
     echo "  -c      use external Chemical Checker config file"
     echo "  -h      print this help"
+    echo "  -i      <my_image.simg>: run the singularity image of your choice (when several are present in $LOCAL_CCREPO)"
     echo ""
     exit 1
 }
@@ -25,15 +26,19 @@ unset SINGULARITY_SHELL
 SINGULARITY_SHELL=false
 EXTERNAL_CCREPO=false
 EXTERNAL_CCCONFIG=false
-while getopts ':sc:d:hD' c
+while getopts ':sc:d:i:hD' c
 do
   case $c in
     s) SINGULARITY_SHELL=true ;;
     d) EXTERNAL_CCREPO=true; PATH_CCREPO=$OPTARG ;;
     c) EXTERNAL_CCCONFIG=true; PATH_CCCONFIG=$OPTARG ;;
     D) DEBUG=true ;;
-    h) usage ;; esac
+    h) usage ;;
+    i) IMAGE_NAME=$OPTARG;;
+  esac
 done
+
+LOCAL_IMAGE=$LOCAL_CCREPO/$IMAGE_NAME
 
 # print variables if debugging
 if [ "$DEBUG" = true ]
