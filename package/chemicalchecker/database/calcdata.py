@@ -249,10 +249,7 @@ def Calcdata(table_name):
             del inchikey_inchi
 
             with h5py.File(h5_file_name, "w") as hf:
-                hf.create_dataset(
-                    "ik_inchi",
-                    data=np.array(list_inchikey_inchi,
-                                  dtype=DataSignature.string_dtype))
+                hf.create_dataset("ik_inchi", data=np.array(list_inchikey_inchi, dtype=DataSignature.string_dtype()))
 
             indices = range(0, len(list_inchikey_inchi), chunk)
 
