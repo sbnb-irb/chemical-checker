@@ -13,7 +13,7 @@ from chemicalchecker.database import Calcdata
 from chemicalchecker.database import Dataset
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, CCFit, CCLongShort, CCSmileConverter
 
-from generate_chembl_files import generate_chembl_files # Nico
+from update_resources.generate_chembl_files import generate_chembl_files # Nico
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/cc_package.json')
