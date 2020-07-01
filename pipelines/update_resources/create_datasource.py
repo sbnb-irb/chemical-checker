@@ -6,7 +6,8 @@ from chemicalchecker.database import Datasource
 import os
 
 CSVfileIn="current_resource_CSV"
-sql_file="foreign_constraint.sql"
+sql_file1="remove_foreign_constraints.sql"
+sql_file2="add_foreign_constraints.sql"
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ['CC_CONFIG'] = os.path.join(current_dir,'../configs/cc_package.json')
@@ -14,6 +15,8 @@ os.environ['CC_CONFIG'] = os.path.join(current_dir,'../configs/cc_package.json')
 # check if Datasource table is there
 if Datasource._table_exists():
     print("Removing previous table 'datasource' in database 'cc_package'")
+    command1="psql -h aloy-dbsrv -d cc_package <"+sql_file1  #remove fconstraints
+    os.system(command1)
     Datasource._drop_table()
 
 # create the Datasource table
@@ -25,5 +28,5 @@ Datasource.from_csv(CSVfileIn)
 print("TABLE CREATED---->datasource")
 
 # Ensure the foreign key constraints remain as such (no password needed for sbnb-adm)
-command="psql -h aloy-dbsrv -d cc_package <"+sql_file
-os.system(command)
+command2="psql -h aloy-dbsrv -d cc_package <"+sql_file2
+os.system(command2) # Add foreign constraints
