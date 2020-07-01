@@ -142,7 +142,9 @@ downloads_task = PythonCallable(name="downloads", **downloads_params)
 
 pp.add_task(downloads_task)
 
-
+pp.run()
+print("End of step1")
+sys.exit(1)
 ##### TASK: Parse molrepos #######
 
 molrepos_params = {}
@@ -187,10 +189,6 @@ for data_calc in data_calculators:
         name="calc_data_" + data_calc, **calc_data_params)
 
     pp.add_task(calc_data_task)
-
-pp.run()
-print("End of the third step: Get inchikey/inchi pairs and calculate data")
-sys.exit(1)
 
 ##### TASK: Generate validation sets #######
 
