@@ -7,8 +7,9 @@ import os
 import pandas as pd
 from chembl_webresource_client.new_client import new_client
 
+
 #-----------Generating chembl_drugtargets.txt
-##----------fuctions
+##----------functions
 
 # Parsing the references of each record
 def parseReference(refList):
