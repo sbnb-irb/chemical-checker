@@ -5,11 +5,11 @@
 from chemicalchecker.database import Datasource
 import os
 
-CSVfileIn="configs/current_resource_CSV"
-sql_file="configs/foreign_constraint.sql"
+CSVfileIn="current_resource_CSV"
+sql_file="foreign_constraint.sql"
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/cc_package.json')
+os.environ['CC_CONFIG'] = os.path.join(current_dir,'../configs/cc_package.json')
 
 # check if Datasource table is there
 if Datasource._table_exists():
