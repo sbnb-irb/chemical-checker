@@ -55,7 +55,7 @@ human_proteome,,f,https://www.uniprot.org/uniprot/?query=proteome:UP000005640&fo
 molpathways,Molpathways ,f,http://www.pathwaycommons.org/archives/PC2/v11/PathwayCommons11.All.hgnc.sif,,,PathwayCommons11.All.hgnc.sif,f
 string,String network ,f,https://stringdb-static.org/download/protein.links.v11.0/9606.protein.links.v11.0.txt.gz,,,9606.protein.links.txt,f
 snai_riera,library of 89 molecules designed by Pep,f,file:///home/jrojo/Documents/snai1/SMILES.csv,,,SMILES.csv,f
-chembl_target_predictions,Target prediction multitask naive bayes models trained by ChEMBL team.,f,ftp://ftp.ebi.ac.uk/pub/databases/chembl/target_predictions/NB/chembl_25_models.tar.gz,,,,f
+chembl_target_predictions,Target prediction multitask naive bayes models trained by ChEMBL team.,f,ftp://ftp.ebi.ac.uk/pub/databases/chembl/target_predictions/NB/chembl_23_models.tar.gz,,,,f
 hmdb_metabolites,"The Human Metabolome Database (HMDB) is a database containing detailed information about small molecule metabolites found in the human body. It is intended to be used for applications in metabolomics, clinical chemistry, biomarker discovery and general education. The database is designed to contain or link three kinds of data: 1) chemical data, 2) clinical data, and 3) molecular biology/biochemistry data.",f,http://www.hmdb.ca/system/downloads/current/hmdb_metabolites.zip,,,hmdb_metabolites.xml,f
 e3fp_3conf_1024,The fp3d molecular properties calculated,f,,,,,t
 morphlincs_LDS-1195,,f,http://lincsportal.ccs.miami.edu/dcic/api/download?path=LINCS_Data/Broad_Therapeutics&file=LDS-1195.tar.gz,,,,f
