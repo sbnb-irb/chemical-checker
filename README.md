@@ -41,9 +41,12 @@ fusermount -u /aloy
 umount /aloy
 ```
 
-## Complete Installation 
 
-For an advanced usage of the CC package capabilities, we recomend creating the CC dependency enviroment within a container image:
+## Dependencies
+
+All the dependencies for the Chemical Checker will be bundled within a singularity image generated during the installation process.
+However, to generate such an image we require some software being available:
+
 
 1. [Install Singularity](https://www.sylabs.io/guides/2.6/user-guide/installation.html)
 
@@ -57,7 +60,7 @@ For an advanced usage of the CC package capabilities, we recomend creating the C
 
 > In case of errors during this step, check Singularity [prerequisites](https://www.sylabs.io/guides/2.6/user-guide/installation.html#before-you-begin)!
 
-2. Add bind paths to singulairty config file:
+    1.1. Add bind paths to singulairty config file:
 
         sudo echo "bind path = /aloy/web_checker" >> /etc/singularity/singularity.conf
 
@@ -69,17 +72,23 @@ For an advanced usage of the CC package capabilities, we recomend creating the C
         sudo mount -a
 
 
-3. [Install Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+2. [Install Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 
         sudo apt-get install git
 
-4. Download the [setup_chemicalchecker.sh](setup_chemicalchecker.sh) script to your home folder:
 
-        wget http://chemicalchecker.org/api/db/getFile/setup_chemicalchecker.sh
+## Complete Installation 
 
-5. Run the script (this script will require to type your password) with:
+For an advanced usage of the CC package capabilities, we recomend creating the CC dependency enviroment within a container image:
 
-        sh setup_chemicalchecker.sh
+
+1. Clone this repository to your code folder:
+
+        git clone http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker.git
+
+2. Run the script (this script will require to type your password) with:
+
+        cd chemical_checker && sh setup_chemicalchecker.sh
 
 
 The setup_chemicalchecker script has created an alias in your ~/.bashrc so you can start the Chemical Checker with:
@@ -105,19 +114,19 @@ If you only want to change the *default* config file, run the script with the -e
 
         chemcheck
 
-    2.1. Open your browser, paste the URL that the script has produced.
+    1.1. Open your browser, paste the URL that the script has produced.
 
-    2.2. Start a new notebook (on the top right jupyter page click New -> Python )
+    1.2. Start a new notebook (on the top right jupyter page click New -> Python )
 
-    2.3. Type `import chemicalchecker`
+    1.3. Type `import chemicalchecker`
 
 2. Run a shell within the image:
 
         chemcheck -s [-d <PATH_TO_SOURCE_CODE_ROOT>] [-c <PATH_TO_CONFIG_FILE>]
         
-    3.1 Type `ipython`
+    2.1 Type `ipython`
     
-    3.2 Type `import chemicalchecker`
+    2.2 Type `import chemicalchecker`
 
 
 ## Adding a package or software to the image
@@ -149,7 +158,6 @@ Not re-inventing the wheel is a great philosophy, but each dependency we introdu
 To do so you can add a `pip install <package_of_your_dreams>` line to the following files in container/singularity:
 
 * cc-full.def (the definition file used by setup_chemicalchecker.sh)
-* cc_py27.def (unit-testing Python 2 environment)
 * cc_py36.def (unit-testing Python 3 environment)
 
 Don't forget to also add a short comment on why and where this new dependency is used, also in the commit message. E.g. "Added dependency used in preprocessing for space B5.003". The idea is that whenever B5.003 is obsoleted we can also safely remove the dependency.
