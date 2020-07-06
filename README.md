@@ -11,13 +11,15 @@ This repository is the one currently being used to develop the Chemical Checker 
 
 Due to the strong computational requirements of our pipeline, the code has been written and optimized to work in our local HPC facilities. Installation guides found below are mainly addressed to SB&NB users. As stated in the manuscript, the main deliverable of our resource are the CC _signatures_, which can be accessed easily through a [REST API](https://chemicalchecker.com/help) or downloaded as [data files](https://chemicalchecker.com/downloads).
 
-## Quick start
+## Chemical Checker `lite`
 
-To fetch signatures (without fancy CC package capabilities) the package can be installed directly via `pip` from our local PyPI server:
+The CC package can be installed directly via `pip` from our local PyPI server:
 
 ```bash
 sudo pip install --index http://gitlabsbnb.irbbarcelona.org:3141/root/dev/ --trusted-host gitlabsbnb.irbbarcelona.org chemicalchecker
 ```
+
+This installs the `lite` version of the Chemical Checker that can be used for basic task (e.g. to open signatures) but most of the fancy CC package capabilities will be missing.
 
 _N.B. Only bare minimum dependencies are installed along with the package_
 
@@ -81,7 +83,7 @@ However, to generate such an image we require some software being available:
         sudo apt-get install git
 
 
-## Complete Installation 
+## Installation 
 
 For an advanced usage of the CC package capabilities, we recomend creating the CC dependency enviroment within a container image:
 
@@ -120,6 +122,7 @@ chemcheck -c /path/to/your/cc_config.json
 
 ## Usage
 
+We make it trivial to either start a Jupyter Notebook within the image or to run a shell:
 
 1. Run a Jupyter Notebook with:
 
@@ -140,7 +143,9 @@ chemcheck -c /path/to/your/cc_config.json
     2.2 Type `import chemicalchecker`
 
 
-## Adding a package or software to the image
+## Introducing new dependendies
+
+### Adding a package or software to the image
 
 1. You will have to enter the singularity sandbox
 
@@ -162,7 +167,7 @@ chemcheck -c /path/to/your/cc_config.json
         cp cc.simg /aloy/scratch/<yout_user>/cc.simg
 
 
-## Adding a permanent dependency to the package
+### Adding a permanent dependency to the package
 
 Not re-inventing the wheel is a great philosophy, but each dependency we introduce comes at the cost of maintainability. Double check that the module you want to add is the best option for doing what you want to do. Check that it is actively developed and that it supports Python 3. Test it thoroughly using the sandbox approach presented above. When your approach is mature you can happily add the new dependency to the package.
 
