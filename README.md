@@ -60,12 +60,14 @@ However, to generate such an image we require some software being available:
 
 > In case of errors during this step, check Singularity [prerequisites](https://www.sylabs.io/guides/2.6/user-guide/installation.html#before-you-begin)!
 
-    1.1. Add bind paths to singulairty config file:
+
+
+1.1. Add bind paths to singulairty config file:
 
         sudo echo "bind path = /aloy/web_checker" >> /etc/singularity/singularity.conf
 
 
-    2.1. Make sure that `/aloy/web_checker` is available on your workstation (e.g. `ls /aloy/web_checker` should give a list of directories) if **not**:
+1.2. Make sure that `/aloy/web_checker` is available on your workstation (e.g. `ls /aloy/web_checker` should give a list of directories) if **not**:
 
         mkdir /aloy/web_checker
         sudo echo "fs-paloy.irbbarcelona.pcb.ub.es:/pa_webchecker /aloy/web_checker       nfs     defaults,_netdev 0 0" >> /etc/fstab
