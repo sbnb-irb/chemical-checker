@@ -189,9 +189,6 @@ for data_calc in data_calculators:
     pp.add_task(calc_data_task)
 
 
-pp.run()
-print("End of step3")
-sys.exit(1)
 ##### TASK: Generate validation sets #######
 
 for val_set in validation_sets:
