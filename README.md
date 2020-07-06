@@ -47,6 +47,7 @@ umount /aloy
 All the dependencies for the Chemical Checker will be bundled within a singularity image generated during the installation process.
 However, to generate such an image we require some software being available:
 
+### Singularity
 
 1. [Install Singularity](https://www.sylabs.io/guides/2.6/user-guide/installation.html)
 
@@ -62,19 +63,20 @@ However, to generate such an image we require some software being available:
 
 
 
-1.1. Add bind paths to singulairty config file:
+2. Add bind paths to singulairty config file:
 
         sudo echo "bind path = /aloy/web_checker" >> /etc/singularity/singularity.conf
 
 
-1.2. Make sure that `/aloy/web_checker` is available on your workstation (e.g. `ls /aloy/web_checker` should give a list of directories) if **not**:
+3. Make sure that `/aloy/web_checker` is available on your workstation (e.g. `ls /aloy/web_checker` should give a list of directories) if **not**:
 
         mkdir /aloy/web_checker
         sudo echo "fs-paloy.irbbarcelona.pcb.ub.es:/pa_webchecker /aloy/web_checker       nfs     defaults,_netdev 0 0" >> /etc/fstab
         sudo mount -a
 
+### Git
 
-2. [Install Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+1. [Install Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 
         sudo apt-get install git
 
@@ -92,6 +94,9 @@ For an advanced usage of the CC package capabilities, we recomend creating the C
 
         cd chemical_checker && sh setup_chemicalchecker.sh
 
+### Running `Vanilla` Chemical Checker
+
+This is the easiest scenario where you simply use the CC code 'as is'.
 
 The setup_chemicalchecker script has created an alias in your ~/.bashrc so you can start the Chemical Checker with:
 ```bash
@@ -99,16 +104,20 @@ source ~/.bashrc
 chemcheck
 ```
 
-After the first run of this script you can **update** the Chemical Checker package with the following command:
+### Running custom Chemical Checker
 
+If you are contributing with code to the CC you can run the singularity image specifying your local develop package branch:
 ```bash
-sh setup_chemicalchecker.sh -u
+chemcheck -d /path/to/your/code/chemical_checker/package/
+```
+    
+### Running with alternative config file
+
+The CC rely on one config file containing the information for the current enviroment (e.g. the HPC, location of the default CC, database, etc...). The default configuration can be overridden specifying a custom config file:
+```bash
+chemcheck -c /path/to/your/cc_config.json
 ```
 
-If you only want to change the *default* config file, run the script with the -e argument:
-
-        sh setup_chemicalchecker.sh -e
-    
 ## Usage
 
 
@@ -155,7 +164,7 @@ If you only want to change the *default* config file, run the script with the -e
 
 ## Adding a permanent dependency to the package
 
-Not re-inventing the wheel is a great philosophy, but each dependency we introduce comes at the cost of maintainability. Double check that the module you want to add is the best option for doing what you want to do. Check that it is actively developed and that it supports Python 2 and 3. Test it thoroughly using the sandbox approach presented above. When your approach is mature you can happily add the new dependency to the package.
+Not re-inventing the wheel is a great philosophy, but each dependency we introduce comes at the cost of maintainability. Double check that the module you want to add is the best option for doing what you want to do. Check that it is actively developed and that it supports Python 3. Test it thoroughly using the sandbox approach presented above. When your approach is mature you can happily add the new dependency to the package.
 
 To do so you can add a `pip install <package_of_your_dreams>` line to the following files in container/singularity:
 
