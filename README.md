@@ -90,10 +90,8 @@ For an advanced usage of the CC package capabilities, we recomend creating the C
 
 1. Clone this repository to your code folder:
         
-        ```bash
         cd ~ && mkdir -p code && cd code
         git clone http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker.git
-        ```
 
 2. Run the script (this script will require to type your password) with:
 
