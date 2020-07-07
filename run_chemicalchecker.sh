@@ -1,6 +1,6 @@
 #!/bin/sh
 
-LOCAL_CCREPO="$HOME/CC/CC_IMAGE"
+LOCAL_CCREPO="$HOME/chemical_checker"
 IMAGE_NAME="cc.simg"
 
 JUPYTER_DIR=$LOCAL_CCREPO/run_user_sing
