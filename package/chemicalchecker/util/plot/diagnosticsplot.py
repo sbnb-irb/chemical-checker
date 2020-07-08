@@ -314,7 +314,7 @@ class DiagnosisPlot(object):
             title = "Values by key"
         ax.set_title(title)
 
-    def _across(self, values, datasets, ax, title, exemplary, cctype, molset):
+    def _across(self, values, datasets, ax, title, exemplary, cctype, molset, vertical=False):
         ax = self._get_ax(ax)
         datasets = np.array(datasets)
         values = np.array(values)
@@ -323,15 +323,26 @@ class DiagnosisPlot(object):
         values = values[idxs]
         colors = [coord_color(ds) for ds in datasets]
         x = [i+1 for i in range(0, len(values))]
-        ax.scatter(x, values, color=colors)
+        if vertical:
+            ax.scatter(values, x, color=colors)
+        else:
+            ax.scatter(x, values, color=colors)
         for i, x_ in enumerate(x):
-            ax.plot([x_,x_], [-1, values[i]], color=colors[i])
+            if vertical:
+                ax.plot([-1, values[i]], [x_,x_], color=colors[i])
+            else:
+                ax.plot([x_,x_], [-1, values[i]], color=colors[i])
         if title is None:
             title = "%s | %s_%s" % (self.cc.sign_name(self.sign), cctype, molset)
         ax.set_title(title)
-        ax.set_xticks(x)
-        ax.set_xticklabels([ds[1] for ds in datasets])
-        ax.set_xlabel("Datasets")
+        if vertical:
+            ax.set_yticks(x)
+            ax.set_yticklabels([ds[1] for ds in datasets])
+            ax.set_ylabel("Datasets")
+        else:
+            ax.set_xticks(x)
+            ax.set_xticklabels([ds[1] for ds in datasets])
+            ax.set_xlabel("Datasets")
         return ax
 
     def across_coverage(self, ax=None, title=None, exemplary=True, cctype="sign1", molset="full", vs=True):
@@ -358,16 +369,20 @@ class DiagnosisPlot(object):
                 title = "Sign wrt CC"
         ax.set_title(title)
 
-    def across_roc(self, ax=None, title=None, exemplary=True, cctype="sign1", molset="full"):
+    def across_roc(self, ax=None, title=None, exemplary=True, cctype="sign1", molset="full", vertical=False):
         results = self.load_diagnosis_pickle("across_roc.pkl")
         datasets = []
         rocs = []
         for k,v in results.items():
             datasets += [k]
             rocs += [v["auc"]]
-        ax = self._across(rocs, datasets, ax=ax, title=title, exemplary=exemplary, cctype=cctype, molset=molset)
-        ax.set_ylabel("ROC-AUC")
-        ax.set_ylim(0.45, 1.05)
+        ax = self._across(rocs, datasets, ax=ax, title=title, exemplary=exemplary, cctype=cctype, molset=molset, vertical=vertical)
+        if vertical:
+            ax.set_xlabel("ROC-AUC")
+            ax.set_xlim(0.45, 1.05)
+        else:
+            ax.set_ylabel("ROC-AUC")
+            ax.set_ylim(0.45, 1.05)
         if title is None:
             title = "ROC across CC"
         ax.set_title(title)
