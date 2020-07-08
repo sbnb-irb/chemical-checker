@@ -1,4 +1,5 @@
-"""This class simplify and standardize access to the Chemical Checker.
+"""This class simplify and standardize access to the Chemical Checker methods
+and sigantures.
 
 Main tasks of this class are:
 
@@ -52,7 +53,8 @@ class ChemicalChecker():
 
         Args:
             cc_root(str): The Chemical Checker root directory. If not specified
-                            the root is taken from the config file. (default:None)
+                          the root is taken from the config file.
+                          (default:None)
         """
         if not cc_root:
             self.cc_root = Config().PATH.CC_ROOT
@@ -248,8 +250,9 @@ class ChemicalChecker():
             cctype(str): The Chemical Checker datatype (i.e. one of the sign*).
             dataset_code(str): The dataset code of the Chemical Checker.
         Returns:
-            data(Signature): A `DataSignature` object, the specific type depends
-                on the cctype passed. It only allows access to the sign data.
+            data(Signature): A `DataSignature` object, the specific type
+                depends on the cctype passed.
+                It only allows access to the sign data.
         """
         args = ()
         kwargs = {}
@@ -262,7 +265,8 @@ class ChemicalChecker():
             cctype, signature_path, dataset_code, *args, **kwargs)
         if not os.path.exists(data.data_path):
             self.__log.error(
-                "There is no data for %s and dataset code %s" % (cctype, dataset_code))
+                "There is no data for %s and dataset code %s" %
+                (cctype, dataset_code))
             return None
         return DataSignature(data.data_path)
 
@@ -272,7 +276,8 @@ class ChemicalChecker():
         Args:
             dataset_code(str): The dataset code of the Chemical Checker.
         Returns:
-            datafile(str): The name of the file where the data in pairs is saved.
+            datafile(str): The name of the file where the data in pairs is
+                saved.
         """
         prepro = Preprocess(sign.signature_path, sign.dataset)
         prepro.fit()
@@ -288,10 +293,47 @@ class ChemicalChecker():
         return "%s_%s_%s" % (dataset, cctype, molset)
 
     def signature(self, dataset, cctype):
-        return self.get_signature(cctype=cctype, molset="full", dataset_code=dataset)
+        return self.get_signature(cctype=cctype, molset="full",
+                                  dataset_code=dataset)
 
     def diagnosis(self, sign, save=True, plot=True, overwrite=False, n=10000):
-        return self.get_diagnosis(sign=sign, save=save, plot=plot, overwrite=overwrite, n=n)
+        return self.get_diagnosis(sign=sign, save=save, plot=plot,
+                                  overwrite=overwrite, n=n)
+
+    def export(self, destination, signature, h5_filter=None,
+               h5_names_map=None, overwrite=False, version=None):
+        """Export a signature h5 file to a give path. Which dataset to copy
+           can be specified as well as how to rename some dataset.
+
+        Args:
+            destination(str): A destination path.
+            signature(sign): A signature object.
+            h5_filter(list): List of h5 dataset name to export.
+            h5_names_map(dict): Dictionary of current to final h5 dataset name.
+            overwrite(boo): Wether to allow overwriting the export.
+            version(int): Mark the exported signature with a version number.
+        """
+        src_file = signature.data_path
+        if not os.path.isfile(src_file):
+            raise Exception('Signature must have an H5 file to export!')
+        if not overwrite and os.path.isfile(destination):
+            raise Exception('File %s already exists!' % destination)
+
+        src = h5py.File(signature.data_path, 'r')
+        dst = h5py.File(destination, 'w')
+        if h5_filter is None:
+            h5_filter = src.keys()
+        if h5_names_map is None:
+            h5_names_map = {x: x for x in h5_filter}
+        for h5ds in h5_filter:
+            if h5ds not in src:
+                raise Exception('%s not available in %s' % (h5ds, src_file))
+            h5src = src[h5ds][:]
+            dst.create_dataset(h5_names_map[h5ds], data=h5src)
+        if version is not None:
+            dst.create_dataset('version', data=[version])
+        src.close()
+        dst.close()
 
     def copy_signature_from(self, source_cc, cctype, molset, dataset_code,
                             overwrite=False):
@@ -344,11 +386,14 @@ class ChemicalChecker():
         from chemicalchecker.util.plot.diagnosticsplot import DiagnosisPlot
         return DiagnosisPlot(cc=self)
 
-    def get_diagnosis(self, sign, save=True, plot=True, overwrite=False, n=10000):
+    def get_diagnosis(self, sign, save=True, plot=True, overwrite=False,
+                      n=10000):
         from chemicalchecker.core.diagnostics import Diagnosis
-        return Diagnosis(cc=self, sign=sign, save=save, plot=plot, overwrite=overwrite, n=n)
+        return Diagnosis(cc=self, sign=sign, save=save,
+                         plot=plot, overwrite=overwrite, n=n)
 
-    def get_sign3_short_from_smiles(self, smiles, dest_file, ids=None, include_nans=False, chunk_size=1000):
+    def get_sign3_short_from_smiles(self, smiles, dest_file, ids=None,
+                                    include_nans=False, chunk_size=1000):
         """Get the full signature3 short for a list of smiles.
 
         Args:
