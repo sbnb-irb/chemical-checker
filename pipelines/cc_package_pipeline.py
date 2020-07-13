@@ -178,16 +178,20 @@ for ik in final_ik_inchi:
     iks_to_calc.add(ik[0])
 
 for data_calc in data_calculators:
+    print("--> calc_data_" + data_calc)
     calc_data_params = {}
 
     calc_data_params['python_callable'] = calculate_data
     calc_data_params['op_args'] = [data_calc, pp.tmpdir, iks_to_calc]
 
-    calc_data_task = PythonCallable(
-        name="calc_data_" + data_calc, **calc_data_params)
+    calc_data_task = PythonCallable(name="calc_data_" + data_calc, **calc_data_params)
 
     pp.add_task(calc_data_task)
 
+
+pp.run()
+sys.exit(1)
+print("DONE, calc_data")
 
 ##### TASK: Generate validation sets #######
 
