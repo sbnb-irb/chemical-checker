@@ -189,10 +189,6 @@ for data_calc in data_calculators:
     pp.add_task(calc_data_task)
 
 
-pp.run()
-sys.exit(1)
-print("DONE, calc_data")
-
 ##### TASK: Generate validation sets #######
 
 for val_set in validation_sets:
@@ -204,6 +200,10 @@ for val_set in validation_sets:
     val_set_task = PythonCallable(name="val_set_" + val_set, **val_set_params)
 
     pp.add_task(val_set_task)
+
+pp.run()
+sys.exit(1)
+print("DONE, Generate validation set")
 
 
 # TASK: Calculate signatures 0
