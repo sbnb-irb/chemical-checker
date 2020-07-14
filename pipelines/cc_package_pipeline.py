@@ -13,11 +13,13 @@ from chemicalchecker.database import Calcdata
 from chemicalchecker.database import Dataset
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, CCFit, CCLongShort, CCSmileConverter
 
+from chemicalchecker.util import Config
+
 from update_resources.generate_chembl_files import generate_chembl_files # Nico
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/cc_package.json')
-
+cfg=Config()   #json_file = os.environ["CC_CONFIG"]--> if we want to access individual param
 
 CC_ROOT = "/aloy/web_checker/package_cc/2020_01/"
 CC_OLD_ROOT = '/aloy/web_checker/package_cc/paper'
@@ -88,8 +90,8 @@ def create_val_set(set_name):
 
     cc = ChemicalChecker(CC_ROOT)
 
-    val = Validation(cc.get_validation_path(), set_name)
-
+    #val = Validation(cc.get_validation_path(), set_name)
+    val = Validation(cfg.PATH.validation_path, set_name)
     try:
         val.run()
 
