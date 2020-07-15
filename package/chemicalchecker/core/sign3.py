@@ -1,12 +1,11 @@
-"""Signature type 4.
+"""Signature type 3.
 
-First attempt on Siamese network to derive a new signature.
+Siamese neural network derived signatures.
 """
 import os
 import h5py
 import pickle
 import numpy as np
-import pandas as pd
 from tqdm import tqdm
 from time import time
 from scipy import stats
@@ -29,7 +28,7 @@ from chemicalchecker.util import logged
 
 @logged
 class sign3(BaseSignature, DataSignature):
-    """Signature type 4 class."""
+    """Signature type 3 class."""
 
     def __init__(self, signature_path, dataset, **params):
         """Initialize the signature.
@@ -1533,12 +1532,11 @@ class sign3(BaseSignature, DataSignature):
                     hf_out['x'][out_chunk] = sign0[out_chunk]
                     out_start += out_size
 
-    def learn_sign0(self, sign0, suffix=None,
-                    evaluate=True, include_confidence=True):
+    def learn_sign0(self, sign0, suffix=None, evaluate=True):
         """Learn the signature 3 from sign0.
 
         This method is used twice. First to evaluate the performances of the
-        AdaNet model. Second to train the final model on the full set of data.
+        model. Second to train the final model on the full set of data.
 
         Args:
             sign0(list): Signature 0 object to learn from.
@@ -1570,115 +1568,49 @@ class sign3(BaseSignature, DataSignature):
         self.__log.debug('model saved to %s' % model_path)
         if evaluate:
             smpred.evaluate()
-            
 
-    def save_sign0_conf_matrix(self, sign0, destination, chunk_size=1000):
-        """Save matrix of signature 0 confidence values.
-
-        Args:
-            sign0(list): Signature 0 to learn from.
-            destination(str): Path where to save the matrix (HDF5 file).
-            include_confidence(bool): whether to include confidences.
-        """
-        self.__log.debug('Saving confidence traintest to: %s' % destination)
-        mask = np.isin(list(self.keys), list(sign0.keys), assume_unique=True)
-        # the following work only if sign0 keys is a subset (or ==) of sign3
-        assert(np.all(np.isin(list(sign0.keys), list(self.keys), assume_unique=True)))
-        # shapes?
-        common_keys = np.count_nonzero(mask)
-        x_shape = (common_keys, sign0.shape[1])
-        y_shape = (common_keys, 5)
-        self.__log.debug('Shapes X: %s Y: %s' % (str(x_shape), str(y_shape)))
-        with h5py.File(destination, 'w') as hf_out:
-            hf_out.create_dataset('x', x_shape, dtype=np.float32)
-            hf_out.create_dataset('y', y_shape, dtype=np.float32)
-            with h5py.File(self.data_path, 'r') as hf_in:
-                out_start = 0
-                for i in tqdm(range(0, self.shape[0], chunk_size)):
-                    chunk = slice(i, i + chunk_size)
-                    stddev = hf_in['stddev_norm'][chunk][mask[chunk]]
-                    stddev = np.expand_dims(stddev, 1)
-                    intensity = hf_in['intensity_norm'][chunk][mask[chunk]]
-                    intensity = np.expand_dims(intensity, 1)
-                    prior = hf_in['prior_norm'][chunk][mask[chunk]]
-                    prior = np.expand_dims(prior, 1)
-                    novelty = hf_in['novelty_norm'][chunk][mask[chunk]]
-                    novelty = np.expand_dims(novelty, 1)
-                    confidence = hf_in['confidence'][chunk][mask[chunk]]
-                    confidence = np.expand_dims(confidence, 1)
-                    conf_scores = np.hstack((stddev, intensity,
-                                             prior, novelty, confidence))
-                    out_size = conf_scores.shape[0]
-                    out_chunk = slice(out_start, out_start + out_size)
-                    hf_out['y'][out_chunk] = conf_scores
-                    hf_out['x'][out_chunk] = sign0[out_chunk]
-                    out_start += out_size
-
-    def learn_sign0_conf(self, sign0, params, reuse=True, suffix=None,
-                         evaluate=True):
-        """Learn the signature 3 confidence from sign0.
+    def learn_sign0_conf(self, sign0, applicability, reuse=True, suffix=None, evaluate=True):
+        """Learn the signature 3 applicability from sign0.
 
         This method is used twice. First to evaluate the performances of the
-        AdaNet model. Second to train the final model on the full set of data.
+        model. Second to train the final model on the full set of data.
 
         Args:
             sign0(list): Signature 0 object to learn from.
-            params(dict): Dictionary with algorithm parameters.
             reuse(bool): Whether to reuse intermediate files (e.g. the
-                aggregated signature 2 matrix).
-            suffix(str): A suffix for the AdaNet model path (e.g.
-                'sign3/models/adanet_<suffix>').
+                aggregated signature 3 matrix).
+            suffix(str): A suffix for the siamese model path (e.g.
+                'sign3/models/smiles_<suffix>').
             evaluate(bool): Whether we are performing a train-test split and
                 evaluating the performances (N.B. this is required for complete
                 confidence scores)
             include_confidence(bool): whether to include confidences.
         """
         try:
-            from chemicalchecker.tool.adanet import AdaNet
-        except ImportError as err:
-            raise err
-        # adanet parameters
-        self.__log.debug('AdaNet fit confidence %s based on %s', self.dataset,
-                         sign0.dataset)
+            from chemicalchecker.tool.smilespred import ApplicabilityPredictor
+        except ImportError:
+            raise ImportError("requires tensorflow " +
+                              "https://tensorflow.org")
         # get params and set folder
-        if suffix:
-            adanet_path = os.path.join(self.model_path, 'adanet_%s' % suffix)
-        else:
-            adanet_path = os.path.join(self.model_path, 'adanet')
-        if 'model_dir' in params:
-            adanet_path = params.pop('model_dir')
-        if not reuse or not os.path.isdir(adanet_path):
-            os.makedirs(adanet_path)
-        # generate input matrix
-        sign0_matrix = os.path.join(self.model_path, 'train_sign0_conf.h5')
-        if not reuse or not os.path.isfile(sign0_matrix):
-            self.save_sign0_conf_matrix(sign0, sign0_matrix)
-        # if evaluating, perform the train-test split
+        model_path = os.path.join(self.model_path,
+                                  'smiles_applicability_%s' % suffix)
+        if not os.path.isdir(model_path):
+            reuse = False
+            os.makedirs(model_path)
+        # initialize model and start learning
+        apppred = ApplicabilityPredictor(
+            model_dir=model_path, sign0=sign0,
+            applicability=applicability, evaluate=evaluate)
+        self.__log.debug('Applicability pred training on %s' % model_path)
+        if not reuse:
+            apppred.fit()
+        self.smiles_predictor = apppred
+        self.__log.debug('model saved to %s' % model_path)
         if evaluate:
-            traintest_file = os.path.join(self.model_path,
-                                          'traintest_sign0_conf.h5')
-            traintest_file = params.pop(
-                'traintest_file', traintest_file)
-            if not reuse or not os.path.isfile(traintest_file):
-                Traintest.split_h5_blocks(sign0_matrix, traintest_file)
-        else:
-            traintest_file = sign0_matrix
-            traintest_file = params.pop(
-                'traintest_file', traintest_file)
-        # initialize adanet and start learning
-        ada = AdaNet(model_dir=adanet_path,
-                     traintest_file=traintest_file,
-                     **params)
-        self.__log.debug('AdaNet training on %s' % traintest_file)
-        ada.train_and_evaluate(evaluate=evaluate)
-        self.__log.debug('model saved to %s' % adanet_path)
+            apppred.evaluate()
 
-        if evaluate:
-            # save AdaNet performances and plots
-            sign2_plot = Plot(self.dataset, adanet_path)
-            ada.save_performances(adanet_path, sign2_plot, suffix)
-
-    def fit_sign0(self, sign0, suffix=None, include_confidence=False, extra_confidence=False):
+    def fit_sign0(self, sign0, suffix=None, include_confidence=False,
+                  only_confidence=False):
         """Train a siamese model to predict sign3 from sign0 (Morgan Finguerprint).
 
         This method is fitting a model that uses Morgan fingerprint as features
@@ -1696,25 +1628,48 @@ class sign3(BaseSignature, DataSignature):
         """
 
         # check if performance evaluations need to be done
-        #Open sign0:
-        sign0 = DataSignature(sign0).get_h5_dataset('x')[:]
-        if suffix is not None:
-            self.learn_sign0(sign0,
-                             suffix=suffix,
-                             evaluate=True,
-                             include_confidence=include_confidence)
-            return False
-        else:
-            self.learn_sign0(sign0,
-                             suffix='eval',
-                             evaluate=True,
-                             include_confidence=include_confidence)
+        # Open sign0:
+        sign0 = DataSignature(sign0).get_h5_dataset('V')[:]
+        if not only_confidence:
+            if suffix is not None:
+                self.learn_sign0(sign0,
+                                 suffix=suffix,
+                                 evaluate=True)
+                return False
+            else:
+                self.learn_sign0(sign0,
+                                 suffix='eval',
+                                 evaluate=True)
 
-        # check if we have the final trained model
-        self.learn_sign0(sign0,
-                         suffix='final',
-                         evaluate=False,
-                         include_confidence=include_confidence)
+            # check if we have the final trained model
+            self.learn_sign0(sign0,
+                             suffix='final',
+                             evaluate=False)
+        if include_confidence:
+            applicability = self.get_h5_dataset('confidence')[:]
+            if suffix is not None:
+                self.learn_sign0_conf(sign0, applicability,
+                                      suffix=suffix,
+                                      evaluate=True)
+                return False
+            else:
+
+                dest_file = os.path.join(self.model_path,
+                                         'smiles_applicability_eval',
+                                         'applicabilitypredictor.h5')
+                if not os.path.isfile(dest_file):
+                    self.learn_sign0_conf(sign0, applicability,
+                                          suffix='eval',
+                                          evaluate=True)
+
+            # check if we have the final trained model
+            dest_file = os.path.join(self.model_path,
+                                     'smiles_applicability_final',
+                                     'applicabilitypredictor.h5')
+            if not os.path.isfile(dest_file):
+                self.learn_sign0_conf(sign0, applicability,
+                                      suffix='final',
+                                      evaluate=False)
 
     def get_predict_fn(self, smiles=True, model='smiles_final'):
         try:
