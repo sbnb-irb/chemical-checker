@@ -1684,9 +1684,18 @@ class sign3(BaseSignature, DataSignature):
             model = SiameseTriplets(model_path, predict_only=True)
         return model.predict
 
+    def get_applicability_predict_fn(self, model='smiles_applicability_final'):
+        try:
+            from chemicalchecker.tool.smilespred import ApplicabilityPredictor
+        except ImportError as err:
+            raise err
+        model_path = os.path.join(self.model_path, model)
+        model = ApplicabilityPredictor(model_path)
+        return model.predict
+
     def predict_from_smiles(self, smiles, dest_file, chunk_size=1000,
                             predict_fn=None, accurate_novelty=False,
-                            keys=None, components=128, include_confidence=True):
+                            keys=None, components=128, applicability=True):
         """Given SMILES generate sign0 and predict sign3.
 
         Args:
@@ -1705,6 +1714,8 @@ class sign3(BaseSignature, DataSignature):
         # load NN
         if predict_fn is None:
             predict_fn = self.get_predict_fn()
+        if applicability:
+            appl_fn = self.get_applicability_predict_fn()
         # we return a simple DataSignature object (basic HDF5 access)
         pred_s3 = DataSignature(dest_file)
         # load novelty model for more accurate novelty scores (slower)
@@ -1718,6 +1729,9 @@ class sign3(BaseSignature, DataSignature):
             else:
                 results.create_dataset('keys', data=np.array(
                     smiles, DataSignature.string_dtype()))
+            if applicability:
+                results.create_dataset(
+                    'applicability', (len(smiles), 1), dtype=np.float32)
             results.create_dataset(
                 'V', (len(smiles), components), dtype=np.float32)
             results.create_dataset("shape", data=(len(smiles), components))
@@ -1756,6 +1770,13 @@ class sign3(BaseSignature, DataSignature):
                         (components, ),  np.nan)
                 # save chunk to H5
                 results['V'][chunk] = preds[:, :components]
+                # also run applicability prediction
+                if applicability:
+                    apreds = appl_fn(sign0s)
+                    if failed:
+                        apreds[np.array(failed)] = np.full(
+                            (1, ),  np.nan)
+                    results['applicability'][chunk] = apreds[:]
         return pred_s3
 
     def get_universe_inchikeys(self):
