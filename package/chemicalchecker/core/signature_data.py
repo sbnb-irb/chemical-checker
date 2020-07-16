@@ -233,6 +233,11 @@ class DataSignature(object):
             # because str is the new unicode in py3
             return h5py.special_dtype(vlen=str)
 
+    @staticmethod
+    def h5_str(lst):
+        return np.array(lst,dtype=DataSignature.string_dtype())
+               
+
     def copy_from(self, sign, key):
         """Copy dataset 'key' to current signature.
 
