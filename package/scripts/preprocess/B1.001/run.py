@@ -9,7 +9,10 @@ import numpy as np
 import networkx as nx
 import xml.etree.ElementTree as ET
 
-from chemicalchecker.util import get_parser, save_output, features_file
+#from chemicalchecker.util import get_parser, save_output, features_file (Nico, obsolete)
+from chemicalchecker.core import Preprocess
+from chemicalchecker.core.preprocess import features_file
+
 from chemicalchecker.util import psql
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
@@ -270,7 +273,7 @@ def put_hierarchy(ACTS, class_prot, G):
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
 def main(args):
     # Reading arguments and getting datasource
-    args = get_parser().parse_args(args)
+    args = Preprocess.get_parser().parse_args(args)
     main._log.debug("Running preprocess. Saving output to %s",
                     args.output_file)
     dataset = Dataset.get(dataset_code)
