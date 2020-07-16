@@ -12,6 +12,7 @@ from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
 from chemicalchecker.util.performance import gaussian_scale_impute
 from chemicalchecker.core.preprocess import Preprocess
+from chemicalchecker.core.signature_data import DataSignature
 
 import random
 from cmapPy.pandasGEXpress import parse
@@ -166,7 +167,7 @@ def main(args):
             pickle.dump({"up": up, "dw": dw}, fh)
 
         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
-            hf.create_dataset("features", data=np.array(features))
+            hf.create_dataset("features", data=DataSignature.h5_str(features))
 
         main._log.info("Filtering...")
         sigs = filter_data(X, rownames, pertid_inchikey)
