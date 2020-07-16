@@ -174,7 +174,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
         R = sorted(R, key=lambda tup: -tup[1])
         with h5py.File(os.path.join(signaturesdir, "%s.h5" % cid[0]), "w") as hf:
             hf.create_dataset("expr", data=[float(r[1]) for r in R])
-            hf.create_dataset("gene", data=[r[0] for r in R])
+            hf.create_dataset("gene", data=DataSignature.h5_str([r[0] for r in R]))
 
     with open(os.path.join(signaturesdir, readyfile), "w") as f:
         f.write("")
@@ -280,7 +280,7 @@ def process(X):
 
 
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
-@profile
+#@profile
 def main(args):
 
     args = Preprocess.get_parser().parse_args(args)
