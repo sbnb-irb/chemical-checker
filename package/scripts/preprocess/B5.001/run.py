@@ -61,6 +61,7 @@ def parse_chembl():
     act = 0
     notid = 0
     for r in cur:
+        print("SHERLOCK B5 cur l64:-->",cur)
         if r[0] not in chemblid_inchikey:
             notid += 1
             continue

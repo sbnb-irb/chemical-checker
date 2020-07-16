@@ -10,7 +10,7 @@ import networkx as nx
 import xml.etree.ElementTree as ET
 
 #from chemicalchecker.util import get_parser, save_output, features_file (Nico, obsolete)
-from chemicalchecker.core import Preprocess
+from chemicalchecker.core.preprocess import Preprocess
 from chemicalchecker.core.preprocess import features_file
 
 from chemicalchecker.util import psql
