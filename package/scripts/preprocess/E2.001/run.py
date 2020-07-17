@@ -40,12 +40,12 @@ def parse_repodb(repodb, umls2mesh, IND=None):
     # Read UMLS to MESH
     umls_mesh = collections.defaultdict(set)
     f = open(umls2mesh, "r")
-    print("SHERLOCK f-->",f)
     for l in f:
         print("SHERLOCK l-->",l)
         if l[0] == "#":
             continue
-        l = l.rstrip("\n").split("|")
+       # l = l.rstrip("\n").split("|")
+        l = l.rstrip("\n").split("\t")
         if l[0] == "diseaseId":
             continue
         if l[2] == "MSH":
