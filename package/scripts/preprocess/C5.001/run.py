@@ -25,9 +25,10 @@ dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 
 networks = ["string_net", "inbiomap", "ppidb", "pathwaycommons", "recon"]
 
-config = Config()
+config = Config()  # by default reads os.environ['CC_CONFIG'], which is setup in the pipeline
 WD = os.path.dirname(os.path.realpath(__file__))
 cc_config = os.environ['CC_CONFIG']
+sing_image_nfs = config.PATH.SINGULARITY_IMAGE
 cc_package = os.path.join(config.PATH.CC_REPO, 'package')
 cpu = 10
 
@@ -504,7 +505,7 @@ def main(args):
             params["memory"] = 2 * cpu
             params["cpu"] = cpu
             # job command
-            singularity_image = '/aloy/home/oguitart/sing-images/cc.simg'
+            singularity_image = sing_image_nfs #'/aloy/home/oguitart/sing-images/cc.simg'
             command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
                 singularity_image, script_name)
             # submit jobs
