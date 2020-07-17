@@ -222,13 +222,13 @@ class CCFit(BaseTask, BaseOperator):
                         continue
 
                     if os.path.exists(sign.signature_path):
-                        shutil.rmtree(sign.signature_path)
+                        shutil.rmtree(sign.signature_path,ignore_errors=True)
 
                     if self.full_reference:
                         sign = cc.get_signature(
                             self.cc_type, "reference", ds.dataset_code)
                         if os.path.exists(sign.signature_path):
-                            shutil.rmtree(sign.signature_path)
+                            shutil.rmtree(sign.signature_path, ignore_errors=True)
 
                     dataset_codes.append(ds.dataset_code)
 
@@ -372,7 +372,7 @@ class CCFit(BaseTask, BaseOperator):
         if len(dataset_not_done) == 0:
             self.mark_ready()
             if job_path is not None:
-                shutil.rmtree(job_path)
+                shutil.rmtree(job_path, ignore_errors=True)
         else:
             if not self.custom_ready():
                 raise AirflowException("Not all dataset fits are done")
