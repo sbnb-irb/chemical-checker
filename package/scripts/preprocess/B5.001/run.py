@@ -37,7 +37,7 @@ def parse_chembl():
         inchikey_inchi[molrepo.inchikey] = molrepo.inchi
 
     def is_active(r):
-        if r[3] >= 5:
+        if r[3] is not None and r[3] >= 5:
             return True
         if r[2] == "Active" or r[2] == "active":
             return True
@@ -61,7 +61,6 @@ def parse_chembl():
     act = 0
     notid = 0
     for r in cur:
-        print("SHERLOCK B5 cur l64:-->",cur)
         if r[0] not in chemblid_inchikey:
             notid += 1
             continue
