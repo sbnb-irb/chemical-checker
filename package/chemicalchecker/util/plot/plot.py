@@ -451,8 +451,19 @@ class Plot():
         plt.grid(linestyle="-.", color=self.color, lw=0.3)
 
         plt.ylim(0, 1)
-        plt.xlim(np.min([np.min(S), np.min(D)]),
-                 np.max([np.max(S), np.max(D)]))
+        # Nico 19-07-2020: exclude Inf or NaN, in max and min, otherwise Matplotlib error.
+        def excludeNanInf(nparr):
+            return nparr[np.isfinite(nparr)]
+
+        Sfinite= excludeNanInf(S)
+        Dfinite= excludeNanInf(D)
+        #---
+        plt.xlim(np.min([np.min(Sfinite), np.min(Dfinite)]),
+                 np.max([np.max(Sfinite), np.max(Dfinite)]))
+
+        del Sfinite 
+        del Dfinite
+
         plt.xlabel("Distance")
         plt.ylabel("Cumulative proportion")
 
