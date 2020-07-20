@@ -1,8 +1,15 @@
-"""Automatically detect type of a list of keys. Homogeneity of key type across
-the list is assumed."""
+"""Automatically detect type of keys.
+
+Recognized types are:
+- InChI
+- InChIKey
+- SMILES
+
+When checking the a list of keys homogeneity of key type across
+the list is assumed.
+"""
 
 import numpy as np
-from rdkit import Chem
 
 from chemicalchecker.util import logged
 
@@ -11,7 +18,7 @@ from chemicalchecker.util import logged
 class KeyTypeDetector(object):
 
     def __init__(self, keys, max_checks=1000, valid=0.75):
-        """Initialize class.
+        """Initialize `KeyTypeDetector` class.
 
         Args:
             keys(list): Keys to be analyzed.
@@ -28,12 +35,12 @@ class KeyTypeDetector(object):
 
     @staticmethod
     def is_inchi(key):
-        """how to recognize and InChI"""
+        """Recognize InChI"""
         return key.startswith('InChI=')
 
     @staticmethod
     def is_inchikey(key):
-        """how to recognize and InChIKey"""
+        """Recognize InChIKey"""
         if len(key) != 27:
             return False
         if key[25] != "-":
@@ -50,7 +57,8 @@ class KeyTypeDetector(object):
 
     @staticmethod
     def is_smiles(key):
-        """how to recognize a SMILES"""
+        """Recognize SMILES"""
+        from rdkit import Chem
         m = Chem.MolFromSmiles(key)
         if m is None:
             return False
