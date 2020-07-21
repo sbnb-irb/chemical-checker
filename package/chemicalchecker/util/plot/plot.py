@@ -455,14 +455,12 @@ class Plot():
         def excludeNanInf(nparr):
             return nparr[np.isfinite(nparr)]
 
-        Sfinite= excludeNanInf(S)
-        Dfinite= excludeNanInf(D)
+        S= excludeNanInf(S)
+        D= excludeNanInf(D)
         #---
-        plt.xlim(np.min([np.min(Sfinite), np.min(Dfinite)]),
-                 np.max([np.max(Sfinite), np.max(Dfinite)]))
+        plt.xlim(np.min([np.min(S), np.min(D)]),
+                 np.max([np.max(S), np.max(D)]))
 
-        del Sfinite 
-        del Dfinite
 
         plt.xlabel("Distance")
         plt.ylabel("Cumulative proportion")
