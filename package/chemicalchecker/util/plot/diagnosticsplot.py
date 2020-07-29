@@ -188,6 +188,8 @@ class DiagnosisPlot(object):
         P = results["P"]
         x = P[:,0]
         y = P[:,1]
+        print("x--> SHERLOCK", x)    # NS TEST
+        print("Y--> SHERLOCK", y)
         if density:
             from scipy.stats import gaussian_kde
             xy = np.vstack([x, y])
