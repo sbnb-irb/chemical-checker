@@ -111,7 +111,7 @@ From: centos:8
     pip install snap-stanford                     # Python interface for SNAP
 
     # visualization packages
-    pip install matplotlib                        # chart library :)
+    pip install matplotlib==3.2.1                        # chart library :)
     pip install seaborn                           # prettier graph built on top of matplotlib
     pip install datashader                        # plot huge 2D datasets (projetions)
     pip install svgutils                          # compose multi-panel paper figures
