@@ -188,15 +188,13 @@ class DiagnosisPlot(object):
         P = results["P"]
         x = P[:,0]
         y = P[:,1]
-        print("x--> SHERLOCK", x)    # NS TEST
-        print("Y--> SHERLOCK", y)
         if density:
             from scipy.stats import gaussian_kde
             xy = np.vstack([x, y])
             z = gaussian_kde(xy)(xy)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
-            ax.scatter(x, y, c=z, s=10, edgecolor="")
+            ax.scatter(x, y, c=z, s=10, edgecolor=None)
         else:
             color = self._get_color(color)
             ax.scatter(x, y, s=10, color=color, alpha=0.5)
