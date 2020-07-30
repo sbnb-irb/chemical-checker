@@ -26,16 +26,20 @@ from chemicalchecker.util.plot import Plot
 
 
 class cached_property(object):
-    """Decorator for properties calculated/stored on-demand on first use."""
+    """
+    Decorator for properties calculated/stored on-demand on first use.
+    NS: With this, the call to a class function becomes an attribute ie: myobject.function and NOT myobject.function()
+    NS: It is calculated when the function is defined and stored as a property
+    """
 
     def __init__(self, func):
-        self._attr_name = func.__name__
+        self._attr_name = func.__name__           # grabs the name of the decorated func
         self._func = func
 
-    def __get__(self, instance, owner):
-        attr = self._func(instance)
-        setattr(instance, self._attr_name, attr)
-        return attr
+    def __get__(self, instance, owner):           
+        attr = self._func(instance)                #execute the method (bizarre to have instance inside parenthesis)
+        setattr(instance, self._attr_name, attr)   #setattr(object, fctname-->f(object))
+        return attr                              # returns f(object)
 
 
 @logged
