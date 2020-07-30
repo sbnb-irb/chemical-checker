@@ -40,7 +40,10 @@ class sign0(BaseSignature, DataSignature):
         self.__log.debug('data path: %s' % self.data_path)
 
     def process_keys(self, keys, key_type):
-        """Given keys, process them so they are acceptable CC types. If None is specified, then all keys are kept."""
+        """
+        Given keys, process them so they are acceptable CC types. If None is specified, then all keys are kept.
+        NS: Returns the processed Inchikeys, the ray_keys and the indices of the selected processed keys from the raw keys iterable.
+        """
         if key_type is None:
             return np.array(keys), None, np.array([i for i in range(0, len(keys))])
         keys_ = []
@@ -55,8 +58,7 @@ class sign0(BaseSignature, DataSignature):
                         keys_raw += [k]
                         idxs += [i]
         elif key_type == "smiles":
-            self.__log.debug(
-                "Processing smiles. Only standard smiles are kept")
+            self.__log.debug("Processing smiles. Only standard smiles are kept")
             from chemicalchecker.util.parser import Converter
             conv = Converter()
             for i, k in enumerate(keys):
@@ -68,12 +70,15 @@ class sign0(BaseSignature, DataSignature):
                     continue
         else:
             raise "key_type must be 'inchikey' or 'smiles'"
-        self.__log.info("Initial keys: %d / Final keys: %d" %
-                        (len(keys), len(keys_)))
+        self.__log.info("Initial keys: %d / Final keys: %d" %(len(keys), len(keys_)))
+
         return np.array(keys_), np.array(keys_raw), np.array(idxs)
 
     def process_features(self, features, n):
-        """Process features. Give an arbitrary name to features if None are provided."""
+        """
+        Process features. Give an arbitrary name to features if None are provided.
+        NS: returns the feature names as a np array of strings
+        """
         if features is None:
             self.__log.debug(
                 "No features were provided, giving arbitrary names")
