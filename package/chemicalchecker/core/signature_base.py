@@ -7,7 +7,7 @@ getter.
 Also implements the signature status, and persistence of parameters.
 """
 import os
-import six
+import six    #NS: Python 2 and 3 compatibility library
 import sys
 import h5py
 import json
