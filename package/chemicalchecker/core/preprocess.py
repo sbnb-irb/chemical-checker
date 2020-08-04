@@ -57,7 +57,8 @@ class Preprocess():
             original_umask = os.umask(0)
             os.makedirs(self.raw_model_path, 0o775)
             os.umask(original_umask)
-        self.data_path = os.path.join(self.raw_path, "preprocess.h5")
+
+        self.data_path = os.path.join(self.raw_path, "preprocess.h5") # NS what is returned by cc.preprocess(sign) after prepro.fit()
         self.__log.debug('data_path: %s', self.data_path)
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -93,11 +94,11 @@ class Preprocess():
         features are extracted from datasoruces and saved.
         """
         # check that preprocess script is available and call it
-        self.__log.debug('Calling pre-process script %s',
-                         self.preprocess_script)
+        self.__log.debug('Calling pre-process script %s', self.preprocess_script)
+
         if not os.path.isfile(self.preprocess_script):
-            raise Exception("Pre-process script not found! %s",
-                            self.preprocess_script)
+            raise Exception("Pre-process script not found! %s", self.preprocess_script)
+            
         self.call_preprocess(self.data_path, "fit")
 
     def predict(self, input_data_file, destination):
