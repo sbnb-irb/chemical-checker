@@ -50,11 +50,14 @@ class Config():
                                  "Using default config file.")
                 json_file = os.path.join(os.path.dirname(
                     os.path.abspath(__file__)), 'cc_config.json')
+
             except Exception as err:
                 raise err
+                
         self.__log.debug('Loading config from: %s' % json_file)
         with open(json_file) as fh:
             obj_dict = json.load(fh)
+
         eval_obj_dict = dict()
         for k, v in obj_dict.items():
             if type(v) == dict:
