@@ -446,8 +446,9 @@ class Node2Vec():
                                    stderr=subprocess.PIPE)
 
         # stream output as get generated
-        for line in iter(process.stdout.readline, ''):
-            self.__log.info(line.strip())
+        # NS: this produces logs of several GB, I turn it off for the moment
+        #for line in iter(process.stdout.readline, ''):
+        #    self.__log.info(line.strip())
 
         for line in iter(process.stderr.readline, ''):
             self.__log.error(line.strip())
