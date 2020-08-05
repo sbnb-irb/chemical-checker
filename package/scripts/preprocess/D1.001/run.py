@@ -287,9 +287,9 @@ def main(args):
 
     mini_sig_info_file = os.path.join(args.models_path, 'mini_sig_info.tsv')
 
-    dataset = Dataset.get(dataset_code)
+    dataset = Dataset.get(dataset_code) #NS dataset object
 
-    map_files = {}
+    map_files = {}  # NS: will store datasource names of D1.00X and path to the corresponding files
 
     # Data sources associated to this dataset are stored in map_files
     # Keys are the datasources names and values the file paths.
@@ -297,8 +297,7 @@ def main(args):
     for ds in dataset.datasources:
         map_files[ds.datasource_name] = ds.data_path
 
-    main._log.debug(
-        "Running preprocess fit method for dataset " + dataset_code + ". Saving output in " + args.output_file)
+    main._log.debug("Running preprocess fit method for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
     signaturesdir = os.path.join(args.models_path, "signatures")
 

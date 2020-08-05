@@ -18,7 +18,7 @@ from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
 
 
 @logged
-class Dataset(Base):
+class Dataset(Base): # NS Base is a base class from SQLAlchemy, no __init__??
     """The Dataset table.
 
     Parameters:
