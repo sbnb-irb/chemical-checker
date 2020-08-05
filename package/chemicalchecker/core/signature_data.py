@@ -35,8 +35,7 @@ class DataSignature(object):
         self.data_path = os.path.abspath(data_path)
         self.ds_data = ds_data
         self.keys_name = keys_name
-        self.PVALRANGES = np.array([0, 0.001, 0.01, 0.1] +
-                                   list(np.arange(1, 100)) + [100]) / 100.
+        self.PVALRANGES = np.array([0, 0.001, 0.01, 0.1] + list(np.arange(1, 100)) + [100]) / 100.
 
     def _check_data(self):
         """Test if data file is available"""

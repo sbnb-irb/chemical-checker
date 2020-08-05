@@ -53,24 +53,24 @@ class BaseSignature(object):
     @abstractmethod
     def __init__(self, signature_path, dataset, **params):
         """Initialize or load the signature at the given path."""
-        self.dataset = dataset
-        self.cctype = signature_path.split("/")[-1]
-        self.molset = signature_path.split("/")[-5]
+        self.dataset = dataset    # NS ex H1.004
+        self.cctype = signature_path.split("/")[-1]  # NS: ex sign0
+        self.molset = signature_path.split("/")[-5]  # NS: ex full, reference
         self.signature_path = os.path.abspath(signature_path)
-        if sys.version_info[0] == 2:
+        
+        if sys.version_info[0] == 2:                 # NS if Python2 
             if isinstance(self.signature_path, unicode):
-                self.signature_path = self.signature_path.encode('ascii',
-                                                                 'ignore')
+                self.signature_path = self.signature_path.encode('ascii','ignore')
         self.readyfile = "fit.ready"
 
-        if not os.path.isdir(self.signature_path):
-            BaseSignature.__log.info(
-                "Initializing new signature in: %s" % self.signature_path)
+        # NS Creates the 'models', 'stats', 'diags' folders if they don't exist together with signx
+        if not os.path.isdir(self.signature_path):  # NS If sign path doesn't exist, create it with permissions 775
+            BaseSignature.__log.info("Initializing new signature in: %s" % self.signature_path)
             original_umask = os.umask(0)
-            os.makedirs(self.signature_path, 0o775)
+            os.makedirs(self.signature_path, 0o775)   # Ns Does doing this change the sys umask?
             os.umask(original_umask)
+        self.model_path = os.path.join(self.signature_path, "models") # will store the results of the 'fit' method
 
-        self.model_path = os.path.join(self.signature_path, "models")
         if not os.path.isdir(self.model_path):
             BaseSignature.__log.info(
                 "Creating model_path in: %s" % self.model_path)
@@ -78,26 +78,27 @@ class BaseSignature(object):
             os.makedirs(self.model_path, 0o775)
             os.umask(original_umask)
         self.stats_path = os.path.join(self.signature_path, "stats")
+
         if not os.path.isdir(self.stats_path):
-            BaseSignature.__log.info(
-                "Creating stats_path in: %s" % self.stats_path)
+            BaseSignature.__log.info("Creating stats_path in: %s" % self.stats_path)
             original_umask = os.umask(0)
             os.makedirs(self.stats_path, 0o775)
             os.umask(original_umask)
         self.diags_path = os.path.join(self.signature_path, "diags")
+
         if not os.path.isdir(self.diags_path):
-            BaseSignature.__log.info(
-                "Creating diags_path in: %s" % self.diags_path)
+            BaseSignature.__log.info("Creating diags_path in: %s" % self.diags_path)
             original_umask = os.umask(0)
             os.makedirs(self.diags_path, 0o775)
             os.umask(original_umask)
 
     @abstractmethod
     def fit(self):
-        """Take an input and learns to produce an output."""
+        """Take an input and learns to produce an output in the 'model' folder."""
         BaseSignature.__log.debug('fit')
         if os.path.isdir(self.model_path):
             BaseSignature.__log.warning("Model already available.")
+
         if os.path.exists(os.path.join(self.model_path, self.readyfile)):
             os.remove(os.path.join(self.model_path, self.readyfile))
 
@@ -108,9 +109,10 @@ class BaseSignature(object):
             args(tuple): the arguments for of the fit method
             kwargs(dict): arguments for the HPC method.
         """
-        # read config file
-        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
+        # read config file,# NS: get the cc_config var otherwise set it to os.environ['CC_CONFIG']
+        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])  
         cfg = Config(cc_config)
+
         # create job directory if not available
         job_base_path = cfg.PATH.CC_TMP
         tmp_dir = tempfile.mktemp(prefix='tmp_', dir=job_base_path)
@@ -131,21 +133,27 @@ class BaseSignature(object):
         if kwargs.get("delete_job_path", False):
             script_lines.append("print('DELETING JOB PATH: %s')" % job_path)
             script_lines.append("os.system('rm -rf %s')" % job_path)
+
         script_name = '%s_%s_hpc.py' % (self.__class__.__name__, func_name)
         script_path = os.path.join(job_path, script_name)
+
+        # Write the hpc script
         with open(script_path, 'w') as fh:
             for line in script_lines:
                 fh.write(line + '\n')
-        # pickle self and fit args
+
+        # pickle self (the data) and fit args
         pickle_file = '%s_%s_hpc.pkl' % (self.__class__.__name__, func_name)
         pickle_path = os.path.join(job_path, pickle_file)
         pickle.dump((self, args), open(pickle_path, 'wb'))
+
         # hpc parameters
         params = kwargs
         params["num_jobs"] = 1
         params["jobdir"] = job_path
         params["job_name"] = script_name
         params["wait"] = False
+
         # job command
         singularity_image = cfg.PATH.SINGULARITY_IMAGE
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\

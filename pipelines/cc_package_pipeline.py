@@ -210,8 +210,9 @@ s0_task = CCFit(cc_type='sign0', **s0_params)
 pp.add_task(s0_task)
 
 pp.run()
-sys.exit(1)
 print("DONE, Calculate sign 0")
+sys.exit(1)
+
 
 # TASK: Calculate signatures 1
 s1_params = {'CC_ROOT': CC_ROOT}

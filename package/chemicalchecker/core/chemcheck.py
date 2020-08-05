@@ -248,8 +248,7 @@ class ChemicalChecker():
         """
         signature_path = self.get_signature_path(cctype, molset, dataset_code)
         # the factory will return the signature with the right class
-        data = DataFactory.make_data(
-            cctype, signature_path, dataset_code, *args, **kwargs)
+        data = DataFactory.make_data(cctype, signature_path, dataset_code, *args, **kwargs)
         return data
 
     def get_data_signature(self, cctype, dataset_code):
@@ -302,8 +301,7 @@ class ChemicalChecker():
         return "%s_%s_%s" % (dataset, cctype, molset)
 
     def signature(self, dataset, cctype):
-        return self.get_signature(cctype=cctype, molset="full",
-                                  dataset_code=dataset)
+        return self.get_signature(cctype=cctype, molset="full", dataset_code=dataset)
 
     def diagnosis(self, sign, save=True, plot=True, overwrite=False, n=10000):
         return self.get_diagnosis(sign=sign, save=save, plot=plot,
