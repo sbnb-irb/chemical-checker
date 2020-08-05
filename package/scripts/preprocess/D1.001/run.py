@@ -285,8 +285,7 @@ def main(args):
 
     args = Preprocess.get_parser().parse_args(args)
 
-    mini_sig_info_file = os.path.join(
-        args.models_path, 'mini_sig_info.tsv')
+    mini_sig_info_file = os.path.join(args.models_path, 'mini_sig_info.tsv')
 
     dataset = Dataset.get(dataset_code)
 

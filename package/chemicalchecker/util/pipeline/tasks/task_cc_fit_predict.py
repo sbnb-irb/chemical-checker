@@ -208,15 +208,18 @@ class CCFit(BaseTask, BaseOperator):
             SPECIFIC_SCRIPTS['sign3'] = (SIGN3_SCRIPT_FR, ["sign2_src_list = [%s]" %
                                                            (str(self.ref_datasets)[1:-1])] + SIGN3_SCRIPT_F)
 
-        else:
+        else:  # NS if not sign3
 
-            if self.datasets is None:
-                all_datasets = Dataset.get()
+            if self.datasets is None:  # NS: this is our case in the update pipeline
+                all_datasets = Dataset.get()  # sqlaclchemy objects representing A1.001, B1.001 etc
 
+                # NS: Selecting the dataset codes to process
                 for ds in all_datasets:
                     if not ds.essential:
                         continue
-                    sign = cc.get_signature(self.cc_type, "full", ds.dataset_code)
+
+                    sign = cc.get_signature(self.cc_type, "full", ds.dataset_code) # returns a signx object
+
                     if sign.is_fit():
                         continue
 
@@ -224,28 +227,32 @@ class CCFit(BaseTask, BaseOperator):
                         print("Attempting to delete ", sign.signature_path)
                         shutil.rmtree(sign.signature_path,ignore_errors=True)
 
-                    if self.full_reference:
-                        sign = cc.get_signature(self.cc_type, "reference", ds.dataset_code)
+
+                    if self.full_reference: # NS The fit is for full & reference branches (default:True)
+                        sign = cc.get_signature(self.cc_type, "reference", ds.dataset_code) # NS molset: reference
+
                         if os.path.exists(sign.signature_path):
                             print("Attempting to delete signature path: ", sign.signature_path)
                             shutil.rmtree(sign.signature_path, ignore_errors=True)
 
                     dataset_codes.append(ds.dataset_code)
 
-            else:
+            else: # NS with custom dataset
                 for ds in self.datasets:
                     sign = cc.get_signature(self.cc_type, "full", ds)
                     if sign.is_fit():
                         continue
-                    dataset_codes.append(ds)
+                    dataset_codes.append(ds)  #NS i.e: 'A1.001', 'B1.001' etc
 
         dataset_params = list()
 
+        # NS: now filling dataset_params
         for ds_code in dataset_codes:
-            if isinstance(self.ds_data_params, Config):
+            if isinstance(self.ds_data_params, Config): # NS self.data_param is None is our case
                 temp_dict = self.ds_data_params.asdict()
             else:
-                temp_dict = self.ds_data_params
+                temp_dict = self.ds_data_params  # NS i.e None
+
             if temp_dict is not None and ds_code in temp_dict.keys():
                 if isinstance(temp_dict[ds_code], Config):
                     dict_params = temp_dict[ds_code].asdict()
@@ -259,17 +266,20 @@ class CCFit(BaseTask, BaseOperator):
                 dataset_params.append(
                     (ds_code, dict_params))
             else:
-                dataset_params.append((ds_code, None))
+                dataset_params.append((ds_code, None)) # i.e ('A1.001', None)
 
+        # NS: checking dependencies depending on which sign we are calculating
+        # NS, some CC_types have dependencies, eg sign2 need for ex sign1 and neig1 to work
         for dependency in CC_TYPES_DEPENDENCIES[self.cc_type]:
             for ds in dataset_codes:
-                if dependency == self.cc_type:
+                if dependency == self.cc_type:  #NS no dependency
                     continue
-                if self.full_reference:
+                if self.full_reference: # NS: True by default
                     branch = "reference"
                 else:
                     branch = "full"
-                sign = cc.get_signature(dependency, branch, ds)
+
+                sign = cc.get_signature(dependency, branch, ds)  # again, generate a sign or neig object to fulfill the dependency before the required signature
                 if not sign.available():
                     raise Exception(
                         dependency + " CC type is not available and it is required for " + self.cc_type)
@@ -278,23 +288,25 @@ class CCFit(BaseTask, BaseOperator):
 
         if self.cc_old_path is not None:
             SIGN0_SCRIPT_FR.insert(0, "CC_OLD_PATH = '%s'" % self.cc_old_path)
+
         else:
             SIGN0_SCRIPT_FR.insert(0, "CC_OLD_PATH = None")
+
         SPECIFIC_SCRIPTS['sign0'] = (SIGN0_SCRIPT_FR, SIGN0_SCRIPT_FR)
 
         if len(dataset_codes) > 0:
 
-            dataset_codes.sort()
+            dataset_codes.sort() # NS: going through sorted dataset_codes ['A1.001', 'B1.001' etc]
 
-            job_path = tempfile.mkdtemp(
-                prefix='jobs_' + self.cc_type + '_', dir=self.tmpdir)
+            job_path = tempfile.mkdtemp(prefix='jobs_' + self.cc_type + '_', dir=self.tmpdir)
 
-            if not os.path.isdir(job_path):
+            if not os.path.isdir(job_path): # create directory for running the job
                 os.mkdir(job_path)
 
-            # create script file
+            # create script file that will launch signx fit jobs for ALL the select dataset 
             cc_config_path = os.environ['CC_CONFIG']
             cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
+
             # NS-> added sys.path.append('/opt/chemical_checker/package/chemicalchecker/../')
             script_lines = [
                 "import sys, os",
@@ -336,6 +348,8 @@ class CCFit(BaseTask, BaseOperator):
             script_lines += ["print('JOB DONE')"]
 
             script_name = os.path.join(job_path, self.cc_type + '_script.py')
+
+            # Now writing the script itself
             with open(script_name, 'w') as fh:
                 for line in script_lines:
                     fh.write(line + '\n')
