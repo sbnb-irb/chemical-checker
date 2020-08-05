@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
-
+# NS: Construct a base class for declarative class definitions.
 Base = declarative_base()
 
 

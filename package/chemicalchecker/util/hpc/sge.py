@@ -212,8 +212,7 @@ fi
                 'VECLIB_MAXIMUM_THREADS',
                 'NUMEXPR_NUM_THREADS'
             ]
-            command = ' '.join(["%s=%s" % (v, str(cpu))
-                                for v in env_vars] + [command])
+            command = ' '.join(["%s=%s" % (v, str(cpu)) for v in env_vars] + [command])
 
         # Creates the final job.sh
         paramsText = self.defaultOptions + str("\n").join(jobParams)
