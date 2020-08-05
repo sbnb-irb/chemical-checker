@@ -216,8 +216,7 @@ class CCFit(BaseTask, BaseOperator):
                 for ds in all_datasets:
                     if not ds.essential:
                         continue
-                    sign = cc.get_signature(
-                        self.cc_type, "full", ds.dataset_code)
+                    sign = cc.get_signature(self.cc_type, "full", ds.dataset_code)
                     if sign.is_fit():
                         continue
 
@@ -226,8 +225,7 @@ class CCFit(BaseTask, BaseOperator):
                         shutil.rmtree(sign.signature_path,ignore_errors=True)
 
                     if self.full_reference:
-                        sign = cc.get_signature(
-                            self.cc_type, "reference", ds.dataset_code)
+                        sign = cc.get_signature(self.cc_type, "reference", ds.dataset_code)
                         if os.path.exists(sign.signature_path):
                             print("Attempting to delete signature path: ", sign.signature_path)
                             shutil.rmtree(sign.signature_path, ignore_errors=True)
@@ -381,7 +379,7 @@ class CCFit(BaseTask, BaseOperator):
                 raise AirflowException("Not all dataset fits are done")
 
     def execute(self, context):
-        """Same than run but for Airflow."""
+        """Same as run but for Airflow."""
 
         self.tmpdir = context['params']['tmpdir']
 

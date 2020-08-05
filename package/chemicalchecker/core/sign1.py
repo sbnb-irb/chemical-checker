@@ -13,7 +13,7 @@ import datetime
 import shutil
 import pickle
 from scipy.signal import savgol_filter
-from tqdm import tqdm
+from tqdm import tqdm  # NS progress bar
 from sklearn.metrics import accuracy_score
 from scipy.spatial.distance import cosine
 from numpy import linalg as LA
@@ -42,9 +42,9 @@ class sign1(BaseSignature, DataSignature):
             model_path(str): Where the persistent model is.
         """
         # Calling init on the base class to trigger file existance checks
-        BaseSignature.__init__(
-            self, signature_path, dataset, **params)
+        BaseSignature.__init__(self, signature_path, dataset, **params)
         self.__log.debug('signature path is: %s', signature_path)
+
         self.data_path = os.path.join(self.signature_path, "sign1.h5")
         DataSignature.__init__(self, self.data_path)
 
@@ -59,15 +59,13 @@ class sign1(BaseSignature, DataSignature):
             if s0.molset != s1.molset:
                 raise Exception(
                     "Copying from signature 0 to 1 is only allowed for same molsets (reference or full)")
+
         self.__log.debug("Copying HDF5 dataset")
         with h5py.File(s1.data_path, "w") as hf:
-            hf.create_dataset(
-                "name", data=np.array([str(self.dataset) + "sig"], DataSignature.string_dtype()))
-            hf.create_dataset(
-                "date", data=np.array([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
+            hf.create_dataset("name", data=np.array([str(self.dataset) + "sig"], DataSignature.string_dtype()))
+            hf.create_dataset("date", data=np.array([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
             hf.create_dataset("V", data=s0[:])
-            hf.create_dataset("keys", data=np.array(
-                s0.keys, DataSignature.string_dtype()))
+            hf.create_dataset("keys", data=np.array(s0.keys, DataSignature.string_dtype()))
             if is_basesig:
                 if s0.molset == "reference":
                     mappings = s0.get_h5_dataset("mappings")
@@ -132,33 +130,41 @@ class sign1(BaseSignature, DataSignature):
         try:
             from chemicalchecker.util.transform.metric_learn import UnsupervisedMetricLearn, SemiSupervisedMetricLearn
         except ImportError:
-            raise ImportError("requires tensorflow " +
-                              "https://tensorflow.org")
+            raise ImportError("requires tensorflow " + "https://tensorflow.org")
         self.clean()
+
         s0 = sign0
         self.__log.debug("Fitting")
         if s0.cctype != "sign0":
             raise Exception("A signature type 0 is expected..!")
         if s0.molset != "full":
-            raise Exception(
-                "Fit should be done with the full signature 0 (even if inside reference is used)")
+            raise Exception("Fit should be done with the full signature 0 (even if inside reference is used)")
+
         s0_ref = s0.get_molset("reference")
         s1_ref = self.get_molset("reference")
+
         s1_ref.clean()
+
         self.__log.debug("Placing sign0 to sign1 (done for reference)")
         self.copy_sign0_to_sign1(s0_ref, s1_ref)
+
         self.__log.debug("Placing sign0 to sign1 (done for full)")
         self.copy_sign0_to_sign1(s0, self)
+
         self.__log.debug("Duplicating signature (tmp) (done for reference)")
         self.duplicate(s1_ref)
+
         self.__log.debug("Duplicating signature (tmp) (done for full)")
         self.duplicate(self)
+
         if metric_learning:
             tmp = True
         else:
             tmp = False
+
         self.__log.debug("Checking if matrix was sparse or not")
         sparse = s1_ref.was_sparse()
+
         if sparse:
             self.__log.debug("Sparse matrix pipeline")
             if latent:
@@ -277,8 +283,8 @@ class sign1(BaseSignature, DataSignature):
         try:
             import faiss
         except ImportError:
-            raise ImportError("requires faiss " +
-                              "https://github.com/facebookresearch/faiss")
+            raise ImportError("requires faiss " + "https://github.com/facebookresearch/faiss")
+            
         s1 = self.get_molset("reference")
         if metric not in ["cosine", "euclidean"]:
             raise Exception("Metric must be 'cosine' or 'euclidean'")

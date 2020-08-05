@@ -31,10 +31,11 @@ class sign0(BaseSignature, DataSignature):
 
         Args:
             signature_path(str): the path to the signature directory.
+            dataset: NS ex A1.001, here only serves as the 'name' record of the h5 file
         """
-        BaseSignature.__init__(
-            self, signature_path, dataset, **params)
+        BaseSignature.__init__(self, signature_path, dataset, **params)
         self.__log.debug('signature path is: %s' % signature_path)
+
         self.data_path = os.path.join(self.signature_path, "sign0.h5")
         DataSignature.__init__(self, self.data_path, **params)
         self.__log.debug('data path: %s' % self.data_path)
@@ -282,23 +283,18 @@ class sign0(BaseSignature, DataSignature):
         self.__log.debug("Aggregating if necessary")
         agg = Aggregate(method=agg_method, input_type=input_type)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
+
         self.__log.debug("Saving dataset")
         with h5py.File(self.data_path, "w") as hf:
-            hf.create_dataset(
-                "name", data=np.array([str(self.dataset) + "sig"], DataSignature.string_dtype()))
-            hf.create_dataset(
-                "date", data=np.array([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
+            hf.create_dataset("name", data=np.array([str(self.dataset) + "sig"], DataSignature.string_dtype()))
+            hf.create_dataset("date", data=np.array([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
             hf.create_dataset("V", data=X)
-            hf.create_dataset("keys", data=np.array(
-                keys, DataSignature.string_dtype()))
-            hf.create_dataset("features", data=np.array(
-                features, DataSignature.string_dtype()))
-            hf.create_dataset("keys_raw", data=np.array(
-                keys_raw, DataSignature.string_dtype()))
-            hf.create_dataset("agg_method", data=np.array(
-                [str(agg_method)], DataSignature.string_dtype()))
-            hf.create_dataset("input_type", data=np.array(
-                [str(input_type)], DataSignature.string_dtype()))
+            hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
+            hf.create_dataset("features", data=np.array(features, DataSignature.string_dtype()))
+            hf.create_dataset("keys_raw", data=np.array(keys_raw, DataSignature.string_dtype()))
+            hf.create_dataset("agg_method", data=np.array([str(agg_method)], DataSignature.string_dtype()))
+            hf.create_dataset("input_type", data=np.array([str(input_type)], DataSignature.string_dtype()))
+
         self.refresh()
         self.__log.info("Removing redundancy")
         sign0_ref = self.get_molset("reference")

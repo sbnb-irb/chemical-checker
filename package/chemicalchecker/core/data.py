@@ -22,12 +22,12 @@ class DataFactory():
         from .sign4 import sign4
 
         from .clus import clus
-        from .neig import neig
+        from .neig import neig # nearest neighbour class
         from .proj import proj
 
         DataFactory.__log.debug("initializing object %s", cctype)
         if cctype[:4] in ['clus', 'neig', 'proj']:
-            return eval(cctype[:4])(*args, **kwargs)
+            return eval(cctype[:4])(*args, **kwargs)   # NS, will return an instance of neig or of sign0 etc
         else:
             return eval(cctype)(*args, **kwargs)
 
