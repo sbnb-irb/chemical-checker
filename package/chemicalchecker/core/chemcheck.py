@@ -229,6 +229,7 @@ class ChemicalChecker():
         """
         signature_path = os.path.join(self.cc_root, molset, dataset_code[:1],
                                       dataset_code[:2], dataset_code, cctype)
+        
         self.__log.debug("signature path: %s", signature_path)
         return signature_path
 
@@ -247,6 +248,7 @@ class ChemicalChecker():
                 on the cctype passed.
         """
         signature_path = self.get_signature_path(cctype, molset, dataset_code)
+
         # the factory will return the signature with the right class
         data = DataFactory.make_data(cctype, signature_path, dataset_code, *args, **kwargs)
         return data
