@@ -447,6 +447,9 @@ class Node2Vec():
 
         # stream output as get generated
         # NS: this produces logs of several GB, I turn it off for the moment
+
+        self.__log.info("Std output has been deactivated for Node2Vec since it produces huge log files")
+
         #for line in iter(process.stdout.readline, ''):
         #    self.__log.info(line.strip())
 
