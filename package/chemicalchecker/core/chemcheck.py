@@ -35,6 +35,7 @@ import os
 import h5py
 import shutil
 import itertools
+import re
 from glob import glob
 
 from .molkit import Mol
@@ -63,7 +64,7 @@ class cached_property(object):
 class ChemicalChecker():
     """Explore the Chemical Checker."""
 
-    def __init__(self, cc_root=None):
+    def __init__(self, cc_root=None, custom_data_path=None):
         """Initialize the Chemical Checker.
 
         If the CC_ROOT directory is empty a skeleton of CC is initialized.
@@ -74,23 +75,64 @@ class ChemicalChecker():
             cc_root(str): The Chemical Checker root directory. If not specified
                           the root is taken from the config file.
                           (default:None)
+
+            custom_data_path: Path to one or more h5 files, detect their signature
+                          type, molset and dataset code form their 'attrs' record.
+
         """
         if not cc_root:
-            self.cc_root = Config().PATH.CC_ROOT
+
+            if custom_data_path is not None:
+                #NS import one or several custom h5 files
+                # remove the file's name if provided (let it scan)
+                if '.' in custom_data_path.split('/')[-1]:
+                      custom_data_path = os.path.dirname(custom_data_path)
+
+                self.custom_data_path = os.path.abspath(custom_data_path)
+
+
+                # create a root directory in which to put the files wt the current working dir
+                self.cc_root= os.path.join(os.getcwd(), "cc_repo")
+                if os.path.exists(self.cc_root):
+
+                    reponse = input("Directory {} already exists, remove it first? (y/n)".format(self.cc_root))
+                    if 'y' in reponse.lower():
+                        shutil.rmtree(self.cc_root, ignore_errors=True)
+                        print("Directory deleted.")
+                    else:
+                        raise Exception("Directory {} already exists, please delete it or rename it first".format(self.cc_root))
+
+                self.__log.info("Importing h5 files from {}, creating a Chemical Checker repo at {}".format(self.custom_data_path, self.cc_root))
+                original_umask = os.umask(0)
+                os.makedirs(self.cc_root, 0o775)
+                os.umask(original_umask)
+
+                # Create  the cc_repo directory structure and symbolic link to files
+                self.import_h5()
+
+
+            else:
+                self.cc_root = Config().PATH.CC_ROOT
+
+
         else:
             self.cc_root = cc_root
+
+
         self._basic_molsets = ['reference', 'full']
         self._datasets = set()
         self._molsets = set(self._basic_molsets)
         self.reference_code = "001"
         self.__log.debug("ChemicalChecker with root: %s", self.cc_root)
+
+        # If non-existing CC_root
         if not os.path.isdir(self.cc_root):
             self.__log.warning("Empty root directory, creating dataset dirs")
+
             for molset in self._basic_molsets:
                 for dataset in Dataset.get():
                     ds = dataset.dataset_code
-                    new_dir = os.path.join(
-                        self.cc_root, molset, ds[:1], ds[:2], ds)
+                    new_dir = os.path.join(self.cc_root, molset, ds[:1], ds[:2], ds)
                     self._datasets.add(ds)
                     self.__log.debug("Creating %s", new_dir)
                     original_umask = os.umask(0)
@@ -98,13 +140,14 @@ class ChemicalChecker():
                     os.umask(original_umask)
         else:
             # if the directory exists get molsets and datasets
-            paths = glob(os.path.join(self.cc_root, '*', '*', '*', '*', '*',
-                                      'sign*.h5'))
+            # NS: also valid for imported h5 datasets
+            paths = glob(os.path.join(self.cc_root, '*', '*', '*', '*', '*', 'sign*.h5'))
             self._molsets = set(x.split('/')[-6] for x in paths)
             self._datasets = set(x.split('/')[-3] for x in paths)
+
+        # In case 
         self._molsets = sorted(list(self._molsets))
-        self._datasets = [x for x in sorted(
-            list(self._datasets)) if not x.endswith('000')]
+        self._datasets = [x for x in sorted(list(self._datasets)) if not x.endswith('000')]
 
     @property
     def coordinates(self):
@@ -164,8 +207,7 @@ class ChemicalChecker():
         Returns:
             Nested dictionary with molset, dataset and list of signatures
         """
-        paths = glob(os.path.join(self.cc_root, molset, '*', '*', dataset,
-                                  signature + '/*.h5'))
+        paths = glob(os.path.join(self.cc_root, molset, '*', '*', dataset, signature + '/*.h5'))
         molset_dataset_sign = dict()
         for path in paths:
             molset = path.split('/')[-6]
@@ -309,9 +351,88 @@ class ChemicalChecker():
         return self.get_diagnosis(sign=sign, save=save, plot=plot,
                                   overwrite=overwrite, n=n)
 
+    def import_h5(self):
+        """ NS. Recovers h5 files from a given custom directory 
+            and creates links to them in a CC skeleton arborescence
+        """
+
+
+        h5files= glob(os.path.join(self.custom_data_path, "*.h5"))
+        if len(h5files) == 0:
+            raise Exception("No h5 files found in {}".format(self.custom_data_path))
+
+        print("Found h5 files in {}: {}".format(self.custom_data_path, h5files))
+
+        # check the format of the imported info data
+        formatDC= re.compile(r"[A-Z]\d\.\d\d\d")  # dataset code (ex: A1.001)
+        formatCCTYPE= re.compile(r"sign\d")
+        formatMolset= re.compile(r"(full|reference)", re.IGNORECASE)
+
+        formatDict= dict(dataset_code=formatDC, cctype=formatCCTYPE, molset=formatMolset) # mapping info and required format
+
+        def filter_dataset(path2h5file):
+            """ returns a tuple of the type ('full', 'A', 'A1', 'A1.001', 'sign3', path_to_h5file') or None if something's wrong"""
+
+            out =[]
+            with h5py.File(path2h5file, 'a') as ccfile:
+
+                # check if the required info is presents in the h5 file attrs dict
+                # iterates over ('dataset_code', 'cctype', 'molset') and the required format for each of them
+                for requiredKey, requiredFormat in formatDict.items(): 
+                    if requiredKey  not in  ccfile.attrs and len(ccfile.attrs[requiredKey] > 0):
+                        print("Attribute {} cannot be retrieved from {}, skipping this file".format(requiredKey, ccfile))
+                        return None
+
+                    else:
+                        # check the format of the provided info
+                        if requiredFormat.match(ccfile.attrs[requiredKey]) is None:
+                            print("Problem with format", ccfile.attrs[requiredKey])
+                            return None
+
+                #-------Now that the format is correct, output the info
+                # so that we just have to iterate over it to create the directory substructure
+                out.append(ccfile.attrs['molset'].lower())           # full or reference
+                out.append(ccfile.attrs['dataset_code'][0])  # i.e A
+                out.append(ccfile.attrs['dataset_code'][:2]) # i.e 1
+                out.append(ccfile.attrs['dataset_code'])     # i.e A1.001
+                out.append(ccfile.attrs['cctype'].lower())            # i.e sign3
+                out.append(path2h5file)
+
+
+            return tuple(out)
+
+
+
+
+        # Keep only h5 files that contain the required info in the correct format
+        h5tuples = [filter_dataset(f) for f in h5files if filter_dataset(f) is not None]
+
+        if len(h5tuples) == 0:
+            raise Exception("None of the provided h5 datasets have sufficient info in its attributes! Please ensure myh5file.attrs has the folllowing keys: 'dataset_code', 'cctype', 'molset'")
+
+        # Now creating the cc_repo skeleton
+        original_umask = os.umask(0)
+        for h5t in h5tuples:
+            try:
+                path2sign='/'.join(h5t[:-1])
+                print("Attempting to create", os.path.join(self.cc_root, path2sign))
+                os.makedirs(os.path.join(self.cc_root, path2sign), 0o775)
+                os.symlink(h5t[-1], os.path.join(self.cc_root, path2sign, h5t[-2]+'.h5'))  # symbolic link to the h5 file in the cc_repo as signx.h5
+
+            except Exception as e:
+                os.umask(original_umask)
+                print("Problem in creating the cc custom repo: {}".format(e))
+
+        os.umask(original_umask)
+
+
+
+
+                
+
     def export(self, destination, signature, h5_filter=None,
                h5_names_map=None, overwrite=False, version=None):
-        """Export a signature h5 file to a give path. Which dataset to copy
+        """Export a signature h5 file to a given path. Which dataset to copy
            can be specified as well as how to rename some dataset.
 
         Args:
