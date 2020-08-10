@@ -81,39 +81,7 @@ class ChemicalChecker():
 
         """
         if not cc_root:
-
-            if custom_data_path is not None:
-                #NS import one or several custom h5 files
-                # remove the file's name if provided (let it scan)
-                if '.' in custom_data_path.split('/')[-1]:
-                      custom_data_path = os.path.dirname(custom_data_path)
-
-                self.custom_data_path = os.path.abspath(custom_data_path)
-
-
-                # create a root directory in which to put the files wt the current working dir
-                self.cc_root= os.path.join(os.getcwd(), "cc_repo")
-                if os.path.exists(self.cc_root):
-
-                    reponse = input("Directory {} already exists, remove it first? (y/n)".format(self.cc_root))
-                    if 'y' in reponse.lower():
-                        shutil.rmtree(self.cc_root, ignore_errors=True)
-                        print("Directory deleted.")
-                    else:
-                        raise Exception("Directory {} already exists, please delete it or rename it first".format(self.cc_root))
-
-                self.__log.info("Importing h5 files from {}, creating a Chemical Checker repo at {}".format(self.custom_data_path, self.cc_root))
-                original_umask = os.umask(0)
-                os.makedirs(self.cc_root, 0o775)
-                os.umask(original_umask)
-
-                # Create  the cc_repo directory structure and symbolic link to files
-                self.import_h5()
-
-
-            else:
-                self.cc_root = Config().PATH.CC_ROOT
-
+            self.cc_root = Config().PATH.CC_ROOT
 
         else:
             self.cc_root = cc_root
@@ -124,6 +92,37 @@ class ChemicalChecker():
         self._molsets = set(self._basic_molsets)
         self.reference_code = "001"
         self.__log.debug("ChemicalChecker with root: %s", self.cc_root)
+
+
+        if custom_data_path is not None:
+            #NS import one or several custom h5 files --> in any case a cc_repo will axist afyter this block
+            if '.' in custom_data_path.split('/')[-1]:
+                # remove the file's name if provided (let it scan for h5 files present there)
+                custom_data_path = os.path.dirname(custom_data_path)
+
+            self.custom_data_path = os.path.abspath(custom_data_path)
+            print("Importing files from {}".format(self.custom_data_path))
+
+            # Set a custom repo to avoid damaging ours
+            self.cc_root= os.path.join(os.getcwd(), "cc_repo")
+
+            if os.path.exists(self.cc_root):
+                print("\nWARNING--> CC repo {} exists, importing H5 files will add signatures into it\n".format(self.cc_root))
+
+            else:            
+                print("\n---> Creating custom repo at {}\n".format(self.cc_root))
+                
+                try:
+                    original_umask = os.umask(0)
+                    os.makedirs(self.cc_root, 0o775)
+                    os.umask(original_umask)
+
+                except Exception as e:
+                    print("Problem in creating cc_repo: {}".format(e))
+
+            # Create  the cc_repo directory structure and symbolic link to files
+            self.import_h5()
+
 
         # If non-existing CC_root
         if not os.path.isdir(self.cc_root):
@@ -361,7 +360,8 @@ class ChemicalChecker():
         if len(h5files) == 0:
             raise Exception("No h5 files found in {}".format(self.custom_data_path))
 
-        print("Found h5 files in {}: {}".format(self.custom_data_path, h5files))
+        available_files= ", ".join([os.path.basename(f) for f in h5files])
+        print("Found h5 files {}: in {}".format(available_files, self.custom_data_path))
 
         # check the format of the imported info data
         formatDC= re.compile(r"[A-Z]\d\.\d\d\d")  # dataset code (ex: A1.001)
@@ -379,7 +379,7 @@ class ChemicalChecker():
                 # check if the required info is presents in the h5 file attrs dict
                 # iterates over ('dataset_code', 'cctype', 'molset') and the required format for each of them
                 for requiredKey, requiredFormat in formatDict.items(): 
-                    if requiredKey  not in  ccfile.attrs and len(ccfile.attrs[requiredKey] > 0):
+                    if requiredKey  not in  ccfile.attrs:
                         print("Attribute {} cannot be retrieved from {}, skipping this file".format(requiredKey, ccfile))
                         return None
 
@@ -413,17 +413,53 @@ class ChemicalChecker():
         # Now creating the cc_repo skeleton
         original_umask = os.umask(0)
         for h5t in h5tuples:
-            try:
-                path2sign='/'.join(h5t[:-1])
-                print("Attempting to create", os.path.join(self.cc_root, path2sign))
-                os.makedirs(os.path.join(self.cc_root, path2sign), 0o775)
-                os.symlink(h5t[-1], os.path.join(self.cc_root, path2sign, h5t[-2]+'.h5'))  # symbolic link to the h5 file in the cc_repo as signx.h5
 
-            except Exception as e:
-                os.umask(original_umask)
-                print("Problem in creating the cc custom repo: {}".format(e))
+            path2sign=os.path.join(self.cc_root,'/'.join(h5t[:-1]))   # i.e ../../full/A/A1/A1.001/sign3
+            print("Attempting to create", path2sign)
 
-        os.umask(original_umask)
+
+
+
+            # If the signature already exists then propose to rename it (ex: 00X) or skip it
+            skip_signature=False
+            while os.path.exists(path2sign):
+                print("Signature {} already exists for dataset {}".format(h5t[4], h5t[3]))
+                resp = input("Rename it (r) or skip it (any other key)?")
+
+                if resp.lower() != 'r':
+                    skip_signature=True
+                    break
+
+                else:                   
+                    
+                    # Check that the user entered the correct format
+                    formatok=False
+                    while not formatok: 
+                        newcode=input("New dataset code? (ex: 002)")
+
+                        # I put A1 because all that matters is the 00x part
+                        formatok= formatDict['dataset_code'].match('A1.'+newcode)
+
+                        # True/False easier to deal with than None in this case
+                        formatok= True if (formatok is not None) else False
+                        if not formatok: print("Bad format, please try again.")
+
+                    newtup= (h5t[0], h5t[1], h5t[2], h5t[2]+'.'+newcode, h5t[4])
+                    path2sign= os.path.join(self.cc_root,'/'.join(newtup))   # i.e ../../full/A/A1/A1.001/sign3
+                    print("New signature path: {}".format(path2sign))
+
+                        
+
+            if not skip_signature:     
+                try:
+                    os.makedirs(os.path.join(self.cc_root, path2sign), 0o775)
+                    os.symlink(h5t[-1], os.path.join(self.cc_root, path2sign, h5t[-2]+'.h5'))  # symbolic link to the h5 file in the cc_repo as signx.h5
+
+                except Exception as e:
+                    os.umask(original_umask)
+                    print("Problem in creating the cc custom repo: {}".format(e))
+
+        os.umask(original_umask) # after the loop to be sure
 
 
 
