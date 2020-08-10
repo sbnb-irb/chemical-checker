@@ -128,8 +128,6 @@ class Node2Vec():
                                             DataSignature.string_dtype()))
             hf.create_dataset('V', data=matrix[sorted_idx], dtype=np.float32)
             hf.create_dataset("shape", data=matrix.shape)
-            hf.create_dataset(
-                "date", data=[datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
 
     def to_edgelist(self, sign1, neig1, out_file, **params):
         """Convert Nearest-neighbor to an edgelist.
@@ -447,11 +445,10 @@ class Node2Vec():
 
         # stream output as get generated
         # NS: this produces logs of several GB, I turn it off for the moment
+        output, errors = process.communicate()
 
-        self.__log.info("Std output has been deactivated for Node2Vec since it produces huge log files")
+        for line in output:
+            self.__log.info(str(line))
 
-        #for line in iter(process.stdout.readline, ''):
-        #    self.__log.info(line.strip())
-
-        for line in iter(process.stderr.readline, ''):
-            self.__log.error(line.strip())
+        for line in errors:
+            self.__log.error(str(line))

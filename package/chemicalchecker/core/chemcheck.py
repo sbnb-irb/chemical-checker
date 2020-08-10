@@ -480,6 +480,7 @@ class ChemicalChecker():
             version(int): Mark the exported signature with a version number.
         """
         src_file = signature.data_path
+
         if not os.path.isfile(src_file):
             raise Exception('Signature must have an H5 file to export!')
         if not overwrite and os.path.isfile(destination):
@@ -498,6 +499,13 @@ class ChemicalChecker():
             dst.create_dataset(h5_names_map[h5ds], data=h5src)
         if version is not None:
             dst.create_dataset('version', data=[version])
+
+        # NS: Adding metadata so that they can be opened on local instances of the checker:
+        attributes = dict(dataset_code=signature.dataset, cctype=signature.cctype, molset=signature.molset)
+        if len(dst.attrs) !=3:
+            for k,v in attributes.items():
+                dst.attrs[k]=v
+
         src.close()
         dst.close()
 

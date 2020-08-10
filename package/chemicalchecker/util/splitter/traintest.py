@@ -190,9 +190,9 @@ class Traintest(object):
             Traintest.__log.debug("We need Y as a column vector, reshaping.")
             Y = np.reshape(Y, (len(Y), 1))
         Traintest.__log.debug(
-            "{:<20} shape: {:>10}".format("input X", X.shape))
+            "{:<20} shape: {:>10}".format("input X", str(X.shape)))
         Traintest.__log.debug(
-            "{:<20} shape: {:>10}".format("input Y", Y.shape))
+            "{:<20} shape: {:>10}".format("input Y", str(Y.shape)))
         # train test validation splits
         if len(split_names) != len(split_fractions):
             raise Exception("Split names and fraction should be same amount.")
@@ -213,7 +213,7 @@ class Traintest(object):
                     chunk = slice(i, i + chunk_size)
                     fh[ds_name][chunk] = X[idxs[chunk]]
                 Traintest.__log.debug("Written: {:<20} shape: {:>10}".format(
-                    ds_name, fh[ds_name].shape))
+                    ds_name, str(fh[ds_name].shape)))
                 ds_name = "y_%s" % name
                 fh.create_dataset(ds_name, (len(idxs), Y.shape[1]),
                                   dtype=y_dtype)
@@ -221,7 +221,7 @@ class Traintest(object):
                     chunk = slice(i, i + chunk_size)
                     fh[ds_name][chunk] = Y[idxs[chunk]]
                 Traintest.__log.debug("Written: {:<20} shape: {:>10}".format(
-                    ds_name, fh[ds_name].shape))
+                    ds_name, str(fh[ds_name].shape)))
         Traintest.__log.info('Traintest saved to %s', out_file)
 
     @staticmethod
