@@ -223,17 +223,21 @@ class CCFit(BaseTask, BaseOperator):
                     if sign.is_fit():
                         continue
 
-                    if os.path.exists(sign.signature_path):
-                        print("Attempting to delete ", sign.signature_path)
-                        shutil.rmtree(sign.signature_path,ignore_errors=True)
+                    if not (sign.dataset == 'D1.001' and sign.cctype == 'sign0') and os.path.exists(sign.signature_path): # NS D1 preprocess is very long, do not delete it if it has crashed
+                        #print("Attempting to delete ", sign.signature_path)
+                        #shutil.rmtree(sign.signature_path,ignore_errors=True)
+                        #print("DELETED: ", sign.signature_path)
+                        pass
 
 
                     if self.full_reference: # NS The fit is for full & reference branches (default:True)
                         sign = cc.get_signature(self.cc_type, "reference", ds.dataset_code) # NS molset: reference
 
-                        if os.path.exists(sign.signature_path):
-                            print("Attempting to delete signature path: ", sign.signature_path)
-                            shutil.rmtree(sign.signature_path, ignore_errors=True)
+                        if not (sign.dataset == 'D1.001' and sign.cctype == 'sign0') and os.path.exists(sign.signature_path):
+                            #print("Attempting to delete signature path: ", sign.signature_path)
+                            #shutil.rmtree(sign.signature_path, ignore_errors=True)
+                            #print("DELETED: ", sign.signature_path)
+                            pass
 
                     dataset_codes.append(ds.dataset_code)
 

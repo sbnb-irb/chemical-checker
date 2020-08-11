@@ -101,8 +101,7 @@ if __name__ == '__main__':
 
     if method == "fit":
 
-        inchikey_sigid, siginfo = read_l1000(
-            connectivitydir, mini_sig_info_file)
+        inchikey_sigid, siginfo = read_l1000(connectivitydir, mini_sig_info_file)
 
     else:
 
