@@ -20,7 +20,7 @@ from chemicalchecker.core.preprocess import Preprocess
 from chemicalchecker.core.signature_data import DataSignature
 
 # Variables
-dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
+dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:] #NS D1.001
 features_file = "features.h5"
 
 
@@ -184,35 +184,45 @@ def read_l1000(mini_sig_info_file, connectivitydir):
 
     inchikey_inchi = {}
     pertid_inchikey = {}
-    molrepos = Molrepo.get_by_molrepo_name("lincs")
+    molrepos = Molrepo.get_by_molrepo_name("lincs")  # return all molecules from the lincs repository
+
+    # NS, for each lincs molecule, record inchikey inchi in mappings
     for molrepo in molrepos:
         if not molrepo.inchikey:
             continue
-        pertid_inchikey[molrepo.src_id] = molrepo.inchikey
-        inchikey_inchi[molrepo.inchikey] = molrepo.inchi
+
+        pertid_inchikey[molrepo.src_id] = molrepo.inchikey  # mol_id ->inchikey 
+        inchikey_inchi[molrepo.inchikey] = molrepo.inchi    # mol_inchikey -> mol_inchi
 
     # Read signature data
 
     touchstones = set()
     siginfo = {}
-    with open(mini_sig_info_file, "r") as f:
+
+    with open(mini_sig_info_file, "r") as f:  # read the minisign file
         for l in f:
-            l = l.rstrip("\n").split("\t")
+            l = l.rstrip("\n").split("\t")    # keeps 
             if int(l[4]) == 1:
-                touchstones.update([l[1]])
-            siginfo[l[0]] = l[1]
+                touchstones.update([l[1]])    # put records like BRD-K25943794 in the set (second record of mini_sig_info_file = perturbagen id)
+            siginfo[l[0]] = l[1]              # REP.A001_A375_24H:K17 : BRD-A29289453
 
     inchikey_sigid = collections.defaultdict(list)
 
-    PATH = connectivitydir
-    for r in os.listdir(PATH):
-        if ".h5" not in r:
+    PATH = connectivitydir                  # NS signature0full_path/raw/models/connectivity_fit
+    for r in os.listdir(PATH):              # ls without fullpath (only filenames)
+        if ".h5" not in r:                  # select h5 files in the connectivity dir
             continue
-        sig_id = r.split(".h5")[0]
-        pert_id = siginfo[sig_id]
+        sig_id = r.split(".h5")[0]          # recovers the filename without extension
+        pert_id = siginfo[sig_id]           # maps the name of the h5 file to the second record of mini_sig_info_file (perturbagen id)
+
         if pert_id in pertid_inchikey:
             ik = pertid_inchikey[pert_id]
-            inchikey_sigid[ik] += [sig_id]
+            inchikey_sigid[ik] += [sig_id]  # inchikey -> filename without extension
+
+    #returns the following mappings from L1000:
+    # inchikey_sigid:   mol_inchikey -> mol_id (h5 filename without extension)
+    # inchikey_inchi:   mol_inchikey -> mol_inchi
+    # siginfo:          REP.A001_A375_24H:K17 -> mol_id
 
     return inchikey_sigid, inchikey_inchi, siginfo
 
@@ -285,32 +295,41 @@ def main(args):
 
     args = Preprocess.get_parser().parse_args(args)
 
-    mini_sig_info_file = os.path.join(args.models_path, 'mini_sig_info.tsv')
+    # NS ex: fir D1.001, args will be a mapping:
+    # -o : signature0full_path/raw/preprocess.h5    # --output_file
+    # -mp: signature0full_path/raw/models           # --model_path
+    # -m: 'fit'                                     # --method
 
-    dataset = Dataset.get(dataset_code) #NS dataset object
+    mini_sig_info_file = os.path.join(args.models_path, 'mini_sig_info.tsv')  # NS file with 83637 records from L1000?
+
+    dataset = Dataset.get(dataset_code) #NS D1.001 dataset object built to queryour sql database
 
     map_files = {}  # NS: will store datasource names of D1.00X and path to the corresponding files
 
     # Data sources associated to this dataset are stored in map_files
     # Keys are the datasources names and values the file paths.
     # If no datasources are necessary, the list is just empty.
+
+    # NS: 13 datasources in dataset_had_datasource table for the 2020 update
     for ds in dataset.datasources:
         map_files[ds.datasource_name] = ds.data_path
 
     main._log.debug("Running preprocess fit method for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
-    signaturesdir = os.path.join(args.models_path, "signatures")
+    signaturesdir = os.path.join(args.models_path, "signatures") #signature0full_path/raw/models/signatures
+                                                                 # contains 83 639 h5 files and a sigs.ready file
 
     if os.path.exists(signaturesdir) is False:
         os.makedirs(signaturesdir)
 
-    if args.method == 'fit':
+    if args.method == 'fit':  # True
 
-        mpath = args.models_path
+        mpath = args.models_path  # signature0full_path/raw/models/
 
         main._log.info("Parsing")
-        parse_level(mini_sig_info_file, map_files, signaturesdir)
+        parse_level(mini_sig_info_file, map_files, signaturesdir)  #--> creates all these h5 files by parsing datasource, just returns if sigs.ready is present
 
+        # Creates subdirs in signature0full_path/raw/models/
         ik_matrices = os.path.join(mpath, 'ik_matrices_fit')
 
         if os.path.exists(ik_matrices) is False:
@@ -321,29 +340,33 @@ def main(args):
         if os.path.exists(connectivitydir) is False:
             os.makedirs(connectivitydir, 0o775)
 
+        # signature0full_path/raw/models/consensus_fit.h5, not present after the crash
         consensus = os.path.join(mpath, "consensus_fit.h5")
 
         min_idxs = 10
 
         cp_sigs = set()
+
+        # Parsing the record file
         with open(mini_sig_info_file) as f:
             for l in f:
                 l = l.rstrip("\n").split("\t")
                 if l[2] == "trt_cp":
+                    # update the set cp_sigs with records such as 'REP.A001_A375_24H:E14'
                     cp_sigs.update([l[0]])
 
-        sig_map = {}
 
+        sig_map = {}
+        # Populate sig_map dict with i.e 'REP.A001_A375_24H:E14' : {"file": "signature0full_path/raw/models/signatures/REP.A001_A375_24H:E14.h5"}
         for SIG in cp_sigs:
             sig_map[SIG] = {"file": "%s/%s.h5" % (signaturesdir, SIG)}
 
-    if args.method == 'predict':
+    if args.method == 'predict':  # False here
 
         mpath = tempfile.mkdtemp(
             prefix='predict_', dir=args.models_path)
 
-        ik_matrices = tempfile.mkdtemp(
-            prefix='ik_matrices_', dir=mpath)
+        ik_matrices = tempfile.mkdtemp(prefix='ik_matrices_', dir=mpath)
 
         connectivitydir = tempfile.mkdtemp(
             prefix='connectivity_', dir=mpath)
@@ -371,24 +394,27 @@ def main(args):
                 else:
                     ik = items[1]
                 inchikey_sigid[ik] += [items[0]]
-                sig_map[items[0] + "---" + ik] = {"up": items[2].split(
-                    ","), "down": items[3].split(",")}
+                sig_map[items[0] + "---" + ik] = {"up": items[2].split(","), "down": items[3].split(",")}
 
-    WD = os.path.dirname(os.path.realpath(__file__))
+    WD = os.path.dirname(os.path.realpath(__file__))  # directory from which run.py is launched
 
-    connectivity_script = WD + "/connectivity.py"
+    connectivity_script = WD + "/connectivity.py"     # scripts called by run.py in the same directory
 
     ikmatrices_script = WD + "/do_agg_matrices.py"
 
     readyfile = "conn.ready"
 
-    config = Config()
+    config = Config()                                # reads os.environ["CC_CONFIG"]
 
-    if not os.path.exists(os.path.join(connectivitydir, readyfile)):
+    # CONNECTIVITY JOB 
+    # Note, connectivitydir is signature0full_path/raw/models/connectivity_fit
+    if not os.path.exists(os.path.join(connectivitydir, readyfile)):   # contains 65 151 h5 files and conn.ready so False here
 
         main._log.info("Getting signature files...")
 
-        job_path = os.path.join(mpath, "job_conn")
+        job_path = os.path.join(mpath, "job_conn")  # contains a script file job-CC_D1_conn.sh and an input file which is a pickle from sig_map
+                                                    # launches the 6514 jobs of connectivity.py with the input file, mini_sig_info.tsv, connectivity_fit
+                                                    # GSE92742_Broad_LINCS_pert_info.txt as arguments
 
         if os.path.isdir(job_path):
             shutil.rmtree(job_path)
@@ -402,7 +428,9 @@ def main(args):
         params["num_jobs"] = len(sig_map.keys()) / 10
         params["jobdir"] = job_path
         params["job_name"] = "CC_D1_conn"
-        params["elements"] = sig_map
+        params["elements"] = sig_map  
+        # reminder: sigmap is a dict with the following entry type:
+        #'REP.A001_A375_24H:E14' : {"file": "signature0full_path/raw/models/signatures/REP.A001_A375_24H:E14.h5"}
         params["memory"] = 10
         # job command
         singularity_image = config.PATH.SINGULARITY_IMAGE
@@ -424,15 +452,21 @@ def main(args):
 
     readyfile = "agg_matrices.ready"
 
+    # MATRIX AGGREGATION JOB
     if not os.path.exists(os.path.join(ik_matrices, readyfile)):
 
         if args.method == 'fit':
             main._log.info("Reading L1000")
-            inchikey_sigid, inchikey_inchi, siginfo = read_l1000(
-                mini_sig_info_file, connectivitydir)
+
+            # NS Get molecules from Lincs
+            inchikey_sigid, inchikey_inchi, siginfo = read_l1000(mini_sig_info_file, connectivitydir)
+            # inchikey_sigid:   mol_inchikey -> mol_id (h5 filename without extension)
+            # inchikey_inchi:   mol_inchikey -> mol_inchi
+            # siginfo:          REP.A001_A375_24H:K17 -> mol_id
 
         main._log.info("Doing aggregation matrices")
 
+        #/aloy/web_checker/package_cc/2020_01/full/D/D1/D1.001/sign0/raw/models/job_agg_matrices
         job_path = os.path.join(mpath, "job_agg_matrices")
 
         if os.path.isdir(job_path):
@@ -444,16 +478,18 @@ def main(args):
         params["num_jobs"] = len(inchikey_sigid.keys()) / 10
         params["jobdir"] = job_path
         params["job_name"] = "CC_D1_agg_mat"
-        params["elements"] = inchikey_sigid.keys()
+        params["elements"] = list(inchikey_sigid.keys())  # dict_key view of mol_ids
         params["memory"] = 10
         cc_package = os.path.join(config.PATH.CC_REPO, 'package')
+
         # job command
         singularity_image = config.PATH.SINGULARITY_IMAGE
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {}".format(
             cc_package, os.environ['CC_CONFIG'], singularity_image, ikmatrices_script, mini_sig_info_file, connectivitydir, ik_matrices, args.method)
+
         # submit jobs
         cluster = HPC.from_config(config)
-        cluster.submitMultiJob(command, **params)
+        cluster.submitMultiJob(command, **params)  #--> THE GUILTY LINE
 
         if cluster.status() == 'error':
             main._log.error(
