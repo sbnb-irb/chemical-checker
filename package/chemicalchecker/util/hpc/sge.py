@@ -191,12 +191,14 @@ fi
             jobParams.append(
                 "#$ -l h_rt=" + str(datetime.timedelta(minutes=maxtime)))
 
+        # NS, where elements turns into <FILE>
         if len(elements) > 0:
             self.__log.debug("Num elements submitted " + str(len(elements)))
 
             input_dict = dict()
             for cid, chunk in enumerate(self._chunks(elements, num_jobs), 1):
                 input_dict[str(cid)] = chunk
+
             input_path = os.path.join(self.jobdir, str(uuid.uuid4()))
             with open(input_path, 'wb') as fh:
                 pickle.dump(input_dict, fh, protocol=2)
@@ -216,8 +218,8 @@ fi
 
         # Creates the final job.sh
         paramsText = self.defaultOptions + str("\n").join(jobParams)
-        jobFilename = os.path.join(
-            self.jobdir, sge.jobFilenamePrefix + self.job_name + sge.jobFilenameSuffix)
+        jobFilename = os.path.join(self.jobdir, sge.jobFilenamePrefix + self.job_name + sge.jobFilenameSuffix)
+        
         self.__log.info("Writing file " + jobFilename + "...")
         jobFile = open(jobFilename, "w")
         jobFile.write(sge.templateScript %
