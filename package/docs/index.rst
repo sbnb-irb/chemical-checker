@@ -1,5 +1,5 @@
-The Chemical Checker repository
-===============================
+The Chemical Checker package
+============================
 
 The Chemical Checker (CC) is a data-driven resource of small molecule
 bioactivity data. The main goal of the CC is to express data in a format
@@ -24,55 +24,38 @@ patrick.aloy@irbbarcelona.org.
 This project was first presented to the scientific community in the
 following paper:  
 
-    Duran-Frigola et al., Extending the small molecule similarity principle to all levels of biology (2019)
+	Duran-Frigola M, et al
+	"**Extending the small-molecule similarity principle to all levels of biology with the Chemical Checker.**"
+	Nature Biotechnology (2020) [`link`_]
 
-and has since
-produced a number of :doc:`related publications <publications>`.
+and has since produced a number of `related publications`_.
 
 .. _Structural Bioinformatics & Network Biology Laboratory: https://sbnb.irbbarcelona.org/
 .. _IRB Barcelona: https://www.irbbarcelona.org/en
-
-
-Quick Start
------------
-
-Assuming you have Python already, Install the Chemical Checker package:
-
-.. prompt:: bash $
-
-    export DEVPI_HOST=10.7.108.15
-    export DEVPI_PORT=3141
-    pip install --index http://$DEVPI_HOST:$DEVPI_PORT/root/dev/ --trusted-host $DEVPI_HOST chemicalchecker
-
-This will install the *lite* version of the package
-
-.. code-block:: python
-
-    from chemicalchecker import ChemicalChecker
-
-    cc = ChemicalChecker()
-
-
-
+.. _related publications: https://www.bioactivitysignatures.org/publications.html
+.. _link: https://www.nature.com/articles/s41587-020-0502-7
 
 
 .. toctree::
    :maxdepth: 2
-   :caption: Manifesto
+   :caption: Contents:
 
    manifesto
 
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Publications
+API Refernce
+''''''''''''
 
-   publications
+.. autosummary::
+   :toctree: _autosummary
+   :caption: API Reference
+   :template: custom-module-template.rst
+   :recursive:
+
+   chemicalchecker
 
 
-Indices and tables
-==================
-
-* :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`
+* :ref:`genindex`
+
+

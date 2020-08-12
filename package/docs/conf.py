@@ -87,7 +87,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '_templates']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -109,6 +109,7 @@ html_theme = 'sphinx_rtd_theme'
 #
 # html_theme_options = {}
 html_logo = 'img/logo.svg'
+html_favicon = 'img/favicon.ico'
 html_theme_options = {
     'logo_only': True,
     'display_version': False,
@@ -195,4 +196,4 @@ napoleon_use_param = True
 napoleon_use_rtype = True
 
 def setup(app):
-    app.add_stylesheet('css/logo.css')
+    app.add_css_file('css/logo.css')
