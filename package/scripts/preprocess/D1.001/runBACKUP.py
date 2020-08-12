@@ -521,7 +521,7 @@ def main(args):
         keys.append(str(k))
         words.update([x[0] for x in inchikey_raw[k]])
 
-    if features is not None:
+    if args.method == 'predict' and features is not None: # NS: added the first cond, other 'features' was unreferenced when not using 'predict'
         orderwords = features_list
     else:
         orderwords = list(words)
