@@ -220,7 +220,7 @@ def read_l1000(mini_sig_info_file, connectivitydir):
 
         if pert_id in pertid_inchikey:
             ik = pertid_inchikey[pert_id]
-            inchikey_sigid[ik] += [sig_id]  # inchikey -> filename without extension
+            inchikey_sigid[ik] += [sig_id]  # inchikey -> [list of perturbagen ids]
 
     #returns the following mappings from L1000:
     # inchikey_sigid:   mol_inchikey -> mol_id (h5 filename without extension)
@@ -431,7 +431,7 @@ def main(args):
         params["num_jobs"] = len(sig_map.keys()) / 10
         params["jobdir"] = job_path
         params["job_name"] = "CC_D1_conn"
-        params["elements"] = sig_map  
+        params["elements"] = sig_map
         # reminder: sigmap is a dict with the following entry type:
         #'REP.A001_A375_24H:E14' : {"file": "signature0full_path/raw/models/signatures/REP.A001_A375_24H:E14.h5"}
         params["memory"] = 10
@@ -473,12 +473,11 @@ def main(args):
             random_keys= random.sample(list(inchikey_sigid.keys()), 10)
             inchikey_sigid = {k:v for (k,v) in inchikey_sigid.items() if k in random_keys}
             inchikey_inchi = {k:v for (k,v) in inchikey_inchi.items() if k in random_keys}
-            siginfo = {k:v for k,v in siginfo.items() if v in inchikey_sigid.values()}
 
-            print("inchikey_sigid-->", inchikey_sigid)
-            print("inchikey_inchi-->", inchikey_inchi)
-            print("siginfo-->", siginfo)
-            if len(inchikey_sigid) == 0 or len(inchikey_inchi) ==0 or len(siginfo) == 0:
+            print("inchikey_sigid-->\n", inchikey_sigid)
+            print("inchikey_inchi-->\n", inchikey_inchi)
+            print("siginfo-->\n", siginfo)
+            if len(inchikey_sigid) == 0 or len(inchikey_inchi) ==0:
                 print("Empty sample dict!")
                 sys.exit(1)
             print("Done")
