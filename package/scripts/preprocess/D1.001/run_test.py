@@ -471,9 +471,9 @@ def main(args):
 
             print("Choosing a random sample")
             random_keys= random.sample(list(inchikey_sigid.keys()), 10)
-            inchikey_sigid = {k:v in inchikey_sigid.items() if k in random_keys}
-            inchikey_inchi = {k:v in inchikey_inchi.items() if k in random_keys}
-            siginfo = {k:v in siginfo.items() if v in inchikey_sigid.values()}
+            inchikey_sigid = {k:v for (k,v) in inchikey_sigid.items() if k in random_keys}
+            inchikey_inchi = {k:v for (k,v) in inchikey_inchi.items() if k in random_keys}
+            siginfo = {k:v for k,v in siginfo.items() if v in inchikey_sigid.values()}
 
             print("inchikey_sigid-->", inchikey_sigid)
             print("inchikey_inchi-->", inchikey_inchi)
