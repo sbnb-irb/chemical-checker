@@ -543,7 +543,7 @@ def main(args):
             hf.create_dataset("features", data=np.array(orderwords, h5py.special_dtype(vlen=str)))
 
     if args.method == 'predict':
-        #shutil.rmtree(mpath) # NS commented
+        #shutil.rmtree(mpath) # NS comment
         # shutil.rmtree(connectivitydir)
         pass
 
