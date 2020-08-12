@@ -12,10 +12,12 @@ from chemicalchecker.core import Validation
 from chemicalchecker.database import Calcdata
 from chemicalchecker.database import Dataset
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, CCFit, CCLongShort, CCSmileConverter
-
 from chemicalchecker.util import Config
 
 from update_resources.generate_chembl_files import generate_chembl_files # Nico
+
+DEBUG =True
+#-----------
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/cc_package.json')
@@ -30,7 +32,8 @@ data_calculators = ['morgan_fp_r2_2048', 'e3fp_3conf_1024', 'murcko_1024_cframe_
 validation_sets = ['moa', 'atc']
 
 #pp = Pipeline(pipeline_path="/aloy/scratch/oguitart/package_cc")
-pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
+if not DEBUG:
+    pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc") # NS debug
 
 def downloads(tmpdir):
 
@@ -50,7 +53,7 @@ def downloads(tmpdir):
     # check if the downloads are really done
     if not Datasource.test_all_downloaded(only_essential=True):
         print(
-            "Something went WRONG while DOWNLOAD, should retry")
+            "Something went WRONG while DOWNLOADING, please retry")
         # print the faulty one
         missing_datasources = set()
         for ds in Datasource.get():
@@ -161,50 +164,54 @@ pp.add_task(molrepos_task)
 
 
 ##### TASK: Get inchikey/inchi pairs and calculate data #######
+if not DEBUG:
+    final_ik_inchi = set()
+    all_molrepos = Molrepo.get()
+    molrepos_names = set()
+    for molrepo in all_molrepos:
+        molrepos_names.add(molrepo.molrepo_name)
 
-final_ik_inchi = set()
-all_molrepos = Molrepo.get()
-molrepos_names = set()
-for molrepo in all_molrepos:
-    molrepos_names.add(molrepo.molrepo_name)
+    print("Fetching molecule repositories from the sql database:")
+    for molrepo in molrepos_names:
+        print(molrepo)
+        molrepo_ik_inchi = Molrepo.get_fields_by_molrepo_name(molrepo, ["inchikey", "inchi"])
+        final_ik_inchi.update(molrepo_ik_inchi)
 
-for molrepo in molrepos_names:
-    print(molrepo)
-    molrepo_ik_inchi = Molrepo.get_fields_by_molrepo_name(
-        molrepo, ["inchikey", "inchi"])
-    final_ik_inchi.update(molrepo_ik_inchi)
+    iks_to_calc = set()
 
-iks_to_calc = set()
+    for ik in final_ik_inchi:
+        iks_to_calc.add(ik[0])
 
-for ik in final_ik_inchi:
-    iks_to_calc.add(ik[0])
+    for data_calc in data_calculators:
+        print("--> calc_data_" + data_calc)
+        calc_data_params = {}
 
-for data_calc in data_calculators:
-    print("--> calc_data_" + data_calc)
-    calc_data_params = {}
+        calc_data_params['python_callable'] = calculate_data
+        calc_data_params['op_args'] = [data_calc, pp.tmpdir, iks_to_calc]
 
-    calc_data_params['python_callable'] = calculate_data
-    calc_data_params['op_args'] = [data_calc, pp.tmpdir, iks_to_calc]
+        calc_data_task = PythonCallable(name="calc_data_" + data_calc, **calc_data_params)
 
-    calc_data_task = PythonCallable(name="calc_data_" + data_calc, **calc_data_params)
-
-    pp.add_task(calc_data_task)
+        pp.add_task(calc_data_task)
 
 
-##### TASK: Generate validation sets #######
+    ##### TASK: Generate validation sets #######
 
-for val_set in validation_sets:
-    val_set_params = {}
+    for val_set in validation_sets:
+        val_set_params = {}
 
-    val_set_params['python_callable'] = create_val_set
-    val_set_params['op_args'] = [val_set]
+        val_set_params['python_callable'] = create_val_set
+        val_set_params['op_args'] = [val_set]
 
-    val_set_task = PythonCallable(name="val_set_" + val_set, **val_set_params)
+        val_set_task = PythonCallable(name="val_set_" + val_set, **val_set_params)
 
-    pp.add_task(val_set_task)
+        pp.add_task(val_set_task)
 
 
 # TASK: Calculate signatures 0
+
+if DEBUG:
+    pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc") # NS debug
+
 s0_params = {'CC_ROOT': CC_ROOT, 'cc_old_path': CC_OLD_ROOT}
 s0_task = CCFit(cc_type='sign0', **s0_params)
 pp.add_task(s0_task)
