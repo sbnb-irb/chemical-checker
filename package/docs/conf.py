@@ -20,8 +20,11 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('../core'))
+sys.path.insert(0, os.path.abspath('../database'))
+sys.path.insert(0, os.path.abspath('../tool'))
+sys.path.insert(0, os.path.abspath('../util'))
 
 #import chemicalchecker
 
@@ -35,13 +38,14 @@ sys.path.insert(0, os.path.abspath('..'))
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
     'sphinx.ext.coverage',
     'sphinx.ext.imgmath',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
-    'sphinx.ext.napoleon'
+    'sphinx.ext.napoleon',
 ]
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -83,7 +87,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '_templates']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -108,6 +112,7 @@ html_logo = 'img/logo.svg'
 html_theme_options = {
     'logo_only': True,
     'display_version': False,
+    'navigation_depth': 3,
 }
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -146,7 +151,7 @@ latex_elements = {
 # [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'chemicalchecker.tex',
-     u'chemicalchecker Documentation',
+     u'chemicalchecker package Documentation',
      u'SBNB', 'manual'),
 ]
 
@@ -157,7 +162,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     (master_doc, 'chemicalchecker',
-     u'chemicalchecker Documentation',
+     u'chemicalchecker package Documentation',
      [author], 1)
 ]
 
@@ -169,10 +174,10 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'chemicalchecker',
-     u'chemicalchecker Documentation',
+     u'chemicalchecker package Documentation',
      author,
      'chemicalchecker',
-     'One line description of project.',
+     'Chemical Checker Package Codebase.',
      'Miscellaneous'),
 ]
 
