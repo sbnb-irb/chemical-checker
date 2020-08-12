@@ -16,7 +16,7 @@ from chemicalchecker.util import Config
 
 from update_resources.generate_chembl_files import generate_chembl_files # Nico
 
-DEBUG =True
+DEBUG = False
 #-----------
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -32,7 +32,7 @@ data_calculators = ['morgan_fp_r2_2048', 'e3fp_3conf_1024', 'murcko_1024_cframe_
 validation_sets = ['moa', 'atc']
 
 #pp = Pipeline(pipeline_path="/aloy/scratch/oguitart/package_cc")
-pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc") # NS debug
+pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
 
 def downloads(tmpdir):
 
@@ -207,10 +207,6 @@ if not DEBUG:
 
 
 # TASK: Calculate signatures 0
-
-if DEBUG:
-    pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc") # NS debug
-
 s0_params = {'CC_ROOT': CC_ROOT, 'cc_old_path': CC_OLD_ROOT}
 s0_task = CCFit(cc_type='sign0', **s0_params)
 pp.add_task(s0_task)
