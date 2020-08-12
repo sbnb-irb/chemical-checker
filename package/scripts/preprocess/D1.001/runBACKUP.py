@@ -1,6 +1,3 @@
-# NS: TEST VERSION for the aggregation matrices
-import random
-
 import os
 import sys
 import argparse
@@ -453,7 +450,7 @@ def main(args):
             with open(os.path.join(connectivitydir, readyfile), "w") as f:
                 f.write("")
 
-    readyfile = "agg_matrices.ready_test"
+    readyfile = "agg_matrices.ready"
 
     # MATRIX AGGREGATION JOB
     if not os.path.exists(os.path.join(ik_matrices, readyfile)):
@@ -466,22 +463,6 @@ def main(args):
             # inchikey_sigid:   mol_inchikey -> mol_id (h5 filename without extension)
             # inchikey_inchi:   mol_inchikey -> mol_inchi
             # siginfo:          REP.A001_A375_24H:K17 -> mol_id
-
-            #NS reducing the number of entries for test
-
-            print("Choosing a random sample")
-            random_keys= random.sample(list(inchikey_sigid.keys()), 10)
-            inchikey_sigid = {k:v in inchikey_sigid.items() if k in random_keys}
-            inchikey_inchi = {k:v in inchikey_inchi.items() if k in random_keys}
-            siginfo = {k:v in siginfo.items() if v in inchikey_sigid.values()}
-
-            print("inchikey_sigid-->", inchikey_sigid)
-            print("inchikey_inchi-->", inchikey_inchi)
-            print("siginfo-->", siginfo)
-            if len(inchikey_sigid) == 0 or len(inchikey_inchi) ==0 or len(siginfo) == 0:
-                print("Empty sample dict!")
-                sys.exit(1)
-            print("Done")
 
         main._log.info("Doing aggregation matrices")
 
@@ -560,9 +541,6 @@ def main(args):
     if args.method == "fit":
         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
             hf.create_dataset("features", data=np.array(orderwords, h5py.special_dtype(vlen=str)))
-
-        print("TEST PASSED OK! Quitting.")
-        sys.exit(0)
 
     if args.method == 'predict':
         shutil.rmtree(mpath)
