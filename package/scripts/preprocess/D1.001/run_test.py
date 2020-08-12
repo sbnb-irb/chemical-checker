@@ -253,7 +253,7 @@ def do_consensus(ik_matrices, consensus):
     X = np.array([consensus_signature(ik) for ik in inchikeys])
 
     with h5py.File(consensus, "w") as hf:
-        hf.create_dataset("inchikeys", data=inchikeys)
+        hf.create_dataset("inchikeys", data=np.array(inchikeys, dtype=h5py.special_dtype(vlen=str)))
         hf.create_dataset("X", data=X)
 
     return X, inchikeys
