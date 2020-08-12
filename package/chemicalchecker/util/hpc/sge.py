@@ -196,12 +196,15 @@ fi
             self.__log.debug("Num elements submitted " + str(len(elements)))
 
             input_dict = dict()
+
             for cid, chunk in enumerate(self._chunks(elements, num_jobs), 1):
                 input_dict[str(cid)] = chunk
 
             input_path = os.path.join(self.jobdir, str(uuid.uuid4()))
+
             with open(input_path, 'wb') as fh:
                 pickle.dump(input_dict, fh, protocol=2)
+                
             command = command.replace("<FILE>", input_path)
 
         if cpusafe:
@@ -320,7 +323,7 @@ fi
         errors = self.error_finder(files)
 
         if len(errors) > 0:
-            self.__log.debug("Found errors in job")
+            self.__log.debug("Found errors in job (at directory {})".format(os.path.join(self.jobdir)))
             if self.status_id == DONE:
                 with open(self.statusFile, "w") as f:
                     f.write(ERROR)

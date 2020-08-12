@@ -105,8 +105,7 @@ if __name__ == '__main__':
 
     else:
 
-        inchikey_sigid, siginfo = read_l1000_predict(
-            connectivitydir, mini_sig_info_file)
+        inchikey_sigid, siginfo = read_l1000_predict(connectivitydir, mini_sig_info_file)
 
     with open("%s/signatures.tsv" % connectivitydir, "r") as f:
         signatures = [l.rstrip("\n") for l in f]
@@ -135,6 +134,7 @@ if __name__ == '__main__':
             X[i, j] = y
         if len(rows) == 0:
             continue
+
         with h5py.File("%s/%s.h5" % (agg_matrices, ik), "w") as hf:
             hf.create_dataset("X", data=X)
-            hf.create_dataset("rows", data=rows)
+            hf.create_dataset("rows", data=np.array(rows, dtype=h5py.special_dtype(vlen=str)))
