@@ -19,7 +19,6 @@ class DataFactory():
         from .sign1 import sign1
         from .sign2 import sign2
         from .sign3 import sign3
-        from .sign4 import sign4
 
         from .clus import clus
         from .neig import neig # nearest neighbour class
@@ -33,16 +32,22 @@ class DataFactory():
 
     @staticmethod
     def signaturize(cctype, signature_path, matrix, keys=None, dataset_code=None):
-        """Signaturize a given matrix.
+        """From matrix to signature.
 
-        Produce a signature-like structure for the given input.
-        Given a matrix of anonymous molucules add keys to mantain the order.
+        Produce a signature-like structure for the given matrix input.
+
+        Args:
+            signature_path(str): Destination for the signature.
+            matrix(np.array): Matrix where row are Molecules and columns
+                are features.
+            keys(np.array): List of Molecule names. If None incremental keys
+                are used to maintain the original order.
+            dataset_code(str): The code for the newly generated signature.
         """
         from .sign0 import sign0
         from .sign1 import sign1
         from .sign2 import sign2
         from .sign3 import sign3
-        from .sign4 import sign4
         from .signature_data import DataSignature
 
         from .clus import clus
@@ -55,7 +60,8 @@ class DataFactory():
         if not dataset_code:
             dataset_code = "XX.001"
         with h5py.File(data_path, 'w') as hf:
-            hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
+            hf.create_dataset("keys", data=np.array(
+                keys, DataSignature.string_dtype()))
             hf.create_dataset("V", data=matrix)
             hf.create_dataset("shape", data=matrix.shape)
         if cctype[:4] in ['clus', 'neig', 'proj']:
