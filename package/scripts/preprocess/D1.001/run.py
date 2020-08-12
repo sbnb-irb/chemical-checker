@@ -1,6 +1,3 @@
-# NS: TEST VERSION for the aggregation matrices
-import random
-
 import os
 import sys
 import argparse
@@ -220,7 +217,7 @@ def read_l1000(mini_sig_info_file, connectivitydir):
 
         if pert_id in pertid_inchikey:
             ik = pertid_inchikey[pert_id]
-            inchikey_sigid[ik] += [sig_id]  # inchikey -> [list of perturbagen ids]
+            inchikey_sigid[ik] += [sig_id]  # inchikey -> filename without extension
 
     #returns the following mappings from L1000:
     # inchikey_sigid:   mol_inchikey -> mol_id (h5 filename without extension)
@@ -253,7 +250,7 @@ def do_consensus(ik_matrices, consensus):
     X = np.array([consensus_signature(ik) for ik in inchikeys])
 
     with h5py.File(consensus, "w") as hf:
-        hf.create_dataset("inchikeys", data=np.array(inchikeys, dtype=h5py.special_dtype(vlen=str)))
+        hf.create_dataset("inchikeys", data=inchikeys)
         hf.create_dataset("X", data=X)
 
     return X, inchikeys
@@ -431,7 +428,7 @@ def main(args):
         params["num_jobs"] = len(sig_map.keys()) / 10
         params["jobdir"] = job_path
         params["job_name"] = "CC_D1_conn"
-        params["elements"] = sig_map
+        params["elements"] = sig_map  
         # reminder: sigmap is a dict with the following entry type:
         #'REP.A001_A375_24H:E14' : {"file": "signature0full_path/raw/models/signatures/REP.A001_A375_24H:E14.h5"}
         params["memory"] = 10
@@ -453,7 +450,7 @@ def main(args):
             with open(os.path.join(connectivitydir, readyfile), "w") as f:
                 f.write("")
 
-    readyfile = "agg_matrices.ready_test"
+    readyfile = "agg_matrices.ready"
 
     # MATRIX AGGREGATION JOB
     if not os.path.exists(os.path.join(ik_matrices, readyfile)):
@@ -466,21 +463,6 @@ def main(args):
             # inchikey_sigid:   mol_inchikey -> mol_id (h5 filename without extension)
             # inchikey_inchi:   mol_inchikey -> mol_inchi
             # siginfo:          REP.A001_A375_24H:K17 -> mol_id
-
-            #NS reducing the number of entries for test
-
-            print("Choosing a random sample")
-            random_keys= random.sample(list(inchikey_sigid.keys()), 10)
-            inchikey_sigid = {k:v for (k,v) in inchikey_sigid.items() if k in random_keys}
-            inchikey_inchi = {k:v for (k,v) in inchikey_inchi.items() if k in random_keys}
-
-            print("inchikey_sigid-->\n", inchikey_sigid)
-            print("inchikey_inchi-->\n", inchikey_inchi)
-            print("siginfo-->\n", siginfo)
-            if len(inchikey_sigid) == 0 or len(inchikey_inchi) ==0:
-                print("Empty sample dict!")
-                sys.exit(1)
-            print("Done")
 
         main._log.info("Doing aggregation matrices")
 
@@ -539,7 +521,7 @@ def main(args):
         keys.append(str(k))
         words.update([x[0] for x in inchikey_raw[k]])
 
-    if args.method == 'predict' and features is not None:
+    if args.method == 'predict' and features is not None: # NS: added the first cond, other 'features' was unreferenced when not using 'predict'
         orderwords = features_list
     else:
         orderwords = list(words)
@@ -560,12 +542,10 @@ def main(args):
         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
             hf.create_dataset("features", data=np.array(orderwords, h5py.special_dtype(vlen=str)))
 
-        print("TEST PASSED OK! Quitting.")
-        sys.exit(0)
-
     if args.method == 'predict':
-        shutil.rmtree(mpath)
+        #shutil.rmtree(mpath) # NS commented
         # shutil.rmtree(connectivitydir)
+        pass
 
 if __name__ == '__main__':
     main(sys.argv[1:])
