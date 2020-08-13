@@ -1,3 +1,9 @@
+"""Utilities used throughout the code.
+
+This module expose several utilities that are broadly used throughout the
+Chemical Checker code (e.g. :mod:`~chemicalchecker.util.logging` for handling
+output or :mod:`~chemicalchecker.util.hpc` to submit jobs to the HPC cluster).
+"""
 try:
     # FIXME(https://github.com/abseil/abseil-py/issues/99)
     # FIXME(https://github.com/abseil/abseil-py/issues/102)
