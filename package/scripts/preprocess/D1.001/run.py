@@ -237,8 +237,7 @@ def get_summary(v):
 
 def do_consensus(ik_matrices, consensus):
 
-    inchikeys = [ik.split(".h5")[0]
-                 for ik in os.listdir(ik_matrices) if ik.endswith(".h5")]
+    inchikeys = [ik.split(".h5")[0] for ik in os.listdir(ik_matrices) if ik.endswith(".h5")]
 
     def consensus_signature(ik):
         with h5py.File("%s/%s.h5" % (ik_matrices, ik), "r") as hf:
