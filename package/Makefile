@@ -63,7 +63,9 @@ coverage: ## check code coverage quickly with the default Python
 	$(BROWSER) htmlcov/index.html
 
 docs: ## generate Sphinx HTML documentation, including API docs
-	sphinx-apidoc -o docs/source chemicalchecker -f -M
+	rm -fr docs/_build/
+	rm -fr docs/_autosummary/
+	##sphinx-apidoc -o docs/source chemicalchecker -f -M -e ## updating sphinx made this useless
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
 	$(BROWSER) docs/_build/html/index.html
