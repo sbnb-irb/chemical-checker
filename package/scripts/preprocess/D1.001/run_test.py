@@ -1,24 +1,18 @@
-# NS: TEST VERSION for the aggregation matrices
-import random
-
 import os
 import sys
-import argparse
 import h5py
+import glob
+import shutil
+import logging
 import tempfile
 import numpy as np
-from scipy.stats import rankdata
 import collections
-import shutil
-from cmapPy.pandasGEXpress import parse
-import glob
-import logging
+from scipy.stats import rankdata
 
-from chemicalchecker.util import logged, Config, profile
+from chemicalchecker.util import logged, Config
 from chemicalchecker.util.hpc import HPC
-from chemicalchecker.database import Dataset
-from chemicalchecker.database import Molrepo
 from chemicalchecker.util.performance import gaussianize as g
+from chemicalchecker.database import Dataset, Molrepo
 from chemicalchecker.core.preprocess import Preprocess
 from chemicalchecker.core.signature_data import DataSignature
 
@@ -28,6 +22,10 @@ features_file = "features.h5"
 
 
 def parse_level(mini_sig_info_file, map_files, signaturesdir):
+    try:
+        from cmapPy.pandasGEXpress import parse
+    except ImportError:
+        raise ImportError("requires cmapPy " + "https://github.com/cmap/cmapPy")
 
     readyfile = "sigs.ready"
     if os.path.exists(os.path.join(signaturesdir, readyfile)):
