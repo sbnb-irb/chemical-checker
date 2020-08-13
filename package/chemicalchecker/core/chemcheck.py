@@ -4,25 +4,25 @@ methods and signatures.
 When initializing a CC instance we must provide a root directory. If the
 CC_ROOT is empty we proceed generating the CC directory structure and
 we'll have an empty CC instance. If the CC_ROOT directory is not empty,
-we discover signatures assuming a _molset_, _dataset_, _signature_
+we discover signatures assuming a :data:`molset`, `dataset`, `signature`
 hierarchy.
 
-- The _molset_ is mostly for internal usage, and it expected values are
-either "full" or "reference". In some steps of the pipeline is
-convenient to work with the non-redundant set of signatures
-("reference") while at end we want to map back to the "full" set of
-molecules.
+    * The `molset` is mostly for internal usage, and it expected values are
+    either "full" or "reference". In some steps of the pipeline is
+    convenient to work with the non-redundant set of signatures
+    ("reference") while at end we want to map back to the "full" set of
+    molecules.
 
-- The _dataset_ is the bioactivity space of interest and is described by
-the _level_ (e.g. "A") the _sublevel_ (e.g. "1") and a _code_ for each
-input dataset starting from .001. The directory structure follow this
-hierarchy (e.g. "/root/full/A/A1/A1.001" )
+    * The :data:`dataset` is the bioactivity space of interest and is described by
+    the _level_ (e.g. "A") the _sublevel_ (e.g. "1") and a _code_ for each
+    input dataset starting from .001. The directory structure follow this
+    hierarchy (e.g. "/root/full/A/A1/A1.001" )
 
-- The _signature_ is one of the possible type of signatures (`sign0`,
-`sign1`, `sign2` and `sign3`), for each of these special signatures
-types with precomputed data can be available. Namely: `neig` for
-nearest neighbor, `clus` for clustered signatures, `proj` for the
-2D-projections.
+    * The `signature` is one of the possible type of signatures (`sign0`,
+    `sign1`, `sign2` and `sign3`), for each of these special signatures
+    types with precomputed data can be available. Namely: `neig` for
+    nearest neighbor, `clus` for clustered signatures, `proj` for the
+    2D-projections.
 
 
 Main tasks of this class are:
