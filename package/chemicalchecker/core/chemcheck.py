@@ -1,41 +1,57 @@
-"""Standardize internal structure and access to the Chemical Checker
-methods and signatures.
+"""Structure and access to the Chemical Checker signatures.
 
-When initializing a CC instance we must provide a root directory. If the
-CC_ROOT is empty we proceed generating the CC directory structure and
-we'll have an empty CC instance. If the CC_ROOT directory is not empty,
-we discover signatures assuming a :data:`molset`, `dataset`, `signature`
-hierarchy.
+The most common entrypoint in a CC project is the :class:`ChemicalChecker`::
 
-    * The `molset` is mostly for internal usage, and it expected values are
-    either "full" or "reference". In some steps of the pipeline is
-    convenient to work with the non-redundant set of signatures
-    ("reference") while at end we want to map back to the "full" set of
-    molecules.
+    from chemicalchecker import ChemicalChecker
+    cc = ChemicalChecker()
 
-    * The :data:`dataset` is the bioactivity space of interest and is described by
-    the _level_ (e.g. "A") the _sublevel_ (e.g. "1") and a _code_ for each
-    input dataset starting from .001. The directory structure follow this
-    hierarchy (e.g. "/root/full/A/A1/A1.001" )
+When initializing a CC instance we usually want provide a root directory.
+If, like in the example above, we don't specify anything, the default path is
+assumed (that is the :envvar:`CC_ROOT` variable in the :doc:`CC config <../cc_config>`).
 
-    * The `signature` is one of the possible type of signatures (`sign0`,
-    `sign1`, `sign2` and `sign3`), for each of these special signatures
-    types with precomputed data can be available. Namely: `neig` for
-    nearest neighbor, `clus` for clustered signatures, `proj` for the
-    2D-projections.
+If the specified :envvar:`CC_ROOT` directory is already populated, we have successfully
+initialized the CC instance and will have access to its signatures.
+
+If the :envvar:`CC_ROOT` directory is empty we proceed generating the CC directory
+structure and we'll have an empty CC instance optimal for handling our own
+signatures.
+
+The organization of signatures under the :envvar:`CC_ROOT` follows hierarchy of
+**molset**/**dataset**/**signature**.
+
+    * The **molset** is mostly for internal usage, and its expected values are
+      either "full" or "reference". In some steps of the pipeline is
+      convenient to work with the non-redundant set of signatures
+      ("reference") while at end we want to map back to the "full" set of
+      molecules.
+
+    * The **dataset** is the bioactivity space of interest and is described by
+      the _level_ (e.g. "A") the _sublevel_ (e.g. "1") and a _code_ for each
+      input dataset starting from .001. The directory structure follow this
+      hierarchy (e.g. "/root/full/A/A1/A1.001" )
+
+    * The **signature** is one of the possible type of signatures (
+      :class:`~chemicalchecker.core.sign0`,
+      :class:`~chemicalchecker.core.sign1`,
+      :class:`~chemicalchecker.core.sign2`,
+      :class:`~chemicalchecker.core.sign3`) or otther signature like data
+      available. Namely: :class:`~chemicalchecker.core.neig` for
+      nearest neighbor, :class:`~chemicalchecker.core.clus` for clustered
+      signatures, :class:`~chemicalchecker.core.proj` for the
+      2D-projections.
 
 
-Main tasks of this class are:
+Main goals of this class are:
 
 1. Check and enforce the directory structure behind a CC instance.
 2. Serve signatures to users or pipelines.
 """
 
+import re
 import os
 import h5py
 import shutil
 import itertools
-import re
 from glob import glob
 
 from .molkit import Mol
