@@ -151,8 +151,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
                     (v[0], x[0], x[1], x[2], x[3], v[1]))
             cids += [(v[0], v[1])]
 
-    gtcx_i = os.path.join(
-        map_files["GSE92742_Broad_LINCS_Level5_COMPZ"], "GSE92742_Broad_LINCS_Level5_COMPZ.MODZ_n473647x12328.gctx")
+    gtcx_i = os.path.join(map_files["GSE92742_Broad_LINCS_Level5_COMPZ"], "GSE92742_Broad_LINCS_Level5_COMPZ.MODZ_n473647x12328.gctx")
     for file_name in glob.glob(os.path.join(map_files["GSE70138_Broad_LINCS_Level5_COMPZ"], "*.gctx")):
         gtcx_ii = file_name
 
@@ -201,7 +200,7 @@ def read_l1000(mini_sig_info_file, connectivitydir):
 
     with open(mini_sig_info_file, "r") as f:  # read the minisign file
         for l in f:
-            l = l.rstrip("\n").split("\t")    # keeps 
+            l = l.rstrip("\n").split("\t")    # keeps perturbagens from touchdown
             if int(l[4]) == 1:
                 touchstones.update([l[1]])    # put records like BRD-K25943794 in the set (second record of mini_sig_info_file = perturbagen id)
             siginfo[l[0]] = l[1]              # REP.A001_A375_24H:K17 : BRD-A29289453
@@ -250,7 +249,7 @@ def do_consensus(ik_matrices, consensus):
     X = np.array([consensus_signature(ik) for ik in inchikeys])
 
     with h5py.File(consensus, "w") as hf:
-        hf.create_dataset("inchikeys", data=inchikeys)
+        hf.create_dataset("inchikeys", data=np.array(inchikeys, DataSignature.string_dtype()))
         hf.create_dataset("X", data=X)
 
     return X, inchikeys
@@ -312,7 +311,7 @@ def main(args):
 
     # NS: 13 datasources in dataset_had_datasource table for the 2020 update
     for ds in dataset.datasources:
-        map_files[ds.datasource_name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path       #Ns path is /aloy/scratch/sbnb-adm/CC/download/<datasource_name>
 
     main._log.debug("Running preprocess fit method for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
