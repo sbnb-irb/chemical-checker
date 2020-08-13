@@ -23,7 +23,7 @@ from chemicalchecker.util.plot import Plot
 
 @logged
 class clus(BaseSignature, DataSignature):
-    """A Signature bla bla."""
+    """A Cluster Signature."""
 
     def __init__(self, signature_path, dataset, **params):
         """Initialize the signature.
