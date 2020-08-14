@@ -70,8 +70,8 @@ class Preprocess():
             dataset,
             "run.py")
         if not os.path.isfile(self.preprocess_script):
-            self.__log.warning("Pre-process script not found! %s",
-                               self.preprocess_script)
+            self.__log.warning("Pre-process script not found! %s",self.preprocess_script)
+            
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
 
