@@ -17,7 +17,7 @@ from chemicalchecker.core.preprocess import Preprocess
 from chemicalchecker.core.signature_data import DataSignature
 
 # Variables
-TEST = True  # once the 'signatures' dir exists with h5 inside, you can copy a few of them to 'signatures_test' and check if it's working
+TEST = False  # once the 'signatures' dir exists with h5 inside, you can copy a few of them to 'signatures_test' and check if it's working
 dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:] #NS D1.001
 features_file = "features.h5"
 
@@ -290,7 +290,7 @@ def do_consensus(ik_matrices, consensus):
 
 
 def process(X):
-
+    """NS:  Looks like a function to remove noise in the output X"""
     def whiten(X):
 
         Xw = np.zeros(X.shape)
@@ -579,7 +579,7 @@ def main(args):
         print("X",X)
         print("Xcut",Xcut)
         print("inchikeys",inchikeys)
-        
+
     main._log.info("Saving raws")
     inchikey_raw = {}
     for i in range(len(inchikeys)):
@@ -592,7 +592,11 @@ def main(args):
     keys = []
     words = set()
 
-    if TEST: print("inchikey_raw.keys()", inchikey_raw.keys())
+    # NS added
+    if len(inchikey_raw.keys()) == 0:
+        main._log.info("FILTERING ELIMINATED EVERYTHING, SORRY!")
+        sys.exit(1)
+
     for k in sorted(inchikey_raw.keys()):
         keys.append(str(k))
         words.update([x[0] for x in inchikey_raw[k]])
