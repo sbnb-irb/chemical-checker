@@ -1,8 +1,10 @@
-"""This class initialize and serve the different Chemical Checker data types.
+"""Factory for CC type classes.
 
-It is a factory of different signatures (including along with clusters and
-neighbors). Is the place where the classes implementing such data types are
-imported and initialized.
+This internal class is a factory of different signatures.
+It is convenient because it allows initialization of different classes from
+input string ``cctype``.
+
+Also feature a method to "signaturize" an enternal matrix.
 """
 import os
 import h5py

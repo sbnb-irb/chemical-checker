@@ -1,10 +1,16 @@
+"""Signature Data class.
+
+This class handles the ``HDF5`` file internal organization. It offers shortcut
+attributes to read from file (e.g. ``sign.keys`` or accessing signature with
+brackets [:] operator). It expose utility methods to fetch, stack, copy
+check for consistency, index, subsample or map signatures.
+"""
 import os
 import sys
-import shutil
 import h5py
-from bisect import bisect_left
+import shutil
 import numpy as np
-import random
+from bisect import bisect_left
 from chemicalchecker.util import logged
 from scipy.spatial.distance import euclidean, cosine
 
@@ -24,18 +30,15 @@ class cached_property(object):
 
 @logged
 class DataSignature(object):
-    """A Signature data class.
-
-    Implements methods and checks common to all signatures for accessing the
-    data in HDF5 format.
-    """
+    """Signature Data class."""
 
     def __init__(self, data_path, ds_data='V', keys_name='keys'):
         """Initialize or load the signature at the given path."""
         self.data_path = os.path.abspath(data_path)
         self.ds_data = ds_data
         self.keys_name = keys_name
-        self.PVALRANGES = np.array([0, 0.001, 0.01, 0.1] + list(np.arange(1, 100)) + [100]) / 100.
+        self.PVALRANGES = np.array(
+            [0, 0.001, 0.01, 0.1] + list(np.arange(1, 100)) + [100]) / 100.
 
     def _check_data(self):
         """Test if data file is available"""
@@ -234,8 +237,7 @@ class DataSignature(object):
 
     @staticmethod
     def h5_str(lst):
-        return np.array(lst,dtype=DataSignature.string_dtype())
-               
+        return np.array(lst, dtype=DataSignature.string_dtype())
 
     def copy_from(self, sign, key):
         """Copy dataset 'key' to current signature.
@@ -420,16 +422,17 @@ class DataSignature(object):
                     if V is None:
                         V = v
                     else:
-                        V = np.vstack([V,v])
+                        V = np.vstack([V, v])
         else:
             with h5py.File(self.data_path, "r") as hf:
                 dset = hf["V"]
                 v = dset[0]
                 V = np.zeros((len(idxs), self.shape[1]), dtype=v.dtype)
                 for i, idx in tqdm(enumerate(idxs)):
-                    V[i,:] = dset[idx]
+                    V[i, :] = dset[idx]
         if len(kept_keys) != len(keys):
-            self.__log.warn("There are %d missing keys" % (len(keys)-len(kept_keys)))
+            self.__log.warn("There are %d missing keys" %
+                            (len(keys) - len(kept_keys)))
         return kept_keys, V
 
     def index(self, key):
@@ -571,3 +574,101 @@ class DataSignature(object):
             original_umask = os.umask(0)
             os.makedirs(self.stats_path, 0o775)
             os.umask(original_umask)
+
+    def subsample(self, n):
+        """Subsample from a signature without replacement.
+
+            Args:
+               n(int): Maximum number of samples (default=10000).
+
+            Returns:
+               V(matrix): A (samples, features) matrix.
+               keys(array): The list of keys.
+        """
+        self.__log.debug("Subsampling dataset (n=%d)" % n)
+        if n > len(self.keys):
+            V = self[:]
+            keys = self.keys
+        else:
+            idxs = np.array(sorted(np.random.choice(
+                len(self.keys), n, replace=False)))
+            with h5py.File(self.data_path, "r") as hf:
+                V = hf["V"][idxs]
+            keys = np.array(self.keys)[idxs]
+        return V, keys
+
+    def consistency_check(self):
+        """Check that signature is valid."""
+        if os.path.isfile(self.data_path):
+            # check that keys are unique
+            if len(self.keys) != len(self.unique_keys):
+                raise Exception("Inconsistent: keys are not unique.")
+            # check that amout of keys is same as amount of signatures
+            with h5py.File(self.data_path, 'r') as hf:
+                nr_signatures = hf['V'].shape[0]
+            if len(self.keys) > nr_signatures:
+                raise Exception("Inconsistent: more Keys than signatures.")
+            if len(self.keys) < nr_signatures:
+                raise Exception("Inconsistent: more signatures than Keys.")
+            # check that keys are sorted
+            if not np.all(self.keys[:-1] <= self.keys[1:]):
+                raise Exception("Inconsistent: Keys are not sorted.")
+
+    def map(self, out_file):
+        """Map signature throught mappings."""
+        if "mappings" not in self.info_h5:
+            raise Exception("Data file has no mappings.")
+        with h5py.File(self.data_path, 'r') as hf:
+            mappings = dict(hf['mappings'][:])
+        # avoid trivial mappings (where key==value)
+        to_map = set(mappings.keys()) - set(mappings.values())
+        if len(to_map) == 0:
+            # corner case where there's nothing to map
+            with h5py.File(self.data_path, 'r') as hf:
+                src_keys = hf['keys'][:]
+                src_vectors = hf['V'][:]
+            with h5py.File(out_file, "w") as hf:
+                hf.create_dataset('keys', data=src_keys)
+                hf.create_dataset('V', data=src_vectors, dtype=np.float32)
+                hf.create_dataset("shape", data=src_vectors.shape)
+            return
+        # prepare key-vector arrays
+        dst_keys = list()
+        dst_vectors = list()
+        for dst_key in sorted(to_map):
+            dst_keys.append(dst_key)
+            dst_vectors.append(self[mappings[dst_key]])
+        # to numpy arrays
+        dst_keys = np.array(dst_keys)
+        matrix = np.vstack(dst_vectors)
+        # join with current key-signatures
+        with h5py.File(self.data_path, 'r') as hf:
+            src_vectors = hf['V'][:]
+        dst_keys = np.concatenate((dst_keys, self.keys))
+        matrix = np.concatenate((matrix, src_vectors))
+        # get them sorted
+        sorted_idx = np.argsort(dst_keys)
+        with h5py.File(out_file, "w") as hf:
+            hf.create_dataset('keys', data=dst_keys[sorted_idx])
+            hf.create_dataset('V', data=matrix[sorted_idx], dtype=np.float32)
+            hf.create_dataset("shape", data=matrix.shape)
+
+    def generator_fn(self, batch_size=None):
+        """Return the generator function that we can query for batches."""
+        hf = h5py.File(self.data_path, 'r')
+        dset = hf['V']
+        total = dset.shape[0]
+        if not batch_size:
+            batch_size = total
+
+        def _generator_fn():
+            beg_idx, end_idx = 0, batch_size
+            while True:
+                if beg_idx >= total:
+                    self.__log.debug("EPOCH completed")
+                    beg_idx = 0
+                    return
+                yield dset[beg_idx: end_idx]
+                beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
+
+        return _generator_fn

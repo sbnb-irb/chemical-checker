@@ -6,15 +6,13 @@ both explicit and implicit similarity relationships in the data.
 
 Signatures type 2 are the result of a two-step process:
 
-1. Transform nearest-neighbor of signature type 1 to graph.
-
-2. Perform network embedding with Node2Vec.
+   1. Transform nearest-neighbor of signature type 1 to graph.
+   2. Perform network embedding with Node2Vec.
 
 It is not possible to produce network embeddings for out-of-sample
 (out-of-vocabulary) nodes, so a multi-output regression needs to be performed
 a posteriori (from signatures type 1 to signatures type 2) in order to endow
-predict() capabilities. This is done using the AdaNet framework for for
-automatically learning high-quality models with minimal expert intervention.
+predict() capabilities.
 """
 import os
 import h5py

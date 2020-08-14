@@ -1,7 +1,8 @@
 """Signature type 0.
 
-These are basically raw features. Each bioactive space has
+A sufficiently-processed version of the raw data. Each bioactive space has
 a peculiar format which might be categorical, discrete or continuous.
+They usually show explicit knowledge, which enables connectivity and interpretation.
 """
 import os
 import h5py
@@ -22,6 +23,7 @@ from chemicalchecker.util.sampler.triplets import TripletSampler
 
 @logged
 class sign0(BaseSignature, DataSignature):
+    """Signature type 0 class."""
 
     def __init__(self, signature_path, dataset, **params):
         """Initialize the signature.
