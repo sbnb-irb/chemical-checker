@@ -1,16 +1,13 @@
-"""Signature type 0 are basically raw features. Each bioactive space has
+"""Signature type 0.
+
+These are basically raw features. Each bioactive space has
 a peculiar format which might be categorical, discrete or continuous.
 """
 import os
-import imp
 import h5py
-import numpy as np
-from tqdm import tqdm
-import collections
 import datetime
-import random
-import pickle
-import shutil
+import collections
+import numpy as np
 
 from .signature_data import DataSignature
 from .signature_base import BaseSignature

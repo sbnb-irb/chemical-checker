@@ -2,9 +2,9 @@
 
 In this subpackage we define the main classes that are normally used in a
 Chemical Checker project.
-For example the common entrypoint :class:`chemcheck.ChemicalChecker` or
+For example the common entrypoint :mod:`chemicalchecker.core.chemcheck` or
 the base class for every signature we use
-:class:`signature_base.BaseSignature` are defined in following files.
+:mod:`~chemicalchecker.core.signature_base` are defined in following files.
 """
 from .data import DataFactory
 from .chemcheck import ChemicalChecker
