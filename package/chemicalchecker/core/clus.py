@@ -1,3 +1,7 @@
+"""Cluster Signature.
+
+Performs K-means clustering.
+"""
 import os
 import csv
 import glob

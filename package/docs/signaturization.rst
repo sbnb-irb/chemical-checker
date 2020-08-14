@@ -28,6 +28,15 @@ Every CC signature must have:
 
 Below we detail the characteristics of each signature type and the algorithms behind.
 
+All signature classes inherit from two base-classes that enforce shared behavior:
+
+   *. :class:`~chemicalchecker.core.signature_base.BaseSignature`: uses
+      low level ``HDF5`` to optimize access to signature persistence level (e.g.
+      the file ``/root/full/A/A1/A1.001/sign2/sign2.h5``)
+   *. :class:`~chemicalchecker.core.signature_data.DataSignature`: implements
+      sanity checks, internal signature directory structure, fit and predict
+      hooks, etc...
+
 Signatures type 0
 '''''''''''''''''
 
@@ -41,6 +50,8 @@ Signatures type 0 are minimally modified. We only apply the following modificati
 * *Imputation*: for *dense* inputs, ``NA`` values are median-imputed.
 * *Aggregation*: In case some keys are duplicated (for instance, at fit and predict time), user can choose to keep the first instance, the last instance, or an average of the data.
 
+See implementation details in :mod:`~chemicalchecker.core.sign0`
+
 Signatures type 1
 '''''''''''''''''
 
@@ -51,8 +62,11 @@ The CC provides an automated pipeline for producing signatures type 1. We allow 
 * *Latent representation*: For originally sparse matrices, this is TF-IDF Latent-semantic indexing (LSI). For dense matrices, this corresponds to a PCA (optionally, preceded by a robust median-based scaling). By default, we keep 90% of the variance.
 * *Outlier removal*: Outlier keys (molecules) can be removed based on the isolation forest algorithm.
 * *Metric learning*: A shallow siamese network can be trained to learn a latent representation of the space that has a good distance distribution. Metric learning requires similar/dissimilar cases (triplets); we offer two options:
+
   * *Unsupervised*: Triplets are drawn from the signature itself.
   * *Semi-supervised*: Triplets are drawn from other CC signatures. This helps integrate/contextualize the signature in question within the framework of the CC.
+
+See implementation details in :mod:`~chemicalchecker.core.sign1`
 
 Signatures type 2
 '''''''''''''''''
@@ -63,6 +77,8 @@ Signatures type 2 are produced with two steps:
 
    1.  Construction of a similarity network using signatures type 1.
    2.  Network embedding (using :mod:`~chemicalchecker.tool.node2vec`).
+
+See implementation details in :mod:`~chemicalchecker.core.sign2`
 
 Signatures type 3
 '''''''''''''''''
@@ -78,10 +94,11 @@ To learn signatures type 3:
 Applicability
 -------------
 
-An ``applicability`` score is assigned to every signature type 3, based on:
+An ``applicability`` score represent how "confident" we can be about a 
+specific signature type 3. This accuracy estimate is based on:
 
 * *Distance*: signatures that are close to training-set signatures are, in principle, closer to the
-  applicability domain. We measured this distance in an unsupervised way (i.e. average distance
+  applicability domain. We measure distances in an unsupervised way (i.e. average distance
   to 5/25 nearest-neighbors) and in a supervised way by means of a random forest regressor
   trained on signatures as features and prediction accuracy (correlation) as dependent variable. In
   addition, we devised a measure of ‘intensity’, defined as the mean absolute deviation of the
@@ -95,3 +112,5 @@ An ``applicability`` score is assigned to every signature type 3, based on:
   thus, having these informative signatures at hand will in principle favor reliable predictions. This
   prior expectancy was calculated by fitting a random forest classifier having 25
   absence/presence features as covariates and prediction accuracy as outcome.
+
+See implementation details in :mod:`~chemicalchecker.core.sign3`
