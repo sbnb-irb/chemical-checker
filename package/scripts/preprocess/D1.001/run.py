@@ -575,6 +575,11 @@ def main(args):
     main._log.info("Process output")
     Xcut = process(X)
 
+    if TEST:
+        print("X",X)
+        print("Xcut",Xcut)
+        print("inchikeys",inchikeys)
+        
     main._log.info("Saving raws")
     inchikey_raw = {}
     for i in range(len(inchikeys)):
@@ -597,6 +602,7 @@ def main(args):
     else:
         orderwords = list(words)
         orderwords.sort()
+
     if TEST: print("orderwords", orderwords)
     raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
     wordspos = {k: v for v, k in enumerate(orderwords)}
