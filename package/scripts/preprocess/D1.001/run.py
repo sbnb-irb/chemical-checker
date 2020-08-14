@@ -386,7 +386,7 @@ def main(args):
         cp_sigs = set()
 
         # NS only testing a few signatures
-        signs_to_test= glob.glob(os.path.join(signaturesdir,"*.h5re"))
+        signs_to_test= glob.glob(os.path.join(signaturesdir,"*.h5"))
         signs_to_test= [s[:-3] for s in signs_to_test]
         print("signs_to_test is", signs_to_test)
 
