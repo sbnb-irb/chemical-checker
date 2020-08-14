@@ -179,7 +179,7 @@ class sign0(BaseSignature, DataSignature):
             self.__log.debug("keys is {}".format(keys))
             self.__log.debug("keys_raw is {}".format(keys_raw))
             self.__log.debug("idxs is {}".format(idxs))
-
+            print("idxs is {}".format(idxs))
             X = X[idxs]
             self.__log.debug("Setting input type")
             input_type = "matrix"
