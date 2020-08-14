@@ -98,14 +98,16 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touc
     CTm = collections.defaultdict(list)            # it creates it and puts an empty list as the default value
 
     R = []
-    for f in os.listdir(signatures_dir):          # Going through all h5 files of gene expression data
+    for f in os.listdir(signatures_dir):          # Going through all h5 files of gene expression data to match our list of up/down-regulated genes
         if ".h5" not in f:
             continue
+        print("match against-->", f)
         sig = f.split("/")[-1].split(".h5")[0]   # file name without extension, ex: REP.A001_A375_24H:A19.h5
         sinfo = sig_info[sig]                    # (pert_id, treatment, cell_line, is_touchstone)
 
         if only_touchstone: # True
             if sinfo[0] not in touch or sinfo[2] not in core_cells:
+                print(f,"not in touchstone or in core_cells, skipping")
                 continue
 
         # Each signature will be compared with all the others, and connectivity scores are calculated
@@ -114,11 +116,12 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touc
         R += [(sig, cs)]     # signature:id, connectivity score
 
         if cs > 0:
-            CTp[(sinfo[1], sinfo[2])] += [cs]
+            CTp[(sinfo[1], sinfo[2])] += [cs]  # treatment, cell_line
         elif cs < 0:
             CTm[(sinfo[1], sinfo[2])] += [cs]
         else:
             continue
+
     CTp = dict((k, np.median(v)) for k, v in CTp.items()) # median of positive connec. scores found for each treatment and cell_line
     CTm = dict((k, np.median(v)) for k, v in CTm.items()) # median of positive connec. scores found for each treatment and cell_line
 
@@ -182,6 +185,7 @@ if __name__ == '__main__':
 
     for k, v in sigs.items():               # k=signid1, v={'file': pathtosignature1.h5}
 
+        print("Recovering up/down-regulated genes in signature {}".format(k))
         if "up" in v:                       # If up/downregulated genes have already been selected (not our case)
 
             main(k, v["up"], v["down"], mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs)
@@ -208,5 +212,5 @@ if __name__ == '__main__':
             up = {s.decode() for s in up}
             dw = {s.decode() for s in dw}
 
-            # call main for each k (sign_id)
+            #  main will take the list of up/down regulated-genes for this sign_id(k) and compare match it to all others
             main(k, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs)
