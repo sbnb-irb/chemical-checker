@@ -1,3 +1,8 @@
+"""2D Projections.
+
+Perform and store 2D projections, supporting several manifold/dimensionality
+reduction algorithms.
+"""
 import os
 import h5py
 import pickle

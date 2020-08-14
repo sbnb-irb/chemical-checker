@@ -1,3 +1,7 @@
+"""Nearest Neighbor Signature.
+
+Identify nearest neighbors and distances.
+"""
 import os
 import h5py
 import datetime
