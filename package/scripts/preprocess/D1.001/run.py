@@ -29,6 +29,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
 
     readyfile = "sigs.ready"
     if os.path.exists(os.path.join(signaturesdir, readyfile)):
+        print("sigs.ready is present in {}, nothing to parse!".format(signaturesdir))
         return
 
     touchstone = set()
@@ -384,6 +385,10 @@ def main(args):
 
         cp_sigs = set()
 
+        # NS only testing a few signatures
+        signs_to_test= glob.glob(os.path.join(signaturesdir,"*.h5"))
+        print("signs_to_test is", signs_to_test)
+        sys.exit(1)
         # Parsing the record file
         with open(mini_sig_info_file) as f:
             for l in f:
@@ -430,6 +435,7 @@ def main(args):
                     ik = items[0]
                 else:
                     ik = items[1]
+
                 inchikey_sigid[ik] += [items[0]]
                 sig_map[items[0] + "---" + ik] = {"up": items[2].split(","), "down": items[3].split(",")}
 
