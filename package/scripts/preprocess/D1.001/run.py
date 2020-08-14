@@ -386,8 +386,10 @@ def main(args):
         cp_sigs = set()
 
         # NS only testing a few signatures
+        dir_to_search=os.path.join(signaturesdir,"*.h5")
+        print("Looking for h5 signatures in ",dir_to_search)
         signs_to_test= glob.glob(os.path.join(signaturesdir,"*.h5"))
-        signs_to_test= [s[:-3] for s in signs_to_test]
+        signs_to_test= [s.split('/')[-1][:-3] for s in signs_to_test]
         print("signs_to_test is", signs_to_test)
 
         sys.exit(1)
