@@ -386,15 +386,18 @@ def main(args):
         cp_sigs = set()
 
         # NS only testing a few signatures
-        signs_to_test= glob.glob(os.path.join(signaturesdir,"*.h5"))
+        signs_to_test= glob.glob(os.path.join(signaturesdir,"*.h5re"))
+        signs_to_test= [s[:-3] for s in signs_to_test]
         print("signs_to_test is", signs_to_test)
+
         sys.exit(1)
         # Parsing the record file
         with open(mini_sig_info_file) as f:
             for l in f:
                 l = l.rstrip("\n").split("\t")
-                if l[2] == "trt_cp":
+                if l[0] in signs_to_test and l[2] == "trt_cp":
                     # update the set cp_sigs with records such as 'REP.A001_A375_24H:E14'
+                    print("selecting ", l[0])
                     cp_sigs.update([l[0]])
 
 
