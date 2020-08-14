@@ -1,4 +1,6 @@
-"""A simple class to inspect small molecules, easily convert between different
+"""Molecule representation.
+
+A simple class to inspect small molecules, easily convert between different
 identifier, and ultimately find if signatures available.
 """
 import collections

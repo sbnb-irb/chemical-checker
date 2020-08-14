@@ -1,3 +1,7 @@
+"""Diagnosis for signatures.
+
+Performs an array of validations and diagnostic analysis.
+"""
 import numpy as np
 import random
 import pickle

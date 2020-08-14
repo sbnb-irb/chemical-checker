@@ -1,10 +1,13 @@
 """Signature type 1.
 
-Signatures type 1 are basically processed signatures. The typical preprocessing is a PCA (continuous data) or TF-IDF LSI (continuous).
+Signatures type 1 are basically processed signatures.
 
-Processing steps can be added as a pipeline previous to fitting the data.
+This imply mild compression (usually latent) of the signatures,
+with a dimensionality that typically retains 90% of the original variance.
+They keep most of the complexity of the original data and they can be used for
+similarity calculations.
 
-A reference (non-redundant) dataset is always used for all of the fits.
+The typical preprocessing is a PCA (continuous data) or TF-IDF LSI (continuous).
 """
 import os
 import h5py
