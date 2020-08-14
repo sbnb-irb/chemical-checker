@@ -349,7 +349,7 @@ class ChemicalChecker():
         prepro = Preprocess(sign.signature_path, sign.dataset)
         prepro.fit()
 
-        return prepro.data_path
+        return prepro.data_path  # ex:os.path.join(self.raw_path, "preprocess.h5")
 
     def sign_name(self, sign):
         """Get a signature name (e.g. 'B1.001-sign1-full')"""
