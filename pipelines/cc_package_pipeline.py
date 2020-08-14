@@ -214,15 +214,15 @@ s0_params = {'CC_ROOT': CC_ROOT, 'cc_old_path': CC_OLD_ROOT}
 s0_task = CCFit(cc_type='sign0', **s0_params)
 pp.add_task(s0_task)
 
-pp.run()
-print("DONE, Calculate sign 0")
-sys.exit(1)
-
 
 # TASK: Calculate signatures 1
 s1_params = {'CC_ROOT': CC_ROOT}
 s1_task = CCFit(cc_type='sign1', **s1_params)
 pp.add_task(s1_task)
+
+pp.run()
+print("DONE, Calculate sign 0 and 1")
+sys.exit(1)
 
 ##### TASK: Calculate clustering for signatures 1 #######
 c1_params = {'CC_ROOT': CC_ROOT}
