@@ -31,68 +31,88 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
     if os.path.exists(os.path.join(signaturesdir, readyfile)):
         return
 
-    GSE92742_Broad_LINCS_pert_info = os.path.join(
-        map_files["GSE92742_Broad_LINCS_pert_info"], "GSE92742_Broad_LINCS_pert_info.txt")
     touchstone = set()
+
+    GSE92742_Broad_LINCS_pert_info = os.path.join(map_files["GSE92742_Broad_LINCS_pert_info"], "GSE92742_Broad_LINCS_pert_info.txt") 
+    # header of this file:
+    # pert_id>pert_iname>-----pert_type>------is_touchstone>--inchi_key_prefix>-------inchi_key>------canonical_smiles>-------pubchem_cid
+    # 56582>--AKT2>---trt_oe>-0>-------666>----666>----666>----666
+
+
     with open(GSE92742_Broad_LINCS_pert_info, "r") as f:
-        f.readline()
+        f.readline() # skip header
         for l in f:
             l = l.rstrip("\n").split("\t")
-            trt = l[2]
+            trt = l[2]                                        # checks the trt (treatment?) record 
             if trt not in ["trt_cp", "trt_sh.cgs", "trt_oe"]:
                 continue
             if l[3] == '0':
                 continue
-            touchstone.add(l[0])
+            touchstone.add(l[0])                              # Keep perturbagen ids belonging to the touchstone dataset
 
     # Gene symbols (same for LINCS I and II)
-    GSE92742_Broad_LINCS_gene_info = os.path.join(
-        map_files["GSE92742_Broad_LINCS_gene_info"], "GSE92742_Broad_LINCS_gene_info.txt")
+    GSE92742_Broad_LINCS_gene_info = os.path.join(map_files["GSE92742_Broad_LINCS_gene_info"], "GSE92742_Broad_LINCS_gene_info.txt")
     genes = {}
+
+    # pr_gene_id>-----pr_gene_symbol>-pr_gene_title>--pr_is_lm>-------pr_is_bing
+    # 780>----DDR1>---discoidin domain receptor tyrosine kinase 1>----1>------1
+    # 7849>---PAX8>---paired box 8>---1>------1
+
     with open(GSE92742_Broad_LINCS_gene_info, "r") as f:
         f.readline()
         for l in f:
             l = l.split("\t")
-            genes[l[0]] = l[1]
+            genes[l[0]] = l[1]     # keep gene id and map it to its symbol
 
     sig_info_ii = {}
 
+    # signature infos ii (gene expr profiles)
     for file_name in glob.glob(os.path.join(map_files["GSE70138_Broad_LINCS_sig_info"], "*.txt")):
+    # sig_id>-pert_id>pert_iname>-----pert_type>------cell_id>pert_idose>-----pert_itime>-----distil_id
+    # LJP005_A375_24H:A03>----DMSO>---DMSO>---ctl_vehicle>----A375>----666>---24h>---LJP005_A375_24H_X1_B19:A03|LJP005_A375_24H_X2_B19:A03|LJP005_A375_24H_X3_B19:A03
+
         with open(file_name, "r") as f:
             f.readline()
             for l in f:
                 l = l.rstrip("\n").split("\t")
-                if l[1] in touchstone:
+                if l[1] in touchstone:          # only touchstone perturbagens
                     v = 1
                 else:
                     v = 0
-                sig_info_ii[l[0]] = (l[1], l[3], l[4], v, 2)
+                sig_info_ii[l[0]] = (l[1], l[3], l[4], v, 2)  # map signature_id (with pert_id , pert_type, cell_id, is_touchstone, 2)
 
     # Signature metrics
-
     sigs = collections.defaultdict(list)
     for file_name in glob.glob(os.path.join(map_files["GSE70138_Broad_LINCS_sig_metrics"], "*.txt")):
+        # linenum----->sig_id>-distil_cc_q75>--distil_ss>------pert_id pert_iname>-----pert_type>------tas>----ngenes_modulated_up_lm>-ngenes_modulated_dn_lm>-pct_self_rank_q25>------distil_nsample
+        #0>------REP.A001_A375_24H:A03>--0.1>----4.11955>DMSO>---DMSO>---ctl_vehicle>----0.131454>-------36>-----28>-----18.4375>3
+        #1>------REP.A001_A375_24H:A04>--0.1>----3.47207>DMSO>---DMSO>---ctl_vehicle>----0.105571>-------26>-----20>-----12.9241071429>--3
         with open(file_name, "r") as f:
             f.readline()
             for l in f:
-                l = l.rstrip("\n").split("\t")[1:]
-                if float(l[1]) < 0.2:
+                l = l.rstrip("\n").split("\t")[1:]  # here the first field is excluded
+                if float(l[1]) < 0.2:               # if distil_ss <0.2
                     continue
-                trt = l[5]
-                sig_id = l[0]
+                trt = l[5]                          # Treatment type (ctl_vehicle or trt_cp etc)
+                sig_id = l[0]                       # signature_id
                 if trt not in ["trt_cp", "trt_sh.cgs", "trt_oe"]:
                     continue
-                if sig_id not in sig_info_ii:
+                if sig_id not in sig_info_ii:       # must include only the touchstone perturbagen dataset 
                     continue
-                v = sig_info_ii[sig_id]
-                tas = float(l[6])
-                nsamp = int(l[-1])
-                phase = 2
-                sigs[(v[0], v[2])] += [(sig_id, trt, tas, nsamp, phase)]
+                v = sig_info_ii[sig_id]             # info previously recorded about the signature
+                tas = float(l[6])                   # some number
+                nsamp = int(l[-1])                  # distil_nsample
+                phase = 2                           # identifies the sign ii dict
+
+                # Mapping (pert_id, cell_id) : list of tuples of (sign_id, treat_type, tas, nsample, phase)
+                sigs[(v[0], v[2])] += [(sig_id, trt, tas, nsamp, phase)]  
 
     sig_info_i = {}
-    GSE92742_Broad_LINCS_sig_info = os.path.join(
-        map_files["GSE92742_Broad_LINCS_sig_info"], "GSE92742_Broad_LINCS_sig_info.txt")
+
+    GSE92742_Broad_LINCS_sig_info = os.path.join(map_files["GSE92742_Broad_LINCS_sig_info"], "GSE92742_Broad_LINCS_sig_info.txt")
+    # sig_id>-pert_id>pert_iname>-----pert_type>------cell_id>pert_dose>------pert_dose_unit>-pert_idose>-----pert_time>------pert_time_unit>-pert_itime>-----distil_id
+    #AML001_CD34_24H:A05>----DMSO>---DMSO>---ctl_vehicle>----CD34>---0.1>----%>------0.1 %>--24>-----h>------24 h>---AML001_CD34_24H_X1_F1B10:A05
+
     with open(GSE92742_Broad_LINCS_sig_info, "r") as f:
         f.readline()
         for l in f:
@@ -101,68 +121,78 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
                 v = 1
             else:
                 v = 0
-            sig_info_i[l[0]] = (l[1], l[3], l[4], v, 1)
+            # Mapping sign_id : (pert_id, pert_type, cell_id, istouchstone, 1)  
+            sig_info_i[l[0]] = (l[1], l[3], l[4], v, 1)  
 
-    GSE92742_Broad_LINCS_sig_metrics = os.path.join(
-        map_files["GSE92742_Broad_LINCS_sig_metrics"], "GSE92742_Broad_LINCS_sig_metrics.txt")
+
+    GSE92742_Broad_LINCS_sig_metrics = os.path.join(map_files["GSE92742_Broad_LINCS_sig_metrics"], "GSE92742_Broad_LINCS_sig_metrics.txt")
+    # sig_id>-pert_id>pert_iname>-----pert_type>------distil_cc_q75>--distil_ss>------ngenes_modulated_up_lm>-ngenes_modulated_dn_lm>-tas>----pct_self_rank_q25>------is_exemplar>----distil_nsample
+    # AML001_CD34_24H:BRD-A03772856:0.37037>--BRD-A03772856>--BRD-A03772856>--trt_cp>-0.4>----3.02055>8>------15>-----0.166769>-------4.97076>0>------2
+
     with open(GSE92742_Broad_LINCS_sig_metrics, "r") as f:
         f.readline()
         for l in f:
             l = l.rstrip("\n").split("\t")
-            if float(l[4]) < 0.2:
+            if float(l[4]) < 0.2:             #distil_cc_q75
                 continue
-            trt = l[3]
+            trt = l[3]                        # treatment type
             if trt not in ["trt_cp", "trt_sh.cgs", "trt_oe"]:
                 continue
-            sig_id = l[0]
-            if sig_id not in sig_info_i:
+            sig_id = l[0]                     # signature_id
+            if sig_id not in sig_info_i:      # Ensure that it is present in the correspnding info file
                 continue
-            v = sig_info_i[sig_id]
-            tas = float(l[8])
-            nsamp = int(l[-1])
-            phase = 1
+            v = sig_info_i[sig_id]            # (pert_id, pert_type, cell_id, istouchstone, 1)
+            tas = float(l[8])                 # ex 0.166769
+            nsamp = int(l[-1])                # nsample, ex 2
+            phase = 1                         # identifies the sign i dict
+
+            # Mapping (pert_id, cell_id) to list of tuples (sig_id, treatment_type, tas, nsample, phase)
             sigs[(v[0], v[2])] += [(sig_id, trt, tas, nsamp, phase)]
 
-    def get_exemplar(v):
-        s = [x for x in v if x[3] >= 2 and x[3] <= 6]
-        if not s:
-            s = v
+    def get_exemplar(v):  # ex of v: [(sig_id, trt, tas, nsamp, phase), (sig_id, trt, tas, nsamp, phase), ...]
+        s = [t for t in v if t[3] >= 2 and t[3] <= 6]   # keep tuples of v for which nsample between 2 and 6
+        if not s:                                       # if no tuple is selected (the list is empty)
+            s = v                                       # keep the original list of tuples
         sel = None
         max_tas = 0.
-        for x in s:
-            if not sel:
-                sel = (x[0], x[-1])
+        for x in s:                                     # for each (filtered) tuple of v (sig_id, trt, tas, nsamp, phase)
+            if not sel:                                 # First tuple 
+                sel = (x[0], x[-1])                     # sel = (sig_id, phase) ; max_tas=tas
                 max_tas = x[2]
-            else:
-                if x[2] > max_tas:
+            else:                                       # Other tuples
+                if x[2] > max_tas:                      # Keep the tuple with BIGGEST tas
                     sel = (x[0], x[-1])
                     max_tas = x[2]
-        return sel
+        return sel                                     # return (sig_id, phase) fo the tuple with biggest tas
 
+    # Transform sigs in a dict (pert_id, cell_id) --> (sig_id, phase) fo the tuple with biggest tas
     sigs = dict((k, get_exemplar(v)) for k, v in sigs.items())
 
     cids = []
-    with open(mini_sig_info_file, "w") as f:
-        for k, v in sigs.items():
-            if v[1] == 1:
-                x = sig_info_i[v[0]]
-            else:
-                x = sig_info_ii[v[0]]
-            f.write("%s\t%s\t%s\t%s\t%d\t%d\n" %
-                    (v[0], x[0], x[1], x[2], x[3], v[1]))
-            cids += [(v[0], v[1])]
 
-    gtcx_i = os.path.join(
-        map_files["GSE92742_Broad_LINCS_Level5_COMPZ"], "GSE92742_Broad_LINCS_Level5_COMPZ.MODZ_n473647x12328.gctx")
+    # NS: Create  mini_sig_info_file.tsv
+    with open(mini_sig_info_file, "w") as f:
+        for k, v in sigs.items():             #(pert_id, cell_id) --> (sig_id, phase) fo the tuple with biggest tas
+            if v[1] == 1:                     # from sig_info_i
+                x = sig_info_i[v[0]]          # (pert_id, pert_type, cell_id, istouchstone, 1)
+            else:
+                x = sig_info_ii[v[0]]         # (pert_id, pert_type, cell_id, istouchstone, 2)
+
+            # Writes :
+            # sig_id, pert_id, pert_type, cell_id, istouchstone, phase) 
+            f.write("%s\t%s\t%s\t%s\t%d\t%d\n" %(v[0], x[0], x[1], x[2], x[3], v[1]))
+            cids += [(v[0], v[1])]             # (sig_id, phase)
+
+    # The expression profiles (file of several GB)
+    gtcx_i = os.path.join(map_files["GSE92742_Broad_LINCS_Level5_COMPZ"], "GSE92742_Broad_LINCS_Level5_COMPZ.MODZ_n473647x12328.gctx")
+
     for file_name in glob.glob(os.path.join(map_files["GSE70138_Broad_LINCS_Level5_COMPZ"], "*.gctx")):
         gtcx_ii = file_name
 
-    genes_i = [genes[r[0]] for r in parse.parse(
-        gtcx_i, cid=[[x[0] for x in cids if x[1] == 1][0]]).data_df.iterrows()]
-    genes_ii = [genes[r[0]] for r in parse.parse(gtcx_ii, cid=[
-                                                 [x[0] for x in cids if x[1] == 2][0]]).data_df.iterrows()]  # Just to make sure.
+    genes_i = [genes[r[0]] for r in parse.parse(gtcx_i, cid=[[x[0] for x in cids if x[1] == 1][0]]).data_df.iterrows()]
+    genes_ii = [genes[r[0]] for r in parse.parse(gtcx_ii, cid=[[x[0] for x in cids if x[1] == 2][0]]).data_df.iterrows()]  # Just to make sure.
 
-    for cid in cids:
+    for cid in cids: # for each sign id  
         if cid[1] == 1:
             expr = np.array(parse.parse(gtcx_i, cid=[cid[0]]).data_df).ravel()
             genes = genes_i
@@ -173,6 +203,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
             continue
         R = zip(genes, expr)
         R = sorted(R, key=lambda tup: -tup[1])
+        
         with h5py.File(os.path.join(signaturesdir, "%s.h5" % cid[0]), "w") as hf:
             hf.create_dataset("expr", data=[float(r[1]) for r in R])
             hf.create_dataset("gene", data=DataSignature.h5_str([r[0] for r in R]))
@@ -202,7 +233,7 @@ def read_l1000(mini_sig_info_file, connectivitydir):
 
     with open(mini_sig_info_file, "r") as f:  # read the minisign file
         for l in f:
-            l = l.rstrip("\n").split("\t")    # keeps 
+            l = l.rstrip("\n").split("\t")    # keeps perturbagens from touchdown
             if int(l[4]) == 1:
                 touchstones.update([l[1]])    # put records like BRD-K25943794 in the set (second record of mini_sig_info_file = perturbagen id)
             siginfo[l[0]] = l[1]              # REP.A001_A375_24H:K17 : BRD-A29289453
@@ -218,7 +249,7 @@ def read_l1000(mini_sig_info_file, connectivitydir):
 
         if pert_id in pertid_inchikey:
             ik = pertid_inchikey[pert_id]
-            inchikey_sigid[ik] += [sig_id]  # inchikey -> [list of perturbagen ids]
+            inchikey_sigid[ik] += [sig_id]  # inchikey -> filename without extension
 
     #returns the following mappings from L1000:
     # inchikey_sigid:   mol_inchikey -> mol_id (h5 filename without extension)
@@ -239,8 +270,7 @@ def get_summary(v):
 
 def do_consensus(ik_matrices, consensus):
 
-    inchikeys = [ik.split(".h5")[0]
-                 for ik in os.listdir(ik_matrices) if ik.endswith(".h5")]
+    inchikeys = [ik.split(".h5")[0] for ik in os.listdir(ik_matrices) if ik.endswith(".h5")]
 
     def consensus_signature(ik):
         with h5py.File("%s/%s.h5" % (ik_matrices, ik), "r") as hf:
@@ -251,7 +281,7 @@ def do_consensus(ik_matrices, consensus):
     X = np.array([consensus_signature(ik) for ik in inchikeys])
 
     with h5py.File(consensus, "w") as hf:
-        hf.create_dataset("inchikeys", data=np.array(inchikeys, dtype=h5py.special_dtype(vlen=str)))
+        hf.create_dataset("inchikeys", data=np.array(inchikeys, DataSignature.string_dtype()))
         hf.create_dataset("X", data=X)
 
     return X, inchikeys
@@ -301,6 +331,12 @@ def main(args):
     # -mp: signature0full_path/raw/models           # --model_path
     # -m: 'fit'                                     # --method
 
+    # NS added: make skip everything if the final outputfile is already present
+    if os.path.exists(args.output_file) and args.method == "fit":
+        main._log.info("Preprocessed file {} is already present for {}, skipping the preprocessing step.".format(args.output_file,dataset_code))
+        return
+
+
     mini_sig_info_file = os.path.join(args.models_path, 'mini_sig_info.tsv')  # NS file with 83637 records from L1000?
 
     dataset = Dataset.get(dataset_code) #NS D1.001 dataset object built to queryour sql database
@@ -313,11 +349,11 @@ def main(args):
 
     # NS: 13 datasources in dataset_had_datasource table for the 2020 update
     for ds in dataset.datasources:
-        map_files[ds.datasource_name] = ds.data_path
+        map_files[ds.datasource_name] = ds.data_path       #Ns path is /aloy/scratch/sbnb-adm/CC/download/<datasource_name>
 
     main._log.debug("Running preprocess fit method for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
-    signaturesdir = os.path.join(args.models_path, "signatures") #signature0full_path/raw/models/signatures
+    signaturesdir = os.path.join(args.models_path, "signatures_test") #signature0full_path/raw/models/signatures
                                                                  # contains 83 639 h5 files and a sigs.ready file
 
     if os.path.exists(signaturesdir) is False:
@@ -429,7 +465,7 @@ def main(args):
         params["num_jobs"] = len(sig_map.keys()) / 10
         params["jobdir"] = job_path
         params["job_name"] = "CC_D1_conn"
-        params["elements"] = sig_map
+        params["elements"] = sig_map  
         # reminder: sigmap is a dict with the following entry type:
         #'REP.A001_A375_24H:E14' : {"file": "signature0full_path/raw/models/signatures/REP.A001_A375_24H:E14.h5"}
         params["memory"] = 10
@@ -451,7 +487,7 @@ def main(args):
             with open(os.path.join(connectivitydir, readyfile), "w") as f:
                 f.write("")
 
-    readyfile = "agg_matrices.ready_test"
+    readyfile = "agg_matrices.ready"
 
     # MATRIX AGGREGATION JOB
     if not os.path.exists(os.path.join(ik_matrices, readyfile)):
@@ -464,21 +500,6 @@ def main(args):
             # inchikey_sigid:   mol_inchikey -> mol_id (h5 filename without extension)
             # inchikey_inchi:   mol_inchikey -> mol_inchi
             # siginfo:          REP.A001_A375_24H:K17 -> mol_id
-
-            #NS reducing the number of entries for test
-
-            print("Choosing a random sample")
-            random_keys= random.sample(list(inchikey_sigid.keys()), 10)
-            inchikey_sigid = {k:v for (k,v) in inchikey_sigid.items() if k in random_keys}
-            inchikey_inchi = {k:v for (k,v) in inchikey_inchi.items() if k in random_keys}
-
-            print("inchikey_sigid-->\n", inchikey_sigid)
-            print("inchikey_inchi-->\n", inchikey_inchi)
-            print("siginfo-->\n", siginfo)
-            if len(inchikey_sigid) == 0 or len(inchikey_inchi) ==0:
-                print("Empty sample dict!")
-                sys.exit(1)
-            print("Done")
 
         main._log.info("Doing aggregation matrices")
 
@@ -537,7 +558,7 @@ def main(args):
         keys.append(str(k))
         words.update([x[0] for x in inchikey_raw[k]])
 
-    if args.method == 'predict' and features is not None:
+    if args.method == 'predict' and features is not None: # NS: added the first cond, other 'features' was unreferenced when not using 'predict'
         orderwords = features_list
     else:
         orderwords = list(words)
@@ -558,12 +579,10 @@ def main(args):
         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
             hf.create_dataset("features", data=np.array(orderwords, h5py.special_dtype(vlen=str)))
 
-        print("TEST PASSED OK! Quitting.")
-        sys.exit(0)
-
     if args.method == 'predict':
-        shutil.rmtree(mpath)
+        #shutil.rmtree(mpath) # NS comment
         # shutil.rmtree(connectivitydir)
+        pass
 
 if __name__ == '__main__':
     main(sys.argv[1:])

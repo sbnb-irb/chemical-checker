@@ -353,7 +353,7 @@ def main(args):
 
     main._log.debug("Running preprocess fit method for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
-    signaturesdir = os.path.join(args.models_path, "signatures") #signature0full_path/raw/models/signatures
+    signaturesdir = os.path.join(args.models_path, "signatures_test") #signature0full_path/raw/models/signatures
                                                                  # contains 83 639 h5 files and a sigs.ready file
 
     if os.path.exists(signaturesdir) is False:
