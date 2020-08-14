@@ -397,18 +397,27 @@ def main(args):
             print("signs_to_test is", signs_to_test)
 
         # Parsing the record file
+        ok=False
         with open(mini_sig_info_file) as f:
             for l in f:
                 l = l.rstrip("\n").split("\t")
-                
-                if TEST and l[0] in signs_to_test and l[2] == "trt_cp":
-                    # update the set cp_sigs with records such as 'REP.A001_A375_24H:E14'
-                    print("selecting ", l[0])
-                    cp_sigs.update([l[0]])
 
-                elif l[2] == "trt_cp":
+                if TEST:
+                    print("l[0]",l[0])
+                    if l[0] in signs_to_test and l[2] == "trt_cp":
+                        # update the set cp_sigs with records such as 'REP.A001_A375_24H:E14'
+                        print("selecting ", l[0])
+                        cp_sigs.update([l[0]])
+                        ok = True
+
+                elif not TEST and l[2] == "trt_cp":
                     # update the set cp_sigs with records such as 'REP.A001_A375_24H:E14'
                     cp_sigs.update([l[0]])
+                    ok = True
+
+        if not ok:
+            print("Problem with selecting signatures, cp_sigs is", cp_sigs)
+            sys.exit(1)
 
 
 
