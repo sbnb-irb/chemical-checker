@@ -586,6 +586,8 @@ def main(args):
 
     keys = []
     words = set()
+
+    if TEST: print("inchikey_raw.keys()", inchikey_raw.keys())
     for k in sorted(inchikey_raw.keys()):
         keys.append(str(k))
         words.update([x[0] for x in inchikey_raw[k]])
@@ -595,6 +597,7 @@ def main(args):
     else:
         orderwords = list(words)
         orderwords.sort()
+    if TEST: print("orderwords", orderwords)
     raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
     wordspos = {k: v for v, k in enumerate(orderwords)}
 
