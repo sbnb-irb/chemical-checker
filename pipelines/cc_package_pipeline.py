@@ -16,7 +16,7 @@ from chemicalchecker.util import Config
 
 from update_resources.generate_chembl_files import generate_chembl_files # Nico
 
-DEBUG = False
+DEBUG = True
 #-----------
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -207,6 +207,9 @@ if not DEBUG:
 
 
 # TASK: Calculate signatures 0
+if DEBUG:
+    pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
+
 s0_params = {'CC_ROOT': CC_ROOT, 'cc_old_path': CC_OLD_ROOT}
 s0_task = CCFit(cc_type='sign0', **s0_params)
 pp.add_task(s0_task)

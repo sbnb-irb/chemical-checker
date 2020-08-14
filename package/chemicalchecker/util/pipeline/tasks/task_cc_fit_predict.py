@@ -288,7 +288,7 @@ class CCFit(BaseTask, BaseOperator):
                     raise Exception(
                         dependency + " CC type is not available and it is required for " + self.cc_type)
                 else:
-                    print("INFO: Dependency {} is available for calculating {}".format(dependency, self.cctype.) )
+                    print("INFO: Dependency {} is available for calculating {}".format(dependency, self.cctype))
 
 
         job_path = None
