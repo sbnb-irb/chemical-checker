@@ -1,3 +1,7 @@
+"""Validation set generation.
+
+Fetch the validation set generation scripts and run them.
+"""
 import os
 import sys
 from subprocess import call

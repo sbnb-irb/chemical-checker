@@ -1,13 +1,21 @@
-"""Implementation of the abstract signature class.
+"""Signature Base class.
 
-Each signature class derived from this base class will have to implement the
-`fit`, `predict` and `validate` methods. As the underlying data format for
-every signature is the same, this class implements the iterator and attribute
-getter.
-Also implements the signature status, and persistence of parameters.
+Each signature class inherit from this base class. They will have to implement
+the ``fit`` and ``predict`` methods.
+
+At initialization this class enforce the signature internal directory organization:
+
+  * **signature_path**: the signature root (e.g. ``/root/full/A/A1/A1.001/sign2/``)
+  * **model_path** ``./models``: where models learned at fit time are stored
+  * **stats_path** ``./stats``: where statistic are collected
+  * **diags_path** ``./diags``: where diagnostics are saved
+
+Also implements the ``validate`` function, signature status, generic HPC functions,
+and provide functions to "move" in the CC (e.g. getting same signature for
+different space, different molset, CC instance, etc...).
 """
 import os
-import six    #NS: Python 2 and 3 compatibility library
+import six  # NS: Python 2 and 3 compatibility library
 import sys
 import h5py
 import json
@@ -36,19 +44,18 @@ class cached_property(object):
         self._attr_name = func.__name__           # grabs the name of the decorated func
         self._func = func
 
-    def __get__(self, instance, owner):           
-        attr = self._func(instance)                #execute the method (bizarre to have instance inside parenthesis)
-        setattr(instance, self._attr_name, attr)   #setattr(object, fctname-->f(object))
+    def __get__(self, instance, owner):
+        # execute the method (bizarre to have instance inside parenthesis)
+        attr = self._func(instance)
+        # setattr(object, fctname-->f(object))
+        setattr(instance, self._attr_name, attr)
         return attr                              # returns f(object)
 
 
 @logged
 @six.add_metaclass(ABCMeta)
 class BaseSignature(object):
-    """A Signature base class.
-
-    Implements methods and checks common to all signatures.
-    """
+    """Signature Base class."""
 
     @abstractmethod
     def __init__(self, signature_path, dataset, **params):
@@ -57,19 +64,25 @@ class BaseSignature(object):
         self.cctype = signature_path.split("/")[-1]  # NS: ex sign0
         self.molset = signature_path.split("/")[-5]  # NS: ex full, reference
         self.signature_path = os.path.abspath(signature_path)
-        
-        if sys.version_info[0] == 2:                 # NS if Python2 
+
+        if sys.version_info[0] == 2:                 # NS if Python2
             if isinstance(self.signature_path, unicode):
-                self.signature_path = self.signature_path.encode('ascii','ignore')
+                self.signature_path = self.signature_path.encode(
+                    'ascii', 'ignore')
         self.readyfile = "fit.ready"
 
-        # NS Creates the 'models', 'stats', 'diags' folders if they don't exist together with signx
-        if not os.path.isdir(self.signature_path):  # NS If sign path doesn't exist, create it with permissions 775
-            BaseSignature.__log.info("Initializing new signature in: %s" % self.signature_path)
+        # NS Creates the 'models', 'stats', 'diags' folders if they don't exist
+        # together with signx
+        # NS If sign path doesn't exist, create it with permissions 775
+        if not os.path.isdir(self.signature_path):
+            BaseSignature.__log.info(
+                "Initializing new signature in: %s" % self.signature_path)
             original_umask = os.umask(0)
-            os.makedirs(self.signature_path, 0o775)   # Ns Does doing this change the sys umask?
+            # Ns Does doing this change the sys umask?
+            os.makedirs(self.signature_path, 0o775)
             os.umask(original_umask)
-        self.model_path = os.path.join(self.signature_path, "models") # will store the results of the 'fit' method
+        # will store the results of the 'fit' method
+        self.model_path = os.path.join(self.signature_path, "models")
 
         if not os.path.isdir(self.model_path):
             BaseSignature.__log.info(
@@ -80,14 +93,16 @@ class BaseSignature(object):
         self.stats_path = os.path.join(self.signature_path, "stats")
 
         if not os.path.isdir(self.stats_path):
-            BaseSignature.__log.info("Creating stats_path in: %s" % self.stats_path)
+            BaseSignature.__log.info(
+                "Creating stats_path in: %s" % self.stats_path)
             original_umask = os.umask(0)
             os.makedirs(self.stats_path, 0o775)
             os.umask(original_umask)
         self.diags_path = os.path.join(self.signature_path, "diags")
 
         if not os.path.isdir(self.diags_path):
-            BaseSignature.__log.info("Creating diags_path in: %s" % self.diags_path)
+            BaseSignature.__log.info(
+                "Creating diags_path in: %s" % self.diags_path)
             original_umask = os.umask(0)
             os.makedirs(self.diags_path, 0o775)
             os.umask(original_umask)
@@ -102,79 +117,6 @@ class BaseSignature(object):
         if os.path.exists(os.path.join(self.model_path, self.readyfile)):
             os.remove(os.path.join(self.model_path, self.readyfile))
 
-    def func_hpc(self, func_name, *args, **kwargs):
-        """Execute the *any* method on the configured HPC.
-
-        Args:
-            args(tuple): the arguments for of the fit method
-            kwargs(dict): arguments for the HPC method.
-        """
-        # read config file,# NS: get the cc_config var otherwise set it to os.environ['CC_CONFIG']
-        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])  
-        cfg = Config(cc_config)
-
-        # create job directory if not available
-        job_base_path = cfg.PATH.CC_TMP
-        tmp_dir = tempfile.mktemp(prefix='tmp_', dir=job_base_path)
-        job_path = kwargs.get("job_path", tmp_dir)
-        if not os.path.isdir(job_path):
-            os.mkdir(job_path)
-        # check cpus
-        cpu = kwargs.get("cpu", 1)
-        # create script file
-        script_lines = [
-            "import os, sys",
-            "os.environ['OMP_NUM_THREADS'] = str(%s)" % cpu,
-            "import pickle",
-            "sign, args = pickle.load(open(sys.argv[1], 'rb'))",
-            "sign.%s(*args)" % func_name,
-            "print('JOB DONE')"
-        ]
-        if kwargs.get("delete_job_path", False):
-            script_lines.append("print('DELETING JOB PATH: %s')" % job_path)
-            script_lines.append("os.system('rm -rf %s')" % job_path)
-
-        script_name = '%s_%s_hpc.py' % (self.__class__.__name__, func_name)
-        script_path = os.path.join(job_path, script_name)
-
-        # Write the hpc script
-        with open(script_path, 'w') as fh:
-            for line in script_lines:
-                fh.write(line + '\n')
-
-        # pickle self (the data) and fit args
-        pickle_file = '%s_%s_hpc.pkl' % (self.__class__.__name__, func_name)
-        pickle_path = os.path.join(job_path, pickle_file)
-        pickle.dump((self, args), open(pickle_path, 'wb'))
-
-        # hpc parameters
-        params = kwargs
-        params["num_jobs"] = 1
-        params["jobdir"] = job_path
-        params["job_name"] = script_name
-        params["wait"] = False
-
-        # job command
-        singularity_image = cfg.PATH.SINGULARITY_IMAGE
-        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
-            " singularity exec {} python {} {}"
-        command = command.format(
-            os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
-            singularity_image, script_name, pickle_file)
-        # submit jobs
-        cluster = HPC.from_config(Config())
-        cluster.submitMultiJob(command, **params)
-        return cluster
-
-    def fit_hpc(self, *args, **kwargs):
-        """Execute the fit method on the configured HPC.
-
-        Args:
-            args(tuple): the arguments for of the fit method
-            kwargs(dict): arguments for the HPC method.
-        """
-        return self.func_hpc("fit", *args, **kwargs)
-
     @abstractmethod
     def predict(self):
         """Use the fitted models to go from input to output."""
@@ -185,28 +127,6 @@ class BaseSignature(object):
         if not self.is_fit():
             raise Exception(
                 "Before calling predict method, fit method needs to be called.")
-
-    def subsample(self, n):
-        """Subsample from a signature without replacement.
-
-            Args:
-               n(int): Maximum number of samples (default=10000).
-
-            Returns:
-               V(matrix): A (samples, features) matrix.
-               keys(array): The list of keys.
-        """
-        self.__log.debug("Subsampling dataset (n=%d)" % n)
-        if n > len(self.keys):
-            V = self[:]
-            keys = self.keys
-        else:
-            idxs = np.array(sorted(np.random.choice(
-                len(self.keys), n, replace=False)))
-            with h5py.File(self.data_path, "r") as hf:
-                V = hf["V"][idxs]
-            keys = np.array(self.keys)[idxs]
-        return V, keys
 
     def validate_versus_signature(self, sign, n_samples=1000, n_neighbors=5, apply_mappings=True, metric='cosine'):
         """Perform validations.
@@ -330,8 +250,10 @@ class BaseSignature(object):
         validation_path = self.signature_path + \
             '/../../../../../tests/validation_sets/'
         if not os.path.exists(validation_path):
-            self.__log.warn("Standard validation path does not exist, taking validations from examples")
-            validation_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "examples/validation_sets/")
+            self.__log.warn(
+                "Standard validation path does not exist, taking validations from examples")
+            validation_path = os.path.join(os.path.dirname(
+                os.path.realpath(__file__)), "examples/validation_sets/")
         validation_files = os.listdir(validation_path)
         self.__log.info(validation_path)
         plot = Plot(self.dataset, self.stats_path, validation_path)
@@ -376,115 +298,83 @@ class BaseSignature(object):
         else:
             return False
 
-    def consistency_check(self):
-        """Check that signature is valid."""
-        if os.path.isfile(self.data_path):
-            # check that keys are unique
-            if len(self.keys) != len(self.unique_keys):
-                raise Exception("Inconsistent: keys are not unique.")
-            # check that amout of keys is same as amount of signatures
-            with h5py.File(self.data_path, 'r') as hf:
-                nr_signatures = hf['V'].shape[0]
-            if len(self.keys) > nr_signatures:
-                raise Exception("Inconsistent: more Keys than signatures.")
-            if len(self.keys) < nr_signatures:
-                raise Exception("Inconsistent: more signatures than Keys.")
-            # check that keys are sorted
-            if not np.all(self.keys[:-1] <= self.keys[1:]):
-                raise Exception("Inconsistent: Keys are not sorted.")
+    def func_hpc(self, func_name, *args, **kwargs):
+        """Execute the *any* method on the configured HPC.
 
-    def map(self, out_file):
-        """Map signature throught mappings."""
-        if "mappings" not in self.info_h5:
-            raise Exception("Data file has no mappings.")
-        with h5py.File(self.data_path, 'r') as hf:
-            mappings = dict(hf['mappings'][:])
-        # avoid trivial mappings (where key==value)
-        to_map = set(mappings.keys()) - set(mappings.values())
-        if len(to_map) == 0:
-            # corner case where there's nothing to map
-            with h5py.File(self.data_path, 'r') as hf:
-                src_keys = hf['keys'][:]
-                src_vectors = hf['V'][:]
-            with h5py.File(out_file, "w") as hf:
-                hf.create_dataset('keys', data=src_keys)
-                hf.create_dataset('V', data=src_vectors, dtype=np.float32)
-                hf.create_dataset("shape", data=src_vectors.shape)
-                hf.create_dataset(
-                    "date", data=[datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
-            return
-        # prepare key-vector arrays
-        dst_keys = list()
-        dst_vectors = list()
-        for dst_key in sorted(to_map):
-            dst_keys.append(dst_key)
-            dst_vectors.append(self[mappings[dst_key]])
-        # to numpy arrays
-        dst_keys = np.array(dst_keys)
-        matrix = np.vstack(dst_vectors)
-        # join with current key-signatures
-        with h5py.File(self.data_path, 'r') as hf:
-            src_vectors = hf['V'][:]
-        dst_keys = np.concatenate((dst_keys, self.keys))
-        matrix = np.concatenate((matrix, src_vectors))
-        # get them sorted
-        sorted_idx = np.argsort(dst_keys)
-        with h5py.File(out_file, "w") as hf:
-            hf.create_dataset('keys', data=dst_keys[sorted_idx])
-            hf.create_dataset('V', data=matrix[sorted_idx], dtype=np.float32)
-            hf.create_dataset("shape", data=matrix.shape)
-            hf.create_dataset(
-                "date", data=[datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+        Args:
+            args(tuple): the arguments for of the fit method
+            kwargs(dict): arguments for the HPC method.
+        """
+        # read config file,# NS: get the cc_config var otherwise set it to
+        # os.environ['CC_CONFIG']
+        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
+        cfg = Config(cc_config)
+
+        # create job directory if not available
+        job_base_path = cfg.PATH.CC_TMP
+        tmp_dir = tempfile.mktemp(prefix='tmp_', dir=job_base_path)
+        job_path = kwargs.get("job_path", tmp_dir)
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+        # check cpus
+        cpu = kwargs.get("cpu", 1)
+        # create script file
+        script_lines = [
+            "import os, sys",
+            "os.environ['OMP_NUM_THREADS'] = str(%s)" % cpu,
+            "import pickle",
+            "sign, args = pickle.load(open(sys.argv[1], 'rb'))",
+            "sign.%s(*args)" % func_name,
+            "print('JOB DONE')"
+        ]
+        if kwargs.get("delete_job_path", False):
+            script_lines.append("print('DELETING JOB PATH: %s')" % job_path)
+            script_lines.append("os.system('rm -rf %s')" % job_path)
+
+        script_name = '%s_%s_hpc.py' % (self.__class__.__name__, func_name)
+        script_path = os.path.join(job_path, script_name)
+
+        # Write the hpc script
+        with open(script_path, 'w') as fh:
+            for line in script_lines:
+                fh.write(line + '\n')
+
+        # pickle self (the data) and fit args
+        pickle_file = '%s_%s_hpc.pkl' % (self.__class__.__name__, func_name)
+        pickle_path = os.path.join(job_path, pickle_file)
+        pickle.dump((self, args), open(pickle_path, 'wb'))
+
+        # hpc parameters
+        params = kwargs
+        params["num_jobs"] = 1
+        params["jobdir"] = job_path
+        params["job_name"] = script_name
+        params["wait"] = False
+
+        # job command
+        singularity_image = cfg.PATH.SINGULARITY_IMAGE
+        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
+            " singularity exec {} python {} {}"
+        command = command.format(
+            os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
+            singularity_image, script_name, pickle_file)
+        # submit jobs
+        cluster = HPC.from_config(Config())
+        cluster.submitMultiJob(command, **params)
+        return cluster
+
+    def fit_hpc(self, *args, **kwargs):
+        """Execute the fit method on the configured HPC.
+
+        Args:
+            args(tuple): the arguments for of the fit method
+            kwargs(dict): arguments for the HPC method.
+        """
+        return self.func_hpc("fit", *args, **kwargs)
 
     def __repr__(self):
         """String representig the signature."""
         return self.data_path
-
-    def generator_fn(self, batch_size=None):
-        """Return the generator function that we can query for batches."""
-        hf = h5py.File(self.data_path, 'r')
-        dset = hf['V']
-        total = dset.shape[0]
-        if not batch_size:
-            batch_size = total
-
-        def _generator_fn():
-            beg_idx, end_idx = 0, batch_size
-            while True:
-                if beg_idx >= total:
-                    self.__log.debug("EPOCH completed")
-                    beg_idx = 0
-                    return
-                yield dset[beg_idx: end_idx]
-                beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
-
-        return _generator_fn
-
-    def get_non_redundant_intersection(self, sign):
-        """Return the non redundant intersection between two signatures.
-
-        (i.e. keys and vectors that are common to both signatures.)
-        N.B: to maximize overlap it's better to use signatures of type 'full'.
-        N.B: Near duplicates are found in the first signature.
-        """
-        from chemicalchecker.util.remove_near_duplicates import RNDuplicates
-        shared_keys = self.unique_keys.intersection(sign.unique_keys)
-        self.__log.debug("%s shared keys.", len(shared_keys))
-        _, self_matrix = self.get_vectors(shared_keys)
-        rnd = RNDuplicates()
-        nr_keys, nr_matrix, mappings = rnd.remove(
-            self_matrix, keys=list(shared_keys))
-        a, self_matrix = self.get_vectors(nr_keys)
-        b, sign_matrix = sign.get_vectors(nr_keys)
-        assert(all(a == b))
-        return a, self_matrix, sign_matrix
-
-    def get_intersection(self, sign):
-        """Return the intersection between two signatures."""
-        shared_keys = self.unique_keys.intersection(sign.unique_keys)
-        a, self_matrix = self.get_vectors(shared_keys)
-        b, sign_matrix = sign.get_vectors(shared_keys)
-        return a, self_matrix, sign_matrix
 
     def to_csv(self, filename, smiles=None):
         """Write smiles to h5.
@@ -554,10 +444,36 @@ class BaseSignature(object):
         new_path = "/".join(folds)
         return eval(sign_type)(new_path, self.dataset)
 
+    def get_non_redundant_intersection(self, sign):
+        """Return the non redundant intersection between two signatures.
+
+        (i.e. keys and vectors that are common to both signatures.)
+        N.B: to maximize overlap it's better to use signatures of type 'full'.
+        N.B: Near duplicates are found in the first signature.
+        """
+        from chemicalchecker.util.remove_near_duplicates import RNDuplicates
+        shared_keys = self.unique_keys.intersection(sign.unique_keys)
+        self.__log.debug("%s shared keys.", len(shared_keys))
+        _, self_matrix = self.get_vectors(shared_keys)
+        rnd = RNDuplicates()
+        nr_keys, nr_matrix, mappings = rnd.remove(
+            self_matrix, keys=list(shared_keys))
+        a, self_matrix = self.get_vectors(nr_keys)
+        b, sign_matrix = sign.get_vectors(nr_keys)
+        assert(all(a == b))
+        return a, self_matrix, sign_matrix
+
+    def get_intersection(self, sign):
+        """Return the intersection between two signatures."""
+        shared_keys = self.unique_keys.intersection(sign.unique_keys)
+        a, self_matrix = self.get_vectors(shared_keys)
+        b, sign_matrix = sign.get_vectors(shared_keys)
+        return a, self_matrix, sign_matrix
+
     def remove_redundancy(self, cpu=2, overwrite=False):
         '''Remove redundancy of a signature (it generates) new data in the references folders.
         Only allowed for sign* (*not* sign1 or sign2).
-    
+
         Args:
             cpu(int): Number of CPUs (default=2),
             overwrite(bool): Overwrite existing (default=False).

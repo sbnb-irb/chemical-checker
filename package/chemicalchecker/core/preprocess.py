@@ -1,15 +1,14 @@
-"""Signature type 0.
+"""Data preprocessing.
 
-Signature type 0 are basically raw features. Each bioactive space has
-a peculiar format which might be categorial, discrete or continous.
-Given the diversity of formats and datasources the signaturization process
-is started here but performed in tailored pre-process scripts (available
-in the pipeline folder).
+Given the diversity of formats and datasources, the signaturization process
+starts in tailored pre-process scripts (available in the package ``scripts``
+folder).
 The `fit` method invoke the pre-process script with a `fit` argument where
 we essentially `learn` the feature to consider.
-The `predict` argument (called by the `predict` method) allow deriving
-signatures without altering the feature set. This can also be used when mapping
+The `predict` method allow deriving signatures without altering the feature
+set. This can also be used when mapping
 to a bioactive space different entities (i.e. not only compounds)
+
 E.g.
 categorical: "C0015230,C0016436..." which translates in n array of 0s or 1s.
 discrete: "GO:0006897(8),GO:0006796(3),..." which translates in an array of
