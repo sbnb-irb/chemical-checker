@@ -29,6 +29,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
 
     readyfile = "sigs.ready"
     if os.path.exists(os.path.join(signaturesdir, readyfile)):
+        print("sigs.ready is present in {}, nothing to parse!".format(signaturesdir))
         return
 
     touchstone = set()
