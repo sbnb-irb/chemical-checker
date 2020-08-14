@@ -544,6 +544,7 @@ def main(args):
         params = {}
 
         params["num_jobs"] = len(inchikey_sigid.keys()) / 10
+        if TEST: params["num_jobs"] = len(inchikey_sigid.keys())
         params["jobdir"] = job_path
         params["job_name"] = "CC_D1_agg_mat"
         params["elements"] = list(inchikey_sigid.keys())  # dict_key view of mol_ids
