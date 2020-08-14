@@ -195,5 +195,7 @@ napoleon_use_ivar = False
 napoleon_use_param = True
 napoleon_use_rtype = True
 
+
 def setup(app):
     app.add_css_file('css/logo.css')
+    app.add_css_file('css/overrides.css')
