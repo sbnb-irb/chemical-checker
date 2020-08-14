@@ -17,6 +17,7 @@ from chemicalchecker.core.preprocess import Preprocess
 from chemicalchecker.core.signature_data import DataSignature
 
 # Variables
+TEST = True  # once the 'signatures' dir exists with h5 inside, you can copy a few of them to 'signatures_test' and check if it's working
 dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:] #NS D1.001
 features_file = "features.h5"
 
@@ -354,8 +355,10 @@ def main(args):
 
     main._log.debug("Running preprocess fit method for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
-    signaturesdir = os.path.join(args.models_path, "signatures_test") #signature0full_path/raw/models/signatures
+    signaturesdir = os.path.join(args.models_path, "signatures") #signature0full_path/raw/models/signatures
                                                                  # contains 83 639 h5 files and a sigs.ready file
+    if TEST:
+        signaturesdir = os.path.join(args.models_path, "signatures_test") # You can copy a few h5 from signatures into  signatures_test
 
     if os.path.exists(signaturesdir) is False:
         os.makedirs(signaturesdir)
@@ -386,21 +389,27 @@ def main(args):
         cp_sigs = set()
 
         # NS only testing a few signatures
-        dir_to_search=os.path.join(signaturesdir,"*.h5")
-        print("Looking for h5 signatures in ",dir_to_search)
-        signs_to_test= glob.glob(os.path.join(signaturesdir,"*.h5"))
-        signs_to_test= [s.split('/')[-1][:-3] for s in signs_to_test]
-        print("signs_to_test is", signs_to_test)
+        if TEST:
+            dir_to_search=os.path.join(signaturesdir,"*.h5")
+            print("Looking for h5 signatures in ",dir_to_search)
+            signs_to_test= glob.glob(os.path.join(signaturesdir,"*.h5"))
+            signs_to_test= [s.split('/')[-1][:-3] for s in signs_to_test]
+            print("signs_to_test is", signs_to_test)
 
-        sys.exit(1)
         # Parsing the record file
         with open(mini_sig_info_file) as f:
             for l in f:
                 l = l.rstrip("\n").split("\t")
-                if l[0] in signs_to_test and l[2] == "trt_cp":
+                
+                if TEST and l[0] in signs_to_test and l[2] == "trt_cp":
                     # update the set cp_sigs with records such as 'REP.A001_A375_24H:E14'
                     print("selecting ", l[0])
                     cp_sigs.update([l[0]])
+
+                elif l[2] == "trt_cp":
+                    # update the set cp_sigs with records such as 'REP.A001_A375_24H:E14'
+                    cp_sigs.update([l[0]])
+
 
 
         sig_map = {}
