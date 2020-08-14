@@ -1,10 +1,12 @@
-"""This class fetches examples to be used in tutorials and notebooks"""
+"""Analysis example data
 
+This class fetches examples to be used in tutorials and notebooks.
+"""
 import os
-import numpy as np
 import csv
-import pandas as pd
 import pickle
+import numpy as np
+import pandas as pd
 
 from chemicalchecker.util import logged
 

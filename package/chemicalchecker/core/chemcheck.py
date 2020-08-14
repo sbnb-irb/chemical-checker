@@ -1,6 +1,6 @@
-"""Structure and access to the Chemical Checker signatures.
+"""Entry point to the Chemical Checker signatures.
 
-The most common entrypoint in a CC project is the :class:`ChemicalChecker`::
+The most common starting point in a CC project is the :class:`ChemicalChecker`::
 
     from chemicalchecker import ChemicalChecker
     cc = ChemicalChecker()
