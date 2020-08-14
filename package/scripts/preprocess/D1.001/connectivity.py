@@ -101,13 +101,13 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touc
     for f in os.listdir(signatures_dir):          # Going through all h5 files of gene expression data to match our list of up/down-regulated genes
         if ".h5" not in f:
             continue
-        print("match against-->", f)
+        #print("match against-->", f)
         sig = f.split("/")[-1].split(".h5")[0]   # file name without extension, ex: REP.A001_A375_24H:A19.h5
         sinfo = sig_info[sig]                    # (pert_id, treatment, cell_line, is_touchstone)
 
         if only_touchstone: # True
             if sinfo[0] not in touch or sinfo[2] not in core_cells:
-                print(f,"not in touchstone or in core_cells, skipping")
+                #print(f,"not in touchstone or in core_cells, skipping")
                 continue
 
         # Each signature will be compared with all the others, and connectivity scores are calculated
@@ -185,7 +185,7 @@ if __name__ == '__main__':
 
     for k, v in sigs.items():               # k=signid1, v={'file': pathtosignature1.h5}
 
-        print("Recovering up/down-regulated genes in signature {}".format(k))
+        #print("Recovering up/down-regulated genes in signature {}".format(k))
         if "up" in v:                       # If up/downregulated genes have already been selected (not our case)
 
             main(k, v["up"], v["down"], mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs)
