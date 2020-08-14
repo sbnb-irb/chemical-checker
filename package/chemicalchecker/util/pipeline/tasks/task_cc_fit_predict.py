@@ -287,6 +287,9 @@ class CCFit(BaseTask, BaseOperator):
                 if not sign.available():
                     raise Exception(
                         dependency + " CC type is not available and it is required for " + self.cc_type)
+                else:
+                    print("INFO: Dependency {} is available for calculating {}".format(dependency, self.cctype.) )
+
 
         job_path = None
 
@@ -336,15 +339,16 @@ class CCFit(BaseTask, BaseOperator):
                     self.cc_type][0]
             ]
 
-            if self.full_reference:
+            # Preprocessing scripts
+            if self.full_reference: # True for sign0
                 if self.cc_type in SPECIFIC_SCRIPTS:
-                    script_lines += SPECIFIC_SCRIPTS[self.cc_type][0]
+                    script_lines += SPECIFIC_SCRIPTS[self.cc_type][0]  # i.e SIGN0_SCRIPT_FR, i.e will call cc.preprocess
                 else:
                     script_lines += [sub.replace('<CC_TYPE>', self.cc_type)
                                      for sub in CC_SCRIPT_FR]
             else:
                 if self.cc_type in SPECIFIC_SCRIPTS:
-                    script_lines += SPECIFIC_SCRIPTS[self.cc_type][1]
+                    script_lines += SPECIFIC_SCRIPTS[self.cc_type][1]  # # same for sign0 i.e SIGN0_SCRIPT_FR, i.e will call cc.preprocess
                 else:
                     script_lines += [sub.replace('<CC_TYPE>', self.cc_type)
                                      for sub in CC_SCRIPT_F]
@@ -353,7 +357,8 @@ class CCFit(BaseTask, BaseOperator):
 
             script_name = os.path.join(job_path, self.cc_type + '_script.py')
 
-            # Now writing the script itself
+
+            # Python script to launch jobs on the cluster
             with open(script_name, 'w') as fh:
                 for line in script_lines:
                     fh.write(line + '\n')
@@ -375,6 +380,7 @@ class CCFit(BaseTask, BaseOperator):
             cluster = HPC.from_config(config_cc)
             jobs = cluster.submitMultiJob(command, **params)
 
+        # Calculating the signature
         dataset_not_done = []
 
         for code in dataset_codes:

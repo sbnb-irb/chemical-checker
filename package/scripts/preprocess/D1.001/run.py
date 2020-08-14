@@ -192,7 +192,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
     genes_i = [genes[r[0]] for r in parse.parse(gtcx_i, cid=[[x[0] for x in cids if x[1] == 1][0]]).data_df.iterrows()]
     genes_ii = [genes[r[0]] for r in parse.parse(gtcx_ii, cid=[[x[0] for x in cids if x[1] == 2][0]]).data_df.iterrows()]  # Just to make sure.
 
-    for cid in cids:
+    for cid in cids: # for each sign id  
         if cid[1] == 1:
             expr = np.array(parse.parse(gtcx_i, cid=[cid[0]]).data_df).ravel()
             genes = genes_i
@@ -203,6 +203,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
             continue
         R = zip(genes, expr)
         R = sorted(R, key=lambda tup: -tup[1])
+        
         with h5py.File(os.path.join(signaturesdir, "%s.h5" % cid[0]), "w") as hf:
             hf.create_dataset("expr", data=[float(r[1]) for r in R])
             hf.create_dataset("gene", data=DataSignature.h5_str([r[0] for r in R]))
@@ -329,6 +330,12 @@ def main(args):
     # -o : signature0full_path/raw/preprocess.h5    # --output_file
     # -mp: signature0full_path/raw/models           # --model_path
     # -m: 'fit'                                     # --method
+
+    # NS added: make skip everything if the final outputfile is already present
+    if os.path.exists(args.output_file) and args.method == "fit":
+        main._log.info("Preprocessed file {} is already present for {}, skipping the preprocessing step.".format(args.output_file,dataset_code))
+        return
+
 
     mini_sig_info_file = os.path.join(args.models_path, 'mini_sig_info.tsv')  # NS file with 83637 records from L1000?
 
