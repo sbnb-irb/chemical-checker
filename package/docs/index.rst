@@ -26,7 +26,7 @@ following paper:
 
 	Duran-Frigola M, et al
 	"**Extending the small-molecule similarity principle to all levels of biology with the Chemical Checker.**"
-	Nature Biotechnology (2020) [`natpaper`_]
+	Nature Biotechnology (2020) [`link`_]
 
 and has since produced a number of `related publications`_.
 
@@ -36,7 +36,7 @@ and has since produced a number of `related publications`_.
 .. _Structural Bioinformatics & Network Biology Laboratory: https://sbnb.irbbarcelona.org/
 .. _IRB Barcelona: https://www.irbbarcelona.org/en
 .. _related publications: https://www.bioactivitysignatures.org/publications.html
-.. _natpaper: https://www.nature.com/articles/s41587-020-0502-7
+.. _link: https://www.nature.com/articles/s41587-020-0502-7
 .. _BioactivitySignatures.org: https://www.bioactivitysignatures.org/
 
 
