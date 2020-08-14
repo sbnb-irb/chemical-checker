@@ -30,10 +30,14 @@ following paper:
 
 and has since produced a number of `related publications`_.
 
+.. note::
+    For an overview of the CC universe please visit `bioactivitysignatures.org`_
+
 .. _Structural Bioinformatics & Network Biology Laboratory: https://sbnb.irbbarcelona.org/
 .. _IRB Barcelona: https://www.irbbarcelona.org/en
 .. _related publications: https://www.bioactivitysignatures.org/publications.html
 .. _natpaper: https://www.nature.com/articles/s41587-020-0502-7
+.. _BioactivitySignatures.org: https://www.bioactivitysignatures.org/
 
 
 Source data and datasets
