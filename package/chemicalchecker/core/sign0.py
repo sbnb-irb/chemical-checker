@@ -123,6 +123,11 @@ class sign0(BaseSignature, DataSignature):
             keys = list(set([x[0] for x in pairs]))
             features = list(set([x[1] for x in pairs]))
             self.__log.debug("Processing keys and features")
+            self.__log.debug("Before processing:")
+            self.__log.debug("KEYS: {}".format(keys))
+            self.__log.debug("key_type: {}".format(key_type))            
+
+
             keys, keys_raw, _ = self.process_keys(keys, key_type)
             features = self.process_features(features, len(features))
             keys_dict = dict((k, i) for i, k in enumerate(keys_raw))
@@ -273,6 +278,8 @@ class sign0(BaseSignature, DataSignature):
         if cc is None:
             cc = self.get_cc()
         self.__log.debug("Getting data")
+        self.__log.debug("data_file is {}".format(data_file))
+
         res = self.get_data(pairs=pairs, X=X, keys=keys,
                             features=features, data_file=data_file, key_type=key_type,
                             agg_method=agg_method)
@@ -281,9 +288,11 @@ class sign0(BaseSignature, DataSignature):
         keys_raw = res["keys_raw"]
         features = res["features"]
         input_type = res["input_type"]
+
         self.__log.debug("Sanitizing")
         san = Sanitizer(trim=True, max_features=max_features, chunk_size=chunk_size)
         X, keys, keys_raw, features = san.transform(V=X, keys=keys, keys_raw=keys_raw, features=features, sign=None)
+
         self.__log.debug("Aggregating if necessary")
         agg = Aggregate(method=agg_method, input_type=input_type)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
