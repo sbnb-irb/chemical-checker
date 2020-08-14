@@ -172,7 +172,9 @@ class sign0(BaseSignature, DataSignature):
             self.__log.debug("Processing features")
             features = self.process_features(features, X.shape[1])
             self.__log.debug("Only keeping idxs of relevance")
-            self.__log.debug("idxs is {}".format(idxs)):
+            self.__log.debug("keys is {}".format(keys))
+            self.__log.debug("keys_raw is {}".format(keys_raw))
+            self.__log.debug("idxs is {}".format(idxs))
 
             X = X[idxs]
             self.__log.debug("Setting input type")
