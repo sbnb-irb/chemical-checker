@@ -425,6 +425,7 @@ def main(args):
         # Populate sig_map dict with i.e 'REP.A001_A375_24H:E14' : {"file": "signature0full_path/raw/models/signatures/REP.A001_A375_24H:E14.h5"}
         for SIG in cp_sigs:
             sig_map[SIG] = {"file": "%s/%s.h5" % (signaturesdir, SIG)}
+        if TEST: print("sig_map", sig_map)
 
     if args.method == 'predict':  # False here
 
@@ -492,6 +493,7 @@ def main(args):
         params = {}
 
         params["num_jobs"] = len(sig_map.keys()) / 10
+        if TEST: params["num_jobs"] = len(sig_map.keys())
         params["jobdir"] = job_path
         params["job_name"] = "CC_D1_conn"
         params["elements"] = sig_map  
