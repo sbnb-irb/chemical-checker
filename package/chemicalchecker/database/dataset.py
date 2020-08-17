@@ -1,15 +1,148 @@
-"""Dataset definition.
+"""Bioactivity Dataset definition.
 
-In the CC nomenclature, a dataset is determined by:
+This is how we define a dataset for a bioactivity space:
 
++-----------------------+-----------------------+-----------------------+
+| Column                | Values                | Description           |
++=======================+=======================+=======================+
+| Code                  | e.g. ``A1.001``       | Identifier of the     |
+|                       |                       | dataset.              |
++-----------------------+-----------------------+-----------------------+
+| Level                 | e.g. ``A``            | The CC level.         |
++-----------------------+-----------------------+-----------------------+
+| Coordinate            | e.g. ``A1``           | Coordinates in the CC |
+|                       |                       | organization.         |
++-----------------------+-----------------------+-----------------------+
+| Name                  | 2D fingerprints       | Display, short-name   |
+|                       |                       | of the dataset.       |
++-----------------------+-----------------------+-----------------------+
+| Technical name        | 1024-bit Morgan       | A more technical name |
+|                       | fingerprints          | for the dataset,      |
+|                       |                       | suitable for          |
+|                       |                       | chemo                 |
+|                       |                       | -/bio-informaticians. |
++-----------------------+-----------------------+-----------------------+
+| Description           | 2D fingerprints are…  | This field contains a |
+|                       |                       | long description of   |
+|                       |                       | the dataset. It is    |
+|                       |                       | important that the    |
+|                       |                       | curator outlines here |
+|                       |                       | the importance of the |
+|                       |                       | dataset, why did      |
+|                       |                       | he/she make the       |
+|                       |                       | decision to include   |
+|                       |                       | it, and what are the  |
+|                       |                       | scenarios where this  |
+|                       |                       | dataset may be        |
+|                       |                       | useful.               |
++-----------------------+-----------------------+-----------------------+
+| Unknowns              | ``True``/``False``    | Does the dataset      |
+|                       |                       | contain known/unknown |
+|                       |                       | data? Binding data    |
+|                       |                       | from chemogenomics    |
+|                       |                       | datasets, for         |
+|                       |                       | example, are          |
+|                       |                       | positive-unlabeled,   |
+|                       |                       | so they do contain    |
+|                       |                       | unknowns. Conversely, |
+|                       |                       | chemical fingerprints |
+|                       |                       | or gene expression    |
+|                       |                       | data do not contain   |
+|                       |                       | unknowns.             |
++-----------------------+-----------------------+-----------------------+
+| Discrete              | ``True``/``False``    | The type of data that |
+|                       |                       | ultimately expresses  |
+|                       |                       | de dataset, after the |
+|                       |                       | pre-processing.       |
+|                       |                       | Categorical variables |
+|                       |                       | are not allowed; they |
+|                       |                       | must be converted to  |
+|                       |                       | one-hot encoding or   |
+|                       |                       | binarized. Mixed      |
+|                       |                       | variables are not     |
+|                       |                       | allowed, either.      |
++-----------------------+-----------------------+-----------------------+
+| Keys                  | e.g. ``CPD`` (we use  | In the core CC        |
+|                       | @afernandez           | database, most of the |
+|                       | ``Bioteque``          | times this field will |
+|                       | nomenclature). Can be | correspond to         |
+|                       | ``NULL``.             | ``CPD``, as the CC is |
+|                       |                       | centred on small      |
+|                       |                       | molecules. It only    |
+|                       |                       | makes sense to have   |
+|                       |                       | keys of different     |
+|                       |                       | types when we do      |
+|                       |                       | connectivity          |
+|                       |                       | attempts, that is,    |
+|                       |                       | for example, when     |
+|                       |                       | mapping disease gene  |
+|                       |                       | expression            |
+|                       |                       | signatures.           |
++-----------------------+-----------------------+-----------------------+
+| Features              | e.g. ``GEN`` (we use  | When features         |
+|                       | ``Bioteque``          | correspond to         |
+|                       | nomenclature). Can be | explicit knowledge,   |
+|                       | ``NULL``.             | such as proteins,     |
+|                       |                       | gene ontology         |
+|                       |                       | processes, or         |
+|                       |                       | indications, we       |
+|                       |                       | express with this     |
+|                       |                       | field the type of     |
+|                       |                       | biological entities.  |
+|                       |                       | It is not allowed to  |
+|                       |                       | mix different feature |
+|                       |                       | types. Features can,  |
+|                       |                       | however, have no      |
+|                       |                       | type, typically when  |
+|                       |                       | they come from a      |
+|                       |                       | heavily-processed     |
+|                       |                       | dataset, such as      |
+|                       |                       | gene-expression data. |
+|                       |                       | Even if we use        |
+|                       |                       | ``Bioteque``          |
+|                       |                       | nomenclature to the   |
+|                       |                       | define the type of    |
+|                       |                       | biological data, it   |
+|                       |                       | is not mandatory that |
+|                       |                       | the vocabularies are  |
+|                       |                       | the ones used by the  |
+|                       |                       | ``Bioteque``; for     |
+|                       |                       | example, I can use    |
+|                       |                       | non-human UniProt     |
+|                       |                       | ACs, if I deem it     |
+|                       |                       | necessary.            |
++-----------------------+-----------------------+-----------------------+
+| Exemplary             | ``True``/``False``    | Is the dataset        |
+|                       |                       | exemplary of the      |
+|                       |                       | coordinate. Only one  |
+|                       |                       | exemplary dataset is  |
+|                       |                       | valid for each        |
+|                       |                       | coordinate. Exemplary |
+|                       |                       | datasets should have  |
+|                       |                       | good coverage (both   |
+|                       |                       | in keys space and     |
+|                       |                       | feature space) and    |
+|                       |                       | acceptable quality of |
+|                       |                       | the data.             |
++-----------------------+-----------------------+-----------------------+
+| Public                | ``True``/``False``    | Some datasets are     |
+|                       |                       | public, and some are  |
+|                       |                       | not, especially those |
+|                       |                       | that come from        |
+|                       |                       | collaborations with   |
+|                       |                       | the pharma industry.  |
++-----------------------+-----------------------+-----------------------+
+| Datasources           | Foreign key to        | Data sources that are |
+|                       | ``DataSource`` table. | used for generating   |
+|                       |                       | signature 0 oof the   |
+|                       |                       | dataset.              |
++-----------------------+-----------------------+-----------------------+
 
-* One coordinate.
-
-* One (typically) or multiple (eventually) sources having the same type of
-(mergeable) data.
-
-* A processing procedure yielding signatures type 0.
-
+Dataset-Datasource have Many-to-Many relationshipi .i.e. a dataset can refer
+to multiple datasources and one datasource can be used by many datasets.
+For example ``drugbank`` is a class :mod:`~chemicalchecker.database.datasource`
+that is used by both ``B1.001`` and ``E1.001`` but each of them also have
+additional and different datasources.
 """
 from chemicalchecker.util import logged
 from .database import Base, get_session, get_engine
@@ -19,19 +152,24 @@ from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
 
 @logged
 class Dataset(Base): # NS Base is a base class from SQLAlchemy, no __init__??
-    """The Dataset table.
+    """The Dataset Table class.
 
     Parameters:
         dataset_code(str): primary key, Identifier of the dataset.
         level(str): The CC level.
         coordinate(str): Coordinates in the CC organization.
         name(str): Display, short-name of the dataset.
-        technical_name(str): A more technical name for the dataset, suitable for chemo-/bio-informaticians.
-        description(str): This field contains a long description of the dataset.
+        technical_name(str): A more technical name for the dataset, suitable
+            for chemo-/bio-informaticians.
+        description(str): This field contains a long description of the
+            dataset.
         unknowns(bool): Does the dataset contain known/unknown data.
-        discrete(str): The type of data that ultimately expresses de dataset, after the pre-processing.
-        keys(str): In the core CC database, most of the times this field will correspond to CPD, as the CC is centred on small molecules.
-        features(str): Twe express with this field the type of biological entities.
+        discrete(str): The type of data that ultimately expresses de dataset,
+            after the pre-processing.
+        keys(str): In the core CC database, most of the times this field will
+            correspond to CPD, as the CC is centred on small molecules.
+        features(str): Twe express with this field the type of biological
+            entities.
         exemplary(bool): Is the dataset exemplary of the coordinate.
         public(bool): Is dataset public.
     """
@@ -147,7 +285,10 @@ class Dataset(Base): # NS Base is a base class from SQLAlchemy, no __init__??
 
 @logged
 class DatasetHasDatasource(Base):
-    """Dataset-Datasource have Many-to-Many relationship."""
+    """Dataset-Datasource Relationship.
+
+    Many-to-Many relationship.
+    """
 
     __tablename__ = 'dataset_has_datasource'
     dataset_code = Column(VARCHAR(6),
