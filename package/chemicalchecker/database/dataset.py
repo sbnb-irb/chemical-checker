@@ -144,14 +144,16 @@ For example ``drugbank`` is a class :mod:`~chemicalchecker.database.datasource`
 that is used by both ``B1.001`` and ``E1.001`` but each of them also have
 additional and different datasources.
 """
-from chemicalchecker.util import logged
-from .database import Base, get_session, get_engine
 from sqlalchemy import Column, Text, Boolean, ForeignKey, VARCHAR
 from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
 
+from .database import Base, get_session, get_engine
+
+from chemicalchecker.util import logged
+
 
 @logged
-class Dataset(Base): # NS Base is a base class from SQLAlchemy, no __init__??
+class Dataset(Base):  # NS Base is a base class from SQLAlchemy, no __init__??
     """The Dataset Table class.
 
     Parameters:
@@ -285,11 +287,10 @@ class Dataset(Base): # NS Base is a base class from SQLAlchemy, no __init__??
 
 @logged
 class DatasetHasDatasource(Base):
-    """Dataset-Datasource Relationship.
+    """Dataset-Datasource relationship.
 
     Many-to-Many relationship.
     """
-
     __tablename__ = 'dataset_has_datasource'
     dataset_code = Column(VARCHAR(6),
                           ForeignKey("dataset.dataset_code"), primary_key=True)

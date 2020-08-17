@@ -1,6 +1,12 @@
-from chemicalchecker.util import logged
-from .database import Base, get_session, get_engine
+"""PubChem synonims table.
+
+Table for compound synonims from PubChem.
+"""
 from sqlalchemy import Column, Integer, Text
+
+from .database import Base, get_session, get_engine
+
+from chemicalchecker.util import logged
 
 
 @logged
@@ -32,12 +38,13 @@ class Pubchem(Base):
 
     @staticmethod
     def add_bulk(data, chunk=1000):
-        """ Method to add a lot of rows to the table.
+        """Add lot of rows to the table.
 
-            This method allows to load a big amound of rows in one instruction
+        This method allows to load a big amound of rows in one instruction
 
         Args:
-            data(list): The data in list format. Each list member is a new row. it is important the order.
+            data(list): The data in list format. Each list member is a new row.
+                The order is important.
             chunk(int): The size of the chunks to load data to the database.
         """
         engine = get_engine()
@@ -52,7 +59,7 @@ class Pubchem(Base):
 
     @staticmethod
     def get(cid=None, inchikey_pubchem=None, inchikey=None, name=None, synonyms=None):
-        """ Method to query general_properties table.
+        """Method to query table.
 
         Args:
             cid(int): The cid that want to find
