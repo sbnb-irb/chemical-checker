@@ -1,15 +1,22 @@
-from chemicalchecker.util import Config
-from sqlalchemy.ext.declarative import declarative_base
+"""Generic database functions.
+
+These utility functions allow class from this module to get engine and
+open session to the desired database. Also preppare the base class that will
+be extended by each :mod:`~chemicalchecker.database` class.
+"""
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+
+from chemicalchecker.util import Config
 
 # NS: Construct a base class for declarative class definitions.
 Base = declarative_base()
 
 
 def get_engine(dbname=None):
-    """Method to get engine for ORM SQLALCHEMY.
+    """Get database engine.
 
     Args:
         dbname(str):The name of DB to connect.
@@ -36,7 +43,7 @@ def get_engine(dbname=None):
 
 
 def get_session(dbname=None):
-    """Method to get session for ORM SQLALCHEMY.
+    """Get database session.
 
     Args:
         dbname(str):The name of DB to connect.
