@@ -1,12 +1,31 @@
-from chemicalchecker.util import logged
-from .database import Base, get_session, get_engine
-from sqlalchemy import Column, Text, or_, VARCHAR
+"""Molecule InChIKey-InChI mapping.
+
+Simple table storing the correspondence between InChIKey and InChI.
+
+Example::
+
+    from chemicalchecker.database import Molecule
+    mol = Molecule.get('RZVAJINKPMORJF-UHFFFAOYSA-N'))
+    mol.inchi
+    >>> 'InChI=1S/C8H9NO2/c1-6(10)9-7-2-4-8(11)5-3-7/h2-5,11H,1H3,(H,9,10)'
+
+"""
+from sqlalchemy import Column, Text, VARCHAR
 from sqlalchemy.dialects import postgresql
+
+from .database import Base, get_session, get_engine
+
+from chemicalchecker.util import logged
 
 
 @logged
 class Molecule(Base):
-    """The structure class for the table of the same name"""
+    """The Molecule Table class.
+
+    Parameters:
+        inchikey(str): primary key, simple unique name for the Datasource.
+        inchi(str): the download link.
+    """
     __tablename__ = 'molecule'
     inchikey = Column(VARCHAR(27), primary_key=True, index=True)
     inchi = Column(Text)
@@ -30,20 +49,24 @@ class Molecule(Base):
 
     @staticmethod
     def add_bulk(data, chunk=1000, on_conflict_do_nothing=True):
-        """ Method to add a lot of rows to the table.
+        """Add lot of rows to the table.
 
-            This method allows to load a big amount of rows in one instruction
+        This method allows to load a big amount of rows in one instruction
 
         Args:
-            data(list): The data in list format. Each list member is a new row. It is important the order.
+            data(list): The data in list format. Each list member is a new row.
+                The order is important.
             chunk(int): The size of the chunks to load data to the database.
         """
         engine = get_engine()
         for pos in range(0, len(data), chunk):
             if on_conflict_do_nothing:
-                engine.execute(postgresql.insert(Molecule.__table__).values(
-                    [{"inchikey": row[0], "inchi": row[1]}
-                     for row in data[pos:pos + chunk]]).on_conflict_do_nothing(index_elements=[Molecule.inchikey]))
+                engine.execute(
+                    postgresql.insert(Molecule.__table__).values(
+                        [{"inchikey": row[0], "inchi": row[1]}
+                         for row in data[pos:pos + chunk]]
+                    ).on_conflict_do_nothing(
+                        index_elements=[Molecule.inchikey]))
             else:
                 engine.execute(
                     Molecule.__table__.insert(),
@@ -53,10 +76,7 @@ class Molecule(Base):
 
     @staticmethod
     def get(key):
-        """ Method to query structure table.
-
-
-        """
+        """Method to query table."""
         session = get_session()
         query = session.query(Molecule).filter_by(inchikey=key)
         res = query.one_or_none()
@@ -77,7 +97,6 @@ class Molecule(Base):
                 Molecule.inchikey.in_(inchikeys[idx:idx + batch]))
             res = query.with_entities(Molecule.inchikey, Molecule.inchi).all()
             mapping.update(dict(res))
-            print (idx)
 
         return mapping
 
@@ -104,12 +123,10 @@ class Molecule(Base):
 
     @staticmethod
     def add_missing_only(data):
-        """ Method to add data to the table that is not already present.
-
-            This method allows to load only the data that is not already present.
+        """Add data to the table if not already present.
 
         Args:
-            data(dict): The data in dict format, containing inchikey, inchi .
+            data(dict): The data in dict format, containing inchikey, inchi.
         """
         list_inchikey_inchi = list()
         set_inks = set(data.keys())
