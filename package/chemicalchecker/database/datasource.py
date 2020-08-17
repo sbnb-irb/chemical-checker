@@ -1,16 +1,17 @@
 """Datasource definition.
 
 A Datasource is a source of raw data. Typically comes in form of an url to an
-external resource. This class offer a mean to standardize raw data collection.
+external resource. This class offer a mean to standardize raw data collection
+using the :mod:`~chemicalchecker.util.download` class and interfacing them
+with the Dataset table.
 """
 import os
-from glob import glob
-from .database import Base, get_session, get_engine
 from sqlalchemy import Column, Text, Boolean
 from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
 
-from chemicalchecker.util import logged
-from chemicalchecker.util import Config
+from .database import Base, get_session, get_engine
+
+from chemicalchecker.util import logged, Config
 from chemicalchecker.util.download import Downloader
 from chemicalchecker.util.hpc import HPC
 
@@ -28,7 +29,8 @@ class Datasource(Base):
         filename(str): optional, a `molrepo` name. NB this name is the
             value of `Molrepo.molrepo_name`  also is defininf the `Parser`
             that will be used.
-        calcdata(bool): the datasource is actually from one of the calculated data.
+        calcdata(bool): the datasource is actually from one of the calculated
+            data.
     """
 
     __tablename__ = 'datasource'
@@ -100,9 +102,10 @@ class Datasource(Base):
         import pandas as pd
         df = pd.read_csv(filename)
 
-        # NS: the last column has to be changed to boolean values otherwise SQLalchmy passes strings
-        df.calcdata=df.calcdata.apply(lambda x: False if x=='f' else True)        
-        df.is_db=df.is_db.apply(lambda x: False if x=='f' else True)
+        # NS: the last column has to be changed to boolean values otherwise
+        # SQLalchmy passes strings
+        df.calcdata = df.calcdata.apply(lambda x: False if x == 'f' else True)
+        df.is_db = df.is_db.apply(lambda x: False if x == 'f' else True)
 
         # check columns
         needed_cols = Datasource._table_attributes()
@@ -221,26 +224,24 @@ class Datasource(Base):
         down.download()
 
     @staticmethod
-    def download_hpc(job_path, only_essential=False):
+    def download_hpc(job_path, only_essential=False, *kwargs):
         """Run HPC jobs downloading the resources.
 
         Args:
             job_path(str): Path (usually in scratch) where the script files are
                 generated.
-            only_essential(bool):Download only the essential datasources(default: False).
+            only_essential(bool):Download only the essential datasources
+                (default: False).
         """
-        import chemicalchecker
+        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
+        cfg = Config(cc_config)
         # create job directory if not available
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         # create script file
-        cc_config = os.environ['CC_CONFIG']
-        cc_package = os.path.join(chemicalchecker.__path__[0], '../')
         script_lines = [
             "import sys, os",
             "import pickle",
-            "os.environ['CC_CONFIG'] = '%s'" % cc_config,  # cc_config location
-            "sys.path.append('%s')" % cc_package,  # allow package import
             "from chemicalchecker.database import Datasource",
             "task_id = sys.argv[1]",  # <TASK_ID>
             "filename = sys.argv[2]",  # <FILE>
@@ -281,8 +282,11 @@ class Datasource(Base):
         params["elements"] = ds_names
         params["wait"] = True
         # job command
-        singularity_image = Config().PATH.SINGULARITY_IMAGE
-        command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
+        singularity_image = cfg.PATH.SINGULARITY_IMAGE
+        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
+            " singularity exec {} python {} <TASK_ID> <FILE>"
+        command = command.format(
+            os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
             singularity_image, script_name)
         # submit jobs
         cluster = HPC.from_config(Config())
