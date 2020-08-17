@@ -45,7 +45,7 @@ def Calcdata(table_name):
 
     @logged
     class GenericCalcdata(DynamicBase):
-        """The Mol Properties class for the table of the same name."""
+        """Generic table class."""
 
         __tablename__ = table_name
         inchikey = Column(Text, primary_key=True)
