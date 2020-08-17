@@ -52,23 +52,10 @@ from glob import glob
 from .molkit import Mol
 from .data import DataFactory
 from .preprocess import Preprocess
-from .signature_data import DataSignature
+from .signature_data import DataSignature, cached_property
 
 from chemicalchecker.util import logged, Config
 from chemicalchecker.database import Dataset
-
-
-class cached_property(object):
-    """Decorator for properties calculated/stored on-demand on first use."""
-
-    def __init__(self, func):
-        self._attr_name = func.__name__
-        self._func = func
-
-    def __get__(self, instance, owner):
-        attr = self._func(instance)
-        setattr(instance, self._attr_name, attr)
-        return attr
 
 
 @logged
@@ -97,32 +84,34 @@ class ChemicalChecker():
         else:
             self.cc_root = cc_root
 
-
         self._basic_molsets = ['reference', 'full']
         self._datasets = set()
         self._molsets = set(self._basic_molsets)
         self.reference_code = "001"
         self.__log.debug("ChemicalChecker with root: %s", self.cc_root)
 
-
         if custom_data_path is not None:
-            #NS import one or several custom h5 files --> in any case a cc_repo will axist afyter this block
+            # NS import one or several custom h5 files --> in any case a
+            # cc_repo will axist afyter this block
             if '.' in custom_data_path.split('/')[-1]:
-                # remove the file's name if provided (let it scan for h5 files present there)
+                # remove the file's name if provided (let it scan for h5 files
+                # present there)
                 custom_data_path = os.path.dirname(custom_data_path)
 
             self.custom_data_path = os.path.abspath(custom_data_path)
             print("Importing files from {}".format(self.custom_data_path))
 
             # Set a custom repo to avoid damaging ours
-            self.cc_root= os.path.join(os.getcwd(), "cc_repo")
+            self.cc_root = os.path.join(os.getcwd(), "cc_repo")
 
             if os.path.exists(self.cc_root):
-                print("\nWARNING--> CC repo {} exists, importing H5 files will add signatures into it\n".format(self.cc_root))
+                print(
+                    "\nWARNING--> CC repo {} exists, importing H5 files will"
+                    "add signatures into it\n".format(self.cc_root))
 
-            else:            
+            else:
                 print("\n---> Creating custom repo at {}\n".format(self.cc_root))
-                
+
                 try:
                     original_umask = os.umask(0)
                     os.makedirs(self.cc_root, 0o775)
@@ -131,9 +120,9 @@ class ChemicalChecker():
                 except Exception as e:
                     print("Problem in creating cc_repo: {}".format(e))
 
-            # Create  the cc_repo directory structure and symbolic link to files
+            # Create  the cc_repo directory structure and symbolic link to
+            # files
             self.import_h5()
-
 
         # If non-existing CC_root
         if not os.path.isdir(self.cc_root):
@@ -142,7 +131,8 @@ class ChemicalChecker():
             for molset in self._basic_molsets:
                 for dataset in Dataset.get():
                     ds = dataset.dataset_code
-                    new_dir = os.path.join(self.cc_root, molset, ds[:1], ds[:2], ds)
+                    new_dir = os.path.join(
+                        self.cc_root, molset, ds[:1], ds[:2], ds)
                     self._datasets.add(ds)
                     self.__log.debug("Creating %s", new_dir)
                     original_umask = os.umask(0)
@@ -151,13 +141,15 @@ class ChemicalChecker():
         else:
             # if the directory exists get molsets and datasets
             # NS: also valid for imported h5 datasets
-            paths = glob(os.path.join(self.cc_root, '*', '*', '*', '*', '*', 'sign*.h5'))
+            paths = glob(os.path.join(self.cc_root, '*',
+                                      '*', '*', '*', '*', 'sign*.h5'))
             self._molsets = set(x.split('/')[-6] for x in paths)
             self._datasets = set(x.split('/')[-3] for x in paths)
 
-        # In case 
+        # In case
         self._molsets = sorted(list(self._molsets))
-        self._datasets = [x for x in sorted(list(self._datasets)) if not x.endswith('000')]
+        self._datasets = [x for x in sorted(
+            list(self._datasets)) if not x.endswith('000')]
 
     @property
     def coordinates(self):
@@ -217,7 +209,8 @@ class ChemicalChecker():
         Returns:
             Nested dictionary with molset, dataset and list of signatures
         """
-        paths = glob(os.path.join(self.cc_root, molset, '*', '*', dataset, signature + '/*.h5'))
+        paths = glob(os.path.join(self.cc_root, molset, '*',
+                                  '*', dataset, signature + '/*.h5'))
         molset_dataset_sign = dict()
         for path in paths:
             molset = path.split('/')[-6]
@@ -281,7 +274,7 @@ class ChemicalChecker():
         """
         signature_path = os.path.join(self.cc_root, molset, dataset_code[:1],
                                       dataset_code[:2], dataset_code, cctype)
-        
+
         self.__log.debug("signature path: %s", signature_path)
         return signature_path
 
@@ -302,7 +295,8 @@ class ChemicalChecker():
         signature_path = self.get_signature_path(cctype, molset, dataset_code)
 
         # the factory will return the signature with the right class
-        data = DataFactory.make_data(cctype, signature_path, dataset_code, *args, **kwargs)
+        data = DataFactory.make_data(
+            cctype, signature_path, dataset_code, *args, **kwargs)
         return data
 
     def get_data_signature(self, cctype, dataset_code):
@@ -344,7 +338,8 @@ class ChemicalChecker():
         prepro = Preprocess(sign.signature_path, sign.dataset)
         prepro.fit()
 
-        return prepro.data_path  # ex:os.path.join(self.raw_path, "preprocess.h5")
+        # ex:os.path.join(self.raw_path, "preprocess.h5")
+        return prepro.data_path
 
     def sign_name(self, sign):
         """Get a signature name (e.g. 'B1.001-sign1-full')"""
@@ -366,11 +361,12 @@ class ChemicalChecker():
             and creates links to them in a CC skeleton arborescence
         """
 
-        h5files= glob(os.path.join(self.custom_data_path, "*.h5"))
+        h5files = glob(os.path.join(self.custom_data_path, "*.h5"))
 
         if len(h5files) == 0:
             #raise Exception("No h5 files found in {}".format(self.custom_data_path))
-            print("INFO: no h5 file found in {}, creating an empty CC structure.".format(self.custom_data_path))
+            print("INFO: no h5 file found in {}, creating an empty CC structure.".format(
+                self.custom_data_path))
             # original_umask = os.umask(0)
             # try:
             #     os.makedirs(os.path.join(self.cc_root, "full/Z/Z1/Z1.001/sign0"), 0o775)
@@ -380,111 +376,131 @@ class ChemicalChecker():
 
             # os.umask(original_umask) # after the loop to be sure
 
-
         else:
 
-            available_files= ", ".join([os.path.basename(f) for f in h5files])
-            print("Found h5 files {}: in {}".format(available_files, self.custom_data_path))
+            available_files = ", ".join([os.path.basename(f) for f in h5files])
+            print("Found h5 files {}: in {}".format(
+                available_files, self.custom_data_path))
 
             # check the format of the imported info data
-            formatDC= re.compile(r"[A-Z]\d\.\d\d\d")  # dataset code (ex: A1.001)
-            formatCCTYPE= re.compile(r"sign\d")
-            formatMolset= re.compile(r"(full|reference)", re.IGNORECASE)
+            # dataset code (ex: A1.001)
+            formatDC = re.compile(r"[A-Z]\d\.\d\d\d")
+            formatCCTYPE = re.compile(r"sign\d")
+            formatMolset = re.compile(r"(full|reference)", re.IGNORECASE)
 
-            formatDict= dict(dataset_code=formatDC, cctype=formatCCTYPE, molset=formatMolset) # mapping info and required format
+            # mapping info and required format
+            formatDict = dict(dataset_code=formatDC,
+                              cctype=formatCCTYPE, molset=formatMolset)
 
             def filter_dataset(path2h5file):
-                """ returns a tuple of the type ('full', 'A', 'A1', 'A1.001', 'sign3', path_to_h5file') or None if something's wrong"""
+                """ returns a tuple of the type ('full', 'A', 'A1', 'A1.001',
+                'sign3', path_to_h5file') or None if something's wrong
+                """
 
-                out =[]
+                out = []
                 with h5py.File(path2h5file, 'a') as ccfile:
 
                     # check if the required info is presents in the h5 file attrs dict
-                    # iterates over ('dataset_code', 'cctype', 'molset') and the required format for each of them
-                    for requiredKey, requiredFormat in formatDict.items(): 
-                        if requiredKey  not in  ccfile.attrs:
-                            print("Attribute {} cannot be retrieved from {}, skipping this file".format(requiredKey, ccfile))
+                    # iterates over ('dataset_code', 'cctype', 'molset') and
+                    # the required format for each of them
+                    for requiredKey, requiredFormat in formatDict.items():
+                        if requiredKey not in ccfile.attrs:
+                            print("Attribute {} cannot be retrieved from {},"
+                                  " skipping this file".format(
+                                      requiredKey, ccfile))
                             return None
 
                         else:
                             # check the format of the provided info
                             if requiredFormat.match(ccfile.attrs[requiredKey]) is None:
-                                print("Problem with format", ccfile.attrs[requiredKey])
+                                print("Problem with format",
+                                      ccfile.attrs[requiredKey])
                                 return None
 
                     #-------Now that the format is correct, output the info
-                    # so that we just have to iterate over it to create the directory substructure
-                    out.append(ccfile.attrs['molset'].lower())           # full or reference
+                    # so that we just have to iterate over it to create the
+                    # directory substructure
+                    # full or reference
+                    out.append(ccfile.attrs['molset'].lower())
                     out.append(ccfile.attrs['dataset_code'][0])  # i.e A
-                    out.append(ccfile.attrs['dataset_code'][:2]) # i.e 1
+                    out.append(ccfile.attrs['dataset_code'][:2])  # i.e 1
                     out.append(ccfile.attrs['dataset_code'])     # i.e A1.001
-                    out.append(ccfile.attrs['cctype'].lower())            # i.e sign3
+                    # i.e sign3
+                    out.append(ccfile.attrs['cctype'].lower())
                     out.append(path2h5file)
-
 
                 return tuple(out)
 
-
-
-
-            # Keep only h5 files that contain the required info in the correct format
-            h5tuples = [filter_dataset(f) for f in h5files if filter_dataset(f) is not None]
+            # Keep only h5 files that contain the required info in the correct
+            # format
+            h5tuples = [filter_dataset(
+                f) for f in h5files if filter_dataset(f) is not None]
 
             if len(h5tuples) == 0:
-                raise Exception("None of the provided h5 datasets have sufficient info in its attributes! Please ensure myh5file.attrs has the folllowing keys: 'dataset_code', 'cctype', 'molset'")
+                raise Exception(
+                    "None of the provided h5 datasets have sufficient info in"
+                    " its attributes! Please ensure myh5file.attrs has the"
+                    "folllowing keys: 'dataset_code', 'cctype', 'molset'")
 
             # Now creating the cc_repo skeleton
             original_umask = os.umask(0)
             for h5t in h5tuples:
 
-                path2sign=os.path.join(self.cc_root,'/'.join(h5t[:-1]))   # i.e ../../full/A/A1/A1.001/sign3
+                # i.e ../../full/A/A1/A1.001/sign3
+                path2sign = os.path.join(self.cc_root, '/'.join(h5t[:-1]))
                 print("Attempting to create", path2sign)
 
-                # If the signature already exists then propose to rename it (ex: 00X) or skip it
-                skip_signature=False
+                # If the signature already exists then propose to rename it
+                # (ex: 00X) or skip it
+                skip_signature = False
                 while os.path.exists(path2sign):
-                    print("Signature {} already exists for dataset {}".format(h5t[4], h5t[3]))
+                    print("Signature {} already exists for dataset {}".format(
+                        h5t[4], h5t[3]))
                     resp = input("Rename it (r) or skip it (any other key)?")
 
                     if resp.lower() != 'r':
-                        skip_signature=True
+                        skip_signature = True
                         break
 
-                    else:                   
-                        
+                    else:
+
                         # Check that the user entered the correct format
-                        formatok=False
-                        while not formatok: 
-                            newcode=input("New dataset code? (ex: 002)")
+                        formatok = False
+                        while not formatok:
+                            newcode = input("New dataset code? (ex: 002)")
 
                             # I put A1 because all that matters is the 00x part
-                            formatok= formatDict['dataset_code'].match('A1.'+newcode)
+                            formatok = formatDict[
+                                'dataset_code'].match('A1.' + newcode)
 
-                            # True/False easier to deal with than None in this case
-                            formatok= True if (formatok is not None) else False
-                            if not formatok: print("Bad format, please try again.")
+                            # True/False easier to deal with than None in this
+                            # case
+                            formatok = True if (
+                                formatok is not None) else False
+                            if not formatok:
+                                print("Bad format, please try again.")
 
-                        newtup= (h5t[0], h5t[1], h5t[2], h5t[2]+'.'+newcode, h5t[4])
-                        path2sign= os.path.join(self.cc_root,'/'.join(newtup))   # i.e ../../full/A/A1/A1.001/sign3
+                        newtup = (h5t[0], h5t[1], h5t[2], h5t[
+                                  2] + '.' + newcode, h5t[4])
+                        # i.e ../../full/A/A1/A1.001/sign3
+                        path2sign = os.path.join(
+                            self.cc_root, '/'.join(newtup))
                         print("New signature path: {}".format(path2sign))
 
-                            
-
-                if not skip_signature:     
+                if not skip_signature:
                     try:
-                        os.makedirs(os.path.join(self.cc_root, path2sign), 0o775)
-                        os.symlink(h5t[-1], os.path.join(self.cc_root, path2sign, h5t[-2]+'.h5'))  # symbolic link to the h5 file in the cc_repo as signx.h5
+                        os.makedirs(os.path.join(
+                            self.cc_root, path2sign), 0o775)
+                        # symbolic link to the h5 file in the cc_repo as
+                        # signx.h5
+                        os.symlink(
+                            h5t[-1], os.path.join(self.cc_root, path2sign, h5t[-2] + '.h5'))
 
                     except Exception as e:
                         os.umask(original_umask)
                         print("Problem in creating the cc custom repo: {}".format(e))
 
-            os.umask(original_umask) # after the loop to be sure
-
-
-
-
-                
+            os.umask(original_umask)  # after the loop to be sure
 
     def export(self, destination, signature, h5_filter=None,
                h5_names_map=None, overwrite=False, version=None):
@@ -520,11 +536,13 @@ class ChemicalChecker():
         if version is not None:
             dst.create_dataset('version', data=[version])
 
-        # NS: Adding metadata so that they can be opened on local instances of the checker:
-        attributes = dict(dataset_code=signature.dataset, cctype=signature.cctype, molset=signature.molset)
-        if len(dst.attrs) !=3:
-            for k,v in attributes.items():
-                dst.attrs[k]=v
+        # NS: Adding metadata so that they can be opened on local instances of
+        # the checker:
+        attributes = dict(dataset_code=signature.dataset,
+                          cctype=signature.cctype, molset=signature.molset)
+        if len(dst.attrs) != 3:
+            for k, v in attributes.items():
+                dst.attrs[k] = v
 
         src.close()
         dst.close()
