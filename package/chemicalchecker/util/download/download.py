@@ -151,19 +151,19 @@ class Downloader():
                 if len(paths) > 1:
                     raise Exception("`*` in %s db_file is ambigous.", self)
                 file_path = paths[0]
-            cmd2run = 'PGPASSWORD=' + Config().DB.password +
-            ' dropdb --if-exists -h ' + Config().DB.host +
-            ' -U ' + Config().DB.user +
-            ' ' + self.dbname + ' && '
-            cmd2run += 'PGPASSWORD=' + Config().DB.password +
-            " createdb -h " + Config().DB.host +
-            " -U " + Config().DB.user +
-            ' ' + self.dbname + " && "
+            cmd2run = 'PGPASSWORD=' + Config().DB.password + \
+                ' dropdb --if-exists -h ' + Config().DB.host + \
+                ' -U ' + Config().DB.user + \
+                ' ' + self.dbname + ' && '
+            cmd2run += 'PGPASSWORD=' + Config().DB.password + \
+                " createdb -h " + Config().DB.host + \
+                " -U " + Config().DB.user + \
+                ' ' + self.dbname + " && "
 
-            cmd2run += 'PGPASSWORD=' + Config().DB.password +
-            ' psql -h ' + Config().DB.host +
-            " -U " + Config().DB.user +
-            ' -d ' + self.dbname + ' <' + file_path
+            cmd2run += 'PGPASSWORD=' + Config().DB.password + \
+                ' psql -h ' + Config().DB.host + \
+                " -U " + Config().DB.user + \
+                ' -d ' + self.dbname + ' <' + file_path
 
             # cmd2run += 'PGPASSWORD=' + Config().DB.password +
             # ' pg_restore -h ' + Config().DB.host +
