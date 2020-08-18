@@ -1,8 +1,9 @@
+"""Scale and impute."""
 import os
 import pickle
 import numpy as np
-from sklearn.preprocessing import RobustScaler
 from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import RobustScaler
 from fancyimpute import IterativeImputer as fancyImputer
 
 perc = 99.9
@@ -19,7 +20,7 @@ def deextremize(X, z_extreme, up=None, dw=None):
     return X, up, dw
 
 
-def scaleimpute(X, z_extreme=10, models_path=None, up=None, dw=None):
+def gaussian_scale_impute(X, z_extreme=10, models_path=None, up=None, dw=None):
     imputer_file = "imput.pcl"
     scaler_file = "scale.pcl"
     fancy_file = "fancy.pcl"

@@ -11,7 +11,7 @@ from scipy.stats import rankdata
 
 from chemicalchecker.util import logged, Config
 from chemicalchecker.util.hpc import HPC
-from chemicalchecker.util.performance import gaussianize as g
+from chemicalchecker.util.transform import Gaussianize
 from chemicalchecker.database import Dataset, Molrepo
 from chemicalchecker.core.preprocess import Preprocess
 from chemicalchecker.core.signature_data import DataSignature
@@ -298,7 +298,7 @@ def process(X):
         for j in range(X.shape[1]):
             V = X[:, j]
             V = rankdata(V, "ordinal")
-            gauss = g.Gaussianize(strategy="brute")
+            gauss = Gaussianize(strategy="brute")
             gauss.fit(V)
             V = gauss.transform(V)
             Xw[:, j] = np.ravel(V)
