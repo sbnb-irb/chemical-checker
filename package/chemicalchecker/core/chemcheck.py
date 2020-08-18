@@ -52,10 +52,11 @@ from glob import glob
 from .molkit import Mol
 from .data import DataFactory
 from .preprocess import Preprocess
-from .signature_data import DataSignature, cached_property
+from .signature_data import DataSignature
 
 from chemicalchecker.util import logged, Config
 from chemicalchecker.database import Dataset
+from chemicalchecker.util.decorator import cached_property
 
 
 @logged

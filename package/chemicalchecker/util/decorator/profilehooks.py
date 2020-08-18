@@ -1,5 +1,4 @@
-"""
-Profiling hooks
+"""Profiling hooks.
 
 This module contains a couple of decorators (`profile` and `coverage`) that
 can be used to wrap functions and/or methods to produce profiles and line

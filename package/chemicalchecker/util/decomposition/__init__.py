@@ -1,4 +1,4 @@
-"""Canonical correlation analysis.
+"""Cross decomposition.
 
 Canonical correlation analysis (CCA) and partial least squares (PLS) are
 well-known approach for feature extraction from two sets of multi-dimensional

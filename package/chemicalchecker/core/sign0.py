@@ -2,7 +2,8 @@
 
 A sufficiently-processed version of the raw data. Each bioactive space has
 a peculiar format which might be categorical, discrete or continuous.
-They usually show explicit knowledge, which enables connectivity and interpretation.
+They usually show explicit knowledge, which enables connectivity and
+interpretation.
 """
 import os
 import h5py
@@ -12,14 +13,13 @@ import numpy as np
 
 from .signature_data import DataSignature
 from .signature_base import BaseSignature
-from .signature_data import cached_property
 
 from chemicalchecker.util import logged
-from chemicalchecker.util.aggregate import Aggregate
 from chemicalchecker.util.sanitize import Sanitizer
-from chemicalchecker.util.remove_near_duplicates import RNDuplicates
+from chemicalchecker.util.aggregate import Aggregate
+from chemicalchecker.util.decorator import cached_property
 from chemicalchecker.util.sampler.triplets import TripletSampler
-
+from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 
 @logged
 class sign0(BaseSignature, DataSignature):
@@ -29,8 +29,9 @@ class sign0(BaseSignature, DataSignature):
         """Initialize the signature.
 
         Args:
-            signature_path(str): the path to the signature directory.
-            dataset: NS ex A1.001, here only serves as the 'name' record of the h5 file
+            signature_path (str): the path to the signature directory.
+            dataset (str): NS ex A1.001, here only serves as the 'name' record
+               of the h5 file.
         """
         BaseSignature.__init__(self, signature_path, dataset, **params)
         self.__log.debug('signature path is: %s' % signature_path)

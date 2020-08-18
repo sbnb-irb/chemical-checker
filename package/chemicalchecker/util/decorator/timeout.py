@@ -1,5 +1,4 @@
-"""
-Timeout decorator.
+"""Timeout decorator.
 
     :copyright: (c) 2012-2013 by PN.
     :license: MIT, see LICENSE for more details.
