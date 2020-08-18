@@ -1,4 +1,4 @@
-"""Utility for downloading raw data files.
+"""Download raw data files.
 
 Systematize download and decompression from external repositories.
 Basically every :mod:`~chemicalchecker.database.dataset` require one or more

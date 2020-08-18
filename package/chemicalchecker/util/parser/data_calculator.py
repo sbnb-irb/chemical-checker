@@ -1,22 +1,26 @@
+"""Calculate data for molecules.
+
+Each calc function here is iterating on a list of InChIKeys of standardised
+molecules.
+Each molecule is loaded, and properties/descriptors/features are computed.
+The raw features are yielded in chunks as dictionaries.
+These methods are used to populate the
+:mod:`~chemicalchecker.database.calcdata`
+database where the table has the same name as functions defined here.
+"""
 import os
 
-from .timeout_decorator import timeout
-
 from chemicalchecker.util import logged
+from chemicalchecker.util.decorator import timeout
 
 
 @logged
 class DataCalculator():
-    """Container for static parsing methods.
-
-    A parsing function here is iterating on an input file. It has to define
-    on each input line the source id and the smile of  a molecule. Then the
-    smile is converted to inchi and inchikey. The lines are appended as
-    dictionaies and yielded in chunks.
-    """
+    """DataCalculator class."""
 
     @staticmethod
     def calc_fn(function):
+        """Serve a calc function."""
         try:
             return eval('DataCalculator.' + function)
         except Exception as ex:

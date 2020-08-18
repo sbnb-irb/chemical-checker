@@ -1,6 +1,6 @@
-"""The container for the internal network representation.
+"""Network representations.
 
-Provides mean of accessing a network/graph.
+Each class provides mean of accessing a network/graph.
 """
 import os
 import json
@@ -13,10 +13,11 @@ from chemicalchecker.tool.hotnet import Hotnet
 
 @logged
 class NetworkxNetwork():
-    """Network representation with networkx.
+    """Network representation with NetworkX.
 
     Simple but heavy in memory.
-    Single type of node, single type of edge."""
+    Single type of node, single type of edge.
+    """
 
     def __init__(self, network):
         self._network = network

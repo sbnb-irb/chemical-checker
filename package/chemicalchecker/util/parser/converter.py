@@ -1,7 +1,8 @@
-"""Convert between molecule identifier conventions."""
+"""Standardise molecule and convert between identifier."""
+import json
 from six.moves.urllib.request import urlopen
 from six.moves.urllib.parse import quote
-import json
+
 from chemicalchecker.util import logged
 
 
@@ -16,9 +17,10 @@ class ConversionError(Exception):
 
 @logged
 class Converter():
-    """Container for static conversion methods."""
+    """Converter class."""
 
     def __init__(self):
+        """Initialize Converter class."""
         try:
             import rdkit.Chem as Chem
             self.Chem = Chem
@@ -55,6 +57,7 @@ class Converter():
         return inchikey, inchi
 
     def inchi_to_smiles(self, inchi):
+        """From InChI to SMILES."""
         try:
             inchi_ascii = inchi.encode('ascii', 'ignore')
             mol = self.Chem.rdinchi.InchiToMol(inchi_ascii)[0]
@@ -63,6 +66,7 @@ class Converter():
         return self.Chem.MolToSmiles(mol, isomericSmiles=True)
 
     def inchi_to_inchikey(self, inchi):
+        """From InChI to InChIKey."""
         try:
             inchi_ascii = inchi.encode('ascii', 'ignore')
             inchikey = self.Chem.rdinchi.InchiToInchiKey(inchi_ascii)
@@ -71,6 +75,7 @@ class Converter():
         return inchikey
 
     def inchi_to_mol(self, inchi):
+        """From InChI to molecule."""
         try:
             inchi_ascii = inchi.encode("ascii", "ignore")
             mol = self.Chem.rdinchi.InchiToMol(inchi_ascii)[0]
@@ -92,7 +97,7 @@ class Converter():
             raise ConversionError("Cannot fetch PubChemID CID from CTD", ctdid)
         # get smiles
         try:
-            url = 'http://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/' +\
+            url = 'http://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/' + \
                 'cid/%s/property/CanonicalSMILES/TXT/' % pubchemcid
             smiles = urlopen(url).read().rstrip().decode()
         except Exception as ex:
@@ -103,7 +108,7 @@ class Converter():
 
     @staticmethod
     def chemical_name_to_smiles(chem_name):
-        """From Chemical Name to SMILES."""
+        """From chemical name to SMILES."""
         try:
             chem_name = quote(chem_name)
             url = 'http://cactus.nci.nih.gov/chemical/' + \
@@ -116,7 +121,7 @@ class Converter():
 
     @staticmethod
     def inchikey_to_inchi(inchikey):
-        """From Chemical Name to SMILES."""
+        """From InChIKey to InChI."""
         try:
             inchikey = quote(inchikey)
             url = 'https://www.ebi.ac.uk/unichem/rest/inchi/%s' % inchikey

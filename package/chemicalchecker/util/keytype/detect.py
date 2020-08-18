@@ -1,14 +1,4 @@
-"""Automatically detect type of keys.
-
-Recognized types are:
-- InChI
-- InChIKey
-- SMILES
-
-When checking the a list of keys homogeneity of key type across
-the list is assumed.
-"""
-
+"""Automatically detect type of keys."""
 import numpy as np
 
 from chemicalchecker.util import logged
@@ -18,13 +8,13 @@ from chemicalchecker.util import logged
 class KeyTypeDetector(object):
 
     def __init__(self, keys, max_checks=1000, valid=0.75):
-        """Initialize `KeyTypeDetector` class.
+        """Initialize KeyTypeDetector class.
 
         Args:
-            keys(list): Keys to be analyzed.
-            max_checks(int): Maximum number of checks to perform
+            keys (list): Keys to be analyzed.
+            max_checks (int): Maximum number of checks to perform.
                 (default=1000).
-            valid(float): Proportion of valid matches to decide on a key type
+            valid (float): Proportion of valid matches to decide on a key type.
                 (default=0.75)
         """
         if len(keys) > max_checks:

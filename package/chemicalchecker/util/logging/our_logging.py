@@ -1,4 +1,4 @@
-
+"""Find default logging config file."""
 import os as _os
 import logging.config as _logging
 
