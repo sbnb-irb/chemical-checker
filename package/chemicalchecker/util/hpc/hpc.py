@@ -24,13 +24,13 @@ class HPC():
         """Initialize the HPC object.
 
         Args:
-            system (str): Queuing HPC system. (default:'')
-            host (str): Name of the HPC host master. (default:'')
-            queue (str): Name of the queue. (default:'')
-            username (str): Username to connect to the host. (default:'')
-            password (str): Password to connect. (default:'')
+            system (str): Queuing HPC system. (default: '')
+            host (str): Name of the HPC host master. (default: '')
+            queue (str): Name of the queue. (default: '')
+            username (str): Username to connect to the host. (default: '')
+            password (str): Password to connect. (default: '')
             error_finder (func): Method to search errors in HPC jobs log.
-                (default:None)
+                (default: None)
             dry_run (bool): Only for test checks. (default=False)
 
         """
@@ -63,21 +63,21 @@ class HPC():
                 It should contain a <TASK_ID> string and a <FILE> string.
                 This will be replaced but the correponding task id and the
                 pickle file with the elements that the command will need.
-            num_jobs (int): Number of jobs to run the command. (default:1)
-            cpu (int): Number of cores the job will use. (default:1)
-            wait (bool): Wait for the job to finish. (default:True)
-            jobdir (str): Directotory where the job will run. (default:'')
-            job_name (str): Name of the job. (default:10)
+            num_jobs (int): Number of jobs to run the command. (default: 1)
+            cpu (int): Number of cores the job will use. (default: 1)
+            wait (bool): Wait for the job to finish. (default: True)
+            jobdir (str): Directotory where the job will run. (default: '')
+            job_name (str): Name of the job. (default: 10)
             elements (list): List of elements that will need to run on the
                 command.
             compress (bool): Compress all generated files after job is done.
-                (default:True)
+                (default: True)
             check_error (bool): Check for error message in output files.
-                (default:True)
+                (default: True)
             memory (int): Maximum memory the job can take kin Gigabytes.
-                (default: 2)
+                (default:  2)
             time (int): Maximum time the job can run on the cluster.
-                (default:infinite)
+                (default: infinite)
 
         """
         if self.job_id is None:
@@ -113,9 +113,10 @@ class HPC():
        The status is also saved in a *.status file in the job directory.
 
         Returns:
-            status(str): There are three possible statuses for a submission:
-               ``started``: Job started but not finished
-               ``done``: Job finished
-               ``ready``: Job finished without errors
+            status (str): There are three possible statuses for a submission:
+
+               * ``started``: Job started but not finished
+               * ``done``: Job finished
+               * ``ready``: Job finished without errors
         """
         return self.hpc.status()

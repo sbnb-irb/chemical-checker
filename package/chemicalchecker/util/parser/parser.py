@@ -1,3 +1,12 @@
+"""Container for static parsing methods.
+
+Each parsing function here is iterating on a raw input file.
+Each input line is a molecule which is loaded, standardised and converted
+to InChI and InChIKeys.
+The raw features are yielded in chunks as dictionaries.
+These methods are used to populate the :mod:`~chemicalchecker.database.molrepo`
+database table.
+"""
 import os
 import csv
 import pandas as pd
@@ -10,16 +19,11 @@ from chemicalchecker.util import psql
 
 @logged
 class Parser():
-    """Container for static parsing methods.
-
-    A parsing function here is iterating on an input file. It has to define
-    on each input line the source id and the smile of  a molecule. Then the
-    smile is converted to inchi and inchikey. The lines are appended as
-    dictionaies and yielded in chunks.
-    """
+    """Parser class."""
 
     @staticmethod
     def parse_fn(function):
+        """Serve a parse function."""
         try:
             return eval('Parser.' + function)
         except Exception as ex:

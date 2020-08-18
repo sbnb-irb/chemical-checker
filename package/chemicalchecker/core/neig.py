@@ -6,16 +6,15 @@ import os
 import h5py
 import datetime
 import numpy as np
-from time import time
 from numpy import linalg as LA
 from bisect import bisect_left
 
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
-from .signature_data import cached_property
 
 
 from chemicalchecker.util import logged
+from chemicalchecker.util.decorator import cached_property
 
 
 @logged

@@ -15,17 +15,17 @@ Example::
 import os
 import datetime
 from time import time
-from .database import Base, get_engine, get_session
+from sqlalchemy.dialects import postgresql
 from sqlalchemy import Column, Text, Boolean, ForeignKey, VARCHAR
 from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
-from sqlalchemy.dialects import postgresql
 
 from .molecule import Molecule
+from .database import Base, get_engine, get_session
 
-from chemicalchecker.core.signature_data import cached_property
+from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util.parser import Parser
 from chemicalchecker.util import logged, Config
-from chemicalchecker.util.hpc import HPC
+from chemicalchecker.util.decorator import cached_property
 
 
 @logged

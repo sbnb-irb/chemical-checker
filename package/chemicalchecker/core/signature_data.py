@@ -11,21 +11,10 @@ import h5py
 import shutil
 import numpy as np
 from bisect import bisect_left
-from chemicalchecker.util import logged
 from scipy.spatial.distance import euclidean, cosine
 
-
-class cached_property(object):
-    """Decorator for properties calculated/stored on-demand on first use."""
-
-    def __init__(self, func):
-        self._attr_name = func.__name__
-        self._func = func
-
-    def __get__(self, instance, owner):
-        attr = self._func(instance)
-        setattr(instance, self._attr_name, attr)
-        return attr
+from chemicalchecker.util import logged
+from chemicalchecker.util.decorator import cached_property
 
 
 @logged

@@ -23,7 +23,6 @@ import pickle
 import tempfile
 import numpy as np
 from tqdm import tqdm
-from datetime import datetime
 from bisect import bisect_left
 from abc import ABCMeta, abstractmethod
 
@@ -31,25 +30,6 @@ from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util import Config
 from chemicalchecker.util import logged
 from chemicalchecker.util.plot import Plot
-
-
-class cached_property(object):
-    """
-    Decorator for properties calculated/stored on-demand on first use.
-    NS: With this, the call to a class function becomes an attribute ie: myobject.function and NOT myobject.function()
-    NS: It is calculated when the function is defined and stored as a property
-    """
-
-    def __init__(self, func):
-        self._attr_name = func.__name__           # grabs the name of the decorated func
-        self._func = func
-
-    def __get__(self, instance, owner):
-        # execute the method (bizarre to have instance inside parenthesis)
-        attr = self._func(instance)
-        # setattr(object, fctname-->f(object))
-        setattr(instance, self._attr_name, attr)
-        return attr                              # returns f(object)
 
 
 @logged
