@@ -1,14 +1,4 @@
-"""Utility for downloading raw data files.
-
-Basically every Chemical Checker dataset require one or more files to be
-downloaded from external repositories. This class performs the following:
-
-1. create a temporary directory where to handle the download
-2. check that the url is reachable
-3. download the file
-4. unzip, tar or whatever
-5. copy to the local data path
-"""
+"""Systematize download and decompression from external repositories."""
 import os
 import sys
 import shutil
@@ -28,10 +18,10 @@ from chemicalchecker.util import psql
 
 @logged
 class Downloader():
-    """Systematize download and decompression from external repositories."""
+    """Downloader class."""
 
     def __init__(self, url, data_path, tmp_dir=None, dbname=None, file=None):
-        """Initialize the download object.
+        """Initialize the Download object.
 
         Download from url, unpack in tmp_dir, and copy to data_path.
         We allow wild-char in url only for FTP links. We resolve the link and
@@ -161,14 +151,25 @@ class Downloader():
                 if len(paths) > 1:
                     raise Exception("`*` in %s db_file is ambigous.", self)
                 file_path = paths[0]
-            cmd2run = 'PGPASSWORD=' + Config().DB.password + ' dropdb --if-exists -h ' + Config().DB.host + ' -U ' + \
-                Config().DB.user + ' ' + self.dbname + ' && '
-            cmd2run += 'PGPASSWORD=' + Config().DB.password + " createdb -h " + Config().DB.host + \
-                " -U " + Config().DB.user + ' ' + self.dbname + " && "
+            cmd2run = 'PGPASSWORD=' + Config().DB.password +
+            ' dropdb --if-exists -h ' + Config().DB.host +
+            ' -U ' + Config().DB.user +
+            ' ' + self.dbname + ' && '
+            cmd2run += 'PGPASSWORD=' + Config().DB.password +
+            " createdb -h " + Config().DB.host +
+            " -U " + Config().DB.user +
+            ' ' + self.dbname + " && "
 
-            cmd2run += 'PGPASSWORD=' + Config().DB.password + ' psql -h ' + Config().DB.host + " -U " + Config().DB.user + ' -d ' + self.dbname + ' <' + file_path
-#            cmd2run += 'PGPASSWORD=' + Config().DB.password + ' pg_restore -h ' + Config().DB.host + " -U " + Config().DB.user + '  -d ' + self.dbname + \
- #               ' ' + file_path
+            cmd2run += 'PGPASSWORD=' + Config().DB.password +
+            ' psql -h ' + Config().DB.host +
+            " -U " + Config().DB.user +
+            ' -d ' + self.dbname + ' <' + file_path
+
+            # cmd2run += 'PGPASSWORD=' + Config().DB.password +
+            # ' pg_restore -h ' + Config().DB.host +
+            # " -U " + Config().DB.user +
+            # '  -d ' + self.dbname +
+            # ' ' + file_path
 
             try:
                 self.__log.debug('calling script: ' + cmd2run)
@@ -194,7 +195,8 @@ class Downloader():
         # move to final destination
         source = tmp_unzip_dir
         destination = self.data_path
-        if self.file is not None and self.dbname is None and len(os.listdir(source)) == 1:
+        dirs = os.listdir(source)
+        if self.file is not None and self.dbname is None and len(dirs) == 1:
             source = os.path.join(source, os.listdir(source)[0])
             if not os.path.exists(self.data_path):
                 os.makedirs(self.data_path, 0o775)

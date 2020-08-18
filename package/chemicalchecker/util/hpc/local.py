@@ -1,14 +1,12 @@
-"""SGE interace to send jobs to an HPC cluster."""
+"""Run job in local system."""
 import os
 import re
 import glob
 import uuid
-import time
 import pickle
 import tarfile
 import subprocess
 import numpy as np
-import math
 
 from chemicalchecker.util import logged
 
@@ -20,14 +18,12 @@ ERROR = "error"
 
 @logged
 class local():
-    """Run tasks in your local system."""
+    """Local job class."""
 
     jobStatusSuffix = ".status"
 
     def __init__(self, **kwargs):
-        """Initialize the local object.
-
-        """
+        """Initialize the local class."""
         self.error_finder = kwargs.get("error_finder", self.__find_error)
         self.statusFile = None
         self.status_id = None
@@ -45,27 +41,7 @@ class local():
             raise Exception("Element datatype not supported: %s" % type(l))
 
     def submitMultiJob(self, command, **kwargs):
-        """Submit a multi job/task.
-
-         Args:
-            command: The comand that will be executed in the cluster. It should contain a
-                     <TASK_ID> string and a <FILE> string. These will be replaced by
-                     the correponding task id and the pickle file with the elements that
-                     the command will need.
-            num_jobs:Number of jobs to run the command (default:1)
-            cpu:Number of cores the job will use(default:1)
-            wait:Wait for the job to finish (default:True)
-            jobdir:Directotory where the job will run (default:'')
-            job_name:Name of the job (default:10)
-            elements:List of elements that will need to run on the command
-            compress:Compress all generated files after job is done (default:True)
-            check_error:Check for error message in output files(default:True)
-            memory:Maximum memory the job can take in Gigabytes(default: 2)
-            mem_by_core:Maximum memory the job can take per core. Do not modify if not sure.(default: 2)
-            time: Maximum time(in minutes) the job can run on the cluster(default:infinite)
-
-        """
-
+        """Submit multiple job/task."""
         # get arguments or default values
         num_jobs = int(kwargs.get("num_jobs", 1))
         self.jobdir = kwargs.get("jobdir", '')
@@ -152,9 +128,7 @@ class local():
             return errors
 
     def __find_error(self, files):
-
         errors = ''
-
         for file_name in files:
             with open(file_name, 'r') as f:
                 num = 1
@@ -163,30 +137,15 @@ class local():
                         errors += file_name + " " + str(num) + " " + line
                     if 'Traceback (most recent call last)' in line:
                         errors += file_name + " " + str(num) + " " + line
-
                     num += 1
-
         return errors
 
     def check_errors(self):
-        """Check for errors in the output logs of the jobs.
-
-        If there are no errors and the status is "done", the status will change to "ready".
-
-        Returns:
-            errors(str): The lines in the output logs where the error is found.
-                        The format of the errors is filename, line number and line text.
-                        If there are no errors it returns None.
-
-        """
-
+        """Check for errors in the output logs of the jobs."""
         errors = ''
         self.__log.debug("Checking errors in job")
-
         files = []
-
         for file_name in glob.glob(os.path.join(self.jobdir, 'log*')):
-
             files.append(file_name)
 
         errors = self.error_finder(files)
@@ -206,11 +165,7 @@ class local():
             return None
 
     def compress(self):
-        """Compress the output logs into a tar.gz file in the same job directory
-
-
-        """
-
+        """Compress the output logs."""
         self.__log.debug("Compressing output job files...")
         tar = tarfile.open(os.path.join(
             self.jobdir, self.job_name + ".tar.gz"), "w:gz")
@@ -221,19 +176,7 @@ class local():
             os.remove(file_name)
 
     def status(self):
-        """Gets the status of the job submission
-
-           The status is None if there is no job submission.
-           The status is also saved in a *.status file in the job directory.
-
-        Returns:
-            status(str): There are three possible status if there was a submission
-                         "started": Job started but not finished
-                         "done": Job finished
-                         "ready": Job finished without errors
-        """
-
+        """Gets the status of the job submission."""
         if self.statusFile is None:
             return None
-
         return self.status_id
