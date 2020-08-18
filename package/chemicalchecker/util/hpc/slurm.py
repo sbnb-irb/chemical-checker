@@ -1,4 +1,4 @@
-"""SLURM interace to send jobs to an HPC cluster."""
+"""Submit jobs to an HPC cluster through SLURM queueing system."""
 import os
 import re
 import glob
@@ -19,7 +19,7 @@ ERROR = "error"
 
 @logged
 class slurm():
-    """Send tasks to an HPC cluster through SLURM queueing system."""
+    """SLURM job class."""
 
     jobFilenamePrefix = "job-"
     jobFilenameSuffix = ".sh"
@@ -51,9 +51,7 @@ fi
 """
 
     def __init__(self, **kwargs):
-        """Initialize the SLURM object.
-
-        """
+        """Initialize the SLURM class."""
         self.host = kwargs.get("host", '')
         self.queue = kwargs.get("queue", None)
         self.username = kwargs.get("username", '')
@@ -98,26 +96,7 @@ fi
             raise Exception("Element datatype not supported: %s" % type(l))
 
     def submitMultiJob(self, command, **kwargs):
-        """Submit a multi job/task.
-
-         Args:
-            command: The comand that will be executed in the cluster. It should contain a
-                     <TASK_ID> string and a <FILE> string. These will be replaced by
-                     the correponding task id and the pickle file with the elements that
-                     the command will need.
-            num_jobs:Number of jobs to run the command (default:1)
-            cpu:Number of cores the job will use(default:1)
-            wait:Wait for the job to finish (default:True)
-            jobdir:Directotory where the job will run (default:'')
-            job_name:Name of the job (default:10)
-            elements:List of elements that will need to run on the command
-            compress:Compress all generated files after job is done (default:True)
-            check_error:Check for error message in output files(default:True)
-            memory:Maximum memory the job can take in Gigabytes(default: 2)
-            time: Maximum time(in minutes) the job can run on the cluster(default:infinite)
-
-        """
-
+        """Submit multiple job/task."""
         # get arguments or default values
         num_jobs = kwargs.get("num_jobs", 1)
         cpu = kwargs.get("cpu", 1)
@@ -261,9 +240,7 @@ fi
         return self.job_id
 
     def __find_error(self, files):
-
         errors = ''
-
         for file_name in files:
             with open(file_name, 'r') as f:
                 num = 1
@@ -272,28 +249,14 @@ fi
                         errors += file_name + " " + str(num) + " " + line
                     if 'Traceback (most recent call last)' in line:
                         errors += file_name + " " + str(num) + " " + line
-
                     num += 1
-
         return errors
 
     def check_errors(self):
-        """Check for errors in the output logs of the jobs.
-
-        If there are no errors and the status is "done", the status will change to "ready".
-
-        Returns:
-            errors(str): The lines in the output logs where the error is found.
-                        The format of the errors is filename, line number and line text.
-                        If there are no errors it returns None.
-
-        """
-
+        """Check for errors in the output logs of the jobs."""
         errors = ''
         files = []
-
         for file_name in glob.glob(os.path.join(self.jobdir, 'slurm-*.out')):
-
             files.append(file_name)
 
         errors = self.error_finder(files)
@@ -313,11 +276,7 @@ fi
             return None
 
     def compress(self):
-        """Compress the output logs into a tar.gz file in the same job directory
-
-
-        """
-
+        """Compress the output logs."""
         self.__log.debug("Compressing output job files...")
         tar = tarfile.open(os.path.join(
             self.jobdir, self.job_name + ".tar.gz"), "w:gz")
@@ -328,18 +287,7 @@ fi
             os.remove(file_name)
 
     def status(self):
-        """Gets the status of the job submission
-
-           The status is None if there is no job submission.
-           The status is also saved in a *.status file in the job directory.
-
-        Returns:
-            status(str): There are three possible status if there was a submission
-                         "started": Job started but not finished
-                         "done": Job finished
-                         "ready": Job finished without errors
-        """
-
+        """Gets the status of the job submission."""
         if self.statusFile is None:
             return None
 

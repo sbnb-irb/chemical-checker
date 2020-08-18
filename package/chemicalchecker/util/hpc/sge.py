@@ -1,4 +1,4 @@
-"""SGE interace to send jobs to an HPC cluster."""
+"""Submit jobs to an HPC cluster through SGE queueing system."""
 import os
 import re
 import glob
@@ -21,7 +21,7 @@ ERROR = "error"
 
 @logged
 class sge():
-    """Send tasks to an HPC cluster through SGE queueing system."""
+    """SGE job class."""
 
     jobFilenamePrefix = "job-"
     jobFilenameSuffix = ".sh"
@@ -54,9 +54,7 @@ fi
 """
 
     def __init__(self, **kwargs):
-        """Initialize the SGE object.
-
-        """
+        """Initialize the SGE class."""
         self.host = kwargs.get("host", '')
         self.queue = kwargs.get("queue", None)
         self.username = kwargs.get("username", '')
@@ -94,36 +92,14 @@ fi
 
         # NS: to correct a bug on D1 sign0 calculation
         elif isinstance(l, type(dict().keys())):
-            keys=list(l).sort()
+            keys = list(l).sort()
             for i in np.array_split(keys, n):
                 yield {k: l[k] for k in i}
-
-
         else:
             raise Exception("Element datatype not supported: %s" % type(l))
 
     def submitMultiJob(self, command, **kwargs):
-        """Submit a multi job/task.
-
-         Args:
-            command: The comand that will be executed in the cluster. It should contain a
-                     <TASK_ID> string and a <FILE> string. These will be replaced by
-                     the correponding task id and the pickle file with the elements that
-                     the command will need.
-            num_jobs:Number of jobs to run the command (default:1)
-            cpu:Number of cores the job will use(default:1)
-            wait:Wait for the job to finish (default:True)
-            jobdir:Directotory where the job will run (default:'')
-            job_name:Name of the job (default:10)
-            elements:List of elements that will need to run on the command
-            compress:Compress all generated files after job is done (default:True)
-            check_error:Check for error message in output files(default:True)
-            memory:Maximum memory the job can take in Gigabytes(default: 2)
-            mem_by_core:Maximum memory the job can take per core. Do not modify if not sure.(default: 2)
-            time: Maximum time(in minutes) the job can run on the cluster(default:infinite)
-
-        """
-
+        """Submit multiple job/task."""
         # get arguments or default values
         num_jobs = int(kwargs.get("num_jobs", 1))
         cpu = kwargs.get("cpu", 1)
@@ -156,7 +132,8 @@ fi
 
         if (len(elements) == 0 and num_jobs > 1):
             raise Exception(
-                "Number of specified jobs does not match to the number of elements")
+                "Number of specified jobs does not match"
+                " to the number of elements")
 
         if num_jobs == 0:
             raise Exception("Number of specified jobs is zero")
@@ -177,8 +154,9 @@ fi
 
             if newcpu != cpu:
                 self.__log.warning(
-                    "The memory job requirements needs to " +
-                    "change the number of cores needed by the job. (%d --> %d)" % (cpu, newcpu))
+                    "The memory job requirements needs to "
+                    "change the number of cores needed by the job. "
+                    "(%d --> %d)" % (cpu, newcpu))
                 cpu = newcpu
 
         if cpu > 1:
@@ -204,7 +182,7 @@ fi
 
             with open(input_path, 'wb') as fh:
                 pickle.dump(input_dict, fh, protocol=2)
-                
+
             command = command.replace("<FILE>", input_path)
 
         if cpusafe:
@@ -217,12 +195,15 @@ fi
                 'VECLIB_MAXIMUM_THREADS',
                 'NUMEXPR_NUM_THREADS'
             ]
-            command = ' '.join(["%s=%s" % (v, str(cpu)) for v in env_vars] + [command])
+            command = ' '.join(["%s=%s" % (v, str(cpu))
+                                for v in env_vars] + [command])
 
         # Creates the final job.sh
         paramsText = self.defaultOptions + str("\n").join(jobParams)
-        jobFilename = os.path.join(self.jobdir, sge.jobFilenamePrefix + self.job_name + sge.jobFilenameSuffix)
-        
+        jobFilename = os.path.join(
+            self.jobdir, sge.jobFilenamePrefix + self.job_name +
+            sge.jobFilenameSuffix)
+
         self.__log.info("Writing file " + jobFilename + "...")
         jobFile = open(jobFilename, "w")
         jobFile.write(sge.templateScript %
@@ -283,9 +264,7 @@ fi
         return self.job_id
 
     def __find_error(self, files):
-
         errors = ''
-
         for file_name in files:
             with open(file_name, 'r') as f:
                 num = 1
@@ -294,36 +273,23 @@ fi
                         errors += file_name + " " + str(num) + " " + line
                     if 'Traceback (most recent call last)' in line:
                         errors += file_name + " " + str(num) + " " + line
-
                     num += 1
-
         return errors
 
     def check_errors(self):
-        """Check for errors in the output logs of the jobs.
-
-        If there are no errors and the status is "done", the status will change to "ready".
-
-        Returns:
-            errors(str): The lines in the output logs where the error is found.
-                        The format of the errors is filename, line number and line text.
-                        If there are no errors it returns None.
-
-        """
-
+        """Check for errors in the output logs of the jobs."""
         errors = ''
         self.__log.debug("Checking errors in job")
-
         files = []
-
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.o*')):
-
+        dir_regex = os.path.join(self.jobdir, self.job_name + '.o*')
+        for file_name in glob.glob(dir_regex):
             files.append(file_name)
 
         errors = self.error_finder(files)
 
         if len(errors) > 0:
-            self.__log.debug("Found errors in job (at directory {})".format(os.path.join(self.jobdir)))
+            self.__log.debug("Found errors in job (at directory {})".format(
+                os.path.join(self.jobdir)))
             if self.status_id == DONE:
                 with open(self.statusFile, "w") as f:
                     f.write(ERROR)
@@ -337,33 +303,19 @@ fi
             return None
 
     def compress(self):
-        """Compress the output logs into a tar.gz file in the same job directory
-
-
-        """
-
+        """Compress the output logs."""
         self.__log.debug("Compressing output job files...")
         tar = tarfile.open(os.path.join(
             self.jobdir, self.job_name + ".tar.gz"), "w:gz")
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.o*')):
+        dir_regex = os.path.join(self.jobdir, self.job_name + '.o*')
+        for file_name in glob.glob(dir_regex):
             tar.add(file_name, os.path.basename(file_name))
         tar.close()
-        for file_name in glob.glob(os.path.join(self.jobdir, self.job_name + '.o*')):
+        for file_name in glob.glob(dir_regex):
             os.remove(file_name)
 
     def status(self):
-        """Gets the status of the job submission
-
-           The status is None if there is no job submission.
-           The status is also saved in a *.status file in the job directory.
-
-        Returns:
-            status(str): There are three possible status if there was a submission
-                         "started": Job started but not finished
-                         "done": Job finished
-                         "ready": Job finished without errors
-        """
-
+        """Gets the status of the job submission."""
         if self.statusFile is None:
             return None
 
@@ -374,11 +326,8 @@ fi
                 ssh.connect(self.host, **self.conn_params)
                 stdin, stdout, stderr = ssh.exec_command(
                     'qstat -j ' + self.job_id)
-
                 message = stdout.readlines()
-
                 self.__log.debug(message)
-
                 # if message[0].find("do not exist") != -1:
                 if len(message) == 0:
                     self.status_id = DONE
