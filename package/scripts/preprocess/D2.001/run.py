@@ -11,7 +11,7 @@ import logging
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
-from chemicalchecker.util.performance import gaussian_scale_impute
+from chemicalchecker.util.transform import gaussian_scale_impute
 from chemicalchecker.core.preprocess import Preprocess
 from chemicalchecker.core.signature_data import DataSignature
 
@@ -62,7 +62,7 @@ def parse_nci60(sigs, models_path=None, up=None, dw=None):
 
     # Scale and impute
 
-    X = gaussian_scale_impute.scaleimpute(
+    X = gaussian_scale_impute(
         X_incomplete, models_path=models_path, up=up, dw=dw)
 
     return X, rowNames

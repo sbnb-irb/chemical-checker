@@ -1,5 +1,4 @@
-"""
-Transform data so that it is approximately normally distributed
+"""Transform data so that it is approximately normally distributed.
 
 This code written by Greg Ver Steeg, 2015.
 """

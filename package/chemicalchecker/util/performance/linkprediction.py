@@ -1,3 +1,8 @@
+"""Link prediction.
+
+The idea is to check wether the embedding (signature 2) distances are
+predictive of a link being or not present.
+"""
 import numpy as np
 from tqdm import tqdm
 from numpy.random import randint
@@ -12,10 +17,12 @@ from chemicalchecker.util import logged
 class LinkPrediction():
 
     def __init__(self, sign2, network, metric=cosine, limit_nodes=None):
-        """Initialize the link prediction exercise.
-
-        The idea is to check wether the signature distances are predictive of
-        a link being or not present.
+        """Initialize LinkPrediction class.
+        Args:
+            sign2 (sign): Signature or embedding to validate.
+            network (network): The network that we want to reconstruct.
+            metric (set): The function used to compute vector distance.
+            limit_nodes (set): Limit sampling to nodes in this set.
         """
         self.sign2 = sign2
         self.network = network
@@ -26,9 +33,9 @@ class LinkPrediction():
         """Sample positive (present) and negative (absent).
 
         Args:
-            edges_to_sample(int): Number of edges to sample per node.
-            metric(func): The function used to compute vector distance.
-            metric(set): Limit sampling to nodes in this set.
+            edges_to_sample (int): Number of edges to sample per node.
+            metric (func): The function used to compute vector distance.
+            limit_nodes (set): Limit sampling to nodes in this set.
         """
         y_positive = list()
         y_pred_pos = list()
