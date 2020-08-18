@@ -1,5 +1,4 @@
-# Canonical correlation analysis.
-
+"""Canonical correlation analysis."""
 import random
 import numpy as np
 from tqdm import tqdm
