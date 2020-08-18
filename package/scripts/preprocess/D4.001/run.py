@@ -1,21 +1,21 @@
-import sys
-import argparse
 import os
-import collections
+import sys
 import h5py
-import numpy as np
 import pickle
 import shutil
+import random
 import logging
+import collections
+import numpy as np
+from cmapPy.pandasGEXpress import parse
+
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
-from chemicalchecker.util.performance import gaussian_scale_impute
+from chemicalchecker.util.transform import gaussian_scale_impute
 from chemicalchecker.core.preprocess import Preprocess
 from chemicalchecker.core.signature_data import DataSignature
 
-import random
-from cmapPy.pandasGEXpress import parse
 # Variables
 dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
 entry_point_full = "measure"
@@ -41,7 +41,7 @@ def parse_morphology(lds_file, models_path=None, up=None, dw=None):
         pertid = "%s-%s" % (pertid[0], pertid[1])
         rownames += [pertid]
     X = np.array(pd.data_df).T
-    X, up, dw = gaussian_scale_impute.scaleimpute(
+    X, up, dw = gaussian_scale_impute(
         X, models_path=models_path, up=up, dw=dw)
     rownames = np.array(rownames)
     cols = list(np.array(pd.row_metadata_df["ImageFeature"]))
@@ -205,7 +205,7 @@ def main(args):
 
                 X.append(post_data.tolist())
                 rownames.append(l[0])
-        X, up, dw = gaussian_scale_impute.scaleimpute(
+        X, up, dw = gaussian_scale_impute(
             X, models_path=args.models_path, up=up, dw=dw)
         for i in range(0, len(rownames)):
             sigs[rownames[i]] = X[i]
@@ -213,7 +213,7 @@ def main(args):
     main._log.info("Saving raw data")
 
     Preprocess.save_output(args.output_file, sigs, args.method,
-                args.models_path, dataset.discrete, features)
+                           args.models_path, dataset.discrete, features)
 
 
 if __name__ == '__main__':
