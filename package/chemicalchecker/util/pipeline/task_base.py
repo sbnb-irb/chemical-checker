@@ -1,7 +1,7 @@
-"""Implementation of the abstract task class.
+"""Abstract task class.
 
 Each task class derived from this base class will have to implement several
-methods. 
+methods.
 """
 import os
 import six
@@ -68,7 +68,8 @@ class BaseTask(object):
         """Clean the step."""
         BaseTask.__log.debug('clean')
         if substep is None:
-            for filename in glob.glob(os.path.join(self.readydir, self.name + "_*.ready")):
+            dir_regex = os.path.join(self.readydir, self.name + "_*.ready")
+            for filename in glob.glob(dir_regex):
                 os.remove(filename)
         else:
             filename = os.path.join(

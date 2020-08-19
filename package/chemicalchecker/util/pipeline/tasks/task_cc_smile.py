@@ -1,3 +1,9 @@
+"""CCSmileConverter task.
+
+This tasks is mainly thought to be used on signature3 to create a model to
+predict signatures3 from smiles.
+Maybe, it could be generalized to other signatures.
+"""
 import tempfile
 import os
 import shutil
@@ -19,15 +25,13 @@ class CCSmileConverter(BaseTask, BaseOperator):
     def __init__(self, name=None, cc_type='sign3', **params):
         """Initialize CC SmileConverter task.
 
-        This class allows to pipe a smile converter fit task in the Pipeline framework.
-        This tasks is mainly thought to be used on signature3 to create a model to predict
-        signatures3 from smiles. Maybe, it could be generalized to other signatures.
-
         Args:
-            name(str): The name of the task (default:None)
-            cc_type(str): The CC type where the fit is applied (Required, default: sign3)
-            CC_ROOT(str): The CC root path (Required)
-            datasets(list): The list of dataset codes to create the smile converter model(Optional, all datasets taken by default)
+            name (str): The name of the task (default:None)
+            cc_type (str): The CC type where the fit is applied (Required,
+                default: sign3)
+            CC_ROOT (str): The CC root path (Required)
+            datasets (list): The list of dataset codes to create the smile
+                converter model(Optional, all datasets taken by default)
         """
         if cc_type is None:
             raise Exception("CCSmileConverter requires a cc_type")
@@ -51,7 +55,7 @@ class CCSmileConverter(BaseTask, BaseOperator):
             raise Exception('CC_ROOT parameter is not set')
 
     def run(self):
-        """Run the CCSmileConverter task."""
+        """Run the task."""
         config_cc = Config()
         dataset_codes = list()
         cc = ChemicalChecker(self.CC_ROOT)
@@ -63,19 +67,28 @@ class CCSmileConverter(BaseTask, BaseOperator):
                 if not ds.exemplary:
                     continue
                 sign = cc.get_signature(self.cc_type, "full", ds.dataset_code)
-                if os.path.exists(os.path.join(sign.model_path, "adanet_sign0_A1.001_final/savedmodel/saved_model.pb")):
+                if os.path.exists(
+                    os.path.join(
+                        sign.model_path,
+                        "adanet_sign0_A1.001_final/savedmodel/saved_model.pb")):
                     continue
 
                 dataset_codes.append(ds.dataset_code)
 
             sign = cc.get_signature(self.cc_type, "full", "ZZ.000")
-            if sign.available() and not os.path.exists(os.path.join(sign.model_path, "adanet_sign0_A1.001_final/savedmodel/saved_model.pb")):
+            if sign.available() and not os.path.exists(
+                os.path.join(
+                    sign.model_path,
+                    "adanet_sign0_A1.001_final/savedmodel/saved_model.pb")):
                 dataset_codes.append("ZZ.000")
 
         else:
             for ds in self.datasets:
                 sign = cc.get_signature(self.cc_type, "full", ds)
-                if os.path.exists(os.path.join(sign.model_path, "adanet_sign0_A1.001_final/savedmodel/saved_model.pb")):
+                if os.path.exists(
+                    os.path.join(
+                        sign.model_path,
+                        "adanet_sign0_A1.001_final/savedmodel/saved_model.pb")):
                     continue
                 dataset_codes.append(ds)
 
@@ -143,12 +156,16 @@ class CCSmileConverter(BaseTask, BaseOperator):
         for code in dataset_codes:
 
             sign = cc.get_signature(self.cc_type, "full", code)
-            if os.path.exists(os.path.join(sign.model_path, "adanet_sign0_A1.001_final/savedmodel/saved_model.pb")):
+            if os.path.exists(
+                os.path.join(
+                    sign.model_path,
+                    "adanet_sign0_A1.001_final/savedmodel/saved_model.pb")):
                 continue
 
             dataset_not_done.append(code)
             self.__log.warning(
-                "Smiles " + self.cc_type + " fit failed for dataset code: " + code)
+                "Smiles " + self.cc_type +
+                " fit failed for dataset code: " + code)
 
         if len(dataset_not_done) == 0:
             self.mark_ready()
@@ -159,8 +176,6 @@ class CCSmileConverter(BaseTask, BaseOperator):
                 raise AirflowException("Some predictions failed")
 
     def execute(self, context):
-        """Run the execute."""
-
+        """Same as run but for Airflow."""
         self.tmpdir = context['params']['tmpdir']
-
         self.run()

@@ -1,3 +1,9 @@
+"""CCLongShort task.
+
+Given a list of datasets it first concatenates all of them to create a Long
+signature (horizontally stacked) and then it produces a short version by using
+autoencoders.
+"""
 import tempfile
 import os
 import shutil
@@ -18,21 +24,22 @@ from chemicalchecker.util import HPC
 class CCLongShort(BaseTask, BaseOperator):
 
     def __init__(self, name=None, cc_type=None, **params):
-        """Initialize CC LongShort task.
-
-        This class allows to pipe a long-short task in the Pipeline framework.
-        Given a list of datasets it first concatenates all of them to create a Long
-        signature and then it produces a short version by using autoencoders.
+        """Initialize CCLongShort task.
 
         Args:
-            name(str): The name of the task (default:None)
-            cc_type(str): The CC type where the fit is applied (Required)
-            CC_ROOT(str): The CC root path (Required)
-            datasets(list): The list of dataset codes to create the long signature(Optional, all datasets taken by default)
-            dataset_sign_long(str): The dataset code for the long signature (default: ZZ.001)
-            dataset_sign_short(str): The dataset code for the short signature (default: ZZ.000)
-            epochs(int): The number of epochs for the autoencoder fit (default: 400)
-            encoding_dim(int): The dimension for the short signature (default: 512)
+            name (str): The name of the task (default:None)
+            cc_type (str): The CC type where the fit is applied (Required)
+            CC_ROOT (str): The CC root path (Required)
+            datasets (list): The list of dataset codes to create the long
+                signature(Optional, all datasets taken by default)
+            dataset_sign_long (str): The dataset code for the long signature
+                (default: ZZ.001)
+            dataset_sign_short (str): The dataset code for the short signature
+                (default: ZZ.000)
+            epochs (int): The number of epochs for the autoencoder fit
+                (default: 400)
+            encoding_dim (int): The dimension for the short signature
+                (default: 512)
         """
         if cc_type is None:
             raise Exception("CCLongShort requires a cc_type")
@@ -59,7 +66,7 @@ class CCLongShort(BaseTask, BaseOperator):
             raise Exception('CC_ROOT parameter is not set')
 
     def run(self):
-        """Run the CCLongShort task."""
+        """Run the task."""
 
         config_cc = Config()
         dataset_codes = list()
@@ -75,7 +82,8 @@ class CCLongShort(BaseTask, BaseOperator):
                     self.cc_type, "full", ds.dataset_code)
                 if not sign.available():
                     raise Exception(
-                        self.cc_type + " not available for dataset " + ds.dataset_code)
+                        self.cc_type + " not available for dataset " +
+                        ds.dataset_code)
 
                 dataset_codes.append(ds.dataset_code)
 
@@ -123,7 +131,8 @@ class CCLongShort(BaseTask, BaseOperator):
         if len(dataset_codes) > 0:
 
             job_path = tempfile.mkdtemp(
-                prefix='jobs_long_short_' + self.cc_type + '_', dir=self.tmpdir)
+                prefix='jobs_long_short_' + self.cc_type + '_',
+                dir=self.tmpdir)
 
             if not os.path.isdir(job_path):
                 os.mkdir(job_path)
@@ -191,8 +200,6 @@ class CCLongShort(BaseTask, BaseOperator):
                 raise AirflowException("Long to Short failed")
 
     def execute(self, context):
-        """Run the molprops step."""
-
+        """Same as run but for Airflow."""
         self.tmpdir = context['params']['tmpdir']
-
         self.run()

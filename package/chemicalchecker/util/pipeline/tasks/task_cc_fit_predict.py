@@ -1,3 +1,9 @@
+"""CCFit task.
+
+This class allows to pipe different ``fit`` tasks in the Pipeline framework.
+It tries to work for all possible CC elements but considering that signatures
+are changing quite often it might need to be updated.
+"""
 import tempfile
 import os
 import shutil
@@ -96,22 +102,22 @@ class CCFit(BaseTask, BaseOperator):
     def __init__(self, name=None, cc_type=None, **params):
         """Initialize CC fit task.
 
-        This class allows to pipe different fit tasks in the Pipeline framework.
-        It tries to work for all possible CC elements but considering that signatures are changing
-        quite often it might need to be updated.
-
         Args:
-            name(str): The name of the task (default:None)
-            cc_type(str): The CC type where the fit is applied (Required)
-            CC_ROOT(str): The CC root path (Required)
-            cc_old_path(str): The CC root path for a previous release of CC
-            datasets(list): The list of dataset codes to apply the fit(Optional, all datasets taken by default)
-            full_reference(bool): The fit is for full & reference branches (default:True)
-            ds_data_params(dict): A dictionary with key is dataset code and value is  another dictionary
-                                 with all specific parameters for that dataset. (Optional)
-            general_data_params(dict): A dictionary with general parameters for all datasets (Optional)
-            target_datasets(list): List of dataset codes to taget for sign3
-            ref_datasets(list): List of reference datasets for sign3
+            name (str): The name of the task (default:None)
+            cc_type (str): The CC type where the fit is applied (Required)
+            CC_ROOT (str): The CC root path (Required)
+            cc_old_path (str): The CC root path for a previous release of CC
+            datasets (list): The list of dataset codes to apply the fit
+                (Optional, all datasets taken by default)
+            full_reference (bool): The fit is for full & reference branches
+                (default:True)
+            ds_data_params (dict): A dictionary with key is dataset code and
+                value is  another dictionary with all specific parameters for
+                that dataset. (Optional)
+            general_data_params (dict): A dictionary with general parameters
+                for all datasets (Optional)
+            target_datasets (list): List of dataset codes to taget for sign3
+            ref_datasets (list): List of reference datasets for sign3
         """
         if cc_type is None:
             raise Exception("CCFit requires a cc_type")
@@ -145,7 +151,7 @@ class CCFit(BaseTask, BaseOperator):
                 "CCFit for sign0 requires cc_old_path if no parameters provided")
 
     def run(self):
-        """Run the CCFit task."""
+        """Run the task."""
 
         config_cc = Config()
         dataset_codes = list()
@@ -218,20 +224,27 @@ class CCFit(BaseTask, BaseOperator):
                     if not ds.essential:
                         continue
 
-                    sign = cc.get_signature(self.cc_type, "full", ds.dataset_code) # returns a signx object
+                    # returns a signx object
+                    sign = cc.get_signature(
+                        self.cc_type, "full", ds.dataset_code)
 
                     if sign.is_fit():
                         continue
 
-                    if not (sign.dataset == 'D1.001' and sign.cctype == 'sign0') and os.path.exists(sign.signature_path): # NS D1 preprocess is very long, do not delete it if it has crashed
+                    # NS D1 preprocess is very long, do not delete it if it has
+                    # crashed
+                    if not (sign.dataset == 'D1.001' and sign.cctype == 'sign0') and os.path.exists(sign.signature_path):
                         #print("Attempting to delete ", sign.signature_path)
-                        #shutil.rmtree(sign.signature_path,ignore_errors=True)
+                        # shutil.rmtree(sign.signature_path,ignore_errors=True)
                         #print("DELETED: ", sign.signature_path)
                         pass
 
-
-                    if self.full_reference: # NS The fit is for full & reference branches (default:True)
-                        sign = cc.get_signature(self.cc_type, "reference", ds.dataset_code) # NS molset: reference
+                    # NS The fit is for full & reference branches
+                    # (default:True)
+                    if self.full_reference:
+                        # NS molset: reference
+                        sign = cc.get_signature(
+                            self.cc_type, "reference", ds.dataset_code)
 
                         if not (sign.dataset == 'D1.001' and sign.cctype == 'sign0') and os.path.exists(sign.signature_path):
                             #print("Attempting to delete signature path: ", sign.signature_path)
@@ -241,18 +254,19 @@ class CCFit(BaseTask, BaseOperator):
 
                     dataset_codes.append(ds.dataset_code)
 
-            else: # NS with custom dataset
+            else:  # NS with custom dataset
                 for ds in self.datasets:
                     sign = cc.get_signature(self.cc_type, "full", ds)
                     if sign.is_fit():
                         continue
-                    dataset_codes.append(ds)  #NS i.e: 'A1.001', 'B1.001' etc
+                    dataset_codes.append(ds)  # NS i.e: 'A1.001', 'B1.001' etc
 
         dataset_params = list()
 
         # NS: now filling dataset_params
         for ds_code in dataset_codes:
-            if isinstance(self.ds_data_params, Config): # NS self.data_param is None is our case
+            # NS self.data_param is None is our case
+            if isinstance(self.ds_data_params, Config):
                 temp_dict = self.ds_data_params.asdict()
             else:
                 temp_dict = self.ds_data_params  # NS i.e None
@@ -270,26 +284,29 @@ class CCFit(BaseTask, BaseOperator):
                 dataset_params.append(
                     (ds_code, dict_params))
             else:
-                dataset_params.append((ds_code, None)) # i.e ('A1.001', None)
+                dataset_params.append((ds_code, None))  # i.e ('A1.001', None)
 
         # NS: checking dependencies depending on which sign we are calculating
-        # NS, some CC_types have dependencies, eg sign2 need for ex sign1 and neig1 to work
+        # NS, some CC_types have dependencies, eg sign2 need for ex sign1 and
+        # neig1 to work
         for dependency in CC_TYPES_DEPENDENCIES[self.cc_type]:
             for ds in dataset_codes:
-                if dependency == self.cc_type:  #NS no dependency
+                if dependency == self.cc_type:  # NS no dependency
                     continue
-                if self.full_reference: # NS: True by default
+                if self.full_reference:  # NS: True by default
                     branch = "reference"
                 else:
                     branch = "full"
 
-                sign = cc.get_signature(dependency, branch, ds)  # again, generate a sign or neig object to fulfill the dependency before the required signature
+                # again, generate a sign or neig object to fulfill the
+                # dependency before the required signature
+                sign = cc.get_signature(dependency, branch, ds)
                 if not sign.available():
                     raise Exception(
                         dependency + " CC type is not available and it is required for " + self.cc_type)
                 else:
-                    print("INFO: Dependency {} is available for calculating {}".format(dependency, self.cctype))
-
+                    print("INFO: Dependency {} is available for calculating {}".format(
+                        dependency, self.cctype))
 
         job_path = None
 
@@ -303,18 +320,22 @@ class CCFit(BaseTask, BaseOperator):
 
         if len(dataset_codes) > 0:
 
-            dataset_codes.sort() # NS: going through sorted dataset_codes ['A1.001', 'B1.001' etc]
+            # NS: going through sorted dataset_codes ['A1.001', 'B1.001' etc]
+            dataset_codes.sort()
 
-            job_path = tempfile.mkdtemp(prefix='jobs_' + self.cc_type + '_', dir=self.tmpdir)
+            job_path = tempfile.mkdtemp(
+                prefix='jobs_' + self.cc_type + '_', dir=self.tmpdir)
 
-            if not os.path.isdir(job_path): # create directory for running the job
+            if not os.path.isdir(job_path):  # create directory for running the job
                 os.mkdir(job_path)
 
-            # create script file that will launch signx fit jobs for ALL the select dataset 
+            # create script file that will launch signx fit jobs for ALL the
+            # select dataset
             cc_config_path = os.environ['CC_CONFIG']
             cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
 
-            # NS-> added sys.path.append('/opt/chemical_checker/package/chemicalchecker/../')
+            # NS-> added
+            # sys.path.append('/opt/chemical_checker/package/chemicalchecker/../')
             script_lines = [
                 "import sys, os",
                 "import pickle",
@@ -340,15 +361,17 @@ class CCFit(BaseTask, BaseOperator):
             ]
 
             # Preprocessing scripts
-            if self.full_reference: # True for sign0
+            if self.full_reference:  # True for sign0
                 if self.cc_type in SPECIFIC_SCRIPTS:
-                    script_lines += SPECIFIC_SCRIPTS[self.cc_type][0]  # i.e SIGN0_SCRIPT_FR, i.e will call cc.preprocess
+                    # i.e SIGN0_SCRIPT_FR, i.e will call cc.preprocess
+                    script_lines += SPECIFIC_SCRIPTS[self.cc_type][0]
                 else:
                     script_lines += [sub.replace('<CC_TYPE>', self.cc_type)
                                      for sub in CC_SCRIPT_FR]
             else:
                 if self.cc_type in SPECIFIC_SCRIPTS:
-                    script_lines += SPECIFIC_SCRIPTS[self.cc_type][1]  # # same for sign0 i.e SIGN0_SCRIPT_FR, i.e will call cc.preprocess
+                    # # same for sign0 i.e SIGN0_SCRIPT_FR, i.e will call cc.preprocess
+                    script_lines += SPECIFIC_SCRIPTS[self.cc_type][1]
                 else:
                     script_lines += [sub.replace('<CC_TYPE>', self.cc_type)
                                      for sub in CC_SCRIPT_F]
@@ -356,7 +379,6 @@ class CCFit(BaseTask, BaseOperator):
             script_lines += ["print('JOB DONE')"]
 
             script_name = os.path.join(job_path, self.cc_type + '_script.py')
-
 
             # Python script to launch jobs on the cluster
             with open(script_name, 'w') as fh:
@@ -404,7 +426,5 @@ class CCFit(BaseTask, BaseOperator):
 
     def execute(self, context):
         """Same as run but for Airflow."""
-
         self.tmpdir = context['params']['tmpdir']
-
         self.run()
