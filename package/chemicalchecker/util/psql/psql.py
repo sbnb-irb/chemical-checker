@@ -12,7 +12,7 @@ def get_connection(dbname=None):
     """Return the connection to a PSQL DB.
 
     Args:
-        dbname(str):The name of DB to connect.
+        dbname (str):The name of DB to connect.
             If none, the name from config file is used.
     Returns:
         connection
@@ -31,7 +31,7 @@ def qstring(query, dbname):
     """Method to query a PSQL DB.
 
     Args:
-        dbname(str):The name of DB to connect.
+        dbname (str):The name of DB to connect.
             If none, the name from config file is used.
     Returns:
         rows: the data queried in row format
@@ -49,7 +49,7 @@ def qstring_cur(query, dbname):
     """Method to query a PSQL DB.
 
     Args:
-        dbname(str):The name of DB to connect.
+        dbname (str):The name of DB to connect.
             If none, the name from config file is used.
     Returns:
         rows: the data queried in row format
@@ -65,7 +65,7 @@ def query(query, dbname):
     """Method to query a PSQL database which returns data.
 
     Args:
-        dbname(str):The name of DB to connect.
+        dbname (str):The name of DB to connect.
             If none, the name from config file is used.
     """
     con = get_connection(dbname=dbname)
