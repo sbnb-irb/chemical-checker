@@ -1,8 +1,6 @@
 include AUTHORS.rst
 include CONTRIBUTING.rst
-include HISTORY.rst
-include LICENSE
-include README.rst
+include ../LICENSE
 include chemicalchecker/util/config/cc_config.json
 include chemicalchecker/util/logging/logging_conf.ini
 
