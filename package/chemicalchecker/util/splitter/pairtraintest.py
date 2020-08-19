@@ -1,3 +1,4 @@
+"""Splitter on pairs."""
 import h5py
 import numpy as np
 

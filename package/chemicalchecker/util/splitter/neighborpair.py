@@ -1,3 +1,4 @@
+"""Splitter on Neighbor pairs."""
 import os
 import h5py
 import pickle

@@ -1,3 +1,4 @@
+"""Splitter on Neighbor error."""
 import os
 import h5py
 import itertools

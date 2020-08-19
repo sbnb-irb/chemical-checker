@@ -1,3 +1,4 @@
+"""Splitter on Neighbor triplets."""
 import os
 import h5py
 import pickle
