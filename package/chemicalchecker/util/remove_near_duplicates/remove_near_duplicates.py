@@ -1,14 +1,13 @@
-"""Utility for removing near duplicates from matrix data.
+"""Remove redundant rows in a data matrix.
 
-It removes duplicates or near-duplicates by using Faiss library,
-which the data vectors according their similarity.
+Removes duplicates or near-duplicates using the
+`Faiss library <https://github.com/facebookresearch/faiss>`_
 """
 import os
 import h5py
 import pickle
 import random
 import numpy as np
-import collections
 from collections import defaultdict
 
 from chemicalchecker.util import logged
@@ -17,15 +16,15 @@ from chemicalchecker.core.signature_data import DataSignature
 
 @logged
 class RNDuplicates():
-    """Removes near duplicates from matrix data."""
+    """RNDuplicates class."""
 
     def __init__(self, nbits=128, only_duplicates=False, cpu=1):
-        """Initialize the RNDuplicates object.
+        """Initialize a RNDuplicates object.
 
         Args:
-            nbits(int): Number of bits to use to quantize
-            only_duplicates(boolean): Remove only exact duplicates
-            cpu(int): Number of cores to use
+            nbits (int): Number of bits to use to quantize.
+            only_duplicates (boolean): Remove only exact duplicates.
+            cpu (int): Number of cores to use.
         """
         self.nbits = nbits
         self.only_duplicates = only_duplicates
@@ -36,18 +35,21 @@ class RNDuplicates():
         self.__log.debug('RNDuplicates to use ' + str(self.nbits) + " bits")
 
     def remove(self, data, keys=None, save_dest=None, just_mappings=False):
-        """Remove near duplicates from data.
+        """Remove redundancy from data.
 
         Args:
-            data(array): The data to remove duplicates from. It can be a numpy array
-                         or a file path to a .h5 file
-            keys(array): Array of keys for the input data
-            save_dest(str): If the resulyt needs to be saved in a file, the path to the file( default: None)
-            just_mappings(bool): Only applies if save_dest is None. Just return the mappings (default=False).
+            data (array): The data to remove duplicates from. It can be a numpy
+                array or a file path to a ``HDF5`` file with dataset ``V``.
+            keys (array): Array of keys for the input data. If `None`, keys are
+                taken from ``HDF5`` dataset ``keys``.
+            save_dest (str): If the result needs to be saved in a file,
+                the path to the file. (default: None)
+            just_mappings (bool): Just return the mappings. Only applies if
+                save_dest is None. (default=False)
         Returns:
-            keys(array):
-            data(array):
-            mappings(dictionary):
+            keys (array):
+            data (array):
+            mappings (dictionary):
 
         """
         try:
@@ -55,15 +57,16 @@ class RNDuplicates():
         except ImportError:
             raise ImportError("requires faiss " +
                               "https://github.com/facebookresearch/faiss")
+
         faiss.omp_set_num_threads(self.cpu)
 
         if type(data) == str:
             self.__log.debug("Data input is: " + data)
-            if os.path.isfile(data) and data[-3:] == ".h5":
+            if os.path.isfile(data):
                 dh5 = h5py.File(data, 'r')
                 if "keys" not in dh5.keys() or "V" not in dh5.keys():
                     raise Exception(
-                        "H5 file " + data + " does not contain datasets 'keys' and 'V'")
+                        "H5 file does not contain datasets 'keys' and 'V'")
                 data_size = dh5["V"].shape
                 if (data_size[0] < self.threshold and data_size[1] < self.threshold) or self.only_duplicates:
                     self.data = np.array(dh5["V"][:], dtype=np.float32)
@@ -179,14 +182,13 @@ class RNDuplicates():
                 return self.keys[np.array(self.final_ids)], np.array(self.data[np.array(self.final_ids)], dtype=self.data_type), self.mappings
 
     def save(self, destination):
-        """Save data after removing to a h5 file.
+        """Save non-redundant data.
+
+        Save non-redundant data to a ``HDF5`` file.
 
         Returns:
-            destination(str): The destination file(.h5 file) where to save the new data after removing.
-
+            destination (str): The destination file path.
         """
-        if destination[-3:] != ".h5":
-            raise Exception("The destination file needs to be a .h5 file")
 
         dirpath = os.path.dirname(destination)
 
