@@ -15,7 +15,8 @@ Types of Contributions
 Report Bugs
 ~~~~~~~~~~~
 
-Report bugs at http://gitlab.sbnb.org/packages/chemical_checker/issues.
+Report bugs in
+`Gitlab <http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker/issues>`_
 
 If you are reporting a bug, please include:
 
@@ -38,14 +39,15 @@ and "help wanted" is open to whoever wants to implement it.
 Write Documentation
 ~~~~~~~~~~~~~~~~~~~
 
-chemicalchecker could always use more documentation, whether as part of the
-official chemicalchecker docs, in docstrings, or even on the web in blog posts,
+The Chemical Checker could always use more documentation, whether as part of the
+official docs, in docstrings, or even on the gitlab repository, in notebooks,
 articles, and such.
 
 Submit Feedback
 ~~~~~~~~~~~~~~~
 
-The best way to send feedback is to file an issue at http://gitlab.sbnb.org/packages/chemical_checker/issues.
+The best way to send feedback is to file an issue in
+`Gitlab <http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker/issues>`_
 
 If you are proposing a feature:
 
@@ -53,24 +55,4 @@ If you are proposing a feature:
 * Keep the scope as narrow as possible, to make it easier to implement.
 * Remember that this is a volunteer-driven project, and that contributions
   are welcome :)
-
-
-Tips
-----
-
-To run a subset of tests::
-
-$ py.test tests.test_chemicalchecker
-
-
-Deploying
----------
-
-A reminder for the maintainers on how to deploy.
-Make sure all your changes are committed (including an entry in HISTORY.rst).
-Then run::
-
-$ bumpversion patch # possible: major / minor / patch
-$ git push
-$ git push --tags
 
