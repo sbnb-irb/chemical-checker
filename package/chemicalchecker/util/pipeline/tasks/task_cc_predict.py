@@ -1,3 +1,10 @@
+"""CCPredict task.
+
+This class allows to pipe different ``predict`` tasks in the Pipeline
+framework.
+It tries to work for all possible CC elements but considering that signatures
+are changing quite often it might need to be updated.
+"""
 import tempfile
 import os
 import shutil
@@ -43,21 +50,22 @@ class CCPredict(BaseTask, BaseOperator):
     def __init__(self, name=None, cc_type=None, **params):
         """Initialize CC predict task.
 
-        This class allows to pipe different predict tasks in the Pipeline framework.
-        It tries to work for all possible CC elements but considering that signatures are changing
-        quite often it might need to be updated.
-
         Args:
-            name(str): The name of the task (default:None)
-            cc_type(str): The CC type where the fit is applied (Required)
-            CC_ROOT(str): The CC root path (Required)
-            datasets(list): The list of dataset codes to apply the fit(Optional, all datasets taken by default)
-            ds_data_params(dict): A dictionary with key is dataset code and value is another dictionary
-                                 with all specific parameters for that dataset. (Optional)
-            general_data_params(dict): A dictionary with general parameters for all datasets (Optional)
-            datasets_input_files(dict): A dictionary with is a dataset code and value the input file for the predict
-            output_path(str): The path where to save the output files from the predict
-            output_file(str): Name of the output file for the prediction
+            name (str): The name of the task (default:None)
+            cc_type (str): The CC type where the fit is applied (Required)
+            CC_ROOT (str): The CC root path (Required)
+            datasets (list): The list of dataset codes to apply the fit
+                (Optional, all datasets taken by default)
+            ds_data_params (dict): A dictionary with key is dataset code and
+                value is another dictionary with all specific parameters for
+                that dataset. (Optional)
+            general_data_params (dict): A dictionary with general parameters
+                for all datasets (Optional)
+            datasets_input_files (dict): A dictionary with is a dataset code
+                and value the input file for the predict.
+            output_path (str): The path where to save the output files from
+                the predict.
+            output_file (str): Name of the output file for the prediction.
         """
         if cc_type is None:
             raise Exception("CCPredict requires a cc_type")
@@ -98,7 +106,7 @@ class CCPredict(BaseTask, BaseOperator):
             raise Exception("There is no datasets to predict " + self.cc_type)
 
     def run(self):
-        """Run the CCPredict task."""
+        """Run the task."""
 
         config_cc = Config()
         cc = ChemicalChecker(self.CC_ROOT)
@@ -115,14 +123,16 @@ class CCPredict(BaseTask, BaseOperator):
                 dataset_codes_files = {}
                 for code in self.datasets:
                     dataset_codes_files[code] = os.path.join(
-                        self.output_path, code, CC_TYPES_DEPENDENCIES[self.cc_type][0] + ".h5")
+                        self.output_path, code,
+                        CC_TYPES_DEPENDENCIES[self.cc_type][0] + ".h5")
                 self.datasets_input_files = dataset_codes_files
 
             else:
                 for ds, filename in self.datasets_input_files.items():
                     if not os.path.exists(self.datasets_input_files[ds]):
                         raise Exception(
-                            "Expected input file %s not present" % self.datasets_input_files[code])
+                            "Expected input file %s not present" %
+                            self.datasets_input_files[code])
 
         for ds in self.datasets:
             sign = cc.get_signature(self.cc_type, branch, ds)
@@ -254,8 +264,6 @@ class CCPredict(BaseTask, BaseOperator):
                 shutil.rmtree(job_path)
 
     def execute(self, context):
-        """Run the molprops step."""
-
+        """Same as run but for Airflow."""
         self.tmpdir = context['params']['tmpdir']
-
         self.run()

@@ -1,9 +1,5 @@
-"""Utility to run pipelines
-
-
-"""
+"""Utility to run pipelines."""
 import os
-import sys
 import logging
 
 from chemicalchecker.util import logged
@@ -16,7 +12,7 @@ class Pipeline():
     def __init__(self, pipeline_path=None, **kwargs):
         """Initialize the Pipeline object.
 
-        pipeline_path(str): the path where the pipeline will set its structure.
+        pipeline_path (str): Path where the pipeline will set its structure.
         """
         self.tasks = []
 

@@ -1,7 +1,4 @@
-import tempfile
-import os
-import shutil
-
+"""PythonCallable task."""
 from chemicalchecker.util import logged
 from chemicalchecker.util.pipeline import BaseTask
 
