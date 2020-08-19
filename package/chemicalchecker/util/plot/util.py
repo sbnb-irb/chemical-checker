@@ -1,4 +1,4 @@
-"""Coloring functions for the CC."""
+"""Chemical Checker palette coloring functions."""
 import colorsys
 import matplotlib
 import seaborn as sns
