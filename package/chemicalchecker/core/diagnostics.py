@@ -8,8 +8,13 @@ import pickle
 import shutil
 import collections
 import numpy as np
+from scipy.stats import gaussian_kde
 
+from sklearn.cluster import DBSCAN
 from sklearn.decomposition import PCA
+from sklearn.metrics import roc_curve, auc
+from sklearn.preprocessing import normalize
+from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import NearestNeighbors
 
 from chemicalchecker.util import logged
@@ -85,7 +90,8 @@ class Diagnosis(object):
             results = pickle.load(f)
         return results
 
-    def _returner(self, results, fn, save, plot, plotter_function, kw_plotter=None):
+    def _returner(self, results, fn, save, plot, plotter_function,
+                  kw_plotter=None):
         if results is None:
             fn_ = os.path.join(self.sign.diags_path, fn + ".pkl")
             with open(fn_, "rb") as f:
@@ -153,8 +159,8 @@ class Diagnosis(object):
         """Distance distribution. Sampled with replacement.
 
         Args:
-            n_pairs(int): Number of pairs to sample (default=10000).
-            metric(str): 'cosine' or 'euclidean' (default='cosine').
+            n_pairs (int): Number of pairs to sample. (default=10000)
+            metric (str): 'cosine' or 'euclidean'. (default='cosine')
         """
         if metric == "cosine":
             from scipy.spatial.distance import cosine as metric_func
@@ -175,8 +181,8 @@ class Diagnosis(object):
     def euclidean_distances(self, n_pairs=10000):
         """Euclidean distance distribution.
 
-            Args:
-                n_pairs(int): Number of pairs to sample (default=10000)
+        Args:
+            n_pairs (int): Number of pairs to sample. (default=10000)
         """
         self.__log.debug("Euclidean distances")
         fn = "euclidean_distances"
@@ -195,8 +201,8 @@ class Diagnosis(object):
     def cosine_distances(self, n_pairs=10000):
         """Cosine distance distribution.
 
-            Args:
-                n_pairs(int): Number of pairs to sample (default=10000).
+        Args:
+            n_pairs (int): Number of pairs to sample. (default=10000)
         """
         self.__log.debug("Cosine distances")
         fn = "cosine_distances"
@@ -212,11 +218,12 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.cosine_distances)
 
-    def cross_coverage(self, sign, apply_mappings=False, try_conn_layer=False, save=None, force_redo=False, **kwargs):
+    def cross_coverage(self, sign, apply_mappings=False, try_conn_layer=False,
+                       save=None, force_redo=False, **kwargs):
         """Intersection of coverages.
 
         Args:
-            sign(signature object): A CC signature object to check against.
+            sign (signature): A CC signature object to check against.
         """
         fn = os.path.join(self.sign.diags_path,
                           "cross_coverage_%s" % sign.qualified_name)
@@ -250,31 +257,34 @@ class Diagnosis(object):
             plotter_function=self.plotter.cross_coverage,
             kw_plotter={"sign": sign})
 
-    def cross_roc(self, sign, n_samples=10000, n_neighbors=5, neg_pos_ratio=1, apply_mappings=False, try_conn_layer=False, metric='cosine', save=None, force_redo=False, **kwargs):
+    def cross_roc(self, sign, n_samples=10000, n_neighbors=5, neg_pos_ratio=1,
+                  apply_mappings=False, try_conn_layer=False, metric='cosine',
+                  save=None, force_redo=False, **kwargs):
         """Perform validations.
 
         Args:
-            sign(signature object): A CC signature object to validate against
-            n_samples(int): Number of samples
-            apply_mappings(bool): Whether to use mappings to compute
+            sign (signature): A CC signature object to validate against.
+            n_samples (int): Number of samples.
+            apply_mappings (bool): Whether to use mappings to compute
                 validation. Signature which have been redundancy-reduced
                 (i.e. `reference`) have fewer molecules. The key are molecules
                 from the `full` signature and values are molecules from the
                 `reference` set.
-            try_conn_layer(bool): Try with the inchikey connectivity layer (default=False).
-            metric(str): 'cosine' or 'euclidean' (default='cosine').
-            save(bool): Specific save parameter. If not specified, the global is set (default=None).
+            try_conn_layer (bool): Try with the inchikey connectivity layer.
+                (default=False)
+            metric (str): 'cosine' or 'euclidean'. (default='cosine')
+            save (bool): Specific save parameter. If not specified, the global
+                is set. (default=None).
         """
         fn = os.path.join(self.sign.diags_path, "cross_roc_%s" %
                           sign.qualified_name)
         if self._todo(fn) or force_redo:
             r = self.cross_coverage(sign, apply_mappings=apply_mappings,
-                                    try_conn_layer=try_conn_layer, save=False, force_redo=force_redo)
+                                    try_conn_layer=try_conn_layer, save=False,
+                                    force_redo=force_redo)
             if r["inter"] < n_neighbors:
                 self.__log.warning("Not enough shared molecules")
                 return None
-            from sklearn.metrics import roc_curve, auc
-            import random
             # apply mappings if necessary
             if apply_mappings:
                 my_keys = self._apply_mappings(self.sign)
@@ -348,13 +358,17 @@ class Diagnosis(object):
             plotter_function=self.plotter.cross_roc,
             kw_plotter={"sign": sign})
 
-    def projection(self, keys=None, focus_keys=None, max_keys=10000, perplexity=None, max_pca=100):
+    def projection(self, keys=None, focus_keys=None, max_keys=10000,
+                   perplexity=None, max_pca=100):
         """TSNE projection of CC signatures.
 
-            Args:
-                keys(list): Keys to be projected. If None specified, keys are randomly sampled (default=None).
-                focus_keys(list): Keys to be highlighted in the projection (default=None).
-                max_keys(int): Maximum number of keys to include in the projection (default=10000).
+        Args:
+            keys (list): Keys to be projected. If None specified, keys are
+                randomly sampled. (default=None)
+            focus_keys (list): Keys to be highlighted in the projection.
+                 (default=None).
+            max_keys (int): Maximum number of keys to include in the
+                projection. (default=10000)
         """
         self.__log.debug("Projection")
         from MulticoreTSNE import MulticoreTSNE as TSNE
@@ -422,7 +436,6 @@ class Diagnosis(object):
             plotter_function=self.plotter.projection)
 
     def image(self, keys=None, max_keys=100, shuffle=False):
-        import h5py
         self.__log.debug("Image")
         fn = "image"
         if self._todo(fn):
@@ -575,7 +588,6 @@ class Diagnosis(object):
 
     def values(self, max_values=10000):
         self.__log.debug("Values")
-        from scipy.stats import gaussian_kde
         fn = "values"
         if self._todo(fn):
             V = self.V.ravel()
@@ -631,13 +643,13 @@ class Diagnosis(object):
             "bins_x": bins_x,
             "bins_y": bins_y,
             "scores": np.array([np.max(scores), np.min(scores)]),
-            "lims": np.array([[np.min(P[:, 0]), np.min(P[:, 1])], [np.max(P[:, 0]), np.max(P[:, 1])]])
+            "lims": np.array([[np.min(P[:, 0]), np.min(P[:, 1])],
+                              [np.max(P[:, 0]), np.max(P[:, 1])]])
         }
         return results
 
     def confidences(self):
         self.__log.debug("Confidences")
-        from scipy.stats import gaussian_kde
         fn = "confidences"
         if self._todo(fn):
             V = self.V
@@ -690,7 +702,6 @@ class Diagnosis(object):
 
     def intensities(self):
         self.__log.debug("Intensities")
-        from scipy.stats import gaussian_kde
         fn = "intensities"
         if self._todo(fn):
             V = self.V
@@ -756,8 +767,9 @@ class Diagnosis(object):
             results = {"explained_variance": pca.explained_variance_ratio_}
         return results
 
-    def dimensions(self, datasets=None, exemplary=True, cctype=None, molset=None, **kwargs):
-        """Get dimensions of the signature and compare to other signatures"""
+    def dimensions(self, datasets=None, exemplary=True, cctype=None,
+                   molset=None, **kwargs):
+        """Get dimensions of the signature and compare to other signatures."""
         self.__log.debug("Dimensions")
 
         fn = "dimensions"
@@ -798,11 +810,14 @@ class Diagnosis(object):
         """Check coverage against a collection of other CC signatures.
 
         Args:
-            datasets(list): List of datasets. If None, all available are used (default=None).
-            exemplary(bool): Whether to use only exemplary datasets (recommended) (default=True).
-            cctype(str): CC signature type (default=None).
-            molset(str): Molecule set to use. Full is recommended (default=None).
-            **kwargs of hte cross_coverage method.
+            datasets (list): List of datasets. If None, all available are used.
+                (default=None)
+            exemplary (bool): Whether to use only exemplary datasets
+                (recommended). (default=True)
+            cctype (str): CC signature type. (default=None)
+            molset (str): Molecule set to use. Full is recommended.
+                (default=None)
+            kwargs (dict): params of hte cross_coverage method.
         """
         self.__log.debug("Across coverage")
         fn = "across_coverage"
@@ -830,7 +845,8 @@ class Diagnosis(object):
                 "cctype": cctype,
                 "molset": molset})
 
-    def _sample_accuracy_individual(self, sign, n_neighbors, min_shared, metric):
+    def _sample_accuracy_individual(self, sign, n_neighbors, min_shared,
+                                    metric):
         # do nearest neighbors (start by the target signature)
         keys, V1 = sign.get_vectors(self.keys)
         if keys is None:
@@ -867,8 +883,13 @@ class Diagnosis(object):
             scores += [rbo(neighs0[i, :], neighs1[i, :], p=p).ext]
         return np.array(scores)
 
-    def ranks_agreement(self, datasets=None, exemplary=True, cctype="sign1", molset="full", n_neighbors=100, min_shared=100, metric="minkowski", p=0.9, **kwargs):
-        """Sample-specific accuracy, estimated as general agreement with the rest of the CC"""
+    def ranks_agreement(self, datasets=None, exemplary=True, cctype="sign1",
+                        molset="full", n_neighbors=100, min_shared=100,
+                        metric="minkowski", p=0.9, **kwargs):
+        """Sample-specific accuracy.
+
+        Estimated as general agreement with the rest of the CC.
+        """
         self.__log.debug("Sample-specific agreement to the rest of CC")
         fn = "ranks_agreement"
         if cctype is None:
@@ -954,10 +975,16 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.ranks_agreement_projection)
 
-    def global_ranks_agreement(self, n_neighbors=100, min_shared=100, metric="minkowski", p=0.9, **kwargs):
-        """Sample-specific accuracy, estimated as general agreement with the rest of the CC, based on a Z-global ranking"""
+    def global_ranks_agreement(self, n_neighbors=100, min_shared=100,
+                               metric="minkowski", p=0.9, **kwargs):
+        """Sample-specific global accuracy.
+
+        Estimated as general agreement with the rest of the CC, based on a
+        Z-global ranking.
+        """
         self.__log.debug(
-            "Sample-specific agreement to the rest of CC, based on a Z-global ranking")
+            "Sample-specific agreement to the rest of CC,"
+            " based on a Z-global ranking")
         fn = "global_ranks_agreement"
 
         cctype = "sign3"
@@ -1038,15 +1065,19 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.global_ranks_agreement_projection)
 
-    def across_roc(self, datasets=None, exemplary=True, cctype="sign1", molset="full", **kwargs):
+    def across_roc(self, datasets=None, exemplary=True, cctype="sign1",
+                   molset="full", **kwargs):
         """Check coverage against a collection of other CC signatures.
 
         Args:
-            datasets(list): List of datasets. If None, all available are used (default=None).
-            exemplary(bool): Whether to use only exemplary datasets (recommended) (default=True).
-            cctype(str): CC signature type (default='sign1').
-            molset(str): Molecule set to use. Full is recommended (default='full').
-            **kwargs of hte cross_coverage method.
+            datasets (list): List of datasets. If None, all available are used.
+                (default=None).
+            exemplary (bool): Whether to use only exemplary datasets
+                (recommended). (default=True)
+            cctype (str): CC signature type. (default='sign1')
+            molset (str): Molecule set to use. Full is recommended.
+                (default='full')
+            kwargs (dict): Parameters of hte cross_coverage method.
         """
         self.__log.debug("Across ROC")
         fn = "across_roc"
@@ -1147,10 +1178,8 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.redundancy)
 
-    def _cluster(self, expected_coverage, n_neighbors, min_samples, top_clusters):
-        self.__log.debug("Clustering")
-        from sklearn.cluster import DBSCAN
-        from sklearn import metrics
+    def _cluster(self, expected_coverage, n_neighbors, min_samples,
+                 top_clusters):
         self.__log.debug("Clustering")
         P = self._load_diagnosis_pickle("projection.pkl")["P"]
         min_samples = int(
@@ -1208,7 +1237,8 @@ class Diagnosis(object):
         }
         return results
 
-    def cluster_sizes(self, expected_coverage=0.95, n_neighbors=None, min_samples=10, top_clusters=20):
+    def cluster_sizes(self, expected_coverage=0.95, n_neighbors=None,
+                      min_samples=10, top_clusters=20):
         if self._todo("projection", inner=True):
             raise Exception("projection needs to be done first")
         self.__log.debug("Cluster sizes")
@@ -1241,7 +1271,8 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.clusters_projection)
 
-    def key_coverage(self, datasets=None, exemplary=True, cctype=None, molset=None, **kwargs):
+    def key_coverage(self, datasets=None, exemplary=True, cctype=None,
+                     molset=None, **kwargs):
         self.__log.debug("Key coverages")
         fn = "key_coverage"
         if cctype is None:
@@ -1299,7 +1330,6 @@ class Diagnosis(object):
             plotter_function=self.plotter.key_coverage_projection)
 
     def orthogonality(self, max_features=1000):
-        from sklearn.preprocessing import normalize
         fn = "orthogonality"
         if self._todo(fn):
             if max_features < self.V.shape[1]:
@@ -1326,13 +1356,13 @@ class Diagnosis(object):
             plotter_function=self.plotter.orthogonality)
 
     def outliers(self, n_estimators=1000):
-        from sklearn.ensemble import IsolationForest
         fn = "outliers"
         if self._todo(fn):
             max_features = int(np.sqrt(self.V.shape[1]) + 1)
             max_samples = min(1000, int(self.V.shape[0] / 2 + 1))
             mod = IsolationForest(n_estimators=n_estimators, contamination=0.1,
-                                  max_samples=max_samples, max_features=max_features)
+                                  max_samples=max_samples,
+                                  max_features=max_features)
             pred = mod.fit_predict(self.V)
             scores = mod.score_samples(self.V)
             results = {
