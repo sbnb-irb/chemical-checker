@@ -1,9 +1,4 @@
-"""Utility for plotting from data.
-
-Basically every Chemical Checker dataset can produce one or more plots.
-This class performs offers a shared functions (e.g. color codes) to produce
-different kind of plots.
-"""
+"""Plot information on single Chemical Checker dataset."""
 from __future__ import division
 
 import os

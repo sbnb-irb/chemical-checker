@@ -1,5 +1,4 @@
-"""Utility for plotting Chemical Checker data."""
-
+"""Plot information on multiple Chemical Checker datasets."""
 import os
 import math
 import h5py
@@ -47,8 +46,8 @@ class MultiPlot():
         Produce plots integrating data from multiple datasets.
 
         Args:
-            chemchecker(str): A Chemical Checker instance.
-            plot_path(str): Destination folder for plot images.
+            chemchecker (str): A Chemical Checker instance.
+            plot_path (str): Destination folder for plot images.
         """
         if not os.path.isdir(plot_path):
             raise Exception("Folder to save plots does not exist")
