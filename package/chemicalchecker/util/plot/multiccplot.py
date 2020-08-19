@@ -1,7 +1,5 @@
-"""Utility for plotting Chemical Checker data."""
-
+"""Plot comparison of different Chemical Checker versions."""
 import os
-import h5py
 import json
 import numpy as np
 import pandas as pd
@@ -21,13 +19,14 @@ class MultiCCPlot():
     """Produce Chemical Checker plots using multiple datasets."""
 
     def __init__(self, chemcheckers, names, plot_path, limit_dataset=None):
-        """Initialize a MultiPlot object.
-
-        Produce plots integrating data from multiple datasets.
+        """Initialize MultiCCPlot.
 
         Args:
-            chemchecker(str): A Chemical Checker instance.
-            plot_path(str): Destination folder for plot images.
+            chemcheckers (list): List of CC instances.
+            names (list): List of CC instances names.
+            plot_path (str): Destination folder for plot images.
+            limit_dataset (list): Limit plot to these datasets. If None
+                all datasets are used.
         """
         if not os.path.isdir(plot_path):
             raise Exception("Folder to save plots does not exist")
