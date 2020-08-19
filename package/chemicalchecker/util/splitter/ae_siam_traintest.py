@@ -1,3 +1,4 @@
+"""Splitter for Siamese Autoencoder."""
 import h5py
 import numpy as np
 from tqdm import tqdm

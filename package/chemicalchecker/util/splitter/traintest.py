@@ -1,3 +1,4 @@
+"""Basic train-test splitter."""
 import h5py
 import numpy as np
 from tqdm import tqdm
