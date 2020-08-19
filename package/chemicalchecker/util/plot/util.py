@@ -1,26 +1,32 @@
-"""Util coloring functions or the CC"""
+"""Coloring functions for the CC."""
+import colorsys
+import matplotlib
 import seaborn as sns
-from chemicalchecker.util import logged
+import matplotlib.colors as mc
 
-def _rgb2hex(r, g, b):
+
+def rgb2hex(r, g, b):
+    """RGB to hexadecimal."""
     return '#%02x%02x%02x' % (r, g, b)
 
+
 def coord_color(coordinate):
+    """CC coordinate to CC color."""
     if coordinate[0] == 'A':
-        return _rgb2hex(250, 100, 80)
+        return rgb2hex(250, 100, 80)
     if coordinate[0] == 'B':
-        return _rgb2hex(200, 100, 225)
+        return rgb2hex(200, 100, 225)
     if coordinate[0] == 'C':
-        return _rgb2hex(80, 120, 220)
+        return rgb2hex(80, 120, 220)
     if coordinate[0] == 'D':
-        return _rgb2hex(120, 180, 60)
+        return rgb2hex(120, 180, 60)
     if coordinate[0] == 'E':
-        return _rgb2hex(250, 150, 50)
-    return _rgb2hex(250, 100, 80)
+        return rgb2hex(250, 150, 50)
+    return rgb2hex(250, 100, 80)
+
 
 def lighten_color(color, amount=0.5):
-    import matplotlib.colors as mc
-    import colorsys
+    """Lighthen a color."""
     try:
         c = mc.cnames[color]
     except Exception:
@@ -28,7 +34,9 @@ def lighten_color(color, amount=0.5):
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     return colorsys.hls_to_rgb(c[0], 1 - amount * (1 - c[1]), c[2])
 
+
 def cc_colors(coord, lighness=0):
+    """Predefined CC colors."""
     colors = {
         'A': ['#EA5A49', '#EE7B6D', '#F7BDB6'],
         'B': ['#B16BA8', '#C189B9', '#D0A6CB'],
@@ -38,14 +46,13 @@ def cc_colors(coord, lighness=0):
         'Z': ['#000000', '#666666', '#999999']}
     return colors[coord[:1]][lighness]
 
-#@logged
+
 def set_style(style=None):
-    import matplotlib
+    """Set basic plotting style andfonts."""
     try:
         matplotlib.font_manager._rebuild()
-    except:
-        pass
-        #set_style.__log.warning("Cannot rebuild font manager")
+    except Exception as ex:
+        print(str(ex))
     if style is None:
         style = ('ticks', {
             'font.family': 'sans-serif',
@@ -55,4 +62,3 @@ def set_style(style=None):
     else:
         style = style
     sns.set_style(*style)
-
