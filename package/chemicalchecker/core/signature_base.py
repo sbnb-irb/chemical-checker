@@ -389,6 +389,11 @@ class BaseSignature(object):
                     fh.write(','.join(comps.astype(str)))
                     fh.write(',%s\n' % sml)
 
+    @property
+    def qualified_name(self):
+        """Signature qualified name (e.g. 'B1.001-sign1-full')."""
+        return "%s_%s_%s" % (self.dataset, self.cctype, self.molset)
+
     def get_molset(self, molset):
         '''Return a signature from a different molset'''
         folds = self.signature_path.split('/')

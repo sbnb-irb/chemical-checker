@@ -342,14 +342,6 @@ class ChemicalChecker():
         # ex:os.path.join(self.raw_path, "preprocess.h5")
         return prepro.data_path
 
-    def sign_name(self, sign):
-        """Get a signature name (e.g. 'B1.001-sign1-full')"""
-        folds = sign.data_path.split("/")
-        cctype = folds[-2]
-        dataset = folds[-3]
-        molset = folds[-6]
-        return "%s_%s_%s" % (dataset, cctype, molset)
-
     def signature(self, dataset, cctype):
         return self.get_signature(cctype=cctype, molset="full", dataset_code=dataset)
 
