@@ -2,44 +2,51 @@
 
 Performs an array of validations and diagnostic analysis.
 """
-import numpy as np
+import os
 import random
 import pickle
-import os
-import collections
 import shutil
+import collections
+import numpy as np
+
+from sklearn.decomposition import PCA
+from sklearn.neighbors import NearestNeighbors
+
 from chemicalchecker.util import logged
 from chemicalchecker.util.plot import DiagnosisPlot
-from sklearn.neighbors import NearestNeighbors
-from sklearn.decomposition import PCA
 
 
 @logged
 class Diagnosis(object):
 
-    def __init__(self, cc, sign, save=True, plot=True, overwrite=False, n=10000):
+    def __init__(self, cc, sign, save=True, plot=True, overwrite=False,
+                 n=10000):
         """Diagnosis for signatures.
 
         Args:
-            cc(ChemicalChecker): A CC instance.
-            sign(CC signature): The CC signature object to be diagnosed.
-            save(bool): Whether to save results in the `diags` folder of the signature (default=True).
-            plot(bool): Whether to save plots in the `diags` folder of the signature (default=True).
-            overwrite(bool): Whether to overwrite the results of the diagnosis (default=False).
-            n(int): Number of molecules to sample (default=10000)
+            cc (ChemicalChecker): A CC instance.
+            sign (CC signature): The CC signature object to be diagnosed.
+            save (bool): Whether to save results in the `diags` folder of the
+                signature. (default=True)
+            plot (bool): Whether to save plots in the `diags` folder of the
+                signature. (default=True)
+            overwrite (bool): Whether to overwrite the results of the
+                diagnosis. (default=False)
+            n (int): Number of molecules to sample. (default=10000)
         """
         self.cc = cc
         self.save = save
         self.plot = plot
-        self.plotter = DiagnosisPlot(cc, sign)
+        self.plotter = DiagnosisPlot(sign)
         self.overwrite = overwrite
         if self.overwrite:
             self.__log.debug("Deleting all files in %s" % sign.diags_path)
             shutil.rmtree(sign.diags_path)
             os.mkdir(sign.diags_path)
         if self.plot and not self.save:
-            self.__log.warning("Saving is necessary to plot. Setting 'save' to True.")
-            self.save=True
+            self.__log.warning(
+                "Saving is necessary to plot. Setting 'save' to True.")
+            self.save = True
         self.sign = sign
         folds = self.sign.data_path.split("/")
         self.cctype = folds[-2]
@@ -51,7 +58,7 @@ class Diagnosis(object):
                 self.__log.debug("Subsampling")
                 with open(fn, "wb") as f:
                     V, keys = self.sign.subsample(n)
-                    d = {"V": V, "keys":keys}
+                    d = {"V": V, "keys": keys}
                     pickle.dump(d, f)
         self.__log.debug("Reading subsamples")
         with open(fn, "rb") as f:
@@ -60,9 +67,9 @@ class Diagnosis(object):
             keys = d["keys"]
         self.V = V
         self.keys = keys
- 
+
     def _todo(self, fn, inner=False):
-        if os.path.exists(os.path.join(self.sign.diags_path, fn+".pkl")):
+        if os.path.exists(os.path.join(self.sign.diags_path, fn + ".pkl")):
             if inner:
                 return False
             else:
@@ -80,7 +87,7 @@ class Diagnosis(object):
 
     def _returner(self, results, fn, save, plot, plotter_function, kw_plotter=None):
         if results is None:
-            fn_ = os.path.join(self.sign.diags_path, fn+".pkl")
+            fn_ = os.path.join(self.sign.diags_path, fn + ".pkl")
             with open(fn_, "rb") as f:
                 results = pickle.load(f)
             if plot:
@@ -92,7 +99,7 @@ class Diagnosis(object):
                 return results
         else:
             if save:
-                fn_ = os.path.join(self.sign.diags_path, fn+".pkl")
+                fn_ = os.path.join(self.sign.diags_path, fn + ".pkl")
                 with open(fn_, "wb") as f:
                     pickle.dump(results, f)
                 if plot:
@@ -119,7 +126,7 @@ class Diagnosis(object):
 
     def _paired_conn_layers(self, my_keys, vs_keys):
         vs_conn_set = set([ik.split("-")[0] for ik in vs_keys])
-        my_conn_set = set([ik.split("-")[0] for ik in my_keys])        
+        my_conn_set = set([ik.split("-")[0] for ik in my_keys])
         common_conn = my_conn_set.intersection(vs_conn_set)
         vs_keys_conn = dict(
             (ik.split("-")[0], ik) for ik in vs_keys if ik.split("-")[0] in common_conn)
@@ -149,7 +156,7 @@ class Diagnosis(object):
             n_pairs(int): Number of pairs to sample (default=10000).
             metric(str): 'cosine' or 'euclidean' (default='cosine').
         """
-        if   metric == "cosine":
+        if metric == "cosine":
             from scipy.spatial.distance import cosine as metric_func
         elif metric == "euclidean":
             from scipy.spatial.distance import euclidean as metric_func
@@ -174,15 +181,16 @@ class Diagnosis(object):
         self.__log.debug("Euclidean distances")
         fn = "euclidean_distances"
         if self._todo(fn):
-            results = self._distance_distribution(n_pairs=n_pairs, metric="euclidean")
+            results = self._distance_distribution(
+                n_pairs=n_pairs, metric="euclidean")
         else:
             results = None
         return self._returner(
             results=results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.euclidean_distances)
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.euclidean_distances)
 
     def cosine_distances(self, n_pairs=10000):
         """Cosine distance distribution.
@@ -193,23 +201,25 @@ class Diagnosis(object):
         self.__log.debug("Cosine distances")
         fn = "cosine_distances"
         if self._todo(fn):
-            results = self._distance_distribution(n_pairs=n_pairs, metric="cosine")
+            results = self._distance_distribution(
+                n_pairs=n_pairs, metric="cosine")
         else:
             results = None
         return self._returner(
             results=results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.cosine_distances)
-        
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.cosine_distances)
+
     def cross_coverage(self, sign, apply_mappings=False, try_conn_layer=False, save=None, force_redo=False, **kwargs):
         """Intersection of coverages.
 
         Args:
             sign(signature object): A CC signature object to check against.
         """
-        fn = os.path.join(self.sign.diags_path, "cross_coverage_%s" % self.cc.sign_name(sign))
+        fn = os.path.join(self.sign.diags_path,
+                          "cross_coverage_%s" % sign.qualified_name)
         if self._todo(fn) or force_redo:
             # apply mappings if necessary
             if apply_mappings:
@@ -224,7 +234,7 @@ class Diagnosis(object):
             else:
                 keys1, keys2 = self._paired_keys(my_keys, vs_keys)
             results = {
-                "inter"     : len(keys1),
+                "inter": len(keys1),
                 "my_overlap": len(keys1) / len(my_keys),
                 "vs_overlap": len(keys1) / len(vs_keys)
             }
@@ -234,11 +244,11 @@ class Diagnosis(object):
             results = None
         return self._returner(
             results=results,
-            fn = fn,
-            save = save,
-            plot = self.plot,
-            plotter_function = self.plotter.cross_coverage,
-            kw_plotter = {"sign": sign})
+            fn=fn,
+            save=save,
+            plot=self.plot,
+            plotter_function=self.plotter.cross_coverage,
+            kw_plotter={"sign": sign})
 
     def cross_roc(self, sign, n_samples=10000, n_neighbors=5, neg_pos_ratio=1, apply_mappings=False, try_conn_layer=False, metric='cosine', save=None, force_redo=False, **kwargs):
         """Perform validations.
@@ -255,9 +265,11 @@ class Diagnosis(object):
             metric(str): 'cosine' or 'euclidean' (default='cosine').
             save(bool): Specific save parameter. If not specified, the global is set (default=None).
         """
-        fn = os.path.join(self.sign.diags_path, "cross_roc_%s" % self.cc.sign_name(sign))
+        fn = os.path.join(self.sign.diags_path, "cross_roc_%s" %
+                          sign.qualified_name)
         if self._todo(fn) or force_redo:
-            r = self.cross_coverage(sign, apply_mappings=apply_mappings, try_conn_layer=try_conn_layer, save=False, force_redo=force_redo)
+            r = self.cross_coverage(sign, apply_mappings=apply_mappings,
+                                    try_conn_layer=try_conn_layer, save=False, force_redo=force_redo)
             if r["inter"] < n_neighbors:
                 self.__log.warning("Not enough shared molecules")
                 return None
@@ -277,7 +289,8 @@ class Diagnosis(object):
                 keys1, keys2 = self._paired_keys(my_keys, vs_keys)
             # Get fraction of shared samples
             if n_samples < len(keys1):
-                idxs = sorted(np.random.choice(len(keys1), n_samples, replace=False))
+                idxs = sorted(np.random.choice(
+                    len(keys1), n_samples, replace=False))
                 keys1 = keys1[idxs]
                 keys2 = keys2[idxs]
             # extract matrices
@@ -295,14 +308,14 @@ class Diagnosis(object):
                     pair = [i, j]
                     pair = sorted(pair)
                     pos_pairs.update([(pair[0], pair[1])])
-            for _ in range(0, int(len(pos_pairs)*10)):
+            for _ in range(0, int(len(pos_pairs) * 10)):
                 pair = np.random.choice(len(keys2), 2, replace=False)
                 pair = sorted(pair)
                 pair = (pair[0], pair[1])
                 if pair in pos_pairs:
                     continue
                 neg_pairs.update([pair])
-                if len(neg_pairs) > len(pos_pairs)*neg_pos_ratio:
+                if len(neg_pairs) > len(pos_pairs) * neg_pos_ratio:
                     break
             # do distances
             if metric == "cosine":
@@ -329,11 +342,11 @@ class Diagnosis(object):
             results = None
         return self._returner(
             results=results,
-            fn = fn,
-            save = save,
-            plot = self.plot,
-            plotter_function = self.plotter.cross_roc,
-            kw_plotter = {"sign": sign})
+            fn=fn,
+            save=save,
+            plot=self.plot,
+            plotter_function=self.plotter.cross_roc,
+            kw_plotter={"sign": sign})
 
     def projection(self, keys=None, focus_keys=None, max_keys=10000, perplexity=None, max_pca=100):
         """TSNE projection of CC signatures.
@@ -350,7 +363,8 @@ class Diagnosis(object):
             if focus_keys is not None:
                 focus_keys = list(set(focus_keys).intersection(self.sign.keys))
                 self.__log.debug("%d focus keys found" % len(focus_keys))
-                focus_keys = sorted(random.sample(focus_keys, np.min([max_keys, len(focus_keys)])))
+                focus_keys = sorted(random.sample(
+                    focus_keys, np.min([max_keys, len(focus_keys)])))
                 self.__log.debug("Fetching focus signatures")
                 X_focus = self.sign.get_vectors(focus_keys)[1]
             else:
@@ -360,7 +374,7 @@ class Diagnosis(object):
                 keys = self.keys
                 if focus_keys is not None:
                     fk = set(focus_keys)
-                    idxs = [i for i,k in enumerate(keys) if k not in fk]
+                    idxs = [i for i, k in enumerate(keys) if k not in fk]
                     X = self.V[idxs]
                     keys = np.array(self.keys)[idxs]
             else:
@@ -368,7 +382,8 @@ class Diagnosis(object):
                 if focus_keys is not None:
                     keys = list(keys.difference(focus_keys))
                 self.__log.debug("%d keys found" % len(keys))
-                keys = sorted(random.sample(keys, np.min([max_keys, len(keys)])))
+                keys = sorted(random.sample(
+                    keys, np.min([max_keys, len(keys)])))
                 if len(keys) == 0:
                     raise Exception("There are no non-focus keys")
                 self.__log.debug("Fetching signatures")
@@ -400,11 +415,11 @@ class Diagnosis(object):
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.projection)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.projection)
 
     def image(self, keys=None, max_keys=100, shuffle=False):
         import h5py
@@ -415,7 +430,8 @@ class Diagnosis(object):
                 X = self.V
                 keys = self.keys
                 if shuffle:
-                    idxs = np.random.choice(len(keys), np.min([max_keys, len(keys)]), replace=False)
+                    idxs = np.random.choice(len(keys), np.min(
+                        [max_keys, len(keys)]), replace=False)
                     X = X[idxs]
                     keys = np.array(keys)[idxs]
                 else:
@@ -424,12 +440,13 @@ class Diagnosis(object):
             else:
                 keys = set(keys).intersection(self.sign.keys)
                 self.__log.debug("%d keys found" % len(keys))
-                keys = np.array(sorted(random.sample(keys, np.min([max_keys, len(keys)]))))
+                keys = np.array(sorted(random.sample(
+                    keys, np.min([max_keys, len(keys)]))))
                 X = self.sign.get_vectors(keys)[1]
             # Sort features if available
             features = self.sign.features
             idxs = np.argsort(features)
-            X = X[:,idxs]
+            X = X[:, idxs]
             results = {
                 "X": X,
                 "keys": keys
@@ -437,23 +454,25 @@ class Diagnosis(object):
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.image)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.image)
 
     def _iqr(self, axis, keys, max_keys):
         if keys is None:
             X = self.V
             keys = self.keys
-            idxs = np.random.choice(len(keys), np.min([max_keys, len(keys)]), replace=False)
+            idxs = np.random.choice(len(keys), np.min(
+                [max_keys, len(keys)]), replace=False)
             X = X[idxs]
             keys = np.array(keys)[idxs]
         else:
             keys = set(keys).intersection(self.sign.keys)
             self.__log.debug("%d keys found" % len(keys))
-            keys = np.array(sorted(random.sample(keys, np.min([max_keys, len(keys)]))))
+            keys = np.array(sorted(random.sample(
+                keys, np.min([max_keys, len(keys)]))))
             X = self.sign.get_vectors(keys)[1]
         p25 = np.percentile(X, 25, axis=axis)
         p50 = np.percentile(X, 50, axis=axis)
@@ -473,11 +492,11 @@ class Diagnosis(object):
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.features_iqr)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.features_iqr)
 
     def keys_iqr(self, keys=None, max_keys=1000):
         self.__log.debug("Keys IQR")
@@ -487,11 +506,11 @@ class Diagnosis(object):
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.keys_iqr)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.keys_iqr)
 
     def _bins(self, axis, keys, max_keys, n_bins):
         if keys is None:
@@ -503,17 +522,18 @@ class Diagnosis(object):
         else:
             keys = set(keys).intersection(self.sign.keys)
             self.__log.debug("%d keys found" % len(keys))
-            keys = np.array(sorted(random.sample(keys, np.min([max_keys, len(keys)]))))
+            keys = np.array(sorted(random.sample(
+                keys, np.min([max_keys, len(keys)]))))
             X = self.sign.get_vectors(keys)[1]
         bins = np.linspace(np.min(X), np.max(X), n_bins)
-        if   axis == 0:
-            H = np.zeros((n_bins-1, X.shape[1]))
+        if axis == 0:
+            H = np.zeros((n_bins - 1, X.shape[1]))
             for j in range(0, X.shape[1]):
-                H[:,j] = np.histogram(X[:,j], bins=bins)[0]
+                H[:, j] = np.histogram(X[:, j], bins=bins)[0]
         elif axis == 1:
-            H = np.zeros((n_bins-1, X.shape[0]))
+            H = np.zeros((n_bins - 1, X.shape[0]))
             for i in range(0, X.shape[0]):
-                H[:,i] = np.histogram(X[i,:], bins=bins)[0]
+                H[:, i] = np.histogram(X[i, :], bins=bins)[0]
         else:
             raise Exception("Wrong axis, must be 0 (features) or 1 (keys)")
         results = {
@@ -527,29 +547,31 @@ class Diagnosis(object):
         self.__log.debug("Features bins")
         fn = "features_bins"
         if self._todo(fn):
-            results = self._bins(axis=0, keys=keys, max_keys=max_keys, n_bins=n_bins)
+            results = self._bins(
+                axis=0, keys=keys, max_keys=max_keys, n_bins=n_bins)
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.features_bins)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.features_bins)
 
     def keys_bins(self, keys=None, max_keys=1000, n_bins=100):
         self.__log.debug("Keys bins")
         fn = "keys_bins"
         if self._todo(fn):
-            results = self._bins(axis=1, keys=keys, max_keys=max_keys, n_bins=n_bins)
+            results = self._bins(
+                axis=1, keys=keys, max_keys=max_keys, n_bins=n_bins)
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.keys_bins)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.keys_bins)
 
     def values(self, max_values=10000):
         self.__log.debug("Values")
@@ -569,45 +591,47 @@ class Diagnosis(object):
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.values)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.values)
 
     def _projection_binned(self, P, scores, n_bins):
         # check nans
         mask = ~np.isnan(scores)
-        P = P[mask,]
+        P = P[mask, ]
         scores = scores[mask]
         self.__log.debug("Binning projection")
-        bins_x = np.linspace(np.min(P[:,0]), np.max(P[:,0])+1e-6, n_bins)
-        bins_y = np.linspace(np.min(P[:,1]), np.max(P[:,1])+1e-6, n_bins)
+        bins_x = np.linspace(np.min(P[:, 0]), np.max(P[:, 0]) + 1e-6, n_bins)
+        bins_y = np.linspace(np.min(P[:, 1]), np.max(P[:, 1]) + 1e-6, n_bins)
         H = np.zeros((len(bins_y), len(bins_x)))
         S = np.zeros(H.shape)
-        for j in range(0, len(bins_x)-1):
+        for j in range(0, len(bins_x) - 1):
             min_x = bins_x[j]
-            max_x = bins_x[j+1]
-            maskx  = np.logical_and(P[:,0] >= min_x, P[:,0] < max_x)
+            max_x = bins_x[j + 1]
+            maskx = np.logical_and(P[:, 0] >= min_x, P[:, 0] < max_x)
             P_ = P[maskx]
             scores_ = scores[maskx]
-            for i in range(0, len(bins_y)-1):
+            for i in range(0, len(bins_y) - 1):
                 min_y = bins_y[i]
-                max_y = bins_y[i+1]
-                masky = np.logical_and(P_[:,1] >= min_y, P_[:,1] < max_y)
+                max_y = bins_y[i + 1]
+                masky = np.logical_and(P_[:, 1] >= min_y, P_[:, 1] < max_y)
                 ss = scores_[masky]
                 if len(ss) > 0:
-                    H[i,j] = len(ss)
-                    S[i,j] = np.mean(ss)
-        bins_x = np.array([(bins_x[i]+bins_x[i+1])/2 for i in range(0, len(bins_x)-1)])
-        bins_y = np.array([(bins_y[i]+bins_y[i+1])/2 for i in range(0, len(bins_y)-1)])
+                    H[i, j] = len(ss)
+                    S[i, j] = np.mean(ss)
+        bins_x = np.array([(bins_x[i] + bins_x[i + 1]) /
+                           2 for i in range(0, len(bins_x) - 1)])
+        bins_y = np.array([(bins_y[i] + bins_y[i + 1]) /
+                           2 for i in range(0, len(bins_y) - 1)])
         results = {
             "H": H,
             "S": S,
             "bins_x": bins_x,
             "bins_y": bins_y,
             "scores": np.array([np.max(scores), np.min(scores)]),
-            "lims": np.array([[np.min(P[:,0]), np.min(P[:,1])],[np.max(P[:,0]), np.max(P[:,1])]])
+            "lims": np.array([[np.min(P[:, 0]), np.min(P[:, 1])], [np.max(P[:, 0]), np.max(P[:, 1])]])
         }
         return results
 
@@ -619,11 +643,12 @@ class Diagnosis(object):
             V = self.V
             keys = self.keys
             mask = np.isin(
-                    list(self.sign.keys), list(keys), assume_unique=True)
+                list(self.sign.keys), list(keys), assume_unique=True)
             confidences = self.sign.get_h5_dataset('confidence')[mask]
             confidences = np.array(confidences)
             kernel = gaussian_kde(confidences)
-            positions = np.linspace(np.min(confidences), np.max(confidences), 1000)
+            positions = np.linspace(
+                np.min(confidences), np.max(confidences), 1000)
             values = kernel(positions)
             results = {
                 "keys": self.keys,
@@ -634,11 +659,11 @@ class Diagnosis(object):
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.confidences)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.confidences)
 
     def confidences_projection(self, n_bins=20):
         self.__log.debug("Confidences projection")
@@ -652,16 +677,16 @@ class Diagnosis(object):
             results_inte = self._load_diagnosis_pickle("confidences.pkl")
             if np.any(results_proj["keys"] != results_inte["keys"]):
                 raise Exception("keys do not coincide...")
-            results = self._projection_binned(results_proj["P"], results_inte["confidences"], n_bins)
+            results = self._projection_binned(
+                results_proj["P"], results_inte["confidences"], n_bins)
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.confidences_projection)
-
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.confidences_projection)
 
     def intensities(self):
         self.__log.debug("Intensities")
@@ -674,11 +699,12 @@ class Diagnosis(object):
             s = np.std(V, axis=0)
             intensities = []
             for i in range(0, V.shape[0]):
-                v = np.abs((V[i,:] - m) / s)
+                v = np.abs((V[i, :] - m) / s)
                 intensities += [np.sum(v)]
             intensities = np.array(intensities)
             kernel = gaussian_kde(intensities)
-            positions = np.linspace(np.min(intensities), np.max(intensities), 1000)
+            positions = np.linspace(
+                np.min(intensities), np.max(intensities), 1000)
             values = kernel(positions)
             results = {
                 "keys": self.keys,
@@ -689,11 +715,11 @@ class Diagnosis(object):
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.intensities)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.intensities)
 
     def intensities_projection(self, n_bins=20):
         self.__log.debug("Intensities projection")
@@ -707,15 +733,16 @@ class Diagnosis(object):
             results_inte = self._load_diagnosis_pickle("intensities.pkl")
             if np.any(results_proj["keys"] != results_inte["keys"]):
                 raise Exception("keys do not coincide...")
-            results = self._projection_binned(results_proj["P"], results_inte["intensities"], n_bins)
+            results = self._projection_binned(
+                results_proj["P"], results_inte["intensities"], n_bins)
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.intensities_projection)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.intensities_projection)
 
     def _latent(self, sign):
         fn = os.path.join(sign.diags_path, "latent-%d.pkl" % self.V.shape[0])
@@ -732,7 +759,7 @@ class Diagnosis(object):
     def dimensions(self, datasets=None, exemplary=True, cctype=None, molset=None, **kwargs):
         """Get dimensions of the signature and compare to other signatures"""
         self.__log.debug("Dimensions")
-        
+
         fn = "dimensions"
         if cctype is None:
             cctype = self.cctype
@@ -757,19 +784,19 @@ class Diagnosis(object):
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.dimensions,
-            kw_plotter = {
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.dimensions,
+            kw_plotter={
                 "exemplary": exemplary,
                 "cctype": cctype,
                 "molset": molset})
 
     def across_coverage(self, datasets=None, exemplary=True, cctype=None, molset=None, **kwargs):
         """Check coverage against a collection of other CC signatures.
-        
+
         Args:
             datasets(list): List of datasets. If None, all available are used (default=None).
             exemplary(bool): Whether to use only exemplary datasets (recommended) (default=True).
@@ -788,16 +815,17 @@ class Diagnosis(object):
             results = {}
             for ds in datasets:
                 sign = self.cc.get_signature(cctype, molset, ds)
-                results[ds] = self.cross_coverage(sign, save=False, force_redo=True, **kwargs)
+                results[ds] = self.cross_coverage(
+                    sign, save=False, force_redo=True, **kwargs)
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.across_coverage,
-            kw_plotter = {
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.across_coverage,
+            kw_plotter={
                 "exemplary": exemplary,
                 "cctype": cctype,
                 "molset": molset})
@@ -812,42 +840,42 @@ class Diagnosis(object):
         n_neighbors = np.min([V1.shape[0], n_neighbors])
         nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric)
         nn.fit(V1)
-        neighs1_ = nn.kneighbors(V1)[1][:,1:]
+        neighs1_ = nn.kneighbors(V1)[1][:, 1:]
         # do nearest neighbors for self
         keys_set = set(keys)
-        idxs = [i for i,k in enumerate(self.keys) if k in keys_set]
+        idxs = [i for i, k in enumerate(self.keys) if k in keys_set]
         V0 = self.V[idxs]
         nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric)
         nn.fit(V0)
-        neighs0_ = nn.kneighbors(V0)[1][:,1:]
+        neighs0_ = nn.kneighbors(V0)[1][:, 1:]
         # reindex
-        keys_dict = dict((k,i) for i,k in enumerate(self.keys))
+        keys_dict = dict((k, i) for i, k in enumerate(self.keys))
         neighs0 = np.zeros(neighs0_.shape).astype(np.int)
         neighs1 = np.zeros(neighs1_.shape).astype(np.int)
         rows = []
         for i in range(0, neighs0_.shape[0]):
             rows += [keys_dict[keys[i]]]
             for j in range(0, neighs0_.shape[1]):
-                neighs0[i,j] = keys_dict[keys[neighs0_[i,j]]]
-                neighs1[i,j] = keys_dict[keys[neighs1_[i,j]]]
+                neighs0[i, j] = keys_dict[keys[neighs0_[i, j]]]
+                neighs1[i, j] = keys_dict[keys[neighs1_[i, j]]]
         return {"neighs0": neighs0, "neighs1": neighs1, "rows": rows}
 
     def _rbo(self, neighs0, neighs1, p):
         from chemicalchecker.tool.rbo.rbo import rbo
         scores = []
         for i in range(0, neighs0.shape[0]):
-            scores += [rbo(neighs0[i,:], neighs1[i,:], p=p).ext]
+            scores += [rbo(neighs0[i, :], neighs1[i, :], p=p).ext]
         return np.array(scores)
 
     def ranks_agreement(self, datasets=None, exemplary=True, cctype="sign1", molset="full", n_neighbors=100, min_shared=100, metric="minkowski", p=0.9, **kwargs):
-        """Sample-specific accuracy, estimated as general agreement with the rest of the CC"""        
+        """Sample-specific accuracy, estimated as general agreement with the rest of the CC"""
         self.__log.debug("Sample-specific agreement to the rest of CC")
         fn = "ranks_agreement"
         if cctype is None:
             cctype = self.cctype
         if molset is None:
             molset = self.molset
-        
+
         def q67(r):
             return np.percentile(r, 67)
 
@@ -865,16 +893,18 @@ class Diagnosis(object):
             results_datasets = {}
             for ds in datasets:
                 sign = self.cc.get_signature(cctype, molset, ds)
-                dn = self._sample_accuracy_individual(sign, n_neighbors, min_shared, metric)
-                if dn is None: continue
+                dn = self._sample_accuracy_individual(
+                    sign, n_neighbors, min_shared, metric)
+                if dn is None:
+                    continue
                 sc = self._rbo(dn["neighs0"], dn["neighs1"], p=p)
                 results_datasets[ds] = [r for r in zip(dn["rows"], sc)]
             d = {}
             for k in self.keys:
                 d[k] = []
-            for k,v in results_datasets.items():
+            for k, v in results_datasets.items():
                 for r in v:
-                    d[self.keys[r[0]]] += [(k,r[1])]
+                    d[self.keys[r[0]]] += [(k, r[1])]
             R = []
             for k in self.keys:
                 R += [d[k]]
@@ -891,12 +921,12 @@ class Diagnosis(object):
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.ranks_agreement,
-            kw_plotter = {
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.ranks_agreement,
+            kw_plotter={
                 "exemplary": exemplary,
                 "cctype": cctype,
                 "molset": molset})
@@ -913,21 +943,23 @@ class Diagnosis(object):
             results_rnks = self._load_diagnosis_pickle("ranks_agreement.pkl")
             if np.any(results_proj["keys"] != results_rnks["keys"]):
                 raise Exception("keys do not coincide...")
-            results = self._projection_binned(results_proj["P"], results_rnks["mean"], n_bins)
+            results = self._projection_binned(
+                results_proj["P"], results_rnks["mean"], n_bins)
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.ranks_agreement_projection)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.ranks_agreement_projection)
 
     def global_ranks_agreement(self, n_neighbors=100, min_shared=100, metric="minkowski", p=0.9, **kwargs):
-        """Sample-specific accuracy, estimated as general agreement with the rest of the CC, based on a Z-global ranking"""        
-        self.__log.debug("Sample-specific agreement to the rest of CC, based on a Z-global ranking")
+        """Sample-specific accuracy, estimated as general agreement with the rest of the CC, based on a Z-global ranking"""
+        self.__log.debug(
+            "Sample-specific agreement to the rest of CC, based on a Z-global ranking")
         fn = "global_ranks_agreement"
-        
+
         cctype = "sign3"
         molset = "full"
         datasets = ["Z0.001"]
@@ -948,16 +980,18 @@ class Diagnosis(object):
             results_datasets = {}
             for ds in datasets:
                 sign = self.cc.get_signature(cctype, molset, ds)
-                dn = self._sample_accuracy_individual(sign, n_neighbors, min_shared, metric)
-                if dn is None: continue
+                dn = self._sample_accuracy_individual(
+                    sign, n_neighbors, min_shared, metric)
+                if dn is None:
+                    continue
                 sc = self._rbo(dn["neighs0"], dn["neighs1"], p=p)
                 results_datasets[ds] = [r for r in zip(dn["rows"], sc)]
             d = {}
             for k in self.keys:
                 d[k] = []
-            for k,v in results_datasets.items():
+            for k, v in results_datasets.items():
                 for r in v:
-                    d[self.keys[r[0]]] += [(k,r[1])]
+                    d[self.keys[r[0]]] += [(k, r[1])]
             R = []
             for k in self.keys:
                 R += [d[k]]
@@ -974,11 +1008,11 @@ class Diagnosis(object):
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.global_ranks_agreement)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.global_ranks_agreement)
 
     def global_ranks_agreement_projection(self, n_bins=20):
         self.__log.debug("Global ranks agreement projection")
@@ -989,22 +1023,24 @@ class Diagnosis(object):
         fn = "global_ranks_agreement_projection"
         if self._todo(fn):
             results_proj = self._load_diagnosis_pickle("projection.pkl")
-            results_rnks = self._load_diagnosis_pickle("global_ranks_agreement.pkl")
+            results_rnks = self._load_diagnosis_pickle(
+                "global_ranks_agreement.pkl")
             if np.any(results_proj["keys"] != results_rnks["keys"]):
                 raise Exception("keys do not coincide...")
-            results = self._projection_binned(results_proj["P"], results_rnks["mean"], n_bins)
+            results = self._projection_binned(
+                results_proj["P"], results_rnks["mean"], n_bins)
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.global_ranks_agreement_projection)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.global_ranks_agreement_projection)
 
     def across_roc(self, datasets=None, exemplary=True, cctype="sign1", molset="full", **kwargs):
         """Check coverage against a collection of other CC signatures.
-        
+
         Args:
             datasets(list): List of datasets. If None, all available are used (default=None).
             exemplary(bool): Whether to use only exemplary datasets (recommended) (default=True).
@@ -1023,16 +1059,17 @@ class Diagnosis(object):
             results = {}
             for ds in datasets:
                 sign = self.cc.get_signature(cctype, molset, ds)
-                results[ds] = self.cross_roc(sign, save=False, force_redo=True, **kwargs)
+                results[ds] = self.cross_roc(
+                    sign, save=False, force_redo=True, **kwargs)
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.across_roc,
-            kw_plotter = {
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.across_roc,
+            kw_plotter={
                 "exemplary": exemplary,
                 "cctype": cctype,
                 "molset": molset})
@@ -1045,15 +1082,16 @@ class Diagnosis(object):
         ds = "E1.001"
         if self._todo(fn):
             sign = self.cc.get_signature(cctype, molset, ds)
-            results = self.cross_roc(sign, save=False, force_redo=True, **kwargs)
+            results = self.cross_roc(
+                sign, save=False, force_redo=True, **kwargs)
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.atc_roc)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.atc_roc)
 
     def moa_roc(self, **kwargs):
         self.__log.debug("MoA ROC")
@@ -1063,15 +1101,16 @@ class Diagnosis(object):
         ds = "B1.001"
         if self._todo(fn):
             sign = self.cc.get_signature(cctype, molset, ds)
-            results = self.cross_roc(sign, save=False, force_redo=True, **kwargs)
+            results = self.cross_roc(
+                sign, save=False, force_redo=True, **kwargs)
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.moa_roc)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.moa_roc)
 
     def redundancy(self, cpu=4):
         from chemicalchecker.util.remove_near_duplicates import RNDuplicates
@@ -1080,18 +1119,20 @@ class Diagnosis(object):
         if self._todo(fn):
             self.__log.debug("Removing near duplicates")
             rnd = RNDuplicates(cpu=cpu)
-            mappings = rnd.remove(self.sign.data_path, save_dest=None, just_mappings=True)
+            mappings = rnd.remove(self.sign.data_path,
+                                  save_dest=None, just_mappings=True)
             mappings = np.array(sorted(mappings.items()))
             mps = []
             for i in range(0, mappings.shape[0]):
-                mps += [(mappings[i,0], mappings[i,1])]
+                mps += [(mappings[i, 0], mappings[i, 1])]
             mps = np.array(mps)
             n_full = mps.shape[0]
-            n_ref  = len(set(mps[:,1]))
+            n_ref = len(set(mps[:, 1]))
             red_counts = collections.defaultdict(int)
             for i in range(0, mps.shape[0]):
-                red_counts[mps[i,1]] += 1
-            red_counts = [(k, v) for k, v in sorted(red_counts.items(), key=lambda item: -item[1])]
+                red_counts[mps[i, 1]] += 1
+            red_counts = [(k, v) for k, v in sorted(
+                red_counts.items(), key=lambda item: -item[1])]
             results = {
                 "n_full": n_full,
                 "n_ref": n_ref,
@@ -1100,11 +1141,11 @@ class Diagnosis(object):
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.redundancy)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.redundancy)
 
     def _cluster(self, expected_coverage, n_neighbors, min_samples, top_clusters):
         self.__log.debug("Clustering")
@@ -1112,18 +1153,20 @@ class Diagnosis(object):
         from sklearn import metrics
         self.__log.debug("Clustering")
         P = self._load_diagnosis_pickle("projection.pkl")["P"]
-        min_samples = int(np.max([np.min([P.shape[0]*0.01, min_samples]), 5]))
+        min_samples = int(
+            np.max([np.min([P.shape[0] * 0.01, min_samples]), 5]))
         self.__log.debug("Estimating epsilon")
         if n_neighbors is None:
             n_neighbors = [1, 2, 3, 5, 10]
         else:
             n_neighbors = [n_neighbors]
+
         def do_clustering(n_neigh):
-            nn = NearestNeighbors(n_neigh+1)
+            nn = NearestNeighbors(n_neigh + 1)
             nn.fit(P)
-            dists = nn.kneighbors(P)[0][:,n_neigh]
+            dists = nn.kneighbors(P)[0][:, n_neigh]
             h = np.histogram(dists, bins="auto")
-            y = np.cumsum(h[0])/np.sum(h[0])
+            y = np.cumsum(h[0]) / np.sum(h[0])
             x = h[1][1:]
             eps = x[np.where(y > expected_coverage)[0][0]]
             self.__log.debug("Running DBSCAN")
@@ -1134,15 +1177,17 @@ class Diagnosis(object):
             lab_counts = collections.defaultdict(int)
             for lab in labels:
                 lab_counts[lab] += 1
-            lab_counts = [(k, v) for k, v in sorted(lab_counts.items(), key=lambda item: -item[1])]
+            lab_counts = [(k, v) for k, v in sorted(
+                lab_counts.items(), key=lambda item: -item[1])]
             return (labels, lab_counts, eps, n_clusters_, n_noise_)
         best_score = 0
         best_n_neigh = None
         for n_neigh in n_neighbors:
-            labels, lab_counts, eps, n_clusters_, n_noise_ = do_clustering(n_neigh)
+            labels, lab_counts, eps, n_clusters_, n_noise_ = do_clustering(
+                n_neigh)
             lc = list([x[1] for x in lab_counts[:top_clusters]])
             if len(lc) < top_clusters:
-                lc += [0]*(top_clusters-len(lc))
+                lc += [0] * (top_clusters - len(lc))
             score = np.median(lc)
             if best_n_neigh is None:
                 best_n_neigh = n_neigh
@@ -1150,7 +1195,8 @@ class Diagnosis(object):
             if best_score < score:
                 best_n_neigh = n_neigh
                 best_score = score
-        labels, lab_counts, eps, n_clusters_, n_noise_ = do_clustering(best_n_neigh)
+        labels, lab_counts, eps, n_clusters_, n_noise_ = do_clustering(
+            best_n_neigh)
         results = {
             "P": P,
             "min_samples": min_samples,
@@ -1161,22 +1207,23 @@ class Diagnosis(object):
             "n_noise": n_noise_
         }
         return results
-        
+
     def cluster_sizes(self, expected_coverage=0.95, n_neighbors=None, min_samples=10, top_clusters=20):
         if self._todo("projection", inner=True):
             raise Exception("projection needs to be done first")
         self.__log.debug("Cluster sizes")
         fn = "clusters"
         if self._todo(fn):
-            results = self._cluster(expected_coverage, n_neighbors, min_samples, top_clusters)
+            results = self._cluster(
+                expected_coverage, n_neighbors, min_samples, top_clusters)
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.cluster_sizes)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.cluster_sizes)
 
     def clusters_projection(self):
         self.__log.debug("Projection clusters")
@@ -1188,11 +1235,11 @@ class Diagnosis(object):
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.clusters_projection)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.clusters_projection)
 
     def key_coverage(self, datasets=None, exemplary=True, cctype=None, molset=None, **kwargs):
         self.__log.debug("Key coverages")
@@ -1206,11 +1253,12 @@ class Diagnosis(object):
             results_shared = {}
             for ds in datasets:
                 sign = self.cc.get_signature(cctype, molset, ds)
-                results_shared[ds] = sorted(set(self.keys).intersection(sign.keys))
+                results_shared[ds] = sorted(
+                    set(self.keys).intersection(sign.keys))
             results_counts = {}
             for k in self.keys:
                 results_counts[k] = 0
-            for k,v in results_shared.items():
+            for k, v in results_shared.items():
                 for k in v:
                     results_counts[k] += 1
             results = {
@@ -1221,12 +1269,12 @@ class Diagnosis(object):
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.key_coverage,
-            kw_plotter = {
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.key_coverage,
+            kw_plotter={
                 "exemplary": exemplary
             })
 
@@ -1239,49 +1287,52 @@ class Diagnosis(object):
         if self._todo(fn):
             results_proj = self._load_diagnosis_pickle("projection.pkl")
             results_cov = self._load_diagnosis_pickle("key_coverage.pkl")
-            results = self._projection_binned(results_proj["P"], np.array(results_cov["key_counts"]), n_bins=n_bins)
+            results = self._projection_binned(results_proj["P"], np.array(
+                results_cov["key_counts"]), n_bins=n_bins)
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.key_coverage_projection)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.key_coverage_projection)
 
     def orthogonality(self, max_features=1000):
         from sklearn.preprocessing import normalize
         fn = "orthogonality"
         if self._todo(fn):
             if max_features < self.V.shape[1]:
-                idxs = np.random.choice(self.V.shape[1], max_features, replace=False)
-                V = self.V[:,idxs]
+                idxs = np.random.choice(
+                    self.V.shape[1], max_features, replace=False)
+                V = self.V[:, idxs]
             else:
                 V = self.V
             V = normalize(V, norm="l2", axis=0)
             dots = []
-            for i in range(0, V.shape[1]-1):
-                for j in range(i+1, V.shape[1]):
-                    dots += [np.dot(V[:,i], V[:,j].T)]
+            for i in range(0, V.shape[1] - 1):
+                for j in range(i + 1, V.shape[1]):
+                    dots += [np.dot(V[:, i], V[:, j].T)]
             results = {
                 "dots": np.array(dots)
             }
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.orthogonality)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.orthogonality)
 
     def outliers(self, n_estimators=1000):
         from sklearn.ensemble import IsolationForest
         fn = "outliers"
         if self._todo(fn):
-            max_features = int(np.sqrt(self.V.shape[1])+1)
-            max_samples  = min(1000, int(self.V.shape[0]/2+1))
-            mod = IsolationForest(n_estimators=n_estimators, contamination=0.1, max_samples=max_samples, max_features=max_features)
+            max_features = int(np.sqrt(self.V.shape[1]) + 1)
+            max_samples = min(1000, int(self.V.shape[0] / 2 + 1))
+            mod = IsolationForest(n_estimators=n_estimators, contamination=0.1,
+                                  max_samples=max_samples, max_features=max_features)
             pred = mod.fit_predict(self.V)
             scores = mod.score_samples(self.V)
             results = {
@@ -1291,11 +1342,11 @@ class Diagnosis(object):
         else:
             results = None
         return self._returner(
-            results = results,
-            fn = fn,
-            save = self.save,
-            plot = self.plot,
-            plotter_function = self.plotter.outliers)
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.outliers)
 
     def available(self):
         return self.plotter.available()
@@ -1335,7 +1386,7 @@ class Diagnosis(object):
         return fig
 
     def canvas(self, cctype="sign1", size="medium", title=None):
-        if   size == "small":
+        if size == "small":
             return self.canvas_small(cctype=cctype, title=title)
         elif size == "medium":
             return self.canvas_medium(cctype=cctype, title=title)
