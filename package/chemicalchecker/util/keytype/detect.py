@@ -6,9 +6,10 @@ from chemicalchecker.util import logged
 
 @logged
 class KeyTypeDetector(object):
+    """KeyTypeDetector class."""
 
     def __init__(self, keys, max_checks=1000, valid=0.75):
-        """Initialize KeyTypeDetector class.
+        """Initialize a KeyTypeDetector instance.
 
         Args:
             keys (list): Keys to be analyzed.

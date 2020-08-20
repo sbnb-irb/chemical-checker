@@ -21,7 +21,7 @@ class Sanitizer(object):
     def __init__(self, trim, max_keys=1000, max_features=5000,
                  min_feature_freq=5, max_feature_freq=0.8, min_key_freq=1,
                  max_key_freq=0.8, chunk_size=10000):
-        """Initialize a Sanitizer.
+        """Initialize a Sanitizer instance.
 
         Args:
             trim (bool): Trim dataset to have a maximum number of features.

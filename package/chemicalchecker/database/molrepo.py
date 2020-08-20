@@ -30,7 +30,7 @@ from chemicalchecker.util.decorator import cached_property
 
 @logged
 class Molrepo(Base):
-    """The Molrepo table.
+    """Molrepo table class.
 
     This table offer a mapping between inchikeys and different external
     compound ids (e.g. chembl, bindigdb, etc.).

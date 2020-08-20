@@ -13,13 +13,15 @@ from chemicalchecker.tool.hotnet import Hotnet
 
 @logged
 class NetworkxNetwork():
-    """Network representation with NetworkX.
+    """NetworkxNetwork class.
 
+    Network representation with NetworkX.
     Simple but heavy in memory.
     Single type of node, single type of edge.
     """
 
     def __init__(self, network):
+        """Initialize a NetworkxNetwork instance."""
         self._network = network
         self.__log.info("Nodes: %s Edges: %s" % (
             len(self._network.nodes()),
@@ -48,11 +50,14 @@ class NetworkxNetwork():
 
 @logged
 class MultiEdgeNetwork():
-    """Multimodal network representation with SNAP.
+    """MultiEdgeNetwork class.
 
-    Multiple type of node, Multiple type of edge."""
+    Multimodal network representation with SNAP.
+    Multiple type of node, Multiple type of edge.
+    """
 
     def __init__(self, network):
+        """Initialize a MultiEdgeNetwork instance."""
         try:
             import snap
             self.snap = snap
@@ -160,11 +165,14 @@ class MultiEdgeNetwork():
 
 @logged
 class SNAPNetwork():
-    """Network representation with SNAP.
+    """SNAPNetwork class.
 
-    Single type of node, single type of edge."""
+    Network representation with SNAP.
+    Single type of node, single type of edge.
+    """
 
     def __init__(self, network):
+        """Initialize a SNAPNetwork instance."""
         try:
             import snap
             self.snap = snap
@@ -311,11 +319,14 @@ class SNAPNetwork():
 
 @logged
 class HotnetNetwork():
-    """Network tools for hotnet.
+    """HotnetNetwork class.
 
-    Read network and create files."""
+    Network tools for hotnet.
+    Read network and create files.
+    """
 
     def __init__(self, network):
+        """Initialize a HotnetNetwork instance."""
         self._network = network
         self.__log.info("Nodes: %s Edges: %s" % (
             len(self._network.nodes()),
@@ -335,7 +346,8 @@ class HotnetNetwork():
 
         if not all_nodes:
 
-            G = max(list(G.subgraph(c) for c in nx.connected_components(G)), key=len)
+            G = max(list(G.subgraph(c)
+                         for c in nx.connected_components(G)), key=len)
 
         # Writing files
 

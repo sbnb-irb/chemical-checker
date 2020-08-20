@@ -14,11 +14,11 @@ from chemicalchecker.util import Config
 class Validation():
     """Validation generator class.
 
-    Creates a validation set
+    Creates a validation set.
     """
 
     def __init__(self, validation_path, name):
-        """Initialize the validation.
+        """Initialize a Validation instance.
 
         Args:
             name(str): The name of the validatoion set.

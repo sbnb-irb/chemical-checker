@@ -21,7 +21,7 @@ class Downloader():
     """Downloader class."""
 
     def __init__(self, url, data_path, tmp_dir=None, dbname=None, file=None):
-        """Initialize the Download object.
+        """Initialize a Download instance.
 
         Download from url, unpack in tmp_dir, and copy to data_path.
         We allow wild-char in url only for FTP links. We resolve the link and

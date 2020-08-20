@@ -7,10 +7,13 @@ from chemicalchecker.util import logged
 
 @logged
 class Pipeline():
-    """Run pipelines according to config files."""
+    """Pipeline class.
+
+    Run pipelines according to config files.
+    """
 
     def __init__(self, pipeline_path=None, **kwargs):
-        """Initialize the Pipeline object.
+        """Initialize a Pipeline instance.
 
         pipeline_path (str): Path where the pipeline will set its structure.
         """

@@ -37,7 +37,7 @@ class sign2(BaseSignature, DataSignature):
     """Signature type 2 class."""
 
     def __init__(self, signature_path, dataset, **params):
-        """Initialize the signature.
+        """Initialize a Signature.
 
         Args:
             signature_path(str): The signature root directory.
@@ -75,7 +75,7 @@ class sign2(BaseSignature, DataSignature):
             self.cpu = self.params['adanet'].get('cpu', 1)
 
     def fit(self, sign1, neig1, reuse=True, validations=True, compare_nn=False):
-        """Learn a model.
+        """Fit signature 2 given signature 1 and its nearest neighbors.
 
         Node2vec embeddings are computed using the graph derived from sign1.
         The predictive model is learned with AdaNet.

@@ -26,7 +26,7 @@ class sign0(BaseSignature, DataSignature):
     """Signature type 0 class."""
 
     def __init__(self, signature_path, dataset, **params):
-        """Initialize the signature.
+        """Initialize a Signature.
 
         Args:
             signature_path (str): the path to the signature directory.

@@ -154,7 +154,7 @@ from chemicalchecker.util import logged
 
 @logged
 class Dataset(Base):  # NS Base is a base class from SQLAlchemy, no __init__??
-    """The Dataset Table class.
+    """Dataset Table class.
 
     Parameters:
         dataset_code(str): primary key, Identifier of the dataset.

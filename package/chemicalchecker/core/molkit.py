@@ -12,9 +12,10 @@ from chemicalchecker.util import logged
 
 @logged
 class Mol(object):
+    """Mol class."""
 
     def __init__(self, cc, mol_str, str_type=None):
-        """Initialize a molecule.
+        """Initialize a Mol instance.
 
         Args:
             cc: Chemical Checker instance.

@@ -1,4 +1,4 @@
-"""HPC factory class.
+"""HPC factory.
 
 Allow the initialization of any of the defined queueing systems.
 Provide a shared interface to get job status, check log for errors, and
@@ -21,7 +21,7 @@ class HPC():
     ERROR = "error"
 
     def __init__(self, **kwargs):
-        """Initialize the HPC object.
+        """Initialize a HPC instance.
 
         Args:
             system (str): Queuing HPC system. (default: '')

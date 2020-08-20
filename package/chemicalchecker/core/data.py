@@ -14,21 +14,31 @@ from chemicalchecker.util import logged
 
 @logged
 class DataFactory():
+    """DataFactory class."""
 
     @staticmethod
     def make_data(cctype, *args, **kwargs):
+        """Initialize *any* type of Signature.
+
+        Args:
+            cctype(str): the signature type: 'sign0-3', 'clus0-3', 'neig0-3'
+                'proj0-3'.
+            args: passed to signature constructor
+            kwargs: passed to signature constructor
+        """
         from .sign0 import sign0
         from .sign1 import sign1
         from .sign2 import sign2
         from .sign3 import sign3
 
         from .clus import clus
-        from .neig import neig # nearest neighbour class
+        from .neig import neig  # nearest neighbour class
         from .proj import proj
 
         DataFactory.__log.debug("initializing object %s", cctype)
         if cctype[:4] in ['clus', 'neig', 'proj']:
-            return eval(cctype[:4])(*args, **kwargs)   # NS, will return an instance of neig or of sign0 etc
+            # NS, will return an instance of neig or of sign0 etc
+            return eval(cctype[:4])(*args, **kwargs)
         else:
             return eval(cctype)(*args, **kwargs)
 

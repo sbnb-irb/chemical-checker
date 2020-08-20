@@ -11,7 +11,7 @@ from chemicalchecker.util import logged
 
 @logged
 class Pubchem(Base):
-    """The Pubchem class for the table of the same name"""
+    """Pubchem Table class."""
     __tablename__ = 'pubchem'
     cid = Column(Integer, primary_key=True)
     inchikey_pubchem = Column(Text)

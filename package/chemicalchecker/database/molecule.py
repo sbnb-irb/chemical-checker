@@ -20,7 +20,7 @@ from chemicalchecker.util import logged
 
 @logged
 class Molecule(Base):
-    """The Molecule Table class.
+    """Molecule Table class.
 
     Parameters:
         inchikey(str): primary key, simple unique name for the Datasource.

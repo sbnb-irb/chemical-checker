@@ -22,7 +22,7 @@ class DataSignature(object):
     """Signature Data class."""
 
     def __init__(self, data_path, ds_data='V', keys_name='keys'):
-        """Initialize or load the signature at the given path."""
+        """Initialize a DataSignature instance."""
         self.data_path = os.path.abspath(data_path)
         self.ds_data = ds_data
         self.keys_name = keys_name
