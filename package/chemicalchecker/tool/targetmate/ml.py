@@ -1,4 +1,4 @@
-"""TargetMate ML classes"""
+"""TargetMate ML classes."""
 import pickle
 import os
 

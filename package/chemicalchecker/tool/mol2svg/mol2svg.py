@@ -1,6 +1,4 @@
-"""Wrapper for Mol2svg tool.
-
-"""
+"""Wrapper for ``mol2svg`` tool."""
 import os
 import subprocess
 from chemicalchecker.util import logged
@@ -8,7 +6,7 @@ from chemicalchecker.util import logged
 
 @logged
 class Mol2svg():
-    """Wrapper to run hotnet."""
+    """Mol2svg class."""
 
     def __init__(self):
         self.exec_path = os.path.join(os.path.dirname(
