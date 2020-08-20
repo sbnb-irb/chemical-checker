@@ -16,16 +16,15 @@ from functools import partial
 from scipy.stats import gaussian_kde
 from scipy.spatial.distance import pdist
 from scipy.stats import pearsonr, ks_2samp
-from sklearn.preprocessing import robust_scale, StandardScaler
 from sklearn.pipeline import make_pipeline
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import robust_scale, StandardScaler
 
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
 
-from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import logged
 
 

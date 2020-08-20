@@ -1,4 +1,4 @@
-"""Entry point to the Chemical Checker signatures.
+"""Chemical Checker entry-point.
 
 The most common starting point in a CC project is the
 :class:`ChemicalChecker`::
@@ -55,8 +55,8 @@ from .data import DataFactory
 from .preprocess import Preprocess
 from .signature_data import DataSignature
 
-from chemicalchecker.util import logged, Config
 from chemicalchecker.database import Dataset
+from chemicalchecker.util import logged, Config
 from chemicalchecker.util.decorator import cached_property
 
 

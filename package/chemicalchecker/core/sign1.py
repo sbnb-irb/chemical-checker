@@ -11,27 +11,29 @@ The typical preprocessing is a PCA (continuous data) or TF-IDF LSI (continuous).
 """
 import os
 import h5py
-import numpy as np
-import datetime
+import uuid
 import shutil
 import pickle
-from scipy.signal import savgol_filter
-from tqdm import tqdm  # NS progress bar
-from sklearn.metrics import accuracy_score
-from scipy.spatial.distance import cosine
+import datetime
+import numpy as np
+from tqdm import tqdm
 from numpy import linalg as LA
-import uuid
+from scipy.signal import savgol_filter
+from scipy.spatial.distance import cosine
+from sklearn.metrics import accuracy_score
 
+from .chemcheck import ChemicalChecker
 from .signature_data import DataSignature
 from .signature_base import BaseSignature
+
 from chemicalchecker.util import logged
-from chemicalchecker.util.transform.scale import Scale
 from chemicalchecker.util.transform.lsi import Lsi
 from chemicalchecker.util.transform.pca import Pca
-from chemicalchecker import ChemicalChecker
+from chemicalchecker.util.transform.scale import Scale
 
 
 DEFAULT_T = 0.01
+
 
 @logged
 class sign1(BaseSignature, DataSignature):
@@ -65,10 +67,13 @@ class sign1(BaseSignature, DataSignature):
 
         self.__log.debug("Copying HDF5 dataset")
         with h5py.File(s1.data_path, "w") as hf:
-            hf.create_dataset("name", data=np.array([str(self.dataset) + "sig"], DataSignature.string_dtype()))
-            hf.create_dataset("date", data=np.array([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
+            hf.create_dataset("name", data=np.array(
+                [str(self.dataset) + "sig"], DataSignature.string_dtype()))
+            hf.create_dataset("date", data=np.array([datetime.datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
             hf.create_dataset("V", data=s0[:])
-            hf.create_dataset("keys", data=np.array(s0.keys, DataSignature.string_dtype()))
+            hf.create_dataset("keys", data=np.array(
+                s0.keys, DataSignature.string_dtype()))
             if is_basesig:
                 if s0.molset == "reference":
                     mappings = s0.get_h5_dataset("mappings")
@@ -133,7 +138,8 @@ class sign1(BaseSignature, DataSignature):
         try:
             from chemicalchecker.util.transform.metric_learn import UnsupervisedMetricLearn, SemiSupervisedMetricLearn
         except ImportError:
-            raise ImportError("requires tensorflow " + "https://tensorflow.org")
+            raise ImportError("requires tensorflow " +
+                              "https://tensorflow.org")
         self.clean()
 
         s0 = sign0
@@ -141,7 +147,8 @@ class sign1(BaseSignature, DataSignature):
         if s0.cctype != "sign0":
             raise Exception("A signature type 0 is expected..!")
         if s0.molset != "full":
-            raise Exception("Fit should be done with the full signature 0 (even if inside reference is used)")
+            raise Exception(
+                "Fit should be done with the full signature 0 (even if inside reference is used)")
 
         s0_ref = s0.get_molset("reference")
         s1_ref = self.get_molset("reference")
@@ -228,7 +235,8 @@ class sign1(BaseSignature, DataSignature):
         """Predict sign1 from sign0"""
 
         if type(sign0) is not DataSignature:
-            raise Exception("Predict requires a DataSignature as input parameter")
+            raise Exception(
+                "Predict requires a DataSignature as input parameter")
         if not os.path.isfile(sign0.data_path):
             raise Exception("The file " + sign0.data_path + " does not exist")
         tag = str(uuid.uuid4())
@@ -286,8 +294,9 @@ class sign1(BaseSignature, DataSignature):
         try:
             import faiss
         except ImportError:
-            raise ImportError("requires faiss " + "https://github.com/facebookresearch/faiss")
-            
+            raise ImportError("requires faiss " +
+                              "https://github.com/facebookresearch/faiss")
+
         s1 = self.get_molset("reference")
         if metric not in ["cosine", "euclidean"]:
             raise Exception("Metric must be 'cosine' or 'euclidean'")
@@ -302,7 +311,8 @@ class sign1(BaseSignature, DataSignature):
         with h5py.File(s1.data_path, 'r') as dh5, h5py.File(data_path, 'w') as dh5out:
             datasize = dh5[V_name].shape
             data_type = dh5[V_name].dtype
-            self.__log.debug("...data size is (%d, %d)" % (datasize[0], datasize[1]))
+            self.__log.debug("...data size is (%d, %d)" %
+                             (datasize[0], datasize[1]))
             k = min(datasize[0], k_neig)
             dh5out.create_dataset("row_keys", data=dh5["keys"][:])
             dh5out["col_keys"] = h5py.SoftLink('/row_keys')
@@ -364,11 +374,12 @@ class sign1(BaseSignature, DataSignature):
         UB = 100000
         TMAX = 50
         TMIN = 10
+
         def get_t_max(n):
             n = np.clip(n, LB, UB)
-            a = (TMAX-TMIN)/(LB-UB)
-            b = TMIN - a*UB
-            return a*n+b
+            a = (TMAX - TMIN) / (LB - UB)
+            b = TMIN - a * UB
+            return a * n + b
         with h5py.File(neig_path, "r") as hf:
             N, kn = hf["indices"].shape
             opt_t = np.min([opt_t, 0.01])

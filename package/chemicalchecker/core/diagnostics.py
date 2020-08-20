@@ -1,4 +1,4 @@
-"""Diagnosis for signatures.
+"""Diagnostics for Signatures.
 
 Performs an array of validations and diagnostic analysis.
 """
@@ -8,9 +8,8 @@ import pickle
 import shutil
 import collections
 import numpy as np
-from scipy.stats import gaussian_kde
-
 from sklearn.cluster import DBSCAN
+from scipy.stats import gaussian_kde
 from sklearn.decomposition import PCA
 from sklearn.metrics import roc_curve, auc
 from sklearn.preprocessing import normalize
