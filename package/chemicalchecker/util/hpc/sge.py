@@ -54,7 +54,7 @@ fi
 """
 
     def __init__(self, **kwargs):
-        """Initialize the SGE class."""
+        """Initialize a SGE instance."""
         self.host = kwargs.get("host", '')
         self.queue = kwargs.get("queue", None)
         self.username = kwargs.get("username", '')

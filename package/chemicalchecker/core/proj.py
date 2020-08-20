@@ -26,10 +26,10 @@ from chemicalchecker.util.plot import Plot
 
 @logged
 class proj(BaseSignature, DataSignature):
-    """A Signature bla bla."""
+    """Projection Signature class."""
 
     def __init__(self, signature_path, dataset, proj_type='Default', **kwargs):
-        """Initialize the projection class.
+        """Initialize the proj class.
 
         Args:
             signature_path(str): the path to the signature directory.
@@ -107,7 +107,7 @@ class proj(BaseSignature, DataSignature):
 
     def fit(self, signature, validations=True, preprocess_dims=False,
             batch_size=100, *args, **kwargs):
-        """Take an input learn a 2D representation."""
+        """Fit a projection model given a signature."""
         self.__log.info("Input shape: %s" % str(signature.shape))
         if preprocess_dims:
             signature = self.pre_fit_transform(signature,

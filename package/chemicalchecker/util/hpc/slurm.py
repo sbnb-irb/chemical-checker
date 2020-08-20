@@ -51,7 +51,7 @@ fi
 """
 
     def __init__(self, **kwargs):
-        """Initialize the SLURM class."""
+        """Initialize a SLURM instance."""
         self.host = kwargs.get("host", '')
         self.queue = kwargs.get("queue", None)
         self.username = kwargs.get("username", '')

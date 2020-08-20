@@ -15,9 +15,9 @@ from chemicalchecker.util import logged
 @logged
 @six.add_metaclass(ABCMeta)
 class BaseTask(object):
-    """A Step base class.
+    """BaseTask class.
 
-    Implements methods and checks common to all steps.
+    A Step base class. Implements methods and checks common to all steps.
     """
 
     @abstractmethod

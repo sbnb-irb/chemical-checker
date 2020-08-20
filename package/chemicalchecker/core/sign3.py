@@ -34,7 +34,7 @@ class sign3(BaseSignature, DataSignature):
     """Signature type 3 class."""
 
     def __init__(self, signature_path, dataset, **params):
-        """Initialize the signature.
+        """Initialize a Signature.
 
         Args:
             signature_path(str): The signature root directory.
@@ -1614,7 +1614,7 @@ class sign3(BaseSignature, DataSignature):
 
     def fit_sign0(self, sign0, suffix=None, include_confidence=False,
                   only_confidence=False):
-        """Train a siamese model to predict sign3 from sign0 (Morgan Finguerprint).
+        """Fit signature 3 from Morgan Finguerprint.
 
         This method is fitting a model that uses Morgan fingerprint as features
         to predict signature 3. In future other featurization approaches can be
@@ -1798,7 +1798,7 @@ class sign3(BaseSignature, DataSignature):
             model_confidence=True, save_correlations=False,
             predict_novelty=True, update_preds=True,
             validations=True, chunk_size=1000, suffix=None):
-        """Fit the model to predict the signature 3.
+        """Fit signature 3 given a list of signature 2.
 
         Args:
             sign2_list(list): List of signature 2 objects to learn from.

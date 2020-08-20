@@ -27,25 +27,31 @@ from chemicalchecker.util.plot import Plot
 
 @logged
 class clus(BaseSignature, DataSignature):
-    """A Cluster Signature."""
+    """Cluster Signature class."""
 
     def __init__(self, signature_path, dataset, **params):
-        """Initialize the signature.
+        """Initialize a Signature.
 
         Args:
             signature_path(str): the path to the signature directory.
             dataset(object): The dataset object with all info related
-            type(str): The type of clustering between kmeans and hdbscan. (default:kmeans)
-            metric(str): The metric used in the KNN algorithm: euclidean or cosine (default: cosine)
-            k_neig(int): The number of k neighbours to search for (default:None)
+            type(str): The type of clustering between kmeans and hdbscan.
+                (default:kmeans)
+            metric(str): The metric used in the KNN algorithm: euclidean or
+                cosine (default: cosine)
+            k_neig(int): The number of k neighbours to search for
+                (default:None)
             cpu(int): The number of cores to use (default:1)
-            min_members(int): Minimum number of points per cluster (hdbscan) (default:5)
+            min_members(int): Minimum number of points per cluster (hdbscan)
+                (default:5)
             num_subdim(int): Splitting of the PQ encoder (kmeans) (default:8)
             min_k(int): Minimum number of clusters (kmeans)(default:1)
             max_k(int): Maximum number of clusters (kmeans) (default: None)
             n_points(int): Number of points to calculate (kmeans) (default:100)
-            balance(float): If 1, all clusters are of equal size. Greater values are increasingly more imbalanced (kmeans) (default:None)
-            significance(float): Distance significance cutoff (kmeans) (default:0.05)
+            balance(float): If 1, all clusters are of equal size. Greater
+                values are increasingly more imbalanced (kmeans) (default:None)
+            significance(float): Distance significance cutoff (kmeans)
+                (default:0.05)
         """
         # Calling init on the base class to trigger file existance checks
         BaseSignature.__init__(self, signature_path, dataset, **params)
@@ -97,7 +103,7 @@ class clus(BaseSignature, DataSignature):
                 self.significance = params["type"]
 
     def fit(self, sign1, validations=True):
-        """Take an input and learns to produce an output."""
+        """Fit model."""
         try:
             import faiss
         except ImportError:

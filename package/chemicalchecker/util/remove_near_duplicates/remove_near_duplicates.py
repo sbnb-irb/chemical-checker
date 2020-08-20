@@ -19,7 +19,7 @@ class RNDuplicates():
     """RNDuplicates class."""
 
     def __init__(self, nbits=128, only_duplicates=False, cpu=1):
-        """Initialize a RNDuplicates object.
+        """Initialize a RNDuplicates instance.
 
         Args:
             nbits (int): Number of bits to use to quantize.

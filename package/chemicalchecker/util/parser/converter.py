@@ -20,7 +20,7 @@ class Converter():
     """Converter class."""
 
     def __init__(self):
-        """Initialize Converter class."""
+        """Initialize a Converter instance."""
         try:
             import rdkit.Chem as Chem
             self.Chem = Chem

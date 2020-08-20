@@ -1,4 +1,7 @@
-"""Chemical Checker config."""
+"""Chemical Checker config.
+
+The Config provide access to all sort of useful parameters.
+"""
 import os
 import json
 
@@ -31,13 +34,16 @@ class _Field():
 
 @logged
 class Config():
-    """The persistent container of a config file.
+    """Config class.
 
-    The Config provide access to all sort of useful parameters.
+    An instance of this object holds config file section as atttributes.
     """
 
     def __init__(self, json_file=None):
-        """A Config is loaded from a JSON file."""
+        """Initialize a Config instance.
+
+        A Config instance is loaded from a JSON file.
+        """
         if not json_file:
             try:
                 json_file = os.environ["CC_CONFIG"]

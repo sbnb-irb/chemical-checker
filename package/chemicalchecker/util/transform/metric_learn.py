@@ -1,4 +1,4 @@
-"""Semisupervised metric learning
+"""Semisupervised metric learning.
 
 We first determine the number of dimensions by a PCA.
 """
@@ -28,6 +28,7 @@ params = {
 
 @logged
 class MetricLearn(BaseTransform):
+    """MetricLearn class."""
 
     def __init__(self, sign1, tmp, name, max_keys, params):
         if tmp:

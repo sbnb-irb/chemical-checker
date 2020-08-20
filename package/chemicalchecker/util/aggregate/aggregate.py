@@ -7,10 +7,13 @@ from chemicalchecker.util import logged
 
 @logged
 class AggregateAsMatrix(object):
-    """Given a matrix with keys with potential duplicates, aggregate them."""
+    """AggregateAsMatrix class.
+
+    Given a matrix with keys with potential duplicates, aggregate them.
+    """
 
     def __init__(self, method):
-        """Initialize class.
+        """Initialize a AggregateAsMatrix instance.
 
         Args:
             method(str): The aggregation method to be used. Must be one of:
@@ -43,10 +46,13 @@ class AggregateAsMatrix(object):
 
 @logged
 class AggregateAsPairs(object):
-    """Given a matrix with potential duplicates, aggregate them."""
+    """AggregateAsPairs class.
+
+    Given a matrix with potential duplicates, aggregate them.
+    """
 
     def __init__(self, method):
-        """Initialize class.
+        """Initialize a AggregateAsPairs instance.
 
         Args:
             method(str): The aggregation method to be used. Must be one of:
@@ -106,10 +112,13 @@ class AggregateAsPairs(object):
 
 @logged
 class Aggregate(object):
-    """Aggregate samples."""
+    """Aggregate class.
+
+    Aggregate samples.
+    """
 
     def __init__(self, method, input_type):
-        """Initialize class.
+        """Initialize a Aggregate instance.
 
         Args:
             method(str): The aggregation method to be used. Must be one of:

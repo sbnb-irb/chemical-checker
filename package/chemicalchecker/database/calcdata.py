@@ -48,6 +48,7 @@ from chemicalchecker.util.parser import DataCalculator
 
 
 def Calcdata(table_name):
+    """Factory for Generic table."""
 
     DynamicBase = declarative_base(class_registry=dict())
     config = Config()
