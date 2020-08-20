@@ -88,7 +88,7 @@ then
 fi
 if [ "$EXTERNAL_CCCONFIG" = false ]
 then
-    PATH_CCCONFIG=/opt/chemical_checker/cc_config.json
+    PATH_CCCONFIG=/opt/chemical_checker/setup/cc_config.json
 fi
 
 # run shell or notebook?
