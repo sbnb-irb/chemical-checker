@@ -170,7 +170,7 @@ then
     if [ "$EDIT_CONFIG" = true ]
     then
         cd $INSTALL_DIR;
-        sudo singularity exec  --writable $LOCAL_IMAGE_SANDBOX vi /opt/chemical_checker/cc_config.json
+        sudo singularity exec  --writable $LOCAL_IMAGE_SANDBOX vi /opt/chemical_checker/setup/cc_config.json
         # generate image from sandbox
         sudo singularity build $LOCAL_IMAGE $LOCAL_IMAGE_SANDBOX
         if [ $? -eq 0 ]; then
