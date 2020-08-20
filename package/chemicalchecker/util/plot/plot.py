@@ -81,10 +81,13 @@ def lighten_color(color, amount=0.5):
 
 @logged
 class Plot():
-    """Produce different kind of plots."""
+    """Plot class.
+
+    Produce different kind of plots.
+    """
 
     def __init__(self, dataset, plot_path, validation_path=None, svg=True):
-        """Initialize the Plot object.
+        """Initialize a Plot instance.
 
         Produce all kind of plots and data associated
 

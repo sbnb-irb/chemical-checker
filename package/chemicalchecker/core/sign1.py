@@ -38,7 +38,7 @@ class sign1(BaseSignature, DataSignature):
     """Signature type 1 class."""
 
     def __init__(self, signature_path, dataset, **params):
-        """Initialize the signature.
+        """Initialize a Signature.
 
         Args:
             signature_path(str): the path to the signature directory.
@@ -125,7 +125,7 @@ class sign1(BaseSignature, DataSignature):
                 del hf["V_tmp"]
 
     def fit(self, sign0, latent=True, scale=True, metric_learning=True, semisupervised=False):
-        """Fit a signature 1, given a signature 0
+        """Fit signature 1 given signature 0
 
             Args:
                 sign0: A signature 0.

@@ -18,7 +18,7 @@ from chemicalchecker.util.hpc import HPC
 
 @logged
 class Datasource(Base):
-    """The Datasource table.
+    """Datasource table class.
 
     Parameters:
         name(str): primary key, simple unique name for the Datasource.

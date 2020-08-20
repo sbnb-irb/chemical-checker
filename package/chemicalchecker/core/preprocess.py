@@ -31,10 +31,10 @@ features_file = "features.h5"
 
 @logged
 class Preprocess():
-    """Signature type 0 class."""
+    """Preprocess class."""
 
     def __init__(self, signature_path, dataset, **params):
-        """Initialize the signature.
+        """Initialize a Preprocess instance.
 
         Args:
             signature_path(str): the path to the signature directory.

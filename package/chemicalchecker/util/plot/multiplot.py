@@ -37,11 +37,14 @@ from chemicalchecker.util.plot.diagnosticsplot import DiagnosisPlot
 
 @logged
 class MultiPlot():
-    """Produce Chemical Checker plots using multiple datasets."""
+    """MultiPlot class.
+
+    Produce Chemical Checker plots using multiple datasets.
+    """
 
     def __init__(self, chemchecker, plot_path, limit_dataset=None, svg=False,
                  dpi=200, grey=False, style=None):
-        """Initialize a MultiPlot object.
+        """Initialize a MultiPlot instance.
 
         Produce plots integrating data from multiple datasets.
 

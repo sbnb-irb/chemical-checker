@@ -16,7 +16,7 @@ class TripletSampler(object):
     """TripletSampler class."""
 
     def __init__(self, cc, sign0, max_sampled_keys=10000, save=True):
-        """Initialize a TripletSampler"""
+        """Initialize a TripletSampler instance."""
         # if sign0.cctype != "sign0":
         #    raise Exception("Triplet sampling only makes sense for sign0!")
         self.cc = cc

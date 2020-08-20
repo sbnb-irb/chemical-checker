@@ -1,6 +1,7 @@
 """Entry point to the Chemical Checker signatures.
 
-The most common starting point in a CC project is the :class:`ChemicalChecker`::
+The most common starting point in a CC project is the
+:class:`ChemicalChecker`::
 
     from chemicalchecker import ChemicalChecker
     cc = ChemicalChecker()
@@ -10,8 +11,9 @@ If, like in the example above, we don't specify anything, the default path is
 assumed (that is the ``CC_ROOT`` variable in the
 :class:`~chemicalchecker.util.config.Config`).
 
-If the specified ``CC_ROOT`` directory is already populated, we have successfully
-initialized the CC instance and will have access to its signatures.
+If the specified ``CC_ROOT`` directory is already populated, we have
+successfully initialized the CC instance and will have access to its
+signatures.
 
 If the ``CC_ROOT`` directory is empty we proceed generating the CC directory
 structure and we'll have an empty CC instance optimal for handling our own
@@ -27,9 +29,9 @@ The organization of signatures under the ``CC_ROOT`` follows hierarchy of
       molecules.
 
     * The ``dataset`` is the bioactivity space of interest and is described by
-      the _level_ (e.g. ``A``) the _sublevel_ (e.g. ``1``) and a _code_ for each
-      input dataset starting from ``.001``. The directory structure follow this
-      hierarchy (e.g. ``/root/full/A/A1/A1.001``)
+      the _level_ (e.g. ``A``) the _sublevel_ (e.g. ``1``) and a _code_ for
+      each input dataset starting from ``.001``. The directory structure
+      follow this hierarchy (e.g. ``/root/full/A/A1/A1.001``)
 
     * The ``signature`` is one of the possible type of signatures (see
       :doc:`Signaturization <../signaturization>`) and the final path is
@@ -37,9 +39,8 @@ The organization of signatures under the ``CC_ROOT`` follows hierarchy of
 
 
 Main goals of this class are:
-
-1. Check and enforce the directory structure behind a CC instance.
-2. Serve signatures to users or pipelines.
+    1. Check and enforce the directory structure behind a CC instance.
+    2. Serve signatures to users or pipelines.
 """
 
 import re
@@ -61,22 +62,21 @@ from chemicalchecker.util.decorator import cached_property
 
 @logged
 class ChemicalChecker():
-    """Explore the Chemical Checker."""
+    """ChemicalChecker class."""
 
     def __init__(self, cc_root=None, custom_data_path=None):
-        """Initialize the Chemical Checker.
+        """Initialize a ChemicalChecker instance.
 
         If the CC_ROOT directory is empty a skeleton of CC is initialized.
         Otherwise the directory is explored and molset and datasets variables
         are discovered.
 
         Args:
-            cc_root(str): The Chemical Checker root directory. If not specified
-                          the root is taken from the config file.
-                          (default:None)
-
-            custom_data_path: Path to one or more h5 files, detect their signature
-                          type, molset and dataset code form their 'attrs' record.
+            cc_root (None, str): The Chemical Checker root directory.
+                If not specified the root is taken from the config file.
+            custom_data_path (None, str): Path to one or more h5 files, detect
+                their signature type, molset and dataset code form their
+                'attrs' record.
 
         """
         if not cc_root:
@@ -203,10 +203,13 @@ class ChemicalChecker():
 
         Get the moleculeset/dataset combination where signatures are available.
         Use arguments to apply filters.
+
         Args:
-            molset(str): Filter for the moleculeset e.g. 'full' or 'reference'
-            dataset(str) Filter for the dataset e.g. A1.001
-            signature(str): Filter for signature type e.g. 'sign1'
+            molset (str, optional): Filter for the moleculeset e.g. 'full' or
+                'reference'
+            dataset (str, optional): Filter for the dataset e.g. A1.001
+            signature (str, optional): Filter for signature type e.g. 'sign1'
+
         Returns:
             Nested dictionary with molset, dataset and list of signatures
         """

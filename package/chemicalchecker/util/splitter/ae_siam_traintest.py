@@ -8,14 +8,10 @@ from chemicalchecker.util import logged
 
 @logged
 class AE_SiameseTraintest(object):
-    """Convenience batch reader from HDF5 files.
-
-    This class allow creation and access to HDF5 train-test sets and expose
-    the generator functions which tensorflow likes.
-    """
+    """AE_SiameseTraintest class."""
 
     def __init__(self, hdf5_file, split, replace_nan=None):
-        """Initialize the traintest object.
+        """Initialize a AE_SiameseTraintest instance.
 
         We assume the file is containing diffrent splits.
         e.g. "x_train", "y_train", "x_test", ...

@@ -19,15 +19,17 @@ from chemicalchecker.util.decorator import cached_property
 
 @logged
 class neig(BaseSignature, DataSignature):
-    """A Signature bla bla."""
+    """Neighbors Signature class."""
 
     def __init__(self, signature_path, dataset, **params):
-        """Initialize the signature.
+        """Initialize a Signature.
 
         Args:
             signature_path(str): the path to the signature directory.
-            metric(str): The metric used in the KNN algorithm: euclidean or cosine (default: cosine)
-            k_neig(int): The number of k neighbours to search for (default:1000)
+            metric(str): The metric used in the KNN algorithm: euclidean or
+                cosine (default: cosine)
+            k_neig(int): The number of k neighbours to search for
+                (default:1000)
             cpu(int): The number of cores to use (default:1)
             chunk(int): The size of the chunk to read the data (default:1000)
         """
@@ -57,7 +59,7 @@ class neig(BaseSignature, DataSignature):
                 self.chunk = params["chunk"]
 
     def fit(self, sign1):
-        """Take an input and learns to produce an output."""
+        """Fit neighbor model given a signature."""
         try:
             import faiss
         except ImportError:

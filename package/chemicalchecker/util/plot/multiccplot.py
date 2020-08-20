@@ -16,10 +16,13 @@ from chemicalchecker.util import logged
 
 @logged
 class MultiCCPlot():
-    """Produce Chemical Checker plots using multiple datasets."""
+    """MultiCCPlot class.
+
+    Produce Chemical Checker plots using multiple datasets.
+    """
 
     def __init__(self, chemcheckers, names, plot_path, limit_dataset=None):
-        """Initialize MultiCCPlot.
+        """Initialize a MultiCCPlot instance.
 
         Args:
             chemcheckers (list): List of CC instances.

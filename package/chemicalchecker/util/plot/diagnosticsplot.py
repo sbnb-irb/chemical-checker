@@ -21,9 +21,10 @@ pad_factor = 0
 
 @logged
 class DiagnosisPlot(object):
+    """DiagnosisPlot class."""
 
     def __init__(self, sign):
-        """Initialize diagnostics plotter.
+        """Initialize a DiagnosisPlot instance.
 
         The plotter works on data precomputed using
         :mod:`~chemicalchecker.core.diagnostics`.

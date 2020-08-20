@@ -15,9 +15,10 @@ from chemicalchecker.util import logged
 
 @logged
 class LinkPrediction():
+    """LinkPrediction class."""
 
     def __init__(self, sign2, network, metric=cosine, limit_nodes=None):
-        """Initialize LinkPrediction class.
+        """Initialize a LinkPrediction instanca.
         Args:
             sign2 (sign): Signature or embedding to validate.
             network (network): The network that we want to reconstruct.

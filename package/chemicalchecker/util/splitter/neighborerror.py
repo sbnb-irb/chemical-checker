@@ -12,14 +12,10 @@ from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 
 @logged
 class NeighborErrorTraintest(object):
-    """Convenience batch reader from HDF5 files of pairs.
-
-    This class allow creation and access to HDF5 train-test sets and expose
-    the generator functions which tensorflow likes.
-    """
+    """NeighborErrorTraintest class."""
 
     def __init__(self, hdf5_file, split, nr_neig=10, replace_nan=None):
-        """Initialize the traintest object.
+        """Initialize a NeighborErrorTraintest instance.
 
         We assume the file is containing diffrent splits.
         e.g. "x_train", "y_train", "x_test", ...

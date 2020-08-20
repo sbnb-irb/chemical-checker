@@ -39,7 +39,7 @@ class BaseSignature(object):
 
     @abstractmethod
     def __init__(self, signature_path, dataset, **params):
-        """Initialize or load the signature at the given path."""
+        """Initialize a BaseSignature instance."""
         self.dataset = dataset    # NS ex H1.004
         self.cctype = signature_path.split("/")[-1]  # NS: ex sign0
         self.molset = signature_path.split("/")[-5]  # NS: ex full, reference
@@ -89,7 +89,7 @@ class BaseSignature(object):
 
     @abstractmethod
     def fit(self):
-        """Take an input and learns to produce an output in the 'model' folder."""
+        """Fit a model."""
         BaseSignature.__log.debug('fit')
         if os.path.isdir(self.model_path):
             BaseSignature.__log.warning("Model already available.")
@@ -99,7 +99,7 @@ class BaseSignature(object):
 
     @abstractmethod
     def predict(self):
-        """Use the fitted models to go from input to output."""
+        """Use the fitted models to predict."""
         BaseSignature.__log.debug('predict')
         if not os.path.isdir(self.model_path):
             raise Exception("Model file not available.")
@@ -110,7 +110,6 @@ class BaseSignature(object):
 
     def validate_versus_signature(self, sign, n_samples=1000, n_neighbors=5, apply_mappings=True, metric='cosine'):
         """Perform validations.
-
 
         Args:
             sign(signature object): A CC signature object to validate against

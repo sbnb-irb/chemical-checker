@@ -8,7 +8,10 @@ from sklearn.metrics import confusion_matrix, precision_score, silhouette_score
 
 
 class PerformanceBinary():
-    """Compute performance metric for a binary classiier."""
+    """PerformanceBinary class.
+
+    Compute performance metric for a binary classiier.
+    """
 
     metrics = {
         "auc_roc": "AUC-ROC",
@@ -22,7 +25,7 @@ class PerformanceBinary():
     }
 
     def __init__(self, y_true, y_pred):
-        """Initialize a performance object.
+        """Initialize a PerformanceBinary instance.
 
         Args:
             y_true(array): Array of truth labels.

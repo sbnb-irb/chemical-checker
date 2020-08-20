@@ -1,4 +1,4 @@
-"""Do TFIDF-LSI"""
+"""Do TFIDF-LSI."""
 import os
 import numpy as np
 import random
@@ -10,8 +10,10 @@ import tempfile
 from chemicalchecker.util import Config
 from .base import BaseTransform
 
-class MyCorpus(object):
-    """A corpus class"""
+
+class Corpus(object):
+    """Corpus class."""
+
     def __init__(self, plain_corpus, dictionary):
         self.plain_corpus = plain_corpus
         self.dictionary = dictionary
@@ -36,9 +38,14 @@ class MyCorpus(object):
                 continue
             yield key
 
+
 class Lsi(BaseTransform):
-    """Do TFIDF+LSI"""
-    def __init__(self, sign1, tmp=False, variance_explained=0.9, num_topics=None, B_val=10, N_val=1000, multipass=True, max_keys=100000, **kwargs):
+    """Lsi class."""
+
+    def __init__(self, sign1, tmp=False, variance_explained=0.9,
+                 num_topics=None, B_val=10, N_val=1000, multipass=True,
+                 max_keys=100000, **kwargs):
+        """Initialize a Lsi instance."""
         BaseTransform.__init__(self, sign1, "lsi", max_keys, tmp)
         self.variance_explained = variance_explained
         self.min_freq = 1
@@ -83,8 +90,10 @@ class Lsi(BaseTransform):
             raise Exception("TFIDF-LSI only allowed for categorical matrices")
         V, keys, features = self.subsample()
         self.features = features
-        self.plain_corpus = os.path.join(self.model_path, self.name+".plain.txt")
-        self.tfidf_corpus = os.path.join(self.model_path, self.name+".tfidf.mm")
+        self.plain_corpus = os.path.join(
+            self.model_path, self.name + ".plain.txt")
+        self.tfidf_corpus = os.path.join(
+            self.model_path, self.name + ".tfidf.mm")
         # plain corpus
         with open(self.plain_corpus, "w") as f:
             for chunk in self.chunker(V.shape[0]):
@@ -103,17 +112,17 @@ class Lsi(BaseTransform):
             no_below=self.min_freq, no_above=self.max_freq)
         # save
         dictionary.compactify()
-        dictionary.save(os.path.join(self.model_path, self.name+".dict.pkl"))
+        dictionary.save(os.path.join(self.model_path, self.name + ".dict.pkl"))
         # corpus
-        c = MyCorpus(self.plain_corpus, dictionary)
+        c = Corpus(self.plain_corpus, dictionary)
         # tfidf model
         tfidf = models.TfidfModel(c)
-        tfidf.save(os.path.join(self.model_path, self.name+".tfidf.pkl"))
+        tfidf.save(os.path.join(self.model_path, self.name + ".tfidf.pkl"))
         c_tfidf = tfidf[c]
         corpora.MmCorpus.serialize(self.tfidf_corpus, c_tfidf)
         # getting ready for lsi
         if self.num_topics is None:
-            num_topics = np.min([int(0.67*len(dictionary)), 5000])
+            num_topics = np.min([int(0.67 * len(dictionary)), 5000])
         else:
             num_topics = self.num_topics
         if self.multipass:
@@ -123,10 +132,11 @@ class Lsi(BaseTransform):
         # lsi
         lsi = models.LsiModel(
             c_tfidf, id2word=dictionary, num_topics=num_topics, onepass=onepass)
-        lsi.save(os.path.join(self.model_path, self.name+".lsi.pkl"))
+        lsi.save(os.path.join(self.model_path, self.name + ".lsi.pkl"))
         c_lsi = lsi[c_tfidf]
         # variance explained
-        exp_var_ratios = self._lsi_variance_explained(self.tfidf_corpus, lsi, num_topics)
+        exp_var_ratios = self._lsi_variance_explained(
+            self.tfidf_corpus, lsi, num_topics)
         for cut_i, cum_var in enumerate(np.cumsum(exp_var_ratios)):
             if cum_var > self.variance_explained:
                 break
@@ -134,13 +144,13 @@ class Lsi(BaseTransform):
         self.predict(self.sign_ref)
         self.predict(self.sign)
         self.save()
-        
+
     def predict(self, sign1):
         self.predict_check(sign1)
         # corpus for the predict
         tmp_dir = tempfile.mkdtemp(prefix="lsi_", dir=Config().PATH.CC_TMP)
-        plain_corpus = os.path.join(tmp_dir, self.name+".plain.txt")
-        tfidf_corpus = os.path.join(tmp_dir, self.name+".tfidf.mm")
+        plain_corpus = os.path.join(tmp_dir, self.name + ".plain.txt")
+        tfidf_corpus = os.path.join(tmp_dir, self.name + ".tfidf.mm")
         with open(plain_corpus, "w") as f:
             for chunk in sign1.chunker():
                 vs = sign1[chunk].astype(np.int)
@@ -152,17 +162,20 @@ class Lsi(BaseTransform):
                                     for x in mask[0]])
                     f.write("%s %s\n" % (ks[i], val))
         # load dictionary
-        dictionary = corpora.Dictionary.load(os.path.join(self.model_path, self.name+".dict.pkl"))
+        dictionary = corpora.Dictionary.load(
+            os.path.join(self.model_path, self.name + ".dict.pkl"))
         # corpus
-        c = MyCorpus(plain_corpus, dictionary)
-        tfidf = models.TfidfModel.load(os.path.join(self.model_path, self.name+".tfidf.pkl"))
+        c = Corpus(plain_corpus, dictionary)
+        tfidf = models.TfidfModel.load(os.path.join(
+            self.model_path, self.name + ".tfidf.pkl"))
         c_tfidf = tfidf[c]
         corpora.MmCorpus.serialize(tfidf_corpus, c_tfidf)
-        lsi = models.LsiModel.load(os.path.join(self.model_path, self.name+".lsi.pkl"))
+        lsi = models.LsiModel.load(os.path.join(
+            self.model_path, self.name + ".lsi.pkl"))
         c_lsi = lsi[c_tfidf]
         # get keys
         keys = np.array([k for k in c.keys()])
-        V = np.empty((len(keys), self.cut_i+1))
+        V = np.empty((len(keys), self.cut_i + 1))
         i = 0
         for l in c_lsi:
             v = np.zeros(self.cut_i + 1)
@@ -170,6 +183,6 @@ class Lsi(BaseTransform):
                 if x[0] > self.cut_i:
                     continue
                 v[x[0]] = x[1]
-            V[i,:] = v
+            V[i, :] = v
             i += 1
         self.overwrite(sign1=sign1, V=V, keys=keys)

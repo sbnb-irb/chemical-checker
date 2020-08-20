@@ -23,10 +23,11 @@ from chemicalchecker.util.plot import DiagnosisPlot
 
 @logged
 class Diagnosis(object):
+    """Diagnosis class."""
 
     def __init__(self, cc, sign, save=True, plot=True, overwrite=False,
                  n=10000):
-        """Diagnosis for signatures.
+        """Initialize a Diagnosis instance.
 
         Args:
             cc (ChemicalChecker): A CC instance.
