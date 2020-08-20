@@ -5,7 +5,7 @@ cache:
 
 stages:
   - image
-  - test
+  - unittest
   - deploy
 
 
@@ -48,8 +48,8 @@ build_singularity_image_py37_lite:
 
 
 
-python_3.7:
-  stage: test
+unittest_python_3.7:
+  stage: unittest
   script:
     - ls -l
     - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py37.simg which python
@@ -58,8 +58,8 @@ python_3.7:
     paths:
       - images
 
-python_3.7_lite:
-  stage: test
+unittest_python_3.7_lite:
+  stage: unittest
   script:
     - ls -l
     - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py37_lite.simg which python
@@ -68,24 +68,27 @@ python_3.7_lite:
     paths:
       - images
 
-devpi:
+
+
+test_pypi_deploy:
   stage: deploy
+  cache: {}
   script:
-    - conda update -c anaconda setuptools
-    - pip install devpi-client
-    - pip install sphinx sphinx_rtd_theme
-    - devpi use http://devpi.sbnb.org:3141
-    - devpi login gitlab --password='sbnb'
-    - cd package/docs
-    - make html
-    - cd ..
-    - devpi use root/dev
-    - devpi upload --with-docs
-    - devpi push chemicalchecker==$CI_COMMIT_TAG root/dev
-    - devpi use root/prod
-    - devpi upload --with-docs
-    - devpi push chemicalchecker==$CI_COMMIT_TAG root/prod
-    - pip install --index http://devpi.sbnb.org:3141/root/prod/ --trusted-host devpi.sbnb.org chemicalchecker
+    - pip install -U twine
+    - cd package
+    - python setup.py sdist
+    - twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
+  only:
+    - tags
+
+pypi_deploy:
+  stage: deploy
+  cache: {}
+  script:
+    - pip install -U twine
+    - cd package
+    - python setup.py sdist
+    - twine upload --verbose dist/*
   only:
     - tags
 
