@@ -1,7 +1,4 @@
-"""Wrapper for HOTNET subnetworks search.
-
-   https://github.com/raphael-group/hotnet2
-"""
+"""Wrapper for HotNet subnetworks search."""
 import os
 import subprocess
 from chemicalchecker.util import logged
@@ -9,7 +6,7 @@ from chemicalchecker.util import logged
 
 @logged
 class Hotnet():
-    """Wrapper to run hotnet."""
+    """Hotnet class."""
 
     def __init__(self, cpu=1):
         self.exec_path = os.path.join(os.path.dirname(
