@@ -103,7 +103,7 @@ class clus(BaseSignature, DataSignature):
                 self.significance = params["type"]
 
     def fit(self, sign1, validations=True):
-        """Fit model."""
+        """Fit cluster model given a signature."""
         try:
             import faiss
         except ImportError:
