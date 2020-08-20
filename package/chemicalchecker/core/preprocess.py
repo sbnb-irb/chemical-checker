@@ -18,12 +18,13 @@ continous: "0.515,1.690,0.996" which is an array of floats
 import os
 import imp
 import h5py
-import numpy as np
 import argparse
+import numpy as np
+
+from .signature_data import DataSignature
 
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
-from .signature_data import DataSignature
 
 
 features_file = "features.h5"
@@ -57,7 +58,8 @@ class Preprocess():
             os.makedirs(self.raw_model_path, 0o775)
             os.umask(original_umask)
 
-        self.data_path = os.path.join(self.raw_path, "preprocess.h5") # NS what is returned by cc.preprocess(sign) after prepro.fit()
+        # NS what is returned by cc.preprocess(sign) after prepro.fit()
+        self.data_path = os.path.join(self.raw_path, "preprocess.h5")
         self.__log.debug('data_path: %s', self.data_path)
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -69,8 +71,9 @@ class Preprocess():
             dataset,
             "run.py")
         if not os.path.isfile(self.preprocess_script):
-            self.__log.warning("Pre-process script not found! %s",self.preprocess_script)
-            
+            self.__log.warning(
+                "Pre-process script not found! %s", self.preprocess_script)
+
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
 
@@ -93,11 +96,13 @@ class Preprocess():
         features are extracted from datasoruces and saved.
         """
         # check that preprocess script is available and call it
-        self.__log.debug('Calling pre-process script %s', self.preprocess_script)
+        self.__log.debug('Calling pre-process script %s',
+                         self.preprocess_script)
 
         if not os.path.isfile(self.preprocess_script):
-            raise Exception("Pre-process script not found! %s", self.preprocess_script)
-            
+            raise Exception("Pre-process script not found! %s",
+                            self.preprocess_script)
+
         self.call_preprocess(self.data_path, "fit")
 
     def predict(self, input_data_file, destination):

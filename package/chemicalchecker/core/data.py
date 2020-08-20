@@ -1,4 +1,4 @@
-"""Factory for CC type classes.
+"""Factory of Signatures.
 
 This internal class is a factory of different signatures.
 It is convenient because it allows initialization of different classes from

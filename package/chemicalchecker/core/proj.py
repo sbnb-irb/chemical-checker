@@ -1,4 +1,4 @@
-"""2D Projections.
+"""2D Projections Signature.
 
 Perform and store 2D projections, supporting several manifold/dimensionality
 reduction algorithms.
@@ -9,16 +9,14 @@ import pickle
 import datetime
 import numpy as np
 from tqdm import tqdm
+from sklearn.decomposition import IncrementalPCA
 
-from .signature_base import BaseSignature
-from .signature_data import DataSignature
-
-from .projector import Default
 from .projector import PCA
 from .projector import UMAP
 from .projector import TSNE
-
-from sklearn.decomposition import IncrementalPCA
+from .projector import Default
+from .signature_base import BaseSignature
+from .signature_data import DataSignature
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.plot import Plot

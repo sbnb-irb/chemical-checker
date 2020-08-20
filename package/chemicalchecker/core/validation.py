@@ -1,4 +1,4 @@
-"""Validation set generation.
+"""Generate validation sets.
 
 Fetch the validation set generation scripts and run them.
 """
@@ -6,13 +6,12 @@ import os
 import sys
 from subprocess import call
 
-from chemicalchecker.util import logged
-from chemicalchecker.util import Config
+from chemicalchecker.util import logged, Config
 
 
 @logged
 class Validation():
-    """Validation generator class.
+    """Validation class.
 
     Creates a validation set.
     """
@@ -33,18 +32,19 @@ class Validation():
             os.umask(original_umask)
 
         self.validation_script = os.path.join(
-            config.PATH.CC_REPO, "package/scripts/validation_sets", name, "run.py")
+            config.PATH.CC_REPO, "package/scripts/validation_sets", name,
+            "run.py")
 
         if not os.path.isfile(self.validation_script):
             raise Exception(
-                "The validation script for validation set " + name + " is not available.")
+                "The validation script for validation set " + name +
+                " is not available.")
 
         self.destination_file = os.path.join(
             self.validation_sets_path, self.name + "_validation.tsv")
 
     def run(self, destination=None):
         """Run the validation script."""
-
         if destination is None:
             destination = self.destination_file
         try:

@@ -1,4 +1,4 @@
-"""Signature Base class.
+"""Signature base.
 
 Each signature class inherit from this base class. They will have to implement
 the ``fit`` and ``predict`` methods.
@@ -27,15 +27,14 @@ from bisect import bisect_left
 from abc import ABCMeta, abstractmethod
 
 from chemicalchecker.util.hpc import HPC
-from chemicalchecker.util import Config
-from chemicalchecker.util import logged
 from chemicalchecker.util.plot import Plot
+from chemicalchecker.util import Config, logged
 
 
 @logged
 @six.add_metaclass(ABCMeta)
 class BaseSignature(object):
-    """Signature Base class."""
+    """BaseSignature class."""
 
     @abstractmethod
     def __init__(self, signature_path, dataset, **params):
