@@ -19,16 +19,15 @@ import h5py
 import shutil
 import numpy as np
 from time import time
-from scipy.stats.mstats import rankdata
-from numpy import linalg as LA
 from tqdm import tqdm
+from numpy import linalg as LA
+from scipy.stats.mstats import rankdata
 
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
 
 from chemicalchecker.util.plot import Plot
-from chemicalchecker.util import logged
-from chemicalchecker.util import Config
+from chemicalchecker.util import logged, Config
 from chemicalchecker.util.splitter import Traintest
 
 

@@ -5,9 +5,9 @@ identifier, and ultimately find if signatures available.
 """
 import collections
 
-from chemicalchecker.util.parser.converter import Converter
-from chemicalchecker.util.keytype import KeyTypeDetector
 from chemicalchecker.util import logged
+from chemicalchecker.util.keytype import KeyTypeDetector
+from chemicalchecker.util.parser.converter import Converter
 
 
 @logged

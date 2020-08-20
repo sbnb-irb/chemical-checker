@@ -1,4 +1,4 @@
-"""Signature Data class.
+"""Signature data.
 
 This class handles the ``HDF5`` file internal organization. It offers shortcut
 attributes to read from file (e.g. ``sign.keys`` or accessing signature with
@@ -19,7 +19,7 @@ from chemicalchecker.util.decorator import cached_property
 
 @logged
 class DataSignature(object):
-    """Signature Data class."""
+    """DataSignature class."""
 
     def __init__(self, data_path, ds_data='V', keys_name='keys'):
         """Initialize a DataSignature instance."""
