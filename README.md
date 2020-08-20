@@ -1,15 +1,25 @@
-# Chemical Checker
+# Chemical Checker Repository
 
-The Chemical Checker (CC) is a resource of small molecule signatures. In the CC, compounds are described from multiple viewpoints, spanning every aspect of the drug discovery pipeline, from chemical properties to clinical outcomes.
+The **Chemical Checker (CC)** is a resource of small molecule signatures. In the CC, compounds are described from multiple viewpoints, spanning every aspect of the drug discovery pipeline, from chemical properties to clinical outcomes.
 
-* For more information about this repositiory, please refer to our [Wiki page](http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker/wikis/home).
-* For a quick exploration of the resource, please visit the [CC web app](http://chemicalchecker.org).
-* For full documentation of the python package, please see the [API doc](http://packages.sbnb-pages.irbbarcelona.org/chemical_checker).
+* For a quick exploration of what this resource enables, please visit the [CC web app](http://chemicalchecker.org).
+* For full documentation of the python package, please see the [Documentation](http://packages.sbnb-pages.irbbarcelona.org/chemical_checker).
 * Concepts and methods are best described in the original CC publication, [Duran-Frigola et al. 2019](https://biorxiv.org/content/10.1101/745703v1).
+* For more information about this repository, discussion, notes, etc... please refer to our [Wiki page](http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker/wikis/home).
 
-This repository is the one currently being used to develop the Chemical Checker (CC) in our SB&NB laboratory. As such, the repository contains a significant number of functionalities and data not presented in the primary CC manuscript.
+The **Chemical Checker Repository** holds the current implementation of the CC in our `SB&NB` laboratory. As such, the repository contains a significant number of functionalities and data not presented in the primary CC manuscript. The repository follows its directory structure:
 
-Due to the strong computational requirements of our pipeline, the code has been written and optimized to work in our local HPC facilities. Installation guides found below are mainly addressed to SB&NB users. As stated in the manuscript, the main deliverable of our resource are the CC _signatures_, which can be accessed easily through a [REST API](https://chemicalchecker.com/help) or downloaded as [data files](https://chemicalchecker.com/downloads).
+    * `container`: Deal with containerization of the CC. It contains the definition files for Singularity image.
+    * `notebook`: Contains examplary Jupyter Notebooks that showcase some CC features.
+    * `package`: The backbone of the CC in form of a Python package.
+    * `pipelines`: The pipeline script for update and generation of data for the web app.
+
+
+Due to the strong computational requirements of our pipeline, the code has been written and optimized to work in our local HPC facilities. Installation guides found below are mainly addressed to `SB&NB` users. As stated in the manuscript, the main deliverable of our resource are the CC _signatures_, which can be easily accessed:
+
+    * through a [REST API](https://chemicalchecker.com/help),
+    * downloaded as [data files](https://chemicalchecker.com/downloads) or 
+    * predicted from SMILES with the [Signaturizer](http://gitlabsbnb.irbbarcelona.org/packages/signaturizer).
 
 ## Chemical Checker `lite`
 
@@ -19,34 +29,15 @@ The CC package can be installed directly via `pip` from our local PyPI server:
 sudo pip install --index http://gitlabsbnb.irbbarcelona.org:3141/root/dev/ --trusted-host gitlabsbnb.irbbarcelona.org chemicalchecker
 ```
 
-This installs the `lite` version of the Chemical Checker that can be used for basic task (e.g. to open signatures) but most of the fancy CC package capabilities will be missing.
+This installs the `lite` version of the CC that can be used for basic task (e.g. to open signatures) but most of the fancy CC package capabilities will be missing.
 
-_N.B. Only bare minimum dependencies are installed along with the package_
+_**N.B.** Only bare minimum dependencies are installed along with the package_
 
-## Working from a laptop
-
-First, check that you are connected to the SB&NB local network:
-```bash
-ping pac-one-head.irb.pcb.ub.es
-```
-Then, mount the remote filesystem
-```bash
-sudo mkdir /aloy
-chown <laptop_username>:<laptop_username> /aloy
-sshfs <sbnb_username>@pac-one-head.irb.pcb.ub.es:/aloy /aloy
-```
-You can unmount the filesystem with:
-```bash
-# Linux
-fusermount -u /aloy
-# MacOSX
-umount /aloy
-```
 
 
 ## Dependencies
 
-All the dependencies for the Chemical Checker will be bundled within a singularity image generated during the installation process.
+All the dependencies for the CC will be bundled within a singularity image generated during the installation process.
 However, to generate such an image we require some software being available:
 
 ### Singularity
@@ -95,13 +86,13 @@ For an advanced usage of the CC package capabilities, we recomend creating the C
 
 2. Run the script (this script will require to type your password) with:
 
-        cd chemical_checker && sh setup_chemicalchecker.sh
+        cd chemical_checker && sh setup/setup_chemicalchecker.sh
 
 ### Running `Vanilla` Chemical Checker
 
 This is the easiest scenario where you simply use the CC code 'as is'.
 
-The setup_chemicalchecker script has created an alias in your ~/.bashrc so you can start the Chemical Checker with:
+The setup_chemicalchecker script has created an alias in your ~/.bashrc so you can start the CC with:
 ```bash
 source ~/.bashrc
 chemcheck
@@ -178,3 +169,25 @@ To do so you can add a `pip install <package_of_your_dreams>` line to the follow
 * cc_py36.def (unit-testing Python 3 environment)
 
 Don't forget to also add a short comment on why and where this new dependency is used, also in the commit message. E.g. "Added dependency used in preprocessing for space B5.003". The idea is that whenever B5.003 is obsoleted we can also safely remove the dependency.
+
+## `SB&NB` configuration
+
+### Working from a laptop
+
+First, check that you are connected to the `SB&NB` local network:
+```bash
+ping pac-one-head.irb.pcb.ub.es
+```
+Then, mount the remote filesystem
+```bash
+sudo mkdir /aloy
+chown <laptop_username>:<laptop_username> /aloy
+sshfs <sbnb_username>@pac-one-head.irb.pcb.ub.es:/aloy /aloy
+```
+You can unmount the filesystem with:
+```bash
+# Linux
+fusermount -u /aloy
+# MacOSX
+umount /aloy
+```
