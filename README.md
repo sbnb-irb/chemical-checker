@@ -9,17 +9,17 @@ The **Chemical Checker (CC)** is a resource of small molecule signatures. In the
 
 The **Chemical Checker Repository** holds the current implementation of the CC in our `SB&NB` laboratory. As such, the repository contains a significant number of functionalities and data not presented in the primary CC manuscript. The repository follows its directory structure:
 
-    * `container`: Deal with containerization of the CC. It contains the definition files for Singularity image.
-    * `notebook`: Contains examplary Jupyter Notebooks that showcase some CC features.
-    * `package`: The backbone of the CC in form of a Python package.
-    * `pipelines`: The pipeline script for update and generation of data for the web app.
+* `container`: Deal with containerization of the CC. It contains the definition files for Singularity image.
+* `notebook`: Contains exemplary Jupyter Notebooks that showcase some CC features.
+* `package`: The backbone of the CC in form of a Python package.
+* `pipelines`: The pipeline script for update and generation of data for the web app.
 
 
 Due to the strong computational requirements of our pipeline, the code has been written and optimized to work in our local HPC facilities. Installation guides found below are mainly addressed to `SB&NB` users. As stated in the manuscript, the main deliverable of our resource are the CC _signatures_, which can be easily accessed:
 
-    * through a [REST API](https://chemicalchecker.com/help),
-    * downloaded as [data files](https://chemicalchecker.com/downloads) or 
-    * predicted from SMILES with the [Signaturizer](http://gitlabsbnb.irbbarcelona.org/packages/signaturizer).
+* through a [REST API](https://chemicalchecker.com/help),
+* downloaded as [data files](https://chemicalchecker.com/downloads) or 
+* predicted from SMILES with the [Signaturizer](http://gitlabsbnb.irbbarcelona.org/packages/signaturizer).
 
 ## Chemical Checker `lite`
 
@@ -56,7 +56,7 @@ However, to generate such an image we require some software being available:
 
 
 
-2. Add bind paths to singulairty config file:
+2. Add bind paths to singularity config file:
 
         sudo echo "bind path = /aloy/web_checker" >> /etc/singularity/singularity.conf
 
@@ -76,7 +76,7 @@ However, to generate such an image we require some software being available:
 
 ## Installation 
 
-For an advanced usage of the CC package capabilities, we recomend creating the CC dependency enviroment within a container image:
+For an advanced usage of the CC package capabilities, we recommend creating the CC dependency environment within a container image:
 
 
 1. Clone this repository to your code folder:
@@ -122,7 +122,7 @@ We make it trivial to either start a Jupyter Notebook within the image or to run
 
     1.1. Open your browser, paste the URL that the script has produced.
 
-    1.2. Start a new notebook (on the top right jupyter page click New -> Python )
+    1.2. Start a new notebook (on the top right Jupyter page click New -> Python )
 
     1.3. Type `import chemicalchecker`
 
@@ -135,7 +135,7 @@ We make it trivial to either start a Jupyter Notebook within the image or to run
     2.2 Type `import chemicalchecker`
 
 
-## Introducing new dependendies
+## Introducing new dependencies
 
 ### Adding a package or software to the image
 
@@ -154,7 +154,7 @@ We make it trivial to either start a Jupyter Notebook within the image or to run
         rm cc.simg
         sudo singularity build cc.simg sandbox
 
-4. In case you make use of the HPC utility, remember to copy your newly generated image to a directory accessible by the queueing system and edit the config file (section PATH.SINGULARITY_IMAGE) accordingly e.g.:
+4. In case you make use of the HPC utility, remember to copy your newly generated image to a directory accessible by the queuing system and edit the config file (section PATH.SINGULARITY_IMAGE) accordingly e.g.:
 
         cp cc.simg /aloy/scratch/<yout_user>/cc.simg
 
