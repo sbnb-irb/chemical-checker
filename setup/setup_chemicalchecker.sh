@@ -133,7 +133,7 @@ then
     fi
 
     # add alias to bashrc
-    echo "alias chemcheck=\"sh ${LOCAL_REPO}/run_chemicalchecker.sh\"" >> ~/.bashrc;
+    echo "alias chemcheck=\"sh ${LOCAL_REPO}/setup/run_chemicalchecker.sh\"" >> ~/.bashrc;
 
 fi
 
