@@ -24,13 +24,11 @@ class TestParser(unittest.TestCase):
         # path for test data
         test_dir = os.path.dirname(os.path.realpath(__file__))
         self.data_dir = os.path.join(test_dir, 'data')
-        self.mol_dir = os.path.join(self.data_dir, 'mols')
         os.environ["CC_CONFIG"] = os.path.join(
             self.data_dir, 'config.json')
 
     def tearDown(self):
-        if os.path.exists(self.mol_dir):
-            shutil.rmtree(self.mol_dir)
+        pass
 
     @skip_if_import_exception
     def test_bindingdb(self):
@@ -99,9 +97,9 @@ class TestParser(unittest.TestCase):
     def test_kegg(self):
         file_path = {"kegg_br": os.path.join(self.data_dir, 'kegg.br')}
 
-        self.assertFalse(os.path.isdir(self.mol_dir))
+        mol_dir = os.path.join(self.data_dir, 'mols')
+        self.assertTrue(os.path.isdir(mol_dir))
         chunks = list(Parser.kegg(file_path, 'kegg'))
-        self.assertTrue(os.path.isdir(self.mol_dir))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
         self.assertEqual(len(results), 1)

@@ -308,6 +308,7 @@ class Parser():
                     wget.download(url, mol_path)
                 except Exception:
                     Parser.__log.error('Cannot download: %s', url)
+                    raise Exception('Cannot download: %s', url)
             mol = pybel.readfile("mol", mol_path)
             for m in mol:
                 smiles = m.write("smi").rstrip("\n").rstrip("\t")
