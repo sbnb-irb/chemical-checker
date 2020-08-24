@@ -83,7 +83,6 @@ From: centos:8
     pip install tqdm                              # handy progress-bar
     pip install apache-airflow                    # Install airflow for the pipeline
 
-
     # raw data packages
     pip install lxml                              # xml parser
     pip install xlrd                              # Extract data from Excel spreadsheets
@@ -94,6 +93,13 @@ From: centos:8
     #pip install e3fp                             # 3D molecular fingreprints (py3.78 compatibility fix at the bottom)
     pip install pubchempy                         # Pubchem rest api
     pip install standardiser                      # standardising molecules
+
+    # ML packages
+    pip install scikit-learn                      # entry level ML in python
+    pip install gensim                            # topic modelling word2vec
+    pip install tensorflow==1.14.0                # neural network library
+    pip install adanet==0.5.0                     # automl for NN
+    pip install keras==2.3.1                      # NN API
 
     # numerical packages
     pip install cython                            # C extensions
@@ -115,13 +121,6 @@ From: centos:8
     pip install seaborn                           # prettier graph built on top of matplotlib
     pip install datashader                        # plot huge 2D datasets (projetions)
     pip install svgutils                          # compose multi-panel paper figures
-
-    # ML packages
-    pip install scikit-learn                      # entry level ML in python
-    pip install gensim                            # topic modelling word2vec
-    pip install tensorflow==1.14.0                # neural network library
-    pip install adanet==0.5.0                     # automl for NN
-    pip install keras==2.3.1                      # NN API
 
     # Dimensionality reduction
     pip install MulticoreTSNE                     # tSNE algo
