@@ -8,7 +8,6 @@ import numpy as np
 import networkx as nx
 
 from chemicalchecker.util import logged
-from chemicalchecker.tool.hotnet import Hotnet
 
 
 @logged
@@ -333,7 +332,7 @@ class HotnetNetwork():
             len(self._network.edges())))
 
     @staticmethod
-    def prepare(interactions, out_path, cpu=1, all_nodes=False):
+    def prepare(interactions, out_path, hotnet, all_nodes=False):
 
         HotnetNetwork.__log.info("Reading network")
 
@@ -373,7 +372,6 @@ class HotnetNetwork():
 
         HotnetNetwork.__log.info("Computing beta")
 
-        hotnet = Hotnet(cpu)
         hotnet.choose_beta(os.path.join(out_path, "edgelist.tsv"),
                            os.path.join(out_path, "beta.txt"))
 

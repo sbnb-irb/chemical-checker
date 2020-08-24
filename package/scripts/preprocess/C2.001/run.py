@@ -12,11 +12,13 @@ from chemicalchecker.util.network import HotnetNetwork
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
 from chemicalchecker.core.preprocess import Preprocess
+from chemicalchecker.tool.hotnet import Hotnet
 
 features_file = "features.h5"
 pcomms_file = "pcomms.tsv"
 entry_point_full = "metabolites_neighbors"
 dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:]
+
 
 def prepare_hotnet_input(outdir, all_binary_sif):
 
@@ -142,8 +144,9 @@ def main(args):
 
         main._log.info("Running HotNet")
 
+        hotnet = Hotnet(cpu=1)
         HotnetNetwork.prepare(os.path.join(
-            args.models_path, pcomms_file), args.models_path)
+            args.models_path, pcomms_file), args.models_path, hotnet)
 
         main._log.info("Reading HotNet output")
 
@@ -171,7 +174,7 @@ def main(args):
     main._log.info("Saving raws")
 
     Preprocess.save_output(args.output_file, inchikey_raw, args.method,
-                args.models_path, dataset.discrete, features)
+                           args.models_path, dataset.discrete, features)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
