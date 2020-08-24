@@ -7,7 +7,7 @@ import time
 from rdkit.Chem import AllChem
 from rdkit import Chem
 from chemicalchecker.database import Molecule
-from chemicalchecker.tool.mol2svg import Mol2svg
+from chemicalchecker.util.mol2svg import Mol2svg
 
 
 converter = Mol2svg()
