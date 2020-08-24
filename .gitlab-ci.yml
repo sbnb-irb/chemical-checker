@@ -74,7 +74,7 @@ test_pypi_deploy:
   stage: deploy
   cache: {}
   script:
-    - pip install setuptools -y
+    - pip install setuptools
     - pip install -U twine
     - cd package
     - python setup.py sdist
@@ -86,7 +86,7 @@ pypi_deploy:
   stage: deploy
   cache: {}
   script:
-    - pip install setuptools -y
+    - pip install setuptools
     - pip install -U twine
     - cd package
     - python setup.py sdist
