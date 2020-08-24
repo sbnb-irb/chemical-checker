@@ -51,8 +51,6 @@ build_singularity_image_py37_lite:
 unittest_python_3.7:
   stage: unittest
   script:
-    - ls -l
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py37.simg which python
     - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py37.simg make -C /test/package test
   cache:
     paths:
@@ -61,8 +59,6 @@ unittest_python_3.7:
 unittest_python_3.7_lite:
   stage: unittest
   script:
-    - ls -l
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py37_lite.simg which python
     - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py37_lite.simg make -C /test/package test
   cache:
     paths:
@@ -74,11 +70,7 @@ test_pypi_deploy:
   stage: deploy
   cache: {}
   script:
-    - pip install setuptools
-    - pip install -U twine
-    - cd package
-    - python setup.py sdist
-    - twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py37_lite.simg make -C /test/package release-test
   only:
     - tags
 
@@ -86,11 +78,8 @@ pypi_deploy:
   stage: deploy
   cache: {}
   script:
-    - pip install setuptools
-    - pip install -U twine
-    - cd package
-    - python setup.py sdist
-    - twine upload --verbose dist/*
+
+    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py37_lite.simg make -C /test/package release
   only:
     - tags
 
@@ -104,8 +93,6 @@ pages:
       - images
   script:
     - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py37.simg make -C /test/package docs
-    - cd package/docs
-    - mv _build/html/ ../../public/
-    - ls -l ../../public
+    - mv package/docs/_build/html/ public/
   only:
     - master
