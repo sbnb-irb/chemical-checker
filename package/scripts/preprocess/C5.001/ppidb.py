@@ -3,6 +3,7 @@ import os
 from chemicalchecker.util import logged
 from chemicalchecker.util.network import HotnetNetwork
 from chemicalchecker.util import psql
+from chemicalchecker.tool.hotnet import Hotnet
 
 
 @logged
@@ -61,7 +62,9 @@ class ppidb():
 
         readyfile = "ppidb.ready"
 
-        HotnetNetwork.prepare(self.net_dir + "/interactions.tsv", self.net_dir, self.cpu)
+        hotnet = Hotnet(cpu=1)
+        HotnetNetwork.prepare(
+            self.net_dir + "/interactions.tsv", self.net_dir, hotnet)
 
         with open(os.path.join(self.net_dir, readyfile), "w") as f:
             f.write("")
