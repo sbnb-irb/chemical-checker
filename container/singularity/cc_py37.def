@@ -18,7 +18,7 @@ From: centos:8
     # update yum
     yum update -y
 
-    # basic packages
+    # basic packages (~2 min)
     yum install -y gcc \
                    gcc-c++ \
                    gcc-gfortran \
@@ -38,7 +38,7 @@ From: centos:8
                    postgresql-contrib \
                    epel-release 
 
-    # MS compatible font for plotting 
+    # MS compatible font for plotting (~3 min.)
     yum install -y xorg-x11-font-utils fontconfig libmspack
     rpm -i http://download-ib01.fedoraproject.org/pub/epel/7/x86_64/Packages/c/cabextract-1.5-1.el7.x86_64.rpm
     rpm -i https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm
@@ -56,7 +56,7 @@ From: centos:8
     conda create --name=py37 python=3.7 -y
     source activate py37
 
-    # conda-specific packages
+    # conda-specific packages (~1 min)
     conda install -y -c rdkit rdkit               # Open-Source Cheminformatics Software
     conda install -y -c openbabel openbabel       # chemical toolbox
     conda install -y mkl-service                  # change the number of CPU’s MKL is using
@@ -65,7 +65,7 @@ From: centos:8
     conda install -y -c conda-forge hdbscan       # clustering
     conda install -y -c efelix fpsim2             # fast compound similarity searches (used in TargetMate)
 
-    # utility packages
+    # utility packages (~2 min)
     pip install ipython                           # interactive python
     pip install jupyter                           # jupyter notebooks
     pip install six                               # py2/py3 compatibility
@@ -79,13 +79,12 @@ From: centos:8
     pip install sphinx_rtd_theme                  # docs theme.
     pip install patool                            # unzipping
     pip install wget                              # download library
-    pip install timeout_decorator                 # method timeout
     pip install tqdm                              # handy progress-bar
     pip install apache-airflow                    # Install airflow for the pipeline
 
     # raw data packages
     pip install lxml                              # xml parser
-    pip install xlrd                              # Extract data from Excel spreadsheets
+    #pip install xlrd                              # Extract data from Excel spreadsheets
     pip install cmapPy                            # interacting with .gctx and .gct files, and other Connectivity Map resources
     pip install csvsort                           # Sort csv
 
@@ -120,7 +119,6 @@ From: centos:8
     pip install matplotlib==3.2.1                        # chart library :)
     pip install seaborn                           # prettier graph built on top of matplotlib
     pip install datashader                        # plot huge 2D datasets (projetions)
-    pip install svgutils                          # compose multi-panel paper figures
 
     # Dimensionality reduction
     pip install MulticoreTSNE                     # tSNE algo
