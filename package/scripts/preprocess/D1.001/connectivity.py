@@ -79,7 +79,7 @@ def signature_info(mini_sig_info_file):
 # Main
 
 
-def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs):
+def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs, output_h5):
     """ NS, main:
     SIG:                diff gene expression signature id (string)
     up:                 set of up-regulated genes in this signature (set of strings b'')
@@ -90,6 +90,8 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touc
     min_idxs:           integer (10 in the update)
 
     """
+
+    output_h5 = os.path.join(connectivity_dir,SIG+'.h5')
 
     sig_info = signature_info(mini_sig_info_file)  # dict version of mini_sig_info_file.tsv
                                                    # sign_id: (pert_id, treatment, cell_line, is_touchstone)
@@ -149,7 +151,7 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touc
                 f.write("%s\n" % s[0])
 
     # Each signature will show its connectivity to all other signatures in this h5 file
-    with h5py.File("%s/%s.h5" % (connectivity_dir, SIG), "w") as hf:
+    with h5py.File(output_h5, "w") as hf:
         es = np.array([s[1] * 1000 for s in S]).astype(np.int16)   # connectivity score
         nes = np.array([s[2] * 1000 for s in S]).astype(np.int16)  # normalized connectivity score
         hf.create_dataset("es", data=es)
@@ -185,32 +187,37 @@ if __name__ == '__main__':
 
     for k, v in sigs.items():               # k=signid1, v={'file': pathtosignature1.h5}
 
-        #print("Recovering up/down-regulated genes in signature {}".format(k))
-        if "up" in v:                       # If up/downregulated genes have already been selected (not our case)
+        output_h5 = os.path.join(connectivity_dir,k+'.h5')
+        if not os.path.exists(output_h5):
 
-            main(k, v["up"], v["down"], mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs)
+            #print("Recovering up/down-regulated genes in signature {}".format(k))
+            if "up" in v:                       # If up/downregulated genes have already been selected (not our case)
+
+                main(k, v["up"], v["down"], mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs)
+            else:
+                # NS: select up / down regulated genes from the gene expression profile
+                with h5py.File(v["file"], "r") as hf:      # pathtosignature1.h5
+                    expr = hf["expr"][:]                   # i.e [ 5.02756786,  4.73850965,  4.49766302 ..]
+                    gene = hf["gene"][:]                   # i.e ['AGR2', 'RBKS', 'HERC6', ..., 'SLC25A46', 'ATP6V0B', 'SRGN']
+
+                # Make a np array of (gene, diff expression), sorted by epr level
+                R = np.array(sorted(zip(gene, expr), key=lambda tup: -tup[1]), dtype=np.dtype([('gene', '|S300'), ('expr', np.float)]))
+                # R contains 12328 genes
+                  #       array([(b'AGR2',  5.02756786), (b'RBKS',  4.73850965),
+                  #  (b'HERC6',  4.49766302), ..., (b'SLC25A46', -6.47712374),
+                  #  (b'ATP6V0B', -6.93565464), (b'SRGN', -8.43125248)],
+                  # dtype=[('gene', 'S300'), ('expr', '<f8')])--> these are bytes, need to decode the output!!!
+
+                up = R[:250]       # the first 250 genes are considered up-regulated
+                dw = R[-250:]      # the last 250 genes are considered down-regulated
+                up = set(up['gene'][up['expr'] > 2]) # then keep up/down-regulated genes whose expression is a least 2 units absolute value
+                dw = set(dw['gene'][dw['expr'] < -2]) # Then it is only an array of gene names
+
+                # decode the bytes into Py3 strings
+                up = {s.decode() for s in up}
+                dw = {s.decode() for s in dw}
+
+                #  main will take the list of up/down regulated-genes for this sign_id(k) and compare match it to all others
+                main(k, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs)
         else:
-            # NS: select up / down regulated genes from the gene expression profile
-            with h5py.File(v["file"], "r") as hf:      # pathtosignature1.h5
-                expr = hf["expr"][:]                   # i.e [ 5.02756786,  4.73850965,  4.49766302 ..]
-                gene = hf["gene"][:]                   # i.e ['AGR2', 'RBKS', 'HERC6', ..., 'SLC25A46', 'ATP6V0B', 'SRGN']
-
-            # Make a np array of (gene, diff expression), sorted by epr level
-            R = np.array(sorted(zip(gene, expr), key=lambda tup: -tup[1]), dtype=np.dtype([('gene', '|S300'), ('expr', np.float)]))
-            # R contains 12328 genes
-              #       array([(b'AGR2',  5.02756786), (b'RBKS',  4.73850965),
-              #  (b'HERC6',  4.49766302), ..., (b'SLC25A46', -6.47712374),
-              #  (b'ATP6V0B', -6.93565464), (b'SRGN', -8.43125248)],
-              # dtype=[('gene', 'S300'), ('expr', '<f8')])--> these are bytes, need to decode the output!!!
-
-            up = R[:250]       # the first 250 genes are considered up-regulated
-            dw = R[-250:]      # the last 250 genes are considered down-regulated
-            up = set(up['gene'][up['expr'] > 2]) # then keep up/down-regulated genes whose expression is a least 2 units absolute value
-            dw = set(dw['gene'][dw['expr'] < -2]) # Then it is only an array of gene names
-
-            # decode the bytes into Py3 strings
-            up = {s.decode() for s in up}
-            dw = {s.decode() for s in dw}
-
-            #  main will take the list of up/down regulated-genes for this sign_id(k) and compare match it to all others
-            main(k, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs)
+            print("{} already exists, skipping".format(output_h5))
