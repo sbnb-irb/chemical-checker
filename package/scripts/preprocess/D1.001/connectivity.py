@@ -88,10 +88,9 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touc
     signatures_dir:     Path to the directory that contains the gene diff expression signature h5 files (string)
     touch:              Set of perturbagen ids belonging to the touchstone dataset (set of strings)
     min_idxs:           integer (10 in the update)
+    output_h5:          str, name of the output h5 connectivity file
 
     """
-
-    output_h5 = os.path.join(connectivity_dir,SIG+'.h5')
 
     sig_info = signature_info(mini_sig_info_file)  # dict version of mini_sig_info_file.tsv
                                                    # sign_id: (pert_id, treatment, cell_line, is_touchstone)
@@ -193,7 +192,7 @@ if __name__ == '__main__':
             #print("Recovering up/down-regulated genes in signature {}".format(k))
             if "up" in v:                       # If up/downregulated genes have already been selected (not our case)
 
-                main(k, v["up"], v["down"], mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs)
+                main(k, v["up"], v["down"], mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs, output_h5)
             else:
                 # NS: select up / down regulated genes from the gene expression profile
                 with h5py.File(v["file"], "r") as hf:      # pathtosignature1.h5
@@ -218,6 +217,6 @@ if __name__ == '__main__':
                 dw = {s.decode() for s in dw}
 
                 #  main will take the list of up/down regulated-genes for this sign_id(k) and compare match it to all others
-                main(k, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs)
+                main(k, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs, output_h5)
         else:
             print("{} already exists, skipping".format(output_h5))
