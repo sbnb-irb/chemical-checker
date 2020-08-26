@@ -80,10 +80,10 @@ fi
                 ssh.close()
 
     def _chunks(self, l, n):
-        """Yield successive n-sized chunks from l."""
+        """Yields n successive chunks from l."""
         if isinstance(l, list) or isinstance(l, np.ndarray):
-            for i in np.array_split(l, n):
-                yield i
+            for i in np.array_split(l, n):   # a list of 60 000 entries split in 6000 chunks
+                yield i                      # Each time, yields one of the 6000 chunks of 10 elements
         elif isinstance(l, dict):
             keys = list(l.keys())
             keys.sort()
@@ -101,7 +101,7 @@ fi
     def submitMultiJob(self, command, **kwargs):
         """Submit multiple job/task."""
         # get arguments or default values
-        num_jobs = int(kwargs.get("num_jobs", 1))
+        num_jobs = int(kwargs.get("num_jobs", 1)) # ex: 1/10th of the size of the iterable to be processed
         cpu = kwargs.get("cpu", 1)
         wait = kwargs.get("wait", True)
         self.jobdir = kwargs.get("jobdir", '')
@@ -175,11 +175,15 @@ fi
 
             input_dict = dict()
 
+            #Yield num-jobs successive chunks of 10 elements from the input array of signatures.
+            # If some jobs fail, recover their index from the pickle, '535' : {'REP.A028_YAPC_24H:K01': {'file': '/aloy/web_checker/package_cc/2020_01/full/D/D1/D1.001/sign0/raw/models/signatures/REP.A028_YAPC_24H:K01.h5'},.....}
             for cid, chunk in enumerate(self._chunks(elements, num_jobs), 1):
                 input_dict[str(cid)] = chunk
 
+            # i.e a random name input file: d8e918f5-4817-4df5-9ab9-5efbf23f63c7
             input_path = os.path.join(self.jobdir, str(uuid.uuid4()))
 
+            # Write the dictionary of 6000 chunks into it {'1': chunk1, '2':chunk2 etc}
             with open(input_path, 'wb') as fh:
                 pickle.dump(input_dict, fh, protocol=2)
 
