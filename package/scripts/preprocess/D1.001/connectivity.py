@@ -128,7 +128,7 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touc
 
     # S Will contain all connectivity score for this query signature to all others (sign_id, connect.score, normalized connect. score)
     S = []
-    for r in R:   #for each signature:id, connectivity score
+    for r in R:   #for each signature:id, connectivity score (preselected for belonging to the Touchstone dataset)
         cs = r[1]
         sig = r[0]
         sinfo = sig_info[sig]  # # (pert_id, treatment, cell_line, is_touchstone)
@@ -143,7 +143,7 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touc
             ncs = 0.
         S += [(r[0], cs, ncs)]    # add (sign_id, connect.score, normalized connect. score)
 
-    S = sorted(S, key=lambda tup: tup[0])  # sort by sign_id
+    S = sorted(S, key=lambda tup: tup[0])  # sort by sign_id (preselected for belonging to the Touchstone dataset)
     if not os.path.exists("%s/signatures.tsv" % connectivity_dir): #Write signatures id only to refer to the h5 file
         with open("%s/signatures.tsv" % connectivity_dir, "w") as f:
             for s in S:
