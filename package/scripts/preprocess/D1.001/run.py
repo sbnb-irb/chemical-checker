@@ -264,6 +264,8 @@ def read_l1000(mini_sig_info_file, connectivitydir):
 def get_summary(v):
     Qhi = np.percentile(v, 66)
     Qlo = np.percentile(v, 33)
+
+    # If both scores are negative then the 33-percentile is returned which is in fact the 66-percentile
     if np.abs(Qhi) > np.abs(Qlo):
         return Qhi
     else:
@@ -272,14 +274,24 @@ def get_summary(v):
 
 def do_consensus(ik_matrices, consensus):
 
+    # NS Takes all individual matrices of sign-ik vs all perturbagens (each matrix is for a given ik)
     inchikeys = [ik.split(".h5")[0] for ik in os.listdir(ik_matrices) if ik.endswith(".h5")]
 
     def consensus_signature(ik):
+        """
+        Opens an ik matrix 
+        takes all 66pc conn scores between signatures (rows) and perturbagens (cols)
+
+        """
         with h5py.File("%s/%s.h5" % (ik_matrices, ik), "r") as hf:
             X = hf["X"][:]
         # It could be max, min...
+        # NS takes the 66 percentile of columns (like what was done for rows in )
+        # i.e 'averages' over the different signatures of the ik corresponding to that matrix
+        # in the end we have a VECTOR of perc normalized conn scores of 1 perturbagen x all perturbagens from Touchstone
         return [np.int16(get_summary(X[:, j])) for j in range(X.shape[1])]
 
+    # Stack all these vectors so that X is all perturbagens x all perturbagens and dump it as consensus_predict.h5
     X = np.array([consensus_signature(ik) for ik in inchikeys])
 
     with h5py.File(consensus, "w") as hf:
@@ -306,20 +318,23 @@ def process(X):
         return Xw
 
     def cutoffs(X):
+        # NS: cutoff 99-percentile of each column of X (over all the row perturbagens)
         return [np.percentile(X[:, j], 99) for j in range(X.shape[1])]
 
+    # Vector of cutoffs values 1x n perturbagens
     cuts = cutoffs(X)
 
     Xcut = []
+    # For each cutoff values (i.e each col of x)
     for j in range(len(cuts)):
-        c = cuts[j]
-        v = np.zeros(X.shape[0])
-        v[X[:, j] > c] = 1
-        Xcut += [v]
+        c = cuts[j]              # 99-percentile of column j
+        v = np.zeros(X.shape[0]) # vector spannning all elements of 1 column
+        v[X[:, j] > c] = 1       # The elements of this col of X which are bigger than the 99-percentile of the col will be assigned 1
+        Xcut += [v]              # else 0 # add the binary vector as a line so we have to transpose evrything at the end
 
     Xcut = np.array(Xcut).T
 
-    return Xcut
+    return Xcut                  # Binary matrix of connectivities
 
 
 @logged(logging.getLogger("[ pre-process %s ]" % dataset_code))
@@ -427,15 +442,13 @@ def main(args):
             sig_map[SIG] = {"file": "%s/%s.h5" % (signaturesdir, SIG)}
         if TEST: print("sig_map", sig_map)
 
-    if args.method == 'predict':  # False here
+    elif args.method == 'predict':  # False here
 
-        mpath = tempfile.mkdtemp(
-            prefix='predict_', dir=args.models_path)
+        mpath = tempfile.mkdtemp(prefix='predict_', dir=args.models_path)
 
         ik_matrices = tempfile.mkdtemp(prefix='ik_matrices_', dir=mpath)
 
-        connectivitydir = tempfile.mkdtemp(
-            prefix='connectivity_', dir=mpath)
+        connectivitydir = tempfile.mkdtemp(prefix='connectivity_', dir=mpath)
 
         consensus = os.path.join(mpath, "consensus_predict.h5")
 
@@ -473,7 +486,10 @@ def main(args):
 
     config = Config()                                # reads os.environ["CC_CONFIG"]
 
-    # CONNECTIVITY JOB 
+    # NS CONNECTIVITY JOB 
+    # OBTAIN -> one matrix per signature (1xnsign) 
+    # rows: one signature, cols: all other signatures. 
+    # Contains connectivity scores (raw and normalized) 
     # Note, connectivitydir is signature0full_path/raw/models/connectivity_fit
     if not os.path.exists(os.path.join(connectivitydir, readyfile)):   # contains 65 151 h5 files and conn.ready so False here
 
@@ -500,11 +516,13 @@ def main(args):
         # reminder: sigmap is a dict with the following entry type:
         #'REP.A001_A375_24H:E14' : {"file": "signature0full_path/raw/models/signatures/REP.A001_A375_24H:E14.h5"}
         params["memory"] = 10
+        
         # job command
         singularity_image = config.PATH.SINGULARITY_IMAGE
         command = "MKL_NUM_THREADS=1 singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {}".format(
             singularity_image, connectivity_script, mini_sig_info_file, signaturesdir,
             connectivitydir, GSE92742_Broad_LINCS_pert_info, min_idxs)
+
         # submit jobs
         cluster = HPC.from_config(config)
         cluster.submitMultiJob(command, **params)
@@ -521,6 +539,9 @@ def main(args):
     readyfile = "agg_matrices.ready"
 
     # MATRIX AGGREGATION JOB
+    # OBTAIN-> 1 matrix per perturbagen (inchikey).
+    # rows: a couple of signatures (usually one) corresponding to the current inchikey
+    # Each perturbagen from Touchstone (7841 for the 2020 update)--> take the 66percentile (or33) conn score among all signatures of a given perturbagen with our current sign (row)
     if not os.path.exists(os.path.join(ik_matrices, readyfile)):
 
         if args.method == 'fit':
@@ -569,9 +590,13 @@ def main(args):
             with open(os.path.join(ik_matrices, readyfile), "w") as f:
                 f.write("")
 
+    # Stack all these vectors so that X is consensus connectivity score (66-percentile score over all signatures of a given perturbagen)
+    # shape: all perturbagens x all perturbagens 
+    # and dump it as consensus_predict.h5
     main._log.info("Doing consensus")
     X, inchikeys = do_consensus(ik_matrices, consensus)
 
+    # Binarization of X (1: good connectivity, 0 otherwise)
     main._log.info("Process output")
     Xcut = process(X)
 
@@ -580,14 +605,18 @@ def main(args):
         print("Xcut",Xcut)
         print("inchikeys",inchikeys)
 
+
     main._log.info("Saving raws")
     inchikey_raw = {}
+
+    # NS Going through the list of inchikeys processed
     for i in range(len(inchikeys)):
         ik = inchikeys[i]
-        if np.sum(Xcut[i, :]) < 5:
+        if np.sum(Xcut[i, :]) < 5:    # skip this inchikey If there are less than 5 good connectivities
             continue
-        idxs = np.where(Xcut[i, :] == 1)[0]
-        inchikey_raw[ik] = [(str(x), 1) for x in idxs]
+
+        idxs = np.where(Xcut[i, :] == 1)[0]  # Indices of the Xcut cols where we have good connections for this ik
+        inchikey_raw[ik] = [(str(x), 1) for x in idxs]   # store these indices in a dict  ik: [(idx1, 1), (idx2,1) etc]
 
     keys = []
     words = set()
@@ -597,23 +626,29 @@ def main(args):
         main._log.info("FILTERING ELIMINATED EVERYTHING, SORRY!")
         sys.exit(1)
 
+    # Going through the good connections of every inchikey
     for k in sorted(inchikey_raw.keys()):
-        keys.append(str(k))
-        words.update([x[0] for x in inchikey_raw[k]])
+        keys.append(str(k))                              # inchikey
+        words.update([x[0] for x in inchikey_raw[k]])    # Update the set with col indices where good connections are found {idx1, idx2,}
 
-    if args.method == 'predict' and features is not None: # NS: added the first cond, other 'features' was unreferenced when not using 'predict'
+    if args.method == 'predict' and features is not None: # NS: added the first cond, otherwise 'features' was unreferenced when not using 'predict'
         orderwords = features_list
     else:
-        orderwords = list(words)
-        orderwords.sort()
+        orderwords = list(words)                         
+        orderwords.sort()                                 # list of column indices of Xcut containing at least one 1
 
     if TEST: print("orderwords", orderwords)
-    raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
-    wordspos = {k: v for v, k in enumerate(orderwords)}
 
-    for i, k in enumerate(keys):
-        for word in inchikey_raw[k]:
-            raws[i][wordspos[word[0]]] += word[1]
+    raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)  # Matrix n_inchikeys x n_Xcut_col_indices
+    wordspos = {k: v for v, k in enumerate(orderwords)}           # dict Xcut_index : i  (i being the index of the sorted Xcutindex)
+
+    for i, k in enumerate(keys):                                  # Going through inchikeys again
+        for word in inchikey_raw[k]:                              # ik: [(idx1, 1), (idx2,1) etc]--> going through this list
+            raws[i][wordspos[word[0]]] += word[1]                 # raws[ik_index][X_cut_index_index] += 1
+
+    # So our final matrix preprocess.h5
+    # rows: inchikeys
+    # columns: col indices of Xcut where at least one 1 was present
 
     with h5py.File(args.output_file, "w") as hf:
         hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
@@ -621,6 +656,7 @@ def main(args):
         hf.create_dataset("features", data=np.array(orderwords, DataSignature.string_dtype()))
 
     if args.method == "fit":
+        # features.h5
         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
             hf.create_dataset("features", data=np.array(orderwords, h5py.special_dtype(vlen=str)))
 
