@@ -648,7 +648,7 @@ def main(args):
 
     # So our final matrix preprocess.h5
     # rows: inchikeys
-    # columns: col indices of Xcut where at least one 1 was present
+    # columns: col indices of Xcut where at least one 1 was present (features)
 
     with h5py.File(args.output_file, "w") as hf:
         hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
