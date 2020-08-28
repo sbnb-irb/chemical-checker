@@ -220,6 +220,7 @@ s1_params = {'CC_ROOT': CC_ROOT}
 s1_task = CCFit(cc_type='sign1', **s1_params)
 pp.add_task(s1_task)
 
+
 ##### TASK: Calculate clustering for signatures 1 #######
 c1_params = {'CC_ROOT': CC_ROOT}
 c1_params['general_params'] = {'balance': 1.5}
@@ -235,6 +236,10 @@ pp.add_task(n1_task)
 p1_params = {'CC_ROOT': CC_ROOT}
 p1_task = CCFit(cc_type='proj1', **p1_params)
 pp.add_task(p1_task)
+
+pp.run()
+print("DONE, Calculate sign 0 and 1, nearest neighbours and projections")
+sys.exit(0)
 
 # TASK: Calculate signatures 2
 s2_params = {'CC_ROOT': CC_ROOT}
@@ -277,5 +282,3 @@ links_task = PythonCallable(name="exemplary_links", **links_params)
 pp.add_task(links_task)
 
 pp.run()
-
-print("DONE, all tasks ended")
