@@ -1,7 +1,7 @@
 """Binary performances."""
 import json
 import numpy as np
-from sklearn.metrics import calinski_harabaz_score
+from sklearn.metrics import calinski_harabasz_score
 from sklearn.metrics import f1_score, roc_curve, auc, matthews_corrcoef
 from sklearn.metrics import average_precision_score, davies_bouldin_score
 from sklearn.metrics import confusion_matrix, precision_score, silhouette_score
