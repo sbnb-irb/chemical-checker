@@ -167,5 +167,4 @@ From: centos:8
     git clone http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker.git
 
 %files
-
-    /aloy/home/mbertoni/code/snap/examples/node2vec/node2vec /opt
+    binaries/node2vec /opt
