@@ -2,7 +2,8 @@
 
 INSTALL_DIR=$HOME/chemical_checker
 
-LOCAL_REPO="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+#LOCAL_REPO="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+LOCAL_REPO="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; cd ../ >/dev/null 2>&1 ; pwd -P )"
 
 LOCAL_IMAGE=$INSTALL_DIR/cc.simg
 
@@ -107,8 +108,10 @@ then
     fi
     mkdir $INSTALL_DIR;
     cd $INSTALL_DIR;
-    SINGULARITY_DEFINITION=$LOCAL_REPO/container/singularity/cc-full.def;
-    cp $SINGULARITY_DEFINITION $INSTALL_DIR;
+    SINGULARITY_DEFINITION="$LOCAL_REPO/container/singularity/cc-full.def"
+    BINARIES_FOLDER="$LOCAL_REPO/container/singularity/binaries/"
+    cp $SINGULARITY_DEFINITION $INSTALL_DIR;  # Node2vec binary
+    cp -r $BINARIES_FOLDER $INSTALL_DIR;    
 
     printf -- 'Removing old singularity image...\n';
     sudo rm -f $LOCAL_IMAGE;
