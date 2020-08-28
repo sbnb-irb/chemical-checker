@@ -291,7 +291,7 @@ def do_consensus(ik_matrices, consensus):
         # in the end we have a VECTOR of perc normalized conn scores of 1 perturbagen x all perturbagens from Touchstone
         return [np.int16(get_summary(X[:, j])) for j in range(X.shape[1])]
 
-    # Stack all these vectors so that X is all perturbagens x all perturbagens and dump it as consensus_predict.h5
+    # Stack all these vectors so that X is all perturbagens x all perturbagens and dump it as consensus_fit/predict.h5
     X = np.array([consensus_signature(ik) for ik in inchikeys])
 
     with h5py.File(consensus, "w") as hf:
@@ -442,7 +442,7 @@ def main(args):
             sig_map[SIG] = {"file": "%s/%s.h5" % (signaturesdir, SIG)}
         if TEST: print("sig_map", sig_map)
 
-    elif args.method == 'predict':  # False here
+    elif args.method == 'predict':
 
         mpath = tempfile.mkdtemp(prefix='predict_', dir=args.models_path)
 
@@ -453,8 +453,8 @@ def main(args):
         consensus = os.path.join(mpath, "consensus_predict.h5")
 
         with h5py.File(os.path.join(args.models_path, features_file)) as hf:
-            features_list = hf["features"][:]
-            features = set(features_list)
+            features_list = hf["features"][:]               # list of Xcut column indices with at least one 1
+            features = set(features_list)                   # Just in case they some indices are duplicated
 
         min_idxs = 1
 
@@ -463,6 +463,8 @@ def main(args):
 
         inchikey_sigid = collections.defaultdict(list)
 
+        # input data file from preprocess.call_preprocess
+        # Need 4 columns: inchikey 'anything' comma-separated_list of_up_regulated_genes coma_separated_list_of_down_regulated_genes
         with open(args.input_file) as f:
             for l in f:
                 items = l.split('\t')
@@ -474,6 +476,10 @@ def main(args):
                     ik = items[1]
 
                 inchikey_sigid[ik] += [items[0]]
+
+                # Put the list of up/down regulated genes in a dictionary
+                # Whose values are dictionaries
+                # The presence of the 'up' and 'down' keys is recognized by do_agg_matrices.py
                 sig_map[items[0] + "---" + ik] = {"up": items[2].split(","), "down": items[3].split(",")}
 
     WD = os.path.dirname(os.path.realpath(__file__))  # directory from which run.py is launched
@@ -513,7 +519,7 @@ def main(args):
         params["jobdir"] = job_path
         params["job_name"] = "CC_D1_conn"
         params["elements"] = sig_map  
-        # reminder: sigmap is a dict with the following entry type:
+        # reminder: sigmap is a dict with the following entry type in 'fit' mode:
         #'REP.A001_A375_24H:E14' : {"file": "signature0full_path/raw/models/signatures/REP.A001_A375_24H:E14.h5"}
         params["memory"] = 10
         
@@ -632,7 +638,7 @@ def main(args):
         words.update([x[0] for x in inchikey_raw[k]])    # Update the set with col indices where good connections are found {idx1, idx2,}
 
     if args.method == 'predict' and features is not None: # NS: added the first cond, otherwise 'features' was unreferenced when not using 'predict'
-        orderwords = features_list
+        orderwords = features_list                        # prerecorded list of column indices of Xcut containing at least one 1
     else:
         orderwords = list(words)                         
         orderwords.sort()                                 # list of column indices of Xcut containing at least one 1
@@ -658,11 +664,12 @@ def main(args):
     if args.method == "fit":
         # features.h5
         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
+            # Keep the list of indices of Xcut where at least one 1 was present in a separate file
             hf.create_dataset("features", data=np.array(orderwords, h5py.special_dtype(vlen=str)))
 
     if args.method == 'predict':
-        #shutil.rmtree(mpath) # NS comment
-        # shutil.rmtree(connectivitydir)
+        shutil.rmtree(mpath)
+        shutil.rmtree(connectivitydir)
         pass
 
 if __name__ == '__main__':
