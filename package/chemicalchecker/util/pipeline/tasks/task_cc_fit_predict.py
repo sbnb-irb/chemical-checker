@@ -243,8 +243,7 @@ class CCFit(BaseTask, BaseOperator):
                     # (default:True)
                     if self.full_reference:
                         # NS molset: reference
-                        sign = cc.get_signature(
-                            self.cc_type, "reference", ds.dataset_code)
+                        sign = cc.get_signature(self.cc_type, "reference", ds.dataset_code)
 
                         if not (sign.dataset == 'D1.001' and sign.cctype == 'sign0') and os.path.exists(sign.signature_path):
                             #print("Attempting to delete signature path: ", sign.signature_path)
@@ -306,7 +305,7 @@ class CCFit(BaseTask, BaseOperator):
                         dependency + " CC type is not available and it is required for " + self.cc_type)
                 else:
                     print("INFO: Dependency {} is available for calculating {}".format(
-                        dependency, self.cctype))
+                        dependency, self.cc_type))
 
         job_path = None
 
