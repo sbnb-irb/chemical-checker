@@ -77,6 +77,7 @@ class Preprocess():
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
 
+
     def call_preprocess(self, output, method, infile=None, entry=None):
         """Call the external pre-process script."""
         # create argument list
@@ -118,13 +119,12 @@ class Preprocess():
                 at the input_data_file.
         """
         # check that preprocess script is available and call it
-        self.__log.debug('Calling pre-process script %s',
-                         self.preprocess_script)
+        self.__log.debug('Calling pre-process script %s',self.preprocess_script)
+
         if not os.path.isfile(self.preprocess_script):
-            raise Exception("Pre-process script not found! %s",
-                            self.preprocess_script)
-        self.call_preprocess(destination, "predict",
-                             input_data_file, self.entry_point)
+            raise Exception("Pre-process script not found! %s", self.preprocess_script)
+
+        self.call_preprocess(destination, "predict", input_data_file, self.entry_point)
 
     def to_features(self, signatures):
         """Convert signature to explicit feature names.

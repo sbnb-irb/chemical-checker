@@ -365,8 +365,18 @@ def main(args):
     # If no datasources are necessary, the list is just empty.
 
     # NS: 13 datasources in dataset_had_datasource table for the 2020 update
-    for ds in dataset.datasources:
-        map_files[ds.datasource_name] = ds.data_path       #Ns path is /aloy/scratch/sbnb-adm/CC/download/<datasource_name>
+    # access to db only in fit mode since we want people to be able to use it in 
+    try:
+        for ds in dataset.datasources:
+            map_files[ds.datasource_name] = ds.data_path       #Ns path is /aloy/scratch/sbnb-adm/CC/download/<datasource_name>
+
+    except Exception as e:
+        if args.method == 'fit':
+            main._log.error("{}".format(e))
+            sys.exit(1)
+        else:
+            main._log.info("Database 'dataset' cannot be accessed, will use local copies of required files if present")
+
 
     main._log.debug("Running preprocess fit method for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
@@ -509,8 +519,20 @@ def main(args):
             shutil.rmtree(job_path)
         os.mkdir(job_path)
 
-        GSE92742_Broad_LINCS_pert_info = os.path.join(
-            map_files["GSE92742_Broad_LINCS_pert_info"], "GSE92742_Broad_LINCS_pert_info.txt")
+        # NS: When running predict on standalone version of the checker, we won't have the postgres db
+        # Have a copy of this file locally in this case
+        try:
+            GSE92742_Broad_LINCS_pert_info = os.path.join(map_files["GSE92742_Broad_LINCS_pert_info"], "GSE92742_Broad_LINCS_pert_info.txt")
+            main._log.info("GSE92742_Broad_LINCS_pert_info.txt found from database")
+
+        except Exception as e:
+            GSE92742_Broad_LINCS_pert_info= os.path.join(args.models_path, "GSE92742_Broad_LINCS_pert_info.txt")
+            if os.path.exists(GSE92742_Broad_LINCS_pert_info):
+                main._log.info("Found: {}".format(GSE92742_Broad_LINCS_pert_info))
+            else:
+                main._log.error("Cannot find SE92742_Broad_LINCS_pert_info.txt, stopping!")
+                sys.exit(1)
+
 
         params = {}
 
@@ -668,8 +690,8 @@ def main(args):
             hf.create_dataset("features", data=np.array(orderwords, h5py.special_dtype(vlen=str)))
 
     if args.method == 'predict':
-        shutil.rmtree(mpath)
-        shutil.rmtree(connectivitydir)
+        #shutil.rmtree(mpath)
+        #shutil.rmtree(connectivitydir)
         pass
 
 if __name__ == '__main__':
