@@ -79,12 +79,14 @@ class ChemicalChecker():
                 'attrs' record.
 
         """
-        if not cc_root:
-            self.cc_root = Config(json_file=json_config_file).PATH.CC_ROOT
 
         # Use your own cc config file
         if json_config_file is not None:
             os.environ['CC_CONFIG'] = os.path.abspath(json_config_file)
+
+        # Even if json_config_file is None then the default os.environ["CC_CONFIG"] will specify it
+        if not cc_root:
+            self.cc_root = Config(json_file=json_config_file).PATH.CC_ROOT
 
         else:
             self.cc_root = cc_root
