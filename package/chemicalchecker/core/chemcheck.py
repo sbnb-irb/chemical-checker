@@ -64,7 +64,7 @@ from chemicalchecker.util.decorator import cached_property
 class ChemicalChecker():
     """ChemicalChecker class."""
 
-    def __init__(self, cc_root=None, custom_data_path=None):
+    def __init__(self, cc_root=None, custom_data_path=None, json_config_file=None):
         """Initialize a ChemicalChecker instance.
 
         If the CC_ROOT directory is empty a skeleton of CC is initialized.
@@ -80,7 +80,11 @@ class ChemicalChecker():
 
         """
         if not cc_root:
-            self.cc_root = Config().PATH.CC_ROOT
+            self.cc_root = Config(json_file=json_config_file).PATH.CC_ROOT
+
+        # Use your own cc config file
+        if json_config_file is not None:
+            os.environ['CC_CONFIG'] = os.path.abspath(json_config_file)
 
         else:
             self.cc_root = cc_root
