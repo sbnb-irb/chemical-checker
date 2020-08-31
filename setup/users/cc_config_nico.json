@@ -1,8 +1,8 @@
 {
     "PATH": {
         "CC_ROOT": "'/aloy/web_checker/package_cc/2020_01'",
-        "CC_DATA": "'/aloy/scratch/oguitart/download/'",
-        "CC_TMP": "'/tmp/'",
+        "CC_DATA": "'/aloy/scratch/sbnb-adm/CC/download/'",
+        "CC_TMP": "'/aloy/scratch/sbnb-adm/CC/tmp_jobs/'",
         "CC_REPO": "'/opt/chemical_checker'",
         "SINGULARITY_IMAGE": "'/aloy/home/nsoler/CC_related/IMAGE/cc.simg'",
         "validation_path": "'/aloy/web_checker/package_cc/validation_sets/'"
