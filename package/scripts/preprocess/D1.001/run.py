@@ -18,6 +18,8 @@ from chemicalchecker.core.signature_data import DataSignature
 
 # Variables
 TEST = False  # once the 'signatures' dir exists with h5 inside, you can copy a few of them to 'signatures_test' and check if it's working
+CHUNK_SIZE=10  # number of tasks per single job sent to sge
+
 dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:] #NS D1.001
 features_file = "features.h5"
 
@@ -535,8 +537,9 @@ def main(args):
 
 
         params = {}
-
-        params["num_jobs"] = len(sig_map.keys()) / 10
+        num_entries = len(sig_map.keys())
+        # If there are less tasks to send than the numb of tasks per job then num_jobs is just num_entries (otherwise bug since dividing by CHUNK_SIZE tells it to send 0 jobs)
+        params["num_jobs"] = num_entries / CHUNK_SIZE if num_entries > CHUNK_SIZE else num_entries
         if TEST: params["num_jobs"] = len(sig_map.keys())
         params["jobdir"] = job_path
         params["job_name"] = "CC_D1_conn"
@@ -592,7 +595,9 @@ def main(args):
 
         params = {}
 
-        params["num_jobs"] = len(inchikey_sigid.keys()) / 10
+        num_entries = len(inchikey_sigid.keys())
+        # If there are less tasks to send than the numb of tasks per job then num_jobs is just num_entries (otherwise bug since dividing by CHUNK_SIZE tells it to send 0 jobs sent)
+        params["num_jobs"] = num_entries / CHUNK_SIZE if num_entries > CHUNK_SIZE else num_entries
         if TEST: params["num_jobs"] = len(inchikey_sigid.keys())
         params["jobdir"] = job_path
         params["job_name"] = "CC_D1_agg_mat"
