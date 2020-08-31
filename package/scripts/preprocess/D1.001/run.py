@@ -627,15 +627,18 @@ def main(args):
     main._log.info("Doing consensus")
     X, inchikeys = do_consensus(ik_matrices, consensus)
 
+    if TEST:
+        print("X",X)
+        print("inchikeys",inchikeys)
+
     # Binarization of X (1: good connectivity, 0 otherwise)
     main._log.info("Process output")
+
+
     Xcut = process(X)
 
     if TEST:
-        print("X",X)
         print("Xcut",Xcut)
-        print("inchikeys",inchikeys)
-
 
     main._log.info("Saving raws")
     inchikey_raw = {}
