@@ -124,7 +124,8 @@ class Preprocess():
         if not os.path.isfile(self.preprocess_script):
             raise Exception("Pre-process script not found! %s", self.preprocess_script)
 
-        self.call_preprocess(destination, "predict", input_data_file, self.entry_point)
+        #self.call_preprocess(destination, "predict", input_data_file, self.entry_point) # NS: self.entry_point not defined anywhere
+        self.call_preprocess(destination, "predict", input_data_file)
 
     def to_features(self, signatures):
         """Convert signature to explicit feature names.
