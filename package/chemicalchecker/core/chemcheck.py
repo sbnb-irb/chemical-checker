@@ -358,6 +358,9 @@ class ChemicalChecker():
             datafile(str): The h5 file containing the predicted data after preprocess
         """
 
+        input_file=os.path.abspath(input_file)
+        destination=os.path.abspath(destination)
+
         # Checking the provided paths to h5 file
         for fichier in (input_file, destination):
             ext=fichier[-2:].lower()
