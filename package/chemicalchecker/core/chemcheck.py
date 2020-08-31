@@ -361,11 +361,13 @@ class ChemicalChecker():
         input_file=os.path.abspath(input_file)
         destination=os.path.abspath(destination)
 
-        # Checking the provided paths to h5 file
-        for fichier in (input_file, destination):
-            ext=fichier[-2:].lower()
-            if not ext == 'h5' or not os.path.exists(fichier):
-                raise Exception("Bad input file: {}.\nMust be a valid path to an h5 file.".format(fichier))
+        # Checking the provided paths
+        
+        if not os.path.exists(input_file):
+            raise Exception("Error, {} does not exist!".format(input_file))
+
+        ext=destination[-2:].lower()
+        if not ext == 'h5': destination +='.h5'
 
         prepro = Preprocess(sign.signature_path, sign.dataset)
         prepro.predict(input_file, destination)
