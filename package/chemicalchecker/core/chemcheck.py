@@ -93,7 +93,7 @@ class ChemicalChecker():
 
         if custom_data_path is not None:
             # NS import one or several custom h5 files --> in any case a
-            # cc_repo will axist afyter this block
+            # cc_repo will exist afyter this block
             if '.' in custom_data_path.split('/')[-1]:
                 # remove the file's name if provided (let it scan for h5 files
                 # present there)
@@ -334,7 +334,7 @@ class ChemicalChecker():
         """Return the file with the raw data preprocessed.
 
         Args:
-            dataset_code(str): The dataset code of the Chemical Checker.
+            sign: signature object obtained from cc.get_signature)
         Returns:
             datafile(str): The name of the file where the data in pairs is
                 saved.
@@ -344,6 +344,31 @@ class ChemicalChecker():
 
         # ex:os.path.join(self.raw_path, "preprocess.h5")
         return prepro.data_path
+
+    def preprocess_predict(self, sign, input_file, destination):
+        """
+        Runs the preprocessing script with the 'predict' argument on
+        an input file of raw data formatted correctly for the space of interest
+
+        Args:
+            sign: signature object obtained from cc.get_signature)
+            input_file(str): path to the h5 file containning the data on which to apply 'predict'
+            destination(str): Path to a .h5 file where the predicted signature will be saved.
+        Returns:
+            datafile(str): The h5 file containing the predicted data after preprocess
+        """
+
+        # Checking the provided paths to h5 file
+        for fichier in (input_file, destination):
+            ext=fichier[-2:].lower()
+            if not ext == 'h5' or not os.path.exists(fichier):
+                raise Exception("Bad input file: {}.\nMust be a valid path to an h5 file.".format(fichier))
+
+        prepro = Preprocess(sign.signature_path, sign.dataset)
+        prepro.predict(input_file, destination)
+
+        return destination
+
 
     def signature(self, dataset, cctype):
         return self.get_signature(cctype=cctype, molset="full", dataset_code=dataset)
