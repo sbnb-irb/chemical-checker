@@ -143,6 +143,8 @@ class CCFit(BaseTask, BaseOperator):
         self.ref_datasets = params.get('reference_datasets', None)
         self.cc_old_path = params.get('cc_old_path', None)
         self.CC_ROOT = params.get('CC_ROOT', None)
+        self.json_config_file = params.get('json_config_file', None) # NS: added
+
         if self.CC_ROOT is None:
             raise Exception('CC_ROOT parameter is not set')
 
@@ -155,7 +157,7 @@ class CCFit(BaseTask, BaseOperator):
 
         config_cc = Config()
         dataset_codes = list()
-        cc = ChemicalChecker(self.CC_ROOT)
+        cc = ChemicalChecker(self.CC_ROOT, json_config_file= self.json_config_file)
 
         if self.cc_type == 'sign3':
 
