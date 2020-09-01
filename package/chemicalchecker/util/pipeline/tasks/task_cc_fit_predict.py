@@ -351,7 +351,7 @@ class CCFit(BaseTask, BaseOperator):
                 "data = inputs[task_id][0][0]",  # elements for current job
                 "pars = inputs[task_id][0][1]",  # elements for current job
                 # elements are indexes
-                "cc = ChemicalChecker( '%s')" % self.CC_ROOT,
+                "cc = ChemicalChecker( '{}', json_config_file='{}')".format(self.CC_ROOT, self.json_config_file),
                 'if pars is None: pars = {}',
                 # start import
                 'sign_full = cc.get_signature("%s","full",data)' % CC_TYPES_DEPENDENCIES[
