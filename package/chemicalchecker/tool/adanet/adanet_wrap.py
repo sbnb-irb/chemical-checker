@@ -62,9 +62,7 @@ class AdaNetWrapper(object):
             x_ds = 'x'
             y_ds = 'y'
 
-            decoded_keys=[k.decode() if type(k) is bytes else k for k in hf.keys()]  # NS convert the bytes into strings
-            print("SHERLOCK BEFORE--->", list(hf.keys()))
-            print("SHERLOCK AFTER--->", decoded_keys)
+            #decoded_keys=[k.decode() if type(k) is bytes else k for k in hf.keys()]  # NS convert the bytes into strings
             if 'x_train' in decoded_keys:
                 x_ds = 'x_train'
                 y_ds = 'y_train'
