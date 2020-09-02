@@ -193,7 +193,8 @@ class Traintest(object):
         # train test validation splits
         if len(split_names) != len(split_fractions):
             raise Exception("Split names and fraction should be same amount.")
-        split_names = [s.encode() for s in split_names]
+        #split_names = [s.encode() for s in split_names]  # NS no need of this for Py3
+
         split_idxs = Traintest.get_split_indeces(
             Y.shape[0], split_fractions)
 
@@ -244,7 +245,7 @@ class Traintest(object):
             if len(split_names) != len(split_fractions):
                 raise Exception(
                     "Split names and fraction should be same amount.")
-            split_names = [s.encode() for s in split_names]
+            #split_names = [s.encode() for s in split_names]   # NS no need of this for Py3
             split_idxs = Traintest.get_split_indeces(rows, split_fractions)
 
             Traintest.__log.info('Traintest saving to %s', out_file)
@@ -303,7 +304,7 @@ class Traintest(object):
             if len(split_names) != len(split_fractions):
                 raise Exception(
                     "Split names and fraction should be same amount.")
-            split_names = [s.encode() for s in split_names]
+            #split_names = [s.encode() for s in split_names]  # NS no need of this for Py3
             # get indeces of blocks for each split
             split_block_idx = Traintest.get_split_indeces(
                 int(np.floor(rows / block_size)) + 1,
