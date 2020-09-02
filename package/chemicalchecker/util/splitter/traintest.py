@@ -203,7 +203,7 @@ class Traintest(object):
             fh.create_dataset('split_names', data=split_names)
             fh.create_dataset('split_fractions', data=split_fractions)
             for name, idxs in zip(split_names, split_idxs):
-                ds_name = "x_%s" % name
+                ds_name = "x_%s" % name.decode()                    # NS added decode() otherwise--> x_b'train'
                 fh.create_dataset(ds_name, (len(idxs), X.shape[1]),
                                   dtype=x_dtype)
                 for i in range(0, len(idxs), chunk_size):
