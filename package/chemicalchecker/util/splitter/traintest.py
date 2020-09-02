@@ -202,21 +202,23 @@ class Traintest(object):
         with h5py.File(out_file, "w") as fh:
             fh.create_dataset('split_names', data=split_names)
             fh.create_dataset('split_fractions', data=split_fractions)
+
             for name, idxs in zip(split_names, split_idxs):
                 ds_name = "x_%s" % name.decode()                    # NS added decode() otherwise--> x_b'train'
-                fh.create_dataset(ds_name, (len(idxs), X.shape[1]),
-                                  dtype=x_dtype)
+                fh.create_dataset(ds_name, (len(idxs), X.shape[1]), dtype=x_dtype)
+
                 for i in range(0, len(idxs), chunk_size):
                     chunk = slice(i, i + chunk_size)
                     fh[ds_name][chunk] = X[idxs[chunk]]
-                Traintest.__log.debug("Written: {:<20} shape: {:>10}".format(
-                    ds_name, str(fh[ds_name].shape)))
-                ds_name = "y_%s" % name
-                fh.create_dataset(ds_name, (len(idxs), Y.shape[1]),
-                                  dtype=y_dtype)
+
+                Traintest.__log.debug("Written: {:<20} shape: {:>10}".format(ds_name, str(fh[ds_name].shape)))
+                ds_name = "y_%s" % name.decode()                  # NS added decode() otherwise--> y_b'train'
+                fh.create_dataset(ds_name, (len(idxs), Y.shape[1]), dtype=y_dtype)
+
                 for i in range(0, len(idxs), chunk_size):
                     chunk = slice(i, i + chunk_size)
                     fh[ds_name][chunk] = Y[idxs[chunk]]
+                    
                 Traintest.__log.debug("Written: {:<20} shape: {:>10}".format(
                     ds_name, str(fh[ds_name].shape)))
         Traintest.__log.info('Traintest saved to %s', out_file)
