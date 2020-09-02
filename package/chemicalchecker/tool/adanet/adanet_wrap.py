@@ -61,7 +61,9 @@ class AdaNetWrapper(object):
         with h5py.File(traintest_file, 'r') as hf:
             x_ds = 'x'
             y_ds = 'y'
-            if 'x_train' in hf.keys():
+
+            decoded_keys=[k.decode() if type(k) is bytes else k for k in hf.keys()]  # NS convert the bytes into strings
+            if 'x_train' in decoded_keys:
                 x_ds = 'x_train'
                 y_ds = 'y_train'
             self.input_dimension = hf[x_ds].shape[1]
@@ -71,7 +73,7 @@ class AdaNetWrapper(object):
                 self.label_dimension = hf[y_ds].shape[1]
             self.train_size = hf[x_ds].shape[0]
             self.total_size = 0
-            for split in [i for i in hf.keys() if i.startswith('x')]:
+            for split in [i for i in decoded_keys if i.startswith('x')]:
                 self.total_size += hf[split].shape[0]
             # derive number of classes from train data
             self.n_classes = np.unique(hf[y_ds][:100000]).shape[0]
