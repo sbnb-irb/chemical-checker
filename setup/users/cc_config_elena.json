@@ -1,6 +1,6 @@
 {
     "PATH": {
-        "CC_ROOT": "'/aloy/home/epareja/TFM/Script/Alzheimer/'",
+        "CC_ROOT": "'/aloy/home/epareja/TFM/Script/Alzheimer/cc_repo'",
         "CC_DATA": "'/aloy/scratch/sbnb-adm/CC/download/'",
         "CC_TMP": "'/aloy/scratch/sbnb-adm/CC/tmp_jobs/'",
         "CC_REPO": "'/aloy/home/epareja/programs/cc/code/chemical_checker'",
