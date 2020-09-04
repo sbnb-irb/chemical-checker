@@ -227,8 +227,7 @@ class CCFit(BaseTask, BaseOperator):
                         continue
 
                     # returns a signx object
-                    sign = cc.get_signature(
-                        self.cc_type, "full", ds.dataset_code)
+                    sign = cc.get_signature(self.cc_type, "full", ds.dataset_code)
 
                     if sign.is_fit():
                         continue
