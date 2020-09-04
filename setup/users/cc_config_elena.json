@@ -3,7 +3,7 @@
         "CC_ROOT": "'/aloy/home/epareja/TFM/Script/Alzheimer/'",
         "CC_DATA": "'/aloy/scratch/sbnb-adm/CC/download/'",
         "CC_TMP": "'/aloy/scratch/sbnb-adm/CC/tmp_jobs/'",
-        "CC_REPO": "'/aloy/home/epareja/programs/cc/code'",
+        "CC_REPO": "'/aloy/home/epareja/programs/cc/code/chemical_checker'",
         "SINGULARITY_IMAGE": "'/aloy/home/epareja/programs/cc/chemical_checker/cc.simg'",
         "validation_path": "'/aloy/web_checker/package_cc/validation_sets/'"
     },
