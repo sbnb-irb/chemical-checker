@@ -73,7 +73,8 @@ class sign2(BaseSignature, DataSignature):
         if self.params['adanet'] is not None:
             self.cpu = self.params['adanet'].get('cpu', 1)
 
-    def fit(self, sign1, neig1, reuse=True, validations=True, compare_nn=False):
+    def fit(self, sign1, neig1, reuse=True, validations=True,
+            compare_nn=False, oos_predictor=False):
         """Fit signature 2 given signature 1 and its nearest neighbors.
 
         Node2vec embeddings are computed using the graph derived from sign1.
@@ -150,41 +151,43 @@ class sign2(BaseSignature, DataSignature):
         #########
         # step 2: AdaNet (learn to predict sign2 from sign1 without Node2Vec)
         #########
-        self.__log.debug('AdaNet fit %s with Node2Vec output' % sign1)
-        # get params and set folder
-        adanet_params = self.params['adanet']
-        adanet_path = os.path.join(self.model_path, 'adanet')
-        if adanet_params:
-            if 'model_dir' in adanet_params:
-                adanet_path = adanet_params.pop('model_dir')
-        if not reuse or not os.path.isdir(adanet_path):
-            os.makedirs(adanet_path)
-        # prepare train-test file
-        traintest_file = os.path.join(adanet_path, 'traintest.h5')
-        if adanet_params:
-            traintest_file = adanet_params.pop(
-                'traintest_file', traintest_file)
-        if not reuse or not os.path.isfile(traintest_file):
-            Traintest.create_signature_file(
-                sign1.data_path, self.data_path, traintest_file)
+        if oos_predictor:
+            self.__log.debug('AdaNet fit %s with Node2Vec output' % sign1)
+            # get params and set folder
+            adanet_params = self.params['adanet']
+            adanet_path = os.path.join(self.model_path, 'adanet')
+            if adanet_params:
+                if 'model_dir' in adanet_params:
+                    adanet_path = adanet_params.pop('model_dir')
+            if not reuse or not os.path.isdir(adanet_path):
+                os.makedirs(adanet_path, exist_ok=True)
+            # prepare train-test file
+            traintest_file = os.path.join(adanet_path, 'traintest.h5')
+            if adanet_params:
+                traintest_file = adanet_params.pop(
+                    'traintest_file', traintest_file)
+            if not reuse or not os.path.isfile(traintest_file):
+                Traintest.create_signature_file(
+                    sign1.data_path, self.data_path, traintest_file)
 
-        if adanet_params:
-            ada = AdaNet(model_dir=adanet_path,
-                         traintest_file=traintest_file, **adanet_params)
-        else:
-            ada = AdaNet(model_dir=adanet_path, traintest_file=traintest_file)
-        # learn NN with AdaNet
-        self.__log.debug('AdaNet training on %s' % traintest_file)
-        ada.train_and_evaluate()
-        # save AdaNet performances and plots
-        sign2_plot = Plot(self.dataset, adanet_path)
-        extra_preditors = dict()
-        if compare_nn:
-            nearest_neighbor_pred = sign2.predict_nearest_neighbor(
-                self.model_path, traintest_file)
-            extra_preditors['NearestNeighbor'] = nearest_neighbor_pred
-        ada.save_performances(adanet_path, sign2_plot, extra_preditors)
-        self.__log.debug('model saved to %s' % adanet_path)
+            if adanet_params:
+                ada = AdaNet(model_dir=adanet_path,
+                             traintest_file=traintest_file, **adanet_params)
+            else:
+                ada = AdaNet(model_dir=adanet_path,
+                             traintest_file=traintest_file)
+            # learn NN with AdaNet
+            self.__log.debug('AdaNet training on %s' % traintest_file)
+            ada.train_and_evaluate()
+            # save AdaNet performances and plots
+            sign2_plot = Plot(self.dataset, adanet_path)
+            extra_preditors = dict()
+            if compare_nn:
+                nearest_neighbor_pred = sign2.predict_nearest_neighbor(
+                    self.model_path, traintest_file)
+                extra_preditors['NearestNeighbor'] = nearest_neighbor_pred
+            ada.save_performances(adanet_path, sign2_plot, extra_preditors)
+            self.__log.debug('model saved to %s' % adanet_path)
         # save background distances, validate and mark ready
         self.background_distances("cosine")
         if validations:
