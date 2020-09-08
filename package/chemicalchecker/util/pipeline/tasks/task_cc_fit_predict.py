@@ -72,10 +72,11 @@ SIGN2_SCRIPT_F = [
 ]
 
 SIGN3_SCRIPT_F = [
+    "sign1_full = cc.get_signature('sign1', 'full', data,**pars)",
     "sign3_full = cc.get_signature('sign3', 'full', data,**pars)",
     "sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in sign2_src_list]",
     "sign2_list.append(cc.get_signature('sign2', 'full', data))",
-    "sign3_full.fit(sign2_list,sign_full)"
+    "sign3_full.fit(sign2_list, sign_full, sign1_full)"
 ]
 
 SIGN0_SCRIPT_FR = [
@@ -116,7 +117,7 @@ class CCFit(BaseTask, BaseOperator):
                 that dataset. (Optional)
             general_data_params (dict): A dictionary with general parameters
                 for all datasets (Optional)
-            target_datasets (list): List of dataset codes to taget for sign3
+            target_datasets (list): List of dataset codes to target for sign3
             ref_datasets (list): List of reference datasets for sign3
         """
         if cc_type is None:
@@ -206,10 +207,11 @@ class CCFit(BaseTask, BaseOperator):
                     raise Exception("Universe full file is corrupted")
 
                 SIGN3_SCRIPT_FR = [
+                    "sign1_full = cc.get_signature('sign1', 'full', data,**pars)",
                     "sign3_full = cc.get_signature('sign3', 'full', data,**pars)",
                     "sign2_src_list = [%s]" % (str(self.ref_datasets)[1:-1]),
                     "sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in sign2_src_list]",
-                    "sign3_full.fit(sign2_list,sign2_full,sign2_universe='%s', sign2_coverage='%s')" % (
+                    "sign3_full.fit(sign2_list,sign2_full,sign1_full,sign2_universe='%s', sign2_coverage='%s')" % (
                         full_universe, full_coverage)
                 ]
 
