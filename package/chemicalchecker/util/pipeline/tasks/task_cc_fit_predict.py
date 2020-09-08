@@ -301,7 +301,7 @@ class CCFit(BaseTask, BaseOperator):
                 # again, generate a sign or neig object to fulfill the
                 # dependency before the required signature
                 sign = cc.get_signature(dependency, branch, ds)
-                print("Signature object required for fullfilling dependency of", self.cctype)
+                print("Signature object required for fullfilling dependency of", self.cc_type)
                 print("branch-->", branch)
                 print("dependency-->", dependency)
                 print("dataset-->", ds)
