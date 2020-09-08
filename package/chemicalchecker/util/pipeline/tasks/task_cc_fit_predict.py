@@ -301,9 +301,12 @@ class CCFit(BaseTask, BaseOperator):
                 # again, generate a sign or neig object to fulfill the
                 # dependency before the required signature
                 sign = cc.get_signature(dependency, branch, ds)
+                print("Signature object required for fullfilling dependency of", self.cctype)
+                print("branch-->", branch)
+                print("dependency-->", dependency)
+                print("dataset-->", ds)
                 if not sign.available():
-                    raise Exception(
-                        dependency + " CC type is not available and it is required for " + self.cc_type)
+                    raise Exception(dependency + " CC type is not available and it is required for " + self.cc_type)
                 else:
                     print("INFO: Dependency {} is available for calculating {}".format(
                         dependency, self.cc_type))
