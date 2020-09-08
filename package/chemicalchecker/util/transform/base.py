@@ -125,12 +125,7 @@ class BaseTransform(object):
 
     def subsample(self):
         max_keys = self.max_keys
-        if max_keys is not None:
-            if max_keys < self.sign_ref.shape[1]:
-                max_keys = self.sign_ref.shape[1]
-            if max_keys >= self.sign_ref.shape[0]:
-                max_keys = None
-        if max_keys is None:
+        if max_keys is None or max_keys >= self.sign_ref.shape[0]:
             self.__log.debug("Considering all data")
             keys = self.sign_ref.keys
             if self.tmp:
@@ -148,16 +143,13 @@ class BaseTransform(object):
                     dkey = "V"
                 for j in tqdm(range(0, self.sign_ref.shape[1])):
                     v = hf[dkey][:, j]
-                    cand = random.choice(
-                        list(set(np.argwhere(v != 0).ravel()).difference(idxs)))
-                    idxs.update([cand])
-            if len(idxs) < max_keys:
-                remaining_idxs = list(
-                    set([i for i in range(0, self.sign_ref.shape[0])]).difference(idxs))
-                n = max_keys < len(idxs)
-                more_idxs = set(np.random.choice(
-                    remaining_idxs, n, replace=False))
-                idxs = idxs.union(more_idxs)
+                    zero_feat = np.argwhere(v != 0).ravel()
+                    candidates = list(set(zero_feat) - idxs)
+                    selected = random.choice(candidates)
+                    idxs.add(selected)
+            if len(idxs) < self.sign_ref.shape[1]:
+                raise Exception('Could not subsample sufficiently, '
+                                'please implement a strategy to sample more.')
             idxs = np.array(sorted(idxs))
             self.__log.debug("...%d subsampled" % len(idxs))
             with h5py.File(self.sign_ref.data_path, "r") as hf:
