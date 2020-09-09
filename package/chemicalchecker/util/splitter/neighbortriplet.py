@@ -163,12 +163,9 @@ class NeighborTripletTraintest(object):
         if shuffle:
             np.random.shuffle(shuffle_idxs)
         triplets = np.array(triplets)[shuffle_idxs]
-        print("SHERLOCK triplets--> ", triplets.shape)
-        print("SHERLOCK shuffle_idxs--> ", shuffle_idxs.shape)
 
         # do traintest split for triplets (np.unique of indeces)
         split_idxs = NeighborTripletTraintest.get_split_indeces(len(triplets), split_fractions)
-        print("SHERLOCK split_idxs--> ", split_idxs.shape)
         '''
         split_idxs = dict(zip(split_names, split_idxs))
         # find triplets having test-test train-trani and train-test
