@@ -25,7 +25,8 @@ CC_TYPES_DEPENDENCIES = {'sign0': ['sign0'], 'sign1': ['sign0'],
                          'clus1': ['sign1'], 'clus2': ['sign2'], 'clus3': ['sign3'],
                          'proj1': ['sign1'], 'proj2': ['sign2'], 'proj3': ['sign3']}
 
-CC_TYPES_MEM_CPU = {'sign0': (44, 22), 'sign1': (20, 10), 'sign2': (20, 16), 'sign3': (2, 32),
+# NS: changed sign1 requirement from (20,10) to (40,10)
+CC_TYPES_MEM_CPU = {'sign0': (44, 22), 'sign1': (40, 10), 'sign2': (20, 16), 'sign3': (2, 32),
                     'neig1': (30, 15), 'neig2': (30, 15), 'neig3': (30, 15),
                     'clus1': (20, 10), 'clus2': (20, 10), 'clus3': (20, 10),
                     'proj1': (20, 10), 'proj2': (20, 10), 'proj3': (20, 10)}
