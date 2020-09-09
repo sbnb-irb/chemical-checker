@@ -380,6 +380,7 @@ class sign1(BaseSignature, DataSignature):
             a = (TMAX - TMIN) / (LB - UB)
             b = TMIN - a * UB
             return a * n + b
+
         with h5py.File(neig_path, "r") as hf:
             N, kn = hf["indices"].shape
             opt_t = np.min([opt_t, 0.01])
@@ -389,11 +390,12 @@ class sign1(BaseSignature, DataSignature):
             k = np.min([k, get_t_max(N)])
             k = int(k)
             self.__log.debug("... selected T is %d" % k)
-            nn_pos = hf["indices"][:, 1:(k + 1)]
-            nn_neg = hf["indices"][:, (k + 1):]
+            nn_indices = hf["indices"][:]
+            nn_pos = nn_indices[:, 1:(k + 1)]
+            nn_neg = nn_indices[:, (k + 1):]
         self.__log.debug("Starting sampling (pos:%d, neg:%d)" %
                          (nn_pos.shape[1], nn_neg.shape[1]))
-        n_sample = min(int(num_triplets / N), 100)
+        n_sample = np.clip(int(num_triplets / N), 1, 100)
         triplets = []
         med_neg = nn_neg.shape[1]
         nn_pos_prob = [(len(nn_pos) - i) for i in range(0, nn_pos.shape[1])]
