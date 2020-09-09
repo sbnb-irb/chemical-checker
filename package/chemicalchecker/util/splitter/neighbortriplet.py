@@ -167,8 +167,8 @@ class NeighborTripletTraintest(object):
         print("SHERLOCK shuffle_idxs--> ", shuffle_idxs.shape)
 
         # do traintest split for triplets (np.unique of indeces)
-        split_idxs = NeighborTripletTraintest.get_split_indeces(
-            len(triplets), split_fractions)
+        split_idxs = NeighborTripletTraintest.get_split_indeces(len(triplets), split_fractions)
+        print("SHERLOCK split_idxs--> ", split_idxs.shape)
         '''
         split_idxs = dict(zip(split_names, split_idxs))
         # find triplets having test-test train-trani and train-test
@@ -189,7 +189,7 @@ class NeighborTripletTraintest(object):
         NeighborTripletTraintest.__log.info('Traintest saving to %s', out_file)
         with h5py.File(out_file, "w") as fh:
             fh.create_dataset('x', data=X, dtype=x_dtype)
-            print("SHERLOCK split_idx--> ", split_idxs.shape)
+            
             for split_name, split_idx in zip(split_names, split_idxs):               
                 split_triplets = triplets[split_idx]
                 fh.create_dataset('t_%s' % split_name,
