@@ -400,6 +400,9 @@ class CCFit(BaseTask, BaseOperator):
             params["wait"] = True
             params["memory"] = CC_TYPES_MEM_CPU[self.cc_type][0]
             params["cpu"] = CC_TYPES_MEM_CPU[self.cc_type][1]
+
+            if self.cc_type == 'sign1':
+                params["mem_by_core"] = 4  # NS some sign1 jobs now require 3.8G per core
             # job command
             singularity_image = Config().PATH.SINGULARITY_IMAGE
             command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE>".format(
