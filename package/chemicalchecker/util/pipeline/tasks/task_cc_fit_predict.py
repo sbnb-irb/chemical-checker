@@ -12,6 +12,7 @@ from airflow import AirflowException
 from airflow.models import BaseOperator
 
 from chemicalchecker.database import Dataset
+from chemicalchecker.core.sign3 import sign3
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util.pipeline import BaseTask
 from chemicalchecker.util import logged, Config, HPC
@@ -181,38 +182,37 @@ class CCFit(BaseTask, BaseOperator):
         cc = ChemicalChecker(
             self.CC_ROOT, json_config_file=self.json_config_file)
 
-        # fitting sign3
+        # sign3 specific checks, precalculations and parameters
         if self.cc_type == 'sign3':
             self.full_reference = self.target_datasets is None
             if self.ref_datasets is None:
                 self.ref_datasets = [
-                    ds.dataset_code for ds in Dataset.get(exemplary=True)]
+                    ds.code for ds in Dataset.get(exemplary=True)]
             if self.target_datasets is None:
                 for ds in self.ref_datasets:
-                    sign3 = cc.get_signature("sign3", "full", ds)
-                    if sign3.is_fit():
+                    sign = cc.get_signature("sign3", "full", ds)
+                    if sign.is_fit():
                         continue
                     dataset_codes.append(ds)
             else:
                 for ds in self.target_datasets:
-                    sign3 = cc.get_signature("sign3", "full", ds)
-                    if sign3.is_fit():
+                    sign = cc.get_signature("sign3", "full", ds)
+                    if sign.is_fit():
                         continue
                     dataset_codes.append(ds)
 
-            sign2_list = [cc.get_signature('sign2', 'full', ds)
-                          for ds in self.ref_datasets]
-
-            SIGN3_SCRIPT_FR = []
+            # precompute universe and coverage (that are shared)
             if self.target_datasets is None:
                 full_universe = os.path.join(self.tmpdir, "universe_full")
                 full_coverage = os.path.join(self.tmpdir, "coverage_full")
-                sign3_full = cc.get_signature('sign3', 'full', "A1.001")
-                sign3_full.save_sign2_universe(sign2_list, full_universe)
-                sign3_full.save_sign2_coverage(sign2_list, full_coverage)
+                sign2_list = [cc.get_signature('sign2', 'full', ds)
+                              for ds in self.ref_datasets]
+                sign3.save_sign2_universe(sign2_list, full_universe)
+                sign3.save_sign2_coverage(sign2_list, full_coverage)
+                # check for universe to be readable
                 try:
                     with h5py.File(full_universe, 'r') as hf:
-                        keys = hf.keys()
+                        hf.keys()
                 except Exception as e:
                     self.__log.error(e)
                     raise Exception("Universe full file is corrupted")
@@ -225,6 +225,8 @@ class CCFit(BaseTask, BaseOperator):
                     "sign3_full.fit(sign2_list,sign2_full,sign1_full,sign2_universe='%s', sign2_coverage='%s')" % (
                         full_universe, full_coverage)
                 ]
+            else:
+                SIGN3_SCRIPT_FR = []
 
             SPECIFIC_SCRIPTS['sign3'] = (SIGN3_SCRIPT_FR, ["sign2_src_list = [%s]" %
                                                            (str(self.ref_datasets)[1:-1])] + SIGN3_SCRIPT_F)
@@ -300,7 +302,9 @@ class CCFit(BaseTask, BaseOperator):
                     (ds_code, dict_params))
             else:
                 dataset_params.append((ds_code, None))  # i.e ('A1.001', None)
-
+        self.__log.info('dataset_params:')
+        for p in dataset_params:
+            self.__log.info('\t%s' % str(p))
         # NS: checking dependencies depending on which sign we are calculating
         # NS, some CC_types have dependencies, eg sign2 need for ex sign1 and
         # neig1 to work
@@ -351,17 +355,14 @@ class CCFit(BaseTask, BaseOperator):
 
             # create script file that will launch signx fit jobs for ALL the
             # select dataset
-            cc_config_path = os.environ['CC_CONFIG']
-            cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
-
-            # NS-> added
-            # sys.path.append('/opt/chemical_checker/package/chemicalchecker/../')
             script_lines = [
                 "import sys, os",
                 "import pickle",
-                "sys.path.append('/opt/chemical_checker/package/chemicalchecker/../')",
+                "import logging",
+                "import chemicalchecker",
                 "from chemicalchecker.util import Config",
                 "from chemicalchecker.core import ChemicalChecker",
+                "logging.log(logging.DEBUG,'chemicalchecker: %s' % chemicalchecker.__path__)",
                 "config = Config()",
                 "task_id = sys.argv[1]",  # <TASK_ID>
                 "filename = sys.argv[2]",  # <FILE>
@@ -419,6 +420,8 @@ class CCFit(BaseTask, BaseOperator):
                 params["mem_by_core"] = 20  # h_vmem parameter NS some sign (memory limit)
 
             # job command
+            cc_config_path = os.environ['CC_CONFIG']
+            cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
             singularity_image = Config().PATH.SINGULARITY_IMAGE
             command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE>".format(
                 cc_package, cc_config_path, singularity_image, script_name)
