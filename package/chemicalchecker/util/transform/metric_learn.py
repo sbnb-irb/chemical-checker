@@ -1,36 +1,41 @@
-"""Semisupervised metric learning.
+"""Metric learning.
 
-We first determine the number of dimensions by a PCA.
+We bias the sign1 to respect triplets sampled from the whole CC
+(semi-supervised) or from the space itself (unsupervised).
 """
 import os
 import pickle
 import numpy as np
-from keras.layers import Dense
 
-from chemicalchecker.util import logged
-from chemicalchecker.util.splitter import NeighborTripletTraintest
-from chemicalchecker.tool.siamese import SiameseTriplets
 from .base import BaseTransform
 
-params = {
-    'epochs': 3,
-    'dropouts': [None],
-    'layers_sizes': None,
-    'learning_rate': "auto",
-    'batch_size': 128,
-    'activations': ["tanh"],
-    'layer': [Dense],
-    'loss_func': 'orthogonal_tloss',
-    'margin': 1.0,
-    'alpha': 1.0
-}
+from chemicalchecker.util import logged
+from chemicalchecker.tool.siamese import SiameseTriplets
+from chemicalchecker.util.splitter import NeighborTripletTraintest
 
 
 @logged
 class MetricLearn(BaseTransform):
     """MetricLearn class."""
 
-    def __init__(self, sign1, tmp, name, max_keys, params):
+    def __init__(self, sign1, tmp, name, max_keys):
+        try:
+            from tensorflow.keras.layers import Dense
+        except ImportError:
+            raise ImportError("requires tensorflow " +
+                              "https://www.tensorflow.org/")
+        params = {
+            'epochs': 3,
+            'dropouts': [None],
+            'layers_sizes': None,
+            'learning_rate': "auto",
+            'batch_size': 128,
+            'activations': ["tanh"],
+            'layer': [Dense],
+            'loss_func': 'orthogonal_tloss',
+            'margin': 1.0,
+            'alpha': 1.0
+        }
         if tmp:
             raise Exception("Metric learn is not prepared to work with tmp")
         BaseTransform.__init__(self, sign1, name, max_keys, tmp)
@@ -43,7 +48,7 @@ class MetricLearn(BaseTransform):
         params = self.params
         # Get signatures
         V = self.sign_ref[:]
-        dest_h5 = os.path.join(self.model_path, self.name+"_eval.h5")
+        dest_h5 = os.path.join(self.model_path, self.name + "_eval.h5")
         # generate traintest file
         NeighborTripletTraintest.precomputed_triplets(
             V, triplets, dest_h5,
@@ -51,12 +56,12 @@ class MetricLearn(BaseTransform):
             split_names=['train_train', 'train_test', 'test_test'],
             split_fractions=[.8, .1, .1])
         # train siamese network
-        model_dir = os.path.join(self.model_path, self.name+"_eval")
+        model_dir = os.path.join(self.model_path, self.name + "_eval")
         params["traintest_file"] = dest_h5
         mod = SiameseTriplets(model_dir, evaluate=True, plot=False, **params)
         mod.fit()
         # generate traintest file for the final model
-        dest_h5 = os.path.join(self.model_path, self.name+".h5")
+        dest_h5 = os.path.join(self.model_path, self.name + ".h5")
         NeighborTripletTraintest.precomputed_triplets(
             V, triplets, dest_h5,
             mean_center_x=True,  shuffle=True,
@@ -86,8 +91,8 @@ class MetricLearn(BaseTransform):
             with open(os.path.join(self.model_dir, "ml_percs.pkl"), "rb") as f:
                 p25, p75 = pickle.load(f)
         m = 2. / (p75 - p25)
-        n = 1 - m*p75
-        V = m*V + n
+        n = 1 - m * p75
+        V = m * V + n
         self.overwrite(sign1=sign1, V=V, keys=sign1.keys)
 
 
@@ -95,7 +100,7 @@ class MetricLearn(BaseTransform):
 class UnsupervisedMetricLearn(MetricLearn):
 
     def __init__(self, sign1, tmp):
-        MetricLearn.__init__(self, sign1, tmp, "unsupml", max_keys=None, params=params)
+        MetricLearn.__init__(self, sign1, tmp, "unsupml", max_keys=None)
 
     def fit(self):
         self.sign_ref.neighbors(tmp=True)
@@ -106,13 +111,13 @@ class UnsupervisedMetricLearn(MetricLearn):
 
     def predict(self, sign1):
         self._predict(sign1, find_scale=False)
-        
+
 
 @logged
 class SemiSupervisedMetricLearn(MetricLearn):
 
     def __init__(self, sign1, tmp):
-        MetricLearn.__init__(self, sign1, tmp, "semiml", max_keys=None, params=params)
+        MetricLearn.__init__(self, sign1, tmp, "semiml", max_keys=None)
 
     def fit(self):
         self.__log.debug("Getting precalculated triplets throughout the CC")
@@ -121,4 +126,3 @@ class SemiSupervisedMetricLearn(MetricLearn):
 
     def predict(self, sign1):
         self._predict(sign1, find_scale=False)
-
