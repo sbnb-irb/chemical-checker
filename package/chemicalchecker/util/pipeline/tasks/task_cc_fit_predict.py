@@ -402,7 +402,7 @@ class CCFit(BaseTask, BaseOperator):
             params["cpu"] = CC_TYPES_MEM_CPU[self.cc_type][1]
 
             if self.cc_type == 'sign1':
-                params["mem_by_core"] = 4  # NS some sign1 jobs now require 3.8G per core
+                params["mem_by_core"] = 20  # h_vmem parameter NS some sign (memory limit)
             # job command
             singularity_image = Config().PATH.SINGULARITY_IMAGE
             command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE>".format(
