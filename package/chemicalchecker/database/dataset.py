@@ -276,12 +276,14 @@ class Dataset(Base):  # NS Base is a base class from SQLAlchemy, no __init__??
             query = session.query(Dataset).filter_by(dataset_code=code,
                                                      **kwargs)
             res = query.one_or_none()
+            session.close()
+            return res
         else:
             query = session.query(Dataset).distinct(
                 Dataset.dataset_code).filter_by(**kwargs)
             res = query.all()
-        session.close()
-        return sorted(res)
+            session.close()
+            return sorted(res)
 
     @staticmethod
     def get_coordinates():
