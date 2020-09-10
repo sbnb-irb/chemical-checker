@@ -26,6 +26,7 @@ from .signature_base import BaseSignature
 from .signature_data import DataSignature
 
 from chemicalchecker.util import logged
+from chemicalchecker.util.splitter import NeighborTripletTraintest
 
 
 @logged
