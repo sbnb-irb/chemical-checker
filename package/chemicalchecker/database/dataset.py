@@ -202,6 +202,10 @@ class Dataset(Base):  # NS Base is a base class from SQLAlchemy, no __init__??
     def __lt__(self, other):
         return self.dataset_code < other.dataset_code
 
+    @property
+    def code(self):
+        return self.dataset_code
+
     @staticmethod
     def _create_table():
         engine = get_engine()
@@ -273,7 +277,8 @@ class Dataset(Base):  # NS Base is a base class from SQLAlchemy, no __init__??
                                                      **kwargs)
             res = query.one_or_none()
         else:
-            query = session.query(Dataset).distinct(Dataset.dataset_code).filter_by(**kwargs)
+            query = session.query(Dataset).distinct(
+                Dataset.dataset_code).filter_by(**kwargs)
             res = query.all()
         session.close()
         return sorted(res)
