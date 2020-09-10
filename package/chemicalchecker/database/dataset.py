@@ -199,6 +199,9 @@ class Dataset(Base):  # NS Base is a base class from SQLAlchemy, no __init__??
         """String representation."""
         return self.dataset_code
 
+    def __lt__(self, other):
+        return self.dataset_code < other.dataset_code
+
     @staticmethod
     def _create_table():
         engine = get_engine()
@@ -272,7 +275,7 @@ class Dataset(Base):  # NS Base is a base class from SQLAlchemy, no __init__??
             query = session.query(Dataset).distinct(Dataset.dataset_code)
             res = query.all()
         session.close()
-        return res
+        return sorted(res)
 
     @staticmethod
     def get_coordinates():
