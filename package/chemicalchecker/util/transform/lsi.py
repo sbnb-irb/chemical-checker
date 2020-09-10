@@ -1,14 +1,15 @@
 """Do TFIDF-LSI."""
 import os
-import numpy as np
 import random
-from scipy.sparse import lil_matrix
-from gensim import corpora, models
-from sklearn.utils.sparsefuncs import mean_variance_axis
 import tempfile
+import numpy as np
+from gensim import corpora, models
+from scipy.sparse import lil_matrix
+from sklearn.utils.sparsefuncs import mean_variance_axis
+
+from .base import BaseTransform
 
 from chemicalchecker.util import Config
-from .base import BaseTransform
 
 
 class Corpus(object):
