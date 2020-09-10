@@ -154,6 +154,7 @@ class CCFit(BaseTask, BaseOperator):
             name = cc_type
 
         args = []
+        params['task_id'] = params.get('task_id', name)
         BaseTask.__init__(self, name, **params)
         BaseOperator.__init__(self, *args, **params)
 
