@@ -51,7 +51,6 @@ class local():
         check_error = kwargs.get("check_error", True)
         cpu = 2
         cpusafe = kwargs.get("cpusafe", True)
-
         index_image_command = command.find('.simg')
 
         # Remove the call to singularity since we are already in a singularity
@@ -98,17 +97,11 @@ class local():
         # Creates the final job.sh
         self.__log.info("Writing script file for in dir " + self.jobdir)
 
-        if num_jobs > 1 and command.find("<TASK_ID>") != -1:
-
-            for i in range(num_jobs):
-                cmd_run = command.replace("<TASK_ID>", str(i + 1))
-                self.__log.info("Running job %d/%d" % (i + 1, num_jobs))
-                with open(os.path.join(self.jobdir, "log" + str(i + 1) + ".txt"), 'w') as f:
-                    subprocess.call([cmd_run], stdout=f, stderr=f, shell=True)
-
-        else:
-            cmd_run = command
-            with open(os.path.join(self.jobdir, "log.txt"), 'w') as f:
+        for i in range(num_jobs):
+            cmd_run = command.replace("<TASK_ID>", str(i + 1))
+            self.__log.info("Running job %d/%d" % (i + 1, num_jobs))
+            self.__log.debug("CMD:", cmd_run)
+            with open(os.path.join(self.jobdir, "log" + str(i + 1) + ".txt"), 'w') as f:
                 subprocess.call([cmd_run], stdout=f, stderr=f, shell=True)
 
         self.statusFile = os.path.join(
