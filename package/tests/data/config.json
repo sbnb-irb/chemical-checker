@@ -17,10 +17,10 @@
         "calcdata_dbname": "'cc_calcdata'"
     },
     "HPC": {
-    	"system" : "'sge'",
-    	"host": "'pac-one-head'",
-    	"queue": "'all.q'",
-    	"username": "'sbnb-adm'"
+    	"system" : "'local'",
+    	"host": "''",
+    	"queue": "''",
+    	"username": "'unittest'"
     }
 
 }
