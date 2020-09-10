@@ -4,44 +4,66 @@ This class allows to pipe different ``fit`` tasks in the Pipeline framework.
 It tries to work for all possible CC elements but considering that signatures
 are changing quite often it might need to be updated.
 """
-import tempfile
 import os
-import shutil
 import h5py
-from airflow.models import BaseOperator
+import shutil
+import tempfile
 from airflow import AirflowException
-from chemicalchecker.util import logged
+from airflow.models import BaseOperator
+
 from chemicalchecker.database import Dataset
-from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import HPC
+from chemicalchecker.util import logged, Config, HPC
+
 
 VALID_TYPES = ['sign', 'neig', 'clus', 'proj']
 
-CC_TYPES_DEPENDENCIES = {'sign0': ['sign0'], 'sign1': ['sign0'],
-                         'sign2': ['sign1', 'neig1'], 'sign3': ['sign2'],
-                         'neig1': ['sign1'], 'neig2': ['sign2'], 'neig3': ['sign3'],
-                         'clus1': ['sign1'], 'clus2': ['sign2'], 'clus3': ['sign3'],
-                         'proj1': ['sign1'], 'proj2': ['sign2'], 'proj3': ['sign3']}
+CC_TYPES_DEPENDENCIES = {
+    'sign0': ['sign0'],
+    'sign1': ['sign0'],
+    'sign2': ['sign1', 'neig1'],
+    'sign3': ['sign2'],
+    'neig1': ['sign1'],
+    'neig2': ['sign2'],
+    'neig3': ['sign3'],
+    'clus1': ['sign1'],
+    'clus2': ['sign2'],
+    'clus3': ['sign3'],
+    'proj1': ['sign1'],
+    'proj2': ['sign2'],
+    'proj3': ['sign3']
+}
 
 # NS: changed sign1 requirement from (20,10) to (40,10)
-CC_TYPES_MEM_CPU = {'sign0': (44, 22), 'sign1': (40, 10), 'sign2': (20, 16), 'sign3': (2, 32),
-                    'neig1': (30, 15), 'neig2': (30, 15), 'neig3': (30, 15),
-                    'clus1': (20, 10), 'clus2': (20, 10), 'clus3': (20, 10),
-                    'proj1': (20, 10), 'proj2': (20, 10), 'proj3': (20, 10)}
+CC_TYPES_MEM_CPU = {
+    'sign0': (44, 22),
+    'sign1': (40, 10),
+    'sign2': (20, 16),
+    'sign3': (2, 32),
+    'neig1': (30, 15),
+    'neig2': (30, 15),
+    'neig3': (30, 15),
+    'clus1': (20, 10),
+    'clus2': (20, 10),
+    'clus3': (20, 10),
+    'proj1': (20, 10),
+    'proj2': (20, 10),
+    'proj3': (20, 10)
+}
 
-SPECIAL_PARAMS = {'sign2': {'adanet': {'cpu': 16}, 'node2vec': {'cpu': 4}},
-                  'neig1': {'cpu': 15},
-                  'neig2': {'cpu': 15},
-                  'neig3': {'cpu': 15},
-                  'sign3': {'cpu': 32},
-                  'clus1': {'cpu': 10},
-                  'clus2': {'cpu': 10},
-                  'clus3': {'cpu': 10},
-                  'proj1': {'cpu': 10},
-                  'proj2': {'cpu': 10},
-                  'proj3': {'cpu': 10}}
+SPECIAL_PARAMS = {
+    'sign2': {'adanet': {'cpu': 16}, 'node2vec': {'cpu': 4}},
+    'sign3': {'cpu': 32},
+    'neig1': {'cpu': 15},
+    'neig2': {'cpu': 15},
+    'neig3': {'cpu': 15},
+    'clus1': {'cpu': 10},
+    'clus2': {'cpu': 10},
+    'clus3': {'cpu': 10},
+    'proj1': {'cpu': 10},
+    'proj2': {'cpu': 10},
+    'proj3': {'cpu': 10}}
 
 CC_SCRIPT_FR = [
     'sign_new_ref = cc.get_signature("<CC_TYPE>", "reference", data,**pars)',
@@ -94,8 +116,10 @@ SIGN1_SCRIPT_FR = [
     'sign_new_full.fit(sign_full, **pars)'
 ]
 
-SPECIFIC_SCRIPTS = {'sign2': (SIGN2_SCRIPT_FR, SIGN2_SCRIPT_F),
-                    'sign1': (SIGN1_SCRIPT_FR, SIGN1_SCRIPT_FR)}
+SPECIFIC_SCRIPTS = {
+    'sign1': (SIGN1_SCRIPT_FR, SIGN1_SCRIPT_FR),
+    'sign2': (SIGN2_SCRIPT_FR, SIGN2_SCRIPT_F)
+}
 
 
 @logged
@@ -123,20 +147,18 @@ class CCFit(BaseTask, BaseOperator):
         """
         if cc_type is None:
             raise Exception("CCFit requires a cc_type")
-
+        self.CC_ROOT = params.get('CC_ROOT', None)
+        if self.CC_ROOT is None:
+            raise Exception('CC_ROOT parameter is not set')
         if name is None:
             name = cc_type
 
         args = []
-        task_id = params.get('task_id', None)
-        if task_id is None:
-            params['task_id'] = name
-
+        params['task_id'] = params.get('task_id', name)
         BaseTask.__init__(self, name, **params)
         BaseOperator.__init__(self, *args, **params)
 
         self.cc_type = cc_type
-
         self.datasets = params.get('datasets', None)
         self.full_reference = params.get('full_reference', True)
         self.ds_data_params = params.get('ds_params', None)
@@ -144,11 +166,8 @@ class CCFit(BaseTask, BaseOperator):
         self.target_datasets = params.get('target_datasets', None)
         self.ref_datasets = params.get('reference_datasets', None)
         self.cc_old_path = params.get('cc_old_path', None)
-        self.CC_ROOT = params.get('CC_ROOT', None)
-        self.json_config_file = params.get('json_config_file', None) # NS: added
-
-        if self.CC_ROOT is None:
-            raise Exception('CC_ROOT parameter is not set')
+        self.json_config_file = params.get(
+            'json_config_file', None)  # NS: added
 
         if self.cc_type == 'sign0' and self.ds_data_params is None and self.cc_old_path is None:
             raise Exception(
@@ -159,24 +178,16 @@ class CCFit(BaseTask, BaseOperator):
 
         config_cc = Config()
         dataset_codes = list()
-        cc = ChemicalChecker(self.CC_ROOT, json_config_file= self.json_config_file)
+        cc = ChemicalChecker(
+            self.CC_ROOT, json_config_file=self.json_config_file)
 
+        # fitting sign3
         if self.cc_type == 'sign3':
-
             self.full_reference = self.target_datasets is None
-
             if self.ref_datasets is None:
-
-                self.ref_datasets = []
-                all_datasets = Dataset.get()
-                for ds in all_datasets:
-                    if not ds.exemplary:
-                        continue
-
-                    self.ref_datasets.append(ds.dataset_code)
-
+                self.ref_datasets = [
+                    ds.dataset_code for ds in Dataset.get(exemplary=True)]
             if self.target_datasets is None:
-
                 for ds in self.ref_datasets:
                     sign3 = cc.get_signature("sign3", "full", ds)
                     if sign3.is_fit():
@@ -203,7 +214,6 @@ class CCFit(BaseTask, BaseOperator):
                     with h5py.File(full_universe, 'r') as hf:
                         keys = hf.keys()
                 except Exception as e:
-
                     self.__log.error(e)
                     raise Exception("Universe full file is corrupted")
 
@@ -230,7 +240,8 @@ class CCFit(BaseTask, BaseOperator):
                         continue
 
                     # returns a signx object
-                    sign = cc.get_signature(self.cc_type, "full", ds.dataset_code)
+                    sign = cc.get_signature(
+                        self.cc_type, "full", ds.dataset_code)
 
                     if sign.is_fit():
                         continue
@@ -247,7 +258,8 @@ class CCFit(BaseTask, BaseOperator):
                     # (default:True)
                     if self.full_reference:
                         # NS molset: reference
-                        sign = cc.get_signature(self.cc_type, "reference", ds.dataset_code)
+                        sign = cc.get_signature(
+                            self.cc_type, "reference", ds.dataset_code)
 
                         if not (sign.dataset == 'D1.001' and sign.cctype == 'sign0') and os.path.exists(sign.signature_path):
                             #print("Attempting to delete signature path: ", sign.signature_path)
@@ -304,12 +316,14 @@ class CCFit(BaseTask, BaseOperator):
                 # again, generate a sign or neig object to fulfill the
                 # dependency before the required signature
                 sign = cc.get_signature(dependency, branch, ds)
-                print("Signature object required for fullfilling dependency of", self.cc_type)
+                print(
+                    "Signature object required for fullfilling dependency of", self.cc_type)
                 print("branch-->", branch)
                 print("dependency-->", dependency)
                 print("dataset-->", ds)
                 if not sign.available():
-                    raise Exception(dependency + " CC type is not available and it is required for " + self.cc_type)
+                    raise Exception(
+                        dependency + " CC type is not available and it is required for " + self.cc_type)
                 else:
                     print("INFO: Dependency {} is available for calculating {}".format(
                         dependency, self.cc_type))
@@ -356,7 +370,7 @@ class CCFit(BaseTask, BaseOperator):
                 "data = inputs[task_id][0][0]",  # elements for current job
                 "pars = inputs[task_id][0][1]",  # elements for current job
                 # elements are indexes
-                "cc = ChemicalChecker('%s')" %self.CC_ROOT,
+                "cc = ChemicalChecker('%s')" % self.CC_ROOT,
                 'if pars is None: pars = {}',
                 # start import
                 'sign_full = cc.get_signature("%s","full",data)' % CC_TYPES_DEPENDENCIES[
@@ -403,6 +417,7 @@ class CCFit(BaseTask, BaseOperator):
 
             if self.cc_type == 'sign1':
                 params["mem_by_core"] = 20  # h_vmem parameter NS some sign (memory limit)
+
             # job command
             singularity_image = Config().PATH.SINGULARITY_IMAGE
             command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE>".format(

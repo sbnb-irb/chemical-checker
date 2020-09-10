@@ -297,6 +297,9 @@ class sign3(BaseSignature, DataSignature):
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
             dataset_idx = np.argwhere(np.isin(self.src_datasets, ds)).flatten()
+            if len(dataset_idx) > 1:
+                self.__log.warning('Dataset %s is repeated' % ds)
+            dataset_idx = np.array(dataset_idx[:1])
             # compute probabilities for subsampling
             trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = subsampling_probs(
                 self.sign2_coverage, dataset_idx)
