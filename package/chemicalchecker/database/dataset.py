@@ -261,7 +261,7 @@ class Dataset(Base):  # NS Base is a base class from SQLAlchemy, no __init__??
                     "Error in line %s: %s", row_nr, str(err))
 
     @staticmethod
-    def get(code=None):
+    def get(code=None, **kwargs):
         """Get Dataset with given code.
 
         Args:
@@ -269,10 +269,11 @@ class Dataset(Base):  # NS Base is a base class from SQLAlchemy, no __init__??
         """
         session = get_session()
         if code is not None:
-            query = session.query(Dataset).filter_by(dataset_code=code)
+            query = session.query(Dataset).filter_by(dataset_code=code,
+                                                     **kwargs)
             res = query.one_or_none()
         else:
-            query = session.query(Dataset).distinct(Dataset.dataset_code)
+            query = session.query(Dataset).distinct(Dataset.dataset_code).filter_by(**kwargs)
             res = query.all()
         session.close()
         return sorted(res)
