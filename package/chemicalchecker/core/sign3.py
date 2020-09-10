@@ -2197,7 +2197,7 @@ def subsampling_probs(sign2_coverage, dataset_idx, trim_threshold=0.1,
                       min_unknown=10000):
     """Extract probabilities for known and unknown of a given dataset."""
     if type(sign2_coverage) == str:
-        cov = DataSignature(sign2_coverage).get_h5_dataset('V')
+        cov = DataSignature(sign2_coverage).get_h5_dataset('x_test')
     else:
         cov = sign2_coverage
     unknown = cov[(cov[:, dataset_idx] == 0).ravel()]
@@ -2328,7 +2328,7 @@ def plot_subsample(s4, plotpath, sign2_coverage, traintest_file, ds='B1.001',
     tr_gen = tr_shape_type_gen[2]
 
     # get known unknown
-    cov = DataSignature(sign2_coverage).get_h5_dataset('V')
+    cov = DataSignature(sign2_coverage).get_h5_dataset('x_test')
     unknown = cov[(cov[:, dataset_idx] == 0).flatten()]
     known = cov[(cov[:, dataset_idx] == 1).flatten()]
 
