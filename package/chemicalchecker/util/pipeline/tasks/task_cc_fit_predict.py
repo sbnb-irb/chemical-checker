@@ -125,7 +125,7 @@ SPECIFIC_SCRIPTS = {
 @logged
 class CCFit(BaseTask, BaseOperator):
 
-    def __init__(self, name=None, cc_type=None, CC_ROOT=None, **params):
+    def __init__(self, name=None, cc_type=None, **params):
         """Initialize CC fit task.
 
         Args:
@@ -147,6 +147,7 @@ class CCFit(BaseTask, BaseOperator):
         """
         if cc_type is None:
             raise Exception("CCFit requires a cc_type")
+        self.CC_ROOT = params.get('CC_ROOT', None)
         if self.CC_ROOT is None:
             raise Exception('CC_ROOT parameter is not set')
         if name is None:
@@ -164,7 +165,6 @@ class CCFit(BaseTask, BaseOperator):
         self.target_datasets = params.get('target_datasets', None)
         self.ref_datasets = params.get('reference_datasets', None)
         self.cc_old_path = params.get('cc_old_path', None)
-        self.CC_ROOT = params.get('CC_ROOT', None)
         self.json_config_file = params.get(
             'json_config_file', None)  # NS: added
 
