@@ -185,7 +185,8 @@ class CCFit(BaseTask, BaseOperator):
         if self.cc_type == 'sign3':
             self.full_reference = self.target_datasets is None
             if self.ref_datasets is None:
-                self.ref_datasets = Dataset.get(exemplary=True)
+                self.ref_datasets = [
+                    ds.dataset_code for ds in Dataset.get(exemplary=True)]
             if self.target_datasets is None:
                 for ds in self.ref_datasets:
                     sign3 = cc.get_signature("sign3", "full", ds)
