@@ -260,8 +260,7 @@ class CCFit(BaseTask, BaseOperator):
                     # (default:True)
                     if self.full_reference:
                         # NS molset: reference
-                        sign = cc.get_signature(
-                            self.cc_type, "reference", ds.dataset_code)
+                        sign = cc.get_signature(self.cc_type, "reference", ds.dataset_code)
 
                         if not (sign.dataset == 'D1.001' and sign.cctype == 'sign0') and os.path.exists(sign.signature_path):
                             #print("Attempting to delete signature path: ", sign.signature_path)
@@ -418,6 +417,7 @@ class CCFit(BaseTask, BaseOperator):
 
             if self.cc_type == 'sign1':
                 params["mem_by_core"] = 20  # h_vmem parameter NS some sign (memory limit)
+                param['specificNode'] = 'pac-one301'  # NS tmp, remove afterwards!!
 
             # job command
             cc_config_path = os.environ['CC_CONFIG']
