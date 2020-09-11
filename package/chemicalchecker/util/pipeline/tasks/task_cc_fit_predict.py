@@ -417,7 +417,7 @@ class CCFit(BaseTask, BaseOperator):
 
             if self.cc_type == 'sign1':
                 params["mem_by_core"] = 20  # h_vmem parameter NS some sign (memory limit)
-                param['specificNode'] = 'pac-one301'  # NS tmp, remove afterwards!!
+                params['specificNode'] = 'pac-one301'  # NS tmp, remove afterwards!!
 
             # job command
             cc_config_path = os.environ['CC_CONFIG']
