@@ -61,6 +61,15 @@ fi
         self.password = kwargs.get("password", '')
         self.error_finder = kwargs.get("error_finder", self.__find_error)
         dry_run = kwargs.get("dry_run", False)
+        self.specificNode= kwargs.get("specificNode", None) # NS to send to a specific machine
+        if self.specificNode:
+                defaultOptions = """\
+#$ -S /bin/bash
+#$ -r yes
+#$ -j yes
+#$ -q all.q@{}
+""".format(self.specificNode)
+
         self.statusFile = None
         self.status_id = None
         self.conn_params = {}
