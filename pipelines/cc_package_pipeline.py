@@ -237,10 +237,6 @@ p1_params = {'CC_ROOT': CC_ROOT}
 p1_task = CCFit(cc_type='proj1', **p1_params)
 pp.add_task(p1_task)
 
-pp.run()
-print("DONE, Calculate sign 0 and 1, nearest neighbours and projections")
-sys.exit(0)
-
 # TASK: Calculate signatures 2
 s2_params = {'CC_ROOT': CC_ROOT}
 s2_task = CCFit(cc_type='sign2', **s2_params)
@@ -255,6 +251,10 @@ pp.add_task(n2_task)
 p2_params = {'CC_ROOT': CC_ROOT}
 p2_task = CCFit(cc_type='proj2', **p2_params)
 pp.add_task(p2_task)
+
+pp.run()
+print("DONE, Calculate sign 0,1, 2, nearest neighbours and projections")
+sys.exit(0)
 
 # TASK: Calculate signatures 3
 s3_params = {'CC_ROOT': CC_ROOT}
