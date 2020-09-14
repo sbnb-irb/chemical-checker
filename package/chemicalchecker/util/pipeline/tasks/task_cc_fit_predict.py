@@ -121,6 +121,11 @@ SIGN1_SCRIPT_FR = [
     'sign_new_full.fit(sign_full, **pars)'
 ]
 
+DIAG1_SCRIPT_FR =[
+    'diag_full = cc.get_signature("diag1", "full", data, cc_instance=cc)',
+    'diag_full.fit(diag_full, **pars)'
+]
+
 SPECIFIC_SCRIPTS = {
     'sign1': (SIGN1_SCRIPT_FR, SIGN1_SCRIPT_FR),
     'sign2': (SIGN2_SCRIPT_FR, SIGN2_SCRIPT_F)
@@ -388,7 +393,7 @@ class CCFit(BaseTask, BaseOperator):
                     # # same for sign0 i.e SIGN0_SCRIPT_FR, i.e will call cc.preprocess
                     script_lines += SPECIFIC_SCRIPTS[self.cc_type][1]
                 else:
-                    script_lines += [sub.replace('<CC_TYPE>', self.cc_type) for sub in CC_SCRIPT_F]
+                    script_lines += [sub.replace('<CC_TYPE>', self.cc_type) for sub in CC_SCRIPT_F]  # here the fit method is called
 
             script_lines += ["print('JOB DONE')"]
 
