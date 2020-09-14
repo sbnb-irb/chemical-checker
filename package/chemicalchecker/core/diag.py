@@ -16,7 +16,7 @@ from chemicalchecker.util import logged
 class diag(BaseSignature, DataSignature):
     """Projection Signature class."""
 
-    def __init__(self, signature_path, dataset, cc_instance,**kwargs):
+    def __init__(self, signature_path, dataset,**kwargs):
         """Initialize the proj class.
 
         Args:
@@ -32,13 +32,10 @@ class diag(BaseSignature, DataSignature):
         DataSignature.__init__(self, self.data_path)
         self.__log.debug('data_path: %s', self.data_path)
 
-        self.cc_instance=cc_instance
 
 
     def fit(self):
-        signObj= self.cc_instance.get_signature(self.cc_type,self.molset,dataset)
-        diag= self.cc_instance.diagnosis(signObj)
-        diag.canvas()
+        pass
 
     def predict(self):
         pass

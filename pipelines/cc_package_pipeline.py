@@ -13,6 +13,7 @@ from chemicalchecker.database import Calcdata
 from chemicalchecker.database import Dataset
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, CCFit, CCLongShort, CCSmileConverter
 from chemicalchecker.util import Config
+from chemicalchecker.core.diagnostics import Diagnosis
 
 from update_resources.generate_chembl_files import generate_chembl_files # Nico
 
@@ -228,6 +229,7 @@ pp.add_task(s1_task)
 pp.run()
 print("DONE, Calculate sign 0 and 1, nearest neighbours and projections")
 sys.exit(0)
+
 ##### TASK: Calculate clustering for signatures 1 #######
 c1_params = {'CC_ROOT': CC_ROOT}
 c1_params['general_params'] = {'balance': 1.5}
