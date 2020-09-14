@@ -13,7 +13,7 @@ from chemicalchecker.util import logged
 
 
 @logged
-class diag(BaseSignature, DataSignature):
+class diag(BaseSignature):
     """Projection Signature class."""
 
     def __init__(self, signature_path, dataset,**kwargs):
@@ -29,8 +29,8 @@ class diag(BaseSignature, DataSignature):
         BaseSignature.__init__(self, signature_path, dataset, **kwargs)
         self.__log.debug('signature path is: %s', signature_path)
 
-        DataSignature.__init__(self, self.data_path)
-        self.__log.debug('data_path: %s', self.data_path)
+        #DataSignature.__init__(self, self.data_path)
+        #self.__log.debug('data_path: %s', self.data_path)
 
 
 
