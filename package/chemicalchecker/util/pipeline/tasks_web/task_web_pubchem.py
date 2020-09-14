@@ -1,17 +1,11 @@
-import tempfile
-import h5py
 import os
-import pubchempy
-import requests
-import json
+import h5py
 import shutil
-from airflow.models import BaseOperator
-from airflow import AirflowException
-from chemicalchecker.util import logged
-from chemicalchecker.util import HPC
-from chemicalchecker.util.pipeline import BaseTask
+import tempfile
+
 from chemicalchecker.util import psql
-from chemicalchecker.util import Config
+from chemicalchecker.util.pipeline import BaseTask
+from chemicalchecker.util import logged, Config, HPC
 
 # We got these strings by doing: pg_dump -t 'pubchem' --schema-only mosaic
 # -h aloy-dbsrv
@@ -49,11 +43,9 @@ COUNT = "SELECT COUNT(DISTINCT inchikey) FROM pubchem"
 
 
 @logged
-class Pubchem(BaseTask, BaseOperator):
+class Pubchem(BaseTask):
 
     def __init__(self, name=None, **params):
-
-        args = []
 
         task_id = params.get('task_id', None)
 
@@ -61,7 +53,6 @@ class Pubchem(BaseTask, BaseOperator):
             params['task_id'] = name
 
         BaseTask.__init__(self, name, **params)
-        BaseOperator.__init__(self, *args, **params)
 
         self.DB = params.get('DB', None)
         self.OLD_DB = params.get('OLD_DB', None)
@@ -125,7 +116,7 @@ class Pubchem(BaseTask, BaseOperator):
             count = psql.qstring(COUNT, self.DB)
             if int(count[0][0]) != data_size:
                 if not self.custom_ready():
-                    raise AirflowException(
+                    raise Exception(
                         "Not all universe keys were added to Pubchem (%d/%d)" % (int(count[0][0]), data_size))
                 else:
                     self.__log.error(

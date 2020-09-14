@@ -16,7 +16,6 @@ requirements = [
     'matplotlib<3.0',
     'seaborn',
     'tqdm',
-    'apache-airflow'
 ]
 
 setup_requirements = ['pytest-runner']

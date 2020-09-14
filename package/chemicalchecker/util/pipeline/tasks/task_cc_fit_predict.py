@@ -8,8 +8,6 @@ import os
 import h5py
 import shutil
 import tempfile
-from airflow import AirflowException
-from airflow.models import BaseOperator
 
 from chemicalchecker.database import Dataset
 from chemicalchecker.core.sign3 import sign3
@@ -133,7 +131,7 @@ SPECIFIC_SCRIPTS = {
 
 
 @logged
-class CCFit(BaseTask, BaseOperator):
+class CCFit(BaseTask):
 
     def __init__(self, name=None, cc_type=None, **params):
         """Initialize CC fit task.
@@ -166,7 +164,6 @@ class CCFit(BaseTask, BaseOperator):
         args = []
         params['task_id'] = params.get('task_id', name)
         BaseTask.__init__(self, name, **params)
-        BaseOperator.__init__(self, *args, **params)
 
         self.cc_type = cc_type
         self.datasets = params.get('datasets', None)
@@ -448,7 +445,7 @@ class CCFit(BaseTask, BaseOperator):
                 shutil.rmtree(job_path, ignore_errors=True)
         else:
             if not self.custom_ready():
-                raise AirflowException("Not all dataset fits are done")
+                raise Exception("Not all dataset fits are done")
 
     def execute(self, context):
         """Same as run but for Airflow."""

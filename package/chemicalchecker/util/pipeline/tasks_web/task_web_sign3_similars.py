@@ -1,23 +1,17 @@
-import tempfile
 import os
 import shutil
+import tempfile
 
-from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
-from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import HPC
-from airflow.models import BaseOperator
-from airflow import AirflowException
+from chemicalchecker.util import logged, Config, HPC
 
 
 @logged
-class SimilarsSign3(BaseTask, BaseOperator):
+class SimilarsSign3(BaseTask):
 
     def __init__(self, name=None, **params):
-
-        args = []
 
         task_id = params.get('task_id', None)
 
@@ -25,7 +19,6 @@ class SimilarsSign3(BaseTask, BaseOperator):
             params['task_id'] = name
 
         BaseTask.__init__(self, name, **params)
-        BaseOperator.__init__(self, *args, **params)
 
         self.CC_ROOT = params.get('CC_ROOT', None)
         if self.CC_ROOT is None:
@@ -74,7 +67,8 @@ class SimilarsSign3(BaseTask, BaseOperator):
                 "from chemicalchecker.core import ChemicalChecker",
                 "task_id = sys.argv[1]",  # <TASK_ID>
                 "filename = sys.argv[2]",  # <FILE>
-                "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
+                # load pickled data
+                "inputs = pickle.load(open(filename, 'rb'))",
                 "data = str(inputs[task_id][0])",  # elements for current job
                 # elements are indexes
                 "cc = ChemicalChecker( '%s')" % self.CC_ROOT,
@@ -132,7 +126,8 @@ class SimilarsSign3(BaseTask, BaseOperator):
                 shutil.rmtree(job_path)
         else:
             if not self.custom_ready():
-                raise AirflowException("Not all similars were calculated correctly")
+                raise Exception(
+                    "Not all similars were calculated correctly")
 
     def execute(self, context):
         """Run the molprops step."""
