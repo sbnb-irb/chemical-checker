@@ -44,4 +44,8 @@ class diag(BaseSignature, DataSignature):
         pass
 
     def is_fit(self):
-        if len(os.listdir('/home/varun/temp') ) == 0:
+        if len(os.listdir(self.diags_path)) == 0:
+            return False
+        else:
+            print(self.diags_path, "contains some diagnostic plots, nothing to do here")
+            return True
