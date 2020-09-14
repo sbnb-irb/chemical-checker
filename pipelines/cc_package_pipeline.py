@@ -206,10 +206,6 @@ if not DEBUG:
         pp.add_task(val_set_task)
 
 
-# TASK: Calculate signatures 0
-if DEBUG:
-    pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
-
 s0_params = {'CC_ROOT': CC_ROOT, 'cc_old_path': CC_OLD_ROOT}
 s0_task = CCFit(cc_type='sign0', **s0_params)
 pp.add_task(s0_task)
@@ -220,7 +216,18 @@ s1_params = {'CC_ROOT': CC_ROOT}
 s1_task = CCFit(cc_type='sign1', **s1_params)
 pp.add_task(s1_task)
 
+# TASK: Calculate signatures 0
+if DEBUG:
+    pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
 
+# TASK: Diagnostic plot for sign 1
+s1_params = {'CC_ROOT': CC_ROOT}
+s1_task = CCFit(cc_type='diag1', **s1_params)
+pp.add_task(s1_task)
+
+pp.run()
+print("DONE, Calculate sign 0 and 1, nearest neighbours and projections")
+sys.exit(0)
 ##### TASK: Calculate clustering for signatures 1 #######
 c1_params = {'CC_ROOT': CC_ROOT}
 c1_params['general_params'] = {'balance': 1.5}
@@ -236,10 +243,6 @@ pp.add_task(n1_task)
 p1_params = {'CC_ROOT': CC_ROOT}
 p1_task = CCFit(cc_type='proj1', **p1_params)
 pp.add_task(p1_task)
-
-pp.run()
-print("DONE, Calculate sign 0 and 1, nearest neighbours and projections")
-sys.exit(0)
 
 # TASK: Calculate signatures 2
 s2_params = {'CC_ROOT': CC_ROOT}

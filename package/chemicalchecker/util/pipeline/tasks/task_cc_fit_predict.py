@@ -18,7 +18,7 @@ from chemicalchecker.util.pipeline import BaseTask
 from chemicalchecker.util import logged, Config, HPC
 
 
-VALID_TYPES = ['sign', 'neig', 'clus', 'proj']
+VALID_TYPES = ['sign', 'neig', 'clus', 'proj', 'diag']
 
 CC_TYPES_DEPENDENCIES = {
     'sign0': ['sign0'],
@@ -33,7 +33,8 @@ CC_TYPES_DEPENDENCIES = {
     'clus3': ['sign3'],
     'proj1': ['sign1'],
     'proj2': ['sign2'],
-    'proj3': ['sign3']
+    'proj3': ['sign3'],
+    'diag1': ['sign1']
 }
 
 # NS: changed sign1 requirement from (20,10) to (40,10)
@@ -50,7 +51,8 @@ CC_TYPES_MEM_CPU = {
     'clus3': (20, 10),
     'proj1': (20, 10),
     'proj2': (20, 10),
-    'proj3': (20, 10)
+    'proj3': (20, 10),
+    'diag1': (20,10)
 }
 
 SPECIAL_PARAMS = {
@@ -64,7 +66,9 @@ SPECIAL_PARAMS = {
     'clus3': {'cpu': 10},
     'proj1': {'cpu': 10},
     'proj2': {'cpu': 10},
-    'proj3': {'cpu': 10}}
+    'proj3': {'cpu': 10},
+    'diag1': {'cpu': 10},
+    }
 
 CC_SCRIPT_FR = [
     'sign_new_ref = cc.get_signature("<CC_TYPE>", "reference", data,**pars)',
@@ -167,8 +171,7 @@ class CCFit(BaseTask, BaseOperator):
         self.target_datasets = params.get('target_datasets', None)
         self.ref_datasets = params.get('reference_datasets', None)
         self.cc_old_path = params.get('cc_old_path', None)
-        self.json_config_file = params.get(
-            'json_config_file', None)  # NS: added
+        self.json_config_file = params.get('json_config_file', None)  # NS: added
 
         if self.cc_type == 'sign0' and self.ds_data_params is None and self.cc_old_path is None:
             raise Exception(
@@ -179,8 +182,7 @@ class CCFit(BaseTask, BaseOperator):
 
         config_cc = Config()
         dataset_codes = list()
-        cc = ChemicalChecker(
-            self.CC_ROOT, json_config_file=self.json_config_file)
+        cc = ChemicalChecker(self.CC_ROOT, json_config_file=self.json_config_file)
 
         # sign3 specific checks, precalculations and parameters
         if self.cc_type == 'sign3':
@@ -242,8 +244,7 @@ class CCFit(BaseTask, BaseOperator):
                         continue
 
                     # returns a signx object
-                    sign = cc.get_signature(
-                        self.cc_type, "full", ds.dataset_code)
+                    sign = cc.get_signature(self.cc_type, "full", ds.dataset_code)
 
                     if sign.is_fit():
                         continue
@@ -260,8 +261,7 @@ class CCFit(BaseTask, BaseOperator):
                     # (default:True)
                     if self.full_reference:
                         # NS molset: reference
-                        sign = cc.get_signature(
-                            self.cc_type, "reference", ds.dataset_code)
+                        sign = cc.get_signature(self.cc_type, "reference", ds.dataset_code)
 
                         if not (sign.dataset == 'D1.001' and sign.cctype == 'sign0') and os.path.exists(sign.signature_path):
                             #print("Attempting to delete signature path: ", sign.signature_path)
@@ -296,12 +296,13 @@ class CCFit(BaseTask, BaseOperator):
 
                 if self.cc_type in SPECIAL_PARAMS:
                     dict_params.update(SPECIAL_PARAMS[self.cc_type])
+
                 if self.general_data_params is not None:
                     dict_params.update(self.general_data_params)
-                dataset_params.append(
-                    (ds_code, dict_params))
+                dataset_params.append((ds_code, dict_params))
             else:
                 dataset_params.append((ds_code, None))  # i.e ('A1.001', None)
+
         self.__log.info('dataset_params:')
         for p in dataset_params:
             self.__log.info('\t%s' % str(p))
@@ -320,11 +321,7 @@ class CCFit(BaseTask, BaseOperator):
                 # again, generate a sign or neig object to fulfill the
                 # dependency before the required signature
                 sign = cc.get_signature(dependency, branch, ds)
-                print(
-                    "Signature object required for fullfilling dependency of", self.cc_type)
-                print("branch-->", branch)
-                print("dependency-->", dependency)
-                print("dataset-->", ds)
+
                 if not sign.available():
                     raise Exception(
                         dependency + " CC type is not available and it is required for " + self.cc_type)
@@ -374,11 +371,9 @@ class CCFit(BaseTask, BaseOperator):
                 "cc = ChemicalChecker('%s')" % self.CC_ROOT,
                 'if pars is None: pars = {}',
                 # start import
-                'sign_full = cc.get_signature("%s","full",data)' % CC_TYPES_DEPENDENCIES[
-                    self.cc_type][0],
+                'sign_full = cc.get_signature("%s","full",data)' % CC_TYPES_DEPENDENCIES[self.cc_type][0],
                 # start import
-                'sign_ref = cc.get_signature("%s","reference",data)' % CC_TYPES_DEPENDENCIES[
-                    self.cc_type][0]
+                'sign_ref = cc.get_signature("%s","reference",data)' % CC_TYPES_DEPENDENCIES[self.cc_type][0]
             ]
 
             # Preprocessing scripts
@@ -387,15 +382,13 @@ class CCFit(BaseTask, BaseOperator):
                     # i.e SIGN0_SCRIPT_FR, i.e will call cc.preprocess
                     script_lines += SPECIFIC_SCRIPTS[self.cc_type][0]
                 else:
-                    script_lines += [sub.replace('<CC_TYPE>', self.cc_type)
-                                     for sub in CC_SCRIPT_FR]
+                    script_lines += [sub.replace('<CC_TYPE>', self.cc_type) for sub in CC_SCRIPT_FR]
             else:
                 if self.cc_type in SPECIFIC_SCRIPTS:
                     # # same for sign0 i.e SIGN0_SCRIPT_FR, i.e will call cc.preprocess
                     script_lines += SPECIFIC_SCRIPTS[self.cc_type][1]
                 else:
-                    script_lines += [sub.replace('<CC_TYPE>', self.cc_type)
-                                     for sub in CC_SCRIPT_F]
+                    script_lines += [sub.replace('<CC_TYPE>', self.cc_type) for sub in CC_SCRIPT_F]
 
             script_lines += ["print('JOB DONE')"]
 
