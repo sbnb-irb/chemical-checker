@@ -101,8 +101,8 @@ class local():
 
         for i in range(num_jobs):
             cmd_run = command.replace("<TASK_ID>", str(i + 1))
-            self.__log.info("Running job %d/%d" % (i + 1, num_jobs))
-            self.__log.debug("CMD:", cmd_run)
+            self.__log.info("Running job %d/%d", i + 1, num_jobs)
+            self.__log.debug("CMD: %s", cmd_run)
             with open(os.path.join(self.jobdir, "log" + str(i + 1) + ".txt"), 'w') as f:
                 subprocess.call([cmd_run], stdout=f, stderr=f, shell=True)
 
@@ -122,20 +122,29 @@ class local():
         if errors is not None:
             return errors
 
-    def __find_error(self, files):
+    def __find_error(self, files, print_logs):
         errors = ''
         for file_name in files:
+            if print_logs:
+                self.__log.debug('*' * 40)
+                self.__log.debug('*   START log for: %s', file_name)
+                self.__log.debug('*' * 40)
             with open(file_name, 'r') as f:
                 num = 1
                 for line in f:
+                    print('*  ' + line.strip())
                     if re.search(r'(?i)error', line):
                         errors += file_name + " " + str(num) + " " + line
                     if 'Traceback (most recent call last)' in line:
                         errors += file_name + " " + str(num) + " " + line
                     num += 1
+            if print_logs:
+                self.__log.debug('*' * 40)
+                self.__log.debug('*   END log for: %s', file_name)
+                self.__log.debug('*' * 40)
         return errors
 
-    def check_errors(self):
+    def check_errors(self, print_logs=True):
         """Check for errors in the output logs of the jobs."""
         errors = ''
         self.__log.debug("Checking errors in job")
@@ -143,7 +152,7 @@ class local():
         for file_name in glob.glob(os.path.join(self.jobdir, 'log*')):
             files.append(file_name)
 
-        errors = self.error_finder(files)
+        errors = self.error_finder(files, print_logs)
 
         if len(errors) > 0:
             self.__log.debug("Found errors in job")

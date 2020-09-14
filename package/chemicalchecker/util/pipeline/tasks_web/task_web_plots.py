@@ -1,23 +1,19 @@
 import os
 import h5py
+import shutil
 import tempfile
 from shutil import copyfile
-import shutil
-from chemicalchecker.util import logged
-from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import Config
-from chemicalchecker.core import ChemicalChecker
-from chemicalchecker.util import HPC
+
 from chemicalchecker.database import Dataset
-from airflow.models import BaseOperator
-from airflow import AirflowException
+from chemicalchecker.core import ChemicalChecker
+from chemicalchecker.util.pipeline import BaseTask
+from chemicalchecker.util import logged, Config, HPC
+
 
 @logged
-class Plots(BaseTask, BaseOperator):
+class Plots(BaseTask):
 
     def __init__(self, name=None, **params):
-
-        args = []
 
         task_id = params.get('task_id', None)
 
@@ -25,7 +21,6 @@ class Plots(BaseTask, BaseOperator):
             params['task_id'] = name
 
         BaseTask.__init__(self, name, **params)
-        BaseOperator.__init__(self, *args, **params)
 
         self.DB = params.get('DB', None)
         if self.DB is None:
@@ -36,7 +31,6 @@ class Plots(BaseTask, BaseOperator):
         self.MOLECULES_PATH = params.get('MOLECULES_PATH', None)
         if self.MOLECULES_PATH is None:
             raise Exception('MOLECULES_PATH parameter is not set')
-
 
     def run(self):
         """Run the coordinates step."""
@@ -107,7 +101,8 @@ class Plots(BaseTask, BaseOperator):
             shutil.rmtree(job_path)
         else:
             if not self.custom_ready():
-                        raise AirflowException("Some molecules did not get the plots right.")
+                raise Exception(
+                    "Some molecules did not get the plots right.")
             else:
                 self.__log.error("Some molecules did not get the plots right.")
 
