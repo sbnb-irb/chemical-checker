@@ -1,12 +1,12 @@
 import os
 import json
-from chemicalchecker.util import logged
-from chemicalchecker.util.pipeline import BaseTask
+
 from chemicalchecker.util import psql
-from chemicalchecker.core import ChemicalChecker
+from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
-from airflow.models import BaseOperator
-from airflow import AirflowException
+from chemicalchecker.core import ChemicalChecker
+from chemicalchecker.util.pipeline import BaseTask
+
 # We got these strings by doing: pg_dump -t 'pubchem' --schema-only mosaic
 # -h aloy-dbsrv
 
@@ -43,7 +43,7 @@ COUNT = "SELECT COUNT(DISTINCT coord) FROM coordinates"
 
 
 @logged
-class Coordinates(BaseTask, BaseOperator):
+class Coordinates(BaseTask):
 
     def __init__(self, name=None, **params):
 
@@ -55,7 +55,6 @@ class Coordinates(BaseTask, BaseOperator):
             params['task_id'] = name
 
         BaseTask.__init__(self, name, **params)
-        BaseOperator.__init__(self, *args, **params)
 
         self.DB = params.get('DB', None)
         if self.DB is None:
@@ -83,7 +82,7 @@ class Coordinates(BaseTask, BaseOperator):
 
             self.__log.error("Error while creating coordinates tables")
             if not self.custom_ready():
-                raise AirflowException(e)
+                raise Exception(e)
             else:
                 self.__log.error(e)
                 return
@@ -98,13 +97,14 @@ class Coordinates(BaseTask, BaseOperator):
             try:
                 name = str(ds.name)
                 desc = str(ds.description)
-                psql.query(INSERT % (str(ds.coordinate), name.replace("'", "''"), desc.replace("'", "''")), self.DB)
+                psql.query(INSERT % (str(ds.coordinate), name.replace(
+                    "'", "''"), desc.replace("'", "''")), self.DB)
 
             except Exception as e:
 
                 self.__log.error("Error while filling coordinates table")
                 if not self.custom_ready():
-                    raise AirflowException(e)
+                    raise Exception(e)
                 else:
                     self.__log.error(e)
                     return
@@ -128,7 +128,7 @@ class Coordinates(BaseTask, BaseOperator):
 
                 self.__log.error("Error while filling coordinate_stats table")
                 if not self.custom_ready():
-                    raise AirflowException(e)
+                    raise Exception(e)
                 else:
                     self.__log.error(e)
                     return
@@ -138,7 +138,7 @@ class Coordinates(BaseTask, BaseOperator):
             count = psql.qstring(COUNT, self.DB)
             if int(count[0][0]) != size_exemplary:
                 if not self.custom_ready():
-                    raise AirflowException(
+                    raise Exception(
                         "Not all exemplary datasets were added to coordinates (%d/%d)" % (int(count[0][0]), size_exemplary))
                 else:
                     self.__log.error(
@@ -147,7 +147,7 @@ class Coordinates(BaseTask, BaseOperator):
                 count = psql.qstring(COUNT_STATS, self.DB)
                 if int(count[0][0]) != size_exemplary:
                     if not self.custom_ready():
-                        raise AirflowException(
+                        raise Exception(
                             "Not all exemplary datasets were added to coordinate_stats (%d/%d)" % (int(count[0][0]), size_exemplary))
                     else:
                         self.__log.error(
@@ -158,7 +158,7 @@ class Coordinates(BaseTask, BaseOperator):
 
             self.__log.error("Error while checking coordinates tables")
             if not self.custom_ready():
-                raise AirflowException(e)
+                raise Exception(e)
             else:
                 self.__log.error(e)
 

@@ -1,27 +1,23 @@
-import tempfile
 import os
-import shutil
 import h5py
 import json
+import shutil
+import tempfile
 from tqdm import tqdm
-from chemicalchecker.util import logged
-from chemicalchecker.util import HPC
-from chemicalchecker.util.pipeline import BaseTask
+
 from chemicalchecker.util import psql
-from chemicalchecker.util import Config
-from airflow.models import BaseOperator
-from airflow import AirflowException
+from chemicalchecker.util.pipeline import BaseTask
+from chemicalchecker.util import logged, Config, HPC
+
 
 # We got these strings by doing: pg_dump -t 'scores' --schema-only mosaic
 # -h aloy-dbsrv
 
 
 @logged
-class Similars(BaseTask, BaseOperator):
+class Similars(BaseTask):
 
     def __init__(self, name=None, **params):
-
-        args = []
 
         task_id = params.get('task_id', None)
 
@@ -29,7 +25,6 @@ class Similars(BaseTask, BaseOperator):
             params['task_id'] = name
 
         BaseTask.__init__(self, name, **params)
-        BaseOperator.__init__(self, *args, **params)
 
         self.DB = params.get('DB', None)
         if self.DB is None:
@@ -82,7 +77,7 @@ class Similars(BaseTask, BaseOperator):
                     json.dump(names_map, outfile)
             else:
                 if not self.custom_ready():
-                    raise AirflowException(
+                    raise Exception(
                         "Inchikeys name JSON file was not created")
                 else:
                     self.__log.error(
@@ -125,7 +120,7 @@ class Similars(BaseTask, BaseOperator):
 
         if len(missing_keys) != 0:
             if not self.custom_ready():
-                raise AirflowException(
+                raise Exception(
                     "Not all molecules have their json explore file (%d/%d)" % (len(missing_keys), len(universe_keys)))
             else:
                 self.__log.error(

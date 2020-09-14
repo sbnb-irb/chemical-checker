@@ -2,13 +2,11 @@ import os
 import collections
 from sbnb.uniprotkb import UniprotKB
 
-from chemicalchecker.util import logged
-from chemicalchecker.util.pipeline import BaseTask
 from chemicalchecker.util import psql
-from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.database import Dataset
-from airflow.models import BaseOperator
-from airflow import AirflowException
+from chemicalchecker.core import ChemicalChecker
+from chemicalchecker.util.pipeline import BaseTask
+from chemicalchecker.util import logged
 
 # We got these strings by doing: pg_dump -t 'pubchem' --schema-only mosaic
 # -h aloy-dbsrv
@@ -48,11 +46,9 @@ ref_spaces = ['B1.001', 'B2.001', 'B4.001', 'B5.001']
 
 
 @logged
-class ShowTargets(BaseTask, BaseOperator):
+class ShowTargets(BaseTask):
 
     def __init__(self, name=None, **params):
-
-        args = []
 
         task_id = params.get('task_id', None)
 
@@ -60,7 +56,6 @@ class ShowTargets(BaseTask, BaseOperator):
             params['task_id'] = name
 
         BaseTask.__init__(self, name, **params)
-        BaseOperator.__init__(self, *args, **params)
 
         self.DB = params.get('DB', None)
         if self.DB is None:
@@ -89,7 +84,7 @@ class ShowTargets(BaseTask, BaseOperator):
 
             self.__log.error("Error while creating tables")
             if not self.custom_ready():
-                raise AirflowException(e)
+                raise Exception(e)
             else:
                 self.__log.error(e)
                 return
@@ -140,7 +135,7 @@ class ShowTargets(BaseTask, BaseOperator):
 
             self.__log.error("Error while filling showtargets_description")
             if not self.custom_ready():
-                raise AirflowException(e)
+                raise Exception(e)
             else:
                 self.__log.error(e)
                 return
@@ -443,7 +438,7 @@ class ShowTargets(BaseTask, BaseOperator):
 
             self.__log.error("Error while saving tables")
             if not self.custom_ready():
-                raise AirflowException(e)
+                raise Exception(e)
             else:
                 self.__log.error(e)
                 return
@@ -457,7 +452,7 @@ class ShowTargets(BaseTask, BaseOperator):
     def __sort_alphabet(self, prots, showtarg_d):
         def nonesorter(a):
             if not a:
-               return ""
+                return ""
             return a
         P0 = []
         P1 = []

@@ -4,23 +4,18 @@ This tasks is mainly thought to be used on signature3 to create a model to
 predict signatures3 from smiles.
 Maybe, it could be generalized to other signatures.
 """
-import tempfile
 import os
 import shutil
-import h5py
-import numpy as np
-from airflow.models import BaseOperator
-from airflow import AirflowException
-from chemicalchecker.util import logged
+import tempfile
+
 from chemicalchecker.database import Dataset
-from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import HPC
+from chemicalchecker.util import logged, Config, HPC
 
 
 @logged
-class CCSmileConverter(BaseTask, BaseOperator):
+class CCSmileConverter(BaseTask):
 
     def __init__(self, name=None, cc_type='sign3', **params):
         """Initialize CC SmileConverter task.
@@ -44,7 +39,6 @@ class CCSmileConverter(BaseTask, BaseOperator):
             params['task_id'] = name
 
         BaseTask.__init__(self, name, **params)
-        BaseOperator.__init__(self, *args, **params)
 
         self.cc_type = cc_type
 
@@ -173,7 +167,7 @@ class CCSmileConverter(BaseTask, BaseOperator):
                 shutil.rmtree(job_path)
         else:
             if not self.custom_ready():
-                raise AirflowException("Some predictions failed")
+                raise Exception("Some predictions failed")
 
     def execute(self, context):
         """Same as run but for Airflow."""
