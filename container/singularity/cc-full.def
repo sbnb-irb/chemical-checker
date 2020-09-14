@@ -81,7 +81,7 @@ From: centos:8
     pip install wget                              # download library
     pip install timeout_decorator                 # method timeout
     pip install tqdm                              # handy progress-bar
-    pip install apache-airflow                    # Install airflow for the pipeline
+    #pip install apache-airflow                    # Install airflow for the pipeline
 
 
     # raw data packages

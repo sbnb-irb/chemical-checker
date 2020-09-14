@@ -1,19 +1,14 @@
-import tempfile
-import h5py
 import os
 import csv
+import h5py
+import shutil
+import tempfile
 import numpy as np
 from scipy.stats import rankdata
-import shutil
-from chemicalchecker.util import logged
-from chemicalchecker.util import HPC
-from chemicalchecker.util.pipeline import BaseTask
+
 from chemicalchecker.util import psql
-from chemicalchecker.core import ChemicalChecker
-from chemicalchecker.util import Config
-from chemicalchecker.database import Dataset
-from airflow.models import BaseOperator
-from airflow import AirflowException
+from chemicalchecker.util.pipeline import BaseTask
+from chemicalchecker.util import logged, Config, HPC
 
 
 # We got these strings by doing: pg_dump -t 'scores' --schema-only mosaic
@@ -42,11 +37,9 @@ COUNT = "SELECT COUNT(*) FROM molecular_info"
 
 
 @logged
-class MolecularInfo(BaseTask, BaseOperator):
+class MolecularInfo(BaseTask):
 
     def __init__(self, name=None, **params):
-
-        args = []
 
         task_id = params.get('task_id', None)
 
@@ -54,7 +47,6 @@ class MolecularInfo(BaseTask, BaseOperator):
             params['task_id'] = name
 
         BaseTask.__init__(self, name, **params)
-        BaseOperator.__init__(self, *args, **params)
 
         self.DB = params.get('DB', None)
         if self.DB is None:
@@ -67,8 +59,6 @@ class MolecularInfo(BaseTask, BaseOperator):
         """Run the molecular info step."""
 
         config_cc = Config()
-
-        all_datasets = Dataset.get()
 
         cc_config_path = os.environ['CC_CONFIG']
         cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
@@ -83,7 +73,7 @@ class MolecularInfo(BaseTask, BaseOperator):
         except Exception as e:
 
             if not self.custom_ready():
-                raise AirflowException(e)
+                raise Exception(e)
             else:
                 self.__log.error(e)
                 return
@@ -171,7 +161,7 @@ class MolecularInfo(BaseTask, BaseOperator):
             count = psql.qstring(COUNT, self.DB)
             if int(count[0][0]) != datasize:
                 if not self.custom_ready():
-                    raise AirflowException(
+                    raise Exception(
                         "Not all universe keys were added to molecular_info (%d/%d)" % (int(count[0][0]), datasize))
                 else:
                     self.__log.error(
@@ -185,7 +175,7 @@ class MolecularInfo(BaseTask, BaseOperator):
         except Exception as e:
 
             if not self.custom_ready():
-                raise AirflowException(e)
+                raise Exception(e)
             else:
                 self.__log.error(e)
 

@@ -1,13 +1,11 @@
 import os
 import h5py
-from chemicalchecker.util import logged
-from chemicalchecker.util.pipeline import BaseTask
+
 from chemicalchecker.util import psql
-from chemicalchecker.util import Config
-from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.database import Dataset
-from airflow.models import BaseOperator
-from airflow import AirflowException
+from chemicalchecker.core import ChemicalChecker
+from chemicalchecker.util.pipeline import BaseTask
+from chemicalchecker.util import logged
 # We got these strings by doing: pg_dump -t 'pubchem' --schema-only mosaic
 # -h aloy-dbsrv
 
@@ -20,11 +18,9 @@ COUNT = "SELECT COUNT(DISTINCT inchikey) FROM projections"
 
 
 @logged
-class Projections(BaseTask, BaseOperator):
+class Projections(BaseTask):
 
     def __init__(self, name=None, **params):
-
-        args = []
 
         task_id = params.get('task_id', None)
 
@@ -32,7 +28,6 @@ class Projections(BaseTask, BaseOperator):
             params['task_id'] = name
 
         BaseTask.__init__(self, name, **params)
-        BaseOperator.__init__(self, *args, **params)
 
         self.DB = params.get('DB', None)
         if self.DB is None:
@@ -77,7 +72,7 @@ class Projections(BaseTask, BaseOperator):
 
             self.__log.error("Error while creating ptojections table")
             if not self.custom_ready():
-                raise AirflowException(e)
+                raise Exception(e)
             else:
                 self.__log.error(e)
                 return
@@ -131,7 +126,7 @@ class Projections(BaseTask, BaseOperator):
             count = psql.qstring(COUNT, self.DB)
             if int(count[0][0]) != len(D):
                 if not self.custom_ready():
-                    raise AirflowException(
+                    raise Exception(
                         "Not all inchikeys were added to projections (%d/%d)" % (int(count[0][0]), len(D)))
                 else:
                     self.__log.error(
@@ -143,7 +138,7 @@ class Projections(BaseTask, BaseOperator):
             self.__log.error(
                 "Error while checking & creating indexes in projections table")
             if not self.custom_ready():
-                raise AirflowException(e)
+                raise Exception(e)
             else:
                 self.__log.error(e)
 

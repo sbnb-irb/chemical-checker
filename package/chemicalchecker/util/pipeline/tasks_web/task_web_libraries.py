@@ -1,13 +1,10 @@
-import tempfile
 import os
 import shutil
-from chemicalchecker.util import logged
-from chemicalchecker.util import HPC
-from chemicalchecker.util.pipeline import BaseTask
+import tempfile
+
 from chemicalchecker.util import psql
-from chemicalchecker.util import Config
-from airflow.models import BaseOperator
-from airflow import AirflowException
+from chemicalchecker.util.pipeline import BaseTask
+from chemicalchecker.util import logged, Config, HPC
 
 # We got these strings by doing: pg_dump -t 'scores' --schema-only mosaic
 # -h aloy-dbsrv
@@ -52,11 +49,9 @@ CHECK = "select distinct(lib) from libraries"
 
 
 @logged
-class Libraries(BaseTask, BaseOperator):
+class Libraries(BaseTask):
 
     def __init__(self, name=None, **params):
-
-        args = []
 
         task_id = params.get('task_id', None)
 
@@ -64,7 +59,6 @@ class Libraries(BaseTask, BaseOperator):
             params['task_id'] = name
 
         BaseTask.__init__(self, name, **params)
-        BaseOperator.__init__(self, *args, **params)
 
         self.DB = params.get('DB', None)
         if self.DB is None:
@@ -99,7 +93,7 @@ class Libraries(BaseTask, BaseOperator):
 
             self.__log.error("Error while creating libraries table")
             if not self.custom_ready():
-                raise AirflowException(e)
+                raise Exception(e)
             else:
                 self.__log.error(e)
                 return
@@ -145,7 +139,7 @@ class Libraries(BaseTask, BaseOperator):
             libs = psql.qstring(CHECK, self.DB)
             if len(libs) != len(self.libraries.keys()):
                 if not self.custom_ready():
-                    raise AirflowException(
+                    raise Exception(
                         "Not all libs were added to libraries (%d/%d)" % (len(libs), len(self.libraries.keys())))
                 else:
                     self.__log.error(
@@ -160,7 +154,7 @@ class Libraries(BaseTask, BaseOperator):
 
             self.__log.error("Error while checking libraries table")
             if not self.custom_ready():
-                raise AirflowException(e)
+                raise Exception(e)
             else:
                 self.__log.error(e)
 
