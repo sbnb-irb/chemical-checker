@@ -5,18 +5,15 @@ framework.
 It tries to work for all possible CC elements but considering that signatures
 are changing quite often it might need to be updated.
 """
-import tempfile
 import os
-import shutil
 import time
+import shutil
+import tempfile
 
-from airflow.models import BaseOperator
-from airflow import AirflowException
-from chemicalchecker.util import logged
-from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import HPC
+from chemicalchecker.util import logged, Config, HPC
+
 
 VALID_TYPES = ['sign', 'neig', 'clus', 'proj']
 
@@ -45,7 +42,7 @@ SPECIAL_PARAMS = {'sign2': {'adanet': {'cpu': 16}, 'node2vec': {'cpu': 4}},
 
 
 @logged
-class CCPredict(BaseTask, BaseOperator):
+class CCPredict(BaseTask):
 
     def __init__(self, name=None, cc_type=None, **params):
         """Initialize CC predict task.
@@ -77,7 +74,6 @@ class CCPredict(BaseTask, BaseOperator):
         if task_id is None:
             params['task_id'] = name
         BaseTask.__init__(self, name, **params)
-        BaseOperator.__init__(self, *args, **params)
 
         if cc_type not in CC_TYPES_DEPENDENCIES.keys():
             raise Exception('CC Type ' + cc_type + ' not supported')
@@ -257,7 +253,7 @@ class CCPredict(BaseTask, BaseOperator):
 
         if len(dataset_not_done) > 0:
             if not self.custom_ready():
-                raise AirflowException("Some predictions failed")
+                raise Exception("Some predictions failed")
         else:
             self.mark_ready()
             if job_path is not None:

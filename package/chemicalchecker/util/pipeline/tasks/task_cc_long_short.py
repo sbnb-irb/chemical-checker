@@ -4,24 +4,21 @@ Given a list of datasets it first concatenates all of them to create a Long
 signature (horizontally stacked) and then it produces a short version by using
 autoencoders.
 """
-import tempfile
 import os
-import shutil
 import h5py
+import shutil
+import tempfile
 import numpy as np
-from airflow.models import BaseOperator
-from airflow import AirflowException
-from chemicalchecker.util import logged
+
 from chemicalchecker.database import Dataset
-from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
-from chemicalchecker.core.signature_data import DataSignature
 from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import HPC
+from chemicalchecker.util import logged, Config, HPC
+from chemicalchecker.core.signature_data import DataSignature
 
 
 @logged
-class CCLongShort(BaseTask, BaseOperator):
+class CCLongShort(BaseTask):
 
     def __init__(self, name=None, cc_type=None, **params):
         """Initialize CCLongShort task.
@@ -52,7 +49,6 @@ class CCLongShort(BaseTask, BaseOperator):
             params['task_id'] = name
 
         BaseTask.__init__(self, name, **params)
-        BaseOperator.__init__(self, *args, **params)
 
         self.cc_type = cc_type
 
@@ -197,7 +193,7 @@ class CCLongShort(BaseTask, BaseOperator):
             self.__log.warning(
                 self.dataset_sign_short + " Long to Short failed please check")
             if not self.custom_ready():
-                raise AirflowException("Long to Short failed")
+                raise Exception("Long to Short failed")
 
     def execute(self, context):
         """Same as run but for Airflow."""
