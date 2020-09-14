@@ -40,7 +40,7 @@ class diag(BaseSignature, DataSignature):
         diag= self.cc_instance.diagnosis(signObj)
         diag.canvas()
 
-    def predict(self)
+    def predict(self):
         pass
 
     def is_fit(self):
