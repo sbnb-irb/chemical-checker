@@ -120,13 +120,15 @@ SIGN1_SCRIPT_FR = [
 ]
 
 DIAG1_SCRIPT_FR =[
-    'diag_full = cc.get_signature("diag1", "full", data, cc_instance=cc)',
-    'diag_full.fit(diag_full, **pars)'
+    's1 = cc.get_signature("sign1", "full", data)',
+    'diag=cc.diagnosis(s1)',
+    'diag.canvas()'
 ]
 
 SPECIFIC_SCRIPTS = {
     'sign1': (SIGN1_SCRIPT_FR, SIGN1_SCRIPT_FR),
-    'sign2': (SIGN2_SCRIPT_FR, SIGN2_SCRIPT_F)
+    'sign2': (SIGN2_SCRIPT_FR, SIGN2_SCRIPT_F),
+    'diag1': (DIAG1_SCRIPT_FR, DIAG1_SCRIPT_FR)
 }
 
 
