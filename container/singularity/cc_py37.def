@@ -80,7 +80,7 @@ From: centos:8
     pip install patool                            # unzipping
     pip install wget                              # download library
     pip install tqdm                              # handy progress-bar
-    pip install apache-airflow                    # Install airflow for the pipeline
+    #pip install apache-airflow                    # Install airflow for the pipeline
 
     # raw data packages
     pip install lxml                              # xml parser
