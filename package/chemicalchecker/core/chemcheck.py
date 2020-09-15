@@ -177,11 +177,24 @@ class ChemicalChecker():
 
     @cached_property
     def universe(self):
-        """Get the list of molecules in the CC universe."""
+        """Get the list of molecules in the CC universe.
+
+        We define the CC universe as the union of all molecules found in sign0
+        for any of the bioactivity datasets that are 'derived' and that are
+        'essential'.
+
+        """
         universe = set()
-        for ds in self.datasets_exemplary():
-            s1 = self.get_signature('sign1', 'full', ds)
-            universe.update(s1.unique_keys)
+        for ds in Dataset.get():
+            if not ds.derived:
+                continue
+            if not ds.essential:
+                continue
+            s1 = self.get_signature('sign0', 'full', ds.code)
+            try:
+                universe.update(s1.unique_keys)
+            except Exception as ex:
+                self.__log.warning(str(ex))
         return sorted(list(universe))
 
     @staticmethod
