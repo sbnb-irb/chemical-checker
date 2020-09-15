@@ -51,7 +51,9 @@ class local():
         check_error = kwargs.get("check_error", True)
         cpu = 2
         cpusafe = kwargs.get("cpusafe", True)
-        index_image_command_start = command.find('singularity')
+        index_image_command_start = command.find('SINGULARITYENV')
+        if index_image_command_start == -1:
+            index_image_command_start = command.find('singularity')
         index_image_command_end = command.find('.simg')
 
         # Remove the call to singularity since we are already in a singularity

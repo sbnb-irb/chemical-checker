@@ -21,6 +21,7 @@ from chemicalchecker.util.decorator import cached_property
 from chemicalchecker.util.sampler.triplets import TripletSampler
 from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 
+
 @logged
 class sign0(BaseSignature, DataSignature):
     """Signature type 0 class."""
@@ -59,7 +60,8 @@ class sign0(BaseSignature, DataSignature):
                         keys_raw += [k]
                         idxs += [i]
         elif key_type == "smiles":
-            self.__log.debug("Processing smiles. Only standard smiles are kept")
+            self.__log.debug(
+                "Processing smiles. Only standard smiles are kept")
             from chemicalchecker.util.parser import Converter
             conv = Converter()
             for i, k in enumerate(keys):
@@ -71,7 +73,8 @@ class sign0(BaseSignature, DataSignature):
                     continue
         else:
             raise "key_type must be 'inchikey' or 'smiles'"
-        self.__log.info("Initial keys: %d / Final keys: %d" %(len(keys), len(keys_)))
+        self.__log.info("Initial keys: %d / Final keys: %d" %
+                        (len(keys), len(keys_)))
 
         return np.array(keys_), np.array(keys_raw), np.array(idxs)
 
@@ -93,21 +96,20 @@ class sign0(BaseSignature, DataSignature):
 
     def get_data(self, pairs, X, keys, features, data_file, key_type, agg_method):
         if data_file is not None:
-            if os.path.isfile(data_file) and data_file[-3:] == ".h5":
-                dh5 = h5py.File(data_file, 'r')
-                if "pairs" in dh5.keys():
-                    pairs = dh5["pairs"][:]
-                    if "values" in dh5.keys():
-                        pairs = zip(pairs, dh5["values"][:])
-                if "X" in dh5.keys():
-                    X = dh5["X"][:]
-                if "keys" in dh5.keys():
-                    keys = dh5["keys"][:]
-                if "features" in dh5.keys():
-                    features = dh5["features"][:]
-                dh5.close()
-            else:
-                raise Exception("This module only accepts .h5 files")
+            if not os.path.isfile(data_file):
+                raise Exception("File not found: %s" % data_file)
+            dh5 = h5py.File(data_file, 'r')
+            if "pairs" in dh5.keys():
+                pairs = dh5["pairs"][:]
+                if "values" in dh5.keys():
+                    pairs = zip(pairs, dh5["values"][:])
+            if "X" in dh5.keys():
+                X = dh5["X"][:]
+            if "keys" in dh5.keys():
+                keys = dh5["keys"][:]
+            if "features" in dh5.keys():
+                features = dh5["features"][:]
+            dh5.close()
             if pairs is None and X is None:
                 raise Exception(
                     "H5 file " + data_file + " does not contain datasets 'pairs' or 'X'")
@@ -125,8 +127,7 @@ class sign0(BaseSignature, DataSignature):
             self.__log.debug("Processing keys and features")
             self.__log.debug("Before processing:")
             self.__log.debug("KEYS: {}".format(keys))
-            self.__log.debug("key_type: {}".format(key_type))            
-
+            self.__log.debug("key_type: {}".format(key_type))
 
             keys, keys_raw, _ = self.process_keys(keys, key_type)
             features = self.process_features(features, len(features))
@@ -167,9 +168,11 @@ class sign0(BaseSignature, DataSignature):
             if features is None:
                 raise Exception("features cannot be None")
             if X.shape[0] != len(keys):
-                raise Exception("number of rows of X must equal length of keys")
+                raise Exception(
+                    "number of rows of X must equal length of keys")
             if X.shape[1] != len(features):
-                raise Exception("number of columns of X must equal length of features")
+                raise Exception(
+                    "number of columns of X must equal length of features")
             if len(features) != len(set(features)):
                 raise Exception("features must be unique")
             self.__log.debug("Processing keys")
@@ -185,7 +188,8 @@ class sign0(BaseSignature, DataSignature):
             self.__log.debug("Setting input type")
             input_type = "matrix"
         if X.shape[0] != len(keys):
-            raise Exception("after processing, number of rows does not equal number of columns")
+            raise Exception(
+                "after processing, number of rows does not equal number of columns")
         X, keys, keys_raw, features = self.sort(X, keys, keys_raw, features)
         results = {
             "X": X,
@@ -259,7 +263,7 @@ class sign0(BaseSignature, DataSignature):
         # sort features
         features = features[feature_idxs]
         return X, keys, keys_raw, features
-        
+
     def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, max_features=10000, chunk_size=10000, **params):
         """Process the input data. We produce a sign0 (full) and a sign0(reference). Data are sorted (keys and features).
 
@@ -290,8 +294,10 @@ class sign0(BaseSignature, DataSignature):
         input_type = res["input_type"]
 
         self.__log.debug("Sanitizing")
-        san = Sanitizer(trim=True, max_features=max_features, chunk_size=chunk_size)
-        X, keys, keys_raw, features = san.transform(V=X, keys=keys, keys_raw=keys_raw, features=features, sign=None)
+        san = Sanitizer(trim=True, max_features=max_features,
+                        chunk_size=chunk_size)
+        X, keys, keys_raw, features = san.transform(
+            V=X, keys=keys, keys_raw=keys_raw, features=features, sign=None)
 
         self.__log.debug("Aggregating if necessary")
         agg = Aggregate(method=agg_method, input_type=input_type)
@@ -299,14 +305,21 @@ class sign0(BaseSignature, DataSignature):
 
         self.__log.debug("Saving dataset")
         with h5py.File(self.data_path, "w") as hf:
-            hf.create_dataset("name", data=np.array([str(self.dataset) + "sig"], DataSignature.string_dtype()))
-            hf.create_dataset("date", data=np.array([datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
+            hf.create_dataset("name", data=np.array(
+                [str(self.dataset) + "sig"], DataSignature.string_dtype()))
+            hf.create_dataset("date", data=np.array([datetime.datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
             hf.create_dataset("V", data=X)
-            hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
-            hf.create_dataset("features", data=np.array(features, DataSignature.string_dtype()))
-            hf.create_dataset("keys_raw", data=np.array(keys_raw, DataSignature.string_dtype()))
-            hf.create_dataset("agg_method", data=np.array([str(agg_method)], DataSignature.string_dtype()))
-            hf.create_dataset("input_type", data=np.array([str(input_type)], DataSignature.string_dtype()))
+            hf.create_dataset("keys", data=np.array(
+                keys, DataSignature.string_dtype()))
+            hf.create_dataset("features", data=np.array(
+                features, DataSignature.string_dtype()))
+            hf.create_dataset("keys_raw", data=np.array(
+                keys_raw, DataSignature.string_dtype()))
+            hf.create_dataset("agg_method", data=np.array(
+                [str(agg_method)], DataSignature.string_dtype()))
+            hf.create_dataset("input_type", data=np.array(
+                [str(input_type)], DataSignature.string_dtype()))
 
         self.refresh()
         self.__log.info("Removing redundancy")
@@ -355,7 +368,8 @@ class sign0(BaseSignature, DataSignature):
             keys_raw_ = self.keys_raw
             if merge_method is not None:
                 if merge_method not in ["average", "new", "old"]:
-                    raise Exception("merge_method must be None, 'average', 'new' or 'old'")
+                    raise Exception(
+                        "merge_method must be None, 'average', 'new' or 'old'")
         else:
             self.__log.info(
                 "Not merging. Just producing signature for the inputted data.")
@@ -387,7 +401,8 @@ class sign0(BaseSignature, DataSignature):
         self.__log.debug("Sanitizing if necessary")
         self.refresh()
         san = Sanitizer(trim=False, chunk_size=chunk_size)
-        X, keys, keys_raw, features = san.transform(V=X, keys=keys, keys_raw=keys_raw, features=features, sign=self)
+        X, keys, keys_raw, features = san.transform(
+            V=X, keys=keys, keys_raw=keys_raw, features=features, sign=self)
         self.__log.debug("Aggregating as it was done at fit time")
         agg = Aggregate(method=self.agg_method, input_type=input_type)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
