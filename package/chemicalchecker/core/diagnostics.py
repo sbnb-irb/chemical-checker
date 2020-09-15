@@ -990,8 +990,7 @@ class Diagnosis(object):
 
         cctype = kwargs.get("cctype", "sign0")
         molset = kwargs.get("molset", "full")
-        exemplary_datasets = [
-            ds + '.001' for ds in itertools.product("ABCDE", "12345")]
+        exemplary_datasets = [''.join(tup) + '.001' for tup in itertools.product("ABCDE", "12345")]
         datasets = kwargs.get("datasets", exemplary_datasets)
 
         def q67(r):
