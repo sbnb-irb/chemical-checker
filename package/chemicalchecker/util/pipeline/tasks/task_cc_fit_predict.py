@@ -363,8 +363,8 @@ class CCFit(BaseTask):
                 "import chemicalchecker",
                 "from chemicalchecker.util import Config",
                 "from chemicalchecker.core import ChemicalChecker",
-                "logging.log(logging.DEBUG,'chemicalchecker: %s' % chemicalchecker.__path__)",os.getcwd()
-                "logging.log(logging.DEBUG,'CWD: %s' % os.getcwd())",
+                "logging.log(logging.DEBUG,'chemicalchecker: %s' % chemicalchecker.__path__)",
+                "logging.log(logging.DEBUG,'CWD: %s' % os.getcwd())'",
                 "config = Config()",
                 "task_id = sys.argv[1]",  # <TASK_ID>
                 "filename = sys.argv[2]",  # <FILE>
