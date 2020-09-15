@@ -228,7 +228,7 @@ class CCFit(BaseTask):
                     "sign3_full = cc.get_signature('sign3', 'full', data,**pars)",
                     "sign2_src_list = [%s]" % (str(self.ref_datasets)[1:-1]),
                     "sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in sign2_src_list]",
-                    "sign3_full.fit(sign2_list,sign2_full,sign1_full,sign2_universe='%s', sign2_coverage='%s')" % (
+                    "sign3_full.fit(sign2_list,sign_full,sign1_full,sign2_universe='%s', sign2_coverage='%s')" % (
                         full_universe, full_coverage)
                 ]
             else:
