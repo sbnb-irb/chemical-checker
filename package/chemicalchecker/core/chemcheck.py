@@ -182,7 +182,6 @@ class ChemicalChecker():
         We define the CC universe as the union of all molecules found in sign0
         for any of the bioactivity datasets that are 'derived' and that are
         'essential'.
-
         """
         universe = set()
         for ds in Dataset.get():
@@ -190,9 +189,9 @@ class ChemicalChecker():
                 continue
             if not ds.essential:
                 continue
-            s1 = self.get_signature('sign0', 'full', ds.code)
+            s0 = self.get_signature('sign0', 'full', ds.code)
             try:
-                universe.update(s1.unique_keys)
+                universe.update(s0.unique_keys)
             except Exception as ex:
                 self.__log.warning(str(ex))
         return sorted(list(universe))
