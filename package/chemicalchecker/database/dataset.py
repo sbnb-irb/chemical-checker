@@ -5,7 +5,7 @@ This is how we define a dataset for a bioactivity space:
 +-----------------------+-----------------------+-----------------------+
 | Column                | Values                | Description           |
 +=======================+=======================+=======================+
-| Code                  | e.g. ``A1.001``       | Identifier of the     |
+| Dataset_code          | e.g. ``A1.001``       | Identifier of the     |
 |                       |                       | dataset.              |
 +-----------------------+-----------------------+-----------------------+
 | Level                 | e.g. ``A``            | The CC level.         |
@@ -132,6 +132,21 @@ This is how we define a dataset for a bioactivity space:
 |                       |                       | collaborations with   |
 |                       |                       | the pharma industry.  |
 +-----------------------+-----------------------+-----------------------+
+| Essential             | ``True``/``False``    | Essentail Datasets    |
+|                       |                       | are required for      |
+|                       |                       | the signaturization   |
+|                       |                       | pipeline to work.     |
++-----------------------+-----------------------+-----------------------+
+| Derived               | ``True``/``False``    | Dataset can be        |
+|                       |                       | derived from existing |
+|                       |                       | data (i.e. they come  |
+|                       |                       | from an external      |
+|                       |                       | datasource) or they   |
+|                       |                       | are calculated and    |
+|                       |                       | are virtually         |
+|                       |                       | available for any     |
+|                       |                       | compound (e.g. "A1"). |
++-----------------------+-----------------------+-----------------------+
 | Datasources           | Foreign key to        | Data sources that are |
 |                       | ``DataSource`` table. | used for generating   |
 |                       |                       | signature 0 oof the   |
@@ -190,6 +205,7 @@ class Dataset(Base):  # NS Base is a base class from SQLAlchemy, no __init__??
     exemplary = Column(Boolean)
     public = Column(Boolean)
     essential = Column(Boolean)
+    # derived = Column(Boolean)  # implemented as property
 
     datasources = relationship("Datasource",
                                secondary="dataset_has_datasource",
@@ -205,6 +221,10 @@ class Dataset(Base):  # NS Base is a base class from SQLAlchemy, no __init__??
     @property
     def code(self):
         return self.dataset_code
+
+    @property
+    def derived(self):
+        return len(self.datasources) > 0
 
     @staticmethod
     def _create_table():
