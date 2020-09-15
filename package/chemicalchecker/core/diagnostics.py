@@ -6,6 +6,7 @@ import os
 import random
 import pickle
 import shutil
+import itertools
 import collections
 import numpy as np
 from sklearn.cluster import DBSCAN
@@ -987,9 +988,11 @@ class Diagnosis(object):
             " based on a Z-global ranking")
         fn = "global_ranks_agreement"
 
-        cctype = "sign3"
-        molset = "full"
-        datasets = ["Z0.001"]
+        cctype = kwargs.get("cctype", "sign0")
+        molset = kwargs.get("molset", "full")
+        exemplary_datasets = [
+            ds + '.001' for ds in itertools.product("ABCDE", "12345")]
+        datasets = kwargs.get("datasets", exemplary_datasets)
 
         def q67(r):
             return np.percentile(r, 67)
