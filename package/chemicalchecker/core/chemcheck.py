@@ -186,8 +186,10 @@ class ChemicalChecker():
         universe = set()
         for ds in Dataset.get():
             if not ds.derived:
+                print(ds, "not derived")
                 continue
             if not ds.essential:
+                print(ds, "not essential")
                 continue
             s0 = self.get_signature('sign0', 'full', ds.code)
             try:
