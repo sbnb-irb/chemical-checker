@@ -1,4 +1,3 @@
-import itertool
 import numpy as np
 from chemicalchecker import ChemicalChecker
 
