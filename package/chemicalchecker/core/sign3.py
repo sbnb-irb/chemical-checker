@@ -1488,7 +1488,7 @@ class sign3(BaseSignature, DataSignature):
         self.__log.info('VALIDATION: Plot Subsampling.')
         fname = 'known_unknown_sampling.png'
         plot_file = os.path.join(siamese.model_dir, fname)
-        plot_subsample(plot_file, self.sign2_coverage, traintest_file,
+        plot_subsample(self, plot_file, self.sign2_coverage, traintest_file,
                        ds=self.dataset)
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True,
@@ -2295,7 +2295,7 @@ def subsample(tensor, sign_width=128,
     return new_data
 
 
-def plot_subsample(s4, plotpath, sign2_coverage, traintest_file, ds='B1.001',
+def plot_subsample(sign, plot_file, sign2_coverage, traintest_file, ds='B1.001',
                    p_self=.1, p_only_self=0., limit=10000, max_ds=25):
     import numpy as np
     import pandas as pd
@@ -2317,7 +2317,7 @@ def plot_subsample(s4, plotpath, sign2_coverage, traintest_file, ds='B1.001',
         'p_keep': (p_keep_unknown, p_keep_known),
         'dataset_idx': [trim_dataset_idx],
         'p_only_self': 0.0}
-    realistic_fn, trim_mask = s4.realistic_subsampling_fn()
+    realistic_fn, trim_mask = sign.realistic_subsampling_fn()
     tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
         traintest_file,
         'train_train',
@@ -2446,5 +2446,5 @@ def plot_subsample(s4, plotpath, sign2_coverage, traintest_file, ds='B1.001',
                 palette=['gold', 'forestgreen', 'crimson', 'royalblue', 'k'])
 
     plt.tight_layout()
-    plt.savefig(plotpath)
+    plt.savefig(plot_file)
     plt.close()
