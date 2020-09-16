@@ -21,7 +21,7 @@ for space in spaces_to_filter:
     mask= np.isin(s0.keys, list(inchk_univ))
 
     filtered_h5=os.path.join(os.path.dirname(s0.data_path), 'sign0_univ.h5')
-
+    print("Creating",filtered_h5)
 
     s0.make_filtered_copy(filtered_h5, mask)
 
