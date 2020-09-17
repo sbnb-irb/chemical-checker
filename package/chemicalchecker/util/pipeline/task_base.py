@@ -25,7 +25,6 @@ class BaseTask(object):
         """Initialize the Step."""
         self.name = name
         self.readyfile = name + ".ready"
-
         self.readydir = params.get("readydir", '')
         self.tmpdir = params.get("tmpdir", '')
 
