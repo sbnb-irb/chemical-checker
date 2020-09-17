@@ -27,6 +27,7 @@ from .signature_data import DataSignature
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
+from chemicalchecker.util.splitter import Traintest
 
 
 @logged
@@ -118,7 +119,7 @@ class sign3(BaseSignature, DataSignature):
             'margin': 1.0,
             'alpha': 0.5,
         }
-        #default_sign0.update(params.get('sign0', {}))
+        # default_sign0.update(params.get('sign0', {}))
         self.params['sign0'] = default_sign0
         # parameters to learn confidence from sign0
         default_sign0_conf = {
