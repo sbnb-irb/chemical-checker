@@ -478,7 +478,7 @@ class sign0(BaseSignature, DataSignature):
         print("Creating",filtered_h5)
 
         self.__log.debug("--> Creating file {}".format(filtered_h5))
-        s0.make_filtered_copy(filtered_h5, mask)
+        self.make_filtered_copy(filtered_h5, mask)
 
         # After that check that your file is ok and move it to sign0.h5
         self.__log.debug("Done")
