@@ -18,7 +18,9 @@ for space in spaces_to_filter:
     inchk_univ, _ = s0.get_vectors(keys=universe)
 
     # obtain a mask for sign0 in order to obtain a filtered h5 file
-    mask= np.isin(s0.keys, list(inchk_univ))
+    mask= np.isin(list(s0.keys), list(inchk_univ))
+
+    del inchk_univ
 
     filtered_h5=os.path.join(os.path.dirname(s0.data_path), 'sign0_univ.h5')
     print("Creating",filtered_h5)
