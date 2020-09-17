@@ -481,7 +481,7 @@ class sign0(BaseSignature, DataSignature):
         s0.make_filtered_copy(filtered_h5, mask)
 
         # After that check that your file is ok and move it to sign0.h5
-        self.__log.debug("Done"))
+        self.__log.debug("Done")
 
     def restrict_to_universe_hpc(self, *args, **kwargs):
         return self.func_hpc("restrict_to_universe", *args, memory=15, **kwargs)
