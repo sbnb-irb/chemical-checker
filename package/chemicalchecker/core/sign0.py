@@ -480,5 +480,5 @@ class sign0(BaseSignature, DataSignature):
         # After that check that your file is ok and move it to sign0.h5
 
     def restrict_to_universe_hpc(self, *args, **kwargs):
-        return self.func_hpc("restrict_to_universe", *args, memory=20, **kwargs)
+        return self.func_hpc("restrict_to_universe", *args, memory=15, **kwargs)
 
