@@ -177,6 +177,7 @@ s0_params = {'cc_old_path': CC_OLD_ROOT}
 s0_task = CCFit(CC_ROOT, 'sign0', **s0_params)
 pp.add_task(s0_task)
 
+
 # TASK: Calculate signatures 1
 s1_params = {}
 s1_task = CCFit(CC_ROOT, 'sign1', **s1_params)
