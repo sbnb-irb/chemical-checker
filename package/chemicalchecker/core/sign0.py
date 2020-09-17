@@ -452,3 +452,30 @@ class sign0(BaseSignature, DataSignature):
                     features, DataSignature.string_dtype()))
                 hf.create_dataset("keys_raw", data=np.array(
                     keys_raw, DataSignature.string_dtype()))
+
+    def restrict_to_universe(self):
+        """
+        Nico : 17/09/2020
+        - Restricts the keys in the corresponding h5 files to the ones contained in the universe,
+        defined as the union of all molecules from bioactivity spaces (B and after).
+        - Applicable when the signature belongs to one of the A spaces
+        """
+        cc= self.get_cc()
+        universe = cc.universe  # list of inchikeys belonging to the universe
+
+        # get the vectors from s0 corresponding to our (restricted) universe
+        inchk_univ, _ = self.get_vectors(keys=universe)
+
+        # obtain a mask for sign0 in order to obtain a filtered h5 file
+        mask= np.isin(self.keys, list(inchk_univ))
+
+        filtered_h5=os.path.join(os.path.dirname(self.data_path), 'sign0_univ.h5')
+        print("Creating",filtered_h5)
+
+        s0.make_filtered_copy(filtered_h5, mask)
+
+        # After that check that your file is ok and move it to sign0.h5
+
+    def restrict_to_universe_hpc(self, *args, **kwargs):
+        return self.func_hpc("restrict_to_universe", *args, **kwargs)
+

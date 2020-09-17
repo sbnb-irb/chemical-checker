@@ -184,6 +184,7 @@ class ChemicalChecker():
         'essential'.
         """
         universe = set()
+        dataset_accepted=[]
         for ds in Dataset.get():
             if not ds.derived:
                 print(ds, "not derived")
@@ -192,10 +193,12 @@ class ChemicalChecker():
                 print(ds, "not essential")
                 continue
             s0 = self.get_signature('sign0', 'full', ds.code)
+            dataset_accepted.append(ds.code)
             try:
                 universe.update(s0.unique_keys)
             except Exception as ex:
                 self.__log.warning(str(ex))
+        print("datasets accepted:", dataset_accepted)
         return sorted(list(universe))
 
     @staticmethod
