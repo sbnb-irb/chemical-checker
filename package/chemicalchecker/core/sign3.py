@@ -589,7 +589,7 @@ class sign3(BaseSignature, DataSignature):
             ax.legend()
 
         def importances(ax, mod, trim_mask):
-            from chemicalchecker.util.plot.style.util import coord_color
+            from chemicalchecker.util.plot import coord_color
             y = mod.feature_importances_
             datasets = ["%s%s" % (x, y) for x in "ABCDE" for y in "12345"]
             if trim_mask is not None:
