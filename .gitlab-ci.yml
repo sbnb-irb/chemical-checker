@@ -1,14 +1,17 @@
 image: cc_image:latest
 cache:
   paths:
-    - images
+    - images   # shared directory to drop generated singularity images
 
 stages:
-  - image
-  - unittest
-  - deploy
+  - image      # building the singularity images
+  - unittest   # running unittests
+  - docs       # generating and uploading documentation
+  - deploy     # deploy the package to PyPI
 
-
+################
+# image
+################
 
 build_singularity_image_py37:
   stage: image
@@ -46,7 +49,9 @@ build_singularity_image_py37_lite:
     changes:
       - container/singularity/cc_py37_lite.def
 
-
+################
+# unittest
+################
 
 unittest_python_3.7:
   stage: unittest
@@ -64,27 +69,12 @@ unittest_python_3.7_lite:
     paths:
       - images
 
-
-
-test_pypi_deploy:
-  stage: deploy
-  cache: {}
-  script:
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py37_lite.simg make -C /test/package release-test
-  only:
-    - tags
-
-pypi_deploy:
-  stage: deploy
-  cache: {}
-  script:
-
-    - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_py37_lite.simg make -C /test/package release
-  only:
-    - tags
+################
+# docs
+################
 
 pages:
-  stage: deploy
+  stage: docs
   artifacts:
     paths:
     - public
@@ -96,3 +86,31 @@ pages:
     - mv package/docs/_build/html/ public/
   only:
     - master
+
+################
+# deploy
+################
+
+test_pypi_deploy:
+  stage: deploy
+  cache: {}
+  script:
+    - pip install -U setuptools
+    - pip install -U twine
+    - cd package
+    - python setup.py sdist
+    - twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
+  only:
+    - tags
+
+pypi_deploy:
+  stage: deploy
+  cache: {}
+  script:
+    - pip install -U setuptools
+    - pip install -U twine
+    - cd package
+    - python setup.py sdist
+    - twine upload --verbose dist/*
+  only:
+    - tags
