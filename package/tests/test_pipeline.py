@@ -41,14 +41,13 @@ class TestPipeline(unittest.TestCase):
 
         pipeline_dir = self.pipeline_dir
         data_file = os.path.join(self.data_dir, 'E1_preprocess.h5')
-        CC_ROOT = os.path.join(pipeline_dir, 'cc')
+        cc_root = os.path.join(pipeline_dir, 'cc')
 
         pp = Pipeline(pipeline_path=pipeline_dir)
         self.assertTrue(os.path.isdir(pp.readydir))
 
         s0_params = {
             "output_path": pipeline_dir,
-            'CC_ROOT': CC_ROOT,
             'cc_old_path': '/aloy/web_checker/package_cc/paper',
             "datasets": ["E1.001"],
             "ds_params": {
@@ -61,14 +60,17 @@ class TestPipeline(unittest.TestCase):
             }
         }
 
-        s0_task = CCFit(cc_type='sign0', **s0_params)
+        s0_task = CCFit(cc_root, 'sign0', **s0_params)
         pp.add_task(s0_task)
         pp.run()
 
-        sign0_file = os.path.join(CC_ROOT,'full/E/E1/E1.001/sign0/sign0.h5')
+        sign0_file = os.path.join(cc_root, 'full/E/E1/E1.001/sign0/sign0.h5')
         self.assertTrue(os.path.isfile(sign0_file))
-
         """
+
+        s0_pred_task = CCPredict(cc_type='sign0', **s0_params)
+        pp.add_task(s0_pred_task)
+
         s0_pred_task = CCPredict(cc_type='sign0', **s0_params)
         pp.add_task(s0_pred_task)
 
@@ -95,5 +97,5 @@ class TestPipeline(unittest.TestCase):
         """
         # This needs to be uncommented when the signatures predict work
 
-        #s2_pred_task.clean()
-        #self.assertFalse(s2_pred_task.is_ready())
+        # s2_pred_task.clean()
+        # self.assertFalse(s2_pred_task.is_ready())
