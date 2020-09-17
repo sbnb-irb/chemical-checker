@@ -32,6 +32,7 @@ CC_TYPES_DEPENDENCIES = {
     'proj1': ['sign1'],
     'proj2': ['sign2'],
     'proj3': ['sign3'],
+    'diag0': ['sign0'],
     'diag1': ['sign1']
 }
 
@@ -50,6 +51,7 @@ CC_TYPES_MEM_CPU = {
     'proj1': (20, 10),
     'proj2': (20, 10),
     'proj3': (20, 10),
+    'diag0': (20,10),
     'diag1': (20,10)
 }
 
@@ -65,6 +67,7 @@ SPECIAL_PARAMS = {
     'proj1': {'cpu': 10},
     'proj2': {'cpu': 10},
     'proj3': {'cpu': 10},
+    'diag0': {'cpu': 10},
     'diag1': {'cpu': 10},
     }
 
@@ -119,6 +122,12 @@ SIGN1_SCRIPT_FR = [
     'sign_new_full.fit(sign_full, **pars)'
 ]
 
+DIAG0_SCRIPT_FR =[
+    's0 = cc.get_signature("sign0", "full", data)',
+    'diag=cc.diagnosis(s0)',
+    'diag.canvas()'
+]
+
 DIAG1_SCRIPT_FR =[
     's1 = cc.get_signature("sign1", "full", data)',
     'diag=cc.diagnosis(s1)',
@@ -128,6 +137,7 @@ DIAG1_SCRIPT_FR =[
 SPECIFIC_SCRIPTS = {
     'sign1': (SIGN1_SCRIPT_FR, SIGN1_SCRIPT_FR),
     'sign2': (SIGN2_SCRIPT_FR, SIGN2_SCRIPT_F),
+    'diag0': (DIAG0_SCRIPT_FR, DIAG0_SCRIPT_FR)
     'diag1': (DIAG1_SCRIPT_FR, DIAG1_SCRIPT_FR)
 }
 

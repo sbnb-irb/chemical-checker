@@ -206,20 +206,23 @@ if not DEBUG:
 
         pp.add_task(val_set_task)
 
-
+# TASK: Calculate signatures 0
 s0_params = {'CC_ROOT': CC_ROOT, 'cc_old_path': CC_OLD_ROOT}
 s0_task = CCFit(cc_type='sign0', **s0_params)
 pp.add_task(s0_task)
 
+if DEBUG:
+    pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
+
+# TASK: Diagnostic plot for sign 0
+s1_params = {'CC_ROOT': CC_ROOT}
+s1_task = CCFit(cc_type='diag0', **s1_params)
+pp.add_task(s1_task)
 
 # TASK: Calculate signatures 1
 s1_params = {'CC_ROOT': CC_ROOT}
 s1_task = CCFit(cc_type='sign1', **s1_params)
 pp.add_task(s1_task)
-
-# TASK: Calculate signatures 0
-if DEBUG:
-    pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
 
 # TASK: Diagnostic plot for sign 1
 s1_params = {'CC_ROOT': CC_ROOT}
