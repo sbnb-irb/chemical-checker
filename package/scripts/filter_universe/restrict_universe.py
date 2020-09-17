@@ -1,4 +1,5 @@
 import numpy as np
+import os
 from chemicalchecker import ChemicalChecker
 
 # NS filter the A spaces sign0 to keep only molecules present in the B spaces and after (bioactive molecules)
