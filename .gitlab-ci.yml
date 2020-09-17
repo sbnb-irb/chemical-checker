@@ -16,7 +16,6 @@ stages:
 build_singularity_image_py37:
   stage: image
   script:
-    - yum install squashfs-tools -y
     - mkdir images -p
     - rm -f images/cc_py37.simg
     - singularity build images/cc_py37.simg container/singularity/cc_py37.def
@@ -34,7 +33,6 @@ build_singularity_image_py37:
 build_singularity_image_py37_lite:
   stage: image
   script:
-    - yum install squashfs-tools -y
     - mkdir images -p
     - rm -f images/cc_py37_lite.simg
     - singularity build images/cc_py37_lite.simg container/singularity/cc_py37_lite.def
@@ -95,8 +93,6 @@ test_pypi_publish:
   stage: publish
   cache: {}
   script:
-    - pip install -U setuptools
-    - pip install -U twine
     - cd package
     - python setup.py sdist
     - twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
@@ -107,8 +103,6 @@ pypi_publish:
   stage: publish
   cache: {}
   script:
-    - pip install -U setuptools
-    - pip install -U twine
     - cd package
     - python setup.py sdist
     - twine upload --verbose dist/*
