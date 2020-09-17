@@ -7,7 +7,7 @@ stages:
   - image      # building the singularity images
   - unittest   # running unittests
   - docs       # generating and uploading documentation
-  - deploy     # deploy the package to PyPI
+  - publish    # publish the package on PyPI
 
 ################
 # image
@@ -88,11 +88,11 @@ pages:
     - master
 
 ################
-# deploy
+# publish
 ################
 
-test_pypi_deploy:
-  stage: deploy
+test_pypi_publish:
+  stage: publish
   cache: {}
   script:
     - pip install -U setuptools
@@ -103,8 +103,8 @@ test_pypi_deploy:
   only:
     - tags
 
-pypi_deploy:
-  stage: deploy
+pypi_publish:
+  stage: publish
   cache: {}
   script:
     - pip install -U setuptools
