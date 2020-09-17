@@ -339,7 +339,7 @@ class DataSignature(object):
                 else:
                     return hf[h5_dataset_name][mask, :]
 
-    def get_vectors(self, keys, include_nan=False, dataset_name='V'):
+    def get_vectors(self, keys, include_nan=False, dataset_name='V', output_missing=False):
         """Get vectors for a list of keys, sorted by default.
 
         Args:
@@ -350,12 +350,11 @@ class DataSignature(object):
             dataset_name(str): return any dataset in the h5 which is organized
                 by sorted keys.
         """
-        self.__log.debug("Fetching %s rows from dataset %s" %
-                         (len(keys), dataset_name))
+        self.__log.debug("Fetching %s rows from dataset %s" %(len(keys), dataset_name))
         valid_keys = list(self.unique_keys & set(keys))
-        idxs = np.argwhere(
-            np.isin(list(self.keys), list(valid_keys), assume_unique=True))
+        idxs = np.argwhere(np.isin(list(self.keys), list(valid_keys), assume_unique=True))
         inks, signs = list(), list()
+        
         with h5py.File(self.data_path, 'r') as hf:
             dset = hf[dataset_name]
             dset_shape = dset.shape
@@ -380,6 +379,8 @@ class DataSignature(object):
             return None, None
         inks, signs = np.stack(inks), np.vstack(signs)
         sort_idx = np.argsort(inks)
+        if  output_missing:
+            return inks[sort_idx], signs[sort_idx], missed_inks
         return inks[sort_idx], signs[sort_idx]
 
     def get_vectors_lite(self, keys, chunk_size=2000, chunk_above=10000):
