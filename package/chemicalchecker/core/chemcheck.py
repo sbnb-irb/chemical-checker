@@ -64,7 +64,7 @@ from chemicalchecker.util.decorator import cached_property
 class ChemicalChecker():
     """ChemicalChecker class."""
 
-    def __init__(self, cc_root=None, custom_data_path=None, json_config_file=None):
+    def __init__(self, cc_root=None, custom_data_path=None):
         """Initialize a ChemicalChecker instance.
 
         If the CC_ROOT directory is empty a skeleton of CC is initialized.
@@ -79,17 +79,10 @@ class ChemicalChecker():
                 'attrs' record.
 
         """
-
-        # Use your own cc config file
-        if json_config_file is not None:
-            os.environ['CC_CONFIG'] = os.path.abspath(json_config_file)
-
-        # Even if json_config_file is None then the default os.environ["CC_CONFIG"] will specify it
-        if not cc_root:
-            self.cc_root = Config(json_file=json_config_file).PATH.CC_ROOT
-
-        else:
-            self.cc_root = cc_root
+        # Default cc_root is taken from config file
+        self.cc_root = cc_root
+        if self.cc_root is None:
+            self.cc_root = Config().PATH.CC_ROOT
 
         self._basic_molsets = ['reference', 'full']
         self._datasets = set()
