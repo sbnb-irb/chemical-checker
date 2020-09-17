@@ -13,3 +13,4 @@ WORKDIR "./singularity-2.5.1"
 RUN  ./configure --prefix=/usr/local
 RUN  make
 RUN  make install
+RUN  pip install -U setuptools twine
