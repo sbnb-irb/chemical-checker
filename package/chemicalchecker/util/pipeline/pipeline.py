@@ -57,7 +57,6 @@ class Pipeline():
     def run(self):
         """Run the pipeline."""
         for task in self.tasks:
-
             # check if already done
             if task.is_ready():
                 Pipeline.__log.info(
@@ -81,15 +80,10 @@ class Pipeline():
     def clean(self, step=None):
         """Clean all or some of the pipeline steps."""
         if step is None:
-
             for current_step in self.tasks:
-
                 # clean it
                 current_step.clean()
-
         else:
-
             for task in self.tasks:
-
                 if task.name == step:
                     task.clean()
