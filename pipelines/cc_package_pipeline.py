@@ -178,9 +178,9 @@ if DEBUG:
     pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
 
 # TASK: Diagnostic plot for sign 0
-s1_params = {'CC_ROOT': CC_ROOT}
-s1_task = CCFit(cc_type='diag0', **s1_params)
-pp.add_task(s1_task)
+s0_params = {'CC_ROOT': CC_ROOT}
+s0_task = CCFit(cc_type='diag0', **s0_params)
+pp.add_task(s0_task)
 
 # TASK: Calculate signatures 1
 s1_params = {}
