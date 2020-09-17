@@ -463,11 +463,13 @@ class sign0(BaseSignature, DataSignature):
         cc= self.get_cc()
         universe = cc.universe  # list of inchikeys belonging to the universe
 
+        self.__log.debug("--> getting the vectors from s0 corresponding to our (restricted) universe")
         # get the vectors from s0 corresponding to our (restricted) universe
         inchk_univ, _ = self.get_vectors(keys=universe)
 
         # obtain a mask for sign0 in order to obtain a filtered h5 file
         # Strangely, putting lists greatly improves the performances of np.isin
+        self.__log.debug("--> Obtaining a mask")
         mask= np.isin(list(self.keys), list(inchk_univ))
 
         del inchk_univ  # avoiding consuming too much memory
@@ -475,9 +477,11 @@ class sign0(BaseSignature, DataSignature):
         filtered_h5=os.path.join(os.path.dirname(self.data_path), 'sign0_univ.h5')
         print("Creating",filtered_h5)
 
+        self.__log.debug("--> Creating file {}".format(filtered_h5))
         s0.make_filtered_copy(filtered_h5, mask)
 
         # After that check that your file is ok and move it to sign0.h5
+        self.__log.debug("Done"))
 
     def restrict_to_universe_hpc(self, *args, **kwargs):
         return self.func_hpc("restrict_to_universe", *args, memory=15, **kwargs)
