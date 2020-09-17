@@ -1,7 +1,8 @@
 FROM conda/miniconda3-centos7:latest
-# Steps to create the docker image in the gitlab server(coelho)
-# Copy this file to a root access directory
-# cd to that directory
+# Steps to create/update the docker image in the gitlab server (coelho)
+# cd /root/chemical_checker
+# git pull --rebase
+# cd /root/chemical_checker/container/docker
 # sudo docker build -t cc_image .
 RUN  yum install -y gcc g++ gcc-c++ cmake gfortran gcc-gfortran make wget squashfs-tools
 RUN  yum install -y libarchive-devel
