@@ -178,20 +178,11 @@ pp.add_task(s0_task)
 if DEBUG:
     pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
 
-# TASK: Diagnostic plot for sign 0
-s0_params = {}
-s0_task = CCFit(CC_ROOT,'diag0', **s0_params)
-pp.add_task(s0_task)
-
 # TASK: Calculate signatures 1
 s1_params = {}
 s1_task = CCFit(CC_ROOT, 'sign1', **s1_params)
 pp.add_task(s1_task)
 
-# TASK: Diagnostic plot for sign 1
-s1_params = {}
-s1_task = CCFit(CC_ROOT, 'diag1', **s1_params)
-pp.add_task(s1_task)
 
 # TASK: Calculate clustering for signatures 1
 c1_params = {
