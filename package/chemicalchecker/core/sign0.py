@@ -5,7 +5,7 @@ a peculiar format which might be categorical, discrete or continuous.
 They usually show explicit knowledge, which enables connectivity and
 interpretation.
 """
-import os, sys, shutil
+import os
 import h5py
 import datetime
 import collections
@@ -242,17 +242,6 @@ class sign0(BaseSignature, DataSignature):
             else:
                 return hf["key_type"][0]
 
-    @property
-    def preprocessed(self):
-        """Get the path to the corresponding preprocessed.h5."""
-        dirname= os.path.dirname(self.data_path)
-        preprocess= os.path.join(dirname,'raw','preprocess.h5')
-        if os.path.exists(preprocess):
-            return preprocess
-        else:
-            self.__log.warning("No preprocessed file has been found for {}!!".format(self.dataset))
-            return None
-
     def refesh(self):
         DataSignature.refesh()
         self._refresh("key_type")
@@ -275,8 +264,7 @@ class sign0(BaseSignature, DataSignature):
         features = features[feature_idxs]
         return X, keys, keys_raw, features
 
-
-    def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, max_features=10000, chunk_size=10000, **params):
+    def fit(self, cc_root=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, max_features=10000, chunk_size=10000, **params):
         """Process the input data. We produce a sign0 (full) and a sign0(reference). Data are sorted (keys and features).
 
         Args:
@@ -291,15 +279,13 @@ class sign0(BaseSignature, DataSignature):
             do_triplets(boolean): Draw triplets from the CC (default=True).
         """
         self.clean()
-        if cc is None:
-            cc = self.get_cc()
+        cc = self.get_cc(cc_root)
         self.__log.debug("Getting data")
         self.__log.debug("data_file is {}".format(data_file))
 
         res = self.get_data(pairs=pairs, X=X, keys=keys,
                             features=features, data_file=data_file, key_type=key_type,
                             agg_method=agg_method)
-
         X = res["X"]
         keys = res["keys"]
         keys_raw = res["keys_raw"]
@@ -384,7 +370,8 @@ class sign0(BaseSignature, DataSignature):
                     raise Exception(
                         "merge_method must be None, 'average', 'new' or 'old'")
         else:
-            self.__log.info("Not merging. Just producing signature for the inputted data.")
+            self.__log.info(
+                "Not merging. Just producing signature for the inputted data.")
             V_ = None
             keys_ = None
             keys_raw_ = None
@@ -468,86 +455,32 @@ class sign0(BaseSignature, DataSignature):
     def restrict_to_universe(self):
         """
         Nico : 17/09/2020
-        - Restricts the keys in the corresponding preprocess.h5 files to the ones contained in the universe,
+        - Restricts the keys in the corresponding h5 files to the ones contained in the universe,
         defined as the union of all molecules from bioactivity spaces (B and after).
         - Applicable when the signature belongs to one of the A spaces
         """
         cc= self.get_cc()
         universe = cc.universe  # list of inchikeys belonging to the universe
-        preprocess= self.preprocessed
-        keys_prepro = DataSignature._fetch_keys(preprocess)
 
         self.__log.debug("--> getting the vectors from s0 corresponding to our (restricted) universe")
         # get the vectors from s0 corresponding to our (restricted) universe
-        inchk_univ, _ = self.get_vectors(keys=universe, data_file=preprocess, dataset_name='X')
+        inchk_univ, _ = self.get_vectors(keys=universe)
 
         # obtain a mask for sign0 in order to obtain a filtered h5 file
         # Strangely, putting lists greatly improves the performances of np.isin
         self.__log.debug("--> Obtaining a mask")
-        mask= np.isin(list(keys_prepro), list(inchk_univ))
+        mask= np.isin(list(self.keys), list(inchk_univ))
 
         del inchk_univ  # avoiding consuming too much memory
 
-
-        # Make a backup of the current sign0.h5
-
-        
-        dirname= os.path.dirname(preprocess)
-        backup = os.path.join(dirname,'preprocessBACKUP.h5')
-        filtered_h5= os.path.join(dirname, 'preprocess_filtered.h5')
-
-        if not os.path.exists(backup):
-            self.__log.debug("Making a backup of preprocess.h5 as {}".format(backup))
-            try:
-                shutil.copyfile(preprocess, backup)
-            except Exception as e:
-                self.__log.warning("Cannot backup {}".format(backup))
-                self.__log.warning("Please check permissions")
-                self.__log.warning(e)
-                sys.exit(1)
-
-
-
-        self.__log.info("Creating {}".format(filtered_h5))
+        filtered_h5=os.path.join(os.path.dirname(self.data_path), 'sign0_univ.h5')
+        print("Creating",filtered_h5)
 
         self.__log.debug("--> Creating file {}".format(filtered_h5))
-        self.make_filtered_copy(filtered_h5, mask, include_all=True, data_file=preprocess)
+        self.make_filtered_copy(filtered_h5, mask)
 
         # After that check that your file is ok and move it to sign0.h5
-        # deleting previous sign0 file
-        self.__log.info("Deleting old preprocess.h5 file: {}".format(preprocess))
-        try:
-            os.remove(preprocess)
-        except Exception as e:
-            self.__log.warning("Cannot remove {}".format(preprocess))
-            self.__log.warning("Please check permissions")
-            self.__log.warning(e)
-            sys.exit(1)
-
-        self.__log.info("Renaming the new preprocess file:")
-        try:
-            shutil.copyfile(filtered_h5, preprocess)
-        except Exception as e:
-            self.__log.warning("Cannot copy {}".format(filtered_h5))
-            self.__log.warning("Please check permissions")
-            self.__log.warning(e)
-            sys.exit(1)
-
-        try:
-            self.__log.warning("Removing old {}".format(filtered_h5))
-            os.remove(filtered_h5)
-        except Exception as e:
-            self.__log.warning("Cannot remove {}".format(filtered_h5))
-            self.__log.warning("Please check permissions")
-            self.__log.warning(e)
-
-        # Now that molecules have been removed, we have to sanitize (remove columns full of 0)
-        # and aggregate (if two row vectors are equal, merge them using an approproate method)
-        self.__log.info("--> preprocessed file filtered for space {}".format(self.dataset))
-        # self.__log.info("Re performing the fit() method")
-        # self.fit(data_file= preprocess)
-
-        self.__log.info("Done\n")
+        self.__log.debug("Done")
 
     def restrict_to_universe_hpc(self, *args, **kwargs):
         return self.func_hpc("restrict_to_universe", *args, memory=15, **kwargs)
