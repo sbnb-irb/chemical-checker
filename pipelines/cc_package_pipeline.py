@@ -219,6 +219,10 @@ s1_params = {'CC_ROOT': CC_ROOT}
 s1_task = CCFit(cc_type='sign1', **s1_params)
 pp.add_task(s1_task)
 
+pp.run()
+print("DONE, Calculate sign 1")
+sys.exit(0)
+
 ##### TASK: Calculate clustering for signatures 1 #######
 c1_params = {'CC_ROOT': CC_ROOT}
 c1_params['general_params'] = {'balance': 1.5}
