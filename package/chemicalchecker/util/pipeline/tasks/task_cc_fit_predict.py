@@ -98,7 +98,10 @@ CC_SCRIPT_FR = [
 
 CC_SCRIPT_F = [
     'sign_new_full = cc.get_signature("<CC_TYPE>", "full", data,**pars)',
-    "sign_new_full.fit(sign_full)"
+    "sign_new_full.fit(sign_full)",
+    "if sign_new_full.cctype.startswith('sign'):",
+    '    diag=cc.diagnosis(sign_new_full)',
+    '    diag.canvas()'
 ]
 
 SIGN2_SCRIPT_FR = [
@@ -122,7 +125,9 @@ SIGN3_SCRIPT_F = [
     "sign3_full = cc.get_signature('sign3', 'full', data,**pars)",
     "sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in sign2_src_list]",
     "sign2_list.append(cc.get_signature('sign2', 'full', data))",
-    "sign3_full.fit(sign2_list, sign_full, sign1_full)"
+    "sign3_full.fit(sign2_list, sign_full, sign1_full)",
+    'diag=cc.diagnosis(sign3_full)',
+    'diag.canvas()'
 ]
 
 SIGN0_SCRIPT_FR = [
@@ -131,14 +136,21 @@ SIGN0_SCRIPT_FR = [
     "    cc_old = ChemicalChecker(CC_OLD_PATH)",
     "    pars['data_file'] = prepro_file",
     "    pars['cc'] = cc_old",
-    "sign_full.fit(**pars)"
+    "    sign_full.fit(**pars)",
+    '    diag=cc.diagnosis(sign_full)',
+    '    diag.canvas()'
+
 ]
 
 SIGN1_SCRIPT_FR = [
     'sign_new_full = cc.get_signature("sign1", "full", data)',
-    'sign_new_full.fit(sign_full, **pars)'
+    'sign_new_full.fit(sign_full, **pars)',
+    'diag=cc.diagnosis(sign_new_full)',
+    'diag.canvas()'
 ]
 
+# NS: These DIAG will be removed after the update of sign1
+# diagnostic plot have been included now into each signature's script
 DIAG0_SCRIPT_FR = [
     's0 = cc.get_signature("sign0", "full", data)',
     'diag=cc.diagnosis(s0)',
