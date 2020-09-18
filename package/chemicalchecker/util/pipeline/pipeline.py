@@ -23,6 +23,8 @@ class Pipeline():
 
         if self.pipeline_path is None:
             raise Exception("pipeline_path parameter not set")
+        else:
+            Pipeline.__log.info("PIPELINE PATH: {}".format(self.pipeline_path) )
 
         self.readydir = os.path.join(self.pipeline_path, "ready")
         self.logdir = os.path.join(self.pipeline_path, "log")
