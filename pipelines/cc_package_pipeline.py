@@ -19,11 +19,12 @@ DEBUG = True
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ['CC_CONFIG'] = os.path.join(current_dir, 'configs/cc_package.json')
-# json_file = os.environ["CC_CONFIG"]--> if we want to access individual param
 cfg = Config()
 
+# CC that will be computed
 CC_ROOT = "/aloy/web_checker/package_cc/2020_01/"
-CC_OLD_ROOT = '/aloy/web_checker/package_cc/paper'
+# CC that is used as reference (i.e. triplet sampling in sign0)
+CC_REF_ROOT = "/aloy/web_checker/package_cc/paper"
 
 data_calculators = [
     'morgan_fp_r2_2048',
@@ -36,7 +37,6 @@ data_calculators = [
 
 validation_sets = ['moa', 'atc']
 
-#pp = Pipeline(pipeline_path="/aloy/scratch/oguitart/package_cc")
 pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
 
 
@@ -171,7 +171,7 @@ if not DEBUG:
         pp.add_task(val_set_task)
 
 # TASK: Calculate signatures 0
-s0_params = {'cc_old_path': CC_OLD_ROOT}
+s0_params = {'cc_ref_root': CC_REF_ROOT}
 s0_task = CCFit(CC_ROOT, 'sign0', **s0_params)
 pp.add_task(s0_task)
 
