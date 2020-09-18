@@ -31,9 +31,7 @@ DEPENDENCIES = {
     'clus3': ['sign3'],
     'proj1': ['sign1'],
     'proj2': ['sign2'],
-    'proj3': ['sign3'],
-    'diag0': ['sign0'],
-    'diag1': ['sign1']
+    'proj3': ['sign3']
 }
 
 # NS: changed sign1 requirement from (20,10) to (40,10)
@@ -50,9 +48,7 @@ MEM_CPU = {
     'clus3': (20, 10),
     'proj1': (20, 10),
     'proj2': (20, 10),
-    'proj3': (20, 10),
-    'diag0': (20, 10),
-    'diag1': (20, 10)
+    'proj3': (20, 10)
 }
 
 SPECIAL_PARAMS = {
@@ -66,9 +62,7 @@ SPECIAL_PARAMS = {
     'clus3': {'cpu': 10},
     'proj1': {'cpu': 10},
     'proj2': {'cpu': 10},
-    'proj3': {'cpu': 10},
-    'diag0': {'cpu': 10},
-    'diag1': {'cpu': 10},
+    'proj3': {'cpu': 10}
 }
 
 MOLSET_FIT = {
@@ -84,8 +78,7 @@ MOLSET_FIT = {
     'clus3': ['reference'],
     'proj1': ['reference'],
     'proj2': ['reference'],
-    'proj3': ['reference'],
-    'diag1': ['reference']
+    'proj3': ['reference']
 }
 
 CC_SCRIPT_FR = [
@@ -149,25 +142,11 @@ SIGN1_SCRIPT_FR = [
     'diag.canvas()'
 ]
 
-# NS: These DIAG will be removed after the update of sign1
-# diagnostic plot have been included now into each signature's script
-DIAG0_SCRIPT_FR = [
-    's0 = cc.get_signature("sign0", "full", data)',
-    'diag=cc.diagnosis(s0)',
-    'diag.canvas()'
-]
 
-DIAG1_SCRIPT_FR = [
-    's1 = cc.get_signature("sign1", "full", data)',
-    'diag=cc.diagnosis(s1)',
-    'diag.canvas()'
-]
 
 SPECIFIC_SCRIPTS = {
     'sign1': (SIGN1_SCRIPT_FR, SIGN1_SCRIPT_FR),
     'sign2': (SIGN2_SCRIPT_FR, SIGN2_SCRIPT_F),
-    'diag0': (DIAG0_SCRIPT_FR, DIAG0_SCRIPT_FR),
-    'diag1': (DIAG1_SCRIPT_FR, DIAG1_SCRIPT_FR)
 }
 
 
