@@ -99,18 +99,20 @@ class ChemicalChecker():
                 custom_data_path = os.path.dirname(custom_data_path)
 
             self.custom_data_path = os.path.abspath(custom_data_path)
-            print("Importing files from {}".format(self.custom_data_path))
+            self.__log.debug("Importing files from {}".format(
+                self.custom_data_path))
 
             # Set a custom repo to avoid damaging ours
             self.cc_root = os.path.join(os.getcwd(), "cc_repo")
 
             if os.path.exists(self.cc_root):
-                print(
-                    "\nWARNING--> CC repo {} exists, importing H5 files will"
-                    "add signatures into it\n".format(self.cc_root))
+                self.__log.warning(
+                    "CC root {} exists, importing H5 files will "
+                    "add signatures into it.".format(self.cc_root))
 
             else:
-                print("\n---> Creating custom repo at {}\n".format(self.cc_root))
+                self.__log.debug("Creating custom repo at {}".format(
+                    self.cc_root))
 
                 try:
                     original_umask = os.umask(0)
@@ -118,7 +120,8 @@ class ChemicalChecker():
                     os.umask(original_umask)
 
                 except Exception as e:
-                    print("Problem in creating cc_repo: {}".format(e))
+                    self.__log.error(
+                        "Problem in creating cc_repo: {}".format(e))
 
             # Create  the cc_repo directory structure and symbolic link to
             # files
@@ -177,13 +180,13 @@ class ChemicalChecker():
         'essential'.
         """
         universe = set()
-        dataset_accepted=[]
+        dataset_accepted = []
         for ds in Dataset.get():
             if not ds.derived:
-                print(ds, "not derived")
+                self.__log.debug("Dataset '%s' not derived", ds)
                 continue
             if not ds.essential:
-                print(ds, "not essential")
+                self.__log.debug("Dataset '%s' not essential", ds)
                 continue
             s0 = self.get_signature('sign0', 'full', ds.code)
             dataset_accepted.append(ds.code)
@@ -191,7 +194,8 @@ class ChemicalChecker():
                 universe.update(s0.unique_keys)
             except Exception as ex:
                 self.__log.warning(str(ex))
-        print("datasets accepted:", dataset_accepted)
+        self.__log.debug("Datasets defining universe: %s",
+                         ' '.join(dataset_accepted))
         return sorted(list(universe))
 
     @staticmethod
@@ -315,7 +319,8 @@ class ChemicalChecker():
         signature_path = self.get_signature_path(cctype, molset, dataset_code)
 
         # the factory will return the signature with the right class
-        data = DataFactory.make_data(cctype, signature_path, dataset_code, *args, **kwargs)
+        data = DataFactory.make_data(
+            cctype, signature_path, dataset_code, *args, **kwargs)
         return data
 
     def get_data_signature(self, cctype, dataset_code):
@@ -373,22 +378,22 @@ class ChemicalChecker():
             datafile(str): The h5 file containing the predicted data after preprocess
         """
 
-        input_file=os.path.abspath(input_file)
-        destination=os.path.abspath(destination)
+        input_file = os.path.abspath(input_file)
+        destination = os.path.abspath(destination)
 
         # Checking the provided paths
-        
+
         if not os.path.exists(input_file):
             raise Exception("Error, {} does not exist!".format(input_file))
 
-        ext=destination[-2:].lower()
-        if not ext == 'h5': destination +='.h5'
+        ext = destination[-2:].lower()
+        if not ext == 'h5':
+            destination += '.h5'
 
         prepro = Preprocess(sign.signature_path, sign.dataset)
         prepro.predict(input_file, destination)
 
         return destination
-
 
     def signature(self, dataset, cctype):
         return self.get_signature(cctype=cctype, molset="full", dataset_code=dataset)
@@ -406,8 +411,10 @@ class ChemicalChecker():
 
         if len(h5files) == 0:
             #raise Exception("No h5 files found in {}".format(self.custom_data_path))
-            print("INFO: no h5 file found in {}, creating an empty CC structure.".format(
-                self.custom_data_path))
+            self.__log.info(
+                "No h5 file found in {},"
+                " creating an empty CC structure.".format(
+                    self.custom_data_path))
             # original_umask = os.umask(0)
             # try:
             #     os.makedirs(os.path.join(self.cc_root, "full/Z/Z1/Z1.001/sign0"), 0o775)
@@ -420,7 +427,7 @@ class ChemicalChecker():
         else:
 
             available_files = ", ".join([os.path.basename(f) for f in h5files])
-            print("Found h5 files {}: in {}".format(
+            self.__log.debug("Found h5 files {}: in {}".format(
                 available_files, self.custom_data_path))
 
             # check the format of the imported info data
@@ -446,16 +453,18 @@ class ChemicalChecker():
                     # the required format for each of them
                     for requiredKey, requiredFormat in formatDict.items():
                         if requiredKey not in ccfile.attrs:
-                            print("Attribute {} cannot be retrieved from {},"
-                                  " skipping this file".format(
-                                      requiredKey, ccfile))
+                            self.__log.debug(
+                                "Attribute {} cannot be retrieved from {},"
+                                " skipping this file".format(
+                                    requiredKey, ccfile))
                             return None
 
                         else:
                             # check the format of the provided info
                             if requiredFormat.match(ccfile.attrs[requiredKey]) is None:
-                                print("Problem with format",
-                                      ccfile.attrs[requiredKey])
+                                self.__log.debug(
+                                    "Problem with format",
+                                    ccfile.attrs[requiredKey])
                                 return None
 
                     #-------Now that the format is correct, output the info
@@ -489,14 +498,15 @@ class ChemicalChecker():
 
                 # i.e ../../full/A/A1/A1.001/sign3
                 path2sign = os.path.join(self.cc_root, '/'.join(h5t[:-1]))
-                print("Attempting to create", path2sign)
+                self.__log.debug("Attempting to create %s", path2sign)
 
                 # If the signature already exists then propose to rename it
                 # (ex: 00X) or skip it
                 skip_signature = False
                 while os.path.exists(path2sign):
-                    print("Signature {} already exists for dataset {}".format(
-                        h5t[4], h5t[3]))
+                    self.__log.debug(
+                        "Signature {} already exists for dataset {}".format(
+                            h5t[4], h5t[3]))
                     resp = input("Rename it (r) or skip it (any other key)?")
 
                     if resp.lower() != 'r':
@@ -519,14 +529,16 @@ class ChemicalChecker():
                             formatok = True if (
                                 formatok is not None) else False
                             if not formatok:
-                                print("Bad format, please try again.")
+                                self.__log.error(
+                                    "Bad format, please try again.")
 
                         newtup = (h5t[0], h5t[1], h5t[2], h5t[
                                   2] + '.' + newcode, h5t[4])
                         # i.e ../../full/A/A1/A1.001/sign3
                         path2sign = os.path.join(
                             self.cc_root, '/'.join(newtup))
-                        print("New signature path: {}".format(path2sign))
+                        self.__log.debug(
+                            "New signature path: {}".format(path2sign))
 
                 if not skip_signature:
                     try:
@@ -539,7 +551,9 @@ class ChemicalChecker():
 
                     except Exception as e:
                         os.umask(original_umask)
-                        print("Problem in creating the cc custom repo: {}".format(e))
+                        self.__log.error(
+                            "Problem in creating "
+                            "the cc custom repo: {}".format(e))
 
             os.umask(original_umask)  # after the loop to be sure
 
