@@ -4,6 +4,9 @@ This task allow submitting HPC jobs which will 'fit' for a specific signature
 type (e.g. 'sign1').
 It allows submitting jobs for all spaces of the CC at once and passing
 parameters specific for each of them.
+We should avoid adding too much logic in here, and simply pass args and
+kwargs to signatures. The specific signature classes should check that
+the parameters are OK.
 """
 import os
 import h5py
@@ -66,10 +69,6 @@ SIGN_PARAMS = {
     'proj3': {'cpu': 10}
 }
 
-FIT_PARAMS = {
-
-}
-
 MOLSET_FIT = {
     'sign0': ['full'],
     'sign1': ['reference'],
@@ -86,23 +85,29 @@ MOLSET_FIT = {
     'proj3': ['reference']
 }
 
-BASE_SCRIPT = [
-    "import sys, os",
-    "import pickle",
-    "import logging",
-    "import chemicalchecker",
-    "from chemicalchecker import ChemicalChecker, Config",
-    "logging.log(logging.DEBUG,'chemicalchecker: %s' % chemicalchecker.__path__)",
-    "logging.log(logging.DEBUG,'CWD: %s' % os.getcwd())",
-    "config = Config()",
-    "task_id = sys.argv[1]",  # <TASK_ID>
-    "filename = sys.argv[2]",  # <FILE>
-    "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
-    "ds = inputs[task_id][0][0]",
-    "sign_pars = inputs[task_id][0][1]",
-    "fit_pars = inputs[task_id][0][2]",
-]
+FIT_SCRIPT = """
+import sys, os
+import pickle
+import logging
+import chemicalchecker
+from chemicalchecker import ChemicalChecker, Config
+logging.log(logging.DEBUG,'chemicalchecker: {{}}'.format(chemicalchecker.__path__)
+logging.log(logging.DEBUG,'CWD: {{}}'.format(os.getcwd()))
+config = Config()
+task_id = sys.argv[1]  # <TASK_ID>
+filename = sys.argv[2]  # <FILE>
+inputs = pickle.load(open(filename, 'rb'))  # load pickled data
+sign_args = inputs[task_id][0][0]
+sign_kwargs = inputs[task_id][0][1]
+fit_args = inputs[task_id][0][2]
+fit_kwargs = inputs[task_id][0][3]
+cc = ChemicalChecker('{cc_root}')"
+sign = cc.get_signature(*sig_args, **sig_kwargs)"
+sign.fit(*fit_args, **fit_kwargs)"
+print('JOB DONE')"
+"""
 
+"""
 CC_SCRIPT_FR = [
     'sign_new_ref = cc.get_signature("<CCTYPE>", "reference", ds, **sign_pars)',
     "sign_new_ref.fit(sign_ref, **fit_pars)",
@@ -170,6 +175,21 @@ SPECIFIC_SCRIPTS = {
 }
 
 
+SIGN3_SCRIPT_FR = [
+    "sign1_full = cc.get_signature('sign1', 'full', data, **sign_pars)",
+    "sign3_full = cc.get_signature('sign3', 'full', data, **sign_pars)",
+    "sign2_src_list = [%s]" % (str(self.ref_datasets)[1:-1]),
+    "sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in sign2_src_list]",
+    "sign3_full.fit(sign2_list,sign_full,sign1_full,sign2_universe='%s', sign2_coverage='%s')" % (
+        full_universe, full_coverage)
+]
+SPECIFIC_SCRIPTS['sign3'] = (
+    SIGN3_SCRIPT_FR, ["sign2_src_list = [%s]" %
+                      (str(self.ref_datasets)[1:-1])] + SIGN3_SCRIPT_F)
+
+"""
+
+
 @logged
 class CCFit(BaseTask):
 
@@ -206,8 +226,10 @@ class CCFit(BaseTask):
         self.datasets = params.get('datasets', 'essential')
         if self.datasets == 'essential':
             self.datasets = [ds.code for ds in Dataset.get(essential=True)]
-        self.ds_sign_params = params.get('ds_params', {})
-        self.ds_fit_params = params.get('general_params', {})
+        self.sign_args = params.get('sign_args', [])
+        self.sign_kwargs = params.get('sign_kwargs', {})
+        self.fit_args = params.get('fit_args', [])
+        self.fit_kwargs = params.get('fit_kwargs', [])
 
         def_ref_datasets = [ds.code for ds in Dataset.get(exemplary=True)]
         self.ref_datasets = params.get('reference_datasets', def_ref_datasets)
@@ -225,22 +247,23 @@ class CCFit(BaseTask):
         dataset_codes = list()
         for ds in self.datasets:
             sign = cc.get_signature(self.cctype, MOLSET_FIT[self.cctype], ds)
-            if not sign.is_fit():
-                # special exception to avoid recumputing D1 sign0
-                # even if not completed
-                if os.path.exists(sign.signature_path):
-                    if ds == 'D1.001' and self.cctype == 'sign0':
-                        continue
-                dataset_codes.append(ds)
+            if sign.is_fit():
+                continue
+            # special exception to avoid recomputing from the beginning
+            # sign0 of D1.001, even if not completed
+            if os.path.exists(sign.signature_path):
+                if ds == 'D1.001' and self.cctype == 'sign0':
+                    continue
+            dataset_codes.append(ds)
         if len(dataset_codes) == 0:
-            self.l__log.warninig('All dataset are already fitted.')
+            self.__log.warninig('All dataset are already fitted.')
             return
 
-        # sign3 specific precalculations
+        # sign3 specific pre-calculations
         # FIXME this should go to the main pipeline
         if self.cctype == 'sign3':
             # if target datasets are also in the in the reference list, then
-            # we can precumpute the shared universe and coverage matrices
+            # we can precompute the shared universe and coverage matrices
             # otherwise the sign3 class is computing for each dataset
             if all(np.isin(self.datasets, self.ref_datasets)):
                 full_universe = os.path.join(self.tmpdir, "universe_full")
@@ -257,116 +280,43 @@ class CCFit(BaseTask):
                     self.__log.error(e)
                     raise Exception("Universe full file is corrupted.")
 
-                SIGN3_SCRIPT_FR = [
-                    "sign1_full = cc.get_signature('sign1', 'full', data, **sign_pars)",
-                    "sign3_full = cc.get_signature('sign3', 'full', data, **sign_pars)",
-                    "sign2_src_list = [%s]" % (str(self.ref_datasets)[1:-1]),
-                    "sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in sign2_src_list]",
-                    "sign3_full.fit(sign2_list,sign_full,sign1_full,sign2_universe='%s', sign2_coverage='%s')" % (
-                        full_universe, full_coverage)
-                ]
-                SPECIFIC_SCRIPTS['sign3'] = (
-                    SIGN3_SCRIPT_FR, ["sign2_src_list = [%s]" %
-                                      (str(self.ref_datasets)[1:-1])] + SIGN3_SCRIPT_F)
-
-        # Filling dataset_params
+        # Preparing dataset_params
         # for each dataset we want to define a set of signature parameters
         # (i.e. sign_pars, used when loading the signature) and a set of
-        # parameters used when callinf the 'fit' method (i.e. fit_pars)
-        # this should be harmonized working on individual signature classes
+        # parameters used when calling the 'fit' method (i.e. fit_pars)
+        # FIXME this should be harmonized fixing individual signature classes
         dataset_params = list()
         for ds_code in dataset_codes:
-            sign_pars = {}
-            fit_pars = {}
-            sign_pars.update(self.general_data_params)
-            # NS self.data_param is None is our case
-            if isinstance(self.ds_data_params, Config):
-                temp_dict = self.ds_data_params.asdict()
-            else:
-                temp_dict = self.ds_data_params  # NS i.e None
-
-            if temp_dict is not None and ds_code in temp_dict.keys():
-                if isinstance(temp_dict[ds_code], Config):
-                    dict_params = temp_dict[ds_code].asdict()
-                else:
-                    dict_params = temp_dict[ds_code]
-
-                if self.cctype in SPECIAL_PARAMS:
-                    dict_params.update(SPECIAL_PARAMS[self.cctype])
-
-                if self.general_data_params is not None:
-                    dict_params.update(self.general_data_params)
-                dataset_params.append((ds_code, dict_params))
-            else:
-                dataset_params.append((ds_code, None))  # i.e ('A1.001', None)
-
-        self.__log.info('dataset_params:')
-        for p in dataset_params:
-            self.__log.info('\t%s' % str(p))
-        # NS: checking dependencies depending on which sign we are calculating
-        # NS, some CC_types have dependencies, eg sign2 need for ex sign1 and
-        # neig1 to work
-        for dependency in DEPENDENCIES[self.cctype]:
-            for ds in dataset_codes:
-                if dependency == self.cctype:  # NS no dependency
-                    continue
-                if self.full_reference:  # NS: True by default
-                    branch = "reference"
-                else:
-                    branch = "full"
-
-                # again, generate a sign or neig object to fulfill the
-                # dependency before the required signature
-                sign = cc.get_signature(dependency, branch, ds)
-
-                if not sign.available():
-                    raise Exception(
-                        dependency + " CC type is not available and it is required for " + self.cctype)
-                else:
-                    print("INFO: Dependency {} is available for calculating {}".format(
-                        dependency, self.cctype))
-
-        if self.cc_ref_root is not None:
-            SIGN0_SCRIPT_FR.insert(0, "CC_OLD_PATH = '%s'" % self.cc_ref_root)
-
-        else:
-            SIGN0_SCRIPT_FR.insert(0, "CC_OLD_PATH = None")
-
-        SPECIFIC_SCRIPTS['sign0'] = (SIGN0_SCRIPT_FR, SIGN0_SCRIPT_FR)
+            sign_args = list()
+            fit_args = list()
+            sign_args.update(self.sign_args.get(ds_code, list()))
+            fit_args.update(self.fit_args.get(ds_code, list()))
+            sign_kwargs = dict()
+            fit_kwargs = dict()
+            sign_kwargs.update(self.sign_kwargs.get(ds_code, dict()))
+            fit_kwargs.update(self.fit_kwargs.get(ds_code, dict()))
+            # we add arguments which are used by CCFit but are also needed
+            # by a signature fit
+            sign_args.insert(0, self.cctype)
+            sign_args.insert(1, MOLSET_FIT[self.cctype])
+            sign_args.insert(2, ds_code)
+            if self.cc_ref_root:
+                fit_kwargs.update({'cc_ref_root', self.cc_ref_root})
+            # prepare it as tuple that will be serialized
+            dataset_params.append(
+                (sign_args, sign_kwargs, fit_args, fit_kwargs))
+            self.__log.info('%s sign_args: %s', ds_code, str(sign_args))
+            self.__log.info('%s sign_kwargs: %s', ds_code, str(sign_kwargs))
+            self.__log.info('%s fit_args: %s', ds_code, str(fit_args))
+            self.__log.info('%s fit_kwargs: %s', ds_code, str(fit_kwargs))
 
         # Create script file that will launch signx fit for each dataset
         job_path = tempfile.mkdtemp(
             prefix='jobs_%s_' % self.cctype, dir=self.tmpdir)
-        script_lines = BASE_SCRIPT
-        script_lines += [
-            "cc = ChemicalChecker('%s')" % self.cc_root,
-            'sign_full = cc.get_signature("%s", "full", ds)' % DEPENDENCIES[
-                self.cctype][0],
-            'sign_ref = cc.get_signature("%s", "reference", ds)' % DEPENDENCIES[
-                self.cctype][0]
-        ]
-        # append signature specific snippets
-        if self.full_reference:  # True for sign0
-            if self.cctype in SPECIFIC_SCRIPTS:
-                # i.e SIGN0_SCRIPT_FR, i.e will call cc.preprocess
-                script_lines += SPECIFIC_SCRIPTS[self.cctype][0]
-            else:
-                script_lines += [sub.replace('<CCTYPE>', self.cctype)
-                                 for sub in CC_SCRIPT_FR]
-        else:
-            if self.cctype in SPECIFIC_SCRIPTS:
-                # # same for sign0 i.e SIGN0_SCRIPT_FR, i.e will call cc.preprocess
-                script_lines += SPECIFIC_SCRIPTS[self.cctype][1]
-            else:
-                # here the fit method is called
-                script_lines += [sub.replace('<CCTYPE>', self.cctype)
-                                 for sub in CC_SCRIPT_F]
-        script_lines += ["print('JOB DONE')"]
         script_name = os.path.join(job_path, self.cctype + '_script.py')
-        # write script to file
+        script_content = FIT_SCRIPT.format(cc_root=self.cc_root)
         with open(script_name, 'w') as fh:
-            for line in script_lines:
-                fh.write(line + '\n')
+            fh.write(script_content)
 
         # HPC job parameters
         params = {}
@@ -395,7 +345,6 @@ class CCFit(BaseTask):
             sign = cc.get_signature(self.cctype, "full", ds_code)
             if sign.is_fit():
                 continue
-
             dataset_not_done.append(ds_code)
             self.__log.warning(
                 self.cctype + " fit failed for dataset code: " + ds_code)
