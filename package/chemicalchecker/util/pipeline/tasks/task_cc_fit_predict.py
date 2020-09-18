@@ -290,6 +290,7 @@ class CCFit(BaseTask):
         dataset_params = list()
 
         # NS: now filling dataset_params
+        self.__log.info("--> SELECTING THE FOLLOWING DATASETS: {}".format(dataset_codes))
         for ds_code in dataset_codes:
             # NS self.data_param is None is our case
             if isinstance(self.ds_data_params, Config):
