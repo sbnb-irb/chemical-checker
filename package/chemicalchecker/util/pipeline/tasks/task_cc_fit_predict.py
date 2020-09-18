@@ -1,8 +1,9 @@
 """CCFit task.
 
-This class allows to pipe different ``fit`` tasks in the Pipeline framework.
-It tries to work for all possible CC elements but considering that signatures
-are changing quite often it might need to be updated.
+This task allow submitting HPC jobs which will 'fit' for a specific signature
+type (e.g. 'sign1').
+It allows submitting jobs for all spaces of the CC at once and passing
+parameters specific for each of them.
 """
 import os
 import h5py
@@ -98,8 +99,8 @@ BASE_SCRIPT = [
     "filename = sys.argv[2]",  # <FILE>
     "inputs = pickle.load(open(filename, 'rb'))",  # load pickled data
     "ds = inputs[task_id][0][0]",
-    "fit_pars = inputs[task_id][0][1]",
     "sign_pars = inputs[task_id][0][1]",
+    "fit_pars = inputs[task_id][0][2]",
 ]
 
 CC_SCRIPT_FR = [
@@ -184,16 +185,17 @@ class CCFit(BaseTask):
                 CC datasets)
             full_reference (bool): The fit is for both full and reference
                 (default:True)
-            ds_data_params (dict): A dictionary where key is dataset code and
+            ds_sign_params (dict): A dictionary where key is dataset code and
                 value is  another dictionary with all specific parameters for
-                that dataset. (Optional)
-            general_data_params (dict): A dictionary with general parameters
-                for all datasets (Optional)
+                initializing the signature. (Optional)
+            ds_fit_params (dict): A dictionary where key is dataset code and
+                value is  another dictionary with all specific parameters for
+                the fit method. (Optional)
 
-            cc_old_path (str): The CC root path for a previous release of CC
-                (specific for sign0)
-            ref_datasets (list): List of reference datasets for
-                (specific for sign3)
+            cc_ref_root (str): The CC root path for a previous release of CC
+                which will be used as reference. (specific for `sign0`)
+            ref_datasets (list): List of reference datasets for fitting sign3.
+                (specific for `sign3`)
 
         """
         self.name = params.get('name', cctype)
@@ -204,16 +206,16 @@ class CCFit(BaseTask):
         self.datasets = params.get('datasets', 'essential')
         if self.datasets == 'essential':
             self.datasets = [ds.code for ds in Dataset.get(essential=True)]
-        self.ds_data_params = params.get('ds_params', None)
-        self.general_data_params = params.get('general_params', None)
+        self.ds_sign_params = params.get('ds_params', {})
+        self.ds_fit_params = params.get('general_params', {})
 
         def_ref_datasets = [ds.code for ds in Dataset.get(exemplary=True)]
         self.ref_datasets = params.get('reference_datasets', def_ref_datasets)
-        self.cc_old_path = params.get('cc_old_path', None)
+        self.cc_ref_root = params.get('cc_ref_root', None)
 
         if self.cctype == 'sign0':
-            if self.ds_data_params is None and self.cc_old_path is None:
-                raise Exception("CCFit for sign0 requires 'cc_old_path' "
+            if self.ds_data_params is None and self.cc_ref_root is None:
+                raise Exception("CCFit for sign0 requires 'cc_ref_root' "
                                 "if no 'ds_data_params' is provided")
 
     def run(self):
@@ -276,6 +278,7 @@ class CCFit(BaseTask):
         for ds_code in dataset_codes:
             sign_pars = {}
             fit_pars = {}
+            sign_pars.update(self.general_data_params)
             # NS self.data_param is None is our case
             if isinstance(self.ds_data_params, Config):
                 temp_dict = self.ds_data_params.asdict()
@@ -323,8 +326,8 @@ class CCFit(BaseTask):
                     print("INFO: Dependency {} is available for calculating {}".format(
                         dependency, self.cctype))
 
-        if self.cc_old_path is not None:
-            SIGN0_SCRIPT_FR.insert(0, "CC_OLD_PATH = '%s'" % self.cc_old_path)
+        if self.cc_ref_root is not None:
+            SIGN0_SCRIPT_FR.insert(0, "CC_OLD_PATH = '%s'" % self.cc_ref_root)
 
         else:
             SIGN0_SCRIPT_FR.insert(0, "CC_OLD_PATH = None")
