@@ -191,7 +191,7 @@ class CCFit(BaseTask):
 
         config_cc = Config()
         dataset_codes = list()
-        cc = ChemicalChecker(self.CC_ROOT, json_config_file=self.json_config_file)
+        cc = ChemicalChecker(self.CC_ROOT)
 
         # sign3 specific checks, precalculations and parameters
         if self.cc_type == 'sign3':
