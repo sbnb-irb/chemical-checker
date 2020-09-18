@@ -25,6 +25,7 @@
           general utilities.
 """
 from .core import ChemicalChecker
+from .util import Config
 
 
 __author__ = """SBNB"""
