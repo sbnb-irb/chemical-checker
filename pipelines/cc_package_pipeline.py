@@ -122,6 +122,7 @@ downloads_params = {
     'python_callable': downloads,
     'op_args': [pp.tmpdir]
 }
+
 downloads_task = PythonCallable(name="downloads", **downloads_params)
 pp.add_task(downloads_task)
 
@@ -169,29 +170,28 @@ if not DEBUG:
             name="val_set_" + val_set, **val_set_params)
         pp.add_task(val_set_task)
 
-if DEBUG:
-    pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
-
 # TASK: Calculate signatures 0
 s0_params = {'cc_old_path': CC_OLD_ROOT}
 s0_task = CCFit(CC_ROOT, 'sign0', **s0_params)
 pp.add_task(s0_task)
 
+if DEBUG:
+    pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
+
+# TASK: Diagnostic plot for sign 0
+s0_params = {}
+s0_task = CCFit(CC_ROOT,cc_type='diag0', **s0_params)
+pp.add_task(s0_task)
 
 # TASK: Calculate signatures 1
 s1_params = {}
 s1_task = CCFit(CC_ROOT, 'sign1', **s1_params)
 pp.add_task(s1_task)
 
-
 # TASK: Diagnostic plot for sign 1
 s1_params = {}
 s1_task = CCFit(CC_ROOT, 'diag1', **s1_params)
 pp.add_task(s1_task)
-
-pp.run()
-print("DONE, Calculate sign 0 and 1, nearest neighbours and projections")
-sys.exit(0)
 
 # TASK: Calculate clustering for signatures 1
 c1_params = {
