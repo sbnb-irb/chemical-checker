@@ -31,9 +31,7 @@ CC_TYPES_DEPENDENCIES = {
     'clus3': ['sign3'],
     'proj1': ['sign1'],
     'proj2': ['sign2'],
-    'proj3': ['sign3'],
-    'diag0': ['sign0'],
-    'diag1': ['sign1']
+    'proj3': ['sign3']
 }
 
 # NS: changed sign1 requirement from (20,10) to (40,10)
@@ -50,9 +48,7 @@ CC_TYPES_MEM_CPU = {
     'clus3': (20, 10),
     'proj1': (20, 10),
     'proj2': (20, 10),
-    'proj3': (20, 10),
-    'diag0': (20,10),
-    'diag1': (20,10)
+    'proj3': (20, 10)
 }
 
 SPECIAL_PARAMS = {
@@ -66,9 +62,7 @@ SPECIAL_PARAMS = {
     'clus3': {'cpu': 10},
     'proj1': {'cpu': 10},
     'proj2': {'cpu': 10},
-    'proj3': {'cpu': 10},
-    'diag0': {'cpu': 10},
-    'diag1': {'cpu': 10},
+    'proj3': {'cpu': 10}
     }
 
 CC_SCRIPT_FR = [
