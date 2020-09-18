@@ -2005,7 +2005,8 @@ class sign3(BaseSignature, DataSignature):
                             n_samples=1)
                         results['applicability'][chunk] = app
                         # and estimate confidence
-                        conf_feats = np.vstack([app, robs, prior]).T
+                        conf_feats = np.vstack(
+                            [app, robs, prior, prior_sign, ints]).T
                         conf_estimate = conf_mdl[0].predict(conf_feats)
                         conf_calib = conf_mdl[1].predict(
                             np.expand_dims(conf_estimate, 1))
