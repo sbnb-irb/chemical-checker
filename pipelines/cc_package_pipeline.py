@@ -180,7 +180,7 @@ if DEBUG:
 
 # TASK: Diagnostic plot for sign 0
 s0_params = {}
-s0_task = CCFit(CC_ROOT,cc_type='diag0', **s0_params)
+s0_task = CCFit(CC_ROOT,'diag0', **s0_params)
 pp.add_task(s0_task)
 
 # TASK: Calculate signatures 1
