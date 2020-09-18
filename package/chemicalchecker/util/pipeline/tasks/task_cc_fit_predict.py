@@ -31,7 +31,9 @@ DEPENDENCIES = {
     'clus3': ['sign3'],
     'proj1': ['sign1'],
     'proj2': ['sign2'],
-    'proj3': ['sign3']
+    'proj3': ['sign3'],
+    'diag0': ['sign0'],
+    'diag1': ['sign1']
 }
 
 # NS: changed sign1 requirement from (20,10) to (40,10)
@@ -48,7 +50,9 @@ MEM_CPU = {
     'clus3': (20, 10),
     'proj1': (20, 10),
     'proj2': (20, 10),
-    'proj3': (20, 10)
+    'proj3': (20, 10),
+    'diag0': (20, 10),
+    'diag1': (20, 10)
 }
 
 SPECIAL_PARAMS = {
@@ -62,8 +66,10 @@ SPECIAL_PARAMS = {
     'clus3': {'cpu': 10},
     'proj1': {'cpu': 10},
     'proj2': {'cpu': 10},
-    'proj3': {'cpu': 10}
-    }
+    'proj3': {'cpu': 10},
+    'diag0': {'cpu': 10},
+    'diag1': {'cpu': 10},
+}
 
 MOLSET_FIT = {
     'sign0': ['full'],
@@ -87,15 +93,15 @@ CC_SCRIPT_FR = [
     "sign_new_ref.fit(sign_ref)",
     "sign_new_full = cc.get_signature('<CC_TYPE>', 'full', data,**pars)",
     "sign_new_ref.predict(sign_full, destination=sign_new_full.data_path)",
-    "sign_new_full.mark_ready()",
-    "#if sign_new_full.cctype.startswith('sign'):",
-    '#    diag=cc.diagnosis(sign_new_full)',
-    '#    diag.canvas()'
+    "sign_new_full.mark_ready()"
 ]
 
 CC_SCRIPT_F = [
     'sign_new_full = cc.get_signature("<CC_TYPE>", "full", data,**pars)',
-    "sign_new_full.fit(sign_full)"
+    "sign_new_full.fit(sign_full)",
+    "if sign_new_full.cctype.startswith('sign'):",
+    '    diag=cc.diagnosis(sign_new_full)',
+    '    diag.canvas()'
 ]
 
 SIGN2_SCRIPT_FR = [
@@ -111,10 +117,7 @@ SIGN2_SCRIPT_FR = [
 SIGN2_SCRIPT_F = [
     'neig1_full = cc.get_signature("neig1", "full", data)',
     'sign2_full = cc.get_signature("sign2", "full", data,**pars)',
-    "sign2_full.fit(sign_full, neig1_full, reuse=False)",
-    '#diag=cc.diagnosis(sign2_full)',
-    '#diag.canvas()'
-
+    "sign2_full.fit(sign_full, neig1_full, reuse=False)"
 ]
 
 SIGN3_SCRIPT_F = [
@@ -123,8 +126,8 @@ SIGN3_SCRIPT_F = [
     "sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in sign2_src_list]",
     "sign2_list.append(cc.get_signature('sign2', 'full', data))",
     "sign3_full.fit(sign2_list, sign_full, sign1_full)",
-    '#diag=cc.diagnosis(sign3_full)',
-    '#diag.canvas()'
+    'diag=cc.diagnosis(sign3_full)',
+    'diag.canvas()'
 ]
 
 SIGN0_SCRIPT_FR = [
@@ -133,27 +136,38 @@ SIGN0_SCRIPT_FR = [
     "    cc_old = ChemicalChecker(CC_OLD_PATH)",
     "    pars['data_file'] = prepro_file",
     "    pars['cc'] = cc_old",
-    "# We need to be able to figure what is the universe or bioactive molecules before running this",
-    "#i.e, the sign0 for B spaces and above should run FIRST",
-    "if sign_full.dataset.startswith('A') or sign_full.dataset == 'B4.002':",
-    "    sign_full.restrict_to_universe()",
-    "sign_full.fit(**pars)",
-    '#diag=cc.diagnosis(sign_full)',
-    '#diag.canvas()'
+    "    sign_full.fit(**pars)",
+    '    diag=cc.diagnosis(sign_full)',
+    '    diag.canvas()'
 
 ]
 
 SIGN1_SCRIPT_FR = [
     'sign_new_full = cc.get_signature("sign1", "full", data)',
     'sign_new_full.fit(sign_full, **pars)',
-    '#diag=cc.diagnosis(sign_new_full)',
-    '#diag.canvas()'
+    'diag=cc.diagnosis(sign_new_full)',
+    'diag.canvas()'
 ]
 
+# NS: These DIAG will be removed after the update of sign1
+# diagnostic plot have been included now into each signature's script
+DIAG0_SCRIPT_FR = [
+    's0 = cc.get_signature("sign0", "full", data)',
+    'diag=cc.diagnosis(s0)',
+    'diag.canvas()'
+]
+
+DIAG1_SCRIPT_FR = [
+    's1 = cc.get_signature("sign1", "full", data)',
+    'diag=cc.diagnosis(s1)',
+    'diag.canvas()'
+]
 
 SPECIFIC_SCRIPTS = {
     'sign1': (SIGN1_SCRIPT_FR, SIGN1_SCRIPT_FR),
-    'sign2': (SIGN2_SCRIPT_FR, SIGN2_SCRIPT_F)
+    'sign2': (SIGN2_SCRIPT_FR, SIGN2_SCRIPT_F),
+    'diag0': (DIAG0_SCRIPT_FR, DIAG0_SCRIPT_FR),
+    'diag1': (DIAG1_SCRIPT_FR, DIAG1_SCRIPT_FR)
 }
 
 
@@ -293,7 +307,6 @@ class CCFit(BaseTask):
         dataset_params = list()
 
         # NS: now filling dataset_params
-        self.__log.info("--> SELECTING THE FOLLOWING DATASETS: {}".format(dataset_codes))
         for ds_code in dataset_codes:
             # NS self.data_param is None is our case
             if isinstance(self.ds_data_params, Config):
