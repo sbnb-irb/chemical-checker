@@ -183,7 +183,6 @@ s1_params = {}
 s1_task = CCFit(CC_ROOT, 'sign1', **s1_params)
 pp.add_task(s1_task)
 
-
 # TASK: Calculate clustering for signatures 1
 c1_params = {
     'general_params': {'balance': 1.5}
