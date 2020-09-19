@@ -509,7 +509,7 @@ class sign0(BaseSignature, DataSignature):
 
         print("Renaming the new s0 file:")
         try:
-            shutil.copy(filtered_h5, current_h5)
+            shutil.copyfile(filtered_h5, current_h5)
         except:
             self.__log.warning("Cannot copy {}".format(filtered_h5))
             self.__log.warning("Please check permissions")
