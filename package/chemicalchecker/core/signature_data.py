@@ -259,7 +259,7 @@ class DataSignature(object):
                         if not include_all:
                             continue
                         else:
-                            masked = hf_in[dset]
+                            masked = hf_in[dset][:][:]
                     else:
                         masked = hf_in[dset][:][mask]
 
