@@ -482,7 +482,7 @@ class sign0(BaseSignature, DataSignature):
         filtered_h5=os.path.join(os.path.dirname(self.data_path), 'sign0_univ.h5')
 
         if not os.path.exists(backup):
-            self.__log.debug("Making a backup of sign0.h5 as %s"%backup))
+            self.__log.debug("Making a backup of sign0.h5 as %s"%backup)
             try:
                 shutil.copyfile(current_h5, backup)
             except:
