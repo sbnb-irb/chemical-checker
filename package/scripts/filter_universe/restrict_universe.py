@@ -2,6 +2,8 @@ import numpy as np
 import os, shutil, sys
 from chemicalchecker import ChemicalChecker
 
+os.environ['CC_CONFIG'] = "/opt/chemical_checker/setup/users/cc_config_nico.json"
+
 # NS filter the A spaces sign0 to keep only molecules present in the B spaces and after (bioactive molecules)
 cc_repo="/aloy/web_checker/package_cc/2020_01/"
 cc= ChemicalChecker(cc_repo)
