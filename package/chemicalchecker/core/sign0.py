@@ -509,14 +509,21 @@ class sign0(BaseSignature, DataSignature):
 
         print("Renaming the new s0 file:")
         try:
-            shutil.move(filtered_h5, current_h5)
+            shutil.copy(filtered_h5, current_h5)
         except:
-            self.__log.warning("Cannot move {}".format(filtered_h5))
+            self.__log.warning("Cannot copy {}".format(filtered_h5))
             self.__log.warning("Please check permissions")
             sys.exit(1)
 
+        try:
+            self.__log.warning("Removing old {}".format(filtered_h5))
+            os.remove(filtered_h5)
+        except:
+            self.__log.warning("Cannot remove {}".format(filtered_h5))
+            self.__log.warning("Please check permissions")
 
-        self.__log.debug("Done")
+
+        self.__log.debug("Done\n")
 
     def restrict_to_universe_hpc(self, *args, **kwargs):
         return self.func_hpc("restrict_to_universe", *args, memory=15, **kwargs)
