@@ -61,7 +61,7 @@ for space in spaces_to_filter:
     try:
         shutil.move(filtered_h5, current_h5)
     except:
-        print("Cannot copy", filtered_h5)
+        print("Cannot move", filtered_h5)
         print("Please check permissions")
         sys.exit(1)
 
