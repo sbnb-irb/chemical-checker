@@ -59,10 +59,11 @@ for space in spaces_to_filter:
 
     print("Renaming the new s0 file:")
     try:
-        shutil.copyfile(filtered_h5, current_h5)
+        shutil.move(filtered_h5, current_h5)
     except:
         print("Cannot copy", filtered_h5)
         print("Please check permissions")
         sys.exit(1)
+
 
     print("FILTERED: sign0", space)
