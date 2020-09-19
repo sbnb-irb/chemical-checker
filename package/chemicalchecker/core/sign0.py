@@ -521,7 +521,7 @@ class sign0(BaseSignature, DataSignature):
         try:
             self.__log.warning("Removing old {}".format(filtered_h5))
             os.remove(filtered_h5)
-        except Exception as e::
+        except Exception as e:
             self.__log.warning("Cannot remove {}".format(filtered_h5))
             self.__log.warning("Please check permissions")
             self.__log.warning(e)
