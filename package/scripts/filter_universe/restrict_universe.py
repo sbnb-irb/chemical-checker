@@ -12,6 +12,8 @@ spaces_to_filter = ['A1.001', 'A2.001', 'A3.001', 'A4.001', 'A5.001', 'B4.002']
 
 for space in spaces_to_filter:
 
+
+    print("NOW FILTERING sign0 for", space)
     s0 = cc.get_signature('sign0', 'full', space)
 
     # Make a backup of the current sign0.h5
@@ -60,3 +62,5 @@ for space in spaces_to_filter:
         print("Cannot copy", filtered_h5)
         print("Please check permissions")
         sys.exit(1)
+
+    print("FILTERED: sign0", space)
