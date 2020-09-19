@@ -482,11 +482,11 @@ class sign0(BaseSignature, DataSignature):
         filtered_h5=os.path.join(os.path.dirname(self.data_path), 'sign0_univ.h5')
 
         if not os.path.exists(backup):
-            self.__log.debug("Making a backup of sign0.h5 as %s"%backup)
+            self.__log.debug("Making a backup of sign0.h5 as {}".format(backup))
             try:
                 shutil.copyfile(current_h5, backup)
             except:
-                self.__log.warning("Cannot backup %s"%backup)
+                self.__log.warning("Cannot backup {}".format(backup))
                 self.__log.warning("Please check permissions")
                 sys.exit(1)
 
@@ -503,7 +503,7 @@ class sign0(BaseSignature, DataSignature):
         try:
             os.remove(current_h5)
         except:
-            self.__log.warning("Cannot remove %s"% current_h5)
+            self.__log.warning("Cannot remove {}".format(current_h5))
             self.__log.warning("Please check permissions")
             sys.exit(1)
 
@@ -511,7 +511,7 @@ class sign0(BaseSignature, DataSignature):
         try:
             shutil.move(filtered_h5, current_h5)
         except:
-            self.__log.warning("Cannot move %s"%s filtered_h5)
+            self.__log.warning("Cannot move {}".format(filtered_h5))
             self.__log.warning("Please check permissions")
             sys.exit(1)
 
