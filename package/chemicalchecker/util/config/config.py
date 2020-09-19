@@ -48,10 +48,8 @@ class Config():
             try:
                 json_file = os.environ["CC_CONFIG"]
             except KeyError as err:
-                self.__log.debug("CC_CONFIG environment variable not set. " +
-                                 "Using default config file.")
-                json_file = os.path.join(os.path.dirname(
-                    os.path.abspath(__file__)), 'cc_config.json')
+                self.__log.debug("CC_CONFIG environment variable not set. " + "Using default config file.")
+                json_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),'setup', 'cc_config.json')
 
             except Exception as err:
                 raise err
