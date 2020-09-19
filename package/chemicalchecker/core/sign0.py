@@ -485,9 +485,10 @@ class sign0(BaseSignature, DataSignature):
             self.__log.debug("Making a backup of sign0.h5 as {}".format(backup))
             try:
                 shutil.copyfile(current_h5, backup)
-            except:
+            except Exception as e:
                 self.__log.warning("Cannot backup {}".format(backup))
                 self.__log.warning("Please check permissions")
+                self.__log.warning(e)
                 sys.exit(1)
 
 
@@ -502,25 +503,28 @@ class sign0(BaseSignature, DataSignature):
         print("Deleting old sign0 file:", current_h5)
         try:
             os.remove(current_h5)
-        except:
+        except Exception as e:
             self.__log.warning("Cannot remove {}".format(current_h5))
             self.__log.warning("Please check permissions")
+            self.__log.warning(e)
             sys.exit(1)
 
         print("Renaming the new s0 file:")
         try:
             shutil.copyfile(filtered_h5, current_h5)
-        except:
+        except Exception as e:
             self.__log.warning("Cannot copy {}".format(filtered_h5))
             self.__log.warning("Please check permissions")
+            self.__log.warning(e)
             sys.exit(1)
 
         try:
             self.__log.warning("Removing old {}".format(filtered_h5))
             os.remove(filtered_h5)
-        except:
+        except Exception as e::
             self.__log.warning("Cannot remove {}".format(filtered_h5))
             self.__log.warning("Please check permissions")
+            self.__log.warning(e)
 
 
         self.__log.debug("Done\n")
