@@ -5,7 +5,7 @@ a peculiar format which might be categorical, discrete or continuous.
 They usually show explicit knowledge, which enables connectivity and
 interpretation.
 """
-import os
+import os, sys
 import h5py
 import datetime
 import collections
