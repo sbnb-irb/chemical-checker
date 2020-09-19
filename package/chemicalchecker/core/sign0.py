@@ -474,13 +474,48 @@ class sign0(BaseSignature, DataSignature):
 
         del inchk_univ  # avoiding consuming too much memory
 
+
+        # Make a backup of the current sign0.h5
+        current_h5 = self.data_path
+        dirname= os.path.dirname(current_h5)
+        backup = os.path.join(dirname, 'sign0BACKUP.h5')
         filtered_h5=os.path.join(os.path.dirname(self.data_path), 'sign0_univ.h5')
+
+        if not os.path.exists(backup):
+            self.__log.debug("Making a backup of sign0.h5 as %s"%backup))
+            try:
+                shutil.copyfile(current_h5, backup)
+            except:
+                self.__log.warning("Cannot backup %s"%backup)
+                self.__log.warning("Please check permissions")
+                sys.exit(1)
+
+
+
         print("Creating",filtered_h5)
 
         self.__log.debug("--> Creating file {}".format(filtered_h5))
-        s0.make_filtered_copy(filtered_h5, mask)
+        self.make_filtered_copy(filtered_h5, mask, include_all=True)
 
         # After that check that your file is ok and move it to sign0.h5
+        # deleting previous sign0 file
+        print("Deleting old sign0 file:", current_h5)
+        try:
+            os.remove(current_h5)
+        except:
+            self.__log.warning("Cannot remove %s"% current_h5)
+            self.__log.warning("Please check permissions")
+            sys.exit(1)
+
+        print("Renaming the new s0 file:")
+        try:
+            shutil.move(filtered_h5, current_h5)
+        except:
+            self.__log.warning("Cannot move %s"%s filtered_h5)
+            self.__log.warning("Please check permissions")
+            sys.exit(1)
+
+
         self.__log.debug("Done")
 
     def restrict_to_universe_hpc(self, *args, **kwargs):
