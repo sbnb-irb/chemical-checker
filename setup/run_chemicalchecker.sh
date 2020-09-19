@@ -94,6 +94,7 @@ fi
 if [ "$SINGULARITY_SHELL" = true ]
 then
     printf -- 'Starting Singularity Shell... (Press CTRL+D to exit)\n';
+    echo "Command: SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity shell --cleanenv $LOCAL_IMAGE;"
     SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity shell --cleanenv $LOCAL_IMAGE;
 else
     printf -- 'Starting Jupyter Notebook... (Press CTRL+C to terminate)\n';
