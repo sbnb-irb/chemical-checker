@@ -77,6 +77,12 @@ class Preprocess():
         for param, value in params.items():
             self.__log.debug('parameter %s : %s', param, value)
 
+    def is_fit(self):
+        if os.path.exists(self.data_path)
+            return True
+        else:
+            return False
+
 
     def call_preprocess(self, output, method, infile=None, entry=None):
         """Call the external pre-process script."""
