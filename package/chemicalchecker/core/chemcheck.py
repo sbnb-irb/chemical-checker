@@ -359,11 +359,17 @@ class ChemicalChecker():
             datafile(str): The name of the file where the data in pairs is
                 saved.
         """
+
         prepro = Preprocess(sign.signature_path, sign.dataset)
-        prepro.fit()
+        if not prepro.is_fit():
+            self.__log.info("No preprocessed file found, calling the preprocessing script")
+            prepro.fit()
+        else:
+            self.__log.info("Found {}".format(prepro.data_path))
+        return prepro.data_path
 
         # ex:os.path.join(self.raw_path, "preprocess.h5")
-        return prepro.data_path
+        
 
     def preprocess_predict(self, sign, input_file, destination):
         """
