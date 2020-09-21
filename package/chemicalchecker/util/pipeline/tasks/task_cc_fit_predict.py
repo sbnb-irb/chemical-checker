@@ -116,6 +116,10 @@ SIGN0_SCRIPT_FR = [
     "    cc_old = ChemicalChecker(CC_OLD_PATH)",
     "    pars['data_file'] = prepro_file",
     "    pars['cc'] = cc_old",
+    "# We need to be able to figure what is the universe or bioactive molecules before running this",
+    "i.e, the sign0 for B spaces and above should run FIRST",
+    "if sign_full.dataset.startswith('A') or sign_full.dataset == 'B4.002':",
+    "    sign_full.restrict_to_universe()",
     "sign_full.fit(**pars)",
     '#diag=cc.diagnosis(sign_full)',
     '#diag.canvas()'

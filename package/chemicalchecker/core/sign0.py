@@ -543,8 +543,8 @@ class sign0(BaseSignature, DataSignature):
         # Now that molecules have been removed, we have to sanitize (remove columns full of 0)
         # and aggregate (if two row vectors are equal, merge them using an approproate method)
         self.__log.info("--> preprocessed file filtered for space {}".format(self.dataset))
-        self.__log.info("Re performing the fit() method")
-        self.fit(data_file= preprocess)
+        # self.__log.info("Re performing the fit() method")
+        # self.fit(data_file= preprocess)
 
         self.__log.info("Done\n")
 
