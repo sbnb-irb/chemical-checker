@@ -78,7 +78,7 @@ class Preprocess():
             self.__log.debug('parameter %s : %s', param, value)
 
     def is_fit(self):
-        if os.path.exists(self.data_path)
+        if os.path.exists(self.data_path):
             return True
         else:
             return False
