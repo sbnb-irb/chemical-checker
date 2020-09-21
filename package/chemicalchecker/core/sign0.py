@@ -264,29 +264,11 @@ class sign0(BaseSignature, DataSignature):
         features = features[feature_idxs]
         return X, keys, keys_raw, features
 
-    def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, max_features=10000, chunk_size=10000, **params):
-        """Process the input data. We produce a sign0 (full) and a sign0(reference). Data are sorted (keys and features).
+    def SanitizeAggregate(self, res=None, agg_method="average", max_features=10000, chunk_size=10000):
+        """ NS: created a function since this is used in fit and restrict_to_universe
+         (also in predict but it's a bit different)
+         """
 
-        Args:
-            cc(Chemical Checker): A CC instance. This is important to produce the triplets. If None specified, the same CC where the signature is present will be used (default=None).
-            pairs(array of tuples or file): Data. If file it needs to H5 file with dataset called 'pairs'.
-            X(matrix or file): Data. If file it needs to H5 file with datasets called 'X', 'keys' and maybe 'features'.
-            keys(array): Row names.
-            key_type(str): Type of key. May be inchikey or smiles (default='inchikey').
-            features(array): Column names (default=None).
-            data_file(str): Input data file in the form of H5 file and it shoud contain the required data in datasets.
-            validations(boolean): Create validation files(plots, files,etc)(default=True).
-            do_triplets(boolean): Draw triplets from the CC (default=True).
-        """
-        self.clean()
-        if cc is None:
-            cc = self.get_cc()
-        self.__log.debug("Getting data")
-        self.__log.debug("data_file is {}".format(data_file))
-
-        res = self.get_data(pairs=pairs, X=X, keys=keys,
-                            features=features, data_file=data_file, key_type=key_type,
-                            agg_method=agg_method)
         X = res["X"]
         keys = res["keys"]
         keys_raw = res["keys_raw"]
@@ -322,6 +304,68 @@ class sign0(BaseSignature, DataSignature):
                 [str(input_type)], DataSignature.string_dtype()))
 
         self.refresh()
+
+
+    def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, max_features=10000, chunk_size=10000, **params):
+        """Process the input data. We produce a sign0 (full) and a sign0(reference). Data are sorted (keys and features).
+
+        Args:
+            cc(Chemical Checker): A CC instance. This is important to produce the triplets. If None specified, the same CC where the signature is present will be used (default=None).
+            pairs(array of tuples or file): Data. If file it needs to H5 file with dataset called 'pairs'.
+            X(matrix or file): Data. If file it needs to H5 file with datasets called 'X', 'keys' and maybe 'features'.
+            keys(array): Row names.
+            key_type(str): Type of key. May be inchikey or smiles (default='inchikey').
+            features(array): Column names (default=None).
+            data_file(str): Input data file in the form of H5 file and it shoud contain the required data in datasets.
+            validations(boolean): Create validation files(plots, files,etc)(default=True).
+            do_triplets(boolean): Draw triplets from the CC (default=True).
+        """
+        self.clean()
+        if cc is None:
+            cc = self.get_cc()
+        self.__log.debug("Getting data")
+        self.__log.debug("data_file is {}".format(data_file))
+
+        res = self.get_data(pairs=pairs, X=X, keys=keys,
+                            features=features, data_file=data_file, key_type=key_type,
+                            agg_method=agg_method)
+
+        SanitizeAggregate(res=res, agg_method=agg_method, max_features=max_features, chunk_size=chunk_size)
+        # X = res["X"]
+        # keys = res["keys"]
+        # keys_raw = res["keys_raw"]
+        # features = res["features"]
+        # input_type = res["input_type"]
+
+        # self.__log.debug("Sanitizing")
+        # san = Sanitizer(trim=True, max_features=max_features,
+        #                 chunk_size=chunk_size)
+        # X, keys, keys_raw, features = san.transform(
+        #     V=X, keys=keys, keys_raw=keys_raw, features=features, sign=None)
+
+        # self.__log.debug("Aggregating if necessary")
+        # agg = Aggregate(method=agg_method, input_type=input_type)
+        # X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
+
+        # self.__log.debug("Saving dataset")
+        # with h5py.File(self.data_path, "w") as hf:
+        #     hf.create_dataset("name", data=np.array(
+        #         [str(self.dataset) + "sig"], DataSignature.string_dtype()))
+        #     hf.create_dataset("date", data=np.array([datetime.datetime.now().strftime(
+        #         "%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
+        #     hf.create_dataset("V", data=X)
+        #     hf.create_dataset("keys", data=np.array(
+        #         keys, DataSignature.string_dtype()))
+        #     hf.create_dataset("features", data=np.array(
+        #         features, DataSignature.string_dtype()))
+        #     hf.create_dataset("keys_raw", data=np.array(
+        #         keys_raw, DataSignature.string_dtype()))
+        #     hf.create_dataset("agg_method", data=np.array(
+        #         [str(agg_method)], DataSignature.string_dtype()))
+        #     hf.create_dataset("input_type", data=np.array(
+        #         [str(input_type)], DataSignature.string_dtype()))
+
+        # self.refresh()
         self.__log.info("Removing redundancy")
         sign0_ref = self.get_molset("reference")
         sign0_ref.clean()
@@ -493,14 +537,14 @@ class sign0(BaseSignature, DataSignature):
 
 
 
-        print("Creating",filtered_h5)
+        self.__log.info("Creating",filtered_h5)
 
         self.__log.debug("--> Creating file {}".format(filtered_h5))
         self.make_filtered_copy(filtered_h5, mask, include_all=True)
 
         # After that check that your file is ok and move it to sign0.h5
         # deleting previous sign0 file
-        print("Deleting old sign0 file:", current_h5)
+        self.__log.info("Deleting old sign0 file:", current_h5)
         try:
             os.remove(current_h5)
         except Exception as e:
@@ -509,7 +553,7 @@ class sign0(BaseSignature, DataSignature):
             self.__log.warning(e)
             sys.exit(1)
 
-        print("Renaming the new s0 file:")
+        self.__log.info("Renaming the new s0 file:")
         try:
             shutil.copyfile(filtered_h5, current_h5)
         except Exception as e:
@@ -526,8 +570,14 @@ class sign0(BaseSignature, DataSignature):
             self.__log.warning("Please check permissions")
             self.__log.warning(e)
 
+        # Now that molecules have been removed, we have to sanitize (remove columns full of 0)
+        # and aggregate (if two row vectors are equal, merge them using an approproate method)
 
-        self.__log.debug("Done\n")
+        self.__log.info("Sanitizing:")
+        res = self.get_data(data_file=current_h5, key_type=self.key_type, agg_method=self.agg_method)
+        SanitizeAggregate(self, res=res, agg_method=self.agg_method)
+
+        self.__log.info("Done\n")
 
     def restrict_to_universe_hpc(self, *args, **kwargs):
         return self.func_hpc("restrict_to_universe", *args, memory=15, **kwargs)
