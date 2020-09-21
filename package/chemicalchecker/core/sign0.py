@@ -573,7 +573,7 @@ class sign0(BaseSignature, DataSignature):
         # and aggregate (if two row vectors are equal, merge them using an approproate method)
 
         self.__log.info("Sanitizing:")
-        res = self.get_data(data_file=current_h5, key_type=self.key_type, agg_method=self.agg_method)
+        res = self.get_data(pairs=None, X=None, keys=None, features=None, data_file=current_h5, key_type=self.key_type, agg_method=self.agg_method)
         SanitizeAggregate(self, res=res, agg_method=self.agg_method)
 
         self.__log.info("Done\n")
