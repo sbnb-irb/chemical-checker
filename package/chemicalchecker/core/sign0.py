@@ -510,7 +510,7 @@ class sign0(BaseSignature, DataSignature):
         self.__log.info("Creating {}".format(filtered_h5))
 
         self.__log.debug("--> Creating file {}".format(filtered_h5))
-        self.make_filtered_copy(filtered_h5, mask, include_all=True)
+        self.make_filtered_copy(filtered_h5, mask, include_all=True, data_file=preprocess)
 
         # After that check that your file is ok and move it to sign0.h5
         # deleting previous sign0 file
