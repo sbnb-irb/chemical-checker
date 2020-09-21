@@ -51,16 +51,15 @@ class local():
         check_error = kwargs.get("check_error", True)
         cpu = 2
         cpusafe = kwargs.get("cpusafe", True)
-        index_image_command_start = command.find('SINGULARITYENV')
-        if index_image_command_start == -1:
-            index_image_command_start = command.find('singularity')
-        index_image_command_end = command.find('.simg')
 
         # Remove the call to singularity since we are already in a singularity
         # image
-        if index_image_command_start >= 0:
-            command = command[:index_image_command_start] + \
-                command[index_image_command_end + 5:]
+        cmd_split = command.split()
+        if 'singularity' in cmd_split:
+            sidx = cmd_split.index('singularity')
+            cmd_split_tmp = cmd_split[:sidx] + cmd_split[sidx + 3:]
+            command = ' '.join(cmd_split_tmp)
+            command = command.replace('SINGULARITYENV_', '')
 
         self.__log.debug("Job name is: " + self.job_name)
 
