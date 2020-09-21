@@ -261,13 +261,17 @@ class DataSignature(object):
                 del hf[key]
             hf[key] = src
 
-    def make_filtered_copy(self, destination, mask, include_all=False):
+    def make_filtered_copy(self, destination, mask, include_all=False, data_file=None):
         """
         Make a copy of applying a filtering mask.
         NS: added the argument 'include_all', otherwise features, dat, name 
         etc are not transferred
         """
-        with h5py.File(self.data_path, 'r') as hf_in:
+
+        if data_file is None:
+            data_file= self.data_path
+            
+        with h5py.File(data_file, 'r') as hf_in:
             with h5py.File(destination, 'w') as hf_out:
                 for dset in hf_in.keys():
                     # skip all dataset that cannot be masked
