@@ -478,7 +478,7 @@ class sign0(BaseSignature, DataSignature):
 
         self.__log.debug("--> getting the vectors from s0 corresponding to our (restricted) universe")
         # get the vectors from s0 corresponding to our (restricted) universe
-        inchk_univ, _ = self.get_vectors(keys=universe, data_file=preprocess)
+        inchk_univ, _ = self.get_vectors(keys=universe, data_file=preprocess, dataset_name='X')
 
         # obtain a mask for sign0 in order to obtain a filtered h5 file
         # Strangely, putting lists greatly improves the performances of np.isin
