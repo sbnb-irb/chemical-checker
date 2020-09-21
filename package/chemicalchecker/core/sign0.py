@@ -242,6 +242,17 @@ class sign0(BaseSignature, DataSignature):
             else:
                 return hf["key_type"][0]
 
+    @property
+    def preprocessed(self):
+        """Get the path to the corresponding preprocessed.h5."""
+        dirname= os.path.dirname(self.data_path)
+        preprocess= os.path.join(dirname,'raw','preprocess.h5')
+        if os.path.exists(preprocess):
+            return preprocess
+        else:
+            self.__log.warning("No preprocessed file has been found for {}!!".format(self.dataset))
+            return None
+
     def refesh(self):
         DataSignature.refesh()
         self._refresh("key_type")
@@ -463,10 +474,11 @@ class sign0(BaseSignature, DataSignature):
         """
         cc= self.get_cc()
         universe = cc.universe  # list of inchikeys belonging to the universe
+        preprocess= self.preprocessed
 
         self.__log.debug("--> getting the vectors from s0 corresponding to our (restricted) universe")
         # get the vectors from s0 corresponding to our (restricted) universe
-        inchk_univ, _ = self.get_vectors(keys=universe)
+        inchk_univ, _ = self.get_vectors(keys=universe, data_file=preprocess)
 
         # obtain a mask for sign0 in order to obtain a filtered h5 file
         # Strangely, putting lists greatly improves the performances of np.isin
@@ -477,12 +489,11 @@ class sign0(BaseSignature, DataSignature):
 
 
         # Make a backup of the current sign0.h5
-        current_h5 = self.data_path
-        dirname= os.path.dirname(current_h5)
-        preprocess= os.path.join(dirname,'raw','preprocess.h5')
 
-        backup = os.path.join(dirname, 'raw', 'preprocessBACKUP.h5')
-        filtered_h5=os.path.join(dirname, 'raw', 'preprocess_filtered.h5')
+        
+        dirname= os.path.dirname(preprocess)
+        backup = os.path.join(dirname,'preprocessBACKUP.h5')
+        filtered_h5= os.path.join(dirname, 'preprocess_filtered.h5')
 
         if not os.path.exists(backup):
             self.__log.debug("Making a backup of preprocess.h5 as {}".format(backup))

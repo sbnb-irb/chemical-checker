@@ -46,6 +46,22 @@ class DataSignature(object):
         decoder = np.vectorize(lambda x: x.decode())
         return decoder(arg)
 
+    @staticmethod
+    def _fetch_keys(h5file):
+        """Made to make the get_vectors method work with the sign0 preprocessed.h5"""
+        key = self.keys_name
+        if not os.path.isfile(h5file):
+            raise Exception("Data file %s not available." % h5file)
+
+        with h5py.File(h5file, 'r') as hf:
+            if key not in hf.keys():
+                raise Exception("No '%s' dataset in this signature!" % key)
+
+            data = hf[key][:]
+            if hasattr(data.flat[0], 'decode'):
+                return self._decode(data)
+            return data
+
     def _get_shape(self, key):
         """Get shape of dataset"""
         with h5py.File(self.data_path, 'r') as hf:
@@ -214,6 +230,7 @@ class DataSignature(object):
         self._check_dataset(self.ds_data)
         with h5py.File(self.data_path, 'r') as hf:
             return hf[self.ds_data].shape
+        
 
     @staticmethod
     def string_dtype():
@@ -347,7 +364,7 @@ class DataSignature(object):
                 else:
                     return hf[h5_dataset_name][mask, :]
 
-    def get_vectors(self, keys, include_nan=False, dataset_name='V', output_missing=False):
+    def get_vectors(self, keys, include_nan=False, dataset_name='V', output_missing=False, data_file=self.data_path):
         """Get vectors for a list of keys, sorted by default.
 
         Args:
@@ -358,16 +375,23 @@ class DataSignature(object):
             dataset_name(str): return any dataset in the h5 which is organized
                 by sorted keys.
         """
+
+        # NS, allow it to work on preprocessed.h5
+        if data_file == self.data_path:
+            data_keys = self.keys
+        else:
+            data_keys = _fetch_keys(data_file)
+
         self.__log.debug("Fetching %s rows from dataset %s" %(len(keys), dataset_name))
-        valid_keys = list(self.unique_keys & set(keys))
-        idxs = np.argwhere(np.isin(list(self.keys), list(valid_keys), assume_unique=True))
+        valid_keys = list(set(data_keys) & set(keys))
+        idxs = np.argwhere(np.isin(list(data_keys), list(valid_keys), assume_unique=True))
         inks, signs = list(), list()
         
-        with h5py.File(self.data_path, 'r') as hf:
+        with h5py.File(data_file, 'r') as hf:
             dset = hf[dataset_name]
             dset_shape = dset.shape
             for idx in sorted(idxs.flatten()):
-                inks.append(self.keys[idx])
+                inks.append(data_keys[idx])
                 signs.append(dset[idx])
         missed_inks = set(keys) - set(inks)
         # if missing signatures are requested add NaNs

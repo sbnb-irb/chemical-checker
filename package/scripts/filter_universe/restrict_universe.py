@@ -9,8 +9,8 @@ cc_repo="/aloy/web_checker/package_cc/2020_01/"
 cc= ChemicalChecker(cc_repo)
 
 # Get the union of molecules for exemplary B spaces and above 
-spaces_to_filter = ['A1.001', 'A2.001', 'A3.001', 'A4.001', 'A5.001', 'B4.002']
-
+#spaces_to_filter = ['A1.001', 'A2.001', 'A3.001', 'A4.001', 'A5.001', 'B4.002']
+spaces_to_filter = ['A1.001']
 for space in spaces_to_filter:
 
 
