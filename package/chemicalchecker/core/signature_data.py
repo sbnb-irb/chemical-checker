@@ -47,17 +47,16 @@ class DataSignature(object):
         return decoder(arg)
 
     @staticmethod
-    def _fetch_keys(h5file):
+    def _fetch_keys(self, h5file, keys_name='keys'):
         """Made to make the get_vectors method work with the sign0 preprocessed.h5"""
-        key = self.keys_name
         if not os.path.isfile(h5file):
             raise Exception("Data file %s not available." % h5file)
 
         with h5py.File(h5file, 'r') as hf:
-            if key not in hf.keys():
+            if keys_name not in hf.keys():
                 raise Exception("No '%s' dataset in this signature!" % key)
 
-            data = hf[key][:]
+            data = hf[keys_name][:]
             if hasattr(data.flat[0], 'decode'):
                 return self._decode(data)
             return data
