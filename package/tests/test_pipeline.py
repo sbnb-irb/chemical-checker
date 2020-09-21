@@ -93,7 +93,7 @@ class TestPipeline(unittest.TestCase):
         pp.add_task(s1_neig_task)
         pp.run()
         neig1_ref_file = os.path.join(
-            cc_root, 'reference/E/E1/E1.001/neig1/neig1.h5')
+            cc_root, 'reference/E/E1/E1.001/neig1/neig.h5')
         self.assertTrue(os.path.isfile(neig1_ref_file))
 
         s2_fit_kwargs = {
