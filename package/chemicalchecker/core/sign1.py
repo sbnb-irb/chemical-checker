@@ -129,7 +129,7 @@ class sign1(BaseSignature, DataSignature):
             if "V_tmp" in hf.keys():
                 del hf["V_tmp"]
 
-    def fit(self, sign0, latent=True, scale=True, metric_learning=True, semisupervised=False):
+    def fit(self, sign0=None, latent=True, scale=True, metric_learning=True, semisupervised=False):
         """Fit signature 1 given signature 0
 
             Args:
@@ -142,6 +142,8 @@ class sign1(BaseSignature, DataSignature):
                               "https://tensorflow.org")
         self.clean()
 
+        if sign0 is None:
+            sign0 = self.get_sign('sign0').get_molset("full")
         s0 = sign0
         self.__log.debug("Fitting")
         if s0.cctype != "sign0":
