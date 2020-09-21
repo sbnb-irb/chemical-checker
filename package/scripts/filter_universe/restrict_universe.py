@@ -14,17 +14,18 @@ spaces_to_filter = ['A1.001', 'A2.001', 'A3.001', 'A4.001', 'A5.001', 'B4.002']
 for space in spaces_to_filter:
 
 
-    print("NOW FILTERING sign0 for", space)
+    print("NOW FILTERING sign0 preprocess.h5 for", space)
     s0 = cc.get_signature('sign0', 'full', space)
 
     # Copying back the backup to sign0.h5
     current_h5 = s0.data_path
     dirname= os.path.dirname(current_h5)
-    backup = os.path.join(dirname, 'sign0BACKUP.h5')
-    filtered_h5=os.path.join(os.path.dirname(s0.data_path), 'sign0_univ.h5')
+    preprocess= os.path.join(dirname,'raw','preprocess.h5')
+    backup = os.path.join(dirname, 'raw', 'preprocessBACKUP.h5')
+
 
     if os.path.exists(backup):
-        print("Copying {} to {}".format(backup, current_h5))
+        print("Copying {} to {}".format(backup, preprocess))
         try:
             shutil.copyfile(backup, current_h5)
         except :
@@ -37,5 +38,5 @@ for space in spaces_to_filter:
 
     s0.restrict_to_universe()
 
-    print("FILTERED: preprossed", space)
+    print("FILTERED: preprocess.h5", space)
 print("IMPORTANT: Please redo the sign0 fit.")
