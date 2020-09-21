@@ -350,11 +350,13 @@ class DataSignature(object):
             dataset_name(str): return any dataset in the h5 which is organized
                 by sorted keys.
         """
-        self.__log.debug("Fetching %s rows from dataset %s" %(len(keys), dataset_name))
+        self.__log.debug("Fetching %s rows from dataset %s" %
+                         (len(keys), dataset_name))
         valid_keys = list(self.unique_keys & set(keys))
-        idxs = np.argwhere(np.isin(list(self.keys), list(valid_keys), assume_unique=True))
+        idxs = np.argwhere(
+            np.isin(list(self.keys), list(valid_keys), assume_unique=True))
         inks, signs = list(), list()
-        
+
         with h5py.File(self.data_path, 'r') as hf:
             dset = hf[dataset_name]
             dset_shape = dset.shape
@@ -379,7 +381,7 @@ class DataSignature(object):
             return None, None
         inks, signs = np.stack(inks), np.vstack(signs)
         sort_idx = np.argsort(inks)
-        if  output_missing:
+        if output_missing:
             return inks[sort_idx], signs[sort_idx], missed_inks
         return inks[sort_idx], signs[sort_idx]
 
@@ -618,7 +620,8 @@ class DataSignature(object):
                 src_keys = hf['keys'][:]
                 src_vectors = hf['V'][:]
             with h5py.File(out_file, "w") as hf:
-                hf.create_dataset('keys', data=src_keys)
+                hf.create_dataset('keys', data=src_keys,
+                                  dtype=DataSignature.string_dtype())
                 hf.create_dataset('V', data=src_vectors, dtype=np.float32)
                 hf.create_dataset("shape", data=src_vectors.shape)
             return
@@ -639,7 +642,8 @@ class DataSignature(object):
         # get them sorted
         sorted_idx = np.argsort(dst_keys)
         with h5py.File(out_file, "w") as hf:
-            hf.create_dataset('keys', data=dst_keys[sorted_idx])
+            hf.create_dataset('keys', data=dst_keys[sorted_idx],
+                              dtype=DataSignature.string_dtype())
             hf.create_dataset('V', data=matrix[sorted_idx], dtype=np.float32)
             hf.create_dataset("shape", data=matrix.shape)
 
