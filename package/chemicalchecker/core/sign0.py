@@ -475,6 +475,7 @@ class sign0(BaseSignature, DataSignature):
         cc= self.get_cc()
         universe = cc.universe  # list of inchikeys belonging to the universe
         preprocess= self.preprocessed
+        keys_prepro = DataSignature._fetch_keys(preprocess)
 
         self.__log.debug("--> getting the vectors from s0 corresponding to our (restricted) universe")
         # get the vectors from s0 corresponding to our (restricted) universe
@@ -483,7 +484,7 @@ class sign0(BaseSignature, DataSignature):
         # obtain a mask for sign0 in order to obtain a filtered h5 file
         # Strangely, putting lists greatly improves the performances of np.isin
         self.__log.debug("--> Obtaining a mask")
-        mask= np.isin(list(self.keys), list(inchk_univ))
+        mask= np.isin(list(keys_prepro), list(inchk_univ))
 
         del inchk_univ  # avoiding consuming too much memory
 
