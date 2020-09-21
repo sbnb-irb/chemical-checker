@@ -415,8 +415,7 @@ class sign0(BaseSignature, DataSignature):
                     raise Exception(
                         "merge_method must be None, 'average', 'new' or 'old'")
         else:
-            self.__log.info(
-                "Not merging. Just producing signature for the inputted data.")
+            self.__log.info("Not merging. Just producing signature for the inputted data.")
             V_ = None
             keys_ = None
             keys_raw_ = None
@@ -537,14 +536,14 @@ class sign0(BaseSignature, DataSignature):
 
 
 
-        self.__log.info("Creating",filtered_h5)
+        self.__log.info("Creating {}".format(filtered_h5))
 
         self.__log.debug("--> Creating file {}".format(filtered_h5))
         self.make_filtered_copy(filtered_h5, mask, include_all=True)
 
         # After that check that your file is ok and move it to sign0.h5
         # deleting previous sign0 file
-        self.__log.info("Deleting old sign0 file:", current_h5)
+        self.__log.info("Deleting old sign0 file: {}".format(current_h5))
         try:
             os.remove(current_h5)
         except Exception as e:
