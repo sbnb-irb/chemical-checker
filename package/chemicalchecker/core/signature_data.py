@@ -364,7 +364,7 @@ class DataSignature(object):
                 else:
                     return hf[h5_dataset_name][mask, :]
 
-    def get_vectors(self, keys, include_nan=False, dataset_name='V', output_missing=False, data_file=self.data_path):
+    def get_vectors(self, keys, include_nan=False, dataset_name='V', output_missing=False, data_file= None):
         """Get vectors for a list of keys, sorted by default.
 
         Args:
@@ -377,7 +377,8 @@ class DataSignature(object):
         """
 
         # NS, allow it to work on preprocessed.h5
-        if data_file == self.data_path:
+        if data_file is None:
+            data_file = self.data_path
             data_keys = self.keys
         else:
             data_keys = _fetch_keys(data_file)
