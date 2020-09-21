@@ -218,9 +218,11 @@ class CCFit(BaseTask):
                 (specific for `sign3`)
 
         """
+        if not any([cctype.startswith(t) for t in VALID_TYPES]):
+            raise Exception("cctype '%s' is not recognized.")
+
         self.name = params.get('name', cctype)
         BaseTask.__init__(self, self.name)
-
         self.cctype = cctype
         self.cc_root = cc_root
         self.datasets = params.get('datasets', 'essential')
