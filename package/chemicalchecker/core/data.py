@@ -34,7 +34,6 @@ class DataFactory():
         from .clus import clus
         from .neig import neig  # nearest neighbour class
         from .proj import proj
-        from .diag import diag
 
         DataFactory.__log.debug("initializing object %s", cctype)
         if cctype[:4] in ['clus', 'neig', 'proj','diag']:
