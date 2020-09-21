@@ -37,4 +37,5 @@ for space in spaces_to_filter:
 
     s0.restrict_to_universe()
 
-    print("FILTERED: sign0", space)
+    print("FILTERED: preprossed", space)
+print("IMPORTANT: Please redo the sign0 fit.")

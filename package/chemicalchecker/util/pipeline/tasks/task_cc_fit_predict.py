@@ -71,9 +71,9 @@ CC_SCRIPT_FR = [
     "sign_new_full = cc.get_signature('<CC_TYPE>', 'full', data,**pars)",
     "sign_new_ref.predict(sign_full, destination=sign_new_full.data_path)",
     "sign_new_full.mark_ready()",
-    "if sign_new_full.cctype.startswith('sign'):",
-    '    diag=cc.diagnosis(sign_new_full)',
-    '    diag.canvas()'
+    "#if sign_new_full.cctype.startswith('sign'):",
+    '#    diag=cc.diagnosis(sign_new_full)',
+    '#    diag.canvas()'
 ]
 
 CC_SCRIPT_F = [
@@ -95,8 +95,8 @@ SIGN2_SCRIPT_F = [
     'neig1_full = cc.get_signature("neig1", "full", data)',
     'sign2_full = cc.get_signature("sign2", "full", data,**pars)',
     "sign2_full.fit(sign_full, neig1_full, reuse=False)",
-    'diag=cc.diagnosis(sign2_full)',
-    'diag.canvas()'
+    '#diag=cc.diagnosis(sign2_full)',
+    '#diag.canvas()'
 
 ]
 
@@ -106,8 +106,8 @@ SIGN3_SCRIPT_F = [
     "sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in sign2_src_list]",
     "sign2_list.append(cc.get_signature('sign2', 'full', data))",
     "sign3_full.fit(sign2_list, sign_full, sign1_full)",
-    'diag=cc.diagnosis(sign3_full)',
-    'diag.canvas()'
+    '#diag=cc.diagnosis(sign3_full)',
+    '#diag.canvas()'
 ]
 
 SIGN0_SCRIPT_FR = [
@@ -117,16 +117,16 @@ SIGN0_SCRIPT_FR = [
     "    pars['data_file'] = prepro_file",
     "    pars['cc'] = cc_old",
     "sign_full.fit(**pars)",
-    'diag=cc.diagnosis(sign_full)',
-    'diag.canvas()'
+    '#diag=cc.diagnosis(sign_full)',
+    '#diag.canvas()'
 
 ]
 
 SIGN1_SCRIPT_FR = [
     'sign_new_full = cc.get_signature("sign1", "full", data)',
     'sign_new_full.fit(sign_full, **pars)',
-    'diag=cc.diagnosis(sign_new_full)',
-    'diag.canvas()'
+    '#diag=cc.diagnosis(sign_new_full)',
+    '#diag.canvas()'
 
 ]
 
