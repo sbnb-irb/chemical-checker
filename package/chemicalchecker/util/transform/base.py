@@ -145,6 +145,11 @@ class BaseTransform(object):
                     v = hf[dkey][:, j]
                     zero_feat = np.argwhere(v != 0).ravel()
                     candidates = list(set(zero_feat) - idxs)
+                    if len(candidates == 0):
+                        raise Exception(
+                            'No feature specific candidates for subsampling. '
+                            'This might be because data not being sanitized, '
+                            'try using class `util.sanitize.Sanitizer`')
                     selected = random.choice(candidates)
                     idxs.add(selected)
             if len(idxs) < self.sign_ref.shape[1]:
