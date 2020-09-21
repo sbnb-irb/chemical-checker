@@ -73,8 +73,8 @@ class sign2(BaseSignature, DataSignature):
         if self.params['adanet'] is not None:
             self.cpu = self.params['adanet'].get('cpu', 1)
 
-    def fit(self, sign1, neig1, reuse=True, validations=True,
-            compare_nn=False, oos_predictor=False):
+    def fit(self, sign1=None, neig1=None, reuse=True, validations=True,
+            compare_nn=False, oos_predictor=False, apply_map=True):
         """Fit signature 2 given signature 1 and its nearest neighbors.
 
         Node2vec embeddings are computed using the graph derived from sign1.
@@ -96,6 +96,21 @@ class sign2(BaseSignature, DataSignature):
             from chemicalchecker.tool.node2vec import Node2Vec
         except ImportError as err:
             raise err
+
+        if sign1 is None:
+            sign1 = self.get_sign('sign1').get_molset("reference")
+        if neig1 is None:
+            neig1 = sign1.get_neig().get_molset("reference")
+        if sign1.cctype != "sign1":
+            raise Exception("A signature type 1 is expected!")
+        if sign1.molset != "reference":
+            raise Exception(
+                "Fit should be done with the reference sign1")
+        if neig1.cctype != "neig1":
+            raise Exception("A neighbors of signature type 1 is expected!")
+        if neig1.molset != "reference":
+            raise Exception(
+                "Fit should be done with the reference neig1")
 
         self.__log.debug('Node2Vec on %s' % sign1)
         n2v = Node2Vec(executable=Config().TOOLS.node2vec_exec)
@@ -135,12 +150,13 @@ class sign2(BaseSignature, DataSignature):
         if not reuse or not os.path.isfile(self.data_path):
             n2v.emb_to_h5(sign1.keys, emb_file, self.data_path)
         # save link prediction stats
-        linkpred_file = os.path.join(self.stats_path, 'linkpred.json')
-        if not reuse or not os.path.isfile(linkpred_file):
-            if not graph:
-                graph = SNAPNetwork.from_file(graph_file)
-            linkpred = LinkPrediction(self, graph)
-            linkpred.performance.toJSON(linkpred_file)
+        if validations:
+            linkpred_file = os.path.join(self.stats_path, 'linkpred.json')
+            if not reuse or not os.path.isfile(linkpred_file):
+                if not graph:
+                    graph = SNAPNetwork.from_file(graph_file)
+                linkpred = LinkPrediction(self, graph)
+                linkpred.performance.toJSON(linkpred_file)
         # copy reduced-full mappingsfrom sign1
         if "mappings" not in self.info_h5 and "mappings" in sign1.info_h5:
             self.copy_from(sign1, "mappings")
@@ -188,6 +204,10 @@ class sign2(BaseSignature, DataSignature):
                 extra_preditors['NearestNeighbor'] = nearest_neighbor_pred
             ada.save_performances(adanet_path, sign2_plot, extra_preditors)
             self.__log.debug('model saved to %s' % adanet_path)
+        if apply_map:
+            cc_tmp = self.get_cc()
+            sign2_full = cc_tmp.get_signature('sign2', 'full', self.dataset)
+            self.map(sign2_full.data_path)
         # save background distances, validate and mark ready
         self.background_distances("cosine")
         if validations:
