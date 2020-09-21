@@ -381,7 +381,7 @@ class DataSignature(object):
             data_file = self.data_path
             data_keys = self.keys
         else:
-            data_keys = _fetch_keys(data_file)
+            data_keys = DataSignature._fetch_keys(data_file)
 
         self.__log.debug("Fetching %s rows from dataset %s" %(len(keys), dataset_name))
         valid_keys = list(set(data_keys) & set(keys))
