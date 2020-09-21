@@ -206,13 +206,13 @@ if not DEBUG:
 
         pp.add_task(val_set_task)
 
+if DEBUG:
+    pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
+
 # TASK: Calculate signatures 0
 s0_params = {'CC_ROOT': CC_ROOT, 'cc_old_path': CC_OLD_ROOT}
 s0_task = CCFit(cc_type='sign0', **s0_params)
 pp.add_task(s0_task)
-
-if DEBUG:
-    pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
 
 # TASK: Calculate signatures 1
 s1_params = {'CC_ROOT': CC_ROOT}
