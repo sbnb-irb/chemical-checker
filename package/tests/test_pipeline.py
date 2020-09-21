@@ -3,6 +3,8 @@ import pytest
 import unittest
 import functools
 
+from chemicalchecker import ChemicalChecker
+
 
 def skip_if_import_exception(function):
     """Assist in skipping tests failing because of missing dependencies."""
@@ -46,26 +48,71 @@ class TestPipeline(unittest.TestCase):
         pp = Pipeline(pipeline_path=pipeline_dir)
         self.assertTrue(os.path.isdir(pp.readydir))
 
-        s0_params = {
-            "output_path": pipeline_dir,
-            'cc_old_path': '/aloy/web_checker/package_cc/paper',
-            "datasets": ["E1.001"],
-            "ds_params": {
-                "E1.001": {
-                    'key_type': 'inchikey',
-                    'data_file': data_file,
-                    'do_triplets': False,
-                    'validations': False
-                }
+        # SIGN 0
+        s0_fit_kwargs = {
+            "E1.001": {
+                'key_type': 'inchikey',
+                'data_file': data_file,
+                'do_triplets': False,
+                'validations': False
             }
         }
-
-        s0_task = CCFit(cc_root, 'sign0', **s0_params)
+        s0_task = CCFit(cc_root, 'sign0',
+                        datasets=['E1.001'], fit_kwargs=s0_fit_kwargs)
         pp.add_task(s0_task)
         pp.run()
 
-        sign0_file = os.path.join(cc_root, 'full/E/E1/E1.001/sign0/sign0.h5')
-        self.assertTrue(os.path.isfile(sign0_file))
+        sign0_full_file = os.path.join(
+            cc_root, 'full/E/E1/E1.001/sign0/sign0.h5')
+        self.assertTrue(os.path.isfile(sign0_full_file))
+        sign0_ref_file = os.path.join(
+            cc_root, 'reference/E/E1/E1.001/sign0/sign0.h5')
+        self.assertTrue(os.path.isfile(sign0_ref_file))
+
+        # SIGN 1
+        s1_fit_kwargs = {
+            "E1.001": {
+                'metric_learning': False,
+            }
+        }
+        s1_task = CCFit(cc_root, 'sign1',
+                        datasets=['E1.001'], fit_kwargs=s1_fit_kwargs)
+        pp.add_task(s1_task)
+        pp.run()
+
+        sign1_full_file = os.path.join(
+            cc_root, 'full/E/E1/E1.001/sign1/sign1.h5')
+        self.assertTrue(os.path.isfile(sign1_full_file))
+        sign1_ref_file = os.path.join(
+            cc_root, 'reference/E/E1/E1.001/sign1/sign1.h5')
+        self.assertTrue(os.path.isfile(sign1_ref_file))
+
+        # NEIG 1
+        s1_neig_task = CCFit(cc_root, 'neig1',
+                             datasets=['E1.001'])
+        pp.add_task(s1_neig_task)
+        pp.run()
+        neig1_ref_file = os.path.join(
+            cc_root, 'reference/E/E1/E1.001/neig1/neig1.h5')
+        self.assertTrue(os.path.isfile(neig1_ref_file))
+
+        s2_fit_kwargs = {
+            "E1.001": {
+                'validations': False
+            }
+        }
+        s2_task = CCFit(cc_root, 'sign2',
+                        datasets=['E1.001'], fit_kwargs=s2_fit_kwargs)
+        pp.add_task(s2_task)
+        pp.run()
+
+        # SIGN 2
+        sign2_full_file = os.path.join(
+            cc_root, 'full/E/E1/E1.001/sign2/sign2.h5')
+        self.assertTrue(os.path.isfile(sign2_full_file))
+        sign2_ref_file = os.path.join(
+            cc_root, 'reference/E/E1/E1.001/sign2/sign2.h5')
+        self.assertTrue(os.path.isfile(sign2_ref_file))
         """
 
         s0_pred_task = CCPredict(cc_type='sign0', **s0_params)
