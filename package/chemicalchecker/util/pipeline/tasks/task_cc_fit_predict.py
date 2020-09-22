@@ -217,6 +217,9 @@ class CCFit(BaseTask):
             fit_kwargs (dict): A dictionary where key is dataset code and
                 value is a dictionary with all dataset specific key-worded
                 calling the signature `fit` method. (Optional)
+            hpc_kwargs (dict): A dictionary where key is dataset code and
+                value is a dictionary with key-worded parameters for the
+                `HPC` module. (Optional)
 
             ref_datasets (list): List of reference datasets for fitting sign3.
                 (specific for `sign3`)
@@ -236,6 +239,7 @@ class CCFit(BaseTask):
         self.sign_kwargs = params.get('sign_kwargs', {})
         self.fit_args = params.get('fit_args', {})
         self.fit_kwargs = params.get('fit_kwargs', {})
+        self.hpc_kwargs = params.get('hpc_kwargs', {})
 
         def_ref_datasets = [ds.code for ds in Dataset.get(exemplary=True)]
         self.ref_datasets = params.get('reference_datasets', def_ref_datasets)
@@ -323,7 +327,7 @@ class CCFit(BaseTask):
         params["job_name"] = "CC_" + self.cctype.upper()
         params["elements"] = dataset_params
         params["wait"] = True
-        params.update(HPC_PARAMS[self.cctype])
+        params.update(self.hpc_kwargs)
 
         # prepare job command and submit job
         cc_config_path = os.environ['CC_CONFIG']
