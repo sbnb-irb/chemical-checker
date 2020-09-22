@@ -229,7 +229,6 @@ class DataSignature(object):
         self._check_dataset(self.ds_data)
         with h5py.File(self.data_path, 'r') as hf:
             return hf[self.ds_data].shape
-        
 
     @staticmethod
     def string_dtype():
@@ -261,16 +260,22 @@ class DataSignature(object):
                 del hf[key]
             hf[key] = src
 
-    def make_filtered_copy(self, destination, mask, include_all=False, data_file=None):
+    def make_filtered_copy(self, destination, mask, include_all=False,
+                           data_file=None):
         """
         Make a copy of applying a filtering mask.
-        NS: added the argument 'include_all', otherwise features, dat, name 
-        etc are not transferred
+
+        destination (str): The destination file path.
+        mask (bool array): A numpy mask array (e.g. result of `np.isin`)
+        include_all (bool): Whether to copy other dataset (e.g. features,
+            date, name...)
+        data_file (str): A specific file to copy (by default is the signature
+            h5)
         """
 
         if data_file is None:
-            data_file= self.data_path
-            
+            data_file = self.data_path
+
         with h5py.File(data_file, 'r') as hf_in:
             with h5py.File(destination, 'w') as hf_out:
                 for dset in hf_in.keys():
@@ -281,9 +286,12 @@ class DataSignature(object):
                         else:
                             masked = hf_in[dset][:][:]
                     else:
+                        if dset == 'features':
+                            masked = hf_in[dset][:][:]
                         masked = hf_in[dset][:][mask]
 
-                    self.__log.debug("Copy dataset %s of shape %s" %(dset, str(masked.shape)))
+                    self.__log.debug("Copy dataset %s of shape %s" %
+                                     (dset, str(masked.shape)))
                     hf_out.create_dataset(dset, data=masked)
 
     @staticmethod
@@ -367,7 +375,7 @@ class DataSignature(object):
                 else:
                     return hf[h5_dataset_name][mask, :]
 
-    def get_vectors(self, keys, include_nan=False, dataset_name='V', output_missing=False, data_file= None):
+    def get_vectors(self, keys, include_nan=False, dataset_name='V', output_missing=False, data_file=None):
         """Get vectors for a list of keys, sorted by default.
 
         Args:
@@ -386,11 +394,13 @@ class DataSignature(object):
         else:
             data_keys = DataSignature._fetch_keys(data_file)
 
-        self.__log.debug("Fetching %s rows from dataset %s" %(len(keys), dataset_name))
+        self.__log.debug("Fetching %s rows from dataset %s" %
+                         (len(keys), dataset_name))
         valid_keys = list(set(data_keys) & set(keys))
-        idxs = np.argwhere(np.isin(list(data_keys), list(valid_keys), assume_unique=True))
+        idxs = np.argwhere(
+            np.isin(list(data_keys), list(valid_keys), assume_unique=True))
         inks, signs = list(), list()
-        
+
         with h5py.File(data_file, 'r') as hf:
             dset = hf[dataset_name]
             dset_shape = dset.shape
@@ -415,7 +425,7 @@ class DataSignature(object):
             return None, None
         inks, signs = np.stack(inks), np.vstack(signs)
         sort_idx = np.argsort(inks)
-        if  output_missing:
+        if output_missing:
             return inks[sort_idx], signs[sort_idx], missed_inks
         return inks[sort_idx], signs[sort_idx]
 
