@@ -68,8 +68,6 @@ class neig(BaseSignature, DataSignature):
 
         if sign1 is None:
             sign1 = self.get_sign('sign1').get_molset("reference")
-        if sign1.cctype != "sign1":
-            raise Exception("A signature type 1 is expected!")
         if sign1.molset != "reference":
             raise Exception(
                 "Fit should be done with the reference sign1")
