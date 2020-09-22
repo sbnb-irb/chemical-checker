@@ -36,12 +36,18 @@ mini_cc_uni = pickle.load(open(mini_cc_uni_file, 'rb'))
 for file in sorted(glob(preprocess_path)):
     ds = file[44:46]
     s = DataSignature(file)
-    print(ds, s.info_h5)
-    if 'keys' in s.info_h5:
-        mask = np.isin(
-            list(s.keys), list(mini_cc_uni), assume_unique=True)
-        s.make_filtered_copy(destination % ds, mask, True)
-    elif 'pairs' in s.info_h5:
-        pairs = s.get_h5_dataset('pairs')
-        mask = np.isin(list(pairs[:, 0]), list(mini_cc_uni))
-        s.make_filtered_copy(destination % ds, mask, True)
+    print('IN  ', ds, s.info_h5)
+    if os.path.isfile(destination % ds):
+        n = DataSignature(destination % ds)
+        print('OUT ', ds, n.info_h5)
+    else:
+        if 'keys' in s.info_h5:
+            mask = np.isin(
+                list(s.keys), list(mini_cc_uni), assume_unique=True)
+            s.make_filtered_copy(destination % ds, mask, True)
+        elif 'pairs' in s.info_h5:
+            pairs = s.get_h5_dataset('pairs')
+            mask = np.isin(list(pairs[:, 0]), list(mini_cc_uni))
+            s.make_filtered_copy(destination % ds, mask, True)
+        n = DataSignature(destination % ds)
+        print('OUT ', ds, n.info_h5)
