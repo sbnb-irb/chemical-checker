@@ -557,6 +557,9 @@ class DataSignature(object):
                 dist = metric_fn(matrix[i], matrix[j])
                 if dist == 0.0:
                     self.__log.warn("Identical signatures for %s %s" % (i, j))
+                if np.isnan(dist):
+                    self.__log.warn("NaN distance for %s %s" % (i, j))
+                    continue
                 bg.append(dist)
                 done.add((i, j))
         # pavalues as percentiles
