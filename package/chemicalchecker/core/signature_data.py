@@ -245,15 +245,36 @@ class DataSignature(object):
                 del hf[key]
             hf[key] = src
 
-    def make_filtered_copy(self, destination, mask):
-        """Make a copy of applying a filtering mask."""
-        with h5py.File(self.data_path, 'r') as hf_in:
+    def make_filtered_copy(self, destination, mask, include_all=False,
+                           data_file=None):
+        """
+        Make a copy of applying a filtering mask.
+
+        destination (str): The destination file path.
+        mask (bool array): A numpy mask array (e.g. result of `np.isin`)
+        include_all (bool): Whether to copy other dataset (e.g. features,
+            date, name...)
+        data_file (str): A specific file to copy (by default is the signature
+            h5)
+        """
+
+        if data_file is None:
+            data_file = self.data_path
+
+        with h5py.File(data_file, 'r') as hf_in:
             with h5py.File(destination, 'w') as hf_out:
                 for dset in hf_in.keys():
                     # skip all dataset that cannot be masked
                     if hf_in[dset].shape[0] != mask.shape[0]:
-                        continue
-                    masked = hf_in[dset][:][mask]
+                        if not include_all:
+                            continue
+                        else:
+                            masked = hf_in[dset][:][:]
+                    else:
+                        if dset == 'features':
+                            masked = hf_in[dset][:][:]
+                        masked = hf_in[dset][:][mask]
+
                     self.__log.debug("Copy dataset %s of shape %s" %
                                      (dset, str(masked.shape)))
                     hf_out.create_dataset(dset, data=masked)
