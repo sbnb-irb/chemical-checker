@@ -288,7 +288,8 @@ class DataSignature(object):
                     else:
                         if dset == 'features':
                             masked = hf_in[dset][:][:]
-                        masked = hf_in[dset][:][mask]
+                        else:
+                            masked = hf_in[dset][:][mask]
 
                     self.__log.debug("Copy dataset %s of shape %s" %
                                      (dset, str(masked.shape)))
