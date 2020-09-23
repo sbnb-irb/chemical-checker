@@ -33,6 +33,7 @@ class Pipeline():
         self.logfile = os.path.join(
             self.pipeline_path, "log", "pipeline.log")
         self.tmpdir = os.path.join(self.pipeline_path, "tmp")
+        self.cache = os.path.join(self.pipeline_path, "cache")
         self.keep_jobs = keep_jobs
 
         # check and make needed directories
@@ -44,6 +45,8 @@ class Pipeline():
             os.makedirs(self.tmpdir)
         if not os.path.exists(self.logdir):
             os.makedirs(self.logdir)
+        if not os.path.exists(self.cache):
+            os.makedirs(self.cache)
 
         # log to file
         logger = logging.getLogger()
