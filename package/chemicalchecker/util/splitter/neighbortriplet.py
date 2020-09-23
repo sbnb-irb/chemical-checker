@@ -165,7 +165,8 @@ class NeighborTripletTraintest(object):
         triplets = np.array(triplets)[shuffle_idxs]
 
         # do traintest split for triplets (np.unique of indeces)
-        split_idxs = NeighborTripletTraintest.get_split_indeces(len(triplets), split_fractions)
+        split_idxs = NeighborTripletTraintest.get_split_indeces(
+            len(triplets), split_fractions)
         '''
         split_idxs = dict(zip(split_names, split_idxs))
         # find triplets having test-test train-trani and train-test
@@ -186,8 +187,8 @@ class NeighborTripletTraintest(object):
         NeighborTripletTraintest.__log.info('Traintest saving to %s', out_file)
         with h5py.File(out_file, "w") as fh:
             fh.create_dataset('x', data=X, dtype=x_dtype)
-            
-            for split_name, split_idx in zip(split_names, split_idxs):               
+
+            for split_name, split_idx in zip(split_names, split_idxs):
                 split_triplets = triplets[split_idx]
                 fh.create_dataset('t_%s' % split_name,
                                   data=split_triplets)
@@ -246,7 +247,7 @@ class NeighborTripletTraintest(object):
         fullpath, _ = os.path.split(out_file)
         redundancy_path = os.path.join(fullpath, "redundancy_dict.pkl")
         # reduce redundancy, keep full-ref mapping
-        #if not os.path.isfile(redundancy_path):
+        # if not os.path.isfile(redundancy_path):
         NeighborTripletTraintest.__log.info("Reducing redundancy")
         rnd = RNDuplicates(cpu=cpu)
         _, ref_matrix, full_ref_map = rnd.remove(
@@ -260,7 +261,7 @@ class NeighborTripletTraintest(object):
                           for k, v in ref_full_map.items()}
         #    redundancy_dict = {'ref_matrix': ref_matrix, 'refid_full_map': refid_full_map}
         #    pickle.dump(redundancy_dict, open(redundancy_path, "wb"))
-        #else:
+        # else:
         #    NeighborTripletTraintest.__log.info("Loading nonredundancy matrix")
         #    redundancy_dict = pickle.load(open(redundancy_path, "rb"))
         #    ref_matrix = redundancy_dict['ref_matrix']
@@ -268,28 +269,42 @@ class NeighborTripletTraintest(object):
 
         # Limit signatures by limit value
         size_original_ref_matrix = len(ref_matrix)
-        NeighborTripletTraintest.__log.info("Original size ref_matrix: %s" % size_original_ref_matrix)
+        NeighborTripletTraintest.__log.info(
+            "Original size ref_matrix: %s" % size_original_ref_matrix)
         NeighborTripletTraintest.__log.info("Limit of %s" % limit)
         ref_matrix = ref_matrix[:limit]
         NeighborTripletTraintest.__log.info("Final size: %s" % len(ref_matrix))
 
         # Set triplet_factors
-        triplet_per_mol = max([int(np.ceil(num_triplets / ref_matrix.shape[0])), 3])
+        triplet_per_mol = max(
+            [int(np.ceil(num_triplets / ref_matrix.shape[0])), 3])
         easy_triplet_per_mol = max([int(np.ceil(triplet_per_mol * 0.8)), 1])
-        medi_triplet_per_mol = max([int(np.ceil(triplet_per_mol * 0.15)), 1])#triplet_per_mol - (2 * easy_triplet_per_mol)
-        hard_triplet_per_mol = max([triplet_per_mol - (easy_triplet_per_mol + medi_triplet_per_mol), 1])#easy_triplet_per_mol
-        NeighborTripletTraintest.__log.info("Triplet_per_mol: %s" % triplet_per_mol)
-        NeighborTripletTraintest.__log.info("E triplet per mol: %s" % easy_triplet_per_mol)
-        NeighborTripletTraintest.__log.info("M triplet per mol: %s" % medi_triplet_per_mol)
-        NeighborTripletTraintest.__log.info("H triplet per mol: %s" % hard_triplet_per_mol)
-        NeighborTripletTraintest.__log.info("Triplet_per_mol: %s" % (easy_triplet_per_mol + medi_triplet_per_mol + hard_triplet_per_mol))
-        assert(triplet_per_mol <= (easy_triplet_per_mol + medi_triplet_per_mol + hard_triplet_per_mol))
+        # triplet_per_mol - (2 * easy_triplet_per_mol)
+        medi_triplet_per_mol = max([int(np.ceil(triplet_per_mol * 0.15)), 1])
+        hard_triplet_per_mol = max(
+            [triplet_per_mol - (easy_triplet_per_mol + medi_triplet_per_mol), 1])  # easy_triplet_per_mol
+        NeighborTripletTraintest.__log.info(
+            "Triplet_per_mol: %s" % triplet_per_mol)
+        NeighborTripletTraintest.__log.info(
+            "E triplet per mol: %s" % easy_triplet_per_mol)
+        NeighborTripletTraintest.__log.info(
+            "M triplet per mol: %s" % medi_triplet_per_mol)
+        NeighborTripletTraintest.__log.info(
+            "H triplet per mol: %s" % hard_triplet_per_mol)
+        NeighborTripletTraintest.__log.info("Triplet_per_mol: %s" % (
+            easy_triplet_per_mol + medi_triplet_per_mol + hard_triplet_per_mol))
+        assert(triplet_per_mol <= (easy_triplet_per_mol +
+                                   medi_triplet_per_mol + hard_triplet_per_mol))
 
         # split chunks, get indeces of chunks for each split
-        chunk_size = np.floor(ref_matrix.shape[0] / 100)
+        chunk_size = int(max(1, np.floor(ref_matrix.shape[0] / 100)))
         split_chunk_idx = NeighborTripletTraintest.get_split_indeces(
             int(np.floor(ref_matrix.shape[0] / chunk_size)) + 1,
             split_fractions)
+        tot_split = float(sum([len(i) for i in split_chunk_idx]))
+        real_fracs = ['%.2f' % (len(i) / tot_split) for i in split_chunk_idx]
+        NeighborTripletTraintest.__log.info(
+            'Fractions used: %s', ' '.join(real_fracs))
 
         # split ref matrix, keep ref-split mapping
         nr_matrix = dict()
@@ -373,24 +388,26 @@ class NeighborTripletTraintest(object):
                 combo = '_'.join([split1, split2])
                 NeighborTripletTraintest.__log.debug("SPLIT: %s" % combo)
                 # define F and T according to the split that is being used
-                
-                LB   = 10000
-                UB   = 100000
+
+                LB = 10000
+                UB = 100000
                 TMAX = 50
                 TMIN = 5
+
                 def get_t_max(N):
                     N = np.clip(N, LB, UB)
-                    a = (TMAX-TMIN)/(LB-UB)
-                    b = TMIN - a*UB
-                    return int(a*N + b)
+                    a = (TMAX - TMIN) / (LB - UB)
+                    b = TMIN - a * UB
+                    return int(a * N + b)
 
                 t_limit = get_t_max(size_original_ref_matrix)
                 f_limit = 300
 
-                T = int(np.clip(t_per * nr_matrix[split2].shape[0], 10, t_limit))
+                T = int(
+                    np.clip(t_per * nr_matrix[split2].shape[0], 10, t_limit))
                 F = np.clip(10 * T, 200, f_limit)
                 F = int(min(F, (nr_matrix[split2].shape[0] - 1)))
-                
+
                 NeighborTripletTraintest.__log.info("T per: %s" % (t_per))
                 NeighborTripletTraintest.__log.info("F and T: %s %s" % (F, T))
                 assert(T < F)
@@ -409,7 +426,7 @@ class NeighborTripletTraintest(object):
                     neig_idxs = np.vstack(neig_idxs)
                     # the nearest neig between same groups is the molecule
                     # itself
-                    #assert(all(neig_idxs[:, 0] ==
+                    # assert(all(neig_idxs[:, 0] ==
                     #           np.arange(0, len(neig_idxs))))
                     neig_idxs = neig_idxs[:, 1:]
                 else:
@@ -422,7 +439,7 @@ class NeighborTripletTraintest(object):
                 assert(sum(t_prob) > 0.99)
 
                 # save list of split indeces
-                
+
                 #anchors_split = np.repeat(np.arange(len(neig_idxs)), triplet_per_mol)
                 easy_a_split = list()
                 easy_p_split = list()
@@ -446,17 +463,20 @@ class NeighborTripletTraintest(object):
 
                     # positives are samples from tot T NNs for each category
                     #    Easy
-                    e_p_indexes = np.random.choice(T, easy_triplet_per_mol, replace=True, p=t_prob)
+                    e_p_indexes = np.random.choice(
+                        T, easy_triplet_per_mol, replace=True, p=t_prob)
                     positives = neig_idxs[idx, e_p_indexes]
                     easy_p_split.extend(positives)
 
                     #    Medium
-                    m_p_indexes = np.random.choice(T, medi_triplet_per_mol, replace=True, p=t_prob)
+                    m_p_indexes = np.random.choice(
+                        T, medi_triplet_per_mol, replace=True, p=t_prob)
                     positives = neig_idxs[idx, m_p_indexes]
                     medi_p_split.extend(positives)
 
                     #    Hard
-                    h_p_indexes = np.random.choice(T, hard_triplet_per_mol, replace=True, p=t_prob)
+                    h_p_indexes = np.random.choice(
+                        T, hard_triplet_per_mol, replace=True, p=t_prob)
                     positives = neig_idxs[idx, h_p_indexes]
                     hard_p_split.extend(positives)
 
@@ -466,26 +486,28 @@ class NeighborTripletTraintest(object):
                     medi_p_split.extend(positives)
                     hard_p_split.extend(positives)"""
 
-
                     # medium negatives are sampled from F (in NN but not T)
-                    m_negatives = np.random.choice(neig_idxs[idx][T:], medi_triplet_per_mol, replace=True)
+                    m_negatives = np.random.choice(
+                        neig_idxs[idx][T:], medi_triplet_per_mol, replace=True)
                     medi_n_split.extend(m_negatives)
 
-
-                    # hard negatives are sampled from T (but higher than positives)
-                    hn_shifts  = np.random.choice(int(np.ceil(T/2)), hard_triplet_per_mol, replace=True)+1
+                    # hard negatives are sampled from T (but higher than
+                    # positives)
+                    hn_shifts = np.random.choice(
+                        int(np.ceil(T / 2)), hard_triplet_per_mol, replace=True) + 1
                     hn_indexes = hn_shifts + h_p_indexes
                     h_negatives = neig_idxs[idx, hn_indexes]
                     hard_n_split.extend(h_negatives)
 
-
                     # easy negatives (sampled from everywhere; in general should be fine altough it may sample positives...)
                     #e_negatives = np.random.choice(len(neig_idxs), triplet_per_mol*2, replace=True)
                     #e_negatives = np.random.choice(list(e_negatives.difference(neig_idxs[idx])), triplet_per_mol, replace=True)
-                    # if too slow just uncomment the following and comment the above
-                    e_negatives = np.random.choice(len(neig_idxs), easy_triplet_per_mol, replace=True)
+                    # if too slow just uncomment the following and comment the
+                    # above
+                    e_negatives = np.random.choice(
+                        len(neig_idxs), easy_triplet_per_mol, replace=True)
                     easy_n_split.extend(e_negatives)
-                    
+
                 # get reference ids
                 NeighborTripletTraintest.__log.info("Mapping triplets")
                 #anchors_ref = [split_ref_map[split2][x] for x in anchors_split]
@@ -502,7 +524,7 @@ class NeighborTripletTraintest(object):
                 # choose random from full analogs
                 NeighborTripletTraintest.__log.info(
                     "Resolving multiple options")
-                #anchors_full = np.array(
+                # anchors_full = np.array(
                 #    [np.random.choice(refid_full_map[x]) for x in anchors_ref])
                 easy_a_full = np.array(
                     [np.random.choice(refid_full_map[x]) for x in easy_a_ref])
@@ -588,7 +610,7 @@ class NeighborTripletTraintest(object):
                         dis_an = euclidean(anchor, negative)
                         dists[idx] = [dis_ap, dis_an, category]
                         if (dis_ap > dis_an):
-                            #NeighborTripletTraintest.__log.warning(
+                            # NeighborTripletTraintest.__log.warning(
                             #    'DIST ERROR %s %.2f %.2f %i' %
                             #    (triplets[row], dis_ap, dis_an, category))
                             num_of_dist_errors += 1
