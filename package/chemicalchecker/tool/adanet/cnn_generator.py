@@ -31,24 +31,24 @@ class SimpleCNNBuilder(adanet.subnetwork.Builder):
         """See `adanet.subnetwork.Builder`."""
         images = tf.to_float(features['x'])
         print "***********", images.shape
-        kernel_initializer = tf.keras.initializers.he_normal(seed=self._seed)
-        x = tf.keras.layers.Conv2D(
+        kernel_initializer = tf.initializers.he_normal(seed=self._seed)
+        x = tf.layers.Conv2D(
             input_shape=images.shape,
             filters=16,
             kernel_size=3,
             padding="same",
             activation="relu",
             kernel_initializer=kernel_initializer)(images)
-        x = tf.keras.layers.MaxPool2D(pool_size=2, strides=2)(x)
-        x = tf.keras.layers.Flatten()(x)
-        x = tf.keras.layers.Dense(
+        x = tf.layers.MaxPool2D(pool_size=2, strides=2)(x)
+        x = tf.layers.Flatten()(x)
+        x = tf.layers.Dense(
             units=64,
             activation="relu",
             kernel_initializer=kernel_initializer)(x)
 
         # The `Head` passed to adanet.Estimator will apply the softmax
         # activation.
-        logits = tf.keras.layers.Dense(
+        logits = tf.layers.Dense(
             units=logits_dimension,
             activation=None,
             kernel_initializer=kernel_initializer)(x)
