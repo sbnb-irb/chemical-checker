@@ -1801,7 +1801,7 @@ class sign3(BaseSignature, DataSignature):
             sign2_coverage=None, sign0=None,
             model_confidence=True, save_correlations=False,
             predict_novelty=True, update_preds=True,
-            validations=True, chunk_size=1000, suffix=None):
+            validations=True, chunk_size=1000, suffix=None, overwrite=False):
         """Fit signature 3 given a list of signature 2.
 
         Args:
@@ -1825,6 +1825,9 @@ class sign3(BaseSignature, DataSignature):
             validations(bool): Whether to perform validation.
             chunk_size(int): Chunk size when writing to sign3.h5
         """
+
+        if not overwrite:
+            BaseSignature.fit(self)  # NS provides a lock to avoid fitting again if it has been already done
         try:
             from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError:

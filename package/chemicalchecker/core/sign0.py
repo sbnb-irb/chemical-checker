@@ -276,7 +276,7 @@ class sign0(BaseSignature, DataSignature):
         return X, keys, keys_raw, features
 
 
-    def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, max_features=10000, chunk_size=10000, **params):
+    def fit(self, cc=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, max_features=10000, chunk_size=10000, overwrite=False, **params):
         """Process the input data. We produce a sign0 (full) and a sign0(reference). Data are sorted (keys and features).
 
         Args:
@@ -290,6 +290,9 @@ class sign0(BaseSignature, DataSignature):
             validations(boolean): Create validation files(plots, files,etc)(default=True).
             do_triplets(boolean): Draw triplets from the CC (default=True).
         """
+        if not overwrite:
+            BaseSignature.fit(self)  # NS provides a lock to avoid fitting again if it has been already done
+
         self.clean()
         if cc is None:
             cc = self.get_cc()
