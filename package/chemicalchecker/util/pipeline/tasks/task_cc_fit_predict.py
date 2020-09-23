@@ -84,7 +84,7 @@ CC_SCRIPT_F = [
 SIGN2_SCRIPT_FR = [
     'neig1_ref = cc.get_signature("neig1", "reference", data)',
     'sign2_ref = cc.get_signature("sign2", "reference", data,**pars)',
-    "sign2_ref.fit(sign_ref, neig1_ref, reuse=False)",
+    "sign2_ref.fit(sign_ref, neig1_ref, reuse=False, overwrite=True)",
     "sign2_full = cc.get_signature('sign2', 'full', data,**pars)",
     "sign2_ref.predict(sign_full, destination=sign2_full.data_path)",
     "sign2_full.validate()",
@@ -105,7 +105,7 @@ SIGN3_SCRIPT_F = [
     "sign3_full = cc.get_signature('sign3', 'full', data,**pars)",
     "sign2_list = [cc.get_signature('sign2', 'full', ds) for ds in sign2_src_list]",
     "sign2_list.append(cc.get_signature('sign2', 'full', data))",
-    "sign3_full.fit(sign2_list, sign_full, sign1_full)",
+    "sign3_full.fit(sign2_list, sign_full, sign1_full, overwrite=True)",
     '#diag=cc.diagnosis(sign3_full)',
     '#diag.canvas()'
 ]
