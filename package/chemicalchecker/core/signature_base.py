@@ -53,7 +53,7 @@ class BaseSignature(object):
         if params:
             BaseSignature.__log.debug('PARAMS:')
             for k, v in params.items():
-                BaseSignature.__log.debug('\t', str(k), str(v))
+                BaseSignature.__log.debug('\t%s\t%s', str(k), str(v))
         # NS Creates the 'models', 'stats', 'diags' folders if they don't exist
         # together with signx
         # NS If sign path doesn't exist, create it with permissions 775
