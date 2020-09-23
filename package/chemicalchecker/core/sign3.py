@@ -1826,8 +1826,9 @@ class sign3(BaseSignature, DataSignature):
             chunk_size(int): Chunk size when writing to sign3.h5
         """
 
-        if not overwrite:
-            BaseSignature.fit(self)  # NS provides a lock to avoid fitting again if it has been already done
+        if not overwrite and BaseSignature.fit(self):
+            # NS provides a lock to avoid fitting again if it has been already done
+            return
         try:
             from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError:

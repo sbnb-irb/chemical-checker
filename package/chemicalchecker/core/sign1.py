@@ -136,8 +136,9 @@ class sign1(BaseSignature, DataSignature):
                 sign0: A signature 0.
         """
 
-        if not overwrite:
-            BaseSignature.fit(self)  # NS provides a lock to avoid fitting again if it has been already done
+        if not overwrite and BaseSignature.fit(self):
+            # NS provides a lock to avoid fitting again if it has been already done
+            return
 
 
         try:
