@@ -9,13 +9,10 @@ We should avoid adding too much logic in here, and simply pass `args` and
 the parameters are OK.
 """
 import os
-import h5py
 import shutil
 import tempfile
-import numpy as np
 
 from chemicalchecker.database import Dataset
-from chemicalchecker.core.sign3 import sign3
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util.pipeline import BaseTask
 from chemicalchecker.util import logged, Config, HPC
@@ -117,32 +114,11 @@ class CCFit(BaseTask):
             self.mark_ready()
             return
 
-        # sign3 specific pre-calculations
-        # FIXME this should go to the main pipeline
-        if self.cctype == 'sign3':
-            # if target datasets are also in the in the reference list, then
-            # we can precompute the shared universe and coverage matrices
-            # otherwise the sign3 class is computing for each dataset
-            if all(np.isin(self.datasets, self.ref_datasets)):
-                full_universe = os.path.join(self.tmpdir, "universe_full")
-                full_coverage = os.path.join(self.tmpdir, "coverage_full")
-                sign2_list = [cc.get_signature('sign2', 'full', ds)
-                              for ds in self.ref_datasets]
-                sign3.save_sign2_universe(sign2_list, full_universe)
-                sign3.save_sign2_coverage(sign2_list, full_coverage)
-                # check for universe to be readable
-                try:
-                    with h5py.File(full_universe, 'r') as hf:
-                        hf.keys()
-                except Exception as e:
-                    self.__log.error(e)
-                    raise Exception("Universe full file is corrupted.")
-
         # Preparing dataset_params
         # for each dataset we want to define a set of signature parameters
         # (i.e. sign_pars, used when loading the signature) and a set of
         # parameters used when calling the 'fit' method (i.e. fit_pars)
-        # FIXME this should be harmonized fixing individual signature classes
+        # FIXME can be further harmonized fixing individual signature classes
         dataset_params = list()
         for ds_code in dataset_codes:
             sign_args = list()
