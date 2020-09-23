@@ -441,14 +441,11 @@ class Node2Vec():
         # run process
         process = subprocess.Popen([self.executable] + args,
                                    stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
+                                   stderr=subprocess.STDOUT)
 
-        # stream output as get generated
-        # NS: this produces logs of several GB, I turn it off for the moment
-        output, errors = process.communicate()
-
-        for line in output:
-            self.__log.info(str(line))
-
-        for line in errors:
-            self.__log.error(str(line))
+        # stream output as it gets generated
+        while True:
+            line = process.stdout.readline().decode("utf-8").strip()
+            self.__log.info(line)
+            if line == '' and process.poll() is not None:
+                break
