@@ -12,10 +12,12 @@ class Pipeline():
     Run pipelines according to config files.
     """
 
-    def __init__(self, pipeline_path=None, **kwargs):
+    def __init__(self, pipeline_path=None, keep_jobs=False, **kwargs):
         """Initialize a Pipeline instance.
 
         pipeline_path (str): Path where the pipeline will set its structure.
+        keep_jobs (bool): If True temporary job directories will not be
+            deleted.
         """
         self.tasks = []
 
@@ -31,6 +33,7 @@ class Pipeline():
         self.logfile = os.path.join(
             self.pipeline_path, "log", "pipeline.log")
         self.tmpdir = os.path.join(self.pipeline_path, "tmp")
+        self.keep_jobs = keep_jobs
 
         # check and make needed directories
         if not os.path.exists(self.pipeline_path):
@@ -54,6 +57,7 @@ class Pipeline():
     def add_task(self, task):
         """Add tasks to the pipeline."""
         task.set_dirs(self.readydir, self.tmpdir)
+        task.keep_jobs = self.keep_jobs
         self.tasks.append(task)
 
     def run(self):
