@@ -1796,8 +1796,8 @@ class sign3(BaseSignature, DataSignature):
         inchikeys = sorted(list(inchikeys))
         return inchikeys
 
-    def fit(self, sign2_list, sign2_self, sign1_self, sign2_universe=None,
-            partial_universe=None,
+    def fit(self, sign2_list=None, sign2_self=None, sign1_self=None,
+            sign2_universe=None, partial_universe=None,
             sign2_coverage=None, sign0=None,
             model_confidence=True, save_correlations=False,
             predict_novelty=True, update_preds=True,
@@ -1835,10 +1835,20 @@ class sign3(BaseSignature, DataSignature):
         except ImportError as err:
             raise err
         # define datasets that will be used
-        self.src_datasets = [sign.dataset for sign in sign2_list]
-        self.neig_sign = sign1_self
-        self.sign2_self = sign2_self
+        if sign2_list is None:
+            sign2_list = list()
+            cc = self.get_cc()
+            for ds in cc.datasets_exemplary():
+                sign2_list.append(cc.get_signature('sign2', 'full', ds))
         self.sign2_list = sign2_list
+        self.src_datasets = [sign.dataset for sign in sign2_list]
+        if sign2_self is None:
+            sign2_self = self.get_sign('sign2')
+        self.sign2_self = sign2_self
+        if sign1_self is None:
+            sign1_self = self.get_sign('sign1')
+        self.neig_sign = sign1_self
+
         self.sign2_coverage = sign2_coverage
         self.dataset_idx = np.argwhere(
             np.isin(self.src_datasets, self.dataset)).flatten()
