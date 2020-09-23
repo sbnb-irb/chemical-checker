@@ -2,8 +2,8 @@ import functools
 import adanet
 import tensorflow as tf
 
-from tensorflow.keras import layers
-from tensorflow.keras.layers import Dense, Dropout
+from tensorflow import layers
+from tensorflow.layers import Dense, Dropout
 
 from chemicalchecker.util import logged
 
