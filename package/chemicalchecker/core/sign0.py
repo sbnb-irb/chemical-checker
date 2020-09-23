@@ -290,8 +290,9 @@ class sign0(BaseSignature, DataSignature):
             validations(boolean): Create validation files(plots, files,etc)(default=True).
             do_triplets(boolean): Draw triplets from the CC (default=True).
         """
-        if not overwrite:
-            BaseSignature.fit(self)  # NS provides a lock to avoid fitting again if it has been already done
+        if not overwrite and BaseSignature.fit(self):
+            # NS provides a lock to avoid fitting again if it has been already done
+            return
 
         self.clean()
         if cc is None:
