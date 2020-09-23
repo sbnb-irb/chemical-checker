@@ -129,12 +129,17 @@ class sign1(BaseSignature, DataSignature):
             if "V_tmp" in hf.keys():
                 del hf["V_tmp"]
 
-    def fit(self, sign0, latent=True, scale=True, metric_learning=True, semisupervised=False):
+    def fit(self, sign0, latent=True, scale=True, metric_learning=True, semisupervised=False, overwrite=False):
         """Fit signature 1 given signature 0
 
             Args:
                 sign0: A signature 0.
         """
+
+        if not overwrite:
+            BaseSignature.fit(self)  # NS provides a lock to avoid fitting again if it has been already done
+
+
         try:
             from chemicalchecker.util.transform.metric_learn import UnsupervisedMetricLearn, SemiSupervisedMetricLearn
         except ImportError:
