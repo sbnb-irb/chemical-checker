@@ -1,4 +1,7 @@
-"""PythonCallable task."""
+"""PythonCallable task.
+
+Allow any local python function to be a task.
+"""
 from chemicalchecker.util import logged
 from chemicalchecker.util.pipeline import BaseTask
 
