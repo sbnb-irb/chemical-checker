@@ -25,7 +25,7 @@ if not os.path.isfile(mini_cc_uni_file):
             continue
         if ds.code >= 'D':
             print(ds.code)
-            s0 = cc.get_signature('sign0', 'full', ds.code)
+            s0 = cc.get_signature('sign0', 'reference', ds.code)
             universe.update(s0.unique_keys)
     mini_cc_uni = np.random.choice(list(universe), 10000, replace=False)
     mini_cc_uni = mini_cc_uni[np.argsort(mini_cc_uni)]
