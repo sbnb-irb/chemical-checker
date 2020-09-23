@@ -74,7 +74,7 @@ class sign2(BaseSignature, DataSignature):
             self.cpu = self.params['adanet'].get('cpu', 1)
 
     def fit(self, sign1, neig1, reuse=True, validations=True,
-            compare_nn=False, oos_predictor=True):
+            compare_nn=False, oos_predictor=True, overwrite=False):
         """Fit signature 2 given signature 1 and its nearest neighbors.
 
         Node2vec embeddings are computed using the graph derived from sign1.
@@ -86,6 +86,11 @@ class sign2(BaseSignature, DataSignature):
             reuse(bool): Reuse already generated intermediate files. Set to
                 False to re-train from scratch.
         """
+        if not overwrite and BaseSignature.fit(self):
+            # NS provides a lock to avoid fitting again if it has been already done
+            return
+
+
         #########
         # step 1: Node2Vec (learn graph embedding) input is neig1
         #########
