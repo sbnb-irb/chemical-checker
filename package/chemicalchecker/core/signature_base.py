@@ -98,7 +98,7 @@ class BaseSignature(object):
             BaseSignature.__log.warning("Model already available.")
 
         if self.is_fit():
-            raise Exception("The fit has already been done.\nPlease remove manually the folder {} and re-run the method\.n(or use overwrite=True)".format(self.signature_path))            
+            raise Exception("The fit has already been done.\nPlease remove manually the folder {} and re-run the method.\n(or use overwrite=True)".format(self.signature_path))            
 
         # if os.path.exists(os.path.join(self.model_path, self.readyfile)):
         #     os.remove(os.path.join(self.model_path, self.readyfile))
