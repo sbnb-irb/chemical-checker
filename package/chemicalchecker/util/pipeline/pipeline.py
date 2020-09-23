@@ -26,7 +26,7 @@ class Pipeline():
         if self.pipeline_path is None:
             raise Exception("pipeline_path parameter not set")
         else:
-            Pipeline.__log.info("PIPELINE PATH: {}".format(self.pipeline_path) )
+            Pipeline.__log.info("PIPELINE PATH: {}".format(self.pipeline_path))
 
         self.readydir = os.path.join(self.pipeline_path, "ready")
         self.logdir = os.path.join(self.pipeline_path, "log")
@@ -62,6 +62,12 @@ class Pipeline():
         task.set_dirs(self.readydir, self.tmpdir)
         task.keep_jobs = self.keep_jobs
         self.tasks.append(task)
+
+    def insert_task(self, position, task):
+        """Add tasks to the pipeline."""
+        task.set_dirs(self.readydir, self.tmpdir)
+        task.keep_jobs = self.keep_jobs
+        self.tasks.insert(position, task)
 
     def run(self):
         """Run the pipeline."""
