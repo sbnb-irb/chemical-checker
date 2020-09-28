@@ -206,9 +206,6 @@ if not DEBUG:
 
         pp.add_task(val_set_task)
 
-if DEBUG:
-    pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
-
 # TASK: Calculate signatures 0
 s0_params = {'CC_ROOT': CC_ROOT, 'cc_old_path': CC_OLD_ROOT}
 s0_task = CCFit(cc_type='sign0', **s0_params)
@@ -250,14 +247,17 @@ p2_params = {'CC_ROOT': CC_ROOT}
 p2_task = CCFit(cc_type='proj2', **p2_params)
 pp.add_task(p2_task)
 
-pp.run()
-print("DONE, Calculate sign 0,1, 2, nearest neighbours and projections")
-sys.exit(0)
+if DEBUG:
+    pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
 
 # TASK: Calculate signatures 3
 s3_params = {'CC_ROOT': CC_ROOT}
 s3_task = CCFit(cc_type='sign3', **s3_params)
 pp.add_task(s3_task)
+
+pp.run()
+print("DONE, Calculate sign 3")
+sys.exit(0)
 
 # TASK: Calculate consensus signature 3
 s3_short_params = {'CC_ROOT': CC_ROOT}
