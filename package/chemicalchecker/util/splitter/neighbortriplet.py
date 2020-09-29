@@ -496,6 +496,10 @@ class NeighborTripletTraintest(object):
                     hn_shifts = np.random.choice(
                         int(np.ceil(T / 2)), hard_triplet_per_mol, replace=True) + 1
                     hn_indexes = hn_shifts + h_p_indexes
+                    # with small T we still have to avoid getting out of T
+                    # range
+                    off_range = np.where(hn_indexes >= neig_idxs.shape[1])
+                    hn_indexes[off_range] = neig_idxs.shape[1] - 1
                     h_negatives = neig_idxs[idx, hn_indexes]
                     hard_n_split.extend(h_negatives)
 
@@ -576,9 +580,17 @@ class NeighborTripletTraintest(object):
                 # save to h5
                 ds_name = "t_%s_%s" % (split1, split2)
                 ys_name = "y_%s_%s" % (split1, split2)
-                triplets, unique_idx = np.unique(
-                    triplets, axis=0, return_index=True)
-                y = y[unique_idx]
+                _, unique_idx = np.unique(triplets, axis=0, return_index=True)
+                # check for all categories to still be there
+                if len(np.unique(y[unique_idx])) < 3:
+                    # this can happend when we have very few molecules
+                    ty = np.hstack([triplets, np.expand_dims(y, 1)])
+                    tripletsy = np.unique(ty, axis=0)
+                    triplets = tripletsy[:, :3]
+                    y = tripletsy[:, -1]
+                else:
+                    triplets = triplets[unique_idx]
+                    y = y[unique_idx]
                 # shuffling
                 shuffle_idxs = np.arange(triplets.shape[0])
                 if shuffle:
