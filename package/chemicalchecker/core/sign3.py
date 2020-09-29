@@ -1923,6 +1923,13 @@ class sign3(BaseSignature, DataSignature):
             if prior_mdl is None:
                 prior_path = os.path.join(self.model_path, 'prior_eval')
                 prior_file = os.path.join(prior_path, 'prior.pkl')
+                # if prior model is not there, retrain confidence
+                if not os.path.isfile(prior_file):
+                    siamese_eval = SiameseTriplets(eval_model_path)
+                    sign2_matrix = os.path.join(self.model_path, 'train.h5')
+                    self.train_confidence(siamese_eval.traintest_file,
+                                          DataSignature(sign2_matrix), 'eval',
+                                          siamese_eval)
                 prior_mdl = pickle.load(open(prior_file, 'rb'))
 
             # part of confidence is the priors based on signatures
@@ -2103,6 +2110,9 @@ class sign3(BaseSignature, DataSignature):
             assert(s2_idxs.shape[0] == s2_novelty.shape[0])
             # predict scores for other molecules and pair with indexes
             s3_inks = sorted(self.unique_keys - set(s2_inks))
+            # no new prediction to add
+            if len(s3_inks) == 0:
+                return
             s3_idxs = np.argwhere(np.isin(list(self.keys), s3_inks,
                                           assume_unique=True))
             _, s3_pred_sign = self.get_vectors(s3_inks)
