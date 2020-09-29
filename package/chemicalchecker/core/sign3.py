@@ -382,7 +382,7 @@ class sign3(BaseSignature, DataSignature):
             confidence_path, p_self=p_self)
         return prior_model, prior_sign_model, confidence_model
 
-    def rerun_confidence(self, cc, suffix, train=True, update_sign=True, chunk_size=10000):
+    def rerun_confidence(self, cc, suffix, train=True, update_sign=True, chunk_size=10000, sign2_universe=None, sign2_coverage=None):
         """Rerun confidence trainining and estimation"""
         try:
             import faiss
@@ -394,9 +394,11 @@ class sign3(BaseSignature, DataSignature):
         sign2_self = cc.get_signature("sign2", "full", self.dataset)
         sign2_list = [cc.get_signature("sign2", "full", d)
                       for d in cc.datasets_exemplary()]
-        sign2_universe = os.path.join(cc.cc_root, 'full', 'all_sign2.h5')
-        sign2_coverage = os.path.join(
-            cc.cc_root, 'full', 'all_sign2_coverage.h5')
+        if sign2_universe is None:
+            sign2_universe = os.path.join(cc.cc_root, 'full', 'all_sign2.h5')
+        if sign2_coverage is None:
+            sign2_coverage = os.path.join(
+                cc.cc_root, 'full', 'all_sign2_coverage.h5')
 
         self.src_datasets = [sign.dataset for sign in sign2_list]
         self.neig_sign = sign1_self
@@ -564,7 +566,11 @@ class sign3(BaseSignature, DataSignature):
             x = yp
             y = yt
             xy = np.vstack([x, y])
-            z = gaussian_kde(xy)(xy)
+            try:
+                z = gaussian_kde(xy)(xy)
+            except Exception as ex:
+                self.__log.warning(str(ex))
+                z = np.ones(x.shape)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
             ax.scatter(x, y, c=z, s=10, edgecolor='')
@@ -752,7 +758,11 @@ class sign3(BaseSignature, DataSignature):
             x = yp
             y = yt
             xy = np.vstack([x, y])
-            z = gaussian_kde(xy)(xy)
+            try:
+                z = gaussian_kde(xy)(xy)
+            except Exception as ex:
+                self.__log.warning(str(ex))
+                z = np.ones(x.shape)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
             ax.scatter(x, y, c=z, s=10, edgecolor='')
@@ -935,7 +945,11 @@ class sign3(BaseSignature, DataSignature):
             x = yp
             y = yt
             xy = np.vstack([x, y])
-            z = gaussian_kde(xy)(xy)
+            try:
+                z = gaussian_kde(xy)(xy)
+            except Exception as ex:
+                self.__log.warning(str(ex))
+                z = np.ones(x.shape)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
             ax.scatter(x, y, c=z, s=10, edgecolor='')
