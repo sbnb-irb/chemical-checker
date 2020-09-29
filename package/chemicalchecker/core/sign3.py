@@ -326,7 +326,6 @@ class sign3(BaseSignature, DataSignature):
             traintest_file, X, suffix, siamese)
         # update the parameters with the new nr_of epochs and lr
         self.params['sign2']['epochs'] = siamese.last_epoch
-        self.params['sign2']['learning_rate'] = siamese.learning_rate
         return siamese, prior_model, prior_sign_model, confidence_model
 
     def train_confidence(self, traintest_file, X, suffix, siamese,
@@ -1911,6 +1910,9 @@ class sign3(BaseSignature, DataSignature):
         final_model_path = os.path.join(self.model_path, 'siamese_final')
         final_file = os.path.join(final_model_path, 'siamesetriplets.h5')
         if not os.path.isfile(final_file):
+            # get the learning rate from the siamese eval
+            siamese_eval = SiameseTriplets(eval_model_path)
+            self.params['sign2']['learning_rate'] = siamese_eval.learning_rate
             siamese = self.learn_sign2(
                 self.params['sign2'].copy(), suffix='final', evaluate=False)
 
