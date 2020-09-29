@@ -206,7 +206,8 @@ fi
                 'OPENBLAS_NUM_THREADS',
                 'MKL_NUM_THREADS',
                 'VECLIB_MAXIMUM_THREADS',
-                'NUMEXPR_NUM_THREADS'
+                'NUMEXPR_NUM_THREADS',
+                'NUMEXPR_MAX_THREADS'
             ]
             command = ' '.join(["%s=%s" % (v, str(cpu))
                                 for v in env_vars] + [command])
