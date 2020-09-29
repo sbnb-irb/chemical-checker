@@ -311,10 +311,12 @@ class sign0(BaseSignature, DataSignature):
         input_type = res["input_type"]
 
         self.__log.debug("Sanitizing")
-        san = Sanitizer(trim=True, max_features=max_features,
-                        chunk_size=chunk_size)
-        X, keys, keys_raw, features = san.transform(
-            V=X, keys=keys, keys_raw=keys_raw, features=features, sign=None)
+
+        # NS we want to keep 2048 features (Morgan fingerprint) for sign0
+        trimFeatures= False if self.dataset == 'A1.001' else True:
+
+        san = Sanitizer(trim=trimFeatures, max_features=max_features, chunk_size=chunk_size)
+        X, keys, keys_raw, features = san.transform(V=X, keys=keys, keys_raw=keys_raw, features=features, sign=None)
 
         self.__log.debug("Aggregating if necessary")
         agg = Aggregate(method=agg_method, input_type=input_type)
