@@ -583,6 +583,9 @@ class NeighborTripletTraintest(object):
                 _, unique_idx = np.unique(triplets, axis=0, return_index=True)
                 # check for all categories to still be there
                 if len(np.unique(y[unique_idx])) < 3:
+                    NeighborTripletTraintest.__log.warning(
+                        'Very few molecules available... triplets will be '
+                        'repeated in the difficulty categories.')
                     # this can happend when we have very few molecules
                     ty = np.hstack([triplets, np.expand_dims(y, 1)])
                     tripletsy = np.unique(ty, axis=0)
