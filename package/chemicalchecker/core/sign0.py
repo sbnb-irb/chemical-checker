@@ -264,7 +264,7 @@ class sign0(BaseSignature, DataSignature):
         features = features[feature_idxs]
         return X, keys, keys_raw, features
 
-    def fit(self, cc_root=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, max_features=10000, chunk_size=10000, **params):
+    def fit(self, cc_root=None, pairs=None, X=None, keys=None, features=None, data_file=None, key_type="inchikey", agg_method="average", do_triplets=True, validations=True, max_features=10000, chunk_size=10000,  sanitize=True, **params):
         """Process the input data. We produce a sign0 (full) and a sign0(reference). Data are sorted (keys and features).
 
         Args:
@@ -292,11 +292,13 @@ class sign0(BaseSignature, DataSignature):
         features = res["features"]
         input_type = res["input_type"]
 
-        self.__log.debug("Sanitizing")
-        san = Sanitizer(trim=True, max_features=max_features,
-                        chunk_size=chunk_size)
-        X, keys, keys_raw, features = san.transform(
-            V=X, keys=keys, keys_raw=keys_raw, features=features, sign=None)
+        if sanitize:
+            self.__log.debug("Sanitizing")
+            san = Sanitizer(trim=True, max_features=max_features,
+                            chunk_size=chunk_size)
+            X, keys, keys_raw, features = san.transform(
+                V=X, keys=keys, keys_raw=keys_raw, features=features,
+                sign=None)
 
         self.__log.debug("Aggregating if necessary")
         agg = Aggregate(method=agg_method, input_type=input_type)
@@ -459,22 +461,24 @@ class sign0(BaseSignature, DataSignature):
         defined as the union of all molecules from bioactivity spaces (B and after).
         - Applicable when the signature belongs to one of the A spaces
         """
-        cc= self.get_cc()
+        cc = self.get_cc()
         universe = cc.universe  # list of inchikeys belonging to the universe
 
-        self.__log.debug("--> getting the vectors from s0 corresponding to our (restricted) universe")
+        self.__log.debug(
+            "--> getting the vectors from s0 corresponding to our (restricted) universe")
         # get the vectors from s0 corresponding to our (restricted) universe
         inchk_univ, _ = self.get_vectors(keys=universe)
 
         # obtain a mask for sign0 in order to obtain a filtered h5 file
         # Strangely, putting lists greatly improves the performances of np.isin
         self.__log.debug("--> Obtaining a mask")
-        mask= np.isin(list(self.keys), list(inchk_univ))
+        mask = np.isin(list(self.keys), list(inchk_univ))
 
         del inchk_univ  # avoiding consuming too much memory
 
-        filtered_h5=os.path.join(os.path.dirname(self.data_path), 'sign0_univ.h5')
-        print("Creating",filtered_h5)
+        filtered_h5 = os.path.join(
+            os.path.dirname(self.data_path), 'sign0_univ.h5')
+        print("Creating", filtered_h5)
 
         self.__log.debug("--> Creating file {}".format(filtered_h5))
         self.make_filtered_copy(filtered_h5, mask)
@@ -484,4 +488,3 @@ class sign0(BaseSignature, DataSignature):
 
     def restrict_to_universe_hpc(self, *args, **kwargs):
         return self.func_hpc("restrict_to_universe", *args, memory=15, **kwargs)
-
