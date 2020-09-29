@@ -1629,22 +1629,20 @@ class sign3(BaseSignature, DataSignature):
         if evaluate:
             apppred.evaluate()
 
-    def fit_sign0(self, sign0, suffix=None, include_confidence=False,
+    def fit_sign0(self, sign0, suffix=None, include_confidence=True,
                   only_confidence=False):
-        """Fit signature 3 from Morgan Finguerprint.
+        """Fit signature 3 from Morgan Fingerprint.
 
         This method is fitting a model that uses Morgan fingerprint as features
         to predict signature 3. In future other featurization approaches can be
         tested.
 
         Args:
-            chemchecker(ChemicalChecker): The CC object used to fetch input
-                signature 0.
             sign0(str): Path to the MF file.
             include_confidence(bool): Whether to include confidence score in
                 regression problem.
-            extra_confidence(bool): Whether to train an additional regressor
-                exclusively devoted to confidence.
+            only_confidence(bool): Whether to only train an additional
+                regressor exclusively devoted to confidence.
         """
 
         # check if performance evaluations need to be done
@@ -1813,7 +1811,7 @@ class sign3(BaseSignature, DataSignature):
             sign2_universe=None, partial_universe=None,
             sign2_coverage=None, sign0=None,
             model_confidence=True, save_correlations=False,
-            predict_novelty=True, update_preds=True,
+            predict_novelty=True, update_preds=False,
             validations=True, chunk_size=1000, suffix=None):
         """Fit signature 3 given a list of signature 2.
 
