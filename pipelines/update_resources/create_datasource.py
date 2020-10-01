@@ -15,7 +15,7 @@ os.environ['CC_CONFIG'] = os.path.join(current_dir,'../configs/cc_package.json')
 # check if Datasource table is there
 if Datasource._table_exists():
     print("Removing previous table 'datasource' in database 'cc_package'")
-    command1="psql -h aloy-dbsrv -d cc_package <"+sql_file1  #remove fconstraints
+    command1="psql -h aloy-dbsrv -d cc_package <"+sql_file1  #remove fconstraints and make a backup table
     os.system(command1)
     Datasource._drop_table()
 
