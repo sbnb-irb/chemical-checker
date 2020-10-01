@@ -1,4 +1,6 @@
-/* When the table datasource is updated, make sure the foregin key constraints remain*/
+DROP TABLE IF EXISTS datasourcebckp;
+
+CREATE TABLE datasourcebckp AS TABLE datasource;
 
 ALTER TABLE dataset_has_datasource
 DROP CONSTRAINT IF EXISTS "dataset_has_datasource_datasource_name_fkey";
