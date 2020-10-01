@@ -117,7 +117,7 @@ class Smilespred(object):
         signp = self.model.predict(self.sign0)
 
         self.__log.info('VALIDATION: Plot distances.')
-        l = 100000
+        l = min(len(self.sign0), 100000)
         p = int(l / 2)
         tr_idxs = np.random.choice(
             np.arange(int(len(self.sign0) * self.t_split)), l, replace=False)
