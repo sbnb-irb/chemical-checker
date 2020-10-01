@@ -1,5 +1,8 @@
 from setuptools import setup, find_packages
-import chemicalchecker
+
+__author__ = """SBNB"""
+__email__ = 'sbnb@irbbarcelona.org'
+__version__ = '1.0.0'
 
 requirements = [
     'numpy',
@@ -27,9 +30,9 @@ test_requirements = [
 
 setup(
     name='chemicalchecker',
-    version=chemicalchecker.__version__,
-    author=chemicalchecker.__author__,
-    author_email=chemicalchecker.__email__,
+    version=__version__,
+    author=__author__,
+    author_email=__email__,
     description="Chemical Checker Package.",
     long_description='''The Chemical Checker (CC) is a data-driven resource of small molecule
 bioactivity data. The main goal of the CC is to express data in a format
