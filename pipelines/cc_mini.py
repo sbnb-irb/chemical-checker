@@ -64,7 +64,7 @@ def main(args):
         'sign0': {'cpu': 2},
         'sign1': {'cpu': 4},
         'sign2': {'cpu': 8},
-        'sign3': {'cpu': 8},
+        'sign3': {'cpu': 5},
         'neig1': {'cpu': 2},
     }
 
@@ -107,7 +107,7 @@ def main(args):
         }
         sign_kwargs['sign2'][ds] = {
             'node2vec': {'cpu': 4},
-            'adanet': {'cpu': 8}
+            'adanet': hpc_kwargs['sign2']
         }
         fit_kwargs['sign3'][ds] = {
             'sign2_list': sign2_list,
@@ -116,7 +116,7 @@ def main(args):
             'sign0': mfp,
         }
         sign_kwargs['sign3'][ds] = {
-            'sign2': {'cpu': 8}
+            'sign2': hpc_kwargs['sign3']
         }
 
     # special args
