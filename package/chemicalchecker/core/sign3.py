@@ -409,6 +409,7 @@ class sign3(BaseSignature, DataSignature):
 
         siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
         siamese = SiameseTriplets(siamese_path, predict_only=True)
+        siamese_cp = SiameseTriplets(siamese.model_dir, predict_only=True)
 
         if train:
             traintest_file = os.path.join(
@@ -494,7 +495,7 @@ class sign3(BaseSignature, DataSignature):
                     results['prior_signature'][chunk] = prior_sign
                     # conformal prediction
                     ints, robs, cons = self.conformal_prediction(
-                        siamese, feat, nan_pred=nan_pred)
+                        siamese_cp, feat, nan_pred=nan_pred)
                     results['robustness'][chunk] = robs
                     # distance from known predictions
                     app, centrality, _ = self.applicability_domain(
@@ -1106,6 +1107,7 @@ class sign3(BaseSignature, DataSignature):
                                       prior_model, prior_sign_model, save_path,
                                       splits, p_self=0.0):
         try:
+            from chemicalchecker.tool.siamese import SiameseTriplets
             import faiss
         except ImportError as err:
             raise err
@@ -1137,8 +1139,9 @@ class sign3(BaseSignature, DataSignature):
 
         # do conformal prediction (dropout)
         self.__log.info('Computing Conformal Prediction')
+        siamese_cp = SiameseTriplets(siamese.model_dir, predict_only=True)
         intensities, robustness, consensus_cp = self.conformal_prediction(
-            siamese, train_x, p_self=p_self)
+            siamese_cp, train_x, p_self=p_self)
         self.__log.info('Conformal Prediction DONE')
 
         # predict expected prior
@@ -1273,7 +1276,7 @@ class sign3(BaseSignature, DataSignature):
             applicability = np.mean(norm_dist, axis=1).flatten()
             return applicability, app_range, None
 
-    def conformal_prediction(self, siamese, features, dropout_fn=None,
+    def conformal_prediction(self, siamese_cp, features, dropout_fn=None,
                              nan_pred=None, n_samples=5, p_self=0.0):
         if dropout_fn is None:
             dropout_fn, _ = self.realistic_subsampling_fn()
@@ -1281,14 +1284,13 @@ class sign3(BaseSignature, DataSignature):
         if nan_pred is None:
             nan_feat = np.full(
                 (1, features.shape[1]), np.nan, dtype=np.float32)
-            nan_pred = siamese.predict(nan_feat)
+            nan_pred = siamese_cp.predict(nan_feat)
         # draw prediction with sub-sampling
         if dropout_fn is None:
             dropout_fn = partial(subsample, dataset_idx=[self.dataset_idx])
-        samples = siamese.predict(mask_exclude(self.dataset_idx, features),
-                                  dropout_fn=partial(
-                                      dropout_fn, p_self=p_self),
-                                  dropout_samples=n_samples, cp=True)
+        samples = siamese_cp.predict(mask_exclude(self.dataset_idx, features),
+                                     dropout_fn=partial(dropout_fn, p_self=p_self),
+                                     dropout_samples=n_samples, cp=True)
         # summarize the predictions as consensus
         consensus = np.mean(samples, axis=1)
         # zeros input (no info) as intensity reference
@@ -1897,6 +1899,7 @@ class sign3(BaseSignature, DataSignature):
         # load models if not already available
         if siamese is None:
             siamese = SiameseTriplets(final_model_path, predict_only=True)
+        siamese_cp = SiameseTriplets(siamese.model_dir, predict_only=True)
 
         if model_confidence:
             # part of confidence is the priors
@@ -2001,7 +2004,7 @@ class sign3(BaseSignature, DataSignature):
                         results['prior_signature'][chunk] = prior_sign
                         # conformal prediction
                         ints, robs, _ = self.conformal_prediction(
-                            siamese, feat, nan_pred=nan_pred)
+                            siamese_cp, feat, nan_pred=nan_pred)
                         results['robustness'][chunk] = robs
                         # distance from known predictions
                         app, centrality, cons = self.applicability_domain(
