@@ -856,7 +856,7 @@ class SiameseTriplets(object):
         else:
             trimmed = x_matrix
         # load model if not alredy there
-        if self.model is None or cp:
+        if self.model is None:
             self.build_model((trimmed.shape[1],), load=True, cp=cp)
         # apply input scaling
         if hasattr(self, 'scaler'):
@@ -878,10 +878,6 @@ class SiameseTriplets(object):
         samples = np.vstack(samples)
         samples = samples.reshape(
             trimmed.shape[0], dropout_samples, samples.shape[1])
-        # if we used conformal prediction we drop the model (otherwise
-        # we will generate dropout predictions!)
-        if cp:
-            self.model = None
         return samples
 
     def _plot_history(self, history, vsets, destination):

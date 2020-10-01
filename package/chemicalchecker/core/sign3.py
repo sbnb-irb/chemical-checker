@@ -151,6 +151,8 @@ class sign3(BaseSignature, DataSignature):
         with h5py.File(destination, "w") as fh:
             fh.create_dataset('x_test', (tot_inks, 128 * tot_ds),
                               dtype=np.float32)
+            fh.create_dataset('keys', data=np.array(
+                inchikeys, DataSignature.string_dtype()))
             for idx, sign in enumerate(sign2_list):
                 sign3.__log.info("Fetching from %s" % sign.data_path)
                 # including NaN we have the correct number of molecules
@@ -183,6 +185,8 @@ class sign3(BaseSignature, DataSignature):
             return
         with h5py.File(destination, "w") as fh:
             fh.create_dataset('x_test', (tot_inks, tot_ds), dtype=np.float32)
+            fh.create_dataset('keys', data=np.array(
+                inchikeys, DataSignature.string_dtype()))
             for idx, sign in enumerate(sign2_list):
                 sign3.__log.info("Fetching from %s" % sign.data_path)
                 # including NaN we have the correct number of molecules
@@ -192,39 +196,24 @@ class sign3(BaseSignature, DataSignature):
                                  (sign.dataset, np.count_nonzero(coverage)))
                 fh['x_test'][:, idx:(idx + 1)] = np.expand_dims(coverage, 1)
 
-    def save_sign2_matrix(self, sign2_list, destination):
+    def save_sign2_matrix(self, destination):
         """Save matrix of pairs of horizontally stacked signature 2.
 
-        This is the matrix for training the signature 4. It is defined for all
+        This is the matrix for training the signature 3. It is defined for all
         molecules or which we have a signature 2 in the current space.
-        The X is the collections of signature 2 from other spaces
-        horizontally stacked (and NaN filled) for 2 molecules.
-        The Y is 0/1 depending whether the two signatures are similar as
-        derived from the nearest neighbors.
+        It's a subset of the universe of stacked sign2 file.
 
         Args:
-            sign2_list(list): List of signature 2 objects to learn from.
             destination(str): Path where to save the matrix (HDF5 file).
         """
         self.__log.debug('Saving sign2 traintest to: %s' % destination)
-        # get current space on which we'll train
-        ref_dimension = self.sign2_self.shape[1]
-        feat_shape = (self.sign2_self.shape[0],
-                      ref_dimension * len(self.src_datasets))
-        with h5py.File(destination, 'w') as hf:
-            hf.create_dataset('x', feat_shape, dtype=np.float32)
-            # for each dataset fetch signatures for the molecules of current
-            # space, if missing we add NaN.
-            for idx, (ds, sign) in enumerate(zip(self.src_datasets, sign2_list)):
-                _, signs = sign.get_vectors(
-                    self.sign2_self.keys, include_nan=True)
-                col_slice = slice(ref_dimension * idx,
-                                  ref_dimension * (idx + 1))
-                hf['x'][:, col_slice] = signs
-                available = np.isin(list(self.sign2_self.keys), sign.keys)
-                self.__log.info('%s shared molecules between %s and %s',
-                                sum(available), self.dataset, ds)
-                del signs
+        universe = DataSignature(self.sign2_universe)
+        mask = np.isin(list(universe.keys), list(self.sign2_self.keys))
+        universe.make_filtered_copy(destination, mask)
+        # rename the dataset to what the splitter expects
+        with h5py.File(destination, 'a') as hf:
+            hf['x'] = hf['x_test']
+            del hf['x_test']
 
     def learn_sign2(self, params, reuse=True, suffix=None, evaluate=True):
         """Learn the signature 3 model.
@@ -264,7 +253,7 @@ class sign3(BaseSignature, DataSignature):
         # generate input matrix
         sign2_matrix = os.path.join(self.model_path, 'train.h5')
         if not reuse or not os.path.isfile(sign2_matrix):
-            self.save_sign2_matrix(self.sign2_list, sign2_matrix)
+            self.save_sign2_matrix(sign2_matrix)
         # if evaluating, perform the train-test split
         traintest_file = params.get('traintest_file')
         X = DataSignature(sign2_matrix)
@@ -410,6 +399,7 @@ class sign3(BaseSignature, DataSignature):
 
         siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
         siamese = SiameseTriplets(siamese_path, predict_only=True)
+        siamese_cp = SiameseTriplets(siamese.model_dir, predict_only=True)
 
         if train:
             traintest_file = os.path.join(
@@ -495,7 +485,7 @@ class sign3(BaseSignature, DataSignature):
                     results['prior_signature'][chunk] = prior_sign
                     # conformal prediction
                     ints, robs, cons = self.conformal_prediction(
-                        siamese, feat, nan_pred=nan_pred)
+                        siamese_cp, feat, nan_pred=nan_pred)
                     results['robustness'][chunk] = robs
                     # distance from known predictions
                     app, centrality, _ = self.applicability_domain(
@@ -1119,6 +1109,7 @@ class sign3(BaseSignature, DataSignature):
                                       prior_model, prior_sign_model, save_path,
                                       splits, p_self=0.0):
         try:
+            from chemicalchecker.tool.siamese import SiameseTriplets
             import faiss
         except ImportError as err:
             raise err
@@ -1150,8 +1141,9 @@ class sign3(BaseSignature, DataSignature):
 
         # do conformal prediction (dropout)
         self.__log.info('Computing Conformal Prediction')
+        siamese_cp = SiameseTriplets(siamese.model_dir, predict_only=True)
         intensities, robustness, consensus_cp = self.conformal_prediction(
-            siamese, train_x, p_self=p_self)
+            siamese_cp, train_x, p_self=p_self)
         self.__log.info('Conformal Prediction DONE')
 
         # predict expected prior
@@ -1286,7 +1278,7 @@ class sign3(BaseSignature, DataSignature):
             applicability = np.mean(norm_dist, axis=1).flatten()
             return applicability, app_range, None
 
-    def conformal_prediction(self, siamese, features, dropout_fn=None,
+    def conformal_prediction(self, siamese_cp, features, dropout_fn=None,
                              nan_pred=None, n_samples=5, p_self=0.0):
         if dropout_fn is None:
             dropout_fn, _ = self.realistic_subsampling_fn()
@@ -1294,14 +1286,14 @@ class sign3(BaseSignature, DataSignature):
         if nan_pred is None:
             nan_feat = np.full(
                 (1, features.shape[1]), np.nan, dtype=np.float32)
-            nan_pred = siamese.predict(nan_feat)
+            nan_pred = siamese_cp.predict(nan_feat)
         # draw prediction with sub-sampling
         if dropout_fn is None:
             dropout_fn = partial(subsample, dataset_idx=[self.dataset_idx])
-        samples = siamese.predict(mask_exclude(self.dataset_idx, features),
-                                  dropout_fn=partial(
-                                      dropout_fn, p_self=p_self),
-                                  dropout_samples=n_samples, cp=True)
+        samples = siamese_cp.predict(mask_exclude(self.dataset_idx, features),
+                                     dropout_fn=partial(
+            dropout_fn, p_self=p_self),
+            dropout_samples=n_samples, cp=True)
         # summarize the predictions as consensus
         consensus = np.mean(samples, axis=1)
         # zeros input (no info) as intensity reference
@@ -1811,7 +1803,7 @@ class sign3(BaseSignature, DataSignature):
             sign2_universe=None, partial_universe=None,
             sign2_coverage=None, sign0=None,
             model_confidence=True, save_correlations=False,
-            predict_novelty=True, update_preds=False,
+            predict_novelty=True, update_preds=True,
             validations=True, chunk_size=1000, suffix=None):
         """Fit signature 3 given a list of signature 2.
 
@@ -1917,6 +1909,7 @@ class sign3(BaseSignature, DataSignature):
         # load models if not already available
         if siamese is None:
             siamese = SiameseTriplets(final_model_path, predict_only=True)
+        siamese_cp = SiameseTriplets(siamese.model_dir, predict_only=True)
 
         if model_confidence:
             # part of confidence is the priors
@@ -2028,7 +2021,7 @@ class sign3(BaseSignature, DataSignature):
                         results['prior_signature'][chunk] = prior_sign
                         # conformal prediction
                         ints, robs, _ = self.conformal_prediction(
-                            siamese, feat, nan_pred=nan_pred)
+                            siamese_cp, feat, nan_pred=nan_pred)
                         results['robustness'][chunk] = robs
                         # distance from known predictions
                         app, centrality, cons = self.applicability_domain(
