@@ -1,4 +1,19 @@
 """Pipeline to generate a full CC update.
+
+The steps (a.k.a. tasks) for a full CC update are the following:
+
+1. Download Datasources (raw input including any external DB)
+2. Generate Molrepos (parse downloaded files and save molecules identifiers)
+3. Generate Validation sets (MoA and ATC)
+4. Compute Sign0
+4.1. Sign0 for B,C,D,E levels (CC universe definition)
+4.2. Calculate A level (chemistry properties)
+4.3. Sign0 for A level
+5. Compute Sign1 (and neig clus and proj)
+6. Compute Sign2 (and neig clus and proj)
+7. Generate stacked Sign2 for universe
+8. Compute Sign3
+9. Create symlinks
 """
 import os
 import sys
@@ -200,7 +215,7 @@ def main(args):
     #############################################
 
     #############################################
-    # TASK: Parse molrepos
+    # TASK: Generate Molrepos
     job_path = tempfile.mkdtemp(prefix='jobs_molrepos_', dir=pp.tmpdir)
     molrepos_task = PythonCallable(name="molrepos",
                                    python_callable=Molrepo.molrepo_hpc,
