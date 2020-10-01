@@ -7,7 +7,7 @@ for different set of molecules.
 Example::
 
     from chemicalchecker.database import Molrepo
-    molrep = Molrepo.get('drugbank'))
+    molrep = Molrepo.get('drugbank')[0]
     len(molrep.molecules)
     >>> 9167
 
