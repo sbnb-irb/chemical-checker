@@ -5,20 +5,15 @@ import sys
 import logging
 import argparse
 import tempfile
+from update_resources.generate_chembl_files import generate_chembl_files
 
-from chemicalchecker.util import logged
 from chemicalchecker import ChemicalChecker
 from chemicalchecker.core import Validation
-from chemicalchecker.database import Molrepo
-from chemicalchecker.database import Dataset
-from chemicalchecker.database import Calcdata
-from chemicalchecker.database import Datasource
+from chemicalchecker.core.sign3 import sign3
+from chemicalchecker.util import Config, HPC, logged
+from chemicalchecker.database import Dataset, Datasource
+from chemicalchecker.database import Molrepo, Molecule, Calcdata
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, CCFit
-from chemicalchecker.util.pipeline import CCLongShort, CCSmileConverter
-from chemicalchecker.util import Config
-from chemicalchecker.util import HPC
-
-from update_resources.generate_chembl_files import generate_chembl_files
 
 
 def pipeline_parser():
@@ -53,7 +48,8 @@ def main(args):
     # initialize Pipeline
     pp = Pipeline(pipeline_path=args.pipeline_dir, keep_jobs=True)
 
-    fit_order = ['sign0', 'sign1', 'neig1', 'sign2', 'sign3']
+    fit_order = ['sign0', 'sign1', 'clus1', 'proj1', 'neig1',
+                 'sign2', 'clus2', 'proj2', 'neig2', 'sign3']
 
     data_calculators = [
         'morgan_fp_r2_2048',
@@ -147,16 +143,11 @@ def main(args):
         sign_kwargs['neig2'][ds] = {
             'cpu': 15
         }
-        sign_kwargs['neig3'][ds] = {
-            'cpu': 15
-        }
         sign_kwargs['clus1'][ds] = {
-            'cpu': 10
+            'cpu': 10,
+            'general_params': {'balance': 1.5}
         }
         sign_kwargs['clus2'][ds] = {
-            'cpu': 10
-        }
-        sign_kwargs['clus3'][ds] = {
             'cpu': 10
         }
         sign_kwargs['proj1'][ds] = {
@@ -165,10 +156,8 @@ def main(args):
         sign_kwargs['proj2'][ds] = {
             'cpu': 10
         }
-        sign_kwargs['proj3'][ds] = {
-            'cpu': 10
-        }
 
+    #############################################
     # TASK: Download all datasources
     def download_fn(tmpdir):
         # Generate the Chembl files drugtargets and drugindications via
@@ -176,10 +165,9 @@ def main(args):
         generate_chembl_files()
 
         job_path = tempfile.mkdtemp(prefix='jobs_download_', dir=tmpdir)
-        # start download jobs (one per Datasource), job will wait until
-        # finished
+        # start download jobs (one per Datasource)
+        # job will wait until finished
         job = Datasource.download_hpc(job_path, only_essential=True)
-
         if job.status() == HPC.ERROR:
             main._log.error(
                 "There are errors in some of the downloads jobs")
@@ -208,7 +196,10 @@ def main(args):
                                     python_callable=download_fn,
                                     op_args=[pp.tmpdir])
     pp.add_task(downloads_task)
+    # END TASK
+    #############################################
 
+    #############################################
     # TASK: Parse molrepos
     job_path = tempfile.mkdtemp(prefix='jobs_molrepos_', dir=pp.tmpdir)
     molrepos_task = PythonCallable(name="molrepos",
@@ -216,21 +207,12 @@ def main(args):
                                    op_args=[job_path],
                                    op_kwargs={'only_essential': True})
     pp.add_task(molrepos_task)
+    # END TASK
+    #############################################
 
-    def calculate_data(type_data, tmpdir, iks):
-        print("Calculating data for " + type_data)
-        job_path = tempfile.mkdtemp(
-            prefix='jobs_molprop_' + type_data + "_", dir=tmpdir)
-        calculator = Calcdata(type_data)
-        # This method sends the job and waits for the job to finish
-        calculator.calcdata_hpc(job_path, list(final_ik_inchi))
-        missing = len(calculator.get_missing_from_set(iks))
-        if missing > 0:
-            raise Exception(
-                "Not all molecular properties were calculated. There are " +
-                str(missing) + " missing out of " + str(len(iks)))
-
-    def create_val_set(set_name):
+    #############################################
+    # TASK: Generate validation sets
+    def create_val_set_fn(set_name):
         print("Creating validation set for " + set_name)
         val = Validation(Config().PATH.validation_path, set_name)
         try:
@@ -239,12 +221,120 @@ def main(args):
             print(ex)
             raise Exception("Validation set '%s' not working" % set_name)
 
-    def create_exemplary_links(sign_ref):
+    for val_set in validation_sets:
+        val_set_task = PythonCallable(
+            name="val_set_" + val_set,
+            python_callable=create_val_set_fn,
+            op_args=[val_set])
+        pp.add_task(val_set_task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Calculate signatures 0 for derived spaces only (i.e. BCDE levels)
+    cctype = 'sign0'
+    dss = [ds.code for ds in Dataset.get(exemplary=True) if ds.derived]
+    task = CCFit(args.cc_root, cctype, molset[cctype],
+                 datasets=dss,
+                 fit_kwargs=fit_kwargs[cctype],
+                 sign_kwargs=sign_kwargs[cctype],
+                 hpc_kwargs=hpc_kwargs[cctype])
+    pp.add_task(task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Calculate data (defined for universe)
+    def calculate_data_fn(type_data, tmpdir, inchikey_inchi):
+        main._log.info("Calculating data for " + type_data)
+        job_path = tempfile.mkdtemp(
+            prefix='jobs_molprop_' + type_data + "_", dir=tmpdir)
+        calculator = Calcdata(type_data)
+        # This method sends the job and waits for the job to finish
+        calculator.calcdata_hpc(job_path, list(inchikey_inchi))
+        missing = len(calculator.get_missing_from_set(inchikey_inchi))
+        if missing > 0:
+            raise Exception(
+                "Not all molecular properties were calculated. There are " +
+                str(missing) + " missing out of " + str(len(inchikey_inchi)))
+
+    # after running the first tranche of sign0 we known the CC universe
+    universe = cc.universe
+    main._log.info('CC Universe will include %s molecules.' % len(universe))
+    inchikey_inchi = Molecule.get_inchikey_inchi_mapping(universe)
+    for data_calc in data_calculators:
+        calc_data_task = PythonCallable(
+            name="calc_data_" + data_calc,
+            python_callable=calculate_data_fn,
+            op_args=[data_calc, pp.tmpdir, inchikey_inchi])
+        pp.add_task(calc_data_task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Calculate signatures 0 for non derived spaces only (i.e. A level)
+    cctype = 'sign0'
+    dss = [ds.code for ds in Dataset.get(exemplary=True) if not ds.derived]
+    task = CCFit(args.cc_root, cctype, molset[cctype],
+                 datasets=dss,
+                 fit_kwargs=fit_kwargs[cctype],
+                 sign_kwargs=sign_kwargs[cctype],
+                 hpc_kwargs=hpc_kwargs[cctype])
+    pp.add_task(task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Calculate signatures 1-2 also clus, proj and neig
+    dss = [ds.code for ds in Dataset.get(exemplary=True)]
+    for cctype in fit_order:
+        task = CCFit(args.cc_root, cctype, molset[cctype],
+                     datasets=dss,
+                     fit_kwargs=fit_kwargs[cctype],
+                     sign_kwargs=sign_kwargs[cctype],
+                     hpc_kwargs=hpc_kwargs[cctype])
+        pp.add_task(task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Cache sign2 universe
+    def sign2_universe_fn(sign2_list, sign2_universe, sign2_coverage):
+        # FIXME this should be performed in a HPC task
+        # generate sign2 universes (sign3 specific pre-calculations)
+        if not os.path.isfile(sign2_universe):
+            sign3.save_sign2_universe(sign2_list, sign2_universe)
+        if not os.path.isfile(sign2_coverage):
+            sign3.save_sign2_coverage(sign2_list, sign2_coverage)
+
+    sign2_universe_task = PythonCallable(
+        name="sign2_universe",
+        python_callable=sign2_universe_fn,
+        op_args=[sign2_list, sign2_universe, sign2_coverage])
+    pp.add_task(sign2_universe_task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Calculate signatures 3
+    cctype = 'sign3'
+    dss = [ds.code for ds in Dataset.get(exemplary=True)]
+    task = CCFit(args.cc_root, cctype, molset[cctype],
+                 datasets=dss,
+                 fit_kwargs=fit_kwargs[cctype],
+                 sign_kwargs=sign_kwargs[cctype],
+                 hpc_kwargs=hpc_kwargs[cctype])
+    pp.add_task(task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Create sym links for exemplary plots
+    def create_exemplary_links_fn(cc, sign_ref):
         target_path = os.path.join(args.cc_root, "exemplary")
         if not os.path.isdir(target_path):
             os.mkdir(target_path)
 
-        cc = ChemicalChecker(args.cc_root)
         for ds in Dataset.get(exemplary=True):
             signature_path = cc.get_signature_path(sign_ref, "full", ds.code)
             source_path = signature_path[:-6]
@@ -254,112 +344,19 @@ def main(args):
             if not os.path.exists(os.path.join(target_dir, ds.code[:2])):
                 os.symlink(source_path, os.path.join(target_dir, ds.code[:2]))
 
-    # TASK: Get inchikey/inchi pairs and calculate data
-    if not DEBUG:
-        molrepos_names = {mr.molrepo_name for mr in Molrepo.get()}
-
-        print("Fetching molecule repositories from the sql database:")
-        final_ik_inchi = set()
-        for molrepo in molrepos_names:
-            print(molrepo)
-            molrepo_ik_inchi = Molrepo.get_fields_by_molrepo_name(
-                molrepo, ["inchikey", "inchi"])
-            final_ik_inchi.update(molrepo_ik_inchi)
-        iks_to_calc = {ik[0] for ik in final_ik_inchi}
-
-        # TASK: Calculate data
-        for data_calc in data_calculators:
-            print("--> calc_data_" + data_calc)
-            calc_data_params = {
-                'python_callable': calculate_data,
-                'op_args': [data_calc, pp.tmpdir, iks_to_calc]
-            }
-            calc_data_task = PythonCallable(
-                name="calc_data_" + data_calc, **calc_data_params)
-            pp.add_task(calc_data_task)
-
-        # TASK: Generate validation sets
-        for val_set in validation_sets:
-            val_set_params = {
-                'python_callable': create_val_set,
-                'op_args': [val_set]
-            }
-            val_set_task = PythonCallable(
-                name="val_set_" + val_set, **val_set_params)
-            pp.add_task(val_set_task)
-
-    # TASK: Calculate signatures 0
-    s0_params = {'cc_ref_root': args.cc_ref}
-    s0_task = CCFit(args.cc_root, 'sign0', **s0_params)
-    pp.add_task(s0_task)
-
-    if DEBUG:
-        pp = Pipeline(pipeline_path="/aloy/scratch/sbnb-adm/package_cc")
-
-    # TASK: Calculate signatures 1
-    s1_params = {}
-    s1_task = CCFit(args.cc_root, 'sign1', **s1_params)
-    pp.add_task(s1_task)
-
-    # TASK: Calculate clustering for signatures 1
-    c1_params = {
-        'general_params': {'balance': 1.5}
-    }
-    c1_task = CCFit(args.cc_root, 'clus1', **c1_params)
-    pp.add_task(c1_task)
-
-    # TASK: Calculate nearest neighbors for signatures 1
-    n1_params = {}
-    n1_task = CCFit(args.cc_root, 'neig1', **n1_params)
-    pp.add_task(n1_task)
-
-    # TASK: Calculate projections for signatures 1
-    p1_params = {}
-    p1_task = CCFit(args.cc_root, 'proj1', **p1_params)
-    pp.add_task(p1_task)
-
-    # TASK: Calculate signatures 2
-    s2_params = {}
-    s2_task = CCFit(args.cc_root, 'sign2', **s2_params)
-    pp.add_task(s2_task)
-
-    # TASK: Calculate nearest neighbors for signatures 2
-    n2_params = {}
-    n2_task = CCFit(args.cc_root, 'neig2', **n2_params)
-    pp.add_task(n2_task)
-
-    # TASK: Calculate projections for signatures 2
-    p2_params = {}
-    p2_task = CCFit(args.cc_root, 'proj2', **p2_params)
-    pp.add_task(p2_task)
-
-    pp.run()
-    print("DONE, Calculate sign 0,1,2, nearest neighbours and projections")
-    sys.exit(0)
-
-    # TASK: Calculate signatures 3
-    s3_params = {}
-    s3_task = CCFit(args.cc_root, 'sign3', **s3_params)
-    pp.add_task(s3_task)
-
-    # TASK: Calculate consensus signature 3
-    s3_short_params = {}
-    s3_short_task = CCLongShort(cc_type='sign3', **s3_short_params)
-    pp.add_task(s3_short_task)
-
-    # TASK: Calculate smiles to signature 3
-    s3_smile_params = {}
-    s3_smile_task = CCSmileConverter(cc_type='sign3', **s3_smile_params)
-    pp.add_task(s3_smile_task)
-
-    # TASK: Create sym links for exemplary plots
-    links_params = {
-        'python_callable': create_exemplary_links,
-        'op_args': ['sign1']
-    }
-    links_task = PythonCallable(name="exemplary_links", **links_params)
+    links_task = PythonCallable(
+        name="exemplary_links",
+        python_callable=create_exemplary_links_fn,
+        op_args=[cc, 'sign1'])
     pp.add_task(links_task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # RUN the pipeline!
     pp.run()
+    # END PIPELINE
+    #############################################
 
 
 if __name__ == '__main__':
