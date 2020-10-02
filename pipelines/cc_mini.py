@@ -64,7 +64,7 @@ def main(args):
         'sign0': {'cpu': 2},
         'sign1': {'cpu': 4},
         'sign2': {'cpu': 8},
-        'sign3': {'cpu': 5},
+        'sign3': {'cpu': 8},
         'neig1': {'cpu': 2},
     }
 
