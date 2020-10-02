@@ -4,8 +4,8 @@ import shutil
 import tempfile
 
 from chemicalchecker.util import psql
+from chemicalchecker.util import logged, HPC
 from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import logged, Config, HPC
 
 # We got these strings by doing: pg_dump -t 'pubchem' --schema-only mosaic
 # -h aloy-dbsrv
@@ -46,12 +46,9 @@ COUNT = "SELECT COUNT(DISTINCT inchikey) FROM pubchem"
 class Pubchem(BaseTask):
 
     def __init__(self, name=None, **params):
-
         task_id = params.get('task_id', None)
-
         if task_id is None:
             params['task_id'] = name
-
         BaseTask.__init__(self, name, **params)
 
         self.DB = params.get('DB', None)
@@ -63,11 +60,6 @@ class Pubchem(BaseTask):
 
     def run(self):
         """Run the pubchem step."""
-
-        config_cc = Config()
-
-        cc_config_path = os.environ['CC_CONFIG']
-        cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
         script_path = os.path.join(os.path.dirname(
             os.path.realpath(__file__)), "scripts/load_pubchem.py")
 
@@ -76,18 +68,15 @@ class Pubchem(BaseTask):
             psql.query(DROP_TABLE, self.DB)
             psql.query(CREATE_TABLE, self.DB)
             # psql.query(CREATE_INDEX, self.DB)
-
         except Exception as e:
-
             self.__log.error(e)
 
-        universe_file = os.path.join(self.tmpdir, "universe.h5")
-
+        universe_file = os.path.join(self.cachedir, "universe.h5")
         with h5py.File(universe_file, 'r') as h5:
             data_size = h5["keys"].shape[0]
 
-        self.__log.info("Genretaing pubchem data for " +
-                        str(data_size) + " molecules")
+        self.__log.info("Genretaing pubchem data for %s molecules",
+                        len(data_size))
         chunk_size = 1000
         chunks = list()
         for i in range(0, data_size, chunk_size):
@@ -103,12 +92,16 @@ class Pubchem(BaseTask):
         params["elements"] = chunks
         params["wait"] = True
         # job command
-        singularity_image = Config().PATH.SINGULARITY_IMAGE
-        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {}"
-        command = command.format(cc_package, cc_config_path, singularity_image,
-                                 script_path, universe_file, self.OLD_DB, self.DB)
+        cc_config_path = self.config.config_path
+        cc_package = os.path.join(self.config.PATH.CC_REPO, 'package')
+        singularity_image = self.config.PATH.SINGULARITY_IMAGE
+        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" \
+            " singularity exec {} python {} <TASK_ID> <FILE> {} {} {}"
+        command = command.format(
+            cc_package, cc_config_path, singularity_image,
+            script_path, universe_file, self.OLD_DB, self.DB)
         # submit jobs
-        cluster = HPC.from_config(config_cc)
+        cluster = HPC.from_config(self.config)
         jobs = cluster.submitMultiJob(command, **params)
 
         try:
@@ -117,21 +110,21 @@ class Pubchem(BaseTask):
             if int(count[0][0]) != data_size:
                 if not self.custom_ready():
                     raise Exception(
-                        "Not all universe keys were added to Pubchem (%d/%d)" % (int(count[0][0]), data_size))
+                        "Not all universe keys were added to Pubchem (%d/%d)" %
+                        (int(count[0][0]), data_size))
                 else:
                     self.__log.error(
-                        "Not all universe keys were added to Pubchem (%d/%d)" % (int(count[0][0]), data_size))
+                        "Not all universe keys were added to Pubchem (%d/%d)" %
+                        (int(count[0][0]), data_size))
             else:
                 self.__log.info("Indexing table")
                 psql.query(CREATE_INDEX, self.DB)
                 shutil.rmtree(job_path)
                 self.mark_ready()
         except Exception as e:
-
             self.__log.error(e)
 
     def execute(self, context):
         """Run the molprops step."""
         self.tmpdir = context['params']['tmpdir']
-
         self.run()

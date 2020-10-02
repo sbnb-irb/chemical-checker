@@ -9,7 +9,6 @@ import uuid
 import collections
 
 from chemicalchecker.database import Dataset, Molecule
-from chemicalchecker.util import Config
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.core import DataSignature
 
@@ -100,7 +99,6 @@ min_popu = np.sum(weights(["A%d" % i for i in [1, 2, 3, 4, 5]], coord_idxs))
 # Read generic data
 
 all_datasets = Dataset.get()
-config_cc = Config()
 
 cc = ChemicalChecker(CC_ROOT)
 
