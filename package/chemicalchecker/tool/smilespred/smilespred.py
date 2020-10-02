@@ -117,12 +117,13 @@ class Smilespred(object):
         signp = self.model.predict(self.sign0)
 
         self.__log.info('VALIDATION: Plot distances.')
-        l = min(len(self.sign0), 100000)
-        p = int(l / 2)
-        tr_idxs = np.random.choice(
-            np.arange(int(len(self.sign0) * self.t_split)), l, replace=False)
-        ts_idxs = np.random.choice(np.arange(
-            int(len(self.sign0) * self.t_split), len(self.sign0)), l, replace=False)
+        subsample = min(int(len(self.sign0) * self.e_split), 100000)
+        p = int(subsample / 2)
+        tr_idxs = np.arange(int(len(self.sign0) * self.t_split))
+        tr_idxs = np.random.choice(tr_idxs, subsample, replace=False)
+        ts_idxs = np.arange(int(len(self.sign0) * self.t_split),
+                            len(self.sign0))
+        ts_idxs = np.random.choice(ts_idxs, subsample, replace=False)
 
         tr_e_o = np.linalg.norm(
             self.sign3[tr_idxs[:p]] - self.sign3[tr_idxs[p:]], axis=1)
@@ -178,18 +179,18 @@ class Smilespred(object):
 
         self.__log.info('VALIDATION: Plot projections.')
         proj_model = MulticoreTSNE(n_components=2, n_jobs=8)
-        l = 500
+        subs_p = 500
         proj_train = np.vstack([
-            self.sign3[tr_idxs][:l],
-            signp[tr_idxs][:l],
-            self.sign3[ts_idxs][:l],
-            signp[tr_idxs][:l]
+            self.sign3[tr_idxs][:subs_p],
+            signp[tr_idxs][:subs_p],
+            self.sign3[ts_idxs][:subs_p],
+            signp[tr_idxs][:subs_p]
         ])
         proj = proj_model.fit_transform(proj_train)
-        tr_o = proj[:l]
-        tr_p = proj[l:l + l]
-        ts_o = proj[l + l:l + l + l]
-        ts_p = proj[l + l + l:]
+        tr_o = proj[:subs_p]
+        tr_p = proj[subs_p:subs_p + subs_p]
+        ts_o = proj[subs_p + subs_p:subs_p + subs_p + subs_p]
+        ts_p = proj[subs_p + subs_p + subs_p:]
 
         fig, axes = plt.subplots(2, 2, figsize=(12, 12))
         axes[0][0].set_title('Tr Original', fontsize=15)
@@ -223,14 +224,14 @@ class Smilespred(object):
         self.__log.info('VALIDATION: Plot NN overlap.')
         cpu = os.cpu_count()
         faiss.omp_set_num_threads(cpu)
-        l = 100000
+        subs_nn = 100000
         o_nn = faiss.IndexFlatL2(self.sign3.shape[1])
-        o_nn.add(self.sign3[:l])
-        o_n_dist, o_n_idxs = o_nn.search(self.sign3[:l], 100)
+        o_nn.add(self.sign3[:subs_nn])
+        o_n_dist, o_n_idxs = o_nn.search(self.sign3[:subs_nn], 100)
 
         p_nn = faiss.IndexFlatL2(signp.shape[1])
-        p_nn.add(signp[:l])
-        p_n_dist, p_n_idxs = p_nn.search(signp[:l], 100)
+        p_nn.add(signp[:subs_nn])
+        p_n_dist, p_n_idxs = p_nn.search(signp[:subs_nn], 100)
 
         shared_nn = []
         for i in tqdm(range(len(o_n_idxs))):
