@@ -160,9 +160,9 @@ class CCFit(BaseTask):
         params.update(self.hpc_kwargs)
 
         # prepare job command and submit job
-        cc_config_path = os.environ['CC_CONFIG']
-        cc_package = os.path.join(Config().PATH.CC_REPO, 'package')
-        singularity_image = Config().PATH.SINGULARITY_IMAGE
+        cc_config_path = self.config.config_path
+        cc_package = os.path.join(self.config.PATH.CC_REPO, 'package')
+        singularity_image = self.config.PATH.SINGULARITY_IMAGE
         command = ("SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} "
                    "singularity exec {} python {} <TASK_ID> <FILE>").format(
             cc_package, cc_config_path, singularity_image, script_name)
