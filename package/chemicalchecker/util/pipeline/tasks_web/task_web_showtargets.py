@@ -49,12 +49,9 @@ ref_spaces = ['B1.001', 'B2.001', 'B4.001', 'B5.001']
 class ShowTargets(BaseTask):
 
     def __init__(self, name=None, **params):
-
         task_id = params.get('task_id', None)
-
         if task_id is None:
             params['task_id'] = name
-
         BaseTask.__init__(self, name, **params)
 
         self.DB = params.get('DB', None)
@@ -69,9 +66,7 @@ class ShowTargets(BaseTask):
 
     def run(self):
         """Run the show targets step."""
-
         database_name = self.DB
-
         try:
             self.__log.info("Creating table")
             psql.query(DROP_TABLE, database_name)
@@ -79,9 +74,7 @@ class ShowTargets(BaseTask):
             psql.query(DROP_TABLE_DESC, database_name)
             psql.query(CREATE_TABLE_DESC, database_name)
             # psql.query(CREATE_INDEX, database_name)
-
         except Exception as e:
-
             self.__log.error("Error while creating tables")
             if not self.custom_ready():
                 raise Exception(e)
@@ -90,49 +83,44 @@ class ShowTargets(BaseTask):
                 return
 
         cc = ChemicalChecker(self.CC_ROOT)
-
         prots = set()
         for space in ref_spaces:
             s0 = cc.get_signature('sign0', 'full', space)
             features = s0.features
             prots.update([x for x in features if "Class:" not in x])
-
         prots = sorted(prots)
 
-        ukb = UniprotKB(self.uniprot_db_version)
-
         self.__log.info("Querying UniprotKB...")
-
-        showtarg_d = ukb.get_proteins(prots, limit_to_fields=[
-                                      "genename", "fullname", "taxid", "organism"])
+        ukb = UniprotKB(self.uniprot_db_version)
+        showtarg_d = ukb.get_proteins(
+            prots,
+            limit_to_fields=["genename", "fullname", "taxid", "organism"])
 
         self.__log.info("Inserting proteins into database...")
-
         R = []
         for p in prots:
             if p in showtarg_d:
                 d = showtarg_d[p]
-                R += [(self.__pstr(p), self.__pstr(d["genename"]), self.__pstr(d["fullname"]),
-                       self.__pstr(d["taxid"]), self.__pstr(d["organism"]))]
+                R += [(self.__pstr(p),
+                       self.__pstr(d["genename"]),
+                       self.__pstr(d["fullname"]),
+                       self.__pstr(d["taxid"]),
+                       self.__pstr(d["organism"]))]
             else:
                 R += [("'%s'" % p, 'NULL', 'NULL', 'NULL', 'NULL')]
-
         R = ["(%s)" % ",".join(r) for r in R]
 
         try:
-
             for c in self.__chunker(R, 1000):
                 psql.query("INSERT INTO showtargets_description VALUES %s" %
                            ",".join(c), database_name)
-
             psql.query(CREATE_INDEX_DESC, database_name)
-
             showtarg_d = {}
-            for r in psql.qstring("SELECT uniprot_ac, genename, taxid FROM showtargets_description", database_name):
+            for r in psql.qstring(
+                    "SELECT uniprot_ac, genename, taxid FROM "
+                    "showtargets_description", database_name):
                 showtarg_d[r[0]] = [r[1], r[2]]
-
         except Exception as e:
-
             self.__log.error("Error while filling showtargets_description")
             if not self.custom_ready():
                 raise Exception(e)
@@ -141,11 +129,8 @@ class ShowTargets(BaseTask):
                 return
 
         self.__log.info("Getting orthologs from MetaPhors")
-
         dataset = Dataset.get('C3.001')
-
         map_files = {}
-
         for ds in dataset.datasources:
             map_files[ds.datasource_name] = ds.data_path
 
@@ -186,13 +171,11 @@ class ShowTargets(BaseTask):
             any_human[p].update([p])
         f.close()
 
-        seens = collections.defaultdict(set)
-
         self.__log.info(
-            "First is always MOA, in any species... (only sorted alphabetically by gene name)")
-
+            "First is always MOA, in any species... "
+            "(only sorted alphabetically by gene name)")
+        seens = collections.defaultdict(set)
         showtargs = collections.defaultdict(list)
-
         s0 = cc.get_signature('sign0', 'full', ref_spaces[0])
         features = s0.features
         keys = s0.keys
@@ -210,9 +193,9 @@ class ShowTargets(BaseTask):
             seens[key].update(prots)
 
         self.__log.info("Now it is human...")
-
         hp = set([r[0] for r in psql.qstring(
-            "SELECT uniprot_ac FROM showtargets_description WHERE taxid = '9606'", database_name)])
+            "SELECT uniprot_ac FROM showtargets_description "
+            "WHERE taxid = '9606'", database_name)])
 
         self.__log.info("...binding table... (sorted by potency)")
         s0 = cc.get_signature('sign0', 'full', ref_spaces[2])
@@ -287,7 +270,8 @@ class ShowTargets(BaseTask):
             showtargs[key] += prots
 
         self.__log.info(
-            "And then the rest of species (where no human orthologs are already known)")
+            "And then the rest of species "
+            "(where no human orthologs are already known)")
 
         self.__log.info("...binding table... (sorted by potency)")
         s0 = cc.get_signature('sign0', 'full', ref_spaces[2])
@@ -301,7 +285,6 @@ class ShowTargets(BaseTask):
             i += 1
             if len(collected_features_1) == 0 and len(collected_features_2) == 0:
                 continue
-
             if key in seens:
                 s = seens[key]
             else:
@@ -464,12 +447,10 @@ class ShowTargets(BaseTask):
         return [r[0] for r in sorted(P0, key=lambda tup: nonesorter(tup[1]))] + [r[0] for r in sorted(P1, key=lambda tup: nonesorter(tup[1]))]
 
     def __chunker(self, data, size=2000):
-
         for i in range(0, len(data), size):
             yield data[slice(i, i + size)]
 
     def execute(self, context):
         """Run the molprops step."""
         self.tmpdir = context['params']['tmpdir']
-
         self.run()

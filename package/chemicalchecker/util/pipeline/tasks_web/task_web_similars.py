@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from chemicalchecker.util import psql
 from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import logged, Config, HPC
+from chemicalchecker.util import logged, HPC
 
 
 # We got these strings by doing: pg_dump -t 'scores' --schema-only mosaic
@@ -18,12 +18,9 @@ from chemicalchecker.util import logged, Config, HPC
 class Similars(BaseTask):
 
     def __init__(self, name=None, **params):
-
         task_id = params.get('task_id', None)
-
         if task_id is None:
             params['task_id'] = name
-
         BaseTask.__init__(self, name, **params)
 
         self.DB = params.get('DB', None)
@@ -38,38 +35,24 @@ class Similars(BaseTask):
 
     def run(self):
         """Run the molecular info step."""
-
-        config_cc = Config()
-
         db_name = self.DB
-
-        cc_config_path = os.environ['CC_CONFIG']
-        cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
         script_path = os.path.join(os.path.dirname(
             os.path.realpath(__file__)), "scripts/similars.py")
-
-        universe_file = os.path.join(self.tmpdir, "universe.h5")
-
+        universe_file = os.path.join(self.cachedir, "universe.h5")
         names_map = {}
-
         with h5py.File(universe_file, 'r') as hf:
             universe_keys = hf["keys"][:]
-
         ik_names_file = os.path.join(self.tmpdir, "inchies_names.json")
 
         if not os.path.exists(ik_names_file):
             for input_data in self.__chunker(universe_keys):
-
                 data = psql.qstring("select inchikey_pubchem as inchikey,name from pubchem INNER JOIN( VALUES " +
                                     ', '.join('(\'{0}\')'.format(w) for w in input_data) + ") vals(v) ON (inchikey_pubchem = v)", db_name)
-
                 for i in range(0, len(data)):
-
                     inchi = data[i][0]
                     name = data[i][1]
                     if name is None:
                         name = inchi
-
                     names_map[inchi] = name
 
             if len(names_map) > 0:
@@ -101,12 +84,14 @@ class Similars(BaseTask):
         params["memory"] = 6
         params["wait"] = True
         # job command
-        singularity_image = config_cc.PATH.SINGULARITY_IMAGE
+        cc_config_path = self.config.config_path
+        cc_package = os.path.join(self.config.PATH.CC_REPO, 'package')
+        singularity_image = self.config.PATH.SINGULARITY_IMAGE
         command = "OMP_NUM_THREADS=3 SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {}"
         command = command.format(
             cc_package, cc_config_path, singularity_image, script_path, ik_names_file, mol_path, self.DB, version, self.CC_ROOT)
         # submit jobs
-        cluster = HPC.from_config(config_cc)
+        cluster = HPC.from_config(self.config)
         jobs = cluster.submitMultiJob(command, **params)
 
         self.__log.info("Checking results")
@@ -130,12 +115,10 @@ class Similars(BaseTask):
             self.mark_ready()
 
     def __chunker(self, data, size=2000):
-
         for i in range(0, len(data), size):
             yield data[slice(i, i + size)]
 
     def execute(self, context):
         """Run the molprops step."""
         self.tmpdir = context['params']['tmpdir']
-
         self.run()

@@ -1,151 +1,222 @@
-import sys
+"""Pipeline to update the CC web resource.
+
+The steps (a.k.a. tasks) for CC web update are the following:
+
+1. Generate a universe file (i.e. HDF5 with all inchikeys sorted)
+2. Create a new web DB
+3. Fill the Pubchem table (used e.g. for synonyms)
+
+3. Generate Validation sets (MoA and ATC)
+4. Compute Sign0
+4.1. Sign0 for B,C,D,E levels (CC universe definition)
+4.2. Calculate A level (chemistry properties)
+4.3. Sign0 for A level
+5. Compute Sign1 (and neig clus and proj)
+6. Compute Sign2 (and neig clus and proj)
+7. Generate stacked Sign2 for universe
+8. Compute Sign3
+9. Create symlinks
+"""
 import os
-import numpy as np
-import csv
-import tempfile
 import h5py
+import logging
+import argparse
+import numpy as np
+
 from chemicalchecker import ChemicalChecker
-from chemicalchecker.database import Datasource
-from chemicalchecker.util import HPC
-from chemicalchecker.util import psql
 from chemicalchecker.core import DataSignature
-from chemicalchecker.database import Molrepo
-from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem, ShowTargets, Libraries, Similars
-from chemicalchecker.util.pipeline import Coordinates, Projections, Plots, MolecularInfo, SimilarsSign3
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-os.environ['CC_CONFIG'] = os.path.join(current_dir,'configs/cc_web_update.json')
-
-
-CC_PATH = "/aloy/web_checker/package_cc/2019_05/"
-MOLECULES_PATH = '/aloy/web_checker/molecules/'
-OLD_DB = 'mosaic'
-DB = 'cc_web_2019_05'
-uniprot_db_version = '2019_01'
-
-libraries = {"apd": ['Approved drugs', 'Approved drug molecules from DrugBank',
-                     'http://zinc15.docking.org/catalogs/dbap/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
-             "exd": ['Experimental drugs', 'Experimental and investigational drug molecules from DrugBank',
-                     'http://zinc15.docking.org/catalogs/dbex/items.txt?count=all&output_fields=smiles%20zinc_id;http://zinc15.docking.org/catalogs/dbin/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
-             "met": ['Human metabolites', 'Endogenous human metabolites from Human Metabolome Database (HMDb)',
-                     'http://zinc15.docking.org/catalogs/hmdbendo/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
-             "tcm": ['Tradicional Chinese medicines', 'Compounds extracted from traditional Chinese medicinal plants',
-                     'http://zinc15.docking.org/catalogs/tcmnp/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
-             "lincs": ['LINCS compounds', 'Collection of compounds of the LINCS initiative',
-                       'http://zinc15.docking.org/catalogs/lincs/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
-             "pwck": ['Prestwick chemical library', 'Prestwick commercial collection',
-                      'http://zinc15.docking.org/catalogs/prestwick/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
-             "nihcc": ['NIH clinical collection', 'NIH clinical collection',
-                       'http://zinc15.docking.org/catalogs/nihcc/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
-             "ncidiv": ['NCI diversity collection', 'NCI diversity collection',
-                        'http://zinc15.docking.org/catalogs/ncidiv/items.txt?count=all&output_fields=smiles%20zinc_id', 'zinc'],
-             "tool": ['Tool compounds', 'Tool compounds', 'http://zinc15.docking.org/toolcompounds.smi?count=all', 'zinc']
-             }
+from chemicalchecker.util import psql
+from chemicalchecker.util import logged, Config
+from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem
+from chemicalchecker.util.pipeline import ShowTargets, Libraries, Similars
+from chemicalchecker.util.pipeline import Coordinates, Projections, Plots
+from chemicalchecker.util.pipeline import MolecularInfo, SimilarsSign3
 
 
-pp = Pipeline(pipeline_path="/aloy/scratch/oguitart/web_cc")
+def pipeline_parser():
+    """Parse pipeline arguments."""
+    description = 'Run the full CC update pipeline.'
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument(
+        'cc_root', type=str,
+        help='Directory of the CC instance the web will refere to '
+        '(e.g. `/aloy/web_checker/package_cc/2020_01`)')
+    parser.add_argument(
+        'molecule_path', type=str,
+        help='Directory where the molecule images will be stored '
+        '(e.g. `/aloy/web_checker/molecules`)')
+    parser.add_argument(
+        'old_web_db', type=str,
+        help='Previous web database '
+        '(e.g. `mosaic` or `cc_web_2019_05`)')
+    parser.add_argument(
+        'new_web_db', type=str,
+        help='Web database to generate '
+        '(e.g. `cc_web_2020_01`)')
+    parser.add_argument(
+        'uniprot_db', type=str,
+        help='Web database to generate '
+        '(e.g. `2019_01`)')
+    parser.add_argument(
+        '-c', '--config', type=str, required=False,
+        default=os.environ["CC_CONFIG"],
+        help='Config file to be used. If not specified CC_CONFIG enviroment'
+        ' variable is used.')
+    parser.add_argument(
+        '-d', '--dry_run', type=bool, required=False, default=False,
+        help='Execute pipeline script without running the pipeline.')
+    return parser
 
 
-def universe(tmpdir):
+@logged(logging.getLogger("[ PIPELINE %s ]" % os.path.basename(__file__)))
+def main(args):
+    # print arguments
+    for arg in vars(args):
+        main._log.info('[ ARGS ] {:<25s}: {}'.format(arg, getattr(args, arg)))
 
-    molrepos = Molrepo.get_universe_molrepos()
+    # initialize Pipeline
+    pp = Pipeline(pipeline_path=args.pipeline_dir, keep_jobs=True,
+                  config=Config(args.config))
 
-    print("Querying molrepos")
+    libraries = {
+        "apd": [
+            'Approved drugs',
+            'Approved drug molecules from DrugBank',
+            'http://zinc15.docking.org/catalogs/dbap/'
+            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'zinc'],
+        "exd": [
+            'Experimental drugs',
+            'Experimental and investigational drug molecules from DrugBank',
+            'http://zinc15.docking.org/catalogs/dbex/'
+            'items.txt?count=all&output_fields=smiles%20zinc_id;'
+            'http://zinc15.docking.org/catalogs/dbin/'
+            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'zinc'],
+        "met": [
+            'Human metabolites',
+            'Endogenous metabolites from Human Metabolome Database (HMDb)',
+            'http://zinc15.docking.org/catalogs/hmdbendo/'
+            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'zinc'],
+        "tcm": [
+            'Tradicional Chinese medicines',
+            'Compounds extracted from traditional Chinese medicinal plants',
+            'http://zinc15.docking.org/catalogs/tcmnp/'
+            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'zinc'],
+        "lincs": [
+            'LINCS compounds',
+            'Collection of compounds of the LINCS initiative',
+            'http://zinc15.docking.org/catalogs/lincs/'
+            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'zinc'],
+        "pwck": [
+            'Prestwick chemical library',
+            'Prestwick commercial collection',
+            'http://zinc15.docking.org/catalogs/prestwick/'
+            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'zinc'],
+        "nihcc": [
+            'NIH clinical collection',
+            'NIH clinical collection',
+            'http://zinc15.docking.org/catalogs/nihcc/'
+            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'zinc'],
+        "ncidiv": [
+            'NCI diversity collection',
+            'NCI diversity collection',
+            'http://zinc15.docking.org/catalogs/ncidiv/'
+            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'zinc'],
+        "tool": [
+            'Tool compounds',
+            'Tool compounds',
+            'http://zinc15.docking.org/toolcompounds.smi?count=all',
+            'zinc']
+    }
 
-    inchikeys = set()
+    # TASK: Create universe file (used by most of following steps)
+    def create_db_fn(cc_root, cachedir):
+        cc = ChemicalChecker(args.cc_root)
+        universe_list = cc.universe
+        universe_file = os.path.join(cachedir, "universe.h5")
+        with h5py.File(universe_file, "w") as h5:
+            h5.create_dataset("keys", data=np.array(
+                universe_list, DataSignature.string_dtype()))
 
-    for molrepo in molrepos:
+    universe_task = PythonCallable(name="create_universe",
+                                   python_callable=create_db_fn,
+                                   op_args=[args.cc_root, pp.cachedir])
+    pp.add_task(universe_task)
 
-        molrepo = str(molrepo[0])
+    # TASK: Create DB
+    def create_db_fn():
+        con = psql.get_connection(args.old_web_db)
+        con.autocommit = True
+        success = False
+        cur = con.cursor()
+        try:
+            cur.execute('CREATE DATABASE {};'.format(args.new_web_db))
+            success = True
+        except Exception as e:
+            print(e)
+        finally:
+            con.close()
+        if not success:
+            raise Exception("Cannot create DB.")
 
-        inchikeys.update(Molrepo.get_fields_by_molrepo_name(
-            molrepo, ["inchikey"]))
+    db_task = PythonCallable(name="create_db",  python_callable=create_db_fn)
+    pp.add_task(db_task)
 
-    universe_file = os.path.join(tmpdir, "universe.h5")
+    # TASK: Fill Pubchem table
+    pbchem_task = Pubchem(name='pubchem',
+                          DB=args.new_web_db, OLD_DB=args.old_web_db)
+    pp.add_task(pbchem_task)
 
-    universe_list = [str(i[0]) for i in inchikeys]
+    # TASK: Find targets
+    targets_task = ShowTargets(name='showtargets',
+                               DB=args.new_web_db, CC_ROOT=args.cc_root,
+                               uniprot_db_version=args.uniprot_db)
+    pp.add_task(targets_task)
 
-    universe_list.sort()
+    # TASK: Fill coordinates
+    coords_task = Coordinates(name='coordinates',
+                              DB=args.new_web_db, CC_ROOT=args.cc_root)
+    pp.add_task(coords_task)
 
-    with h5py.File(universe_file, "w") as h5:
-        h5.create_dataset("keys", data=np.array(
-            universe_list, DataSignature.string_dtype()))
+    # TASK: Fill coordinates
+    projs_task = Projections(name='projections',
+                             DB=args.new_web_db, CC_ROOT=args.cc_root)
+    pp.add_task(projs_task)
 
-    con = psql.get_connection(OLD_DB)
+    # TASK: Create all plots
+    plots_task = Plots(name='plots',
+                       DB=args.new_web_db, CC_ROOT=args.cc_root,
+                       MOLECULES_PATH=args.molecule_path)
+    pp.add_task(plots_task)
 
-    con.autocommit = True
+    # TASK: Generate similars for sign3
+    sim3_task = SimilarsSign3(name='sim3', CC_ROOT=args.cc_root)
+    pp.add_task(sim3_task)
 
-    success = False
-    cur = con.cursor()
-    try:
-        cur.execute('CREATE DATABASE {};'.format(DB))
-        success = True
-    except Exception as e:
-        print(e)
-    finally:
-        con.close()
+    # TASK: Generate molecular info
+    minfo_task = MolecularInfo(name='molinfo',
+                               DB=args.new_web_db, CC_ROOT=args.cc_root)
+    pp.add_task(minfo_task)
 
-    if not success:
-        raise Exception("Universe file and DB not created successfully")
+    # TASK: Generate molecular info
+    libs_task = Libraries(name='libraries',
+                          DB=args.new_web_db, CC_ROOT=args.cc_root,
+                          libraries=libraries)
+    pp.add_task(libs_task)
 
-##### TASK: Create universe file and DB #######
+    # TASK: Create all plots
+    similars_task = Similars(name='similars',
+                             DB=args.new_web_db, CC_ROOT=args.cc_root,
+                             MOLECULES_PATH=args.molecule_path)
+    pp.add_task(similars_task)
 
-universe_params = {}
-
-universe_params['python_callable'] = universe
-universe_params['op_args'] = [pp.tmpdir]
-
-universe_task = PythonCallable(name="universe", **universe_params)
-
-pp.add_task(universe_task)
-
-
-# TASK: Fill Pubchem table
-pbchem_params = {'DB': DB, 'OLD_DB': OLD_DB}
-pbchem_task = Pubchem(name='pubchem', **pbchem_params)
-pp.add_task(pbchem_task)
-
-# TASK: Find targets
-targets_params = {'DB': DB, 'CC_ROOT': CC_PATH,
-                  'uniprot_db_version': uniprot_db_version}
-targets_task = ShowTargets(name='showtargets', **targets_params)
-pp.add_task(targets_task)
-
-# TASK: Fill coordinates
-coords_params = {'DB': DB, 'CC_ROOT': CC_PATH}
-coords_task = Coordinates(name='coordinates', **coords_params)
-pp.add_task(coords_task)
-
-# TASK: Fill coordinates
-projs_params = {'DB': DB, 'CC_ROOT': CC_PATH}
-projs_task = Projections(name='projections', **projs_params)
-pp.add_task(projs_task)
-
-# TASK: Create all plots
-plots_params = {'DB': DB, 'CC_ROOT': CC_PATH, 'MOLECULES_PATH': MOLECULES_PATH}
-plots_task = Plots(name='plots', **plots_params)
-pp.add_task(plots_task)
-
-# TASK: Generate similars for sign3
-sim3_params = {'CC_ROOT': CC_PATH}
-sim3_task = SimilarsSign3(name='sim3', **sim3_params)
-pp.add_task(sim3_task)
-
-# TASK: Generate molecular info
-minfo_params = {'DB': DB, 'CC_ROOT': CC_PATH}
-minfo_task = MolecularInfo(name='molinfo', **minfo_params)
-pp.add_task(minfo_task)
-
-# TASK: Generate molecular info
-libs_params = {'DB': DB, 'CC_ROOT': CC_PATH, 'libraries': libraries}
-libs_task = Libraries(name='libraries', **libs_params)
-pp.add_task(libs_task)
-
-# TASK: Create all plots
-similars_params = {'DB': DB, 'CC_ROOT': CC_PATH,
-                   'MOLECULES_PATH': MOLECULES_PATH}
-similars_task = Similars(name='similars', **similars_params)
-pp.add_task(similars_task)
-
-
-pp.run()
+    # RUN the pipeline!
+    if not args.dry_run:
+        pp.run()
