@@ -34,19 +34,9 @@ setup(
     author=__author__,
     author_email=__email__,
     description="Chemical Checker Package.",
-    long_description='''The Chemical Checker (CC) is a data-driven resource of small molecule
-bioactivity data. The main goal of the CC is to express data in a format
-that can be used off-the-shelf in daily computational drug discovery
-tasks. The resource is organized in **5 levels** of increasing
-complexity, ranging from the chemical properties of the compounds to
-their clinical outcomes. In between, we consider targets, off-targets,
-perturbed biological networks and several cell-based assays, including
-gene expression, growth inhibition, and morphological profiles. The CC
-is different to other integrative compounds database in almost every
-aspect. The classical, relational representation of the data is
-surpassed here by a less explicit, more machine-learning-friendly
-abstraction of the data''',
-    url='http://gitlab.sbnb.org/packages/chemical_checker',
+    long_description=open('README.rst').read().strip(),
+    long_description_content_type='text/x-rst',
+    url='http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker',
     packages=find_packages(),
     install_requires=requirements,
     setup_requires=setup_requirements,
