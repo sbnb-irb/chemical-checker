@@ -46,14 +46,10 @@ COUNT = "SELECT COUNT(DISTINCT coord) FROM coordinates"
 class Coordinates(BaseTask):
 
     def __init__(self, name=None, **params):
-
         args = []
-
         task_id = params.get('task_id', None)
-
         if task_id is None:
             params['task_id'] = name
-
         BaseTask.__init__(self, name, **params)
 
         self.DB = params.get('DB', None)
@@ -65,11 +61,8 @@ class Coordinates(BaseTask):
 
     def run(self):
         """Run the coordinates step."""
-
         all_datasets = Dataset.get()
-
         cc = ChemicalChecker(self.CC_ROOT)
-
         try:
             self.__log.info("Creating table")
             psql.query(DROP_TABLE, self.DB)
@@ -77,9 +70,7 @@ class Coordinates(BaseTask):
             psql.query(DROP_TABLE_STATS, self.DB)
             psql.query(CREATE_TABLE_STATS, self.DB)
             # psql.query(CREATE_INDEX, self.config.DB)
-
         except Exception as e:
-
             self.__log.error("Error while creating coordinates tables")
             if not self.custom_ready():
                 raise Exception(e)
@@ -99,9 +90,7 @@ class Coordinates(BaseTask):
                 desc = str(ds.description)
                 psql.query(INSERT % (str(ds.coordinate), name.replace(
                     "'", "''"), desc.replace("'", "''")), self.DB)
-
             except Exception as e:
-
                 self.__log.error("Error while filling coordinates table")
                 if not self.custom_ready():
                     raise Exception(e)
@@ -123,9 +112,7 @@ class Coordinates(BaseTask):
                     open(os.path.join(proj2.stats_path, "proj_stats.json")).read())
                 psql.query(INSERT_STATS % (coord, size, d["xlim"][1], d[
                            "xlim"][0], d["ylim"][1], d["ylim"][0]), self.DB)
-
             except Exception as e:
-
                 self.__log.error("Error while filling coordinate_stats table")
                 if not self.custom_ready():
                     raise Exception(e)
