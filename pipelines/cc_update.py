@@ -36,11 +36,11 @@ def pipeline_parser():
     description = 'Run the full CC update pipeline.'
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
-        'cc_root', type=str, required=True,
+        'cc_root', type=str,
         help='Directory where the new CC instance will be generated '
         '(e.g. `/aloy/web_checker/package_cc/miniCC`)')
     parser.add_argument(
-        'pipeline_dir', type=str, required=True,
+        'pipeline_dir', type=str,
         help='Directory where the pipeline will run '
         '(e.g. `/aloy/scratch/mbertoni/pipelines/miniCC`)')
     parser.add_argument(
@@ -51,6 +51,14 @@ def pipeline_parser():
         '-c', '--config', type=str, required=False,
         help='Config file to be used. If not specified CC_CONFIG enviroment'
         ' variable is used.')
+    parser.add_argument(
+        '-c', '--config', type=str, required=False,
+        default=os.environ["CC_CONFIG"],
+        help='Config file to be used. If not specified CC_CONFIG enviroment'
+        ' variable is used.')
+    parser.add_argument(
+        '-d', '--dry_run', type=bool, required=False, default=False,
+        help='Execute pipeline script without running the pipeline.')
     return parser
 
 
@@ -59,9 +67,10 @@ def main(args):
     # print arguments
     for arg in vars(args):
         main._log.info('[ ARGS ] {:<25s}: {}'.format(arg, getattr(args, arg)))
-    return
+
     # initialize Pipeline
-    pp = Pipeline(pipeline_path=args.pipeline_dir, keep_jobs=True)
+    pp = Pipeline(pipeline_path=args.pipeline_dir, keep_jobs=True,
+                  config=Config(args.config))
 
     fit_order = ['sign0', 'sign1', 'clus1', 'proj1', 'neig1',
                  'sign2', 'clus2', 'proj2', 'neig2', 'sign3']
@@ -229,7 +238,7 @@ def main(args):
     # TASK: Generate validation sets
     def create_val_set_fn(set_name):
         print("Creating validation set for " + set_name)
-        val = Validation(Config().PATH.validation_path, set_name)
+        val = Validation(Config(args.config).PATH.validation_path, set_name)
         try:
             val.run()
         except Exception as ex:
@@ -369,7 +378,8 @@ def main(args):
 
     #############################################
     # RUN the pipeline!
-    pp.run()
+    if not args.dry_run:
+        pp.run()
     # END PIPELINE
     #############################################
 

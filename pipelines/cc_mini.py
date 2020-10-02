@@ -9,7 +9,7 @@ import sys
 import logging
 import argparse
 
-from chemicalchecker.util import logged
+from chemicalchecker.util import logged, Config
 from chemicalchecker import ChemicalChecker
 from chemicalchecker.database import Dataset
 from chemicalchecker.core.sign3 import sign3
@@ -39,14 +39,14 @@ def pipeline_parser():
         '(i.e. triplet sampling in sign0).')
     parser.add_argument(
         '-c', '--config', type=str, required=False,
+        default=os.environ["CC_CONFIG"],
         help='Config file to be used. If not specified CC_CONFIG enviroment'
         ' variable is used.')
+    parser.add_argument(
+        '-d', '--dry_run', type=bool, required=False, default=False,
+        help='Execute pipeline script without running the pipeline.')
     return parser
 
-
-# pipeline_dir = '/aloy/scratch/mbertoni/pipelines/miniCC'
-# cc_root = '/aloy/web_checker/package_cc/miniCC'
-# preprocess_path = '/aloy/home/mbertoni/code/chemical_checker/package/tests/data/preprocess/'
 
 @logged(logging.getLogger("[ PIPELINE %s ]" % os.path.basename(__file__)))
 def main(args):
@@ -55,7 +55,8 @@ def main(args):
         main._log.info('[ ARGS ] {:<25s}: {}'.format(arg, getattr(args, arg)))
 
     # initialize Pipeline
-    pp = Pipeline(pipeline_path=args.pipeline_dir, keep_jobs=True)
+    pp = Pipeline(pipeline_path=args.pipeline_dir, keep_jobs=True,
+                  config=Config(args.config))
 
     fit_order = ['sign0', 'sign1', 'neig1', 'sign2', 'sign3']
 
@@ -149,7 +150,8 @@ def main(args):
     pp.insert_task(-1, sign2_universe_task)
 
     # run the pipeline
-    pp.run()
+    if not args.dry_run:
+        pp.run()
 
 
 if __name__ == '__main__':
