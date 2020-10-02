@@ -15,7 +15,7 @@ import tempfile
 from chemicalchecker.database import Dataset
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import logged, Config, HPC
+from chemicalchecker.util import logged, HPC
 
 VALID_TYPES = ['sign', 'neig', 'clus', 'proj']
 
@@ -168,7 +168,7 @@ class CCFit(BaseTask):
             cc_package, cc_config_path, singularity_image, script_name)
         self.__log.debug('CMD CCFIT: %s', command)
         # submit jobs
-        cluster = HPC.from_config(Config())
+        cluster = HPC.from_config(self.config)
         jobs = cluster.submitMultiJob(command, **params)
         self.__log.info("Job with jobid '%s' ended.", str(jobs))
 
