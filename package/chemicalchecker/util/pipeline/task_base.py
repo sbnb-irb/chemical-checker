@@ -33,9 +33,10 @@ class BaseTask(object):
         """Run the step."""
         BaseTask.__log.info("Running step " + self.name)
 
-    def set_dirs(self, readydir, tmpdir):
+    def set_dirs(self, readydir, tmpdir, cachedir):
         self.tmpdir = tmpdir
         self.readydir = readydir
+        self.cachedir = cachedir
 
     def custom_ready(self):
         return self.readydir != ''
