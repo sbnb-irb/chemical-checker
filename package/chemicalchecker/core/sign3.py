@@ -191,7 +191,7 @@ class sign3(BaseSignature, DataSignature):
                 sign3.__log.info("Fetching from %s" % sign.data_path)
                 # including NaN we have the correct number of molecules
                 coverage = np.isin(
-                    list(inchikeys), sign.keys, assume_unique=True)
+                    list(inchikeys), list(sign.keys), assume_unique=True)
                 sign3.__log.info("%s has %s Signature 2." %
                                  (sign.dataset, np.count_nonzero(coverage)))
                 fh['x_test'][:, idx:(idx + 1)] = np.expand_dims(coverage, 1)
