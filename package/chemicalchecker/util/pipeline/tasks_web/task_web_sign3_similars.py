@@ -5,7 +5,7 @@ import tempfile
 from chemicalchecker.database import Dataset
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import logged, Config, HPC
+from chemicalchecker.util import logged, HPC
 
 
 @logged
