@@ -102,7 +102,7 @@ class clus(BaseSignature, DataSignature):
             if "type" in params:
                 self.significance = params["type"]
 
-    def fit(self, sign1, validations=True):
+    def fit(self, sign1=None, validations=True):
         """Fit cluster model given a signature."""
         try:
             import faiss
@@ -119,6 +119,10 @@ class clus(BaseSignature, DataSignature):
         plot = Plot(self.dataset, self.stats_path)
 
         mappings = None
+
+        if sign1 is None:
+            sign1 = self.get_sign(
+                'sign' + self.cctype[-1]).get_molset("reference")
 
         if os.path.isfile(sign1.data_path):
             self.data = sign1.data
