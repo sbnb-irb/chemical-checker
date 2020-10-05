@@ -130,8 +130,8 @@ def main(args):
         sign_kwargs[cctype] = {}
     # sign3 shared parameters
     cc = ChemicalChecker(args.cc_root)
-    sign2_universe = os.path.join(pp.cache, "universe_full")
-    sign2_coverage = os.path.join(pp.cache, "coverage_full")
+    sign2_universe = os.path.join(pp.cache, "sign2_universe_stacked.h5")
+    sign2_coverage = os.path.join(pp.cache, "sign2_universe_coverage.h5")
     sign2_list = [cc.get_signature('sign2', 'full', ds)
                   for ds in cc.datasets_exemplary()]
     mfp = cc.get_signature('sign0', 'full', 'A1.001').data_path
