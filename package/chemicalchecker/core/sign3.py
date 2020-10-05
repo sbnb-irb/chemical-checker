@@ -28,7 +28,7 @@ from .signature_data import DataSignature
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
 from chemicalchecker.util.splitter import Traintest
-
+from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 
 @logged
 class sign3(BaseSignature, DataSignature):
@@ -2055,6 +2055,13 @@ class sign3(BaseSignature, DataSignature):
         # use semi-supervised anomaly detection algorithm to predict novelty
         if predict_novelty:
             self.predict_novelty()
+
+        # save reference sign3
+        self.__log.info("Removing redundancy")
+        self_ref = self.get_molset("reference")
+        self_ref.clean()
+        rnd = RNDuplicates()
+        rnd.remove(self.data_path, save_dest=self_ref.data_path)
 
         self.background_distances("cosine")
         if validations:
