@@ -4,18 +4,15 @@ The steps (a.k.a. tasks) for CC web update are the following:
 
 1. Generate a universe file (i.e. HDF5 with all inchikeys sorted)
 2. Create a new web DB
-3. Fill the Pubchem table (used e.g. for synonyms)
-
-3. Generate Validation sets (MoA and ATC)
-4. Compute Sign0
-4.1. Sign0 for B,C,D,E levels (CC universe definition)
-4.2. Calculate A level (chemistry properties)
-4.3. Sign0 for A level
-5. Compute Sign1 (and neig clus and proj)
-6. Compute Sign2 (and neig clus and proj)
-7. Generate stacked Sign2 for universe
-8. Compute Sign3
-9. Create symlinks
+3. Drop/Create/Fill the `pubchem` table (used e.g. for drug synonyms)
+4. Drop/Create/Fill the `showtargets` and `showtargets_description` tables (known drug tagets)
+5. Drop/Create/Fill the `coordinates` and `coordinate_stats` tables (spaces description and projection xy limits)
+6. Drop/Create/Fill the `projections` table (xy for each proj2 molecule)
+7. Create 2d svg molecule images for each molecule
+8. Generate similars.h5 (sign2 neigbors prediction against sign3) for each space
+9. Drop/Create/Fill the `molecular_info` table (popularity singularity mappability etc.)
+10. Drop/Create/Fill the `libraries` and `library_description` tables (used to fetch 100 landmark molecules)
+11. Generate explore.json file for each molecule (info for explore drug page)
 """
 import os
 import h5py
@@ -174,7 +171,7 @@ def main(args):
                           DB=args.new_web_db, OLD_DB=args.old_web_db)
     pp.add_task(pbchem_task)
 
-    # TASK: Find targets
+    # TASK: Find targets on uniprot and fill local table
     targets_task = ShowTargets(name='showtargets',
                                DB=args.new_web_db, CC_ROOT=args.cc_root,
                                uniprot_db_version=args.uniprot_db)
@@ -185,7 +182,7 @@ def main(args):
                               DB=args.new_web_db, CC_ROOT=args.cc_root)
     pp.add_task(coords_task)
 
-    # TASK: Fill coordinates
+    # TASK: Fill projecions
     projs_task = Projections(name='projections',
                              DB=args.new_web_db, CC_ROOT=args.cc_root)
     pp.add_task(projs_task)
