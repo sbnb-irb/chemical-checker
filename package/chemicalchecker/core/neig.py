@@ -67,7 +67,8 @@ class neig(BaseSignature, DataSignature):
                               "https://github.com/facebookresearch/faiss")
 
         if sign1 is None:
-            sign1 = self.get_sign('sign1').get_molset("reference")
+            sign1 = self.get_sign(
+                'sign' + self.cctype[-1]).get_molset("reference")
         if sign1.molset != "reference":
             raise Exception(
                 "Fit should be done with the reference sign1")

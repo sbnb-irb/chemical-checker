@@ -103,9 +103,12 @@ class proj(BaseSignature, DataSignature):
                 dst['V'][chunk] = preprocess_algo.transform(src['V'][chunk])
         return pred_proj
 
-    def fit(self, signature, validations=True, preprocess_dims=False,
+    def fit(self, signature=None, validations=True, preprocess_dims=False,
             batch_size=100, *args, **kwargs):
         """Fit a projection model given a signature."""
+        if signature is None:
+            signature = self.get_sign(
+                'sign' + self.cctype[-1]).get_molset("reference")
         self.__log.info("Input shape: %s" % str(signature.shape))
         if preprocess_dims:
             signature = self.pre_fit_transform(signature,
