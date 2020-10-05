@@ -58,7 +58,9 @@ def main(args):
     pp = Pipeline(pipeline_path=args.pipeline_dir, keep_jobs=True,
                   config=Config(args.config))
 
-    fit_order = ['sign0', 'sign1', 'neig1', 'sign2', 'sign3']
+    fit_order = ['sign0', 'sign1', 'neig1', 'proj1',
+                 'sign2', 'neig2', 'proj2',
+                 'sign3', 'neig3', 'proj3']
 
     # HPC parameters
     hpc_kwargs = {
@@ -67,6 +69,11 @@ def main(args):
         'sign2': {'cpu': 8},
         'sign3': {'cpu': 8},
         'neig1': {'cpu': 2},
+        'neig2': {'cpu': 2},
+        'neig3': {'cpu': 2},
+        'proj1': {'cpu': 2},
+        'proj2': {'cpu': 2},
+        'proj3': {'cpu': 2},
     }
 
     # on which signature molset to call the fit?
@@ -76,6 +83,11 @@ def main(args):
         'sign2': 'reference',
         'sign3': 'full',
         'neig1': 'reference',
+        'neig2': 'reference',
+        'neig3': 'reference',
+        'proj1': 'reference',
+        'proj2': 'reference',
+        'proj3': 'reference',
     }
 
     # dataset parameters
@@ -88,8 +100,8 @@ def main(args):
         sign_kwargs[cctype] = {}
     # sign3 shared parameters
     cc = ChemicalChecker(args.cc_root)
-    sign2_universe = os.path.join(pp.cache, "universe_full")
-    sign2_coverage = os.path.join(pp.cache, "coverage_full")
+    sign2_universe = os.path.join(pp.cachedir, "sign2_universe_stacked.h5")
+    sign2_coverage = os.path.join(pp.cachedir, "sign2_universe_coverage.h5")
     sign2_list = [cc.get_signature('sign2', 'full', ds)
                   for ds in cc.datasets_exemplary()]
     mfp = cc.get_signature('sign0', 'full', 'A1.001').data_path
@@ -147,7 +159,7 @@ def main(args):
         name="sign2_universe",
         python_callable=sign2_universe_fn,
         op_args=[sign2_list, sign2_universe, sign2_coverage])
-    pp.insert_task(-1, sign2_universe_task)
+    pp.insert_task(fit_order.index('sign3'), sign2_universe_task)
 
     # run the pipeline
     if not args.dry_run:
