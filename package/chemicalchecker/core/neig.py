@@ -259,7 +259,7 @@ class neig(BaseSignature, DataSignature):
             dataset_name(str): return any dataset in the h5 which is organized
                 by sorted keys.
         """
-        self.__log.debug("Fetching %s rows from dataset %s" %
+        self.__log.debug("Fetching Neig %s rows from dataset %s" %
                          (len(keys), dataset_name))
         valid_keys = list(set(self.row_keys) & set(keys))
         idxs = np.argwhere(
