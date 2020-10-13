@@ -115,6 +115,9 @@ class proj(BaseSignature, DataSignature):
                                                n_components=preprocess_dims,
                                                batch_size=batch_size)
         self.projector.fit(signature, validations, *args, **kwargs)
+        # predict for full
+        sign_full = self.get_sign('sign' + self.cctype[-1]).get_molset("full")
+        self.predict(sign_full, self.get_molset("full").data_path)
 
     def predict(self, signature, destination, *args, **kwargs):
         """Predict projection for new data."""
