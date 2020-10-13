@@ -1,7 +1,5 @@
-import bisect
 import time
 import numpy as np
-import os
 import sys
 import collections
 import json
@@ -10,299 +8,209 @@ import pickle
 
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.database import Dataset
-from chemicalchecker.util import psql
 
 #inchikey = 'ZZVUWRFHKOJYTH-UHFFFAOYSA-N'
 
 cutoff = 5
 best = 20
 dummy = 999
-text_lib = "select  library_description.name as lib,lib.inchikey, pubchem.name from libraries as lib INNER JOIN library_description on lib.lib = library_description.lib  LEFT JOIN pubchem ON lib.inchikey = pubchem.inchikey_pubchem where is_landmark = '1' order by  library_description.rank"
-text_bio = "select  library_description.name as lib,lib.inchikey from libraries as lib INNER JOIN library_description on lib.lib = library_description.lib   where lib.is_bioactive = '1' order by  library_description.rank"
-
 
 # HAVE THIS IN MEMMORY!
-
-def get_integer(d):
-    if d < 0:
-        return d
-    return bisect.bisect_left(bg_vals, d)
-
 
 def index_sign(coord, pred):
     if pred:
         sign = -1
+        pts = 1
     else:
         sign = 1
+        pts = 2
     char, num = coord[0], int(coord[1])
     if char == "A":
-        return (0 + num - 1), sign
+        return (0 + num - 1), sign, pts
     if char == "B":
-        return (5 + num - 1), sign
+        return (5 + num - 1), sign, pts
     if char == "C":
-        return (10 + num - 1), sign
+        return (10 + num - 1), sign, pts
     if char == "D":
-        return (15 + num - 1), sign
+        return (15 + num - 1), sign, pts
     if char == "E":
-        return (20 + num - 1), sign
+        return (20 + num - 1), sign, pts
 
 
+# get script arguments
 task_id = sys.argv[1]
 filename = sys.argv[2]
 names_jason = sys.argv[3]
-save_file_path = sys.argv[4]
-dbname = sys.argv[5]
-version = sys.argv[6]
-CC_ROOT = sys.argv[7]
-inputs = pickle.load(open(filename, 'rb'))
-inchikeys = inputs[task_id]
+lib_bio_file = sys.argv[4]
+save_file_path = sys.argv[5]
+dbname = sys.argv[6]
+version = sys.argv[7]
+CC_ROOT = sys.argv[8]
 
-references = {}
-ref_bioactive = {}
-dataset_pairs = {}
-all_datasets = Dataset.get()
+# input is a chunk of universe inchikey
+inchikeys = pickle.load(open(filename, 'rb'))[task_id]
 
+# for each molecule which spaces are available in sign1?
 cc = ChemicalChecker(CC_ROOT)
-
-get_integers = np.vectorize(get_integer)
 metric_obs = None
 map_coords_obs = collections.defaultdict(list)
-
-for ds in all_datasets:
-    if not ds.exemplary:
-        continue
-
+dataset_pairs = {}
+for ds in Dataset.get(exemplary=True):
     dataset_pairs[ds.coordinate] = ds.dataset_code
-
     if metric_obs is None:
         sign1 = cc.get_signature("sign1", "reference", ds.dataset_code)
         metric_obs = sign1.get_h5_dataset('metric')
-
     sign1 = cc.get_signature("sign1", "full", ds.dataset_code)
-
     keys = sign1.unique_keys
     for ik in inchikeys:
         if ik in keys:
             map_coords_obs[ik] += [ds.coordinate]
 
-bg_vals_obs = {}
-bg_vals_pred = {}
-
+# get relevant background distances
+bg_vals = dict()
+bg_vals['obs'] = dict()
+bg_vals['prd'] = dict()
 for coord in dataset_pairs.keys():
     sign1 = cc.get_signature("sign1", "reference", dataset_pairs[coord])
-    bg_vals_obs[coord] = sign1.background_distances(
+    bg_vals['obs'][coord] = sign1.background_distances(
         metric_obs[0])["distance"]
+    sign3 = cc.get_signature("sign3", "reference", dataset_pairs[coord])
+    bg_vals['prd'][coord] = sign3.background_distances("cosine")["distance"]
 
-    sign2 = cc.get_signature("sign2", "reference", dataset_pairs[coord])
-    bg_vals_pred[coord] = sign2.background_distances("cosine")["distance"]
-
+# for both observed (sign1) and predicted (sign3) get significant neighbors
 keys = [k + "_obs" for k in dataset_pairs.keys()] + \
     [k + "_prd" for k in dataset_pairs.keys()]
-
-
+# FIXME this variable gets pretty heavy, can we save memory?
 data_keys_map = {}
-
+neig_cctype = {
+    'obs': 'neig1',
+    'prd': 'neig3',
+}
 for dataset in keys:
     coord, type_data = dataset.split("_")
-
     sim_values = {}
-
-    if type_data == 'obs':
-        similars = cc.get_signature("neig1", "full", dataset_pairs[coord])
-        _, sim_values["distances"] = similars.get_vectors(
-            inchikeys, include_nan=True, dataset_name='distances')
-        _, sim_values["keys"] = similars.get_vectors(
-            inchikeys, include_nan=True, dataset_name='indices')
-        bg_vals = bg_vals_obs[coord]
-        cutoff_sim = bg_vals[cutoff]
-
-    else:
-        # Actually, we are not using neig2 but the class methods to access
-        # this kind of data
-        similars = cc.get_signature("neig2", "full", dataset_pairs[coord])
-        sign3 = cc.get_signature("sign3", "full", dataset_pairs[coord])
-        similars.data_path = os.path.join(
-            sign3.signature_path, "similars.h5")
-        _, sim_values["distances"] = similars.get_vectors(
-            inchikeys, include_nan=True, dataset_name='distances')
-        _, sim_values["keys"] = similars.get_vectors(
-            inchikeys, include_nan=True, dataset_name='indices')
-        bg_vals = bg_vals_pred[coord]
-        cutoff_sim = bg_vals[cutoff]
-
+    neig = cc.get_signature(
+        neig_cctype[type_data], "full", dataset_pairs[coord])
+    _, sim_values["distances"] = neig.get_vectors(
+        inchikeys, include_nan=True, dataset_name='distances')
+    _, sim_values["keys"] = neig.get_vectors(
+        inchikeys, include_nan=True, dataset_name='indices')
+    cutoff_sim = bg_vals[type_data][coord][cutoff]
+    # mask filter at cutoff (NaN remain NaN)
     mask = sim_values["distances"] <= cutoff_sim
+    # set to NaN those above threshold
+    sim_values["distances"][~mask] = np.nan
+    # get ink matrix (leave empty string for NaN and above cutoff)
     iksm = np.where(mask, sim_values["keys"], '')
-    # iksm = sim_values["keys"][mask].tolist()
+    # get binned data according to distance cutoffs
+    dist_bin = np.digitize(sim_values["distances"],
+                           bg_vals[type_data][coord]) - 1
+    dist_bin[~mask] = -1
+    data_keys_map[dataset] = (iksm, dist_bin)
 
-    # list1 = np.array(iksm)
-    # list2 = np.array(sim_values["distances"][mask])
-    # idx = np.argsort(list2)
-    # new_iksm = np.array(list1)[idx]
-    max_idx = len(bg_vals) - 1
-    integers = get_integers(np.where(mask, sim_values["distances"], -1.0))
-    integers[integers > max_idx] = max_idx
-    data_keys_map[dataset] = (iksm, integers)
-
-
-lib_refs = psql.qstring(text_lib, dbname)
-
-
-for lib in lib_refs:
-    if lib[0] not in references:
-        references[lib[0]] = []
-    if len(references[lib[0]]) < 100:
-        references[lib[0]].append({'inchikey': lib[1], 'name': lib[2]})
-
-
-print (references.keys())
-lib_bio = psql.qstring(text_bio, dbname)
-
-for lib in lib_bio:
-    if lib[0] not in ref_bioactive:
-        ref_bioactive[lib[0]] = set()
-
-    ref_bioactive[lib[0]].add(lib[1])
-
+# read inchikey to pubmed names mapping
 with open(names_jason) as json_data:
     inchies_names = json.load(json_data)
-# UNTIL HERE
 
+# read library bioactive
+with open(lib_bio_file) as json_data:
+    ref_bioactive = json.load(json_data)
+libs = set(ref_bioactive.keys())
+libs.add("All Bioactive Molecules")
+
+# save in each molecule path the file the explore json (100 similar molecules)
 for index, inchikey in enumerate(inchikeys):
     t0 = time.time()
-    PATH = save_file_path + "/%s/%s/%s/" % (
-        inchikey[:2], inchikey[2:4], inchikey)
-    print(PATH)
+    # only consider spaces where the molecule is present
     keys = [k + "_obs" for k in map_coords_obs[inchikey]] + \
         [k + "_prd" for k in dataset_pairs.keys()]
 
-    S = set()
-    X = []
-
+    # check if there are neighbors and keep their distance bin
+    all_neig = set()
+    neig_ds = dict()
     empty_spaces = list()
-
     for dataset in keys:
         coord, type_data = dataset.split("_")
-
-        iksm = data_keys_map[dataset][0][index][
-            data_keys_map[dataset][0][index] != ''].tolist()
-
+        iksm = data_keys_map[dataset][0][index]
+        iksm = iksm[iksm != ''].tolist()
         if len(iksm) == 0:
-            print (dataset)
             empty_spaces.append(dataset)
             continue
-
-        S.update(iksm)
-
-        integers = data_keys_map[dataset][1][index][
-            data_keys_map[dataset][1][index] >= 0]
-
-        dict_iks_dist = dict(zip(iksm, integers))
-
-        X += [(dict_iks_dist, iksm)]
-
+        all_neig.update(iksm)
+        dist_bin = data_keys_map[dataset][1][index]
+        dist_bin = dist_bin[dist_bin >= 0].tolist()
+        dict_iks_dist = dict(zip(iksm, dist_bin))
+        neig_ds[dataset] = dict_iks_dist
     for ds in empty_spaces:
         keys.remove(ds)
 
-    S = np.array(list(S))
+    #all_neig = np.array(sorted(list(all_neig)))
+    all_neig = np.array(list(all_neig))
+    M = np.full((len(all_neig), 26), np.nan)
+    M[:, 25] = 0
 
-    M = np.full((len(S), 26), np.nan)
-
-    for i in range(0, len(S)):
-        M[i, 25] = 0
-
-    libs = set(ref_bioactive.keys())
-    libs.add("All Bioactive Molecules")
-
-    c = 0
-    inchies = {}
-    map_inchies_pos = {}
-    t = 0
-
-    for ele in S:
-        map_inchies_pos[ele] = t
-        t += 1
-
-    selected = set()
-
-    inchi_points = set()
-    ref_counts = {}
-
+    # keep track of neigbors in reference libraries
+    inchies = dict()
+    ref_counts = dict()
     for lib in libs:
-
         ref_counts[lib] = [0] * 25
         inchies[lib] = set()
 
+    # rank all neighbors
+    map_inchies_pos = dict(zip(all_neig, np.arange(len(all_neig))))
+    selected = set()
     for dataset in keys:
-        # print dataset
         square, type_data = dataset.split("_")
-        if type_data == 'obs':
-            pos, sign = index_sign(square, False)
-        else:
-            pos, sign = index_sign(square, True)
+        pos, sign, pts = index_sign(square, type_data != 'obs')
+        dict_iks_dist = neig_ds[dataset]
+        ordered_iksm = list(dict_iks_dist)
+        ordered_iksm.sort(key=lambda x: x[1])
 
-        dict_iks_dist = X[c][0]
-        # simsm = X[c][1]
-        ordered_iksm = X[c][1]
-        # iksmset = set(iksm)
-        t = 0
-        index = 0
-        found = False
-        for ik in S:
+        # update point matrix
+        for t, ik in enumerate(all_neig):
             if ik in dict_iks_dist and (np.isnan(M[t, pos]) or M[t, pos] == dummy):
-                # index2 = iksm.index(ik)
-
-                # index = bisect.bisect_left(iksm, ik)
-                # print index2, index
                 M[t][pos] = sign * (dict_iks_dist[ik] + 1)
-                if sign > 0:
-                    M[t, 25] += 2
-                else:
-                    M[t, 25] += 1
-
+                M[t, 25] += pts
             else:
                 if square in map_coords_obs[ik] and np.isnan(M[t, pos]):
                     M[t, pos] = sign * dummy
 
-            t += 1
-
+        # update reference library counts
         for ik in ordered_iksm:
             if ik == inchikey:
                 continue
-
             if np.isnan(M[map_inchies_pos[ik], pos]) or abs(M[map_inchies_pos[ik], pos]) == dummy:
                 continue
-
             for lib in libs:
                 if ref_counts[lib][pos] >= best:
                     continue
-
                 if lib == 'All Bioactive Molecules':
                     found = True
                 else:
                     found = ik in ref_bioactive[lib]
-
                 if found:
                     ref_counts[lib][pos] += 1
                     selected.add(ik)
                     inchies[lib].add(ik)
 
-        c += 1
-
-    new_selected = list(selected)
+    # convert to lists
+    selected = list(selected)
     for lib in libs:
         inchies[lib] = list(inchies[lib])
 
-    for sel in new_selected:
+    # save neigbors data for explore page
+    for sel in selected:
         inchies[sel] = {}
         inchies[sel]["inchikey"] = sel
-        inchies[sel]["data"] = [None if math.isnan(x) else x for x in M[
+        inchies[sel]["data"] = [None if np.isnan(x) else x for x in M[
             map_inchies_pos[sel]]]
         if sel in inchies_names:
             inchies[sel]["name"] = inchies_names[sel]
         else:
             inchies[sel]["name"] = ""
-
+    PATH = save_file_path + "/%s/%s/%s/" % (
+        inchikey[:2], inchikey[2:4], inchikey)
     with open(PATH + '/explore_' + version + '.json', 'w') as outfile:
         json.dump(inchies, outfile)
 
-    print (time.time() - t0)
+    print(inchikey, 'took', time.time() - t0)
