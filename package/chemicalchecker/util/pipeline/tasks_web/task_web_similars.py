@@ -35,26 +35,39 @@ class Similars(BaseTask):
 
     def run(self):
         """Run the molecular info step."""
-        db_name = self.DB
         script_path = os.path.join(os.path.dirname(
             os.path.realpath(__file__)), "scripts/similars.py")
         universe_file = os.path.join(self.cachedir, "universe.h5")
-        names_map = {}
+
         with h5py.File(universe_file, 'r') as hf:
             universe_keys = hf["keys"][:]
-        ik_names_file = os.path.join(self.tmpdir, "inchies_names.json")
 
+        # get all bioactive compounds from libraries (with pubchem names)
+        lib_bio_file = os.path.join(self.tmpdir, "lib_bio.json")
+        if not os.path.exists(lib_bio_file):
+            text_bio = "select  library_description.name as lib,lib.inchikey from libraries as lib INNER JOIN library_description on lib.lib = library_description.lib   where lib.is_bioactive = '1' order by  library_description.rank"
+            lib_bio = psql.qstring(text_bio, self.DB)
+            ref_bioactive = dict()
+            for lib in lib_bio:
+                if lib[0] not in ref_bioactive:
+                    ref_bioactive[lib[0]] = set()
+                ref_bioactive[lib[0]].add(lib[1])
+            with open(lib_bio_file, 'w') as outfile:
+                json.dump(ref_bioactive, outfile)
+
+        # save chunks of inchikey pubmed synonyms
+        ik_names_file = os.path.join(self.tmpdir, "inchies_names.json")
         if not os.path.exists(ik_names_file):
+            names_map = {}
             for input_data in self.__chunker(universe_keys):
                 data = psql.qstring("select inchikey_pubchem as inchikey,name from pubchem INNER JOIN( VALUES " +
-                                    ', '.join('(\'{0}\')'.format(w) for w in input_data) + ") vals(v) ON (inchikey_pubchem = v)", db_name)
+                                    ', '.join('(\'{0}\')'.format(w) for w in input_data) + ") vals(v) ON (inchikey_pubchem = v)", self.DB)
                 for i in range(0, len(data)):
                     inchi = data[i][0]
                     name = data[i][1]
                     if name is None:
                         name = inchi
                     names_map[inchi] = name
-
             if len(names_map) > 0:
                 with open(ik_names_file, 'w') as outfile:
                     json.dump(names_map, outfile)
@@ -87,9 +100,9 @@ class Similars(BaseTask):
         cc_config_path = self.config.config_path
         cc_package = os.path.join(self.config.PATH.CC_REPO, 'package')
         singularity_image = self.config.PATH.SINGULARITY_IMAGE
-        command = "OMP_NUM_THREADS=3 SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {}"
+        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {}"
         command = command.format(
-            cc_package, cc_config_path, singularity_image, script_path, ik_names_file, mol_path, self.DB, version, self.CC_ROOT)
+            cc_package, cc_config_path, singularity_image, script_path, ik_names_file, lib_bio_file, mol_path, self.DB, version, self.CC_ROOT)
         # submit jobs
         cluster = HPC.from_config(self.config)
         jobs = cluster.submitMultiJob(command, **params)
