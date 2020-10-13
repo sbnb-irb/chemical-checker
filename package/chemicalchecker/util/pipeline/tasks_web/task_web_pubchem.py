@@ -76,7 +76,7 @@ class Pubchem(BaseTask):
             data_size = h5["keys"].shape[0]
 
         self.__log.info("Genretaing pubchem data for %s molecules",
-                        len(data_size))
+                        data_size)
         chunk_size = 1000
         chunks = list()
         for i in range(0, data_size, chunk_size):
