@@ -9,12 +9,12 @@ The steps (a.k.a. tasks) for CC web update are the following:
 5. Drop/Create/Fill the `coordinates` and `coordinate_stats` tables (spaces description and projection xy limits)
 6. Drop/Create/Fill the `projections` table (xy for each proj2 molecule)
 7. Create 2d svg molecule images for each molecule
-8. Generate similars.h5 (sign2 neigbors prediction against sign3) for each space
-9. Drop/Create/Fill the `molecular_info` table (popularity singularity mappability etc.)
-10. Drop/Create/Fill the `libraries` and `library_description` tables (used to fetch 100 landmark molecules)
-11. Generate explore.json file for each molecule (info for explore drug page)
+8. Drop/Create/Fill the `molecular_info` table (popularity singularity mappability etc.)
+9. Drop/Create/Fill the `libraries` and `library_description` tables (used to fetch 100 landmark molecules)
+10. Generate explore.json file for each molecule (info for explore drug page)
 """
 import os
+import sys
 import h5py
 import logging
 import argparse
@@ -27,7 +27,7 @@ from chemicalchecker.util import logged, Config
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem
 from chemicalchecker.util.pipeline import ShowTargets, Libraries, Similars
 from chemicalchecker.util.pipeline import Coordinates, Projections, Plots
-from chemicalchecker.util.pipeline import MolecularInfo, SimilarsSign3
+from chemicalchecker.util.pipeline import MolecularInfo
 
 
 def pipeline_parser():
@@ -38,6 +38,10 @@ def pipeline_parser():
         'cc_root', type=str,
         help='Directory of the CC instance the web will refere to '
         '(e.g. `/aloy/web_checker/package_cc/2020_01`)')
+    parser.add_argument(
+        'pipeline_dir', type=str,
+        help='Directory where the pipeline will run '
+        '(e.g. `/aloy/scratch/mbertoni/pipelines/miniCC_web`)')
     parser.add_argument(
         'molecule_path', type=str,
         help='Directory where the molecule images will be stored '
@@ -52,7 +56,7 @@ def pipeline_parser():
         '(e.g. `cc_web_2020_01`)')
     parser.add_argument(
         'uniprot_db', type=str,
-        help='Web database to generate '
+        help='Uniprot db to use '
         '(e.g. `2019_01`)')
     parser.add_argument(
         '-c', '--config', type=str, required=False,
@@ -134,16 +138,16 @@ def main(args):
     }
 
     # TASK: Create universe file (used by most of following steps)
-    def create_db_fn(cc_root, cachedir):
+    def create_uni_fn(cc_root, cachedir):
         cc = ChemicalChecker(args.cc_root)
-        universe_list = cc.universe
+        universe_list = cc.get_signature('sign3', 'full', 'A1.001').keys
         universe_file = os.path.join(cachedir, "universe.h5")
         with h5py.File(universe_file, "w") as h5:
             h5.create_dataset("keys", data=np.array(
                 universe_list, DataSignature.string_dtype()))
 
     universe_task = PythonCallable(name="create_universe",
-                                   python_callable=create_db_fn,
+                                   python_callable=create_uni_fn,
                                    op_args=[args.cc_root, pp.cachedir])
     pp.add_task(universe_task)
 
@@ -193,10 +197,6 @@ def main(args):
                        MOLECULES_PATH=args.molecule_path)
     pp.add_task(plots_task)
 
-    # TASK: Generate similars for sign3
-    sim3_task = SimilarsSign3(name='sim3', CC_ROOT=args.cc_root)
-    pp.add_task(sim3_task)
-
     # TASK: Generate molecular info
     minfo_task = MolecularInfo(name='molinfo',
                                DB=args.new_web_db, CC_ROOT=args.cc_root)
@@ -217,3 +217,9 @@ def main(args):
     # RUN the pipeline!
     if not args.dry_run:
         pp.run()
+
+
+if __name__ == '__main__':
+    # parse arguments
+    args = pipeline_parser().parse_args(sys.argv[1:])
+    main(args)
