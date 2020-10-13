@@ -58,9 +58,9 @@ def main(args):
     pp = Pipeline(pipeline_path=args.pipeline_dir, keep_jobs=True,
                   config=Config(args.config))
 
-    fit_order = ['sign0', 'sign1', 'neig1', 'proj1',
-                 'sign2', 'neig2', 'proj2',
-                 'sign3', 'neig3', 'proj3']
+    fit_order = ['sign0', 'sign1', 'neig1', 'proj1', 'clus1',
+                 'sign2', 'neig2', 'proj2', 'clus2',
+                 'sign3', 'neig3', 'proj3', 'clus3']
 
     # HPC parameters
     hpc_kwargs = {
@@ -74,6 +74,9 @@ def main(args):
         'proj1': {'cpu': 2},
         'proj2': {'cpu': 2},
         'proj3': {'cpu': 2},
+        'clus1': {'cpu': 2},
+        'clus2': {'cpu': 2},
+        'clus3': {'cpu': 2},
     }
 
     # on which signature molset to call the fit?
@@ -88,6 +91,9 @@ def main(args):
         'proj1': 'reference',
         'proj2': 'reference',
         'proj3': 'reference',
+        'clus1': 'reference',
+        'clus2': 'reference',
+        'clus3': 'reference',
     }
 
     # dataset parameters
