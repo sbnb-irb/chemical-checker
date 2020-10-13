@@ -137,6 +137,9 @@ def main(args):
         sign_kwargs['sign3'][ds] = {
             'sign2': hpc_kwargs['sign3']
         }
+        sign_kwargs['clus1'][ds] = {
+            'general_params': {'balance': 1.5}
+        }
 
     # special args
     # fitting sign0 of A1.001 requires no sanitize
