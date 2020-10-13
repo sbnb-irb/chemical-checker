@@ -1,3 +1,8 @@
+"""Load synonyms.
+
+To avoid querying all the synonyms we reuse what we already stored in a
+previous version of the DB and we only query missing compounds.
+"""
 import os
 import h5py
 import shutil
@@ -119,7 +124,7 @@ class Pubchem(BaseTask):
             else:
                 self.__log.info("Indexing table")
                 psql.query(CREATE_INDEX, self.DB)
-                shutil.rmtree(job_path)
+                shutil.rmtree(job_path, ignore_errors=True)
                 self.mark_ready()
         except Exception as e:
             self.__log.error(e)
