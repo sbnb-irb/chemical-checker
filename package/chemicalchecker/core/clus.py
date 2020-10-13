@@ -125,8 +125,8 @@ class clus(BaseSignature, DataSignature):
                 'sign' + self.cctype[-1]).get_molset("reference")
 
         if os.path.isfile(sign1.data_path):
-            self.data = sign1.data
-            self.data_type = sign1.data_type
+            self.data = sign1.data.astype(np.float32)
+            self.data_type = self.data.dtype
             self.keys = sign1.keys
             mappings = sign1.mappings
         else:
@@ -159,7 +159,8 @@ class clus(BaseSignature, DataSignature):
 
             with h5py.File(self.data_path, "w") as hf:
                 hf.create_dataset("labels", data=labels)
-                hf.create_dataset("keys", data=np.array(self.keys, DataSignature.string_dtype()))
+                hf.create_dataset("keys", data=np.array(
+                    self.keys, DataSignature.string_dtype()))
                 hf.create_dataset("strengths", data=strengths)
 
             if validations:
@@ -203,11 +204,14 @@ class clus(BaseSignature, DataSignature):
                     Vn, Vm = self.data.shape[0], dh5["elbow"][0]
 
             if self.metric == "cosine":
-                self.data = np.float32(self._normalizer(self.data, False))
+                self.data = self._normalizer(self.data, False)
 
             if self.data.shape[1] < self.num_subdim:
-                self.data = np.float32(np.hstack((self.data, np.zeros(
-                    (self.data.shape[0], self.num_subdim - self.data.shape[1])))))
+                self.data = np.hstack(
+                    (self.data,
+                        np.zeros((self.data.shape[0],
+                                  self.num_subdim - self.data.shape[1]))))
+                self.data = self.data.astype(np.float32)
 
             self.__log.info("Calculating k...")
             # Do reference distributions for the gap statistic
@@ -281,7 +285,8 @@ class clus(BaseSignature, DataSignature):
 
             with h5py.File(self.data_path, "w") as hf:
                 hf.create_dataset("labels", data=labels)
-                hf.create_dataset("keys", data=np.array(self.keys, DataSignature.string_dtype()))
+                hf.create_dataset("keys", data=np.array(
+                    self.keys, DataSignature.string_dtype()))
                 hf.create_dataset("V", data=self.data)
 
             if validations:
@@ -337,7 +342,8 @@ class clus(BaseSignature, DataSignature):
             hf.create_dataset("integerized", data=[False])
             hf.create_dataset("principal_components", data=[False])
             if mappings is not None:
-                hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
+                hf.create_dataset("mappings", data=np.array(
+                    mappings, DataSignature.string_dtype()))
         # predict for full
         sign_full = self.get_sign('sign' + self.cctype[-1]).get_molset("full")
         self.predict(sign_full, self.get_molset("full").data_path)
@@ -355,14 +361,14 @@ class clus(BaseSignature, DataSignature):
         except ImportError:
             raise ImportError("requires hdbscan " +
                               "https://hdbscan.readthedocs.io/en/latest/")
-        BaseSignature.predict(self)
+
         plot = Plot(self.dataset, self.stats_path)
 
         mappings = None
 
         if os.path.isfile(sign1.data_path):
-            self.data = sign1.data
-            self.data_type = sign1.data_type
+            self.data = sign1.data.astype(np.float32)
+            self.data_type = self.data.dtype
             self.keys = sign1.keys
             mappings = sign1.mappings
         else:
@@ -394,7 +400,8 @@ class clus(BaseSignature, DataSignature):
 
             with h5py.File(destination, "w") as hf:
                 hf.create_dataset("labels", data=labels)
-                hf.create_dataset("keys", data=np.array(self.keys, DataSignature.string_dtype()))
+                hf.create_dataset("keys", data=np.array(
+                    self.keys, DataSignature.string_dtype()))
                 hf.create_dataset("strengths", data=strengths)
 
             if validations:
@@ -436,7 +443,8 @@ class clus(BaseSignature, DataSignature):
                 hf.create_dataset("integerized", data=[False])
                 hf.create_dataset("principal_components", data=[False])
                 if mappings is not None:
-                    hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
+                    hf.create_dataset("mappings", data=np.array(
+                        mappings, DataSignature.string_dtype()))
 
         if self.type == "kmeans":
 
@@ -447,11 +455,14 @@ class clus(BaseSignature, DataSignature):
                     "There is not cluster info. Please run fit method.")
 
             if self.metric == "cosine":
-                self.data = np.float32(self._normalizer(self.data, True))
+                self.data = self._normalizer(self.data, True)
 
             if self.data.shape[1] < self.num_subdim:
-                self.data = np.float32(np.hstack((self.data, np.zeros(
-                    (self.data.shape[0], self.num_subdim - self.data.shape[1])))))
+                self.data = np.hstack(
+                    (self.data,
+                        np.zeros((self.data.shape[0],
+                                  self.num_subdim - self.data.shape[1]))))
+                self.data = self.data.astype(np.float32)
 
             index = faiss.read_index(os.path.join(
                 self.model_path, "kmeans.index"))
@@ -462,7 +473,8 @@ class clus(BaseSignature, DataSignature):
 
             with h5py.File(destination, "w") as hf:
                 hf.create_dataset("labels", data=labels)
-                hf.create_dataset("keys", data=np.array(self.keys, DataSignature.string_dtype()))
+                hf.create_dataset("keys", data=np.array(
+                    self.keys, DataSignature.string_dtype()))
                 hf.create_dataset("V", data=self.data)
 
             if validations:
@@ -503,7 +515,8 @@ class clus(BaseSignature, DataSignature):
                 hf.create_dataset("integerized", data=[False])
                 hf.create_dataset("principal_components", data=[False])
                 if mappings is not None:
-                    hf.create_dataset("mappings", data=np.array(mappings, DataSignature.string_dtype()))
+                    hf.create_dataset("mappings", data=np.array(
+                        mappings, DataSignature.string_dtype()))
 
     def _smooth(self, x, max_k, window_len=None, window='hanning'):
         if window_len is None:
