@@ -124,7 +124,7 @@ class Similars(BaseTask):
                 self.__log.error(
                     "Not all molecules have their json explore file (%d/%d)" % (len(missing_keys), len(universe_keys)))
         else:
-            shutil.rmtree(job_path)
+            shutil.rmtree(job_path, ignore_errors=True)
             self.mark_ready()
 
     def __chunker(self, data, size=2000):
