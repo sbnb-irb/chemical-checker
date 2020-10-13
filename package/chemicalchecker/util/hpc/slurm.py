@@ -148,6 +148,7 @@ fi
 
         if len(elements) > 0:
             self.__log.debug("Num elements submitted " + str(len(elements)))
+            self.__log.debug("Num Job submitted " + str(num_jobs))
 
             input_dict = dict()
             for cid, chunk in enumerate(self._chunks(elements, num_jobs), 1):
