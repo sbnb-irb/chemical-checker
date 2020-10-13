@@ -109,7 +109,7 @@ class SimilarsSign3(BaseTask):
         if len(dataset_not_done) == 0:
             self.mark_ready()
             if job_path is not None:
-                shutil.rmtree(job_path)
+                shutil.rmtree(job_path, ignore_errors=True)
         else:
             if not self.custom_ready():
                 raise Exception(

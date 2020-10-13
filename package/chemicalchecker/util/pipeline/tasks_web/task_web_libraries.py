@@ -136,7 +136,7 @@ class Libraries(BaseTask):
                 self.__log.info("Indexing table")
                 psql.query(CREATE_INDEX, self.DB)
                 psql.query(CREATE_INDEX_DESC, self.DB)
-                shutil.rmtree(job_path)
+                shutil.rmtree(job_path, ignore_errors=True)
                 self.mark_ready()
         except Exception as e:
             self.__log.error("Error while checking libraries table")

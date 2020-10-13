@@ -149,8 +149,8 @@ class MolecularInfo(BaseTask):
             else:
                 self.__log.info("Indexing table")
                 psql.query(CREATE_INDEX, self.DB)
-                shutil.rmtree(job_path)
-                shutil.rmtree(data_files_path)
+                shutil.rmtree(job_path, ignore_errors=True)
+                shutil.rmtree(data_files_path, ignore_errors=True)
                 self.mark_ready()
         except Exception as e:
             if not self.custom_ready():
