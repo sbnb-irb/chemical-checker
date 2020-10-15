@@ -7,12 +7,13 @@ The **Chemical Checker (CC)** is a resource of small molecule signatures. In the
 * Concepts and methods are best described in the original CC publication, [Duran-Frigola et al. 2019](https://biorxiv.org/content/10.1101/745703v1).
 * For more information about this repository, discussion, notes, etc... please refer to our [Wiki page](http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker/wikis/home).
 
-The **Chemical Checker Repository** holds the current implementation of the CC in our `SB&NB` laboratory. As such, the repository contains a significant number of functionalities and data not presented in the primary CC manuscript. The repository follows its directory structure:
+The **Chemical Checker Repository** holds the current implementation of the CC in our `SB&NB` laboratory. As such, the repository contains a significant number of functionalities and data not presented in the primary CC manuscript. The repository follows this directory structure:
 
-* `container`: Deal with containerization of the CC. It contains the definition files for Singularity image.
+* `container`: Deal with containerization of the CC, contains the definition files for Singularity image.
 * `notebook`: Contains exemplary Jupyter Notebooks that showcase some CC features.
 * `package`: The backbone of the CC in form of a Python package.
-* `pipelines`: The pipeline script for update and generation of data for the web app.
+* `pipelines`: The pipeline scripts (e.g. for updating the CC, generating data for the web app, etc...).
+* `setup`: The setup script to install the CC.
 
 
 Due to the strong computational requirements of our pipeline, the code has been written and optimized to work in our local HPC facilities. Installation guides found below are mainly addressed to `SB&NB` users. As stated in the manuscript, the main deliverable of our resource are the CC _signatures_, which can be easily accessed:
@@ -23,10 +24,10 @@ Due to the strong computational requirements of our pipeline, the code has been 
 
 ## Chemical Checker `lite`
 
-The CC package can be installed directly via `pip` from our local PyPI server:
+The CC package can be installed in a couple of minutes directly via `pip`:
 
 ```bash
-sudo pip install --index http://gitlabsbnb.irbbarcelona.org:3141/root/dev/ --trusted-host gitlabsbnb.irbbarcelona.org chemicalchecker
+pip install chemicalchecker
 ```
 
 This installs the `lite` version of the CC that can be used for basic task (e.g. to open signatures) but most of the fancy CC package capabilities will be missing.
@@ -35,12 +36,11 @@ _**N.B.** Only bare minimum dependencies are installed along with the package_
 
 
 
-## Dependencies
+# Installation
 
 All the dependencies for the CC will be bundled within a singularity image generated during the installation process.
-However, to generate such an image we require some software being available:
+Generating such an image requires roughly 20 minutes:
 
-### Singularity
 
 1. [Install Singularity](https://www.sylabs.io/guides/2.6/user-guide/installation.html)
 
@@ -54,41 +54,16 @@ However, to generate such an image we require some software being available:
 
 > In case of errors during this step, check Singularity [prerequisites](https://www.sylabs.io/guides/2.6/user-guide/installation.html#before-you-begin)!
 
-
-
-2. Add bind paths to singularity config file:
-
-        sudo echo "bind path = /aloy/web_checker" >> /etc/singularity/singularity.conf
-
-
-3. Make sure that `/aloy/web_checker` is available on your workstation (e.g. `ls /aloy/web_checker` should give a list of directories) if **not**:
-
-        mkdir /aloy/web_checker
-        sudo echo "fs-paloy.irbbarcelona.pcb.ub.es:/pa_webchecker /aloy/web_checker       nfs     defaults,_netdev 0 0" >> /etc/fstab
-        sudo mount -a
-
-### Git
-
-1. [Install Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-
-        sudo apt-get install git
-
-
-## Installation 
-
-For an advanced usage of the CC package capabilities, we recommend creating the CC dependency environment within a container image:
-
-
-1. Clone this repository to your code folder:
+2. Clone this repository to your code folder:
         
         cd ~ && mkdir -p code && cd code
         git clone http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker.git
 
-2. Run the script (this script will require to type your password) with:
+3. Run the setup script (this script will require to type your password) with:
 
         cd chemical_checker && sh setup/setup_chemicalchecker.sh
 
-### Running `Vanilla` Chemical Checker
+## Running `Vanilla` Chemical Checker
 
 This is the easiest scenario where you simply use the CC code 'as is'.
 
@@ -98,16 +73,18 @@ source ~/.bashrc
 chemcheck
 ```
 
-### Running custom Chemical Checker
+## Running custom Chemical Checker
 
-If you are contributing with code to the CC you can run the singularity image specifying your local develop package branch:
+If you are contributing with code to the CC you can run the singularity image specifying your local develop branch:
+
 ```bash
 chemcheck -d /path/to/your/code/chemical_checker/package/
 ```
     
-### Running with alternative config file
+## Running with alternative config file
 
-The CC rely on one config file containing the information for the current enviroment (e.g. the HPC, location of the default CC, database, etc...). The default configuration can be overridden specifying a custom config file:
+The CC rely on one config file containing the information for the current enviroment (e.g. the HPC, location of the default CC, database, etc...). The default configuration refere to our `SB&NB` enviroment and must be overridden specifying a custom config file when working in a different enviroment:
+
 ```bash
 chemcheck -c /path/to/your/cc_config.json
 ```
@@ -134,6 +111,48 @@ We make it trivial to either start a Jupyter Notebook within the image or to run
     
     2.2 Type `import chemicalchecker`
 
+
+## Running an update pipeline
+
+When properly configured the CC can be updated or generated from scratch. This operation critically depend on available infrastructure. In our HPC infrastructure comprising 12 nodes and 364 cores it takes roughly 2 weeks to complete and update. PLease check the `pipelines` directory for more details.
+
+
+# `SB&NB` configuration
+
+## Mounting `/aloy` in Singularity
+
+1. Add bind paths to singularity config file:
+
+        sudo echo "bind path = /aloy/web_checker" >> /etc/singularity/singularity.conf
+
+
+2. Make sure that `/aloy/web_checker` is available on your workstation (e.g. `ls /aloy/web_checker` should give a list of directories) if **not**:
+
+        mkdir /aloy/web_checker
+        sudo echo "fs-paloy.irbbarcelona.pcb.ub.es:/pa_webchecker /aloy/web_checker       nfs     defaults,_netdev 0 0" >> /etc/fstab
+        sudo mount -a
+
+## Working from a laptop
+
+First, check that you are connected to the `SB&NB` local network:
+```bash
+ping pac-one-head.irb.pcb.ub.es
+```
+Then, mount the remote filesystem
+```bash
+sudo mkdir /aloy
+chown <laptop_username>:<laptop_username> /aloy
+sshfs <sbnb_username>@pac-one-head.irb.pcb.ub.es:/aloy /aloy
+```
+You can unmount the filesystem with:
+```bash
+# Linux
+fusermount -u /aloy
+# MacOSX
+umount /aloy
+```
+
+# Contributing
 
 ## Introducing new dependencies
 
@@ -170,24 +189,3 @@ To do so you can add a `pip install <package_of_your_dreams>` line to the follow
 
 Don't forget to also add a short comment on why and where this new dependency is used, also in the commit message. E.g. "Added dependency used in preprocessing for space B5.003". The idea is that whenever B5.003 is obsoleted we can also safely remove the dependency.
 
-## `SB&NB` configuration
-
-### Working from a laptop
-
-First, check that you are connected to the `SB&NB` local network:
-```bash
-ping pac-one-head.irb.pcb.ub.es
-```
-Then, mount the remote filesystem
-```bash
-sudo mkdir /aloy
-chown <laptop_username>:<laptop_username> /aloy
-sshfs <sbnb_username>@pac-one-head.irb.pcb.ub.es:/aloy /aloy
-```
-You can unmount the filesystem with:
-```bash
-# Linux
-fusermount -u /aloy
-# MacOSX
-umount /aloy
-```
