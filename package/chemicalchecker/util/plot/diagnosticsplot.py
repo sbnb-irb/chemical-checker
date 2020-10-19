@@ -814,9 +814,15 @@ class DiagnosisPlot(object):
         ax = fig.add_subplot(gs[1, 0])
         self.values(ax)
         ax = fig.add_subplot(gs[0, 1])
-        self.intensities(ax)
+        if self.sign.cctype == 'sign3':
+            self.confidences(ax)
+        else:
+            self.intensities(ax)
         ax = fig.add_subplot(gs[0, 2])
-        self.intensities_projection(ax)
+        if self.sign.cctype == 'sign3':
+            self.confidences_projection(ax)
+        else:
+            self.intensities_projection(ax)
         ax = fig.add_subplot(gs[1, 1])
         self.key_coverage(ax)
         ax = fig.add_subplot(gs[1, 2])
