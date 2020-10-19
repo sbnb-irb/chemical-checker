@@ -977,7 +977,8 @@ class Diagnosis(object):
             plotter_function=self.plotter.ranks_agreement_projection)
 
     def global_ranks_agreement(self, n_neighbors=100, min_shared=100,
-                               metric="minkowski", p=0.9, **kwargs):
+                               metric="minkowski", p=0.9, cctype='sign1',
+                               **kwargs):
         """Sample-specific global accuracy.
 
         Estimated as general agreement with the rest of the CC, based on a
@@ -988,7 +989,6 @@ class Diagnosis(object):
             " based on a Z-global ranking")
         fn = "global_ranks_agreement"
 
-        cctype = kwargs.get("cctype", "sign0")
         molset = kwargs.get("molset", "full")
         exemplary_datasets = [''.join(tup) + '.001' for tup in itertools.product("ABCDE", "12345")]
         datasets = kwargs.get("datasets", exemplary_datasets)
@@ -1404,6 +1404,9 @@ class Diagnosis(object):
         self.redundancy()
         self.intensities()
         self.intensities_projection()
+        if self.sign.cctype == 'sign3':
+            self.confidences()
+            self.confidences_projection()
         self.cluster_sizes()
         self.clusters_projection()
         self.key_coverage(cctype=cctype)
