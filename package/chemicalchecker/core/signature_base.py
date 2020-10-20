@@ -206,7 +206,7 @@ class BaseSignature(object):
         plot.roc_curve_plot(y_t, y_p, cctype, sign.dataset,
                             len(common_conn), frac_shared)
 
-    def validate(self, apply_mappings=True, metric='cosine'):
+    def validate(self, apply_mappings=True, metric='cosine', diagnostics=True):
         """Perform validations.
 
         A validation file is an external resource basically presenting pairs of
@@ -264,6 +264,11 @@ class BaseSignature(object):
         with open(validation_stat_file, 'w') as fp:
             json.dump(stats, fp)
         plot.matrix_plot(self.data_path)
+        # run diagnostics
+        if diagnostics:
+            cc = self.get_cc()
+            diag = cc.get_diagnosis(self)
+            diag.canvas()
         return results
 
     def mark_ready(self):
