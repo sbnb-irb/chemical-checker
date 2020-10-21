@@ -150,8 +150,10 @@ class BaseTransform(object):
                             'No feature specific candidates for subsampling. '
                             'This might be because data not being sanitized, '
                             'try using class `util.sanitize.Sanitizer`')
-                    selected = random.choice(candidates)
-                    idxs.add(selected)
+                    selected = np.random.choice(candidates,
+                                                min(10, len(candidates)),
+                                                replace=False)
+                    idxs.update(selected)
             if len(idxs) < self.sign_ref.shape[1]:
                 raise Exception('Could not subsample sufficiently, '
                                 'please implement a strategy to sample more.')
