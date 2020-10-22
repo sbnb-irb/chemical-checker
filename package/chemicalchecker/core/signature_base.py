@@ -95,7 +95,7 @@ class BaseSignature(object):
     @abstractmethod
     def fit(self, overwrite=False, **kwargs):
         """Fit a model."""
-        self.update_status("Fit")
+        self.update_status("FIT START")
         if overwrite and self.is_fit():
             raise Exception("Signature has already been fitted. "
                             "Delete it manually, or call the `fit` method "
@@ -132,6 +132,7 @@ class BaseSignature(object):
                 self.update_status("Validation %s" % other_molset)
                 other_self.validate()
             other_self.mark_ready()
+        self.update_status("FIT END")
 
     @abstractmethod
     def predict(self):
