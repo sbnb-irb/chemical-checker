@@ -43,7 +43,6 @@ class BaseTask(object):
 
     def is_ready(self, substep=None):
         """Check if the step is already done."""
-        BaseTask.__log.debug('is_ready')
         if substep is None:
             filename = self.readyfile
         else:
