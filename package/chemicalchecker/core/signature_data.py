@@ -8,7 +8,6 @@ check for consistency, index, subsample or map signatures.
 import os
 import sys
 import h5py
-import shutil
 import numpy as np
 from bisect import bisect_left
 from scipy.spatial.distance import euclidean, cosine
@@ -573,24 +572,6 @@ class DataSignature(object):
             hf.create_dataset("distance", data=bg_distances["distance"])
             hf.create_dataset("pvalue", data=bg_distances["pvalue"])
         return bg_distances
-
-    def clean(self):
-        self.__log.debug("Removing anything that was there before")
-        if os.path.exists(self.data_path):
-            self.__log.warn("A sign H5 file has been removed")
-            os.remove(self.data_path)
-        if os.path.exists(self.model_path):
-            self.__log.warn("A models folder has been emptied")
-            shutil.rmtree(self.model_path)
-            original_umask = os.umask(0)
-            os.makedirs(self.model_path, 0o775)
-            os.umask(original_umask)
-        if os.path.exists(self.stats_path):
-            self.__log.warn("A stats folder has been emptied")
-            shutil.rmtree(self.stats_path)
-            original_umask = os.umask(0)
-            os.makedirs(self.stats_path, 0o775)
-            os.umask(original_umask)
 
     def subsample(self, n):
         """Subsample from a signature without replacement.
