@@ -29,6 +29,7 @@ from abc import ABCMeta, abstractmethod
 from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import Config, logged
+from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 
 
 @logged
@@ -136,7 +137,8 @@ class BaseSignature(object):
             raise Exception("Signature is not fitted, cannot predict.")
         return True
 
-    def validate_versus_signature(self, sign, n_samples=1000, n_neighbors=5, apply_mappings=True, metric='cosine'):
+    def validate_versus_signature(self, sign, n_samples=1000, n_neighbors=5,
+                                  apply_mappings=True, metric='cosine'):
         """Perform validations.
 
         Args:
@@ -469,7 +471,6 @@ class BaseSignature(object):
         N.B: to maximize overlap it's better to use signatures of type 'full'.
         N.B: Near duplicates are found in the first signature.
         """
-        from chemicalchecker.util.remove_near_duplicates import RNDuplicates
         shared_keys = self.unique_keys.intersection(sign.unique_keys)
         self.__log.debug("%s shared keys.", len(shared_keys))
         _, self_matrix = self.get_vectors(shared_keys)
@@ -488,19 +489,20 @@ class BaseSignature(object):
         b, sign_matrix = sign.get_vectors(shared_keys)
         return a, self_matrix, sign_matrix
 
-    def remove_redundancy(self, cpu=2, overwrite=False):
-        '''Remove redundancy of a signature (it generates) new data in the references folders.
-        Only allowed for sign* (*not* sign1 or sign2).
+    def save_reference(self, cpu=4, overwrite=False):
+        """Save a non redundant signature in reference molset.
+
+        It generates a new signature in the references folders.
 
         Args:
-            cpu(int): Number of CPUs (default=2),
+            cpu(int): Number of CPUs (default=4),
             overwrite(bool): Overwrite existing (default=False).
-        '''
+        """
         if "sign" not in self.cctype:
-            raise Exception("Only sign* are allowed")
-        if self.cctype == "sign1" or self.cctype == "sign2":
-            raise Exception("Not allowed for sign1 or sign2")
-        from chemicalchecker.util.remove_near_duplicates import RNDuplicates
+            raise Exception("Only sign* are allowed.")
+        if self.molset == 'reference':
+            raise Exception("This is already `reference` molset.")
+
         rnd = RNDuplicates(cpu=cpu)
         sign_ref = self.get_molset("reference")
         if os.path.exists(sign_ref.data_path):
