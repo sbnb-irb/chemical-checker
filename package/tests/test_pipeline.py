@@ -99,7 +99,8 @@ class TestPipeline(unittest.TestCase):
 
         s2_fit_kwargs = {
             "E1.001": {
-                'validations': False
+                'validations': False,
+                'oos_predictor': False
             }
         }
         s2_task = CCFit(cc_root, 'sign2', 'reference',
