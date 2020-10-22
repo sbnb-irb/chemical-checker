@@ -49,7 +49,8 @@ class sign0(BaseSignature, DataSignature):
         the selected processed keys from the raw keys iterable.
         """
         if key_type is None:
-            return np.array(keys), None, np.array([i for i in range(0, len(keys))])
+            return np.array(keys), None, \
+                np.array([i for i in range(0, len(keys))])
         keys_ = []
         keys_raw = []
         idxs = []
@@ -71,7 +72,8 @@ class sign0(BaseSignature, DataSignature):
                     keys_ += [conv.smiles_to_inchi(k)[0]]
                     keys_raw += [k]
                     idxs += [i]
-                except:
+                except Exception as ex:
+                    self.__log.warning('Problem in conversion: %s' % str(ex))
                     continue
         else:
             raise "key_type must be 'inchikey' or 'smiles'"
@@ -114,7 +116,8 @@ class sign0(BaseSignature, DataSignature):
             dh5.close()
             if pairs is None and X is None:
                 raise Exception(
-                    "H5 file " + data_file + " does not contain datasets 'pairs' or 'X'")
+                    "H5 file %s does not contain datasets "
+                    "'pairs' or 'X'" % data_file)
         if pairs is not None:
             if X is not None:
                 raise Exception(
@@ -164,7 +167,8 @@ class sign0(BaseSignature, DataSignature):
         else:
             if X is None:
                 raise Exception(
-                    "No data were provided! X cannot be None if pairs aren't provided")
+                    "No data were provided! "
+                    "X cannot be None if pairs aren't provided")
             if keys is None:
                 raise Exception("keys cannot be None")
             if features is None:
@@ -191,7 +195,8 @@ class sign0(BaseSignature, DataSignature):
             input_type = "matrix"
         if X.shape[0] != len(keys):
             raise Exception(
-                "after processing, number of rows does not equal number of columns")
+                "after processing, number of rows does not equal "
+                "number of columns")
         X, keys, keys_raw, features = self.sort(X, keys, keys_raw, features)
         results = {
             "X": X,
@@ -268,9 +273,9 @@ class sign0(BaseSignature, DataSignature):
 
     def fit(self, cc_root=None, pairs=None, X=None, keys=None, features=None,
             data_file=None, key_type="inchikey", agg_method="average",
-            do_triplets=True, validations=True, max_features=10000,
-            chunk_size=10000,  sanitize=True, overwrite=False, **params):
-        """Process the input data. 
+            do_triplets=True, max_features=10000, chunk_size=10000,  
+            sanitize=True, **params):
+        """Process the input data.
 
         We produce a sign0 (full) and a sign0 (reference).
         Data are sorted (keys and features).
@@ -289,14 +294,9 @@ class sign0(BaseSignature, DataSignature):
             features(array): Column names (default=None).
             data_file(str): Input data file in the form of H5 file and it
                 should contain the required data in datasets.
-            validations(boolean): Create validation files(plots, files,etc)
-                (default=True).
             do_triplets(boolean): Draw triplets from the CC (default=True).
         """
-        if not overwrite and BaseSignature.fit(self):
-            # NS provides a lock to avoid fitting again if it has been already
-            # done
-            return
+        BaseSignature.fit(self,  **params)
 
         self.clean()
         cc = self.get_cc(cc_root)
@@ -359,15 +359,8 @@ class sign0(BaseSignature, DataSignature):
         if do_triplets:
             sampler = TripletSampler(cc, self, save=True)
             sampler.sample(**params)
-        self.__log.debug("Done.")
-        if validations:
-            self.__log.debug("Validate")
-            self.validate()
-            sign0_ref.validate()
-        # Marking as ready
-        self.__log.debug("Mark as ready")
-        sign0_ref.mark_ready()
-        self.mark_ready()
+        # finalize signature
+        BaseSignature.fit_end(self,  **params)
 
     def predict(self, pairs=None, X=None, keys=None, features=None,
                 data_file=None, key_type=None, merge=False, merge_method="new",
@@ -388,8 +381,6 @@ class sign0(BaseSignature, DataSignature):
                 is found. Can be 'average', 'old' or 'new' (default=new).
             destination(str): Path to the H5 file. If none specified, a
                 (V, keys, features) tuple is returned.
-            validations(boolean): Create validation files(plots, files,etc)
-                (default=False).
         """
         assert self.is_fit(), "Signature is not fitted yet"
         self.__log.debug("Setting up the signature data based on fit")
@@ -411,7 +402,8 @@ class sign0(BaseSignature, DataSignature):
         features_ = self.features
         features_idx = dict((k, i) for i, k in enumerate(features_))
         self.__log.debug("Preparing input data")
-        res = self.get_data(pairs=pairs, X=X, keys=keys, features=features, data_file=data_file, key_type=key_type,
+        res = self.get_data(pairs=pairs, X=X, keys=keys, features=features,
+                            data_file=data_file, key_type=key_type,
                             agg_method=self.agg_method)
         X = res["X"]
         keys = res["keys"]
@@ -421,7 +413,8 @@ class sign0(BaseSignature, DataSignature):
         if input_type != self.input_type:
             raise Exception("Input type must be %s" % self.input_type)
         self.__log.debug(
-            "Putting input in the same features arrangement than the fitted signature.")
+            "Putting input in the same features arrangement "
+            "than the fitted signature.")
         W = np.full((len(keys), len(features_)), np.nan)
         for i in range(0, X.shape[0]):
             for j in range(0, X.shape[1]):
@@ -494,7 +487,8 @@ class sign0(BaseSignature, DataSignature):
         universe = cc.universe  # list of inchikeys belonging to the universe
 
         self.__log.debug(
-            "--> getting the vectors from s0 corresponding to our (restricted) universe")
+            "--> getting the vectors from s0 corresponding to our "
+            "(restricted) universe")
         # get the vectors from s0 corresponding to our (restricted) universe
         inchk_univ, _ = self.get_vectors(keys=universe)
 

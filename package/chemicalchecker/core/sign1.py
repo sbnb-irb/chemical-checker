@@ -134,19 +134,17 @@ class sign1(BaseSignature, DataSignature):
                 del hf["V_tmp"]
 
     def fit(self, sign0=None, latent=True, scale=True, metric_learning=True,
-            semisupervised=False, overwrite=False, validations=True):
+            semisupervised=False,  **params):
         """Fit signature 1 given signature 0
 
             Args:
                 sign0: A signature 0.
         """
-
-        # avoid fitting again if it has been already done
-        if not overwrite and BaseSignature.fit(self):
-            return
+        BaseSignature.fit(self,  **params)
 
         try:
-            from chemicalchecker.util.transform.metric_learn import UnsupervisedMetricLearn, SemiSupervisedMetricLearn
+            from chemicalchecker.util.transform.metric_learn import \
+                UnsupervisedMetricLearn, SemiSupervisedMetricLearn
         except ImportError:
             raise ImportError("requires tensorflow " +
                               "https://tensorflow.org")
@@ -239,14 +237,8 @@ class sign1(BaseSignature, DataSignature):
         with h5py.File(s1_ref.data_path, "a") as hf:
             hf.create_dataset("metric", data=np.array(
                 ["cosine"], DataSignature.string_dtype()))
-        if validations:
-            self.__log.debug("Validate")
-            self.validate()
-            s1_ref.validate()
-        # Marking as ready
-        self.__log.debug("Mark as ready")
-        s1_ref.mark_ready()
-        self.mark_ready()
+        # finalize signature
+        BaseSignature.fit_end(self,  **params)
 
     def predict(self, sign0, destination=None):
         """Predict sign1 from sign0"""

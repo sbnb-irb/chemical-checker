@@ -91,30 +91,50 @@ class BaseSignature(object):
             os.umask(original_umask)
 
     @abstractmethod
-    def fit(self):
+    def fit(self, overwrite=False):
         """Fit a model."""
         BaseSignature.__log.debug('fit')
-        if os.path.isdir(self.model_path):
-            BaseSignature.__log.warning("Model already available.")
+        if overwrite and self.is_fit():
+            raise Exception("Signature has already been fitted. "
+                            "Delete it manually, or call the `fit` method "
+                            "passing overwrite=True")
+        return True
 
-        if self.is_fit():
-            BaseSignature.__log.warning("The fit has already been done.\nPlease remove manually the folder {} and re-run the method.\n(or use overwrite=True)".format(self.signature_path))
-            return True
-        return False        
+    def fit_end(self, validations=True, end_other_molset=True):
+        """Conclude fit method.
 
-        # if os.path.exists(os.path.join(self.model_path, self.readyfile)):
-        #     os.remove(os.path.join(self.model_path, self.readyfile))
+        We compute background distances, run validations (including diagnostic)
+        and finally marking the signature as ready.
+        """
+        # save background distances
+        self.background_distances("cosine")
+        self.background_distances("euclidean")
+        # performing validations
+        if validations:
+            self.__log.debug("Validate")
+            self.validate()
+        # Marking as ready
+        self.__log.debug("Mark as ready")
+        self.mark_ready()
+        # end fit for signature in the other molset
+        if end_other_molset:
+            other_molset = 'reference'
+            if self.molset == 'reference':
+                other_molset == 'full'
+            other_self = self.get_molset(other_molset)
+            other_self.background_distances("cosine")
+            other_self.background_distances("euclidean")
+            if validations:
+                other_self.validate()
+            other_self.mark_ready()
 
     @abstractmethod
     def predict(self):
         """Use the fitted models to predict."""
         BaseSignature.__log.debug('predict')
-        if not os.path.isdir(self.model_path):
-            raise Exception("Model file not available.")
-
         if not self.is_fit():
-            raise Exception(
-                "Before calling predict method, fit method needs to be called.")
+            raise Exception("Signature is not fitted, cannot predict.")
+        return True
 
     def validate_versus_signature(self, sign, n_samples=1000, n_neighbors=5, apply_mappings=True, metric='cosine'):
         """Perform validations.

@@ -72,7 +72,7 @@ class sign2(BaseSignature, DataSignature):
 
     def fit(self, sign1=None, neig1=None, reuse=True, validations=True,
             compare_nn=False, oos_predictor=True, overwrite=False,
-            apply_map=False):
+            apply_map=False, **params):
         """Fit signature 2 given signature 1 and its nearest neighbors.
 
         Node2vec embeddings are computed using the graph derived from sign1.
@@ -84,10 +84,7 @@ class sign2(BaseSignature, DataSignature):
             reuse(bool): Reuse already generated intermediate files. Set to
                 False to re-train from scratch.
         """
-        if not overwrite and BaseSignature.fit(self):
-            # NS provides a lock to avoid fitting again if it has been already
-            # done
-            return
+        BaseSignature.fit(self,  **params)
 
         #########
         # step 1: Node2Vec (learn graph embedding) input is neig1
@@ -214,11 +211,8 @@ class sign2(BaseSignature, DataSignature):
             self.map(sign2_full.data_path)
         else:
             self.predict(sign1_full, sign2_full.data_path)
-        # save background distances, validate and mark ready
-        self.background_distances("cosine")
-        if validations:
-            self.validate()
-        self.mark_ready()
+        # finalize signature
+        BaseSignature.fit_end(self,  **params)
 
     def predict(self, sign1, destination, validations=False):
         """Use the learned model to predict the signature."""
