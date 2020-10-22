@@ -71,8 +71,7 @@ class sign2(BaseSignature, DataSignature):
             self.cpu = self.params['adanet'].get('cpu', 1)
 
     def fit(self, sign1=None, neig1=None, reuse=True, validations=True,
-            compare_nn=False, oos_predictor=True,
-            apply_map=False, **params):
+            compare_nn=False, oos_predictor=True, **params):
         """Fit signature 2 given signature 1 and its nearest neighbors.
 
         Node2vec embeddings are computed using the graph derived from sign1.
@@ -210,10 +209,10 @@ class sign2(BaseSignature, DataSignature):
         cc_tmp = self.get_cc()
         sign1_full = cc_tmp.get_signature('sign1', 'full', self.dataset)
         sign2_full = cc_tmp.get_signature('sign2', 'full', self.dataset)
-        if apply_map:
-            self.map(sign2_full.data_path)
-        else:
+        if oos_predictor:
             self.predict(sign1_full, sign2_full.data_path)
+        else:
+            self.map(sign2_full.data_path)
         # finalize signature
         BaseSignature.fit_end(self,  **params)
 
