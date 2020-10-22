@@ -140,55 +140,47 @@ class sign1(BaseSignature, DataSignature):
             Args:
                 sign0: A signature 0.
         """
-        BaseSignature.fit(self,  **params)
-
         try:
             from chemicalchecker.util.transform.metric_learn import \
                 UnsupervisedMetricLearn, SemiSupervisedMetricLearn
         except ImportError:
             raise ImportError("requires tensorflow " +
                               "https://tensorflow.org")
-        self.clean()
-
+        BaseSignature.fit(self,  **params)
+        self.clear()
+        # signature specific checks
         if sign0 is None:
             sign0 = self.get_sign('sign0').get_molset("full")
-        s0 = sign0
-        self.__log.debug("Fitting")
-        if s0.cctype != "sign0":
+        if sign0.cctype != "sign0":
             raise Exception("A signature type 0 is expected..!")
-        if s0.molset != "full":
+        if sign0.molset != "full":
             raise Exception(
                 "Fit should be done with the full signature 0 "
                 "(even if inside reference is used)")
-
-        s0_ref = s0.get_molset("reference")
+        # preparing signatures
+        self.update_status("Getting data")
+        s0_ref = sign0.get_molset("reference")
         s1_ref = self.get_molset("reference")
-
-        s1_ref.clean()
-
+        s1_ref.clear()
         self.__log.debug("Placing sign0 to sign1 (done for reference)")
         self.copy_sign0_to_sign1(s0_ref, s1_ref)
-
         self.__log.debug("Placing sign0 to sign1 (done for full)")
-        self.copy_sign0_to_sign1(s0, self)
-
+        self.copy_sign0_to_sign1(sign0, self)
         self.__log.debug("Duplicating signature (tmp) (done for reference)")
         self.duplicate(s1_ref)
-
         self.__log.debug("Duplicating signature (tmp) (done for full)")
         self.duplicate(self)
-
-        if metric_learning:
-            tmp = True
-        else:
-            tmp = False
-
         self.__log.debug("Checking if matrix was sparse or not")
         sparse = s1_ref.was_sparse()
+
+        tmp = False
+        if metric_learning:
+            tmp = True
 
         if sparse:
             self.__log.debug("Sparse matrix pipeline")
             if latent:
+                self.update_status("LSI")
                 self.__log.debug(
                     "Looking for latent variables with TFIDF-LSI (done for tmp)")
                 mod = Lsi(self, tmp=tmp)
@@ -198,19 +190,20 @@ class sign1(BaseSignature, DataSignature):
         else:
             self.__log.debug("Dense matrix pipeline")
             if scale:
-                self.__log.debug("Scaling (not for all)")
+                self.update_status("Scaling")
                 mod = Scale(self, tmp=False)
                 mod.fit()
                 mod.predict(s1_ref)
             else:
                 self.__log.debug("Not scaling")
             if latent:
-                self.__log.debug("PCA (done for tmp)")
+                self.update_status("PCA")
                 mod = Pca(self, tmp=tmp)
                 mod.fit()
             else:
                 self.__log.debug("Not looking for latent variables")
         if metric_learning:
+            self.update_status("Metric Learning")
             if semisupervised:
                 self.__log.debug("Semi-supervised metric learning")
                 mod = SemiSupervisedMetricLearn(self, tmp=False)
@@ -220,7 +213,7 @@ class sign1(BaseSignature, DataSignature):
                 self.__log.debug("First doing neighbors")
                 mod = UnsupervisedMetricLearn(self, tmp=False)
                 mod.fit()
-        self.__log.debug("Saving pipeline")
+        # save pipeline
         pipeline = {
             "sparse": sparse,
             "latent": latent,
@@ -233,7 +226,7 @@ class sign1(BaseSignature, DataSignature):
         fn = self.pipeline_file()
         with open(fn, "wb") as f:
             pickle.dump(pipeline, f)
-        s1_ref.background_distances("cosine")
+
         with h5py.File(s1_ref.data_path, "a") as hf:
             hf.create_dataset("metric", data=np.array(
                 ["cosine"], DataSignature.string_dtype()))
