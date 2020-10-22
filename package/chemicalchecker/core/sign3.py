@@ -28,6 +28,7 @@ from .signature_data import DataSignature
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
 from chemicalchecker.util.splitter import Traintest
+from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 
 
 @logged
@@ -315,7 +316,6 @@ class sign3(BaseSignature, DataSignature):
             traintest_file, X, suffix, siamese)
         # update the parameters with the new nr_of epochs and lr
         self.params['sign2']['epochs'] = siamese.last_epoch
-        self.params['sign2']['learning_rate'] = siamese.learning_rate
         return siamese, prior_model, prior_sign_model, confidence_model
 
     def train_confidence(self, traintest_file, X, suffix, siamese,
@@ -371,7 +371,7 @@ class sign3(BaseSignature, DataSignature):
             confidence_path, p_self=p_self)
         return prior_model, prior_sign_model, confidence_model
 
-    def rerun_confidence(self, cc, suffix, train=True, update_sign=True, chunk_size=10000):
+    def rerun_confidence(self, cc, suffix, train=True, update_sign=True, chunk_size=10000, sign2_universe=None, sign2_coverage=None):
         """Rerun confidence trainining and estimation"""
         try:
             import faiss
@@ -383,9 +383,11 @@ class sign3(BaseSignature, DataSignature):
         sign2_self = cc.get_signature("sign2", "full", self.dataset)
         sign2_list = [cc.get_signature("sign2", "full", d)
                       for d in cc.datasets_exemplary()]
-        sign2_universe = os.path.join(cc.cc_root, 'full', 'all_sign2.h5')
-        sign2_coverage = os.path.join(
-            cc.cc_root, 'full', 'all_sign2_coverage.h5')
+        if sign2_universe is None:
+            sign2_universe = os.path.join(cc.cc_root, 'full', 'all_sign2.h5')
+        if sign2_coverage is None:
+            sign2_coverage = os.path.join(
+                cc.cc_root, 'full', 'all_sign2_coverage.h5')
 
         self.src_datasets = [sign.dataset for sign in sign2_list]
         self.neig_sign = sign1_self
@@ -554,7 +556,11 @@ class sign3(BaseSignature, DataSignature):
             x = yp
             y = yt
             xy = np.vstack([x, y])
-            z = gaussian_kde(xy)(xy)
+            try:
+                z = gaussian_kde(xy)(xy)
+            except Exception as ex:
+                self.__log.warning(str(ex))
+                z = np.ones(x.shape)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
             ax.scatter(x, y, c=z, s=10, edgecolor='')
@@ -742,7 +748,11 @@ class sign3(BaseSignature, DataSignature):
             x = yp
             y = yt
             xy = np.vstack([x, y])
-            z = gaussian_kde(xy)(xy)
+            try:
+                z = gaussian_kde(xy)(xy)
+            except Exception as ex:
+                self.__log.warning(str(ex))
+                z = np.ones(x.shape)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
             ax.scatter(x, y, c=z, s=10, edgecolor='')
@@ -925,7 +935,11 @@ class sign3(BaseSignature, DataSignature):
             x = yp
             y = yt
             xy = np.vstack([x, y])
-            z = gaussian_kde(xy)(xy)
+            try:
+                z = gaussian_kde(xy)(xy)
+            except Exception as ex:
+                self.__log.warning(str(ex))
+                z = np.ones(x.shape)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
             ax.scatter(x, y, c=z, s=10, edgecolor='')
@@ -1278,8 +1292,9 @@ class sign3(BaseSignature, DataSignature):
         if dropout_fn is None:
             dropout_fn = partial(subsample, dataset_idx=[self.dataset_idx])
         samples = siamese_cp.predict(mask_exclude(self.dataset_idx, features),
-                                     dropout_fn=partial(dropout_fn, p_self=p_self),
-                                     dropout_samples=n_samples, cp=True)
+                                     dropout_fn=partial(
+            dropout_fn, p_self=p_self),
+            dropout_samples=n_samples, cp=True)
         # summarize the predictions as consensus
         consensus = np.mean(samples, axis=1)
         # zeros input (no info) as intensity reference
@@ -1558,8 +1573,12 @@ class sign3(BaseSignature, DataSignature):
         if not os.path.isdir(model_path):
             os.makedirs(model_path)
         # initialize model and start learning
+        shared_keys = sorted(list(sign0.unique_keys & self.unique_keys))
+        _, sign0_V = sign0.get_vectors(shared_keys)
+        _, sign3_V = self.get_vectors(shared_keys)
         smpred = Smilespred(
-            model_dir=model_path, sign0=sign0, sign3=self, evaluate=evaluate)
+            model_dir=model_path, sign0=sign0_V, sign3=sign3_V,
+            evaluate=evaluate)
         self.__log.debug('Smiles pred training on %s' % model_path)
         smpred.fit()
         self.smiles_predictor = smpred
@@ -1567,7 +1586,7 @@ class sign3(BaseSignature, DataSignature):
         if evaluate:
             smpred.evaluate()
 
-    def learn_sign0_conf(self, sign0, applicability, reuse=True, suffix=None, evaluate=True):
+    def learn_sign0_conf(self, sign0, reuse=True, suffix=None, evaluate=True):
         """Learn the signature 3 applicability from sign0.
 
         This method is used twice. First to evaluate the performances of the
@@ -1595,10 +1614,14 @@ class sign3(BaseSignature, DataSignature):
         if not os.path.isdir(model_path):
             reuse = False
             os.makedirs(model_path)
+        shared_keys = sorted(list(sign0.unique_keys & self.unique_keys))
+        _, sign0_V = sign0.get_vectors(shared_keys)
+        _, sign3_app_V = self.get_vectors(shared_keys,
+                                          dataset_name='confidence').ravel()
         # initialize model and start learning
         apppred = ApplicabilityPredictor(
-            model_dir=model_path, sign0=sign0,
-            applicability=applicability, evaluate=evaluate)
+            model_dir=model_path, sign0=sign0_V,
+            applicability=sign3_app_V, evaluate=evaluate)
         self.__log.debug('Applicability pred training on %s' % model_path)
         if not reuse:
             apppred.fit()
@@ -1607,27 +1630,25 @@ class sign3(BaseSignature, DataSignature):
         if evaluate:
             apppred.evaluate()
 
-    def fit_sign0(self, sign0, suffix=None, include_confidence=False,
+    def fit_sign0(self, sign0, suffix=None, include_confidence=True,
                   only_confidence=False):
-        """Fit signature 3 from Morgan Finguerprint.
+        """Fit signature 3 from Morgan Fingerprint.
 
         This method is fitting a model that uses Morgan fingerprint as features
         to predict signature 3. In future other featurization approaches can be
         tested.
 
         Args:
-            chemchecker(ChemicalChecker): The CC object used to fetch input
-                signature 0.
             sign0(str): Path to the MF file.
             include_confidence(bool): Whether to include confidence score in
                 regression problem.
-            extra_confidence(bool): Whether to train an additional regressor
-                exclusively devoted to confidence.
+            only_confidence(bool): Whether to only train an additional
+                regressor exclusively devoted to confidence.
         """
 
         # check if performance evaluations need to be done
         # Open sign0:
-        sign0 = DataSignature(sign0).get_h5_dataset('V')[:]
+        sign0 = DataSignature(sign0)
         if not only_confidence:
             if suffix is not None:
                 self.learn_sign0(sign0,
@@ -1644,9 +1665,8 @@ class sign3(BaseSignature, DataSignature):
                              suffix='final',
                              evaluate=False)
         if include_confidence:
-            applicability = self.get_h5_dataset('confidence')[:]
             if suffix is not None:
-                self.learn_sign0_conf(sign0, applicability,
+                self.learn_sign0_conf(sign0,
                                       suffix=suffix,
                                       evaluate=True)
                 return False
@@ -1656,7 +1676,7 @@ class sign3(BaseSignature, DataSignature):
                                          'smiles_applicability_eval',
                                          'applicabilitypredictor.h5')
                 if not os.path.isfile(dest_file):
-                    self.learn_sign0_conf(sign0, applicability,
+                    self.learn_sign0_conf(sign0,
                                           suffix='eval',
                                           evaluate=True)
 
@@ -1665,7 +1685,7 @@ class sign3(BaseSignature, DataSignature):
                                      'smiles_applicability_final',
                                      'applicabilitypredictor.h5')
             if not os.path.isfile(dest_file):
-                self.learn_sign0_conf(sign0, applicability,
+                self.learn_sign0_conf(sign0,
                                       suffix='final',
                                       evaluate=False)
 
@@ -1787,12 +1807,17 @@ class sign3(BaseSignature, DataSignature):
         inchikeys = sorted(list(inchikeys))
         return inchikeys
 
-    def fit(self, sign2_list, sign2_self, sign1_self, sign2_universe=None,
-            partial_universe=None,
+    def fit(self, sign2_list=None, sign2_self=None, sign1_self=None,
+            sign2_universe=None, partial_universe=None,
             sign2_coverage=None, sign0=None,
             model_confidence=True, save_correlations=False,
+<< << << < HEAD
             predict_novelty=True, update_preds=True,
             validations=True, chunk_size=1000, suffix=None, overwrite=False):
+== == == =
+            predict_novelty = False, update_preds = True,
+            validations = True, chunk_size = 1000, suffix = None):
+>>>>>> > refactor_pipeline
         """Fit signature 3 given a list of signature 2.
 
         Args:
@@ -1830,15 +1855,25 @@ class sign3(BaseSignature, DataSignature):
         except ImportError as err:
             raise err
         # define datasets that will be used
-        self.src_datasets = [sign.dataset for sign in sign2_list]
-        self.neig_sign = sign1_self
-        self.sign2_self = sign2_self
-        self.sign2_list = sign2_list
-        self.sign2_coverage = sign2_coverage
-        self.dataset_idx = np.argwhere(
+        if sign2_list is None:
+            sign2_list=list()
+            cc=self.get_cc()
+            for ds in cc.datasets_exemplary():
+                sign2_list.append(cc.get_signature('sign2', 'full', ds))
+        self.sign2_list=sign2_list
+        self.src_datasets=[sign.dataset for sign in sign2_list]
+        if sign2_self is None:
+            sign2_self=self.get_sign('sign2')
+        self.sign2_self=sign2_self
+        if sign1_self is None:
+            sign1_self=self.get_sign('sign1')
+        self.neig_sign=sign1_self
+
+        self.sign2_coverage=sign2_coverage
+        self.dataset_idx=np.argwhere(
             np.isin(self.src_datasets, self.dataset)).flatten()
         if self.sign2_coverage is None:
-            self.sign2_coverage = os.path.join(self.model_path,
+            self.sign2_coverage=os.path.join(self.model_path,
                                                'all_sign2_coverage.h5')
         if not os.path.isfile(self.sign2_coverage):
             sign3.save_sign2_coverage(sign2_list, self.sign2_coverage)
@@ -1882,6 +1917,9 @@ class sign3(BaseSignature, DataSignature):
         final_model_path = os.path.join(self.model_path, 'siamese_final')
         final_file = os.path.join(final_model_path, 'siamesetriplets.h5')
         if not os.path.isfile(final_file):
+            # get the learning rate from the siamese eval
+            siamese_eval = SiameseTriplets(eval_model_path)
+            self.params['sign2']['learning_rate'] = siamese_eval.learning_rate
             siamese = self.learn_sign2(
                 self.params['sign2'].copy(), suffix='final', evaluate=False)
 
@@ -1895,6 +1933,13 @@ class sign3(BaseSignature, DataSignature):
             if prior_mdl is None:
                 prior_path = os.path.join(self.model_path, 'prior_eval')
                 prior_file = os.path.join(prior_path, 'prior.pkl')
+                # if prior model is not there, retrain confidence
+                if not os.path.isfile(prior_file):
+                    siamese_eval = SiameseTriplets(eval_model_path)
+                    sign2_matrix = os.path.join(self.model_path, 'train.h5')
+                    self.train_confidence(siamese_eval.traintest_file,
+                                          DataSignature(sign2_matrix), 'eval',
+                                          siamese_eval)
                 prior_mdl = pickle.load(open(prior_file, 'rb'))
 
             # part of confidence is the priors based on signatures
@@ -2028,6 +2073,13 @@ class sign3(BaseSignature, DataSignature):
         if predict_novelty:
             self.predict_novelty()
 
+        # save reference sign3
+        self.__log.info("Removing redundancy")
+        self_ref = self.get_molset("reference")
+        self_ref.clean()
+        rnd = RNDuplicates()
+        rnd.remove(self.data_path, save_dest=self_ref.data_path)
+
         self.background_distances("cosine")
         if validations:
             self.validate()
@@ -2075,6 +2127,9 @@ class sign3(BaseSignature, DataSignature):
             assert(s2_idxs.shape[0] == s2_novelty.shape[0])
             # predict scores for other molecules and pair with indexes
             s3_inks = sorted(self.unique_keys - set(s2_inks))
+            # no new prediction to add
+            if len(s3_inks) == 0:
+                return
             s3_idxs = np.argwhere(np.isin(list(self.keys), s3_inks,
                                           assume_unique=True))
             _, s3_pred_sign = self.get_vectors(s3_inks)

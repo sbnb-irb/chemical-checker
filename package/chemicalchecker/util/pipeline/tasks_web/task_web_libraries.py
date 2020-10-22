@@ -4,7 +4,7 @@ import tempfile
 
 from chemicalchecker.util import psql
 from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import logged, Config, HPC
+from chemicalchecker.util import logged, HPC
 
 # We got these strings by doing: pg_dump -t 'scores' --schema-only mosaic
 # -h aloy-dbsrv
@@ -52,12 +52,9 @@ CHECK = "select distinct(lib) from libraries"
 class Libraries(BaseTask):
 
     def __init__(self, name=None, **params):
-
         task_id = params.get('task_id', None)
-
         if task_id is None:
             params['task_id'] = name
-
         BaseTask.__init__(self, name, **params)
 
         self.DB = params.get('DB', None)
@@ -72,25 +69,17 @@ class Libraries(BaseTask):
 
     def run(self):
         """Run the molecular info step."""
-
-        config_cc = Config()
-
-        cc_config_path = os.environ['CC_CONFIG']
-        cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
         script_path = os.path.join(os.path.dirname(
             os.path.realpath(__file__)), "scripts/libraries.py")
 
-        universe_file = os.path.join(self.tmpdir, "universe.h5")
-
+        universe_file = os.path.join(self.cachedir, "universe.h5")
         try:
             self.__log.info("Creating table")
             psql.query(DROP_TABLE, self.DB)
             psql.query(CREATE_TABLE, self.DB)
             psql.query(DROP_TABLE_DESC, self.DB)
             psql.query(CREATE_TABLE_DESC, self.DB)
-
         except Exception as e:
-
             self.__log.error("Error while creating libraries table")
             if not self.custom_ready():
                 raise Exception(e)
@@ -106,12 +95,9 @@ class Libraries(BaseTask):
 
         self.__log.info("Genretaing libraries for " +
                         str(len(self.libraries.keys())) + " libraries")
-
         job_path = tempfile.mkdtemp(
             prefix='jobs_libraries_', dir=self.tmpdir)
-
         libraries_path = os.path.join(self.tmpdir, "libraries_files")
-
         if not os.path.exists(libraries_path):
             original_umask = os.umask(0)
             os.makedirs(libraries_path, 0o775)
@@ -126,12 +112,14 @@ class Libraries(BaseTask):
         params["memory"] = 20
         params["cpu"] = 10
         # job command
-        singularity_image = config_cc.PATH.SINGULARITY_IMAGE
+        cc_config_path = self.config.config_path
+        cc_package = os.path.join(self.config.PATH.CC_REPO, 'package')
+        singularity_image = self.config.PATH.SINGULARITY_IMAGE
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {}"
         command = command.format(
             cc_package, cc_config_path, singularity_image, script_path, universe_file, libraries_path, self.DB, self.CC_ROOT)
         # submit jobs
-        cluster = HPC.from_config(config_cc)
+        cluster = HPC.from_config(self.config)
         jobs = cluster.submitMultiJob(command, **params)
 
         try:
@@ -148,10 +136,9 @@ class Libraries(BaseTask):
                 self.__log.info("Indexing table")
                 psql.query(CREATE_INDEX, self.DB)
                 psql.query(CREATE_INDEX_DESC, self.DB)
-                shutil.rmtree(job_path)
+                shutil.rmtree(job_path, ignore_errors=True)
                 self.mark_ready()
         except Exception as e:
-
             self.__log.error("Error while checking libraries table")
             if not self.custom_ready():
                 raise Exception(e)
@@ -161,5 +148,4 @@ class Libraries(BaseTask):
     def execute(self, context):
         """Run the molprops step."""
         self.tmpdir = context['params']['tmpdir']
-
         self.run()
