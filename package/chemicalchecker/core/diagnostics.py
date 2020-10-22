@@ -92,16 +92,15 @@ class Diagnosis(object):
         return results
 
     def _returner(self, results, fn, save, plot, plotter_function,
-                  kw_plotter=None):
+                  kw_plotter=dict()):
+        for k, v in kw_plotter.items():
+            self.__log.debug('kw_plotter: %s %s', str(k), str(v))
         if results is None:
             fn_ = os.path.join(self.sign.diags_path, fn + ".pkl")
             with open(fn_, "rb") as f:
                 results = pickle.load(f)
             if plot:
-                if kw_plotter is None:
-                    return plotter_function()
-                else:
-                    return plotter_function(**kw_plotter)
+                plotter_function(**kw_plotter)
             else:
                 return results
         else:
@@ -110,10 +109,7 @@ class Diagnosis(object):
                 with open(fn_, "wb") as f:
                     pickle.dump(results, f)
                 if plot:
-                    if kw_plotter is None:
-                        return plotter_function()
-                    else:
-                        return plotter_function(**kw_plotter)
+                    return plotter_function(**kw_plotter)
                 else:
                     return fn_
             else:
@@ -796,16 +792,18 @@ class Diagnosis(object):
             }
         else:
             results = None
+        kw_plotter = {
+            "exemplary": exemplary,
+            "cctype": cctype,
+            "molset": molset}
+        kw_plotter.update(kwargs)
         return self._returner(
             results=results,
             fn=fn,
             save=self.save,
             plot=self.plot,
             plotter_function=self.plotter.dimensions,
-            kw_plotter={
-                "exemplary": exemplary,
-                "cctype": cctype,
-                "molset": molset})
+            kw_plotter=kw_plotter)
 
     def across_coverage(self, datasets=None, exemplary=True, cctype=None, molset=None, **kwargs):
         """Check coverage against a collection of other CC signatures.
@@ -990,7 +988,8 @@ class Diagnosis(object):
         fn = "global_ranks_agreement"
 
         molset = kwargs.get("molset", "full")
-        exemplary_datasets = [''.join(tup) + '.001' for tup in itertools.product("ABCDE", "12345")]
+        exemplary_datasets = [
+            ''.join(tup) + '.001' for tup in itertools.product("ABCDE", "12345")]
         datasets = kwargs.get("datasets", exemplary_datasets)
 
         def q67(r):
