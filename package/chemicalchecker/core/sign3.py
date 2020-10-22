@@ -238,6 +238,7 @@ class sign3(BaseSignature, DataSignature):
             raise ImportError("requires tensorflow " +
                               "https://tensorflow.org")
         # get params and set folder
+        self.update_status("Training %s model" % suffix)
         self.__log.debug('Siamese suffix %s' % suffix)
         if suffix:
             siamese_path = os.path.join(self.model_path, 'siamese_%s' % suffix)
@@ -322,6 +323,7 @@ class sign3(BaseSignature, DataSignature):
                          max_x=10000, max_neig=50000, p_self=0.0):
         """Train confidence and prior models."""
         # get sorted keys from siamese traintest file
+        self.update_status('Training applicability')
         tt = DataSignature(traintest_file)
         test_inks = tt.get_h5_dataset('keys_test')[:max_x]
         test_inks = np.sort(test_inks)
@@ -1836,8 +1838,6 @@ class sign3(BaseSignature, DataSignature):
             validations(bool): Whether to perform validation.
             chunk_size(int): Chunk size when writing to sign3.h5
         """
-        BaseSignature.fit(self,  **params)
-
         try:
             from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError:
@@ -1847,7 +1847,10 @@ class sign3(BaseSignature, DataSignature):
             import faiss
         except ImportError as err:
             raise err
+        BaseSignature.fit(self,  **params)
+
         # define datasets that will be used
+        self.update_status("Getting data")
         if sign2_list is None:
             sign2_list = list()
             cc = self.get_cc()
@@ -1966,6 +1969,7 @@ class sign3(BaseSignature, DataSignature):
 
         # save universe sign3
         if update_preds:
+            self.update_status("Predicting universe Sign3")
             with h5py.File(self.data_path, "a") as results:
                 # initialize V and keys datasets
                 safe_create(results, 'V', (tot_inks, 128), dtype=np.float32)
@@ -2064,11 +2068,13 @@ class sign3(BaseSignature, DataSignature):
 
         # use semi-supervised anomaly detection algorithm to predict novelty
         if predict_novelty:
+            self.update_status("Predicting novelty")
             self.predict_novelty()
 
         # last step: learn how to get from A1 sign0 to sign3 directly
         # in order to enable SMILES to sign3 predictions
         if sign0 is not None:
+            self.update_status("Training SMILES predictor")
             self.fit_sign0(sign0)
 
         # save reference
