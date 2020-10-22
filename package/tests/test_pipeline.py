@@ -3,7 +3,7 @@ import pytest
 import unittest
 import functools
 
-from chemicalchecker import ChemicalChecker
+from chemicalchecker.util import Config
 
 
 def skip_if_import_exception(function):
@@ -39,13 +39,13 @@ class TestPipeline(unittest.TestCase):
 
     @skip_if_import_exception
     def test_pipeline_fit_sign0(self):
-        from chemicalchecker.util.pipeline import Pipeline, CCPredict, CCFit
+        from chemicalchecker.util.pipeline import Pipeline, CCFit
 
         pipeline_dir = self.pipeline_dir
         data_file = os.path.join(self.data_dir, 'E1_preprocess.h5')
         cc_root = os.path.join(pipeline_dir, 'cc')
 
-        pp = Pipeline(pipeline_path=pipeline_dir)
+        pp = Pipeline(pipeline_path=pipeline_dir, config=Config())
         self.assertTrue(os.path.isdir(pp.readydir))
 
         # SIGN 0
@@ -57,7 +57,7 @@ class TestPipeline(unittest.TestCase):
                 'validations': False
             }
         }
-        s0_task = CCFit(cc_root, 'sign0',
+        s0_task = CCFit(cc_root, 'sign0', 'full',
                         datasets=['E1.001'], fit_kwargs=s0_fit_kwargs)
         pp.add_task(s0_task)
         pp.run()
@@ -73,9 +73,10 @@ class TestPipeline(unittest.TestCase):
         s1_fit_kwargs = {
             "E1.001": {
                 'metric_learning': False,
+                'validations': False
             }
         }
-        s1_task = CCFit(cc_root, 'sign1',
+        s1_task = CCFit(cc_root, 'sign1', 'full',
                         datasets=['E1.001'], fit_kwargs=s1_fit_kwargs)
         pp.add_task(s1_task)
         pp.run()
@@ -88,7 +89,7 @@ class TestPipeline(unittest.TestCase):
         self.assertTrue(os.path.isfile(sign1_ref_file))
 
         # NEIG 1
-        s1_neig_task = CCFit(cc_root, 'neig1',
+        s1_neig_task = CCFit(cc_root, 'neig1', 'reference',
                              datasets=['E1.001'])
         pp.add_task(s1_neig_task)
         pp.run()
@@ -101,7 +102,7 @@ class TestPipeline(unittest.TestCase):
                 'validations': False
             }
         }
-        s2_task = CCFit(cc_root, 'sign2',
+        s2_task = CCFit(cc_root, 'sign2', 'reference',
                         datasets=['E1.001'], fit_kwargs=s2_fit_kwargs)
         pp.add_task(s2_task)
         pp.run()
