@@ -70,8 +70,8 @@ class sign2(BaseSignature, DataSignature):
         if self.params['adanet'] is not None:
             self.cpu = self.params['adanet'].get('cpu', 1)
 
-    def fit(self, sign1=None, neig1=None, reuse=True, validations=True,
-            compare_nn=False, oos_predictor=True, **params):
+    def fit(self, sign1=None, neig1=None, reuse=True, compare_nn=False,
+            oos_predictor=True, **params):
         """Fit signature 2 given signature 1 and its nearest neighbors.
 
         Node2vec embeddings are computed using the graph derived from sign1.
@@ -149,13 +149,12 @@ class sign2(BaseSignature, DataSignature):
         if not reuse or not os.path.isfile(self.data_path):
             n2v.emb_to_h5(sign1.keys, emb_file, self.data_path)
         # save link prediction stats
-        if validations:
-            linkpred_file = os.path.join(self.stats_path, 'linkpred.json')
-            if not reuse or not os.path.isfile(linkpred_file):
-                if not graph:
-                    graph = SNAPNetwork.from_file(graph_file)
-                linkpred = LinkPrediction(self, graph)
-                linkpred.performance.toJSON(linkpred_file)
+        linkpred_file = os.path.join(self.stats_path, 'linkpred.json')
+        if not reuse or not os.path.isfile(linkpred_file):
+            if not graph:
+                graph = SNAPNetwork.from_file(graph_file)
+            linkpred = LinkPrediction(self, graph)
+            linkpred.performance.toJSON(linkpred_file)
         # copy reduced-full mappingsfrom sign1
         if "mappings" not in self.info_h5 and "mappings" in sign1.info_h5:
             self.copy_from(sign1, "mappings")
