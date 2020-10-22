@@ -52,6 +52,8 @@ class Similars(BaseTask):
                 if lib[0] not in ref_bioactive:
                     ref_bioactive[lib[0]] = set()
                 ref_bioactive[lib[0]].add(lib[1])
+            for lib in lib_bio:
+                ref_bioactive[lib[0]] = list(ref_bioactive[lib[0]])
             with open(lib_bio_file, 'w') as outfile:
                 json.dump(ref_bioactive, outfile)
 
@@ -100,9 +102,10 @@ class Similars(BaseTask):
         cc_config_path = self.config.config_path
         cc_package = os.path.join(self.config.PATH.CC_REPO, 'package')
         singularity_image = self.config.PATH.SINGULARITY_IMAGE
-        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {}"
+        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {} {}"
         command = command.format(
-            cc_package, cc_config_path, singularity_image, script_path, ik_names_file, lib_bio_file, mol_path, self.DB, version, self.CC_ROOT)
+            cc_package, cc_config_path, singularity_image, script_path, 
+            ik_names_file, lib_bio_file, mol_path, self.DB, version, self.CC_ROOT)
         # submit jobs
         cluster = HPC.from_config(self.config)
         jobs = cluster.submitMultiJob(command, **params)
