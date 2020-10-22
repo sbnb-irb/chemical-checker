@@ -30,6 +30,7 @@ from chemicalchecker.util.splitter import NeighborTripletTraintest
 from chemicalchecker.util.splitter import Traintest
 from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 
+
 @logged
 class sign3(BaseSignature, DataSignature):
     """Signature type 3 class."""
@@ -1572,8 +1573,12 @@ class sign3(BaseSignature, DataSignature):
         if not os.path.isdir(model_path):
             os.makedirs(model_path)
         # initialize model and start learning
+        shared_keys = sorted(list(sign0.unique_keys & self.unique_keys))
+        _, sign0_V = sign0.get_vectors(shared_keys)
+        _, sign3_V = self.get_vectors(shared_keys)
         smpred = Smilespred(
-            model_dir=model_path, sign0=sign0, sign3=self, evaluate=evaluate)
+            model_dir=model_path, sign0=sign0_V, sign3=sign3_V,
+            evaluate=evaluate)
         self.__log.debug('Smiles pred training on %s' % model_path)
         smpred.fit()
         self.smiles_predictor = smpred
@@ -1581,7 +1586,7 @@ class sign3(BaseSignature, DataSignature):
         if evaluate:
             smpred.evaluate()
 
-    def learn_sign0_conf(self, sign0, applicability, reuse=True, suffix=None, evaluate=True):
+    def learn_sign0_conf(self, sign0, reuse=True, suffix=None, evaluate=True):
         """Learn the signature 3 applicability from sign0.
 
         This method is used twice. First to evaluate the performances of the
@@ -1609,10 +1614,14 @@ class sign3(BaseSignature, DataSignature):
         if not os.path.isdir(model_path):
             reuse = False
             os.makedirs(model_path)
+        shared_keys = sorted(list(sign0.unique_keys & self.unique_keys))
+        _, sign0_V = sign0.get_vectors(shared_keys)
+        _, sign3_app_V = self.get_vectors(shared_keys,
+                                          dataset_name='confidence').ravel()
         # initialize model and start learning
         apppred = ApplicabilityPredictor(
-            model_dir=model_path, sign0=sign0,
-            applicability=applicability, evaluate=evaluate)
+            model_dir=model_path, sign0=sign0_V,
+            applicability=sign3_app_V, evaluate=evaluate)
         self.__log.debug('Applicability pred training on %s' % model_path)
         if not reuse:
             apppred.fit()
@@ -1639,7 +1648,7 @@ class sign3(BaseSignature, DataSignature):
 
         # check if performance evaluations need to be done
         # Open sign0:
-        sign0 = DataSignature(sign0).get_h5_dataset('V')[:]
+        sign0 = DataSignature(sign0)
         if not only_confidence:
             if suffix is not None:
                 self.learn_sign0(sign0,
@@ -1656,9 +1665,8 @@ class sign3(BaseSignature, DataSignature):
                              suffix='final',
                              evaluate=False)
         if include_confidence:
-            applicability = self.get_h5_dataset('confidence')[:]
             if suffix is not None:
-                self.learn_sign0_conf(sign0, applicability,
+                self.learn_sign0_conf(sign0,
                                       suffix=suffix,
                                       evaluate=True)
                 return False
@@ -1668,7 +1676,7 @@ class sign3(BaseSignature, DataSignature):
                                          'smiles_applicability_eval',
                                          'applicabilitypredictor.h5')
                 if not os.path.isfile(dest_file):
-                    self.learn_sign0_conf(sign0, applicability,
+                    self.learn_sign0_conf(sign0,
                                           suffix='eval',
                                           evaluate=True)
 
@@ -1677,7 +1685,7 @@ class sign3(BaseSignature, DataSignature):
                                      'smiles_applicability_final',
                                      'applicabilitypredictor.h5')
             if not os.path.isfile(dest_file):
-                self.learn_sign0_conf(sign0, applicability,
+                self.learn_sign0_conf(sign0,
                                       suffix='final',
                                       evaluate=False)
 
