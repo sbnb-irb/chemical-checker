@@ -2797,7 +2797,11 @@ class MultiPlot():
         xl = x[:limit]
         yl = y[:limit]
         xy = np.vstack([xl, yl])
-        c = gaussian_kde(xy)(xy)
+        try:
+            c = gaussian_kde(xy)(xy)
+        except Exception as ex:
+            MultiPlot.__log.warning('Could not compute KDE: %s' % str(ex))
+            c = np.arange(len(xy))
         order = c.argsort()
         return xl, yl, c, order
 
