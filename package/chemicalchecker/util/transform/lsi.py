@@ -111,8 +111,8 @@ class Lsi(BaseTransform):
                     f.write("%s %s\n" % (key, val))
         # get dictionary
         self.__log.info('Generating dictionary.')
-        self.__log.info('min_freq:', self.min_freq)
-        self.__log.info('max_freq:', self.max_freq)
+        self.__log.info('min_freq: %s', self.min_freq)
+        self.__log.info('max_freq: %s', self.max_freq)
         dictionary = corpora.Dictionary(l.rstrip("\n").split(" ")[1].split(
             ",") for l in open(self.plain_corpus, "r"))
         # filter extremes
@@ -139,7 +139,7 @@ class Lsi(BaseTransform):
         self.__log.info('Fitting LSI model.')
         only_zeros = [1]
         while len(only_zeros) > 0:
-            self.__log.info('num_topics:', self.num_topics)
+            self.__log.info('num_topics: %s', self.num_topics)
             lsi = models.LsiModel(c_tfidf, id2word=dictionary,
                                   num_topics=self.num_topics, onepass=onepass)
             lsi.save(os.path.join(self.model_path, self.name + ".lsi.pkl"))
