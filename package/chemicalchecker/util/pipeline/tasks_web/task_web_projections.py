@@ -21,12 +21,9 @@ COUNT = "SELECT COUNT(DISTINCT inchikey) FROM projections"
 class Projections(BaseTask):
 
     def __init__(self, name=None, **params):
-
         task_id = params.get('task_id', None)
-
         if task_id is None:
             params['task_id'] = name
-
         BaseTask.__init__(self, name, **params)
 
         self.DB = params.get('DB', None)
@@ -38,38 +35,27 @@ class Projections(BaseTask):
 
     def run(self):
         """Run the projections step."""
-
         all_datasets = Dataset.get()
-
         cc = ChemicalChecker(self.CC_ROOT)
         map_coord_code = {}
-
         db_name = self.DB
-
         for ds in all_datasets:
             if not ds.exemplary:
                 continue
-
             map_coord_code[ds.coordinate] = ds.dataset_code
-
         spaces = sorted(map_coord_code.keys())
 
         try:
             self.__log.info("Creating table")
             psql.query(DROP_TABLE, self.DB)
-
             S = "CREATE TABLE projections (inchikey TEXT, "
-
             for coord in spaces:
                 S += "%s_idx INTEGER, " % coord
                 S += "%s_x FLOAT, " % coord
                 S += "%s_y FLOAT, " % coord
-
             S += "PRIMARY KEY (inchikey) );\n"
             psql.query(S, db_name)
-
         except Exception as e:
-
             self.__log.error("Error while creating ptojections table")
             if not self.custom_ready():
                 raise Exception(e)
@@ -115,9 +101,7 @@ class Projections(BaseTask):
 
         try:
             self.__log.info("Creating indexes for table")
-
             S = ''
-
             for coord in spaces:
                 coord = coord.lower()
                 S += "CREATE UNIQUE INDEX %s_idx_projections_idx ON projections (%s_idx);\n" % (
@@ -134,7 +118,6 @@ class Projections(BaseTask):
             else:
                 self.mark_ready()
         except Exception as e:
-
             self.__log.error(
                 "Error while checking & creating indexes in projections table")
             if not self.custom_ready():
@@ -149,5 +132,4 @@ class Projections(BaseTask):
     def execute(self, context):
         """Run the molprops step."""
         self.tmpdir = context['params']['tmpdir']
-
         self.run()

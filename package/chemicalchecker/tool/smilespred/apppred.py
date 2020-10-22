@@ -1,29 +1,16 @@
-import keras
-import tensorflow as tf
-import numpy as np
-from keras import backend as K
-from keras.models import Model, Sequential
-from keras.layers import Dropout, Lambda, Dense, Activation
-from scipy.spatial.distance import cosine
-
-from matplotlib import pyplot as plt
-import seaborn as sns
-import pandas
-
-from MulticoreTSNE import MulticoreTSNE
 
 import os
+import keras
 import pickle
 import scipy.stats as stats
+from keras import backend as K
+from keras.models import Sequential
+from keras.layers import Dropout, Dense, Activation
+
+import seaborn as sns
+from matplotlib import pyplot as plt
 
 from chemicalchecker.util import logged
-from chemicalchecker.core.signature_data import DataSignature
-from chemicalchecker import ChemicalChecker
-
-import faiss
-
-from tqdm import tqdm
-import pandas as pd
 
 
 @logged

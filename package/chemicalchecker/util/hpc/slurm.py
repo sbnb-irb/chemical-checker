@@ -148,6 +148,7 @@ fi
 
         if len(elements) > 0:
             self.__log.debug("Num elements submitted " + str(len(elements)))
+            self.__log.debug("Num Job submitted " + str(num_jobs))
 
             input_dict = dict()
             for cid, chunk in enumerate(self._chunks(elements, num_jobs), 1):
@@ -165,7 +166,8 @@ fi
                 'OPENBLAS_NUM_THREADS',
                 'MKL_NUM_THREADS',
                 'VECLIB_MAXIMUM_THREADS',
-                'NUMEXPR_NUM_THREADS'
+                'NUMEXPR_NUM_THREADS',
+                'NUMEXPR_MAX_THREADS'
             ]
             command = ' '.join(["%s=%s" % (v, str(cpu))
                                 for v in env_vars] + [command])

@@ -10,6 +10,7 @@ from sklearn.utils.sparsefuncs import mean_variance_axis
 from .base import BaseTransform
 
 from chemicalchecker.util import Config
+from chemicalchecker.util import logged
 
 
 class Corpus(object):
@@ -40,11 +41,13 @@ class Corpus(object):
             yield key
 
 
+@logged
 class Lsi(BaseTransform):
     """Lsi class."""
 
     def __init__(self, sign1, tmp=False, variance_explained=0.9, min_freq=5, max_freq=0.25,
                  num_topics=None, B_val=10, N_val=1000, multipass=True,
+                 min_freq=5, max_freq=0.25,
                  max_keys=100000, **kwargs):
         """Initialize a Lsi instance."""
         BaseTransform.__init__(self, sign1, "lsi", max_keys, tmp)
@@ -81,7 +84,8 @@ class Lsi(BaseTransform):
             try:
                 exp_var = np.var(xt, axis=0)
                 exp_var_ratios += [exp_var / full_var]
-            except:
+            except Exception as ex:
+                self.__log.warning(str(ex))
                 continue
         exp_var_ratios = np.mean(np.array(exp_var_ratios), axis=0)
         return exp_var_ratios
@@ -106,6 +110,9 @@ class Lsi(BaseTransform):
                                     for x in mask[0]])
                     f.write("%s %s\n" % (key, val))
         # get dictionary
+        self.__log.info('Generating dictionary.')
+        self.__log.info('min_freq:', self.min_freq)
+        self.__log.info('max_freq:', self.max_freq)
         dictionary = corpora.Dictionary(l.rstrip("\n").split(" ")[1].split(
             ",") for l in open(self.plain_corpus, "r"))
         # filter extremes
@@ -123,25 +130,51 @@ class Lsi(BaseTransform):
         corpora.MmCorpus.serialize(self.tfidf_corpus, c_tfidf)
         # getting ready for lsi
         if self.num_topics is None:
-            num_topics = np.min([int(0.67 * len(dictionary)), 5000])
-        else:
-            num_topics = self.num_topics
+            self.num_topics = int(0.67 * len(dictionary))
         if self.multipass:
             onepass = False
         else:
             onepass = True
         # lsi
-        lsi = models.LsiModel(
-            c_tfidf, id2word=dictionary, num_topics=num_topics, onepass=onepass)
-        lsi.save(os.path.join(self.model_path, self.name + ".lsi.pkl"))
-        c_lsi = lsi[c_tfidf]
-        # variance explained
-        exp_var_ratios = self._lsi_variance_explained(
-            self.tfidf_corpus, lsi, num_topics)
-        for cut_i, cum_var in enumerate(np.cumsum(exp_var_ratios)):
-            if cum_var > self.variance_explained:
-                break
-        self.cut_i = cut_i
+        self.__log.info('Fitting LSI model.')
+        only_zeros = [1]
+        while len(only_zeros) > 0:
+            self.__log.info('num_topics:', self.num_topics)
+            lsi = models.LsiModel(c_tfidf, id2word=dictionary,
+                                  num_topics=self.num_topics, onepass=onepass)
+            lsi.save(os.path.join(self.model_path, self.name + ".lsi.pkl"))
+            # variance explained
+            exp_var_ratios = self._lsi_variance_explained(
+                self.tfidf_corpus, lsi, self.num_topics)
+            for cut_i, cum_var in enumerate(np.cumsum(exp_var_ratios)):
+                if cum_var > self.variance_explained:
+                    break
+            self.cut_i = cut_i
+
+            c_lsi = lsi[c_tfidf]
+            # get keys
+            keys = np.array([k for k in c.keys()])
+            V = np.empty((len(keys), self.cut_i + 1))
+            i = 0
+            for l in c_lsi:
+                v = np.zeros(self.cut_i + 1)
+                for x in l[:self.cut_i + 1]:
+                    if x[0] > self.cut_i:
+                        continue
+                    v[x[0]] = x[1]
+                V[i, :] = v
+                i += 1
+            # in some corner cases we might get full zero rows after LSI
+            only_zeros = np.where(~V.any(axis=1))[0]
+            if len(only_zeros) > 0:
+                self.__log.warning(
+                    'Getting only zero rows: %s', str(only_zeros))
+                self.num_topics += 50
+                self.variance_explained = min(
+                    self.variance_explained + 0.05, 1)
+                self.__log.warning(
+                    'Repeating LSI with: variance_explained: %.2f num_topics: %s',
+                    self.variance_explained, str(self.num_topics))
         self.predict(self.sign_ref)
         self.predict(self.sign)
         self.save()
@@ -186,4 +219,9 @@ class Lsi(BaseTransform):
                 v[x[0]] = x[1]
             V[i, :] = v
             i += 1
+        # in some corner cases we might get full zero rows after LSI
+        only_zeros = np.where(~V.any(axis=1))[0]
+        if len(only_zeros) > 0:
+            # in that case we soften the parameters
+            self.__log.warning('Getting only zero rows: %s', str(only_zeros))
         self.overwrite(sign1=sign1, V=V, keys=keys)

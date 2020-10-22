@@ -391,6 +391,8 @@ class DiagnosisPlot(object):
         datasets = []
         rocs = []
         for k, v in results.items():
+            if v is None:
+                continue
             datasets += [k]
             rocs += [v["auc"]]
         ax = self._across(rocs, datasets, ax=ax, title=title,
@@ -407,7 +409,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
 
     def dimensions(self, ax=None, title=None, exemplary=True, cctype="sign1",
-                   molset="full"):
+                   molset="full", highligth=True):
         ax = self._get_ax(ax)
         results = self.load_diagnosis_pickle("dimensions.pkl")
         datasets = []
@@ -431,7 +433,8 @@ class DiagnosisPlot(object):
         x = [len(v["expl"])]
         x = np.log10(x)
         y = np.log10(y)
-        ax.scatter(x, y, color="white", edgecolor="black", s=80)
+        if highligth:
+            ax.scatter(x, y, color="white", edgecolor="black", s=80)
         ax.set_xlabel("Latent features (log10)")
         ax.set_ylabel("Keys (log10)")
         if title is None:
@@ -814,9 +817,15 @@ class DiagnosisPlot(object):
         ax = fig.add_subplot(gs[1, 0])
         self.values(ax)
         ax = fig.add_subplot(gs[0, 1])
-        self.intensities(ax)
+        if self.sign.cctype == 'sign3':
+            self.confidences(ax)
+        else:
+            self.intensities(ax)
         ax = fig.add_subplot(gs[0, 2])
-        self.intensities_projection(ax)
+        if self.sign.cctype == 'sign3':
+            self.confidences_projection(ax)
+        else:
+            self.intensities_projection(ax)
         ax = fig.add_subplot(gs[1, 1])
         self.key_coverage(ax)
         ax = fig.add_subplot(gs[1, 2])

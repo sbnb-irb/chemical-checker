@@ -422,11 +422,12 @@ class BaseSignature(object):
         new_path = "/".join(folds)
         return neig(new_path, self.dataset)
 
-    def get_cc(self):
+    def get_cc(self, cc_root=None):
         '''Return the CC where the signature is present'''
         from chemicalchecker import ChemicalChecker
-        cc_path = "/".join(self.signature_path.split("/")[:-5])
-        return ChemicalChecker(cc_path)
+        if cc_root is None:
+            cc_root = "/".join(self.signature_path.split("/")[:-5])
+        return ChemicalChecker(cc_root)
 
     def get_sign(self, sign_type):
         '''Return the signature type for current dataset'''

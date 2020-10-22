@@ -12,25 +12,23 @@ class Pipeline():
     Run pipelines according to config files.
     """
 
-    def __init__(self, pipeline_path=None, **kwargs):
+    def __init__(self, pipeline_path, config, keep_jobs=False):
         """Initialize a Pipeline instance.
 
         pipeline_path (str): Path where the pipeline will set its structure.
+        keep_jobs (bool): If True temporary job directories will not be
+            deleted.
         """
         self.tasks = []
-
         self.pipeline_path = pipeline_path
-
-        if self.pipeline_path is None:
-            raise Exception("pipeline_path parameter not set")
-        else:
-            Pipeline.__log.info("PIPELINE PATH: {}".format(self.pipeline_path) )
+        Pipeline.__log.info("PIPELINE PATH: {}".format(self.pipeline_path))
+        self.config = config
 
         self.readydir = os.path.join(self.pipeline_path, "ready")
         self.logdir = os.path.join(self.pipeline_path, "log")
-        self.logfile = os.path.join(
-            self.pipeline_path, "log", "pipeline.log")
         self.tmpdir = os.path.join(self.pipeline_path, "tmp")
+        self.cachedir = os.path.join(self.pipeline_path, "cache")
+        self.keep_jobs = keep_jobs
 
         # check and make needed directories
         if not os.path.exists(self.pipeline_path):
@@ -41,8 +39,11 @@ class Pipeline():
             os.makedirs(self.tmpdir)
         if not os.path.exists(self.logdir):
             os.makedirs(self.logdir)
+        if not os.path.exists(self.cachedir):
+            os.makedirs(self.cachedir)
 
         # log to file
+        self.logfile = os.path.join(pipeline_path, "log", "pipeline.log")
         logger = logging.getLogger()
         fh = logging.FileHandler(self.logfile)
         fh.setLevel(logging.DEBUG)
@@ -53,13 +54,21 @@ class Pipeline():
 
     def add_task(self, task):
         """Add tasks to the pipeline."""
-        task.set_dirs(self.readydir, self.tmpdir)
+        task.set_dirs(self.readydir, self.tmpdir, self.cachedir)
+        task.keep_jobs = self.keep_jobs
+        task.config = self.config
         self.tasks.append(task)
+
+    def insert_task(self, position, task):
+        """Add tasks to the pipeline."""
+        task.set_dirs(self.readydir, self.tmpdir, self.cachedir)
+        task.keep_jobs = self.keep_jobs
+        task.config = self.config
+        self.tasks.insert(position, task)
 
     def run(self):
         """Run the pipeline."""
         for task in self.tasks:
-
             # check if already done
             if task.is_ready():
                 Pipeline.__log.info(
@@ -83,15 +92,10 @@ class Pipeline():
     def clean(self, step=None):
         """Clean all or some of the pipeline steps."""
         if step is None:
-
             for current_step in self.tasks:
-
                 # clean it
                 current_step.clean()
-
         else:
-
             for task in self.tasks:
-
                 if task.name == step:
                     task.clean()

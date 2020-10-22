@@ -7,7 +7,7 @@ with a dimensionality that typically retains 90% of the original variance.
 They keep most of the complexity of the original data and they can be used for
 similarity calculations.
 
-The typical preprocessing is a PCA (continuous data) or TF-IDF LSI (continuous).
+The typical preprocessing is a PCA (continuous data) or TF-IDF LSI.
 """
 import os
 import h5py
@@ -63,14 +63,17 @@ class sign1(BaseSignature, DataSignature):
         if is_basesig:
             if s0.molset != s1.molset:
                 raise Exception(
-                    "Copying from signature 0 to 1 is only allowed for same molsets (reference or full)")
+                    "Copying from signature 0 to 1 is only allowed for "
+                    "same molsets (reference or full)")
 
         self.__log.debug("Copying HDF5 dataset")
         with h5py.File(s1.data_path, "w") as hf:
             hf.create_dataset("name", data=np.array(
                 [str(self.dataset) + "sig"], DataSignature.string_dtype()))
-            hf.create_dataset("date", data=np.array([datetime.datetime.now().strftime(
-                "%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
+            hf.create_dataset(
+                "date",
+                data=np.array([datetime.datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
             hf.create_dataset("V", data=s0[:])
             hf.create_dataset("keys", data=np.array(
                 s0.keys, DataSignature.string_dtype()))
@@ -88,7 +91,8 @@ class sign1(BaseSignature, DataSignature):
                 shutil.copyfile(fn0, fn1)
             else:
                 self.__log.warn(
-                    "No triplets available! Please fit sign0 with option do_triplets=True")
+                    "No triplets available! Please fit sign0 with "
+                    "option do_triplets=True")
         self.refresh()
         s0.refresh()
         s1.refresh()
@@ -129,17 +133,17 @@ class sign1(BaseSignature, DataSignature):
             if "V_tmp" in hf.keys():
                 del hf["V_tmp"]
 
-    def fit(self, sign0, latent=True, scale=True, metric_learning=True, semisupervised=False, overwrite=False, validations=True):
+    def fit(self, sign0=None, latent=True, scale=True, metric_learning=True,
+            semisupervised=False, overwrite=False, validations=True):
         """Fit signature 1 given signature 0
 
             Args:
                 sign0: A signature 0.
         """
 
+        # avoid fitting again if it has been already done
         if not overwrite and BaseSignature.fit(self):
-            # NS provides a lock to avoid fitting again if it has been already done
             return
-
 
         try:
             from chemicalchecker.util.transform.metric_learn import UnsupervisedMetricLearn, SemiSupervisedMetricLearn
@@ -148,13 +152,16 @@ class sign1(BaseSignature, DataSignature):
                               "https://tensorflow.org")
         self.clean()
 
+        if sign0 is None:
+            sign0 = self.get_sign('sign0').get_molset("full")
         s0 = sign0
         self.__log.debug("Fitting")
         if s0.cctype != "sign0":
             raise Exception("A signature type 0 is expected..!")
         if s0.molset != "full":
             raise Exception(
-                "Fit should be done with the full signature 0 (even if inside reference is used)")
+                "Fit should be done with the full signature 0 "
+                "(even if inside reference is used)")
 
         s0_ref = s0.get_molset("reference")
         s1_ref = self.get_molset("reference")
@@ -318,7 +325,8 @@ class sign1(BaseSignature, DataSignature):
         data_path = os.path.join(s1.model_path, "neig.h5")
         self.__log.debug(
             "Calculating nearest neighbors. Saving in: %s" % data_path)
-        with h5py.File(s1.data_path, 'r') as dh5, h5py.File(data_path, 'w') as dh5out:
+        with h5py.File(s1.data_path, 'r') as dh5, \
+                h5py.File(data_path, 'w') as dh5out:
             datasize = dh5[V_name].shape
             data_type = dh5[V_name].dtype
             self.__log.debug("...data size is (%d, %d)" %
@@ -332,7 +340,8 @@ class sign1(BaseSignature, DataSignature):
                 "distances", (datasize[0], k), dtype=np.float32)
             dh5out.create_dataset("shape", data=(datasize[0], k))
             dh5out.create_dataset(
-                "metric", data=[metric.encode(encoding='UTF-8', errors='strict')])
+                "metric", data=[metric.encode(encoding='UTF-8',
+                                              errors='strict')])
             if metric == "euclidean":
                 index = faiss.IndexFlatL2(datasize[1])
             else:
@@ -468,13 +477,18 @@ class sign1(BaseSignature, DataSignature):
         acc /= len(triplets)
         return acc
 
-    def optimal_t(self, max_triplets=10000, min_triplets=1000, local_neig_path=False, save=True):
-        """Find optimal (recommended) number of neighbors, based on the accuracy of triplets across the CC.
+    def optimal_t(self, max_triplets=10000, min_triplets=1000,
+                  local_neig_path=False, save=True):
+        """Find optimal (recommended) number of neighbors.
+
+        Based on the accuracy of triplets across the CC.
         Neighbors class needs to be precomputed.
-        Only done for the reference set (it doesn't really make sense to do it for the full).
+        Only done for the reference set (it doesn't really make sense to do it
+        for the full).
 
         Args:
-            max_triplets(int): Maximum number of triplets to consider (default=10000).
+            max_triplets(int): Maximum number of triplets to consider
+                (default=10000).
             save(bool): Store an opt_t.h5 file (default=True).
         """
         self.__log.debug("Reading triplets")
@@ -537,7 +551,9 @@ class sign1(BaseSignature, DataSignature):
         opt_t = opt_k / nn.shape[0]
         if save:
             self.__log.debug("Saving")
-            with h5py.File(os.path.join(self.get_molset("reference").model_path, "opt_t.h5"), "w") as hf:
+            fname = os.path.join(
+                self.get_molset("reference").model_path, "opt_t.h5")
+            with h5py.File(fname, "w") as hf:
                 hf.create_dataset(
                     "accuracies", data=np.array(accus).astype(np.int))
                 hf.create_dataset("opt_t", data=np.array([opt_t]))
