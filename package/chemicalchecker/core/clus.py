@@ -344,9 +344,10 @@ class clus(BaseSignature, DataSignature):
             if mappings is not None:
                 hf.create_dataset("mappings", data=np.array(
                     mappings, DataSignature.string_dtype()))
-        # predict for full
+        # also predict for full if available
         sign_full = self.get_sign('sign' + self.cctype[-1]).get_molset("full")
-        self.predict(sign_full, self.get_molset("full").data_path)
+        if os.path.isfile(sign_full.data_path):
+            self.predict(sign_full, self.get_molset("full").data_path)
         self.mark_ready()
 
     def predict(self, sign1, destination=None, validations=False):

@@ -130,9 +130,10 @@ class neig(BaseSignature, DataSignature):
 
         faiss.write_index(index, self.index_filename)
 
-        # predict the full neig
-        neig_full = self.get_molset("full")
-        self.predict(sign1.get_molset("full"), destination=neig_full.data_path)
+        # also predict for full if available
+        sign_full = self.get_sign('sign' + self.cctype[-1]).get_molset("full")
+        if os.path.isfile(sign_full.data_path):
+            self.predict(sign_full, self.get_molset("full").data_path)
         self.mark_ready()
 
     def predict(self, sign1, destination=None, validations=False):
