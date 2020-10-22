@@ -297,12 +297,9 @@ class sign0(BaseSignature, DataSignature):
             do_triplets(boolean): Draw triplets from the CC (default=True).
         """
         BaseSignature.fit(self,  **params)
-
-        self.clean()
-        cc = self.get_cc(cc_root)
-        self.__log.debug("Getting data")
+        self.clear()
+        self.update_status("Getting data")
         self.__log.debug("data_file is {}".format(data_file))
-
         res = self.get_data(pairs=pairs, X=X, keys=keys, features=features,
                             data_file=data_file, key_type=key_type,
                             agg_method=agg_method)
@@ -313,7 +310,7 @@ class sign0(BaseSignature, DataSignature):
         input_type = res["input_type"]
 
         if sanitize:
-            self.__log.debug("Sanitizing")
+            self.update_status("Sanitizing")
             # NS we want to keep 2048 features (Morgan fingerprint) for sign0
             trimFeatures = False if self.dataset == 'A1.001' else True
             san = Sanitizer(trim=trimFeatures, max_features=max_features,
@@ -322,11 +319,11 @@ class sign0(BaseSignature, DataSignature):
                 V=X, keys=keys, keys_raw=keys_raw, features=features,
                 sign=None)
 
-        self.__log.debug("Aggregating if necessary")
+        self.update_status("Aggregating")
         agg = Aggregate(method=agg_method, input_type=input_type)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
 
-        self.__log.debug("Saving dataset")
+        self.update_status("Saving H5")
         with h5py.File(self.data_path, "w") as hf:
             hf.create_dataset("name", data=np.array(
                 [str(self.dataset) + "sig"], DataSignature.string_dtype()))
@@ -350,6 +347,8 @@ class sign0(BaseSignature, DataSignature):
         self.save_reference()
         # Making triplets
         if do_triplets:
+            self.update_status("Sampling triplets")
+            cc = self.get_cc(cc_root)
             sampler = TripletSampler(cc, self, save=True)
             sampler.sample(**params)
         # finalize signature

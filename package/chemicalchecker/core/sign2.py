@@ -71,7 +71,7 @@ class sign2(BaseSignature, DataSignature):
             self.cpu = self.params['adanet'].get('cpu', 1)
 
     def fit(self, sign1=None, neig1=None, reuse=True, validations=True,
-            compare_nn=False, oos_predictor=True, overwrite=False,
+            compare_nn=False, oos_predictor=True,
             apply_map=False, **params):
         """Fit signature 2 given signature 1 and its nearest neighbors.
 
@@ -84,11 +84,6 @@ class sign2(BaseSignature, DataSignature):
             reuse(bool): Reuse already generated intermediate files. Set to
                 False to re-train from scratch.
         """
-        BaseSignature.fit(self,  **params)
-
-        #########
-        # step 1: Node2Vec (learn graph embedding) input is neig1
-        #########
         try:
             from chemicalchecker.util.network import SNAPNetwork
             from chemicalchecker.util.performance import LinkPrediction
@@ -96,7 +91,11 @@ class sign2(BaseSignature, DataSignature):
             from chemicalchecker.tool.node2vec import Node2Vec
         except ImportError as err:
             raise err
-
+        BaseSignature.fit(self,  **params)
+        #########
+        # step 1: Node2Vec (learn graph embedding) input is neig1
+        #########
+        # signature specific checks
         if sign1 is None:
             sign1 = self.get_sign('sign1').get_molset("reference")
         if neig1 is None:
@@ -112,6 +111,7 @@ class sign2(BaseSignature, DataSignature):
             raise Exception(
                 "Fit should be done with the reference neig1")
 
+        self.update_status("Node2Vec")
         self.__log.debug('Node2Vec on %s' % sign1)
         n2v = Node2Vec(executable=Config().TOOLS.node2vec_exec)
         # use neig1 to generate the Node2Vec input graph (as edgelist)
@@ -168,6 +168,7 @@ class sign2(BaseSignature, DataSignature):
         # step 2: AdaNet (learn to predict sign2 from sign1 without Node2Vec)
         #########
         if oos_predictor:
+            self.update_status("Training out-of-sample predictor")
             self.__log.debug('AdaNet fit %s with Node2Vec output' % sign1)
             # get params and set folder
             adanet_params = self.params['adanet']
@@ -204,6 +205,8 @@ class sign2(BaseSignature, DataSignature):
                 extra_preditors['NearestNeighbor'] = nearest_neighbor_pred
             ada.save_performances(adanet_path, sign2_plot, extra_preditors)
             self.__log.debug('model saved to %s' % adanet_path)
+
+        self.update_status("Generating `full` molset")
         cc_tmp = self.get_cc()
         sign1_full = cc_tmp.get_signature('sign1', 'full', self.dataset)
         sign2_full = cc_tmp.get_signature('sign2', 'full', self.dataset)
