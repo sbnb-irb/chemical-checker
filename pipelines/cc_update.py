@@ -64,13 +64,13 @@ def pipeline_parser():
 
 @logged(logging.getLogger("[ PIPELINE %s ]" % os.path.basename(__file__)))
 def main(args):
-    # print arguments
-    for arg in vars(args):
-        main._log.info('[ ARGS ] {:<25s}: {}'.format(arg, getattr(args, arg)))
-
     # initialize Pipeline
     pp = Pipeline(pipeline_path=args.pipeline_dir, keep_jobs=True,
                   config=Config(args.config))
+
+    # print arguments
+    for arg in vars(args):
+        main._log.info('[ ARGS ] {:<25s}: {}'.format(arg, getattr(args, arg)))
 
     fit_order = ['sign0', 'sign1', 'clus1', 'proj1', 'neig1',
                  'sign2', 'clus2', 'proj2', 'neig2', 'sign3']
