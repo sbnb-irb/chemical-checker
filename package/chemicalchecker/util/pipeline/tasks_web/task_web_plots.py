@@ -81,7 +81,8 @@ class Plots(BaseTask):
 
         if cluster.status() == HPC.READY:
             self.mark_ready()
-            shutil.rmtree(job_path, ignore_errors=True)
+            if not self.keep_jobs:
+                shutil.rmtree(job_path, ignore_errors=True)
         else:
             if not self.custom_ready():
                 raise Exception(
