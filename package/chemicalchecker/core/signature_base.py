@@ -93,16 +93,17 @@ class BaseSignature(object):
             os.umask(original_umask)
 
     @abstractmethod
-    def fit(self, overwrite=False, **kwargs):
+    def fit(self, **kwargs):
         """Fit a model."""
         self.update_status("FIT START")
+        overwrite = kwargs.get('overwrite', False)
         if overwrite and self.is_fit():
             raise Exception("Signature has already been fitted. "
                             "Delete it manually, or call the `fit` method "
                             "passing overwrite=True")
         return True
 
-    def fit_end(self, validations=True, end_other_molset=True,  **kwargs):
+    def fit_end(self, **kwargs):
         """Conclude fit method.
 
         We compute background distances, run validations (including diagnostic)
@@ -112,6 +113,8 @@ class BaseSignature(object):
         self.update_status("Background distances")
         self.background_distances("cosine")
         self.background_distances("euclidean")
+        validations = kwargs.get('validations', True)
+        end_other_molset = kwargs.get('end_other_molset', True)
         # performing validations
         if validations:
             self.update_status("Validation")
