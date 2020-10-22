@@ -391,6 +391,8 @@ class DiagnosisPlot(object):
         datasets = []
         rocs = []
         for k, v in results.items():
+            if v is None:
+                continue
             datasets += [k]
             rocs += [v["auc"]]
         ax = self._across(rocs, datasets, ax=ax, title=title,
@@ -407,7 +409,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
 
     def dimensions(self, ax=None, title=None, exemplary=True, cctype="sign1",
-                   molset="full"):
+                   molset="full", highligth=True):
         ax = self._get_ax(ax)
         results = self.load_diagnosis_pickle("dimensions.pkl")
         datasets = []
@@ -431,7 +433,8 @@ class DiagnosisPlot(object):
         x = [len(v["expl"])]
         x = np.log10(x)
         y = np.log10(y)
-        ax.scatter(x, y, color="white", edgecolor="black", s=80)
+        if highligth:
+            ax.scatter(x, y, color="white", edgecolor="black", s=80)
         ax.set_xlabel("Latent features (log10)")
         ax.set_ylabel("Keys (log10)")
         if title is None:
