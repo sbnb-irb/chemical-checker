@@ -47,12 +47,13 @@ class Lsi(BaseTransform):
 
     def __init__(self, sign1, tmp=False, variance_explained=0.9,
                  num_topics=None, B_val=10, N_val=1000, multipass=True,
+                 min_freq=5, max_freq=0.25,
                  max_keys=100000, **kwargs):
         """Initialize a Lsi instance."""
         BaseTransform.__init__(self, sign1, "lsi", max_keys, tmp)
         self.variance_explained = variance_explained
-        self.min_freq = 1
-        self.max_freq = 0.999
+        self.min_freq = min_freq
+        self.max_freq = max_freq
         self.multipass = multipass
         self.num_topics = num_topics
         self.B_val = B_val
@@ -109,6 +110,9 @@ class Lsi(BaseTransform):
                                     for x in mask[0]])
                     f.write("%s %s\n" % (key, val))
         # get dictionary
+        self.__log.info('Generating dictionary.')
+        self.__log.info('min_freq:', self.min_freq)
+        self.__log.info('max_freq:', self.max_freq)
         dictionary = corpora.Dictionary(l.rstrip("\n").split(" ")[1].split(
             ",") for l in open(self.plain_corpus, "r"))
         # filter extremes
@@ -135,6 +139,7 @@ class Lsi(BaseTransform):
         self.__log.info('Fitting LSI model.')
         only_zeros = [1]
         while len(only_zeros) > 0:
+            self.__log.info('num_topics:', self.num_topics)
             lsi = models.LsiModel(c_tfidf, id2word=dictionary,
                                   num_topics=self.num_topics, onepass=onepass)
             lsi.save(os.path.join(self.model_path, self.name + ".lsi.pkl"))
