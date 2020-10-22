@@ -129,7 +129,8 @@ class sign1(BaseSignature, DataSignature):
             if "V_tmp" in hf.keys():
                 del hf["V_tmp"]
 
-    def fit(self, sign0=None, latent=True, scale=True, metric_learning=True, semisupervised=False):
+    def fit(self, sign0=None, latent=True, scale=True, metric_learning=True,
+            semisupervised=False, validations=True):
         """Fit signature 1 given signature 0
 
             Args:
@@ -228,6 +229,10 @@ class sign1(BaseSignature, DataSignature):
         with h5py.File(s1_ref.data_path, "a") as hf:
             hf.create_dataset("metric", data=np.array(
                 ["cosine"], DataSignature.string_dtype()))
+        if validations:
+            self.__log.debug("Validate")
+            self.validate()
+            s1_ref.validate()
         # Marking as ready
         self.__log.debug("Mark as ready")
         s1_ref.mark_ready()
