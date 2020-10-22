@@ -1811,13 +1811,8 @@ class sign3(BaseSignature, DataSignature):
             sign2_universe=None, partial_universe=None,
             sign2_coverage=None, sign0=None,
             model_confidence=True, save_correlations=False,
-<< << << < HEAD
-            predict_novelty=True, update_preds=True,
-            validations=True, chunk_size=1000, suffix=None, overwrite=False):
-== == == =
-            predict_novelty = False, update_preds = True,
-            validations = True, chunk_size = 1000, suffix = None):
->>>>>> > refactor_pipeline
+            predict_novelty=False, update_preds=True,
+            chunk_size=1000, suffix=None, **params):
         """Fit signature 3 given a list of signature 2.
 
         Args:
@@ -1841,10 +1836,8 @@ class sign3(BaseSignature, DataSignature):
             validations(bool): Whether to perform validation.
             chunk_size(int): Chunk size when writing to sign3.h5
         """
+        BaseSignature.fit(self,  **params)
 
-        if not overwrite and BaseSignature.fit(self):
-            # NS provides a lock to avoid fitting again if it has been already done
-            return
         try:
             from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError:
@@ -1856,24 +1849,24 @@ class sign3(BaseSignature, DataSignature):
             raise err
         # define datasets that will be used
         if sign2_list is None:
-            sign2_list=list()
-            cc=self.get_cc()
+            sign2_list = list()
+            cc = self.get_cc()
             for ds in cc.datasets_exemplary():
                 sign2_list.append(cc.get_signature('sign2', 'full', ds))
-        self.sign2_list=sign2_list
-        self.src_datasets=[sign.dataset for sign in sign2_list]
+        self.sign2_list = sign2_list
+        self.src_datasets = [sign.dataset for sign in sign2_list]
         if sign2_self is None:
-            sign2_self=self.get_sign('sign2')
-        self.sign2_self=sign2_self
+            sign2_self = self.get_sign('sign2')
+        self.sign2_self = sign2_self
         if sign1_self is None:
-            sign1_self=self.get_sign('sign1')
-        self.neig_sign=sign1_self
+            sign1_self = self.get_sign('sign1')
+        self.neig_sign = sign1_self
 
-        self.sign2_coverage=sign2_coverage
-        self.dataset_idx=np.argwhere(
+        self.sign2_coverage = sign2_coverage
+        self.dataset_idx = np.argwhere(
             np.isin(self.src_datasets, self.dataset)).flatten()
         if self.sign2_coverage is None:
-            self.sign2_coverage=os.path.join(self.model_path,
+            self.sign2_coverage = os.path.join(self.model_path,
                                                'all_sign2_coverage.h5')
         if not os.path.isfile(self.sign2_coverage):
             sign3.save_sign2_coverage(sign2_list, self.sign2_coverage)
@@ -2073,21 +2066,19 @@ class sign3(BaseSignature, DataSignature):
         if predict_novelty:
             self.predict_novelty()
 
+        # last step: learn how to get from A1 sign0 to sign3 directly
+        # in order to enable SMILES to sign3 predictions
+        if sign0 is not None:
+            self.fit_sign0(sign0)
+
         # save reference sign3
         self.__log.info("Removing redundancy")
         self_ref = self.get_molset("reference")
         self_ref.clean()
         rnd = RNDuplicates()
         rnd.remove(self.data_path, save_dest=self_ref.data_path)
-
-        self.background_distances("cosine")
-        if validations:
-            self.validate()
-        # at the very end we learn how to get from A1 sign0 to sign3 directly
-        # in order to enable SMILES to sign3 predictions
-        if sign0 is not None:
-            self.fit_sign0(sign0)
-        self.mark_ready()
+        # finalize signature
+        BaseSignature.fit_end(self,  **params)
 
     def predict_novelty(self, retrain=False, update_sign3=True, cpu=4):
         """Model novelty score via LocalOutlierFactor (semi-supervised).
