@@ -19,6 +19,7 @@ import os
 import sys
 import h5py
 import json
+import shutil
 import pickle
 import tempfile
 import datetime
@@ -92,27 +93,28 @@ class BaseSignature(object):
             os.umask(original_umask)
 
     @abstractmethod
-    def fit(self, overwrite=False):
+    def fit(self, overwrite=False, **kwargs):
         """Fit a model."""
-        BaseSignature.__log.debug('fit')
+        self.update_status("Fit")
         if overwrite and self.is_fit():
             raise Exception("Signature has already been fitted. "
                             "Delete it manually, or call the `fit` method "
                             "passing overwrite=True")
         return True
 
-    def fit_end(self, validations=True, end_other_molset=True):
+    def fit_end(self, validations=True, end_other_molset=True,  **kwargs):
         """Conclude fit method.
 
         We compute background distances, run validations (including diagnostic)
         and finally marking the signature as ready.
         """
         # save background distances
+        self.update_status("Background distances")
         self.background_distances("cosine")
         self.background_distances("euclidean")
         # performing validations
         if validations:
-            self.__log.debug("Validate")
+            self.update_status("Validation")
             self.validate()
         # Marking as ready
         self.__log.debug("Mark as ready")
@@ -123,9 +125,11 @@ class BaseSignature(object):
             if self.molset == 'reference':
                 other_molset == 'full'
             other_self = self.get_molset(other_molset)
+            self.update_status("Background distances %s" % other_molset)
             other_self.background_distances("cosine")
             other_self.background_distances("euclidean")
             if validations:
+                self.update_status("Validation %s" % other_molset)
                 other_self.validate()
             other_self.mark_ready()
 
@@ -136,6 +140,24 @@ class BaseSignature(object):
         if not self.is_fit():
             raise Exception("Signature is not fitted, cannot predict.")
         return True
+
+    def clear(self):
+        self.__log.debug("Clearing signature")
+        if os.path.exists(self.data_path):
+            self.__log.debug("Removing %s" % self.data_path)
+            os.remove(self.data_path)
+        if os.path.exists(self.model_path):
+            self.__log.debug("Removing %s" % self.model_path)
+            shutil.rmtree(self.model_path)
+            original_umask = os.umask(0)
+            os.makedirs(self.model_path, 0o775)
+            os.umask(original_umask)
+        if os.path.exists(self.stats_path):
+            self.__log.debug("Removing %s" % self.stats_path)
+            shutil.rmtree(self.stats_path)
+            original_umask = os.umask(0)
+            os.makedirs(self.stats_path, 0o775)
+            os.umask(original_umask)
 
     def validate_versus_signature(self, sign, n_samples=1000, n_neighbors=5,
                                   apply_mappings=True, metric='cosine'):
@@ -297,6 +319,7 @@ class BaseSignature(object):
 
     def update_status(self, status):
         fname = os.path.join(self.signature_path, '.STATUS')
+        self.__log.info('STATUS: %s' % status)
         sdate = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open(fname, 'a') as fh:
             fh.write("{}\t{}\n".format(sdate, status))
