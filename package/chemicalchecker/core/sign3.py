@@ -1811,7 +1811,7 @@ class sign3(BaseSignature, DataSignature):
             sign2_universe=None, partial_universe=None,
             sign2_coverage=None, sign0=None,
             model_confidence=True, save_correlations=False,
-            predict_novelty=True, update_preds=True,
+            predict_novelty=False, update_preds=True,
             validations=True, chunk_size=1000, suffix=None):
         """Fit signature 3 given a list of signature 2.
 
