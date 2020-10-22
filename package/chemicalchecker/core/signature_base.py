@@ -3,28 +3,29 @@
 Each signature class inherit from this base class. They will have to implement
 the ``fit`` and ``predict`` methods.
 
-At initialization this class enforce the signature internal directory organization:
+At initialization this class enforce the signature internal directory
+organization:
 
   * **signature_path**: the signature root (e.g. ``/root/full/A/A1/A1.001/sign2/``)
   * **model_path** ``./models``: where models learned at fit time are stored
   * **stats_path** ``./stats``: where statistic are collected
   * **diags_path** ``./diags``: where diagnostics are saved
 
-Also implements the ``validate`` function, signature status, generic HPC functions,
-and provide functions to "move" in the CC (e.g. getting same signature for
-different space, different molset, CC instance, etc...).
+Also implements the ``validate`` function, signature status, generic HPC
+functions, and provide functions to "move" in the CC (e.g. getting same
+signature for different space, different molset, CC instance, etc...).
 """
 import os
-import six  # NS: Python 2 and 3 compatibility library
 import sys
 import h5py
 import json
 import pickle
 import tempfile
+import datetime
 import numpy as np
 from tqdm import tqdm
 from bisect import bisect_left
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 
 from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util.plot import Plot
@@ -33,7 +34,6 @@ from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 
 
 @logged
-@six.add_metaclass(ABCMeta)
 class BaseSignature(object):
     """BaseSignature class."""
 
@@ -260,7 +260,8 @@ class BaseSignature(object):
             '/../../../../../tests/validation_sets/'
         if not os.path.exists(validation_path):
             self.__log.warn(
-                "Standard validation path does not exist, taking validations from examples")
+                "Standard validation path does not exist, "
+                "taking validations from examples")
             validation_path = os.path.join(os.path.dirname(
                 os.path.realpath(__file__)), "examples/validation_sets/")
         validation_files = os.listdir(validation_path)
@@ -271,8 +272,9 @@ class BaseSignature(object):
         for validation_file in validation_files:
             vset = validation_file.split('_')[0]
             cctype = self.__class__.__name__
-            res = plot.vector_validation(self, cctype, prefix=vset,
-                                         mappings=inchikey_mappings, distance=metric)
+            res = plot.vector_validation(
+                self, cctype, prefix=vset, mappings=inchikey_mappings,
+                distance=metric)
             results[vset] = res
             stats.update({
                 "%s_ks_d" % vset: res[0][0],
@@ -293,9 +295,15 @@ class BaseSignature(object):
             diag.canvas()
         return results
 
+    def update_status(self, status):
+        fname = os.path.join(self.signature_path, '.STATUS')
+        sdate = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(fname, 'a') as fh:
+            fh.write("{}\t{}\n".format(sdate, status))
+
     def mark_ready(self):
-        filename = os.path.join(self.model_path, self.readyfile)
-        with open(filename, 'w') as fh:
+        fname = os.path.join(self.model_path, self.readyfile)
+        with open(fname, 'w') as fh:
             pass
 
     def is_fit(self):
