@@ -1,31 +1,24 @@
-import keras
-import numpy as np
-from keras import backend as K
-from keras.models import Model, Sequential
-from keras.layers import Dropout, Lambda, Dense, Activation
-from scipy.spatial.distance import cosine
-
-from matplotlib import pyplot as plt
-import seaborn as sns
-import pandas
-
-from MulticoreTSNE import MulticoreTSNE
-
 import os
+import faiss
 import pickle
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+from keras import backend as K
+from keras.models import Sequential
+from MulticoreTSNE import MulticoreTSNE
+from scipy.spatial.distance import cosine
+from keras.layers import Dropout, Lambda, Dense, Activation
+
+import seaborn as sns
+from matplotlib import pyplot as plt
 
 from chemicalchecker.util import logged
-from chemicalchecker.core.signature_data import DataSignature
-from chemicalchecker import ChemicalChecker
-
-import faiss
-
-from tqdm import tqdm
-import pandas as pd
 
 
 @logged
 class Smilespred(object):
+
     def __init__(self, model_dir, sign0=[], sign3=[], evaluate=False):
         self.sign0 = sign0
         self.sign3 = sign3[:]
@@ -81,8 +74,8 @@ class Smilespred(object):
 
     def fit(self, save=True):
         self.build_model()
-        self.history = self.model.fit(x=self.sign0, y=self.sign3, epochs=30, 
-            batch_size=128, validation_split=self.e_split, verbose=2)
+        self.history = self.model.fit(x=self.sign0, y=self.sign3, epochs=30,
+                                      batch_size=128, validation_split=self.e_split, verbose=2)
         if save:
             self.model.save(self.model_file)
         history_file = os.path.join(
@@ -92,7 +85,7 @@ class Smilespred(object):
         self._plot_history(history_file)
 
     def predict(self, lst):
-        #Load model
+        # Load model
         if self.model is None:
             self.build_model(load=True)
         signs = self.model.predict(lst)
@@ -124,22 +117,33 @@ class Smilespred(object):
         signp = self.model.predict(self.sign0)
 
         self.__log.info('VALIDATION: Plot distances.')
-        l = 100000
-        p = int(l/2)
-        tr_idxs = np.random.choice(np.arange(int(len(self.sign0) * self.t_split)), l, replace=False)
-        ts_idxs = np.random.choice(np.arange(int(len(self.sign0) * self.t_split), len(self.sign0)), l, replace=False)
+        subsample = min(int(len(self.sign0) * self.e_split), 100000)
+        p = int(subsample / 2)
+        tr_idxs = np.arange(int(len(self.sign0) * self.t_split))
+        tr_idxs = np.random.choice(tr_idxs, subsample, replace=False)
+        ts_idxs = np.arange(int(len(self.sign0) * self.t_split),
+                            len(self.sign0))
+        ts_idxs = np.random.choice(ts_idxs, subsample, replace=False)
 
-        tr_e_o = np.linalg.norm(self.sign3[tr_idxs[:p]]-self.sign3[tr_idxs[p:]], axis=1)
-        tr_e_p = np.linalg.norm(signp[tr_idxs[:p]]-signp[tr_idxs[p:]], axis=1)
-        tr_s_o = [sim(a, b) for a, b in zip(self.sign3[tr_idxs[:p]],self.sign3[tr_idxs[p:]])]
-        tr_s_p = [sim(a, b) for a, b in zip(signp[tr_idxs[:p]],signp[tr_idxs[p:]])]
-        tr_dif = np.linalg.norm(self.sign3[tr_idxs]-signp[tr_idxs], axis=1)
+        tr_e_o = np.linalg.norm(
+            self.sign3[tr_idxs[:p]] - self.sign3[tr_idxs[p:]], axis=1)
+        tr_e_p = np.linalg.norm(
+            signp[tr_idxs[:p]] - signp[tr_idxs[p:]], axis=1)
+        tr_s_o = [sim(a, b) for a, b in zip(
+            self.sign3[tr_idxs[:p]], self.sign3[tr_idxs[p:]])]
+        tr_s_p = [sim(a, b)
+                  for a, b in zip(signp[tr_idxs[:p]], signp[tr_idxs[p:]])]
+        tr_dif = np.linalg.norm(self.sign3[tr_idxs] - signp[tr_idxs], axis=1)
 
-        ts_e_o = np.linalg.norm(self.sign3[ts_idxs[:p]]-self.sign3[ts_idxs[p:]], axis=1)
-        ts_e_p = np.linalg.norm(signp[ts_idxs[:p]]-signp[ts_idxs[p:]], axis=1)
-        ts_s_o = [sim(a, b) for a, b in zip(self.sign3[ts_idxs[:p]],self.sign3[ts_idxs[p:]])]
-        ts_s_p = [sim(a, b) for a, b in zip(signp[ts_idxs[:p]],signp[ts_idxs[p:]])]
-        ts_dif = np.linalg.norm(self.sign3[ts_idxs]-signp[ts_idxs], axis=1)
+        ts_e_o = np.linalg.norm(
+            self.sign3[ts_idxs[:p]] - self.sign3[ts_idxs[p:]], axis=1)
+        ts_e_p = np.linalg.norm(
+            signp[ts_idxs[:p]] - signp[ts_idxs[p:]], axis=1)
+        ts_s_o = [sim(a, b) for a, b in zip(
+            self.sign3[ts_idxs[:p]], self.sign3[ts_idxs[p:]])]
+        ts_s_p = [sim(a, b)
+                  for a, b in zip(signp[ts_idxs[:p]], signp[ts_idxs[p:]])]
+        ts_dif = np.linalg.norm(self.sign3[ts_idxs] - signp[ts_idxs], axis=1)
 
         fig, axes = plt.subplots(2, 3, figsize=(15, 10), sharex='col')
         axes[0][0].set_title('Train Euclidean distances', fontsize=19)
@@ -154,7 +158,6 @@ class Smilespred(object):
 
         axes[0][2].set_title('Train Distance original-predicted', fontsize=19)
         sns.distplot(tr_dif, ax=axes[0][2])
-
 
         axes[1][0].set_title('Test Euclidean distances', fontsize=19)
         sns.distplot(ts_e_o, label='original', ax=axes[1][0])
@@ -176,18 +179,18 @@ class Smilespred(object):
 
         self.__log.info('VALIDATION: Plot projections.')
         proj_model = MulticoreTSNE(n_components=2, n_jobs=8)
-        l = 500
+        subs_p = 500
         proj_train = np.vstack([
-            self.sign3[tr_idxs][:l], 
-            signp[tr_idxs][:l], 
-            self.sign3[ts_idxs][:l], 
-            signp[tr_idxs][:l]
-            ])
+            self.sign3[tr_idxs][:subs_p],
+            signp[tr_idxs][:subs_p],
+            self.sign3[ts_idxs][:subs_p],
+            signp[tr_idxs][:subs_p]
+        ])
         proj = proj_model.fit_transform(proj_train)
-        tr_o = proj[:l]
-        tr_p = proj[l:l+l]
-        ts_o = proj[l+l:l+l+l]
-        ts_p = proj[l+l+l:]
+        tr_o = proj[:subs_p]
+        tr_p = proj[subs_p:subs_p + subs_p]
+        ts_o = proj[subs_p + subs_p:subs_p + subs_p + subs_p]
+        ts_p = proj[subs_p + subs_p + subs_p:]
 
         fig, axes = plt.subplots(2, 2, figsize=(12, 12))
         axes[0][0].set_title('Tr Original', fontsize=15)
@@ -221,14 +224,14 @@ class Smilespred(object):
         self.__log.info('VALIDATION: Plot NN overlap.')
         cpu = os.cpu_count()
         faiss.omp_set_num_threads(cpu)
-        l=100000
+        subs_nn = 100000
         o_nn = faiss.IndexFlatL2(self.sign3.shape[1])
-        o_nn.add(self.sign3[:l])
-        o_n_dist, o_n_idxs = o_nn.search(self.sign3[:l], 100)
+        o_nn.add(self.sign3[:subs_nn])
+        o_n_dist, o_n_idxs = o_nn.search(self.sign3[:subs_nn], 100)
 
         p_nn = faiss.IndexFlatL2(signp.shape[1])
-        p_nn.add(signp[:l])
-        p_n_dist, p_n_idxs = p_nn.search(signp[:l], 100)
+        p_nn.add(signp[:subs_nn])
+        p_n_dist, p_n_idxs = p_nn.search(signp[:subs_nn], 100)
 
         shared_nn = []
         for i in tqdm(range(len(o_n_idxs))):
@@ -243,19 +246,19 @@ class Smilespred(object):
 
         fig, axes = plt.subplots(2, 2, figsize=(10, 10))
         axes[0][0].set_title('5 NN')
-        sns.distplot(shared_nn[:,0], ax=axes[0][0])
+        sns.distplot(shared_nn[:, 0], ax=axes[0][0])
         axes[0][0].set_xlabel('Num overlap NN')
 
         axes[0][1].set_title('20 NN')
-        sns.distplot(shared_nn[:,1], ax=axes[0][1], color='#ff7f0e')
+        sns.distplot(shared_nn[:, 1], ax=axes[0][1], color='#ff7f0e')
         axes[0][1].set_xlabel('Num overlap NN')
 
         axes[1][0].set_title('50 NN')
-        sns.distplot(shared_nn[:,2], ax=axes[1][0], color='#2ca02c')
+        sns.distplot(shared_nn[:, 2], ax=axes[1][0], color='#2ca02c')
         axes[1][0].set_xlabel('Num overlap NN')
 
         axes[1][1].set_title('100 NN')
-        sns.distplot(shared_nn[:,3], ax=axes[1][1], color='#d62728')
+        sns.distplot(shared_nn[:, 3], ax=axes[1][1], color='#d62728')
         axes[1][1].set_xlabel('Num overlap NN')
         fname = 'NN_overlap.png'
         plot_file = os.path.join(self.model_dir, fname)
@@ -278,7 +281,7 @@ class Smilespred(object):
         p_df = pd.DataFrame(p_df, columns=['NN', 'dist'])
 
         fig, axes = plt.subplots(1, 1, figsize=(10, 5))
-        axes.set_xlim(0,100)
+        axes.set_xlim(0, 100)
         plt.title('Distances per NN', fontsize=19)
         sns.lineplot(x='NN', y='dist', data=o_df, label='original')
         sns.lineplot(x='NN', y='dist', data=p_df, label='predicted')
@@ -289,10 +292,3 @@ class Smilespred(object):
         plot_file = os.path.join(self.model_dir, fname)
         plt.savefig(plot_file)
         plt.close()
-
-
-
-
-
-
-

@@ -5,19 +5,16 @@ import tempfile
 from chemicalchecker.database import Dataset
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import logged, Config, HPC
+from chemicalchecker.util import logged, HPC
 
 
 @logged
 class SimilarsSign3(BaseTask):
 
     def __init__(self, name=None, **params):
-
         task_id = params.get('task_id', None)
-
         if task_id is None:
             params['task_id'] = name
-
         BaseTask.__init__(self, name, **params)
 
         self.CC_ROOT = params.get('CC_ROOT', None)
@@ -26,38 +23,30 @@ class SimilarsSign3(BaseTask):
 
     def run(self):
         """Run the molprops step."""
-
         all_datasets = Dataset.get()
-        config_cc = Config()
-
         filename = "similars.h5"
-
         cc = ChemicalChecker(self.CC_ROOT)
         dataset_codes = list()
         for ds in all_datasets:
             if not ds.exemplary:
                 continue
             sign3 = cc.get_signature("sign3", "full", ds.dataset_code)
-
             similars_file = os.path.join(sign3.signature_path, filename)
-
             if os.path.exists(similars_file):
                 continue
-
             dataset_codes.append(ds.dataset_code)
 
         job_path = None
-
         if len(dataset_codes) > 0:
-
             job_path = tempfile.mkdtemp(
                 prefix='jobs_simsign3_', dir=self.tmpdir)
 
             if not os.path.isdir(job_path):
                 os.mkdir(job_path)
             # create script file
-            cc_config_path = os.environ['CC_CONFIG']
-            cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
+            cc_config_path = self.config.config_path
+            cc_package = os.path.join(self.config.PATH.CC_REPO, 'package')
+            singularity_image = self.config.PATH.SINGULARITY_IMAGE
             script_lines = [
                 "import sys, os",
                 "import pickle",
@@ -98,24 +87,21 @@ class SimilarsSign3(BaseTask):
             params["memory"] = 20
             params["cpu"] = 10
             # job command
-            singularity_image = Config().PATH.SINGULARITY_IMAGE
+            cc_config_path = self.config.config_path
+            cc_package = os.path.join(self.config.PATH.CC_REPO, 'package')
+            singularity_image = self.config.PATH.SINGULARITY_IMAGE
             command = "singularity exec {} python {} <TASK_ID> <FILE>".format(
                 singularity_image, script_name)
             # submit jobs
-            cluster = HPC.from_config(config_cc)
+            cluster = HPC.from_config(self.config)
             jobs = cluster.submitMultiJob(command, **params)
 
         dataset_not_done = []
-
         for code in dataset_codes:
-
             sign3 = cc.get_signature("sign3", "full", code)
-
             similars_file = os.path.join(sign3.signature_path, filename)
-
             if os.path.exists(similars_file):
                 continue
-
             dataset_not_done.append(code)
             self.__log.warning(
                 "SimilarsSign3 fit failed for dataset code: " + code)
@@ -123,7 +109,7 @@ class SimilarsSign3(BaseTask):
         if len(dataset_not_done) == 0:
             self.mark_ready()
             if job_path is not None:
-                shutil.rmtree(job_path)
+                shutil.rmtree(job_path, ignore_errors=True)
         else:
             if not self.custom_ready():
                 raise Exception(
@@ -132,5 +118,4 @@ class SimilarsSign3(BaseTask):
     def execute(self, context):
         """Run the molprops step."""
         self.tmpdir = context['params']['tmpdir']
-
         self.run()
