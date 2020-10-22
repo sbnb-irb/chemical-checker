@@ -2071,12 +2071,8 @@ class sign3(BaseSignature, DataSignature):
         if sign0 is not None:
             self.fit_sign0(sign0)
 
-        # save reference sign3
-        self.__log.info("Removing redundancy")
-        self_ref = self.get_molset("reference")
-        self_ref.clean()
-        rnd = RNDuplicates()
-        rnd.remove(self.data_path, save_dest=self_ref.data_path)
+        # save reference
+        self.save_reference()
         # finalize signature
         BaseSignature.fit_end(self,  **params)
 

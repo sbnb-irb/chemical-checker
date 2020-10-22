@@ -273,7 +273,7 @@ class sign0(BaseSignature, DataSignature):
 
     def fit(self, cc_root=None, pairs=None, X=None, keys=None, features=None,
             data_file=None, key_type="inchikey", agg_method="average",
-            do_triplets=True, max_features=10000, chunk_size=10000,  
+            do_triplets=True, max_features=10000, chunk_size=10000,
             sanitize=True, **params):
         """Process the input data.
 
@@ -346,15 +346,8 @@ class sign0(BaseSignature, DataSignature):
                 [str(input_type)], DataSignature.string_dtype()))
 
         self.refresh()
-        self.__log.info("Removing redundancy")
-        sign0_ref = self.get_molset("reference")
-        sign0_ref.clean()
-        rnd = RNDuplicates(cpu=10)
-        rnd.remove(self.data_path, save_dest=sign0_ref.data_path)
-        with h5py.File(self.data_path, "r") as hf:
-            features = hf["features"][:]
-        with h5py.File(sign0_ref.data_path, 'a') as hf:
-            hf.create_dataset('features', data=features)
+        # save reference
+        self.save_reference()
         # Making triplets
         if do_triplets:
             sampler = TripletSampler(cc, self, save=True)
