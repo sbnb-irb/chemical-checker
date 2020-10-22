@@ -37,7 +37,7 @@ def pipeline_parser():
     parser.add_argument(
         'cc_root', type=str,
         help='Directory of the CC instance the web will refere to '
-        '(e.g. `/aloy/web_checker/package_cc/2020_01`)')
+        '(e.g. `/aloy/web_checker/package_cc/miniCC`)')
     parser.add_argument(
         'pipeline_dir', type=str,
         help='Directory where the pipeline will run '
@@ -71,13 +71,13 @@ def pipeline_parser():
 
 @logged(logging.getLogger("[ PIPELINE %s ]" % os.path.basename(__file__)))
 def main(args):
-    # print arguments
-    for arg in vars(args):
-        main._log.info('[ ARGS ] {:<25s}: {}'.format(arg, getattr(args, arg)))
-
     # initialize Pipeline
     pp = Pipeline(pipeline_path=args.pipeline_dir, keep_jobs=True,
                   config=Config(args.config))
+
+    # print arguments
+    for arg in vars(args):
+        main._log.info('[ ARGS ] {:<25s}: {}'.format(arg, getattr(args, arg)))
 
     libraries = {
         "apd": [
