@@ -19,6 +19,7 @@ from sklearn.neighbors import NearestNeighbors
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.plot import DiagnosisPlot
+from chemicalchecker.util.decorator import safe_return
 
 
 @logged
@@ -175,6 +176,7 @@ class Diagnosis(object):
         }
         return results
 
+    @safe_return(None)
     def euclidean_distances(self, n_pairs=10000):
         """Euclidean distance distribution.
 
@@ -195,6 +197,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.euclidean_distances)
 
+    @safe_return(None)
     def cosine_distances(self, n_pairs=10000):
         """Cosine distance distribution.
 
@@ -215,6 +218,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.cosine_distances)
 
+    @safe_return(None)
     def cross_coverage(self, sign, apply_mappings=False, try_conn_layer=False,
                        save=None, force_redo=False, **kwargs):
         """Intersection of coverages.
@@ -254,6 +258,7 @@ class Diagnosis(object):
             plotter_function=self.plotter.cross_coverage,
             kw_plotter={"sign": sign})
 
+    @safe_return(None)
     def cross_roc(self, sign, n_samples=10000, n_neighbors=5, neg_pos_ratio=1,
                   apply_mappings=False, try_conn_layer=False, metric='cosine',
                   save=None, force_redo=False, **kwargs):
@@ -355,6 +360,7 @@ class Diagnosis(object):
             plotter_function=self.plotter.cross_roc,
             kw_plotter={"sign": sign})
 
+    @safe_return(None)
     def projection(self, keys=None, focus_keys=None, max_keys=10000,
                    perplexity=None, max_pca=100):
         """TSNE projection of CC signatures.
@@ -432,6 +438,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.projection)
 
+    @safe_return(None)
     def image(self, keys=None, max_keys=100, shuffle=False):
         self.__log.debug("Image")
         fn = "image"
@@ -494,6 +501,7 @@ class Diagnosis(object):
         }
         return results
 
+    @safe_return(None)
     def features_iqr(self, keys=None, max_keys=10000):
         self.__log.debug("Features IQR")
         fn = "features_iqr"
@@ -508,6 +516,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.features_iqr)
 
+    @safe_return(None)
     def keys_iqr(self, keys=None, max_keys=1000):
         self.__log.debug("Keys IQR")
         fn = "keys_iqr"
@@ -553,6 +562,7 @@ class Diagnosis(object):
         }
         return results
 
+    @safe_return(None)
     def features_bins(self, keys=None, max_keys=10000, n_bins=100):
         self.__log.debug("Features bins")
         fn = "features_bins"
@@ -568,6 +578,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.features_bins)
 
+    @safe_return(None)
     def keys_bins(self, keys=None, max_keys=1000, n_bins=100):
         self.__log.debug("Keys bins")
         fn = "keys_bins"
@@ -583,6 +594,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.keys_bins)
 
+    @safe_return(None)
     def values(self, max_values=10000):
         self.__log.debug("Values")
         fn = "values"
@@ -609,47 +621,44 @@ class Diagnosis(object):
 
     def _projection_binned(self, P, scores, n_bins):
         # check nans
-        try:
-            mask = ~np.isnan(scores)
-            P = P[mask, ]
-            scores = scores[mask]
-            self.__log.debug("Binning projection")
-            bins_x = np.linspace(np.min(P[:, 0]), np.max(P[:, 0]) + 1e-6, n_bins)
-            bins_y = np.linspace(np.min(P[:, 1]), np.max(P[:, 1]) + 1e-6, n_bins)
-            H = np.zeros((len(bins_y), len(bins_x)))
-            S = np.zeros(H.shape)
-            for j in range(0, len(bins_x) - 1):
-                min_x = bins_x[j]
-                max_x = bins_x[j + 1]
-                maskx = np.logical_and(P[:, 0] >= min_x, P[:, 0] < max_x)
-                P_ = P[maskx]
-                scores_ = scores[maskx]
-                for i in range(0, len(bins_y) - 1):
-                    min_y = bins_y[i]
-                    max_y = bins_y[i + 1]
-                    masky = np.logical_and(P_[:, 1] >= min_y, P_[:, 1] < max_y)
-                    ss = scores_[masky]
-                    if len(ss) > 0:
-                        H[i, j] = len(ss)
-                        S[i, j] = np.mean(ss)
-            bins_x = np.array([(bins_x[i] + bins_x[i + 1]) /
-                               2 for i in range(0, len(bins_x) - 1)])
-            bins_y = np.array([(bins_y[i] + bins_y[i + 1]) /
-                               2 for i in range(0, len(bins_y) - 1)])
-            results = {
-                "H": H,
-                "S": S,
-                "bins_x": bins_x,
-                "bins_y": bins_y,
-                "scores": np.array([np.max(scores), np.min(scores)]),
-                "lims": np.array([[np.min(P[:, 0]), np.min(P[:, 1])],
-                                  [np.max(P[:, 0]), np.max(P[:, 1])]])
-            }
-            return results
-        except Exception as ex:
-            self.__log.warning.('Error in binning projection: %s' % str(ex))
-            return None
+        mask = ~np.isnan(scores)
+        P = P[mask, ]
+        scores = scores[mask]
+        self.__log.debug("Binning projection")
+        bins_x = np.linspace(np.min(P[:, 0]), np.max(P[:, 0]) + 1e-6, n_bins)
+        bins_y = np.linspace(np.min(P[:, 1]), np.max(P[:, 1]) + 1e-6, n_bins)
+        H = np.zeros((len(bins_y), len(bins_x)))
+        S = np.zeros(H.shape)
+        for j in range(0, len(bins_x) - 1):
+            min_x = bins_x[j]
+            max_x = bins_x[j + 1]
+            maskx = np.logical_and(P[:, 0] >= min_x, P[:, 0] < max_x)
+            P_ = P[maskx]
+            scores_ = scores[maskx]
+            for i in range(0, len(bins_y) - 1):
+                min_y = bins_y[i]
+                max_y = bins_y[i + 1]
+                masky = np.logical_and(P_[:, 1] >= min_y, P_[:, 1] < max_y)
+                ss = scores_[masky]
+                if len(ss) > 0:
+                    H[i, j] = len(ss)
+                    S[i, j] = np.mean(ss)
+        bins_x = np.array([(bins_x[i] + bins_x[i + 1]) /
+                           2 for i in range(0, len(bins_x) - 1)])
+        bins_y = np.array([(bins_y[i] + bins_y[i + 1]) /
+                           2 for i in range(0, len(bins_y) - 1)])
+        results = {
+            "H": H,
+            "S": S,
+            "bins_x": bins_x,
+            "bins_y": bins_y,
+            "scores": np.array([np.max(scores), np.min(scores)]),
+            "lims": np.array([[np.min(P[:, 0]), np.min(P[:, 1])],
+                              [np.max(P[:, 0]), np.max(P[:, 1])]])
+        }
+        return results
 
+    @safe_return(None)
     def confidences(self):
         self.__log.debug("Confidences")
         fn = "confidences"
@@ -679,6 +688,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.confidences)
 
+    @safe_return(None)
     def confidences_projection(self, n_bins=20):
         self.__log.debug("Confidences projection")
         if self._todo("confidences", inner=True):
@@ -702,6 +712,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.confidences_projection)
 
+    @safe_return(None)
     def intensities(self):
         self.__log.debug("Intensities")
         fn = "intensities"
@@ -734,6 +745,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.intensities)
 
+    @safe_return(None)
     def intensities_projection(self, n_bins=20):
         self.__log.debug("Intensities projection")
         if self._todo("intensities", inner=True):
@@ -769,6 +781,7 @@ class Diagnosis(object):
             results = {"explained_variance": pca.explained_variance_ratio_}
         return results
 
+    @safe_return(None)
     def dimensions(self, datasets=None, exemplary=True, cctype=None,
                    molset=None, **kwargs):
         """Get dimensions of the signature and compare to other signatures."""
@@ -810,6 +823,7 @@ class Diagnosis(object):
             plotter_function=self.plotter.dimensions,
             kw_plotter=kw_plotter)
 
+    @safe_return(None)
     def across_coverage(self, datasets=None, exemplary=True, cctype=None, molset=None, **kwargs):
         """Check coverage against a collection of other CC signatures.
 
@@ -887,6 +901,7 @@ class Diagnosis(object):
             scores += [rbo(neighs0[i, :], neighs1[i, :], p=p).ext]
         return np.array(scores)
 
+    @safe_return(None)
     def ranks_agreement(self, datasets=None, exemplary=True, cctype="sign1",
                         molset="full", n_neighbors=100, min_shared=100,
                         metric="minkowski", p=0.9, **kwargs):
@@ -956,6 +971,7 @@ class Diagnosis(object):
                 "cctype": cctype,
                 "molset": molset})
 
+    @safe_return(None)
     def ranks_agreement_projection(self, n_bins=20):
         self.__log.debug("Ranks agreement projection")
         if self._todo("ranks_agreement", inner=True):
@@ -979,6 +995,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.ranks_agreement_projection)
 
+    @safe_return(None)
     def global_ranks_agreement(self, n_neighbors=100, min_shared=100,
                                metric="minkowski", p=0.9, cctype='sign1',
                                **kwargs):
@@ -1047,6 +1064,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.global_ranks_agreement)
 
+    @safe_return(None)
     def global_ranks_agreement_projection(self, n_bins=20):
         self.__log.debug("Global ranks agreement projection")
         if self._todo("global_ranks_agreement", inner=True):
@@ -1071,6 +1089,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.global_ranks_agreement_projection)
 
+    @safe_return(None)
     def across_roc(self, datasets=None, exemplary=True, cctype="sign1",
                    molset="full", **kwargs):
         """Check coverage against a collection of other CC signatures.
@@ -1111,6 +1130,7 @@ class Diagnosis(object):
                 "cctype": cctype,
                 "molset": molset})
 
+    @safe_return(None)
     def atc_roc(self, **kwargs):
         self.__log.debug("ATC ROC")
         fn = "atc_roc"
@@ -1130,6 +1150,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.atc_roc)
 
+    @safe_return(None)
     def moa_roc(self, **kwargs):
         self.__log.debug("MoA ROC")
         fn = "moa_roc"
@@ -1149,6 +1170,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.moa_roc)
 
+    @safe_return(None)
     def redundancy(self, cpu=4):
         from chemicalchecker.util.remove_near_duplicates import RNDuplicates
         self.__log.debug("Redundancy")
@@ -1243,6 +1265,7 @@ class Diagnosis(object):
         }
         return results
 
+    @safe_return(None)
     def cluster_sizes(self, expected_coverage=0.95, n_neighbors=None,
                       min_samples=10, top_clusters=20):
         if self._todo("projection", inner=True):
@@ -1261,6 +1284,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.cluster_sizes)
 
+    @safe_return(None)
     def clusters_projection(self):
         self.__log.debug("Projection clusters")
         if self._todo("projection", inner=True):
@@ -1277,6 +1301,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.clusters_projection)
 
+    @safe_return(None)
     def key_coverage(self, datasets=None, exemplary=True, cctype=None,
                      molset=None, **kwargs):
         self.__log.debug("Key coverages")
@@ -1315,6 +1340,7 @@ class Diagnosis(object):
                 "exemplary": exemplary
             })
 
+    @safe_return(None)
     def key_coverage_projection(self, n_bins=20):
         if self._todo("key_coverage", inner=True):
             raise Exception("key_coverage needs to be run first")
@@ -1335,6 +1361,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.key_coverage_projection)
 
+    @safe_return(None)
     def orthogonality(self, max_features=1000):
         fn = "orthogonality"
         if self._todo(fn):
@@ -1361,6 +1388,7 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.orthogonality)
 
+    @safe_return(None)
     def outliers(self, n_estimators=1000):
         fn = "outliers"
         if self._todo(fn):
