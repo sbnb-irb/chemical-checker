@@ -524,7 +524,7 @@ class DataSignature(object):
             # 5% confidence, 95% precision
             d, Z = 0.05, 1.96
             coef = Z**2 * p * q
-            k = (coef * self.keys) / (d**2 * (self.keys - 1) + coef)
+            k = (coef * len(self.keys)) / (d**2 * (len(self.keys) - 1) + coef)
             sample_pairs = int(np.ceil(k**2))
         self.__log.info("Background distances sample_pairs: %s" % sample_pairs)
         if matrix.shape[0]**2 < sample_pairs:
