@@ -609,42 +609,46 @@ class Diagnosis(object):
 
     def _projection_binned(self, P, scores, n_bins):
         # check nans
-        mask = ~np.isnan(scores)
-        P = P[mask, ]
-        scores = scores[mask]
-        self.__log.debug("Binning projection")
-        bins_x = np.linspace(np.min(P[:, 0]), np.max(P[:, 0]) + 1e-6, n_bins)
-        bins_y = np.linspace(np.min(P[:, 1]), np.max(P[:, 1]) + 1e-6, n_bins)
-        H = np.zeros((len(bins_y), len(bins_x)))
-        S = np.zeros(H.shape)
-        for j in range(0, len(bins_x) - 1):
-            min_x = bins_x[j]
-            max_x = bins_x[j + 1]
-            maskx = np.logical_and(P[:, 0] >= min_x, P[:, 0] < max_x)
-            P_ = P[maskx]
-            scores_ = scores[maskx]
-            for i in range(0, len(bins_y) - 1):
-                min_y = bins_y[i]
-                max_y = bins_y[i + 1]
-                masky = np.logical_and(P_[:, 1] >= min_y, P_[:, 1] < max_y)
-                ss = scores_[masky]
-                if len(ss) > 0:
-                    H[i, j] = len(ss)
-                    S[i, j] = np.mean(ss)
-        bins_x = np.array([(bins_x[i] + bins_x[i + 1]) /
-                           2 for i in range(0, len(bins_x) - 1)])
-        bins_y = np.array([(bins_y[i] + bins_y[i + 1]) /
-                           2 for i in range(0, len(bins_y) - 1)])
-        results = {
-            "H": H,
-            "S": S,
-            "bins_x": bins_x,
-            "bins_y": bins_y,
-            "scores": np.array([np.max(scores), np.min(scores)]),
-            "lims": np.array([[np.min(P[:, 0]), np.min(P[:, 1])],
-                              [np.max(P[:, 0]), np.max(P[:, 1])]])
-        }
-        return results
+        try:
+            mask = ~np.isnan(scores)
+            P = P[mask, ]
+            scores = scores[mask]
+            self.__log.debug("Binning projection")
+            bins_x = np.linspace(np.min(P[:, 0]), np.max(P[:, 0]) + 1e-6, n_bins)
+            bins_y = np.linspace(np.min(P[:, 1]), np.max(P[:, 1]) + 1e-6, n_bins)
+            H = np.zeros((len(bins_y), len(bins_x)))
+            S = np.zeros(H.shape)
+            for j in range(0, len(bins_x) - 1):
+                min_x = bins_x[j]
+                max_x = bins_x[j + 1]
+                maskx = np.logical_and(P[:, 0] >= min_x, P[:, 0] < max_x)
+                P_ = P[maskx]
+                scores_ = scores[maskx]
+                for i in range(0, len(bins_y) - 1):
+                    min_y = bins_y[i]
+                    max_y = bins_y[i + 1]
+                    masky = np.logical_and(P_[:, 1] >= min_y, P_[:, 1] < max_y)
+                    ss = scores_[masky]
+                    if len(ss) > 0:
+                        H[i, j] = len(ss)
+                        S[i, j] = np.mean(ss)
+            bins_x = np.array([(bins_x[i] + bins_x[i + 1]) /
+                               2 for i in range(0, len(bins_x) - 1)])
+            bins_y = np.array([(bins_y[i] + bins_y[i + 1]) /
+                               2 for i in range(0, len(bins_y) - 1)])
+            results = {
+                "H": H,
+                "S": S,
+                "bins_x": bins_x,
+                "bins_y": bins_y,
+                "scores": np.array([np.max(scores), np.min(scores)]),
+                "lims": np.array([[np.min(P[:, 0]), np.min(P[:, 1])],
+                                  [np.max(P[:, 0]), np.max(P[:, 1])]])
+            }
+            return results
+        except Exception as ex:
+            self.__log.warning.('Error in binning projection: %s' % str(ex))
+            return None
 
     def confidences(self):
         self.__log.debug("Confidences")
