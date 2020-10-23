@@ -588,7 +588,8 @@ class Diagnosis(object):
         fn = "values"
         if self._todo(fn):
             V = self.V.ravel()
-            idxs = np.random.choice(len(V), max_values, replace=False)
+            idxs = np.random.choice(len(V), min(max_values, len(V)),
+                                    replace=False)
             V = V[idxs]
             kernel = gaussian_kde(V)
             positions = np.linspace(np.min(V), np.max(V), 1000)
