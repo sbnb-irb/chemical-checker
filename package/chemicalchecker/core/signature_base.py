@@ -128,9 +128,6 @@ class BaseSignature(object):
             if self.molset == 'reference':
                 other_molset == 'full'
             other_self = self.get_molset(other_molset)
-            self.update_status("Background distances %s" % other_molset)
-            other_self.background_distances("cosine")
-            other_self.background_distances("euclidean")
             if validations:
                 self.update_status("Validation %s" % other_molset)
                 other_self.validate()
@@ -551,3 +548,16 @@ class BaseSignature(object):
             with h5py.File(sign_ref.data_path, 'a') as hf:
                 hf.create_dataset('features', data=features)
         return sign_ref
+
+    def background_distances(self, metric):
+        """Return the background distances according to the selected metric.
+
+        Args:
+            metric(str): the metric name (cosine or euclidean).
+        """
+        sign_ref = self
+        if self.molset != 'reference':
+            sign_ref = self.get_molset("reference")
+        bg_file = os.path.join(sign_ref.model_path,
+                               "bg_%s_distances.h5" % metric)
+        return sign_ref.compute_distance_pvalues(self, bg_file, metric)
