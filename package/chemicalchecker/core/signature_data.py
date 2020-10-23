@@ -521,7 +521,7 @@ class DataSignature(object):
         if sample_pairs is None:
             N = len()
             # p and q are fixed parameters
-            p, q = 0.5, 05
+            p, q = 0.5, 0.5
             # 5% confidence, 95% precision
             d, Z = 0.05, 1.96
             coef = Z**2 * p * q
