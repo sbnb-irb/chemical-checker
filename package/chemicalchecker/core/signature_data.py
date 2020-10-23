@@ -519,7 +519,6 @@ class DataSignature(object):
             matrix = self[:]
         # how many molecules gives a proper sampling?
         if sample_pairs is None:
-            N = len()
             # p and q are fixed parameters
             p, q = 0.5, 0.5
             # 5% confidence, 95% precision
