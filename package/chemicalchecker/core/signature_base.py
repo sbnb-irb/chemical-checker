@@ -560,4 +560,4 @@ class BaseSignature(object):
             sign_ref = self.get_molset("reference")
         bg_file = os.path.join(sign_ref.model_path,
                                "bg_%s_distances.h5" % metric)
-        return sign_ref.compute_distance_pvalues(self, bg_file, metric)
+        return sign_ref.compute_distance_pvalues(bg_file, metric)
