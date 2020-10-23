@@ -484,11 +484,12 @@ class DataSignature(object):
         else:
             raise Exception("Key type %s not recognized." % type(key))
 
-    def background_distances(self, metric, sample_pairs=100000, unflat=True,
-                             memory_safe=False):
-        """Give the background distances according to the selected metric.
+    def compute_distance_pvalues(self, bg_file, metric, sample_pairs=None,
+                                 unflat=True, memory_safe=False):
+        """Compute the distance pvalues according to the selected metric.
 
         Args:
+            bg_file(Str): The file where to store the distances.
             metric(str): the metric name (cosine or euclidean).
             sample_pairs(int): Amount of pairs for distance calculation.
             unflat(bool): Remove flat regions whenever we observe them.
@@ -498,7 +499,6 @@ class DataSignature(object):
             bg_distances(dict): Dictionary with distances and Pvalues
         """
         # lazily read already computed distance
-        bg_file = os.path.join(self.model_path, "bg_%s_distances.h5" % metric)
         if os.path.isfile(bg_file):
             self.__log.info("Reading bg_distances file for metric: " + metric)
             bg_distances = dict()
@@ -517,10 +517,20 @@ class DataSignature(object):
             matrix = self
         else:
             matrix = self[:]
+        # how many molecules gives a proper sampling?
+        if sample_pairs is None:
+            N = len()
+            # p and q are fixed parameters
+            p, q = 0.5, 05
+            # 5% confidence, 95% precision
+            d, Z = 0.05, 1.96
+            coef = Z**2 * p * q
+            k = (coef * self.keys) / (d**2 * (self.keys - 1) + coef)
+            sample_pairs = int(np.ceil(k**2))
+        self.__log.info("Background distances sample_pairs: %s" % sample_pairs)
         if matrix.shape[0]**2 < sample_pairs:
             self.__log.warn("Requested more pairs then possible combinations")
             sample_pairs = matrix.shape[0]**2 - matrix.shape[0]
-
         bg = list()
         done = set()
         tries = 1e6
