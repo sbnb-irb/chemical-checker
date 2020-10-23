@@ -13,6 +13,7 @@ from scipy.stats import gaussian_kde
 from .util import coord_color, set_style
 
 from chemicalchecker.util import logged
+from chemicalchecker.util.decorator import safe_return
 
 set_style()
 
@@ -102,6 +103,7 @@ class DiagnosisPlot(object):
         df = pd.DataFrame(R, columns=["method", "description"])
         return df
 
+    @safe_return(None)
     def cross_coverage(self, sign=None, ax=None, title=None, color=None):
         ax = self._get_ax(ax)
         color = self._get_color(color)
@@ -134,6 +136,7 @@ class DiagnosisPlot(object):
         ax.set_ylabel("TPR")
         return ax
 
+    @safe_return(None)
     def cross_roc(self, sign=None, ax=None, title=None, color=None):
         ax = self._get_ax(ax)
         color = self._get_color(color)
@@ -147,6 +150,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
+    @safe_return(None)
     def atc_roc(self, ax=None, title=None):
         ax = self._get_ax(ax)
         color = coord_color("E1.001")
@@ -157,6 +161,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
+    @safe_return(None)
     def moa_roc(self, ax=None, title=None):
         ax = self._get_ax(ax)
         color = coord_color("B1.001")
@@ -167,6 +172,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
+    @safe_return(None)
     def image(self, ax=None, title=None, cmap="coolwarm"):
         ax = self._get_ax(ax)
         results = self.load_diagnosis_pickle("image.pkl")
@@ -190,6 +196,7 @@ class DiagnosisPlot(object):
         ylim[1] += yscale
         return xlim, ylim
 
+    @safe_return(None)
     def projection(self, ax=None, density=True, color=None, title=None):
         ax = self._get_ax(ax)
         results = self.load_diagnosis_pickle("projection.pkl")
@@ -230,6 +237,7 @@ class DiagnosisPlot(object):
         ax.set_ylabel("Density")
         return ax
 
+    @safe_return(None)
     def euclidean_distances(self, ax=None, color=None, title=None):
         results = self.load_diagnosis_pickle("euclidean_distances.pkl")
         ax = self._distance_distribution(results, ax=ax, color=color)
@@ -238,6 +246,7 @@ class DiagnosisPlot(object):
             title = "Euclidean dist."
         ax.set_title(title)
 
+    @safe_return(None)
     def cosine_distances(self, ax=None, color=None, title=None):
         results = self.load_diagnosis_pickle("cosine_distances.pkl")
         ax = self._distance_distribution(results, ax=ax, color=color)
@@ -246,6 +255,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         ax.set_xlabel("Cosine")
 
+    @safe_return(None)
     def values(self, ax=None, s=1, cmap="coolwarm", title=None):
         ax = self._get_ax(ax)
         results = self.load_diagnosis_pickle("values.pkl")
@@ -273,6 +283,7 @@ class DiagnosisPlot(object):
         ax.axhline(0, color="black", lw=1)
         return ax
 
+    @safe_return(None)
     def features_iqr(self, ax=None, title=None):
         results = self.load_diagnosis_pickle("features_iqr.pkl")
         ax = self._iqr(results, ax=ax)
@@ -281,6 +292,7 @@ class DiagnosisPlot(object):
             title = "Values by feat."
         ax.set_title(title)
 
+    @safe_return(None)
     def keys_iqr(self, ax=None, title=None):
         results = self.load_diagnosis_pickle("keys_iqr.pkl")
         ax = self._iqr(results, ax=ax)
@@ -307,6 +319,7 @@ class DiagnosisPlot(object):
         ax.set_ylabel("Value")
         return ax
 
+    @safe_return(None)
     def features_bins(self, ax=None, title=None, scaling=30, cmap="coolwarm"):
         results = self.load_diagnosis_pickle("features_bins.pkl")
         ax = self._bins(results, ax=ax, scaling=scaling, cmap=cmap)
@@ -315,6 +328,7 @@ class DiagnosisPlot(object):
             title = "Values by feature"
         ax.set_title(title)
 
+    @safe_return(None)
     def keys_bins(self, ax=None, title=None, scaling=30, cmap="coolwarm"):
         results = self.load_diagnosis_pickle("keys_bins.pkl")
         ax = self._bins(results, ax=ax, scaling=scaling, cmap=cmap)
@@ -358,6 +372,7 @@ class DiagnosisPlot(object):
             ax.set_xlabel("Datasets")
         return ax
 
+    @safe_return(None)
     def across_coverage(self, ax=None, title=None, exemplary=True,
                         cctype="sign1", molset="full", vs=True):
         results = self.load_diagnosis_pickle("across_coverage.pkl")
@@ -385,6 +400,7 @@ class DiagnosisPlot(object):
                 title = "Sign wrt CC"
         ax.set_title(title)
 
+    @safe_return(None)
     def across_roc(self, ax=None, title=None, exemplary=True, cctype="sign1",
                    molset="full", vertical=False):
         results = self.load_diagnosis_pickle("across_roc.pkl")
@@ -408,6 +424,7 @@ class DiagnosisPlot(object):
             title = "ROC across CC"
         ax.set_title(title)
 
+    @safe_return(None)
     def dimensions(self, ax=None, title=None, exemplary=True, cctype="sign1",
                    molset="full", highligth=True):
         ax = self._get_ax(ax)
@@ -443,6 +460,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
+    @safe_return(None)
     def redundancy(self, ax=None, title=None):
         ax = self._get_ax(ax)
         results = self.load_diagnosis_pickle("redundancy.pkl")
@@ -463,6 +481,7 @@ class DiagnosisPlot(object):
         ax.set_ylim(-0.1, max(1, np.max(y)) + 0.1)
         return ax
 
+    @safe_return(None)
     def cluster_sizes(self, ax=None, max_clusters=20, s=5, show_outliers=False,
                       title=None):
         ax = self._get_ax(ax)
@@ -499,6 +518,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
+    @safe_return(None)
     def clusters_projection(self, ax=None, max_clusters=20, s=1,
                             show_beyond=False, show_outliers=False,
                             title=None):
@@ -531,6 +551,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
+    @safe_return(None)
     def intensities(self, ax=None, s=1, title=None, cmap="Spectral"):
         ax = self._get_ax(ax)
         results = self.load_diagnosis_pickle("intensities.pkl")
@@ -548,6 +569,7 @@ class DiagnosisPlot(object):
         ax.set_ylim(0, np.max(y) * 1.05)
         return ax
 
+    @safe_return(None)
     def confidences(self, ax=None, s=1, title=None, cmap="Spectral"):
         ax = self._get_ax(ax)
         results = self.load_diagnosis_pickle("confidences.pkl")
@@ -613,6 +635,7 @@ class DiagnosisPlot(object):
         ax.set_ylabel("Dim 2")
         return ax
 
+    @safe_return(None)
     def intensities_projection(self, ax=None, s=10, title=None,
                                cmap="Spectral"):
         results = self.load_diagnosis_pickle("intensities_projection.pkl")
@@ -622,6 +645,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
+    @safe_return(None)
     def confidences_projection(self, ax=None, s=10, title=None,
                                cmap="Spectral"):
         results = self.load_diagnosis_pickle("confidences_projection.pkl")
@@ -631,6 +655,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
+    @safe_return(None)
     def key_coverage(self, ax=None, exemplary=True, s=5, title=None,
                      cmap="Spectral"):
         ax = self._get_ax(ax)
@@ -663,6 +688,7 @@ class DiagnosisPlot(object):
         ax.set_ylim(0, np.max(y) * 1.05)
         return ax
 
+    @safe_return(None)
     def key_coverage_projection(self, ax=None, exemplary=True, s=10,
                                 title=None, cmap="coolwarm"):
         results = self.load_diagnosis_pickle("key_coverage_projection.pkl")
@@ -679,6 +705,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
+    @safe_return(None)
     def ranks_agreement(self, ax=None, stat="mean", s=1, title=None,
                         exemplary=True, cctype="sign1", molset="full",
                         cmap="Spectral"):
@@ -701,6 +728,7 @@ class DiagnosisPlot(object):
         ax.set_ylim(0, np.max(y) * 1.05)
         return ax
 
+    @safe_return(None)
     def ranks_agreement_projection(self, ax=None, s=10, title=None,
                                    cmap="Spectral"):
         results = self.load_diagnosis_pickle("ranks_agreement_projection.pkl")
@@ -710,6 +738,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
+    @safe_return(None)
     def global_ranks_agreement(self, ax=None, stat="mean", s=1, title=None,
                                cmap="Spectral"):
         ax = self._get_ax(ax)
@@ -731,6 +760,7 @@ class DiagnosisPlot(object):
         ax.set_ylim(0, np.max(y) * 1.05)
         return ax
 
+    @safe_return(None)
     def global_ranks_agreement_projection(self, ax=None, s=10, title=None,
                                           cmap="Spectral"):
         results = self.load_diagnosis_pickle(
@@ -741,6 +771,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
+    @safe_return(None)
     def orthogonality(self, ax=None, title=None, s=1, cmap="coolwarm"):
         ax = self._get_ax(ax)
         results = self.load_diagnosis_pickle("orthogonality.pkl")
@@ -758,6 +789,7 @@ class DiagnosisPlot(object):
         ax.set_xlim(-1.05, 1.05)
         return ax
 
+    @safe_return(None)
     def outliers(self, ax=None, title=None, s=1, cmap="coolwarm"):
         ax = self._get_ax(ax)
         results = self.load_diagnosis_pickle("outliers.pkl")
