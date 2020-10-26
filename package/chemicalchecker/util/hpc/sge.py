@@ -248,7 +248,7 @@ fi
                 self.job_id = job[0]
 
             self.job_id = self.job_id.rstrip()
-            self.__log.debug(self.job_id)
+            self.__log.debug('Job id: %s' % self.job_id)
         except paramiko.SSHException as sshException:
             raise Exception(
                 "Unable to establish SSH connection: %s" % sshException)
