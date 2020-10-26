@@ -41,53 +41,40 @@ class BaseSignature(object):
     @abstractmethod
     def __init__(self, signature_path, dataset, **params):
         """Initialize a BaseSignature instance."""
-        self.dataset = dataset    # NS ex H1.004
-        self.cctype = signature_path.split("/")[-1]  # NS: ex sign0
-        self.molset = signature_path.split("/")[-5]  # NS: ex full, reference
+        self.dataset = dataset
+        self.cctype = signature_path.split("/")[-1]
+        self.molset = signature_path.split("/")[-5]
         self.signature_path = os.path.abspath(signature_path)
-
-        if sys.version_info[0] == 2:                 # NS if Python2
-            if isinstance(self.signature_path, unicode):
-                self.signature_path = self.signature_path.encode(
-                    'ascii', 'ignore')
         self.readyfile = "fit.ready"
 
         if params:
             BaseSignature.__log.debug('PARAMS:')
             for k, v in params.items():
                 BaseSignature.__log.debug('\t%s\t%s', str(k), str(v))
-        # NS Creates the 'models', 'stats', 'diags' folders if they don't exist
-        # together with signx
-        # NS If sign path doesn't exist, create it with permissions 775
+
+        # permissions 775 rwx for owner and group, rx for all
         if not os.path.isdir(self.signature_path):
             BaseSignature.__log.info(
-                "Initializing new signature in: %s" % self.signature_path)
+                "New signature in: %s" % self.signature_path)
             original_umask = os.umask(0)
             # Ns Does doing this change the sys umask?
             os.makedirs(self.signature_path, 0o775)
             os.umask(original_umask)
-        # will store the results of the 'fit' method
+        # Creates the 'models', 'stats', 'diags' folders if they don't exist
         self.model_path = os.path.join(self.signature_path, "models")
-
         if not os.path.isdir(self.model_path):
-            BaseSignature.__log.info(
-                "Creating model_path in: %s" % self.model_path)
             original_umask = os.umask(0)
             os.makedirs(self.model_path, 0o775)
             os.umask(original_umask)
-        self.stats_path = os.path.join(self.signature_path, "stats")
 
+        self.stats_path = os.path.join(self.signature_path, "stats")
         if not os.path.isdir(self.stats_path):
-            BaseSignature.__log.info(
-                "Creating stats_path in: %s" % self.stats_path)
             original_umask = os.umask(0)
             os.makedirs(self.stats_path, 0o775)
             os.umask(original_umask)
-        self.diags_path = os.path.join(self.signature_path, "diags")
 
+        self.diags_path = os.path.join(self.signature_path, "diags")
         if not os.path.isdir(self.diags_path):
-            BaseSignature.__log.info(
-                "Creating diags_path in: %s" % self.diags_path)
             original_umask = os.umask(0)
             os.makedirs(self.diags_path, 0o775)
             os.umask(original_umask)
@@ -315,7 +302,8 @@ class BaseSignature(object):
         if diagnostics:
             cc = self.get_cc()
             diag = cc.get_diagnosis(self)
-            diag.canvas()
+            fig = diag.canvas()
+            fig.savefig(os.path.join(self.diags_path, 'diagnostics.png'))
         return results
 
     def update_status(self, status):
@@ -324,6 +312,26 @@ class BaseSignature(object):
         sdate = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open(fname, 'a') as fh:
             fh.write("{}\t{}\n".format(sdate, status))
+
+    @property
+    def status(self):
+        fname = os.path.join(self.signature_path, '.STATUS')
+        if not os.path.isfile(fname):
+            status = ('N/A', 'STATUS file not found!')
+        with open(fname, 'r') as fh:
+            for line in fh.readlines():
+                status = tuple(line.strip().split('\t'))
+        return status
+
+    def get_status_stack(self):
+        fname = os.path.join(self.signature_path, '.STATUS')
+        status_stack = list()
+        if not os.path.isfile(fname):
+            status_stack.append(('N/A', 'STATUS file not found!'))
+        with open(fname, 'r') as fh:
+            for line in fh.readlines():
+                status_stack.append(tuple(line.strip().split('\t')))
+        return status_stack
 
     def mark_ready(self):
         fname = os.path.join(self.model_path, self.readyfile)
