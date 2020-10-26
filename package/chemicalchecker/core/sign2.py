@@ -153,8 +153,11 @@ class sign2(BaseSignature, DataSignature):
         if not reuse or not os.path.isfile(linkpred_file):
             if not graph:
                 graph = SNAPNetwork.from_file(graph_file)
-            linkpred = LinkPrediction(self, graph)
-            linkpred.performance.toJSON(linkpred_file)
+            try:
+                linkpred = LinkPrediction(self, graph)
+                linkpred.performance.toJSON(linkpred_file)
+            except Exception as ex:
+                self.__log.error('Problem with LinkPrediction: %s' % str(ex))
         # copy reduced-full mappingsfrom sign1
         if "mappings" not in self.info_h5 and "mappings" in sign1.info_h5:
             self.copy_from(sign1, "mappings")
