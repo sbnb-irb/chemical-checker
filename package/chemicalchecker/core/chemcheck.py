@@ -283,6 +283,41 @@ class ChemicalChecker():
                     'problem reading file %s: %s' % (path, str(ex)))
         return molset_dataset_sign
 
+    def report_status(self, molset='*', dataset='*', signature='*'):
+        """Report status of signatures in the CC.
+
+        Args:
+            molset(str): Filter for the moleculeset e.g. 'full' or 'reference'
+            dataset(str) Filter for the dataset e.g. A1.001
+            signature(str): Filter for signature type e.g. 'sign1'
+        Returns:
+            Nested dictionary with molset, dataset and list of signatures
+        """
+        paths = glob(os.path.join(self.cc_root, molset, '*', '*', dataset,
+                                  signature + '/*.h5'))
+        molset_dataset_sign = dict()
+        for path in paths:
+            molset = path.split('/')[-6]
+            dataset = path.split('/')[-3]
+            sign = path.split('/')[-2]
+            if molset not in molset_dataset_sign:
+                molset_dataset_sign[molset] = dict()
+            if dataset not in molset_dataset_sign[molset]:
+                molset_dataset_sign[molset][dataset] = dict()
+            try:
+                status_file = os.path.join(os.path.dirname(path), '.STATUS')
+                if not os.path.isfile(status_file):
+                    status = ('N/A', 'STATUS file not found!')
+                else:
+                    with open(status_file, 'r') as fh:
+                        for line in fh.readlines():
+                            status = line.strip().split('\t')
+                molset_dataset_sign[molset][dataset][sign] = status
+            except Exception as ex:
+                self.__log.warning(
+                    'problem reading file %s: %s' % (path, str(ex)))
+        return molset_dataset_sign
+
     def get_signature_path(self, cctype, molset, dataset_code):
         """Return the signature path for the given dataset code.
 
@@ -362,14 +397,14 @@ class ChemicalChecker():
 
         prepro = Preprocess(sign.signature_path, sign.dataset)
         if not prepro.is_fit():
-            self.__log.info("No preprocessed file found, calling the preprocessing script")
+            self.__log.info(
+                "No preprocessed file found, calling the preprocessing script")
             prepro.fit()
         else:
             self.__log.info("Found {}".format(prepro.data_path))
         return prepro.data_path
 
         # ex:os.path.join(self.raw_path, "preprocess.h5")
-        
 
     def preprocess_predict(self, sign, input_file, destination):
         """
