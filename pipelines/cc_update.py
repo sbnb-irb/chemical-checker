@@ -20,14 +20,14 @@ import sys
 import logging
 import argparse
 import tempfile
-from update_resources.generate_chembl_files import generate_chembl_files
+from update_resources import generate_chembl_files
 
 from chemicalchecker import ChemicalChecker
 from chemicalchecker.core import Validation
 from chemicalchecker.core.sign3 import sign3
 from chemicalchecker.util import Config, HPC, logged
 from chemicalchecker.database import Dataset, Datasource
-from chemicalchecker.database import Molrepo, Molecule, Calcdata
+from chemicalchecker.database import Molrepo, Calcdata
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, CCFit
 
 
@@ -48,16 +48,15 @@ def pipeline_parser():
         help='Root dir of the CC instance to use as reference '
         '(i.e. triplet sampling in sign0).')
     parser.add_argument(
-        '-c', '--config', type=str, required=False,
-        help='Config file to be used. If not specified CC_CONFIG enviroment'
-        ' variable is used.')
+        '-t', '--tasks', type=str, nargs="+", default=None, required=False,
+        help='Task names that will be run in the pipeline.')
     parser.add_argument(
         '-c', '--config', type=str, required=False,
         default=os.environ["CC_CONFIG"],
         help='Config file to be used. If not specified CC_CONFIG enviroment'
         ' variable is used.')
     parser.add_argument(
-        '-d', '--dry_run', type=bool, required=False, default=False,
+        '-d', '--dry_run', action='store_true',
         help='Execute pipeline script without running the pipeline.')
     return parser
 
@@ -122,7 +121,6 @@ def main(args):
 
     # dataset parameters
     datasets = [ds.code for ds in Dataset.get(exemplary=True)]
-    data_file = os.path.join(args.preprocess_path, '%s.h5')
     sign_kwargs = {}
     fit_kwargs = {}
     for cctype in fit_order:
@@ -138,7 +136,6 @@ def main(args):
     for ds in datasets:
         fit_kwargs['sign0'][ds] = {
             'key_type': 'inchikey',
-            'data_file': data_file % ds[:2],
             'do_triplets': False,
             'validations': False
         }
@@ -285,12 +282,11 @@ def main(args):
     # after running the first tranche of sign0 we known the CC universe
     universe = cc.universe
     main._log.info('CC Universe will include %s molecules.' % len(universe))
-    inchikey_inchi = Molecule.get_inchikey_inchi_mapping(universe)
     for data_calc in data_calculators:
         calc_data_task = PythonCallable(
             name="calc_data_" + data_calc,
             python_callable=calculate_data_fn,
-            op_args=[data_calc, pp.tmpdir, inchikey_inchi])
+            op_args=[data_calc, pp.tmpdir, universe])
         pp.add_task(calc_data_task)
     # END TASK
     #############################################
@@ -379,7 +375,7 @@ def main(args):
     #############################################
     # RUN the pipeline!
     if not args.dry_run:
-        pp.run()
+        pp.run(include_tasks=args.tasks)
     # END PIPELINE
     #############################################
 
