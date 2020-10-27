@@ -66,9 +66,16 @@ class Pipeline():
         task.config = self.config
         self.tasks.insert(position, task)
 
-    def run(self):
+    def run(self, include_tasks=None):
         """Run the pipeline."""
+        if include_tasks is None:
+            include_tasks = [t.name for t in self.tasks]
         for task in self.tasks:
+            # check if among those we want to tun
+            if task.name not in include_tasks:
+                Pipeline.__log.info(
+                    "Task: '%s'. Skipping...", task.name)
+                continue
             # check if already done
             if task.is_ready():
                 Pipeline.__log.info(
