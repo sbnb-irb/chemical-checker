@@ -20,7 +20,7 @@ class MetricLearn(BaseTransform):
 
     def __init__(self, sign1, tmp, name, max_keys):
         try:
-            from tensorflow.keras.layers import Dense
+            from keras.layers import Dense
         except ImportError:
             raise ImportError("requires tensorflow " +
                               "https://www.tensorflow.org/")
