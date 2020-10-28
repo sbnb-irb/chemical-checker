@@ -301,7 +301,7 @@ class BaseSignature(object):
         # run diagnostics
         if diagnostics:
             cc = self.get_cc()
-            diag = cc.get_diagnosis(self)
+            diag = cc.diagnosis(self)
             fig = diag.canvas()
             fig.savefig(os.path.join(self.diags_path, '%s.png' % diag.name))
         return results
