@@ -42,7 +42,6 @@ Main goals of this class are:
     1. Check and enforce the directory structure behind a CC instance.
     2. Serve signatures to users or pipelines.
 """
-
 import re
 import os
 import h5py
@@ -55,6 +54,7 @@ from .data import DataFactory
 from .preprocess import Preprocess
 from .signature_data import DataSignature
 
+from chemicalchecker.core.diagnostics import Diagnosis
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import logged, Config
 from chemicalchecker.util.decorator import cached_property
@@ -165,6 +165,11 @@ class ChemicalChecker():
         """Iterator on Chemical Checker datasets."""
         for dataset in self._datasets:
             yield dataset
+
+    @property
+    def name(self):
+        """Return the name of the Chemical Checker."""
+        return os.path.basename(os.path.normpath(self.cc_root))
 
     def datasets_exemplary(self):
         """Iterator on Chemical Checker exemplary datasets."""
@@ -439,9 +444,8 @@ class ChemicalChecker():
     def signature(self, dataset, cctype):
         return self.get_signature(cctype=cctype, molset="full", dataset_code=dataset)
 
-    def diagnosis(self, sign, save=True, plot=True, overwrite=False, n=10000):
-        return self.get_diagnosis(sign=sign, save=save, plot=plot,
-                                  overwrite=overwrite, n=n)
+    def diagnosis(self, sign, **kwargs):
+        return Diagnosis(self, sign, **kwargs)
 
     def import_h5(self):
         """ NS. Recovers h5 files from a given custom directory 
@@ -697,13 +701,3 @@ class ChemicalChecker():
                 accepted) if 'None' we do our best to guess.
         """
         return Mol(self, mol_str, str_type=str_type)
-
-    def get_diagnosisplot(self):
-        from chemicalchecker.util.plot.diagnosticsplot import DiagnosisPlot
-        return DiagnosisPlot(cc=self)
-
-    def get_diagnosis(self, sign, save=True, plot=True, overwrite=False,
-                      n=10000):
-        from chemicalchecker.core.diagnostics import Diagnosis
-        return Diagnosis(cc=self, sign=sign, save=save,
-                         plot=plot, overwrite=overwrite, n=n)
