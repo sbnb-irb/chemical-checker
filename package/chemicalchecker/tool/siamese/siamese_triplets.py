@@ -189,12 +189,6 @@ class SiameseTriplets(object):
             self.val_gen = None
             self.validation_steps = None
 
-        if self.learning_rate == 'auto':
-            self.__log.debug("Searching for optimal larning rates.")
-            lr = self.find_lr(kwargs)
-            self.learning_rate = lr
-            kwargs['learning_rate'] = self.learning_rate
-
         # log parameters
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
         self.__log.info("{:<22}: {:>12}".format("model_dir", self.model_dir))
@@ -233,6 +227,12 @@ class SiameseTriplets(object):
             "augment_kwargs", str(self.augment_kwargs)))
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
 
+        if self.learning_rate == 'auto':
+            self.__log.debug("Searching for optimal larning rates.")
+            lr = self.find_lr(kwargs)
+            self.learning_rate = lr
+            kwargs['learning_rate'] = self.learning_rate
+
         if not os.path.isfile(param_file) and save_params:
             self.__log.debug("Saving parameters to %s" % param_file)
             with open(param_file, "wb") as f:
@@ -267,13 +267,14 @@ class SiameseTriplets(object):
                 if activation == 'selu':
                     net.add(GaussianDropout(rate=0.1, input_shape=input_shape))
                     net.add(layer(layer_size, use_bias=use_bias,
-                              kernel_initializer='lecun_normal'))
+                                  kernel_initializer='lecun_normal'))
                 else:
-                    net.add(layer(layer_size, use_bias=use_bias, input_shape=input_shape))
+                    net.add(layer(layer_size, use_bias=use_bias,
+                                  input_shape=input_shape))
             else:
                 if activation == 'selu':
                     net.add(layer(layer_size, use_bias=use_bias,
-                              kernel_initializer='lecun_normal'))
+                                  kernel_initializer='lecun_normal'))
                 else:
                     net.add(layer(layer_size, use_bias=use_bias))
             net.add(Activation(activation))
@@ -298,16 +299,17 @@ class SiameseTriplets(object):
 
         # each goes to a network with the same architechture
         assert(len(self.layers) == len(self.layers_sizes) ==
-           len(self.activations) == len(self.dropouts))
+               len(self.activations) == len(self.dropouts))
         basenet = Sequential()
         for i, tple in enumerate(zip(self.layers, self.layers_sizes, self.activations, self.dropouts)):
             layer, layer_size, activation, dropout = tple
             i_shape = None
             if i == 0:
                 i_shape = input_shape
-            if i == (len(self.layers)-1):
+            if i == (len(self.layers) - 1):
                 dropout = None
-            add_layer(basenet, layer, layer_size, activation, dropout, input_shape=i_shape)
+            add_layer(basenet, layer, layer_size, activation,
+                      dropout, input_shape=i_shape)
 
         # first layer
         """add_layer(basenet, self.layers[0], self.layers_sizes[0],
