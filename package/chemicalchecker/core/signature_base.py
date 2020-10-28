@@ -303,7 +303,7 @@ class BaseSignature(object):
             cc = self.get_cc()
             diag = cc.get_diagnosis(self)
             fig = diag.canvas()
-            fig.savefig(os.path.join(self.diags_path, 'diagnostics.png'))
+            fig.savefig(os.path.join(self.diags_path, '%s.png' % diag.name))
         return results
 
     def update_status(self, status):

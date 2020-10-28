@@ -24,16 +24,16 @@ pad_factor = 0
 class DiagnosisPlot(object):
     """DiagnosisPlot class."""
 
-    def __init__(self, sign):
+    def __init__(self, diag):
         """Initialize a DiagnosisPlot instance.
 
         The plotter works on data precomputed using
         :mod:`~chemicalchecker.core.diagnostics`.
 
             Args:
-                sign (CC signature): A CC signature to be be diagnosed.
+                diag (Diagnosis): A Diagnosis object.
         """
-        self.sign = sign
+        self.diag = diag
 
     @staticmethod
     def _get_ax(ax):
@@ -43,7 +43,7 @@ class DiagnosisPlot(object):
 
     def _get_color(self, color):
         if color is None:
-            return coord_color(self.sign.dataset)
+            return coord_color(self.diag.sign.dataset)
         else:
             return color
 
@@ -55,7 +55,7 @@ class DiagnosisPlot(object):
         return colors
 
     def load_diagnosis_pickle(self, fn):
-        with open(os.path.join(self.sign.diags_path, fn), "rb") as f:
+        with open(os.path.join(self.diag.path, fn), "rb") as f:
             results = pickle.load(f)
         return results
 
@@ -107,7 +107,7 @@ class DiagnosisPlot(object):
     def cross_coverage(self, sign=None, ax=None, title=None, color=None):
         ax = self._get_ax(ax)
         color = self._get_color(color)
-        fn = os.path.join(self.sign.diags_path,
+        fn = os.path.join(self.diag.path,
                           "cross_coverage_%s.pkl" % sign.qualified_name)
         results = self.load_diagnosis_pickle(fn)
         ax.bar([0, 1], [results["my_overlap"], results["vs_overlap"]],
@@ -117,7 +117,7 @@ class DiagnosisPlot(object):
         ax.set_xticks([0, 1])
         ax.set_xticklabels(["T / R", "R / T"])
         if title is None:
-            title = "T = %s | R = %s" % (self.sign.qualified_name,
+            title = "T = %s | R = %s" % (self.diag.sign.qualified_name,
                                          sign.qualified_name)
         ax.set_title(title)
 
@@ -140,12 +140,12 @@ class DiagnosisPlot(object):
     def cross_roc(self, sign=None, ax=None, title=None, color=None):
         ax = self._get_ax(ax)
         color = self._get_color(color)
-        fn = os.path.join(self.sign.diags_path,
+        fn = os.path.join(self.diag.path,
                           "cross_roc_%s.pkl" % sign.qualified_name)
         results = self.load_diagnosis_pickle(fn)
         ax = self._roc(ax, results, color)
         if title is None:
-            title = "%s | %s (%.3f)" % (self.sign.qualified_name,
+            title = "%s | %s (%.3f)" % (self.diag.sign.qualified_name,
                                         sign.qualified_name, results["auc"])
         ax.set_title(title)
         return ax
@@ -360,7 +360,7 @@ class DiagnosisPlot(object):
                 ax.plot([x_, x_], [-1, values[i]], color=colors[i])
         if title is None:
             title = "%s | %s_%s" % (
-                self.sign.qualified_name, cctype, molset)
+                self.diag.sign.qualified_name, cctype, molset)
         ax.set_title(title)
         if vertical:
             ax.set_yticks(x)
@@ -849,12 +849,12 @@ class DiagnosisPlot(object):
         ax = fig.add_subplot(gs[1, 0])
         self.values(ax)
         ax = fig.add_subplot(gs[0, 1])
-        if self.sign.cctype == 'sign3':
+        if self.diag.sign.cctype == 'sign3':
             self.confidences(ax)
         else:
             self.intensities(ax)
         ax = fig.add_subplot(gs[0, 2])
-        if self.sign.cctype == 'sign3':
+        if self.diag.sign.cctype == 'sign3':
             self.confidences_projection(ax)
         else:
             self.intensities_projection(ax)
@@ -895,7 +895,7 @@ class DiagnosisPlot(object):
         ax = fig.add_subplot(gs[-2:, 4:6])
         self.across_roc(ax)
         if title is None:
-            title = "%s %s" % (self.sign.dataset, self.sign.cctype)
+            title = "%s %s" % (self.diag.sign.dataset, self.diag.sign.cctype)
         fig.suptitle(title, fontweight="bold")
         plt.close()
         return fig
