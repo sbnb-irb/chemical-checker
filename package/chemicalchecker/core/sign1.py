@@ -365,7 +365,7 @@ class sign1(BaseSignature, DataSignature):
             triplets = hf["triplets"][:]
         return triplets
 
-    def get_self_triplets(self, local_neig_path, num_triplets=1000000):
+    def get_self_triplets(self, local_neig_path, num_triplets=10000000):
         """Get triplets of signatures only looking at itself"""
         s1 = self.get_molset("reference")
         if local_neig_path:
