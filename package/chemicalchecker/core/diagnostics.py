@@ -6,7 +6,6 @@ import os
 import random
 import pickle
 import shutil
-import itertools
 import collections
 import numpy as np
 from sklearn.cluster import DBSCAN
@@ -26,12 +25,12 @@ from chemicalchecker.util.decorator import safe_return
 class Diagnosis(object):
     """Diagnosis class."""
 
-    def __init__(self, cc, sign, save=True, plot=True, overwrite=False,
-                 n=10000):
+    def __init__(self, ref_cc, sign, ref_cctype='sign0', ref_molset='full',
+                 save=True, plot=True, overwrite=False, n=10000):
         """Initialize a Diagnosis instance.
 
         Args:
-            cc (ChemicalChecker): A CC instance.
+            ref_cc (ChemicalChecker): A CC instance use d as reference.
             sign (CC signature): The CC signature object to be diagnosed.
             save (bool): Whether to save results in the `diags` folder of the
                 signature. (default=True)
@@ -41,25 +40,42 @@ class Diagnosis(object):
                 diagnosis. (default=False)
             n (int): Number of molecules to sample. (default=10000)
         """
-        self.cc = cc
+        self.ref_cc = ref_cc
         self.save = save
         self.plot = plot
-        self.plotter = DiagnosisPlot(sign)
+        self.plotter = DiagnosisPlot(self)
+        self.sign = sign
+        self.ref_cctype = ref_cctype
+        self.ref_molset = ref_molset
+        # check if reference CC has reference all cctype signatures
+        available_sign = ref_cc.report_available(
+            molset=ref_molset, signature=ref_cctype)
+        if len(available_sign[ref_molset]) < 25:
+            self.__log.warning(
+                "Reference CC `%s` does not have enough `%s` `%s`" %
+                (ref_cc.name, ref_cctype, ref_molset))
+            if self.ref_cctype == 'sign0':
+                self.ref_cctype = 'sign1'
+            else:
+                self.ref_cctype = 'sign0'
+            self.__log.warning("Switching to `%s`" % self.ref_cctype)
+        # define current diag_path
+        self.name = '%s_%s_%s' % (ref_cc.name, ref_cctype, ref_molset)
+        self.path = os.path.join(sign.diags_path, self.name)
         self.overwrite = overwrite
         if self.overwrite:
-            self.__log.debug("Deleting all files in %s" % sign.diags_path)
-            shutil.rmtree(sign.diags_path)
-            os.mkdir(sign.diags_path)
+            if os.path.isdir(self.path):
+                self.__log.debug("Deleting %s" % self.path)
+                shutil.rmtree(self.path)
+                os.mkdir(self.path)
+        if not os.path.isdir(self.path):
+            os.mkdir(self.path)
         if self.plot and not self.save:
             self.__log.warning(
                 "Saving is necessary to plot. Setting 'save' to True.")
             self.save = True
-        self.sign = sign
-        folds = self.sign.data_path.split("/")
-        self.cctype = folds[-2]
-        self.dataset = folds[-3]
-        self.molset = folds[-6]
-        fn = os.path.join(self.sign.diags_path, "subsampled_data.pkl")
+
+        fn = os.path.join(sign.diags_path, "subsampled_data.pkl")
         if self.save:
             if not os.path.exists(fn):
                 self.__log.debug("Subsampling")
@@ -76,7 +92,7 @@ class Diagnosis(object):
         self.keys = keys
 
     def _todo(self, fn, inner=False):
-        if os.path.exists(os.path.join(self.sign.diags_path, fn + ".pkl")):
+        if os.path.exists(os.path.join(self.path, fn + ".pkl")):
             if inner:
                 return False
             else:
@@ -88,7 +104,7 @@ class Diagnosis(object):
             return True
 
     def _load_diagnosis_pickle(self, fn):
-        with open(os.path.join(self.sign.diags_path, fn), "rb") as f:
+        with open(os.path.join(self.path, fn), "rb") as f:
             results = pickle.load(f)
         return results
 
@@ -97,7 +113,7 @@ class Diagnosis(object):
         for k, v in kw_plotter.items():
             self.__log.debug('kw_plotter: %s %s', str(k), str(v))
         if results is None:
-            fn_ = os.path.join(self.sign.diags_path, fn + ".pkl")
+            fn_ = os.path.join(self.path, fn + ".pkl")
             with open(fn_, "rb") as f:
                 results = pickle.load(f)
             if plot:
@@ -106,7 +122,7 @@ class Diagnosis(object):
                 return results
         else:
             if save:
-                fn_ = os.path.join(self.sign.diags_path, fn + ".pkl")
+                fn_ = os.path.join(self.path, fn + ".pkl")
                 with open(fn_, "wb") as f:
                     pickle.dump(results, f)
                 if plot:
@@ -143,7 +159,7 @@ class Diagnosis(object):
 
     def _select_datasets(self, datasets, exemplary):
         if datasets is None:
-            datasets = self.cc.datasets
+            datasets = self.ref_cc.datasets
         dss = []
         for ds in datasets:
             if exemplary:
@@ -226,7 +242,7 @@ class Diagnosis(object):
         Args:
             sign (signature): A CC signature object to check against.
         """
-        fn = os.path.join(self.sign.diags_path,
+        fn = os.path.join(self.path,
                           "cross_coverage_%s" % sign.qualified_name)
         if self._todo(fn) or force_redo:
             # apply mappings if necessary
@@ -278,7 +294,7 @@ class Diagnosis(object):
             save (bool): Specific save parameter. If not specified, the global
                 is set. (default=None).
         """
-        fn = os.path.join(self.sign.diags_path, "cross_roc_%s" %
+        fn = os.path.join(self.path, "cross_roc_%s" %
                           sign.qualified_name)
         if self._todo(fn) or force_redo:
             r = self.cross_coverage(sign, apply_mappings=apply_mappings,
@@ -770,7 +786,7 @@ class Diagnosis(object):
             plotter_function=self.plotter.intensities_projection)
 
     def _latent(self, sign):
-        fn = os.path.join(sign.diags_path, "latent-%d.pkl" % self.V.shape[0])
+        fn = os.path.join(self.path, "latent-%d.pkl" % self.V.shape[0])
         if os.path.exists(fn):
             with open(fn, "rb") as f:
                 results = pickle.load(fn)
@@ -782,22 +798,22 @@ class Diagnosis(object):
         return results
 
     @safe_return(None)
-    def dimensions(self, datasets=None, exemplary=True, cctype=None,
+    def dimensions(self, datasets=None, exemplary=True, ref_cctype=None,
                    molset=None, **kwargs):
         """Get dimensions of the signature and compare to other signatures."""
         self.__log.debug("Dimensions")
 
         fn = "dimensions"
-        if cctype is None:
-            cctype = self.cctype
+        if ref_cctype is None:
+            ref_cctype = self.ref_cctype
         if molset is None:
-            molset = self.molset
+            molset = self.sign.molset
         if self._todo(fn):
             datasets = self._select_datasets(datasets, exemplary)
             results = {}
             for ds in datasets:
                 self.__log.debug("Latents for dataset %s" % ds)
-                sign = self.cc.get_signature(cctype, molset, ds)
+                sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
                 results[ds] = {
                     "keys": sign.shape[0],
                     "features": sign.shape[1],
@@ -812,7 +828,7 @@ class Diagnosis(object):
             results = None
         kw_plotter = {
             "exemplary": exemplary,
-            "cctype": cctype,
+            "cctype": ref_cctype,
             "molset": molset}
         kw_plotter.update(kwargs)
         return self._returner(
@@ -824,7 +840,8 @@ class Diagnosis(object):
             kw_plotter=kw_plotter)
 
     @safe_return(None)
-    def across_coverage(self, datasets=None, exemplary=True, cctype=None, molset=None, **kwargs):
+    def across_coverage(self, datasets=None, exemplary=True, ref_cctype=None,
+                        molset=None, **kwargs):
         """Check coverage against a collection of other CC signatures.
 
         Args:
@@ -839,15 +856,15 @@ class Diagnosis(object):
         """
         self.__log.debug("Across coverage")
         fn = "across_coverage"
-        if cctype is None:
-            cctype = self.cctype
+        if ref_cctype is None:
+            ref_cctype = self.ref_cctype
         if molset is None:
-            molset = self.molset
+            molset = self.sign.molset
         if self._todo(fn):
             datasets = self._select_datasets(datasets, exemplary)
             results = {}
             for ds in datasets:
-                sign = self.cc.get_signature(cctype, molset, ds)
+                sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
                 results[ds] = self.cross_coverage(
                     sign, save=False, force_redo=True, **kwargs)
         else:
@@ -860,7 +877,7 @@ class Diagnosis(object):
             plotter_function=self.plotter.across_coverage,
             kw_plotter={
                 "exemplary": exemplary,
-                "cctype": cctype,
+                "cctype": ref_cctype,
                 "molset": molset})
 
     def _sample_accuracy_individual(self, sign, n_neighbors, min_shared,
@@ -902,7 +919,7 @@ class Diagnosis(object):
         return np.array(scores)
 
     @safe_return(None)
-    def ranks_agreement(self, datasets=None, exemplary=True, cctype="sign1",
+    def ranks_agreement(self, datasets=None, exemplary=True, ref_cctype="sign0",
                         molset="full", n_neighbors=100, min_shared=100,
                         metric="minkowski", p=0.9, **kwargs):
         """Sample-specific accuracy.
@@ -911,10 +928,10 @@ class Diagnosis(object):
         """
         self.__log.debug("Sample-specific agreement to the rest of CC")
         fn = "ranks_agreement"
-        if cctype is None:
-            cctype = self.cctype
+        if ref_cctype is None:
+            ref_cctype = self.sign.cctype
         if molset is None:
-            molset = self.molset
+            molset = self.sign.molset
 
         def q67(r):
             return np.percentile(r, 67)
@@ -932,7 +949,7 @@ class Diagnosis(object):
             datasets = self._select_datasets(datasets, exemplary)
             results_datasets = {}
             for ds in datasets:
-                sign = self.cc.get_signature(cctype, molset, ds)
+                sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
                 dn = self._sample_accuracy_individual(
                     sign, n_neighbors, min_shared, metric)
                 if dn is None:
@@ -968,7 +985,7 @@ class Diagnosis(object):
             plotter_function=self.plotter.ranks_agreement,
             kw_plotter={
                 "exemplary": exemplary,
-                "cctype": cctype,
+                "cctype": ref_cctype,
                 "molset": molset})
 
     @safe_return(None)
@@ -997,7 +1014,7 @@ class Diagnosis(object):
 
     @safe_return(None)
     def global_ranks_agreement(self, n_neighbors=100, min_shared=100,
-                               metric="minkowski", p=0.9, cctype='sign1',
+                               metric="minkowski", p=0.9, ref_cctype=None,
                                **kwargs):
         """Sample-specific global accuracy.
 
@@ -1009,9 +1026,10 @@ class Diagnosis(object):
             " based on a Z-global ranking")
         fn = "global_ranks_agreement"
 
+        if ref_cctype is None:
+            ref_cctype = self.ref_cctype
         molset = kwargs.get("molset", "full")
-        exemplary_datasets = [
-            ''.join(tup) + '.001' for tup in itertools.product("ABCDE", "12345")]
+        exemplary_datasets = self._select_datasets(None, True)
         datasets = kwargs.get("datasets", exemplary_datasets)
 
         def q67(r):
@@ -1029,7 +1047,7 @@ class Diagnosis(object):
         if self._todo(fn):
             results_datasets = {}
             for ds in datasets:
-                sign = self.cc.get_signature(cctype, molset, ds)
+                sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
                 dn = self._sample_accuracy_individual(
                     sign, n_neighbors, min_shared, metric)
                 if dn is None:
@@ -1090,7 +1108,7 @@ class Diagnosis(object):
             plotter_function=self.plotter.global_ranks_agreement_projection)
 
     @safe_return(None)
-    def across_roc(self, datasets=None, exemplary=True, cctype="sign1",
+    def across_roc(self, datasets=None, exemplary=True, ref_cctype=None,
                    molset="full", **kwargs):
         """Check coverage against a collection of other CC signatures.
 
@@ -1099,22 +1117,22 @@ class Diagnosis(object):
                 (default=None).
             exemplary (bool): Whether to use only exemplary datasets
                 (recommended). (default=True)
-            cctype (str): CC signature type. (default='sign1')
+            cctype (str): CC signature type. (default='sign0')
             molset (str): Molecule set to use. Full is recommended.
                 (default='full')
             kwargs (dict): Parameters of hte cross_coverage method.
         """
         self.__log.debug("Across ROC")
         fn = "across_roc"
-        if cctype is None:
-            cctype = self.cctype
+        if ref_cctype is None:
+            ref_cctype = self.ref_cctype
         if molset is None:
-            molset = self.molset
+            molset = self.sign.molset
         if self._todo(fn):
             datasets = self._select_datasets(datasets, exemplary)
             results = {}
             for ds in datasets:
-                sign = self.cc.get_signature(cctype, molset, ds)
+                sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
                 results[ds] = self.cross_roc(
                     sign, save=False, force_redo=True, **kwargs)
         else:
@@ -1127,18 +1145,19 @@ class Diagnosis(object):
             plotter_function=self.plotter.across_roc,
             kw_plotter={
                 "exemplary": exemplary,
-                "cctype": cctype,
+                "cctype": ref_cctype,
                 "molset": molset})
 
     @safe_return(None)
-    def atc_roc(self, **kwargs):
+    def atc_roc(self, ref_cctype=None, **kwargs):
         self.__log.debug("ATC ROC")
         fn = "atc_roc"
-        cctype = "sign1"
+        if ref_cctype is None:
+            ref_cctype = self.ref_cctype
         molset = "full"
         ds = "E1.001"
         if self._todo(fn):
-            sign = self.cc.get_signature(cctype, molset, ds)
+            sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
             results = self.cross_roc(
                 sign, save=False, force_redo=True, **kwargs)
         else:
@@ -1151,14 +1170,15 @@ class Diagnosis(object):
             plotter_function=self.plotter.atc_roc)
 
     @safe_return(None)
-    def moa_roc(self, **kwargs):
+    def moa_roc(self, ref_cctype=None, **kwargs):
         self.__log.debug("MoA ROC")
         fn = "moa_roc"
-        cctype = "sign1"
+        if ref_cctype is None:
+            ref_cctype = self.ref_cctype
         molset = "full"
         ds = "B1.001"
         if self._todo(fn):
-            sign = self.cc.get_signature(cctype, molset, ds)
+            sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
             results = self.cross_roc(
                 sign, save=False, force_redo=True, **kwargs)
         else:
@@ -1307,14 +1327,14 @@ class Diagnosis(object):
         self.__log.debug("Key coverages")
         fn = "key_coverage"
         if cctype is None:
-            cctype = self.cctype
+            cctype = self.sign.cctype
         if molset is None:
-            molset = self.molset
+            molset = self.sign.molset
         if self._todo(fn):
             datasets = self._select_datasets(datasets, exemplary)
             results_shared = {}
             for ds in datasets:
-                sign = self.cc.get_signature(cctype, molset, ds)
+                sign = self.ref_cc.get_signature(cctype, molset, ds)
                 results_shared[ds] = sorted(
                     set(self.keys).intersection(sign.keys))
             results_counts = {}
@@ -1415,7 +1435,7 @@ class Diagnosis(object):
     def available(self):
         return self.plotter.available()
 
-    def canvas_medium(self, cctype, title):
+    def canvas_medium(self, ref_cctype, title):
         self.__log.debug("Getting all needed data.")
         plot = self.plot
         self.plot = False
@@ -1427,9 +1447,9 @@ class Diagnosis(object):
         self.image()
         self.features_bins()
         self.keys_bins()
-        self.across_coverage(cctype=cctype)
+        self.across_coverage(ref_cctype=ref_cctype)
         self.across_roc()
-        self.dimensions(cctype=cctype)
+        self.dimensions(ref_cctype=ref_cctype)
         self.values()
         self.atc_roc()
         self.moa_roc()
@@ -1441,7 +1461,7 @@ class Diagnosis(object):
             self.confidences_projection()
         self.cluster_sizes()
         self.clusters_projection()
-        self.key_coverage(cctype=cctype)
+        self.key_coverage(ref_cctype=ref_cctype)
         self.key_coverage_projection()
         self.global_ranks_agreement()
         self.global_ranks_agreement_projection()
@@ -1452,12 +1472,12 @@ class Diagnosis(object):
         fig = self.plotter.canvas_medium(title=title)
         return fig
 
-    def canvas(self, cctype="sign1", size="medium", title=None):
+    def canvas(self, ref_cctype="sign0", size="medium", title=None):
         if size == "small":
-            return self.canvas_small(cctype=cctype, title=title)
+            return self.canvas_small(ref_cctype=ref_cctype, title=title)
         elif size == "medium":
-            return self.canvas_medium(cctype=cctype, title=title)
+            return self.canvas_medium(ref_cctype=ref_cctype, title=title)
         elif size == "large":
-            return self.canvas_large(cctype=cctype, title=title)
+            return self.canvas_large(ref_cctype=ref_cctype, title=title)
         else:
             return None
