@@ -26,12 +26,12 @@ class MetricLearn(BaseTransform):
                               "https://www.tensorflow.org/")
         params = {
             'epochs': 3,
-            'dropouts': [None],
+            'dropouts': [None, None],
             'layers_sizes': None,
             'learning_rate': "auto",
             'batch_size': 128,
             'activations': ["tanh", "tanh"],
-            'layer': [Dense, Dense],
+            'layers': [Dense, Dense],
             'loss_func': 'orthogonal_tloss',
             'margin': 1.0,
             'alpha': 1.0
