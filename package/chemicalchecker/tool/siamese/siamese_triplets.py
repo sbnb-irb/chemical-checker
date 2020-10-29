@@ -93,7 +93,14 @@ class SiameseTriplets(object):
         self.replace_nan = float(kwargs.get("replace_nan", 0.0))
         self.split = str(kwargs.get("split", 'train'))
         self.layers_sizes = kwargs.get("layers_sizes", [128])
-        self.layers = kwargs.get("layers", [Dense])
+        self.layers = list()
+        # we can pass layers type as strings
+        layers = kwargs.get("layers", [Dense])
+        for l in layers:
+            if isinstance(l, str):
+                self.layers.append(eval(l))
+            else:
+                self.layers.append(l)
         self.activations = kwargs.get("activations",
                                       ['relu'])
         self.dropouts = kwargs.get(

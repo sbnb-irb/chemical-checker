@@ -69,11 +69,10 @@ class sign3(BaseSignature, DataSignature):
         # get parameters or default values
         self.params = dict()
         # parameters to learn from sign2
-        from keras.layers import Dense
         default_sign2 = {
             'epochs': 10,
             'cpu': 8,
-            'layers': [Dense, Dense, Dense, Dense],
+            'layers': ['Dense', 'Dense', 'Dense', 'Dense'],
             'layers_sizes': [1024, 512, 256, 128],
             'activations': ['selu', 'selu', 'selu', 'tanh'],
             'dropouts': [0.2, 0.2, 0.2, None],
@@ -111,7 +110,7 @@ class sign3(BaseSignature, DataSignature):
             'epochs': 5,
             'cpu': 8,
             'learning_rate': 1e-3,
-            'layers': [Dense, Dense, Dense, Dense],
+            'layers': ['Dense', 'Dense', 'Dense', 'Dense'],
             'layers_sizes': [1024, 512, 256, 128],
             'activations': ['selu', 'selu', 'selu', 'tanh'],
             'dropouts': [0.2, 0.2, 0.2, None],
