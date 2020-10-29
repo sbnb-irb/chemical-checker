@@ -28,6 +28,7 @@ from tqdm import tqdm
 from bisect import bisect_left
 from abc import abstractmethod
 
+from chemicalchecker.core.diagnostics import Diagnosis
 from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import Config, logged
@@ -305,6 +306,10 @@ class BaseSignature(object):
             fig = diag.canvas()
             fig.savefig(os.path.join(self.diags_path, '%s.png' % diag.name))
         return results
+
+    def diagnosis(self, sign, **kwargs):
+        cc = self.get_cc()
+        return Diagnosis(cc, self, **kwargs)
 
     def update_status(self, status):
         fname = os.path.join(self.signature_path, '.STATUS')
