@@ -27,7 +27,6 @@ from .signature_data import DataSignature
 from .signature_base import BaseSignature
 
 from chemicalchecker.util import logged
-from chemicalchecker.util.transform.lsi import Lsi
 from chemicalchecker.util.transform.pca import Pca
 from chemicalchecker.util.transform.scale import Scale
 
@@ -146,6 +145,10 @@ class sign1(BaseSignature, DataSignature):
         except ImportError:
             raise ImportError("requires tensorflow " +
                               "https://tensorflow.org")
+        try:
+            from chemicalchecker.util.transform.lsi import Lsi
+        except ImportError as ex:
+            raise ex
         BaseSignature.fit(self,  **params)
         self.clear()
         # signature specific checks
