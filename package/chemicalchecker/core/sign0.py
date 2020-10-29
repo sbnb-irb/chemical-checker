@@ -19,7 +19,6 @@ from chemicalchecker.util.sanitize import Sanitizer
 from chemicalchecker.util.aggregate import Aggregate
 from chemicalchecker.util.decorator import cached_property
 from chemicalchecker.util.sampler.triplets import TripletSampler
-from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 
 
 @logged
