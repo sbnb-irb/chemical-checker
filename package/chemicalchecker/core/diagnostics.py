@@ -19,6 +19,7 @@ from sklearn.neighbors import NearestNeighbors
 from chemicalchecker.util import logged
 from chemicalchecker.util.plot import DiagnosisPlot
 from chemicalchecker.util.decorator import safe_return
+from chemicalchecker.util.decorator import cached_property
 
 
 @logged
@@ -47,6 +48,7 @@ class Diagnosis(object):
         self.sign = sign
         self.ref_cctype = ref_cctype
         self.ref_molset = ref_molset
+        self.subsample_n = n
         # check if reference CC has reference all cctype signatures
         available_sign = ref_cc.report_available(
             molset=ref_molset, signature=ref_cctype)
@@ -60,7 +62,7 @@ class Diagnosis(object):
                 self.ref_cctype = 'sign0'
             self.__log.warning("Switching to `%s`" % self.ref_cctype)
         # define current diag_path
-        self.name = '%s_%s_%s' % (ref_cc.name, ref_cctype, ref_molset)
+        self.name = '%s_%s_%s' % (ref_cc.name, self.ref_cctype, ref_molset)
         self.path = os.path.join(sign.diags_path, self.name)
         self.overwrite = overwrite
         if self.overwrite:
@@ -75,21 +77,28 @@ class Diagnosis(object):
                 "Saving is necessary to plot. Setting 'save' to True.")
             self.save = True
 
-        fn = os.path.join(sign.diags_path, "subsampled_data.pkl")
+    def _get_subsamples(self, dset):
+        fn = os.path.join(self.sign.diags_path, "subsampled_data.pkl")
         if self.save:
             if not os.path.exists(fn):
                 self.__log.debug("Subsampling")
                 with open(fn, "wb") as f:
-                    V, keys = self.sign.subsample(n)
+                    V, keys = self.sign.subsample(self.subsample_n)
                     d = {"V": V, "keys": keys}
                     pickle.dump(d, f)
-        self.__log.debug("Reading subsamples")
+        self.__log.debug("Reading subsamples `%s`" % dset)
         with open(fn, "rb") as f:
             d = pickle.load(f)
-            V = d["V"]
-            keys = d["keys"]
-        self.V = V
-        self.keys = keys
+            ret = d[dset]
+        return ret
+
+    @cached_property
+    def V(self):
+        return self._get_subsamples("V")
+
+    @cached_property
+    def keys(self):
+        return self._get_subsamples("keys")
 
     def _todo(self, fn, inner=False):
         if os.path.exists(os.path.join(self.path, fn + ".pkl")):
