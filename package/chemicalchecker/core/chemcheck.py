@@ -647,6 +647,37 @@ class ChemicalChecker():
         src.close()
         dst.close()
 
+    def symlink_to(self, source_cc, cctypes=['sign0'],
+                   molsets=['reference', 'full'], datasets='exemplary'):
+        """Link current CC instane to other via symlinks.
+
+        When experimenting with signature parameters it's usefull to have
+        low cctype (e.g. sign0, sign1) not copied but simply linked.
+
+        Args:
+            source_cc(ChemicalChecker): A different CC instance to link.
+            cctypes(list): The signature (i.e. sign*) to link.
+            molsets(list): The molecule set name to link .
+            datasets(list): The codes of dataset to link.
+        """
+        if datasets == 'exemplary':
+            datasets = list(self.datasets_exemplary())
+
+        for molset in molsets:
+            for ds in datasets:
+                dst_ds_dir = os.path.join(
+                    self.cc_root, molset, ds[:1], ds[:2], ds)
+                src_ds_dir = os.path.join(
+                    source_cc.cc_root, molset, ds[:1], ds[:2], ds)
+                for cctype in cctypes:
+                    dst_dir = os.path.join(dst_ds_dir, cctype)
+                    src_dir = os.path.join(src_ds_dir, cctype)
+                    self.__log.debug("Link %s --> %s", dst_dir, src_dir)
+                    if os.path.isdir(dst_dir):
+                        self.__log.warning("%s already present", dst_dir)
+                        continue
+                    os.symlink(src_dir, dst_dir)
+
     def copy_signature_from(self, source_cc, cctype, molset, dataset_code,
                             overwrite=False):
         """Copy a signature file from another CC instance.
