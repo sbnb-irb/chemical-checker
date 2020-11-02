@@ -77,7 +77,6 @@ class Diagnosis(object):
                 "Saving is necessary to plot. Setting 'save' to True.")
             self.save = True
 
-    def _get_subsamples(self, dset):
         fn = os.path.join(self.sign.diags_path, "subsampled_data.pkl")
         if self.save:
             if not os.path.exists(fn):
@@ -86,19 +85,11 @@ class Diagnosis(object):
                     V, keys = self.sign.subsample(self.subsample_n)
                     d = {"V": V, "keys": keys}
                     pickle.dump(d, f)
-        self.__log.debug("Reading subsamples `%s`" % dset)
+        self.__log.debug("Reading subsamples")
         with open(fn, "rb") as f:
             d = pickle.load(f)
-            ret = d[dset]
-        return ret
-
-    @cached_property
-    def V(self):
-        return self._get_subsamples("V")
-
-    @cached_property
-    def keys(self):
-        return self._get_subsamples("keys")
+            self.V = d["V"]
+            self.keys = d["keys"]
 
     def _todo(self, fn, inner=False):
         if os.path.exists(os.path.join(self.path, fn + ".pkl")):
