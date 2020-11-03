@@ -34,11 +34,8 @@ class sign0(BaseSignature, DataSignature):
                of the h5 file.
         """
         BaseSignature.__init__(self, signature_path, dataset, **params)
-        self.__log.debug('signature path is: %s' % signature_path)
-
         self.data_path = os.path.join(self.signature_path, "sign0.h5")
         DataSignature.__init__(self, self.data_path, **params)
-        self.__log.debug('data path: %s' % self.data_path)
 
     def process_keys(self, keys, key_type):
         """Given keys, process them so they are acceptable CC types.

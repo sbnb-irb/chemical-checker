@@ -11,8 +11,10 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from chemicalchecker.util import Config
 
-# NS: Construct a base class for declarative class definitions.
+# Construct a base class for declarative class definitions.
 Base = declarative_base()
+# load config once for all
+config = Config()
 
 
 def get_engine(dbname=None):
@@ -24,7 +26,6 @@ def get_engine(dbname=None):
     Returns:
         engine
     """
-    config = Config()
 
     if config.DB.dialect == 'sqlite':
         con = config.DB.dialect + ':///' + config.DB.file
