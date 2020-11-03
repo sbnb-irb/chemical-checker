@@ -14,6 +14,20 @@ The steps (a.k.a. tasks) for a full CC update are the following:
 7. Generate stacked Sign2 for universe
 8. Compute Sign3
 9. Create symlinks
+
+**N.B.**
+Once the jobs for a task are completed we can evaluate task
+performances (i.e. `cpu` and `memory` parameters were ok?) with:
+
+`ssh pac qacct -j JOBID|egrep 'taskid|maxvmem|ru_wallclock|cpu'`
+
+* 'taskid' the qacct give result aggregated, this help breaking down results.
+* 'maxvmem' tell us about max RAM used (tweak `memory` parameter).
+* 'ru_wallclock' gives the total time the job took.
+* 'cpu' gives the cpu times consumed.
+
+the ratio 'cpu/ru_wallclock' should be as close as possible to the
+requested cpus (tweak `cpu` parameter).
 """
 import os
 import sys
@@ -38,18 +52,23 @@ def pipeline_parser():
     parser.add_argument(
         'cc_root', type=str,
         help='Directory where the new CC instance will be generated '
-        '(e.g. `/aloy/web_checker/package_cc/miniCC`)')
+        '(e.g. `/aloy/web_checker/package_cc/2020_01`)')
     parser.add_argument(
         'pipeline_dir', type=str,
         help='Directory where the pipeline will run '
-        '(e.g. `/aloy/scratch/mbertoni/pipelines/miniCC`)')
+        '(e.g. `/aloy/scratch/mbertoni/pipelines/cc_update_2020_01`)')
     parser.add_argument(
         '-r', '--reference_cc', type=str, required=False,
         help='Root dir of the CC instance to use as reference '
         '(i.e. triplet sampling in sign0).')
     parser.add_argument(
-        '-t', '--tasks', type=str, nargs="+", default=None, required=False,
-        help='Task names that will be run in the pipeline.')
+        '-t', '--only_tasks', type=str, nargs="+", default=[],
+        required=False,
+        help='Names of tasks that will `exclusively` run by the pipeline.')
+    parser.add_argument(
+        '-s', '--exclude_tasks', type=str, nargs="+", default=[],
+        required=False,
+        help='Names of tasks that will be skipped.')
     parser.add_argument(
         '-c', '--config', type=str, required=False,
         default=os.environ["CC_CONFIG"],
@@ -64,8 +83,10 @@ def pipeline_parser():
 @logged(logging.getLogger("[ PIPELINE %s ]" % os.path.basename(__file__)))
 def main(args):
     # initialize Pipeline
+    cfg = Config(args.config)
     pp = Pipeline(pipeline_path=args.pipeline_dir, keep_jobs=True,
-                  config=Config(args.config))
+                  config=cfg, only_tasks=args.only_tasks,
+                  exclude_tasks=args.exclude_tasks)
 
     # print arguments
     for arg in vars(args):
@@ -88,12 +109,14 @@ def main(args):
     # HPC parameters
     hpc_kwargs = {
         'sign0': {'memory': 44, 'cpu': 22},
-        'sign1': {'memory': 40, 'cpu': 10},
+        # sign1 w/o metric_learning does not parallelize
+        'sign1': {'memory': 16, 'cpu': 1},
         'sign2': {'memory': 20, 'cpu': 16},
         'sign3': {'memory': 2,  'cpu': 32},
-        'neig1': {'memory': 30, 'cpu': 15},
-        'neig2': {'memory': 30, 'cpu': 15},
-        'neig3': {'memory': 30, 'cpu': 15},
+        # neig calculation need few memory, parallelize well
+        'neig1': {'memory': 3, 'cpu': 16},
+        'neig2': {'memory': 3, 'cpu': 16},
+        'neig3': {'memory': 3, 'cpu': 16},
         'clus1': {'memory': 20, 'cpu': 10},
         'clus2': {'memory': 20, 'cpu': 10},
         'clus3': {'memory': 20, 'cpu': 10},
@@ -137,17 +160,17 @@ def main(args):
         fit_kwargs['sign0'][ds] = {
             'key_type': 'inchikey',
             'do_triplets': False,
-            'validations': False
+            'validations': True
         }
         fit_kwargs['sign1'][ds] = {
             'metric_learning': False,
         }
         fit_kwargs['sign2'][ds] = {
-            'validations': False,
+            'validations': True,
         }
         sign_kwargs['sign2'][ds] = {
             'node2vec': {'cpu': 4},
-            'adanet': {'cpu': 16}
+            'adanet': {'cpu': hpc_kwargs['sign2']}
         }
         fit_kwargs['sign3'][ds] = {
             'sign2_list': sign2_list,
@@ -156,26 +179,26 @@ def main(args):
             'sign0': mfp,
         }
         sign_kwargs['sign3'][ds] = {
-            'sign2': {'cpu': 32}
+            'sign2': {'cpu': hpc_kwargs['sign3']}
         }
         sign_kwargs['neig1'][ds] = {
-            'cpu': 15
+            'cpu': hpc_kwargs['neig1']
         }
         sign_kwargs['neig2'][ds] = {
-            'cpu': 15
+            'cpu': hpc_kwargs['neig2']
         }
         sign_kwargs['clus1'][ds] = {
-            'cpu': 10,
+            'cpu': hpc_kwargs['clus1'],
             'general_params': {'balance': 1.5}
         }
         sign_kwargs['clus2'][ds] = {
-            'cpu': 10
+            'cpu': hpc_kwargs['clus2']
         }
         sign_kwargs['proj1'][ds] = {
-            'cpu': 10
+            'cpu': hpc_kwargs['proj1']
         }
         sign_kwargs['proj2'][ds] = {
-            'cpu': 10
+            'cpu': hpc_kwargs['proj2']
         }
 
     #############################################
@@ -374,8 +397,9 @@ def main(args):
 
     #############################################
     # RUN the pipeline!
+    main._log.info('TASK SEQUENCE: %s' % ', '.join([t.name for t in pp.tasks]))
     if not args.dry_run:
-        pp.run(include_tasks=args.tasks)
+        pp.run()
     # END PIPELINE
     #############################################
 
