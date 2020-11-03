@@ -50,22 +50,8 @@ class sign3(BaseSignature, DataSignature):
         # Calling init on the base class to trigger file existence checks
         BaseSignature.__init__(self, signature_path,
                                dataset, **params)
-        # generate needed paths
         self.data_path = os.path.join(self.signature_path, 'sign3.h5')
         DataSignature.__init__(self, self.data_path)
-        self.model_path = os.path.join(self.signature_path, 'models')
-        if not os.path.isdir(self.model_path):
-            os.makedirs(self.model_path)
-        self.stats_path = os.path.join(self.signature_path, 'stats')
-        if not os.path.isdir(self.model_path):
-            os.makedirs(self.stats_path)
-        # assign dataset
-        self.dataset = dataset
-        # logging
-        self.__log.debug('dataset: %s', dataset)
-        self.__log.debug('data_path: %s', self.data_path)
-        self.__log.debug('model_path: %s', self.model_path)
-        self.__log.debug('stats_path: %s', self.stats_path)
         # get parameters or default values
         self.params = dict()
         # parameters to learn from sign2

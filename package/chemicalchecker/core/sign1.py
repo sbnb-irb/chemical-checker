@@ -47,8 +47,6 @@ class sign1(BaseSignature, DataSignature):
         """
         # Calling init on the base class to trigger file existance checks
         BaseSignature.__init__(self, signature_path, dataset, **params)
-        self.__log.debug('signature path is: %s', signature_path)
-
         self.data_path = os.path.join(self.signature_path, "sign1.h5")
         DataSignature.__init__(self, self.data_path)
 

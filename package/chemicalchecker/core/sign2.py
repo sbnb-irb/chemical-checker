@@ -41,32 +41,17 @@ class sign2(BaseSignature, DataSignature):
             params(): Parameters, expected keys are 'graph', 'node2vec', and
                 'adanet'.
         """
-        # Calling init on the base class to trigger file existence checks
-        BaseSignature.__init__(self, signature_path,
-                               dataset, **params)
-        # generate needed paths
+        # Calling init on the base class to trigger file existance checks
+        BaseSignature.__init__(self, signature_path, dataset, **params)
         self.data_path = os.path.join(self.signature_path, 'sign2.h5')
         DataSignature.__init__(self, self.data_path)
-        self.model_path = os.path.join(self.signature_path, 'models')
-        self.faiss_path = os.path.join(self.model_path, 'faiss')
-        if not os.path.isdir(self.model_path):
-            os.makedirs(self.model_path)
-        self.stats_path = os.path.join(self.signature_path, 'stats')
-        if not os.path.isdir(self.model_path):
-            os.makedirs(self.stats_path)
         # assign dataset
         self.dataset = dataset
-        # logging
-        self.__log.debug('dataset: %s', dataset)
-        self.__log.debug('data_path: %s', self.data_path)
-        self.__log.debug('model_path: %s', self.model_path)
-        self.__log.debug('stats_path: %s', self.stats_path)
         # get parameters or default values
         self.params = dict()
         self.params['graph'] = params.get('graph', None)
         self.params['node2vec'] = params.get('node2vec', None)
         self.params['adanet'] = params.get('adanet', None)
-        self.clustering = 1000
         if self.params['adanet'] is not None:
             self.cpu = self.params['adanet'].get('cpu', 1)
 

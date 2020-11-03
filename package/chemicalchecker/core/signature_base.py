@@ -56,11 +56,14 @@ class BaseSignature(object):
         # permissions 775 rwx for owner and group, rx for all
         if not os.path.isdir(self.signature_path):
             BaseSignature.__log.info(
-                "New signature in: %s" % self.signature_path)
+                "New signature: %s" % self.signature_path)
             original_umask = os.umask(0)
             # Ns Does doing this change the sys umask?
             os.makedirs(self.signature_path, 0o775)
             os.umask(original_umask)
+        else:
+            BaseSignature.__log.info(
+                "Loading signature: %s" % self.signature_path)
         # Creates the 'models', 'stats', 'diags' folders if they don't exist
         self.model_path = os.path.join(self.signature_path, "models")
         if not os.path.isdir(self.model_path):
