@@ -159,7 +159,7 @@ class Node2Vec():
         # write edgelist
         with open(out_file, 'w') as fh:
             for src_idx, neighbors in enumerate(neig1):
-                self.__log.debug('molecule: %s', src_idx)
+                # self.__log.debug('molecule: %s', src_idx)
                 neig_idxs, neig_dists = neighbors
                 # exclude self
                 self_idx = np.argwhere(neig_idxs == src_idx)
@@ -210,7 +210,7 @@ class Node2Vec():
         # write edgelist
         with open(out_file, 'w') as fh:
             for node, map_nodes in edges_weights.items():
-                self.__log.debug('molecule: %s', node)
+                # self.__log.debug('molecule: %s', node)
 
                 mols = list(map_nodes.items())
                 mols.sort(key=lambda tup: tup[1])
@@ -260,8 +260,8 @@ class Node2Vec():
         curr_pval = thr_pvals[curr_pval_idx]
         neig_mask = neig_dists <= thr_dists[curr_pval_idx]
         degree = np.count_nonzero(neig_mask)
-        self.__log.debug("curr_pval[%i] %s - degree %s",
-                         curr_pval_idx, curr_pval, degree)
+        # self.__log.debug("curr_pval[%i] %s - degree %s",
+        #                  curr_pval_idx, curr_pval, degree)
         # we want more than MIN_DEGREE and less than MAX_DEGREE
         if self.min_degree <= degree <= self.max_degree:
             considered_mol_ids = neig_idxs[neig_mask]
@@ -273,8 +273,8 @@ class Node2Vec():
                 incr_pval = thr_pvals[incr_pval_idx]
                 neig_mask = neig_dists <= thr_dists[incr_pval_idx]
                 degree = np.count_nonzero(neig_mask)
-                self.__log.debug("incr_pval[%i] %s - degree %s",
-                                 incr_pval_idx, incr_pval, degree)
+                # self.__log.debug("incr_pval[%i] %s - degree %s",
+                #                  incr_pval_idx, incr_pval, degree)
                 # increasing threshold we have too many
                 if degree >= self.min_degree:
                     # sample neighbors from previous threshold
@@ -284,8 +284,8 @@ class Node2Vec():
                     already_in = neig_dists <= thr_dists[
                         incr_pval_idx - 1]
                     to_add = self.min_degree - np.count_nonzero(already_in)
-                    self.__log.debug(
-                        "sampling %s from pval %s", to_add, incr_pval)
+                    # self.__log.debug(
+                    #     "sampling %s from pval %s", to_add, incr_pval)
                     sampled_idxs = np.random.choice(
                         np.argwhere(prev_neig_mask).flatten(),
                         to_add, replace=False)
@@ -300,7 +300,7 @@ class Node2Vec():
                     already_in = neig_dists <= thr_dists[
                         incr_pval_idx - 1]
                     to_add = self.min_degree - np.count_nonzero(already_in)
-                    self.__log.debug("corner sampling %s", to_add)
+                    # self.__log.debug("corner sampling %s", to_add)
                     curr_neig_mask = neig_dists == thr_dists[
                         incr_pval_idx]
                     sampled_idxs = np.random.choice(
@@ -325,14 +325,14 @@ class Node2Vec():
                 decr_pval = thr_pvals[decr_pval_idx]
                 neig_mask = neig_dists <= thr_dists[decr_pval_idx]
                 degree = np.count_nonzero(neig_mask)
-                self.__log.debug("decr_pval[%i] %s - degree %s",
-                                 decr_pval_idx, decr_pval, degree)
+                # self.__log.debug("decr_pval[%i] %s - degree %s",
+                #                  decr_pval_idx, decr_pval, degree)
                 # reducing threshold we have too few
                 if degree <= self.max_degree:
                     # sample neighbors from previous threshold
                     to_add = self.max_degree - degree
-                    self.__log.debug(
-                        "sampling %s from pval %s", to_add, decr_pval)
+                    # self.__log.debug(
+                    #     "sampling %s from pval %s", to_add, decr_pval)
                     prev_neig_mask = np.logical_and(
                         neig_dists <= thr_dists[decr_pval_idx + 1],
                         neig_dists > thr_dists[decr_pval_idx])
@@ -347,7 +347,7 @@ class Node2Vec():
                 # corner case where the lowest threshold has to be sampled
                 elif decr_pval_idx == 0:
                     to_add = self.max_degree
-                    self.__log.debug("corner sampling %s", to_add)
+                    # self.__log.debug("corner sampling %s", to_add)
                     sampled_idxs = np.random.choice(
                         np.argwhere(neig_mask).flatten(),
                         to_add, replace=False)
@@ -370,8 +370,8 @@ class Node2Vec():
         # we force a minimal degree so we might have weights below MIN_WEIGHT
         # we cap to a default values one order of magnitude below MIN_WEIGHT
         weights[weights < self.min_weight] = self.min_weight / 10.
-        self.__log.debug("similar molecules considered: %s",
-                         len(considered_mol_ids))
+        # self.__log.debug("similar molecules considered: %s",
+        #                  len(considered_mol_ids))
         return zip(considered_mol_ids, weights)
 
     def run(self, i, o, **kwargs):
