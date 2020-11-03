@@ -339,7 +339,7 @@ class ChemicalChecker():
         signature_path = os.path.join(self.cc_root, molset, dataset_code[:1],
                                       dataset_code[:2], dataset_code, cctype)
 
-        self.__log.debug("signature path: %s", signature_path)
+        # self.__log.debug("signature path: %s", signature_path)
         return signature_path
 
     def get_signature(self, cctype, molset, dataset_code, *args, **kwargs):
