@@ -330,7 +330,7 @@ def main(args):
     #############################################
     # TASK: Calculate signatures 1-2 also clus, proj and neig
     dss = [ds.code for ds in Dataset.get(exemplary=True)]
-    for cctype in fit_order:
+    for cctype in fit_order[1:]:  # [1:] -> skip sign0
         task = CCFit(args.cc_root, cctype, molset[cctype],
                      datasets=dss,
                      fit_kwargs=fit_kwargs[cctype],
