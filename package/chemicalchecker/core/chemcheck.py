@@ -684,7 +684,11 @@ class ChemicalChecker():
 
         if mol.inchikey in set(self.universe):
             spaces =[''.join(t) for t in itertools.product('A B C D E'.split(),'1 2 3 4 5'.split(), ['.001'])]
-            global_sign= np.concatenate([mol.signature('sign3', sp) for sp in spaces],axis=0)
+            try:
+                global_sign= np.concatenate([mol.signature('sign3', sp) for sp in spaces],axis=0)
+            except Exception as e2:
+                self.__log.warning("Problem with generating global signature from "+mol_str)
+                self.__log.warning(e2)
             return global_sign
         else:
             return None
