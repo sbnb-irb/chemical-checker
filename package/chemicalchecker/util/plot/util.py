@@ -1,4 +1,5 @@
 """Chemical Checker palette coloring functions."""
+import numpy as np
 import colorsys
 import matplotlib
 import seaborn as sns
@@ -62,3 +63,28 @@ def set_style(style=None):
     else:
         style = style
     sns.set_style(*style)
+
+
+def make_cmap(colors, position=None, bit=False):
+    bit_rgb = np.linspace(0, 1, 256)
+    if position is None:
+        position = np.linspace(0, 1, len(colors))
+    else:
+        if len(position) != len(colors):
+            raise Exception("position length must be the same as colors")
+        elif position[0] != 0 or position[-1] != 1:
+            raise Exception("position must start with 0 and end with 1")
+    if bit:
+        for i in range(len(colors)):
+            colors[i] = (bit_rgb[colors[i][0]],
+                         bit_rgb[colors[i][1]],
+                         bit_rgb[colors[i][2]])
+    cdict = {'red': [], 'green': [], 'blue': []}
+    for pos, color in zip(position, colors):
+        cdict['red'].append((pos, color[0], color[0]))
+        cdict['green'].append((pos, color[1], color[1]))
+        cdict['blue'].append((pos, color[2], color[2]))
+
+    cmap = matplotlib.colors.LinearSegmentedColormap(
+        'my_colormap', cdict, 256)
+    return cmap
