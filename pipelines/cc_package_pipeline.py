@@ -259,12 +259,12 @@ pp.run()
 print("DONE, Calculate sign 3")
 sys.exit(0)
 
-# TASK: Calculate consensus signature 3
+# TASK: Calculate consensus signature 3 --> Don't remember
 s3_short_params = {'CC_ROOT': CC_ROOT}
 s3_short_task = CCLongShort(cc_type='sign3', **s3_short_params)
 pp.add_task(s3_short_task)
 
-# TASK: Calculate smiles to signature 3
+# TASK: Calculate smiles to signature 3 --> Done during fit of sign3 (ran manually by Martino)
 s3_smile_params = {'CC_ROOT': CC_ROOT}
 s3_smile_task = CCSmileConverter(cc_type='sign3', **s3_smile_params)
 pp.add_task(s3_smile_task)
