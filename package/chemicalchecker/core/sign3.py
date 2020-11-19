@@ -1604,7 +1604,8 @@ class sign3(BaseSignature, DataSignature):
         shared_keys = sorted(list(sign0.unique_keys & self.unique_keys))
         _, sign0_V = sign0.get_vectors(shared_keys)
         _, sign3_app_V = self.get_vectors(shared_keys,
-                                          dataset_name='confidence').ravel()
+                                          dataset_name='confidence')
+        sign3_app_V = sign3_app_V.ravel()
         # initialize model and start learning
         apppred = ApplicabilityPredictor(
             model_dir=model_path, sign0=sign0_V,
