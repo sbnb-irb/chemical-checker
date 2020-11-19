@@ -48,6 +48,7 @@ import os
 import h5py
 import shutil
 import itertools
+import numpy as np
 from glob import glob
 
 from .molkit import Mol
@@ -662,6 +663,31 @@ class ChemicalChecker():
                 accepted) if 'None' we do our best to guess.
         """
         return Mol(self, mol_str, str_type=str_type)
+
+    def get_global_signature(self,mol_str, str_type=None):
+        """
+        Checks if a given molecule belongs to the universe.
+        If yes, return the (stacked) global signature
+        Otherwise return None
+
+        Args:
+            mol_str: Compound identifier (e.g. SMILES string)
+            str_type: Type of identifier ('inchikey', 'inchi' and 'smiles' are
+                accepted) if 'None' we do our best to guess.
+        """
+        try:
+            mol = self.get_molecule(mol_str, str_type)
+        except Exception as e:
+            self.__log.warning("Problem with generating molecule object from "+mol_str)
+            self.__log.warning(e)
+            return None
+
+        if mol.inchikey in set(self.universe):
+            spaces =[''.join(t) for t in itertools.product('A B C D E'.split(),'1 2 3 4 5'.split(), ['.001'])]
+            global_sign= np.concatenate([mol.signature('sign3', sp) for sp in spaces],axis=0)
+            return global_sign
+        else:
+            return None
 
     def get_diagnosisplot(self):
         from chemicalchecker.util.plot.diagnosticsplot import DiagnosisPlot
