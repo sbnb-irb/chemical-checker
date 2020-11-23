@@ -106,23 +106,41 @@ def main(args):
 
     validation_sets = ['moa', 'atc']
 
-    # HPC parameters
+    # HPC parameters and resources observations
     hpc_kwargs = {
+        # sign0
+        #  is using the most memory with ~GB
+        #  is the one taking longer with ~s (h)
         'sign0': {'memory': 44, 'cpu': 22},
-        # sign1 w/o metric_learning does not parallelize
-        'sign1': {'memory': 16, 'cpu': 1},
-        'sign2': {'memory': 20, 'cpu': 16},
-        'sign3': {'memory': 2,  'cpu': 32},
-        # neig calculation need few memory, parallelize well
+        # sign1 (w/o metric_learning) does not parallelize
+        # B4 is using the most memory with ~12GB
+        # C5 is the one taking longer with ~59000s (16.5h)
+        'sign1': {'memory': 16, 'cpu': 4},
+        # sign2 paralelize well and requires memory
+        # A2 is using the most memory with ~42GB
+        # A1 is the one taking longer with ~158000s (43h)
+        'sign2': {'memory': 40, 'cpu': 16},
+        # sign3
+        # A1 is using the most memory with ~59GB
+        # A1 is the one taking longer with ~186000s (52h)
+        'sign3': {'mem_by_core': 12, 'memory': 90, 'cpu': 8},
+        # neig1 paralelize very well and require very few memory
+        # A2 is the one taking longer with ~9100s (2.5h)
         'neig1': {'memory': 3, 'cpu': 16},
         'neig2': {'memory': 3, 'cpu': 16},
         'neig3': {'memory': 3, 'cpu': 16},
-        'clus1': {'memory': 20, 'cpu': 10},
-        'clus2': {'memory': 20, 'cpu': 10},
-        'clus3': {'memory': 20, 'cpu': 10},
-        'proj1': {'memory': 20, 'cpu': 10},
-        'proj2': {'memory': 20, 'cpu': 10},
-        'proj3': {'memory': 20, 'cpu': 10}
+        # clus1 does not paralelize very well and require memory
+        # A1 is using the most memory ~28Gb
+        # A1 is the one taking longer with ~10700s (3h)
+        'clus1': {'memory': 30, 'cpu': 4},
+        'clus2': {'memory': 30, 'cpu': 4},
+        'clus3': {'memory': 30, 'cpu': 4},
+        # proj1 paralelize very well and require few memory
+        # A1 is using the most memory ~13Gb
+        # A1 is the one taking longer with ~4500s (1.5h)
+        'proj1': {'memory': 20, 'cpu': 16},
+        'proj2': {'memory': 20, 'cpu': 16},
+        'proj3': {'memory': 20, 'cpu': 16}
     }
 
     # on which signature molset to call the fit?
@@ -170,7 +188,7 @@ def main(args):
         }
         sign_kwargs['sign2'][ds] = {
             'node2vec': {'cpu': 4},
-            'adanet': {'cpu': hpc_kwargs['sign2']}
+            'adanet': {'cpu': hpc_kwargs['sign2']['cpu']}
         }
         fit_kwargs['sign3'][ds] = {
             'sign2_list': sign2_list,
@@ -179,26 +197,26 @@ def main(args):
             'sign0': mfp,
         }
         sign_kwargs['sign3'][ds] = {
-            'sign2': {'cpu': hpc_kwargs['sign3']}
+            'sign2': {'cpu': hpc_kwargs['sign3']['cpu']}
         }
         sign_kwargs['neig1'][ds] = {
-            'cpu': hpc_kwargs['neig1']
+            'cpu': hpc_kwargs['neig1']['cpu']
         }
         sign_kwargs['neig2'][ds] = {
-            'cpu': hpc_kwargs['neig2']
+            'cpu': hpc_kwargs['neig2']['cpu']
         }
         sign_kwargs['clus1'][ds] = {
-            'cpu': hpc_kwargs['clus1'],
+            'cpu': hpc_kwargs['clus1']['cpu'],
             'general_params': {'balance': 1.5}
         }
         sign_kwargs['clus2'][ds] = {
-            'cpu': hpc_kwargs['clus2']
+            'cpu': hpc_kwargs['clus2']['cpu']
         }
         sign_kwargs['proj1'][ds] = {
-            'cpu': hpc_kwargs['proj1']
+            'cpu': hpc_kwargs['proj1']['cpu']
         }
         sign_kwargs['proj2'][ds] = {
-            'cpu': hpc_kwargs['proj2']
+            'cpu': hpc_kwargs['proj2']['cpu']
         }
 
     #############################################
