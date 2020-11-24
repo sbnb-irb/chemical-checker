@@ -161,4 +161,4 @@ From: centos:8
 
 #add pre-compiled binaries
 %files
-    binaries/node2vec /opt
+    container/singularity/binaries/node2vec /opt
