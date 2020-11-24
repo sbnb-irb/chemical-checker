@@ -55,7 +55,7 @@ from .preprocess import Preprocess
 from .signature_data import DataSignature
 
 from chemicalchecker.core.diagnostics import Diagnosis
-from chemicalchecker.database import Dataset
+from chemicalchecker.database import Dataset, Molecule
 from chemicalchecker.util import logged, Config
 from chemicalchecker.util.decorator import cached_property
 
@@ -202,6 +202,11 @@ class ChemicalChecker():
         self.__log.debug("Datasets defining universe: %s",
                          ' '.join(dataset_accepted))
         return sorted(list(universe))
+
+    def get_universe_inchi(self):
+        self.__log.debug("Fetching InChI of universe")
+        ink_inchi = Molecule.get_inchikey_inchi_mapping(self.universe)
+        return [ink_inchi[k] for k in self.universe]
 
     @staticmethod
     def set_verbosity(level='warning', logger_name='chemicalchecker'):
