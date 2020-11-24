@@ -24,6 +24,7 @@ class TestDatabase(unittest.TestCase):
     def tearDown(self):
         if os.path.exists(self.cfg.DB.file):
             os.remove(self.cfg.DB.file)
+        set_db_config(None)
 
     def test_add_bulk(self):
 
