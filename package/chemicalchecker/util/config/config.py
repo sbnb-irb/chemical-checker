@@ -28,8 +28,10 @@ class _Field():
         return self.__dict__
 
     def __getitem__(self, key):
-
         return self.__dict__[key]
+
+    def clear(self):
+        del self.__dict__
 
 
 @logged
