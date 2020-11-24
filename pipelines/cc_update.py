@@ -42,7 +42,8 @@ from chemicalchecker.core.sign3 import sign3
 from chemicalchecker.util import Config, HPC, logged
 from chemicalchecker.database import Dataset, Datasource
 from chemicalchecker.database import Molrepo, Calcdata
-from chemicalchecker.util.pipeline import Pipeline, PythonCallable, CCFit
+from chemicalchecker.util.pipeline import Pipeline, PythonCallable
+from chemicalchecker.util.pipeline import CCFit, CCPredict
 
 
 def pipeline_parser():
@@ -124,6 +125,8 @@ def main(args):
         # A1 is using the most memory with ~59GB
         # A1 is the one taking longer with ~186000s (52h)
         'sign3': {'mem_by_core': 12, 'memory': 90, 'cpu': 8},
+        # predicting sign3 based on signaturizer
+        'sign3_pred': {'cpu': 4},
         # neig1 paralelize very well and require very few memory
         # A2 is the one taking longer with ~9100s (2.5h)
         'neig1': {'memory': 3, 'cpu': 16},
@@ -348,7 +351,9 @@ def main(args):
     #############################################
     # TASK: Calculate signatures 1-2 also clus, proj and neig
     dss = [ds.code for ds in Dataset.get(exemplary=True)]
-    for cctype in fit_order[1:]:  # [1:] -> skip sign0
+    s0_idx = fit_order.index('sign0') + 1
+    s3_idx = fit_order.index('sign3')
+    for cctype in fit_order[s0_idx:s3_idx]:
         task = CCFit(args.cc_root, cctype, molset[cctype],
                      datasets=dss,
                      fit_kwargs=fit_kwargs[cctype],
@@ -385,6 +390,33 @@ def main(args):
                  fit_kwargs=fit_kwargs[cctype],
                  sign_kwargs=sign_kwargs[cctype],
                  hpc_kwargs=hpc_kwargs[cctype])
+    pp.add_task(task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Predict signatures 3 (signaturizer like)
+    cctype = 'sign3'
+    task_name = 'sign3_pred'
+    # get inchies for cc universe
+    universe_inchi = cc.get_universe_inchi()
+    predict_args = dict()
+    predict_args[task_name] = dict()
+    predict_kwargs = dict()
+    predict_kwargs[task_name] = dict()
+    dss = [ds.code for ds in Dataset.get(exemplary=True)]
+    for ds in dss:
+        s3_dest = cc.get_signature('sign3', 'predicted', ds)
+        predict_args[task_name][ds] = [universe_inchi, s3_dest.data_path]
+        predict_kwargs[task_name][ds] = {'keytype': 'INCHI',
+                                         'keys': cc.universe}
+    task = CCPredict(args.cc_root, cctype, molset[cctype],
+                     name=task_name,
+                     datasets=dss,
+                     predict_fn='predict_from_string',
+                     predict_args=predict_args[task_name],
+                     predict_kwargs=predict_kwargs[task_name],
+                     hpc_kwargs=hpc_kwargs[task_name])
     pp.add_task(task)
     # END TASK
     #############################################
