@@ -13,8 +13,23 @@ from chemicalchecker.util import Config
 
 # Construct a base class for declarative class definitions.
 Base = declarative_base()
-# load config once for all
-config = Config()
+
+
+class DBConfig():
+    """DB config holder."""
+
+    def set_config(self, config=None):
+        if config is None:
+            config = Config()
+        self.config = config
+        return self
+
+
+dbconfig = DBConfig().set_config()
+
+
+def set_db_config(config=None):
+    dbconfig.set_config(config)
 
 
 def get_engine(dbname=None):
@@ -27,12 +42,12 @@ def get_engine(dbname=None):
         engine
     """
 
-    if config.DB.dialect == 'sqlite':
-        con = config.DB.dialect + ':///' + config.DB.file
+    if dbconfig.config.DB.dialect == 'sqlite':
+        con = dbconfig.config.DB.dialect + ':///' + dbconfig.config.DB.file
         engine = create_engine(con, echo=True, poolclass=NullPool)
         return engine
 
-    params = config.DB.asdict()
+    params = dbconfig.config.DB.asdict()
 
     if dbname is not None:
         params["database"] = dbname
