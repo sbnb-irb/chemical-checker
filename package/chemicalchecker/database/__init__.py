@@ -22,7 +22,7 @@ For example::
 So, the `ds` instance of :class:`Dataset` exposes attributes that are the
 fields of the datbase table.
 """
-from .database import get_engine, get_session
+from .database import get_engine, get_session, set_db_config
 from .dataset import Dataset, DatasetHasDatasource
 from .pubchem import Pubchem
 from .molecule import Molecule
