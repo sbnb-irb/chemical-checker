@@ -1699,15 +1699,19 @@ class sign3(BaseSignature, DataSignature):
         model = ApplicabilityPredictor(model_path)
         return model.predict
 
-    def predict_from_smiles(self, smiles, dest_file, chunk_size=1000,
-                            predict_fn=None, accurate_novelty=False,
+    def predict_from_smiles(self, smiles, dest_file, **kwargs):
+        return self.predict_from_string(smiles, dest_file, keytype='SMILES',
+                                        **kwargs)
+
+    def predict_from_string(self, molecules, dest_file, keytype='SMILES',
+                            chunk_size=1000, predict_fn=None,
                             keys=None, components=128, applicability=True):
-        """Given SMILES generate sign0 and predict sign3.
+        """Given molecuel string, generate MFP and predict sign3.
 
         Args:
-            smiles(list): A list of SMILES strings. We assume the user already
-                standardized the SMILES string.
+            molecules(list): A list of molecules strings.
             dest_file(str): File where to save the predictions.
+            keytype(str): Wether to interpret molecules as InChI or SMILES.
         Returns:
             pred_s3(DataSignature): The predicted signatures as DataSignature
                 object.
@@ -1717,6 +1721,28 @@ class sign3(BaseSignature, DataSignature):
             from rdkit.Chem import AllChem
         except ImportError as err:
             raise err
+        # input must be a list, otherwise we make it so
+        if isinstance(molecules, str):
+            molecules = [molecules]
+        # convert input molecules to InChI
+        inchies = list()
+        if keytype.upper() == 'SMILES':
+            for smi in molecules:
+                if smi == '':
+                    smi = 'INVALID SMILES'
+                mol = Chem.MolFromSmiles(smi)
+                if mol is None:
+                    self.__log.warning(
+                        "Cannot get molecule from SMILES: %s." % smi)
+                    inchies.append('INVALID SMILES')
+                    continue
+                inchi = Chem.rdinchi.MolToInchi(mol)[0]
+                self.__log.debug('CONVERTED:', smi, inchi)
+                inchies.append(inchi)
+        elif keytype.upper() == 'INCHI':
+            inchies = molecules
+        else:
+            raise Exception('Keytype not recognized')
         # load NN
         if predict_fn is None:
             predict_fn = self.get_predict_fn()
@@ -1727,34 +1753,35 @@ class sign3(BaseSignature, DataSignature):
         # load novelty model for more accurate novelty scores (slower)
         with h5py.File(dest_file, "w") as results:
             # initialize V (with NaN in case of failing rdkit) and smiles keys
-            results.create_dataset('smiles', data=np.array(
-                smiles, DataSignature.string_dtype()))
+            results.create_dataset('molecules', data=np.array(
+                molecules, DataSignature.string_dtype()))
             if keys is not None:
                 results.create_dataset('keys', data=np.array(
                     keys, DataSignature.string_dtype()))
             else:
                 results.create_dataset('keys', data=np.array(
-                    smiles, DataSignature.string_dtype()))
+                    molecules, DataSignature.string_dtype()))
             if applicability:
                 results.create_dataset(
-                    'applicability', (len(smiles), 1), dtype=np.float32)
+                    'applicability', (len(molecules), 1), dtype=np.float32)
             results.create_dataset(
-                'V', (len(smiles), components), dtype=np.float32)
-            results.create_dataset("shape", data=(len(smiles), components))
+                'V', (len(molecules), components), dtype=np.float32)
+            results.create_dataset("shape", data=(len(molecules), components))
             # compute sign0 (i.e. Morgan fingerprint)
             nBits = 2048
             radius = 2
             # predict by chunk
-            for i in tqdm(range(0, len(smiles), chunk_size)):
+            for i in tqdm(range(0, len(molecules), chunk_size)):
                 chunk = slice(i, i + chunk_size)
                 sign0s = list()
                 failed = list()
-                for idx, mol_smiles in enumerate(smiles[chunk]):
+                for idx, inchi in enumerate(inchies[chunk]):
                     try:
-                        # read SMILES as molecules
-                        mol = Chem.MolFromSmiles(mol_smiles)
+                        # read molecules
+                        inchi = inchi.encode('ascii', 'ignore')
+                        mol = Chem.inchi.MolFromInchi(inchi)
                         if mol is None:
-                            raise Exception("Cannot get molecule from smiles.")
+                            raise Exception("Cannot get molecule from string.")
                         info = {}
                         fp = AllChem.GetMorganFingerprintAsBitVect(
                             mol, radius, nBits=nBits, bitInfo=info)
@@ -1762,7 +1789,7 @@ class sign3(BaseSignature, DataSignature):
                         calc_s0 = np.array(bin_s0).astype(np.float32)
                     except Exception as err:
                         # in case of failure append a NaN vector
-                        self.__log.warn("%s: %s", mol_smiles, str(err))
+                        self.__log.warn("%s: %s", inchi, str(err))
                         failed.append(idx)
                         calc_s0 = np.full((nBits, ),  np.nan)
                     finally:
