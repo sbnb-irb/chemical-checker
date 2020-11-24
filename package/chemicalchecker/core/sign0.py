@@ -53,6 +53,8 @@ class sign0(BaseSignature, DataSignature):
         if key_type == "inchikey":
             self.__log.debug("Processing inchikeys. Only valids are kept.")
             for i, k in enumerate(keys):
+                if isinstance(k, bytes):
+                    k = k.decode()
                 if len(k) == 27:
                     if k[14] == "-" and k[25] == "-":
                         keys_ += [k]
@@ -70,6 +72,8 @@ class sign0(BaseSignature, DataSignature):
             from chemicalchecker.util.parser import Converter
             conv = Converter()
             for i, k in enumerate(keys):
+                if isinstance(k, bytes):
+                    k = k.decode()
                 try:
                     keys_ += [conv.smiles_to_inchi(k)[0]]
                     keys_raw += [k]
