@@ -58,6 +58,12 @@ class sign0(BaseSignature, DataSignature):
                         keys_ += [k]
                         keys_raw += [k]
                         idxs += [i]
+                    else:
+                        self.__log.debug(
+                            "skipping for format: %s %s %s" % (i, k, type(k)))
+                else:
+                    self.__log.debug(
+                        "skipping for length: %s %s %s" % (i, k, type(k)))
         elif key_type == "smiles":
             self.__log.debug(
                 "Processing smiles. Only standard smiles are kept")
