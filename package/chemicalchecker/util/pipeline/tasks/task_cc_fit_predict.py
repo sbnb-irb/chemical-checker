@@ -1,6 +1,6 @@
 """CCFit task.
 
-This task allow submitting HPC jobs which will call the `fit` mwthod
+This task allow submitting HPC jobs which will call the `fit` method
 for a specific signature type (e.g. 'sign1').
 It allows submitting jobs for all spaces of the CC at once and passing
 parameters specific for each of them.
