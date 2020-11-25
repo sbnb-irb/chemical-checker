@@ -1,7 +1,7 @@
 # script to fetch global signatures for the BBB predictor
 # and save them as numpy array
 
-import os, glob
+import os, glob, sys
 import numpy as np
 import pandas as pd
 
