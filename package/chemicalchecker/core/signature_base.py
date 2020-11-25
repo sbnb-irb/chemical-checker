@@ -3,120 +3,156 @@
 Each signature class inherit from this base class. They will have to implement
 the ``fit`` and ``predict`` methods.
 
-At initialization this class enforce the signature internal directory organization:
+At initialization this class enforce the signature internal directory
+organization:
 
   * **signature_path**: the signature root (e.g. ``/root/full/A/A1/A1.001/sign2/``)
   * **model_path** ``./models``: where models learned at fit time are stored
   * **stats_path** ``./stats``: where statistic are collected
   * **diags_path** ``./diags``: where diagnostics are saved
 
-Also implements the ``validate`` function, signature status, generic HPC functions,
-and provide functions to "move" in the CC (e.g. getting same signature for
-different space, different molset, CC instance, etc...).
+Also implements the ``validate`` function, signature status, generic HPC
+functions, and provide functions to "move" in the CC (e.g. getting same
+signature for different space, different molset, CC instance, etc...).
 """
 import os
-import six  # NS: Python 2 and 3 compatibility library
 import sys
 import h5py
 import json
+import shutil
 import pickle
 import tempfile
+import datetime
 import numpy as np
 from tqdm import tqdm
 from bisect import bisect_left
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 
+from chemicalchecker.core.diagnostics import Diagnosis
 from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util.plot import Plot
 from chemicalchecker.util import Config, logged
+from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 
 
 @logged
-@six.add_metaclass(ABCMeta)
 class BaseSignature(object):
     """BaseSignature class."""
 
     @abstractmethod
     def __init__(self, signature_path, dataset, **params):
         """Initialize a BaseSignature instance."""
-        self.dataset = dataset    # NS ex H1.004
-        self.cctype = signature_path.split("/")[-1]  # NS: ex sign0
-        self.molset = signature_path.split("/")[-5]  # NS: ex full, reference
+        self.dataset = dataset
+        self.cctype = signature_path.split("/")[-1]
+        self.molset = signature_path.split("/")[-5]
         self.signature_path = os.path.abspath(signature_path)
-
-        if sys.version_info[0] == 2:                 # NS if Python2
-            if isinstance(self.signature_path, unicode):
-                self.signature_path = self.signature_path.encode(
-                    'ascii', 'ignore')
         self.readyfile = "fit.ready"
 
         if params:
             BaseSignature.__log.debug('PARAMS:')
             for k, v in params.items():
                 BaseSignature.__log.debug('\t%s\t%s', str(k), str(v))
-        # NS Creates the 'models', 'stats', 'diags' folders if they don't exist
-        # together with signx
-        # NS If sign path doesn't exist, create it with permissions 775
+
+        # permissions 775 rwx for owner and group, rx for all
         if not os.path.isdir(self.signature_path):
             BaseSignature.__log.info(
-                "Initializing new signature in: %s" % self.signature_path)
+                "New signature: %s" % self.signature_path)
             original_umask = os.umask(0)
             # Ns Does doing this change the sys umask?
             os.makedirs(self.signature_path, 0o775)
             os.umask(original_umask)
-        # will store the results of the 'fit' method
-        self.model_path = os.path.join(self.signature_path, "models")
-
-        if not os.path.isdir(self.model_path):
+        else:
             BaseSignature.__log.info(
-                "Creating model_path in: %s" % self.model_path)
+                "Loading signature: %s" % self.signature_path)
+        # Creates the 'models', 'stats', 'diags' folders if they don't exist
+        self.model_path = os.path.join(self.signature_path, "models")
+        if not os.path.isdir(self.model_path):
             original_umask = os.umask(0)
             os.makedirs(self.model_path, 0o775)
             os.umask(original_umask)
-        self.stats_path = os.path.join(self.signature_path, "stats")
 
+        self.stats_path = os.path.join(self.signature_path, "stats")
         if not os.path.isdir(self.stats_path):
-            BaseSignature.__log.info(
-                "Creating stats_path in: %s" % self.stats_path)
             original_umask = os.umask(0)
             os.makedirs(self.stats_path, 0o775)
             os.umask(original_umask)
-        self.diags_path = os.path.join(self.signature_path, "diags")
 
+        self.diags_path = os.path.join(self.signature_path, "diags")
         if not os.path.isdir(self.diags_path):
-            BaseSignature.__log.info(
-                "Creating diags_path in: %s" % self.diags_path)
             original_umask = os.umask(0)
             os.makedirs(self.diags_path, 0o775)
             os.umask(original_umask)
 
     @abstractmethod
-    def fit(self):
+    def fit(self, **kwargs):
         """Fit a model."""
-        BaseSignature.__log.debug('fit')
-        if os.path.isdir(self.model_path):
-            BaseSignature.__log.warning("Model already available.")
+        self.update_status("FIT START")
+        overwrite = kwargs.get('overwrite', False)
+        if overwrite and self.is_fit():
+            raise Exception("Signature has already been fitted. "
+                            "Delete it manually, or call the `fit` method "
+                            "passing overwrite=True")
+        return True
 
-        if self.is_fit():
-            BaseSignature.__log.warning("The fit has already been done.\nPlease remove manually the folder {} and re-run the method.\n(or use overwrite=True)".format(self.signature_path))
-            return True
-        return False        
+    def fit_end(self, **kwargs):
+        """Conclude fit method.
 
-        # if os.path.exists(os.path.join(self.model_path, self.readyfile)):
-        #     os.remove(os.path.join(self.model_path, self.readyfile))
+        We compute background distances, run validations (including diagnostic)
+        and finally marking the signature as ready.
+        """
+        # save background distances
+        self.update_status("Background distances")
+        self.background_distances("cosine")
+        self.background_distances("euclidean")
+        validations = kwargs.get('validations', True)
+        end_other_molset = kwargs.get('end_other_molset', True)
+        # performing validations
+        if validations:
+            self.update_status("Validation")
+            self.validate()
+        # Marking as ready
+        self.__log.debug("Mark as ready")
+        self.mark_ready()
+        # end fit for signature in the other molset
+        if end_other_molset:
+            other_molset = 'reference'
+            if self.molset == 'reference':
+                other_molset == 'full'
+            other_self = self.get_molset(other_molset)
+            if validations:
+                self.update_status("Validation %s" % other_molset)
+                other_self.validate()
+            other_self.mark_ready()
+        self.update_status("FIT END")
 
     @abstractmethod
     def predict(self):
         """Use the fitted models to predict."""
         BaseSignature.__log.debug('predict')
-        if not os.path.isdir(self.model_path):
-            raise Exception("Model file not available.")
-
         if not self.is_fit():
-            raise Exception(
-                "Before calling predict method, fit method needs to be called.")
+            raise Exception("Signature is not fitted, cannot predict.")
+        return True
 
-    def validate_versus_signature(self, sign, n_samples=1000, n_neighbors=5, apply_mappings=True, metric='cosine'):
+    def clear(self):
+        self.__log.debug("Clearing signature")
+        if os.path.exists(self.data_path):
+            self.__log.debug("Removing %s" % self.data_path)
+            os.remove(self.data_path)
+        if os.path.exists(self.model_path):
+            self.__log.debug("Removing %s" % self.model_path)
+            shutil.rmtree(self.model_path)
+            original_umask = os.umask(0)
+            os.makedirs(self.model_path, 0o775)
+            os.umask(original_umask)
+        if os.path.exists(self.stats_path):
+            self.__log.debug("Removing %s" % self.stats_path)
+            shutil.rmtree(self.stats_path)
+            original_umask = os.umask(0)
+            os.makedirs(self.stats_path, 0o775)
+            os.umask(original_umask)
+
+    def validate_versus_signature(self, sign, n_samples=1000, n_neighbors=5,
+                                  apply_mappings=True, metric='cosine'):
         """Perform validations.
 
         Args:
@@ -238,7 +274,8 @@ class BaseSignature(object):
             '/../../../../../tests/validation_sets/'
         if not os.path.exists(validation_path):
             self.__log.warn(
-                "Standard validation path does not exist, taking validations from examples")
+                "Standard validation path does not exist, "
+                "taking validations from examples")
             validation_path = os.path.join(os.path.dirname(
                 os.path.realpath(__file__)), "examples/validation_sets/")
         validation_files = os.listdir(validation_path)
@@ -249,8 +286,9 @@ class BaseSignature(object):
         for validation_file in validation_files:
             vset = validation_file.split('_')[0]
             cctype = self.__class__.__name__
-            res = plot.vector_validation(self, cctype, prefix=vset,
-                                         mappings=inchikey_mappings, distance=metric)
+            res = plot.vector_validation(
+                self, cctype, prefix=vset, mappings=inchikey_mappings,
+                distance=metric)
             results[vset] = res
             stats.update({
                 "%s_ks_d" % vset: res[0][0],
@@ -267,13 +305,45 @@ class BaseSignature(object):
         # run diagnostics
         if diagnostics:
             cc = self.get_cc()
-            diag = cc.get_diagnosis(self)
-            diag.canvas()
+            diag = cc.diagnosis(self)
+            fig = diag.canvas()
+            fig.savefig(os.path.join(self.diags_path, '%s.png' % diag.name))
         return results
 
+    def diagnosis(self, sign, **kwargs):
+        cc = self.get_cc()
+        return Diagnosis(cc, self, **kwargs)
+
+    def update_status(self, status):
+        fname = os.path.join(self.signature_path, '.STATUS')
+        self.__log.info('STATUS: %s' % status)
+        sdate = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(fname, 'a') as fh:
+            fh.write("{}\t{}\n".format(sdate, status))
+
+    @property
+    def status(self):
+        fname = os.path.join(self.signature_path, '.STATUS')
+        if not os.path.isfile(fname):
+            status = ('N/A', 'STATUS file not found!')
+        with open(fname, 'r') as fh:
+            for line in fh.readlines():
+                status = tuple(line.strip().split('\t'))
+        return status
+
+    def get_status_stack(self):
+        fname = os.path.join(self.signature_path, '.STATUS')
+        status_stack = list()
+        if not os.path.isfile(fname):
+            status_stack.append(('N/A', 'STATUS file not found!'))
+        with open(fname, 'r') as fh:
+            for line in fh.readlines():
+                status_stack.append(tuple(line.strip().split('\t')))
+        return status_stack
+
     def mark_ready(self):
-        filename = os.path.join(self.model_path, self.readyfile)
-        with open(filename, 'w') as fh:
+        fname = os.path.join(self.model_path, self.readyfile)
+        with open(fname, 'w') as fh:
             pass
 
     def is_fit(self):
@@ -422,11 +492,12 @@ class BaseSignature(object):
         new_path = "/".join(folds)
         return neig(new_path, self.dataset)
 
-    def get_cc(self):
+    def get_cc(self, cc_root=None):
         '''Return the CC where the signature is present'''
         from chemicalchecker import ChemicalChecker
-        cc_path = "/".join(self.signature_path.split("/")[:-5])
-        return ChemicalChecker(cc_path)
+        if cc_root is None:
+            cc_root = "/".join(self.signature_path.split("/")[:-5])
+        return ChemicalChecker(cc_root)
 
     def get_sign(self, sign_type):
         '''Return the signature type for current dataset'''
@@ -448,7 +519,6 @@ class BaseSignature(object):
         N.B: to maximize overlap it's better to use signatures of type 'full'.
         N.B: Near duplicates are found in the first signature.
         """
-        from chemicalchecker.util.remove_near_duplicates import RNDuplicates
         shared_keys = self.unique_keys.intersection(sign.unique_keys)
         self.__log.debug("%s shared keys.", len(shared_keys))
         _, self_matrix = self.get_vectors(shared_keys)
@@ -467,19 +537,20 @@ class BaseSignature(object):
         b, sign_matrix = sign.get_vectors(shared_keys)
         return a, self_matrix, sign_matrix
 
-    def remove_redundancy(self, cpu=2, overwrite=False):
-        '''Remove redundancy of a signature (it generates) new data in the references folders.
-        Only allowed for sign* (*not* sign1 or sign2).
+    def save_reference(self, cpu=4, overwrite=False):
+        """Save a non redundant signature in reference molset.
+
+        It generates a new signature in the references folders.
 
         Args:
-            cpu(int): Number of CPUs (default=2),
+            cpu(int): Number of CPUs (default=4),
             overwrite(bool): Overwrite existing (default=False).
-        '''
+        """
         if "sign" not in self.cctype:
-            raise Exception("Only sign* are allowed")
-        if self.cctype == "sign1" or self.cctype == "sign2":
-            raise Exception("Not allowed for sign1 or sign2")
-        from chemicalchecker.util.remove_near_duplicates import RNDuplicates
+            raise Exception("Only sign* are allowed.")
+        if self.molset == 'reference':
+            raise Exception("This is already `reference` molset.")
+
         rnd = RNDuplicates(cpu=cpu)
         sign_ref = self.get_molset("reference")
         if os.path.exists(sign_ref.data_path):
@@ -493,3 +564,16 @@ class BaseSignature(object):
             with h5py.File(sign_ref.data_path, 'a') as hf:
                 hf.create_dataset('features', data=features)
         return sign_ref
+
+    def background_distances(self, metric):
+        """Return the background distances according to the selected metric.
+
+        Args:
+            metric(str): the metric name (cosine or euclidean).
+        """
+        sign_ref = self
+        if self.molset != 'reference':
+            sign_ref = self.get_molset("reference")
+        bg_file = os.path.join(sign_ref.model_path,
+                               "bg_%s_distances.h5" % metric)
+        return sign_ref.compute_distance_pvalues(bg_file, metric)

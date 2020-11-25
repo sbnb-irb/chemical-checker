@@ -28,8 +28,10 @@ class _Field():
         return self.__dict__
 
     def __getitem__(self, key):
-
         return self.__dict__[key]
+
+    def clear(self):
+        del self.__dict__
 
 
 @logged
@@ -48,8 +50,11 @@ class Config():
             try:
                 json_file = os.environ["CC_CONFIG"]
             except KeyError as err:
-                self.__log.debug("CC_CONFIG environment variable not set. " + "Using default config file.")
-                json_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cc_config.json')
+                self.__log.debug(
+                    "CC_CONFIG environment variable not set. "
+                    "Using default config file.")
+                json_file = os.path.join(os.path.dirname(
+                    os.path.abspath(__file__)), 'cc_config.json')
 
             except Exception as err:
                 raise err
@@ -65,7 +70,7 @@ class Config():
             else:
                 eval_obj_dict[k] = eval(v)
         self.__dict__.update(eval_obj_dict)
-        #os.environ["CC_CONFIG"] = json_file
+        self.config_path = json_file
 
     def keys(self):
         return self.__dict__.keys()

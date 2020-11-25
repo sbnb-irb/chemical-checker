@@ -86,7 +86,8 @@ class BaseTransform(object):
         mappings = mappings[mask]
         with h5py.File(s1_ref.data_path, "r+") as hf:
             del hf["mappings"]
-            hf["mappings"] = mappings
+            hf.create_dataset("mappings", data=np.array(
+                mappings, DataSignature.string_dtype()))
         sign1.refresh()
 
     def overwrite(self, sign1, V, keys):
