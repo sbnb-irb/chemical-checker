@@ -628,7 +628,7 @@ class DataSignature(object):
         with h5py.File(self.data_path, 'r') as hf:
             mappings = dict(hf['mappings'][:])
         # avoid trivial mappings (where key==value)
-        to_map = set(mappings.keys()) - set(mappings.values())
+        to_map = list(set(mappings.keys()) - set(mappings.values()))
         if len(to_map) == 0:
             # corner case where there's nothing to map
             with h5py.File(self.data_path, 'r') as hf:
