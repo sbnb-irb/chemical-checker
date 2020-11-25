@@ -667,8 +667,8 @@ class ChemicalChecker():
     def get_global_signature(self,mol_str, str_type=None):
         """
         Checks if a given molecule belongs to the universe.
-        If yes, return the (stacked) global signature
-        Otherwise return None
+        If yes, return the (stacked) global signature.
+        Otherwise return None.
 
         Args:
             mol_str: Compound identifier (e.g. SMILES string)
@@ -691,6 +691,9 @@ class ChemicalChecker():
                 self.__log.warning(e2)
             else:
                 return global_sign
+
+        else:
+            self.__log.warning(mol_str+" NOT IN UNIVERSE")
 
         return None
 
