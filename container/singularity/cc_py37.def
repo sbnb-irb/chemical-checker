@@ -158,3 +158,7 @@ From: centos:8
 
     # APSW stands for Another Python SQLite Wrapper
     pip install https://github.com/rogerbinns/apsw/releases/download/3.24.0-r1/apsw-3.24.0-r1.zip --global-option=fetch --global-option=--version --global-option=3.24.0 --global-option=--all --global-option=build --global-option=--enable-all-extensions
+
+#add pre-compiled binaries
+%files
+    container/singularity/binaries/node2vec /opt

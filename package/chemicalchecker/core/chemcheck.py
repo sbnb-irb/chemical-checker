@@ -42,7 +42,6 @@ Main goals of this class are:
     1. Check and enforce the directory structure behind a CC instance.
     2. Serve signatures to users or pipelines.
 """
-
 import re
 import os
 import h5py
@@ -56,7 +55,8 @@ from .data import DataFactory
 from .preprocess import Preprocess
 from .signature_data import DataSignature
 
-from chemicalchecker.database import Dataset
+from chemicalchecker.core.diagnostics import Diagnosis
+from chemicalchecker.database import Dataset, Molecule
 from chemicalchecker.util import logged, Config
 from chemicalchecker.util.decorator import cached_property
 
@@ -167,6 +167,11 @@ class ChemicalChecker():
         for dataset in self._datasets:
             yield dataset
 
+    @property
+    def name(self):
+        """Return the name of the Chemical Checker."""
+        return os.path.basename(os.path.normpath(self.cc_root))
+
     def datasets_exemplary(self):
         """Iterator on Chemical Checker exemplary datasets."""
         for dataset in self.coordinates:
@@ -198,6 +203,11 @@ class ChemicalChecker():
         self.__log.debug("Datasets defining universe: %s",
                          ' '.join(dataset_accepted))
         return sorted(list(universe))
+
+    def get_universe_inchi(self):
+        self.__log.debug("Fetching InChI of universe")
+        ink_inchi = Molecule.get_inchikey_inchi_mapping(self.universe)
+        return [ink_inchi[k] for k in self.universe]
 
     @staticmethod
     def set_verbosity(level='warning', logger_name='chemicalchecker'):
@@ -284,6 +294,41 @@ class ChemicalChecker():
                     'problem reading file %s: %s' % (path, str(ex)))
         return molset_dataset_sign
 
+    def report_status(self, molset='*', dataset='*', signature='*'):
+        """Report status of signatures in the CC.
+
+        Args:
+            molset(str): Filter for the moleculeset e.g. 'full' or 'reference'
+            dataset(str) Filter for the dataset e.g. A1.001
+            signature(str): Filter for signature type e.g. 'sign1'
+        Returns:
+            Nested dictionary with molset, dataset and list of signatures
+        """
+        paths = glob(os.path.join(self.cc_root, molset, '*', '*', dataset,
+                                  signature + '/*.h5'))
+        molset_dataset_sign = dict()
+        for path in paths:
+            molset = path.split('/')[-6]
+            dataset = path.split('/')[-3]
+            sign = path.split('/')[-2]
+            if molset not in molset_dataset_sign:
+                molset_dataset_sign[molset] = dict()
+            if dataset not in molset_dataset_sign[molset]:
+                molset_dataset_sign[molset][dataset] = dict()
+            try:
+                status_file = os.path.join(os.path.dirname(path), '.STATUS')
+                if not os.path.isfile(status_file):
+                    status = ('N/A', 'STATUS file not found!')
+                else:
+                    with open(status_file, 'r') as fh:
+                        for line in fh.readlines():
+                            status = line.strip().split('\t')
+                molset_dataset_sign[molset][dataset][sign] = status
+            except Exception as ex:
+                self.__log.warning(
+                    'problem reading file %s: %s' % (path, str(ex)))
+        return molset_dataset_sign
+
     def get_signature_path(self, cctype, molset, dataset_code):
         """Return the signature path for the given dataset code.
 
@@ -300,7 +345,7 @@ class ChemicalChecker():
         signature_path = os.path.join(self.cc_root, molset, dataset_code[:1],
                                       dataset_code[:2], dataset_code, cctype)
 
-        self.__log.debug("signature path: %s", signature_path)
+        # self.__log.debug("signature path: %s", signature_path)
         return signature_path
 
     def get_signature(self, cctype, molset, dataset_code, *args, **kwargs):
@@ -363,26 +408,30 @@ class ChemicalChecker():
 
         prepro = Preprocess(sign.signature_path, sign.dataset)
         if not prepro.is_fit():
-            self.__log.info("No preprocessed file found, calling the preprocessing script")
+            self.__log.info(
+                "No preprocessed file found, calling the preprocessing script")
             prepro.fit()
         else:
             self.__log.info("Found {}".format(prepro.data_path))
         return prepro.data_path
 
         # ex:os.path.join(self.raw_path, "preprocess.h5")
-        
 
     def preprocess_predict(self, sign, input_file, destination):
-        """
-        Runs the preprocessing script with the 'predict' argument on
-        an input file of raw data formatted correctly for the space of interest
+        """Runs the preprocessing script 'predict'.
+
+        Run on an input file of raw data formatted correctly for the space of
+        interest
 
         Args:
             sign: signature object obtained from cc.get_signature)
-            input_file(str): path to the h5 file containning the data on which to apply 'predict'
-            destination(str): Path to a .h5 file where the predicted signature will be saved.
+            input_file(str): path to the h5 file containning the data on which
+                to apply 'predict'
+            destination(str): Path to a .h5 file where the predicted signature
+                will be saved.
         Returns:
-            datafile(str): The h5 file containing the predicted data after preprocess
+            datafile(str): The h5 file containing the predicted data after
+                preprocess
         """
 
         input_file = os.path.abspath(input_file)
@@ -403,33 +452,25 @@ class ChemicalChecker():
         return destination
 
     def signature(self, dataset, cctype):
-        return self.get_signature(cctype=cctype, molset="full", dataset_code=dataset)
+        return self.get_signature(cctype=cctype, molset="full",
+                                  dataset_code=dataset)
 
-    def diagnosis(self, sign, save=True, plot=True, overwrite=False, n=10000):
-        return self.get_diagnosis(sign=sign, save=save, plot=plot,
-                                  overwrite=overwrite, n=n)
+    def diagnosis(self, sign, **kwargs):
+        return Diagnosis(self, sign, **kwargs)
 
     def import_h5(self):
-        """ NS. Recovers h5 files from a given custom directory 
-            and creates links to them in a CC skeleton arborescence
+        """Recovers h5 files from a given custom directory.
+
+        Creates links to them in a CC skeleton arborescence.
         """
 
         h5files = glob(os.path.join(self.custom_data_path, "*.h5"))
 
         if len(h5files) == 0:
-            #raise Exception("No h5 files found in {}".format(self.custom_data_path))
             self.__log.info(
                 "No h5 file found in {},"
                 " creating an empty CC structure.".format(
                     self.custom_data_path))
-            # original_umask = os.umask(0)
-            # try:
-            #     os.makedirs(os.path.join(self.cc_root, "full/Z/Z1/Z1.001/sign0"), 0o775)
-
-            # except Exception as e:
-            #     print("Error: ", e)
-
-            # os.umask(original_umask) # after the loop to be sure
 
         else:
 
@@ -455,7 +496,8 @@ class ChemicalChecker():
                 out = []
                 with h5py.File(path2h5file, 'a') as ccfile:
 
-                    # check if the required info is presents in the h5 file attrs dict
+                    # check if the required info is presents in the h5 file
+                    # attrs dict
                     # iterates over ('dataset_code', 'cctype', 'molset') and
                     # the required format for each of them
                     for requiredKey, requiredFormat in formatDict.items():
@@ -554,7 +596,8 @@ class ChemicalChecker():
                         # symbolic link to the h5 file in the cc_repo as
                         # signx.h5
                         os.symlink(
-                            h5t[-1], os.path.join(self.cc_root, path2sign, h5t[-2] + '.h5'))
+                            h5t[-1], os.path.join(
+                                self.cc_root, path2sign, h5t[-2] + '.h5'))
 
                     except Exception as e:
                         os.umask(original_umask)
@@ -566,8 +609,10 @@ class ChemicalChecker():
 
     def export(self, destination, signature, h5_filter=None,
                h5_names_map=None, overwrite=False, version=None):
-        """Export a signature h5 file to a given path. Which dataset to copy
-           can be specified as well as how to rename some dataset.
+        """Export a signature h5 file to a given path. 
+
+        Which dataset to copy can be specified as well as how to rename some
+        dataset.
 
         Args:
             destination(str): A destination path.
@@ -608,6 +653,37 @@ class ChemicalChecker():
 
         src.close()
         dst.close()
+
+    def symlink_to(self, source_cc, cctypes=['sign0'],
+                   molsets=['reference', 'full'], datasets='exemplary'):
+        """Link current CC instane to other via symlinks.
+
+        When experimenting with signature parameters it's usefull to have
+        low cctype (e.g. sign0, sign1) not copied but simply linked.
+
+        Args:
+            source_cc(ChemicalChecker): A different CC instance to link.
+            cctypes(list): The signature (i.e. sign*) to link.
+            molsets(list): The molecule set name to link .
+            datasets(list): The codes of dataset to link.
+        """
+        if datasets == 'exemplary':
+            datasets = list(self.datasets_exemplary())
+
+        for molset in molsets:
+            for ds in datasets:
+                dst_ds_dir = os.path.join(
+                    self.cc_root, molset, ds[:1], ds[:2], ds)
+                src_ds_dir = os.path.join(
+                    source_cc.cc_root, molset, ds[:1], ds[:2], ds)
+                for cctype in cctypes:
+                    dst_dir = os.path.join(dst_ds_dir, cctype)
+                    src_dir = os.path.join(src_ds_dir, cctype)
+                    self.__log.debug("Link %s --> %s", dst_dir, src_dir)
+                    if os.path.isdir(dst_dir):
+                        self.__log.warning("%s already present", dst_dir)
+                        continue
+                    os.symlink(src_dir, dst_dir)
 
     def copy_signature_from(self, source_cc, cctype, molset, dataset_code,
                             overwrite=False):
@@ -664,11 +740,11 @@ class ChemicalChecker():
         """
         return Mol(self, mol_str, str_type=str_type)
 
-    def get_global_signature(self,mol_str, str_type=None):
-        """
-        Checks if a given molecule belongs to the universe.
-        If yes, return the (stacked) global signature.
-        Otherwise return None.
+
+    def get_global_signature(self, mol_str, str_type=None):
+        """Return the (stacked) global signature
+        If the given molecule belongs to the universe.
+
 
         Args:
             mol_str: Compound identifier (e.g. SMILES string)
@@ -678,16 +754,20 @@ class ChemicalChecker():
         try:
             mol = self.get_molecule(mol_str, str_type)
         except Exception as e:
-            self.__log.warning("Problem with generating molecule object from "+mol_str)
+            self.__log.warning(
+                "Problem with generating molecule object from " + mol_str)
             self.__log.warning(e)
             return None
 
         if mol.inchikey in set(self.universe):
-            spaces =[''.join(t) for t in itertools.product('A B C D E'.split(),'1 2 3 4 5'.split(), ['.001'])]
+            spaces = [''.join(t) for t in itertools.product(
+                'ABCDE', '12345', ['.001'])]
             try:
-                global_sign= np.concatenate([mol.signature('sign3', sp) for sp in spaces],axis=0)
+                global_sign = np.concatenate(
+                    [mol.signature('sign3', sp) for sp in spaces], axis=0)
             except Exception as e2:
-                self.__log.warning("Problem with generating global signature from "+mol_str)
+                self.__log.warning(
+                    "Problem with generating global signature from " + mol_str)
                 self.__log.warning(e2)
             else:
                 return global_sign
@@ -695,14 +775,5 @@ class ChemicalChecker():
         else:
             self.__log.warning(mol_str+" NOT IN UNIVERSE")
 
+
         return None
-
-    def get_diagnosisplot(self):
-        from chemicalchecker.util.plot.diagnosticsplot import DiagnosisPlot
-        return DiagnosisPlot(cc=self)
-
-    def get_diagnosis(self, sign, save=True, plot=True, overwrite=False,
-                      n=10000):
-        from chemicalchecker.core.diagnostics import Diagnosis
-        return Diagnosis(cc=self, sign=sign, save=save,
-                         plot=plot, overwrite=overwrite, n=n)

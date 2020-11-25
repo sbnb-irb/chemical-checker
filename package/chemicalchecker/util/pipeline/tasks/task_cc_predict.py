@@ -1,263 +1,181 @@
 """CCPredict task.
 
-This class allows to pipe different ``predict`` tasks in the Pipeline
-framework.
-It tries to work for all possible CC elements but considering that signatures
-are changing quite often it might need to be updated.
+This task allow submitting HPC jobs which will call the `predict` method
+for a specific signature type (e.g. 'sign1').
+It allows submitting jobs for all spaces of the CC at once and passing
+parameters specific for each of them.
+We should avoid adding too much logic in here, and simply pass `args` and
+`kwargs` to signatures. The specific signature classes should check that
+the parameters are OK.
 """
 import os
-import time
 import shutil
 import tempfile
 
+from chemicalchecker.database import Dataset
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import logged, Config, HPC
-
+from chemicalchecker.util import logged, HPC
 
 VALID_TYPES = ['sign', 'neig', 'clus', 'proj']
 
-CC_TYPES_DEPENDENCIES = {'sign0': ['sign0'], 'sign1': ['sign0'],
-                         'sign2': ['sign1'], 'sign3': ['sign2'],
-                         'neig1': ['sign1'], 'neig2': ['sign2'], 'neig3': ['sign3'],
-                         'clus1': ['sign1'], 'clus2': ['sign2'], 'clus3': ['sign3'],
-                         'proj1': ['sign1'], 'proj2': ['sign2'], 'proj3': ['sign3']}
-
-CC_TYPES_MEM_CPU = {'sign0': (44, 22), 'sign1': (20, 10), 'sign2': (20, 16), 'sign3': (2, 32),
-                    'neig1': (30, 15), 'neig2': (30, 15), 'neig3': (30, 15),
-                    'clus1': (20, 10), 'clus2': (20, 10), 'clus3': (20, 10),
-                    'proj1': (20, 10), 'proj2': (20, 10), 'proj3': (20, 10)}
-
-SPECIAL_PARAMS = {'sign2': {'adanet': {'cpu': 16}, 'node2vec': {'cpu': 4}},
-                  'neig1': {'cpu': 15},
-                  'neig2': {'cpu': 15},
-                  'neig3': {'cpu': 15},
-                  'sign3': {'cpu': 32},
-                  'clus1': {'cpu': 10},
-                  'clus2': {'cpu': 10},
-                  'clus3': {'cpu': 10},
-                  'proj1': {'cpu': 10},
-                  'proj2': {'cpu': 10},
-                  'proj3': {'cpu': 10}}
+predict_SCRIPT = """
+import sys
+import os
+import pickle
+import logging
+import chemicalchecker
+from chemicalchecker import ChemicalChecker, Config
+logging.log(logging.DEBUG, 'chemicalchecker: {{}}'.format(
+    chemicalchecker.__path__))
+logging.log(logging.DEBUG, 'CWD: {{}}'.format(os.getcwd()))
+config = Config()
+task_id = sys.argv[1]  # <TASK_ID>
+filename = sys.argv[2]  # <FILE>
+inputs = pickle.load(open(filename, 'rb'))  # load pickled data
+sign_args = inputs[task_id][0][0]
+sign_kwargs = inputs[task_id][0][1]
+predict_args = inputs[task_id][0][2]
+predict_kwargs = inputs[task_id][0][3]
+cc = ChemicalChecker('{cc_root}')
+sign = cc.get_signature(*sign_args, **sign_kwargs)
+sign.{predict_fn}(*predict_args, **predict_kwargs)
+print('JOB DONE')
+"""
 
 
 @logged
 class CCPredict(BaseTask):
 
-    def __init__(self, name=None, cc_type=None, **params):
+    def __init__(self, cc_root, cctype, molset, **params):
         """Initialize CC predict task.
 
         Args:
-            name (str): The name of the task (default:None)
-            cc_type (str): The CC type where the fit is applied (Required)
-            CC_ROOT (str): The CC root path (Required)
-            datasets (list): The list of dataset codes to apply the fit
-                (Optional, all datasets taken by default)
-            ds_data_params (dict): A dictionary with key is dataset code and
-                value is another dictionary with all specific parameters for
-                that dataset. (Optional)
-            general_data_params (dict): A dictionary with general parameters
-                for all datasets (Optional)
-            datasets_input_files (dict): A dictionary with is a dataset code
-                and value the input file for the predict.
-            output_path (str): The path where to save the output files from
-                the predict.
-            output_file (str): Name of the output file for the prediction.
+            cc_root (str): The CC root path (Required)
+            cctype (str): The CC type where the predict is applied (Required)
+            molset (str): The signature molset (e.g. `full` or `reference`)
+                on which the `predict` method will be called.
+            name (str): The name of the task (default:cctype)
+            datasets (list): The list of dataset codes to apply the predict
+                (Optional, by default 'essential' which includes all essential
+                CC datasets)
+            sign_args (dict): A dictionary where key is dataset code and
+                value is a list with all dataset specific parameters for
+                initializing the signature. (Optional)
+            sign_kwargs (dict): A dictionary where key is dataset code and
+                value is a dictionary with all dataset specific key-worded
+                parameters for initializing the signature. (Optional)
+            predict_fn (str): The name of the predict function to call.
+                By default si `predict`.
+            predict_args (dict): A dictionary where key is dataset code and
+                value is a list with all dataset specific parameters for
+                calling the signature `predict` method. (Optional)
+            predict_kwargs (dict): A dictionary where key is dataset code and
+                value is a dictionary with all dataset specific key-worded
+                calling the signature `predict` method. (Optional)
+            hpc_kwargs (dict): A dictionary where key is dataset code and
+                value is a dictionary with key-worded parameters for the
+                `HPC` module. (Optional)
+
         """
-        if cc_type is None:
-            raise Exception("CCPredict requires a cc_type")
+        if not any([cctype.startswith(t) for t in VALID_TYPES]):
+            raise Exception("cctype '%s' is not recognized.")
 
-        if name is None:
-            name = cc_type
-        args = []
-        task_id = params.get('task_id', None)
-        if task_id is None:
-            params['task_id'] = name
-        BaseTask.__init__(self, name, **params)
-
-        if cc_type not in CC_TYPES_DEPENDENCIES.keys():
-            raise Exception('CC Type ' + cc_type + ' not supported')
-
-        self.cc_type = cc_type
-
-        self.CC_ROOT = params.get('CC_ROOT', None)
-        if self.CC_ROOT is None:
-            raise Exception('CC_ROOT parameter is not set')
-
-        self.ds_data_params = params.get('ds_params', None)
-        self.general_data_params = params.get('general_params', None)
-
-        self.output_path = params.get("output_path", None)
-        self.output_file = params.get("output_file", None)
-        self.datasets_input_files = params.get("datasets_input_files", None)
-        self.datasets = params.get("datasets", None)
-
-        if self.output_file is None:
-            self.output_file = self.cc_type + ".h5"
-
-        if self.output_path is None:
-            raise Exception("No output_path defined")
-
-        if self.datasets is None:
-            raise Exception("There is no datasets to predict " + self.cc_type)
+        self.name = params.get('name', cctype)
+        BaseTask.__init__(self, self.name)
+        self.cctype = cctype
+        self.cc_root = cc_root
+        self.molset = molset
+        self.datasets = params.get('datasets', 'essential')
+        if self.datasets == 'essential':
+            self.datasets = [ds.code for ds in Dataset.get(essential=True)]
+        self.sign_args = params.get('sign_args', {})
+        self.sign_kwargs = params.get('sign_kwargs', {})
+        self.predict_fn = params.get('predict_fn', 'predict')
+        self.predict_args = params.get('predict_args', {})
+        self.predict_kwargs = params.get('predict_kwargs', {})
+        self.hpc_kwargs = params.get('hpc_kwargs', {})
 
     def run(self):
         """Run the task."""
-
-        config_cc = Config()
-        cc = ChemicalChecker(self.CC_ROOT)
-
-        branch = 'reference'
-
-        if self.cc_type == 'sign0' or self.cc_type == 'sign3':
-            branch = 'full'
-
-        # If not in sign0 then we need to get input data files
-        if self.cc_type != 'sign0':
-            if self.datasets_input_files is None:
-
-                dataset_codes_files = {}
-                for code in self.datasets:
-                    dataset_codes_files[code] = os.path.join(
-                        self.output_path, code,
-                        CC_TYPES_DEPENDENCIES[self.cc_type][0] + ".h5")
-                self.datasets_input_files = dataset_codes_files
-
-            else:
-                for ds, filename in self.datasets_input_files.items():
-                    if not os.path.exists(self.datasets_input_files[ds]):
-                        raise Exception(
-                            "Expected input file %s not present" %
-                            self.datasets_input_files[code])
-
+        # exclude dataset that have not been fitted
+        cc = ChemicalChecker(self.cc_root)
+        dataset_codes = list()
         for ds in self.datasets:
-            sign = cc.get_signature(self.cc_type, branch, ds)
+            sign = cc.get_signature(self.cctype, self.molset, ds)
             if not sign.is_fit():
-                raise Exception("Dataset %s is not trained yet" % ds)
-
-        dataset_params = list()
-
-        for ds_code in self.datasets:
-
-            input_data_file = None
-            if self.datasets_input_files is not None:
-                input_data_file = self.datasets_input_files[ds_code]
-
-            if isinstance(self.ds_data_params, Config):
-                temp_dict = self.ds_data_params.asdict()
-            else:
-                temp_dict = self.ds_data_params
-            if temp_dict is not None and ds_code in temp_dict.keys():
-                if isinstance(temp_dict[ds_code], Config):
-                    dict_params = temp_dict[ds_code].asdict()
-                else:
-                    dict_params = temp_dict[ds_code]
-
-                if self.cc_type in SPECIAL_PARAMS:
-                    dict_params.update(SPECIAL_PARAMS[self.cc_type])
-                if self.general_data_params is not None:
-                    dict_params.update(self.general_data_params)
-
-                dataset_params.append(
-                    (ds_code, input_data_file, dict_params))
-            else:
-                dataset_params.append(
-                    (ds_code, input_data_file, None))
-
-        job_path = None
-        if len(self.datasets) > 0:
-
-            self.datasets.sort()
-
-            job_path = tempfile.mkdtemp(
-                prefix='jobs_' + self.cc_type + '_pred_', dir=self.tmpdir)
-
-            if not os.path.isdir(job_path):
-                os.mkdir(job_path)
-
-            # create script file
-            cc_config_path = os.environ['CC_CONFIG']
-            cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
-            script_lines = [
-                "import sys, os",
-                "import pickle",
-                "from chemicalchecker.core import ChemicalChecker",
-                "from chemicalchecker.core import DataSignature",
-                "task_id = sys.argv[1]",  # <TASK_ID>
-                "filename = sys.argv[2]",  # <FILE>
-                # load pickled data
-                "inputs = pickle.load(open(filename, 'rb'))",
-                # elements for current job
-                "dataset = inputs[task_id][0][0]",
-                "dataset_file = inputs[task_id][0][1]",
-                "pars = inputs[task_id][0][2]",  # elements for current job
-                # elements for current job
-                "input_file = dataset_file",
-                "cc = ChemicalChecker('%s' )" % self.CC_ROOT,
-                'if pars is None: pars = {}',
-                "output_file=os.path.join('%s', dataset, '%s')" % (
-                    self.output_path, self.output_file),
-                "if not os.path.exists(os.path.dirname(output_file)):",
-                "    os.makedirs(os.path.dirname(output_file))"
-
-            ]
-
-            if self.cc_type == 'sign0':
-                script_lines += [
-                    'sign_full = cc.get_signature("%s","%s",dataset)' % (
-                        self.cc_type, branch),
-                    "pars['destination'] = output_file",
-                    "sign_full.predict(**pars)"]
-            else:
-                script_lines += [
-                    'sign_full = cc.get_signature("%s","%s",dataset, **pars)' % (
-                        self.cc_type, branch),
-                    "sign_full.predict(DataSignature(input_file),output_file)"]
-
-            script_lines += ["print('JOB DONE')"]
-
-            script_name = os.path.join(
-                job_path, self.cc_type + '_pred_script.py')
-            with open(script_name, 'w') as fh:
-                for line in script_lines:
-                    fh.write(line + '\n')
-            # hpc parameters
-
-            params = {}
-            params["num_jobs"] = len(self.datasets)
-            params["jobdir"] = job_path
-            params["job_name"] = "CC_PRD_" + self.cc_type.upper()
-            params["elements"] = dataset_params
-            params["wait"] = True
-            params["memory"] = CC_TYPES_MEM_CPU[self.cc_type][0]
-            params["cpu"] = CC_TYPES_MEM_CPU[self.cc_type][1]
-            # job command
-            singularity_image = Config().PATH.SINGULARITY_IMAGE
-            command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE>".format(
-                cc_package, cc_config_path, singularity_image, script_name)
-            # submit jobs
-            cluster = HPC.from_config(config_cc)
-            jobs = cluster.submitMultiJob(command, **params)
-
-        dataset_not_done = []
-        time.sleep(5)
-
-        for code in self.datasets:
-
-            check_file = os.path.join(self.output_path, code, self.output_file)
-
-            if not os.path.exists(check_file):
-                dataset_not_done.append(code)
-                self.__log.error(
-                    self.cc_type + " predict failed for dataset code: " + code)
-
-        if len(dataset_not_done) > 0:
-            if not self.custom_ready():
-                raise Exception("Some predictions failed")
-        else:
+                self.__log.warning('Dataset %s should be fitted first.' % ds)
+                continue
+            dataset_codes.append(ds)
+        if len(dataset_codes) == 0:
+            self.__log.warning('All dataset should be fitted first.')
             self.mark_ready()
-            if job_path is not None:
-                shutil.rmtree(job_path)
+            return
+
+        # Preparing dataset_params
+        # for each dataset we want to define a set of signature parameters
+        # (i.e. sign_pars, used when loading the signature) and a set of
+        # parameters used when calling the 'predict' method (i.e. predict_pars)
+        # FIXME can be further harmonized fixing individual signature classes
+        dataset_params = list()
+        for ds_code in dataset_codes:
+            sign_args = list()
+            predict_args = list()
+            sign_args.extend(self.sign_args.get(ds_code, list()))
+            predict_args.extend(self.predict_args.get(ds_code, list()))
+            sign_kwargs = dict()
+            predict_kwargs = dict()
+            sign_kwargs.update(self.sign_kwargs.get(ds_code, dict()))
+            predict_kwargs.update(self.predict_kwargs.get(ds_code, dict()))
+            # we add arguments which are used by CCPredict but are also needed
+            # by a signature
+            sign_args.insert(0, self.cctype)
+            sign_args.insert(1, self.molset)
+            sign_args.insert(2, ds_code)
+            # prepare it as tuple that will be serialized
+            dataset_params.append(
+                (sign_args, sign_kwargs, predict_args, predict_kwargs))
+            self.__log.info('%s sign_args: %s', ds_code, str(sign_args))
+            self.__log.info('%s sign_kwargs: %s', ds_code, str(sign_kwargs))
+            #self.__log.info('%s predict_args: %s', ds_code, str(predict_args))
+            #self.__log.info('%s predict_kwargs: %s',
+            #                ds_code, str(predict_kwargs))
+
+        # Create script file that will launch signx predict for each dataset
+        job_path = tempfile.mkdtemp(
+            prefix='jobs_%s_' % self.cctype, dir=self.tmpdir)
+        script_name = os.path.join(job_path, self.cctype + '_script.py')
+        script_content = predict_SCRIPT.format(cc_root=self.cc_root,
+                                               predict_fn=self.predict_fn)
+        with open(script_name, 'w') as fh:
+            fh.write(script_content)
+
+        # HPC job parameters
+        params = {}
+        params["num_jobs"] = len(dataset_codes)
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_" + self.cctype.upper()
+        params["elements"] = dataset_params
+        params["wait"] = True
+        params.update(self.hpc_kwargs)
+
+        # prepare job command and submit job
+        cc_config_path = self.config.config_path
+        cc_package = os.path.join(self.config.PATH.CC_REPO, 'package')
+        singularity_image = self.config.PATH.SINGULARITY_IMAGE
+        command = ("SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} "
+                   "singularity exec {} python {} <TASK_ID> <FILE>").format(
+            cc_package, cc_config_path, singularity_image, script_name)
+        self.__log.debug('CMD CCPREDICT: %s', command)
+        # submit jobs
+        cluster = HPC.from_config(self.config)
+        jobs = cluster.submitMultiJob(command, **params)
+        self.__log.info("Job with jobid '%s' ended.", str(jobs))
+
+        self.mark_ready()
+        if not self.keep_jobs:
+            self.__log.info("Deleting job path: %s", job_path)
+            shutil.rmtree(job_path, ignore_errors=True)
 
     def execute(self, context):
         """Same as run but for Airflow."""

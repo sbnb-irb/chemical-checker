@@ -7,7 +7,7 @@ with a dimensionality that typically retains 90% of the original variance.
 They keep most of the complexity of the original data and they can be used for
 similarity calculations.
 
-The typical preprocessing is a PCA (continuous data) or TF-IDF LSI (continuous).
+The typical preprocessing is a PCA (continuous data) or TF-IDF LSI.
 """
 import os
 import h5py
@@ -27,7 +27,6 @@ from .signature_data import DataSignature
 from .signature_base import BaseSignature
 
 from chemicalchecker.util import logged
-from chemicalchecker.util.transform.lsi import Lsi
 from chemicalchecker.util.transform.pca import Pca
 from chemicalchecker.util.transform.scale import Scale
 
@@ -48,8 +47,6 @@ class sign1(BaseSignature, DataSignature):
         """
         # Calling init on the base class to trigger file existance checks
         BaseSignature.__init__(self, signature_path, dataset, **params)
-        self.__log.debug('signature path is: %s', signature_path)
-
         self.data_path = os.path.join(self.signature_path, "sign1.h5")
         DataSignature.__init__(self, self.data_path)
 
@@ -63,14 +60,17 @@ class sign1(BaseSignature, DataSignature):
         if is_basesig:
             if s0.molset != s1.molset:
                 raise Exception(
-                    "Copying from signature 0 to 1 is only allowed for same molsets (reference or full)")
+                    "Copying from signature 0 to 1 is only allowed for "
+                    "same molsets (reference or full)")
 
         self.__log.debug("Copying HDF5 dataset")
         with h5py.File(s1.data_path, "w") as hf:
             hf.create_dataset("name", data=np.array(
                 [str(self.dataset) + "sig"], DataSignature.string_dtype()))
-            hf.create_dataset("date", data=np.array([datetime.datetime.now().strftime(
-                "%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
+            hf.create_dataset(
+                "date",
+                data=np.array([datetime.datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
             hf.create_dataset("V", data=s0[:])
             hf.create_dataset("keys", data=np.array(
                 s0.keys, DataSignature.string_dtype()))
@@ -88,7 +88,8 @@ class sign1(BaseSignature, DataSignature):
                 shutil.copyfile(fn0, fn1)
             else:
                 self.__log.warn(
-                    "No triplets available! Please fit sign0 with option do_triplets=True")
+                    "No triplets available! Please fit sign0 with "
+                    "option do_triplets=True")
         self.refresh()
         s0.refresh()
         s1.refresh()
@@ -129,61 +130,58 @@ class sign1(BaseSignature, DataSignature):
             if "V_tmp" in hf.keys():
                 del hf["V_tmp"]
 
-    def fit(self, sign0, latent=True, scale=True, metric_learning=True, semisupervised=False, overwrite=False, validations=True):
+    def fit(self, sign0=None, latent=True, scale=True, metric_learning=True,
+            semisupervised=False,  **params):
         """Fit signature 1 given signature 0
 
             Args:
                 sign0: A signature 0.
         """
-
-        if not overwrite and BaseSignature.fit(self):
-            # NS provides a lock to avoid fitting again if it has been already done
-            return
-
-
         try:
-            from chemicalchecker.util.transform.metric_learn import UnsupervisedMetricLearn, SemiSupervisedMetricLearn
+            from chemicalchecker.util.transform.metric_learn import \
+                UnsupervisedMetricLearn, SemiSupervisedMetricLearn
         except ImportError:
             raise ImportError("requires tensorflow " +
                               "https://tensorflow.org")
-        self.clean()
-
-        s0 = sign0
-        self.__log.debug("Fitting")
-        if s0.cctype != "sign0":
+        try:
+            from chemicalchecker.util.transform.lsi import Lsi
+        except ImportError as ex:
+            raise ex
+        BaseSignature.fit(self,  **params)
+        self.clear()
+        # signature specific checks
+        if sign0 is None:
+            sign0 = self.get_sign('sign0').get_molset("full")
+        if sign0.cctype != "sign0":
             raise Exception("A signature type 0 is expected..!")
-        if s0.molset != "full":
+        if sign0.molset != "full":
             raise Exception(
-                "Fit should be done with the full signature 0 (even if inside reference is used)")
-
-        s0_ref = s0.get_molset("reference")
+                "Fit should be done with the full signature 0 "
+                "(even if inside reference is used)")
+        # preparing signatures
+        self.update_status("Getting data")
+        s0_ref = sign0.get_molset("reference")
         s1_ref = self.get_molset("reference")
-
-        s1_ref.clean()
-
+        s1_ref.clear()
         self.__log.debug("Placing sign0 to sign1 (done for reference)")
         self.copy_sign0_to_sign1(s0_ref, s1_ref)
-
         self.__log.debug("Placing sign0 to sign1 (done for full)")
-        self.copy_sign0_to_sign1(s0, self)
-
+        self.copy_sign0_to_sign1(sign0, self)
         self.__log.debug("Duplicating signature (tmp) (done for reference)")
         self.duplicate(s1_ref)
-
         self.__log.debug("Duplicating signature (tmp) (done for full)")
         self.duplicate(self)
-
-        if metric_learning:
-            tmp = True
-        else:
-            tmp = False
-
         self.__log.debug("Checking if matrix was sparse or not")
         sparse = s1_ref.was_sparse()
+
+        tmp = False
+        if metric_learning:
+            tmp = True
 
         if sparse:
             self.__log.debug("Sparse matrix pipeline")
             if latent:
+                self.update_status("LSI")
                 self.__log.debug(
                     "Looking for latent variables with TFIDF-LSI (done for tmp)")
                 mod = Lsi(self, tmp=tmp)
@@ -193,19 +191,20 @@ class sign1(BaseSignature, DataSignature):
         else:
             self.__log.debug("Dense matrix pipeline")
             if scale:
-                self.__log.debug("Scaling (not for all)")
+                self.update_status("Scaling")
                 mod = Scale(self, tmp=False)
                 mod.fit()
                 mod.predict(s1_ref)
             else:
                 self.__log.debug("Not scaling")
             if latent:
-                self.__log.debug("PCA (done for tmp)")
+                self.update_status("PCA")
                 mod = Pca(self, tmp=tmp)
                 mod.fit()
             else:
                 self.__log.debug("Not looking for latent variables")
         if metric_learning:
+            self.update_status("Metric Learning")
             if semisupervised:
                 self.__log.debug("Semi-supervised metric learning")
                 mod = SemiSupervisedMetricLearn(self, tmp=False)
@@ -215,7 +214,7 @@ class sign1(BaseSignature, DataSignature):
                 self.__log.debug("First doing neighbors")
                 mod = UnsupervisedMetricLearn(self, tmp=False)
                 mod.fit()
-        self.__log.debug("Saving pipeline")
+        # save pipeline
         pipeline = {
             "sparse": sparse,
             "latent": latent,
@@ -228,18 +227,12 @@ class sign1(BaseSignature, DataSignature):
         fn = self.pipeline_file()
         with open(fn, "wb") as f:
             pickle.dump(pipeline, f)
-        s1_ref.background_distances("cosine")
+
         with h5py.File(s1_ref.data_path, "a") as hf:
             hf.create_dataset("metric", data=np.array(
                 ["cosine"], DataSignature.string_dtype()))
-        if validations:
-            self.__log.debug("Validate")
-            self.validate()
-            s1_ref.validate()
-        # Marking as ready
-        self.__log.debug("Mark as ready")
-        s1_ref.mark_ready()
-        self.mark_ready()
+        # finalize signature
+        BaseSignature.fit_end(self,  **params)
 
     def predict(self, sign0, destination=None):
         """Predict sign1 from sign0"""
@@ -318,7 +311,8 @@ class sign1(BaseSignature, DataSignature):
         data_path = os.path.join(s1.model_path, "neig.h5")
         self.__log.debug(
             "Calculating nearest neighbors. Saving in: %s" % data_path)
-        with h5py.File(s1.data_path, 'r') as dh5, h5py.File(data_path, 'w') as dh5out:
+        with h5py.File(s1.data_path, 'r') as dh5, \
+                h5py.File(data_path, 'w') as dh5out:
             datasize = dh5[V_name].shape
             data_type = dh5[V_name].dtype
             self.__log.debug("...data size is (%d, %d)" %
@@ -332,7 +326,8 @@ class sign1(BaseSignature, DataSignature):
                 "distances", (datasize[0], k), dtype=np.float32)
             dh5out.create_dataset("shape", data=(datasize[0], k))
             dh5out.create_dataset(
-                "metric", data=[metric.encode(encoding='UTF-8', errors='strict')])
+                "metric", data=[metric.encode(encoding='UTF-8',
+                                              errors='strict')])
             if metric == "euclidean":
                 index = faiss.IndexFlatL2(datasize[1])
             else:
@@ -468,13 +463,18 @@ class sign1(BaseSignature, DataSignature):
         acc /= len(triplets)
         return acc
 
-    def optimal_t(self, max_triplets=10000, min_triplets=1000, local_neig_path=False, save=True):
-        """Find optimal (recommended) number of neighbors, based on the accuracy of triplets across the CC.
+    def optimal_t(self, max_triplets=10000, min_triplets=1000,
+                  local_neig_path=False, save=True):
+        """Find optimal (recommended) number of neighbors.
+
+        Based on the accuracy of triplets across the CC.
         Neighbors class needs to be precomputed.
-        Only done for the reference set (it doesn't really make sense to do it for the full).
+        Only done for the reference set (it doesn't really make sense to do it
+        for the full).
 
         Args:
-            max_triplets(int): Maximum number of triplets to consider (default=10000).
+            max_triplets(int): Maximum number of triplets to consider
+                (default=10000).
             save(bool): Store an opt_t.h5 file (default=True).
         """
         self.__log.debug("Reading triplets")
@@ -537,7 +537,9 @@ class sign1(BaseSignature, DataSignature):
         opt_t = opt_k / nn.shape[0]
         if save:
             self.__log.debug("Saving")
-            with h5py.File(os.path.join(self.get_molset("reference").model_path, "opt_t.h5"), "w") as hf:
+            fname = os.path.join(
+                self.get_molset("reference").model_path, "opt_t.h5")
+            with h5py.File(fname, "w") as hf:
                 hf.create_dataset(
                     "accuracies", data=np.array(accus).astype(np.int))
                 hf.create_dataset("opt_t", data=np.array([opt_t]))

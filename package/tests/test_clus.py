@@ -1,5 +1,4 @@
 import os
-import mock
 import h5py
 import pytest
 import shutil

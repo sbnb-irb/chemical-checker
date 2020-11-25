@@ -20,18 +20,18 @@ class MetricLearn(BaseTransform):
 
     def __init__(self, sign1, tmp, name, max_keys):
         try:
-            from tensorflow.keras.layers import Dense
+            from keras.layers import Dense
         except ImportError:
             raise ImportError("requires tensorflow " +
                               "https://www.tensorflow.org/")
         params = {
             'epochs': 3,
-            'dropouts': [None],
+            'dropouts': [None, None],
             'layers_sizes': None,
             'learning_rate': "auto",
             'batch_size': 128,
-            'activations': ["tanh"],
-            'layer': [Dense],
+            'activations': ["tanh", "tanh"],
+            'layers': [Dense, Dense],
             'loss_func': 'orthogonal_tloss',
             'margin': 1.0,
             'alpha': 1.0
@@ -40,8 +40,10 @@ class MetricLearn(BaseTransform):
             raise Exception("Metric learn is not prepared to work with tmp")
         BaseTransform.__init__(self, sign1, name, max_keys, tmp)
         if params["layers_sizes"] is None:
-            layer_size = sign1.info_h5["V_tmp"][1]
-            params["layers_sizes"] = [layer_size]
+            input_size = self.sign_ref.shape[1]
+            final_layer_size = sign1.info_h5["V_tmp"][1]
+            params["layers_sizes"] = [int((input_size + final_layer_size) / 2),
+                                      final_layer_size]
         self.params = params
 
     def _fit(self, triplets):

@@ -43,6 +43,7 @@ class TestNeigh(unittest.TestCase):
 
         sign1 = mock.Mock()
         sign1.data_path = os.path.join(self.data_dir, "mock_sign1.h5")
+        sign1.molset = 'reference'
         self.data_path = sign1.data_path
         with h5py.File(sign1.data_path) as hf:
             self.shape = hf["V"].shape
