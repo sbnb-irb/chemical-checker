@@ -1,7 +1,7 @@
 # script to fetch global signatures for the BBB predictor
 # and save them as numpy array
 
-import os, glob
+import os, glob,sys
 import numpy as np
 import pandas as pd
 
@@ -61,8 +61,8 @@ for i,row in df.iterrows():
         if res==True:
             sign3 = cc.get_global_signature(row.inchiKey, str_type='inchikey')
             co+=1
-            np.save(os,path.join(SAVEDIR,str(i)),sign3)
-            print('saved',os,path.join(SAVEDIR,str(i)+'.npy'))
+            np.save(os.path.join(SAVEDIR,str(i)),sign3)
+            print('saved',os.path.join(SAVEDIR,str(i)+'.npy'))
     except Exception as e:
         print("problem",e)
         
