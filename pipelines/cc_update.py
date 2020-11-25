@@ -94,7 +94,8 @@ def main(args):
         main._log.info('[ ARGS ] {:<25s}: {}'.format(arg, getattr(args, arg)))
 
     fit_order = ['sign0', 'sign1', 'clus1', 'proj1', 'neig1',
-                 'sign2', 'clus2', 'proj2', 'neig2', 'sign3']
+                 'sign2', 'clus2', 'proj2', 'neig2', 'sign3',
+                 'clus3', 'proj3', 'neig3']
 
     data_calculators = [
         'morgan_fp_r2_2048',
@@ -391,6 +392,20 @@ def main(args):
                  sign_kwargs=sign_kwargs[cctype],
                  hpc_kwargs=hpc_kwargs[cctype])
     pp.add_task(task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Calculate clus3, proj3 and neig3
+    dss = [ds.code for ds in Dataset.get(exemplary=True)]
+    s3_idx = fit_order.index('sign3') + 1
+    for cctype in fit_order[s3_idx:]:
+        task = CCFit(args.cc_root, cctype, molset[cctype],
+                     datasets=dss,
+                     fit_kwargs=fit_kwargs[cctype],
+                     sign_kwargs=sign_kwargs[cctype],
+                     hpc_kwargs=hpc_kwargs[cctype])
+        pp.add_task(task)
     # END TASK
     #############################################
 
