@@ -626,7 +626,7 @@ class DataSignature(object):
         if "mappings" not in self.info_h5:
             raise Exception("Data file has no mappings.")
         with h5py.File(self.data_path, 'r') as hf:
-            mappings = dict(hf['mappings'][:])
+            mappings = hf['mappings'][:]
         # avoid trivial mappings (where key==value)
         to_map = set(mappings.keys()) - set(mappings.values())
         if len(to_map) == 0:
@@ -640,6 +640,10 @@ class DataSignature(object):
                 hf.create_dataset('V', data=src_vectors, dtype=np.float32)
                 hf.create_dataset("shape", data=src_vectors.shape)
             return
+        # convert to string if bytes
+        if isinstance(to_map[0], bytes):
+            for idx, byt in enumerate(to_map):
+                to_map[idx] = byt.decode()
         # prepare key-vector arrays
         dst_keys = list()
         dst_vectors = list()
