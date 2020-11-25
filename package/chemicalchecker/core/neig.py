@@ -58,14 +58,20 @@ class neig(BaseSignature, DataSignature):
             if "chunk" in params:
                 self.chunk = params["chunk"]
 
-    def fit(self, sign1):
+    def fit(self, sign1=None):
         """Fit neighbor model given a signature."""
         try:
             import faiss
         except ImportError:
             raise ImportError("requires faiss " +
                               "https://github.com/facebookresearch/faiss")
-        BaseSignature.fit(self)
+
+        if sign1 is None:
+            sign1 = self.get_sign(
+                'sign' + self.cctype[-1]).get_molset("reference")
+        if sign1.molset != "reference":
+            raise Exception(
+                "Fit should be done with the reference sign1")
 
         faiss.omp_set_num_threads(self.cpu)
 
@@ -124,6 +130,10 @@ class neig(BaseSignature, DataSignature):
 
         faiss.write_index(index, self.index_filename)
 
+        # also predict for full if available
+        sign_full = self.get_sign('sign' + self.cctype[-1]).get_molset("full")
+        if os.path.isfile(sign_full.data_path):
+            self.predict(sign_full, self.get_molset("full").data_path)
         self.mark_ready()
 
     def predict(self, sign1, destination=None, validations=False):
@@ -133,7 +143,6 @@ class neig(BaseSignature, DataSignature):
         except ImportError:
             raise ImportError("requires faiss " +
                               "https://github.com/facebookresearch/faiss")
-        BaseSignature.predict(self)
 
         if destination is None:
             raise Exception("There is no destination file specified")
@@ -251,7 +260,7 @@ class neig(BaseSignature, DataSignature):
             dataset_name(str): return any dataset in the h5 which is organized
                 by sorted keys.
         """
-        self.__log.debug("Fetching %s rows from dataset %s" %
+        self.__log.debug("Fetching Neig %s rows from dataset %s" %
                          (len(keys), dataset_name))
         valid_keys = list(set(self.row_keys) & set(keys))
         idxs = np.argwhere(

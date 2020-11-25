@@ -142,40 +142,37 @@ def Calcdata(table_name):
             return keys.difference(present)
 
         @staticmethod
+        def from_inchikey(inchikey, **kwargs):
+            inchikey_inchi = Molecule.get_inchikey_inchi_mapping(inchikey)
+            GenericCalcdata.from_inchikey_inchi(inchikey_inchi, **kwargs)
+
+        @staticmethod
         def from_inchikey_inchi(inchikey_inchi, missing_only=True,
                                 chunksize=1000):
-            """Fill the property table given inchikey to inchi map."""
-            # calc_fn yield a list of dictionaries with keys as a molprop
-            # entry
-
+            """Fill the property table given InChIKey to InChI map."""
             if isinstance(inchikey_inchi, list):
                 if len(inchikey_inchi[0]) != 2:
                     raise Exception(
                         "Inchikey_inchi variable is not a list of tuples " +
-                        "(inchikey,inchi)")
+                        "(InChIKey, InChI)")
                 inchikey_inchi_final = dict(inchikey_inchi)
             else:
                 inchikey_inchi_final = inchikey_inchi
 
             if missing_only:
                 set_inks = set(inchikey_inchi_final.keys())
-
                 GenericCalcdata.__log.debug(
                     "Size initial data to add: " + str(len(set_inks)))
-
                 todo_iks = GenericCalcdata.get_missing_from_set(set_inks)
-
                 GenericCalcdata.__log.debug(
                     "Size final data to add: " + str(len(todo_iks)))
-
                 dict_inchikey_inchi = {
                     k: inchikey_inchi_final[k] for k in todo_iks}
-
             else:
                 dict_inchikey_inchi = inchikey_inchi_final
 
             Molecule.add_missing_only(inchikey_inchi_final)
-
+            # parse_fn yield a list of dictionaries with keys as a molprop
             parse_fn = DataCalculator.calc_fn(GenericCalcdata.__tablename__)
             # profile time
             t_start = time()
@@ -185,7 +182,6 @@ def Calcdata(table_name):
                     continue
                 GenericCalcdata.__log.debug(
                     "Loading chunk of size: " + str(len(chunk)))
-
                 engine.execute(
                     postgresql.insert(GenericCalcdata.__table__).values(
                         chunk).on_conflict_do_nothing(
@@ -197,21 +193,19 @@ def Calcdata(table_name):
                 GenericCalcdata.__tablename__, t_delta)
 
         @staticmethod
-        def calcdata_hpc(job_path, inchikey_inchi, **kwargs):
+        def calcdata_hpc(job_path, inchikey, **kwargs):
             """Run HPC jobs to calculate data from inchikey_inchi data.
 
             job_path(str): Path (usually in scratch) where the script files are
                 generated.
-            inchikey_inchi(list): List of inchikey, inchi tuples
+            inchikey(list): List of inchikey.
             cpu: Number of cores each job will use(default:1)
             wait: Wait for the job to finish (default:True)
             memory: Maximum memory the job can take in Gigabytes(default: 5)
-            chunk: Number of elements per HPC job(default: 200)
+            num_jobs: Number of HPC jobs(default: 200)
             chunk_dbload: Number of elements loaded to the database
                 (default: 1000)
             """
-            cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
-            cfg = Config(cc_config)
             # create job directory if not available
             if not os.path.isdir(job_path):
                 os.mkdir(job_path)
@@ -219,7 +213,7 @@ def Calcdata(table_name):
             cpu = kwargs.get("cpu", 1)
             wait = kwargs.get("wait", True)
             memory = kwargs.get("memory", 5)
-            chunk = kwargs.get("chunk", 200)
+            num_jobs = kwargs.get("num_jobs", 200)
             chunk_dbload = kwargs.get("chunk_dbload", 1000)
 
             # create script file
@@ -230,75 +224,37 @@ def Calcdata(table_name):
                 "from chemicalchecker.database import Calcdata",
                 "task_id = sys.argv[1]",  # <TASK_ID>
                 "filename = sys.argv[2]",  # <FILE>
-                "h5_file = sys.argv[3]",  # <H5 FILE>
                 # load pickled data
-                "inputs = pickle.load(open(filename, 'rb'))",
-                # elements for current job
-                "start_index = int(inputs[task_id])",
-                "with h5py.File(h5_file, 'r') as hf:",
-                "    inchikey_inchi = dict(hf['ik_inchi']" +
-                "[start_index:start_index+" + str(chunk) + "])",
-                # elements are indexes
+                "inchikey = pickle.load(open(filename, 'rb'))[task_id]",
                 "mol = Calcdata('" + GenericCalcdata.__tablename__ + "')",
-                # start import
-                'mol.from_inchikey_inchi(inchikey_inchi,' +
-                'missing_only=False,chunksize=%d)' % chunk_dbload,
+                'mol.from_inchikey(inchikey, '
+                'missing_only=False, chunksize=%d)' % chunk_dbload,
                 "print('JOB DONE')"
             ]
+
             script_name = os.path.join(job_path, 'molprop_script.py')
             with open(script_name, 'w') as fh:
                 for line in script_lines:
                     fh.write(line + '\n')
 
-            set_inks = set()
-            list_inchikey_inchi = list()
-
-            for ele in inchikey_inchi:
-                if ele[0] is None:
-                    continue
-                set_inks.add(ele[0])
-
-            GenericCalcdata.__log.debug(
-                "Size initial data to add: " + str(len(set_inks)))
-
-            todo_iks = GenericCalcdata.get_missing_from_set(set_inks)
-
-            GenericCalcdata.__log.debug(
-                "Size final data to add: " + str(len(todo_iks)))
-
-            if len(todo_iks) == 0:
-                return None
-
-            for ele in inchikey_inchi:
-                if ele[0] in todo_iks:
-                    list_inchikey_inchi.append((str(ele[0]), str(ele[1])))
-
-            h5_file_name = os.path.join(job_path, "ik_inchi.h5")
-            del inchikey_inchi
-
-            with h5py.File(h5_file_name, "w") as hf:
-                hf.create_dataset("ik_inchi", data=np.array(
-                    list_inchikey_inchi, dtype=h5py.special_dtype(vlen=str)))
-
-            # NS cast into a list
-            indices = list(range(0, len(list_inchikey_inchi), chunk))
-
+            # HPC job parameters
             params = {}
-
-            params["num_jobs"] = len(indices)
+            params["num_jobs"] = num_jobs
             params["jobdir"] = job_path
             params["job_name"] = "CC_MLP_" + GenericCalcdata.__tablename__
-            params["elements"] = indices
+            params["elements"] = inchikey
             params["wait"] = wait
             params["cpu"] = cpu
             params["memory"] = memory
             # job command
+            cfg = Config()
             singularity_image = cfg.PATH.SINGULARITY_IMAGE
-            command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
-                " singularity exec {} python {} <TASK_ID> <FILE> {}"
-            command = command.format(
-                os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
-                singularity_image, script_name, h5_file_name)
+            cc_config_path = cfg.config_path
+            cc_package = os.path.join(cfg.PATH.CC_REPO, 'package')
+            command = (
+                "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} "
+                "singularity exec {} python {} <TASK_ID> <FILE>").format(
+                cc_package, cc_config_path, singularity_image, script_name)
             # submit jobs
             cluster = HPC.from_config(Config())
             cluster.submitMultiJob(command, **params)

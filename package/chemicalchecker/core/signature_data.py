@@ -8,7 +8,6 @@ check for consistency, index, subsample or map signatures.
 import os
 import sys
 import h5py
-import shutil
 import numpy as np
 from bisect import bisect_left
 from scipy.spatial.distance import euclidean, cosine
@@ -45,21 +44,6 @@ class DataSignature(object):
         """Apply decode function to input"""
         decoder = np.vectorize(lambda x: x.decode())
         return decoder(arg)
-
-    @staticmethod
-    def _fetch_keys(h5file, keys_name='keys'):
-        """Made to make the get_vectors method work with the sign0 preprocessed.h5"""
-        if not os.path.isfile(h5file):
-            raise Exception("Data file %s not available." % h5file)
-
-        with h5py.File(h5file, 'r') as hf:
-            if keys_name not in hf.keys():
-                raise Exception("No '%s' dataset in this signature!" % key)
-
-            data = hf[keys_name][:]
-            if hasattr(data.flat[0], 'decode'):
-                return self._decode(data)
-            return data
 
     def _get_shape(self, key):
         """Get shape of dataset"""
@@ -376,7 +360,7 @@ class DataSignature(object):
                 else:
                     return hf[h5_dataset_name][mask, :]
 
-    def get_vectors(self, keys, include_nan=False, dataset_name='V', output_missing=False, data_file=None):
+    def get_vectors(self, keys, include_nan=False, dataset_name='V', output_missing=False):
         """Get vectors for a list of keys, sorted by default.
 
         Args:
@@ -387,26 +371,18 @@ class DataSignature(object):
             dataset_name(str): return any dataset in the h5 which is organized
                 by sorted keys.
         """
-
-        # NS, allow it to work on preprocessed.h5
-        if data_file is None:
-            data_file = self.data_path
-            data_keys = self.keys
-        else:
-            data_keys = DataSignature._fetch_keys(data_file)
-
         self.__log.debug("Fetching %s rows from dataset %s" %
                          (len(keys), dataset_name))
-        valid_keys = list(set(data_keys) & set(keys))
+        valid_keys = list(self.unique_keys & set(keys))
         idxs = np.argwhere(
-            np.isin(list(data_keys), list(valid_keys), assume_unique=True))
+            np.isin(list(self.keys), list(valid_keys), assume_unique=True))
         inks, signs = list(), list()
 
-        with h5py.File(data_file, 'r') as hf:
+        with h5py.File(self.data_path, 'r') as hf:
             dset = hf[dataset_name]
             dset_shape = dset.shape
             for idx in sorted(idxs.flatten()):
-                inks.append(data_keys[idx])
+                inks.append(self.keys[idx])
                 signs.append(dset[idx])
         missed_inks = set(keys) - set(inks)
         # if missing signatures are requested add NaNs
@@ -508,11 +484,12 @@ class DataSignature(object):
         else:
             raise Exception("Key type %s not recognized." % type(key))
 
-    def background_distances(self, metric, sample_pairs=100000, unflat=True,
-                             memory_safe=False):
-        """Give the background distances according to the selected metric.
+    def compute_distance_pvalues(self, bg_file, metric, sample_pairs=None,
+                                 unflat=True, memory_safe=False):
+        """Compute the distance pvalues according to the selected metric.
 
         Args:
+            bg_file(Str): The file where to store the distances.
             metric(str): the metric name (cosine or euclidean).
             sample_pairs(int): Amount of pairs for distance calculation.
             unflat(bool): Remove flat regions whenever we observe them.
@@ -522,7 +499,6 @@ class DataSignature(object):
             bg_distances(dict): Dictionary with distances and Pvalues
         """
         # lazily read already computed distance
-        bg_file = os.path.join(self.model_path, "bg_%s_distances.h5" % metric)
         if os.path.isfile(bg_file):
             self.__log.info("Reading bg_distances file for metric: " + metric)
             bg_distances = dict()
@@ -541,10 +517,19 @@ class DataSignature(object):
             matrix = self
         else:
             matrix = self[:]
+        # how many molecules gives a proper sampling?
+        if sample_pairs is None:
+            # p and q are fixed parameters
+            p, q = 0.5, 0.5
+            # 5% confidence, 95% precision
+            d, Z = 0.05, 1.96
+            coef = Z**2 * p * q
+            k = (coef * len(self.keys)) / (d**2 * (len(self.keys) - 1) + coef)
+            sample_pairs = int(np.ceil(k**2))
+        self.__log.info("Background distances sample_pairs: %s" % sample_pairs)
         if matrix.shape[0]**2 < sample_pairs:
             self.__log.warn("Requested more pairs then possible combinations")
             sample_pairs = matrix.shape[0]**2 - matrix.shape[0]
-
         bg = list()
         done = set()
         tries = 1e6
@@ -597,24 +582,6 @@ class DataSignature(object):
             hf.create_dataset("pvalue", data=bg_distances["pvalue"])
         return bg_distances
 
-    def clean(self):
-        self.__log.debug("Removing anything that was there before")
-        if os.path.exists(self.data_path):
-            self.__log.warn("A sign H5 file has been removed")
-            os.remove(self.data_path)
-        if os.path.exists(self.model_path):
-            self.__log.warn("A models folder has been emptied")
-            shutil.rmtree(self.model_path)
-            original_umask = os.umask(0)
-            os.makedirs(self.model_path, 0o775)
-            os.umask(original_umask)
-        if os.path.exists(self.stats_path):
-            self.__log.warn("A stats folder has been emptied")
-            shutil.rmtree(self.stats_path)
-            original_umask = os.umask(0)
-            os.makedirs(self.stats_path, 0o775)
-            os.umask(original_umask)
-
     def subsample(self, n):
         """Subsample from a signature without replacement.
 
@@ -659,16 +626,24 @@ class DataSignature(object):
         if "mappings" not in self.info_h5:
             raise Exception("Data file has no mappings.")
         with h5py.File(self.data_path, 'r') as hf:
-            mappings = dict(hf['mappings'][:])
+            mappings_raw = hf['mappings'][:]
+        mappings = dict()
+        for row in mappings_raw:
+            if isinstance(row[0], bytes):
+                ink1 = row[0].decode()
+            if isinstance(row[1], bytes):
+                ink2 = row[1].decode()
+            mappings[ink1] = ink2
         # avoid trivial mappings (where key==value)
-        to_map = set(mappings.keys()) - set(mappings.values())
+        to_map = list(set(mappings.keys()) - set(mappings.values()))
         if len(to_map) == 0:
             # corner case where there's nothing to map
             with h5py.File(self.data_path, 'r') as hf:
                 src_keys = hf['keys'][:]
                 src_vectors = hf['V'][:]
             with h5py.File(out_file, "w") as hf:
-                hf.create_dataset('keys', data=src_keys)
+                hf.create_dataset('keys', data=src_keys,
+                                  dtype=DataSignature.string_dtype())
                 hf.create_dataset('V', data=src_vectors, dtype=np.float32)
                 hf.create_dataset("shape", data=src_vectors.shape)
             return
@@ -689,7 +664,8 @@ class DataSignature(object):
         # get them sorted
         sorted_idx = np.argsort(dst_keys)
         with h5py.File(out_file, "w") as hf:
-            hf.create_dataset('keys', data=dst_keys[sorted_idx])
+            hf.create_dataset('keys', data=dst_keys[sorted_idx],
+                              dtype=DataSignature.string_dtype())
             hf.create_dataset('V', data=matrix[sorted_idx], dtype=np.float32)
             hf.create_dataset("shape", data=matrix.shape)
 

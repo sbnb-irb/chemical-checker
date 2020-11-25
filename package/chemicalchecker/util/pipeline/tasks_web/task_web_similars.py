@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from chemicalchecker.util import psql
 from chemicalchecker.util.pipeline import BaseTask
-from chemicalchecker.util import logged, Config, HPC
+from chemicalchecker.util import logged, HPC
 
 
 # We got these strings by doing: pg_dump -t 'scores' --schema-only mosaic
@@ -18,12 +18,9 @@ from chemicalchecker.util import logged, Config, HPC
 class Similars(BaseTask):
 
     def __init__(self, name=None, **params):
-
         task_id = params.get('task_id', None)
-
         if task_id is None:
             params['task_id'] = name
-
         BaseTask.__init__(self, name, **params)
 
         self.DB = params.get('DB', None)
@@ -38,40 +35,41 @@ class Similars(BaseTask):
 
     def run(self):
         """Run the molecular info step."""
-
-        config_cc = Config()
-
-        db_name = self.DB
-
-        cc_config_path = os.environ['CC_CONFIG']
-        cc_package = os.path.join(config_cc.PATH.CC_REPO, 'package')
         script_path = os.path.join(os.path.dirname(
             os.path.realpath(__file__)), "scripts/similars.py")
-
-        universe_file = os.path.join(self.tmpdir, "universe.h5")
-
-        names_map = {}
+        universe_file = os.path.join(self.cachedir, "universe.h5")
 
         with h5py.File(universe_file, 'r') as hf:
             universe_keys = hf["keys"][:]
 
+        # get all bioactive compounds from libraries (with pubchem names)
+        lib_bio_file = os.path.join(self.tmpdir, "lib_bio.json")
+        if not os.path.exists(lib_bio_file):
+            text_bio = "select  library_description.name as lib,lib.inchikey from libraries as lib INNER JOIN library_description on lib.lib = library_description.lib   where lib.is_bioactive = '1' order by  library_description.rank"
+            lib_bio = psql.qstring(text_bio, self.DB)
+            ref_bioactive = dict()
+            for lib in lib_bio:
+                if lib[0] not in ref_bioactive:
+                    ref_bioactive[lib[0]] = set()
+                ref_bioactive[lib[0]].add(lib[1])
+            for lib in lib_bio:
+                ref_bioactive[lib[0]] = list(ref_bioactive[lib[0]])
+            with open(lib_bio_file, 'w') as outfile:
+                json.dump(ref_bioactive, outfile)
+
+        # save chunks of inchikey pubmed synonyms
         ik_names_file = os.path.join(self.tmpdir, "inchies_names.json")
-
         if not os.path.exists(ik_names_file):
+            names_map = {}
             for input_data in self.__chunker(universe_keys):
-
                 data = psql.qstring("select inchikey_pubchem as inchikey,name from pubchem INNER JOIN( VALUES " +
-                                    ', '.join('(\'{0}\')'.format(w) for w in input_data) + ") vals(v) ON (inchikey_pubchem = v)", db_name)
-
+                                    ', '.join('(\'{0}\')'.format(w) for w in input_data) + ") vals(v) ON (inchikey_pubchem = v)", self.DB)
                 for i in range(0, len(data)):
-
                     inchi = data[i][0]
                     name = data[i][1]
                     if name is None:
                         name = inchi
-
                     names_map[inchi] = name
-
             if len(names_map) > 0:
                 with open(ik_names_file, 'w') as outfile:
                     json.dump(names_map, outfile)
@@ -101,12 +99,15 @@ class Similars(BaseTask):
         params["memory"] = 6
         params["wait"] = True
         # job command
-        singularity_image = config_cc.PATH.SINGULARITY_IMAGE
-        command = "OMP_NUM_THREADS=3 SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {}"
+        cc_config_path = self.config.config_path
+        cc_package = os.path.join(self.config.PATH.CC_REPO, 'package')
+        singularity_image = self.config.PATH.SINGULARITY_IMAGE
+        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {} {}"
         command = command.format(
-            cc_package, cc_config_path, singularity_image, script_path, ik_names_file, mol_path, self.DB, version, self.CC_ROOT)
+            cc_package, cc_config_path, singularity_image, script_path, 
+            ik_names_file, lib_bio_file, mol_path, self.DB, version, self.CC_ROOT)
         # submit jobs
-        cluster = HPC.from_config(config_cc)
+        cluster = HPC.from_config(self.config)
         jobs = cluster.submitMultiJob(command, **params)
 
         self.__log.info("Checking results")
@@ -126,16 +127,14 @@ class Similars(BaseTask):
                 self.__log.error(
                     "Not all molecules have their json explore file (%d/%d)" % (len(missing_keys), len(universe_keys)))
         else:
-            shutil.rmtree(job_path)
+            shutil.rmtree(job_path, ignore_errors=True)
             self.mark_ready()
 
     def __chunker(self, data, size=2000):
-
         for i in range(0, len(data), size):
             yield data[slice(i, i + size)]
 
     def execute(self, context):
         """Run the molprops step."""
         self.tmpdir = context['params']['tmpdir']
-
         self.run()

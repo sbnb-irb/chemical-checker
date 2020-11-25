@@ -25,7 +25,6 @@ class BaseTask(object):
         """Initialize the Step."""
         self.name = name
         self.readyfile = name + ".ready"
-
         self.readydir = params.get("readydir", '')
         self.tmpdir = params.get("tmpdir", '')
 
@@ -34,16 +33,16 @@ class BaseTask(object):
         """Run the step."""
         BaseTask.__log.info("Running step " + self.name)
 
-    def set_dirs(self, readydir, tmpdir):
+    def set_dirs(self, readydir, tmpdir, cachedir):
         self.tmpdir = tmpdir
         self.readydir = readydir
+        self.cachedir = cachedir
 
     def custom_ready(self):
         return self.readydir != ''
 
     def is_ready(self, substep=None):
         """Check if the step is already done."""
-        BaseTask.__log.debug('is_ready')
         if substep is None:
             filename = self.readyfile
         else:
