@@ -418,16 +418,20 @@ class ChemicalChecker():
         # ex:os.path.join(self.raw_path, "preprocess.h5")
 
     def preprocess_predict(self, sign, input_file, destination):
-        """
-        Runs the preprocessing script with the 'predict' argument on
-        an input file of raw data formatted correctly for the space of interest
+        """Runs the preprocessing script 'predict'.
+
+        Run on an input file of raw data formatted correctly for the space of
+        interest
 
         Args:
             sign: signature object obtained from cc.get_signature)
-            input_file(str): path to the h5 file containning the data on which to apply 'predict'
-            destination(str): Path to a .h5 file where the predicted signature will be saved.
+            input_file(str): path to the h5 file containning the data on which
+                to apply 'predict'
+            destination(str): Path to a .h5 file where the predicted signature
+                will be saved.
         Returns:
-            datafile(str): The h5 file containing the predicted data after preprocess
+            datafile(str): The h5 file containing the predicted data after
+                preprocess
         """
 
         input_file = os.path.abspath(input_file)
@@ -448,32 +452,25 @@ class ChemicalChecker():
         return destination
 
     def signature(self, dataset, cctype):
-        return self.get_signature(cctype=cctype, molset="full", dataset_code=dataset)
+        return self.get_signature(cctype=cctype, molset="full",
+                                  dataset_code=dataset)
 
     def diagnosis(self, sign, **kwargs):
         return Diagnosis(self, sign, **kwargs)
 
     def import_h5(self):
-        """ NS. Recovers h5 files from a given custom directory 
-            and creates links to them in a CC skeleton arborescence
+        """Recovers h5 files from a given custom directory.
+
+        Creates links to them in a CC skeleton arborescence.
         """
 
         h5files = glob(os.path.join(self.custom_data_path, "*.h5"))
 
         if len(h5files) == 0:
-            #raise Exception("No h5 files found in {}".format(self.custom_data_path))
             self.__log.info(
                 "No h5 file found in {},"
                 " creating an empty CC structure.".format(
                     self.custom_data_path))
-            # original_umask = os.umask(0)
-            # try:
-            #     os.makedirs(os.path.join(self.cc_root, "full/Z/Z1/Z1.001/sign0"), 0o775)
-
-            # except Exception as e:
-            #     print("Error: ", e)
-
-            # os.umask(original_umask) # after the loop to be sure
 
         else:
 
@@ -499,7 +496,8 @@ class ChemicalChecker():
                 out = []
                 with h5py.File(path2h5file, 'a') as ccfile:
 
-                    # check if the required info is presents in the h5 file attrs dict
+                    # check if the required info is presents in the h5 file
+                    # attrs dict
                     # iterates over ('dataset_code', 'cctype', 'molset') and
                     # the required format for each of them
                     for requiredKey, requiredFormat in formatDict.items():
@@ -598,7 +596,8 @@ class ChemicalChecker():
                         # symbolic link to the h5 file in the cc_repo as
                         # signx.h5
                         os.symlink(
-                            h5t[-1], os.path.join(self.cc_root, path2sign, h5t[-2] + '.h5'))
+                            h5t[-1], os.path.join(
+                                self.cc_root, path2sign, h5t[-2] + '.h5'))
 
                     except Exception as e:
                         os.umask(original_umask)
@@ -610,8 +609,10 @@ class ChemicalChecker():
 
     def export(self, destination, signature, h5_filter=None,
                h5_names_map=None, overwrite=False, version=None):
-        """Export a signature h5 file to a given path. Which dataset to copy
-           can be specified as well as how to rename some dataset.
+        """Export a signature h5 file to a given path. 
+
+        Which dataset to copy can be specified as well as how to rename some
+        dataset.
 
         Args:
             destination(str): A destination path.
@@ -739,12 +740,10 @@ class ChemicalChecker():
         """
         return Mol(self, mol_str, str_type=str_type)
 
+    def get_global_signature(self, mol_str, str_type=None):
+        """Return the (stacked) global signature
 
-    def get_global_signature(self,mol_str, str_type=None):
-        """
-        Checks if a given molecule belongs to the universe.
-        If yes, return the (stacked) global signature
-        Otherwise return None
+        If the given molecule belongs to the universe.
 
         Args:
             mol_str: Compound identifier (e.g. SMILES string)
@@ -754,18 +753,21 @@ class ChemicalChecker():
         try:
             mol = self.get_molecule(mol_str, str_type)
         except Exception as e:
-            self.__log.warning("Problem with generating molecule object from "+mol_str)
+            self.__log.warning(
+                "Problem with generating molecule object from " + mol_str)
             self.__log.warning(e)
             return None
 
         if mol.inchikey in set(self.universe):
-            spaces =[''.join(t) for t in itertools.product('A B C D E'.split(),'1 2 3 4 5'.split(), ['.001'])]
+            spaces = [''.join(t) for t in itertools.product(
+                'ABCDE', '12345', ['.001'])]
             try:
-                global_sign= np.concatenate([mol.signature('sign3', sp) for sp in spaces],axis=0)
+                global_sign = np.concatenate(
+                    [mol.signature('sign3', sp) for sp in spaces], axis=0)
             except Exception as e2:
-                self.__log.warning("Problem with generating global signature from "+mol_str)
+                self.__log.warning(
+                    "Problem with generating global signature from " + mol_str)
                 self.__log.warning(e2)
             else:
                 return global_sign
-
         return None
