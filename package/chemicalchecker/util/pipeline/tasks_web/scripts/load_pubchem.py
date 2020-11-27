@@ -44,22 +44,23 @@ def formatting(text):
 def query_direct(ik):
     direct_parent = ''
     try:
-        r = requests.get(
-            'http://classyfire.wishartlab.com/entities/' + ik + '.json')
+        url = 'http://classyfire.wishartlab.com/entities/' + ik + '.json'
+        r = requests.get(url)
         if r.status_code == 200:
             djson = json.loads(r.text)
-            direct_parent = djson["direct_parent"]["name"]
-            if direct_parent is None:
-                direct_parent = ''
-            # print direct_parent
+            if 'direct_parent' in djson:
+                if 'name' in djson['direct_parent']:
+                    direct_parent = djson['direct_parent']['name']
+                    if direct_parent is None:
+                        direct_parent = ''
     except Exception as e:
-        print(str(e))
-
+        print('Exception in %s: %s' % (url, str(e)))
     return direct_parent
 
 
 def query_missing_data(missing_keys):
     """Query synonyms"""
+    print('Querying missing synonyms from Pubchem.')
     attempts = 10
     while attempts > 0:
         try:
@@ -107,16 +108,18 @@ def query_missing_data(missing_keys):
         rows.append(new_data)
         items.remove(ik)
 
-    print(len(items), len(rows))
+    print('Found via Pubchem:', len(rows))
+    print('Still without synonyms:', len(items))
 
     if len(items) > 0:
+        print('Querying direct parent information.')
         for ik in items:
-            print(len(rows), ik)
             name = ''
             direct_parent = query_direct(ik)
             if name == '' and direct_parent != '':
                 name = direct_parent
             new_data = (-1, '', ik, name, '', '', '', direct_parent)
+            print(new_data)
             rows.append(new_data)
 
     if len(rows) < len(missing_keys):
@@ -147,7 +150,9 @@ for chunk in slices:
             found_keys.add(row[2])
     # query what's missing
     missing = set(keys).difference(found_keys)
-    print(len(missing), len(keys), len(found_keys))
+    print('keys in chunk:', len(keys))
+    print('found_keys:', len(found_keys))
+    print('missing:', len(missing))
     print(missing)
     if len(missing) > 0:
         rows += query_missing_data(missing)
@@ -157,4 +162,7 @@ for chunk in slices:
     try:
         psql.query(INSERT % values, DB)
     except Exception as e:
-        print(e)
+        print(str(e))
+        for row in rows:
+            print('DEBUG:', row)
+        print(str(e))
