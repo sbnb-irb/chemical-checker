@@ -84,7 +84,7 @@ From: centos:8
 
     # raw data packages
     pip install lxml                              # xml parser
-    #pip install xlrd                              # Extract data from Excel spreadsheets
+    pip install xlrd                              # Extract data from Excel spreadsheets
     pip install cmapPy                            # interacting with .gctx and .gct files, and other Connectivity Map resources
     pip install csvsort                           # Sort csv
 
