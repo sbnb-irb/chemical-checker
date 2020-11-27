@@ -59,12 +59,20 @@ def pipeline_parser():
         help='Uniprot db to use '
         '(e.g. `2019_01`)')
     parser.add_argument(
+        '-t', '--only_tasks', type=str, nargs="+", default=[],
+        required=False,
+        help='Names of tasks that will `exclusively` run by the pipeline.')
+    parser.add_argument(
+        '-s', '--exclude_tasks', type=str, nargs="+", default=[],
+        required=False,
+        help='Names of tasks that will be skipped.')
+    parser.add_argument(
         '-c', '--config', type=str, required=False,
         default=os.environ["CC_CONFIG"],
         help='Config file to be used. If not specified CC_CONFIG enviroment'
         ' variable is used.')
     parser.add_argument(
-        '-d', '--dry_run', type=bool, required=False, default=False,
+        '-d', '--dry_run', action='store_true',
         help='Execute pipeline script without running the pipeline.')
     return parser
 
@@ -72,8 +80,10 @@ def pipeline_parser():
 @logged(logging.getLogger("[ PIPELINE %s ]" % os.path.basename(__file__)))
 def main(args):
     # initialize Pipeline
+    cfg = Config(args.config)
     pp = Pipeline(pipeline_path=args.pipeline_dir, keep_jobs=True,
-                  config=Config(args.config))
+                  config=cfg, only_tasks=args.only_tasks,
+                  exclude_tasks=args.exclude_tasks)
 
     # print arguments
     for arg in vars(args):
@@ -202,19 +212,20 @@ def main(args):
                                DB=args.new_web_db, CC_ROOT=args.cc_root)
     pp.add_task(minfo_task)
 
-    # TASK: Generate molecular info
+    # TASK: Generate libraries set
     libs_task = Libraries(name='libraries',
                           DB=args.new_web_db, CC_ROOT=args.cc_root,
                           libraries=libraries)
     pp.add_task(libs_task)
 
-    # TASK: Create all plots
+    # TASK: Create json of similar molecules for explore page
     similars_task = Similars(name='similars',
                              DB=args.new_web_db, CC_ROOT=args.cc_root,
                              MOLECULES_PATH=args.molecule_path)
     pp.add_task(similars_task)
 
     # RUN the pipeline!
+    main._log.info('TASK SEQUENCE: %s' % ', '.join([t.name for t in pp.tasks]))
     if not args.dry_run:
         pp.run()
 
