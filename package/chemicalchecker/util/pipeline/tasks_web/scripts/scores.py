@@ -26,7 +26,7 @@ def weights(coords, coord_idxs):
 
 def get_props(cc, iks):
     sign0 = cc.get_signature("sign0", "full", "A5.001")
-    _, props = sign0.get_vectors(iks)
+    _, props = sign0.get_vectors(iks, include_nan=True)
     return props
 
 
