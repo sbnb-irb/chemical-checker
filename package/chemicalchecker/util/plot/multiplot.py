@@ -2331,7 +2331,7 @@ class MultiPlot():
             sign3 = self.cc.get_signature('sign3', 'full', ds)
             error_file = os.path.join(sign3.model_path, 'error.h5')
             with h5py.File(error_file, "r") as hf:
-                keys = hf['keys'][:]
+                keys = hf['keys'].asstr()[:]
                 train_log_mse = hf['log_mse_consensus'][:]
                 train_log_mse_real = hf['log_mse'][:]
             # test is anything that wasn't in the confidence distribution
