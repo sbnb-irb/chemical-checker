@@ -40,7 +40,7 @@ class Similars(BaseTask):
         universe_file = os.path.join(self.cachedir, "universe.h5")
 
         with h5py.File(universe_file, 'r') as hf:
-            universe_keys = hf["keys"][:]
+            universe_keys = hf["keys"].asstr()[:]
 
         # get all bioactive compounds from libraries (with pubchem names)
         lib_bio_file = os.path.join(self.tmpdir, "lib_bio.json")
