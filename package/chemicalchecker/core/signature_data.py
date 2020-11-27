@@ -626,7 +626,7 @@ class DataSignature(object):
         if "mappings" not in self.info_h5:
             raise Exception("Data file has no mappings.")
         with h5py.File(self.data_path, 'r') as hf:
-            mappings_raw = hf['mappings'][:]
+            mappings_raw = hf['mappings'].asstr()[:]
         mappings = dict()
         for row in mappings_raw:
             if isinstance(row[0], bytes):
@@ -639,7 +639,7 @@ class DataSignature(object):
         if len(to_map) == 0:
             # corner case where there's nothing to map
             with h5py.File(self.data_path, 'r') as hf:
-                src_keys = hf['keys'][:]
+                src_keys = hf['keys'].asstr()[:]
                 src_vectors = hf['V'][:]
             with h5py.File(out_file, "w") as hf:
                 hf.create_dataset('keys', data=src_keys,

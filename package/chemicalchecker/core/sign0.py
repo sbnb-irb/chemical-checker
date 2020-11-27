@@ -110,15 +110,15 @@ class sign0(BaseSignature, DataSignature):
                 raise Exception("File not found: %s" % data_file)
             dh5 = h5py.File(data_file, 'r')
             if "pairs" in dh5.keys():
-                pairs = dh5["pairs"][:]
+                pairs = dh5["pairs"].asstr()[:]
                 if "values" in dh5.keys():
                     pairs = zip(pairs, dh5["values"][:])
             if "X" in dh5.keys():
                 X = dh5["X"][:]
             if "keys" in dh5.keys():
-                keys = dh5["keys"][:]
+                keys = dh5["keys"].asstr()[:]
             if "features" in dh5.keys():
-                features = dh5["features"][:]
+                features = dh5["features"].asstr()[:]
             dh5.close()
             if pairs is None and X is None:
                 raise Exception(

@@ -125,7 +125,7 @@ for fpath in files:
 # group by atom connectivity
 bioconn = list()
 with h5py.File(universe, "r") as hf:
-    bioactive = set(hf["keys"][:])
+    bioactive = set(hf["keys"].asstr()[:])
     bioconn_bioactive = collections.defaultdict(list)
     for ik in bioactive:
         bioconn_bioactive[ik.split("-")[0]] += [ik]

@@ -86,7 +86,7 @@ class neig(BaseSignature, DataSignature):
 
                 k = min(self.datasize[0], self.k_neig)
 
-                dh5out.create_dataset("row_keys", data=dh5["keys"][:])
+                dh5out.create_dataset("row_keys", data=dh5["keys"].asstr()[:])
                 dh5out["col_keys"] = h5py.SoftLink('/row_keys')
                 dh5out.create_dataset(
                     "indices", (self.datasize[0], k), dtype=np.int32)
@@ -162,7 +162,7 @@ class neig(BaseSignature, DataSignature):
 
                 k = min(self.k_neig, index.ntotal)
 
-                dh5out.create_dataset("row_keys", data=dh5["keys"][:])
+                dh5out.create_dataset("row_keys", data=dh5["keys"].asstr()[:])
                 with h5py.File(self.data_path, 'r') as hr5:
                     dh5out.create_dataset("col_keys", data=hr5["row_keys"][:])
                 dh5out.create_dataset(
