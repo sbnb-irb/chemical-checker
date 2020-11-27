@@ -312,9 +312,9 @@ class Default(BaseSignature, DataSignature):
                     % signature.data_path)
             self.data = np.array(dh5["V"][:], dtype=np.float32)
             self.data_type = dh5["V"].dtype
-            self.keys = dh5["keys"][:]
+            self.keys = dh5["keys"].asstr()[:]
             if "mappings" in dh5.keys():
-                mappings = dh5["mappings"][:]
+                mappings = dh5["mappings"].asstr()[:]
             dh5.close()
 
         else:

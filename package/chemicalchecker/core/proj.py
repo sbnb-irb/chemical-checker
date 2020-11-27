@@ -62,7 +62,7 @@ class proj(BaseSignature, DataSignature):
         pred_proj = DataSignature(destination)
         with h5py.File(signature.data_path, "r") as src, \
                 h5py.File(destination, "w") as dst:
-            dst.create_dataset("keys", data=src['keys'][:], dtype=sdtype)
+            dst.create_dataset("keys", data=src['keys'].asstr()[:], dtype=sdtype)
             dst.create_dataset("name", data=np.array(
                 ['PCA preprocess'], sdtype))
             date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -88,7 +88,7 @@ class proj(BaseSignature, DataSignature):
         pred_proj = DataSignature(destination)
         with h5py.File(signature.data_path, "r") as src, \
                 h5py.File(destination, "w") as dst:
-            dst.create_dataset("keys", data=src['keys'][:], dtype=sdtype)
+            dst.create_dataset("keys", data=src['keys'].asstr()[:], dtype=sdtype)
             dst.create_dataset("name", data=np.array(
                 ['PCA preprocess'], sdtype))
             date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")

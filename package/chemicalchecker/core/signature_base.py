@@ -559,7 +559,7 @@ class BaseSignature(object):
         rnd.remove(self.data_path, save_dest=sign_ref.data_path)
         f5 = h5py.File(self.data_path, "r")
         if 'features' in f5.keys():
-            features = f5['features'][:]
+            features = f5['features'].asstr()[:]
             f5.close()
             with h5py.File(sign_ref.data_path, 'a') as hf:
                 hf.create_dataset('features', data=features)
