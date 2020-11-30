@@ -51,6 +51,8 @@ CC_ROOT = sys.argv[8]
 inchikeys = pickle.load(open(filename, 'rb'))[task_id]
 
 # for each molecule which spaces are available in sign1?
+print('for each molecule which spaces are available in sign1?')
+print('time', time.time())
 cc = ChemicalChecker(CC_ROOT)
 metric_obs = None
 map_coords_obs = collections.defaultdict(list)
@@ -67,6 +69,8 @@ for ds in Dataset.get(exemplary=True):
             map_coords_obs[ik] += [ds.coordinate]
 
 # get relevant background distances
+print('get relevant background distances')
+print('time', time.time())
 bg_vals = dict()
 bg_vals['obs'] = dict()
 bg_vals['prd'] = dict()
@@ -78,6 +82,8 @@ for coord in dataset_pairs.keys():
     bg_vals['prd'][coord] = sign3.background_distances("cosine")["distance"]
 
 # for both observed (sign1) and predicted (sign3) get significant neighbors
+print('get significant neighbors')
+print('time', time.time())
 keys = [k + "_obs" for k in dataset_pairs.keys()] + \
     [k + "_prd" for k in dataset_pairs.keys()]
 # FIXME this variable gets pretty heavy, can we save memory?
@@ -118,6 +124,8 @@ with open(lib_bio_file) as json_data:
 libs = set(ref_bioactive.keys())
 libs.add("All Bioactive Molecules")
 
+print('save json')
+print('time', time.time())
 # save in each molecule path the file the explore json (100 similar molecules)
 for index, inchikey in enumerate(inchikeys):
     t0 = time.time()
