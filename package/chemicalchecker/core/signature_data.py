@@ -627,13 +627,7 @@ class DataSignature(object):
             raise Exception("Data file has no mappings.")
         with h5py.File(self.data_path, 'r') as hf:
             mappings_raw = hf['mappings'].asstr()[:]
-        mappings = dict()
-        for row in mappings_raw:
-            if isinstance(row[0], bytes):
-                ink1 = row[0].decode()
-            if isinstance(row[1], bytes):
-                ink2 = row[1].decode()
-            mappings[ink1] = ink2
+        mappings = dict(mappings_raw)
         # avoid trivial mappings (where key==value)
         to_map = list(set(mappings.keys()) - set(mappings.values()))
         if len(to_map) == 0:
@@ -642,8 +636,8 @@ class DataSignature(object):
                 src_keys = hf['keys'].asstr()[:]
                 src_vectors = hf['V'][:]
             with h5py.File(out_file, "w") as hf:
-                hf.create_dataset('keys', data=src_keys,
-                                  dtype=DataSignature.string_dtype())
+                hf.create_dataset('keys', data=np.array(
+                    src_keys, DataSignature.string_dtype()))
                 hf.create_dataset('V', data=src_vectors, dtype=np.float32)
                 hf.create_dataset("shape", data=src_vectors.shape)
             return
@@ -664,8 +658,8 @@ class DataSignature(object):
         # get them sorted
         sorted_idx = np.argsort(dst_keys)
         with h5py.File(out_file, "w") as hf:
-            hf.create_dataset('keys', data=dst_keys[sorted_idx],
-                              dtype=DataSignature.string_dtype())
+            hf.create_dataset('keys', data=np.array(
+                dst_keys[sorted_idx], DataSignature.string_dtype()))
             hf.create_dataset('V', data=matrix[sorted_idx], dtype=np.float32)
             hf.create_dataset("shape", data=matrix.shape)
 
