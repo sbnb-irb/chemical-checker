@@ -52,7 +52,7 @@ inchikeys = pickle.load(open(filename, 'rb'))[task_id]
 
 # for each molecule which spaces are available in sign1?
 print('for each molecule which spaces are available in sign1?')
-print('time', time.time())
+t0 = time.time()
 cc = ChemicalChecker(CC_ROOT)
 metric_obs = None
 map_coords_obs = collections.defaultdict(list)
@@ -67,10 +67,11 @@ for ds in Dataset.get(exemplary=True):
     for ik in inchikeys:
         if ik in keys:
             map_coords_obs[ik] += [ds.coordinate]
+print('took', time.time() - t0)
 
 # get relevant background distances
 print('get relevant background distances')
-print('time', time.time())
+t0 = time.time()
 bg_vals = dict()
 bg_vals['obs'] = dict()
 bg_vals['prd'] = dict()
@@ -80,10 +81,11 @@ for coord in dataset_pairs.keys():
         metric_obs[0])["distance"]
     sign3 = cc.get_signature("sign3", "reference", dataset_pairs[coord])
     bg_vals['prd'][coord] = sign3.background_distances("cosine")["distance"]
+print('took', time.time() - t0)
 
 # for both observed (sign1) and predicted (sign3) get significant neighbors
 print('get significant neighbors')
-print('time', time.time())
+t0 = time.time()
 keys = [k + "_obs" for k in dataset_pairs.keys()] + \
     [k + "_prd" for k in dataset_pairs.keys()]
 # FIXME this variable gets pretty heavy, can we save memory?
@@ -113,6 +115,7 @@ for dataset in keys:
                            bg_vals[type_data][coord]) - 1
     dist_bin[~mask] = -1
     data_keys_map[dataset] = (iksm, dist_bin)
+print('took', time.time() - t0)
 
 # read inchikey to pubmed names mapping
 with open(names_jason) as json_data:
@@ -125,7 +128,7 @@ libs = set(ref_bioactive.keys())
 libs.add("All Bioactive Molecules")
 
 print('save json')
-print('time', time.time())
+t0_tot = time.time()
 # save in each molecule path the file the explore json (100 similar molecules)
 for index, inchikey in enumerate(inchikeys):
     t0 = time.time()
@@ -222,3 +225,4 @@ for index, inchikey in enumerate(inchikeys):
         json.dump(inchies, outfile)
 
     print(inchikey, 'took', time.time() - t0)
+print('total took', time.time() - t0_tot)
