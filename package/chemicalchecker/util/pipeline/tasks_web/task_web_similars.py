@@ -96,7 +96,7 @@ class Similars(BaseTask):
         params["jobdir"] = job_path
         params["job_name"] = "CC_JSONSIM"
         params["elements"] = universe_keys
-        params["memory"] = 6
+        params["memory"] = 2
         params["wait"] = True
         # job command
         cc_config_path = self.config.config_path
