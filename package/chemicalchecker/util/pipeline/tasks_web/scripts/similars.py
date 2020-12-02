@@ -1,10 +1,10 @@
-import time
-import numpy as np
+import os
 import sys
-import collections
+import time
 import json
-import math
 import pickle
+import collections
+import numpy as np
 
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.database import Dataset
@@ -49,6 +49,26 @@ CC_ROOT = sys.argv[8]
 
 # input is a chunk of universe inchikey
 inchikeys = pickle.load(open(filename, 'rb'))[task_id]
+
+# for each molecule check if json is already available
+notdone = list()
+for index, inchikey in enumerate(inchikeys):
+    PATH = save_file_path + "/%s/%s/%s/" % (
+        inchikey[:2], inchikey[2:4], inchikey)
+    filename = PATH + '/explore_' + version + '.json'
+    if os.path.isfile(filename):
+        try:
+            json.load(open(filename, 'r'))
+        except Exception:
+            notdone.append(inchikey)
+            continue
+    else:
+        notdone.append(inchikey)
+if len(notdone) == 0:
+    print('All molecules already present, nothing to do.')
+    sys.exit()
+else:
+    inchikey = notdone
 
 # for each molecule which spaces are available in sign1?
 print('for each molecule which spaces are available in sign1?')
@@ -225,4 +245,4 @@ for index, inchikey in enumerate(inchikeys):
         json.dump(inchies, outfile)
 
     print(inchikey, 'took', time.time() - t0)
-print('total took', time.time() - t0_tot)
+print('saving all took', time.time() - t0_tot)
