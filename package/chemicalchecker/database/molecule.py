@@ -10,6 +10,7 @@ Example::
     >>> 'InChI=1S/C8H9NO2/c1-6(10)9-7-2-4-8(11)5-3-7/h2-5,11H,1H3,(H,9,10)'
 
 """
+from tqdm import trange
 from sqlalchemy import Column, Text, VARCHAR
 from sqlalchemy.dialects import postgresql
 
@@ -92,7 +93,8 @@ class Molecule(Base):
             mapping[ink] = None
 
         session = get_session()
-        for idx in range(0, len(inchikeys), batch):
+        desc = 'Fetching InChIKey-InChI mapping'
+        for idx in trange(0, len(inchikeys), batch, desc=desc):
             query = session.query(Molecule).filter(
                 Molecule.inchikey.in_(inchikeys[idx:idx + batch]))
             res = query.with_entities(Molecule.inchikey, Molecule.inchi).all()
