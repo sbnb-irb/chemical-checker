@@ -12,10 +12,24 @@ The steps (a.k.a. tasks) for CC web update are the following:
 8. Drop/Create/Fill the `molecular_info` table (popularity singularity mappability etc.)
 9. Drop/Create/Fill the `libraries` and `library_description` tables (used to fetch 100 landmark molecules)
 10. Generate explore.json file for each molecule (info for explore drug page)
+11. Link/copy generated files to webpage repository (mosaic)
+
+MANUAL STEPS:
+
+12. Update mosaic/app/shared/data/local_parameters*.json with newly generated NEWDB on aloy-dbsrv
+13. Test the website
+14. Copy NEWDB to aloy-dbwebsrv
+$ pg_dump -h aloy-dbsrv -U 'sbnb-adm' NEWDB | gzip -c > NEWDB.sql.gz
+$ createdb -h aloy-dbwebsrv -U 'sbnb-adm' NEWDB
+$ gunzip -c NEWDB.sql.gz | psql -h aloy-dbwebsrv -U 'sbnb-adm' NEWDB
+15. Update db host in mosaic/app/shared/data/local_parameters*.json to aloy-dbwebsrv
+
 """
 import os
 import sys
 import h5py
+import json
+import shutil
 import logging
 import argparse
 import numpy as np
@@ -58,6 +72,10 @@ def pipeline_parser():
         'uniprot_db', type=str,
         help='Uniprot db to use '
         '(e.g. `2019_01`)')
+    parser.add_argument(
+        'web_repo_path', type=str,
+        help='Path to the mosaic web repository '
+        '(e.g. `/aloy/home/mbertoni/code/mosaic`)')
     parser.add_argument(
         '-t', '--only_tasks', type=str, nargs="+", default=[],
         required=False,
@@ -155,6 +173,9 @@ def main(args):
         with h5py.File(universe_file, "w") as h5:
             h5.create_dataset("keys", data=np.array(
                 universe_list, DataSignature.string_dtype()))
+        # also save as json (used by the web)
+        bioactive_mol_set = os.path.join(cachedir, "bioactive_mol_set.json")
+        json.dump(universe_list, open(bioactive_mol_set, 'w'))
 
     universe_task = PythonCallable(name="create_universe",
                                    python_callable=create_uni_fn,
@@ -223,6 +244,45 @@ def main(args):
                              DB=args.new_web_db, CC_ROOT=args.cc_root,
                              MOLECULES_PATH=args.molecule_path)
     pp.add_task(similars_task)
+
+    # TASK: Link/copy generated files to webpage repository (mosaic)
+    def links_to_web_repo(cc_root, web_repo_path, tmpdir):
+        # link plots dir
+        src_dir = os.path.join(cc_root, 'plots_web')
+        if not os.path.isdir(src_dir):
+            raise Exception(
+                "%s not found! Did cc_update.py finish correctly?" %
+                src_dir)
+        dst_dir = os.path.join(web_repo_path, 'app', 'images', 'plots')
+        if os.path.isdir(dst_dir):
+            os.remove(dst_dir)
+        os.symlink(src_dir, dst_dir)
+        # link molecule dir
+        src_dir = args.molecule_path
+        if not os.path.isdir(src_dir):
+            raise Exception(
+                "%s not found! Did cc_update.py finish correctly?" %
+                src_dir)
+        dst_dir = os.path.join(web_repo_path, 'app', 'images', 'molecules')
+        if os.path.isdir(dst_dir):
+            os.remove(dst_dir)
+        os.symlink(src_dir, dst_dir)
+        # copy bioactive_mol_set.json (aka cc universe)
+        src_path = os.path.join(tmpdir, 'bioactive_mol_set.json')
+        dst_path = os.path.join(web_repo_path, 'app',
+                                'shared', 'data', 'bioactive_mol_set.json')
+        shutil.copyfile(src_path, dst_path)
+        # copy inchies_names.json (aka molecule common names)
+        src_path = os.path.join(tmpdir, 'inchies_names.json')
+        dst_path = os.path.join(web_repo_path, 'app',
+                                'shared', 'data', 'inchies_names.json')
+        shutil.copyfile(src_path, dst_path)
+
+    links_task = PythonCallable(
+        name="links_to_web_repo",
+        python_callable=links_to_web_repo,
+        op_args=[args.cc_root, args.web_repo_path, pp.tmpdir])
+    pp.add_task(links_task)
 
     # RUN the pipeline!
     main._log.info('TASK SEQUENCE: %s' % ', '.join([t.name for t in pp.tasks]))
