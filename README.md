@@ -72,6 +72,8 @@ The setup_chemicalchecker script has created an alias in your ~/.bashrc so you c
 source ~/.bashrc
 chemcheck
 ```
+NOTE: if you are using another shell (ex: zsh) just copy the chemcheck alias from your .bashrc to your .zshrc
+alias chemcheck="sh /home/code/chemical_checker/setup/run_chemicalchecker.sh"
 
 ## Running custom Chemical Checker
 
