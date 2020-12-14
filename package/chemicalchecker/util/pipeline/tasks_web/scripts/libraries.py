@@ -42,7 +42,7 @@ def select_landmarks(inchikeys, N, dbname):
     for sq in squares[ik]:
         square_mols[sq] += 1
     for sq in sqiks_.keys():
-        sqiks_[sq] = set([i for i in list(sqiks_[sq]) if ik.split(
+        sqiks_[sq] = set([i for i in list(sqiks_[sq]) if i.split(
             "-")[0] not in done_connects]).difference(landmarks)
 
     # Keep adding molecules
@@ -83,7 +83,7 @@ def select_landmarks(inchikeys, N, dbname):
         for sq in squares[ik]:
             square_mols[sq] += 1
         for sq in sqiks_.keys():
-            sqiks_[sq] = set([i for i in list(sqiks_[sq]) if ik.split(
+            sqiks_[sq] = set([i for i in list(sqiks_[sq]) if i.split(
                 "-")[0] not in done_connects]).difference(landmarks)
     return landmarks
 
