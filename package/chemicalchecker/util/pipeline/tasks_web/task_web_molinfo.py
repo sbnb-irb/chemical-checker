@@ -7,6 +7,7 @@ import numpy as np
 from scipy.stats import rankdata
 
 from chemicalchecker.util import psql
+from chemicalchecker.database import Molecule
 from chemicalchecker.util.pipeline import BaseTask
 from chemicalchecker.util import logged, HPC
 
@@ -14,9 +15,11 @@ from chemicalchecker.util import logged, HPC
 # We got these strings by doing: pg_dump -t 'scores' --schema-only mosaic
 # -h aloy-dbsrv
 
-DROP_TABLE = "DROP TABLE IF EXISTS public.molecular_info"
+DROP_TABLE_MOLINFO = "DROP TABLE IF EXISTS public.molecular_info"
 
-CREATE_TABLE = """CREATE TABLE public.molecular_info (
+DROP_TABLE_STRUCTURE = "DROP TABLE IF EXISTS public.structure"
+
+CREATE_TABLE_MOLINFO = """CREATE TABLE public.molecular_info (
     inchikey text,
     formula text,
     popularity double precision,
@@ -27,13 +30,26 @@ CREATE_TABLE = """CREATE TABLE public.molecular_info (
     qed double precision
 );"""
 
-CREATE_INDEX = """
+CREATE_TABLE_STRUCTURE = """CREATE TABLE public.structure (
+    inchikey character varying(27) NOT NULL,
+    inchi text
+);"""
+
+CREATE_INDEX_MOLINFO = """
 CREATE INDEX scores_inchikey_idx ON public.molecular_info USING btree (inchikey);
 """
 
-INSERT = "INSERT INTO molecular_info VALUES %s"
+CREATE_INDEX_STRUCTURE = """
+CREATE INDEX structure_inchikey_idx ON public.structure USING btree (inchikey);
+"""
 
-COUNT = "SELECT COUNT(*) FROM molecular_info"
+INSERT_MOLINFO = "INSERT INTO molecular_info VALUES %s"
+
+INSERT_STRUCTURE = "INSERT INTO structure VALUES %s"
+
+COUNT_MOLINFO = "SELECT COUNT(*) FROM molecular_info"
+
+COUNT_STRUCTURE = "SELECT COUNT(*) FROM structure"
 
 
 @logged
@@ -58,9 +74,12 @@ class MolecularInfo(BaseTask):
             os.path.realpath(__file__)), "scripts/scores.py")
 
         try:
-            self.__log.info("Creating table")
-            psql.query(DROP_TABLE, self.DB)
-            psql.query(CREATE_TABLE, self.DB)
+            self.__log.info("Creating table molinfo")
+            psql.query(DROP_TABLE_MOLINFO, self.DB)
+            psql.query(CREATE_TABLE_MOLINFO, self.DB)
+            self.__log.info("Creating table structure")
+            psql.query(DROP_TABLE_STRUCTURE, self.DB)
+            psql.query(CREATE_TABLE_STRUCTURE, self.DB)
         except Exception as e:
             if not self.custom_ready():
                 raise Exception(e)
@@ -102,8 +121,6 @@ class MolecularInfo(BaseTask):
         cluster = HPC.from_config(self.config)
         jobs = cluster.submitMultiJob(command, **params)
 
-        del keys
-
         V = []
         iks = []
         formula = []
@@ -125,20 +142,33 @@ class MolecularInfo(BaseTask):
 
         # Mappability
         V[:, 2] = rankdata(V[:, 2]) / V.shape[0]
+
+        # insert scores/molinfos
         index = range(0, datasize)
         for i in range(0, datasize, 1000):
             sl = slice(i, i + 1000)
             S = ["('%s', '%s', %.3f, %.3f, %.3f, %.3f, %.3f, %.3f)" %
                  (iks[i], formula[i], V[i, 0], V[i, 1], V[i, 2], V[i, 3], V[i, 4], V[i, 5]) for i in index[sl]]
             try:
-                psql.query(INSERT % ",".join(S), self.DB)
+                psql.query(INSERT_MOLINFO % ",".join(S), self.DB)
             except Exception as e:
+                print(e)
 
+        # insert structures
+        inchikey_inchi = Molecule.get_inchikey_inchi_mapping(keys)
+        inchikey_inchi_str = ["('%s', '%s')" % (a, b)
+                              for a, b in list(inchikey_inchi.items())]
+        for i in range(0, datasize, 1000):
+            sl = slice(i, i + 1000)
+            S = inchikey_inchi_str[sl]
+            try:
+                psql.query(INSERT_STRUCTURE % ",".join(S), self.DB)
+            except Exception as e:
                 print(e)
 
         try:
-            self.__log.info("Checking table")
-            count = psql.qstring(COUNT, self.DB)
+            self.__log.info("Checking tables")
+            count = psql.qstring(COUNT_MOLINFO, self.DB)
             if int(count[0][0]) != datasize:
                 if not self.custom_ready():
                     raise Exception(
@@ -146,9 +176,18 @@ class MolecularInfo(BaseTask):
                 else:
                     self.__log.error(
                         "Not all universe keys were added to molecular_info (%d/%d)" % (int(count[0][0]), datasize))
+            count = psql.qstring(COUNT_STRUCTURE, self.DB)
+            if int(count[0][0]) != datasize:
+                if not self.custom_ready():
+                    raise Exception(
+                        "Not all universe keys were added to structure (%d/%d)" % (int(count[0][0]), datasize))
+                else:
+                    self.__log.error(
+                        "Not all universe keys were added to structure (%d/%d)" % (int(count[0][0]), datasize))
             else:
                 self.__log.info("Indexing table")
-                psql.query(CREATE_INDEX, self.DB)
+                psql.query(CREATE_INDEX_MOLINFO, self.DB)
+                psql.query(CREATE_INDEX_STRUCTURE, self.DB)
                 shutil.rmtree(job_path, ignore_errors=True)
                 shutil.rmtree(data_files_path, ignore_errors=True)
                 self.mark_ready()
