@@ -608,7 +608,7 @@ class ChemicalChecker():
             os.umask(original_umask)  # after the loop to be sure
 
     def export(self, destination, signature, h5_filter=None,
-               h5_names_map=None, overwrite=False, version=None):
+               h5_names_map={}, overwrite=False, version=None):
         """Export a signature h5 file to a given path. 
 
         Which dataset to copy can be specified as well as how to rename some
@@ -633,8 +633,8 @@ class ChemicalChecker():
         dst = h5py.File(destination, 'w')
         if h5_filter is None:
             h5_filter = src.keys()
-        if h5_names_map is None:
-            h5_names_map = {x: x for x in h5_filter}
+        h5_names_map = {x: x for x in h5_filter}
+        h5_names_map.update(h5_names_map)
         for h5ds in h5_filter:
             if h5ds not in src:
                 raise Exception('%s not available in %s' % (h5ds, src_file))
