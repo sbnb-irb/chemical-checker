@@ -13,16 +13,17 @@ The steps (a.k.a. tasks) for CC web update are the following:
 9. Drop/Create/Fill the `libraries` and `library_description` tables (used to fetch 100 landmark molecules)
 10. Generate explore.json file for each molecule (info for explore drug page)
 11. Link/copy generated files to webpage repository (mosaic)
+12. Export signature 3 to ftp directory
 
-MANUAL STEPS:
+FINAL MANUAL STEPS:
 
-12. Update mosaic/app/shared/data/local_parameters*.json with newly generated NEWDB on aloy-dbsrv
-13. Test the website
-14. Copy NEWDB to aloy-dbwebsrv
+1. Update mosaic/app/shared/data/local_parameters*.json with newly generated NEWDB on aloy-dbsrv
+2. Test the website
+3. Copy NEWDB to aloy-dbwebsrv
 $ pg_dump -h aloy-dbsrv -U 'sbnb-adm' NEWDB | gzip -c > NEWDB.sql.gz
 $ createdb -h aloy-dbwebsrv -U 'sbnb-adm' NEWDB
 $ gunzip -c NEWDB.sql.gz | psql -h aloy-dbwebsrv -U 'sbnb-adm' NEWDB
-15. Update db host in mosaic/app/shared/data/local_parameters*.json to aloy-dbwebsrv
+4. Update db host in mosaic/app/shared/data/local_parameters*.json to aloy-dbwebsrv
 
 """
 import os
@@ -277,12 +278,35 @@ def main(args):
         dst_path = os.path.join(web_repo_path, 'app',
                                 'shared', 'data', 'inchies_names.json')
         shutil.copyfile(src_path, dst_path)
+        # generate all inchikeys per coordinate
+        cc = ChemicalChecker(args.cc_root)
+        ink_coord = {}
+        for ds in cc.datasets_exemplary():
+            s1 = cc.get_signature('sign1', 'full', ds)
+            ink_coord[ds[:2]] = list(s1.keys)
+        dst_path = os.path.join(web_repo_path, 'app',
+                                'shared', 'data', 'iks_coord.json')
+        json.dump(ink_coord, open(dst_path, 'w'))
 
     links_task = PythonCallable(
         name="links_to_web_repo",
         python_callable=links_to_web_repo,
         op_args=[args.cc_root, args.web_repo_path, pp.tmpdir])
     pp.add_task(links_task)
+
+    # TASK: Export signature 3 to ftp directory
+    def export_sign3_ftp(cc_root, ftp_path='/aloy/web_checker/ftp_data'):
+        cc = ChemicalChecker(args.cc_root)
+        for ds in cc.datasets_exemplary():
+            s3 = cc.get_signature('sign3', 'full', ds)
+            dst = os.path.join(ftp_path, cc.name, '%s.h5' % ds[:2])
+            cc.export(dst, s3, h5_filter=['keys', 'V', 'confidence', 'known'],
+                      h5_names_map={'confidence': 'applicability'})
+
+    export_task = PythonCallable(name="export_sign3_ftp",
+                                 python_callable=create_uni_fn,
+                                 op_args=[args.cc_root, pp.cachedir])
+    pp.add_task(export_task)
 
     # RUN the pipeline!
     main._log.info('TASK SEQUENCE: %s' % ', '.join([t.name for t in pp.tasks]))
