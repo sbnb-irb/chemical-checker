@@ -145,5 +145,5 @@ with open(outfile, "w") as f:
         end_pos = inchi.find('/', start_pos)
         formula = inchi[start_pos:end_pos]
         prop = props[i]
-        f.write("%s\t%s\t%.3g\t%.3g\t%.3g\t%.3g\t%.3g\t%.3g\n" %
+        f.write("%s\t%s\t%.3g\t%.3g\t%.3g\t%.2f\t%.3g\t%.3g\n" %
                 (ik, formula, s[0], s[1], s[2], prop[mw_idx], prop[ro5_idx], prop[qed_idx]))
