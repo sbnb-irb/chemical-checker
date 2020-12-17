@@ -10,7 +10,6 @@ import collections
 
 from chemicalchecker.database import Dataset, Molecule
 from chemicalchecker.core import ChemicalChecker
-from chemicalchecker.core import DataSignature
 
 # Variables
 
@@ -27,7 +26,8 @@ def weights(coords, coord_idxs):
 def get_props(cc, iks):
     sign0 = cc.get_signature("sign0", "full", "A5.001")
     _, props = sign0.get_vectors(iks, include_nan=True)
-    return props
+    feat_names = sign0.get_h5_dataset('features')
+    return props, feat_names
 
 
 def get_scores(i, cc, coords_obs, vals_obs, vals_pred, dataset_pairs, cut_idx,
@@ -131,7 +131,10 @@ for coord in coord_idxs.keys():
 # write scores
 outfile = os.path.join(output_path, str(uuid.uuid4()))
 mappings_inchi = Molecule.get_inchikey_inchi_mapping(iks)
-props = get_props(cc, iks)
+props, feat_names = get_props(cc, iks)
+mw_idx = np.argwhere(feat_names == '1').ravel()
+ro5_idx = np.argwhere(feat_names == '15').ravel()
+qed_idx = np.argwhere(feat_names == '17').ravel()
 with open(outfile, "w") as f:
     for i, ik in enumerate(iks):
         print(i, ik)
@@ -143,4 +146,4 @@ with open(outfile, "w") as f:
         formula = inchi[start_pos:end_pos]
         prop = props[i]
         f.write("%s\t%s\t%.3g\t%.3g\t%.3g\t%.3g\t%.3g\t%.3g\n" %
-                (ik, formula, s[0], s[1], s[2], prop[0], prop[14], prop[16]))
+                (ik, formula, s[0], s[1], s[2], prop[mw_idx], prop[ro5_idx], prop[qed_idx]))
