@@ -45,6 +45,7 @@ class proj(BaseSignature, DataSignature):
         self.__log.debug('data_path: %s', self.data_path)
 
         self.projector = eval(proj_type)(signature_path, dataset, **kwargs)
+        self.proj_type = proj_type
         self.stats_path = self.projector.stats_path
         self.model_path = self.projector.model_path
 
@@ -62,7 +63,8 @@ class proj(BaseSignature, DataSignature):
         pred_proj = DataSignature(destination)
         with h5py.File(signature.data_path, "r") as src, \
                 h5py.File(destination, "w") as dst:
-            dst.create_dataset("keys", data=src['keys'].asstr()[:], dtype=sdtype)
+            dst.create_dataset(
+                "keys", data=src['keys'].asstr()[:], dtype=sdtype)
             dst.create_dataset("name", data=np.array(
                 ['PCA preprocess'], sdtype))
             date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -88,7 +90,8 @@ class proj(BaseSignature, DataSignature):
         pred_proj = DataSignature(destination)
         with h5py.File(signature.data_path, "r") as src, \
                 h5py.File(destination, "w") as dst:
-            dst.create_dataset("keys", data=src['keys'].asstr()[:], dtype=sdtype)
+            dst.create_dataset(
+                "keys", data=src['keys'].asstr()[:], dtype=sdtype)
             dst.create_dataset("name", data=np.array(
                 ['PCA preprocess'], sdtype))
             date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -118,7 +121,11 @@ class proj(BaseSignature, DataSignature):
         # also predict for full if available
         sign_full = self.get_sign('sign' + self.cctype[-1]).get_molset("full")
         if os.path.isfile(sign_full.data_path):
-            self.predict(sign_full, self.get_molset("full").data_path)
+            self_full = self.get_molset("full")
+            self_full = proj(self_full.signature_path,
+                             self_full.dataset, proj_type=self.proj_type)
+            #self.predict(sign_full, self_full.data_path)
+            self.map(self_full.data_path)
 
     def predict(self, signature, destination, *args, **kwargs):
         """Predict projection for new data."""
