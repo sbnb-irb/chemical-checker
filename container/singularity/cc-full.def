@@ -64,6 +64,7 @@ From: centos:8
     conda install -y -c pytorch faiss-cpu         # facebook trick for sparsity
     conda install -y -c conda-forge hdbscan       # clustering
     conda install -y -c efelix fpsim2             # fast compound similarity searches (used in TargetMate)
+    conda install -c mcs07 pubchempy              # interaction with pubchem (retrieve inchikeys etc)
 
     # utility packages
     pip install ipython                           # interactive python
