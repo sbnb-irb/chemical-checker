@@ -108,6 +108,7 @@ class MolecularInfo(BaseTask):
         params["job_name"] = "CC_MOLINFO"
         params["elements"] = keys
         params["wait"] = True
+        params["mem_by_core"] = 4
         params["memory"] = 4
         params["cpu"] = 1
         # job command
