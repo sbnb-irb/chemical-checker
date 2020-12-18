@@ -87,7 +87,7 @@ class ShowTargets(BaseTask):
         for space in ref_spaces:
             s0 = cc.get_signature('sign0', 'full', space)
             features = s0.features
-            prots.update([x for x in features if "Class:" not in x])
+            prots.update([x.split('(')[0] for x in features if "Class:" not in x])
         prots = sorted(prots)
 
         self.__log.info("Querying UniprotKB...")
@@ -186,7 +186,7 @@ class ShowTargets(BaseTask):
             i += 1
             if len(collected_features) == 0:
                 continue
-            prots = [x for x in collected_features if "Class:" not in x]
+            prots = [x.split('(')[0] for x in collected_features if "Class:" not in x]
 
             prots = self.__sort_alphabet(prots, showtarg_d)
             showtargs[key] += prots
@@ -215,12 +215,12 @@ class ShowTargets(BaseTask):
             else:
                 s = set()
             prots0 = hp.intersection(
-                [x for x in collected_features_2 if "Class:" not in x]).difference(s)
+                [x.split('(')[0] for x in collected_features_2 if "Class:" not in x]).difference(s)
             seens[key].update(prots0)
             prots0 = self.__sort_alphabet(list(prots0), showtarg_d)
             showtargs[key] += prots0
             prots1 = hp.intersection(
-                [x for x in collected_features_1 if "Class:" not in x]).difference(s)
+                [x.split('(')[0] for x in collected_features_1 if "Class:" not in x]).difference(s)
             seens[key].update(prots1)
             prots1 = self.__sort_alphabet(list(prots1), showtarg_d)
             showtargs[key] += prots1
@@ -242,7 +242,7 @@ class ShowTargets(BaseTask):
             else:
                 s = set()
             prots = set(
-                [x for x in collected_features if "Class:" not in x]).difference(s)
+                [x.split('(')[0] for x in collected_features if "Class:" not in x]).difference(s)
             seens[key].update(prots)
             prots = self.__sort_alphabet(prots, showtarg_d)
             showtargs[key] += prots
@@ -264,7 +264,7 @@ class ShowTargets(BaseTask):
             else:
                 s = set()
             prots = hp.intersection(
-                [x for x in collected_features if "Class:" not in x]).difference(s)
+                [x.split('(')[0] for x in collected_features if "Class:" not in x]).difference(s)
             seens[key].update(prots)
             prots = self.__sort_alphabet(prots, showtarg_d)
             showtargs[key] += prots
@@ -290,7 +290,7 @@ class ShowTargets(BaseTask):
             else:
                 s = set()
             prots0 = set(
-                [x for x in collected_features_2 if "Class:" not in x]).difference(s)
+                [x.split('(')[0] for x in collected_features_2 if "Class:" not in x]).difference(s)
             ho = set()
             for p in prots0:
                 if p in any_human:
@@ -300,7 +300,7 @@ class ShowTargets(BaseTask):
             prots0 = self.__sort_alphabet(list(prots0), showtarg_d)
             showtargs[key] += prots0
             prots1 = set(
-                [x for x in collected_features_1 if "Class:" not in x]).difference(s)
+                [x.split('(')[0] for x in collected_features_1 if "Class:" not in x]).difference(s)
             ho = set()
             for p in prots1:
                 if p in any_human:
@@ -327,7 +327,7 @@ class ShowTargets(BaseTask):
             else:
                 s = set()
             prots = set(
-                [x for x in collected_features if "Class:" not in x]).difference(s)
+                [x.split('(')[0] for x in collected_features if "Class:" not in x]).difference(s)
             ho = set()
             for p in prots:
                 if p in any_human:
@@ -356,12 +356,12 @@ class ShowTargets(BaseTask):
             else:
                 s = set()
             prots0 = set(
-                [x for x in collected_features_2 if "Class:" not in x]).difference(s)
+                [x.split('(')[0] for x in collected_features_2 if "Class:" not in x]).difference(s)
             seens[key].update(prots0)
             prots0 = self.__sort_alphabet(list(prots0), showtarg_d)
             showtargs[key] += prots0
             prots1 = set(
-                [x for x in collected_features_1 if "Class:" not in x]).difference(s)
+                [x.split('(')[0] for x in collected_features_1 if "Class:" not in x]).difference(s)
             seens[key].update(prots1)
             prots1 = self.__sort_alphabet(list(prots1), showtarg_d)
             showtargs[key] += prots1
@@ -382,7 +382,7 @@ class ShowTargets(BaseTask):
             else:
                 s = set()
             prots = set(
-                [x for x in collected_features if "Class:" not in x]).difference(s)
+                [x.split('(')[0] for x in collected_features if "Class:" not in x]).difference(s)
             seens[key].update(prots)
             prots = self.__sort_alphabet(prots, showtarg_d)
             showtargs[key] += prots
