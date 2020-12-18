@@ -125,12 +125,16 @@ class MolecularInfo(BaseTask):
         V = []
         iks = []
         formula = []
+        done_iks = set()
         for l in os.listdir(data_files_path):
             with open(os.path.join(data_files_path, l), "r") as f:
                 for r in csv.reader(f, delimiter="\t"):
+                    if r[0] in done_iks:
+                        continue
                     iks += [r[0]]
                     formula += [r[1]]
                     V += [[r[2], r[3], r[4], r[5], r[6], r[7]]]
+                    done_iks.add(r[0])
 
         V = np.array(V).astype(np.float)
 
