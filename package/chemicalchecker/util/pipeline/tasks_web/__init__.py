@@ -4,6 +4,5 @@ from .task_web_showtargets import ShowTargets
 from .task_web_coordinates import Coordinates
 from .task_web_projections import Projections
 from .task_web_plots import Plots
-from .task_web_sign3_similars import SimilarsSign3
 from .task_web_libraries import Libraries
 from .task_web_similars import Similars
