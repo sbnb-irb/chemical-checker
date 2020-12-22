@@ -94,7 +94,7 @@ class TestDataCalculator(unittest.TestCase):
         self.assertEqual(len(results), 99)
 
         expected = {'inchikey': 'YXKFPFQIDHAWAU-XAZDILKDSA-N',
-                    'raw': 'mw(553.66),heavy(41),hetero(8),rings(5),ringaliph(2),ringarom(3),alogp(3.541),mr(155.313),hba(5),hbd(2),psa(101.390),rotb(10),alerts_qed(2),alerts_chembl(4),ro5(1),ro3(4),qed(0.289)'}
+                    'raw': 'mw(553.66),heavy(41),hetero(8),rings(5),ringaliph(2),ringarom(3),alogp(3.541),mr(155.313),hba(5),hbd(2),psa(101.390),rotb(10),alerts_qed(2),alerts_chembl(4),ro5(1),ro3(4),qed(0.296)'}
         output = next(item for item in results if item[
                       "inchikey"] == "YXKFPFQIDHAWAU-XAZDILKDSA-N")
         self.assertDictEqual(expected, output)
