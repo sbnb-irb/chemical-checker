@@ -121,14 +121,14 @@ class DiagnosisPlot(object):
                                          sign.qualified_name)
         ax.set_title(title)
 
-    def _roc(self, ax, results, color, dataset_code=None):
+    def _roc(self, ax, results, color, dataset_code=None, alpha=0.25):
         step = 0.001
         fpr = np.arange(0, 1 + step, step)
         tpr = np.interp(fpr, results["fpr"], results["tpr"])
         if color is None:
             color = coord_color(dataset_code)
         ax.plot(fpr, tpr, color=color)
-        ax.fill_between(fpr, tpr, color=color, alpha=0.25)
+        ax.fill_between(fpr, tpr, color=color, alpha=alpha)
         ax.plot([0, 1], [0, 1], color="gray", linestyle="--")
         ax.set_xlim(-0.05, 1.05)
         ax.set_ylim(-0.05, 1.05)
