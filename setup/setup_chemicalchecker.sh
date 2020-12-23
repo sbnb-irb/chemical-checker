@@ -111,7 +111,8 @@ then
     SINGULARITY_DEFINITION="$LOCAL_REPO/container/singularity/cc_py37.def"
     BINARIES_FOLDER="$LOCAL_REPO/container/singularity/binaries/"
     cp $SINGULARITY_DEFINITION $INSTALL_DIR;  # Node2vec binary
-    cp -r $BINARIES_FOLDER $INSTALL_DIR;    
+    mkdir -p ./container/singularity/; 
+    cp -r $BINARIES_FOLDER ./container/singularity/;    
 
     printf -- 'Removing old singularity image...\n';
     sudo rm -f $LOCAL_IMAGE;
