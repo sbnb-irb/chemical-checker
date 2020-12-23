@@ -304,8 +304,8 @@ def main(args):
                       h5_names_map={'confidence': 'applicability'})
 
     export_task = PythonCallable(name="export_sign3_ftp",
-                                 python_callable=create_uni_fn,
-                                 op_args=[args.cc_root, pp.cachedir])
+                                 python_callable=export_sign3_ftp,
+                                 op_args=[args.cc_root])
     pp.add_task(export_task)
 
     # RUN the pipeline!
