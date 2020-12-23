@@ -39,6 +39,7 @@ class TestPipeline(unittest.TestCase):
 
     @skip_if_import_exception
     def test_pipeline_fit_sign0(self):
+        import faiss  # will be required by jobs
         from chemicalchecker.util.pipeline import Pipeline, CCFit
 
         pipeline_dir = self.pipeline_dir
