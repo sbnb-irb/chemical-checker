@@ -64,10 +64,14 @@ From: centos:8
     conda install -y -c pytorch faiss-cpu         # facebook trick for sparsity
     conda install -y -c conda-forge hdbscan       # clustering
     conda install -y -c efelix fpsim2             # fast compound similarity searches (used in TargetMate)
+    conda install -c anaconda ipython 
+    conda install -y -c conda-forge jupyterlab
+    conda install -c anaconda protobuf
+    conda install -c conda-forge munch 
 
     # utility packages
-    pip install ipython                           # interactive python
-    pip install jupyter                           # jupyter notebooks
+    #pip install ipython                           # interactive python
+    #pip install jupyter                           # jupyter notebooks
     pip install six                               # py2/py3 compatibility
     pip install pytest                            # unit-testing
     pip install mock                              # mocking for unit-testing
@@ -103,7 +107,7 @@ From: centos:8
     pip install theano                            # Optimize evaluate math expressions
     pip install h5py                              # HDF5 via python
     pip install fancyimpute                       # matrix completion and imputation algorithms
-    pip install protobuf==3.6.1                   # Google serialization library
+    #pip install protobuf==3.6.1                   # Google serialization library
     #pip install intbitset                         # sort unsigned integers
 
     # graph packages
