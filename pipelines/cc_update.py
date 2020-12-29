@@ -45,6 +45,9 @@ from chemicalchecker.database import Molrepo, Calcdata
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable
 from chemicalchecker.util.pipeline import CCFit, CCPredict
 
+sys.path.insert(0, '/aloy/home/mbertoni/code/signaturizer')
+from signaturizer.exporter import export_batch
+
 
 def pipeline_parser():
     """Parse pipeline arguments."""
@@ -457,6 +460,22 @@ def main(args):
         python_callable=create_exemplary_links_fn,
         op_args=[cc, 'sign1'])
     pp.add_task(links_task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Export signaturizers
+    def export_signaturizers(cc_root, path='/aloy/web_checker/signaturizers/'):
+        cc = ChemicalChecker(args.cc_root)
+        sign_path = os.path.join(path, cc.name)
+        if not os.path.isdir(sign_path):
+            os.mkdir(sign_path)
+        export_batch(cc, sign_path)
+
+    export_task = PythonCallable(name="export_signaturizers",
+                                 python_callable=export_signaturizers,
+                                 op_args=[args.cc_root])
+    pp.add_task(export_task)
     # END TASK
     #############################################
 
