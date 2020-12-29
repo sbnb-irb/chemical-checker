@@ -194,7 +194,6 @@ class sign1(BaseSignature, DataSignature):
                 self.update_status("Scaling")
                 mod = Scale(self, tmp=False)
                 mod.fit()
-                mod.predict(s1_ref)
             else:
                 self.__log.debug("Not scaling")
             if latent:
