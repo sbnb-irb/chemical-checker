@@ -65,6 +65,7 @@ From: centos
     pip install csvsort
     pip install seaborn
     pip install tqdm
+    pip install munch
 
     # unittest utils
     pip install pytest
