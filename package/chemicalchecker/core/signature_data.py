@@ -604,6 +604,13 @@ class DataSignature(object):
             keys = np.array(self.keys)[idxs]
         return V, keys
 
+    def is_valid(self):
+        try:
+            self.consistency_check()
+            return True
+        except Exception:
+            return False
+
     def consistency_check(self):
         """Check that signature is valid."""
         if os.path.isfile(self.data_path):
@@ -620,6 +627,23 @@ class DataSignature(object):
             # check that keys are sorted
             if not np.all(self.keys[:-1] <= self.keys[1:]):
                 raise Exception("Inconsistent: Keys are not sorted.")
+
+    def check_mappings(self):
+        # check if both reference and full are presents
+        self_ref = self.get_molset('reference')
+        if not os.path.isfile(self_ref.data_path):
+            raise Exception("Missing `reference` molset.")
+        self_full = self.get_molset('full')
+        if not os.path.isfile(self_full.data_path):
+            raise Exception("Missing `full` molset.")
+        # check that mappings works
+        ref_inks = self_ref.keys[:10]
+        V_full = self_full.get_vectors(ref_inks)[1]
+        V_ref = self_ref.get_vectors(ref_inks)[1]
+        try:
+            np.testing.assert_allclose(V_full, V_ref)
+        except Exception:
+            raise Exception("`reference` to `full` mismatch.")
 
     def map(self, out_file):
         """Map signature throught mappings."""
