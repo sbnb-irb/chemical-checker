@@ -78,15 +78,16 @@ class sign3(BaseSignature, DataSignature):
             'limit_mols': 100000
         }
 
-        s1_ref = self.get_sign('sign1').get_molset("reference")
-        opt_t_file = os.path.join(s1_ref.model_path, "opt_t.h5")
-        try:
-            opt_t = DataSignature(opt_t_file).get_h5_dataset('opt_t')
-            default_sign2.update({'t_per': opt_t})
-            self.t_per = opt_t
-        except Exception as ex:
-            self.__log.warning('Failed setting opt_t: %s' % str(ex))
-            self.t_per = 0.01
+        if not self.is_fit():
+            # we load this param only if signature is not fitted yet          
+            s1_ref = self.get_sign('sign1').get_molset("reference")
+            try:
+                opt_t = s1_ref.optimal_t(save=False)
+                default_sign2.update({'t_per': opt_t})
+                self.t_per = opt_t
+            except Exception as ex:
+                self.__log.warning('Failed setting opt_t: %s' % str(ex))
+                self.t_per = 0.01
 
         default_sign2.update(params.get('sign2', {}))
         self.params['sign2_lr'] = default_sign2.copy()
