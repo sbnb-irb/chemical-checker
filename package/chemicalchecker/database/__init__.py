@@ -17,7 +17,7 @@ For example::
     ds = Dataset.get('A1.001')
     ds.description
 
-    >>> 'Binary representation of the 2D structure of a molecule. The neighborhood of every atom is encoded using circular topology hashing.'
+    >>> 'Binary representation of the 2D structure of a molecule....'
 
 So, the `ds` instance of :class:`Dataset` exposes attributes that are the
 fields of the datbase table.
@@ -29,3 +29,4 @@ from .molecule import Molecule
 from .datasource import Datasource
 from .molrepo import Molrepo, MolrepoHasDatasource, MolrepoHasMolecule
 from .calcdata import Calcdata
+from .uniprotkb import UniprotKB, UniprotKbError

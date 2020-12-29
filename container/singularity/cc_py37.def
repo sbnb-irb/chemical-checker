@@ -80,7 +80,7 @@ From: centos:8
     pip install patool                            # unzipping
     pip install wget                              # download library
     pip install tqdm                              # handy progress-bar
-    #pip install apache-airflow                    # Install airflow for the pipeline
+    pip install munch                             # dictionary that supports attribute-style access
 
     # raw data packages
     pip install lxml                              # xml parser
@@ -89,9 +89,10 @@ From: centos:8
     pip install csvsort                           # Sort csv
 
     # chemistry packages
-    #pip install e3fp                             # 3D molecular fingreprints (py3.78 compatibility fix at the bottom)
+    pip install e3fp                              # 3D molecular fingreprints
     pip install pubchempy                         # Pubchem rest api
     pip install standardiser                      # standardising molecules
+    pip install chembl_webresource_client         # Chembl API
 
     # ML packages
     pip install scikit-learn                      # entry level ML in python
@@ -109,14 +110,13 @@ From: centos:8
     pip install h5py                              # HDF5 via python
     pip install fancyimpute                       # matrix completion and imputation algorithms
     pip install protobuf==3.6.1                   # Google serialization library
-    #pip install intbitset                         # sort unsigned integers
 
     # graph packages
     pip install networkx                          # graph data stracture and algos
     pip install snap-stanford                     # Python interface for SNAP
 
     # visualization packages
-    pip install matplotlib==3.2.1                        # chart library :)
+    pip install matplotlib==3.2.1                 # chart library :)
     pip install seaborn                           # prettier graph built on top of matplotlib
     pip install datashader                        # plot huge 2D datasets (projetions)
 
@@ -124,40 +124,9 @@ From: centos:8
     pip install MulticoreTSNE                     # tSNE algo
     pip install umap-learn                        # UMAP algo
 
-    # Chembl API (Nico)
-    pip install chembl_webresource_client
-
-    # install local SBNB devpi packages
-    DEVPI_HOST=gitlabsbnb.irbbarcelona.org
-    DEVPI_PORT=3141
-    alias sbnb_pip='pip install --index http://$DEVPI_HOST:$DEVPI_PORT/root/dev/ --trusted-host $DEVPI_HOST'
-    sbnb_pip pqkmeans==1.0.4                      # slighty modified pqkmeans
-    sbnb_pip pdbe-api                             # PDBe REST API
-    sbnb_pip pride-api                            # PRIDE REST API
-    sbnb_pip reactome-api                         # Reactome REST API
-    sbnb_pip sbnb-dsysmap                         # access the sbnb-dsysmap database
-    sbnb_pip sbnb-uniprotkb                       # interface to the local UniprotKB database
-    sbnb_pip sbnb-util                            # utility code in the SBNB lab
-
-    # chemical beauty QED
-    curl -LO http://silicos-it.be.s3-website-eu-west-1.amazonaws.com/_downloads/qed-1.0.1.tar.gz
-    mv qed-1.0.1.tar.gz /opt
+    # Clone the chemical checker package
     cd /opt
-    tar -xvf qed-1.0.1.tar.gz
-    cd qed-1.0.1
-    2to3 silicos_it/descriptors/qed.py -w # very minor py3 compatibility issues (prints)
-    python setup.py install
-
-    # fix until is compatible with python 3.7
-    cd /opt
-    git clone https://github.com/keiserlab/e3fp.git
-    cd e3fp/
-    cython e3fp/fingerprint/metrics/_fast.pyx  # this is the fix
-    python setup.py build_ext --inplace
-    python setup.py install
-
-    # APSW stands for Another Python SQLite Wrapper
-    pip install https://github.com/rogerbinns/apsw/releases/download/3.24.0-r1/apsw-3.24.0-r1.zip --global-option=fetch --global-option=--version --global-option=3.24.0 --global-option=--all --global-option=build --global-option=--enable-all-extensions
+    git clone http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker.git
 
 #add pre-compiled binaries
 %files

@@ -75,13 +75,17 @@ print('for each molecule which spaces are available in sign1?')
 t0 = time.time()
 cc = ChemicalChecker(CC_ROOT)
 metric_obs = None
+metric_prd = None
 map_coords_obs = collections.defaultdict(list)
 dataset_pairs = {}
 for ds in Dataset.get(exemplary=True):
     dataset_pairs[ds.coordinate] = ds.dataset_code
     if metric_obs is None:
-        sign1 = cc.get_signature("sign1", "reference", ds.dataset_code)
-        metric_obs = sign1.get_h5_dataset('metric')
+        neig1 = cc.get_signature("neig1", "reference", ds.dataset_code)
+        metric_obs = neig1.get_h5_dataset('metric')[0]
+    if metric_prd is None:
+        neig3 = cc.get_signature("neig3", "reference", ds.dataset_code)
+        metric_prd = neig3.get_h5_dataset('metric')[0]
     sign1 = cc.get_signature("sign1", "full", ds.dataset_code)
     keys = sign1.unique_keys
     for ik in inchikeys:
@@ -97,10 +101,9 @@ bg_vals['obs'] = dict()
 bg_vals['prd'] = dict()
 for coord in dataset_pairs.keys():
     sign1 = cc.get_signature("sign1", "reference", dataset_pairs[coord])
-    bg_vals['obs'][coord] = sign1.background_distances(
-        metric_obs[0])["distance"]
+    bg_vals['obs'][coord] = sign1.background_distances(metric_obs)["distance"]
     sign3 = cc.get_signature("sign3", "reference", dataset_pairs[coord])
-    bg_vals['prd'][coord] = sign3.background_distances("cosine")["distance"]
+    bg_vals['prd'][coord] = sign3.background_distances(metric_prd)["distance"]
 print('took', time.time() - t0)
 
 # for both observed (sign1) and predicted (sign3) get significant neighbors

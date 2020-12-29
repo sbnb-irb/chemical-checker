@@ -1,9 +1,9 @@
 import os
 import collections
-from sbnb.uniprotkb import UniprotKB
 
 from chemicalchecker.util import psql
 from chemicalchecker.database import Dataset
+from chemicalchecker.database import UniprotKB
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.util.pipeline import BaseTask
 from chemicalchecker.util import logged

@@ -201,16 +201,10 @@ class DataCalculator():
     def general_physchem_properties(inchikey_inchi, chunks=1000):
         try:
             from rdkit.Chem import AllChem as Chem
-            from rdkit.Chem import Descriptors, ChemicalFeatures
+            from rdkit.Chem import Descriptors, ChemicalFeatures, QED
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
-        try:
-            from silicos_it.descriptors import qed
-        except ImportError:
-            raise ImportError("requires qed " +
-                              "http://silicos-it.be.s3-website-eu-west-1" +
-                              ".amazonaws.com/index.html")
 
         def descriptors(mol):
             P = {}
@@ -220,7 +214,7 @@ class DataCalculator():
             P['hetero'] = Descriptors.NumHeteroatoms(mol)
             P['rings'] = Descriptors.RingCount(mol)
 
-            props = qed.properties(mol)
+            props = QED.properties(mol)
             P['mw'] = props[0]
             P['alogp'] = props[1]
             P['hba'] = props[2]
@@ -229,8 +223,7 @@ class DataCalculator():
             P['rotb'] = props[5]
             P['ringarom'] = props[6]
             P['alerts_qed'] = props[7]
-            P['qed'] = qed.qed([0.66, 0.46, 0.05, 0.61, 0.06,
-                                0.65, 0.48, 0.95], props, True)
+            P['qed'] = QED.qed(mol)
 
             # Ro5
             ro5 = 0
