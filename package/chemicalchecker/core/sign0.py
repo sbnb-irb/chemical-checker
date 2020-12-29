@@ -317,8 +317,9 @@ class sign0(BaseSignature, DataSignature):
 
         if sanitize:
             self.update_status("Sanitizing")
-            # NS we want to keep 2048 features (Morgan fingerprint) for sign0
-            trimFeatures = False if self.dataset == 'A1.001' else True
+            # we want to keep exactly 2048 features (Morgan fingerprint) for A1
+            # FIXME trimFeatures should be a fit parameter
+            trimFeatures = self.dataset != 'A1.001'
             san = Sanitizer(trim=trimFeatures, max_features=max_features,
                             chunk_size=chunk_size)
             X, keys, keys_raw, features = san.transform(
