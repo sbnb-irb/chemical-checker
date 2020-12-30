@@ -270,7 +270,7 @@ class neig(BaseSignature, DataSignature):
         inks, signs = list(), list()
         with h5py.File(self.data_path, 'r') as hf:
             dset = hf[dataset_name]
-            col_keys = hf['col_keys'][:]
+            col_keys = hf['col_keys'].asstr()[:]
             dset_shape = dset.shape
             for idx in sorted(idxs.flatten()):
                 inks.append(self.row_keys[idx])
