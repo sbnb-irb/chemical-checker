@@ -55,7 +55,6 @@ from .data import DataFactory
 from .preprocess import Preprocess
 from .signature_data import DataSignature
 
-from chemicalchecker.core.diagnostics import Diagnosis
 from chemicalchecker.database import Dataset, Molecule
 from chemicalchecker.util import logged, Config
 from chemicalchecker.util.decorator import cached_property
@@ -456,6 +455,7 @@ class ChemicalChecker():
                                   dataset_code=dataset)
 
     def diagnosis(self, sign, **kwargs):
+        from chemicalchecker.core.diagnostics import Diagnosis
         return Diagnosis(self, sign, **kwargs)
 
     def import_h5(self):
