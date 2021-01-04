@@ -353,6 +353,9 @@ class DataSignature(object):
                 else:
                     return hf[h5_dataset_name][:]
             else:
+                tmp = mask.ravel()[0]
+                if isinstance(tmp, np.bool_) or isinstance(tmp, bool):
+                    mask = np.argwhere(mask.ravel()).ravel()
                 ndim = hf[h5_dataset_name].ndim
                 if hasattr(hf[h5_dataset_name][(0,) * ndim], 'decode'):
                     decoder = np.vectorize(lambda x: x.decode())
