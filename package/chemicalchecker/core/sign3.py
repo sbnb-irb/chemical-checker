@@ -79,10 +79,10 @@ class sign3(BaseSignature, DataSignature):
         }
 
         if not self.is_fit():
-            # we load this param only if signature is not fitted yet          
+            # we load this param only if signature is not fitted yet
             s1_ref = self.get_sign('sign1').get_molset("reference")
             try:
-                opt_t = s1_ref.optimal_t(save=False)
+                opt_t = s1_ref.optimal_t()
                 default_sign2.update({'t_per': opt_t})
                 self.t_per = opt_t
             except Exception as ex:
