@@ -72,7 +72,8 @@ class SiameseTriplets(object):
     allows metric learning.
     """
 
-    def __init__(self, model_dir, evaluate=False, predict_only=False, plot=True, save_params=True, **kwargs):
+    def __init__(self, model_dir, evaluate=False, predict_only=False,
+                 plot=True, save_params=True, sharedx=None, **kwargs):
         """Initialize the Siamese class.
 
         Args:
@@ -123,6 +124,7 @@ class SiameseTriplets(object):
         self.model = None
         self.evaluate = evaluate
         self.plot = plot
+        self.sharedx = sharedx
 
         # check output path
         if not os.path.exists(model_dir):
@@ -138,8 +140,8 @@ class SiameseTriplets(object):
 
                 # initialize train generator
                 traintest_data = DataSignature(self.traintest_file)
-                self.sharedx = None
-                self.sharedx = traintest_data.get_h5_dataset('x')
+                if self.sharedx is None:
+                    self.sharedx = traintest_data.get_h5_dataset('x')
                 tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
                     self.traintest_file,
                     'train_train',
@@ -236,7 +238,7 @@ class SiameseTriplets(object):
 
         if self.learning_rate == 'auto':
             self.__log.debug("Searching for optimal larning rates.")
-            lr = self.find_lr(kwargs)
+            lr = self.find_lr(kwargs, sharedx=self.sharedx)
             self.learning_rate = lr
             kwargs['learning_rate'] = self.learning_rate
 
@@ -571,7 +573,7 @@ class SiameseTriplets(object):
         # this will be the encoder/transformer
         self.transformer = self.model.layers[-2]
 
-    def find_lr(self, params, num_lr=5):
+    def find_lr(self, params, num_lr=5, sharedx=None):
         import matplotlib.pyplot as plt
         from scipy.stats import rankdata
         # Initialize model
@@ -588,7 +590,8 @@ class SiameseTriplets(object):
             self.__log.info('Trying lr %s' % lr)
             lr_params['learning_rate'] = lr
             siamese = SiameseTriplets(
-                self.model_dir, evaluate=True, plot=False, save_params=False, **lr_params)
+                self.model_dir, evaluate=True, plot=False, save_params=False,
+                sharedx=sharedx, **lr_params)
             siamese.fit(save=False)
             h_file = os.path.join(
                 self.model_dir, 'siamesetriplets_history.pkl')
