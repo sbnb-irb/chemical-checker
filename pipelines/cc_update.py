@@ -31,6 +31,7 @@ requested cpus (tweak `cpu` parameter).
 """
 import os
 import sys
+import json
 import logging
 import argparse
 import tempfile
@@ -417,7 +418,12 @@ def main(args):
     cctype = 'sign3'
     task_name = 'sign3_pred'
     # get inchies for cc universe
-    universe_inchi = cc.get_universe_inchi()
+    uni_inchi_path = os.path.join(pp.cachedir, 'universe_inchi.json')
+    if os.path.isfile(uni_inchi_path):
+        universe_inchi = json.load(open(uni_inchi_path, 'r'))
+    else:
+        universe_inchi = cc.get_universe_inchi()
+        json.dump(universe_inchi, open(uni_inchi_path, 'w'))
     predict_args = dict()
     predict_args[task_name] = dict()
     predict_kwargs = dict()
