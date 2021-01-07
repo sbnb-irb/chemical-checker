@@ -610,8 +610,11 @@ class sign3(BaseSignature, DataSignature):
             ax = fig.add_subplot(gs[0:2, 2])
             importances(ax, mod, trim_mask)
             if plots:
-                plt.savefig(os.path.join(save_path, 'prior_stats.png'))
-                plt.close()
+                try:
+                    plt.savefig(os.path.join(save_path, 'prior_stats.png'))
+                    plt.close()
+                except Exception as ex:
+                    self.__log.warning('SKIPPING PLOT: %s' % str(ex))
 
         def find_p(mod, x_tr, y_tr, x_te, y_te):
             import matplotlib.pyplot as plt
@@ -797,8 +800,11 @@ class sign3(BaseSignature, DataSignature):
             ax = fig.add_subplot(gs[0:2, 2])
             importances(ax, mod)
             if plots:
-                plt.savefig(os.path.join(save_path, 'prior_stats.png'))
-                plt.close()
+                try:
+                    plt.savefig(os.path.join(save_path, 'prior_stats.png'))
+                    plt.close()
+                except Exception as ex:
+                    self.__log.warning('SKIPPING PLOT: %s' % str(ex))
 
         def find_p(mod, x_tr, y_tr, x_te, y_te):
             import matplotlib.pyplot as plt
@@ -1031,8 +1037,11 @@ class sign3(BaseSignature, DataSignature):
 
             # ax = fig.add_subplot(gs[1, 3])
             if plots:
-                plt.savefig(os.path.join(save_path, 'confidence_stats.png'))
-                plt.close()
+                try:
+                    plt.savefig(os.path.join(save_path, 'confidence_stats.png'))
+                    plt.close()
+                except Exception as ex:
+                    self.__log.warning('SKIPPING PLOT: %s' % str(ex))
 
         def find_p(mod, x_tr, y_tr, x_te, y_te):
             import matplotlib.pyplot as plt
