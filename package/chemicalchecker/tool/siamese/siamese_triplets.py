@@ -73,7 +73,7 @@ class SiameseTriplets(object):
     """
 
     def __init__(self, model_dir, evaluate=False, predict_only=False,
-                 plot=True, save_params=True, sharedx=None, **kwargs):
+                 plot=True, save_params=True, generator=None, **kwargs):
         """Initialize the Siamese class.
 
         Args:
@@ -124,7 +124,6 @@ class SiameseTriplets(object):
         self.model = None
         self.evaluate = evaluate
         self.plot = plot
-        self.sharedx = sharedx
 
         # check output path
         if not os.path.exists(model_dir):
@@ -132,27 +131,32 @@ class SiameseTriplets(object):
             os.mkdir(self.model_dir)
 
         # check input path
+        self.sharedx = None
         if self.traintest_file is not None:
+            traintest_data = DataSignature(self.traintest_file)
             if not predict_only:
                 self.traintest_file = os.path.abspath(self.traintest_file)
                 if not os.path.exists(self.traintest_file):
                     raise Exception('Input data file does not exists!')
 
                 # initialize train generator
-                traintest_data = DataSignature(self.traintest_file)
-                if self.sharedx is None:
-                    self.sharedx = traintest_data.get_h5_dataset('x')
-                tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
-                    self.traintest_file,
-                    'train_train',
-                    epochs=self.epochs,
-                    batch_size=self.batch_size,
-                    replace_nan=self.replace_nan,
-                    sharedx=self.sharedx,
-                    augment_fn=self.augment_fn,
-                    augment_kwargs=self.augment_kwargs,
-                    train=True, standard=self.standard,
-                    trim_mask=self.trim_mask)
+                if generator is None:
+                    if self.sharedx is None:
+                        self.sharedx = traintest_data.get_h5_dataset('x')
+                    tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
+                        self.traintest_file,
+                        'train_train',
+                        epochs=self.epochs,
+                        batch_size=self.batch_size,
+                        replace_nan=self.replace_nan,
+                        sharedx=self.sharedx,
+                        augment_fn=self.augment_fn,
+                        augment_kwargs=self.augment_kwargs,
+                        train=True, standard=self.standard,
+                        trim_mask=self.trim_mask)
+                else:
+                    tr_shape_type_gen = generator
+                self.generator = tr_shape_type_gen
                 self.tr_shapes = tr_shape_type_gen[0]
                 self.tr_gen = tr_shape_type_gen[2]()
                 self.steps_per_epoch = np.ceil(
@@ -178,6 +182,9 @@ class SiameseTriplets(object):
 
         # initialize validation/test generator
         if evaluate:
+            traintest_data = DataSignature(self.traintest_file)
+            if self.sharedx is None:
+                self.sharedx = traintest_data.get_h5_dataset('x')
             val_shape_type_gen = NeighborTripletTraintest.generator_fn(
                 self.traintest_file,
                 'test_test',
@@ -238,7 +245,7 @@ class SiameseTriplets(object):
 
         if self.learning_rate == 'auto':
             self.__log.debug("Searching for optimal larning rates.")
-            lr = self.find_lr(kwargs, sharedx=self.sharedx)
+            lr = self.find_lr(kwargs, generator=self.generator)
             self.learning_rate = lr
             kwargs['learning_rate'] = self.learning_rate
 
@@ -348,7 +355,7 @@ class SiameseTriplets(object):
         inputs = [input_a, input_p, input_n]
         if not self.standard:
             inputs.extend([input_o, input_s])
-        model = Model(inputs=inputs, output=merged_vector)
+        model = Model(inputs=inputs, outputs=merged_vector)
 
         # TODO NEED TO CHANGE IF WE USE 4 INPUTS INSTEAD OF 3
         if self.standard:
@@ -573,7 +580,7 @@ class SiameseTriplets(object):
         # this will be the encoder/transformer
         self.transformer = self.model.layers[-2]
 
-    def find_lr(self, params, num_lr=5, sharedx=None):
+    def find_lr(self, params, num_lr=5, generator=None):
         import matplotlib.pyplot as plt
         from scipy.stats import rankdata
         # Initialize model
@@ -591,7 +598,7 @@ class SiameseTriplets(object):
             lr_params['learning_rate'] = lr
             siamese = SiameseTriplets(
                 self.model_dir, evaluate=True, plot=False, save_params=False,
-                sharedx=sharedx, **lr_params)
+                generator=generator, **lr_params)
             siamese.fit(save=False)
             h_file = os.path.join(
                 self.model_dir, 'siamesetriplets_history.pkl')
