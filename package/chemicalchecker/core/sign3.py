@@ -1874,9 +1874,9 @@ class sign3(BaseSignature, DataSignature):
 
         # define datasets that will be used
         self.update_status("Getting data")
+        cc = self.get_cc()
         if sign2_list is None:
             sign2_list = list()
-            cc = self.get_cc()
             for ds in cc.datasets_exemplary():
                 sign2_list.append(cc.get_signature('sign2', 'full', ds))
         self.sign2_list = sign2_list
@@ -1981,6 +1981,11 @@ class sign3(BaseSignature, DataSignature):
             if conf_mdl is None:
                 confidence_file = os.path.join(
                     confidence_path, 'confidence.pkl')
+                if not os.path.isfile(confidence_file):
+                    self.rerun_confidence(
+                        cc, 'eval', train=True, update_sign=False,
+                        sign2_universe=self.sign2_universe,
+                        sign2_coverage=self.sign2_coverage)
                 calibration_file = os.path.join(
                     confidence_path, 'calibration.pkl')
                 conf_mdl = (pickle.load(open(confidence_file, 'rb')),
