@@ -130,8 +130,12 @@ class ChemicalChecker():
 
         # If non-existing CC_root
         if not os.path.isdir(self.cc_root):
-            self.__log.warning("Empty root directory, creating dataset dirs")
+            self.__log.warning("Empty root directory, creating root and dataset dirs")
+            original_umask = os.umask(0)
+            os.makedirs(self.cc_root, 0o775)
+            os.umask(original_umask)
 
+            # This is IRB internal and should not be accessed by users
             for molset in self._basic_molsets:
                 for dataset in Dataset.get():
                     ds = dataset.dataset_code
