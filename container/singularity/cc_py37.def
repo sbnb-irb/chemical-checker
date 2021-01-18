@@ -67,8 +67,8 @@ From: centos:8
     conda install -y anaconda-client              # client that provides an interface to Anaconda Cloud
     conda install -y -c conda-forge hdbscan       # clustering
     conda install -y -c efelix fpsim2             # fast compound similarity searches (used in TargetMate)
-    conda install -c anaconda ipython             # interactive python
-    conda install -c conda-forge jupyterlab       # Jupyter notebooks
+    conda install -y -c anaconda ipython             # interactive python
+    conda install -y -c conda-forge jupyterlab       # Jupyter notebooks
 
 
     # utility packages (~2 min)
