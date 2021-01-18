@@ -698,13 +698,13 @@ class NeighborTripletTraintest(object):
             if trim_mask is None:
                 X = sharedx
             else:
-                X = sharedx[:, np.repeat(trim_mask, 128)]
+                X = sharedx[:, np.argwhere(np.repeat(trim_mask, 128)).ravel()]
         else:
             NeighborTripletTraintest.__log.debug('Reading X in memory')
             if trim_mask is None:
                 X = reader.get_all_x()
             else:
-                X = reader.get_x_columns(np.repeat(trim_mask, 128))
+                X = reader.get_x_columns(np.argwhere(np.repeat(trim_mask, 128)).ravel())
         NeighborTripletTraintest.__log.debug('X shape: %s' % str(X.shape))
         # default mask is not masking
         if mask_fn is None:
