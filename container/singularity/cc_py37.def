@@ -6,6 +6,10 @@ From: centos:8
     export PATH=/opt/miniconda3/bin:$PATH
     source activate py37
 
+%files
+    #add node2vec pre-compiled binaries
+    container/singularity/binaries/node2vec /opt
+
 %post
     # bind paths
     mkdir -p /aloy
@@ -100,9 +104,9 @@ From: centos:8
     # ML packages
     pip install scikit-learn                      # entry level ML in python
     pip install gensim                            # topic modelling word2vec
-    pip install tensorflow==1.14.0                # neural network library
-    pip install adanet==0.5.0                     # automl for NN
-    pip install keras==2.3.1                      # NN API
+    pip install tensorflow==2.3.1                 # neural network library
+    pip install adanet                            # automl for NN
+    pip install keras                             # NN API
 
     # numerical packages
     pip install cython                            # C extensions
@@ -112,14 +116,14 @@ From: centos:8
     pip install theano                            # Optimize evaluate math expressions
     pip install h5py                              # HDF5 via python
     pip install fancyimpute                       # matrix completion and imputation algorithms
-    pip install protobuf==3.6.1                   # Google serialization library
+    pip install protobuf                          # Google serialization library
 
     # graph packages
     pip install networkx                          # graph data stracture and algos
     pip install snap-stanford                     # Python interface for SNAP
 
     # visualization packages
-    pip install matplotlib==3.2.1                 # chart library :)
+    pip install matplotlib                        # chart library :)
     pip install seaborn                           # prettier graph built on top of matplotlib
     pip install datashader                        # plot huge 2D datasets (projetions)
 
@@ -127,10 +131,10 @@ From: centos:8
     pip install MulticoreTSNE                     # tSNE algo
     pip install umap-learn                        # UMAP algo
 
-    # Clone the chemical checker package
+    # Clone the chemical checker package (used as fallback)
     cd /opt
     git clone http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker.git
 
-#add pre-compiled binaries
-%files
-    container/singularity/binaries/node2vec /opt
+    # FIXES
+    # fix numpy version issue
+    conda install -y -c pytorch faiss-cpu
