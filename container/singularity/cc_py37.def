@@ -65,16 +65,13 @@ From: centos:8
     conda install -y -c openbabel openbabel       # chemical toolbox
     conda install -y mkl-service                  # change the number of CPU’s MKL is using
     conda install -y anaconda-client              # client that provides an interface to Anaconda Cloud
-    conda install -y -c pytorch faiss-cpu         # facebook trick for sparsity
     conda install -y -c conda-forge hdbscan       # clustering
     conda install -y -c efelix fpsim2             # fast compound similarity searches (used in TargetMate)
-    conda install -c anaconda ipython             # 
+    conda install -c anaconda ipython             # interactive python
     conda install -c conda-forge jupyterlab       # Jupyter notebooks
 
 
     # utility packages (~2 min)
-    #pip install ipython                           # interactive python
-    #pip install jupyter                           # jupyter notebooks
     pip install six                               # py2/py3 compatibility
     pip install pytest                            # unit-testing
     pip install mock                              # mocking for unit-testing
@@ -107,6 +104,7 @@ From: centos:8
     pip install tensorflow==2.3.1                 # neural network library
     pip install adanet                            # automl for NN
     pip install keras                             # NN API
+    pip install faiss-cpu                         # efficient similarity search and clustering
 
     # numerical packages
     pip install cython                            # C extensions
