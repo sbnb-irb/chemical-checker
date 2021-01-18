@@ -55,7 +55,7 @@ class Plots(BaseTask):
         self.__log.info("Finding missing molecule plots")
         universe_file = os.path.join(self.cachedir, "universe.h5")
         with h5py.File(universe_file, 'r') as h5:
-            keys = h5["keys"].asstr()[:]
+            keys = h5["keys"][:]
         datasize = keys.shape[0]
         keys.sort()
 

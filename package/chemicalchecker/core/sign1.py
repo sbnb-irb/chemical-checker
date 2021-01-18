@@ -317,7 +317,7 @@ class sign1(BaseSignature, DataSignature):
             self.__log.debug("...data size is (%d, %d)" %
                              (datasize[0], datasize[1]))
             k = min(datasize[0], k_neig)
-            dh5out.create_dataset("row_keys", data=dh5["keys"].asstr()[:])
+            dh5out.create_dataset("row_keys", data=dh5["keys"][:])
             dh5out["col_keys"] = h5py.SoftLink('/row_keys')
             dh5out.create_dataset(
                 "indices", (datasize[0], k), dtype=np.int32)
