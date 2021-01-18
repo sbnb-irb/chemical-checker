@@ -96,7 +96,7 @@ class BaseTransform(object):
         data_path = sign1.data_path
         with h5py.File(data_path, "r+") as hf:
             if self.tmp:
-                keys_ = hf["keys"].asstr()[:]
+                keys_ = hf["keys"][:]
                 mask = np.isin(list(keys_), list(keys))
                 del hf["V_tmp"]
                 hf["V_tmp"] = V

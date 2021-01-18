@@ -104,9 +104,9 @@ class Sanitizer(object):
         else:
             with h5py.File(data, "r") as hf:
                 V = hf["V"][:]
-                keys = hf["keys"].asstr()[:]
-                keys_raw = hf["keys_raw"].asstr()[:]
-                features = hf["features"].asstr()[:]
+                keys = hf["keys"][:]
+                keys_raw = hf["keys_raw"][:]
+                features = hf["features"][:]
             os.remove(data)
             return V, keys, keys_raw, features
 
