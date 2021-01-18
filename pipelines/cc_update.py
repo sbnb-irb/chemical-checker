@@ -31,6 +31,7 @@ requested cpus (tweak `cpu` parameter).
 """
 import os
 import sys
+import json
 import logging
 import argparse
 import tempfile
@@ -128,7 +129,7 @@ def main(args):
         # sign3
         # A1 is using the most memory with ~59GB
         # A1 is the one taking longer with ~186000s (52h)
-        'sign3': {'mem_by_core': 12, 'memory': 90, 'cpu': 8},
+        'sign3': {'mem_by_core': 7, 'memory': 56, 'cpu': 8},
         # predicting sign3 based on signaturizer
         'sign3_pred': {'cpu': 4},
         # neig1 paralelize very well and require very few memory
@@ -417,7 +418,12 @@ def main(args):
     cctype = 'sign3'
     task_name = 'sign3_pred'
     # get inchies for cc universe
-    universe_inchi = cc.get_universe_inchi()
+    uni_inchi_path = os.path.join(pp.cachedir, 'universe_inchi.json')
+    if os.path.isfile(uni_inchi_path):
+        universe_inchi = json.load(open(uni_inchi_path, 'r'))
+    else:
+        universe_inchi = cc.get_universe_inchi()
+        json.dump(universe_inchi, open(uni_inchi_path, 'w'))
     predict_args = dict()
     predict_args[task_name] = dict()
     predict_kwargs = dict()

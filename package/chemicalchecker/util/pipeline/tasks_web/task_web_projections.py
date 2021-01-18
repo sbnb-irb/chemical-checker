@@ -80,7 +80,7 @@ class Projections(BaseTask):
                 raise Exception("Projection point for dataset " +
                                 map_coord_code[coord] + " is not available.")
             with h5py.File(proj2_full.data_path, "r") as hf:
-                inchikeys = hf["keys"].asstr()[:]
+                inchikeys = hf["keys"][:]
                 V = hf["V"][:]
             for w in range(len(inchikeys)):
                 ik = inchikeys[w]
