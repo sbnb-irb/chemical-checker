@@ -194,7 +194,6 @@ class sign1(BaseSignature, DataSignature):
                 self.update_status("Scaling")
                 mod = Scale(self, tmp=False)
                 mod.fit()
-                mod.predict(s1_ref)
             else:
                 self.__log.debug("Not scaling")
             if latent:
@@ -318,7 +317,7 @@ class sign1(BaseSignature, DataSignature):
             self.__log.debug("...data size is (%d, %d)" %
                              (datasize[0], datasize[1]))
             k = min(datasize[0], k_neig)
-            dh5out.create_dataset("row_keys", data=dh5["keys"].asstr()[:])
+            dh5out.create_dataset("row_keys", data=dh5["keys"][:])
             dh5out["col_keys"] = h5py.SoftLink('/row_keys')
             dh5out.create_dataset(
                 "indices", (datasize[0], k), dtype=np.int32)
@@ -371,9 +370,7 @@ class sign1(BaseSignature, DataSignature):
         s1 = self.get_molset("reference")
         if local_neig_path:
             neig_path = os.path.join(s1.model_path, "neig.h5")
-        else:
-            neig_path = s1.get_neighbors().data_path
-        opt_t = self.optimal_t(local_neig_path=local_neig_path, save=False)
+        opt_t = self.optimal_t(local_neig_path=local_neig_path)
         # Heuristic to correct opt_t, dependent on the size of the data
         LB = 10000
         UB = 100000
@@ -477,6 +474,13 @@ class sign1(BaseSignature, DataSignature):
                 (default=10000).
             save(bool): Store an opt_t.h5 file (default=True).
         """
+        # lazily loading if already computed
+        fname = os.path.join(
+                self.get_molset("reference").model_path, "opt_t.h5")
+        if os.path.isfile(fname):
+            with h5py.File(fname, "r") as hf:
+                opt_t = hf['opt_t'][0]
+            return opt_t
         self.__log.debug("Reading triplets")
         triplets = self.get_triplets(reference=True)
         if triplets is None:
@@ -537,8 +541,6 @@ class sign1(BaseSignature, DataSignature):
         opt_t = opt_k / nn.shape[0]
         if save:
             self.__log.debug("Saving")
-            fname = os.path.join(
-                self.get_molset("reference").model_path, "opt_t.h5")
             with h5py.File(fname, "w") as hf:
                 hf.create_dataset(
                     "accuracies", data=np.array(accus).astype(np.int))

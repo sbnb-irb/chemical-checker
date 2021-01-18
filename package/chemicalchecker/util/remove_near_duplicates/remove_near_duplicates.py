@@ -74,7 +74,7 @@ class RNDuplicates():
                     self.data = None
                     self.data_file = data
                 self.data_type = dh5["V"].dtype
-                self.keys = dh5["keys"].asstr()[:]
+                self.keys = dh5["keys"][:]
                 dh5.close()
 
             else:

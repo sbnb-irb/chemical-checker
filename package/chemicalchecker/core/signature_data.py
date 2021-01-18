@@ -353,6 +353,9 @@ class DataSignature(object):
                 else:
                     return hf[h5_dataset_name][:]
             else:
+                tmp = mask.ravel()[0]
+                if isinstance(tmp, np.bool_) or isinstance(tmp, bool):
+                    mask = np.argwhere(mask.ravel()).ravel()
                 ndim = hf[h5_dataset_name].ndim
                 if hasattr(hf[h5_dataset_name][(0,) * ndim], 'decode'):
                     decoder = np.vectorize(lambda x: x.decode())
@@ -604,6 +607,13 @@ class DataSignature(object):
             keys = np.array(self.keys)[idxs]
         return V, keys
 
+    def is_valid(self):
+        try:
+            self.consistency_check()
+            return True
+        except Exception:
+            return False
+
     def consistency_check(self):
         """Check that signature is valid."""
         if os.path.isfile(self.data_path):
@@ -621,19 +631,36 @@ class DataSignature(object):
             if not np.all(self.keys[:-1] <= self.keys[1:]):
                 raise Exception("Inconsistent: Keys are not sorted.")
 
+    def check_mappings(self):
+        # check if both reference and full are presents
+        self_ref = self.get_molset('reference')
+        if not os.path.isfile(self_ref.data_path):
+            raise Exception("Missing `reference` molset.")
+        self_full = self.get_molset('full')
+        if not os.path.isfile(self_full.data_path):
+            raise Exception("Missing `full` molset.")
+        # check that mappings works
+        ref_inks = self_ref.keys[:10]
+        V_full = self_full.get_vectors(ref_inks)[1]
+        V_ref = self_ref.get_vectors(ref_inks)[1]
+        try:
+            np.testing.assert_allclose(V_full, V_ref)
+        except Exception:
+            raise Exception("`reference` to `full` mismatch.")
+
     def map(self, out_file):
         """Map signature throught mappings."""
         if "mappings" not in self.info_h5:
             raise Exception("Data file has no mappings.")
         with h5py.File(self.data_path, 'r') as hf:
-            mappings_raw = hf['mappings'].asstr()[:]
+            mappings_raw = hf['mappings'][:]
         mappings = dict(mappings_raw)
         # avoid trivial mappings (where key==value)
         to_map = list(set(mappings.keys()) - set(mappings.values()))
         if len(to_map) == 0:
             # corner case where there's nothing to map
             with h5py.File(self.data_path, 'r') as hf:
-                src_keys = hf['keys'].asstr()[:]
+                src_keys = hf['keys'][:]
                 src_vectors = hf['V'][:]
             with h5py.File(out_file, "w") as hf:
                 hf.create_dataset('keys', data=np.array(

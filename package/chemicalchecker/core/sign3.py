@@ -78,15 +78,16 @@ class sign3(BaseSignature, DataSignature):
             'limit_mols': 100000
         }
 
-        s1_ref = self.get_sign('sign1').get_molset("reference")
-        opt_t_file = os.path.join(s1_ref.model_path, "opt_t.h5")
-        try:
-            opt_t = DataSignature(opt_t_file).get_h5_dataset('opt_t')
-            default_sign2.update({'t_per': opt_t})
-            self.t_per = opt_t
-        except Exception as ex:
-            self.__log.warning('Failed setting opt_t: %s' % str(ex))
-            self.t_per = 0.01
+        if not self.is_fit():
+            # we load this param only if signature is not fitted yet
+            s1_ref = self.get_sign('sign1').get_molset("reference")
+            try:
+                opt_t = s1_ref.optimal_t()
+                default_sign2.update({'t_per': opt_t})
+                self.t_per = opt_t
+            except Exception as ex:
+                self.__log.warning('Failed setting opt_t: %s' % str(ex))
+                self.t_per = 0.01
 
         default_sign2.update(params.get('sign2', {}))
         self.params['sign2_lr'] = default_sign2.copy()
@@ -609,8 +610,11 @@ class sign3(BaseSignature, DataSignature):
             ax = fig.add_subplot(gs[0:2, 2])
             importances(ax, mod, trim_mask)
             if plots:
-                plt.savefig(os.path.join(save_path, 'prior_stats.png'))
-                plt.close()
+                try:
+                    plt.savefig(os.path.join(save_path, 'prior_stats.png'))
+                    plt.close()
+                except Exception as ex:
+                    self.__log.warning('SKIPPING PLOT: %s' % str(ex))
 
         def find_p(mod, x_tr, y_tr, x_te, y_te):
             import matplotlib.pyplot as plt
@@ -796,8 +800,11 @@ class sign3(BaseSignature, DataSignature):
             ax = fig.add_subplot(gs[0:2, 2])
             importances(ax, mod)
             if plots:
-                plt.savefig(os.path.join(save_path, 'prior_stats.png'))
-                plt.close()
+                try:
+                    plt.savefig(os.path.join(save_path, 'prior_stats.png'))
+                    plt.close()
+                except Exception as ex:
+                    self.__log.warning('SKIPPING PLOT: %s' % str(ex))
 
         def find_p(mod, x_tr, y_tr, x_te, y_te):
             import matplotlib.pyplot as plt
@@ -1030,8 +1037,11 @@ class sign3(BaseSignature, DataSignature):
 
             # ax = fig.add_subplot(gs[1, 3])
             if plots:
-                plt.savefig(os.path.join(save_path, 'confidence_stats.png'))
-                plt.close()
+                try:
+                    plt.savefig(os.path.join(save_path, 'confidence_stats.png'))
+                    plt.close()
+                except Exception as ex:
+                    self.__log.warning('SKIPPING PLOT: %s' % str(ex))
 
         def find_p(mod, x_tr, y_tr, x_te, y_te):
             import matplotlib.pyplot as plt
@@ -1864,9 +1874,9 @@ class sign3(BaseSignature, DataSignature):
 
         # define datasets that will be used
         self.update_status("Getting data")
+        cc = self.get_cc()
         if sign2_list is None:
             sign2_list = list()
-            cc = self.get_cc()
             for ds in cc.datasets_exemplary():
                 sign2_list.append(cc.get_signature('sign2', 'full', ds))
         self.sign2_list = sign2_list
@@ -1958,8 +1968,22 @@ class sign3(BaseSignature, DataSignature):
                 prior_sign_file = os.path.join(prior_sign_path, 'prior.pkl')
                 prior_sign_mdl = pickle.load(open(prior_sign_file, 'rb'))
 
-            # another part of confidence is the applicability
+            # and finally the linear combination of scores
             confidence_path = os.path.join(self.model_path, 'confidence_eval')
+            if conf_mdl is None:
+                confidence_file = os.path.join(
+                    confidence_path, 'confidence.pkl')
+                if not os.path.isfile(confidence_file):
+                    self.rerun_confidence(
+                        cc, 'eval', train=True, update_sign=False,
+                        sign2_universe=self.sign2_universe,
+                        sign2_coverage=self.sign2_coverage)
+                calibration_file = os.path.join(
+                    confidence_path, 'calibration.pkl')
+                conf_mdl = (pickle.load(open(confidence_file, 'rb')),
+                            pickle.load(open(calibration_file, 'rb')))
+                
+            # another part of confidence is the applicability
             neig_file = os.path.join(confidence_path, 'neig.index')
             app_neig = faiss.read_index(neig_file)
             known_dist = os.path.join(confidence_path, 'known_dist.h5')
@@ -1967,14 +1991,7 @@ class sign3(BaseSignature, DataSignature):
                 'applicability_range')
             _, trim_mask = self.realistic_subsampling_fn()
 
-            # and finally the linear combination of scores
-            if conf_mdl is None:
-                confidence_file = os.path.join(
-                    confidence_path, 'confidence.pkl')
-                calibration_file = os.path.join(
-                    confidence_path, 'calibration.pkl')
-                conf_mdl = (pickle.load(open(confidence_file, 'rb')),
-                            pickle.load(open(calibration_file, 'rb')))
+
 
         # get sorted universe inchikeys
         self.universe_inchikeys = self.get_universe_inchikeys()
