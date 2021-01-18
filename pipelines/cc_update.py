@@ -129,7 +129,7 @@ def main(args):
         # sign3
         # A1 is using the most memory with ~59GB
         # A1 is the one taking longer with ~186000s (52h)
-        'sign3': {'mem_by_core': 12, 'memory': 90, 'cpu': 8},
+        'sign3': {'mem_by_core': 7, 'memory': 56, 'cpu': 8},
         # predicting sign3 based on signaturizer
         'sign3_pred': {'cpu': 4},
         # neig1 paralelize very well and require very few memory
