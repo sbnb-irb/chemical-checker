@@ -1365,7 +1365,7 @@ class Plot():
         self.__log.info("loading data")
         error_file = os.path.join(sign3.model_path, 'error.h5')
         with h5py.File(error_file, "r") as hf:
-            keys = hf['keys'].asstr()[:]
+            keys = hf['keys'][:]
             train_log_mse = hf['log_mse_consensus'][:]
             train_log_mse_real = hf['log_mse'][:]
             self.__log.info("train_log_mse %s", train_log_mse.shape)
@@ -1720,7 +1720,7 @@ class Plot():
         self.__log.info("loading data")
         error_file = os.path.join(sign3.model_path, 'error.h5')
         with h5py.File(error_file, "r") as hf:
-            keys = hf['keys'].asstr()[:]
+            keys = hf['keys'][:]
             train_log_mse = hf['log_mse_consensus'][:]
             train_log_mse_real = hf['log_mse'][:]
             self.__log.info("train_log_mse %s", train_log_mse.shape)
