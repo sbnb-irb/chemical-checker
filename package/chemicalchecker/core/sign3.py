@@ -1968,16 +1968,8 @@ class sign3(BaseSignature, DataSignature):
                 prior_sign_file = os.path.join(prior_sign_path, 'prior.pkl')
                 prior_sign_mdl = pickle.load(open(prior_sign_file, 'rb'))
 
-            # another part of confidence is the applicability
-            confidence_path = os.path.join(self.model_path, 'confidence_eval')
-            neig_file = os.path.join(confidence_path, 'neig.index')
-            app_neig = faiss.read_index(neig_file)
-            known_dist = os.path.join(confidence_path, 'known_dist.h5')
-            app_range = DataSignature(known_dist).get_h5_dataset(
-                'applicability_range')
-            _, trim_mask = self.realistic_subsampling_fn()
-
             # and finally the linear combination of scores
+            confidence_path = os.path.join(self.model_path, 'confidence_eval')
             if conf_mdl is None:
                 confidence_file = os.path.join(
                     confidence_path, 'confidence.pkl')
@@ -1990,6 +1982,16 @@ class sign3(BaseSignature, DataSignature):
                     confidence_path, 'calibration.pkl')
                 conf_mdl = (pickle.load(open(confidence_file, 'rb')),
                             pickle.load(open(calibration_file, 'rb')))
+                
+            # another part of confidence is the applicability
+            neig_file = os.path.join(confidence_path, 'neig.index')
+            app_neig = faiss.read_index(neig_file)
+            known_dist = os.path.join(confidence_path, 'known_dist.h5')
+            app_range = DataSignature(known_dist).get_h5_dataset(
+                'applicability_range')
+            _, trim_mask = self.realistic_subsampling_fn()
+
+
 
         # get sorted universe inchikeys
         self.universe_inchikeys = self.get_universe_inchikeys()
