@@ -88,7 +88,7 @@ class BaseSignature(object):
         """Fit a model."""
         self.update_status("FIT START")
         overwrite = kwargs.get('overwrite', False)
-        if overwrite and self.is_fit():
+        if self.is_fit() and not overwrite:
             raise Exception("Signature has already been fitted. "
                             "Delete it manually, or call the `fit` method "
                             "passing overwrite=True")
