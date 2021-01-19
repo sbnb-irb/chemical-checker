@@ -72,3 +72,17 @@ def get_session(dbname=None):
     Session.configure(bind=engine)
     session = Session()
     return session
+
+def test_connection(dbname=None):
+    engine=get_engine(dbname=dbname)
+    try:
+        conn=engine.connect()
+        conn.close()
+        engine.dispose()
+        print('-> OK, Able to connect to the IRB database', engine.url.database)
+
+    except Exception as e:
+        print("No pre-existing database to connect to")
+        return False
+    else:
+        return True
