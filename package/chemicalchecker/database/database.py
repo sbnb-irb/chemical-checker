@@ -82,7 +82,7 @@ def test_connection(dbname=None):
         print('-> OK, Able to connect to the IRB database', engine.url.database)
 
     except Exception as e:
-        print("No pre-existing database to connect to")
+        print("No pre-existing database to connect to, working locally.")
         return False
     else:
         return True
