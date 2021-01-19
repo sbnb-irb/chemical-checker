@@ -351,7 +351,8 @@ class sign0(BaseSignature, DataSignature):
 
         self.refresh()
         # save reference
-        self.save_reference()
+        overwrite=params.get('overwrite',False)
+        self.save_reference(overwrite=overwrite)
         # Making triplets
         if do_triplets:
             self.update_status("Sampling triplets")
