@@ -158,7 +158,7 @@ class TripletSampler(object):
             hf.create_dataset("triplets", data=triplets)
 
     def sample(self, datasets=None, num_triplets=1000000, p_pos=0.001,
-               p_neg=0.1, min_pos=10, max_pos=100, max_neg=1000, max_rounds=3):
+               p_neg=0.1, min_pos=10, max_pos=100, max_neg=1000, max_rounds=3,**kwargs):
         """Sample triplets from multiple exemplary datasets of the CC.
 
             Args:
