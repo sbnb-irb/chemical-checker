@@ -56,6 +56,7 @@ from .preprocess import Preprocess
 from .signature_data import DataSignature
 
 from chemicalchecker.database import Dataset, Molecule
+from chemicalchecker.database.database import test_connection
 from chemicalchecker.util import logged, Config
 from chemicalchecker.util.decorator import cached_property
 
@@ -134,17 +135,19 @@ class ChemicalChecker():
             os.makedirs(self.cc_root, 0o775)
             os.umask(original_umask)
 
-            # This is IRB internal and should not be accessed by users
-            for molset in self._basic_molsets:
-                for dataset in Dataset.get():
-                    ds = dataset.dataset_code
-                    new_dir = os.path.join(
-                        self.cc_root, molset, ds[:1], ds[:2], ds)
-                    self._datasets.add(ds)
-                    self.__log.debug("Creating %s", new_dir)
-                    original_umask = os.umask(0)
-                    os.makedirs(new_dir, 0o775)
-                    os.umask(original_umask)
+            # NS: testing the connection to cc_package
+            # If the database is not present we are in cc "standalone" mode for users
+            if test_connection():
+                for molset in self._basic_molsets:
+                    for dataset in Dataset.get():
+                        ds = dataset.dataset_code
+                        new_dir = os.path.join(
+                            self.cc_root, molset, ds[:1], ds[:2], ds)
+                        self._datasets.add(ds)
+                        self.__log.debug("Creating %s", new_dir)
+                        original_umask = os.umask(0)
+                        os.makedirs(new_dir, 0o775)
+                        os.umask(original_umask)
         else:
             # if the directory exists get molsets and datasets
             # NS: also valid for imported h5 datasets
