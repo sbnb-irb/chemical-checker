@@ -108,7 +108,14 @@ class Sanitizer(object):
                 keys_raw = hf["keys_raw"][:]
                 features = hf["features"][:]
             os.remove(data)
-            return V, keys, keys_raw, features
+            # NS check that keys, keys_raws and features are str and not bytes
+            def stringify(myarray):
+                if type(myarray[0]) is not str:
+                    return np.array([x.decode() for x in myarray])
+                else:
+                    return myarray
+
+            return V, stringify(keys), stringify(keys_raw), stringify(features)
 
     def transform(self, data=None, V=None, keys=None, keys_raw=None,
                   features=None, sign=None):
