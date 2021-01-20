@@ -325,6 +325,11 @@ class sign0(BaseSignature, DataSignature):
             X, keys, keys_raw, features = san.transform(
                 V=X, keys=keys, keys_raw=keys_raw, features=features,
                 sign=None)
+            # NS 20/01/2021, somehow the keys, keys_raw and features came out as b''
+            # added a stringify function in the returner fct of san.transform
+            print('keys',type(keys),keys.shape)
+            print('\nkeys_raw',keys_raw)
+            print('\nfeatures',features)
 
         self.update_status("Aggregating")
         agg = Aggregate(method=agg_method, input_type=input_type)
