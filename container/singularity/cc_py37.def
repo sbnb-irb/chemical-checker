@@ -112,7 +112,7 @@ From: centos:8
     pip install pandas                            # handles table-like datastracture
     pip install scipy                             # scientific python
     pip install theano                            # Optimize evaluate math expressions
-    pip install h5py                              # HDF5 via python
+    pip install h5py==2.10.0                        # HDF5 via python, the version <3 tries to avoid a bug due to original_keras_version = f.attrs['keras_version'].decode('utf8')
     pip install fancyimpute                       # matrix completion and imputation algorithms
     pip install protobuf                          # Google serialization library
 

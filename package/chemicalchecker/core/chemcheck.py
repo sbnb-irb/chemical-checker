@@ -137,7 +137,9 @@ class ChemicalChecker():
 
             # NS: testing the connection to cc_package
             # If the database is not present we are in cc "standalone" mode for users
+            self.__log.debug("Testing if a connection to the IRB PostgreSQL DB is possible")
             if test_connection():
+                self.__log.debug('-> OK, able to connect to the IRB database cc_package')
                 for molset in self._basic_molsets:
                     for dataset in Dataset.get():
                         ds = dataset.dataset_code
@@ -148,6 +150,9 @@ class ChemicalChecker():
                         original_umask = os.umask(0)
                         os.makedirs(new_dir, 0o775)
                         os.umask(original_umask)
+            else:
+                self.__log.debug("No database found, working locally.")
+
         else:
             # if the directory exists get molsets and datasets
             # NS: also valid for imported h5 datasets

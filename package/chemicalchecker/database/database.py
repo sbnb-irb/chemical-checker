@@ -44,7 +44,7 @@ def get_engine(dbname=None):
 
     if dbconfig.config.DB.dialect == 'sqlite':
         con = dbconfig.config.DB.dialect + ':///' + dbconfig.config.DB.file
-        engine = create_engine(con, echo=True, poolclass=NullPool)
+        engine = create_engine(con, echo=True, poolclass=NullPool, pool_pre_ping=True)
         return engine
 
     params = dbconfig.config.DB.asdict()
@@ -54,7 +54,7 @@ def get_engine(dbname=None):
 
     con = '{dialect}://{user}:{password}@{host}:{port}/{database}'.format(
         **params)
-    engine = create_engine(con, poolclass=NullPool)
+    engine = create_engine(con, poolclass=NullPool, pool_pre_ping=True)
     return engine
 
 
@@ -79,10 +79,8 @@ def test_connection(dbname=None):
         conn=engine.connect()
         conn.close()
         engine.dispose()
-        print('-> OK, Able to connect to the IRB database', engine.url.database)
 
     except Exception as e:
-        print("No pre-existing database to connect to, working locally.")
         return False
     else:
         return True
