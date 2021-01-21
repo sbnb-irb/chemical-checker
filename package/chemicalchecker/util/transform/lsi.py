@@ -175,6 +175,7 @@ class Lsi(BaseTransform):
                 self.__log.warning(
                     'Repeating LSI with: variance_explained: %.2f num_topics: %s',
                     self.variance_explained, str(self.num_topics))
+
         self.predict(self.sign_ref)
         self.predict(self.sign)
         self.save()
