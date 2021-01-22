@@ -221,7 +221,8 @@ class DataSignature(object):
             return h5py.special_dtype(vlen=unicode)
         else:
             # because str is the new unicode in py3
-            return h5py.special_dtype(vlen=str)
+            #return h5py.special_dtype(vlen=str)
+            return h5py.string_dtype(encoding='utf-8', length=None) # NS test
 
     @staticmethod
     def h5_str(lst):
@@ -664,7 +665,7 @@ class DataSignature(object):
                 src_vectors = hf['V'][:]
             with h5py.File(out_file, "w") as hf:
                 hf.create_dataset('keys', data=np.array(
-                    src_keys, DataSignature.string_dtype()))
+                    src_keys, DataSignature.string_dtype()),dtype=DataSignature.string_dtype())
                 hf.create_dataset('V', data=src_vectors, dtype=np.float32)
                 hf.create_dataset("shape", data=src_vectors.shape)
             return
@@ -686,7 +687,7 @@ class DataSignature(object):
         sorted_idx = np.argsort(dst_keys)
         with h5py.File(out_file, "w") as hf:
             hf.create_dataset('keys', data=np.array(
-                dst_keys[sorted_idx], DataSignature.string_dtype()))
+                dst_keys[sorted_idx],DataSignature.string_dtype()),dtype=DataSignature.string_dtype())
             hf.create_dataset('V', data=matrix[sorted_idx], dtype=np.float32)
             hf.create_dataset("shape", data=matrix.shape)
 
