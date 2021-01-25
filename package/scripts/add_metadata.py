@@ -57,6 +57,8 @@ def export_sign(target_dir, version="2020_01", signatures='2', pathrepo="/aloy/w
     add_metadata (Bool): Add metadata to the copied file
     """
 
+    signatures=str(signatures) # in case we have an int.
+
     for sign in signatures:
         cctype='sign'+signature
         sign_dir= os.path.join(target_dir,cctype)
@@ -89,7 +91,7 @@ def export_sign(target_dir, version="2020_01", signatures='2', pathrepo="/aloy/w
 
                             # Adding metadata
                             if add_metadata:
-                                print("Adding metadata to", backup_file)
+                                print("Adding metadata to", target_file)
                                 dico= dict(cctype=signature, dataset_code=data_code, molset=molset)
 
                                 with h5py.File(target_file,'a') as f:
@@ -113,6 +115,6 @@ if __name__=='__main__':
     #add_metadata(version=current_version)
 
     
-    export_sign(target_directory,version="2020_01", signatures='2',molsets=('full',), copy_backup=True)
+    export_sign(target_directory,version="2020_01", signatures='2',molsets=['full'], copy_backup=True)
 
 
