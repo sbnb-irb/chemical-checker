@@ -29,7 +29,7 @@ def add_metadata(version="2020_01",signatures='0123', pathrepo="/aloy/web_checke
                         print("Adding metadata to", fichero)
                         dico= dict(cctype=signature, dataset_code=data_code, molset=molset)
 
-                        with h5py.File(signature+'.h5','a') as f:
+                        with h5py.File(fichero,'a') as f:
                             for k,v in dico.items():
                                 if k not in f.attrs:
                                     f.attrs.create(name=k,data=v)
