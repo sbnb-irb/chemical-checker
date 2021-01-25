@@ -46,6 +46,7 @@ from chemicalchecker.database import Molrepo, Calcdata
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable
 from chemicalchecker.util.pipeline import CCFit, CCPredict
 
+# this is needed to export signaturizers at the end
 sys.path.insert(0, '/aloy/home/mbertoni/code/signaturizer')
 from signaturizer.exporter import export_batch
 
