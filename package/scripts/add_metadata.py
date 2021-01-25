@@ -8,7 +8,7 @@
 import shutil,os
 
 
-def add_metadata(signatures='0123',version=version="2020_01",pathrepo="/aloy/web_checker/package_cc/"):
+def add_metadata(signatures='0123',version="2020_01",pathrepo="/aloy/web_checker/package_cc/"):
     """
     sign: (str or int), number refering to the signature. ex: '012' for sign0, sign1, sign2.
     version: (str), version of the cc package
