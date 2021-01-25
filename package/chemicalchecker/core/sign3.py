@@ -1747,7 +1747,7 @@ class sign3(BaseSignature, DataSignature):
                     inchies.append('INVALID SMILES')
                     continue
                 inchi = Chem.rdinchi.MolToInchi(mol)[0]
-                self.__log.debug('CONVERTED:', smi, inchi)
+                self.__log.debug('CONVERTED: %s %s', smi, inchi)
                 inchies.append(inchi)
         elif keytype.upper() == 'INCHI':
             inchies = molecules
