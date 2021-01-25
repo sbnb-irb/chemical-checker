@@ -1875,11 +1875,15 @@ class sign3(BaseSignature, DataSignature):
         # define datasets that will be used
         self.update_status("Getting data")
         cc = self.get_cc()
+
+        print("KURAC0",sign2_list)
         if sign2_list is None:
             sign2_list = list()
+            print("KURAC1",cc.datasets_exemplary())
             for ds in cc.datasets_exemplary():
                 sign2_list.append(cc.get_signature('sign2', 'full', ds))
         self.sign2_list = sign2_list
+        print("KURAC sign2_list",sign2_list)
         self.src_datasets = [sign.dataset for sign in sign2_list]
         if sign2_self is None:
             sign2_self = self.get_sign('sign2')

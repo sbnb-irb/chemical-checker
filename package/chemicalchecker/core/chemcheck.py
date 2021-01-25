@@ -91,43 +91,6 @@ class ChemicalChecker():
         self.reference_code = "001"
         self.__log.debug("ChemicalChecker with root: %s", self.cc_root)
 
-        if custom_data_path is not None:
-            # NS import one or several custom h5 files --> in any case a
-            # cc_repo will exist afyter this block
-            if '.' in custom_data_path.split('/')[-1]:
-                # remove the file's name if provided (let it scan for h5 files
-                # present there)
-                custom_data_path = os.path.dirname(custom_data_path)
-
-            self.custom_data_path = os.path.abspath(custom_data_path)
-            self.__log.debug("Importing files from {}".format(
-                self.custom_data_path))
-
-            # Set a custom repo to avoid damaging ours
-            self.cc_root = os.path.join(os.getcwd(), "cc_repo")
-
-            if os.path.exists(self.cc_root):
-                self.__log.warning(
-                    "CC root {} exists, importing H5 files will "
-                    "add signatures into it.".format(self.cc_root))
-
-            else:
-                self.__log.debug("Creating custom repo at {}".format(
-                    self.cc_root))
-
-                try:
-                    original_umask = os.umask(0)
-                    os.makedirs(self.cc_root, 0o775)
-                    os.umask(original_umask)
-
-                except Exception as e:
-                    self.__log.error(
-                        "Problem in creating cc_repo: {}".format(e))
-
-            # Create  the cc_repo directory structure and symbolic link to
-            # files
-            self.import_h5()
-
         # If non-existing CC_root
         if not os.path.isdir(self.cc_root):
             self.__log.warning("Empty root directory, creating root and dataset dirs")
@@ -160,6 +123,41 @@ class ChemicalChecker():
                                       '*', '*', '*', '*', 'sign*.h5'))
             self._molsets = set(x.split('/')[-6] for x in paths)
             self._datasets = set(x.split('/')[-3] for x in paths)
+
+
+        if custom_data_path is not None:
+            # NS import one or several custom h5 files
+
+            if '.' in custom_data_path.split('/')[-1]:
+                # remove the file's name if provided (let it scan for h5 files
+                # present there)
+                custom_data_path = os.path.dirname(custom_data_path)
+
+            self.custom_data_path = os.path.abspath(custom_data_path)
+            self.__log.debug("Importing files from {}".format(self.custom_data_path))
+
+            # Set a custom repo to avoid damaging ours
+            #self.cc_root = os.path.join(os.getcwd(), "cc_repo")
+
+            if os.path.exists(self.cc_root):
+                self.__log.warning(
+                    "CC root {} exists, importing H5 files will ask you to rename or skip signatures which are already present".format(self.cc_root))
+
+            #else:
+                #self.__log.debug("Creating custom repo at {}".format(self.cc_root))
+
+                # try:
+                #     original_umask = os.umask(0)
+                #     os.makedirs(self.cc_root, 0o775)
+                #     os.umask(original_umask)
+
+                # except Exception as e:
+                #     self.__log.error(
+                #         "Problem in creating cc_repo: {}".format(e))
+
+            # Create  the cc_repo directory structure and symbolic link to
+            # files
+            self.import_h5()
 
         # In case
         self._molsets = sorted(list(self._molsets))
@@ -544,8 +542,7 @@ class ChemicalChecker():
 
             # Keep only h5 files that contain the required info in the correct
             # format
-            h5tuples = [filter_dataset(
-                f) for f in h5files if filter_dataset(f) is not None]
+            h5tuples = [filter_dataset(f) for f in h5files if filter_dataset(f) is not None]
 
             if len(h5tuples) == 0:
                 raise Exception(
@@ -603,13 +600,11 @@ class ChemicalChecker():
 
                 if not skip_signature:
                     try:
-                        os.makedirs(os.path.join(
-                            self.cc_root, path2sign), 0o775)
+                        os.makedirs(path2sign, 0o775)
                         # symbolic link to the h5 file in the cc_repo as
                         # signx.h5
                         os.symlink(
-                            h5t[-1], os.path.join(
-                                self.cc_root, path2sign, h5t[-2] + '.h5'))
+                            h5t[-1], os.path.join(path2sign, h5t[-2] + '.h5'))
 
                     except Exception as e:
                         os.umask(original_umask)
@@ -728,6 +723,46 @@ class ChemicalChecker():
             if not overwrite:
                 raise Exception("File %s exists already.", dst)
         shutil.copyfile(src, dst)
+
+
+    def copy_filter_signature_from(self,source_cc, inchikey_list, cctype, molset, dataset_code,overwrite=False):
+        """
+        Create a new signature object (and datafile) from another cc instance by copying only the selected inchikeys
+
+        Args:
+            inchikey_list: list of inchikeys you want to include
+            source_cc(ChemicalChecker): A different CC instance.
+            cctype(str): The Chemical Checker datatype (i.e. one of the sign*).
+            molset(str): The molecule set name.
+            dataset_code(str): The dataset code of the Chemical Checker.
+
+            # MAKE IT RETURN THE ABSENT KEYS
+        """
+        source_signature= source_cc.get_signature(cctype, molset,dataset_code)
+
+        if os.path.exists(source_signature.data_path):
+
+            target_signature= self.get_signature(cctype, molset,dataset_code)
+            dest= target_signature.data_path
+
+            if not os.path.exists(dest):
+                mask= np.isin(list(source_signature.keys), inchikey_list, assume_unique=True)
+                source_signature.make_filtered_copy(dest, mask, include_all=True)
+
+                if os.path.exists(dest):
+                    self.__log.info(dest+" created")
+                else:
+                    self.__log.warning(dest+" NOT created, please check.")
+            else:
+                self.__log.warning("WARNING "+dest+" exists, please delete it first.")
+
+
+        else:
+            self.__log.warning("WARNING "+source_signature.data_path+" doesn't exist, nothing to copy from.")
+
+        # Copy the h5 file
+
+
 
     def _assert_equal(self, other_cc, cctypes=['sign1', 'sign2', 'sign3'],
                       molsets=['full', 'reference']):
