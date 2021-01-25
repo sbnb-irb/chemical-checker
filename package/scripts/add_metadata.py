@@ -60,7 +60,7 @@ def export_sign(target_dir, version="2020_01", signatures='2', pathrepo="/aloy/w
     signatures=str(signatures) # in case we have an int.
 
     for sign in signatures:
-        cctype='sign'+signature
+        cctype='sign'+sign
         sign_dir= os.path.join(target_dir,cctype)
 
         if not os.path.exists(sign_dir):
