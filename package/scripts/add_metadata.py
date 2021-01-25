@@ -1,5 +1,6 @@
 # Nico (25 Jan 2021)
-# Add metadata into the attr dictionary of every reference signature's h5 file
+# Add metadata into the attr dictionary of every reference signature's h5 file 
+# (on backup copies since an error can be produced if the file is being read by someone else while we try accessing it)
 # Metadata to add and example:
 #   cctype: 'sign2'
 #   dataset_code: 'A1.001'
