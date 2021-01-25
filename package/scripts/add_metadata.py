@@ -6,7 +6,7 @@
 #   molset: 'full'
 
 import shutil,os
-
+import h5py
 
 def add_metadata(version="2020_01",signatures='0123', pathrepo="/aloy/web_checker/package_cc/"):
     """
@@ -20,8 +20,26 @@ def add_metadata(version="2020_01",signatures='0123', pathrepo="/aloy/web_checke
         for space in "ABCDE":
             for num in "12345":
                 for sign in signatures:
-                    fichero= os.path.join(pathrepo,version,molset,space,space+num,space+num+'.001','sign'+sign, 'sign'+sign+'.h5')
+                    signature= 'sign'+sign
+                    data_code= space+num+'.001'
+                    fichero= os.path.join(pathrepo,version,molset,space,space+num, data_code, signature, signature+'.h5')
                     print(fichero)
+                    
+                    # if os.path.exists(fichero):
+                    #     print("Adding metadata to", fichero)
+                    #     dico= dict(cctype=signature,dataset_code=data_code,molset=molset)
+
+                    #     with h5py.File(signature+'.h5','a') as f:
+
+                    #         for k,v in dico.items():
+                    #             if k not in f.attrs:
+                    #                 f.attrs.create(name=k,data=v)
+                    #             else:
+                    #                 print(k,"already in f.attrs")
+
+                    # else:
+                    #     print(fichero, "doesn't exist, skipping")
+
 
 if __name__ == '__main__':
     current_version="2020_01"
