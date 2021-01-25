@@ -5,7 +5,7 @@
 #   dataset_code: 'A1.001'
 #   molset: 'full'
 
-import os
+import os, shutil
 import h5py
 
 def add_metadata(version="2020_01",signatures='0123', pathrepo="/aloy/web_checker/package_cc/"):
@@ -25,6 +25,8 @@ def add_metadata(version="2020_01",signatures='0123', pathrepo="/aloy/web_checke
                     fichero= os.path.join(pathrepo,version,molset,space,space+num, data_code, signature, signature+'.h5')
                     
                     if os.path.exists(fichero):
+                        print("Making backup")
+                        shutil.copyfile(fichero,os.path.join(os.path.dirname(fichero),os.path.basename(fichero).split('.')[0]+'_BACKUP.h5')
 
                         print("Adding metadata to", fichero)
                         dico= dict(cctype=signature, dataset_code=data_code, molset=molset)
