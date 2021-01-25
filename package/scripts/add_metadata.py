@@ -25,13 +25,14 @@ def add_metadata(version="2020_01",signatures='0123', pathrepo="/aloy/web_checke
                     fichero= os.path.join(pathrepo,version,molset,space,space+num, data_code, signature, signature+'.h5')
                     
                     if os.path.exists(fichero):
-                        print("Making backup")
-                        shutil.copyfile(fichero,os.path.join(os.path.dirname(fichero),os.path.basename(fichero).split('.')[0]+'_BACKUP.h5')
+                        print("Making backup which will contain metadata")
+                        backup_file= os.path.join(os.path.dirname(fichero),os.path.basename(fichero).split('.')[0]+'_BACKUP.h5')
+                        shutil.copyfile(fichero,backup_file)
 
-                        print("Adding metadata to", fichero)
+                        print("Adding metadata to", backup_file)
                         dico= dict(cctype=signature, dataset_code=data_code, molset=molset)
 
-                        with h5py.File(fichero,'a') as f:
+                        with h5py.File(backup_file,'a') as f:
                             for k,v in dico.items():
                                 if k not in f.attrs:
                                     f.attrs.create(name=k,data=v)
