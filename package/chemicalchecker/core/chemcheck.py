@@ -159,10 +159,8 @@ class ChemicalChecker():
             # files
             self.import_h5()
 
-        # In case
         self._molsets = sorted(list(self._molsets))
-        self._datasets = [x for x in sorted(
-            list(self._datasets)) if not x.endswith('000')]
+        self._datasets = [x for x in sorted(list(self._datasets)) if not x.endswith('000')]
 
     @property
     def coordinates(self):
@@ -736,9 +734,11 @@ class ChemicalChecker():
             molset(str): The molecule set name.
             dataset_code(str): The dataset code of the Chemical Checker.
 
-            # MAKE IT RETURN THE ABSENT KEYS
+            RETURNS the keys which in our dataset but absent from the source datasets (cc signature repo)
         """
+        # Somehow np.isin is faster with lists (not numpy arrays)
         source_signature= source_cc.get_signature(cctype, molset,dataset_code)
+        inchikey_list= list(inchikey_list)
 
         if os.path.exists(source_signature.data_path):
 
@@ -746,19 +746,32 @@ class ChemicalChecker():
             dest= target_signature.data_path
 
             if not os.path.exists(dest):
-                mask= np.isin(list(source_signature.keys), inchikey_list, assume_unique=True)
+
+                # Here we want only the signatures from the cc_repo which are present in our dataset 
+                # REMINDER np.isin(a,b)-> boolan mask of a about the items that are present in b
+                mask= np.isin(list(source_signature.keys),inchikey_list,assume_unique=True)
+
+                # But we also want to know which keys of our dataset are NOT present in the CC_repo
+                # I retransform inchikey_list into a np array to be able to perform boolean indexing
+                absent_inchikeys= np.array(inchikey_list)[~np.isin(inchikey_list,list(source_signature.keys))]
                 source_signature.make_filtered_copy(dest, mask, include_all=True)
 
+                # After creation of the destination file
                 if os.path.exists(dest):
                     self.__log.info(dest+" created")
                 else:
                     self.__log.warning(dest+" NOT created, please check.")
+
+                return list(absent_inchikeys)
+
             else:
                 self.__log.warning("WARNING "+dest+" exists, please delete it first.")
 
 
         else:
             self.__log.warning("WARNING "+source_signature.data_path+" doesn't exist, nothing to copy from.")
+
+        return []
 
         # Copy the h5 file
 
