@@ -765,7 +765,7 @@ class ChemicalChecker():
                 return list(absent_inchikeys)
 
             else:
-                self.__log.warning("WARNING "+dest+" exists, please delete it first.")
+                raise Exception(dest+" exists, please delete it first.")
 
 
         else:
