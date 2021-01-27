@@ -48,6 +48,7 @@ def main(args):
         ACTS = []
         inchikeys = set()
 
+        # NS, take the dense result from Calcdata (SQL db)
         molprop = Calcdata(name)
 
         for molrepo in molrepos:
@@ -112,6 +113,7 @@ def main(args):
     main._log.info("Saving raws")
 
     RAW = collections.defaultdict(list)
+    # NS: ACTS contains the dense format for raw data
     for k in ACTS:
         if features is None:
             vals = [str(t) for t in k[1].split(",")]
@@ -119,6 +121,7 @@ def main(args):
             vals = [str(t) for t in k[1].split(",") if str(t) in features]
         RAW[str(k[0])] = vals
 
+    # NS: Preprocess.save_output will then convert the dense format into binary data
     Preprocess.save_output(args.output_file, RAW, args.method,
                 args.models_path, True, features, features_int=True)
 
