@@ -1715,7 +1715,8 @@ class sign3(BaseSignature, DataSignature):
 
     def predict_from_string(self, molecules, dest_file, keytype='SMILES',
                             chunk_size=1000, predict_fn=None,
-                            keys=None, components=128, applicability=True):
+                            keys=None, components=128, applicability=True,
+                            y_order=None):
         """Given molecuel string, generate MFP and predict sign3.
 
         Args:
@@ -1734,6 +1735,9 @@ class sign3(BaseSignature, DataSignature):
         # input must be a list, otherwise we make it so
         if isinstance(molecules, str):
             molecules = [molecules]
+        # reorder as sign0 A1 or leave it as is
+        if y_order is None:
+            y_order = np.arange(2048)
         # convert input molecules to InChI
         inchies = list()
         if keytype.upper() == 'SMILES':
@@ -1805,7 +1809,7 @@ class sign3(BaseSignature, DataSignature):
                     finally:
                         sign0s.append(calc_s0)
                 # stack input signatures and generate predictions
-                sign0s = np.vstack(sign0s)
+                sign0s = np.vstack(sign0s)[:, y_order]
                 preds = predict_fn(sign0s)
                 # add NaN when SMILES conversion failed
                 if failed:
