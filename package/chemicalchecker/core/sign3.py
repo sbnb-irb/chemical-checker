@@ -1573,6 +1573,9 @@ class sign3(BaseSignature, DataSignature):
         shared_keys = sorted(list(sign0.unique_keys & self.unique_keys))
         _, sign0_V = sign0.get_vectors(shared_keys)
         _, sign3_V = self.get_vectors(shared_keys)
+        # sign0 A1 is not exactly like MFP! we need to reorder features as MFP
+        order = np.argsort(sign0.get_h5_dataset('features').astype(int))
+        sign0_V = sign0_V[:, order]
         smpred = Smilespred(
             model_dir=model_path, sign0=sign0_V, sign3=sign3_V,
             evaluate=evaluate)
@@ -1616,6 +1619,9 @@ class sign3(BaseSignature, DataSignature):
         _, sign3_app_V = self.get_vectors(shared_keys,
                                           dataset_name='confidence')
         sign3_app_V = sign3_app_V.ravel()
+        # sign0 A1 is not exactly like MFP! we need to reorder features as MFP
+        order = np.argsort(sign0.get_h5_dataset('features').astype(int))
+        sign0_V = sign0_V[:, order]
         # initialize model and start learning
         apppred = ApplicabilityPredictor(
             model_dir=model_path, sign0=sign0_V,
@@ -1880,14 +1886,11 @@ class sign3(BaseSignature, DataSignature):
         self.update_status("Getting data")
         cc = self.get_cc()
 
-        print("KURAC0",sign2_list)
         if sign2_list is None:
             sign2_list = list()
-            print("KURAC1",cc.datasets_exemplary())
             for ds in cc.datasets_exemplary():
                 sign2_list.append(cc.get_signature('sign2', 'full', ds))
         self.sign2_list = sign2_list
-        print("KURAC sign2_list",sign2_list)
         self.src_datasets = [sign.dataset for sign in sign2_list]
         if sign2_self is None:
             sign2_self = self.get_sign('sign2')
@@ -1998,8 +2001,6 @@ class sign3(BaseSignature, DataSignature):
             app_range = DataSignature(known_dist).get_h5_dataset(
                 'applicability_range')
             _, trim_mask = self.realistic_subsampling_fn()
-
-
 
         # get sorted universe inchikeys
         self.universe_inchikeys = self.get_universe_inchikeys()
