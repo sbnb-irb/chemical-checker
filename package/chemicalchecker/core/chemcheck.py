@@ -59,6 +59,7 @@ from chemicalchecker.database import Dataset, Molecule
 from chemicalchecker.database.database import test_connection
 from chemicalchecker.util import logged, Config
 from chemicalchecker.util.decorator import cached_property
+from chemicalchecker.util.models import import_models  # import models for predicting sign1, sign2
 
 
 @logged
@@ -465,6 +466,23 @@ class ChemicalChecker():
     def diagnosis(self, sign, **kwargs):
         from chemicalchecker.core.diagnostics import Diagnosis
         return Diagnosis(self, sign, **kwargs)
+
+    def import_model(self,sign,version='2020_01'):
+        """
+        Nico: copy the models files we store in chemicalchecker.utils.models into sign.model_path
+        in order to use the predict functions
+
+        sign (signature object), converted to reference if needed, since the models are stored there
+        version (str) : ex: 2020_01
+
+        """
+        sign2=sign
+        if sign.molset != 'reference':
+
+            sign2= self.get_signature(sign.cctype, 'reference', sign.dataset)
+
+        import_models(sign2, version=version)
+
 
     def import_h5(self):
         """Recovers h5 files from a given custom directory.
