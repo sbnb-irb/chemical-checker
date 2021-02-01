@@ -1,7 +1,7 @@
 # Nico: Jan 2021
 # Uses the data calculator class to get all A spaces preprocessed data
 # Inspired from the cc pipeline
-import os
+import os, json
 import collections
 
 from chemicalchecker.util.parser import DataCalculator
@@ -18,7 +18,7 @@ from chemicalchecker.core.chemcheck import ChemicalChecker
 class Aspaces_prop_calculator(object):
 
 
-    def __init__(self, inchikey_list, output_directory='tmp'):
+    def __init__(self, inchikey_list=None, output_directory='tmp', inchikey2inchi_map=None):
         """
         Class to create the preprocessed h5 data files
         for spaces A1 to A5 for the molecules specified in the input inchikey_inchi dictionary
@@ -28,11 +28,22 @@ class Aspaces_prop_calculator(object):
         whereas we work locally.
 
         Arguments:
-            - dict_inchikey_inchi (dict): molecules (often out of cc universe) from which you want the chemical properties to e calculated
+            - inchikey_list: list or set of inchikeys, (inchis will the be recovered)
+            - inchikey2inchi_map (dict): mapping between inchikeys and inchis entered
             - outDir (str): where to put the output h5 files
+
+        # Note: you have to entered the inchikeys by either inchikey_list (then the inchis will be retrieved automatically)
+                or by a dictionary with inchikeys as keys and inchis as values. Or by a path to a json file.
+
         """
 
+        
+        if inchikey_list is None and inchikey2inchi_map is None:
+            print("Please enter the inchikeys to process by either inchikey_list or inchikey2inchi_map arguments")
+            return
+
         self.inchikey_list= inchikey_list
+
         self.data_calculators = {
              'A1': 'morgan_fp_r2_2048',
              'A2': 'e3fp_3conf_1024', 
@@ -43,7 +54,21 @@ class Aspaces_prop_calculator(object):
         self.Aspaces= ('A1', 'A2', 'A3', 'A4', 'A5')
         self.converter= Converter()
 
-        self.dict_inchikey_inchi= self.inchikey2inchi()
+        if inchikey2inchi_map is None:
+            self.dict_inchikey_inchi= self.inchikey2inchi()
+
+        elif type(inchikey2inchi_map) is str:
+            # json file
+            try:
+                with open(inchikey2inchi_map) as f:
+                    self.dict_inchikey_inchi=json.load(f)
+            except:
+                print("Please provide a dictionary or a path to a json file for inchikey2inchi_map, currently (",inchikey2inchi_map,")")
+                return
+        else:
+            #mapping
+            self.dict_inchikey_inchi= inchikey2inchi_map
+
         self.outDir= output_directory
         if not os.path.exists(self.outDir):
             try:
@@ -58,15 +83,25 @@ class Aspaces_prop_calculator(object):
 
         if not os.path.exists(cc_directory):
             os.makedirs(cc_directory)
-        self.cc=ChemicalChecker(cc_root= cc_directory)
+
+        self.cc=ChemicalChecker(cc_root= cc_directory,dbconnect=False)
 
 
+    def save_inchikey2inchi(self, outputFile="inchikey2inchis.json"):
+
+        with open(outputFile, 'w') as f:
+            json.dump(self.dict_inchikey_inchi,f)
+            print("Mapping inchikeys / InChIs saved as",outputFile)
 
     def inchikey2inchi(self):
         # Try with the Molecule class, otherwise use Converter (requires web)
         itWorks=False # no inchikey so far
         dict_inchikey_inchi=dict()
-        for ink in self.inchikey_list:
+
+        setIn= set(self.inchikey_list)
+        print("Recovering InChI for the ", len(setIn),"unique inchickeys entered")
+        print("Please wait..")
+        for ink in setIn:
             try:
                 inchi= self.converter.inchikey_to_inchi(ink)[0]["standardinchi"]
                 itWorks=True
@@ -135,7 +170,7 @@ class Aspaces_prop_calculator(object):
     # Trying to save the result of A1 (from A1)
 
 
-    def create_h5_from_inchikeys_inchi(self):
+    def create_h5(self):
 
 
         print("Retrieving InChI strings from the list of input InChIkeys")
