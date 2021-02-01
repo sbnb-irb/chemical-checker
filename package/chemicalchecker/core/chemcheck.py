@@ -66,7 +66,7 @@ from chemicalchecker.util.models import import_models  # import models for predi
 class ChemicalChecker():
     """ChemicalChecker class."""
 
-    def __init__(self, cc_root=None, custom_data_path=None):
+    def __init__(self, cc_root=None, custom_data_path=None, dbconnect=True):
         """Initialize a ChemicalChecker instance.
 
         If the CC_ROOT directory is empty a skeleton of CC is initialized.
@@ -79,6 +79,7 @@ class ChemicalChecker():
             custom_data_path (None, str): Path to one or more h5 files, detect
                 their signature type, molset and dataset code form their
                 'attrs' record.
+            dbconnect (True, Bool): if True, try to connect to the postgres db (SBNB set up)
 
         """
         # Default cc_root is taken from config file
@@ -102,7 +103,7 @@ class ChemicalChecker():
             # NS: testing the connection to cc_package
             # If the database is not present we are in cc "standalone" mode for users
             self.__log.debug("Testing if a connection to the IRB PostgreSQL DB is possible")
-            if test_connection():
+            if dbconnect and test_connection():
                 self.__log.debug('-> OK, able to connect to the IRB database cc_package')
                 for molset in self._basic_molsets:
                     for dataset in Dataset.get():
