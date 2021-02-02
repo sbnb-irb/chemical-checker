@@ -44,7 +44,12 @@ class DataCalculator():
                 continue
             v = str(inchikey_inchi[ik])
             # DataCalculator.__log.info( ik)
-            mol = Chem.rdinchi.InchiToMol(v)[0]
+            try:  # NS: some inchis make RDkit bug
+                mol = Chem.rdinchi.InchiToMol(v)[0]
+            except Exception as e:
+                DataCalculator.__log.error("Problem with molecule "+ik+", skipped.")
+                DataCalculator.__log.error(e)
+                continue
             info = {}
             # print mol
             fp = Chem.GetMorganFingerprintAsBitVect(
