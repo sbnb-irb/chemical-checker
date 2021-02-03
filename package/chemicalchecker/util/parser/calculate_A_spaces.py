@@ -262,7 +262,8 @@ class Aspaces_prop_calculator(object):
         # Now creating sign0 for each of the input raw files
         for space, fp in dict_of_Aspaces_h5.items():
             print("\nCalculating sign0 for space", space)
-            sign0 = self.cc.get_signature('sign0', 'full',space)
+            sign0 = self.cc.get_signature('sign0', 'full',space+'.001')
+            sign0.clear()
             sign0.fit(data_file=fp,do_triplets=False, overwrite=True,sanitize=sanitize)
 
         # Then we can use this cc instance to predict sign1
@@ -276,15 +277,20 @@ class Aspaces_prop_calculator(object):
         dictSpaces= self.cc.report_available()
         if "reference" in dictSpaces:
             dictSpaces=dictSpaces['reference']
-            self.cc.import_models_for_prediction(sign1) # Import models A1 to A5
+            
         else:
             print("No sign0 available in your cc repo")
             return
 
-        for space in dictSpaces.keys():
-            if space in ('A1', 'A2', 'A3', 'A4', 'A5'):
-                sign1 = self.cc.get_signature('sign1', 'full',space) # will get converted to reference by the next fct
-                sign0= self.cc.get_signature('sign0', 'full',space)
+        for space in self.Aspaces:
+
+                assert space in dictSpaces.keys(), print("Sign0 for space",space, "not fit!!")
+                sign0= self.cc.get_signature('sign0', 'full',space+'.001') # already fitted
+                sign1 = self.cc.get_signature('sign1', 'full',space+'.001') # will get converted to reference by the next fct
+                sign1.clear()
+                self.cc.import_models_for_prediction(sign1) # Import model for this space
+
+                
                 print("\nPredicting sign1 for space",space)
                 sign1.predict(sign0)
         return self.cc
