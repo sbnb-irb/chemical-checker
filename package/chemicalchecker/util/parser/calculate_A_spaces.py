@@ -271,6 +271,22 @@ class Aspaces_prop_calculator(object):
 
     def predictSign1(self):
 
+        # Import the prediction models for sign1
+
+        dictSpaces= self.cc.report_available()
+        if "reference" in dictSpaces:
+            dictSpaces=dictSpaces['reference']
+            self.cc.import_models_for_prediction(sign1) # Import models A1 to A5
+        else:
+            print("No sign0 available in your cc repo")
+            return
+
+        for space in dictSpaces.keys():
+            if space in ('A1', 'A2', 'A3', 'A4', 'A5'):
+                sign1 = self.cc.get_signature('sign1', 'full',space) # will get converted to reference by the next fct
+                sign0= self.cc.get_signature('sign0', 'full',space)
+                print("\nPredicting sign1 for space",space)
+                sign1.predict(sign0)
         return self.cc
 
     def predictSign2(self):
