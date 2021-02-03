@@ -468,7 +468,7 @@ class ChemicalChecker():
         from chemicalchecker.core.diagnostics import Diagnosis
         return Diagnosis(self, sign, **kwargs)
 
-    def import_model(self,sign,version='2020_01'):
+    def import_models_for_prediction(self,sign,version='2020_01'):
         """
         Nico: copy the models files we store in chemicalchecker.utils.models into sign.model_path
         in order to use the predict functions
@@ -477,12 +477,12 @@ class ChemicalChecker():
         version (str) : ex: 2020_01
 
         """
-        sign2=sign
+        signObj=sign
         if sign.molset != 'reference':
 
-            sign2= self.get_signature(sign.cctype, 'reference', sign.dataset)
+            signObj= self.get_signature(sign.cctype, 'reference', sign.dataset)
 
-        import_models(sign2, version=version)
+        import_models(signObj, version=version)
 
 
     def import_h5(self):
