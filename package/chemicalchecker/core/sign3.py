@@ -1493,7 +1493,7 @@ class sign3(BaseSignature, DataSignature):
         fname = 'known_unknown_sampling.png'
         plot_file = os.path.join(siamese.model_dir, fname)
         plot_subsample(self, plot_file, self.sign2_coverage, traintest_file,
-                       ds=self.dataset)
+                       ds=self.dataset, sign2_list=sign2_list)
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True,
                           chunk_size=1000):
@@ -2381,7 +2381,7 @@ def subsample(tensor, sign_width=128,
 
 
 def plot_subsample(sign, plot_file, sign2_coverage, traintest_file, ds='B1.001',
-                   p_self=.1, p_only_self=0., limit=10000, max_ds=25):
+                   p_self=.1, p_only_self=0., limit=10000, max_ds=25, sign2_list=None):
     import numpy as np
     import pandas as pd
     import seaborn as sns
@@ -2390,9 +2390,12 @@ def plot_subsample(sign, plot_file, sign2_coverage, traintest_file, ds='B1.001',
 
     cc = ChemicalChecker()
 
+    # NICO sign2_list
+    sign2_ds_list = [s.dataset for s in sign2_list] if sign2_list is not None else list(cc.datasets_exemplary())
+
     # get triplet generator
     dataset_idx = np.argwhere(
-        np.isin(list(cc.datasets_exemplary()), ds)).flatten()
+        np.isin(sign2_ds_list, ds)).flatten()
     trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = \
         subsampling_probs(sign2_coverage, dataset_idx)
     trim_dataset_idx = np.argwhere(np.arange(len(trim_mask))[
