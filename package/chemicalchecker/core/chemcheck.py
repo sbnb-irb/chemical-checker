@@ -479,8 +479,7 @@ class ChemicalChecker():
         """
         signObj=sign
         if sign.molset != 'reference':
-
-            signObj= self.get_signature(sign.cctype, 'reference', sign.dataset)
+            signObj=sign.get_molset("reference")
 
         import_models(signObj, version=version)
 
