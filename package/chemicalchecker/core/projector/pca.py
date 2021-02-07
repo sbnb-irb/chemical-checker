@@ -79,12 +79,12 @@ class PCA(BaseSignature, DataSignature):
         sdtype = DataSignature.string_dtype()
         with h5py.File(signature.data_path, "r") as src, \
                 h5py.File(self.data_path, "w") as dst:
-            dst.create_dataset("keys", data=src['keys'].asstr()[:], dtype=sdtype)
+            dst.create_dataset("keys", data=src['keys'][:], dtype=sdtype)
             dst.create_dataset("name", data=np.array([self.name], sdtype))
             date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             dst.create_dataset("date", data=np.array([date_str], sdtype))
             if 'mappings' in src.keys():
-                dst.create_dataset("mappings", data=src['mappings'].asstr()[:],
+                dst.create_dataset("mappings", data=src['mappings'][:],
                                    dtype=sdtype)
             src_len = src["V"].shape[0]
             dst.create_dataset("V", (src_len, 2), dtype=np.float32)
@@ -103,12 +103,12 @@ class PCA(BaseSignature, DataSignature):
         pred_proj = DataSignature(destination)
         with h5py.File(signature.data_path, "r") as src, \
                 h5py.File(destination, "w") as dst:
-            dst.create_dataset("keys", data=src['keys'].asstr()[:], dtype=sdtype)
+            dst.create_dataset("keys", data=src['keys'][:], dtype=sdtype)
             dst.create_dataset("name", data=np.array([self.name], sdtype))
             date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             dst.create_dataset("date", data=np.array([date_str], sdtype))
             if 'mappings' in src.keys():
-                dst.create_dataset("mappings", data=src['mappings'].asstr()[:],
+                dst.create_dataset("mappings", data=src['mappings'][:],
                                    dtype=sdtype)
             src_len = src["V"].shape[0]
             dst.create_dataset("V", (src_len, 2), dtype=np.float32)

@@ -88,7 +88,7 @@ class BaseSignature(object):
         """Fit a model."""
         self.update_status("FIT START")
         overwrite = kwargs.get('overwrite', False)
-        if overwrite and self.is_fit():
+        if self.is_fit() and not overwrite:
             raise Exception("Signature has already been fitted. "
                             "Delete it manually, or call the `fit` method "
                             "passing overwrite=True")
@@ -559,7 +559,7 @@ class BaseSignature(object):
         rnd.remove(self.data_path, save_dest=sign_ref.data_path)
         f5 = h5py.File(self.data_path, "r")
         if 'features' in f5.keys():
-            features = f5['features'].asstr()[:]
+            features = f5['features'][:]
             f5.close()
             with h5py.File(sign_ref.data_path, 'a') as hf:
                 hf.create_dataset('features', data=features)

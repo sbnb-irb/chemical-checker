@@ -44,7 +44,7 @@ def get_engine(dbname=None):
 
     if dbconfig.config.DB.dialect == 'sqlite':
         con = dbconfig.config.DB.dialect + ':///' + dbconfig.config.DB.file
-        engine = create_engine(con, echo=True, poolclass=NullPool)
+        engine = create_engine(con, echo=True, poolclass=NullPool, pool_pre_ping=True)
         return engine
 
     params = dbconfig.config.DB.asdict()
@@ -54,7 +54,7 @@ def get_engine(dbname=None):
 
     con = '{dialect}://{user}:{password}@{host}:{port}/{database}'.format(
         **params)
-    engine = create_engine(con, poolclass=NullPool)
+    engine = create_engine(con, poolclass=NullPool, pool_pre_ping=True)
     return engine
 
 
@@ -72,3 +72,15 @@ def get_session(dbname=None):
     Session.configure(bind=engine)
     session = Session()
     return session
+
+def test_connection(dbname=None):
+    engine=get_engine(dbname=dbname)
+    try:
+        conn=engine.connect()
+        conn.close()
+        engine.dispose()
+
+    except Exception as e:
+        return False
+    else:
+        return True

@@ -91,7 +91,7 @@ class MolecularInfo(BaseTask):
         consensus_file = os.path.join(os.path.dirname(
             os.path.realpath(__file__)), "data/consensus.h5")
         with h5py.File(universe_file) as h5:
-            keys = h5["keys"].asstr()[:]
+            keys = h5["keys"][:]
         datasize = keys.shape[0]
         self.__log.info("Genretaing molecular info for " +
                         str(keys.shape[0]) + " molecules")
