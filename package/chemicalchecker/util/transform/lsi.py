@@ -197,6 +197,7 @@ class Lsi(BaseTransform):
                                     for x in mask[0]])
                     f.write("%s %s\n" % (ks[i], val))
         # load dictionary
+        print("\n SHERLOCK self.model_path",self.model_path)
         dictionary = corpora.Dictionary.load(
             os.path.join(self.model_path, self.name + ".dict.pkl"))
         # corpus

@@ -120,8 +120,6 @@ class sign1(BaseSignature, DataSignature):
     def load_model(self, name):
         fn = os.path.join(self.get_molset(
             "reference").model_path, "%s.pkl" % name)
-        #debug
-        print("\nSHERLOCK fn",fn)
 
         with open(fn, "rb") as f:
             mod = pickle.load(f)
@@ -277,6 +275,9 @@ class sign1(BaseSignature, DataSignature):
             else:
                 mod = None
         if mod is not None:
+            mod.model_path = self.model_path # avoid taking the info from pickle
+            print(" \n SHERLOCK s1.model_path",s1.model_path)
+            print(" \n SHERLOCK mod.model_path",mod.model_path)
             mod.predict(s1)
         self.__log.debug("Prediction done!")
         if destination is None:
