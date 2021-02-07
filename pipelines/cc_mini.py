@@ -38,6 +38,14 @@ def pipeline_parser():
         help='Root dir of the CC instance to use as reference '
         '(i.e. triplet sampling in sign0).')
     parser.add_argument(
+        '-t', '--only_tasks', type=str, nargs="+", default=[],
+        required=False,
+        help='Names of tasks that will `exclusively` run by the pipeline.')
+    parser.add_argument(
+        '-s', '--exclude_tasks', type=str, nargs="+", default=[],
+        required=False,
+        help='Names of tasks that will be skipped.')
+    parser.add_argument(
         '-c', '--config', type=str, required=False,
         default=os.environ["CC_CONFIG"],
         help='Config file to be used. If not specified CC_CONFIG enviroment'
@@ -48,11 +56,14 @@ def pipeline_parser():
     return parser
 
 
+
 @logged(logging.getLogger("[ PIPELINE %s ]" % os.path.basename(__file__)))
 def main(args):
     # initialize Pipeline
+    cfg = Config(args.config)
     pp = Pipeline(pipeline_path=args.pipeline_dir, keep_jobs=True,
-                  config=Config(args.config))
+                  config=cfg, only_tasks=args.only_tasks,
+                  exclude_tasks=args.exclude_tasks)
 
     # print arguments
     for arg in vars(args):

@@ -120,6 +120,9 @@ class sign1(BaseSignature, DataSignature):
     def load_model(self, name):
         fn = os.path.join(self.get_molset(
             "reference").model_path, "%s.pkl" % name)
+        #debug
+        print("\nSHERLOCK fn",fn)
+
         with open(fn, "rb") as f:
             mod = pickle.load(f)
         return mod
@@ -194,7 +197,6 @@ class sign1(BaseSignature, DataSignature):
                 self.update_status("Scaling")
                 mod = Scale(self, tmp=False)
                 mod.fit()
-                mod.predict(s1_ref)
             else:
                 self.__log.debug("Not scaling")
             if latent:
@@ -237,56 +239,59 @@ class sign1(BaseSignature, DataSignature):
     def predict(self, sign0, destination=None):
         """Predict sign1 from sign0"""
 
-        if type(sign0) is not DataSignature:
-            raise Exception(
-                "Predict requires a DataSignature as input parameter")
+        # #if type(sign0) is not DataSignature:
+        # if type(sign0) != type(DataSignature):
+        #     print("type(sign0)", type(sign0))
+        #     print("type(DataSignature)",type(DataSignature))
+        #     raise Exception(
+        #         "Predict requires a DataSignature as input parameter")
         if not os.path.isfile(sign0.data_path):
             raise Exception("The file " + sign0.data_path + " does not exist")
         tag = str(uuid.uuid4())
         tmp_path = os.path.join(self.model_path, tag)
-        try:
-            cc = ChemicalChecker(tmp_path)
-            s1 = cc.signature(self.dataset, "sign1")
-            self.copy_sign0_to_sign1(sign0, s1, just_data=True)
-            self.__log.debug("Reading pipeline")
-            fn = self.pipeline_file()
-            with open(fn, "rb") as f:
-                pipeline = pickle.load(f)
-            self.__log.debug("Starting pipeline")
-            self.__log.debug("Scaling if necessary")
-            if not pipeline["sparse"] and pipeline["scale"]:
-                mod = self.load_model("scale")
-                mod.predict(s1)
-            self.__log.debug("Transformation")
-            if pipeline["metric_learning"]:
-                if pipeline["semisupervised"]:
-                    mod = self.load_model("semiml")
-                else:
-                    mod = self.load_model("unsupml")
+        #try:
+        cc = ChemicalChecker(tmp_path)
+        s1 = cc.signature(self.dataset, "sign1")
+        self.copy_sign0_to_sign1(sign0, s1, just_data=True)
+        self.__log.debug("Reading pipeline")
+        fn = self.pipeline_file()
+        with open(fn, "rb") as f:
+            pipeline = pickle.load(f)
+        self.__log.debug("Starting pipeline")
+        self.__log.debug("Scaling if necessary")
+        if not pipeline["sparse"] and pipeline["scale"]:
+            mod = self.load_model("scale")
+            mod.predict(s1)
+        self.__log.debug("Transformation")
+        if pipeline["metric_learning"]:
+            if pipeline["semisupervised"]:
+                mod = self.load_model("semiml")
             else:
-                if pipeline["latent"]:
-                    if pipeline["sparse"]:
-                        mod = self.load_model("lsi")
-                    else:
-                        mod = self.load_model("pca")
+                mod = self.load_model("unsupml")
+        else:
+            if pipeline["latent"]:
+                if pipeline["sparse"]:
+                    mod = self.load_model("lsi")
                 else:
-                    mod = None
-            if mod is not None:
-                mod.predict(s1)
-            self.__log.debug("Prediction done!")
-            if destination is None:
-                self.__log.debug("Returning a V, keys dictionary")
-                results = {
-                    "V": s1[:],
-                    "keys": s1.keys
-                }
+                    mod = self.load_model("pca")
             else:
-                self.__log.debug("Saving H5 file in %s" % destination)
-                shutil.copyfile(s1.data_path, destination)
-                results = None
-        except Exception as e:
-            shutil.rmtree(tmp_path)
-            raise Exception(e)
+                mod = None
+        if mod is not None:
+            mod.predict(s1)
+        self.__log.debug("Prediction done!")
+        if destination is None:
+            self.__log.debug("Returning a V, keys dictionary")
+            results = {
+                "V": s1[:],
+                "keys": s1.keys
+            }
+        else:
+            self.__log.debug("Saving H5 file in %s" % destination)
+            shutil.copyfile(s1.data_path, destination)
+            results = None
+        # except Exception as e:
+        #     shutil.rmtree(tmp_path)
+        #     raise Exception(e)
 
         self.__log.debug("Deleting tmp folder")
         shutil.rmtree(tmp_path)
@@ -318,7 +323,7 @@ class sign1(BaseSignature, DataSignature):
             self.__log.debug("...data size is (%d, %d)" %
                              (datasize[0], datasize[1]))
             k = min(datasize[0], k_neig)
-            dh5out.create_dataset("row_keys", data=dh5["keys"].asstr()[:])
+            dh5out.create_dataset("row_keys", data=dh5["keys"][:])
             dh5out["col_keys"] = h5py.SoftLink('/row_keys')
             dh5out.create_dataset(
                 "indices", (datasize[0], k), dtype=np.int32)
@@ -371,9 +376,7 @@ class sign1(BaseSignature, DataSignature):
         s1 = self.get_molset("reference")
         if local_neig_path:
             neig_path = os.path.join(s1.model_path, "neig.h5")
-        else:
-            neig_path = s1.get_neighbors().data_path
-        opt_t = self.optimal_t(local_neig_path=local_neig_path, save=False)
+        opt_t = self.optimal_t(local_neig_path=local_neig_path)
         # Heuristic to correct opt_t, dependent on the size of the data
         LB = 10000
         UB = 100000
@@ -477,6 +480,13 @@ class sign1(BaseSignature, DataSignature):
                 (default=10000).
             save(bool): Store an opt_t.h5 file (default=True).
         """
+        # lazily loading if already computed
+        fname = os.path.join(
+                self.get_molset("reference").model_path, "opt_t.h5")
+        if os.path.isfile(fname):
+            with h5py.File(fname, "r") as hf:
+                opt_t = hf['opt_t'][0]
+            return opt_t
         self.__log.debug("Reading triplets")
         triplets = self.get_triplets(reference=True)
         if triplets is None:
@@ -537,8 +547,6 @@ class sign1(BaseSignature, DataSignature):
         opt_t = opt_k / nn.shape[0]
         if save:
             self.__log.debug("Saving")
-            fname = os.path.join(
-                self.get_molset("reference").model_path, "opt_t.h5")
             with h5py.File(fname, "w") as hf:
                 hf.create_dataset(
                     "accuracies", data=np.array(accus).astype(np.int))

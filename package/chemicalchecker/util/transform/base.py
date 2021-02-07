@@ -80,6 +80,7 @@ class BaseTransform(object):
             return
         mappings = s1_ref.get_h5_dataset("mappings")
         keys = s1_full.keys
+        
         if not np.any(mappings[:, 0] != keys):
             self.__log.debug("...mappings not necessary!")
         mask = np.isin(list(mappings[:, 0]), list(keys))
@@ -96,7 +97,7 @@ class BaseTransform(object):
         data_path = sign1.data_path
         with h5py.File(data_path, "r+") as hf:
             if self.tmp:
-                keys_ = hf["keys"].asstr()[:]
+                keys_ = hf["keys"][:]
                 mask = np.isin(list(keys_), list(keys))
                 del hf["V_tmp"]
                 hf["V_tmp"] = V
