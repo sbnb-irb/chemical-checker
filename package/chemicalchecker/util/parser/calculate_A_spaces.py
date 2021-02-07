@@ -149,7 +149,7 @@ class Aspaces_prop_calculator(object):
         return None
             
 
-    def calculate_mol_properties(self):
+    def calculate_mol_properties(self,outputfiles):
         """
         Calls calculate_data_fn for all spaces
 
@@ -157,12 +157,15 @@ class Aspaces_prop_calculator(object):
 
         Arguments:
         - space (str): either A1, A2, A3, A4, A5, A5
-        - dict_inchikey_inchi (dict): mapping of the molecules to calculate properties from
+        - outputfiles (dict):mapping space : outputfile path
         """
         result=dict()
                 
-        for space in self.Aspaces:
-            result[space]=self.calculate_data_fn(space)
+        for space in outputfiles:
+            if not os.path.exists(outputfiles[space]):
+                result[space]=self.calculate_data_fn(space)
+            else:
+                print("File", outputfiles[space], "already present, nothing to do")
 
             # dictionary {'A1': [{'inchikey': 'ASXBYYWOLISCLQ-UHFFFAOYSA-N', 'raw': ..raw_string}, {}...]}
         return result
@@ -188,8 +191,8 @@ class Aspaces_prop_calculator(object):
 
         # Compute the raw properties
 
-        all_properties= self.calculate_mol_properties()
-        all_features= fetch_features_A()
+        all_properties= self.calculate_mol_properties(outputfiles)
+        all_features= fetch_features_A()  # features from the fit() method
 
         print('all_properties',all_properties)
         print('all_features',all_features)
@@ -263,8 +266,10 @@ class Aspaces_prop_calculator(object):
         for space, fp in dict_of_Aspaces_h5.items():
             print("\nCalculating sign0 for space", space)
             sign0 = self.cc.get_signature('sign0', 'full',space+'.001')
-            sign0.clear()
-            sign0.fit(data_file=fp,do_triplets=False, overwrite=True,sanitize=sanitize)
+            if not sign0.is_fit():
+                sign0.fit(data_file=fp,do_triplets=False, overwrite=True,sanitize=sanitize)
+            else:
+                print("Sign0 for space", space+'.001', "already fit, nothing to do")
 
         # Then we can use this cc instance to predict sign1
         return self.cc
@@ -284,7 +289,7 @@ class Aspaces_prop_calculator(object):
 
         for space in self.Aspaces:
 
-                assert space in dictSpaces.keys(), print("Sign0 for space",space, "not fit!!")
+                assert space+'.001' in dictSpaces.keys(), print("Sign0 for space",space, "not fit!!")
                 sign0= self.cc.get_signature('sign0', 'full',space+'.001') # already fitted
                 sign1 = self.cc.get_signature('sign1', 'full',space+'.001') # will get converted to reference by the next fct
                 sign1.clear()
