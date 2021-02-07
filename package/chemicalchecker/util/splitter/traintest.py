@@ -140,12 +140,12 @@ class Traintest(object):
         # get type1
         with h5py.File(sign_from, 'r') as fh:
             X = fh['V'][:]
-            check_X = fh['keys'].asstr()[:]
+            check_X = fh['keys'][:]
         X = np.asarray(X, dtype=np.float32)
         # get type2
         with h5py.File(sign_to, 'r') as fh:
             Y = fh['V'][:]
-            check_Y = fh['keys'].asstr()[:]
+            check_Y = fh['keys'][:]
         assert(np.array_equal(check_X, check_Y))
         # train test validation splits
         Traintest.create(X, Y, out_filename)

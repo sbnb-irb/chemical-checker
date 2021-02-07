@@ -6,8 +6,10 @@ import os
 import h5py
 import datetime
 import numpy as np
+from tqdm import tqdm
 from numpy import linalg as LA
 from bisect import bisect_left
+from scipy.spatial.distance import euclidean, cosine
 
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
@@ -86,7 +88,7 @@ class neig(BaseSignature, DataSignature):
 
                 k = min(self.datasize[0], self.k_neig)
 
-                dh5out.create_dataset("row_keys", data=dh5["keys"].asstr()[:])
+                dh5out.create_dataset("row_keys", data=dh5["keys"][:])
                 dh5out["col_keys"] = h5py.SoftLink('/row_keys')
                 dh5out.create_dataset(
                     "indices", (self.datasize[0], k), dtype=np.int32)
@@ -162,7 +164,7 @@ class neig(BaseSignature, DataSignature):
 
                 k = min(self.k_neig, index.ntotal)
 
-                dh5out.create_dataset("row_keys", data=dh5["keys"].asstr()[:])
+                dh5out.create_dataset("row_keys", data=dh5["keys"][:])
                 with h5py.File(self.data_path, 'r') as hr5:
                     dh5out.create_dataset("col_keys", data=hr5["row_keys"][:])
                 dh5out.create_dataset(
@@ -362,6 +364,23 @@ class neig(BaseSignature, DataSignature):
                     0.0, 1.0 - predictions["distances"])
 
         return predictions
+
+    def check_distances(self, n_sign=5, n_neig=10):
+        sign = self.get_sign('sign' + self.cctype[-1])
+        dist_fn = eval(self.metric)
+        for ink1 in tqdm(sign.keys[:n_sign], desc='Checking distances'):
+            s1 = sign[ink1]
+            nn = self[ink1]
+            inks = nn['keys'][:n_neig]
+            dists = nn['distances'][:n_neig]
+            for ink2, dist in zip(inks, dists):
+                ink2 = ink2.decode()
+                s2 = sign[ink2]
+                comp_d = dist_fn(s1, s2)
+                if not np.allclose(dist, comp_d, atol=1e-05):
+                    self.__log.error('%s %s %.6f %.6f', ink1, ink2,  dist,
+                                     comp_d)
+                    np.testing.assert_allclose(dist, comp_d, atol=1e-05)
 
     @staticmethod
     def jaccard_similarity(n1, n2):

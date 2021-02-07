@@ -191,7 +191,7 @@ class Preprocess():
 
     @staticmethod
     def save_output(output_file, inchikey_raw, method, models_path, discrete, features, features_int=False, chunk=2000):
-
+        # NS: inchikey_raw: dict of inchikey-> list of values (dense format)
         keys = []
 
         if discrete:

@@ -78,15 +78,16 @@ class sign3(BaseSignature, DataSignature):
             'limit_mols': 100000
         }
 
-        s1_ref = self.get_sign('sign1').get_molset("reference")
-        opt_t_file = os.path.join(s1_ref.model_path, "opt_t.h5")
-        try:
-            opt_t = DataSignature(opt_t_file).get_h5_dataset('opt_t')
-            default_sign2.update({'t_per': opt_t})
-            self.t_per = opt_t
-        except Exception as ex:
-            self.__log.warning('Failed setting opt_t: %s' % str(ex))
-            self.t_per = 0.01
+        if not self.is_fit():
+            # we load this param only if signature is not fitted yet
+            s1_ref = self.get_sign('sign1').get_molset("reference")
+            try:
+                opt_t = s1_ref.optimal_t()
+                default_sign2.update({'t_per': opt_t})
+                self.t_per = opt_t
+            except Exception as ex:
+                self.__log.warning('Failed setting opt_t: %s' % str(ex))
+                self.t_per = 0.01
 
         default_sign2.update(params.get('sign2', {}))
         self.params['sign2_lr'] = default_sign2.copy()
@@ -609,8 +610,11 @@ class sign3(BaseSignature, DataSignature):
             ax = fig.add_subplot(gs[0:2, 2])
             importances(ax, mod, trim_mask)
             if plots:
-                plt.savefig(os.path.join(save_path, 'prior_stats.png'))
-                plt.close()
+                try:
+                    plt.savefig(os.path.join(save_path, 'prior_stats.png'))
+                    plt.close()
+                except Exception as ex:
+                    self.__log.warning('SKIPPING PLOT: %s' % str(ex))
 
         def find_p(mod, x_tr, y_tr, x_te, y_te):
             import matplotlib.pyplot as plt
@@ -796,8 +800,11 @@ class sign3(BaseSignature, DataSignature):
             ax = fig.add_subplot(gs[0:2, 2])
             importances(ax, mod)
             if plots:
-                plt.savefig(os.path.join(save_path, 'prior_stats.png'))
-                plt.close()
+                try:
+                    plt.savefig(os.path.join(save_path, 'prior_stats.png'))
+                    plt.close()
+                except Exception as ex:
+                    self.__log.warning('SKIPPING PLOT: %s' % str(ex))
 
         def find_p(mod, x_tr, y_tr, x_te, y_te):
             import matplotlib.pyplot as plt
@@ -1030,8 +1037,11 @@ class sign3(BaseSignature, DataSignature):
 
             # ax = fig.add_subplot(gs[1, 3])
             if plots:
-                plt.savefig(os.path.join(save_path, 'confidence_stats.png'))
-                plt.close()
+                try:
+                    plt.savefig(os.path.join(save_path, 'confidence_stats.png'))
+                    plt.close()
+                except Exception as ex:
+                    self.__log.warning('SKIPPING PLOT: %s' % str(ex))
 
         def find_p(mod, x_tr, y_tr, x_te, y_te):
             import matplotlib.pyplot as plt
@@ -1483,7 +1493,7 @@ class sign3(BaseSignature, DataSignature):
         fname = 'known_unknown_sampling.png'
         plot_file = os.path.join(siamese.model_dir, fname)
         plot_subsample(self, plot_file, self.sign2_coverage, traintest_file,
-                       ds=self.dataset)
+                       ds=self.dataset, sign2_list=sign2_list)
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True,
                           chunk_size=1000):
@@ -1563,6 +1573,9 @@ class sign3(BaseSignature, DataSignature):
         shared_keys = sorted(list(sign0.unique_keys & self.unique_keys))
         _, sign0_V = sign0.get_vectors(shared_keys)
         _, sign3_V = self.get_vectors(shared_keys)
+        # sign0 A1 is not exactly like MFP! we need to reorder features as MFP
+        order = np.argsort(sign0.get_h5_dataset('features').astype(int))
+        sign0_V = sign0_V[:, order]
         smpred = Smilespred(
             model_dir=model_path, sign0=sign0_V, sign3=sign3_V,
             evaluate=evaluate)
@@ -1606,6 +1619,9 @@ class sign3(BaseSignature, DataSignature):
         _, sign3_app_V = self.get_vectors(shared_keys,
                                           dataset_name='confidence')
         sign3_app_V = sign3_app_V.ravel()
+        # sign0 A1 is not exactly like MFP! we need to reorder features as MFP
+        order = np.argsort(sign0.get_h5_dataset('features').astype(int))
+        sign0_V = sign0_V[:, order]
         # initialize model and start learning
         apppred = ApplicabilityPredictor(
             model_dir=model_path, sign0=sign0_V,
@@ -1705,7 +1721,8 @@ class sign3(BaseSignature, DataSignature):
 
     def predict_from_string(self, molecules, dest_file, keytype='SMILES',
                             chunk_size=1000, predict_fn=None,
-                            keys=None, components=128, applicability=True):
+                            keys=None, components=128, applicability=True,
+                            y_order=None):
         """Given molecuel string, generate MFP and predict sign3.
 
         Args:
@@ -1724,6 +1741,9 @@ class sign3(BaseSignature, DataSignature):
         # input must be a list, otherwise we make it so
         if isinstance(molecules, str):
             molecules = [molecules]
+        # reorder as sign0 A1 or leave it as is
+        if y_order is None:
+            y_order = np.arange(2048)
         # convert input molecules to InChI
         inchies = list()
         if keytype.upper() == 'SMILES':
@@ -1737,7 +1757,7 @@ class sign3(BaseSignature, DataSignature):
                     inchies.append('INVALID SMILES')
                     continue
                 inchi = Chem.rdinchi.MolToInchi(mol)[0]
-                self.__log.debug('CONVERTED:', smi, inchi)
+                self.__log.debug('CONVERTED: %s %s', smi, inchi)
                 inchies.append(inchi)
         elif keytype.upper() == 'INCHI':
             inchies = molecules
@@ -1795,7 +1815,7 @@ class sign3(BaseSignature, DataSignature):
                     finally:
                         sign0s.append(calc_s0)
                 # stack input signatures and generate predictions
-                sign0s = np.vstack(sign0s)
+                sign0s = np.vstack(sign0s)[:, y_order]
                 preds = predict_fn(sign0s)
                 # add NaN when SMILES conversion failed
                 if failed:
@@ -1864,9 +1884,10 @@ class sign3(BaseSignature, DataSignature):
 
         # define datasets that will be used
         self.update_status("Getting data")
+        cc = self.get_cc()
+
         if sign2_list is None:
             sign2_list = list()
-            cc = self.get_cc()
             for ds in cc.datasets_exemplary():
                 sign2_list.append(cc.get_signature('sign2', 'full', ds))
         self.sign2_list = sign2_list
@@ -1958,23 +1979,28 @@ class sign3(BaseSignature, DataSignature):
                 prior_sign_file = os.path.join(prior_sign_path, 'prior.pkl')
                 prior_sign_mdl = pickle.load(open(prior_sign_file, 'rb'))
 
-            # another part of confidence is the applicability
+            # and finally the linear combination of scores
             confidence_path = os.path.join(self.model_path, 'confidence_eval')
+            if conf_mdl is None:
+                confidence_file = os.path.join(
+                    confidence_path, 'confidence.pkl')
+                if not os.path.isfile(confidence_file):
+                    self.rerun_confidence(
+                        cc, 'eval', train=True, update_sign=False,
+                        sign2_universe=self.sign2_universe,
+                        sign2_coverage=self.sign2_coverage)
+                calibration_file = os.path.join(
+                    confidence_path, 'calibration.pkl')
+                conf_mdl = (pickle.load(open(confidence_file, 'rb')),
+                            pickle.load(open(calibration_file, 'rb')))
+                
+            # another part of confidence is the applicability
             neig_file = os.path.join(confidence_path, 'neig.index')
             app_neig = faiss.read_index(neig_file)
             known_dist = os.path.join(confidence_path, 'known_dist.h5')
             app_range = DataSignature(known_dist).get_h5_dataset(
                 'applicability_range')
             _, trim_mask = self.realistic_subsampling_fn()
-
-            # and finally the linear combination of scores
-            if conf_mdl is None:
-                confidence_file = os.path.join(
-                    confidence_path, 'confidence.pkl')
-                calibration_file = os.path.join(
-                    confidence_path, 'calibration.pkl')
-                conf_mdl = (pickle.load(open(confidence_file, 'rb')),
-                            pickle.load(open(calibration_file, 'rb')))
 
         # get sorted universe inchikeys
         self.universe_inchikeys = self.get_universe_inchikeys()
@@ -2355,7 +2381,7 @@ def subsample(tensor, sign_width=128,
 
 
 def plot_subsample(sign, plot_file, sign2_coverage, traintest_file, ds='B1.001',
-                   p_self=.1, p_only_self=0., limit=10000, max_ds=25):
+                   p_self=.1, p_only_self=0., limit=10000, max_ds=25, sign2_list=None):
     import numpy as np
     import pandas as pd
     import seaborn as sns
@@ -2364,9 +2390,12 @@ def plot_subsample(sign, plot_file, sign2_coverage, traintest_file, ds='B1.001',
 
     cc = ChemicalChecker()
 
+    # NICO sign2_list
+    sign2_ds_list = [s.dataset for s in sign2_list] if sign2_list is not None else list(cc.datasets_exemplary())
+
     # get triplet generator
     dataset_idx = np.argwhere(
-        np.isin(list(cc.datasets_exemplary()), ds)).flatten()
+        np.isin(sign2_ds_list, ds)).flatten()
     trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = \
         subsampling_probs(sign2_coverage, dataset_idx)
     trim_dataset_idx = np.argwhere(np.arange(len(trim_mask))[

@@ -110,15 +110,15 @@ class sign0(BaseSignature, DataSignature):
                 raise Exception("File not found: %s" % data_file)
             dh5 = h5py.File(data_file, 'r')
             if "pairs" in dh5.keys():
-                pairs = dh5["pairs"].asstr()[:]
+                pairs = dh5["pairs"][:]
                 if "values" in dh5.keys():
                     pairs = zip(pairs, dh5["values"][:])
             if "X" in dh5.keys():
                 X = dh5["X"][:]
             if "keys" in dh5.keys():
-                keys = dh5["keys"].asstr()[:]
+                keys = dh5["keys"][:]
             if "features" in dh5.keys():
-                features = dh5["features"].asstr()[:]
+                features = dh5["features"][:]
             dh5.close()
             if pairs is None and X is None:
                 raise Exception(
@@ -279,7 +279,7 @@ class sign0(BaseSignature, DataSignature):
 
     def fit(self, cc_root=None, pairs=None, X=None, keys=None, features=None,
             data_file=None, key_type="inchikey", agg_method="average",
-            do_triplets=True, max_features=10000, chunk_size=10000,
+            do_triplets=False, max_features=10000, chunk_size=10000,
             sanitize=True, **params):
         """Process the input data.
 
@@ -317,13 +317,16 @@ class sign0(BaseSignature, DataSignature):
 
         if sanitize:
             self.update_status("Sanitizing")
-            # NS we want to keep 2048 features (Morgan fingerprint) for sign0
-            trimFeatures = False if self.dataset == 'A1.001' else True
+            # we want to keep exactly 2048 features (Morgan fingerprint) for A1
+            # FIXME trimFeatures should be a fit parameter
+            trimFeatures = self.dataset != 'A1.001'
             san = Sanitizer(trim=trimFeatures, max_features=max_features,
                             chunk_size=chunk_size)
             X, keys, keys_raw, features = san.transform(
                 V=X, keys=keys, keys_raw=keys_raw, features=features,
                 sign=None)
+            # NS 20/01/2021, somehow the keys, keys_raw and features came out as b''
+            # added a stringify function in the returner fct of san.transform
 
         self.update_status("Aggregating")
         agg = Aggregate(method=agg_method, input_type=input_type)
@@ -350,7 +353,8 @@ class sign0(BaseSignature, DataSignature):
 
         self.refresh()
         # save reference
-        self.save_reference()
+        overwrite=params.get('overwrite',False)
+        self.save_reference(overwrite=overwrite)
         # Making triplets
         if do_triplets:
             self.update_status("Sampling triplets")
