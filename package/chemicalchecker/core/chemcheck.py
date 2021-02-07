@@ -477,11 +477,7 @@ class ChemicalChecker():
         version (str) : ex: 2020_01
 
         """
-        signObj=sign
-        if sign.molset != 'reference':
-            signObj=sign.get_molset("reference")
-
-        import_models(signObj, version=version)
+        import_models(sign, version=version)
 
 
     def import_h5(self):
