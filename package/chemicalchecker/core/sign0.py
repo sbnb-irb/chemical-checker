@@ -510,3 +510,8 @@ class sign0(BaseSignature, DataSignature):
 
         # After that check that your file is ok and move it to sign0.h5
         self.__log.debug("Done")
+
+    def export_features(self,destination=self.model_path):
+        features = self.features
+        with h5py.File(os.path.join(destination, "features_sign0_"+self.dataset+".h5"), 'w') as hf_out:
+            hf_out.create_dataset("features", data=np.array(features, DataSignature.string_dtype()))
