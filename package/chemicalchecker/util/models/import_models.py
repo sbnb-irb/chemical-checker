@@ -3,6 +3,7 @@
 # The following function allows a cc instance to copy the model files in a particular signature
 
 import os, shutil
+import h5py
 
 
 def import_models(sign_object ,version='2020_01'):
@@ -17,8 +18,6 @@ def import_models(sign_object ,version='2020_01'):
 
     signRef= sign_object.get_molset("reference")
     signFull= sign_object.get_molset("full")
-
-
 
 
     cctype= signRef.cctype
@@ -52,3 +51,19 @@ def import_models(sign_object ,version='2020_01'):
             print("Creating symlink", symlink, "from", target)
             os.symlink(target, symlink)
 
+def import_sign0_features(sign_object, version='2020_01'):
+
+    cctype= sign_object.cctype
+    dataset= sign_object.dataset
+
+    if cctype != 'sign0' or not dataset.startswith('A'):
+        print("Sorry, we only import features for sign0 A spaces")
+        print("Requested", sign_object.cctype, sign_object.dataset)
+        return None
+
+    fileDir= os.path.abspath(os.path.dirname(__file__))
+    featureFile= os.path.join(fileDir, version, dataset, 'sign0', 'features.h5')
+
+    with h5py.File(featureFile, 'r') as fp:
+        features = fp['features']
+        return list(features)
