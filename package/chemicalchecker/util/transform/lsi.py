@@ -187,17 +187,21 @@ class Lsi(BaseTransform):
         plain_corpus = os.path.join(tmp_dir, self.name + ".plain.txt")
         tfidf_corpus = os.path.join(tmp_dir, self.name + ".tfidf.mm")
         with open(plain_corpus, "w") as f:
+
+            # Read the provided sign1 by chunks of n signautres
             for chunk in sign1.chunker():
-                vs = sign1[chunk].astype(np.int)
-                ks = sign1.keys[chunk]
+                vs = sign1[chunk].astype(np.int) # take a chunk of n signatures
+                ks = sign1.keys[chunk]           # together with their keys
                 for i in range(0, len(ks)):
-                    row = vs[i]
-                    mask = np.where(row > 0)
-                    val = ",".join([",".join([self.features[x]] * row[x])
-                                    for x in mask[0]])
+                    row = vs[i]                  # signature i
+                    mask = np.where(row > 0)     # indices of where positive values are (the array is in fact mask[0])
+                    # print("\n\n SHERLOCK size mask0",mask[0].shape)
+                    # print("SHERLOCK size features",len(self.features))
+                    # print("SHERLOCK size row",len(row))
+                    val = ",".join([",".join([self.features[x]] * row[x]) for x in mask[0]])
+
                     f.write("%s %s\n" % (ks[i], val))
         # load dictionary
-        print("\n SHERLOCK self.model_path",self.model_path)
         dictionary = corpora.Dictionary.load(
             os.path.join(self.model_path, self.name + ".dict.pkl"))
         # corpus

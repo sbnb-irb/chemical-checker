@@ -710,3 +710,8 @@ class DataSignature(object):
                 beg_idx, end_idx = beg_idx + batch_size, end_idx + batch_size
 
         return _generator_fn
+
+    def export_features(self,destination='.'):
+        features = self.features
+        with h5py.File(os.path.join(destination, "features_sign.h5"), 'w') as hf_out:
+            hf_out.create_dataset("features", data=np.array(features, DataSignature.string_dtype()))

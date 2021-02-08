@@ -118,11 +118,14 @@ class sign1(BaseSignature, DataSignature):
         return fn
 
     def load_model(self, name):
+
         fn = os.path.join(self.get_molset(
             "reference").model_path, "%s.pkl" % name)
 
         with open(fn, "rb") as f:
             mod = pickle.load(f)
+
+        self.__log.debug("\n----> Loading model:"+fn)
         return mod
 
     def delete_tmp(self, s1):
@@ -275,10 +278,11 @@ class sign1(BaseSignature, DataSignature):
             else:
                 mod = None
         if mod is not None:
-            mod.model_path = self.model_path # avoid taking the info from pickle
-            print(" \n SHERLOCK s1.model_path",s1.model_path)
-            print(" \n SHERLOCK mod.model_path",mod.model_path)
+            mod.model_path = self.model_path # avoid taking the info from pickle in case it is copied
+            # print("\n SHERLOCK mod.features",len(mod.features), mod.features)
+            # print("\n SHERLOCK s1.features", s1.dataset,len(s1.features), s1.features)
             mod.predict(s1)
+
         self.__log.debug("Prediction done!")
         if destination is None:
             self.__log.debug("Returning a V, keys dictionary")
