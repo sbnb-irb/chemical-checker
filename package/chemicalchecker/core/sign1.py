@@ -252,7 +252,8 @@ class sign1(BaseSignature, DataSignature):
         tmp_path = os.path.join(self.model_path, tag)
         #try:
         cc = ChemicalChecker(tmp_path)
-        s1 = cc.signature(self.dataset, "sign1")
+        #s1 = cc.signature(self.dataset, "sign1")
+        s1 = cc.get_signature(self.cctype, self.molset, self.cctype)  # Nico, experiment
         self.copy_sign0_to_sign1(sign0, s1, just_data=True)
         self.__log.debug("Reading pipeline")
         fn = self.pipeline_file()
@@ -262,7 +263,9 @@ class sign1(BaseSignature, DataSignature):
         self.__log.debug("Scaling if necessary")
         if not pipeline["sparse"] and pipeline["scale"]:
             mod = self.load_model("scale")
+            mod.model_path = self.model_path 
             mod.predict(s1)
+
         self.__log.debug("Transformation")
         if pipeline["metric_learning"]:
             if pipeline["semisupervised"]:
@@ -279,8 +282,6 @@ class sign1(BaseSignature, DataSignature):
                 mod = None
         if mod is not None:
             mod.model_path = self.model_path # avoid taking the info from pickle in case it is copied
-            # print("\n SHERLOCK mod.features",len(mod.features), mod.features)
-            # print("\n SHERLOCK s1.features", s1.dataset,len(s1.features), s1.features)
             mod.predict(s1)
 
         self.__log.debug("Prediction done!")

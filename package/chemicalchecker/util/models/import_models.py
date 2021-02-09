@@ -52,6 +52,13 @@ def import_models(sign_object ,version='2020_01'):
             os.symlink(target, symlink)
 
 def import_sign0_features(sign_object, version='2020_01'):
+    """
+    Opens the stored sign0 h5 feature file and returns a set of features
+
+    Arguments:
+    sign_object : signature 0 object
+    version (str): version of the cc_repo stored in package/chemicalchecker/util/models
+    """
 
     cctype= sign_object.cctype
     dataset= sign_object.dataset

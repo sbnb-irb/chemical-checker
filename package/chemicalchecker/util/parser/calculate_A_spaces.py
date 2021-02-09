@@ -2,9 +2,12 @@
 # Uses the data calculator class to get all A spaces preprocessed data
 # Inspired from the cc pipeline
 import os, json
+import numpy as np
+import h5py
 import collections
 
 from chemicalchecker.util.parser import DataCalculator
+from chemicalchecker.core.signature_data import DataSignature
 from chemicalchecker.core.preprocess import Preprocess
 from chemicalchecker.util.parser import fetch_features_A
 from chemicalchecker.util.parser import Converter
@@ -175,7 +178,6 @@ class Aspaces_prop_calculator(object):
 
     def create_h5(self):
 
-
         print("Retrieving InChI strings from the list of input InChIkeys")
 
         for i, (inchikey, inchi) in enumerate(self.dict_inchikey_inchi.items()):
@@ -256,20 +258,76 @@ class Aspaces_prop_calculator(object):
         # dict space: path to raw file
         return outputfiles
 
+    # The next three functions are stolen from the Sanitizer
+    def chunker(self, n):
+        size = 2000
+        for i in range(0, n, size):
+            yield slice(i, i + size)
+
+
+    def rewrite_matrix_h5(self, data, mask, axis=1, name='V'):
+
+        name_tmp = "%s_tmp" % name
+        with h5py.File(data, "a") as hf:
+            n = hf[name].shape[0]
+            create = True
+            for chunk in self.chunker(n):
+                if axis == 1:
+                    M_tmp = hf[name][chunk][:, mask]
+                else:
+                    mask_ = mask[chunk]
+                    M_tmp = hf[name][chunk][mask_]
+                if create:
+                    hf.create_dataset(name_tmp, data=M_tmp,
+                                      maxshape=(None, M_tmp.shape[1]))
+                    create = False
+                else:
+                    hf[name_tmp].resize(
+                        (hf[name_tmp].shape[0] + M_tmp.shape[0]), axis=0)
+                    hf[name_tmp][-M_tmp.shape[0]:] = M_tmp
+            del hf[name]
+            hf[name] = hf[name_tmp]
+            del hf[name_tmp]
+
+    def rewrite_str_array_h5(self, data, mask, name="features"):
+        name_tmp = "%s_tmp" % name
+        with h5py.File(data, "a") as hf:
+            array_tmp = hf[name][:][mask]
+            hf.create_dataset(name_tmp, data=np.array(
+                array_tmp, DataSignature.string_dtype()))
+            del hf[name]
+            hf[name] = hf[name_tmp]
+            del hf[name_tmp]
+
+
     def createSign0(self, dict_of_Aspaces_h5, sanitize=False):
         """
         Create sign0 from all raw A spaces h5 files created with create_h5_from_inchikeys_inchi
-        Here we take in a list of 5 paths to raw data (A1 o A5) and return a cc instance that contains sign0 for these 5 spaces
+        Here we take in a list of 5 paths to raw data (A1 o A5) and return a cc instance that contains 
+        sign0 for these 5 spaces.
+
+        Column filtering: we 'Sanitize' (remove features) according to what was done in the CC_repo for spaces A1 to A5.
         """
+
 
         # Now creating sign0 for each of the input raw files
         for space, fp in dict_of_Aspaces_h5.items():
-            print("\nCalculating sign0 for space", space)
-            sign0 = self.cc.get_signature('sign0', 'full',space+'.001')
-            if not sign0.is_fit():
-                sign0.fit(data_file=fp,do_triplets=False, overwrite=True,sanitize=sanitize)
-            else:
-                print("Sign0 for space", space+'.001', "already fit, nothing to do")
+            for molset in ('full','reference'):
+
+                print("\nCalculating sign0",molset,"for space", space)
+                sign0 = self.cc.get_signature('sign0', molset, space+'.001')
+                features_from_fit= self.cc.import_features_sign0(sign0)
+
+                if not sign0.available():
+                    sign0.fit(data_file=fp,do_triplets=False, overwrite=True,sanitize=sanitize)
+                else:
+                    print("Sign0", molset, "for space", space+'.001', "already fit, nothing to do")
+
+                # Now remove the required features (columns) from the sign0 h5 file
+
+                mask = np.isin(sign0.features, features_from_fit)
+                self.rewrite_matrix_h5(sign0.data_path, mask)
+                self.rewrite_str_array_h5(sign0.data_path, mask)
 
         # Then we can use this cc instance to predict sign1
         return self.cc
@@ -290,14 +348,22 @@ class Aspaces_prop_calculator(object):
         for space in self.Aspaces:
 
                 assert space+'.001' in dictSpaces.keys(), print("Sign0 for space",space, "not fit!!")
-                sign0= self.cc.get_signature('sign0', 'full',space+'.001') # already fitted
-                sign1 = self.cc.get_signature('sign1', 'full',space+'.001') # will get converted to reference by the next fct
-                sign1.clear()
-                self.cc.import_models_for_prediction(sign1) # Import model for this space
+                models_imported =False
+                for molset in ('full'):
+                    sign0= self.cc.get_signature('sign0', molset , space+'.001') # already fitted
+                    sign1 = self.cc.get_signature('sign1', molset, space+'.001') # will get converted to reference by the next fct
+                    sign1.clear()
 
-                
-                print("\nPredicting sign1 for space",space)
-                sign1.predict(sign0)
+                    # import models from the fit that took place in CC_repo 2020_XX
+                    if not models_imported:
+                        self.cc.import_models_for_prediction(sign1) # Import model for this space
+                        models_imported =True
+
+                    destination = sign1.data_path
+                    if not os.path.exists(destination):
+                        print("\nPredicting sign1", molset, "for space",space, 'to' ,destination)
+                        sign1.predict(sign0,destination=destination)
+
         return self.cc
 
     def predictSign2(self):
