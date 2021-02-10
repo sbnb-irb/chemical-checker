@@ -8,7 +8,7 @@ root="/aloy/web_checker/package_cc/"
 
 destination = "/aloy/scratch/nsoler/CC_related/EXPORT_SIGN"
 
-for molset in ('full'):
+for molset in ('full',):
 	for space in "ABCDE":
 		for num in (1, 2, 3, 4, 5):
 			for sign in ('sign0', 'sign1'):
@@ -26,4 +26,7 @@ for molset in ('full'):
 						print(e)
 					else: 
 						print("Created symlink:",symlink)
+
+				else:
+					print("File not found: ",signFile)
 
