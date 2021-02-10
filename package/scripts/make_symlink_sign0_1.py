@@ -14,7 +14,7 @@ for molset in ('full',):
 			for sign in ('sign0', 'sign1'):
 				subsp= space+str(num)
 				ds = subsp+'.001'
-				signFile= os.path.join(root,version, molset,space, subsp, ds, sign, sign+'.h5')
+				signFile= os.path.join(root,version, molset,space, subsp, ds, sign, sign+'_BACKUP.h5')
 
 				if os.path.exists(signFile):
 					# Make a symlink into the destination
