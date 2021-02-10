@@ -529,7 +529,7 @@ class ChemicalChecker():
                 """
 
                 out = []
-                with h5py.File(path2h5file, 'a') as ccfile:
+                with h5py.File(path2h5file, 'r') as ccfile:
 
                     # check if the required info is presents in the h5 file
                     # attrs dict
