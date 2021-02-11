@@ -12,6 +12,32 @@ import h5py
 #VERSION= "2020_02"
 from get_repo_version import cc_repo_version
 
+def remove_backups(cc_repo):
+    """
+    Removes the previous signx_BACKUP.h5 so that the next function can generate them
+    DANGEROUS script! Be careful.
+    """
+    for molset in ('full','reference'):
+        for space in "ABCDE":
+            for num in "12345":
+                for sign in signatures:
+                    signature= 'sign'+sign
+                    data_code= space+num+'.001'
+
+
+                    fichero= os.path.join(cc_repo,molset,space,space+num, data_code, signature, signature+'_BACKUP.h5')
+                    
+                    if os.path.exists(fichero):
+                        try:
+                            shutil.rmtree(fichero)
+                        except Exception as e:
+                            print("WARINING", e)
+                            continue
+                        else:
+                            print("Deleted:",fichero)
+
+
+
 def add_metadata(cc_repo=None,signatures='0123', backup=True):
     """
     cc_repo: (str) path to a cc sign repo i.e /aloy/web_checker/package_cc/2020_02
@@ -57,7 +83,7 @@ def add_metadata(cc_repo=None,signatures='0123', backup=True):
                         print("Adding metadata to", fichero)
                         dico= dict(cctype=signature, dataset_code=data_code, molset=molset)
 
-                        with h5py.File(fichero,'a') as f:
+                        with h5py.File(fichero,'r+') as f:
                             for k,v in dico.items():
                                 if k not in f.attrs:
                                     f.attrs.create(name=k,data=v)
@@ -66,7 +92,7 @@ def add_metadata(cc_repo=None,signatures='0123', backup=True):
 
                     else:
                         print(fichero, "doesn't exist, skipping")
-                        
+
                     print("\n____")
 
 def export_sign(target_dir, cc_repo=None, signatures='2',molsets=('full'),copy_backup=False, add_metadata=True):
