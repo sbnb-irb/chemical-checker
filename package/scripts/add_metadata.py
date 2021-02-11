@@ -99,7 +99,7 @@ def add_metadata(cc_repo=None,signatures='0123', backup=False):
 
                     print("\n____")
 
-def export_sign(target_dir, cc_repo=None, signatures='2',molsets=('full'),copy_backup=False, add_metadata=True):
+def export_sign(target_dir, cc_repo=None, signatures='2',molsets=('full',),copy_backup=False, add_metadata=True):
     """
     Export all signatures from a given cctype (ex: sign2) in a single folder
     Add Metadata to the output files if not present in the original h5 file
