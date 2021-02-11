@@ -12,11 +12,15 @@ import h5py
 #VERSION= "2020_02"
 from get_repo_version import cc_repo_version
 
-def remove_backups(cc_repo):
+def remove_backups(cc_repo="2020_02"):
     """
     Removes the previous signx_BACKUP.h5 so that the next function can generate them
     DANGEROUS script! Be careful.
     """
+    root="/aloy/web_checker/package_cc/"
+    cc_repo = os.path.join(root,cc_repo)
+    signatures='0123'
+
     for molset in ('full','reference'):
         for space in "ABCDE":
             for num in "12345":
