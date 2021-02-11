@@ -1,8 +1,7 @@
 # Nico 11 Feb 2021
 # export sign1 models into the cc code repo directory:
 
-import os, shutil, glob
-
+import os, shutil
 from get_repo_version import cc_repo_version
 
 def export_models(destination, cctype='sign1', cc_repo=None):
@@ -35,7 +34,8 @@ def export_models(destination, cctype='sign1', cc_repo=None):
             else:
                 print("Created directory", dirtmp)
 
-        for fichero in glob.glob(dirModels):
+        for fichero in os.listdir(dirModels):
+
             if fichero != 'fit.ready':
                 source= os.path.join(dirModels,fichero)
                 target= os.path.join(dirtmp,fichero)
