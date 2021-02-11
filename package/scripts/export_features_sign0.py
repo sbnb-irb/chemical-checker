@@ -45,7 +45,7 @@ def export_features_sign0(destination="/aloy/scratch/nsoler/CC_related/EXPORT_SI
                     continue
 
             sign0tmp = cc.get_signature('sign0', 'full', ds)
-            sign0tmp.export_features(destination)
+            sign0tmp.export_features(tmpdir)
 
 if __name__== '__main__':
     destination="/aloy/scratch/nsoler/CC_related/EXPORT_SIGN/sign0_features"
