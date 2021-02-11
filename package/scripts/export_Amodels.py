@@ -21,7 +21,7 @@ def export_models(destination, cctype='sign1', cc_repo=None):
 
 
     for space in ['A'+str(n) for n in range(1,6)]:
-        ds= space+str(space)+'.001'
+        ds= space+'.001'
         dirModels= os.path.join(cc_repo,'reference', 'A', space, ds, cctype,'models')
         dirtmp= os.path.join(destination,ds,cctype)
 
@@ -33,7 +33,7 @@ def export_models(destination, cctype='sign1', cc_repo=None):
                 print(e)
                 continue
             else:
-                print("Created directory", destination)
+                print("Created directory", dirtmp)
 
         for fichero in glob.glob(dirModels):
             if fichero != 'fit.ready':
