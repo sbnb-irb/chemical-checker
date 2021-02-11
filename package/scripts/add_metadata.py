@@ -9,12 +9,28 @@
 import os, shutil
 import h5py
 
-def add_metadata(version="2020_01",signatures='0123', pathrepo="/aloy/web_checker/package_cc/"):
+#VERSION= "2020_02"
+from get_repo_version import cc_repo_version
+
+def add_metadata(cc_repo=None,signatures='0123', backup=True):
     """
-    version: (str), version of the cc package
+    cc_repo: (str) path to a cc sign repo i.e /aloy/web_checker/package_cc/2020_02
     signature: (str or int), number refering to the signature. ex: '012' for sign0, sign1, sign2.
-    pathrepo: (str), path to the cc signature repo
+    backup (bool): make a backup copy of the signature first and add metadata to the backup instead
     """
+
+    if cc_repo is None:
+        cc_repo = cc_repo_version()
+
+        if cc_repo is None:
+            print("ERROR, cannot guess the latest cc repository path")
+            print("Please provide it as an argument")
+            print("ex: cc_repo='/aloy/web_checker/package_cc/2020_02'")
+            return
+        else:
+            print("Working with cc_repo:",cc_repo)
+
+
     signatures=str(signatures) # in case we have an int.
 
     for molset in ('full','reference'):
@@ -23,17 +39,25 @@ def add_metadata(version="2020_01",signatures='0123', pathrepo="/aloy/web_checke
                 for sign in signatures:
                     signature= 'sign'+sign
                     data_code= space+num+'.001'
-                    fichero= os.path.join(pathrepo,version,molset,space,space+num, data_code, signature, signature+'.h5')
+
+
+                    fichero= os.path.join(cc_repo,molset,space,space+num, data_code, signature, signature+'.h5')
                     
                     if os.path.exists(fichero):
-                        print("Making backup which will contain metadata")
-                        backup_file= os.path.join(os.path.dirname(fichero),os.path.basename(fichero).split('.')[0]+'_BACKUP.h5')
-                        shutil.copyfile(fichero,backup_file)
 
-                        print("Adding metadata to", backup_file)
+                        if backup:
+                            print("Making backup which will contain metadata")
+                            backup_file= os.path.join(os.path.dirname(fichero),os.path.basename(fichero).split('.')[0]+'_BACKUP.h5')
+                            if not os.path.exists(backup_file):
+                                shutil.copyfile(fichero,backup_file)
+                            else:
+                                print("Backup file", backup_file,"already exists, just adding metadata to it.")
+                            fichero=backup_file
+
+                        print("Adding metadata to", fichero)
                         dico= dict(cctype=signature, dataset_code=data_code, molset=molset)
 
-                        with h5py.File(backup_file,'a') as f:
+                        with h5py.File(fichero,'a') as f:
                             for k,v in dico.items():
                                 if k not in f.attrs:
                                     f.attrs.create(name=k,data=v)
@@ -42,20 +66,32 @@ def add_metadata(version="2020_01",signatures='0123', pathrepo="/aloy/web_checke
 
                     else:
                         print(fichero, "doesn't exist, skipping")
+                        
+                    print("\n____")
 
-def export_sign(target_dir, version="2020_01", signatures='2', pathrepo="/aloy/web_checker/package_cc/",molsets=('full',),copy_backup=False, add_metadata=True):
+def export_sign(target_dir, cc_repo=None, signatures='2',molsets=('full'),copy_backup=False, add_metadata=True):
     """
     Export all signatures from a given cctype (ex: sign2) in a single folder
     Add Metadata to the output files if not present in the original h5 file
 
     target_dir (str): target directory where the signatures will be copied
-    version (str): version of the checker
+    cc_repo: (str) path to a cc sign repo i.e /aloy/web_checker/package_cc/2020_02
     signature: (str or int), number refering to the signature. ex: '012' for sign0, sign1, sign2.
-    pathrepo: (str), path to the cc signature repo
     molsets: (list or tuple), either 'full' or 'reference'
     copy_backup (Bool): copy signx_BACKUP.h5 instead of signx.h5 if present
     add_metadata (Bool): Add metadata to the copied file
     """
+
+    if cc_repo is None:
+        cc_repo = cc_repo_version()
+
+        if cc_repo is None:
+            print("ERROR, cannot guess the latest cc repository path")
+            print("Please provide it as an argument")
+            print("ex: cc_repo='/aloy/web_checker/package_cc/2020_02'")
+            return
+        else:
+            print("Working with cc_repo:",cc_repo)
 
     signatures=str(signatures) # in case we have an int.
 
@@ -78,9 +114,9 @@ def export_sign(target_dir, version="2020_01", signatures='2', pathrepo="/aloy/w
                     data_code= space+num+'.001'
 
                     if copy_backup:
-                        fichero= os.path.join(pathrepo,version,molset,space,space+num, data_code, signature, signature+'_BACKUP.h5')
+                        fichero= os.path.join(cc_repo,molset,space,space+num, data_code, signature, signature+'_BACKUP.h5')
                     else:
-                        fichero= os.path.join(pathrepo,version,molset,space,space+num, data_code, signature, signature+'.h5')
+                        fichero= os.path.join(cc_repo,molset,space,space+num, data_code, signature, signature+'.h5')
                         
                     target_file  = os.path.join(sign_dir, cctype+'_'+space+num+'_'+molset+'.h5')
 
@@ -108,13 +144,12 @@ def export_sign(target_dir, version="2020_01", signatures='2', pathrepo="/aloy/w
 
 if __name__=='__main__':
 
-    current_version="2020_01"
     target_directory= "/aloy/scratch/nsoler/CC_related/EXPORT_SIGN"
 
     # Backup all h5 files and add metadata to the backups:
-    #add_metadata(version=current_version)
+    add_metadata()
 
     
-    export_sign(target_directory,version="2020_01", signatures='2',molsets=['full'], copy_backup=True)
+    #export_sign(target_directory, signatures='2',molsets=['full'], copy_backup=True)
 
 

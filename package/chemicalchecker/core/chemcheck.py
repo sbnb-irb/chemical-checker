@@ -62,7 +62,7 @@ from chemicalchecker.util.decorator import cached_property
 from chemicalchecker.util.models import import_models, import_sign0_features  # import models for predicting sign1, sign2
 
 
-CURRENT_VERSION= '2020_01'
+CURRENT_VERSION= '2020_02'
 
 @logged
 class ChemicalChecker():
