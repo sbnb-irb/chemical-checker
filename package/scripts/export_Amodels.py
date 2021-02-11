@@ -21,7 +21,7 @@ def export_models(destination, cctype='sign1', cc_repo=None):
 
 
     for space in ['A'+str(n) for n in range(1,6)]:
-        ds= space+str(num)+'.001'
+        ds= space+str(space)+'.001'
         dirModels= os.path.join(cc_repo,'reference', 'A', space, ds, cctype,'models')
         dirtmp= os.path.join(destination,ds,cctype)
 
