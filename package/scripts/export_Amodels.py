@@ -39,12 +39,14 @@ def export_models(destination, cctype='sign1', cc_repo=None):
             if fichero != 'fit.ready':
                 source= os.path.join(dirModels,fichero)
                 target= os.path.join(dirtmp,fichero)
+                print("Copying:", source, 'to' , target)
                 try:
                     shutil.copyfile(source, target)
+
                 except Exception as e:
-                    print(e)
+                    print("WARNING",e)
                 else:
-                    print("Copied:", source, 'to' , target)
+                    print("ok\n")
 
 if __name__=='__main__':
 
