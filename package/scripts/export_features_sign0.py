@@ -2,6 +2,7 @@
 ## So as 'sanitize' (i.e remove columns) identically as in the cc-rep when a custom dataset is made
 ## in A spaces
 
+import os
 from chemicalchecker.core.chemcheck import ChemicalChecker
 from get_repo_version import cc_repo_version
 #VERSION= "2020_02"
