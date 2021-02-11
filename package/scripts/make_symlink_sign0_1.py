@@ -54,4 +54,5 @@ def make symlinks(destination = "/aloy/scratch/nsoler/CC_related/EXPORT_SIGN", c
 
 if __name__== '__main__':
 
-	destination = ""
+	destination = "/aloy/web_checker/package_cc/2020_02/sign_links"
+	make symlinks(destination=destination)
