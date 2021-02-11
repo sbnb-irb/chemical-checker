@@ -42,7 +42,7 @@ def remove_backups(cc_repo="2020_02"):
 
 
 
-def add_metadata(cc_repo=None,signatures='0123', backup=True):
+def add_metadata(cc_repo=None,signatures='0123', backup=False):
     """
     cc_repo: (str) path to a cc sign repo i.e /aloy/web_checker/package_cc/2020_02
     signature: (str or int), number refering to the signature. ex: '012' for sign0, sign1, sign2.

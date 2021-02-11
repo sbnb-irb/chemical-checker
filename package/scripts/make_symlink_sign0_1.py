@@ -4,7 +4,7 @@
 import os, sys
 from get_repo_version import cc_repo_version
 
-def make symlinks(destination = "/aloy/scratch/nsoler/CC_related/EXPORT_SIGN", cc_repo=None):
+def make_symlinks(destination = "/aloy/scratch/nsoler/CC_related/EXPORT_SIGN", cc_repo=None):
 	"""
 	Creates symlinks for all signatures in a single folder
 
