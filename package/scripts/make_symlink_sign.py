@@ -36,7 +36,7 @@ def make_symlinks(destination = "/aloy/scratch/nsoler/CC_related/EXPORT_SIGN", c
                 for sign in ('sign0', 'sign1','sign2','sign3'):
                     subsp= space+str(num)
                     ds = subsp+'.001'
-                    signFile= os.path.join(cc_repo, molset,space, subsp, ds, sign, sign+'_BACKUP.h5')
+                    signFile= os.path.join(cc_repo, molset,space, subsp, ds, sign, sign+'.h5')
 
                     if os.path.exists(signFile):
                         # Make a symlink into the destination
@@ -55,4 +55,4 @@ def make_symlinks(destination = "/aloy/scratch/nsoler/CC_related/EXPORT_SIGN", c
 if __name__== '__main__':
 
     destination = "/aloy/web_checker/package_cc/2020_02/sign_links"
-    make symlinks(destination=destination)
+    make_symlinks(destination=destination)
