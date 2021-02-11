@@ -33,9 +33,9 @@ def remove_backups(cc_repo="2020_02"):
                     
                     if os.path.exists(fichero):
                         try:
-                            shutil.rmtree(fichero)
+                            os.remove(fichero)
                         except Exception as e:
-                            print("WARINING", e)
+                            print("WARNING", e)
                             continue
                         else:
                             print("Deleted:",fichero)
