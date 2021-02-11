@@ -36,7 +36,6 @@ def remove_backups(cc_repo="2020_02"):
                             os.remove(fichero)
                         except Exception as e:
                             print("WARNING", e)
-                            continue
                         else:
                             print("Deleted:",fichero)
 
