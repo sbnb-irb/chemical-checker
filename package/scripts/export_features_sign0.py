@@ -34,18 +34,9 @@ def export_features_sign0(destination="/aloy/scratch/nsoler/CC_related/EXPORT_SI
     for space in spaces:
         for num in (1, 2, 3, 4, 5):
             ds= space+str(num)+'.001'
-            tmpdir=os.path.join(destination, ds)
-
-            if not os.path.exists(tmpdir):
-                try:
-                    os.makedirs(tmpdir)
-
-                except Exception as e:
-                    print("WARNING", e)
-                    continue
 
             sign0tmp = cc.get_signature('sign0', 'full', ds)
-            sign0tmp.export_features(tmpdir)
+            sign0tmp.export_features(destination)
 
 if __name__== '__main__':
     destination="/aloy/scratch/nsoler/CC_related/EXPORT_SIGN/sign0_features"
