@@ -61,15 +61,16 @@ From: centos:8
     source activate py37
 
     # conda-specific packages (~1 min)
-    conda install -y -c rdkit rdkit               # Open-Source Cheminformatics Software
-    conda install -y -c openbabel openbabel       # chemical toolbox
-    conda install -y mkl-service                  # change the number of CPU’s MKL is using
-    conda install -y anaconda-client              # client that provides an interface to Anaconda Cloud
-    conda install -y -c conda-forge hdbscan       # clustering
-    conda install -y -c efelix fpsim2             # fast compound similarity searches (used in TargetMate)
-    conda install -y -c anaconda ipython             # interactive python
+    conda install -y -c rdkit rdkit                  # Open-Source Cheminformatics Software
+    conda install -y -c openbabel openbabel          # chemical toolbox
+    conda install -y mkl-service                     # change the number of CPU’s MKL is using
+    conda install -y anaconda-client                 # client that provides an interface to Anaconda Cloud
+    conda install -y -c conda-forge hdbscan          # clustering
+    conda install -y -c efelix fpsim2                # fast compound similarity searches (used in TargetMate)
     conda install -y -c conda-forge jupyterlab       # Jupyter notebooks
-
+    conda install -y -c anaconda ipython">7.19"      # interactive python
+    conda install -y -c anaconda cython              # C extensions
+    conda install -y -c pytorch faiss-cpu            # efficient similarity search and clustering
 
     # utility packages (~2 min)
     pip install six                               # py2/py3 compatibility
@@ -104,15 +105,13 @@ From: centos:8
     pip install tensorflow==2.3.1                 # neural network library
     pip install adanet                            # automl for NN
     pip install keras                             # NN API
-    pip install faiss-cpu                         # efficient similarity search and clustering
 
     # numerical packages
-    pip install cython                            # C extensions
     pip install numpy                             # best numerical library ever
     pip install pandas                            # handles table-like datastracture
+    pip install openpyxl                          # open xlsx
     pip install scipy                             # scientific python
     pip install theano                            # Optimize evaluate math expressions
-    pip install h5py==2.10.0                        # HDF5 via python, the version <3 tries to avoid a bug due to original_keras_version = f.attrs['keras_version'].decode('utf8')
     pip install fancyimpute                       # matrix completion and imputation algorithms
     pip install protobuf                          # Google serialization library
 
@@ -132,7 +131,3 @@ From: centos:8
     # Clone the chemical checker package (used as fallback)
     cd /opt
     git clone http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker.git
-
-    # FIXES
-    # fix numpy version issue
-    conda install -y -c pytorch faiss-cpu
