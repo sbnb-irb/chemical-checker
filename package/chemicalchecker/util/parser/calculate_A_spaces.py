@@ -349,20 +349,23 @@ class Aspaces_prop_calculator(object):
 
                 assert space+'.001' in dictSpaces.keys(), print("Sign0 for space",space, "not fit!!")
                 models_imported =False
-                for molset in ('full'):
-                    sign0= self.cc.get_signature('sign0', molset , space+'.001') # already fitted
-                    sign1 = self.cc.get_signature('sign1', molset, space+'.001') # will get converted to reference by the next fct
-                    sign1.clear()
 
-                    # import models from the fit that took place in CC_repo 2020_XX
-                    if not models_imported:
-                        self.cc.import_models_for_prediction(sign1) # Import model for this space
-                        models_imported =True
+                sign0= self.cc.get_signature('sign0', 'full' , space+'.001') # already fitted
+                sign1 = self.cc.get_signature('sign1', 'full', space+'.001') # will get converted to reference by the next fct
+                sign1.clear()
 
-                    destination = sign1.data_path
-                    if not os.path.exists(destination):
-                        print("\nPredicting sign1", molset, "for space",space, 'to' ,destination)
-                        sign1.predict(sign0,destination=destination)
+                # import models from the fit that took place in CC_repo 2020_XX
+                if not models_imported:
+                    self.cc.import_models_for_prediction(sign1) # Import model for this space
+                    models_imported =True
+
+                destination = sign1.data_path
+                if not os.path.exists(destination):
+                    print("\nPredicting sign1 full for space",space, 'to' ,destination)
+                    sign1.predict(sign0,destination=destination)
+
+                # reference
+                sign1.save_reference(cpu=1)
 
         return self.cc
 
