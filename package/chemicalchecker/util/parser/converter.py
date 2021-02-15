@@ -48,7 +48,7 @@ class Converter():
         if not inchi:
             raise ConversionError("'MolToInchi' returned None.", smiles)
         inchikey = self.Chem.rdinchi.InchiToInchiKey(inchi)
-        if not inchi:
+        if not inchikey:
             raise ConversionError("'InchiToInchiKey' returned None", smiles)
         try:
             mol = self.Chem.rdinchi.InchiToMol(inchi)[0]
