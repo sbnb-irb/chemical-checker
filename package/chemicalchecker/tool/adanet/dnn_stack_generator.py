@@ -1,10 +1,8 @@
 import functools
 import adanet
-import tensorflow as tf
-
-from tensorflow import layers
-from tensorflow.layers import Dense, Dropout
-
+import tensorflow.compat.v1 as tf
+from tensorflow.keras import layers
+from tensorflow.keras.layers import Dense, Dropout
 from chemicalchecker.util import logged
 
 
@@ -15,7 +13,7 @@ class NanMaskingLayer(layers.Layer):
         self.mask_value = mask_value
 
     def call(self, input):
-        nan_idxs = tf.is_nan(input)
+        nan_idxs = tf.math.is_nan(input)
         replace = tf.ones_like(input) * self.mask_value
         return tf.where(nan_idxs, replace, input)
 
@@ -91,7 +89,7 @@ class StackDNNBuilder(adanet.subnetwork.Builder):
 
     def _measure_complexity(self):
         """Approximates Rademacher complexity as square-root of the depth."""
-        return tf.sqrt(tf.to_float(self._num_layers))
+        return tf.sqrt(tf.cast(self._num_layers, dtype=tf.float32))
 
     def build_subnetwork_train_op(self, subnetwork, loss, var_list, labels,
                                   iteration_step, summary, previous_ensemble):
@@ -175,7 +173,7 @@ class StackDNNGenerator(adanet.subnetwork.Generator):
         num_layers = 0
         seed = self._seed
         if previous_ensemble:
-            num_layers = tf.contrib.util.constant_value(
+            num_layers = tf.get_static_value(
                 previous_ensemble.weighted_subnetworks[
                     -1].subnetwork.persisted_tensors["num_layers"])
         if seed is not None:

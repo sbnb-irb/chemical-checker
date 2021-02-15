@@ -4,16 +4,15 @@ import shutil
 import pickle
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 from time import time
 from scipy.stats import pearsonr
 from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.metrics import explained_variance_score
-from sklearn.linear_model import LinearRegression
 try:
-    import tensorflow as tf
-    import tensorflow.contrib.slim as slim
-    from tensorflow.contrib import predictor
+    import tensorflow.compat.v1 as tf
+    import tensorflow as tf2
+    #import tensorflow.contrib.slim as slim
+    #from tensorflow.contrib import predictor
 except ImportError:
     raise ImportError("requires tensorflow " +
                       "https://www.tensorflow.org/")
@@ -93,23 +92,18 @@ class AdaNetWrapper(object):
         # check the prediction task at hand
         self.prediction_task = kwargs.get("prediction_task", "regression")
         if self.prediction_task == "regression":
-            self._estimator_head = tf.contrib.estimator.regression_head(
+            self._estimator_head = tf.estimator.RegressionHead(
                 label_dimension=self.label_dimension)
         elif self.prediction_task == "classification":
             self._estimator_head = \
-                tf.contrib.estimator.binary_classification_head()
+                tf.estimator.BinaryClassHead()
             if self.n_classes > 2:
-                self._estimator_head = tf.contrib.estimator.multi_class_head(
+                self._estimator_head = tf.estimator.MultiClassHead(
                     n_classes=self.n_classes)
         else:
             raise Exception("Prediction task '%s' not recognized.",
                             self.prediction_task)
-        # tensorflow session_config
-        self.session_config = tf.ConfigProto(
-            intra_op_parallelism_threads=self.cpu,
-            inter_op_parallelism_threads=self.cpu,
-            allow_soft_placement=True,
-            device_count={'CPU': self.cpu})
+
 
         # log parameters
         self.__log.info("**** AdaNet Parameters: ***")
@@ -211,8 +205,7 @@ class AdaNetWrapper(object):
                 save_checkpoints_secs=18000,  # save checkpoints every 5 hours
                 save_summary_steps=50000,
                 tf_random_seed=self.random_seed,
-                model_dir=self.model_dir,
-                session_config=self.session_config),
+                model_dir=self.model_dir),
             model_dir=self.model_dir
         )
         # Train and evaluate using using the tf.estimator tooling.
@@ -294,7 +287,7 @@ class AdaNetWrapper(object):
                         tf.py_function(augmentation, [x, y],
                                        [x.dtype, y.dtype])),
                         num_parallel_calls=self.cpu)
-            iterator = dataset.make_one_shot_iterator()
+            iterator = tf.compat.v1.data.make_one_shot_iterator(dataset)
             features, labels = iterator.get_next()
             return {'x': features}, labels
 
@@ -314,20 +307,22 @@ class AdaNetWrapper(object):
                 (regression only).
         """
         if predict_fn is None:
-            predict_fn = predictor.from_saved_model(
-                model_dir, signature_def_key='predict')
+            imported = tf2.saved_model.load(model_dir)
+            predict_fn = imported.signatures["predict"]
+            #predict_fn = predictor.from_saved_model(
+            #    model_dir, signature_def_key='predict')
 
         if mask_fn is None:
             # TODO if no subsampling is provided we can apply some noise
             def mask_fn(data):
                 return data
-        pred = predict_fn({'x': features[:]})
+        pred = predict_fn(tf2.convert_to_tensor(features[:]))
         if 'predictions' in pred:
             if consensus:
                 pred_shape = pred['predictions'].shape
                 # axis are 0=molecules, 1=samples, 2=components
                 repeat = features[:].repeat(samples, axis=0)
-                sampling = predict_fn({'x': mask_fn(repeat)})['predictions']
+                sampling = predict_fn(tf2.convert_to_tensor(mask_fn(repeat)))['predictions']
                 sampling = sampling.reshape(
                     pred_shape[0], samples, pred_shape[1])
                 return pred['predictions'], sampling
@@ -346,8 +341,10 @@ class AdaNetWrapper(object):
         Args:
             model_dir(str): path where to save the model.
         """
-        predict_fn = predictor.from_saved_model(
-            model_dir, signature_def_key='predict')
+        imported = tf2.saved_model.load(model_dir)
+        predict_fn = imported.signatures["predict"]
+        #predict_fn = predictor.from_saved_model(
+        #    model_dir, signature_def_key='predict')
         return predict_fn
 
     @staticmethod
@@ -367,8 +364,10 @@ class AdaNetWrapper(object):
             probs(bool): if this is a classifier return the probabilities.
         """
         if predict_fn is None:
-            predict_fn = predictor.from_saved_model(
-                model_dir, signature_def_key='predict')
+            imported = tf2.saved_model.load(model_dir)
+            predict_fn = imported.signatures["predict"]
+            #predict_fn = predictor.from_saved_model(
+            #    model_dir, signature_def_key='predict')
         shapes, dtypes, fn = Traintest.generator_fn(
             h5_file, split, batch_size, only_x=False, return_on_epoch=True)
         x_shape, y_shape = shapes
@@ -427,7 +426,7 @@ class AdaNetWrapper(object):
         with tf.Session(graph=tf.Graph()) as sess:
             tf.saved_model.loader.load(sess, ["serve"], model_dir)
             model_vars = tf.trainable_variables()
-            slim.model_analyzer.analyze_vars(model_vars, print_info=True)
+            #slim.model_analyzer.analyze_vars(model_vars, print_info=True)
 
     @staticmethod
     def get_trainable_variables(model_dir):
