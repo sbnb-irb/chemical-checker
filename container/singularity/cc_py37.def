@@ -71,6 +71,9 @@ From: centos:8
     conda install -y -c anaconda ipython">7.19"      # interactive python
     conda install -y -c anaconda cython              # C extensions
     conda install -y -c pytorch faiss-cpu            # efficient similarity search and clustering
+    alias test_faiss='python -c "import faiss, numpy
+faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
+    if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
 
     # utility packages (~2 min)
     pip install six                               # py2/py3 compatibility
@@ -102,7 +105,9 @@ From: centos:8
     # ML packages
     pip install scikit-learn                      # entry level ML in python
     pip install gensim                            # topic modelling word2vec
-    pip install tensorflow==2.3.1                 # neural network library
+    if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
+    pip install tensorflow                        # neural network library
+    if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
     pip install adanet                            # automl for NN
     pip install keras                             # NN API
 
