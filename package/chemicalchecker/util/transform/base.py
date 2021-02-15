@@ -144,9 +144,11 @@ class BaseTransform(object):
                 else:
                     dkey = "V"
                 for j in tqdm(range(0, self.sign_ref.shape[1])):
+                    if len(idxs) >= self.max_keys:
+                        break
                     v = hf[dkey][:, j]
-                    zero_feat = np.argwhere(v != 0).ravel()
-                    candidates = list(set(zero_feat) - idxs)
+                    non_zero_feat = np.argwhere(v != 0).ravel()
+                    candidates = list(set(non_zero_feat) - idxs)
                     if len(candidates) == 0:
                         raise Exception(
                             'No feature specific candidates for subsampling. '
