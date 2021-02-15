@@ -1,9 +1,9 @@
 import functools
 import adanet
 import numpy as np
-import tensorflow as tf
-from tensorflow import layers
-from tensorflow.layers import Dense, Dropout
+import tensorflow.compat.v1 as tf
+from tensorflow.keras import layers
+from tensorflow.keras.layers import Dense, Dropout
 from chemicalchecker.util import logged
 
 
@@ -14,7 +14,7 @@ class NanMaskingLayer(layers.Layer):
         self.mask_value = mask_value
 
     def call(self, input):
-        nan_idxs = tf.is_nan(input)
+        nan_idxs = tf.math.is_nan(input)
         replace = tf.ones_like(input) * self.mask_value
         return tf.where(nan_idxs, replace, input)
 
@@ -92,11 +92,7 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
 
     def _measure_complexity(self):
         """Approximates Rademacher complexity as square-root of the depth."""
-        # depth_cmpl = np.sqrt(float(self._num_layers))
-        # max_width_cmpl = np.sqrt(float(max(self._layer_sizes)))
-        total_blocks_cmpl = np.sqrt(float(sum(self._layer_sizes)))
-        # self.__log.debug("\n\n***** COMPLEXITY\ndepth_cmpl: %s\max_width_cmpl %s\total_blocks_cmpl %s\n\n", depth_cmpl, max_width_cmpl, total_blocks_cmpl)
-        return total_blocks_cmpl
+        return tf.sqrt(tf.cast(tf.math.reduce_sum(self._layer_sizes), dtype=tf.float32))
 
     def build_subnetwork_train_op(self, subnetwork, loss, var_list, labels,
                                   iteration_step, summary, previous_ensemble):
@@ -192,9 +188,9 @@ class ExtendDNNGenerator(adanet.subnetwork.Generator):
             last_subnetwork = previous_ensemble.weighted_subnetworks[
                 -1].subnetwork
             shared_tensors = last_subnetwork.shared
-            num_layers = tf.contrib.util.constant_value(
+            num_layers = tf.get_static_value(
                 shared_tensors["num_layers"])
-            layer_sizes = list(tf.contrib.util.constant_value(
+            layer_sizes = list(tf.get_static_value(
                 shared_tensors["layer_sizes"]))
         # at each iteration try exdending any of the existing layers (width)
         candidates = list()

@@ -1,6 +1,6 @@
 import functools
 import adanet
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 
 class SimpleCNNBuilder(adanet.subnetwork.Builder):
