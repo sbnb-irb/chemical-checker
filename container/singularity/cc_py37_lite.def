@@ -4,7 +4,8 @@ From: centos
 %environment
     # PATHS
     export PATH=/opt/miniconda3/bin:$PATH
-    source activate py37
+    . /opt/miniconda3/etc/profile.d/conda.sh
+    conda activate py37
 
 %post
     # bind paths
