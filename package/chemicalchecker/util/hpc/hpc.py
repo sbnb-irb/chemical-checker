@@ -4,6 +4,9 @@ Allow the initialization of any of the defined queueing systems.
 Provide a shared interface to get job status, check log for errors, and
 compress log output.
 """
+import os
+import shutil
+import pathlib
 from .sge import sge
 from .slurm import slurm
 from .local import local
@@ -120,3 +123,44 @@ class HPC():
                * ``ready``: Job finished without errors
         """
         return self.hpc.status()
+
+    @classmethod
+    def test_job(cls, job_path, config=None, params=None):
+        from chemicalchecker import Config
+        if config is None:
+            config = Config()
+        cluster = cls.from_config(config)
+        cc_config_path = config.config_path
+        cc_package = os.path.join(config.PATH.CC_REPO, 'package')
+        singularity_image = config.PATH.SINGULARITY_IMAGE
+        hpc_path = pathlib.Path(__file__).parent.absolute()
+        script_name_src = os.path.join(hpc_path, 'test_script.py')
+        script_name_dst = os.path.join(job_path, 'test_script.py')
+        shutil.copy(script_name_src, script_name_dst)
+        command = ' '.join([
+            "SINGULARITYENV_PYTHONPATH={}",
+            "SINGULARITYENV_CC_CONFIG={}",
+            "singularity exec {}",
+            "python {}"
+        ])
+        command = command.format(
+            cc_package,
+            cc_config_path,
+            singularity_image,
+            script_name_dst)
+        print('CMD: {}'.format(command))
+        def_params = {}
+        def_params["num_jobs"] = 1
+        def_params["jobdir"] = job_path
+        def_params["job_name"] = "TEST"
+        def_params["wait"] = True
+        def_params["cpu"] = 1
+        if params is None:
+            params = def_params
+        else:
+            for k, v in def_params.items():
+                if k not in params:
+                    params[k] = v
+        for k, v in params.items():
+            cls.__log.debug('{:<20} : {}'.format(k, v))
+        job = cluster.submitMultiJob(command, **params)
