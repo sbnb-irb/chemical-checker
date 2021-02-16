@@ -7,6 +7,9 @@
         "SINGULARITY_IMAGE": "'/aloy/web_checker/images/cc.simg'",
         "validation_path": "'/aloy/web_checker/package_cc/validation_sets/'"
     },
+    "VERBOSITY": {
+        "level":"'warning'"
+    },
     "DB": {
         "dialect": "'postgresql'",
         "port":  "'5432'",
