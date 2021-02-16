@@ -27,6 +27,7 @@
 from .core import ChemicalChecker
 from .util import Config
 
+ChemicalChecker.set_verbosity(level=Config().VERBOSITY.level)
 
 __author__ = """SBNB"""
 __email__ = 'sbnb@irbbarcelona.org'
