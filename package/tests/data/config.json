@@ -7,6 +7,9 @@
         "SINGULARITY_IMAGE": "'/aloy/home/oguitart/sing-images/cc.simg'",
         "validation_path": "os.path.dirname(os.path.realpath(__file__))+'/../../../tests/data/validation_sets/'"
     },
+    "VERBOSITY": {
+        "level":"'warning'"
+    },
     "DB": {
     	"dialect": "'postgresql'",
     	"port":  "'5432'",
