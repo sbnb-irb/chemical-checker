@@ -39,7 +39,7 @@ lint: ## check style with flake8
 	flake8 chemicalchecker tests
 
 test: ## run tests quickly with the default Python
-	pytest -s
+	pytest tests/ -s
 
 docs: ## generate Sphinx HTML documentation, including API docs
 	rm -fr docs/_build/
