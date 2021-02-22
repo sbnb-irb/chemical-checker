@@ -316,13 +316,13 @@ class AdaNetWrapper(object):
             # TODO if no subsampling is provided we can apply some noise
             def mask_fn(data):
                 return data
-        pred = predict_fn(tf2.convert_to_tensor(features[:]))
+        pred = predict_fn(tf2.convert_to_tensor(features[:], dtype=tf2.float32))
         if 'predictions' in pred:
             if consensus:
                 pred_shape = pred['predictions'].shape
                 # axis are 0=molecules, 1=samples, 2=components
                 repeat = features[:].repeat(samples, axis=0)
-                sampling = predict_fn(tf2.convert_to_tensor(mask_fn(repeat)))['predictions']
+                sampling = predict_fn(tf2.convert_to_tensor(mask_fn(repeat), dtype=tf2.float32))['predictions']
                 sampling = sampling.reshape(
                     pred_shape[0], samples, pred_shape[1])
                 return pred['predictions'], sampling
