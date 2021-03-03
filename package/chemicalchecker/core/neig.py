@@ -251,7 +251,7 @@ class neig(BaseSignature, DataSignature):
 
         return predictions
 
-    def get_vectors(self, keys, include_nan=False, dataset_name='V'):
+    def get_vectors(self, keys, include_nan=False, dataset_name='indices'):
         """Get vectors for a list of keys, sorted by default.
 
         Args:
