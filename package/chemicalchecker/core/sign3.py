@@ -1493,7 +1493,7 @@ class sign3(BaseSignature, DataSignature):
         fname = 'known_unknown_sampling.png'
         plot_file = os.path.join(siamese.model_dir, fname)
         plot_subsample(self, plot_file, self.sign2_coverage, traintest_file,
-                       ds=self.dataset, sign2_list=sign2_list)
+                       ds=self.dataset, sign2_list=self.sign2_list)
 
     def save_sign0_matrix(self, sign0, destination, include_confidence=True,
                           chunk_size=1000):
