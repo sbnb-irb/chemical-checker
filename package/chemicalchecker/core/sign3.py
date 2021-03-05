@@ -453,7 +453,7 @@ class sign3(BaseSignature, DataSignature):
                         (tot_inks,), dtype=np.float32)
 
             # predict signature 3 for universe molecules
-            with h5py.File(sign2_universe, "r") as features:
+            with h5py.File(self.sign2_universe, "r") as features:
                 # reference prediction (based on no information)
                 nan_feat = np.full((1, features['x_test'].shape[1]),
                                    np.nan, dtype=np.float32)
@@ -2048,7 +2048,7 @@ class sign3(BaseSignature, DataSignature):
                                 (tot_inks, ), dtype=np.float32)
 
                 # predict signature 3 for universe molecules
-                with h5py.File(sign2_universe, "r") as features:
+                with h5py.File(self.sign2_universe, "r") as features:
                     # reference prediction (based on no information)
                     nan_feat = np.full((1, features['x_test'].shape[1]),
                                        np.nan, dtype=np.float32)
