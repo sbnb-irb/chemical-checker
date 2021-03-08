@@ -71,7 +71,7 @@ class sign2(BaseSignature, DataSignature):
         try:
             from chemicalchecker.util.network import SNAPNetwork
             from chemicalchecker.util.performance import LinkPrediction
-            #from chemicalchecker.tool.adanet import AdaNet
+            from chemicalchecker.tool.adanet import AdaNet
             from chemicalchecker.tool.node2vec import Node2Vec
         except ImportError as err:
             raise err
