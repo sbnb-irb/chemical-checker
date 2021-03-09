@@ -88,6 +88,7 @@ class DiagnosisPlot(object):
             "Projections with coverage of keys across the CC",
             "keys_iqr": "IQR of the keys values",
             "moa_roc": "ROC for the MoA CC space (B1)",
+            "roc": "ROC for any specified space",
             "orthogonality": "Orthogonality of features",
             "outliers": "Detected outliers",
             "projection": "tSNE 2D projection",
@@ -169,6 +170,17 @@ class DiagnosisPlot(object):
         ax = self._roc(ax, results, color)
         if title is None:
             title = "MoA (%.3f)" % results["auc"]
+        ax.set_title(title)
+        return ax
+
+    @safe_return(None)
+    def roc(self, ds, ax=None, title=None):
+        ax = self._get_ax(ax)
+        color = coord_color(ds)
+        results = self.load_diagnosis_pickle("roc.pkl")
+        ax = self._roc(ax, results, color)
+        if title is None:
+            title = "AUROC (%.3f)" % results["auc"]
         ax.set_title(title)
         return ax
 
