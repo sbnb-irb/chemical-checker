@@ -1278,6 +1278,7 @@ class sign3(BaseSignature, DataSignature):
 
     def conformal_prediction(self, siamese_cp, features, dropout_fn=None,
                              nan_pred=None, n_samples=5, p_self=0.0):
+        # draw prediction with sub-sampling
         if dropout_fn is None:
             dropout_fn, _ = self.realistic_subsampling_fn()
         # reference prediction (based on no information)
@@ -1285,9 +1286,6 @@ class sign3(BaseSignature, DataSignature):
             nan_feat = np.full(
                 (1, features.shape[1]), np.nan, dtype=np.float32)
             nan_pred = siamese_cp.predict(nan_feat)
-        # draw prediction with sub-sampling
-        if dropout_fn is None:
-            dropout_fn = partial(subsample, dataset_idx=[self.dataset_idx])
         samples = siamese_cp.predict(mask_exclude(self.dataset_idx, features),
                                      dropout_fn=partial(
             dropout_fn, p_self=p_self),
@@ -1993,18 +1991,19 @@ class sign3(BaseSignature, DataSignature):
                     confidence_path, 'calibration.pkl')
                 conf_mdl = (pickle.load(open(confidence_file, 'rb')),
                             pickle.load(open(calibration_file, 'rb')))
-                
+
             # another part of confidence is the applicability
             neig_file = os.path.join(confidence_path, 'neig.index')
             app_neig = faiss.read_index(neig_file)
             known_dist = os.path.join(confidence_path, 'known_dist.h5')
             app_range = DataSignature(known_dist).get_h5_dataset(
                 'applicability_range')
-            _, trim_mask = self.realistic_subsampling_fn()
+            realistic_fn, trim_mask = self.realistic_subsampling_fn()
 
         # get sorted universe inchikeys
-        self.universe_inchikeys = self.get_universe_inchikeys()
-        tot_inks = len(self.universe_inchikeys)
+        with h5py.File(self.sign2_universe, "r") as features:
+            self.universe_inchikeys = features['keys'][:]
+            tot_inks = len(self.universe_inchikeys)
 
         # save universe sign3
         if update_preds:
@@ -2074,7 +2073,8 @@ class sign3(BaseSignature, DataSignature):
                         results['prior_signature'][chunk] = prior_sign
                         # conformal prediction
                         ints, robs, _ = self.conformal_prediction(
-                            siamese_cp, feat, nan_pred=nan_pred)
+                            siamese_cp, feat, nan_pred=nan_pred,
+                            dropout_fn=realistic_fn)
                         results['robustness'][chunk] = robs
                         # distance from known predictions
                         app, centrality, cons = self.applicability_domain(
@@ -2285,7 +2285,8 @@ def subsampling_probs(sign2_coverage, dataset_idx, trim_threshold=0.1,
                       min_unknown=10000):
     """Extract probabilities for known and unknown of a given dataset."""
     if type(sign2_coverage) == str:
-        cov = DataSignature(sign2_coverage).get_h5_dataset('x_test')
+        with h5py.File(sign2_coverage, "r") as cov_matrix:
+            cov = cov_matrix['x_test'][:]
     else:
         cov = sign2_coverage
     unknown = cov[(cov[:, dataset_idx] == 0).ravel()]
@@ -2419,7 +2420,8 @@ def plot_subsample(sign, plot_file, sign2_coverage, traintest_file, ds='B1.001',
     tr_gen = tr_shape_type_gen[2]
 
     # get known unknown
-    cov = DataSignature(sign2_coverage).get_h5_dataset('x_test')
+    with h5py.File(sign2_coverage, "r") as cov_matrix:
+        cov = cov_matrix['x_test'][:]
     unknown = cov[(cov[:, dataset_idx] == 0).flatten()]
     known = cov[(cov[:, dataset_idx] == 1).flatten()]
 
