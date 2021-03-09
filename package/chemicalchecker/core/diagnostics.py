@@ -1190,6 +1190,28 @@ class Diagnosis(object):
             plot=self.plot,
             plotter_function=self.plotter.moa_roc)
 
+
+    @safe_return(None)
+    def roc(self, ds, ref_cctype=None, **kwargs):
+        self.__log.debug("ROC")
+        fn = "roc"
+        if ref_cctype is None:
+            ref_cctype = self.ref_cctype
+        molset = "full"
+        if self._todo(fn):
+            sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
+            results = self.cross_roc(
+                sign, save=False, force_redo=True, **kwargs)
+        else:
+            results = None
+        return self._returner(
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.roc,
+            kw_plotter={"ds": ds})
+
     @safe_return(None)
     def redundancy(self, cpu=4):
         from chemicalchecker.util.remove_near_duplicates import RNDuplicates
