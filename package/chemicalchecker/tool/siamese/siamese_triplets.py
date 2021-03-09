@@ -889,14 +889,13 @@ class SiameseTriplets(object):
             return self.transformer.predict(no_nans)
         # sample with dropout (repeat input)
         samples = list()
-        for row in no_nans:
-            for i in range(dropout_samples):
-                dropped_ds = dropout_fn(np.expand_dims(row, 0))
-                no_nans = np.nan_to_num(dropped_ds)
-                samples.append(self.transformer.predict(no_nans))
+        for i in range(dropout_samples):
+            dropped_ds = dropout_fn(no_nans)
+            no_nans_drop = np.nan_to_num(dropped_ds)
+            samples.append(self.transformer.predict(no_nans_drop))
         samples = np.vstack(samples)
         samples = samples.reshape(
-            trimmed.shape[0], dropout_samples, samples.shape[1])
+            no_nans.shape[0], dropout_samples, samples.shape[1])
         return samples
 
     def _plot_history(self, history, vsets, destination):
