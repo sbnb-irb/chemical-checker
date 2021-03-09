@@ -150,6 +150,12 @@ class BaseSignature(object):
             original_umask = os.umask(0)
             os.makedirs(self.stats_path, 0o775)
             os.umask(original_umask)
+        if os.path.exists(self.diags_path):
+            self.__log.debug("Removing %s" % self.diags_path)
+            shutil.rmtree(self.diags_path)
+            original_umask = os.umask(0)
+            os.makedirs(self.diags_path, 0o775)
+            os.umask(original_umask)
 
     def validate_versus_signature(self, sign, n_samples=1000, n_neighbors=5,
                                   apply_mappings=True, metric='cosine'):
