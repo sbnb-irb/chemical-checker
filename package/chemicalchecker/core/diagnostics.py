@@ -1192,16 +1192,16 @@ class Diagnosis(object):
 
 
     @safe_return(None)
-    def roc(self, ds, ref_cctype=None, **kwargs):
+    def roc(self, ds, ref_cctype=None, force_redo=False, **kwargs):
         self.__log.debug("ROC")
         fn = "roc"
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
         molset = "full"
-        if self._todo(fn):
+        if self._todo(fn) or force_redo:
             sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
             results = self.cross_roc(
-                sign, save=False, force_redo=True, **kwargs)
+                sign, save=False, force_redo=force_redo, **kwargs)
         else:
             results = None
         return self._returner(
