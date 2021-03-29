@@ -131,10 +131,19 @@ faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     pip install seaborn                           # prettier graph built on top of matplotlib
     pip install datashader                        # plot huge 2D datasets (projetions)
     pip install statannot                         # annotate boxplot with significance ***
+    pip install matplotlib_venn                   # Venn diagrams
 
     # Dimensionality reduction
     pip install MulticoreTSNE                     # tSNE algo
     pip install umap-learn                        # UMAP algo
+
+    # additional TargetMate packages
+    pip install tpot                              # Auto ML tool with Genetic Programming
+    pip install mlflow                            # Platform for the ML lifecycle
+    pip install xgboost                           # Gradient Boosting framework
+    pip install hyperopt                          # Hyperparameters optimization
+    pip install shap                              # SHapley Additive exPlanations for ML models
+
 
     # Clone the chemical checker package (used as fallback)
     cd /opt
