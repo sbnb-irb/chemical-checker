@@ -1149,6 +1149,43 @@ class Diagnosis(object):
                 "molset": molset})
 
     @safe_return(None)
+    def neigh_roc(self, ds, ref_cctype=None, n_neighbors=[1, 5, 10, 50, 100],
+                  molset="full", **kwargs):
+        """Check ROC against another signature at different NN levels.
+
+        Args:
+            ds: Dataset aginst which to run ROC analysis.
+            ref_cctype (str): CC signature type.
+            neighbors (list): list of top NN for which we want to compute ROC.
+            molset (str): Molecule set to use. Full is recommended.
+                (default='full')
+            kwargs (dict): Parameters of hte cross_coverage method.
+        """
+        self.__log.debug("Multiple Neighbors ROC")
+        fn = "neigh_roc"
+        if ref_cctype is None:
+            ref_cctype = self.ref_cctype
+        if molset is None:
+            molset = self.sign.molset
+        if self._todo(fn):
+            results = {}
+            sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
+            for nn in n_neighbors:
+                results[nn] = self.cross_roc(
+                    sign, save=False, force_redo=True, n_neighbors=nn, **kwargs)
+        else:
+            results = None
+        return self._returner(
+            results=results,
+            fn=fn,
+            save=self.save,
+            plot=self.plot,
+            plotter_function=self.plotter.neigh_roc,
+            kw_plotter={
+                "cctype": ref_cctype,
+                "molset": molset})
+
+    @safe_return(None)
     def atc_roc(self, ref_cctype=None, **kwargs):
         self.__log.debug("ATC ROC")
         fn = "atc_roc"
@@ -1189,7 +1226,6 @@ class Diagnosis(object):
             save=self.save,
             plot=self.plot,
             plotter_function=self.plotter.moa_roc)
-
 
     @safe_return(None)
     def roc(self, ds, ref_cctype=None, force_redo=False, **kwargs):

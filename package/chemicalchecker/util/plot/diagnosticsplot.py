@@ -122,13 +122,14 @@ class DiagnosisPlot(object):
                                          sign.qualified_name)
         ax.set_title(title)
 
-    def _roc(self, ax, results, color, dataset_code=None, alpha=0.25):
+    def _roc(self, ax, results, color, dataset_code=None, alpha=0.25,
+             label=None):
         step = 0.001
         fpr = np.arange(0, 1 + step, step)
         tpr = np.interp(fpr, results["fpr"], results["tpr"])
         if color is None:
             color = coord_color(dataset_code)
-        ax.plot(fpr, tpr, color=color)
+        ax.plot(fpr, tpr, color=color, label=label)
         ax.fill_between(fpr, tpr, color=color, alpha=alpha)
         ax.plot([0, 1], [0, 1], color="gray", linestyle="--")
         ax.set_xlim(-0.05, 1.05)
@@ -182,6 +183,18 @@ class DiagnosisPlot(object):
         if title is None:
             title = "AUROC (%.3f)" % results["auc"]
         ax.set_title(title)
+        return ax
+
+    @safe_return(None)
+    def neigh_roc(self, ds, ax=None, title=None):
+        ax = self._get_ax(ax)
+        results = self.load_diagnosis_pickle("neigh_roc.pkl")
+        for nn, res in results.items():
+            if res is None:
+                continue
+            ax = self._roc(ax, res,
+                           label='NN {:<5} (AUC {:.3f})'.format(nn, res['auc']))
+        ax.legend()
         return ax
 
     @safe_return(None)
