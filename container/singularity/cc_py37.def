@@ -45,7 +45,7 @@ From: centos:8
 
     # MS compatible font for plotting (~3 min.)
     yum install -y xorg-x11-font-utils fontconfig libmspack
-    rpm -i http://download-ib01.fedoraproject.org/pub/epel/7/x86_64/Packages/c/cabextract-1.5-1.el7.x86_64.rpm
+    rpm -i http://download-ib01.fedoraproject.org/pub/epel/7/x86_64/Packages/c/cabextract-1.9-7.el7.x86_64.rpm  
     rpm -i https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm
 
     # conda
