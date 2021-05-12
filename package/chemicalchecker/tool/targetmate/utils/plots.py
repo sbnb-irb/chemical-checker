@@ -7,7 +7,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from matplotlib.patches import Rectangle
 from scipy import stats
 import numpy as np
-from chemicalchecker.util.plot.style.util import coord_color, set_style
+from chemicalchecker.util.plot.util import coord_color, set_style
 from chemicalchecker.util import logged
 
 set_style()
