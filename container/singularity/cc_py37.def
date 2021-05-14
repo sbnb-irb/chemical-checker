@@ -62,7 +62,7 @@ From: centos:8
     source activate py37
 
     # conda-specific packages (~1 min)
-    conda install -y -c rdkit rdkit                  # Open-Source Cheminformatics Software
+    conda install -y -c conda-forge rdkit            # Open-Source Cheminformatics Software
     conda install -y -c openbabel openbabel          # chemical toolbox
     conda install -y mkl-service                     # change the number of CPU’s MKL is using
     conda install -y anaconda-client                 # client that provides an interface to Anaconda Cloud
