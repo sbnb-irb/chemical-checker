@@ -4,6 +4,8 @@ import pickle
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+
+from tensorflow import keras
 from keras import backend as K
 from keras.models import Sequential
 from MulticoreTSNE import MulticoreTSNE

@@ -1,9 +1,9 @@
 import os
-import keras
 import pickle
 import numpy as np
 from time import time
 import tensorflow as tf
+from tensorflow import keras
 from keras import backend as K
 from keras.layers import Dense, Dropout
 

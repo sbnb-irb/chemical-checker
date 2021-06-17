@@ -1,8 +1,8 @@
-
 import os
-import keras
 import pickle
 import scipy.stats as stats
+
+from tensorflow import keras
 from keras import backend as K
 from keras.models import Sequential
 from keras.layers import Dropout, Dense, Activation
