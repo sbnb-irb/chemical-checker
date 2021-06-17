@@ -4,6 +4,9 @@ import colorsys
 import matplotlib
 import seaborn as sns
 import matplotlib.colors as mc
+from matplotlib import colorbar
+import matplotlib.pyplot as plt
+import itertools
 
 
 def rgb2hex(r, g, b):
@@ -11,19 +14,48 @@ def rgb2hex(r, g, b):
     return '#%02x%02x%02x' % (r, g, b)
 
 
-def coord_color(coordinate):
+def predefined_cc_colors(coord, lighness=0):
+    """Predefined CC colors."""
+    colors = {
+        'A': ['#EA5A49', '#EE7B6D', '#F7BDB6'],
+        'B': ['#B16BA8', '#C189B9', '#D0A6CB'],
+        'C': ['#5A72B5', '#7B8EC4', '#9CAAD3'],
+        'D': ['#7CAF2A', '#96BF55', '#B0CF7F'],
+        'E': ['#F39426', '#F5A951', '#F8BF7D'],
+        'Z': ['#000000', '#666666', '#999999']}
+    return colors[coord[:1]][lighness]
+
+
+def cc_colors(coordinate, alternate=False, dark_first=True):
     """CC coordinate to CC color."""
-    if coordinate[0] == 'A':
-        return rgb2hex(250, 100, 80)
-    if coordinate[0] == 'B':
-        return rgb2hex(200, 100, 225)
-    if coordinate[0] == 'C':
-        return rgb2hex(80, 120, 220)
-    if coordinate[0] == 'D':
-        return rgb2hex(120, 180, 60)
-    if coordinate[0] == 'E':
-        return rgb2hex(250, 150, 50)
-    return rgb2hex(250, 100, 80)
+    if alternate:
+        return _cc_colors_alternate(coordinate, dark_first=dark_first)
+    else:
+        return predefined_cc_colors(coordinate[0], 0)
+
+
+def coord_color(coordinate):
+    return cc_colors(coordinate)
+
+
+def _cc_colors_alternate(coordinate, dark_first):
+    check = True
+    if dark_first:
+        check = not check
+    if coordinate[0] in 'ACE':
+        check = not check
+    if int(coordinate[1]) % 2 == int(check):
+        lighthness = 0
+    else:
+        lighthness = 1
+    return predefined_cc_colors(coordinate[0], lighthness)
+
+
+def cc_coords():
+    coords = list()
+    for name, code in itertools.product("ABCDE", "12345"):
+        coords.append(name + code)
+    return coords
 
 
 def lighten_color(color, amount=0.5):
@@ -36,24 +68,8 @@ def lighten_color(color, amount=0.5):
     return colorsys.hls_to_rgb(c[0], 1 - amount * (1 - c[1]), c[2])
 
 
-def cc_colors(coord, lighness=0):
-    """Predefined CC colors."""
-    colors = {
-        'A': ['#EA5A49', '#EE7B6D', '#F7BDB6'],
-        'B': ['#B16BA8', '#C189B9', '#D0A6CB'],
-        'C': ['#5A72B5', '#7B8EC4', '#9CAAD3'],
-        'D': ['#7CAF2A', '#96BF55', '#B0CF7F'],
-        'E': ['#F39426', '#F5A951', '#F8BF7D'],
-        'Z': ['#000000', '#666666', '#999999']}
-    return colors[coord[:1]][lighness]
-
-
 def set_style(style=None):
     """Set basic plotting style andfonts."""
-    try:
-        matplotlib.font_manager._rebuild()
-    except Exception as ex:
-        print(str(ex))
     if style is None:
         style = ('ticks', {
             'font.family': 'sans-serif',
@@ -88,3 +104,78 @@ def make_cmap(colors, position=None, bit=False):
     cmap = matplotlib.colors.LinearSegmentedColormap(
         'my_colormap', cdict, 256)
     return cmap
+
+
+def homogenous_ticks(ax, n_ticks=5, x_ticks=None, y_ticks=None):
+    if x_ticks is None:
+        x_ticks = n_ticks
+    if y_ticks is None:
+        y_ticks = n_ticks
+    ax.set_xticklabels([])
+    ax.set_yticklabels([])
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+    xticks = np.linspace(xlim[0], xlim[1], x_ticks + 2)[1:-1]
+    yticks = np.linspace(ylim[0], ylim[1], y_ticks + 2)[1:-1]
+    ax.set_xticks(xticks)
+    ax.set_yticks(yticks)
+
+
+def cm2inch(value):
+    return value / 2.54
+
+
+def canvas(width=None, columns=2, height=10, grid=(1, 1),
+           constrained_layout=False, dpi=300,
+           margins=dict(left=0.05, right=0.95, top=0.95, bottom=0.05),
+           width_ratios=None, height_ratios=None):
+    if width is None and columns == 2:
+        width = 17.4
+    if width is None and columns == 1:
+        width = 8.5
+    fig = plt.figure(figsize=(cm2inch(width), cm2inch(height)), dpi=dpi)
+    if margins is not None:
+        plt.subplots_adjust(**margins)
+    grid = fig.add_gridspec(*grid, wspace=0.25, hspace=0.35,
+                            width_ratios=width_ratios,
+                            height_ratios=height_ratios)
+    return fig, grid
+
+
+def cc_grid(fig, grid, legend_out=True):
+    axes = list()
+    if legend_out:
+        subgrid = grid[:, :].subgridspec(
+            2, 1, height_ratios=(1, 40), wspace=0, hspace=0.02)
+        ax_legend = fig.add_subplot(subgrid[0])
+        axes.append(ax_legend)
+        subgrid = subgrid[1].subgridspec(5, 5, wspace=-0.15, hspace=0)
+    else:
+        subgrid = grid[:, :].subgridspec(5, 5, wspace=0, hspace=0)
+    for idx, (gs, ds) in enumerate(zip(subgrid, cc_coords())):
+        ax = fig.add_subplot(gs)
+        ax.set_aspect('equal')
+        homogenous_ticks(ax, 2)
+        ax.tick_params(axis='both', length=2, left=False, bottom=False,
+                       right=False)
+        if idx % 5 == 0:
+            ax.tick_params(axis='y', left=True)
+            ax.set_ylabel(ds[0], labelpad=2, rotation='horizontal',
+                          va='center', ha='center')
+        if idx >= 20:
+            ax.tick_params(axis='x', bottom=True)
+            # ax.xaxis.set_label_position('top')
+            ax.set_xlabel(ds[1], labelpad=-1)
+        axes.append(ax)
+    return axes
+
+
+def make_cbar_ax(ax, cmap=plt.get_cmap('viridis'), title=''):
+    cbar = colorbar.ColorbarBase(ax, orientation='horizontal',
+                                 ticklocation='top', cmap=cmap)
+    cbar.ax.set_xlabel(title, labelpad=0)
+    cbar.ax.tick_params(axis='x', pad=0)
+    cbar.set_ticks([1, .8, .6, .4, .2, .0])
+    cbar.set_ticklabels(['High', '', '', '', '', 'Low'])
+    # cbar.ax.invert_xaxis()
+    cbar.ax.set_aspect(0.04)
