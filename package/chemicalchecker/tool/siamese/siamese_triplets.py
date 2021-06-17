@@ -5,14 +5,14 @@ from time import time
 from functools import partial
 
 from tensorflow import keras
-from keras import backend as K
-from keras.layers import concatenate
-from keras.models import Model, Sequential
-from keras.callbacks import EarlyStopping, Callback
-from keras.layers import Input, Dropout, Lambda, Dense
-from keras.layers import Activation, Masking, BatchNormalization
-from keras.layers import GaussianNoise, AlphaDropout, GaussianDropout
-from keras import regularizers
+from tensorflow.keras import backend as K
+from tensorflow.keras.layers import concatenate
+from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras.callbacks import EarlyStopping, Callback
+from tensorflow.keras.layers import Input, Dropout, Lambda, Dense
+from tensorflow.keras.layers import Activation, Masking, BatchNormalization
+from tensorflow.keras.layers import GaussianNoise, AlphaDropout, GaussianDropout
+from tensorflow.keras import regularizers
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
