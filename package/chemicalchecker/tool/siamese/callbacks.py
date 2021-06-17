@@ -1,6 +1,6 @@
 from tensorflow import keras
-from keras.callbacks import *
-from keras import backend as K
+from tensorflow.keras.callbacks import *
+from tensorflow.keras import backend as K
 import matplotlib.pyplot as plt
 import numpy as np
 import tempfile

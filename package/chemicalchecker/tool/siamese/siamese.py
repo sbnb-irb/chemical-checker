@@ -5,10 +5,10 @@ from time import time
 from functools import partial
 
 from tensorflow import keras
-from keras import backend as K
-from keras.models import Model, Sequential
-from keras.callbacks import EarlyStopping, Callback
-from keras.layers import Input, Dropout, Lambda, Dense
+from tensorflow.keras import backend as K
+from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras.callbacks import EarlyStopping, Callback
+from tensorflow.keras.layers import Input, Dropout, Lambda, Dense
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborPairTraintest
