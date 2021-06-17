@@ -473,6 +473,8 @@ class DataSignature(object):
         Works fast with bisect, but should return None if the key is not in
         keys (ideally, keep a set to do this)."""
         self._check_data()
+        if isinstance(key, bytes):
+            key = key.decode("utf-8") 
         if isinstance(key, slice):
             with h5py.File(self.data_path, 'r') as hf:
                 return hf[self.ds_data][key]
