@@ -7,7 +7,7 @@ import pandas as pd
 from time import time
 from tqdm import tqdm
 from functools import partial
-import keras
+from tensorflow import keras
 import tensorflow as tf
 from keras import backend as K
 from keras.layers import Dense, Dropout

@@ -1,10 +1,10 @@
 import os
-import keras
 import pickle
 import numpy as np
 from time import time
 from functools import partial
 
+from tensorflow import keras
 from keras import backend as K
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping, Callback
