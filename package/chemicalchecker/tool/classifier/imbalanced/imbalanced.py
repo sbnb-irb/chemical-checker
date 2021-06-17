@@ -9,8 +9,8 @@ from tqdm import tqdm
 from functools import partial
 from tensorflow import keras
 import tensorflow as tf
-from keras import backend as K
-from keras.layers import Dense, Dropout
+from tensorflow.keras import backend as K
+from tensorflow.keras.layers import Dense, Dropout
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import PairTraintest

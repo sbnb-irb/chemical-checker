@@ -3,9 +3,9 @@ import pickle
 import scipy.stats as stats
 
 from tensorflow import keras
-from keras import backend as K
-from keras.models import Sequential
-from keras.layers import Dropout, Dense, Activation
+from tensorflow.keras import backend as K
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dropout, Dense, Activation
 
 import seaborn as sns
 from matplotlib import pyplot as plt
