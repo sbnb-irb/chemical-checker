@@ -1,7 +1,7 @@
 #!/bin/sh
 
 LOCAL_CCREPO="$HOME/chemical_checker"
-IMAGE_NAME="cc.simg"
+LOCAL_IMAGE="$LOCAL_CCREPO/cc.simg"
 
 JUPYTER_DIR=$LOCAL_CCREPO/run_user_sing
 
@@ -15,7 +15,7 @@ usage () {
     echo "  -d      use external Chemical Checker (develop mode)"
     echo "  -c      use external Chemical Checker config file"
     echo "  -h      print this help"
-    echo "  -i      <my_image.simg>: run the singularity image of your choice (when several are present in $LOCAL_CCREPO)"
+    echo "  -i      </absolute/path/to/my_image.simg>: run the singularity image of your choice"
     echo ""
     exit 1
 }
@@ -33,11 +33,9 @@ do
     c) EXTERNAL_CCCONFIG=true; PATH_CCCONFIG=$OPTARG ;;
     D) DEBUG=true ;;
     h) usage ;;
-    i) IMAGE_NAME=$OPTARG;;
+    i) LOCAL_IMAGE=$OPTARG;;
   esac
 done
-
-LOCAL_IMAGE=$LOCAL_CCREPO/$IMAGE_NAME
 
 # print variables if debugging
 if [ "$DEBUG" = true ]
