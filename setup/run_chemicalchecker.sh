@@ -114,5 +114,5 @@ else
             exit 4;
         fi
     fi
-    SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity exec --cleanenv -B $JUPYTER_DIR:/run/user $LOCAL_IMAGE jupyter lab;
+    SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity exec --cleanenv -B $JUPYTER_DIR:/run/user $LOCAL_IMAGE jupyter lab --ip=0.0.0.0;
 fi
