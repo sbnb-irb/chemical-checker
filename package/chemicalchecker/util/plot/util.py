@@ -7,6 +7,8 @@ import matplotlib.colors as mc
 from matplotlib import colorbar
 import matplotlib.pyplot as plt
 import itertools
+from scipy.stats import gaussian_kde
+from sklearn.preprocessing import minmax_scale
 
 
 def rgb2hex(r, g, b):
@@ -179,3 +181,58 @@ def make_cbar_ax(ax, cmap=plt.get_cmap('viridis'), title=''):
     cbar.set_ticklabels(['High', '', '', '', '', 'Low'])
     # cbar.ax.invert_xaxis()
     cbar.ax.set_aspect(0.04)
+
+
+def projection(front, back=None, front_kwargs=[], back_kwargs={}, ax=None):
+
+    def _proj_lims(P):
+        xlim = [np.min(P[:, 0]), np.max(P[:, 0])]
+        ylim = [np.min(P[:, 1]), np.max(P[:, 1])]
+        xscale = (xlim[1] - xlim[0]) * 0.05
+        yscale = (ylim[1] - ylim[0]) * 0.05
+        xlim[0] -= xscale
+        xlim[1] += xscale
+        ylim[0] -= yscale
+        ylim[1] += yscale
+        return xlim, ylim
+
+    if ax is None:
+        fig, ax = plt.subplots(1, 1, figsize=(7, 7))
+
+    if not isinstance(front, list):
+        front = [front]
+
+    if back is not None:
+        ax.scatter(back[:, 0], back[:, 1], **back_kwargs)
+
+    for proj, kwargs in zip(front, front_kwargs):
+        x = proj[:, 0]
+        y = proj[:, 1]
+        density = kwargs.pop('density', False)
+        color = kwargs.pop('color', 'black')
+        cmap = kwargs.pop('cmap', 'viridis')
+        lw = kwargs.pop('lw', 0)
+        s_min = kwargs.pop('s_min', 5)
+        s_max = kwargs.pop('s_max', 500)
+        if len(x) <= 2:
+            density = False
+            color = 'black'
+        if density:
+            xy = np.vstack([x, y])
+            z = gaussian_kde(xy)(xy)
+            idx = z.argsort()
+            x, y, z = x[idx], y[idx], z[idx]
+            ax.scatter(x, y, c=z, s=minmax_scale(z, (s_min, s_max)),
+                       cmap=cmap, lw=lw, **kwargs)
+        else:
+            ax.scatter(x, y, c=color, **kwargs)
+
+    all_projs = np.vstack(front)
+    if back is not None:
+        all_projs = np.vstack([all_projs, back])
+    xlim, ylim = _proj_lims(all_projs)
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.set_xlabel("Dim 1")
+    ax.set_ylabel("Dim 2")
+    return ax
