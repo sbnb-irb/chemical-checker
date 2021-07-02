@@ -147,6 +147,7 @@ faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
 
     # in case some package changed numpy version, we really want this one
     conda install -y numpy==1.19.2
+    pip install numpy==1.19.2
 
     # Clone the chemical checker package (used as fallback)
     cd /opt
