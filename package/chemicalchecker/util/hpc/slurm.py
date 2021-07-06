@@ -106,7 +106,7 @@ fi
         elements = kwargs.get("elements", [])
         compress_out = kwargs.get("compress", True)
         check_error = kwargs.get("check_error", True)
-        memory = kwargs.get("memory", 2)
+        #memory = kwargs.get("memory", 2)
         maxtime = kwargs.get("time", None)
         cpusafe = kwargs.get("cpusafe", True)
 
@@ -139,8 +139,8 @@ fi
             jobParams.append("#SBATCH --nodes=1")
             jobParams.append("#SBATCH --ntasks=" + str(cpu))
 
-        if memory > 1:
-            jobParams.append("#SBATCH --mem=" + str(memory) + "G")
+        #if memory > 1:
+        #    jobParams.append("#SBATCH --mem=" + str(memory) + "G")
 
         if maxtime is not None:
             jobParams.append(
