@@ -1,6 +1,6 @@
 {
     "PATH": {
-        "CC_ROOT": "'/aloy/web_checker/package_cc/2020_01/'",
+        "CC_ROOT": "'/aloy/web_checker/package_cc/2021_07/'",
         "CC_DATA": "'/aloy/scratch/sbnb-adm/CC/download/'",
         "CC_TMP": "'/aloy/scratch/sbnb-adm/CC/tmp_jobs/'",
         "CC_REPO": "'/aloy/home/sbnb-adm/CC/CODE/chemical_checker'",
@@ -15,7 +15,7 @@
     	"password": "'db_adm'",
     	"database": "'cc_package'",
         "calcdata_dbname": "'cc_calcdata'",
-        "uniprot_db_version" : "'2020_01'"
+        "uniprot_db_version" : "'2020_05'"
     },
     "HPC": {
     	"system" : "'sge'",
