@@ -120,7 +120,7 @@ faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     pip install openpyxl                          # open xlsx
     pip install scipy                             # scientific python
     pip install theano                            # Optimize evaluate math expressions
-    pip install fancyimpute                       # matrix completion and imputation algorithms
+    pip install fancyimpute==0.5.4                # matrix completion and imputation algorithms
     pip install protobuf                          # Google serialization library
     pip install statsmodels                       # many different statistical models and tests
 
