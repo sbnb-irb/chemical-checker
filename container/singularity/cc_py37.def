@@ -146,6 +146,9 @@ faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     pip install hyperopt                          # Hyperparameters optimization
     pip install shap                              # SHapley Additive exPlanations for ML models
 
+    # integration of D1
+    pip install git+git://github.com/Maayanlab/geode.git   # Python implementation of the R package GeoDE
+    
     # in case some package changed numpy version, we really want this one
     pip install numpy==1.19.2
     conda install -y mkl-service
