@@ -27,6 +27,7 @@ From: centos:8
     yum install -y gcc \
                    gcc-c++ \
                    gcc-gfortran \
+                   graphviz \
                    cmake \
                    make \
                    git \
