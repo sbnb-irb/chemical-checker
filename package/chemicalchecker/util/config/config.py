@@ -46,7 +46,7 @@ class Config():
 
         A Config instance is loaded from a JSON file.
         """
-        if not json_file:
+        if json_file is None:
             try:
                 json_file = os.environ["CC_CONFIG"]
             except KeyError as err:
