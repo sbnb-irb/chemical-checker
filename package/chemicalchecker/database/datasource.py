@@ -45,6 +45,7 @@ class Datasource(Base):
 
     datasets = relationship("Dataset",
                             secondary="dataset_has_datasource",
+                            overlaps="datasources",
                             lazy='joined')
 
     molrepos = relationship("Molrepo",
