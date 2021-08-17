@@ -42,17 +42,29 @@ All the dependencies for the CC will be bundled within a singularity image gener
 Generating such an image requires roughly 20 minutes:
 
 
-1. [Install Singularity](https://www.sylabs.io/guides/2.6/user-guide/installation.html)
+1. [Install Singularity](https://sylabs.io/guides/3.8/admin-guide/admin_quickstart.html#installation-from-source)
 
-        VER=2.5.1
-        wget https://github.com/sylabs/singularity/releases/download/$VER/singularity-$VER.tar.gz
-        tar xvf singularity-$VER.tar.gz
-        cd singularity-$VER
-        ./configure --prefix=/usr/local --sysconfdir=/etc
-        make
-        sudo make install
+                $ sudo apt-get update && sudo apt-get install -y \
+                    build-essential \
+                    uuid-dev \
+                    libgpgme-dev \
+                    squashfs-tools \
+                    libseccomp-dev \
+                    wget \
+                    pkg-config \
+                    git \
+                    cryptsetup-bin\
+                    golang-go
 
-> In case of errors during this step, check Singularity [prerequisites](https://www.sylabs.io/guides/2.6/user-guide/installation.html#before-you-begin)!
+                $ export VERSION=3.8.0 && # adjust this as necessary \
+                    wget https://github.com/sylabs/singularity/releases/download/v${VERSION}/singularity-ce-${VERSION}.tar.gz && \
+                    tar -xzf singularity-ce-${VERSION}.tar.gz && \
+                    cd singularity-ce-${VERSION}
+
+                $ ./mconfig && \
+                    make -C ./builddir && \
+                    sudo make -C ./builddir install
+
 
 2. Clone this repository to your code folder:
         
@@ -90,6 +102,14 @@ The CC rely on one config file containing the information for the current enviro
 
 ```bash
 chemcheck -c /path/to/your/cc_config.json
+```
+
+## Running with alternative image
+
+You might want to use a previously compiled or downloaded image:
+
+```bash
+chemcheck -i /path/to/your/cc_image.simg
 ```
 
 ## Usage
