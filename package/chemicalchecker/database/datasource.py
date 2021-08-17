@@ -224,7 +224,9 @@ class Datasource(Base):
         down.download()
 
     @staticmethod
-    def download_hpc(job_path, only_essential=False, *kwargs):
+    def download_hpc(job_path, only_essential=False, **kwargs):
+    #Error: Tuple doesn't have get atttribute
+    #def download_hpc(job_path, only_essential=False, *kwargs):
         """Run HPC jobs downloading the resources.
 
         Args:
