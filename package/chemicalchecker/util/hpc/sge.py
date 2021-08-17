@@ -27,9 +27,9 @@ class sge():
     jobFilenameSuffix = ".sh"
 
     jobStatusSuffix = ".status"
-
+    # interactive shell is needed to source the .bashrc file correctly
     templateScript = """\
-#!/bin/bash
+#!/bin/bash -i
 #
 #
 
