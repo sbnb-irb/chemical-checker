@@ -551,7 +551,7 @@ class sign3(BaseSignature, DataSignature):
                 z = np.ones(x.shape)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
-            ax.scatter(x, y, c=z, s=10, edgecolor='')
+            ax.scatter(x, y, c=z, s=10, linewidth=0)
             ax.set_xlabel("Pred")
             ax.set_ylabel("True")
             ax.set_xlim((-1, 1))
@@ -746,7 +746,7 @@ class sign3(BaseSignature, DataSignature):
                 z = np.ones(x.shape)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
-            ax.scatter(x, y, c=z, s=10, edgecolor='')
+            ax.scatter(x, y, c=z, s=10, linewidth=0)
             ax.set_xlabel("Pred")
             ax.set_ylabel("True")
             ax.set_xlim((-1, 1))
@@ -936,7 +936,7 @@ class sign3(BaseSignature, DataSignature):
                 z = np.ones(x.shape)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
-            ax.scatter(x, y, c=z, s=10, edgecolor='')
+            ax.scatter(x, y, c=z, s=10, linewidth=0)
             ax.set_xlabel("Pred")
             ax.set_ylabel("True")
             ax.set_xlim((-1, 1))
@@ -1214,7 +1214,7 @@ class sign3(BaseSignature, DataSignature):
 
         # Map the plots to the locations
         for split_name, split_frac, split_idx in splits:
-            grid = sns.PairGrid(data=df.loc[split_idx], vars=variables, size=4)
+            grid = sns.PairGrid(data=df.loc[split_idx], vars=variables, height=4)
             grid = grid.map_upper(plt.scatter, color='darkred')
             grid = grid.map_upper(corr)
             grid = grid.map_lower(sns.kdeplot, cmap='Reds')
@@ -1389,10 +1389,10 @@ class sign3(BaseSignature, DataSignature):
         for ax, (n1, n2) in zip(axes.flatten(), combos):
             scaled_corrs = row_wise_correlation(
                 pred['train'][n1], pred['train'][n2], scaled=True)
-            sns.distplot(scaled_corrs, ax=ax, label='Train')
+            sns.histplot(scaled_corrs, ax=ax, label='Train')
             scaled_corrs = row_wise_correlation(
                 pred['test'][n1], pred['test'][n2], scaled=True)
-            sns.distplot(scaled_corrs, ax=ax, label='Test')
+            sns.histplot(scaled_corrs, ax=ax, label='Test')
             ax.legend()
             ax.set_title(label='%s vs. %s' % (n1, n2))
         fname = 'known_unknown_correlations.png'
@@ -1408,14 +1408,14 @@ class sign3(BaseSignature, DataSignature):
                 ax.set_title(name)
                 dist_known = pdist(pred['train'][name][:dist_limit],
                                    metric=metric)
-                sns.distplot(dist_known, label='Train', ax=ax)
+                sns.histplot(dist_known, label='Train', ax=ax)
                 dist_known = pdist(pred['test'][name][:dist_limit],
                                    metric=metric)
-                sns.distplot(dist_known, label='Test', ax=ax)
+                sns.histplot(dist_known, label='Test', ax=ax)
                 if len(pred['unknown'][name]) > 0:
                     dist_unknown = pdist(pred['unknown'][name][:dist_limit],
                                          metric=metric)
-                    sns.distplot(dist_unknown, label='Unknown', ax=ax)
+                    sns.histplot(dist_unknown, label='Unknown', ax=ax)
                 ax.legend()
             fname = 'known_unknown_dist_%s.png' % metric
             plot_file = os.path.join(siamese.model_dir, fname)
@@ -2518,7 +2518,7 @@ def plot_subsample(sign, plot_file, sign2_coverage, traintest_file, ds='B1.001',
 
     # plot
 
-    fig = plt.figure(constrained_layout=True, figsize=(24, 12))
+    fig = plt.figure(figsize=(24, 12))
     gs = fig.add_gridspec(2, 2)
     ax = fig.add_subplot(gs[0, 0])
     sns.barplot(x="space", y="probabilities", hue='variable',
