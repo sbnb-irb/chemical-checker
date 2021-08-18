@@ -13,6 +13,7 @@ import numpy as np
 
 from .signature_data import DataSignature
 from .signature_base import BaseSignature
+from .preprocess import Preprocess
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.sanitize import Sanitizer
@@ -305,6 +306,10 @@ class sign0(BaseSignature, DataSignature):
         BaseSignature.fit(self,  **params)
         self.clear()
         self.update_status("Getting data")
+        if pairs is None and X is None and data_file is None:
+            self.__log.debug("Runnning preprocess")
+            data_file = Preprocess.preprocess(self)
+
         self.__log.debug("data_file is {}".format(data_file))
         res = self.get_data(pairs=pairs, X=X, keys=keys, features=features,
                             data_file=data_file, key_type=key_type,
