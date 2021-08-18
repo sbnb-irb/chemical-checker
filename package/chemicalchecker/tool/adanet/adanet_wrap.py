@@ -349,7 +349,7 @@ class AdaNetWrapper(object):
 
     @staticmethod
     def predict_online(h5_file, split, predict_fn=None,
-                       mask_fn=None, batch_size=10000, limit=None,
+                       mask_fn=None, batch_size=1000, limit=None,
                        probs=False, n_classes=None, model_dir=None):
         """Predict on given testset without killing the memory.
 
