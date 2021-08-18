@@ -130,6 +130,7 @@ def include_mesh(ctd_diseases, IND):
             if pardisids == [""]:
                 pardisids = ["ROOT"]
             for pardisid in pardisids:
+                if pardisid is not None:
                 G.add_edge(pardisid, disid)
 
     classIND = collections.defaultdict(list)

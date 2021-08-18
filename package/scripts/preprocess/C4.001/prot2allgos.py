@@ -17,7 +17,8 @@ G = nx.DiGraph()
 f = open(myfold + "/bp.tsv", "r")
 for l in f:
     l = l.rstrip("\n").split("\t")
-    G.add_edge(l[0], l[1])
+    if l[0] is not None:
+        G.add_edge(l[0], l[1])
 f.close()
 
 # Read Uniprot GOA
