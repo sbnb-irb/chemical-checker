@@ -161,6 +161,64 @@ class Preprocess():
             result.append(dict(zip(keys, values)))
         return result
 
+    @classmethod
+    def preprocess(cls, sign):
+        """Return the file with the raw data preprocessed.
+
+        Args:
+            sign: signature object (e.g. obtained from cc.get_signature)
+        Returns:
+            datafile(str): The name of the file where the data is saved.
+        
+        ex:
+        os.path.join(self.raw_path, "preprocess.h5")
+        """
+
+        prepro = cls(sign.signature_path, sign.dataset)
+        if not prepro.is_fit():
+            cls.__log.info(
+                "No preprocessed file found, calling the preprocessing script")
+            prepro.fit()
+        else:
+            cls.__log.info("Found {}".format(prepro.data_path))
+        return prepro.data_path
+
+
+    @classmethod
+    def preprocess_predict(cls, sign, input_file, destination):
+        """Runs the preprocessing script 'predict'.
+
+        Run on an input file of raw data formatted correctly for the space of
+        interest
+
+        Args:
+            sign: signature object ( e.g. obtained from cc.get_signature)
+            input_file(str): path to the h5 file containning the data on which
+                to apply 'predict'
+            destination(str): Path to a .h5 file where the predicted signature
+                will be saved.
+        Returns:
+            datafile(str): The h5 file containing the predicted data after
+                preprocess
+        """
+
+        input_file = os.path.abspath(input_file)
+        destination = os.path.abspath(destination)
+
+        # Checking the provided paths
+
+        if not os.path.exists(input_file):
+            raise Exception("Error, {} does not exist!".format(input_file))
+
+        ext = destination[-2:].lower()
+        if not ext == 'h5':
+            destination += '.h5'
+
+        prepro = cls(sign.signature_path, sign.dataset)
+        prepro.predict(input_file, destination)
+
+        return destination
+    
     @staticmethod
     def get_parser():
         description = 'Run preprocess script.'
