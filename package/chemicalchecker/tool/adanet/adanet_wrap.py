@@ -45,7 +45,7 @@ class AdaNetWrapper(object):
         self.adanet_lambda = kwargs.get("adanet_lambda", 0.001)
         self.random_seed = int(kwargs.get("random_seed", 42))
         self.model_dir = kwargs.get("model_dir", None)
-        self.activation = kwargs.get("activation", tf.nn.relu)
+        self.activation = kwargs.get("activation", tf.nn.tanh)
         self.shuffles = int(kwargs.get("shuffles", 10))
         self.dropout_rate = float(kwargs.get("dropout_rate", 0.2))
         self.augmentation = kwargs.get("augmentation", False)
