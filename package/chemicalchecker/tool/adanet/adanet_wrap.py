@@ -443,7 +443,7 @@ class AdaNetWrapper(object):
         return model_vars
 
     def save_performances(self, output_dir, plot,
-                          suffix=None, extra_predictors=None, do_plot=False):
+                          suffix=None, extra_predictors=None, do_plot=True):
         """Save stats and make plots."""
         # read input
         splits = ['train', 'test', 'validation']
