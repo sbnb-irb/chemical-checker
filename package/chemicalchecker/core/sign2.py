@@ -189,15 +189,21 @@ class sign2(BaseSignature, DataSignature):
                 nearest_neighbor_pred = sign2.predict_nearest_neighbor(
                     self.model_path, traintest_file)
                 extra_preditors['NearestNeighbor'] = nearest_neighbor_pred
-            ada.save_performances(adanet_path, sign2_plot, extra_preditors)
+            ada.save_performances(adanet_path, sign2_plot,
+                                  extra_predictors=extra_preditors)
             self.__log.debug('model saved to %s' % adanet_path)
 
         self.update_status("Generating `full` molset")
         cc_tmp = self.get_cc()
         sign1_full = cc_tmp.get_signature('sign1', 'full', self.dataset)
         sign2_full = cc_tmp.get_signature('sign2', 'full', self.dataset)
+        # we want agreement between reference and full
+        # so we overwrite the original embeddings using the predictor
+        sign1_ref = cc_tmp.get_signature('sign1', 'reference', self.dataset)
+        sign2_ref = cc_tmp.get_signature('sign2', 'reference', self.dataset)
         if oos_predictor:
             self.predict(sign1_full, sign2_full.data_path)
+            self.predict(sign1_ref, sign2_ref.data_path)
         else:
             self.map(sign2_full.data_path)
         # finalize signature
