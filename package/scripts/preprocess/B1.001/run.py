@@ -17,7 +17,7 @@ from chemicalchecker.util import psql
 from chemicalchecker.util import logged
 from chemicalchecker.database import Dataset
 from chemicalchecker.database import Molrepo
-
+from chemicalchecker.core.signature_data import DataSignature
 
 # Variables
 dataset_code = 'B1.001'
@@ -348,8 +348,8 @@ def main(args):
         inchikey_raw.append((k[0], k[1] + "(" + str(v) + ")"))
 
     with h5py.File(args.output_file, "w") as hf:
-        hf.create_dataset("pairs", data=np.array(
-            inchikey_raw, h5py.special_dtype(vlen=str)))
+        # getting strings instead of bytes from the h5 file 
+        hf.create_dataset("pairs", data=np.array(inchikey_raw, DataSignature.string_dtype()))
 
 
 if __name__ == '__main__':

@@ -8,7 +8,7 @@ import collections
 import pickle
 
 from chemicalchecker.database import Molrepo
-
+from chemicalchecker.core.signature_data import DataSignature
 # Functions
 
 
@@ -176,4 +176,5 @@ if __name__ == '__main__':
         # Each perturbagen from Touchstone (7841 for the 2020 update)
         with h5py.File("%s/%s.h5" % (agg_matrices, ik), "w") as hf:
             hf.create_dataset("X", data=X)
-            hf.create_dataset("rows", data=np.array(rows, dtype=h5py.special_dtype(vlen=str)))
+            # getting strings instead of bytes from the h5 file
+            hf.create_dataset("rows", data=np.array(rows, DataSignature.string_dtype()))
