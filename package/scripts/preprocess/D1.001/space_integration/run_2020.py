@@ -706,7 +706,8 @@ def main(args):
         # features.h5
         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
             # Keep the list of indices of Xcut where at least one 1 was present in a separate file
-            hf.create_dataset("features", data=np.array(orderwords, h5py.special_dtype(vlen=str)))
+            # getting strings instead of bytes from the h5 file
+            hf.create_dataset("features", data=np.array(orderwords, DataSignature.string_dtype()))
 
     if args.method == 'predict':
         #shutil.rmtree(mpath)
