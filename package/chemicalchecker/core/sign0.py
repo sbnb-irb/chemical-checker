@@ -150,6 +150,10 @@ class sign0(BaseSignature, DataSignature):
             if not has_values:
                 self.__log.debug("Binary pairs")
                 for p in pairs:
+                    if not isinstance(p[0], str):
+                        p[0] = p[0].decode()
+                    if not isinstance(p[1], str):
+                        p[1] = p[1].decode()
                     if p[0] not in keys_dict or p[1] not in features_dict:
                         continue
                     pairs_[(keys_dict[p[0]], features_dict[p[1]])] += [1]
