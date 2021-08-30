@@ -69,7 +69,8 @@ def load_matrix(net_folder):
     names = [l.rstrip("\n").split("\t")[1] for l in f]
     f.close()
     f = h5py.File(net_folder + "/similarity_matrix.h5")
-    A = f['PPR'].value
+    # .value has been deprecated
+    A = f['PPR'][:]
     f.close()
     return Sm(A, names)
 
