@@ -144,9 +144,9 @@ class Aggregate(object):
 
         Returns a (V, keys, keys_raw) tuple.
         """
-        if np.isnan(V).any():
+        if np.isnan(np.sum(V)):
             raise Exception("V matrix cannot have NaN values")
-        if np.isinf(V).any():
+        if np.isinf(np.sum(V)):
             raise Exception("V matrix cannot have inf values")
         if len(keys) == len(set(keys)):
             self.__log.debug("Matrix does not need aggregation")
