@@ -1,4 +1,3 @@
-
 # Imports
 
 import h5py
@@ -14,22 +13,38 @@ from chemicalchecker.core.signature_data import DataSignature
 
 
 def read_l1000(connectivitydir, mini_sig_info_file):
+    
+######## use when new mapping on molrepo ########
 
-    molrepos = Molrepo.get_by_molrepo_name("lincs")
+#     molrepos = Molrepo.get_by_molrepo_name("lincs")
+#     pertid_inchikey = {}
+#     inchikey_inchi = {}
+#     for molrepo in molrepos:
+#         if not molrepo.inchikey:
+#             continue
+#         pertid_inchikey[molrepo.src_id] = molrepo.inchikey
+#         inchikey_inchi[molrepo.inchikey] = molrepo.inchi
+
+######## In the meantime, we can map passing as argument the mapping file ########
     pertid_inchikey = {}
     inchikey_inchi = {}
-    for molrepo in molrepos:
-        if not molrepo.inchikey:
-            continue
-        pertid_inchikey[molrepo.src_id] = molrepo.inchikey
-        inchikey_inchi[molrepo.inchikey] = molrepo.inchi
+
+    with open(LINCS_2020_cp_info, "r") as f:
+        f.readline()
+        for l in f:
+            l = l.rstrip("\n").split("\t")
+            if l[-1] == '':
+                continue
+
+            pertid_inchikey[l[1]] =l[-1]  # pert_id ->inchikey 
+            inchikey_inchi[l[-1]] = l[5]  # inchikey --> smile
 
     # Read signature data
 
     touchstones = set()
     siginfo = {}
     with open(mini_sig_info_file, "r") as f: # Ns REMINDER mini_sig_info_file contains:
-                                             # sig_id, pert_id, pert_type, cell_id, istouchstone, phase)
+                                             # sig_id, pert_id, pert_type, cell_id, istouchstone)
         for l in f:
             l = l.rstrip("\n").split("\t")
             if int(l[4]) == 1:               # select pert_id from Touchstone dataset
@@ -96,9 +111,10 @@ if __name__ == '__main__':
     task_id = sys.argv[1]
     filename = sys.argv[2]
     mini_sig_info_file = sys.argv[3]
-    connectivitydir = sys.argv[4]
-    agg_matrices = sys.argv[5]
-    method = sys.argv[6]
+    LINCS_2020_cp_info = sys.argv[4]
+    connectivitydir = sys.argv[5]
+    agg_matrices = sys.argv[6]
+    method = sys.argv[7]
 
     inputs = pickle.load(open(filename, 'rb'))
     iks = inputs[task_id]    # array of U27 str inchickeys
@@ -160,5 +176,5 @@ if __name__ == '__main__':
         # Each perturbagen from Touchstone (7841 for the 2020 update)
         with h5py.File("%s/%s.h5" % (agg_matrices, ik), "w") as hf:
             hf.create_dataset("X", data=X)
-            # getting strings instead of bytes from the h5 file 
+            # getting strings instead of bytes from the h5 file
             hf.create_dataset("rows", data=np.array(rows, DataSignature.string_dtype()))

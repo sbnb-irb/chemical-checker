@@ -4,6 +4,7 @@ import os
 import collections
 import h5py
 import numpy as np
+import pandas as pd
 import csv
 import pickle
 import shutil
@@ -111,9 +112,14 @@ def main(args):
             nci_inchikey[molrepo.src_id] = molrepo.inchikey
 
         dtp_data = os.path.join(
-            map_files["DTP_NCI60_ZSCORE"], "output/DTP_NCI60_ZSCORE.csv")
+            map_files["DTP_NCI60_ZSCORE"], "output/DTP_NCI60_ZSCORE.xlsx")
 
-        with open(dtp_data, "r") as f:
+        print("Converting NCI60 Zscore xlsx file to csv")
+        data_xls = pd.read_excel(dtp_data, index_col=0)
+        csv_path = dtp_data[:-5] + ".csv"
+        data_xls.to_csv(csv_path, encoding='utf-8')
+        
+        with open(csv_path, "r") as f:
             for head in f:
                 if "NSC" in head:
                     headers = head.split(",")
