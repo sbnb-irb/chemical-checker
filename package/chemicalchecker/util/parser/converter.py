@@ -1,4 +1,4 @@
-"""Standardise molecule and convert between identifier."""
+"""Standardize molecule and convert between identifier."""
 import json
 from six.moves.urllib.request import urlopen
 from six.moves.urllib.parse import quote
@@ -28,22 +28,20 @@ class Converter():
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
         try:
-            from standardiser import standardise
-            self.standardise = standardise
+            from chembl_structure_pipeline.standardizer import standardize_mol
+            self.standardize = standardize_mol
         except ImportError:
-            raise ImportError("requires rdkit " +
-                              "https://wwwdev.ebi.ac.uk/chembl/extra/" +
-                              "francis/standardiser/")
+            raise ImportError("requires chembl_structure_pipeline")
 
     def smiles_to_inchi(self, smiles):
         """From SMILES to InChIKey and InChI."""
-        mol = self.standardise.Chem.MolFromSmiles(smiles)
+        mol = self.Chem.MolFromSmiles(smiles)
         if not mol:
             raise ConversionError("MolFromSmiles returned None", smiles)
         try:
-            mol = self.standardise.run(mol)
+            mol = self.standardize(mol)
         except Exception as ex:
-            raise ConversionError("'standardise.run' exception", ex.message)
+            raise ConversionError("'standardize' exception", ex.message)
         inchi = self.Chem.rdinchi.MolToInchi(mol)[0]
         if not inchi:
             raise ConversionError("'MolToInchi' returned None.", smiles)
