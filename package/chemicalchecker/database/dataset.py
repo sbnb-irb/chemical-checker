@@ -208,8 +208,9 @@ class Dataset(Base):  # NS Base is a base class from SQLAlchemy, no __init__??
     # derived = Column(Boolean)  # implemented as property
 
     datasources = relationship("Datasource",
-                               secondary="dataset_has_datasource",
-                               lazy='joined')
+                            secondary="dataset_has_datasource",
+                            back_populates="datasets",
+                            lazy='joined')
 
     def __repr__(self):
         """String representation."""

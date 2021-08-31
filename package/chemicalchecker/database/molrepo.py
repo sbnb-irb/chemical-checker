@@ -50,6 +50,11 @@ class Molrepo(Base):
     universe = Column(Boolean)
     essential = Column(Boolean)
 
+    datasources = relationship("Datasource",
+                            secondary="molrepo_has_datasource",
+                            back_populates="molrepos",
+                            lazy='joined')
+
     def __repr__(self):
         """String representation."""
         return str(self.molrepo_name)
