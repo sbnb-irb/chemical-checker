@@ -8,3 +8,9 @@ if not _os.path.isfile(_log_conf):
     print("ERROR initializing log: %s not found!" % _log_conf)
 else:
     _logging.fileConfig(_log_conf)
+
+try:
+    from rdkit import RDLogger
+    RDLogger.DisableLog("rdApp.info")
+except:
+    pass
