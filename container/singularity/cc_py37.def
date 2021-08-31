@@ -42,7 +42,8 @@ From: centos:8
                    libXext \
                    postgresql-server \
                    postgresql-contrib \
-                   epel-release 
+                   epel-release  \
+                   graphviz
 
     # MS compatible font for plotting (~3 min.)
     yum install -y xorg-x11-font-utils fontconfig libmspack
@@ -110,7 +111,7 @@ faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     pip install scikit-learn                      # entry level ML in python
     pip install gensim                            # topic modelling word2vec
     if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
-    pip install tensorflow                        # neural network library
+    pip install tensorflow==2.5                   # neural network library
     if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
     pip install tensorflow-hub                    # repository of trained machine learning models
     pip install adanet                            # automl for NN
@@ -135,6 +136,7 @@ faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     pip install datashader                        # plot huge 2D datasets (projetions)
     pip install statannot                         # annotate boxplot with significance ***
     pip install matplotlib_venn                   # Venn diagrams
+    pip install pydot                             # python graphviz interface
 
     # Dimensionality reduction
     pip install MulticoreTSNE                     # tSNE algo
