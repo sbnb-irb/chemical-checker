@@ -340,46 +340,41 @@ class Parser():
     @staticmethod
     def lincs(map_paths, molrepo_name, chunks=1000):
         converter = Converter()
-        # skip header
+
+        file_path = map_paths["compoundinfo_beta"]
+        df = pd.read_csv(file_path, sep='\t')
+        df = df[['pert_id', 'canonical_smiles', 'inchi_key']]
+        df = df[df['canonical_smiles'] != 'restricted']
+        df = df.dropna(subset=['canonical_smiles'])
+        df = df.sort_values('pert_id')
+        df = df.drop_duplicates(subset=['canonical_smiles'])
+        df = df.reset_index(drop=True)
+
         chunk = list()
-
-        for file in map_paths.values():
-            col = -1
-            if "GSE92742" in file:
-                col = 6
-            if "GSE70138" in file:
-                col = 1
-
-            if col < 0:
-                raise Exception("Missing expected input files")
-            fh = open(file, "r")
-            fh.readline()
-            for idx, line in enumerate(csv.reader(fh, delimiter="\t")):
-                if not line[col] or line[col] == "-666":
-                    continue
-                src_id = line[0]
-                smiles = line[col]
-                # the following is always the same
-                try:
-                    inchikey, inchi = converter.smiles_to_inchi(smiles)
-                except Exception as ex:
-                    Parser.__log.warning("line %s: %s", idx, str(ex))
-                    inchikey, inchi = None, None
-                id_text = molrepo_name + "_" + src_id
-                if inchikey is not None:
-                    id_text += ("_" + inchikey)
-                result = {
-                    "id": id_text,
-                    "molrepo_name": molrepo_name,
-                    "src_id": src_id,
-                    "smiles": smiles,
-                    "inchikey": inchikey,
-                    "inchi": inchi
-                }
-                chunk.append(result)
-                if len(chunk) == chunks:
-                    yield chunk
-                    chunk = list()
+        for idx, line in df.iterrows():
+            src_id = line['pert_id']
+            smiles = line['canonical_smiles']
+            # the following is always the same
+            try:
+                inchikey, inchi = converter.smiles_to_inchi(smiles)
+            except Exception as ex:
+                Parser.__log.warning("line %s: %s", idx, str(ex))
+                inchikey, inchi = None, None
+            id_text = molrepo_name + "_" + src_id
+            if inchikey is not None:
+                id_text += ("_" + inchikey)
+            result = {
+                "id": id_text,
+                "molrepo_name": molrepo_name,
+                "src_id": src_id,
+                "smiles": smiles,
+                "inchikey": inchikey,
+                "inchi": inchi
+            }
+            chunk.append(result)
+            if len(chunk) == chunks:
+                yield chunk
+                chunk = list()
         yield chunk
 
     @staticmethod
