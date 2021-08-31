@@ -115,7 +115,7 @@ faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
     pip install tensorflow-hub                    # repository of trained machine learning models
     pip install adanet                            # automl for NN
-    pip install keras                             # NN API
+    #pip install keras                             # NN API
 
     # numerical packages
     pip install numpy                             # best numerical library ever
