@@ -45,11 +45,12 @@ class Datasource(Base):
 
     datasets = relationship("Dataset",
                             secondary="dataset_has_datasource",
-                            overlaps="datasources",
+                            back_populates="datasources",
                             lazy='joined')
 
     molrepos = relationship("Molrepo",
                             secondary="molrepo_has_datasource",
+                            back_populates="datasources",
                             lazy='joined')
 
     def __repr__(self):
