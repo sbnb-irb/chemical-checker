@@ -62,20 +62,23 @@ class TestParser(unittest.TestCase):
                     'molrepo_name': 'chebi'}
         self.assertDictEqual(expected, results[0])
 
-    @pytest.mark.skip(reason="It is too slow")
+    #@pytest.mark.skip(reason="It is too slow")
+    @skip_if_import_exception
     def test_ctd(self):
-        file_path = os.path.join(self.data_dir, 'CTD_chemicals_diseases.tsv')
-        self.assertTrue(os.path.isfile(file_path))
-        chunks = list(Parser.ctd([file_path], 'ctd'))
+        file_path = {"CTD_chemicals_diseases": os.path.join(self.data_dir, 'CTD_chemicals_diseases.tsv')}
+        self.assertTrue(os.path.isfile(file_path["CTD_chemicals_diseases"]))
+        chunks = list(Parser.ctd(file_path, 'ctd'))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
         self.assertEqual(len(results), 2)
 
-        expected = {'id': 'ctd_C112297_KHJFBUUFMUBONL-UHFFFAOYSA-N', 'inchi': 'InChI=1S/C26H20N2O/c29-25-21-5-1-3-7-23(21)26(17-19-9-13-27-14-10-19,18-20-11-15-28-16-12-20)24-8-4-2-6-22(24)25/h1-16H,17-18H2',
-                    'inchikey': 'KHJFBUUFMUBONL-UHFFFAOYSA-N',
-                    'molrepo_name': 'ctd',
-                    'smiles': 'C1=CC=C2C(=C1)C(=O)C3=CC=CC=C3C2(CC4=CC=NC=C4)CC5=CC=NC=C5',
-                    'src_id': 'C112297'}
+        expected = {
+            'id': 'ctd_C112297_KHJFBUUFMUBONL-UHFFFAOYSA-N',
+            'molrepo_name': 'ctd',
+            'src_id': 'C112297',
+            'smiles': 'C1=CC=C2C(=C1)C(=O)C3=CC=CC=C3C2(CC4=CC=NC=C4)CC5=CC=NC=C5',
+            'inchikey': 'KHJFBUUFMUBONL-UHFFFAOYSA-N',
+            'inchi': 'InChI=1S/C26H20N2O/c29-25-21-5-1-3-7-23(21)26(17-19-9-13-27-14-10-19,18-20-11-15-28-16-12-20)24-8-4-2-6-22(24)25/h1-16H,17-18H2'}
         self.assertDictEqual(expected, results[0])
 
     @skip_if_import_exception
@@ -104,33 +107,34 @@ class TestParser(unittest.TestCase):
         results = chunks[0]
         self.assertEqual(len(results), 1)
 
-        expected = {'id': 'kegg_D00943', 'inchi': None,
-                    'inchikey': None,
-                    'molrepo_name': 'kegg',
-                    'smiles': '[Na+].[F-]',
-                    'src_id': 'D00943'}
+        expected = {
+            'id': 'kegg_D00943_PUZPDOWCWNUUKD-UHFFFAOYSA-M',
+            'molrepo_name': 'kegg',
+            'src_id': 'D00943',
+            'smiles': '[Na+].[F-]',
+            'inchikey': 'PUZPDOWCWNUUKD-UHFFFAOYSA-M',
+            'inchi': 'InChI=1S/FH.Na/h1H;/q;+1/p-1'}
 
         self.assertDictEqual(expected, results[0])
 
     @skip_if_import_exception
     def test_lincs(self):
+        file_path = os.path.join(self.data_dir, 'compoundinfo_beta.txt')
 
-        file_path1 = os.path.join(self.data_dir, 'lincs_GSE70138.txt')
-        self.assertTrue(os.path.isfile(file_path1))
-        file_path2 = os.path.join(self.data_dir, 'lincs_GSE92742.txt')
-        self.assertTrue(os.path.isfile(file_path2))
-        data = {"lincs_GSE70138" : file_path1 , "lincs_GSE92742" : file_path2}
+        self.assertTrue(os.path.isfile(file_path))
+        data = {"compoundinfo_beta" : file_path}
         chunks = list(Parser.lincs(data, 'lincs'))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
-        self.assertEqual(len(results), 20)
+        self.assertEqual(len(results), 99)
 
-        expected = {'id': 'lincs_BRD-K70792160_GYBXAGDWMCJZJK-UHFFFAOYSA-N',
-                    'inchi': 'InChI=1S/C20H25ClN2O/c1-3-22(4-2)13-7-8-14-23-17-9-5-6-10-19(17)24-20-12-11-16(21)15-18(20)23/h5-6,9-12,15H,3-4,7-8,13-14H2,1-2H3',
-                    'inchikey': 'GYBXAGDWMCJZJK-UHFFFAOYSA-N',
-                    'molrepo_name': 'lincs',
-                    'smiles': 'CCN(CC)CCCCN1c2ccccc2Oc2ccc(Cl)cc12',
-                    'src_id': 'BRD-K70792160'}
+        expected = {
+            'id': 'lincs_BRD-A00150179_QSHLMQDRPXXYEE-UHFFFAOYSA-N',
+            'molrepo_name': 'lincs',
+            'src_id': 'BRD-A00150179',
+            'smiles': 'NC(Cc1c[nH]c2cccc(O)c12)C(O)=O',
+            'inchikey': 'QSHLMQDRPXXYEE-UHFFFAOYSA-N',
+            'inchi': 'InChI=1S/C11H12N2O3/c12-7(11(15)16)4-6-5-13-8-2-1-3-9(14)10(6)8/h1-3,5,7,13-14H,4,12H2,(H,15,16)'}
         self.assertDictEqual(expected, results[0])
 
     @skip_if_import_exception
