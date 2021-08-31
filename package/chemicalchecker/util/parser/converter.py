@@ -91,7 +91,7 @@ class Converter():
                 ctdid + '/cids/TXT/'
             pubchemcid = urlopen(url).read().rstrip().decode()
         except Exception as ex:
-            Converter.__log.warn(str(ex))
+            Converter.__log.warning(str(ex))
             raise ConversionError("Cannot fetch PubChemID CID from CTD", ctdid)
         # get smiles
         try:
@@ -99,7 +99,7 @@ class Converter():
                 'cid/%s/property/CanonicalSMILES/TXT/' % pubchemcid
             smiles = urlopen(url).read().rstrip().decode()
         except Exception as ex:
-            Converter.__log.warn(str(ex))
+            Converter.__log.warning(str(ex))
             raise ConversionError(
                 "Cannot fetch SMILES from PubChemID CID", pubchemcid)
         return smiles
@@ -113,7 +113,7 @@ class Converter():
                 'structure/%s/smiles' % chem_name
             return urlopen(url).read().rstrip().decode()
         except Exception as ex:
-            Converter.__log.warn(str(ex))
+            Converter.__log.warning(str(ex))
             raise ConversionError(
                 "Cannot fetch SMILES from Chemical Name", chem_name)
 
@@ -125,6 +125,6 @@ class Converter():
             url = 'https://www.ebi.ac.uk/unichem/rest/inchi/%s' % inchikey
             return json.loads(urlopen(url).read().rstrip().decode())
         except Exception as ex:
-            Converter.__log.warn(str(ex))
+            Converter.__log.warning(str(ex))
             raise ConversionError(
                 "Cannot fetch SMILES from Chemical Name", inchikey)
