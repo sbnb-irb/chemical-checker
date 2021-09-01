@@ -15,6 +15,7 @@ Example::
 import os
 import datetime
 from time import time
+import sqlalchemy
 from sqlalchemy.dialects import postgresql
 from sqlalchemy import Column, Text, Boolean, ForeignKey, VARCHAR
 from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
@@ -72,7 +73,7 @@ class Molrepo(Base):
     @staticmethod
     def _table_exists():
         engine = get_engine()
-        return engine.dialect.has_table(engine, Molrepo.__tablename__)
+        return sqlalchemy.inspect(engine).has_table(Molrepo.__tablename__)
 
     @staticmethod
     def _table_attributes():
@@ -140,6 +141,11 @@ class Molrepo(Base):
         """
         import pandas as pd
         df = pd.read_csv(filename)
+        # The boolean columns must be changed to boolean values otherwise
+        # SQLalchmy passes strings
+        df.universe = df.universe.apply(lambda x: False if x == 'f' else True)
+        df.essential = df.essential.apply(lambda x: False if x == 'f' else True)
+
         # check columns
         needed_cols = Molrepo._table_attributes()
         if needed_cols != list(df.columns):
@@ -398,7 +404,7 @@ class MolrepoHasMolecule(Base):
     @staticmethod
     def _table_exists():
         engine = get_engine()
-        return engine.dialect.has_table(engine, MolrepoHasMolecule.__tablename__)
+        return sqlalchemy.inspect(engine).has_table(MolrepoHasMolecule.__tablename__)
 
     @staticmethod
     def _table_attributes():
@@ -453,8 +459,7 @@ class MolrepoHasDatasource(Base):
     @staticmethod
     def _table_exists():
         engine = get_engine()
-        return engine.dialect.has_table(engine,
-                                        MolrepoHasDatasource.__tablename__)
+        return sqlalchemy.inspect(engine).has_table(MolrepoHasDatasource.__tablename__)
 
     @staticmethod
     def _table_attributes():
