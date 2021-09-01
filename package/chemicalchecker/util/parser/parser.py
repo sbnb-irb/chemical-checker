@@ -308,7 +308,7 @@ class Parser():
                     wget.download(url, mol_path)
                 except Exception:
                     Parser.__log.error('Cannot download: %s', url)
-                    raise Exception('Cannot download: %s', url)
+                    continue
             mol = pybel.readfile("mol", mol_path)
             for m in mol:
                 smiles = m.write("smi").rstrip("\n").rstrip("\t")
@@ -712,11 +712,6 @@ class Parser():
 
     @staticmethod
     def cmaup(map_paths, molrepo_name, chunks=1000):
-        try:
-            import rdkit.Chem as Chem
-        except ImportError:
-            raise ImportError("requires rdkit " +
-                              "https://www.rdkit.org/")
         converter = Converter()
 
         file_path = map_paths[molrepo_name]
@@ -752,11 +747,6 @@ class Parser():
 
     @staticmethod
     def repohub(map_paths, molrepo_name, chunks=1000):
-        try:
-            import rdkit.Chem as Chem
-        except ImportError:
-            raise ImportError("requires rdkit " +
-                              "https://www.rdkit.org/")
         converter = Converter()
 
         file_path = map_paths[molrepo_name]
@@ -892,11 +882,6 @@ class Parser():
 
     @staticmethod
     def touchstone(map_paths, molrepo_name, chunks=1000):
-        try:
-            import rdkit.Chem as Chem
-        except ImportError:
-            raise ImportError("requires rdkit " +
-                              "https://www.rdkit.org/")
         converter = Converter()
         file_path = map_paths["GSE92742_Broad_LINCS_pert_info"]
         chunk = list()
@@ -940,9 +925,7 @@ class Parser():
 
     @staticmethod
     def zinc(map_paths, molrepo_name, chunks=1000):
-
         converter = Converter()
-
         file_path = map_paths[molrepo_name]
         f = open(file_path, "r")
         delimiter = '\t'
