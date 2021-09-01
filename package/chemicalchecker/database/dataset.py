@@ -161,7 +161,7 @@ additional and different datasources.
 """
 from sqlalchemy import Column, Text, Boolean, ForeignKey, VARCHAR
 from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
-
+import sqlalchemy
 from .database import Base, get_session, get_engine
 
 from chemicalchecker.util import logged
@@ -240,7 +240,7 @@ class Dataset(Base):  # NS Base is a base class from SQLAlchemy, no __init__??
     @staticmethod
     def _table_exists():
         engine = get_engine()
-        return engine.dialect.has_table(engine, Dataset.__tablename__)
+        return sqlalchemy.inspect(engine).has_table(Dataset.__tablename__)
 
     @staticmethod
     def _table_attributes():
@@ -272,7 +272,16 @@ class Dataset(Base):  # NS Base is a base class from SQLAlchemy, no __init__??
             filename(str): Path to a CSV file.
         """
         import pandas as pd
-        df = pd.read_csv(filename, delimiter=";")
+        df = pd.read_csv(filename)
+
+        # The boolean columns must be changed to boolean values otherwise
+        # SQLalchmy passes strings
+        df.unknowns = df.unknowns.apply(lambda x: False if x == 'f' else True)
+        df.discrete = df.discrete.apply(lambda x: False if x == 'f' else True)
+        df.exemplary = df.exemplary.apply(lambda x: False if x == 'f' else True)
+        df.public = df.public.apply(lambda x: False if x == 'f' else True)
+        df.essential = df.essential.apply(lambda x: False if x == 'f' else True)
+
         # check columns
         needed_cols = Dataset._table_attributes()
         if needed_cols != list(df.columns):
@@ -347,8 +356,7 @@ class DatasetHasDatasource(Base):
     @staticmethod
     def _table_exists():
         engine = get_engine()
-        return engine.dialect.has_table(engine,
-                                        DatasetHasDatasource.__tablename__)
+        return sqlalchemy.inspect(engine).has_table(DatasetHasDatasource.__tablename__)
 
     @staticmethod
     def _table_attributes():

@@ -6,6 +6,7 @@ using the :mod:`~chemicalchecker.util.download` class and interfacing them
 with the Dataset table.
 """
 import os
+import sqlalchemy
 from sqlalchemy import Column, Text, Boolean
 from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
 
@@ -70,7 +71,7 @@ class Datasource(Base):
     @staticmethod
     def _table_exists():
         engine = get_engine()
-        return engine.dialect.has_table(engine, Datasource.__tablename__)
+        return sqlalchemy.inspect(engine).has_table(Datasource.__tablename__)
 
     @staticmethod
     def _table_attributes():

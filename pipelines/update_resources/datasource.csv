@@ -1,16 +1,16 @@
 datasource_name,description,is_db,url,username,password,filename,calcdata
-cmaup,CMAUP Natural Products Database. This database is a meta-resource.,f,http://bidd2.nus.edu.sg/CMAUP/downloadFiles/CMAUPv1.0_download_Ingredients_All.txt,,,CMAUPv1.0_download_Ingredients_All.txt,f
+cmaup,CMAUP Natural Products Database. This database is a meta-resource.,f,http://bidd.group/CMAUP/downloadFiles/CMAUPv1.0_download_Ingredients_All.txt,,,CMAUPv1.0_download_Ingredients_All.txt,f
 repohub,"Drug Repurposing Hub database, accessible from https://clue.io/repurposing-app, is a curated resource of approved and experimental drugs. It has the advantage of being tighthly integrated within the Broad LINCS environment.",f,file:///aloy/web_checker/repo_data/Repurposing_Hub_export_201904.txt,,,Repurposing_Hub_export_201904.txt,f
 chembl_uniprot_mapping,Mapping between ChEMBL target IDs and Uniprot ACs.,f,ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_uniprot_mapping.txt,,,chembl_uniprot_mapping.txt,f
 kegg_br,,f,http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=,,,br08303.keg,f
 deepcodex_map,DeepCodex uses a deep-learned embedding of gene expression profiles to find chemical and genetic perturbations with similar biological effects.,f,file:///aloy/web_checker/repo_data/deepcodex/dcx_map.csv,,,dcx_map.csv,f
 bindingdb,,f,file:///aloy/scratch/sbnb-adm/checker/local_downloads/BindingDB_All.tsv.zip,,,BindingDB_All.tsv,f
 chebi_lite,,f,ftp://ftp.ebi.ac.uk/pub/databases/chebi/SDF/ChEBI_lite_3star.sdf.gz,,,ChEBI_lite_3star.sdf,f
-chembl,,t,ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*_postgresql.tar.gz,,,chembl_*/chembl_*_postgresql/chembl_*_postgresql.dmp,f
+chembl,,t,ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*_postgresql.tar.gz,,,chembl_*_postgresql/chembl_*_postgresql.dmp,f
 CTD_chemicals_diseases,,f,http://ctdbase.org/reports/CTD_chemicals_diseases.tsv.gz,,,CTD_chemicals_diseases.tsv,f
 drugbank,,f,https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database,oriol.guitart@irbbarcelona.org,sbnbAloy,full database.xml,f
-GSE70138_Broad_LINCS_pert_info_date,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_pert_info_*.txt.gz,,,GSE70138_Broad_LINCS_pert_info_*.txt,f
-GSE92742_Broad_LINCS_pert_info,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_pert_info.txt.gz,,,GSE92742_Broad_LINCS_pert_info.txt,f
+GSE92742_Broad_LINCS_pert_info,,f,https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE92742&format=file&file=GSE92742%5FBroad%5FLINCS%5Fpert%5Finfo%2Etxt%2Egz,,,GSE92742_Broad_LINCS_pert_info.txt,f
+GSE70138_Broad_LINCS_pert_info,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_pert_info.txt.gz,,,,f
 mosaic_all_collections,,f,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/compound_information/sdf/Structural_Data_Files_combined.zip,,,All_Collections.sdf,f
 pdb_components,,f,http://ligand-expo.rcsb.org/dictionaries/Components-smiles-stereo-oe.smi,,,Components-smiles-stereo-oe.smi,f
 chemicals,,f,http://stitch4.embl.de/download/chemicals.v4.0.tsv.gz,,,chemicals.v4.0.tsv,f
@@ -19,17 +19,15 @@ smpdb_structures,,f,http://smpdb.ca/downloads/smpdb_structures.zip,,,,f
 cellosaurus,,f,ftp://ftp.expasy.org/databases/cellosaurus/cellosaurus.obo,,,,f
 chebi,,f,ftp://ftp.ebi.ac.uk/pub/databases/chebi/ontology/chebi.obo,,,,f
 gobasic,,f,http://snapshot.geneontology.org/ontology/go-basic.obo,,,,f
-GSE70138_Broad_LINCS_gene_info,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_gene_info*.txt.gz,,,,f
-GSE70138_Broad_LINCS_inst_info,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_inst_info*.txt.gz,,,,f
-GSE70138_Broad_LINCS_Level5_COMPZ,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_Level5_COMPZ_n118050x12328*.gctx.gz,,,,f
-GSE70138_Broad_LINCS_pert_info,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_pert_info.txt.gz,,,,f
-GSE70138_Broad_LINCS_sig_info,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_sig_info*.txt.gz,,,,f
-GSE70138_Broad_LINCS_sig_metrics,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_sig_metrics*.txt.gz,,,,f
-GSE92742_Broad_LINCS_gene_info,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_gene_info.txt.gz,,,,f
-GSE92742_Broad_LINCS_Level5_COMPZ,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_Level5_COMPZ.MODZ_n473647x12328.gctx.gz,,,,f
-GSE92742_Broad_LINCS_pert_metrics,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_pert_metrics.txt.gz,,,,f
-GSE92742_Broad_LINCS_sig_info,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_sig_info.txt.gz,,,,f
-GSE92742_Broad_LINCS_sig_metrics,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE92nnn/GSE92742/suppl/GSE92742_Broad_LINCS_sig_metrics.txt.gz,,,,f
+GSE92742_Broad_LINCS_sig_info,,f, https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE92742&format=file&file=GSE92742%5FBroad%5FLINCS%5Fsig%5Finfo%2Etxt%2Egz,,,GSE92742_Broad_LINCS_sig_info.txt,f
+cellinfo_beta,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/cellinfo_beta.txt,,,cellinfo_beta.txt,f
+geneinfo_beta,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/geneinfo_beta.txt,,,geneinfo_beta.txt,f
+compoundinfo_beta,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/compoundinfo_beta.txt,,,compoundinfo_beta.txt,f
+instinfo_beta,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/instinfo_beta.txt,,,instinfo_beta.txt,f
+siginfo_beta,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/siginfo_beta.txt,,,siginfo_beta.txt,f
+level5_beta_trt_cp_n720216x12328,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/level5/level5_beta_trt_cp_n720216x12328.gctx,,,level5_beta_trt_cp_n720216x12328.gctx,f
+level5_beta_trt_oe_n34171x12328,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/level5/level5_beta_trt_oe_n34171x12328.gctx,,,level5_beta_trt_oe_n34171x12328.gctx,f
+level5_beta_trt_sh_n238351x12328,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/level5/level5_beta_trt_sh_n238351x12328.gctx,,,level5_beta_trt_sh_n238351x12328.gctx,f
 hgnc_complete,,f,ftp://ftp.ebi.ac.uk/pub/databases/genenames/new/tsv/hgnc_complete_set.txt,,,,f
 disease_mappings,,f,http://www.disgenet.org/static/disgenet_ap1/files/downloads/disease_mappings.tsv.gz,,,,f
 deepcodex_download,DeepCodex uses a deep-learned embedding of gene expression profiles to find chemical and genetic perturbations with similar biological effects.,f,file:///aloy/web_checker/repo_data/deepcodex/download.zip,,,,f
