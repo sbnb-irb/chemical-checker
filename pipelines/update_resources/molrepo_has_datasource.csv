@@ -2,13 +2,12 @@ molrepo_name,datasource_name
 cmaup,cmaup
 repohub,repohub
 kegg,kegg_br
-deepcodex,deepcodex_map
 bindingdb,bindingdb
 chebi,chebi_lite
 chembl,chembl
 ctd,CTD_chemicals_diseases
 drugbank,drugbank
-lincs,GSE92742_Broad_LINCS_pert_info
+lincs,compoundinfo_beta
 morphlincs,morphlincs_LDS-1195
 mosaic,mosaic_all_collections
 nci60,DTP_NCI60_ZSCORE

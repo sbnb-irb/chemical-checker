@@ -458,7 +458,7 @@ class Parser():
         converter = Converter()
 
         file_path = os.path.join(
-            map_paths["DTP_NCI60_ZSCORE"], "output/DTP_NCI60_ZSCORE.xls")
+            map_paths["DTP_NCI60_ZSCORE"], "output/DTP_NCI60_ZSCORE.xlsx")
         Parser.__log.info("Converting Zscore xls file to csv")
         data_xls = pd.read_excel(file_path, index_col=0)
         csv_path = file_path[:-4] + ".csv"
