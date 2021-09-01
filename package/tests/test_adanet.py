@@ -52,10 +52,10 @@ class TestAdanet(unittest.TestCase):
         self.assertEqual(ada.model_dir, self.adanet_path)
         # check results
         _, (res, _) = ada.train_and_evaluate()
-        self.assertAlmostEqual(res['accuracy'], 0.981, 2)
-        self.assertAlmostEqual(res['auc'], 0.994, 3)
-        self.assertAlmostEqual(res['precision'], 0.981, 2)
-        self.assertAlmostEqual(res['recall'], 0.98761237, 2)
+        self.assertGreaterEqual(res['accuracy'], 0.9)
+        self.assertGreaterEqual(res['auc'], 0.9)
+        self.assertGreaterEqual(res['precision'], 0.9)
+        self.assertGreaterEqual(res['recall'], 0.9)
         # check persistency and predict
         predict_fn = AdaNet.predict_fn(ada.save_dir)
         y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn)
@@ -88,8 +88,7 @@ class TestAdanet(unittest.TestCase):
         self.assertEqual(ada.model_dir, self.adanet_path)
         # check results
         _, (res, _) = ada.train_and_evaluate()
-        self.assertAlmostEqual(res['accuracy'], 0.9668, 2)
-        self.assertAlmostEqual(res['loss'], 0.13678956, 2)
+        self.assertGreaterEqual(res['accuracy'], 0.9)
         # check persistency
         predict_fn = AdaNet.predict_fn(ada.save_dir)
         y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn)
@@ -110,18 +109,18 @@ class TestAdanet(unittest.TestCase):
         ada = AdaNet(file_path,
                      prediction_task='regression',
                      adanet_iterations=1,
-                     epoch_per_iteration=1,
+                     epoch_per_iteration=5,
                      model_dir=self.adanet_path)
         self.assertEqual(ada.prediction_task, 'regression')
         self.assertEqual(ada.train_size, 80000)
         self.assertEqual(ada.input_dimension, 20)
         self.assertEqual(ada.label_dimension, 1)
         self.assertEqual(ada.adanet_iterations, 1)
-        self.assertEqual(ada.epoch_per_iteration, 1)
+        self.assertEqual(ada.epoch_per_iteration, 5)
         self.assertEqual(ada.model_dir, self.adanet_path)
         # check results
         _, (res, _) = ada.train_and_evaluate()
-        self.assertAlmostEqual(res['loss'], 3.0210078, 2)
+        self.assertLessEqual(res['loss'], 100.)
         # check persistency and predict
         predict_fn = AdaNet.predict_fn(ada.save_dir)
         y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn)
@@ -137,18 +136,18 @@ class TestAdanet(unittest.TestCase):
         ada = AdaNet(file_path,
                      prediction_task='regression',
                      adanet_iterations=1,
-                     epoch_per_iteration=1,
+                     epoch_per_iteration=5,
                      model_dir=self.adanet_path)
         self.assertEqual(ada.prediction_task, 'regression')
         self.assertEqual(ada.train_size, 80000)
         self.assertEqual(ada.input_dimension, 20)
         self.assertEqual(ada.label_dimension, 5)
         self.assertEqual(ada.adanet_iterations, 1)
-        self.assertEqual(ada.epoch_per_iteration, 1)
+        self.assertEqual(ada.epoch_per_iteration, 5)
         self.assertEqual(ada.model_dir, self.adanet_path)
         # check results
         _, (res, _) = ada.train_and_evaluate()
-        self.assertAlmostEqual(res['loss']/1000, 17.008293/1000, 2)
+        self.assertLessEqual(res['loss'], 100.)
         # check persistency and predict
         predict_fn = AdaNet.predict_fn(ada.save_dir)
         y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn)
