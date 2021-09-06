@@ -16,28 +16,28 @@ def read_l1000(connectivitydir, mini_sig_info_file):
     
 ######## use when new mapping on molrepo ########
 
-#     molrepos = Molrepo.get_by_molrepo_name("lincs")
-#     pertid_inchikey = {}
-#     inchikey_inchi = {}
-#     for molrepo in molrepos:
-#         if not molrepo.inchikey:
-#             continue
-#         pertid_inchikey[molrepo.src_id] = molrepo.inchikey
-#         inchikey_inchi[molrepo.inchikey] = molrepo.inchi
-
-######## In the meantime, we can map passing as argument the mapping file ########
+    molrepos = Molrepo.get_by_molrepo_name("lincs")
     pertid_inchikey = {}
     inchikey_inchi = {}
+    for molrepo in molrepos:
+        if not molrepo.inchikey:
+            continue
+        pertid_inchikey[molrepo.src_id] = molrepo.inchikey
+        inchikey_inchi[molrepo.inchikey] = molrepo.inchi
 
-    with open(LINCS_2020_cp_info, "r") as f:
-        f.readline()
-        for l in f:
-            l = l.rstrip("\n").split("\t")
-            if l[-1] == '':
-                continue
+######## In the meantime, we can map passing as argument the mapping file ########
+    # pertid_inchikey = {}
+    # inchikey_inchi = {}
 
-            pertid_inchikey[l[1]] =l[-1]  # pert_id ->inchikey 
-            inchikey_inchi[l[-1]] = l[5]  # inchikey --> smile
+    # with open(LINCS_2020_cp_info, "r") as f:
+    #     f.readline()
+    #     for l in f:
+    #         l = l.rstrip("\n").split("\t")
+    #         if l[-1] == '':
+    #             continue
+
+    #         pertid_inchikey[l[1]] =l[-1]  # pert_id ->inchikey 
+    #         inchikey_inchi[l[-1]] = l[5]  # inchikey --> smile
 
     # Read signature data
 
@@ -111,10 +111,10 @@ if __name__ == '__main__':
     task_id = sys.argv[1]
     filename = sys.argv[2]
     mini_sig_info_file = sys.argv[3]
-    LINCS_2020_cp_info = sys.argv[4]
-    connectivitydir = sys.argv[5]
-    agg_matrices = sys.argv[6]
-    method = sys.argv[7]
+    #LINCS_2020_cp_info = sys.argv[4]
+    connectivitydir = sys.argv[4]
+    agg_matrices = sys.argv[5]
+    method = sys.argv[6]
 
     inputs = pickle.load(open(filename, 'rb'))
     iks = inputs[task_id]    # array of U27 str inchickeys

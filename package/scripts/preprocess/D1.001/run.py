@@ -90,7 +90,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
     ### Signature info and signature metrics (gene expr signatures - LEVEL V metadata) ###
    
     LINCS_2020_sig_info = os.path.join(map_files["siginfo_beta"], "siginfo_beta.txt") 
-    LINCS_2020_sig_info = os.path.join(path_metadata, "siginfo_beta.txt") 
+    # LINCS_2020_sig_info = os.path.join(path_metadata, "siginfo_beta.txt") 
     sig_info = {}
     sigs = collections.defaultdict(list)
 
@@ -191,32 +191,31 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
 
 def read_l1000(mini_sig_info_file, connectivitydir):
 
-    # inchikey_inchi = {}
-    # pertid_inchikey = {}
-    # molrepos = Molrepo.get_by_molrepo_name("lincs_2020")  # return all molecules from the lincs repository
+    inchikey_inchi = {}
+    pertid_inchikey = {}
+    molrepos = Molrepo.get_by_molrepo_name("lincs")  # return all molecules from the lincs repository
 
     # NS, for each lincs molecule, record inchikey inchi in mappings
-    # for molrepo in molrepos:
-    #     if not molrepo.inchikey:
-    #         continue
-
-    #     pertid_inchikey[molrepo.src_id] = molrepo.inchikey  # mol_id ->inchikey 
-    #     inchikey_inchi[molrepo.inchikey] = molrepo.inchi    # mol_inchikey -> mol_inchi
+    for molrepo in molrepos:
+        if not molrepo.inchikey:
+            continue
+        pertid_inchikey[molrepo.src_id] = molrepo.inchikey  # mol_id ->inchikey 
+        inchikey_inchi[molrepo.inchikey] = molrepo.inchi    # mol_inchikey -> mol_inchi
     
     # LINCS_2020_cp_info = os.path.join(map_files["LINCS_2020"], "cp_info_inchikey_standard.txt") 
-    LINCS_2020_cp_info = os.path.join(path_metadata, "cp_info_inchikey_standard.txt") 
-    pertid_inchikey = {}
-    inchikey_inchi = {}
 
-    with open(LINCS_2020_cp_info, "r") as f:
-        f.readline()
-        for l in f:
-            l = l.rstrip("\n").split("\t")
-            if l[-1] == '':
-                continue
+    # pertid_inchikey = {}
+    # inchikey_inchi = {}
 
-            pertid_inchikey[l[1]] =l[-1]  # pert_id ->inchikey 
-            inchikey_inchi[l[-1]] = l[5]  # inchikey --> smile
+    # with open(LINCS_2020_cp_info, "r") as f:
+    #     f.readline()
+    #     for l in f:
+    #         l = l.rstrip("\n").split("\t")
+    #         if l[-1] == '':
+    #             continue
+
+    #         pertid_inchikey[l[1]] =l[-1]  # pert_id ->inchikey 
+    #         inchikey_inchi[l[-1]] = l[5]  # inchikey --> smile
 
     # Read signature data
 
@@ -346,7 +345,7 @@ def main(args):
     mini_sig_info_file = os.path.join(args.models_path, 'mini_sig_info.tsv') # file with information about the exemplary signatures
 
     dataset = Dataset.get(dataset_code) #NS D1.001 dataset object built to queryour sql database
-    path_metadata = ''
+    #path_metadata = ''
     map_files = {}  # NS: will store datasource names of D1.00X and path to the corresponding files
 
     # Data sources associated to this dataset are stored in map_files
@@ -366,352 +365,353 @@ def main(args):
         else:
             main._log.info("Database 'dataset' cannot be accessed, will use local copies of required files if present")
 
-#     main._log.debug("Running preprocess fit method for dataset " + dataset_code + ". Saving output in " + args.output_file)
+    main._log.debug("Running preprocess fit method for dataset " + dataset_code + ". Saving output in " + args.output_file)
 
-#     signaturesdir = os.path.join(args.models_path, "signatures") #signature0full_path/raw/models/signatures
+    signaturesdir = os.path.join(args.models_path, "signatures") #signature0full_path/raw/models/signatures
 #                                                                  # contains 83 639 h5 files and a sigs.ready file
-#     if TEST:
-#         signaturesdir = os.path.join(args.models_path, "signatures_test") # You can copy a few h5 from signatures into  signatures_test
+    if TEST:
+        signaturesdir = os.path.join(args.models_path, "signatures_test") # You can copy a few h5 from signatures into  signatures_test
 
-#     if os.path.exists(signaturesdir) is False:
-#         os.makedirs(signaturesdir)
+    if os.path.exists(signaturesdir) is False:
+        os.makedirs(signaturesdir)
 
-#     if args.method == 'fit':  # True
+    if args.method == 'fit':  # True
 
-#         mpath = args.models_path  # signature0full_path/raw/models/
+        mpath = args.models_path  # signature0full_path/raw/models/
 
-#         main._log.info("Parsing")
-#         parse_level(mini_sig_info_file, map_files, signaturesdir)  #--> creates all these h5 files by parsing datasource, just returns if sigs.ready is present
+        main._log.info("Parsing")
+        parse_level(mini_sig_info_file, map_files, signaturesdir)  #--> creates all these h5 files by parsing datasource, just returns if sigs.ready is present
 
-#         # Creates subdirs in signature0full_path/raw/models/
-#         ik_matrices = os.path.join(mpath, 'ik_matrices_fit')
+        # Creates subdirs in signature0full_path/raw/models/
+        ik_matrices = os.path.join(mpath, 'ik_matrices_fit')
 
-#         if os.path.exists(ik_matrices) is False:
-#             os.makedirs(ik_matrices, 0o775)
+        if os.path.exists(ik_matrices) is False:
+            os.makedirs(ik_matrices, 0o775)
 
-#         connectivitydir = os.path.join(mpath, 'connectivity_fit')
+        connectivitydir = os.path.join(mpath, 'connectivity_fit')
 
-#         if os.path.exists(connectivitydir) is False:
-#             os.makedirs(connectivitydir, 0o775)
+        if os.path.exists(connectivitydir) is False:
+            os.makedirs(connectivitydir, 0o775)
 
-#         # signature0full_path/raw/models/consensus_fit.h5, not present after the crash
-#         consensus = os.path.join(mpath, "consensus_fit.h5")
+        # signature0full_path/raw/models/consensus_fit.h5, not present after the crash
+        consensus = os.path.join(mpath, "consensus_fit.h5")
 
-#         min_idxs = 10
+        min_idxs = 10
 
-#         cp_sigs = set()
+        cp_sigs = set()
 
-#         # NS only testing a few signatures
-#         if TEST:
-#             dir_to_search=os.path.join(signaturesdir,"*.h5")
-#             print("Looking for h5 signatures in ",dir_to_search)
-#             signs_to_test= glob.glob(os.path.join(signaturesdir,"*.h5"))
-#             signs_to_test= [s.split('/')[-1][:-3] for s in signs_to_test]
-#             print("signs_to_test is", signs_to_test)
+        # NS only testing a few signatures
+        if TEST:
+            dir_to_search=os.path.join(signaturesdir,"*.h5")
+            print("Looking for h5 signatures in ",dir_to_search)
+            signs_to_test= glob.glob(os.path.join(signaturesdir,"*.h5"))
+            signs_to_test= [s.split('/')[-1][:-3] for s in signs_to_test]
+            print("signs_to_test is", signs_to_test)
 
-#         # Parsing the record file
-#         ok=False
-#         with open(mini_sig_info_file) as f:
-#             for l in f:
-#                 l = l.rstrip("\n").split("\t")
+        # Parsing the record file
+        ok=False
+        with open(mini_sig_info_file) as f:
+            for l in f:
+                l = l.rstrip("\n").split("\t")
 
-#                 if TEST:
-#                     print("l[0]",l[0])
-#                     if l[0] in signs_to_test and l[2] == "trt_cp":
-#                         # update the set cp_sigs with records such as 'REP.A001_A375_24H:E14'
-#                         print("selecting ", l[0])
-#                         cp_sigs.update([l[0]])
-#                         ok = True
+                if TEST:
+                    print("l[0]",l[0])
+                    if l[0] in signs_to_test and l[2] == "trt_cp":
+                        # update the set cp_sigs with records such as 'REP.A001_A375_24H:E14'
+                        print("selecting ", l[0])
+                        cp_sigs.update([l[0]])
+                        ok = True
 
-#                 elif not TEST and l[2] == "trt_cp":
-#                     # update the set cp_sigs with records such as 'REP.A001_A375_24H:E14'
-#                     cp_sigs.update([l[0]])
-#                     ok = True
+                elif not TEST and l[2] == "trt_cp":
+                    # update the set cp_sigs with records such as 'REP.A001_A375_24H:E14'
+                    cp_sigs.update([l[0]])
+                    ok = True
 
-#         if not ok:
-#             print("Problem with selecting signatures, cp_sigs is", cp_sigs)
-#             sys.exit(1)
-
-
-
-#         sig_map = {}
-#         # Populate sig_map dict with i.e 'REP.A001_A375_24H:E14' : {"file": "signature0full_path/raw/models/signatures/REP.A001_A375_24H:E14.h5"}
-#         for SIG in cp_sigs:
-#             sig_map[SIG] = {"file": "%s/%s.h5" % (signaturesdir, SIG)}
-#         if TEST: print("sig_map", sig_map)
-
-#     elif args.method == 'predict':
-
-#         mpath = tempfile.mkdtemp(prefix='predict_', dir=args.models_path)
-
-#         ik_matrices = tempfile.mkdtemp(prefix='ik_matrices_', dir=mpath)
-
-#         connectivitydir = tempfile.mkdtemp(prefix='connectivity_', dir=mpath)
-
-#         consensus = os.path.join(mpath, "consensus_predict.h5")
-
-#         with h5py.File(os.path.join(args.models_path, features_file)) as hf:
-#             features_list = hf["features"][:]               # list of Xcut column indices with at least one 1
-#             features = set(features_list)                   # Just in case they some indices are duplicated
-
-#         min_idxs = 1
-
-#         sig_map = {}
-#         inchikey_inchi = {}
-
-#         inchikey_sigid = collections.defaultdict(list)
-
-#         # input data file from preprocess.call_preprocess
-#         # Need 4 columns: inchikey 'anything' comma-separated_list of_up_regulated_genes coma_separated_list_of_down_regulated_genes
-#         with open(args.input_file) as f:
-#             for l in f:
-#                 items = l.split('\t')
-#                 if len(items) != 4:
-#                     raise Exception("Input data not in the right format. Expected 4 columns only " + str(len(items)))
-#                 if items[1] == '':
-#                     ik = items[0]
-#                 else:
-#                     ik = items[1]
-
-#                 inchikey_sigid[ik] += [items[0]]
-
-#                 # Put the list of up/down regulated genes in a dictionary
-#                 # Whose values are dictionaries
-#                 # The presence of the 'up' and 'down' keys is recognized by do_agg_matrices.py
-#                 sig_map[items[0] + "---" + ik] = {"up": items[2].split(","), "down": items[3].split(",")}
-
-#     WD = os.path.dirname(os.path.realpath(__file__))  # directory from which run.py is launched
-
-#     connectivity_script = WD + "/connectivity_2020.py"     # scripts called by run.py in the same directory
-
-#     ikmatrices_script = WD + "/do_agg_matrices_2020.py"
-
-#     readyfile = "conn.ready"
-
-#     config = Config()                                # reads os.environ["CC_CONFIG"]
+        if not ok:
+            print("Problem with selecting signatures, cp_sigs is", cp_sigs)
+            sys.exit(1)
 
 
-#     # NS CONNECTIVITY JOB 
-#     # OBTAIN -> one matrix per signature (1xnsign) 
-#     # rows: one signature, cols: all other signatures. 
-#     # Contains connectivity scores (raw and normalized) 
-#     # Note, connectivitydir is signature0full_path/raw/models/connectivity_fit
-#     if not os.path.exists(os.path.join(connectivitydir, readyfile)):   # contains 65 151 h5 files and conn.ready so False here
 
-#         main._log.info("Getting signature files...")
+        sig_map = {}
+        # Populate sig_map dict with i.e 'REP.A001_A375_24H:E14' : {"file": "signature0full_path/raw/models/signatures/REP.A001_A375_24H:E14.h5"}
+        for SIG in cp_sigs:
+            sig_map[SIG] = {"file": "%s/%s.h5" % (signaturesdir, SIG)}
+        if TEST: print("sig_map", sig_map)
 
-#         job_path = os.path.join(mpath, "job_conn")  # contains a script file job-CC_D1_conn.sh and an input file which is a pickle from sig_map
-#                                                     # launches the 6514 jobs of connectivity.py with the input file, mini_sig_info.tsv, connectivity_fit
-#                                                     # GSE92742_Broad_LINCS_pert_info.txt as arguments
+    elif args.method == 'predict':
 
-#         if os.path.isdir(job_path):
-#             shutil.rmtree(job_path)
-#         os.mkdir(job_path)
+        mpath = tempfile.mkdtemp(prefix='predict_', dir=args.models_path)
 
-#         # NS: When running predict on standalone version of the checker, we won't have the postgres db
-#         # Have a copy of this file locally in this case
+        ik_matrices = tempfile.mkdtemp(prefix='ik_matrices_', dir=mpath)
+
+        connectivitydir = tempfile.mkdtemp(prefix='connectivity_', dir=mpath)
+
+        consensus = os.path.join(mpath, "consensus_predict.h5")
+
+        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
+            features_list = hf["features"][:]               # list of Xcut column indices with at least one 1
+            features = set(features_list)                   # Just in case they some indices are duplicated
+
+        min_idxs = 1
+
+        sig_map = {}
+        inchikey_inchi = {}
+
+        inchikey_sigid = collections.defaultdict(list)
+
+        # input data file from preprocess.call_preprocess
+        # Need 4 columns: inchikey 'anything' comma-separated_list of_up_regulated_genes coma_separated_list_of_down_regulated_genes
+        with open(args.input_file) as f:
+            for l in f:
+                items = l.split('\t')
+                if len(items) != 4:
+                    raise Exception("Input data not in the right format. Expected 4 columns only " + str(len(items)))
+                if items[1] == '':
+                    ik = items[0]
+                else:
+                    ik = items[1]
+
+                inchikey_sigid[ik] += [items[0]]
+
+                # Put the list of up/down regulated genes in a dictionary
+                # Whose values are dictionaries
+                # The presence of the 'up' and 'down' keys is recognized by do_agg_matrices.py
+                sig_map[items[0] + "---" + ik] = {"up": items[2].split(","), "down": items[3].split(",")}
+
+    WD = os.path.dirname(os.path.realpath(__file__))  # directory from which run.py is launched
+
+    connectivity_script = WD + "/connectivity_2020.py"     # scripts called by run.py in the same directory
+
+    ikmatrices_script = WD + "/do_agg_matrices_2020.py"
+
+    readyfile = "conn.ready"
+
+    config = Config()                                # reads os.environ["CC_CONFIG"]
+
+
+    # NS CONNECTIVITY JOB 
+    # OBTAIN -> one matrix per signature (1xnsign) 
+    # rows: one signature, cols: all other signatures. 
+    # Contains connectivity scores (raw and normalized) 
+    # Note, connectivitydir is signature0full_path/raw/models/connectivity_fit
+    if not os.path.exists(os.path.join(connectivitydir, readyfile)):   # contains 65 151 h5 files and conn.ready so False here
+
+        main._log.info("Getting signature files...")
+
+        job_path = os.path.join(mpath, "job_conn")  # contains a script file job-CC_D1_conn.sh and an input file which is a pickle from sig_map
+                                                    # launches the 6514 jobs of connectivity.py with the input file, mini_sig_info.tsv, connectivity_fit
+                                                    # GSE92742_Broad_LINCS_pert_info.txt as arguments
+
+        if os.path.isdir(job_path):
+            shutil.rmtree(job_path)
+        os.mkdir(job_path)
+
+        # NS: When running predict on standalone version of the checker, we won't have the postgres db
+        # Have a copy of this file locally in this case
+        try:
+            GSE92742_Broad_LINCS_pert_info = os.path.join(map_files["GSE92742_Broad_LINCS_pert_info"], "GSE92742_Broad_LINCS_pert_info.txt")
+            main._log.info("GSE92742_Broad_LINCS_pert_info.txt found from database")
+
+        except Exception as e:
+            GSE92742_Broad_LINCS_pert_info= os.path.join(args.models_path, "GSE92742_Broad_LINCS_pert_info.txt")
+            if os.path.exists(GSE92742_Broad_LINCS_pert_info):
+                main._log.info("Found: {}".format(GSE92742_Broad_LINCS_pert_info))
+            else:
+                main._log.error("Cannot find SE92742_Broad_LINCS_pert_info.txt, stopping!")
+                sys.exit(1)
+        try:
+            GSE92742_Broad_LINCS_sig_info = os.path.join(map_files["GSE92742_Broad_LINCS_sig_info"], "GSE92742_Broad_LINCS_sig_info.txt")
+            main._log.info("GSE92742_Broad_LINCS_sig_info.txt found from database")
+
+        except Exception as e:
+            GSE92742_Broad_LINCS_sig_info= os.path.join(args.models_path, "GSE92742_Broad_LINCS_sig_info.txt")
+            if os.path.exists(GSE92742_Broad_LINCS_sig_info):
+                main._log.info("Found: {}".format(GSE92742_Broad_LINCS_sig_info))
+            else:
+                main._log.error("Cannot find GSE92742_Broad_LINCS_sig_info.txt, stopping!")
+                sys.exit(1)
+
+        params = {}
+        num_entries = len(sig_map.keys())
+        # If there are less tasks to send than the numb of tasks per job then num_jobs is just num_entries (otherwise bug since dividing by CHUNK_SIZE tells it to send 0 jobs)
+        params["num_jobs"] = num_entries / CHUNK_SIZE if num_entries > CHUNK_SIZE else num_entries
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_D1_conn"
+        params["elements"] = sig_map  
+        # reminder: sigmap is a dict with the following entry type in 'fit' mode:
+        #'REP.A001_A375_24H:E14' : {"file": "signature0full_path/raw/models/signatures/REP.A001_A375_24H:E14.h5"}
+        params["memory"] = 10
+    
+        # job command
+        cc_package = os.path.join(config.PATH.CC_REPO, 'package')
+        singularity_image = config.PATH.SINGULARITY_IMAGE
+        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} MKL_NUM_THREADS=1 singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {} {}".format(
+            cc_package, os.environ['CC_CONFIG'],
+            singularity_image, connectivity_script, mini_sig_info_file, signaturesdir,
+            connectivitydir, GSE92742_Broad_LINCS_pert_info, GSE92742_Broad_LINCS_sig_info, min_idxs)
+
+        # submit jobs
+        cluster = HPC.from_config(config)
+        cluster.submitMultiJob(command, **params)
+
+        if cluster.status() == 'error':
+            main._log.error(
+                "Connectivity job produced some errors. The preprocess script can't continue")
+            sys.exit(1)
+
+        if args.method == 'fit':
+            with open(os.path.join(connectivitydir, readyfile), "w") as f:
+                f.write("")
+
+    readyfile = "agg_matrices.ready"
+
+
+    # MATRIX AGGREGATION JOB
+    # OBTAIN-> 1 matrix per perturbagen (inchikey).
+    # rows: a couple of signatures (usually one) corresponding to the current inchikey
+    # Each perturbagen from Touchstone (7841 for the 2020 update)--> take the 66percentile (or33) conn score among all signatures of a given perturbagen with our current sign (row)
+    if not os.path.exists(os.path.join(ik_matrices, readyfile)):
+
+        if args.method == 'fit':
+            main._log.info("Reading L1000")
+
+            # NS Get molecules from Lincs
+            inchikey_sigid, inchikey_inchi, siginfo = read_l1000(mini_sig_info_file, connectivitydir)
+            # inchikey_sigid:   mol_inchikey -> mol_id (h5 filename without extension)
+            # inchikey_inchi:   mol_inchikey -> mol_inchi
+            # siginfo:          REP.A001_A375_24H:K17 -> mol_id
+    
+        #LINCS_2020_cp_info = os.path.join(path_metadata, "cp_info_inchikey_standard.txt") 
 #         try:
-#             GSE92742_Broad_LINCS_pert_info = os.path.join(map_files["GSE92742_Broad_LINCS_pert_info"], "GSE92742_Broad_LINCS_pert_info.txt")
-#             main._log.info("GSE92742_Broad_LINCS_pert_info.txt found from database")
+#             LINCS_2020_cp_info = os.path.join(map_files['LINCS_2020'], "cp_info_inchikey_standard.txt") 
+#             main._log.info("cp_info_inchikey_standard.txt found from database")
 
 #         except Exception as e:
-#             GSE92742_Broad_LINCS_pert_info= os.path.join(args.models_path, "GSE92742_Broad_LINCS_pert_info.txt")
-#             if os.path.exists(GSE92742_Broad_LINCS_pert_info):
-#                 main._log.info("Found: {}".format(GSE92742_Broad_LINCS_pert_info))
+#             LINCS_2020_cp_info= os.path.join(args.models_path, "cp_info_inchikey_standard.txt")
+#             if os.path.exists(LINCS_2020_cp_info):
+#                 main._log.info("Found: {}".format(LINCS_2020_cp_info))
 #             else:
-#                 main._log.error("Cannot find SE92742_Broad_LINCS_pert_info.txt, stopping!")
+#                 main._log.error("Cannot find cp_info_inchikey_standard.txt, stopping!")
 #                 sys.exit(1)
-#         try:
-#             GSE92742_Broad_LINCS_sig_info = os.path.join(map_files["GSE92742_Broad_LINCS_sig_info"], "GSE92742_Broad_LINCS_sig_info.txt")
-#             main._log.info("GSE92742_Broad_LINCS_sig_info.txt found from database")
+            
+        main._log.info("Doing aggregation matrices")
 
-#         except Exception as e:
-#             GSE92742_Broad_LINCS_sig_info= os.path.join(args.models_path, "GSE92742_Broad_LINCS_sig_info.txt")
-#             if os.path.exists(GSE92742_Broad_LINCS_sig_info):
-#                 main._log.info("Found: {}".format(GSE92742_Broad_LINCS_sig_info))
-#             else:
-#                 main._log.error("Cannot find GSE92742_Broad_LINCS_sig_info.txt, stopping!")
-#                 sys.exit(1)
+        #/aloy/web_checker/package_cc/2020_01/full/D/D1/D1.001/sign0/raw/models/job_agg_matrices
+        job_path = os.path.join(mpath, "job_agg_matrices")
 
-#         params = {}
-#         num_entries = len(sig_map.keys())
-#         # If there are less tasks to send than the numb of tasks per job then num_jobs is just num_entries (otherwise bug since dividing by CHUNK_SIZE tells it to send 0 jobs)
-#         params["num_jobs"] = num_entries / CHUNK_SIZE if num_entries > CHUNK_SIZE else num_entries
-#         params["jobdir"] = job_path
-#         params["job_name"] = "CC_D1_conn"
-#         params["elements"] = sig_map  
-#         # reminder: sigmap is a dict with the following entry type in 'fit' mode:
-#         #'REP.A001_A375_24H:E14' : {"file": "signature0full_path/raw/models/signatures/REP.A001_A375_24H:E14.h5"}
-#         params["memory"] = 10
-        
-#         # job command
-#         singularity_image = config.PATH.SINGULARITY_IMAGE
-#         command = "MKL_NUM_THREADS=1 singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {}".format(
-#             singularity_image, connectivity_script, mini_sig_info_file, signaturesdir,
-#             connectivitydir, GSE92742_Broad_LINCS_pert_info, GSE92742_Broad_LINCS_sig_info, min_idxs)
+        if os.path.isdir(job_path):
+            shutil.rmtree(job_path)
+        os.mkdir(job_path)
 
-#         # submit jobs
-#         cluster = HPC.from_config(config)
-#         cluster.submitMultiJob(command, **params)
+        params = {}
 
-#         if cluster.status() == 'error':
-#             main._log.error(
-#                 "Connectivity job produced some errors. The preprocess script can't continue")
-#             sys.exit(1)
+        num_entries = len(inchikey_sigid.keys())
+        # If there are less tasks to send than the numb of tasks per job then num_jobs is just num_entries (otherwise bug since dividing by CHUNK_SIZE tells it to send 0 jobs sent)
+        params["num_jobs"] = num_entries / CHUNK_SIZE if num_entries > CHUNK_SIZE else num_entries
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_D1_agg_mat"
+        params["elements"] = list(inchikey_sigid.keys())  # dict_key view of mol_ids
+        params["memory"] = 10
 
-#         if args.method == 'fit':
-#             with open(os.path.join(connectivitydir, readyfile), "w") as f:
-#                 f.write("")
+        # job command
+        singularity_image = config.PATH.SINGULARITY_IMAGE     
+        cc_package = os.path.join(config.PATH.CC_REPO, 'package')
+        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {}".format(
+            cc_package, os.environ['CC_CONFIG'], singularity_image, ikmatrices_script, mini_sig_info_file, connectivitydir, ik_matrices, args.method)
 
-#     readyfile = "agg_matrices.ready"
+        # submit jobs
+        cluster = HPC.from_config(config)
+        cluster.submitMultiJob(command, **params)  #--> THE GUILTY LINE
 
+        if cluster.status() == 'error':
+            main._log.error(
+                "Agg_matrices job produced some errors. The preprocess script can't continue")
+            sys.exit(1)
 
-#     # MATRIX AGGREGATION JOB
-#     # OBTAIN-> 1 matrix per perturbagen (inchikey).
-#     # rows: a couple of signatures (usually one) corresponding to the current inchikey
-#     # Each perturbagen from Touchstone (7841 for the 2020 update)--> take the 66percentile (or33) conn score among all signatures of a given perturbagen with our current sign (row)
-#     if not os.path.exists(os.path.join(ik_matrices, readyfile)):
+        if args.method == 'fit':
+            with open(os.path.join(ik_matrices, readyfile), "w") as f:
+                f.write("")
 
-#         if args.method == 'fit':
-#             main._log.info("Reading L1000")
+    # Stack all these vectors so that X is consensus connectivity score (66-percentile score over all signatures of a given perturbagen)
+    # shape: all perturbagens x all perturbagens 
+    # and dump it as consensus_predict.h5
+    main._log.info("Doing consensus")
+    X, inchikeys = do_consensus(ik_matrices, consensus)
 
-#             # NS Get molecules from Lincs
-#             inchikey_sigid, inchikey_inchi, siginfo = read_l1000(mini_sig_info_file, connectivitydir)
-#             # inchikey_sigid:   mol_inchikey -> mol_id (h5 filename without extension)
-#             # inchikey_inchi:   mol_inchikey -> mol_inchi
-#             # siginfo:          REP.A001_A375_24H:K17 -> mol_id
-        
-#         LINCS_2020_cp_info = LINCS_2020_cp_info = os.path.join(path_metadata, "cp_info_inchikey_standard.txt") 
+    if TEST:
+        print("X",X)
+        print("inchikeys",inchikeys)
 
-# #         try:
-# #             LINCS_2020_cp_info = os.path.join(map_files['LINCS_2020'], "cp_info_inchikey_standard.txt") 
-# #             main._log.info("cp_info_inchikey_standard.txt found from database")
-
-# #         except Exception as e:
-# #             LINCS_2020_cp_info= os.path.join(args.models_path, "cp_info_inchikey_standard.txt")
-# #             if os.path.exists(LINCS_2020_cp_info):
-# #                 main._log.info("Found: {}".format(LINCS_2020_cp_info))
-# #             else:
-# #                 main._log.error("Cannot find cp_info_inchikey_standard.txt, stopping!")
-# #                 sys.exit(1)
-                
-#         main._log.info("Doing aggregation matrices")
-
-#         #/aloy/web_checker/package_cc/2020_01/full/D/D1/D1.001/sign0/raw/models/job_agg_matrices
-#         job_path = os.path.join(mpath, "job_agg_matrices")
-
-#         if os.path.isdir(job_path):
-#             shutil.rmtree(job_path)
-#         os.mkdir(job_path)
-
-#         params = {}
-
-#         num_entries = len(inchikey_sigid.keys())
-#         # If there are less tasks to send than the numb of tasks per job then num_jobs is just num_entries (otherwise bug since dividing by CHUNK_SIZE tells it to send 0 jobs sent)
-#         params["num_jobs"] = num_entries / CHUNK_SIZE if num_entries > CHUNK_SIZE else num_entries
-#         params["jobdir"] = job_path
-#         params["job_name"] = "CC_D1_agg_mat"
-#         params["elements"] = list(inchikey_sigid.keys())  # dict_key view of mol_ids
-#         params["memory"] = 10
-#         cc_package = os.path.join(config.PATH.CC_REPO, 'package')
-
-#         # job command
-#         singularity_image = config.PATH.SINGULARITY_IMAGE
-#         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {}".format(
-#             cc_package, os.environ['CC_CONFIG'], singularity_image, ikmatrices_script, mini_sig_info_file, LINCS_2020_cp_info, connectivitydir, ik_matrices, args.method)
-
-#         # submit jobs
-#         cluster = HPC.from_config(config)
-#         cluster.submitMultiJob(command, **params)  #--> THE GUILTY LINE
-
-#         if cluster.status() == 'error':
-#             main._log.error(
-#                 "Agg_matrices job produced some errors. The preprocess script can't continue")
-#             sys.exit(1)
-
-#         if args.method == 'fit':
-#             with open(os.path.join(ik_matrices, readyfile), "w") as f:
-#                 f.write("")
-
-#     # Stack all these vectors so that X is consensus connectivity score (66-percentile score over all signatures of a given perturbagen)
-#     # shape: all perturbagens x all perturbagens 
-#     # and dump it as consensus_predict.h5
-#     main._log.info("Doing consensus")
-#     X, inchikeys = do_consensus(ik_matrices, consensus)
-
-#     if TEST:
-#         print("X",X)
-#         print("inchikeys",inchikeys)
-
-#     # Binarization of X (1: good connectivity, 0 otherwise)
-#     main._log.info("Process output")
+    # Binarization of X (1: good connectivity, 0 otherwise)
+    main._log.info("Process output")
 
 
-#     Xcut = process(X)
+    Xcut = process(X)
 
-#     if TEST:
-#         print("Xcut",Xcut)
+    if TEST:
+        print("Xcut",Xcut)
 
-#     main._log.info("Saving raws")
-#     inchikey_raw = {}
+    main._log.info("Saving raws")
+    inchikey_raw = {}
 
-#     # NS Going through the list of inchikeys processed
-#     for i in range(len(inchikeys)):
-#         ik = inchikeys[i]
-#         if np.sum(Xcut[i, :]) < 5:    # skip this inchikey If there are less than 5 good connectivities
-#             continue
+    # NS Going through the list of inchikeys processed
+    for i in range(len(inchikeys)):
+        ik = inchikeys[i]
+        if np.sum(Xcut[i, :]) < 5:    # skip this inchikey If there are less than 5 good connectivities
+            continue
 
-#         idxs = np.where(Xcut[i, :] == 1)[0]  # Indices of the Xcut cols where we have good connections for this ik
-#         inchikey_raw[ik] = [(str(x), 1) for x in idxs]   # store these indices in a dict  ik: [(idx1, 1), (idx2,1) etc]
+        idxs = np.where(Xcut[i, :] == 1)[0]  # Indices of the Xcut cols where we have good connections for this ik
+        inchikey_raw[ik] = [(str(x), 1) for x in idxs]   # store these indices in a dict  ik: [(idx1, 1), (idx2,1) etc]
 
-#     keys = []
-#     words = set()
+    keys = []
+    words = set()
 
-#     # NS added
-#     if len(inchikey_raw.keys()) == 0:
-#         main._log.info("FILTERING ELIMINATED EVERYTHING, SORRY!")
-#         sys.exit(1)
+    # NS added
+    if len(inchikey_raw.keys()) == 0:
+        main._log.info("FILTERING ELIMINATED EVERYTHING, SORRY!")
+        sys.exit(1)
 
-#     # Going through the good connections of every inchikey
-#     for k in sorted(inchikey_raw.keys()):
-#         keys.append(str(k))                              # inchikey
-#         words.update([x[0] for x in inchikey_raw[k]])    # Update the set with col indices where good connections are found {idx1, idx2,}
+    # Going through the good connections of every inchikey
+    for k in sorted(inchikey_raw.keys()):
+        keys.append(str(k))                              # inchikey
+        words.update([x[0] for x in inchikey_raw[k]])    # Update the set with col indices where good connections are found {idx1, idx2,}
 
-#     if args.method == 'predict' and features is not None: # NS: added the first cond, otherwise 'features' was unreferenced when not using 'predict'
-#         orderwords = features_list                        # prerecorded list of column indices of Xcut containing at least one 1
-#     else:
-#         orderwords = list(words)                         
-#         orderwords.sort()                                 # list of column indices of Xcut containing at least one 1
+    if args.method == 'predict' and features is not None: # NS: added the first cond, otherwise 'features' was unreferenced when not using 'predict'
+        orderwords = features_list                        # prerecorded list of column indices of Xcut containing at least one 1
+    else:
+        orderwords = list(words)                         
+        orderwords.sort()                                 # list of column indices of Xcut containing at least one 1
 
-#     if TEST: print("orderwords", orderwords)
+    if TEST: print("orderwords", orderwords)
 
-#     raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)  # Matrix n_inchikeys x n_Xcut_col_indices
-#     wordspos = {k: v for v, k in enumerate(orderwords)}           # dict Xcut_index : i  (i being the index of the sorted Xcutindex)
+    raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)  # Matrix n_inchikeys x n_Xcut_col_indices
+    wordspos = {k: v for v, k in enumerate(orderwords)}           # dict Xcut_index : i  (i being the index of the sorted Xcutindex)
 
-#     for i, k in enumerate(keys):                                  # Going through inchikeys again
-#         for word in inchikey_raw[k]:                              # ik: [(idx1, 1), (idx2,1) etc]--> going through this list
-#             raws[i][wordspos[word[0]]] += word[1]                 # raws[ik_index][X_cut_index_index] += 1
+    for i, k in enumerate(keys):                                  # Going through inchikeys again
+        for word in inchikey_raw[k]:                              # ik: [(idx1, 1), (idx2,1) etc]--> going through this list
+            raws[i][wordspos[word[0]]] += word[1]                 # raws[ik_index][X_cut_index_index] += 1
 
-#     # So our final matrix preprocess.h5
-#     # rows: inchikeys
-#     # columns: col indices of Xcut where at least one 1 was present (features)
+    # So our final matrix preprocess.h5
+    # rows: inchikeys
+    # columns: col indices of Xcut where at least one 1 was present (features)
 
-#     with h5py.File(args.output_file, "w") as hf:
-#         hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
-#         hf.create_dataset("X", data=raws)
-#         hf.create_dataset("features", data=np.array(orderwords, DataSignature.string_dtype()))
+    with h5py.File(args.output_file, "w") as hf:
+        hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
+        hf.create_dataset("X", data=raws)
+        hf.create_dataset("features", data=np.array(orderwords, DataSignature.string_dtype()))
 
-#     if args.method == "fit":
-#         # features.h5
-#         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
-#             # Keep the list of indices of Xcut where at least one 1 was present in a separate file
-#             # getting strings instead of bytes from the h5 file
-#             hf.create_dataset("features", data=np.array(orderwords, DataSignature.string_dtype()))
+    if args.method == "fit":
+        # features.h5
+        with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
+            # Keep the list of indices of Xcut where at least one 1 was present in a separate file
+            # getting strings instead of bytes from the h5 file
+            hf.create_dataset("features", data=np.array(orderwords, DataSignature.string_dtype()))
 
-#     if args.method == 'predict':
-#         #shutil.rmtree(mpath)
-#         #shutil.rmtree(connectivitydir)
-#         pass
+    if args.method == 'predict':
+        #shutil.rmtree(mpath)
+        #shutil.rmtree(connectivitydir)
+        pass
 
 if __name__ == '__main__':
     main(sys.argv[1:])
