@@ -16,9 +16,9 @@ integers
 continous: "0.515,1.690,0.996" which is an array of floats
 """
 import os
-import imp
 import h5py
 import argparse
+import importlib
 import numpy as np
 
 from .signature_data import DataSignature
@@ -93,7 +93,9 @@ class Preprocess():
         if entry:
             arglist.extend(['-ep', entry])
         # import and run the run.py
-        preprocess = imp.load_source('main', self.preprocess_script)
+        loader = importlib.machinery.SourceFileLoader('preprocess_script', 
+                                                      self.preprocess_script)
+        preprocess = loader.load_module()
         preprocess.main(arglist)
 
     def fit(self):
