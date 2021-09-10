@@ -348,8 +348,11 @@ def main(args):
         inchikey_raw.append((k[0], k[1] + "(" + str(v) + ")"))
 
     with h5py.File(args.output_file, "w") as hf:
-        # getting strings instead of bytes from the h5 file 
-        hf.create_dataset("pairs", data=np.array(inchikey_raw, DataSignature.string_dtype()))
+        # getting strings instead of bytes from the h5 file
+        hf.create_dataset("pairs", data=DataSignature.h5_str(inchikey_raw))
+     # they keep being bytes...    
+    # with h5py.File(args.output_file, "r") as hf:
+    #     main._log.info(hf['pairs'][:10])
 
 
 if __name__ == '__main__':
