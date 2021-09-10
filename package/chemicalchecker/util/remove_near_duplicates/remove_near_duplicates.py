@@ -200,16 +200,21 @@ class RNDuplicates():
             hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
             if self.data is None:
                 dh5 = h5py.File(self.data_file, 'r')
-                V = np.array(
-                    [dh5["V"][i] for i in self.final_ids], dtype=self.data_type)
+                hf.create_dataset("V", (len(self.final_ids), dh5["V"].shape[1]), dtype=self.data_type)
+                for count, i in enumerate(self.final_ids):
+                    hf["V"][count] = dh5["V"][i]
+                # V = np.array(
+                #     [dh5["V"][i] for i in self.final_ids], dtype=self.data_type)
             else:
                 V = np.array(
                     self.data[np.array(self.final_ids)], dtype=self.data_type)
-            hf.create_dataset("V", data=V)
-            hf.create_dataset("shape", data=V.shape)
+                hf.create_dataset("V", data=V)
+
+            hf.create_dataset("shape", hf["V"].shape)
             hf.create_dataset("mappings",
                               data=np.array(list_maps,
                                             DataSignature.string_dtype()))
         self.__log.info("Writing mappings to " + dirpath)
         with open(os.path.join(dirpath, "mappings"), 'wb') as fh:
             pickle.dump(self.mappings, fh)
+

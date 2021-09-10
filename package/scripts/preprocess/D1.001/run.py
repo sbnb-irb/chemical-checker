@@ -16,7 +16,7 @@ from chemicalchecker.core.preprocess import Preprocess
 from chemicalchecker.core.signature_data import DataSignature
 
 # Variables
-TEST = True  # once the 'signatures' dir exists with h5 inside, you can copy a few of them to 'signatures_test' and check if it's working
+TEST = False  # once the 'signatures' dir exists with h5 inside, you can copy a few of them to 'signatures_test' and check if it's working
 CHUNK_SIZE=10  # number of tasks per single job sent to sge
 dataset_code = os.path.dirname(os.path.abspath(__file__))[-6:] #NS D1.001
 features_file = "features.h5"
@@ -145,7 +145,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
 
     cids = []
 
-    mini_sig_info_file = 'mini_sig_info_file.tsv'
+    # mini_sig_info_file = 'mini_sig_info_file.tsv' --> we already have this variable as argument of the method
     with open(mini_sig_info_file, "w") as f:
         for k, v in sigs.items():             #(pert_id, cell_id) --> (sig_id, phase) fo the tuple with biggest tas
             x = sig_info[v]          # (pert_id, pert_type, cell_id, istouchstone, 1)
@@ -160,12 +160,13 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
     gtcx_sh = os.path.join(map_files["level5_beta_trt_sh_n238351x12328"], "level5_beta_trt_sh_n238351x12328.gctx") 
     gtcx_oe = os.path.join(map_files["level5_beta_trt_oe_n34171x12328"], "level5_beta_trt_oe_n34171x12328.gctx") 
 
-
     genes_i = [genes[r[0]] for r in parse.parse(gtcx_cp, cid=[[x[0] for x in cids if x[1] == 'trt_cp'][0]]).data_df.iterrows()]
     genes_ii = [genes[r[0]] for r in parse.parse(gtcx_sh, cid=[[x[0] for x in cids if x[1] == 'trt_sh.cgs'][0]]).data_df.iterrows()]  # Just to make sure.
     genes_iii = [genes[r[0]] for r in parse.parse(gtcx_oe, cid=[[x[0] for x in cids if x[1] == 'trt_oe'][0]]).data_df.iterrows()]  # Just to make sure.
 
-    for cid in tqdm(cids): # for each sign id  
+    main._log.info("Parsing GCTX files for each sign id")
+    for cid in cids: # for each sign id  
+        main._log.info("Sign id: {}".format(cid[0]))
         if cid[1] == 'trt_cp':
             expr = np.array(parse.parse(gtcx_cp, cid=[cid[0]]).data_df).ravel()
             genes = genes_i
@@ -181,7 +182,7 @@ def parse_level(mini_sig_info_file, map_files, signaturesdir):
         R = zip(genes, expr)
         R = sorted(R, key=lambda tup: -tup[1])
 
-        with h5py.File(signaturesdir + "%s.h5" % cid[0], "w") as hf:
+        with h5py.File(os.path.join(signaturesdir, "%s.h5" % cid[0]), "w") as hf:
             hf.create_dataset("expr", data=[float(r[1]) for r in R])
             hf.create_dataset("gene", data=DataSignature.h5_str([r[0] for r in R]))
             
@@ -481,9 +482,9 @@ def main(args):
 
     WD = os.path.dirname(os.path.realpath(__file__))  # directory from which run.py is launched
 
-    connectivity_script = WD + "/connectivity_2020.py"     # scripts called by run.py in the same directory
+    connectivity_script = WD + "/connectivity.py"     # scripts called by run.py in the same directory
 
-    ikmatrices_script = WD + "/do_agg_matrices_2020.py"
+    ikmatrices_script = WD + "/do_agg_matrices.py"
 
     readyfile = "conn.ready"
 
