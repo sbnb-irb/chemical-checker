@@ -90,7 +90,7 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touc
     CTm = collections.defaultdict(list)            # it creates it and puts an empty list as the default value
 
     R = []
-    for f in tqdm(os.listdir(signatures_dir)):          # Going through all h5 files of gene expression data to match our list of up/down-regulated genes
+    for f in os.listdir(signatures_dir):          # Going through all h5 files of gene expression data to match our list of up/down-regulated genes
         if ".h5" not in f:
             continue
         #print("match against-->", f)
