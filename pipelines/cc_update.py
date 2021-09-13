@@ -45,6 +45,7 @@ from chemicalchecker.database import Dataset, Datasource
 from chemicalchecker.database import Molrepo, Calcdata
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable
 from chemicalchecker.util.pipeline import CCFit, CCPredict
+from chemicalchecker.pipeline.update_resources.create_database import create_db_dataset
 
 # this is needed to export signaturizers at the end
 sys.path.insert(0, '/aloy/home/mbertoni/code/signaturizer')
@@ -227,6 +228,15 @@ def main(args):
         sign_kwargs['proj2'][ds] = {
             'cpu': hpc_kwargs['proj2']['cpu']
         }
+
+    # TASK: Create new CC DB
+    def create_db():
+        # Create a new database for the current CC update
+        create_db_dataset()
+
+    creating_db_task = PythonCallable(name="creating_db",
+                                    python_callable=create_db)
+    pp.add_task(creating_db_task)
 
     #############################################
     # TASK: Download all datasources
