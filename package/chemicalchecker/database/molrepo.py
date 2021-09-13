@@ -133,6 +133,21 @@ class Molrepo(Base):
         return res
 
     @staticmethod
+    def to_csv(staticmethod, filename):
+        """Write molecules InChI-Key, source_id, InChI and SMILES to CSV file.
+
+        Args:
+            filename(str): Path to a CSV file.
+        """
+        import pandas as pd
+        molecules = Molrepo.get_by_molrepo_name(molrepo_name)
+        df = pd.DataFrame(molecules, columns=['molrepo','source_id','SMILES','InChIKey','InChI'])
+        df.dropna(inplace=True)
+        df.sort_values('InChIKey', inplace=True)
+        df[['InChIKey', 'source_id', 'SMILES','InChI']].to_csv(filename, index=False)
+
+
+    @staticmethod
     def from_csv(filename):
         """Add entries from CSV file.
 
