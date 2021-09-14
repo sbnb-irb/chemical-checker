@@ -81,7 +81,14 @@ class BaseTransform(object):
         mappings = s1_ref.get_h5_dataset("mappings")
         keys = s1_full.keys
         
-        if not np.any(mappings[:, 0] != keys):
+        temp_keys = keys
+        temp_map = mappings[:, 0]
+        if mappings[:, 0].shape[0] != keys.shape[0]:
+            if mappings[:, 0].shape[0] < keys.shape[0]:
+                temp_keys = keys[0:mappings[:, 0].shape[0]]
+            else:
+                temp_map = mappings[0:keys.shape[0], 0]
+        if not np.any(temp_map != temp_keys):
             self.__log.debug("...mappings not necessary!")
         mask = np.isin(list(mappings[:, 0]), list(keys))
         mappings = mappings[mask]
