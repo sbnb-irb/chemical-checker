@@ -71,7 +71,9 @@ class sign1(BaseSignature, DataSignature):
                 "date",
                 data=np.array([datetime.datetime.now().strftime(
                     "%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
-            hf.create_dataset("V", data=s0[:])
+            hf.create_dataset("V", s0.shape, dtype=s0.data_type)
+            for i in range(0, s0.shape[0]):
+                hf["V"][i] = s0[i][:]
             hf.create_dataset("keys", data=np.array(
                 s0.keys, DataSignature.string_dtype()))
             if is_basesig:
@@ -100,7 +102,10 @@ class sign1(BaseSignature, DataSignature):
             if "V_tmp" in hf.keys():
                 self.__log.debug("Deleting V_tmp")
                 del hf["V_tmp"]
-            hf.create_dataset("V_tmp", data=hf["V"][:])
+            hf.create_dataset("V_tmp", hf["V"].shape, dtype=hf["V"].dtype)
+            for i in range(0, hf["V"].shape[0]):
+                hf["V_tmp"][i] = hf["V"][i][:]
+            
 
     def was_sparse(self, max_keys=1000, zero_prop=0.5):
         """Guess if the matrix was sparse"""
