@@ -203,8 +203,6 @@ class RNDuplicates():
                 hf.create_dataset("V", (len(self.final_ids), dh5["V"].shape[1]), dtype=self.data_type)
                 for count, i in enumerate(self.final_ids):
                     hf["V"][count] = dh5["V"][i]
-                # V = np.array(
-                #     [dh5["V"][i] for i in self.final_ids], dtype=self.data_type)
             else:
                 V = np.array(
                     self.data[np.array(self.final_ids)], dtype=self.data_type)

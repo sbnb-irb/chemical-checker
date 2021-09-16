@@ -284,7 +284,7 @@ class sign0(BaseSignature, DataSignature):
 
     def fit(self, cc_root=None, pairs=None, X=None, keys=None, features=None,
             data_file=None, key_type="inchikey", agg_method="average",
-            do_triplets=False, max_features=50000, chunk_size=10000,
+            do_triplets=False, max_features=20000, chunk_size=10000,
             sanitize=True, **params):
         """Process the input data.
 
