@@ -25,8 +25,7 @@ def es_score(idxs, ref_expr, min_idxs, p=1):
     Nh = len(idxs)            # number of matches found 
     norm = 1. / (N - Nh)      # normalise by 1/the gene number difference between expr profile and query list of up/down regulated genes
 
-    miss = np.empty(N)        # Return a new array of given shape and type, without initializing entries.
-    miss[:] = norm            # Fill it with the normalization factor
+    miss = np.full(N, norm)       # Return a new array of given shape and type filled with the normalization factor
     miss[idxs] = 0.           # initialize the matching gene positions of the gene expression profile to zero
 
     hit_nums = np.zeros(N)    # array of size (number of genes in expression profile) initialized with zeros
@@ -46,6 +45,8 @@ def connectivity_score(up, dw, signature_file, signatures_dir, min_idxs):
     with h5py.File("%s/%s" % (signatures_dir, signature_file), "r") as hf:
         expr = hf["expr"][:]  # i.e [ 5.02756786,  4.73850965,  4.49766302 ..]
         gene = hf["gene"][:]  #i.e ['AGR2', 'RBKS', 'HERC6', ..., 'SLC25A46', 'ATP6V0B', 'SRGN']
+
+    gene = list({g.decode() for g in gene})
 
     up_idxs = np.where(np.in1d(gene,up))[0]
     dw_idxs = np.where(np.in1d(gene,dw))[0]
@@ -97,10 +98,9 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touc
         sig = f.split("/")[-1].split(".h5")[0]   # file name without extension, ex: REP.A001_A375_24H:A19.h5
         sinfo = sig_info[sig]                    # (pert_id, treatment, cell_line, is_touchstone)
 
-        if sigs: # True
-            if sinfo[0] not in touch or sinfo[2] not in core_cells:
-                #print(f,"not in touchstone or in core_cells, skipping")
-                continue
+        if sinfo[0] not in touch or sinfo[2] not in core_cells:
+            #print(f,"not in touchstone or in core_cells, skipping")
+            continue
 
         # Each signature will be compared with all the others, and connectivity scores are calculated
         cs = connectivity_score(up, dw, f, signatures_dir, min_idxs)
@@ -217,8 +217,8 @@ if __name__ == '__main__':
                 dw = set(dw['gene'][dw['expr'] < -2]) # Then it is only an array of gene names
 
                 # decode the bytes into Py3 strings
-                up = {s.decode() for s in up}
-                dw = {s.decode() for s in dw}
+                up = list({s.decode() for s in up})
+                dw = list({s.decode() for s in dw})
 
                 #  main will take the list of up/down regulated-genes for this sign_id(k) and compare match it to all others
                 main(k, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs, output_h5)
