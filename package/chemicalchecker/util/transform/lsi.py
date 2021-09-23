@@ -109,6 +109,7 @@ class Lsi(BaseTransform):
                     val = ",".join([",".join([features[x]] * int(row[x]))
                                     for x in mask[0]])
                     f.write("%s %s\n" % (key, val))
+        del V
         # get dictionary
         self.__log.info('Generating dictionary.')
         self.__log.info('min_freq: %s', self.min_freq)
@@ -141,7 +142,8 @@ class Lsi(BaseTransform):
         while len(only_zeros) > 0:
             self.__log.info('num_topics: %s', self.num_topics)
             lsi = models.LsiModel(c_tfidf, id2word=dictionary,
-                                  num_topics=self.num_topics, onepass=onepass)
+                                  num_topics=self.num_topics, onepass=onepass,
+                                  chunksize=2500)
             lsi.save(os.path.join(self.model_path, self.name + ".lsi.pkl"))
             # variance explained
             exp_var_ratios = self._lsi_variance_explained(
