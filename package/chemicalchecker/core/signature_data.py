@@ -104,7 +104,7 @@ class DataSignature(object):
             if hasattr(self, key):
                 delattr(self, key)
         except:
-            self.__log.warn("No %s in this signature" % key)
+            pass
 
     def refresh(self):
         """Refresh all cached properties"""
