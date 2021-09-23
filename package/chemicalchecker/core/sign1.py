@@ -64,37 +64,20 @@ class sign1(BaseSignature, DataSignature):
                     "same molsets (reference or full)")
 
         self.__log.debug("Copying HDF5 dataset")
-        with h5py.File(s1.data_path, "w") as hf:
+        shutil.copyfile(s0.data_path, s1.data_path)
+        with h5py.File(s1.data_path, "a") as hf:
+            if 'name' in hf.keys():
+                del hf['name']
             hf.create_dataset("name", data=np.array(
                 [str(self.dataset) + "sig"], DataSignature.string_dtype()))
-            hf.create_dataset(
-                "date",
-                data=np.array([datetime.datetime.now().strftime(
-                    "%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
-            hf.create_dataset("V", s0.shape, dtype=s0.data_type)
-            for i in range(0, s0.shape[0]):
-                hf["V"][i] = s0[i][:]
-            hf.create_dataset("keys", data=np.array(
-                s0.keys, DataSignature.string_dtype()))
-            if is_basesig:
-                if s0.molset == "reference":
-                    mappings = s0.get_h5_dataset("mappings")
-                    hf.create_dataset("mappings", data=np.array(
-                        mappings, DataSignature.string_dtype()))
+
         if not just_data:
-            self.__log.debug("Copying triplets")
             fn0 = os.path.join(s0.model_path, "triplets.h5")
             if os.path.exists(fn0):
-                self.__log.debug("Triplets are available.")
+                self.__log.debug("Copying triplets")
                 fn1 = os.path.join(s1.model_path, "triplets.h5")
                 shutil.copyfile(fn0, fn1)
-            else:
-                self.__log.warn(
-                    "No triplets available! Please fit sign0 with "
-                    "option do_triplets=True")
-        self.refresh()
-        s0.refresh()
-        s1.refresh()
+
 
     def duplicate(self, s1):
         self.__log.debug("Duplicating V matrix to V_tmp")
