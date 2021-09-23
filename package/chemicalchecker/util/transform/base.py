@@ -135,7 +135,7 @@ class BaseTransform(object):
     def subsample(self):
         max_keys = self.max_keys
         if max_keys is None or max_keys >= self.sign_ref.shape[0]:
-            self.__log.debug("Considering all data")
+            self.__log.debug("Considering all reference data")
             keys = self.sign_ref.keys
             if self.tmp:
                 V = self.sign_ref.get_h5_dataset("V_tmp")[:]
