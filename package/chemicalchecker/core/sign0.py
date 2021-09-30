@@ -169,11 +169,14 @@ class sign0(BaseSignature, DataSignature):
             X = np.zeros((len(keys), len(features)))
             self.__log.debug("Aggregating duplicates")
             if agg_method == "average":
-                def do_agg(v): return np.mean(v)
-            if agg_method == "first":
-                def do_agg(v): return v[0]
-            if agg_method == "last":
-                def do_agg(v): return v[-1]
+                def do_agg(v):
+                    return np.mean(v)
+            elif agg_method == "first":
+                def do_agg(v):
+                    return v[0]
+            elif agg_method == "last":
+                def do_agg(v):
+                    return v[-1]
             for k, v in pairs_.items():
                 X[k[0], k[1]] = do_agg(v)
             self.__log.debug("Setting input type")
@@ -200,9 +203,9 @@ class sign0(BaseSignature, DataSignature):
             self.__log.debug("Processing features")
             features = self.process_features(features, X.shape[1])
             self.__log.debug("Only keeping idxs of relevance")
-            #self.__log.debug("keys is {}".format(keys))
-            #self.__log.debug("keys_raw is {}".format(keys_raw))
-            #self.__log.debug("idxs is {}".format(idxs))
+            # self.__log.debug("keys is {}".format(keys))
+            # self.__log.debug("keys_raw is {}".format(keys_raw))
+            # self.__log.debug("idxs is {}".format(idxs))
 
             X = X[idxs]
             self.__log.debug("Setting input type")
@@ -521,6 +524,7 @@ class sign0(BaseSignature, DataSignature):
     def export_features(self, destination=None):
         features = self.features
         destination = self.model_path if destination is None else destination
-        with h5py.File(os.path.join(destination, "features_sign0_"+self.dataset+".h5"), 'w') as hf_out:
+        fn = os.path.join(destination, "features_sign0_%s.h5" % self.dataset)
+        with h5py.File(fn, 'w') as hf_out:
             hf_out.create_dataset("features", data=np.array(
                 features, DataSignature.string_dtype()))
