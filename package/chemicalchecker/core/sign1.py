@@ -221,35 +221,38 @@ class sign1(BaseSignature, DataSignature):
         # finalize signature
         BaseSignature.fit_end(self, **params)
 
-    def predict(self, sign0, destination=None):
-        """Predict sign1 from sign0"""
+    def predict(self, sign0, destination):
+        """Use the learned model to predict the signature.
 
-        # #if type(sign0) is not DataSignature:
-        # if type(sign0) != type(DataSignature):
-        #     print("type(sign0)", type(sign0))
-        #     print("type(DataSignature)",type(DataSignature))
-        #     raise Exception(
-        #         "Predict requires a DataSignature as input parameter")
+        Args:
+            sign1(signature): A valid Signature type 1
+            destination(None|path|signature): If None the prediction results are
+                returned as dictionary, if str then is used as path for H5 data,
+                if empty Signature type 2 its data_path is used as destination.
+        """
+        if not isinstance(destination, BaseSignature):
+            """
+            tag = str(uuid.uuid4())
+            tmp_path = os.path.join(self.model_path, tag)
+            cc = ChemicalChecker(tmp_path)
+            s1 = cc.get_signature(self.cctype, self.molset, self.cctype)
+            destination = s1
+            """
+            raise NotImplementedError(
+                "'destination' must be a valid signature object.")
         if not os.path.isfile(sign0.data_path):
             raise Exception("The file " + sign0.data_path + " does not exist")
-        tag = str(uuid.uuid4())
-        tmp_path = os.path.join(self.model_path, tag)
-        # try:
-        cc = ChemicalChecker(tmp_path)
-        # s1 = cc.signature(self.dataset, "sign1")
-        s1 = cc.get_signature(self.cctype, self.molset,
-                              self.cctype)  # Nico, experiment
-        self.copy_sign0_to_sign1(sign0, s1, just_data=True)
+        self.copy_sign0_to_sign1(sign0, destination, just_data=True)
         self.__log.debug("Reading pipeline")
         fn = self.pipeline_file()
         with open(fn, "rb") as f:
             pipeline = pickle.load(f)
         self.__log.debug("Starting pipeline")
-        self.__log.debug("Scaling if necessary")
         if not pipeline["sparse"] and pipeline["scale"]:
+            self.__log.debug("Scaling")
             mod = self.load_model("scale")
             mod.model_path = self.model_path
-            mod.predict(s1)
+            mod.predict(destination)
 
         self.__log.debug("Transformation")
         if pipeline["metric_learning"]:
@@ -268,26 +271,10 @@ class sign1(BaseSignature, DataSignature):
         if mod is not None:
             # avoid taking the info from pickle in case it is copied
             mod.model_path = self.model_path
-            mod.predict(s1)
+            mod.predict(destination)
 
+        destination.refresh()
         self.__log.debug("Prediction done!")
-        if destination is None:
-            self.__log.debug("Returning a V, keys dictionary")
-            results = {
-                "V": s1[:],
-                "keys": s1.keys
-            }
-        else:
-            self.__log.debug("Saving H5 file in %s" % destination)
-            shutil.copyfile(s1.data_path, destination)
-            results = None
-        # except Exception as e:
-        #     shutil.rmtree(tmp_path)
-        #     raise Exception(e)
-
-        self.__log.debug("Deleting tmp folder")
-        shutil.rmtree(tmp_path)
-        return results
 
     def neighbors(self, tmp, metric="cosine", k_neig=1000, cpu=4):
         """Neighbors"""
