@@ -475,6 +475,8 @@ class sign0(BaseSignature, DataSignature):
             }
             return results
         else:
+            if isinstance(destination, BaseSignature):
+                destination = destination.data_path
             self.__log.debug("Saving H5 file in %s" % destination)
             with h5py.File(destination, "w") as hf:
                 hf.create_dataset(
