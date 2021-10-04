@@ -209,30 +209,46 @@ class sign2(BaseSignature, DataSignature):
         # finalize signature
         BaseSignature.fit_end(self,  **params)
 
-    def predict(self, sign1, destination, validations=False):
-        """Use the learned model to predict the signature."""
+    def predict(self, sign1, destination=None):
+        """Use the learned model to predict the signature.
+        
+        Args:
+            sign1(signature): A valid Signature type 1
+            destination(None|path|signature): If None the prediction results are
+                returned as dictionary, if str then is used as path for H5 data,
+                if empty Signature type 2 its data_path is used as destination.
+        """
         try:
             from chemicalchecker.tool.adanet import AdaNet
         except ImportError as err:
             raise err
+        if isinstance(destination, BaseSignature):
+            destination = destination.data_path
         # load AdaNet model
         adanet_path = os.path.join(self.model_path, 'adanet', 'savedmodel')
         self.__log.debug('loading model from %s' % adanet_path)
         predict_fn = AdaNet.predict_fn(adanet_path)
         tot_inks = len(sign1.keys)
-        with h5py.File(destination, "w") as results:
-            # initialize V and keys datasets
-            results.create_dataset('V', (tot_inks, 128), dtype=np.float32)
-            results.create_dataset('keys',
-                                   data=np.array(sign1.keys,
-                                                 DataSignature.string_dtype()))
-            results.create_dataset("shape", data=(tot_inks, 128))
-            # predict signature 2
-            for chunk in sign1.chunker():
-                results['V'][chunk] = AdaNet.predict(sign1[chunk], predict_fn)
-
-        if validations:
-            self.validate()
+        if destination is None:
+            results = {
+                "V": AdaNet.predict(sign1[:], predict_fn),
+                "keys": sign1.keys
+            }
+            return results
+        else:
+            if isinstance(destination, BaseSignature):
+                destination = destination.data_path
+            with h5py.File(destination, "w") as results:
+                # initialize V and keys datasets
+                results.create_dataset('V', (tot_inks, 128), dtype=np.float32)
+                results.create_dataset(
+                    'keys', data=np.array(sign1.keys,
+                                          DataSignature.string_dtype()))
+                results.create_dataset("shape", data=(tot_inks, 128))
+                # predict signature 2
+                for chunk in sign1.chunker():
+                    results['V'][chunk] = AdaNet.predict(
+                        sign1[chunk], predict_fn)
 
     @staticmethod
     def predict_nearest_neighbor(destination_path, traintest_file):
