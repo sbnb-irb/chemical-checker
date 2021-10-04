@@ -60,8 +60,6 @@ from chemicalchecker.util import logged, Config
 from chemicalchecker.util.decorator import cached_property
 
 
-CURRENT_VERSION= '2020_02'
-
 @logged
 class ChemicalChecker():
     """ChemicalChecker class."""
