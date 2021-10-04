@@ -24,6 +24,7 @@
         * The :mod:`~chemicalchecker.util` module pulls together
           general utilities.
 """
+import pandas
 from .core import ChemicalChecker
 from .util import Config
 
