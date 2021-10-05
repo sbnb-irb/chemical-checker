@@ -213,11 +213,7 @@ class Diagnosis(object):
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         dataset_codes = list()
-        for ds in dss:
-            # sign = cc.get_signature(self.cctype, self.molset, ds)
-            # # is_fit checks for a given folder and a ready file: it can be whatever task
-            # if sign.is_fit():
-            #     continue
+        for ds in dss:  
             dataset_codes.append(ds)
         sign_args_tmp = kwargs.get('sign_args', {})
         sign_kwargs_tmp = kwargs.get('sign_kwargs', {})
