@@ -311,8 +311,8 @@ class sign0(BaseSignature, DataSignature):
         self.clear()
         self.update_status("Getting data")
         if pairs is None and X is None and data_file is None:
-            self.__log.debug("Runnning preprocess")
-            data_file = Preprocess.preprocess(self)
+            self.__log.debug("Runnning preprocess")  
+            data_file = Preprocess.preprocess(self, **params)
 
         self.__log.debug("data_file is {}".format(data_file))
         res = self.get_data(pairs=pairs, X=X, keys=keys, features=features,
