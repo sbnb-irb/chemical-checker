@@ -45,7 +45,7 @@ class Preprocess():
 
         self.raw_path = os.path.join(signature_path, "raw")
         self.raw_model_path = os.path.join(signature_path, "raw", "models")
-
+        self.params = params
         if not os.path.isdir(self.raw_path):
             Preprocess.__log.info(
                 "Initializing new raw in: %s" % self.raw_path)
@@ -84,7 +84,7 @@ class Preprocess():
             return False
 
 
-    def call_preprocess(self, output, method, infile=None, entry=None):
+    def call_preprocess(self, output, method, infile=None, entry=None, params = {}):
         """Call the external pre-process script."""
         # create argument list
         arglist = ["-o", output, "-mp", self.raw_model_path, "-m", method]
@@ -112,7 +112,7 @@ class Preprocess():
             raise Exception("Pre-process script not found! %s",
                             self.preprocess_script)
 
-        self.call_preprocess(self.data_path, "fit")
+        self.call_preprocess(self.data_path, "fit", None, None, self.params)
 
     def predict(self, input_data_file, destination):
         """Call the external preprocess script to generate h5 data."""
@@ -164,11 +164,12 @@ class Preprocess():
         return result
 
     @classmethod
-    def preprocess(cls, sign):
+    def preprocess(cls, sign, **params):
         """Return the file with the raw data preprocessed.
 
         Args:
             sign: signature object (e.g. obtained from cc.get_signature)
+            params: specific parameters for a given preprocess script
         Returns:
             datafile(str): The name of the file where the data is saved.
         
@@ -176,7 +177,7 @@ class Preprocess():
         os.path.join(self.raw_path, "preprocess.h5")
         """
 
-        prepro = cls(sign.signature_path, sign.dataset)
+        prepro = cls(sign.signature_path, sign.dataset, **params)
         if not prepro.is_fit():
             cls.__log.info(
                 "No preprocessed file found, calling the preprocessing script")
