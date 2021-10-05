@@ -8,6 +8,7 @@ import pickle
 import shutil
 import collections
 import numpy as np
+import tempfile
 from sklearn.cluster import DBSCAN
 from scipy.stats import gaussian_kde
 from sklearn.decomposition import PCA
@@ -16,10 +17,11 @@ from sklearn.preprocessing import normalize
 from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import NearestNeighbors
 
-from chemicalchecker.util import logged
+from chemicalchecker.util import logged, Config
 from chemicalchecker.util.plot import DiagnosisPlot
 from chemicalchecker.util.decorator import safe_return
 from chemicalchecker.util.decorator import cached_property
+from chemicalchecker.util.hpc import HPC
 
 
 @logged
@@ -191,6 +193,91 @@ class Diagnosis(object):
             "dists": np.array(sorted(dists))
         }
         return results
+
+    @staticmethod
+    def diagnostics_hpc(tmpdir, cc_root, cctype, molset, dss, cc_reference, **kwargs):
+        """Run HPC jobs .
+
+        tmpdir(str): Folder (usually in scratch) where the job directory is
+            generated.
+        cc_root: CC root path
+        cctype:  CC type (sign0, sign1, sign2, sign3) on which the method is applied
+        molset: 'full' or 'reference'
+        dss: datasets to run the diagnostics on
+        cc_reference: another version of CC to use as diagnostic reference
+        """
+        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
+        cfg = Config(cc_config)
+        job_path = tempfile.mkdtemp(prefix='jobs_diagnostics_' + cctype + "_", dir=tmpdir)
+        # create job directory if not available
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+        dataset_codes = list()
+        for ds in dss:
+            # sign = cc.get_signature(self.cctype, self.molset, ds)
+            # # is_fit checks for a given folder and a ready file: it can be whatever task
+            # if sign.is_fit():
+            #     continue
+            dataset_codes.append(ds)
+        sign_args_tmp = kwargs.get('sign_args', {})
+        sign_kwargs_tmp = kwargs.get('sign_kwargs', {})
+        dataset_params = list()
+        for ds_code in dataset_codes:
+            sign_args = list()
+            sign_args.extend(sign_args_tmp.get(ds_code, list()))
+            sign_kwargs = dict()
+            sign_kwargs.update(sign_kwargs_tmp.get(ds_code, dict()))
+            sign_args.insert(0, cctype)
+            sign_args.insert(1, molset)
+            sign_args.insert(2, ds_code)
+            dataset_params.append(
+                (sign_args, sign_kwargs))
+        # create script file
+        script_lines = """
+        import sys, os
+        import pickle
+        from chemicalchecker import ChemicalChecker
+        from chemicalchecker.core.diagnostics import Diagnosis
+        task_id = sys.argv[1]
+        filename = sys.argv[2]
+        inputs = pickle.load(open(filename, 'rb'))
+        sign_args = inputs[task_id][0][0]
+        sign_kwargs = inputs[task_id][0][1]
+        cc = ChemicalChecker('{cc_root}')
+        sign = cc.get_signature(*sign_args, **sign_kwargs)
+        cc_ref = ChemicalChecker('{cc_reference}')
+        diag = Diagnosis(cc_ref,sign)
+        fig = diag.canvas()
+        fig.savefig(os.path.join(sign.diags_path, diag.name + '.png'))
+        print('JOB DONE')
+        """
+        if cc_reference == "":
+            cc_reference = cc_root
+        script_name = os.path.join(job_path, 'diagnostics_script.py')
+        script_content = script_lines.format(cc_root=cc_root, cc_reference=cc_reference)
+        with open(script_name, 'w') as fh:
+            fh.write(script_content)
+        # HPC parameters
+        params = {}
+        params["num_jobs"] = len(dataset_codes)
+        params["jobdir"] = job_path
+        params["job_name"] = "CC_" + cctype.upper() + "_DIAGNOSIS"
+        params["elements"] = dataset_params
+        params["wait"] = True
+        params["check_error"] = False
+        params["memory"] = 4 # trial and error
+        # job command
+        singularity_image = cfg.PATH.SINGULARITY_IMAGE
+        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" \
+            " singularity exec {} python {} <TASK_ID> <FILE>"
+        command = command.format(
+            os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
+            singularity_image, script_name)
+        # submit jobs
+        cluster = HPC.from_config(Config())
+        cluster.submitMultiJob(command, **params)
+        return cluster
+
 
     @safe_return(None)
     def euclidean_distances(self, n_pairs=10000):
