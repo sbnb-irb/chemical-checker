@@ -46,7 +46,7 @@ class sign0(BaseSignature, DataSignature):
         the selected processed keys from the raw keys iterable.
         """
         if key_type is None:
-            return np.array(keys), None, \
+            return np.array(keys), np.array(keys), \
                 np.array([i for i in range(0, len(keys))])
         keys_ = []
         keys_raw = []
@@ -90,22 +90,24 @@ class sign0(BaseSignature, DataSignature):
         return np.array(keys_), np.array(keys_raw), np.array(idxs)
 
     def process_features(self, features, n):
-        """
-        Process features. Give an arbitrary name to features if None are provided.
-        NS: returns the feature names as a np array of strings
+        """Define feature names.
+
+        Process features. Give an arbitrary name to features if not provided.
+        Returns the feature names as a numpy array of strings.
         """
         if features is None:
             self.__log.debug(
                 "No features were provided, giving arbitrary names")
-            l = int(np.log10(n)) + 1
+            digits = int(np.log10(n)) + 1
             features = []
             for i in range(0, n):
                 s = "%d" % i
-                s = s.zfill(l)
+                s = s.zfill(digits)
                 features += ["feature_%s" % s]
         return np.array(features).astype(str)
 
-    def get_data(self, pairs, X, keys, features, data_file, key_type, agg_method):
+    def get_data(self, pairs, X, keys, features, data_file, key_type,
+                 agg_method):
         if data_file is not None:
             if not os.path.isfile(data_file):
                 raise Exception("File not found: %s" % data_file)
@@ -120,6 +122,7 @@ class sign0(BaseSignature, DataSignature):
                 keys = dh5["keys"][:]
             if "features" in dh5.keys():
                 features = dh5["features"][:]
+            keys, keys_raw, _ = self.process_keys(keys, key_type)
             dh5.close()
             if pairs is None and X is None:
                 raise Exception(
@@ -166,11 +169,14 @@ class sign0(BaseSignature, DataSignature):
             X = np.zeros((len(keys), len(features)))
             self.__log.debug("Aggregating duplicates")
             if agg_method == "average":
-                def do_agg(v): return np.mean(v)
-            if agg_method == "first":
-                def do_agg(v): return v[0]
-            if agg_method == "last":
-                def do_agg(v): return v[-1]
+                def do_agg(v):
+                    return np.mean(v)
+            elif agg_method == "first":
+                def do_agg(v):
+                    return v[0]
+            elif agg_method == "last":
+                def do_agg(v):
+                    return v[-1]
             for k, v in pairs_.items():
                 X[k[0], k[1]] = do_agg(v)
             self.__log.debug("Setting input type")
@@ -197,9 +203,9 @@ class sign0(BaseSignature, DataSignature):
             self.__log.debug("Processing features")
             features = self.process_features(features, X.shape[1])
             self.__log.debug("Only keeping idxs of relevance")
-            #self.__log.debug("keys is {}".format(keys))
-            #self.__log.debug("keys_raw is {}".format(keys_raw))
-            #self.__log.debug("idxs is {}".format(idxs))
+            # self.__log.debug("keys is {}".format(keys))
+            # self.__log.debug("keys_raw is {}".format(keys_raw))
+            # self.__log.debug("idxs is {}".format(idxs))
 
             X = X[idxs]
             self.__log.debug("Setting input type")
@@ -307,7 +313,7 @@ class sign0(BaseSignature, DataSignature):
                 should contain the required data in datasets.
             do_triplets(boolean): Draw triplets from the CC (default=True).
         """
-        BaseSignature.fit(self,  **params)
+        BaseSignature.fit(self, **params)
         self.clear()
         self.update_status("Getting data")
         if pairs is None and X is None and data_file is None:
@@ -334,8 +340,6 @@ class sign0(BaseSignature, DataSignature):
             X, keys, keys_raw, features = san.transform(
                 V=X, keys=keys, keys_raw=keys_raw, features=features,
                 sign=None)
-            # NS 20/01/2021, somehow the keys, keys_raw and features came out as b''
-            # added a stringify function in the returner fct of san.transform
 
         self.update_status("Aggregating")
         agg = Aggregate(method=agg_method, input_type=input_type)
@@ -362,7 +366,7 @@ class sign0(BaseSignature, DataSignature):
 
         self.refresh()
         # save reference
-        overwrite=params.get('overwrite',False)
+        overwrite = params.get('overwrite', False)
         self.save_reference(overwrite=overwrite)
         # Making triplets
         if do_triplets:
@@ -371,11 +375,11 @@ class sign0(BaseSignature, DataSignature):
             sampler = TripletSampler(cc, self, save=True)
             sampler.sample(**params)
         # finalize signature
-        BaseSignature.fit_end(self,  **params)
+        BaseSignature.fit_end(self, **params)
 
     def predict(self, pairs=None, X=None, keys=None, features=None,
                 data_file=None, key_type=None, merge=False, merge_method="new",
-                destination=None):
+                destination=None, chunk_size=10000):
         """Given data, produce a sign0.
 
         Args:
@@ -394,7 +398,7 @@ class sign0(BaseSignature, DataSignature):
                 (V, keys, features) tuple is returned.
         """
         assert self.is_fit(), "Signature is not fitted yet"
-        self.__log.debug("Setting up the signature data based on fit")
+        self.__log.info("Predict START")
         if merge:
             self.__log.info("Merging. Loading existing signature.")
             V_ = self[:]
@@ -405,8 +409,8 @@ class sign0(BaseSignature, DataSignature):
                     raise Exception(
                         "merge_method must be None, 'average', 'new' or 'old'")
         else:
-            self.__log.info(
-                "Not merging. Just producing signature for the inputted data.")
+            self.__log.debug(
+                "Not merging, only predicting signature for the input data.")
             V_ = None
             keys_ = None
             keys_raw_ = None
@@ -424,8 +428,7 @@ class sign0(BaseSignature, DataSignature):
         if input_type != self.input_type:
             raise Exception("Input type must be %s" % self.input_type)
         self.__log.debug(
-            "Putting input in the same features arrangement "
-            "than the fitted signature.")
+            "Use same features arrangement as fitted signature.")
         W = np.full((len(keys), len(features_)), np.nan)
         for i in range(0, X.shape[0]):
             for j in range(0, X.shape[1]):
@@ -439,7 +442,7 @@ class sign0(BaseSignature, DataSignature):
         san = Sanitizer(trim=False, chunk_size=chunk_size)
         X, keys, keys_raw, features = san.transform(
             V=X, keys=keys, keys_raw=keys_raw, features=features, sign=self)
-        self.__log.debug("Aggregating as it was done at fit time")
+        self.__log.debug("Aggregating as fitted signature.")
         agg = Aggregate(method=self.agg_method, input_type=input_type)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
         features = res["features"]
@@ -463,10 +466,7 @@ class sign0(BaseSignature, DataSignature):
             agg = Aggregate(method=agg_method, input_type=input_type)
             V, keys, keys_raw = agg.transform(
                 V=V, keys=keys, keys_raw=keys_raw)
-        self.__log.debug("Done")
         if destination is None:
-            self.__log.debug(
-                "Returning a dictionary of V, keys, features and keys_raw")
             results = {
                 "V": V,
                 "keys": keys,
@@ -475,6 +475,8 @@ class sign0(BaseSignature, DataSignature):
             }
             return results
         else:
+            if isinstance(destination, BaseSignature):
+                destination = destination.data_path
             self.__log.debug("Saving H5 file in %s" % destination)
             with h5py.File(destination, "w") as hf:
                 hf.create_dataset(
@@ -491,6 +493,7 @@ class sign0(BaseSignature, DataSignature):
                     features, DataSignature.string_dtype()))
                 hf.create_dataset("keys_raw", data=np.array(
                     keys_raw, DataSignature.string_dtype()))
+        self.__log.debug("Predict DONE")
 
     def restrict_to_universe(self):
         """Restricts the keys contained in the universe."""
@@ -520,8 +523,10 @@ class sign0(BaseSignature, DataSignature):
         # After that check that your file is ok and move it to sign0.h5
         self.__log.debug("Done")
 
-    def export_features(self,destination=None):
+    def export_features(self, destination=None):
         features = self.features
         destination = self.model_path if destination is None else destination
-        with h5py.File(os.path.join(destination, "features_sign0_"+self.dataset+".h5"), 'w') as hf_out:
-            hf_out.create_dataset("features", data=np.array(features, DataSignature.string_dtype()))
+        fn = os.path.join(destination, "features_sign0_%s.h5" % self.dataset)
+        with h5py.File(fn, 'w') as hf_out:
+            hf_out.create_dataset("features", data=np.array(
+                features, DataSignature.string_dtype()))

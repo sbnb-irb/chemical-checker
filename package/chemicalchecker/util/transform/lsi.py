@@ -188,25 +188,23 @@ class Lsi(BaseTransform):
         tmp_dir = tempfile.mkdtemp(prefix="lsi_", dir=Config().PATH.CC_TMP)
         plain_corpus = os.path.join(tmp_dir, self.name + ".plain.txt")
         tfidf_corpus = os.path.join(tmp_dir, self.name + ".tfidf.mm")
+        # write corpus (dense feature)
         with open(plain_corpus, "w") as f:
-
             # Read the provided sign1 by chunks of n signautres
             for chunk in sign1.chunker():
-                vs = sign1[chunk].astype(np.int) # take a chunk of n signatures
-                ks = sign1.keys[chunk]           # together with their keys
+                # take a chunk of n signatures, together with their keys
+                vs = sign1[chunk].astype(np.int)
+                ks = sign1.keys[chunk]
                 for i in range(0, len(ks)):
-                    row = vs[i]                  # signature i
-                    mask = np.where(row > 0)     # indices of where positive values are (the array is in fact mask[0])
-                    # print("\n\n SHERLOCK size mask0",mask[0].shape)
-                    # print("SHERLOCK size features",len(self.features))
-                    # print("SHERLOCK size row",len(row))
-                    val = ",".join([",".join([self.features[x]] * row[x]) for x in mask[0]])
-
+                    # save dense represantation (feat with 1 values only)
+                    row = vs[i]
+                    mask = np.argwhere(row > 0).ravel()
+                    val = ",".join(self.features[mask])
                     f.write("%s %s\n" % (ks[i], val))
         # load dictionary
         dictionary = corpora.Dictionary.load(
             os.path.join(self.model_path, self.name + ".dict.pkl"))
-        # corpus
+        # init corpus object
         c = Corpus(plain_corpus, dictionary)
         tfidf = models.TfidfModel.load(os.path.join(
             self.model_path, self.name + ".tfidf.pkl"))
@@ -217,6 +215,9 @@ class Lsi(BaseTransform):
         c_lsi = lsi[c_tfidf]
         # get keys
         keys = np.array([k for k in c.keys()])
+        if len(keys) < len(sign1.keys):
+            drop = len(sign1.keys) - len(keys)
+            self.__log.warning('Dropped %s molecules (only zeros).' % drop)
         V = np.empty((len(keys), self.cut_i + 1))
         i = 0
         for l in c_lsi:

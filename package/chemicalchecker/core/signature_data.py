@@ -192,8 +192,8 @@ class DataSignature(object):
             self._check_dataset('mappings')
             return self._get_all('mappings')
         except Exception:
-            self.__log.warning('Mappings are not available,' +
-                               ' using implicit key-key mappings.')
+            self.__log.debug('Mappings are not available,' +
+                             ' using implicit key-key mappings.')
             return np.vstack([self.keys, self.keys]).T
 
     @property
@@ -217,12 +217,13 @@ class DataSignature(object):
     @staticmethod
     def string_dtype():
         if sys.version_info[0] == 2:
+            import unicode
             # this works in py2 and fails in py3
             return h5py.special_dtype(vlen=unicode)
         else:
             # because str is the new unicode in py3
-            #return h5py.special_dtype(vlen=str)
-            return h5py.string_dtype(encoding='utf-8', length=None) # NS test
+            # return h5py.special_dtype(vlen=str)
+            return h5py.string_dtype(encoding='utf-8', length=None)  # NS test
 
     @staticmethod
     def h5_str(lst):
@@ -474,7 +475,7 @@ class DataSignature(object):
         keys (ideally, keep a set to do this)."""
         self._check_data()
         if isinstance(key, bytes):
-            key = key.decode("utf-8") 
+            key = key.decode("utf-8")
         if isinstance(key, slice):
             with h5py.File(self.data_path, 'r') as hf:
                 return hf[self.ds_data][key]
@@ -667,7 +668,7 @@ class DataSignature(object):
                 src_vectors = hf['V'][:]
             with h5py.File(out_file, "w") as hf:
                 hf.create_dataset('keys', data=np.array(
-                    src_keys, DataSignature.string_dtype()),dtype=DataSignature.string_dtype())
+                    src_keys, DataSignature.string_dtype()), dtype=DataSignature.string_dtype())
                 hf.create_dataset('V', data=src_vectors, dtype=np.float32)
                 hf.create_dataset("shape", data=src_vectors.shape)
             return
@@ -689,7 +690,7 @@ class DataSignature(object):
         sorted_idx = np.argsort(dst_keys)
         with h5py.File(out_file, "w") as hf:
             hf.create_dataset('keys', data=np.array(
-                dst_keys[sorted_idx],DataSignature.string_dtype()),dtype=DataSignature.string_dtype())
+                dst_keys[sorted_idx], DataSignature.string_dtype()), dtype=DataSignature.string_dtype())
             hf.create_dataset('V', data=matrix[sorted_idx], dtype=np.float32)
             hf.create_dataset("shape", data=matrix.shape)
 
@@ -713,7 +714,8 @@ class DataSignature(object):
 
         return _generator_fn
 
-    def export_features(self,destination='.'):
+    def export_features(self, destination='.'):
         features = self.features
         with h5py.File(os.path.join(destination, "features_sign.h5"), 'w') as hf_out:
-            hf_out.create_dataset("features", data=np.array(features, DataSignature.string_dtype()))
+            hf_out.create_dataset("features", data=np.array(
+                features, DataSignature.string_dtype()))
