@@ -40,13 +40,13 @@ class BaseSignature(object):
     """BaseSignature class."""
 
     @abstractmethod
-    def __init__(self, signature_path, dataset, **params):
+    def __init__(self, signature_path, dataset, readyfile="fit.ready", **params):
         """Initialize a BaseSignature instance."""
         self.dataset = dataset
         self.cctype = signature_path.split("/")[-1]
         self.molset = signature_path.split("/")[-5]
         self.signature_path = os.path.abspath(signature_path)
-        self.readyfile = "fit.ready"
+        self.readyfile = readyfile
 
         if params:
             BaseSignature.__log.debug('PARAMS:')
@@ -106,10 +106,11 @@ class BaseSignature(object):
         self.background_distances("euclidean")
         validations = kwargs.get('validations', True)
         end_other_molset = kwargs.get('end_other_molset', True)
+        diagnostics = kwargs.get("diagnostics", True)
         # performing validations
         if validations:
             self.update_status("Validation")
-            self.validate()
+            self.validate(diagnostics)
         # Marking as ready
         self.__log.debug("Mark as ready")
         self.mark_ready()
@@ -121,7 +122,7 @@ class BaseSignature(object):
             other_self = self.get_molset(other_molset)
             if validations:
                 self.update_status("Validation %s" % other_molset)
-                other_self.validate()
+                other_self.validate(diagnostics)
             other_self.mark_ready()
         self.update_status("FIT END")
 
@@ -352,9 +353,11 @@ class BaseSignature(object):
         with open(fname, 'w') as fh:
             pass
 
-    def is_fit(self):
+    def is_fit(self, path=""):
+        if path == "":
+            path = self.model_path
         """The fit method was already called for this signature."""
-        if os.path.exists(os.path.join(self.model_path, self.readyfile)):
+        if os.path.exists(os.path.join(path, self.readyfile)):
             return True
         else:
             return False

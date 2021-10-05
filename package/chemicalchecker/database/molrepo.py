@@ -14,6 +14,7 @@ Example::
 """
 import os
 import datetime
+import tempfile
 from time import time
 import sqlalchemy
 from sqlalchemy.dialects import postgresql
@@ -317,15 +318,16 @@ class Molrepo(Base):
             "Importing Molrepo Name %s took %s", molrepo_name, t_delta)
 
     @staticmethod
-    def molrepo_hpc(job_path, only_essential=False, **kwargs):
+    def molrepo_hpc(tmpdir, only_essential=False, **kwargs):
         """Run HPC jobs importing all molrepos.
 
-        job_path(str): Path (usually in scratch) where the script files are
+        tmpdir(str): Folder (usually in scratch) where the job directory is
             generated.
         only_essential(bool): Only the essentail molrepos (default:false)
         """
         cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
         cfg = Config(cc_config)
+        job_path = tempfile.mkdtemp(prefix='jobs_molrepos_', dir=tmpdir)
         # create job directory if not available
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
@@ -351,7 +353,7 @@ class Molrepo(Base):
         molrepos_names = set()
         molrepos = Molrepo.get()
         for molrepo in molrepos:
-            if only_essential and not molrepo.essential:  # NS SHERLOCK molrepos.essential -> molrepo.essential
+            if only_essential and not molrepo.essential: 
                 continue
             molrepos_names.add(molrepo.molrepo_name)
 
