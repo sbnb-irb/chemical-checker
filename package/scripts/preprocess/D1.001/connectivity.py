@@ -134,7 +134,7 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir,
     CTm = collections.defaultdict(list)
     for f, sinfo in list(touch_files.items()):
         cs = connectivity_score(up, dw, f, signatures_dir, min_idxs)
-        R.append([(sig, cs)])     # signature:id, connectivity score
+        R.append((sig, cs))     # signature:id, connectivity score
         if cs > 0:
             CTp[sinfo] += [cs]  # treatment, cell_line
         elif cs < 0:
