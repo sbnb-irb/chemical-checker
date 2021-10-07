@@ -135,24 +135,24 @@ class BaseSignature(object):
         return True
 
     def clear(self):
-        self.__log.debug("Clearing signature")
+        self.__log.debug("Clearing signature %s" % self.signature_path)
         if os.path.exists(self.data_path):
-            self.__log.debug("Removing %s" % self.data_path)
+            # self.__log.debug("Removing %s" % self.data_path)
             os.remove(self.data_path)
         if os.path.exists(self.model_path):
-            self.__log.debug("Removing %s" % self.model_path)
+            # self.__log.debug("Removing %s" % self.model_path)
             shutil.rmtree(self.model_path)
             original_umask = os.umask(0)
             os.makedirs(self.model_path, 0o775)
             os.umask(original_umask)
         if os.path.exists(self.stats_path):
-            self.__log.debug("Removing %s" % self.stats_path)
+            # self.__log.debug("Removing %s" % self.stats_path)
             shutil.rmtree(self.stats_path)
             original_umask = os.umask(0)
             os.makedirs(self.stats_path, 0o775)
             os.umask(original_umask)
         if os.path.exists(self.diags_path):
-            self.__log.debug("Removing %s" % self.diags_path)
+            # self.__log.debug("Removing %s" % self.diags_path)
             shutil.rmtree(self.diags_path)
             original_umask = os.umask(0)
             os.makedirs(self.diags_path, 0o775)
