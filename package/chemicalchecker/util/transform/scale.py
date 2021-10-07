@@ -10,7 +10,7 @@ from .base import BaseTransform
 class Scale(BaseTransform):
     """Scale class."""
 
-    def __init__(self, sign1, tmp=False, percentile=99.9, z_extreme=10,
+    def __init__(self, sign1, *args, tmp=False, percentile=99.9, z_extreme=10,
                  max_keys=10000, **kwargs):
         BaseTransform.__init__(self, sign1, "scale", max_keys, tmp)
         self.percentile = percentile
