@@ -38,47 +38,51 @@ class sign0(BaseSignature, DataSignature):
         self.data_path = os.path.join(self.signature_path, "sign0.h5")
         DataSignature.__init__(self, self.data_path, **params)
 
-    def process_keys(self, keys, key_type):
-        """Given keys, process them so they are acceptable CC types.
+    def process_keys(self, keys, key_type, sort=False):
+        """Given keys, and key type validate them.
 
-        If None is specified, then all keys are kept.
-        NS: Returns the processed Inchikeys, the ray_keys and the indices of
-        the selected processed keys from the raw keys iterable.
+        If None is specified, then all keys are kept, and no validation is
+        performed.
+
+        Returns:
+            keys(list): the processed InChIKeys
+            ray_keys(list): raw input keys
+            indices (list): index of valid keys
         """
         if key_type is None:
             return np.array(keys), np.array(keys), \
                 np.array([i for i in range(0, len(keys))])
-        keys_ = []
-        keys_raw = []
-        idxs = []
-        if key_type == "inchikey":
-            self.__log.debug("Processing inchikeys. Only valids are kept.")
+        keys_ = list()
+        keys_raw = list()
+        idxs = list()
+        if key_type.lower() == "inchikey":
+            self.__log.debug("Validating InChIKeys, only valid ones are kept.")
             for i, k in enumerate(keys):
                 if isinstance(k, bytes):
                     k = k.decode()
                 if len(k) == 27:
                     if k[14] == "-" and k[25] == "-":
-                        keys_ += [k]
-                        keys_raw += [k]
-                        idxs += [i]
+                        keys_.append(k)
+                        keys_raw.append(k)
+                        idxs.append(i)
                     else:
                         self.__log.debug(
-                            "skipping for format: %s %s %s" % (i, k, type(k)))
+                            "skipping key '%s' for format (line %s)" % (k, i))
                 else:
                     self.__log.debug(
-                        "skipping for length: %s %s %s" % (i, k, type(k)))
-        elif key_type == "smiles":
+                        "skipping key '%s' for format (line %s)" % (k, i))
+        elif key_type.lower() == "smiles":
             self.__log.debug(
-                "Processing smiles. Only standard smiles are kept")
+                "Validating SMILES, only valid ones are kept.")
             from chemicalchecker.util.parser import Converter
             conv = Converter()
             for i, k in enumerate(keys):
                 if isinstance(k, bytes):
                     k = k.decode()
                 try:
-                    keys_ += [conv.smiles_to_inchi(k)[0]]
-                    keys_raw += [k]
-                    idxs += [i]
+                    keys_.append(conv.smiles_to_inchi(k)[0])
+                    keys_raw.append(k)
+                    idxs.append(i)
                 except Exception as ex:
                     self.__log.warning('Problem in conversion: %s' % str(ex))
                     continue
@@ -87,7 +91,16 @@ class sign0(BaseSignature, DataSignature):
         self.__log.info("Initial keys: %d / Final keys: %d" %
                         (len(keys), len(keys_)))
 
-        return np.array(keys_), np.array(keys_raw), np.array(idxs)
+        # perform sorting
+        keys_ = np.array(keys_)
+        keys_raw = np.array(keys_raw)
+        idxs = np.array(idxs)
+        if sort:
+            order = np.argsort(keys_)
+            keys_ = keys_[order]
+            keys_raw = keys_raw[order]
+            idxs = idxs[order]
+        return keys_, keys_raw, idxs
 
     def process_features(self, features, n):
         """Define feature names.
@@ -108,38 +121,65 @@ class sign0(BaseSignature, DataSignature):
 
     def get_data(self, pairs, X, keys, features, data_file, key_type,
                  agg_method):
+        """Get data in the right format.
+
+        Input data for 'fit' or 'predict' can come in 2 main different format:
+        as matrix or as pairs. If a 'X' matrix is passed we also expect the row
+        identifier ('keys') and optionally column identifier ('features').
+        If 'pairs' (dense representation) are passed we expect a combination of
+        key and feature that can be associated with a value or not.
+        The information can be bundled in a H5 file or provided as argument.
+        Basic check are performed to ensure consistency of 'keys' and
+        'features'.
+
+        Args:
+            pairs(list): list of pair (key, feature) or (key, feature, value)
+            X(array): 2D matrix, rows corresponds to molecules and columns
+                corresponds to features
+            keys(list): list of string identifier for molecules
+            features(list): list of string identifier for features
+            data_file(str): path to a input file, at least must contain the
+                datasets: 'pairs' or 'X' and 'keys'
+            key_type(str): the type of molecule identifier used
+            agg_method(str): the aggregation method to use
+
+        """
+        # load data from the data file
         if data_file is not None:
             if not os.path.isfile(data_file):
                 raise Exception("File not found: %s" % data_file)
             dh5 = h5py.File(data_file, 'r')
+            # get pairs and values if available
             if "pairs" in dh5.keys():
                 pairs = dh5["pairs"][:]
                 if "values" in dh5.keys():
                     pairs = zip(pairs, dh5["values"][:])
+            # get matrix
             if "X" in dh5.keys():
                 X = dh5["X"][:]
+            elif "V" in dh5.keys():
+                X = dh5["V"][:]
+            # get keys and features
             if "keys" in dh5.keys():
                 keys = dh5["keys"][:]
             if "features" in dh5.keys():
                 features = dh5["features"][:]
-            keys, keys_raw, _ = self.process_keys(keys, key_type)
+            if features is None:
+                features = self.process_features(features, X.shape[1])
             dh5.close()
             if pairs is None and X is None:
-                raise Exception(
-                    "H5 file %s does not contain datasets "
-                    "'pairs' or 'X'" % data_file)
+                raise Exception("H5 file %s must contain datasets "
+                                "'pairs' or 'X'" % data_file)
+        # handle pairs case
         if pairs is not None:
+            self.__log.info("Input data are pairs")
             if X is not None:
                 raise Exception(
                     "If you input pairs, X should not be specified!")
-            if len(pairs[0]) == 2:
-                has_values = False
-            else:
-                has_values = True
-            self.__log.info("Input data were pairs")
+            has_values = len(pairs[0]) != 2
+            self.__log.debug("Processing keys and features")
             keys = list(set([x[0] for x in pairs]))
             features = list(set([x[1] for x in pairs]))
-            self.__log.debug("Processing keys and features")
             self.__log.debug("Before processing:")
             self.__log.debug("KEYS: {}".format(keys))
             self.__log.debug("key_type: {}".format(key_type))
@@ -185,7 +225,7 @@ class sign0(BaseSignature, DataSignature):
             if X is None:
                 raise Exception(
                     "No data were provided! "
-                    "X cannot be None if pairs aren't provided")
+                    "X cannot be None if pairs or data_file aren't provided")
             if keys is None:
                 raise Exception("keys cannot be None")
             if features is None:
@@ -203,9 +243,6 @@ class sign0(BaseSignature, DataSignature):
             self.__log.debug("Processing features")
             features = self.process_features(features, X.shape[1])
             self.__log.debug("Only keeping idxs of relevance")
-            # self.__log.debug("keys is {}".format(keys))
-            # self.__log.debug("keys_raw is {}".format(keys_raw))
-            # self.__log.debug("idxs is {}".format(idxs))
 
             X = X[idxs]
             self.__log.debug("Setting input type")
