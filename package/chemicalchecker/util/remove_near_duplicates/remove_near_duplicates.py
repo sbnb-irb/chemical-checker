@@ -59,6 +59,7 @@ class RNDuplicates():
                               "https://github.com/facebookresearch/faiss")
 
         faiss.omp_set_num_threads(self.cpu)
+        self.__log.info("Removing near duplicates.")
 
         if type(data) == str:
             self.__log.debug("Data input is: " + data)
@@ -192,9 +193,8 @@ class RNDuplicates():
 
         dirpath = os.path.dirname(destination)
 
-        self.__log.info("Saving removed duplicates to : " + destination)
+        self.__log.info("Saving removed duplicates to: " + destination)
         list_maps = sorted(self.mappings.items())
-        self.__log.info("Starting to write to : " + destination)
         with h5py.File(destination, 'w') as hf:
             keys = self.keys[np.array(self.final_ids)]
             hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
@@ -212,7 +212,7 @@ class RNDuplicates():
             hf.create_dataset("mappings",
                               data=np.array(list_maps,
                                             DataSignature.string_dtype()))
-        self.__log.info("Writing mappings to " + dirpath)
+        self.__log.debug("Writing mappings to: " + dirpath)
         with open(os.path.join(dirpath, "mappings"), 'wb') as fh:
             pickle.dump(self.mappings, fh)
 
