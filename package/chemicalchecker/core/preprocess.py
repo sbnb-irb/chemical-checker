@@ -34,7 +34,7 @@ features_file = "features.h5"
 class Preprocess():
     """Preprocess class."""
 
-    def __init__(self, signature_path, dataset):
+    def __init__(self, signature_path, dataset, **params):
         """Initialize a Preprocess instance.
 
         This class handles calling the external run.py for each dataset and
