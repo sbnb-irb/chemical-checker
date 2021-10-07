@@ -9,7 +9,8 @@ from .base import BaseTransform
 class Pca(BaseTransform):
     """Pca class."""
 
-    def __init__(self, sign1, tmp=False, n_components=0.9, max_keys=10000):
+    def __init__(self, sign1, *args, tmp=False, n_components=0.9,
+                 max_keys=10000, **kwargs):
         BaseTransform.__init__(self, sign1, "pca", max_keys, tmp)
         self.n_components = n_components
 
