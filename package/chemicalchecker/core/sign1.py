@@ -120,7 +120,7 @@ class sign1(BaseSignature, DataSignature):
                 del hf["V_tmp"]
 
     def fit(self, sign0=None, latent=True, scale=True, metric_learning=True,
-            semisupervised=False, **params):
+            semisupervised=False, scale_kwargs={}, pca_kwargs={}, **params):
         """Fit signature 1 given signature 0
 
             Args:
@@ -180,13 +180,13 @@ class sign1(BaseSignature, DataSignature):
             self.__log.debug("Dense matrix pipeline")
             if scale:
                 self.update_status("Scaling")
-                mod = Scale(self, tmp=False)
+                mod = Scale(self, tmp=False, **scale_kwargs)
                 mod.fit()
             else:
                 self.__log.debug("Not scaling")
             if latent:
                 self.update_status("PCA")
-                mod = Pca(self, tmp=tmp)
+                mod = Pca(self, **pca_kwargs)
                 mod.fit()
             else:
                 self.__log.debug("Not looking for latent variables")
