@@ -119,7 +119,7 @@ class sign1(BaseSignature, DataSignature):
             if "V_tmp" in hf.keys():
                 del hf["V_tmp"]
 
-    def fit(self, sign0=None, latent=True, scale=True, metric_learning=True,
+    def fit(self, sign0=None, latent=True, scale=True, metric_learning=False,
             semisupervised=False, scale_kwargs={}, pca_kwargs={}, **params):
         """Fit signature 1 given signature 0
 
