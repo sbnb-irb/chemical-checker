@@ -120,7 +120,7 @@ class ChemicalChecker():
             self._molsets = set(x.split('/')[-6] for x in paths)
             self._datasets = set(x.split('/')[-3] for x in paths)
             if custom_data_path is not None:
-                self.__log.warning("CC root directory exists:"
+                self.__log.warning("CC root directory exists: "
                                    "ignoring 'custom_data_path'.")
                 custom_data_path = None
 
