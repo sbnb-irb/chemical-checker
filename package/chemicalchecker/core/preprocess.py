@@ -354,7 +354,7 @@ class Preprocess():
 
                     raws = np.zeros((chunk, len(orderwords)), dtype=np.int8)
                     index = 0
-
+            saving_features = orderwords
         # continuous
         else:
             # get molecules inchikeys
@@ -380,12 +380,14 @@ class Preprocess():
                 hf.create_dataset("features", data=np.array(
                     features, DataSignature.string_dtype()))
 
+            saving_features = features 
+
         # if fitting, we also save the features
         if method == "fit":
             fn = os.path.join(models_path, features_file)
             with h5py.File(fn, "w") as hf:
-                hf.create_dataset("features", data=np.array(
-                    features, DataSignature.string_dtype()))
+                hf.create_dataset("features", data=np.array(saving_features, DataSignature.string_dtype()))
+            
 
     def to_feature_string(self, signatures, string_func):
         """Covert signature to a string with feature names.
