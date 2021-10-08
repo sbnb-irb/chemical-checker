@@ -198,11 +198,9 @@ def main(args):
         }
         fit_kwargs['sign2'][ds] = {
             'validations': True,
-            'diagnostics': False
-        }
-        sign_kwargs['sign2'][ds] = {
-            'node2vec': {'cpu': 4},
-            'adanet': {'cpu': hpc_kwargs['sign2']['cpu']}
+            'diagnostics': False,
+            'node2vec_kwargs': {'cpu': 4},
+            'adanet_kwargs': {'cpu': hpc_kwargs['sign2']['cpu']}
         }
         fit_kwargs['sign3'][ds] = {
             'sign2_list': sign2_list,
