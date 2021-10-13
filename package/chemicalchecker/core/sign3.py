@@ -2068,7 +2068,8 @@ class sign3(BaseSignature, DataSignature):
         if complete_universe:
             # check if all dataset molecules are defined in at least one A*
             res = sign3.complete_sign2_universe(sign2_self, self.sign2_universe,
-                                                self.sign2_coverage)
+                                                self.sign2_coverage,
+                                                tmp_path=self.model_path)
             self.sign2_universe, self.sign2_coverage = res
 
         # check if performance evaluations need to be done
