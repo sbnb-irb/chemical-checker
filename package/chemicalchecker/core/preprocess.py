@@ -47,7 +47,6 @@ class Preprocess():
 
         self.raw_path = os.path.join(signature_path, "raw")
         self.raw_model_path = os.path.join(signature_path, "raw", "models")
-        self.params = params
         if not os.path.isdir(self.raw_path):
             Preprocess.__log.debug(
                 "Initializing raw path: %s" % self.raw_path)
