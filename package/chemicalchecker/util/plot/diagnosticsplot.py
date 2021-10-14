@@ -464,7 +464,7 @@ class DiagnosisPlot(object):
             datasets += [k]
             colors += [coord_color(k)]
             y += [v["keys"]]
-            x += [len(v["expl"])]
+            x += [v["features"]]
         x = np.log10(x)
         y = np.log10(y)
         ax.scatter(x, y, color=colors)
@@ -472,16 +472,16 @@ class DiagnosisPlot(object):
         max_y = np.max(y)
         v = results["MY"]
         y = [v["keys"]]
-        x = [len(v["expl"])]
+        x = [v["features"]]
         x = np.log10(x)
         y = np.log10(y)
         if highligth:
             ax.scatter(x, y, color="white", edgecolor="black", s=80)
-        ax.set_xlabel("Latent features (log10)")
+        ax.set_xlabel("Features (log10)")
         ax.set_ylabel("Keys (log10)")
         if title is None:
-            title = "Keys: %d / Feat: %d (%d)" % (
-                v["keys"], v["features"], len(v["expl"]))
+            title = "Keys: %d / Feat: %d" % (
+                v["keys"], v["features"])
         ax.set_title(title)
         return ax
 
