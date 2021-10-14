@@ -112,8 +112,9 @@ class Diagnosis(object):
 
     def _returner(self, results, fn, save, plot, plotter_function,
                   kw_plotter=dict()):
-        for k, v in kw_plotter.items():
-            self.__log.debug('kw_plotter: %s %s', str(k), str(v))
+        # for k, v in kw_plotter.items():
+        #     self.__log.debug('kw_plotter: %s %s', str(k), str(v))
+
         if results is None:
             fn_ = os.path.join(self.path, fn + ".pkl")
             with open(fn_, "rb") as f:
@@ -408,7 +409,7 @@ class Diagnosis(object):
             my_vectors = self.sign.get_vectors(keys1)[1]
             vs_vectors = sign.get_vectors(keys2)[1]
             # do nearest neighbors
-            nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric)
+            nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric, n_jobs=-1)
             nn.fit(vs_vectors)
             neighs = nn.kneighbors(vs_vectors)[1][:, 1:]
             # sample positive and negative pairs
@@ -515,7 +516,7 @@ class Diagnosis(object):
                 perp = np.max([5, perp])
                 perp = np.min([50, perp])
             self.__log.debug("Chosen perplexity %d" % perp)
-            tsne = TSNE(perplexity=perp)
+            tsne = TSNE(perplexity=perp, n_jobs=-1)
             P_ = tsne.fit_transform(X)
             P = P_[:len(keys)]
             if focus_keys is not None:
@@ -559,10 +560,6 @@ class Diagnosis(object):
                 keys = np.array(sorted(random.sample(
                     keys, np.min([max_keys, len(keys)]))))
                 X = self.sign.get_vectors(keys)[1]
-            # Sort features if available
-            features = self.sign.features
-            idxs = np.argsort(features)
-            X = X[:, idxs]
             results = {
                 "X": X,
                 "keys": keys
@@ -899,13 +896,11 @@ class Diagnosis(object):
                 sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
                 results[ds] = {
                     "keys": sign.shape[0],
-                    "features": sign.shape[1],
-                    "expl": self._latent(sign)["explained_variance"]
+                    "features": sign.shape[1]
                 }
             results["MY"] = {
                 "keys": self.sign.shape[0],
-                "features": self.sign.shape[1],
-                "expl": self._latent(self.sign)["explained_variance"]
+                "features": self.sign.shape[1]
             }
         else:
             results = None
@@ -1557,7 +1552,7 @@ class Diagnosis(object):
             max_samples = min(1000, int(self.V.shape[0] / 2 + 1))
             mod = IsolationForest(n_estimators=n_estimators, contamination=0.1,
                                   max_samples=max_samples,
-                                  max_features=max_features)
+                                  max_features=max_features, n_jobs=-1)
             pred = mod.fit_predict(self.V)
             scores = mod.score_samples(self.V)
             results = {
