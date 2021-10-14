@@ -135,6 +135,7 @@ class BaseSignature(object):
         return True
 
     def clear(self):
+        """Remove everything from this signature."""
         self.__log.debug("Clearing signature %s" % self.signature_path)
         if os.path.exists(self.data_path):
             # self.__log.debug("Removing %s" % self.data_path)
@@ -157,6 +158,13 @@ class BaseSignature(object):
             original_umask = os.umask(0)
             os.makedirs(self.diags_path, 0o775)
             os.umask(original_umask)
+
+    def clear_all(self):
+        """Remove everything from this signature for both referene and full."""
+        ref = self.get_molset('reference')
+        ref.clear()
+        full = self.get_molset('full')
+        full.clear()
 
     def validate_versus_signature(self, sign, n_samples=1000, n_neighbors=5,
                                   apply_mappings=True, metric='cosine'):
