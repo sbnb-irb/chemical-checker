@@ -98,7 +98,7 @@ class ChemicalChecker():
             os.makedirs(self.cc_root, 0o775)
             os.umask(original_umask)
 
-            # Test connection to DB, the database is not necessarely present
+            # Test connection to DB, the database is not necessarily present
             self.__log.debug("Testing DB connection.")
             if dbconnect and test_connection():
                 for molset in self._basic_molsets:
@@ -120,8 +120,8 @@ class ChemicalChecker():
             self._molsets = set(x.split('/')[-6] for x in paths)
             self._datasets = set(x.split('/')[-3] for x in paths)
             if custom_data_path is not None:
-                self.__log.warning("CC root directory exists: "
-                                   "ignoring 'custom_data_path'.")
+                self.__log.info("CC root directory exists: "
+                                "ignoring 'custom_data_path'.")
                 custom_data_path = None
 
         # import one or several custom h5 files
@@ -658,6 +658,6 @@ class ChemicalChecker():
                 return global_sign
 
         else:
-            self.__log.warning(mol_str+" NOT IN UNIVERSE")
+            self.__log.warning(mol_str + " NOT IN UNIVERSE")
 
         return None
