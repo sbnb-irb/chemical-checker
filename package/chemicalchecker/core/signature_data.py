@@ -249,7 +249,7 @@ class DataSignature(object):
     def make_filtered_copy(self, destination, mask, include_all=False,
                            data_file=None):
         """
-        Make a copy of applying a filtering mask.
+        Make a copy of applying a filtering mask on rows.
 
         destination (str): The destination file path.
         mask (bool array): A numpy mask array (e.g. result of `np.isin`)
@@ -265,21 +265,36 @@ class DataSignature(object):
         with h5py.File(data_file, 'r') as hf_in:
             with h5py.File(destination, 'w') as hf_out:
                 for dset in hf_in.keys():
-                    # skip all dataset that cannot be masked
+                    # skip dataset incompatible with mask (or copy unmasked)
                     if hf_in[dset].shape[0] != mask.shape[0]:
                         if not include_all:
                             continue
                         else:
                             masked = hf_in[dset][:][:]
+                            hf_out.create_dataset(dset, data=masked)
+                            self.__log.debug("Copy dataset %s of shape %s" %
+                                             (dset, str(masked.shape)))
+                            continue
+                    # never mask features
+                    if dset == 'features':
+                        masked = hf_in[dset][:][:]
+                        self.__log.debug("Copy dataset %s of shape %s" %
+                                         (dset, str(masked.shape)))
+                        hf_out.create_dataset(dset, data=masked)
+                        continue
+                    # memory safe masked copy for other datasets
+                    if len(hf_in[dset].shape) == 1:
+                        final_shape = (sum(mask),)
                     else:
-                        if dset == 'features':
-                            masked = hf_in[dset][:][:]
-                        else:
-                            masked = hf_in[dset][:][mask]
-
+                        final_shape = (sum(mask), hf_in[dset].shape[1])
+                    hf_out.create_dataset(
+                        dset, final_shape, dtype=hf_in[dset].dtype)
                     self.__log.debug("Copy dataset %s of shape %s" %
-                                     (dset, str(masked.shape)))
-                    hf_out.create_dataset(dset, data=masked)
+                                     (dset, str(final_shape)))
+                    idx_dst = 0
+                    for idx_src in np.argwhere(mask).ravel():
+                        hf_out[dset][idx_dst] = hf_in[dset][idx_src]
+                        idx_dst += 1
 
     @staticmethod
     def hstack_signatures(sign_list, destination, chunk_size=1000,
