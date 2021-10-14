@@ -185,10 +185,15 @@ def main(args):
     sign2_list = [cc.get_signature('sign2', 'full', ds)
                   for ds in cc.datasets_exemplary()]
     mfp = cc.get_signature('sign0', 'full', 'A1.001').data_path
+    # we want to keep exactly 2048 features (Morgan fingerprint) for A1
+    fit_kwargs['sign0']['A1.001'] = {'trim_features': False}
     for ds in datasets:
         fit_kwargs['sign0'][ds] = {
             'key_type': 'inchikey',
             'do_triplets': False,
+            'max_features': 10000,
+            'chunk_size': 10000,
+            'sanitize': True,
             'validations': True,
             'diagnostics': False
         }
@@ -331,7 +336,7 @@ def main(args):
     # by the 'reference_cc' input parameter (only for sign0 case, for other signatures 
     # the reference is args.cc_root itself)
     cctype = 'sign0'
-    task = PythonCallable(name="diagnostics",
+    task = PythonCallable(name="diagnostics_sign0_BCDE",
                          python_callable=Diagnosis.diagnostics_hpc,
                          op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc])
     pp.add_task(task)
@@ -383,7 +388,7 @@ def main(args):
     # by the 'reference_cc' input parameter (only for sign0 case, for other signatures 
     # the reference is args.cc_root itself)
     cctype = 'sign0'
-    task = PythonCallable(name="diagnostics",
+    task = PythonCallable(name="diagnostics_sign0_A",
                          python_callable=Diagnosis.diagnostics_hpc,
                          op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc])
     pp.add_task(task)
@@ -409,7 +414,7 @@ def main(args):
     # TASK: diagonistc plots for sign1-sign2
     cctypes = ['sign1', 'sign2']
     for cctype in cctypes:
-        task = PythonCallable(name="diagnostics",
+        task = PythonCallable(name="diagnostics_" + cctype,
                             python_callable=Diagnosis.diagnostics_hpc,
                             op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.cc_root])
         pp.add_task(task)
@@ -450,7 +455,7 @@ def main(args):
     #############################################
     # TASK: Calculate diagnostics plots of sign3 for all spaces
     cctype = 'sign3'
-    task = PythonCallable(name="diagnostics",
+    task = PythonCallable(name="diagnostics_" + cctype,
                          python_callable=Diagnosis.diagnostics_hpc,
                          op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc])
     pp.add_task(task)
