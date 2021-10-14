@@ -43,12 +43,11 @@ class DataCalculator():
             if ik is None:
                 continue
             v = str(inchikey_inchi[ik])
-            # DataCalculator.__log.info( ik)
-            try:  # NS: some inchis make RDkit bug
+            try:
                 mol = Chem.rdinchi.InchiToMol(v)[0]
-            except Exception as e:
-                DataCalculator.__log.error("Problem with molecule "+ik+", skipped.")
-                DataCalculator.__log.error(e)
+            except Exception as ex:
+                DataCalculator.__log.debug("Skipping molecule %s" % ik)
+                DataCalculator.__log.debug(str(ex))
                 continue
             info = {}
             # print mol
@@ -157,7 +156,12 @@ class DataCalculator():
             if k is None:
                 continue
             v = str(inchikey_inchi[k])
-            mol = Chem.rdinchi.InchiToMol(v)[0]
+            try:
+                mol = Chem.rdinchi.InchiToMol(v)[0]
+            except Exception as ex:
+                DataCalculator.__log.debug("Skipping molecule %s" % k)
+                DataCalculator.__log.debug(str(ex))
+                continue
             try:
                 dense = murcko_scaffold(mol)
             except Exception:
@@ -188,7 +192,12 @@ class DataCalculator():
             if k is None:
                 continue
             v = str(inchikey_inchi[k])
-            mol = Chem.rdinchi.InchiToMol(v)[0]
+            try:
+                mol = Chem.rdinchi.InchiToMol(v)[0]
+            except Exception as ex:
+                DataCalculator.__log.debug("Skipping molecule %s" % k)
+                DataCalculator.__log.debug(str(ex))
+                continue
             fp = MACCSkeys.GenMACCSKeys(mol)
             dense = ",".join("%d" % s for s in sorted(
                 [x for x in fp.GetOnBits()]))
@@ -275,7 +284,12 @@ class DataCalculator():
             if k is None:
                 continue
             v = str(inchikey_inchi[k])
-            mol = Chem.rdinchi.InchiToMol(v)[0]
+            try:
+                mol = Chem.rdinchi.InchiToMol(v)[0]
+            except Exception as ex:
+                DataCalculator.__log.debug("Skipping molecule %s" % k)
+                DataCalculator.__log.debug(str(ex))
+                continue
             P = descriptors(mol)
             raw = "mw(%.2f),heavy(%d),hetero(%d),rings(%d),ringaliph(%d),ringarom(%d),alogp(%.3f),mr(%.3f)" + \
                 ",hba(%d),hbd(%d),psa(%.3f),rotb(%d),alerts_qed(%d),alerts_chembl(%d),ro5(%d),ro3(%d),qed(%.3f)"
