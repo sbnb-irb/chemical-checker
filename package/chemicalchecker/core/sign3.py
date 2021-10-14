@@ -2033,6 +2033,11 @@ class sign3(BaseSignature, DataSignature):
             raise err
         BaseSignature.fit(self, **params)
 
+        # signature specific checks
+        if self.molset != "full":
+            self.__log.debug("Fit will be done with the full sign3")
+            self = self.get_molset("full")
+
         # define datasets that will be used
         self.update_status("Getting data")
         cc = self.get_cc()
