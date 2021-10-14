@@ -69,11 +69,11 @@ class sign2(BaseSignature, DataSignature):
             from chemicalchecker.tool.node2vec import Node2Vec
         except ImportError as err:
             raise err
-        BaseSignature.fit(self,  **kwargs)
-        #########
-        # step 1: Node2Vec (learn graph embedding) input is neig1
-        #########
+        BaseSignature.fit(self, **kwargs)
         # signature specific checks
+        if self.molset != "reference":
+            self.__log.debug("Fit will be done with the reference sign2")
+            self = self.get_molset("reference")
         if sign1 is None:
             sign1 = self.get_sign('sign1').get_molset("reference")
         if neig1 is None:
@@ -81,14 +81,17 @@ class sign2(BaseSignature, DataSignature):
         if sign1.cctype != "sign1":
             raise Exception("A signature type 1 is expected!")
         if sign1.molset != "reference":
-            raise Exception(
-                "Fit should be done with the reference sign1")
+            self.__log.debug("Fit will be done with the reference sign1")
+            sign1 = self.get_sign('sign1').get_molset("reference")
         if neig1.cctype != "neig1":
             raise Exception("A neighbors of signature type 1 is expected!")
         if neig1.molset != "reference":
-            raise Exception(
-                "Fit should be done with the reference neig1")
+            self.__log.debug("Fit will be done with the reference neig1")
+            neig1 = sign1.get_neig().get_molset("reference")
 
+        #########
+        # step 1: Node2Vec (learn graph embedding) input is neig1
+        #########
         self.update_status("Node2Vec")
         self.__log.debug('Node2Vec on %s' % sign1)
         n2v = Node2Vec(executable=Config().TOOLS.node2vec_exec)
@@ -136,6 +139,7 @@ class sign2(BaseSignature, DataSignature):
             self.__log.warn("Cannot copy 'mappings' from sign1.")
         sign2_plot = Plot(self.dataset, self.stats_path)
         sign2_plot.sign_feature_distribution_plot(self)
+
         #########
         # step 2: AdaNet (learn to predict sign2 from sign1 without Node2Vec)
         #########
