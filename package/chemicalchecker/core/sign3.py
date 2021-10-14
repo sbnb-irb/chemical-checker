@@ -194,7 +194,7 @@ class sign3(BaseSignature, DataSignature):
                                 ref_cc=None):
         """Completes the universe for extra molecules.
 
-        Important if the dataset we are fitting is defined on a set of molecules
+        Important if the dataset we are fitting is defined on molecules
         that largely do not overlap with CC molecules. In that case there is no
         orthogonal information to derive sign3. We should always have at least
         the chemistry (calculated) level available for all molecules of the
@@ -206,7 +206,7 @@ class sign3(BaseSignature, DataSignature):
                 molecules in the CC universe. (~1M x 3200)
             sign2_coverage(str): Path to the coverage of all signatures 2 for
                 all molecules in the CC universe. (~1M x 25)
-            tmp_path(str): Temporary path where to save extra molecules' 
+            tmp_path(str): Temporary path where to save extra molecules'
                 signatures.
             calc_spaces(list): List of indexes for calculated spaces in
                 the coverage matrix.
@@ -219,6 +219,11 @@ class sign3(BaseSignature, DataSignature):
         sign3.__log.info('Completing universe, making copy of original files')
         sign2_universe_ext = sign2_universe + '.complete.h5'
         sign2_coverage_ext = sign2_coverage + '.complete.h5'
+        # shortcut if already computed
+        if os.path.isfile(sign2_universe_ext):
+            if os.path.isfile(sign2_coverage_ext):
+                sign3.__log.debug('Completed universe already available')
+                return sign2_universe_ext, sign2_coverage_ext
         shutil.copyfile(sign2_universe, sign2_universe_ext)
         shutil.copyfile(sign2_coverage, sign2_coverage_ext)
         # which molecules in which space should be calculated?
@@ -363,8 +368,7 @@ class sign3(BaseSignature, DataSignature):
         try:
             from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError:
-            raise ImportError("requires tensorflow " +
-                              "https://tensorflow.org")
+            raise ImportError("requires tensorflow https://tensorflow.org")
         # get params and set folder
         self.update_status("Training %s model" % suffix)
         self.__log.debug('Siamese suffix %s' % suffix)
@@ -439,7 +443,10 @@ class sign3(BaseSignature, DataSignature):
         if not evaluate:
             return siamese
         # save validation plots
-        self.plot_validations(siamese, dataset_idx, traintest_file)
+        try:
+            self.plot_validations(siamese, dataset_idx, traintest_file)
+        except Exception as ex:
+            self.__log.debug('Plot pproblem: %s' % str(ex))
         # when evaluating also save prior and confidence models
         prior_model, prior_sign_model, confidence_model = self.train_confidence(
             traintest_file, X, suffix, siamese)
@@ -509,8 +516,7 @@ class sign3(BaseSignature, DataSignature):
             import faiss
             from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError:
-            raise ImportError("requires tensorflow " +
-                              "https://tensorflow.org")
+            raise ImportError("requires tensorflow https://tensorflow.org")
         sign1_self = cc.get_signature("sign1", "full", self.dataset)
         sign2_self = cc.get_signature("sign2", "full", self.dataset)
         sign2_list = [cc.get_signature("sign2", "full", d)
@@ -1445,8 +1451,8 @@ class sign3(BaseSignature, DataSignature):
         robustness = 1 - np.mean(np.std(samples, axis=1), axis=1).flatten()
         return intensities, robustness, consensus
 
-    def plot_validations(self, siamese, dataset_idx, traintest_file, chunk_size=10000,
-                         limit=1000, dist_limit=1000):
+    def plot_validations(self, siamese, dataset_idx, traintest_file,
+                         chunk_size=10000, imit=1000, dist_limit=1000):
 
         def no_mask(idxs, x1_data):
             return x1_data
@@ -1706,8 +1712,7 @@ class sign3(BaseSignature, DataSignature):
         try:
             from chemicalchecker.tool.smilespred import Smilespred
         except ImportError:
-            raise ImportError("requires tensorflow " +
-                              "https://tensorflow.org")
+            raise ImportError("requires tensorflow https://tensorflow.org")
         # get params and set folder
         model_path = os.path.join(self.model_path, 'smiles_%s' % suffix)
         if not os.path.isdir(model_path):
@@ -1749,8 +1754,7 @@ class sign3(BaseSignature, DataSignature):
         try:
             from chemicalchecker.tool.smilespred import ApplicabilityPredictor
         except ImportError:
-            raise ImportError("requires tensorflow " +
-                              "https://tensorflow.org")
+            raise ImportError("requires tensorflow https://tensorflow.org")
         # get params and set folder
         model_path = os.path.join(self.model_path,
                                   'smiles_applicability_%s' % suffix)
@@ -1986,7 +1990,7 @@ class sign3(BaseSignature, DataSignature):
         return inchikeys
 
     def fit(self, sign2_list=None, sign2_self=None, sign1_self=None,
-            sign2_universe=None, complete_universe=True,
+            sign2_universe=None, complete_universe='full',
             sign2_coverage=None, sign0=None,
             model_confidence=True, save_correlations=False,
             predict_novelty=False, update_preds=True,
@@ -1999,8 +2003,10 @@ class sign3(BaseSignature, DataSignature):
             sign2_self(sign1): Signature 1 of the current space.
             sign2_universe(str): Path to the union of all signatures 2 for all
                 molecules in the CC universe. (~1M x 3200)
-            complete_universe(bool): Check if dataset specific molecules need
-                to be added to the chemistry level.
+            complete_universe(str): add chemistry information for molecules not
+                in the universe. 'full' use all A* spaces while, 'fast' skips
+                A2 (3D conformation) which is slow. False by default, not
+                adding any signature to the universe.
             sign2_coverage(str): Path to the coverage of all signatures 2 for
                 all molecules in the CC universe. (~1M x 25)
             sign0(sign): The signature 0 or any direct vector representation
@@ -2020,13 +2026,12 @@ class sign3(BaseSignature, DataSignature):
         try:
             from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError:
-            raise ImportError("requires tensorflow " +
-                              "https://tensorflow.org")
+            raise ImportError("requires tensorflow https://tensorflow.org")
         try:
             import faiss
         except ImportError as err:
             raise err
-        BaseSignature.fit(self,  **params)
+        BaseSignature.fit(self, **params)
 
         # define datasets that will be used
         self.update_status("Getting data")
@@ -2065,11 +2070,19 @@ class sign3(BaseSignature, DataSignature):
         if not os.path.isfile(self.sign2_universe):
             sign3.save_sign2_universe(sign2_list, self.sign2_universe)
 
+        # check if molecules are missing from chemistry spaces, complete
         if complete_universe:
-            # check if all dataset molecules are defined in at least one A*
-            res = sign3.complete_sign2_universe(sign2_self, self.sign2_universe,
-                                                self.sign2_coverage,
-                                                tmp_path=self.model_path)
+            if complete_universe == 'full':
+                calc_ds_idx = [0, 1, 2, 3, 4],
+                calc_ds_names = ['A1.001', 'A2.001',
+                                 'A3.001', 'A4.001', 'A5.001']
+            if complete_universe == 'fast':
+                calc_ds_idx = [0, 2, 3, 4],
+                calc_ds_names = ['A1.001', 'A3.001', 'A4.001', 'A5.001']
+            res = sign3.complete_sign2_universe(
+                sign2_self, self.sign2_universe, self.sign2_coverage,
+                tmp_path=self.model_path, calc_ds_idx=calc_ds_idx,
+                calc_ds_names=calc_ds_names)
             self.sign2_universe, self.sign2_coverage = res
 
         # check if performance evaluations need to be done
@@ -2271,7 +2284,7 @@ class sign3(BaseSignature, DataSignature):
         # save reference
         self.save_reference()
         # finalize signature
-        BaseSignature.fit_end(self,  **params)
+        BaseSignature.fit_end(self, **params)
 
     def predict_novelty(self, retrain=False, update_sign3=True, cpu=4):
         """Model novelty score via LocalOutlierFactor (semi-supervised).
@@ -2338,8 +2351,7 @@ class sign3(BaseSignature, DataSignature):
         try:
             from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError:
-            raise ImportError("requires tensorflow " +
-                              "https://tensorflow.org")
+            raise ImportError("requires tensorflow https://tensorflow.org")
 
         if model_path is None:
             model_path = os.path.join(self.model_path, 'siamese_debug')
@@ -2533,8 +2545,9 @@ def subsample(tensor, sign_width=128,
     return new_data
 
 
-def plot_subsample(sign, plot_file, sign2_coverage, traintest_file, ds='B1.001',
-                   p_self=.1, p_only_self=0., limit=10000, max_ds=25, sign2_list=None):
+def plot_subsample(sign, plot_file, sign2_coverage, traintest_file,
+                   ds='B1.001', p_self=.1, p_only_self=0., limit=10000,
+                   max_ds=25, sign2_list=None):
     import numpy as np
     import pandas as pd
     import seaborn as sns
