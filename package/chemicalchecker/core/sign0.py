@@ -26,7 +26,7 @@ from chemicalchecker.util.sampler.triplets import TripletSampler
 class sign0(BaseSignature, DataSignature):
     """Signature type 0 class."""
 
-    def __init__(self, signature_path, dataset, **params):
+    def __init__(self, signature_path, dataset,**params):
         """Initialize a Signature.
 
         Args:
@@ -327,8 +327,8 @@ class sign0(BaseSignature, DataSignature):
 
     def fit(self, cc_root=None, pairs=None, X=None, keys=None, features=None,
             data_file=None, key_type="inchikey", agg_method="average",
-            do_triplets=False, max_features=10000, chunk_size=10000,
-            sanitize=True, **params):
+            do_triplets=False, max_features=None, chunk_size=None,
+            sanitize=True, trim_features=True,**kwargs):
         """Process the input data.
 
         We produce a sign0 (full) and a sign0 (reference).
@@ -350,12 +350,12 @@ class sign0(BaseSignature, DataSignature):
                 should contain the required data in datasets.
             do_triplets(boolean): Draw triplets from the CC (default=True).
         """
-        BaseSignature.fit(self, **params)
+        BaseSignature.fit(self, **kwargs)
         self.clear()
         self.update_status("Getting data")
         if pairs is None and X is None and data_file is None:
             self.__log.debug("Runnning preprocess")  
-            data_file = Preprocess.preprocess(self, **params)
+            data_file = Preprocess.preprocess(self, **kwargs)
 
         self.__log.debug("data_file is {}".format(data_file))
         res = self.get_data(pairs=pairs, X=X, keys=keys, features=features,
@@ -369,10 +369,7 @@ class sign0(BaseSignature, DataSignature):
 
         if sanitize:
             self.update_status("Sanitizing")
-            # we want to keep exactly 2048 features (Morgan fingerprint) for A1
-            # FIXME trimFeatures should be a fit parameter
-            trimFeatures = self.dataset != 'A1.001'
-            san = Sanitizer(trim=trimFeatures, max_features=max_features,
+            san = Sanitizer(trim=trim_features, max_features=max_features,
                             chunk_size=chunk_size)
             X, keys, keys_raw, features = san.transform(
                 V=X, keys=keys, keys_raw=keys_raw, features=features,
@@ -403,16 +400,16 @@ class sign0(BaseSignature, DataSignature):
 
         self.refresh()
         # save reference
-        overwrite = params.get('overwrite', False)
+        overwrite = kwargs.get('overwrite', False)
         self.save_reference(overwrite=overwrite)
         # Making triplets
         if do_triplets:
             self.update_status("Sampling triplets")
             cc = self.get_cc(cc_root)
             sampler = TripletSampler(cc, self, save=True)
-            sampler.sample(**params)
+            sampler.sample(**kwargs)
         # finalize signature
-        BaseSignature.fit_end(self, **params)
+        BaseSignature.fit_end(self, **kwargs)
 
     def predict(self, pairs=None, X=None, keys=None, features=None,
                 data_file=None, key_type=None, merge=False, merge_method="new",
