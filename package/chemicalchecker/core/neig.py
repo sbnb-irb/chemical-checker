@@ -68,12 +68,17 @@ class neig(BaseSignature, DataSignature):
             raise ImportError("requires faiss " +
                               "https://github.com/facebookresearch/faiss")
 
+        # signature specific checks
+        if self.molset != "reference":
+            self.__log.debug("Fit will be done with the reference neig1")
+            self = self.get_molset("reference")
         if sign1 is None:
             sign1 = self.get_sign(
                 'sign' + self.cctype[-1]).get_molset("reference")
         if sign1.molset != "reference":
-            raise Exception(
-                "Fit should be done with the reference sign1")
+            self.__log.debug("Fit will be done with the reference sign1")
+            sign1 = self.get_sign(
+                'sign' + self.cctype[-1]).get_molset("reference")
 
         faiss.omp_set_num_threads(self.cpu)
 
