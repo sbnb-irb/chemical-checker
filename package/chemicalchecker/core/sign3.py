@@ -231,7 +231,7 @@ class sign3(BaseSignature, DataSignature):
         inks, cov_ds = cov.get_vectors(sign2_self.keys, dataset_name='x_test')
         conv = Converter()
         # check coverage of calculated spaces
-        missing = np.sum(~cov_ds[:, calc_ds_idx].astype(bool), axis=0)
+        missing = np.sum(~cov_ds[:, calc_ds_idx].astype(bool), axis=0).tolist()
         sign3.__log.info(
             "Completing universe for missing molecules: %s" %
             ', '.join(['%s: %i' % a for a in zip(calc_ds_names, missing)]))
