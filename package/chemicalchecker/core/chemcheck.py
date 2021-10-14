@@ -192,7 +192,8 @@ class ChemicalChecker():
         return [ink_inchi[k] for k in self.universe]
 
     @staticmethod
-    def set_verbosity(level='warning', logger_name='chemicalchecker'):
+    def set_verbosity(level='warning', logger_name='chemicalchecker',
+                      format=None):
         '''Set the verbosity for logging module.'''
         import logging
         level = level.upper()
@@ -207,7 +208,15 @@ class ChemicalChecker():
                   'ERROR': ChemicalChecker.__log.error,
                   'CRITICAL': ChemicalChecker.__log.critical}
         logger = logging.getLogger(logger_name)
+        logger.handlers = []
         logger.setLevel(levels[level])
+        if level == 'DEBUG':
+            ch = logging.StreamHandler()
+            formatter = logging.Formatter(
+                '%(asctime)s %(name)-12s [%(levelname)-8s] %(message)s')
+            ch.setFormatter(formatter)
+            logger.addHandler(ch)
+
         log_fn[level]("Logging level %s for logger '%s'." %
                       (level.upper(), logger_name))
 
