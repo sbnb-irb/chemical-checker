@@ -18,7 +18,7 @@ N_DET = 1000
 class Sanitizer(object):
     """Sanitizer class."""
 
-    def __init__(self, trim, max_keys=1000, max_features=5000,
+    def __init__(self, trim, max_keys=1000, max_features=10000,
                  min_feature_freq=5, max_feature_freq=0.8, min_key_freq=1,
                  max_key_freq=0.8, chunk_size=10000):
         """Initialize a Sanitizer instance.

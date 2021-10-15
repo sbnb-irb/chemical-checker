@@ -26,7 +26,7 @@ from chemicalchecker.util.sampler.triplets import TripletSampler
 class sign0(BaseSignature, DataSignature):
     """Signature type 0 class."""
 
-    def __init__(self, signature_path, dataset,**params):
+    def __init__(self, signature_path, dataset, **params):
         """Initialize a Signature.
 
         Args:
@@ -327,8 +327,7 @@ class sign0(BaseSignature, DataSignature):
 
     def fit(self, cc_root=None, pairs=None, X=None, keys=None, features=None,
             data_file=None, key_type="inchikey", agg_method="average",
-            do_triplets=False, max_features=None, chunk_size=None,
-            sanitize=True, trim_features=True,**kwargs):
+            do_triplets=False, sanitize=True, sanitizer_kwargs={}, **kwargs):
         """Process the input data.
 
         We produce a sign0 (full) and a sign0 (reference).
@@ -354,7 +353,7 @@ class sign0(BaseSignature, DataSignature):
         self.clear()
         self.update_status("Getting data")
         if pairs is None and X is None and data_file is None:
-            self.__log.debug("Runnning preprocess")  
+            self.__log.debug("Runnning preprocess")
             data_file = Preprocess.preprocess(self, **kwargs)
 
         self.__log.debug("data_file is {}".format(data_file))
@@ -369,8 +368,7 @@ class sign0(BaseSignature, DataSignature):
 
         if sanitize:
             self.update_status("Sanitizing")
-            san = Sanitizer(trim=trim_features, max_features=max_features,
-                            chunk_size=chunk_size)
+            san = Sanitizer(**sanitizer_kwargs)
             X, keys, keys_raw, features = san.transform(
                 V=X, keys=keys, keys_raw=keys_raw, features=features,
                 sign=None)
