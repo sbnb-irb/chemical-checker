@@ -45,7 +45,7 @@ class Corpus(object):
 class Lsi(BaseTransform):
     """Lsi class."""
 
-    def __init__(self, sign1, tmp=False, variance_explained=0.9,
+    def __init__(self, sign1, *args, tmp=False, variance_explained=0.9,
                  num_topics=None, B_val=10, N_val=1000, multipass=True,
                  min_freq=5, max_freq=0.25,
                  max_keys=100000, **kwargs):
