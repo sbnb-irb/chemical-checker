@@ -469,11 +469,7 @@ class sign0(BaseSignature, DataSignature):
                     continue
                 W[i, features_idx[feat]] = X[i, j]
         X = W
-        self.__log.debug("Sanitizing if necessary")
         self.refresh()
-        san = Sanitizer(trim=False, chunk_size=chunk_size)
-        X, keys, keys_raw, features = san.transform(
-            V=X, keys=keys, keys_raw=keys_raw, features=features, sign=self)
         self.__log.debug("Aggregating as fitted signature.")
         agg = Aggregate(method=self.agg_method, input_type=input_type)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
