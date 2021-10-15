@@ -171,31 +171,29 @@ def main(args):
         'proj3': 'reference'
     }
 
-    # dataset parameters
+    # initialize parameter holders (two dict, one for init and one for fit)
     datasets = [ds.code for ds in Dataset.get(exemplary=True)]
     sign_kwargs = {}
     fit_kwargs = {}
     for cctype in fit_order:
         fit_kwargs[cctype] = {}
         sign_kwargs[cctype] = {}
-    # sign3 shared parameters
+
+    # GENERAL FIT/INIT PARAMETERS
     cc = ChemicalChecker(args.cc_root)
     sign2_universe = os.path.join(pp.cachedir, "sign2_universe_stacked.h5")
     sign2_coverage = os.path.join(pp.cachedir, "sign2_universe_coverage.h5")
     sign2_list = [cc.get_signature('sign2', 'full', ds)
                   for ds in cc.datasets_exemplary()]
     mfp = cc.get_signature('sign0', 'full', 'A1.001').data_path
-    # we want to keep exactly 2048 features (Morgan fingerprint) for A1
-    fit_kwargs['sign0']['A1.001'] = {'trim_features': False}
     for ds in datasets:
         fit_kwargs['sign0'][ds] = {
             'key_type': 'inchikey',
             'do_triplets': False,
-            'max_features': 10000,
-            'chunk_size': 10000,
             'sanitize': True,
             'validations': True,
             'diagnostics': False
+            'sanitizer_kwargs': {'max_features': 10000,'chunk_size': 10000}
         }
         fit_kwargs['sign1'][ds] = {
             'metric_learning': False,
@@ -236,6 +234,10 @@ def main(args):
         sign_kwargs['proj2'][ds] = {
             'cpu': hpc_kwargs['proj2']['cpu']
         }
+
+    # DATASET SPECIFIC FIT/INIT PARAMETERS
+    # we want to keep exactly 2048 features (Morgan fingerprint) for A1
+    fit_kwargs['sign0']['A1.001'] = {'sanitize': False}
 
     # TASK: Create new CC DB
     def create_db():
