@@ -37,7 +37,7 @@ DEFAULT_T = 0.01
 class sign1(BaseSignature, DataSignature):
     """Signature type 1 class."""
 
-    def __init__(self, signature_path, dataset, **params):
+    def __init__(self, signature_path, dataset, **kwargs):
         """Initialize a Signature.
 
         Args:
@@ -45,7 +45,7 @@ class sign1(BaseSignature, DataSignature):
             model_path(str): Where the persistent model is.
         """
         # Calling init on the base class to trigger file existance checks
-        BaseSignature.__init__(self, signature_path, dataset, **params)
+        BaseSignature.__init__(self, signature_path, dataset, **kwargs)
         self.data_path = os.path.join(self.signature_path, "sign1.h5")
         DataSignature.__init__(self, self.data_path)
 
@@ -120,7 +120,8 @@ class sign1(BaseSignature, DataSignature):
                 del hf["V_tmp"]
 
     def fit(self, sign0=None, latent=True, scale=True, metric_learning=False,
-            semisupervised=False, scale_kwargs={}, pca_kwargs={}, **params):
+            semisupervised=False, scale_kwargs={}, pca_kwargs={}, 
+            lsi_kwargs={}, **kwargs):
         """Fit signature 1 given signature 0
 
             Args:
@@ -135,7 +136,7 @@ class sign1(BaseSignature, DataSignature):
             from chemicalchecker.util.transform.lsi import Lsi
         except ImportError as ex:
             raise ex
-        BaseSignature.fit(self, **params)
+        BaseSignature.fit(self, **kwargs)
         self.clear()
         # signature specific checks
         if sign0 is None:
@@ -172,7 +173,7 @@ class sign1(BaseSignature, DataSignature):
                 self.update_status("LSI")
                 self.__log.debug("Looking for latent variables with"
                                  "TFIDF-LSI (done for tmp)")
-                mod = Lsi(self, tmp=tmp)
+                mod = Lsi(self, tmp=tmp, **lsi_kwargs)
                 mod.fit()
             else:
                 self.__log.debug("Not looking for latent variables")
@@ -219,7 +220,7 @@ class sign1(BaseSignature, DataSignature):
             hf.create_dataset("metric", data=np.array(
                 ["cosine"], DataSignature.string_dtype()))
         # finalize signature
-        BaseSignature.fit_end(self, **params)
+        BaseSignature.fit_end(self, **kwargs)
 
     def predict(self, sign0, destination):
         """Use the learned model to predict the signature.
