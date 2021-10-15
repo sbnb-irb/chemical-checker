@@ -192,7 +192,7 @@ def main(args):
             'do_triplets': False,
             'sanitize': True,
             'validations': True,
-            'diagnostics': False
+            'diagnostics': False,
             'sanitizer_kwargs': {'max_features': 10000,'chunk_size': 10000}
         }
         fit_kwargs['sign1'][ds] = {
