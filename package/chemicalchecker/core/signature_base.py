@@ -106,7 +106,7 @@ class BaseSignature(object):
         self.background_distances("euclidean")
         validations = kwargs.get('validations', True)
         end_other_molset = kwargs.get('end_other_molset', True)
-        diagnostics = kwargs.get("diagnostics", True)
+        diagnostics = kwargs.get("diagnostics", False)
         # performing validations
         if validations:
             self.update_status("Validation")
@@ -257,7 +257,7 @@ class BaseSignature(object):
         plot.roc_curve_plot(y_t, y_p, cctype, sign.dataset,
                             len(common_conn), frac_shared)
 
-    def validate(self, apply_mappings=True, metric='cosine', diagnostics=True):
+    def validate(self, apply_mappings=True, metric='cosine', diagnostics=False):
         """Perform validations.
 
         A validation file is an external resource basically presenting pairs of
@@ -319,6 +319,7 @@ class BaseSignature(object):
         plot.matrix_plot(self.data_path)
         # run diagnostics
         if diagnostics:
+            self.__log.info("Executing diagnostics")
             cc = self.get_cc()
             diag = cc.diagnosis(self)
             fig = diag.canvas()

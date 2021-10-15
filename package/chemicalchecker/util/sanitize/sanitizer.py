@@ -28,7 +28,7 @@ class Sanitizer(object):
             max_keys (int): Maximum number of keys to be used when using a
                 sign as a reference (default=1000).
             max_features (int): Maximum number of features to keep
-                (default=5000).
+                (default=10000).
             min_feature_freq (int): Minimum number (counts) of occurrences
                 of feature, row-wise. Only applies to categorical data
                 (default=5).
