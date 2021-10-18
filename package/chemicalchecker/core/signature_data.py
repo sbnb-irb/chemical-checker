@@ -614,11 +614,12 @@ class DataSignature(object):
                V(matrix): A (samples, features) matrix.
                keys(array): The list of keys.
         """
-        self.__log.debug("Subsampling dataset (n=%d)" % n)
-        if n > len(self.keys):
+        if n >= len(self.keys):
+            self.__log.debug("Full dataset sampled (n=%d)" % len(self.keys))
             V = self[:]
             keys = self.keys
         else:
+            self.__log.debug("Subsampling dataset (n=%d)" % n)
             idxs = np.array(sorted(np.random.choice(
                 len(self.keys), n, replace=False)))
             with h5py.File(self.data_path, "r") as hf:
