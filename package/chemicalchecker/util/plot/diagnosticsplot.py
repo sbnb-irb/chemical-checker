@@ -207,7 +207,7 @@ class DiagnosisPlot(object):
         ax.set_ylabel("Keys")
         ax.set_xlabel("Features")
         ax.set_title(title)
-        ax.grid()
+        ax.grid(True)
         return ax
 
     def _proj_lims(self, P):
@@ -260,6 +260,7 @@ class DiagnosisPlot(object):
         dists = results["dists"]
         sns.kdeplot(dists, ax=ax, shade=True, color=color)
         ax.set_ylabel("Density")
+        ax.set_yticklabels([])
         return ax
 
     @safe_return(None)
@@ -293,6 +294,7 @@ class DiagnosisPlot(object):
             title = "Values distr."
         ax.set_title(title)
         ax.set_ylim(0, np.max(y) * 1.05)
+        ax.set_yticklabels([])
 
     def _iqr(self, results, ax):
         ax = self._get_ax(ax)
@@ -592,6 +594,7 @@ class DiagnosisPlot(object):
             title = "Intensities"
         ax.set_title(title)
         ax.set_ylim(0, np.max(y) * 1.05)
+        ax.set_yticklabels([])
         return ax
 
     @safe_return(None)
@@ -751,6 +754,7 @@ class DiagnosisPlot(object):
             title = "CC ranks agree."
         ax.set_title(title)
         ax.set_ylim(0, np.max(y) * 1.05)
+        ax.set_yticklabels([])
         return ax
 
     @safe_return(None)
@@ -783,6 +787,7 @@ class DiagnosisPlot(object):
             title = "CC ranks agree."
         ax.set_title(title)
         ax.set_ylim(0, np.max(y) * 1.05)
+        ax.set_yticklabels([])
         return ax
 
     @safe_return(None)
@@ -812,6 +817,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         ax.set_ylim(0, np.max(y) * 1.05)
         ax.set_xlim(-1.05, 1.05)
+        ax.set_yticklabels([])
         return ax
 
     @safe_return(None)
@@ -863,8 +869,8 @@ class DiagnosisPlot(object):
         return fig
 
     def canvas_medium(self, title):
-        fig = plt.figure(constrained_layout=True, figsize=(12, 12))
-        gs = fig.add_gridspec(6, 6)
+        fig = plt.figure(figsize=(14, 14))
+        gs = fig.add_gridspec(6, 6, wspace=0.7, hspace=0.7)
         ax = fig.add_subplot(gs[0, 0])
         self.legend(ax)
         ax = fig.add_subplot(gs[1, 5])
@@ -921,7 +927,7 @@ class DiagnosisPlot(object):
         self.across_roc(ax)
         if title is None:
             title = "%s %s" % (self.diag.sign.dataset, self.diag.sign.cctype)
-        fig.suptitle(title, fontweight="bold")
+        fig.suptitle(title, fontweight="bold", y=0.92, size='xx-large')
         plt.close()
         return fig
 
