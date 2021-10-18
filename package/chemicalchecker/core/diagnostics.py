@@ -20,7 +20,6 @@ from sklearn.neighbors import NearestNeighbors
 from chemicalchecker.util import logged, Config
 from chemicalchecker.util.plot import DiagnosisPlot
 from chemicalchecker.util.decorator import safe_return
-from chemicalchecker.util.decorator import cached_property
 from chemicalchecker.util.hpc import HPC
 
 
@@ -28,8 +27,8 @@ from chemicalchecker.util.hpc import HPC
 class Diagnosis(object):
     """Diagnosis class."""
 
-    def __init__(self, ref_cc, sign, ref_cctype='sign0', ref_molset='full',
-                 save=True, plot=True, overwrite=False, n=10000):
+    def __init__(self, sign, ref_cc=None, ref_cctype='sign0', ref_molset='full',
+                 save=True, plot=True, overwrite=False, n=10000, seed=42):
         """Initialize a Diagnosis instance.
 
         Args:
@@ -43,6 +42,10 @@ class Diagnosis(object):
                 diagnosis. (default=False)
             n (int): Number of molecules to sample. (default=10000)
         """
+        np.random.seed(seed)
+        random.seed(seed)
+        if ref_cc is None:
+            ref_cc = sign.get_cc()
         self.ref_cc = ref_cc
         self.save = save
         self.plot = plot
@@ -79,7 +82,7 @@ class Diagnosis(object):
                 "Saving is necessary to plot. Setting 'save' to True.")
             self.save = True
 
-        fn = os.path.join(self.sign.diags_path, "subsampled_data.pkl")
+        fn = os.path.join(self.path, "subsampled_data.pkl")
         if self.save:
             if not os.path.exists(fn):
                 self.__log.debug("Subsampling")
@@ -93,7 +96,12 @@ class Diagnosis(object):
             self.V = d["V"]
             self.keys = d["keys"]
 
+    def clear(self):
+        """Remove al diagnostic data."""
+        shutil.rmtree(self.path)
+
     def _todo(self, fn, inner=False):
+        """Check if function is to be run."""
         if os.path.exists(os.path.join(self.path, fn + ".pkl")):
             if inner:
                 return False
@@ -209,12 +217,13 @@ class Diagnosis(object):
         """
         cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
         cfg = Config(cc_config)
-        job_path = tempfile.mkdtemp(prefix='jobs_diagnostics_' + cctype + "_", dir=tmpdir)
+        job_path = tempfile.mkdtemp(
+            prefix='jobs_diagnostics_' + cctype + "_", dir=tmpdir)
         # create job directory if not available
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         dataset_codes = list()
-        for ds in dss:  
+        for ds in dss:
             dataset_codes.append(ds)
         sign_args_tmp = kwargs.get('sign_args', {})
         sign_kwargs_tmp = kwargs.get('sign_kwargs', {})
@@ -251,7 +260,8 @@ class Diagnosis(object):
         if cc_reference == "":
             cc_reference = cc_root
         script_name = os.path.join(job_path, 'diagnostics_script.py')
-        script_content = script_lines.format(cc_root=cc_root, cc_reference=cc_reference)
+        script_content = script_lines.format(
+            cc_root=cc_root, cc_reference=cc_reference)
         with open(script_name, 'w') as fh:
             fh.write(script_content)
         # HPC parameters
@@ -262,7 +272,7 @@ class Diagnosis(object):
         params["elements"] = dataset_params
         params["wait"] = True
         params["check_error"] = False
-        params["memory"] = 4 # trial and error
+        params["memory"] = 4  # trial and error
         # job command
         singularity_image = cfg.PATH.SINGULARITY_IMAGE
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" \
@@ -274,7 +284,6 @@ class Diagnosis(object):
         cluster = HPC.from_config(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
-
 
     @safe_return(None)
     def euclidean_distances(self, n_pairs=10000):
@@ -409,7 +418,8 @@ class Diagnosis(object):
             my_vectors = self.sign.get_vectors(keys1)[1]
             vs_vectors = sign.get_vectors(keys2)[1]
             # do nearest neighbors
-            nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric, n_jobs=-1)
+            nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric,
+                                  n_jobs=-1)
             nn.fit(vs_vectors)
             neighs = nn.kneighbors(vs_vectors)[1][:, 1:]
             # sample positive and negative pairs
