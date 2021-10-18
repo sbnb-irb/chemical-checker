@@ -320,15 +320,13 @@ class BaseSignature(object):
         # run diagnostics
         if diagnostics:
             self.__log.info("Executing diagnostics")
-            cc = self.get_cc()
-            diag = cc.diagnosis(self)
+            diag = self.diagnosis()
             fig = diag.canvas()
             fig.savefig(os.path.join(self.diags_path, '%s.png' % diag.name))
         return results
 
-    def diagnosis(self, sign, **kwargs):
-        cc = self.get_cc()
-        return Diagnosis(cc, self, **kwargs)
+    def diagnosis(self, **kwargs):
+        return Diagnosis(self, **kwargs)
 
     def update_status(self, status):
         fname = os.path.join(self.signature_path, '.STATUS')
