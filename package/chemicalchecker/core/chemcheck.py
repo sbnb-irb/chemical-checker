@@ -391,10 +391,6 @@ class ChemicalChecker():
         return self.get_signature(cctype=cctype, molset="full",
                                   dataset_code=dataset)
 
-    def diagnosis(self, sign, **kwargs):
-        from chemicalchecker.core.diagnostics import Diagnosis
-        return Diagnosis(self, sign, **kwargs)
-
     def link_h5(self, custom_data_path):
         """Link H5 files from a given custom directory.
 
