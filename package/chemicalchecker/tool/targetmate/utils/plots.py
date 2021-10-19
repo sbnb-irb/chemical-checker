@@ -7,7 +7,7 @@ from scipy.cluster.hierarchy import dendrogram, linkage
 from matplotlib.patches import Rectangle
 from scipy import stats
 import numpy as np
-from chemicalchecker.util.plot.util import coord_color, set_style
+# from chemicalchecker.util.plot.style.util import coord_color, set_style
 from chemicalchecker.util import logged
 
 set_style()
@@ -15,15 +15,15 @@ set_style()
 
 @logged
 class OneConformalClassifierPlot(object):
-    
+
     def __init__(self, path, significance = 0.2):
         """Initialize class
-        
+
         Args:
             path(str): Path to the folder where results are stored.
             significance(float): Significance threshold, according to the conformal classification scheme (default=0.2).
         """
-        
+
         self.path = os.path.abspath(path)
         self.valid_path = os.path.join(self.path, "validation.pkl")
         if not os.path.exists(self.valid_path):
@@ -31,7 +31,7 @@ class OneConformalClassifierPlot(object):
         self.outpath = os.path.join(self.path, "plots")
         if not os.path.exists(self.outpath):
             os.mkdir(self.outpath)
-        with open(self.valid_path, "rb") as f: 
+        with open(self.valid_path, "rb") as f:
             valid = pickle.load(f)
         if type(valid) is not dict:
             self.valid = valid.as_dict()
@@ -39,7 +39,7 @@ class OneConformalClassifierPlot(object):
             self.valid = valid
         self.significance = significance
         self.__log.info("Conformal classifier plots. Results will be stored in %s" % self.outpath)
-    
+
     @staticmethod
     def _get_j(label):
         assert label in set(["Active", "Inactive"]), "Only Active and Inactive are valid labels"
@@ -48,7 +48,7 @@ class OneConformalClassifierPlot(object):
         else:
             j = 0
         return j
-    
+
     def find_significance_threshold(self, label):
         j = self._get_j(label)
         vals = []
@@ -60,7 +60,7 @@ class OneConformalClassifierPlot(object):
             idx = np.argmax(bacc)
             vals += [thr[idx]]
         return np.mean(vals)
-    
+
     def ranking_metrics(self, ax, label):
         self.__log.debug("Ranking metrics plot")
         j = self._get_j(label)
@@ -72,9 +72,9 @@ class OneConformalClassifierPlot(object):
             x += [i]
             y += [perfs[k][0][j]]
         ax.scatter(x, y, color = "grey")
-            
+
     def classification_metrics(self, ax, label, significance=None):
-        self.__log.debug("Classification metrics plot")    
+        self.__log.debug("Classification metrics plot")
         mets = [
             ("K", metrics.cohen_kappa_score),
             ("MCC"  , metrics.matthews_corrcoef),
@@ -107,14 +107,14 @@ class OneConformalClassifierPlot(object):
             m = k[1]
             v += [m(y_true, y)]
             x += [i]
-        ax.scatter(x, v, color = coord_color("E"), zorder=1000, label="Test")     
+        ax.scatter(x, v, color = coord_color("E"), zorder=1000, label="Test")
         ax.set_xticks(x)
         ax.set_xticklabels([k[0] for k in mets])
         ax.set_ylabel("Performance")
         ax.set_xlabel("Score")
         ax.set_title("PS %.2f" % significance)
         ax.legend()
-        
+
     def pvalue_distributions(self, ax, label):
         self.__log.debug("P-values plot")
         j = self._get_j(label)
@@ -143,7 +143,7 @@ class OneConformalClassifierPlot(object):
         ax.set_ylabel("Density")
         ax.set_title("%s set" % label)
         ax.legend()
-    
+
     def roc_curve(self, ax, label):
         self.__log.debug("ROC curve")
         j = self._get_j(label)
@@ -179,7 +179,7 @@ class OneConformalClassifierPlot(object):
         ax.set_ylabel("Precision")
         ax.set_title("PR %.2f / %.2f" % (auc_tr, auc_ts))
         ax.legend()
-        
+
     def confidence_level(self, ax):
         self.__log.debug("Confidence level plot")
         y_pred = self.valid["test"]["y_pred"][0]
@@ -209,7 +209,7 @@ class OneConformalClassifierPlot(object):
         ax.set_ylabel("Compounds")
         ax.set_xlabel("Confidence level")
         ax.set_title("Decisions")
-        
+
     def validity(self, ax):
         self.__log.debug("Validity plot")
         y_pred = self.valid["test"]["y_pred"][0]
@@ -236,7 +236,7 @@ class OneConformalClassifierPlot(object):
         ax.set_xlabel("Confidence level")
         ax.set_ylabel("Validity")
         ax.set_title("Validity")
-        
+
     def efficiency(self, ax):
         self.__log.debug("Efficiency plot")
         """Fraction of single-class predictions that are correct."""
@@ -261,7 +261,7 @@ class OneConformalClassifierPlot(object):
         ax.set_title("Efficiency")
         ax.set_ylim(0,1)
         ax.set_xlim(0,1)
-               
+
     def both_pvalues(self, ax):
         self.__log.debug("Both p-values plot")
         y_pred = self.valid["test"]["y_pred"][0]
@@ -270,12 +270,12 @@ class OneConformalClassifierPlot(object):
         xy = np.vstack([x,y])
         z = stats.kde.gaussian_kde(xy)(xy)
         idx = z.argsort()
-        x, y, z = x[idx], y[idx], z[idx]    
+        x, y, z = x[idx], y[idx], z[idx]
         ax.scatter(x, y, c=z, edgecolor = "", cmap = "Spectral")
         ax.set_xlabel("PS Inactive")
         ax.set_ylabel("PS Active")
         ax.set_title("Class. PS")
-        
+
     def calibration(self, ax, label):
         self.__log.debug("Calibration plot")
         if label == "Active":
@@ -310,7 +310,7 @@ class OneConformalClassifierPlot(object):
         axs = axs.flatten()
         self.various_counts(axs[0])
         self.pvalue_distributions(axs[1], "Active")
-        self.validity(axs[2])   
+        self.validity(axs[2])
         self.roc_curve(axs[3], "Active")
         self.pr_curve(axs[4], "Active")
         self.classification_metrics(axs[5], "Active")

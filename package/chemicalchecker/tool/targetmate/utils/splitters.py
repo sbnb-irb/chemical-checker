@@ -11,9 +11,10 @@ TRIALS = 3
 
 class Splitter(object):
 
-    def __init__(self, n_splits=1, test_size=0.2, random_state=42, **kwargs):
+    def __init__(self, n_splits=1, test_size=0.2, random_state=42, train_size=None, **kwargs):
         self.n_splits = n_splits
         self.test_size = test_size
+        self.train_size=train_size
         if random_state is None:
             self.random_state = random.randint(1, 99999)
         else:
@@ -76,7 +77,7 @@ class ToppedSampler(object):
                 np.ceil(self.get_resamp(self.samples, self.N, self.chance)))
             self.ensemble_size = np.min([self.max_ensemble_size, self.ensemble_size])
             self.ensemble_size = np.max([self.min_ensemble_size, self.ensemble_size])
-    
+
     @staticmethod
     def probabilities(y, bins):
         h, b = np.histogram(y, bins)
@@ -85,7 +86,7 @@ class ToppedSampler(object):
         b = b[:-1]
         m = (max_b-min_b)/(np.max(b)-np.min(b))
         n = min_b - m*np.min(b)
-        b = m*b+n   
+        b = m*b+n
         w = np.interp(y, b, h).ravel()
         w = (1 - w/np.sum(h))+1e-6
         probas = w/np.sum(w)
@@ -507,7 +508,7 @@ def GetSplitter(is_cv, is_classifier, is_stratified, scaffold_split, outofuniver
         else:
             if outofuniverse_split:
                 spl = OutOfUniverseStratified
-            else:        
+            else:
                 if scaffold_split:
                     if is_stratified:
                         spl = StratifiedShuffleScaffoldSplit

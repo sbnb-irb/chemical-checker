@@ -2,27 +2,20 @@
 TargetMate base classes.
 """
 import os
-import collections
-import numpy as np
 import pickle
-import joblib
-import random
 import uuid
 
-from sklearn.base import clone
+import joblib
+import numpy as np
+import shap
+from chemicalchecker.util import logged
 from sklearn.decomposition import PCA
 
-import shap
-
-from chemicalchecker.util import logged
-
-from .universes import Universe
-from .utils import metrics
-from .utils import plots
-from .utils import splitters
+from .io import InputData, Prediction, Explanation
 from .signaturizer import SignaturizerSetup
 from .tmsetup import ModelSetup
-from .io import InputData, Prediction, Explanation
+from .utils import metrics
+from .utils import splitters
 
 
 @logged
@@ -31,17 +24,17 @@ class Model(ModelSetup):
 
     def __init__(self, is_classifier, **kwargs):
         """Initialize TargetMate model.
-        
+
         Args:
             is_classifier(bool): Is the model a classifier or a regressor?
         """
         ModelSetup.__init__(self, is_classifier, **kwargs)
-        self.weights         = None
-        self.mod_dir         = None
+        self.weights = None
+        self.mod_dir = None
         self.mod_uncalib_dir = None
 
     def array_on_disk(self, ar):
-        fn = os.path.join(self.arrays_tmp_path, str(uuid.uuid4())+".npy")
+        fn = os.path.join(self.arrays_tmp_path, str(uuid.uuid4()) + ".npy")
         np.save(fn, ar)
         return fn
 
@@ -49,10 +42,10 @@ class Model(ModelSetup):
         if ar is None:
             return None
         if type(ar) == str:
-            return np.load(ar)
+            return np.load(ar, allow_pickle=True)
         else:
             return ar
-    
+
     def sampler(self, X, y):
         self.shuffle = True
         spl = splitters.ToppedSampler(max_samples=self.max_train_samples,
@@ -64,12 +57,12 @@ class Model(ModelSetup):
         self.__log.debug("Sampling")
         for shuff in spl.sample(X=X, y=y):
             yield shuff
-        
+
     def find_base_mod(self, X, y, smiles, destination_dir):
         """Select a pipeline, for example, using HyperOpt."""
         destdir = destination_dir + "---base_model"
-        X      = self.check_array_from_disk(X)
-        y      = self.check_array_from_disk(y)
+        X = self.check_array_from_disk(X)
+        y = self.check_array_from_disk(y)
         smiles = self.check_array_from_disk(smiles)
         self.__log.info("Setting the base model")
         for shuff in self.sampler(X, y):
@@ -84,7 +77,7 @@ class Model(ModelSetup):
         """Load base model"""
         with open(self.base_mod_dir, "rb") as f:
             return joblib.load(f)
-        
+
     def metric_calc(self, y_true, y_pred, metric=None):
         """Calculate metric. Returns (value, weight) tuple."""
         if not metric:
@@ -110,7 +103,7 @@ class Model(ModelSetup):
         for train_idx, test_idx in kf.split(X, y):
             mod.fit(X[train_idx], y[train_idx])
             if self.is_classifier:
-                y_pred += list(mod.predict_proba(X[test_idx])[:,1])
+                y_pred += list(mod.predict_proba(X[test_idx])[:, 1])
             else:
                 y_pred += list(mod.predict(X[test_idx]))
             y_true += list(y[test_idx])
@@ -118,20 +111,20 @@ class Model(ModelSetup):
 
     def _check_y(self, y):
         """Randomly sample positives or negatives if not enough in the class. Should be a corner case."""
-        y   = np.array(y)
+        y = np.array(y)
         act = np.sum(y)
         ina = len(y) - act
-        if act >= self.min_class_size and ina >= self.min_class_size:
+        if act >= self.min_class_size_active and ina >= self.min_class_size_inactive:  # Added by Paula: Specific to each class
             return y
-        if act < self.min_class_size:
-            m = self.min_class_size - act
+        if act < self.min_class_size_active:  # Added by Paula: Specific to each class
+            m = self.min_class_size_active - act
             idxs = np.argwhere(y == 0).ravel()
             np.random.shuffle(idxs)
             idxs = idxs[:m]
             y[idxs] = 1
             return y
-        if ina < self.min_class_size:
-            m = self.min_class_size - ina
+        if ina < self.min_class_size_inactive:  # Added by Paula: Specific to each class
+            m = self.min_class_size_inactive - ina
             idxs = np.argwhere(y == 1).ravel()
             np.random.shuffle(idxs)
             idxs = idxs[:m]
@@ -140,7 +133,7 @@ class Model(ModelSetup):
 
     def _fit(self, X, y, smiles=None, destination_dir=None):
         """Fit a model, using a specified pipeline.
-        
+
         Args:
             X(array): Signatures matrix.
             y(array): Labels vector.
@@ -153,7 +146,7 @@ class Model(ModelSetup):
         if destination_dir is None:
             raise Exception("destination_dir cannot be None")
         self.mod_dir = destination_dir
-        self.mod_uncalib_dir = destination_dir+"-uncalib"
+        self.mod_uncalib_dir = destination_dir + "-uncalib"
         # Check if array is a file
         X = self.check_array_from_disk(X)
         y = self.check_array_from_disk(y)
@@ -183,10 +176,14 @@ class Model(ModelSetup):
             if mod_uncalib is not None:
                 self.__log.info("Fitting model, but without calibration")
                 mod_uncalib.fit(X_, y_)
+            for p in range(len(mod.predictors)): # Added by Paula: way to reduce memory when storing models
+                mod.predictors[p].cal_x = None
+                mod.predictors[p].cal_y = None
             # Save the destination directory of the model
             destdir = self.mod_dir + "---%d" % i
             destdir_uncalib = self.mod_uncalib_dir + "---%d" % i
             self.__log.debug("Saving fitted model in %s" % destdir)
+
             with open(destdir, "wb") as f:
                 joblib.dump(mod, f)
             if mod_uncalib is not None:
@@ -214,7 +211,7 @@ class Model(ModelSetup):
 
     def _predict(self, X, destination_dir=None):
         """Make predictions
-    
+
         Returns:
             A (n_samples, n_classes) array. For now, n_classes = 2.
         """
@@ -230,7 +227,7 @@ class Model(ModelSetup):
                 preds = p
             else:
                 preds = preds + p
-        preds = preds/(i+1)
+        preds = preds / (i + 1)
         if destination_dir:
             self.__log.debug("Saving prediction in %s" % destination_dir)
             with open(destination_dir, "wb") as f:
@@ -247,9 +244,10 @@ class Model(ModelSetup):
         self.__log.info("Explaining")
         shaps = None
         for i, mod in enumerate(self.model_iterator(uncalib=True)):
-            explainer = shap.TreeExplainer(mod)  # TO-DO: Apply kernel explainer for non-tree methods. Perhaps use LIME when computational cost is high.
+            explainer = shap.TreeExplainer(
+                mod)  # TO-DO: Apply kernel explainer for non-tree methods. Perhaps use LIME when computational cost is high.
             shaps = explainer.shap_values(X, check_additivity=False)
-            break 
+            break
         if destination_dir:
             self.__log.debug("Saving explanations in %s" % destination_dir)
             with open(destination_dir, "wb") as f:
@@ -268,51 +266,62 @@ class Model(ModelSetup):
 
 
 @logged
-class SignaturedModel(Model, SignaturizerSetup):
+class SignaturedModel(Model, SignaturizerSetup): ## Commented by Paula
+# class SignaturedModel(Model, Fingerprinter, Signaturizer):
 
     def __init__(self, **kwargs):
         """Initialize a signatured model."""
         Model.__init__(self, **kwargs)
         SignaturizerSetup.__init__(self, do_init=False, **kwargs)
 
-    def get_data_fit(self, data, smiles_idx=1, inchikey_idx=None, activity_idx=0, srcid_idx=None, use_inchikey=False):
-        data = self.prepare_data(data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey)
+    def get_data_fit(self, data, inchikey_idx=None, activity_idx=0, srcid_idx=None, use_inchikey=False, **kwargs):
+
+        smiles_idx = kwargs.get('smiles_idx', None)
+        inchi_idx = kwargs.get('inchi_idx', None)
+        data = self.prepare_data(data, smiles_idx, inchi_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey)
+
         data = self.prepare_for_ml(data)
+
         return data
 
-    def get_data_predict(self, data, smiles_idx=0, inchikey_idx=None, activity_idx=None, srcid_idx=None, use_inchikey=False):
-        data = self.prepare_data(data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey)
-        data = self.prepare_for_ml(data) # TODO: Check that this is necessary...
+    def get_data_predict(self, data, smiles_idx=None, inchi_idx=None, inchikey_idx=None, activity_idx=None,
+                         srcid_idx=None, use_inchikey=False, **kwargs):
+        data = self.prepare_data(data, smiles_idx, inchi_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey)
+        data = self.prepare_for_ml(data, predict=True)  # TODO: Check that this is necessary...
         return data
 
-    def get_Xy_from_data(self, data, idxs):
+    def get_Xy_from_data(self, data, idxs, scramble = False):
         """Given data and certain idxs, get X and y (if available)"""
         # filter data by specified indices
         res = data.as_dict(idxs)
         y = res["activity"]
         idxs = res["idx"]
-        smiles = res["smiles"]
+        molecule = res["molecule"]
         inchikeys = res["inchikey"]
-        X, idxs_ = self.read_signatures(datasets=self.datasets, idxs=idxs, smiles=smiles, inchikeys=inchikeys)
-        # filter again, this time by coverage
+        X, idxs_ = self.read_signatures(datasets=self.datasets, idxs=idxs,
+                                        smiles=molecule, inchikeys=inchikeys, is_tmp=self.is_tmp_signatures)
+
         if y is not None:
             y = y[idxs_]
+            if scramble:
+                self.__log.info("Scrambling y")
+                np.random.shuffle(y)
         idxs = idxs[idxs_]
-        smiles = smiles[idxs_]
+        molecule = molecule[idxs_]
         inchikeys = inchikeys[idxs_]
         self.__log.info("X shape: (%d, %d) / Y length: %d" % (X.shape[0], X.shape[1], len(y)))
         # saving arrays on disk
         X = self.array_on_disk(X)
         if y is not None:
             y = self.array_on_disk(y)
-        smiles = self.array_on_disk(smiles)
+        molecule = self.array_on_disk(molecule)
         inchikeys = self.array_on_disk(inchikeys)
         idxs = self.array_on_disk(idxs)
         results = {
             "X": X,
             "y": y,
             "idxs": idxs,
-            "smiles": smiles,
+            "molecule": molecule,
             "inchikeys": inchikeys
         }
         self.__log.info("Arrays saved on disk %s" % results)
@@ -336,7 +345,7 @@ class StackedModel(SignaturedModel):
         self.__log.debug("Doing PCA fit")
         for shuff in self.sampler(X, y=None):
             break
-        self.pca = PCA(n_components = self.n_components)
+        self.pca = PCA(n_components=self.n_components)
         self.pca.fit(X[shuff])
 
     def pca_transform(self, X):
@@ -344,32 +353,33 @@ class StackedModel(SignaturedModel):
         if not self.pca: return X
         return self.pca.transform(X)
 
-    def _prepare_fit_stack(self, data, idxs):
+    def _prepare_fit_stack(self, data, idxs, scramble):
         self.__log.info("Reading signatures from data")
-        res = self.get_Xy_from_data(data, idxs)
+        res = self.get_Xy_from_data(data, idxs, scramble)
         X = res["X"]
         y = res["y"]
-        smiles = res["smiles"]
-        if self.is_tmp:
+
+        molecule = res["molecule"]
+        if self.is_tmp_bases:
             dest = os.path.join(self.bases_tmp_path, "Stacked")
         else:
             dest = os.path.join(self.bases_models_path, "Stacked")
-        return X, y, smiles, dest
+        return X, y, molecule, dest
 
-    def _fit_stack(self, data, idxs):
-        X, y, smiles, dest = self._prepare_fit_stack(data, idxs)
+    def _fit_stack(self, data, idxs, scramble):
+        X, y, smiles, dest = self._prepare_fit_stack(data, idxs, scramble)
         return self._fit(X, y, smiles=smiles, destination_dir=dest)
-        
-    def fit_stack(self, data, idxs, wait):
+
+    def fit_stack(self, data, idxs, wait, scramble):
         jobs = []
         if self.use_cc:
             self.__log.info("Reading and fitting altogether")
-            if self.hpc:              
-                jobs += [self.func_hpc("_fit_stack", data, idxs, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
+            if self.hpc:
+                jobs += [self.func_hpc("_fit_stack", data, idxs, scramble, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
             else:
-                self._fit_stack(data, idxs)
+                self._fit_stack(data, idxs, scramble)
         else:
-            X, y, smiles, dest = self._prepare_fit_stack(data, idxs)
+            X, y, smiles, dest = self._prepare_fit_stack(data, idxs, scramble)
             if self.hpc:
                 jobs += [self.func_hpc("_fit", X, y, smiles, dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
             else:
@@ -378,7 +388,7 @@ class StackedModel(SignaturedModel):
             self.waiter(jobs)
         return jobs
 
-    def fit(self, data, idxs=None, is_tmp=False, wait=True):
+    def fit(self, data, idxs=None, is_tmp=False, wait=True, scramble=False):
         """
         Fit the stacked model.
 
@@ -387,14 +397,14 @@ class StackedModel(SignaturedModel):
             idxs(array): Indices to use for the signatures. If none specified, all are used (default=None).
             is_tmp(bool): Save in the temporary directory or in the models directory.
         """
-        self.is_tmp = is_tmp
-        self.signaturize(smiles=data.smiles)
-        jobs = self.fit_stack(data, idxs=idxs, wait=wait)
+
+        jobs = self.fit_stack(data, idxs=idxs, wait=wait, scramble = scramble)
         if not wait:
             return jobs
 
     def _predict_(self, X, dest):
-        if self.is_tmp:
+        self.__log.info("saving paths for stacked")
+        if self.is_tmp_bases:
             dest_ = os.path.join(self.bases_tmp_path, "Stacked")
         else:
             dest_ = os.path.join(self.bases_models_path, "Stacked")
@@ -406,18 +416,18 @@ class StackedModel(SignaturedModel):
         res = self.get_Xy_from_data(data, idxs)
         X = res["X"]
         y = res["y"]
-        #X = self.pca_transform(X)
-        if self.is_tmp:
+        # X = self.pca_transform(X)
+        if self.is_tmp_predictions:
             dest = os.path.join(self.predictions_tmp_path, "Stacked")
         else:
             dest = os.path.join(self.predictions_models_path, "Stacked")
         self.__log.info("Saving metadata in %s-meta" % dest)
         meta = {
             "y": self.check_array_from_disk(y),
-            "idxs": idxs
+            "idxs": idxs,
         }
-        with open(dest+"-meta", "wb") as f:
-             pickle.dump(meta, f)
+        with open(dest + "-meta", "wb") as f:
+            pickle.dump(meta, f)
         return X, dest
 
     def _predict_stack(self, data, idxs):
@@ -446,27 +456,29 @@ class StackedModel(SignaturedModel):
     def load_predictions(self, datasets=None):
         datasets = self.get_datasets(datasets)
         y_pred = []
-        if self.is_tmp:
+        if self.is_tmp_predictions:
             dest = os.path.join(self.predictions_tmp_path, "Stacked")
         else:
             dest = os.path.join(self.predictions_models_path, "Stacked")
+
         with open(dest, "rb") as f:
             y_pred = pickle.load(f)
-        with open(dest+"-meta", "rb") as f:
+        with open(dest + "-meta", "rb") as f:
             meta = pickle.load(f)
             y_true = meta["y"]
+
         return Prediction(
-            datasets = datasets,
-            y_true = y_true,
-            y_pred = y_pred,
-            is_ensemble = self.is_ensemble,
-            weights = None
-            )
+            datasets=datasets,
+            y_true=y_true,
+            y_pred=y_pred,
+            is_ensemble=self.is_ensemble,
+            weights=None
+        )
 
     def predict(self, data, idxs=None, datasets=None, is_tmp=True, wait=True):
-        self.is_tmp = is_tmp
+        # self.is_tmp = is_tmp
         datasets = self.get_datasets(datasets)
-        self.signaturize(smiles=data.smiles, datasets=datasets)
+        self.signaturize(smiles=data.molecule, datasets=datasets, moleculetype=data.moleculetype)
         jobs = self.predict_stack(data, idxs=idxs, wait=wait)
         if wait:
             return self.load_predictions(datasets)
@@ -474,23 +486,23 @@ class StackedModel(SignaturedModel):
             return jobs
 
     def _explain_(self, X, dest):
-        if self.is_tmp:
+        if self.is_tmp_bases:
             dest_ = os.path.join(self.bases_tmp_path, "Stacked")
         else:
             dest_ = os.path.join(self.bases_models_path, "Stacked")
         if self.conformity:
-            self.mod_uncalib_dir = dest_+"-uncalib"
+            self.mod_uncalib_dir = dest_ + "-uncalib"
         else:
             self.mod_dir = dest_
-            self.mod_uncalib_dir = dest_+"-uncalib"
+            self.mod_uncalib_dir = dest_ + "-uncalib"
         self._explain(X, dest)
 
     def _prepare_explain_stack(self, data, idxs):
         self.__log.info("Getting signatures from data")
         res = self.get_Xy_from_data(data, idxs)
-        X   = res["X"]
-        #X = self.pca_transform(X)
-        if self.is_tmp:
+        X = res["X"]
+        # X = self.pca_transform(X)
+        if self.is_tmp_predictions:
             dest = os.path.join(self.predictions_tmp_path, "Stacked-expl")
         else:
             dest = os.path.join(self.predictions_models_path, "Stacked-expl")
@@ -520,7 +532,7 @@ class StackedModel(SignaturedModel):
     def load_explanations(self, datasets=None):
         datasets = self.get_datasets(datasets)
         y_pred = []
-        if self.is_tmp:
+        if self.is_tmp_predictions:
             dest = os.path.join(self.predictions_tmp_path, "Stacked-expl")
         else:
             dest = os.path.join(self.predictions_models_path, "Stacked-expl")
@@ -530,19 +542,17 @@ class StackedModel(SignaturedModel):
         with open(dest, "rb") as f:
             shaps = pickle.load(f)
         return Explanation(
-            datasets = datasets,
-            shaps = shaps,
-            is_ensemble = self.is_ensemble
-            )
+            datasets=datasets,
+            shaps=shaps,
+            is_ensemble=self.is_ensemble
+        )
 
     def explain(self, data, idxs=None, datasets=None, is_tmp=True, wait=True):
-        self.is_tmp = is_tmp
+        # self.is_tmp = is_tmp
         datasets = self.get_datasets(datasets)
-        self.signaturize(smiles=data.smiles, datasets=datasets)
+        self.signaturize(smiles=data.molecule, datasets=datasets, moleculetype=data.moleculetype)
         jobs = self.explain_stack(data, idxs=idxs, wait=wait)
         if wait:
             return self.load_explanations(datasets)
         else:
             return jobs
-
-
