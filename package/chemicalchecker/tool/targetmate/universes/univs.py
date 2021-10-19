@@ -11,11 +11,13 @@ from sklearn.svm import OneClassSVM
 from sklearn.cluster import MiniBatchKMeans
 
 from ..utils.chemistry import maccs_matrix, morgan_arena, load_morgan_arena
-from ..utils.chemistry import similarity_matrix, read_smiles
+from ..utils.chemistry import similarity_matrix
 
 from chemicalchecker.util import logged
 from chemicalchecker.database import Molrepo
 from chemicalchecker.util.parser import Converter
+from chemicalchecker.core import ChemicalChecker
+
 
 class UniverseLoader(pickle.Unpickler):
 
@@ -38,7 +40,8 @@ class Universe:
                  tmp_path='/tmp/tm/tmp_universe',
                  min_actives_oneclass=10, max_actives_oneclass=1000,
                  representative_mols_per_cluster=10,
-                 trials = 1000000):
+                 trials = 1000000,
+                 only_bioactive = False):
         """Initialize the Universe class.
 
         Args:
@@ -55,7 +58,9 @@ class Universe:
                 OneClassSVM (default=1000).
             representative_mols_per_cluster(int): Number of molecules to
                 samples for each cluster (default=10).
-            trials(int): Number of sampling trials before stop trying (default=1000000)
+            trials(int): Number of sampling trials before stop trying (default=1000000).
+            only_bioactive(bool): Only include known bioactive compounds in the chemical space
+                i.e. those compounds found in ChemicalChecker.
         """
         self.k = k
         self.tmp_path = os.path.abspath(tmp_path)
@@ -78,7 +83,7 @@ class Universe:
         self.max_actives_oneclass = max_actives_oneclass
         self.representative_mols_per_cluster = representative_mols_per_cluster
         self.trials = trials
-
+        self.only_bioactive = only_bioactive
     def save(self):
         pkl_file = os.path.join(self.model_path, "universe.pkl")
         with open(pkl_file, "wb") as f:
@@ -114,13 +119,18 @@ class Universe:
         converter = Converter()
         molrepo = Molrepo.get_fields_by_molrepo_name(self.molrepo, ["inchikey", "src_id", "inchi"])
         smiles = []
+        if self.only_bioactive:
+            s = ChemicalChecker().signature("A1.001", "sign3")
+            valid_inchikeys = s.keys
         for mol in molrepo:
+            if self.only_bioactive:
+                if mol[0] not in valid_inchikeys: continue
             smi = converter.inchi_to_smiles(mol[-1])
-            smiles += [(smi, mol[1], mol[0])]
+            smiles += [(smi, mol[-1], mol[1], mol[0])]
         self.smiles_file = os.path.join(self.model_path, "smiles.pkl")
         with open(self.smiles_file, "wb") as f:
             pickle.dump(smiles, f)
-            
+
     def cluster(self):
         smiles = self.smiles()
         maccs = maccs_matrix([smi[0] for smi in smiles])
@@ -180,7 +190,7 @@ class Universe:
         self.calculate_arena()
 
     def predict(self, actives, inactives, inactives_per_active=100,
-                min_actives=10, naive=False):
+                min_actives=10, naive=False, biased_universe=0, maximum_potential_actives = 5, random_state = None):
         """
         Args:
             actives(list or set): Should include (smiles, id, inchikey).
@@ -189,8 +199,14 @@ class Universe:
                 universe. Can be None (default=100).
             min_actives(int): Minimum number of actives (default=10).
             naive(bool): Sample naively (randomly), without using the OneClassSVM (default=False).
+            biased_universe(float): Proportion of closer molecules to sample as putative inactives (default = 0).
+            maximum_potential_actives(int): Maximum number of representative molecules within active hyperplane before cluster discarded, used for biased universe (default=5).
         """
         self.__log.info("Sampling candidate inactives")
+        self.__log.info("Representative molecules: {:d}".format(self.representative_mols_per_cluster))
+
+        if random_state is not None:
+            random.seed(random_state)
         common_iks = set([smi[-1] for smi in actives]
                          ).intersection([smi[-1] for smi in inactives])
         actives = set([smi for smi in actives if smi[-1] not in common_iks])
@@ -206,7 +222,8 @@ class Universe:
         # Inactives sampling procedure
         N = int(len(actives) * inactives_per_active) + 1
         if len(inactives) >= N:
-            return actives, random.sample(inactives, N), set()
+            # return actives, random.sample(inactives, N), set()
+            return actives, inactives, set() # Added by Paula: Prioritze real data, if there are more known inactives than actives mantain all compounds
         N = N - len(inactives)
         # Load relevant data
         smiles = self.smiles()
@@ -216,9 +233,9 @@ class Universe:
             candidates_iks = set([smi[-1] for smi in smiles]).difference(actives_iks.union(inactives_iks))
             if not candidates_iks:
                 return actives, inactives, set()
-            candidates_dict = dict((smi[-1], (smi[0], smi[1])) for smi in smiles)
+            candidates_dict = dict((smi[-1], (smi[0], smi[1], smi[2])) for smi in smiles)
             candidates_iks = random.sample(candidates_iks, int(np.min([N, len(candidates_iks)])))
-            candidates = set([(candidates_dict[ik][0], candidates_dict[ik][1], ik) for ik in candidates_iks])
+            candidates = set([(candidates_dict[ik][0], candidates_dict[ik][1], candidates_dict[ik][2], ik) for ik in candidates_iks])
             return actives, inactives, candidates
         else:
             # Load relevant data
@@ -235,26 +252,94 @@ class Universe:
                 actives_list_smiles, arena, len(representative_smiles))
             sim_mat = sim_mat.T
             # Predicting using one-class SVM
-            prd = clf.predict(sim_mat)
+
+            if biased_universe: # Added by Paula 31/10/2020
+                print("using biased universe")
+                dec = clf.decision_function(sim_mat)
+
+                # biased_weight_dict = collections.defaultdict(int)
+                biased_weight_dict = collections.defaultdict(list)
+
+                mean = np.mean(dec)
+                std = np.std(dec)
+
+                for i, d in enumerate(dec):
+                    if d - mean >= std:
+                        # biased_weight_dict[representative_smiles[i][0]] += (1/np.abs(d))
+                        # biased_weight_dict[representative_smiles[i][0]] += np.abs(d)
+                        biased_weight_dict[representative_smiles[i][0]] += [np.abs(d)]
+                        # biased_weight_dict[representative_smiles[i][0]] += [d]
+
+
             # Assigning weights to clusters
+            prd = clf.predict(sim_mat)
+
             weight_dict = collections.defaultdict(int)
+
             for i, p in enumerate(prd):
                 if p == -1:
                     weight_dict[representative_smiles[i][0]] += 1
+
             candidate_clusters = sorted(weight_dict.keys())
             candidate_weights = [weight_dict[k] for k in candidate_clusters]
+
+
+
             # Sample from candidates
             trials = self.trials
             t = 0
             candidates = set()
+
+            if biased_universe: # Added by Paula
+                # vals = np.array(list(biased_weight_dict.values()))
+                vals = np.concatenate(list(biased_weight_dict.values()))
+
+                mean = np.mean(vals)
+                std = np.std(vals)
+
+                # for c in biased_weight_dict.keys():
+                #     if abs(biased_weight_dict[c] - mean) >= 4 * std:
+                #         if biased_weight_dict[c] - mean > 0:
+                #             biased_weight_dict[c] = max(vals[abs(vals - mean) < 4 * std])
+                #         elif biased_weight_dict[c] - mean < 0:
+                #             biased_weight_dict[c] = min(vals[abs(vals - mean) < 4 * std])
+
+                # print(self.representative_mols_per_cluster-maximum_potential_actives)
+                # for c in weight_dict.keys():
+                #     if weight_dict[c] <= (self.representative_mols_per_cluster-maximum_potential_actives):
+                #         if c in biased_weight_dict.keys():
+                #             del biased_weight_dict[c]
+
+
+                biased_candidate_clusters = [k for k, v in sorted(biased_weight_dict.items(), key=lambda item: item[1]) if len(v) <= maximum_potential_actives]
+                # biased_candidate_weights = [np.around(biased_weight_dict[k]) for k in biased_candidate_clusters]
+                # biased_candidate_weights = [1 / biased_weight_dict[k] for k in biased_candidate_clusters]
+                # biased_candidate_weights = [(1 / np.mean(biased_weight_dict[k]))*len(biased_weight_dict[k]) for k in biased_candidate_clusters]
+
+                biased_candidate_weights = [1 / np.mean(biased_weight_dict[k]) for k in biased_candidate_clusters]
+
+                while len(candidates) < int(N*biased_universe) and t < trials:
+                    c = random.choices(biased_candidate_clusters, k=1,
+                                       weights=biased_candidate_weights)[0]
+                    i = random.choice(clusters_dict[c])
+                    cand = smiles[i]
+                    if cand[-1] not in actives_iks and cand[-1] not in inactives_iks:
+                        candidates.update([cand])
+                    t += 1
+
+            count = collections.defaultdict(int)
             while len(candidates) < N and t < trials:
+                if random_state is not None:
+                    random.seed(t) # DELETE THIS AFTER RUNNING TESTS!!
                 c = random.choices(candidate_clusters, k=1,
                                    weights=candidate_weights)[0]
                 i = random.choice(clusters_dict[c])
                 cand = smiles[i]
+                count[c] = count[c] + 1
                 if cand[-1] not in actives_iks and cand[-1] not in inactives_iks:
                     candidates.update([cand])
                 t += 1
+
             if len(candidates) < N:
                 all_iks = actives_iks.union(inactives_iks).union(
                     [cc[-1] for cc in candidates])

@@ -13,13 +13,13 @@ def validation_score(mod,
                      n_splits,
                      test_size,
                      random_state):
-    
+
     Spl = GetSplitter(is_cv=is_cv,
                       is_classifier=is_classifier,
                       is_stratified=is_stratified,
                       scaffold_split=scaffold_split,
                       outofuniverse_split=False)
-    
+
     kf = Spl(n_splits=n_splits, test_size=test_size, random_state=random_state)
     metric = Metric(metric)
     score = []

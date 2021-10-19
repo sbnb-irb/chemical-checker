@@ -97,12 +97,12 @@ class HyperOpt(object):
                                         random_state = SEED
                                         )
             return {"loss": -accuracy, "status": STATUS_OK}
-        
+
         params = self.params2choices()
         algo = tpe.suggest
         with mlflow.start_run():
             choice = fmin(
-                fn=objective, 
+                fn=objective,
                 space=params,
                 algo=algo,
                 max_evals=self.n_iter,

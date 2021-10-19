@@ -8,7 +8,7 @@ import uuid
 import pickle
 import os
 
-from .utils.chemistry import read_smiles
+from .utils.chemistry import read_molecule
 
 # Utility functions
 
@@ -55,21 +55,24 @@ def filter_validity(data, valid_inchikeys, only_molecules=False):
             inchikey_ += [inchikey[i]]
         data = (smiles_, inchikey_)
     return data
-    
+
 def read_data(data,
               smiles_idx=None,
+              inchi_idx=None,
               inchikey_idx=None,
               activity_idx=None,
               srcid_idx=None,
               standardize=False,
               use_inchikey=False,
-              valid_inchikeys=None):
+              valid_inchikeys=None,
+              ):
     """Read data.
 
     Args:
-        data(str or list of tuples): 
+        data(str or list of tuples):
         smiles_idx: Tuple or column index where smiles is specified (default=None).
-        inchikey_idx: Column where the inchikey is present (default=None).        
+
+        inchikey_idx: Column where the inchikey is present (default=None).
         activity_idx: Tuple or column index where activity is specified (default=None).
         srcid_idx: Tuple or column index where the source id is specified (default=None).
         standardize(bool): Standardize structures.
@@ -78,21 +81,29 @@ def read_data(data,
     Returns:
         InputData instance.
     """
-    smiles   = []
+    molecule   = []
     activity = []
     srcid    = []
     idx      = []
     inchikey = []
     if not use_inchikey:
-        if smiles_idx is None:
-            raise Exception("smiles_idx needs to be specified")
-        for i, r in enumerate(reader(data)):
-            smi = r[smiles_idx]
-            m = read_smiles(smi, standardize)
+        if smiles_idx is None and inchi_idx is None:
+            raise Exception("smiles_idx or inchi_idx needs to be specified")
+        j=0
+        for r in reader(data):
+            if smiles_idx is not None:
+                molecule_idx = smiles_idx
+                inchi = False
+            elif inchi_idx is not None:
+                molecule_idx = inchi_idx
+                inchi =True
+            molec = r[molecule_idx]
+            m = read_molecule(molec, standardize, inchi=inchi)
             if not m: continue
-            idx      += [i]
-            smiles   += [m[1]]
+            idx      += [j]
+            molecule   += [m[1]]
             inchikey += [m[0]]
+            j+=1
             if activity_idx is not None:
                 activity += [float(r[activity_idx])]
             else:
@@ -102,15 +113,16 @@ def read_data(data,
             else:
                 srcid += [None]
     else:
+        inchi = False
         if inchikey_idx is None:
             raise Exception("inchikey_idx needs to be specified")
         for i, r in enumerate(reader(data)):
             idx += [i]
             inchikey += [r[inchikey_idx]]
             if smiles_idx is not None:
-                smiles += [r[smiles_idx]]
+                molecule += [r[smiles_idx]]
             else:
-                smiles += [None]
+                molecule += [None]
             if activity_idx is not None:
                 activity += [float(r[activity_idx])]
             else:
@@ -118,14 +130,17 @@ def read_data(data,
             if srcid_idx is not None:
                 srcid += [r[srcid_idx]]
             else:
-                srcid += [None]        
-    data = (idx, smiles, inchikey, activity, srcid)
+                srcid += [None]
+    data = (idx, molecule, inchikey, activity, srcid)
     if valid_inchikeys is not None:
         data = filter_validity(data, valid_inchikeys)
-    return InputData(data)
+    if not inchi:
+        return InputData(data)
+    else:
+        return InputData(data, moleculetype='InChI')
 
 
-def reassemble_activity_sets(act, inact, putinact, valid_inchikeys=None):
+def reassemble_activity_sets(act, inact, putinact, valid_inchikeys=None, inchi = False):
     """Reassemble activity sets, relevant when sampling from Universe"""
     data = []
     for x in list(act):
@@ -133,23 +148,51 @@ def reassemble_activity_sets(act, inact, putinact, valid_inchikeys=None):
     for x in list(inact):
         data += [(x[1], -1, x[0], x[-1])]
     n = np.max([x[0] for x in data]) + 1
-    for i, x in enumerate(list(putinact)):
-        data += [(i + n, 0, x[0], x[-1])]
+    if not inchi:
+        for i, x in enumerate(list(putinact)):
+            data += [(i + n, 0, x[0], x[-1])]
+    else:
+        for i, x in enumerate(list(putinact)):
+            data += [(i + n, 0, x[1], x[-1])]
     idx      = []
-    smiles   = []
+    molecule   = []
     inchikey = []
     activity = []
     srcid    = []
     for d in data:
         idx      += [d[0]]
-        smiles   += [d[2]]
+        molecule   += [d[2]]
         inchikey += [d[3]]
         activity += [d[1]]
-    data = (idx, smiles, inchikey, activity, srcid)
+    data = (idx, molecule, inchikey, activity, srcid)
     if valid_inchikeys is not None:
         data = filter_validity(data, valid_inchikeys)
-    return InputData(data)
+    if not inchi:
+        return InputData(data)
+    else:
+        return InputData(data, moleculetype='InChI')
 
+
+def read_molecules_from_multiple_data(data_list, molecule_idx, standardize=False, sort=True, valid_inchikeys=None, inchi =False, **kwargs):
+    """Read molecules from multiple datasets"""
+    molecules_ = set()
+    for data in data_list:
+        mols = []
+        for r in reader(data):
+            mols += [r[molecule_idx]]
+        molecules_.update(molecules_)
+    molecules_ = list(molecules_)
+    molecules   = []
+    inchikey = []
+    for mol in molecules_:
+        m = read_molecule(mol, standardize, inchi = inchi)
+        if not m: continue
+        molecules += [m[1]]
+        inchikey += [m[0]]
+    data = (molecules, inchikey)
+    if valid_inchikeys is not None:
+        data = filter_validity(data, valid_inchikeys, only_molecules=True)
+    return MoleculeData(data, sort=sort)
 
 def read_smiles_from_multiple_data(data_list, smiles_idx, standardize=False, sort=True, valid_inchikeys=None, **kwargs):
     """Read smiles from multiple datasets"""
@@ -172,6 +215,28 @@ def read_smiles_from_multiple_data(data_list, smiles_idx, standardize=False, sor
         data = filter_validity(data, valid_inchikeys, only_molecules=True)
     return SmilesData(data, sort=sort)
 
+def read_inchi_from_multiple_data(data_list, inchi_idx, standardize=False, sort=True, valid_inchikeys=None, **kwargs):
+    """Read inchi from multiple datasets"""
+    inchi_ = set()
+    for data in data_list:
+        smis = []
+        for r in reader(data):
+            smis += [r[smiles_idx]]
+        inchi_.update(smis)
+    inchi_ = list(inchi_)
+    inchi   = []
+    inchikey = []
+    for inch in inchi_:
+        m = read_molecule(inch, standardize, inchi= True)
+        if not m: continue
+        inchi += [m[1]]
+        inchikey += [m[0]]
+    data = (inchi, inchikey)
+    if valid_inchikeys is not None:
+        data = filter_validity(data, valid_inchikeys, only_molecules=True)
+    return InchiData(data, sort=sort)
+
+
 
 def data_to_disk(data, tmp_dir):
     data.on_disk(tmp_dir)
@@ -180,7 +245,7 @@ def data_to_disk(data, tmp_dir):
 def data_from_disk(data):
     if type(data) is str:
         with open(data, "rb") as f:
-            data = pickle.load(f)        
+            data = pickle.load(f)
         return data
     else:
         return data
@@ -189,15 +254,15 @@ def data_from_disk(data):
 # Classes
 class InputData:
     """A simple input data class"""
-    
-    def __init__(self, data=None):
+
+    def __init__(self, data=None, moleculetype='SMILES'):
         """Initialize input data class"""
         self.tag = str(uuid.uuid4())
         if data is not None:
             idx   = np.array(data[0])
             order = np.argsort(idx)
             self.idx      = idx[order]
-            self.smiles   = np.array(data[1])[order]
+            self.molecule   = np.array(data[1])[order]
             self.inchikey = np.array(data[2])[order]
             if data[3] == []:
                 self.activity = None
@@ -206,12 +271,12 @@ class InputData:
                 try:
                     self.activity.astype(np.float)
                 except:
-                    raise Exception("Activities are not of numeric type!")            
+                    raise Exception("Activities are not of numeric type!")
             if data[4] == []:
                 self.srcid = None
             else:
                 self.srcid = np.array(data[4])[order]
-
+            self.moleculetype =moleculetype
     def __iter__(self):
         for idx, v in self.as_dataframe().iterrows():
             yield v
@@ -223,7 +288,7 @@ class InputData:
             data.activity = self.activity[idxs]
         else:
             data.activity = None
-        data.smiles = self.smiles[idxs]
+        data.molecule = self.molecule[idxs]
         data.inchikey = self.inchikey[idxs]
         if self.srcid is not None:
             data.srcid = self.srcid[idxs]
@@ -235,11 +300,11 @@ class InputData:
         df = pd.DataFrame({
             "idx": self.idx,
             "activity": self.activity,
-            "smiles": self.smiles,
+            "molecule": self.molecule,
             "inchikey": self.inchikey,
             "srcid": self.srcid
             })
-        return df        
+        return df
 
     @staticmethod
     def sel(ary, idxs):
@@ -253,7 +318,7 @@ class InputData:
         res = {
             "idx": self.sel(self.idx, idxs),
             "activity": self.sel(self.activity, idxs),
-            "smiles": self.sel(self.smiles, idxs),
+            "molecule": self.sel(self.molecule, idxs),
             "inchikey": self.sel(self.inchikey, idxs),
             "srcid": self.sel(self.srcid, idxs)
         }
@@ -266,7 +331,7 @@ class InputData:
         if inplace:
             self.idx = self.idx[ridxs]
             if self.activity is not None: self.activity = self.activity[ridxs]
-            self.smiles = self.smiles[ridxs]
+            self.molecule = self.molecule[ridxs]
             self.inchikey = self.inchikey[ridxs]
             if self.srcid is not None: self.srcid = self.srcid[ridxs]
         else:
@@ -278,9 +343,24 @@ class InputData:
             os.makedirs(data_path, exist_ok=True)
         data_path = os.path.join(data_path, self.tag)
         with open(data_path, "wb") as f:
-            pickle.dump(self, f)
+            pickle.dump(self, f, protocol=4)
+            #Added by Paula: Protocol 4 allows pickling of larger data objects. Consider only using this protocol in case of large object (see difference in file size) 30/08/20
         return data_path
 
+
+class MoleculeData(object):
+    """A simple molecule data container"""
+
+    def __init__(self, data, sort):
+        """Initialize"""
+        molecule   = np.array(data[0])
+        inchikey = np.array(data[1])
+        if sort:
+            order     = np.argsort(molecule)
+            molecule    = molecule[order]
+            inchikey  = inchikey[order]
+        self.molecule   = molecule
+        self.inchikey = inchikey
 
 class SmilesData(object):
     """A simple smiles data container"""
@@ -294,6 +374,20 @@ class SmilesData(object):
             smiles    = smiles[order]
             inchikey  = inchikey[order]
         self.smiles   = smiles
+        self.inchikey = inchikey
+
+class InchiData(object):
+    """A simple Inchi data container"""
+
+    def __init__(self, data, sort):
+        """Initialize"""
+        inchi   = np.array(data[0])
+        inchikey = np.array(data[1])
+        if sort:
+            order     = np.argsort(inchi)
+            inchi    = inchi[order]
+            inchikey  = inchikey[order]
+        self.inchi   = inchi
         self.inchikey = inchikey
 
 

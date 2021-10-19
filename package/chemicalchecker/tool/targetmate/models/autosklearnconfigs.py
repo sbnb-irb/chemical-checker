@@ -23,17 +23,17 @@ class AutoSklearnClassifier(BaseAutoSklearnClassifier):
     def __init__(self, log, **kwargs):
         BaseAutoSklearnClassifier.__init__(self, **kwargs)
         self.log = log
-        set_logging(self.log)
+        # set_logging(self.log)
 
     def prefit(self, X, y):
-        super().fit(X.copy(), y.copy(), metric = roc_auc)
-        set_logging(self.log)
+        super().fit(X.copy(), y.copy())
+        # set_logging(self.log)
 
     def fit(self, X, y):
         super().refit(X.copy(), y.copy())
-        set_logging(self.log)
+        # set_logging(self.log)
 
-        
+
 @logged
 class AutoSklearnClassifierConfigs:
 
@@ -65,7 +65,7 @@ class AutoSklearnClassifierConfigs:
             self.__log.info("Using holdout")
             self.resampling_strategy = model_selection.StratifiedShuffleSplit
             self.resampling_strategy_arguments = {"train_size": 0.8, "n_splits": 1}
-        
+
     def instantiate(self):
         """Set up a classifier"""
         tag = str(uuid.uuid4())
@@ -76,10 +76,10 @@ class AutoSklearnClassifierConfigs:
         self.__log.info("Time left for task: %d sec." % self.train_timeout)
         per_run_time_limit = int(np.max([self.train_timeout / 10, 60]))
         self.__log.info("Per run time limit: %d sec." % per_run_time_limit)
-        ensemble_memory_limit = int(self.memory/2)
-        self.__log.info("Ensemble memory limit: %d Mb" % ensemble_memory_limit)
-        ml_memory_limit = int(self.memory/2)
-        self.__log.info("ML memory limit: %d Mb" % ml_memory_limit)
+        # ensemble_memory_limit = int(self.memory/2)
+        # self.__log.info("Ensemble memory limit: %d Mb" % ensemble_memory_limit)
+        # ml_memory_limit = int(self.memory/2)
+        # self.__log.info("ML memory limit: %d Mb" % ml_memory_limit)
         # Instantiate classifier
         base_mod = AutoSklearnClassifier(
             log = self.log,
@@ -94,9 +94,9 @@ class AutoSklearnClassifierConfigs:
             tmp_folder = tmp_folder,
             output_folder = output_folder,
             delete_tmp_folder_after_terminate = False,
-            delete_output_folder_after_terminate = False,
-            ensemble_memory_limit=ensemble_memory_limit,
-            ml_memory_limit=ml_memory_limit
+            delete_output_folder_after_terminate = False #,
+            # ensemble_memory_limit=ensemble_memory_limit,
+            # ml_memory_limit=ml_memory_limit
             )
         return base_mod
 
@@ -106,4 +106,3 @@ class AutoSklearnClassifierConfigs:
         mod.prefit(X, y)
         self.__log.info(mod.sprint_statistics())
         return mod
-        

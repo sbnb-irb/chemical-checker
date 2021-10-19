@@ -381,6 +381,8 @@ class Old:
                                                      naive=self.naive_sampling)
         self.__log.info("Actives %d / Known inactives %d / Putative inactives %d" %
                         (len(act), len(inact), len(putinact)))
+        print("Actives %d / Known inactives %d / Putative inactives %d" %
+                        (len(act), len(inact), len(putinact)))
         self.__log.debug("Assembling and shuffling")
         data = self._reassemble_activity_sets(act, inact, putinact)
         random.shuffle(data)
