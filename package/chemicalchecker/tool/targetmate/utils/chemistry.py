@@ -65,6 +65,46 @@ def similarity_matrix(smiles, arena, arena_size):
     return similarities
 
 
+def read_molecule(molec, standardize, min_mw=100, max_mw=1000, inchi = False):
+    if not inchi:
+        try:
+            mol = Chem.MolFromSmiles(molec)
+            if standardize:
+                mol = standardise.run(mol)
+        except Exception:
+            return None
+        if not mol:
+            return None
+        mw = MolWt(mol)
+        if mw < min_mw or mw > max_mw:
+            return None
+        ik = Chem.rdinchi.InchiToInchiKey(Chem.rdinchi.MolToInchi(mol)[0])
+        molec = Chem.MolToSmiles(mol)
+        mol = Chem.MolFromSmiles(molec)
+        if not mol:
+            return None
+        return ik, molec
+    else:
+        try:
+            mol = Chem.MolFromInchi(molec)
+            if standardize:
+                mol = standardise.run(mol)
+        except Exception:
+            return None
+        if not mol:
+            return None
+        mw = MolWt(mol)
+        if mw < min_mw or mw > max_mw:
+            return None
+        ik = Chem.rdinchi.InchiToInchiKey(Chem.rdinchi.MolToInchi(mol)[0])
+        molec =Chem.rdinchi.MolToInchi(mol)[0]
+        mol = Chem.MolFromInchi(molec)
+        if not mol:
+            return None
+        return ik, molec
+
+
+
 def read_smiles(smi, standardize, min_mw=100, max_mw=1000):
     try:
         mol = Chem.MolFromSmiles(smi)

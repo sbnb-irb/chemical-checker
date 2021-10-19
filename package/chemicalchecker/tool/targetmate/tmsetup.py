@@ -5,6 +5,7 @@ import shutil
 import uuid
 import pickle
 import numpy as np
+import joblib
 
 from sklearn.model_selection import StratifiedKFold, KFold
 
@@ -29,9 +30,9 @@ class TargetMateSetup(HPCUtils):
                  tmp_path = None,
                  cc_root = None,
                  is_classic = False,
-                 classic_dataset = "A1.003",
+                 classic_dataset = "A1.001",
                  classic_cctype = "sign0",
-                 prestacked_dataset = "Z0.002",
+                 prestacked_dataset = None,
                  overwrite = True,
                  n_jobs = None,
                  n_jobs_hpc = 8,
@@ -42,7 +43,7 @@ class TargetMateSetup(HPCUtils):
                  is_cv = False,
                  is_stratified = True,
                  n_splits = 3,
-                 test_size = 0.2,
+                 test_size_hyperopt = 0.2,
                  scaffold_split = False,
                  outofuniverse_split = False,
                  outofuniverse_datasets = ["A1.001"],
@@ -54,6 +55,12 @@ class TargetMateSetup(HPCUtils):
                  train_timeout = 7200,
                  shuffle = False,
                  log = "INFO",
+                 use_stacked_signature=False,
+                 is_tmp=False,
+                 is_tmp_bases=True,
+                 is_tmp_signatures=True,
+                 is_tmp_predictions=True,
+                 use_cc = True,
                  **kwargs):
         """Basic setup of the TargetMate.
 
@@ -71,12 +78,12 @@ class TargetMateSetup(HPCUtils):
             n_jobs_hpc(int): Number of CPUs to use in HPC (default=1).
             max_train_samples(int): Maximum number of training samples to use (default=10000).
             max_train_ensemble(int): Maximum size of an ensemble (important when many samples are available) (default=10).
-            train_sample_chance(floag): Chance of visiting a sample (default=0.95).
+            train_sample_chance(float): Chance of visiting a sample (default=0.95).
             standardize(bool): Standardize small molecule structures (default=True).
             is_cv(bool): In hyper-parameter optimization, do cross-validation (default=False).
             is_stratified(bool): In hyper-parameter optimization, do stratified split (default=True).
             n_splits(int): If hyper-parameter optimization is done, number of splits (default=3).
-            test_size(int): If hyper-parameter optimization is done, size of the test (default=0.2).
+            test_size_hyperopt(int): If hyper-parameter optimization is done, size of the test (default=0.2).
             scaffold_split(bool): Model should be evaluated with scaffold splits (default=False).
             outofuniverse_split(bool): Model should be evaluated with out-of-universe splits (default=False).
             outofuniverse_datasets(list): Datasets to consider as part of the universe in the out-of-universe split.
@@ -85,6 +92,7 @@ class TargetMateSetup(HPCUtils):
             hpc(bool): Use HPC (default=False)
             search_n_iter(int): Number of iterations in a search for hyperparameters (default=25).
             train_timeout(int): Maximum time in seconds for training a classifier; applies to autosklearn (default=7200).
+            use_cc(bool): Use pre-computed CC signatures.
         """
         if not do_init:
             return
@@ -96,26 +104,21 @@ class TargetMateSetup(HPCUtils):
             self.n_jobs = n_jobs
         # Models path
         self.models_path = os.path.abspath(models_path)
-        if not os.path.exists(self.models_path):
-            self.__log.warning(
-                "Specified models directory does not exist: %s",
-                self.models_path)
-            os.makedirs(self.models_path, exist_ok = True)
-        else:
-            if overwrite:
-                # Cleaning models directory
-                self.__log.debug("Cleaning %s" % self.models_path)
-                shutil.rmtree(self.models_path, ignore_errors=True)
-                os.makedirs(self.models_path, exist_ok = True)
-        self.bases_models_path, self.signatures_models_path, self.predictions_models_path = self.directory_tree(self.models_path)
-        self._bases_models_path, self._signatures_models_path, self._predictions_models_path = self.bases_models_path, self.signatures_models_path, self.predictions_models_path 
         # Temporary path
         if not tmp_path:
             subpath = self.models_path.rstrip("/").split("/")[-1]
             self.tmp_path = os.path.join(
                 Config().PATH.CC_TMP, "targetmate", subpath, str(uuid.uuid4()))
         else:
-            self.tmp_path = os.path.abspath(tmp_path)
+            self.tmp_path = os.path.join(os.path.abspath(tmp_path), str(uuid.uuid4()))
+        if is_tmp:
+            self.is_tmp_bases = is_tmp
+            self.is_tmp_signatures= is_tmp
+            self.is_tmp_predictions= is_tmp
+        else:
+            self.is_tmp_bases = is_tmp_bases
+            self.is_tmp_signatures = is_tmp_signatures
+            self.is_tmp_predictions = is_tmp_predictions
         if not os.path.exists(self.tmp_path): os.makedirs(self.tmp_path, exist_ok = True)
         self.bases_tmp_path, self.signatures_tmp_path, self.predictions_tmp_path = self.directory_tree(self.tmp_path)
         self._bases_tmp_path, self._signatures_tmp_path, self._predictions_tmp_path = self.bases_tmp_path, self.signatures_tmp_path, self.predictions_tmp_path
@@ -128,6 +131,7 @@ class TargetMateSetup(HPCUtils):
         self.classic_dataset = classic_dataset
         self.classic_cctype = classic_cctype
         # Stacked signature
+        self.use_stacked_signature = use_stacked_signature
         self.prestacked_dataset = prestacked_dataset
         # Standardize
         self.standardize = standardize
@@ -138,13 +142,14 @@ class TargetMateSetup(HPCUtils):
         self.max_train_ensemble = max_train_ensemble
         self.train_sample_chance = train_sample_chance
         # Do cross-validation
+        self.overwrite = overwrite
         self.is_cv = is_cv
         # Stratified
         self.is_stratified = is_stratified
         # Number os splits
         self.n_splits = n_splits
         # Test size
-        self.test_size = test_size
+        self.test_size_hyperopt = test_size_hyperopt
         # Scaffold splits
         self.scaffold_split = scaffold_split
         # Out-of-universe splits
@@ -165,15 +170,15 @@ class TargetMateSetup(HPCUtils):
         self.shuffle = shuffle
         # Logging
         self.log = log
-        set_logging(self.log)
+        # set_logging(self.log)
         # Others
         self._is_fitted  = False
         self._is_trained = False
-        self.is_tmp      = False
+        # self.is_tmp      = False
         # Log path information
         self.__log.info("MODELS PATH: %s" % self.models_path)
         self.__log.info("TMP PATH: %s" % self.tmp_path)
-
+        self.use_cc = use_cc
     # Directories functions
     @staticmethod
     def directory_tree(root):
@@ -185,16 +190,31 @@ class TargetMateSetup(HPCUtils):
         if not os.path.exists(predictions_path): os.mkdir(predictions_path)
         return bases_path, signatures_path, predictions_path
 
-    def reset_path_bases(self, is_tmp=True):
-        if is_tmp:
+    def create_models_path(self):
+        if not os.path.exists(self.models_path):
+            self.__log.warning(
+                "Specified models directory does not exist: %s",
+                self.models_path)
+            os.makedirs(self.models_path, exist_ok = True)
+        else:
+            if self.overwrite:
+                # Cleaning models directory
+                self.__log.debug("Cleaning %s" % self.models_path)
+                shutil.rmtree(self.models_path, ignore_errors=True)
+                os.makedirs(self.models_path, exist_ok = True)
+        self.bases_models_path, self.signatures_models_path, self.predictions_models_path = self.directory_tree(self.models_path)
+        self._bases_models_path, self._signatures_models_path, self._predictions_models_path = self.bases_models_path, self.signatures_models_path, self.predictions_models_path
+
+    def reset_path_bases(self):
+        if self.is_tmp_bases:
             self.bases_tmp_path = self._bases_tmp_path
         else:
             self.bases_models_path = self._bases_models_path
 
-    def repath_bases_by_fold(self, fold_number, is_tmp=True, reset=True):
+    def repath_bases_by_fold(self, fold_number, is_tmp = True, reset=True):
         """Redefine path of a TargetMate instance. Used by the Validation class."""
         if reset:
-            self.reset_path_bases(is_tmp=is_tmp)
+            self.reset_path_bases()
         if is_tmp:
             self.bases_tmp_path = os.path.join(self.bases_tmp_path, "%02d" % fold_number)
             if not os.path.exists(self.bases_tmp_path): os.mkdir(self.bases_tmp_path)
@@ -234,18 +254,18 @@ class TargetMateSetup(HPCUtils):
         else:
             self.predictions_models_path = os.path.join(self.predictions_models_path, s)
             if not os.path.exists(self.predictions_models_path): os.mkdir(self.predictions_models_path)
-    
+
     def repath_predictions_by_fold_and_set(self, fold_number, is_train, is_tmp=True, reset=True):
         self.repath_predictions_by_fold(fold_number=fold_number, is_tmp=is_tmp, reset=reset)
         self.repath_predictions_by_set(is_train=is_train, is_tmp=is_tmp, reset=False)
 
     # Read input data
-    def read_data(self, data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey, standardize=None, valid_inchikeys=None):
+    def read_data(self, data, smiles_idx, inchi_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey, standardize=None, valid_inchikeys=None):
         if not standardize:
             standardize = self.standardize
         # Read data
-        self.__log.info("Reading data, parsing smiles")
-        return read_data(data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, standardize, use_inchikey, valid_inchikeys=valid_inchikeys)
+        self.__log.info("Reading data, parsing molecules")
+        return read_data(data, smiles_idx, inchi_idx, inchikey_idx, activity_idx, srcid_idx, standardize, use_inchikey, valid_inchikeys=valid_inchikeys)
 
     # Loading functions
     @staticmethod
@@ -253,7 +273,7 @@ class TargetMateSetup(HPCUtils):
         """Load previously stored TargetMate instance."""
         with open(os.path.join(models_path, "/TargetMate.pkl", "r")) as f:
             return pickle.load(f)
- 
+
     def load_base_model(self, destination_dir, append_pipe=False):
         """Load a base model"""
         mod = joblib.load(destination_dir)
@@ -291,6 +311,14 @@ class TargetMateSetup(HPCUtils):
                 self.__log.debug("Removing %s" % job_path)
                 shutil.rmtree(job_path, ignore_errors=True)
 
+    def compress_models(self):
+        """Store model in compressed format for persistance"""
+        mod_dir = self.bases_models_path
+        for m in os.listdir(mod_dir):
+            fn = os.path.join(mod_dir, m)
+            mod = joblib.load(fn)
+            joblib.dump(mod, fn + ".z")
+            os.remove(fn)
 
 @logged
 class TargetMateClassifierSetup(TargetMateSetup):
@@ -302,12 +330,17 @@ class TargetMateClassifierSetup(TargetMateSetup):
                  weight_algo="naive_bayes",
                  ccp_folds=10,
                  min_class_size=10,
+                 min_class_size_active=None, # Added by Paula: different number of active/inactive minimum value
+                 min_class_size_inactive=None, # Added by Paula: different number of active/inactive minimum value
                  active_value=1,
                  inactive_value=None,
-                 inactives_per_active=None,
+                 inactives_per_active=100,
                  metric="auroc",
                  universe_path=None,
                  naive_sampling=False,
+                 biased_universe=0,
+                 maximum_potential_actives = 5,
+                 universe_random_state = None,
                  **kwargs):
         """Set up a TargetMate classifier
 
@@ -320,6 +353,10 @@ class TargetMateClassifierSetup(TargetMateSetup):
                 Stratified K-Folds (default=10).
             min_class_size(int): Minimum class size acceptable to train the
                 classifier (default=10).
+            min_class_size_active(int): Minimum active class size acceptable to train the
+                classifier, if not stated, uses min_class_size (default=None).
+            min_class_size_inactive(int): Minimum inactive class size acceptable to train the
+                classifier, if not stated, uses min_class_size (default=None).
             active_value(int): When reading data, the activity value considered to be active (default=1).
             inactive_value(int): When reading data, the activity value considered to be inactive. If none specified,
                 then any value different that active_value is considered to be inactive (default=None).
@@ -328,6 +365,8 @@ class TargetMateClassifierSetup(TargetMateSetup):
             metric(str): Metric to use to select the pipeline (default="auroc").
             universe_path(str): Path to the universe. If not specified, the default one is used (default=None).
             naive_sampling(bool): Sample naively (randomly), without using the OneClassSVM (default=False).
+            biased_universe(float): Proportion of closer molecules to sample as putative inactives (default = 0).
+
         """
         # Inherit from TargetMateSetup
         TargetMateSetup.__init__(self, **kwargs)
@@ -361,7 +400,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
                                                   is_cv=self.is_cv,
                                                   is_stratified=self.is_stratified,
                                                   n_splits=self.n_splits,
-                                                  test_size=self.test_size,
+                                                  test_size=self.test_size_hyperopt,
                                                   scaffold_split=self.scaffold_split)
         if self.model_config == "tpot":
             from .models.tpotconfigs import TPOTClassifierConfigs
@@ -375,8 +414,21 @@ class TargetMateClassifierSetup(TargetMateSetup):
                                                      log=self.log)
         # Weight algo
         self.weight_algo = VanillaClassifierConfigs(weight_algo, n_jobs=self.n_jobs) # TO-DO: This is run locally for now.
+
         # Minimum size of the minority class
-        self.min_class_size = min_class_size
+        if min_class_size_active is None and min_class_size_inactive is None: # Added by Paula: change number of actives/inactives per model
+            self.min_class_size_active = min_class_size
+            self.min_class_size_inactive = min_class_size
+        elif min_class_size_active is not None and min_class_size_inactive is None:
+            self.min_class_size_active = min_class_size_active
+            self.min_class_size_inactive = min_class_size
+        elif min_class_size_active is None and min_class_size_inactive is not None:
+            self.min_class_size_active = min_class_size
+            self.min_class_size_inactive = min_class_size_inactive
+        else:
+            self.min_class_size_active = min_class_size_active
+            self.min_class_size_inactive = min_class_size_inactive
+
         # Active value
         self.active_value = active_value
         # Inactive value
@@ -389,24 +441,28 @@ class TargetMateClassifierSetup(TargetMateSetup):
         self.naive_sampling = naive_sampling
         # Others
         self.cross_conformal_func = conformal.get_cross_conformal_classifier
+        self.biased_universe =biased_universe
+        self.universe_random_state = universe_random_state
+        self.maximum_potential_actives = maximum_potential_actives
 
-    def _reassemble_activity_sets(self, act, inact, putinact):
+    def _reassemble_activity_sets(self, act, inact, putinact, inchi=False):
         self.__log.info("Reassembling activities. Convention: 1 = Active, -1 = Inactive, 0 = Sampled")
-        return reassemble_activity_sets(act, inact, putinact)
+        return reassemble_activity_sets(act, inact, putinact, inchi=inchi)
 
-    def prepare_data(self, data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey):
+    def prepare_data(self, data, smiles_idx, inchi_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey):
         # Read data
         if self.use_cc:
-            if self.is_classic:
-                s = self.cc.signature(self.classic_dataset, self.classic_cctype)
-            else:
-                s = self.cc.signature(self.prestacked_dataset, "sign3")
+            s = self.cc.signature(self.classic_dataset, self.classic_cctype)
             valid_inchikeys = s.keys
-        data = self.read_data(data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey, valid_inchikeys=valid_inchikeys)
+        else:
+            valid_inchikeys = None
+        data = self.read_data(data, smiles_idx=smiles_idx, inchi_idx=inchi_idx, inchikey_idx=inchikey_idx, activity_idx=activity_idx, srcid_idx=srcid_idx, use_inchikey=use_inchikey, valid_inchikeys=valid_inchikeys)
         self.ny = np.sum(data.activity == 1)
-        if self.ny < self.min_class_size or (len(data.activity) - self.ny) < self.min_class_size:
+        if self.ny < self.min_class_size_active or (len(data.activity) - self.ny) < self.min_class_size_inactive: # Added by Paula: different number of actives or inactivess
             self.__log.warning("Not enough data (%d)" % self.ny)
             return None
+        # Create file structure
+        self.create_models_path()
         # Save training data
         self.save_data(data)
         # Sample inactives, if necessary
@@ -414,37 +470,43 @@ class TargetMateClassifierSetup(TargetMateSetup):
         inactives = set()
         for d in data:
             if d.activity == self.active_value:
-                actives.update([(d.smiles, d.idx, d.inchikey)])
+                actives.update([(d.molecule, d.idx, d.inchikey)])
             else:
                 if not self.inactive_value:
-                    inactives.update([(d.smiles, d.idx, d.inchikey)])
+                    inactives.update([(d.molecule, d.idx, d.inchikey)])
                 else:
                     if d.activity == self.inactive_value:
-                        inactives.update([(d.smiles, d.idx, d.inchikey)])
+                        inactives.update([(d.molecule, d.idx, d.inchikey)])
         act, inact, putinact = self.universe.predict(actives, inactives,
                                                      inactives_per_active=self.inactives_per_active,
-                                                     min_actives=self.min_class_size,
-                                                     naive=self.naive_sampling)
+                                                     min_actives=self.min_class_size_active, # Added by Paula: change to specifically active class
+                                                     naive=self.naive_sampling,
+                                                     biased_universe=self.biased_universe,
+                                                     maximum_potential_actives = self.maximum_potential_actives,
+                                                     random_state= self.universe_random_state) # Added by Paula: sample proportion of universe closer to actives
         self.__log.info("Actives %d / Known inactives %d / Putative inactives %d" %
                         (len(act), len(inact), len(putinact)))
+        print("Actives %d / Known inactives %d / Putative inactives %d" %
+                        (len(act), len(inact), len(putinact)))
         self.__log.debug("Assembling")
-        data = self._reassemble_activity_sets(act, inact, putinact)
+        inchi = (smiles_idx is None) and (inchi_idx is not None)
+        data = self._reassemble_activity_sets(act, inact, putinact, inchi)
         if self.shuffle:
             self.__log.debug("Shuffling")
             data.shuffle()
         return data
 
-    def prepare_for_ml(self, data):
+    def prepare_for_ml(self, data, predict=False):
         if data is None:
             return None
         """Prepare data for ML, i.e. convert to 1/0 and check that there are enough samples for training"""
         self.__log.debug("Prepare for machine learning (converting to 1/0")
         # Consider putative inactives as inactives (e.g. set -1 to 0)
         self.__log.debug("Considering putative inactives as inactives for training")
-        data.activity[data.activity <= 0] = 0   
+        data.activity[data.activity <= 0] = 0
         # Check that there are enough molecules for training.
         self.ny = np.sum(data.activity)
-        if self.ny < self.min_class_size or (len(data.activity) - self.ny) < self.min_class_size:
+        if self.ny < self.min_class_size_active or (len(data.activity) - self.ny) < self.min_class_size_inactive: # Added by Paula: seperate minimums for actives and inactives
             self.__log.warning(
                 "Not enough valid molecules in the minority class..." +
                 "Just keeping training data")
@@ -457,7 +519,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
 
 @logged
 class TargetMateRegressorSetup(TargetMateSetup):
-    """Set up a TargetMate classifier"""
+    """Set up a TargetMate regressor"""
 
     pass
 
@@ -472,15 +534,14 @@ class ModelSetup(TargetMateClassifierSetup, TargetMateRegressorSetup):
             TargetMateRegressorSetup.__init__(self, **kwargs)
         self.is_classifier = is_classifier
 
-    def prepare_data(self, data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey):
+    def prepare_data(self, data, smiles_idx, inchi_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey):
         if self.is_classifier:
-            return TargetMateClassifierSetup.prepare_data(self, data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey)
+            return TargetMateClassifierSetup.prepare_data(self, data, smiles_idx, inchi_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey)
         else:
-            return TargetMateRegressorSetup.prepare_data(self, data, smiles_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey)
+            return TargetMateRegressorSetup.prepare_data(self, data, smiles_idx, inchi_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey)
 
-    def prepare_for_ml(self, data):
+    def prepare_for_ml(self, data, predict=False):
         if self.is_classifier:
-            return TargetMateClassifierSetup.prepare_for_ml(self, data)
+            return TargetMateClassifierSetup.prepare_for_ml(self, data, predict=predict)
         else:
             return TargetMateRegressorSetup.prepare_for_ml(self, data)
-

@@ -63,7 +63,7 @@ from .utils import HPCUtils
 @logged
 class InputData:
     """A simple input data class"""
-    
+
     def __init__(self, data):
         """Initialize input data class"""
         self.idx       = np.array([d[0] for d in data])
@@ -82,7 +82,7 @@ class InputData:
             "smiles": self.smiles,
             "inchikey": self.inchikey
             })
-        return df        
+        return df
 
     def shuffle(self):
         """Shuffle data"""
@@ -296,7 +296,7 @@ class Fingerprinter(TargetMateSetup):
         with h5.File(destination_dir, "wb") as hf:
             hf.create_dataset("V", data = V.astype(np.int8))
             hf.create_dataset("keys", data = np.array(smiles, DataSignature.string_dtype()))
-    
+
     def read_fingerprint(self, idxs=None, fp_file=None):
         """Read a signature from an HDF5 file"""
         # Identify HDF5 file
@@ -325,7 +325,7 @@ class Signaturizer(TargetMateSetup):
                  sign_predict_fn=None,
                  **kwargs):
         """Set up a Signaturizer
-        
+
         Args:
             datasets(list): CC datasets (A1.001-E5.999).
                 By default, all datasets having a SMILES-to-sign predictor are
@@ -373,13 +373,13 @@ class Signaturizer(TargetMateSetup):
                     s3.predict_from_smiles(smiles, destination_dir,
                                            predict_fn=predict_fn,
                                            use_novelty_model=False)
-                else:    
+                else:
                     job = s3.func_hpc("predict_from_smiles", smiles,
                                       destination_dir, chunk_size, None, False,
                                       cpu=self.n_jobs_hpc, wait=False)
                     jobs += [job]
         self.waiter(jobs)
-     
+
     # Signature readers
     def read_signature(self, dataset, idxs=None, sign_folder=None):
         """Read a signature from an HDF5 file"""
@@ -414,9 +414,9 @@ class ConformityClassification(TargetMateSetup):
 
     def __init__(self, confidence_level=0.8, **kwargs):
         """Conformity for classification.
-        
+
         Args:
-            confidence_level(float): In classification tasks, the set of predicted classes for new instances will contain the true 
+            confidence_level(float): In classification tasks, the set of predicted classes for new instances will contain the true
                 label in at least 80% of the cases (default=0.8).
 
         """
@@ -427,7 +427,7 @@ class ConformityClassification(TargetMateSetup):
     @staticmethod
     def conformity_list(yt, yp, std):
         """Calculate the bias of the QSAR model.
-        
+
         Args:
             yt(array) : True values.
             yp(array) : Predicted values.
@@ -441,7 +441,7 @@ class ConformityClassification(TargetMateSetup):
 
         actives_mondrian_list   = []
         inactives_mondrian_list = []
-        for 
+        for
 
 
 @logged
@@ -458,7 +458,7 @@ class ConformityRegression(TargetMateSetup):
         self.confidence_level = confidence_level
         self.epsilon = 1 - confidence_level
 
- 
+
  @logged
 class Conformity(ConformityClassification, ConformityRegression):
 
@@ -481,7 +481,7 @@ class ApplicabilityDomain(Fingerprinter, Conformity):
                  min_sim=0.25,
                  **kwargs):
         """Applicability domain parameters.
-        
+
         Args:
             k(int): Number of molecules to look across when doing the
                 applicability domain (default=5).
@@ -490,14 +490,14 @@ class ApplicabilityDomain(Fingerprinter, Conformity):
             confidence_level(float)
         """
         # Inherit from TargetMateSetup
-        Fingerprinter.__init__(self, **kwargs)       
+        Fingerprinter.__init__(self, **kwargs)
         # K-neighbors to search during the applicability domain calculation
         self.k = k
         # Minimum chemical similarity to consider
         self.min_sim = min_sim
-        # 
+        #
         self.
-        
+
     def indexing(self, X):
         """Do the indexing for the search"""
         # We search k+1 to be able to work with 'training' matrix.
@@ -531,7 +531,7 @@ class ApplicabilityDomain(Fingerprinter, Conformity):
     @staticmethod
     def calculate_bias(yt, yp):
         """Calculate the bias of the QSAR model
-        
+
         Args:
             yt(array): True values.
             yp(array): Predicted values.
@@ -541,13 +541,13 @@ class ApplicabilityDomain(Fingerprinter, Conformity):
     @staticmethod
     def calculate_weights(idxs, sims, bias, stds):
         """Calculate weights using adaptation of Aniceto et al 2016.
-        
+
         We scale standard deviations and biases from 0 to 1.
-        
+
         """
         weights = np.zeros(idxs.shape[0])
         for i, idxs_ in enumerate(idxs):
-            
+
 
     def calculate_weights(self, query_smi, target_fps, stds, bias, N=None):
         """Calculate weights using adaptation of Aniceto et al 2016."""
@@ -566,7 +566,7 @@ class ApplicabilityDomain(Fingerprinter, Conformity):
 
     def fit(self, smiles):
         """Generate an applicability domain neighbors.
-        
+
         Args:
             smiles(list): List of SMILES strings.
         """
@@ -587,7 +587,7 @@ class ApplicabilityDomain(Fingerprinter, Conformity):
         X = self.read_fingerprint()
         self.__log.debug("Searching similarities")
         sims, idxs = self.search(X, is_prd=True)
-       
+
 
 
 class ApplicabilityDomainOld(TargetMateSetup):
@@ -598,7 +598,7 @@ class ApplicabilityDomainOld(TargetMateSetup):
                  min_sim=0.25,
                  **kwargs):
         """Applicability domain parameters.
-        
+
         Args:
             k(int): Number of molecules to look across when doing the
                 applicability domain (default=5).
@@ -606,7 +606,7 @@ class ApplicabilityDomainOld(TargetMateSetup):
                 the applicability domain determination (default=0.25).
         """
         # Inherit from TargetMateSetup
-        TargetMateSetup.__init__(self, **kwargs)       
+        TargetMateSetup.__init__(self, **kwargs)
         # K-neighbors to search during the applicability domain calculation
         self.k = k
         # Minimal chemical similarity to consider
@@ -627,7 +627,7 @@ class ApplicabilityDomainOld(TargetMateSetup):
     @staticmethod
     def calculate_bias(yt, yp):
         """Calculate the bias of the QSAR model
-        
+
         Args:
             yt(array): True values.
             yp(array): Predicted values.
@@ -823,7 +823,7 @@ class TargetMateClassifier(TargetMateSetup):
         self.__log.debug("Prepare for machine learning (converting to 1/0")
         # Consider putative inactives as inactives (e.g. set -1 to 0)
         self.__log.debug("Considering putative inactives as inactives for training")
-        data.activity[data.activity <= 0] = 0   
+        data.activity[data.activity <= 0] = 0
         # Check that there are enough molecules for training.
         self.ny = np.sum(data.activity)
         if self.ny < self.min_class_size or (len(data.activity) - self.ny) < self.min_class_size:
@@ -838,7 +838,7 @@ class TargetMateClassifier(TargetMateSetup):
 
     def fitter(self, X, y, destination_dir=None, is_cv=False, pipe=None, n_jobs=None):
         """Fit a model.
-        
+
         Args:
             X(array): Signatures matrix.
             y(array): Labels vector.
@@ -852,7 +852,7 @@ class TargetMateClassifier(TargetMateSetup):
         """
         shuff = np.array(range(len(y)))
         random.shuffle(shuff)
-        if not is_cv:  
+        if not is_cv:
             mod = clone(self.base_mod)
             if n_jobs: mod.n_jobs = n_jobs
             mod.fit(X[shuff], y[shuff])
@@ -879,7 +879,7 @@ class TargetMateClassifier(TargetMateSetup):
 
     def predictor(self, mod, X):
         """Make predictions.
-        
+
         Args:
             mod(model): Predictive model.
             X(array): Signatures.
@@ -914,7 +914,7 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
 
     def __init__(self, is_classifier, **kwargs):
         """TargetMate ensemble classifier
-        
+
         Args:
             is_classifier(bool): Determine if the ensemble class will we bo classifier type or regressor.
         """
@@ -951,7 +951,7 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
         self.__log.info("Training individual predictors with cross-validation")
         fold = 0
         jobs = []
-        iter_info = []    
+        iter_info = []
         for train_idx, test_idx in kf.split(data.smiles, y):
             self.__log.debug("CV fold %02d" % (fold+1))
             iter_info_ = []
@@ -1045,7 +1045,7 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
         """Get all performances, and do a meta-prediction.
 
         Returns:
-            A results dictionary 
+            A results dictionary
         """
         perfs = self.individual_performances(cv_results)
         # Meta-predictor on train and test data
@@ -1067,7 +1067,7 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
             "std_test": std_test
         }
         self.save_performances(perfs)
-        return results                
+        return results
 
     def fit(self, data):
         # Use models folder
@@ -1085,7 +1085,7 @@ class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer
         cv_results = self.cross_validation(data)
         # Get performances
         ap_results = self.all_performances(cv_results)
-        # 
+        #
         return
         # Finish
         self._is_fitted = True
@@ -1127,7 +1127,7 @@ class TargetMateEnsembleClassifier(TargetMateEnsemble, ApplicabilityDomain):
 @logged
 class TargetMateEnsembleRegressor(TargetMateEnsemble):
     """TargetMate ensemble regressor"""
-    
+
     def __init__(self, **kwargs):
         TargetMateEnsemble.__init__(self, is_classifier=False, **kwargs)
 
@@ -1143,7 +1143,7 @@ class TargetMateEnsembleRegressor(TargetMateEnsemble):
 # @logged
 # class TargetMateEnsemble(TargetMateClassifier, TargetMateRegressor, Signaturizer):
 #     """An ensemble of models
-    
+
 #     Ensemblize models in order to have a group of predictions.
 
 #     An initial step is done to select a pipeline for each dataset.
@@ -1151,7 +1151,7 @@ class TargetMateEnsembleRegressor(TargetMateEnsemble):
 
 #     def __init__(self, is_classifier, **kwargs):
 #         """TargetMate ensemble classifier
-        
+
 #         Args:
 #             is_classifier(bool): Determine if the ensemble class will be of classifier or regressor type.
 #         """
@@ -1165,7 +1165,7 @@ class TargetMateEnsembleRegressor(TargetMateEnsemble):
 
 #     def select_pipelines(self, data):
 #         """Choose a pipelines to work with, including determination of hyperparameters
-        
+
 #         Args:
 #             data()
 #         """
@@ -1247,7 +1247,7 @@ class TargetMateEnsembleRegressor(TargetMateEnsemble):
 #         """Get all performances, and do a meta-prediction.
 
 #         Returns:
-#             A results dictionary 
+#             A results dictionary
 #         """
 #         perfs = self.individual_performances(cv_results)
 #         # Meta-predictor on train and test data
@@ -1269,7 +1269,7 @@ class TargetMateEnsembleRegressor(TargetMateEnsemble):
 #             "std_test": std_test
 #         }
 #         self.save_performances(perfs)
-#         return results                
+#         return results
 
 #     def fit(self, data):
 #         # Use models folder
@@ -1282,8 +1282,8 @@ class TargetMateEnsembleRegressor(TargetMateEnsemble):
 #         # Signaturize
 #         self.signaturize(data.smiles)
 #         # Select pipelines
-        
-        
+
+
 
 #         # Fit the global classifier
 #         clf_ensemble = self.fit_ensemble(data)
@@ -1291,7 +1291,7 @@ class TargetMateEnsembleRegressor(TargetMateEnsemble):
 #         cv_results = self.cross_validation(data)
 #         # Get performances
 #         ap_results = self.all_performances(cv_results)
-#         # 
+#         #
 #         return
 #         # Finish
 #         self._is_fitted = True
@@ -1316,7 +1316,7 @@ class TargetMateEnsembleRegressor(TargetMateEnsemble):
 #         self.__log.info("Training individual predictors with cross-conformal callibration")
 #         fold = 0
 #         jobs = []
-#         iter_info = []    
+#         iter_info = []
 #         for train_idx, calib_idx in kf.split(data.smiles, y):
 #             self.__log.debug("CCP fold %02d" % (fold+1))
 #             iter_info_ = []
@@ -1388,7 +1388,7 @@ class TargetMateEnsembleRegressor(TargetMateEnsemble):
 # @logged
 # class TargetMateEnsembleRegressor(TargetMateEnsemble):
 #     """TargetMate ensemble regressor"""
-    
+
 #     def __init__(self, **kwargs):
 #         TargetMateEnsemble.__init__(self, is_classifier=False, **kwargs)
 

@@ -2,7 +2,7 @@
 """
 import os
 import pandas as pd
-from chemicalchecker.tool.targetmate.utils.chemistry import read_smiles
+from chemicalchecker.tool.targetmate.utils.chemistry import read_molecule
 from chemicalchecker.util import psql
 from chemicalchecker.util import logged
 
@@ -10,11 +10,11 @@ from chemicalchecker.util import logged
 @logged
 class ChemblDb:
 
-    def __init__(self, dbname='chembl_25'):
+    def __init__(self, dbname='chembl_27'):
         """Class to fetch data from a local ChEMBL database.
 
         Args:
-            dbname (str): ChEMBL database name (default='chembl_25').
+            dbname (str): ChEMBL database name (default='chembl_27').
         """
         self.dbname = dbname
 
@@ -59,6 +59,7 @@ class ChemblDb:
                 AND m.molregno = act.molregno
                 AND act.assay_id = a.assay_id
                 AND a.tid = t.tid
+                AND a.assay_type IN ('B', 'F')
                 AND s.canonical_smiles IS NOT NULL
         '''
         if only_pchembl:
@@ -92,7 +93,8 @@ class Chembl(ChemblDb):
     def __init__(self, output_folder,
                  min_actives=10,
                  pchembl_values=[5, 6, 7], only_pchembl=True,
-                 standardize=True):
+                 standardize=True,
+                 **kwargs):
         """Query ChEMBL and produce a hierarchy of active/inactive data.
 
         Args:
@@ -105,7 +107,7 @@ class Chembl(ChemblDb):
                 they are positives (default=True).
             standardize (bool): Standardize molecules (default=True).
         """
-        ChemblDb.__init__(self)
+        ChemblDb.__init__(self, **kwargs)
         self.output_folder = output_folder
         self.min_actives = min_actives
         self.only_pchembl = only_pchembl
@@ -121,7 +123,7 @@ class Chembl(ChemblDb):
         smiles = []
         idxs = []
         for idx, smi in df["canonical_smiles"].items():
-            smi = read_smiles(smi, standardize=self.standardize)
+            smi = read_molecule(smi, standardize=self.standardize)
             if not smi:
                 continue
             inchikeys += [smi[0]]
@@ -199,9 +201,9 @@ class Chembl(ChemblDb):
     @staticmethod
     def pchembl_filename(pchembl_value):
         if not pchembl_value:
-            return "pchembl_NA.csv"
+            return "pchembl_NA.tsv"
         else:
-            return "pchembl_%d.csv" % (pchembl_value * 100)
+            return "pchembl_%d.tsv" % (pchembl_value * 100)
 
     def write_every_pchembl(self, df, folder):
         to_write = []
@@ -264,5 +266,6 @@ class Chembl(ChemblDb):
                     summary = self._summary_update(summary, sumr, sump)
         col_names = ["target_id", "assay_type", "assay_id", "pchembl_value"]
         summary = pd.DataFrame(summary, columns=col_names)
-        summary.to_csv(os.path.join(self.output_folder, "summary.csv"),
+        summary_path=os.path.join(self.output_folder, "summary.tsv")
+        summary.to_csv(summary_path,
                        sep="\t", na_rep="NA", header=True, index=False)

@@ -1,4 +1,5 @@
 import os
+
 import tempfile
 from chemicalchecker.util import Config
 from chemicalchecker.util.hpc import HPC
@@ -26,7 +27,7 @@ class HPCUtils:
             for job in jobs:
                 self.__log.debug(job.status())
             time.sleep(secs)
-        self.__log.info("Jobs done.") 
+        self.__log.info("Jobs done.")
 
     def func_hpc(self, func_name, *args, **kwargs):
         """Execute the *any* method on the configured HPC.
@@ -66,7 +67,10 @@ class HPCUtils:
         pickle_file = '%s_%s_hpc.pkl' % (self.__class__.__name__, func_name)
         pickle_path = os.path.join(job_path, pickle_file)
         with open(pickle_path, "wb") as f:
-            pickle.dump((self, args), f)
+            try:
+                pickle.dump((self, args), f)
+            except:
+                pickle.dump((self, args), f, protocol = 4) #Added by Paula: Protocol 4 allows pickling of larger data objects. Consider only using this protocol in case of large object (see difference in in file size) 11/12/20
         # hpc parameters
         params = kwargs
         params["num_jobs"] = 1
@@ -78,11 +82,12 @@ class HPCUtils:
         # job command
         singularity_image = cfg.PATH.SINGULARITY_IMAGE
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
-            " singularity exec {} python {} {}"
+            " singularity exec --bind /aloy/web_checker/:/aloy/web_checker {} python {} {}"
         command = command.format(
             os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
             singularity_image, script_name, pickle_file)
         # submit jobs
+
         cluster = HPC.from_config(Config())
         cluster.submitMultiJob(command, **params)
         return cluster
