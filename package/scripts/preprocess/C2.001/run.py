@@ -42,7 +42,8 @@ def prepare_hotnet_input(outdir, all_binary_sif):
             if l[0] in chebi_inchikey and l[2] in chebi_inchikey:
                 ik1 = chebi_inchikey[l[0]]
                 ik2 = chebi_inchikey[l[2]]
-                G.add_edge(ik1, ik2)
+                if ik1 is not None:
+                    G.add_edge(ik1, ik2)
 
     with open(os.path.join(outdir, pcomms_file), "w") as f:
         for e in G.edges():
@@ -68,7 +69,8 @@ def load_matrix(net_folder):
     names = [l.rstrip("\n").split("\t")[1] for l in f]
     f.close()
     f = h5py.File(net_folder + "/similarity_matrix.h5")
-    A = f['PPR'].value
+    # .value has been deprecated
+    A = f['PPR'][:]
     f.close()
     return Sm(A, names)
 

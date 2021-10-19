@@ -10,7 +10,6 @@ import inspect
 import functools
 import numpy as np
 import pandas as pd
-from numpy import matlib
 from scipy import stats
 from scipy.stats import ks_2samp, fisher_exact, gaussian_kde
 from scipy.spatial.distance import euclidean, cosine
@@ -113,6 +112,7 @@ class Plot():
         self.color = self._coord_color(dataset_code)
 
     def _elbow(self, curve):
+        from numpy import matlib
         nPoints = len(curve)
         allCoord = np.vstack((range(nPoints), curve)).T
         np.array([range(nPoints), curve])

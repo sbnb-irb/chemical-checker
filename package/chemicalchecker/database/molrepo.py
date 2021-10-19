@@ -14,7 +14,9 @@ Example::
 """
 import os
 import datetime
+import tempfile
 from time import time
+import sqlalchemy
 from sqlalchemy.dialects import postgresql
 from sqlalchemy import Column, Text, Boolean, ForeignKey, VARCHAR
 from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
@@ -50,6 +52,11 @@ class Molrepo(Base):
     universe = Column(Boolean)
     essential = Column(Boolean)
 
+    datasources = relationship("Datasource",
+                            secondary="molrepo_has_datasource",
+                            back_populates="molrepos",
+                            lazy='joined')
+
     def __repr__(self):
         """String representation."""
         return str(self.molrepo_name)
@@ -67,7 +74,7 @@ class Molrepo(Base):
     @staticmethod
     def _table_exists():
         engine = get_engine()
-        return engine.dialect.has_table(engine, Molrepo.__tablename__)
+        return sqlalchemy.inspect(engine).has_table(Molrepo.__tablename__)
 
     @staticmethod
     def _table_attributes():
@@ -127,6 +134,21 @@ class Molrepo(Base):
         return res
 
     @staticmethod
+    def to_csv(staticmethod, filename):
+        """Write molecules InChI-Key, source_id, InChI and SMILES to CSV file.
+
+        Args:
+            filename(str): Path to a CSV file.
+        """
+        import pandas as pd
+        molecules = Molrepo.get_by_molrepo_name(molrepo_name)
+        df = pd.DataFrame(molecules, columns=['molrepo','source_id','SMILES','InChIKey','InChI'])
+        df.dropna(inplace=True)
+        df.sort_values('InChIKey', inplace=True)
+        df[['InChIKey', 'source_id', 'SMILES','InChI']].to_csv(filename, index=False)
+
+
+    @staticmethod
     def from_csv(filename):
         """Add entries from CSV file.
 
@@ -135,6 +157,11 @@ class Molrepo(Base):
         """
         import pandas as pd
         df = pd.read_csv(filename)
+        # The boolean columns must be changed to boolean values otherwise
+        # SQLalchmy passes strings
+        df.universe = df.universe.apply(lambda x: False if x == 'f' else True)
+        df.essential = df.essential.apply(lambda x: False if x == 'f' else True)
+
         # check columns
         needed_cols = Molrepo._table_attributes()
         if needed_cols != list(df.columns):
@@ -291,15 +318,16 @@ class Molrepo(Base):
             "Importing Molrepo Name %s took %s", molrepo_name, t_delta)
 
     @staticmethod
-    def molrepo_hpc(job_path, only_essential=False, **kwargs):
+    def molrepo_hpc(tmpdir, only_essential=False, **kwargs):
         """Run HPC jobs importing all molrepos.
 
-        job_path(str): Path (usually in scratch) where the script files are
+        tmpdir(str): Folder (usually in scratch) where the job directory is
             generated.
         only_essential(bool): Only the essentail molrepos (default:false)
         """
         cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
         cfg = Config(cc_config)
+        job_path = tempfile.mkdtemp(prefix='jobs_molrepos_', dir=tmpdir)
         # create job directory if not available
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
@@ -325,7 +353,7 @@ class Molrepo(Base):
         molrepos_names = set()
         molrepos = Molrepo.get()
         for molrepo in molrepos:
-            if only_essential and not molrepo.essential:  # NS SHERLOCK molrepos.essential -> molrepo.essential
+            if only_essential and not molrepo.essential: 
                 continue
             molrepos_names.add(molrepo.molrepo_name)
 
@@ -393,7 +421,7 @@ class MolrepoHasMolecule(Base):
     @staticmethod
     def _table_exists():
         engine = get_engine()
-        return engine.dialect.has_table(engine, MolrepoHasMolecule.__tablename__)
+        return sqlalchemy.inspect(engine).has_table(MolrepoHasMolecule.__tablename__)
 
     @staticmethod
     def _table_attributes():
@@ -448,8 +476,7 @@ class MolrepoHasDatasource(Base):
     @staticmethod
     def _table_exists():
         engine = get_engine()
-        return engine.dialect.has_table(engine,
-                                        MolrepoHasDatasource.__tablename__)
+        return sqlalchemy.inspect(engine).has_table(MolrepoHasDatasource.__tablename__)
 
     @staticmethod
     def _table_attributes():

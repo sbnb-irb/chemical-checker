@@ -51,7 +51,7 @@ def pipeline_parser():
         help='Config file to be used. If not specified CC_CONFIG enviroment'
         ' variable is used.')
     parser.add_argument(
-        '-d', '--dry_run', type=bool, required=False, default=False,
+        '-d', '--dry_run', action='store_true',
         help='Execute pipeline script without running the pipeline.')
     return parser
 
@@ -76,7 +76,7 @@ def main(args):
     # HPC parameters
     hpc_kwargs = {
         'sign0': {'cpu': 2},
-        'sign1': {'cpu': 4},
+        'sign1': {'cpu': 6},
         'sign2': {'cpu': 8},
         'sign3': {'cpu': 8},
         'neig1': {'cpu': 2},
