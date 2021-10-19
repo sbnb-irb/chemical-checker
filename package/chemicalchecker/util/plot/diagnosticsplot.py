@@ -923,7 +923,7 @@ class DiagnosisPlot(object):
 
     def canvas_medium(self, title):
         fig = plt.figure(figsize=(14, 14))
-        gs = fig.add_gridspec(6, 6, wspace=0.7, hspace=0.7)
+        gs = fig.add_gridspec(6, 6, wspace=0.6, hspace=0.6)
         ax = fig.add_subplot(gs[0, 0])
         self.legend(ax=ax)
         ax = fig.add_subplot(gs[1, 5])
