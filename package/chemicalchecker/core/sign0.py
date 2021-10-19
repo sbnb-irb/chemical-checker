@@ -13,6 +13,7 @@ import numpy as np
 
 from .signature_data import DataSignature
 from .signature_base import BaseSignature
+from .preprocess import Preprocess
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.sanitize import Sanitizer
@@ -37,47 +38,51 @@ class sign0(BaseSignature, DataSignature):
         self.data_path = os.path.join(self.signature_path, "sign0.h5")
         DataSignature.__init__(self, self.data_path, **params)
 
-    def process_keys(self, keys, key_type):
-        """Given keys, process them so they are acceptable CC types.
+    def process_keys(self, keys, key_type, sort=False):
+        """Given keys, and key type validate them.
 
-        If None is specified, then all keys are kept.
-        NS: Returns the processed Inchikeys, the ray_keys and the indices of
-        the selected processed keys from the raw keys iterable.
+        If None is specified, then all keys are kept, and no validation is
+        performed.
+
+        Returns:
+            keys(list): the processed InChIKeys
+            ray_keys(list): raw input keys
+            indices (list): index of valid keys
         """
         if key_type is None:
-            return np.array(keys), None, \
+            return np.array(keys), np.array(keys), \
                 np.array([i for i in range(0, len(keys))])
-        keys_ = []
-        keys_raw = []
-        idxs = []
-        if key_type == "inchikey":
-            self.__log.debug("Processing inchikeys. Only valids are kept.")
+        keys_ = list()
+        keys_raw = list()
+        idxs = list()
+        if key_type.lower() == "inchikey":
+            self.__log.debug("Validating InChIKeys, only valid ones are kept.")
             for i, k in enumerate(keys):
                 if isinstance(k, bytes):
                     k = k.decode()
                 if len(k) == 27:
                     if k[14] == "-" and k[25] == "-":
-                        keys_ += [k]
-                        keys_raw += [k]
-                        idxs += [i]
+                        keys_.append(k)
+                        keys_raw.append(k)
+                        idxs.append(i)
                     else:
                         self.__log.debug(
-                            "skipping for format: %s %s %s" % (i, k, type(k)))
+                            "skipping key '%s' for format (line %s)" % (k, i))
                 else:
                     self.__log.debug(
-                        "skipping for length: %s %s %s" % (i, k, type(k)))
-        elif key_type == "smiles":
+                        "skipping key '%s' for format (line %s)" % (k, i))
+        elif key_type.lower() == "smiles":
             self.__log.debug(
-                "Processing smiles. Only standard smiles are kept")
+                "Validating SMILES, only valid ones are kept.")
             from chemicalchecker.util.parser import Converter
             conv = Converter()
             for i, k in enumerate(keys):
                 if isinstance(k, bytes):
                     k = k.decode()
                 try:
-                    keys_ += [conv.smiles_to_inchi(k)[0]]
-                    keys_raw += [k]
-                    idxs += [i]
+                    keys_.append(conv.smiles_to_inchi(k)[0])
+                    keys_raw.append(k)
+                    idxs.append(i)
                 except Exception as ex:
                     self.__log.warning('Problem in conversion: %s' % str(ex))
                     continue
@@ -86,56 +91,95 @@ class sign0(BaseSignature, DataSignature):
         self.__log.info("Initial keys: %d / Final keys: %d" %
                         (len(keys), len(keys_)))
 
-        return np.array(keys_), np.array(keys_raw), np.array(idxs)
+        # perform sorting
+        keys_ = np.array(keys_)
+        keys_raw = np.array(keys_raw)
+        idxs = np.array(idxs)
+        if sort:
+            order = np.argsort(keys_)
+            keys_ = keys_[order]
+            keys_raw = keys_raw[order]
+            idxs = idxs[order]
+        return keys_, keys_raw, idxs
 
     def process_features(self, features, n):
-        """
-        Process features. Give an arbitrary name to features if None are provided.
-        NS: returns the feature names as a np array of strings
+        """Define feature names.
+
+        Process features. Give an arbitrary name to features if not provided.
+        Returns the feature names as a numpy array of strings.
         """
         if features is None:
             self.__log.debug(
                 "No features were provided, giving arbitrary names")
-            l = int(np.log10(n)) + 1
+            digits = int(np.log10(n)) + 1
             features = []
             for i in range(0, n):
                 s = "%d" % i
-                s = s.zfill(l)
+                s = s.zfill(digits)
                 features += ["feature_%s" % s]
         return np.array(features).astype(str)
 
-    def get_data(self, pairs, X, keys, features, data_file, key_type, agg_method):
+    def get_data(self, pairs, X, keys, features, data_file, key_type,
+                 agg_method):
+        """Get data in the right format.
+
+        Input data for 'fit' or 'predict' can come in 2 main different format:
+        as matrix or as pairs. If a 'X' matrix is passed we also expect the row
+        identifier ('keys') and optionally column identifier ('features').
+        If 'pairs' (dense representation) are passed we expect a combination of
+        key and feature that can be associated with a value or not.
+        The information can be bundled in a H5 file or provided as argument.
+        Basic check are performed to ensure consistency of 'keys' and
+        'features'.
+
+        Args:
+            pairs(list): list of pair (key, feature) or (key, feature, value)
+            X(array): 2D matrix, rows corresponds to molecules and columns
+                corresponds to features
+            keys(list): list of string identifier for molecules
+            features(list): list of string identifier for features
+            data_file(str): path to a input file, at least must contain the
+                datasets: 'pairs' or 'X' and 'keys'
+            key_type(str): the type of molecule identifier used
+            agg_method(str): the aggregation method to use
+
+        """
+        # load data from the data file
         if data_file is not None:
             if not os.path.isfile(data_file):
                 raise Exception("File not found: %s" % data_file)
             dh5 = h5py.File(data_file, 'r')
+            # get pairs and values if available
             if "pairs" in dh5.keys():
                 pairs = dh5["pairs"][:]
                 if "values" in dh5.keys():
                     pairs = zip(pairs, dh5["values"][:])
+            # get matrix
             if "X" in dh5.keys():
                 X = dh5["X"][:]
+            elif "V" in dh5.keys():
+                X = dh5["V"][:]
+            # get keys and features
             if "keys" in dh5.keys():
                 keys = dh5["keys"][:]
             if "features" in dh5.keys():
                 features = dh5["features"][:]
+            if features is None:
+                features = self.process_features(features, X.shape[1])
             dh5.close()
             if pairs is None and X is None:
-                raise Exception(
-                    "H5 file %s does not contain datasets "
-                    "'pairs' or 'X'" % data_file)
+                raise Exception("H5 file %s must contain datasets "
+                                "'pairs' or 'X'" % data_file)
+        # handle pairs case
         if pairs is not None:
+            self.__log.info("Input data are pairs")
             if X is not None:
                 raise Exception(
                     "If you input pairs, X should not be specified!")
-            if len(pairs[0]) == 2:
-                has_values = False
-            else:
-                has_values = True
-            self.__log.info("Input data were pairs")
+            has_values = len(pairs[0]) != 2
+            self.__log.debug("Processing keys and features")
             keys = list(set([x[0] for x in pairs]))
             features = list(set([x[1] for x in pairs]))
-            self.__log.debug("Processing keys and features")
             self.__log.debug("Before processing:")
             self.__log.debug("KEYS: {}".format(keys))
             self.__log.debug("key_type: {}".format(key_type))
@@ -149,6 +193,10 @@ class sign0(BaseSignature, DataSignature):
             if not has_values:
                 self.__log.debug("Binary pairs")
                 for p in pairs:
+                    if not isinstance(p[0], str):
+                        p[0] = p[0].decode()
+                    if not isinstance(p[1], str):
+                        p[1] = p[1].decode()
                     if p[0] not in keys_dict or p[1] not in features_dict:
                         continue
                     pairs_[(keys_dict[p[0]], features_dict[p[1]])] += [1]
@@ -161,11 +209,14 @@ class sign0(BaseSignature, DataSignature):
             X = np.zeros((len(keys), len(features)))
             self.__log.debug("Aggregating duplicates")
             if agg_method == "average":
-                def do_agg(v): return np.mean(v)
-            if agg_method == "first":
-                def do_agg(v): return v[0]
-            if agg_method == "last":
-                def do_agg(v): return v[-1]
+                def do_agg(v):
+                    return np.mean(v)
+            elif agg_method == "first":
+                def do_agg(v):
+                    return v[0]
+            elif agg_method == "last":
+                def do_agg(v):
+                    return v[-1]
             for k, v in pairs_.items():
                 X[k[0], k[1]] = do_agg(v)
             self.__log.debug("Setting input type")
@@ -174,7 +225,7 @@ class sign0(BaseSignature, DataSignature):
             if X is None:
                 raise Exception(
                     "No data were provided! "
-                    "X cannot be None if pairs aren't provided")
+                    "X cannot be None if pairs or data_file aren't provided")
             if keys is None:
                 raise Exception("keys cannot be None")
             if features is None:
@@ -192,9 +243,6 @@ class sign0(BaseSignature, DataSignature):
             self.__log.debug("Processing features")
             features = self.process_features(features, X.shape[1])
             self.__log.debug("Only keeping idxs of relevance")
-            #self.__log.debug("keys is {}".format(keys))
-            #self.__log.debug("keys_raw is {}".format(keys_raw))
-            #self.__log.debug("idxs is {}".format(idxs))
 
             X = X[idxs]
             self.__log.debug("Setting input type")
@@ -279,8 +327,7 @@ class sign0(BaseSignature, DataSignature):
 
     def fit(self, cc_root=None, pairs=None, X=None, keys=None, features=None,
             data_file=None, key_type="inchikey", agg_method="average",
-            do_triplets=False, max_features=50000, chunk_size=10000,
-            sanitize=True, **params):
+            do_triplets=False, sanitize=True, sanitizer_kwargs={}, **kwargs):
         """Process the input data.
 
         We produce a sign0 (full) and a sign0 (reference).
@@ -302,9 +349,13 @@ class sign0(BaseSignature, DataSignature):
                 should contain the required data in datasets.
             do_triplets(boolean): Draw triplets from the CC (default=True).
         """
-        BaseSignature.fit(self,  **params)
+        BaseSignature.fit(self, **kwargs)
         self.clear()
         self.update_status("Getting data")
+        if pairs is None and X is None and data_file is None:
+            self.__log.debug("Runnning preprocess")
+            data_file = Preprocess.preprocess(self, **kwargs)
+
         self.__log.debug("data_file is {}".format(data_file))
         res = self.get_data(pairs=pairs, X=X, keys=keys, features=features,
                             data_file=data_file, key_type=key_type,
@@ -317,16 +368,10 @@ class sign0(BaseSignature, DataSignature):
 
         if sanitize:
             self.update_status("Sanitizing")
-            # we want to keep exactly 2048 features (Morgan fingerprint) for A1
-            # FIXME trimFeatures should be a fit parameter
-            trimFeatures = self.dataset != 'A1.001'
-            san = Sanitizer(trim=trimFeatures, max_features=max_features,
-                            chunk_size=chunk_size)
+            san = Sanitizer(**sanitizer_kwargs)
             X, keys, keys_raw, features = san.transform(
                 V=X, keys=keys, keys_raw=keys_raw, features=features,
                 sign=None)
-            # NS 20/01/2021, somehow the keys, keys_raw and features came out as b''
-            # added a stringify function in the returner fct of san.transform
 
         self.update_status("Aggregating")
         agg = Aggregate(method=agg_method, input_type=input_type)
@@ -353,20 +398,20 @@ class sign0(BaseSignature, DataSignature):
 
         self.refresh()
         # save reference
-        overwrite=params.get('overwrite',False)
+        overwrite = kwargs.get('overwrite', False)
         self.save_reference(overwrite=overwrite)
         # Making triplets
         if do_triplets:
             self.update_status("Sampling triplets")
             cc = self.get_cc(cc_root)
             sampler = TripletSampler(cc, self, save=True)
-            sampler.sample(**params)
+            sampler.sample(**kwargs)
         # finalize signature
-        BaseSignature.fit_end(self,  **params)
+        BaseSignature.fit_end(self, **kwargs)
 
     def predict(self, pairs=None, X=None, keys=None, features=None,
                 data_file=None, key_type=None, merge=False, merge_method="new",
-                destination=None):
+                destination=None, chunk_size=10000):
         """Given data, produce a sign0.
 
         Args:
@@ -385,7 +430,7 @@ class sign0(BaseSignature, DataSignature):
                 (V, keys, features) tuple is returned.
         """
         assert self.is_fit(), "Signature is not fitted yet"
-        self.__log.debug("Setting up the signature data based on fit")
+        self.__log.info("Predict START")
         if merge:
             self.__log.info("Merging. Loading existing signature.")
             V_ = self[:]
@@ -396,8 +441,8 @@ class sign0(BaseSignature, DataSignature):
                     raise Exception(
                         "merge_method must be None, 'average', 'new' or 'old'")
         else:
-            self.__log.info(
-                "Not merging. Just producing signature for the inputted data.")
+            self.__log.debug(
+                "Not merging, only predicting signature for the input data.")
             V_ = None
             keys_ = None
             keys_raw_ = None
@@ -415,8 +460,7 @@ class sign0(BaseSignature, DataSignature):
         if input_type != self.input_type:
             raise Exception("Input type must be %s" % self.input_type)
         self.__log.debug(
-            "Putting input in the same features arrangement "
-            "than the fitted signature.")
+            "Use same features arrangement as fitted signature.")
         W = np.full((len(keys), len(features_)), np.nan)
         for i in range(0, X.shape[0]):
             for j in range(0, X.shape[1]):
@@ -425,12 +469,8 @@ class sign0(BaseSignature, DataSignature):
                     continue
                 W[i, features_idx[feat]] = X[i, j]
         X = W
-        self.__log.debug("Sanitizing if necessary")
         self.refresh()
-        san = Sanitizer(trim=False, chunk_size=chunk_size)
-        X, keys, keys_raw, features = san.transform(
-            V=X, keys=keys, keys_raw=keys_raw, features=features, sign=self)
-        self.__log.debug("Aggregating as it was done at fit time")
+        self.__log.debug("Aggregating as fitted signature.")
         agg = Aggregate(method=self.agg_method, input_type=input_type)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
         features = res["features"]
@@ -454,10 +494,7 @@ class sign0(BaseSignature, DataSignature):
             agg = Aggregate(method=agg_method, input_type=input_type)
             V, keys, keys_raw = agg.transform(
                 V=V, keys=keys, keys_raw=keys_raw)
-        self.__log.debug("Done")
         if destination is None:
-            self.__log.debug(
-                "Returning a dictionary of V, keys, features and keys_raw")
             results = {
                 "V": V,
                 "keys": keys,
@@ -466,6 +503,8 @@ class sign0(BaseSignature, DataSignature):
             }
             return results
         else:
+            if isinstance(destination, BaseSignature):
+                destination = destination.data_path
             self.__log.debug("Saving H5 file in %s" % destination)
             with h5py.File(destination, "w") as hf:
                 hf.create_dataset(
@@ -482,6 +521,7 @@ class sign0(BaseSignature, DataSignature):
                     features, DataSignature.string_dtype()))
                 hf.create_dataset("keys_raw", data=np.array(
                     keys_raw, DataSignature.string_dtype()))
+        self.__log.debug("Predict DONE")
 
     def restrict_to_universe(self):
         """Restricts the keys contained in the universe."""
@@ -511,8 +551,10 @@ class sign0(BaseSignature, DataSignature):
         # After that check that your file is ok and move it to sign0.h5
         self.__log.debug("Done")
 
-    def export_features(self,destination=None):
+    def export_features(self, destination=None):
         features = self.features
         destination = self.model_path if destination is None else destination
-        with h5py.File(os.path.join(destination, "features_sign0_"+self.dataset+".h5"), 'w') as hf_out:
-            hf_out.create_dataset("features", data=np.array(features, DataSignature.string_dtype()))
+        fn = os.path.join(destination, "features_sign0_%s.h5" % self.dataset)
+        with h5py.File(fn, 'w') as hf_out:
+            hf_out.create_dataset("features", data=np.array(
+                features, DataSignature.string_dtype()))

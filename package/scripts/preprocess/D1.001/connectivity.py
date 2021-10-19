@@ -1,6 +1,4 @@
-
 # Imports
-
 import h5py
 import numpy as np
 import sys
@@ -9,17 +7,16 @@ import collections
 import pickle
 
 # Functions
-
 core_cells = set(['A375', 'A549', 'HA1E', 'HCC515',
                   'HEPG2', 'MCF7', 'PC3', 'VCAP', 'HT29'])
 
-only_touchstone = True
-
+only_touchstone = True # Doing the connectivity only with touchstone signatures
 
 def es_score(idxs, ref_expr, min_idxs, p=1):
     """
+    Enrichment score
     idx: list of gene indices
-    ref_expr: expression levels of all genes in the signature
+    ref_expr: expression levels of all genes in the signature which we want to do connectivity
 
     """
     if len(idxs) < min_idxs:  # if not enough genes matching in the up/down regulated list (10 minimum)
@@ -28,15 +25,13 @@ def es_score(idxs, ref_expr, min_idxs, p=1):
     Nh = len(idxs)            # number of matches found 
     norm = 1. / (N - Nh)      # normalise by 1/the gene number difference between expr profile and query list of up/down regulated genes
 
-    miss = np.empty(N)        # Return a new array of given shape and type, without initializing entries.
-    miss[:] = norm            # Fill it with the normalization factor
+    miss = np.full(N, norm)       # Return a new array of given shape and type filled with the normalization factor
     miss[idxs] = 0.           # initialize the matching gene positions of the gene expression profile to zero
 
     hit_nums = np.zeros(N)    # array of size (number of genes in expression profile) initialized with zeros
 
-    for i in idxs:            # Where a match occurs, replace zero by the expression level of that gene
-        hit_nums[i] = np.abs(ref_expr[i])**p
-
+    hit_nums[idxs] = np.abs(ref_expr[idxs])**p # Where a match occurs, replace zero by the expression level of that gene
+     
     hit = hit_nums / np.sum(hit_nums)  # Normalize this array dividing by the total number of matches
     #P_hit = hit
     P_miss = miss
@@ -45,19 +40,16 @@ def es_score(idxs, ref_expr, min_idxs, p=1):
     ES = P_hit - P_miss                # element-wise difference between the two cumulative sum arrays
     return ES[np.argmax(np.abs(ES))]   # Return the max value of this difference array (in absolute value)
 
-
 def connectivity_score(up, dw, signature_file, signatures_dir, min_idxs):
+
     with h5py.File("%s/%s" % (signatures_dir, signature_file), "r") as hf:
         expr = hf["expr"][:]  # i.e [ 5.02756786,  4.73850965,  4.49766302 ..]
         gene = hf["gene"][:]  #i.e ['AGR2', 'RBKS', 'HERC6', ..., 'SLC25A46', 'ATP6V0B', 'SRGN']
 
-    up_idxs, dw_idxs = [], []
+    gene = list({g.decode() for g in gene})
 
-    for i,g in enumerate(gene):  # Going through gene names of the expression profile
-        if g in up:               
-            up_idxs += [i]       # Keep track of which correspond to up-regulated genes in the query signature
-        elif g in dw:
-            dw_idxs += [i]       # Keep track of which correspond to down-regulated genes in the query signature
+    up_idxs = np.where(np.in1d(gene,up))[0]
+    dw_idxs = np.where(np.in1d(gene,dw))[0]
 
     es_up = es_score(up_idxs, expr, min_idxs)
     es_dw = es_score(dw_idxs, expr, min_idxs)
@@ -76,8 +68,8 @@ def signature_info(mini_sig_info_file):
             d[l[0]] = (l[1], l[2], l[3])
     return d
 
-# Main
 
+# Main
 
 def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs, output_h5):
     """ NS, main:
@@ -106,10 +98,9 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touc
         sig = f.split("/")[-1].split(".h5")[0]   # file name without extension, ex: REP.A001_A375_24H:A19.h5
         sinfo = sig_info[sig]                    # (pert_id, treatment, cell_line, is_touchstone)
 
-        if only_touchstone: # True
-            if sinfo[0] not in touch or sinfo[2] not in core_cells:
-                #print(f,"not in touchstone or in core_cells, skipping")
-                continue
+        if sinfo[0] not in touch or sinfo[2] not in core_cells:
+            #print(f,"not in touchstone or in core_cells, skipping")
+            continue
 
         # Each signature will be compared with all the others, and connectivity scores are calculated
         cs = connectivity_score(up, dw, f, signatures_dir, min_idxs)
@@ -156,6 +147,7 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touc
         hf.create_dataset("es", data=es)
         hf.create_dataset("nes", data=nes)
 
+
 if __name__ == '__main__':
 
     task_id = sys.argv[1]
@@ -163,27 +155,39 @@ if __name__ == '__main__':
     mini_sig_info_file = sys.argv[3]
     signatures_dir = sys.argv[4]
     connectivity_dir = sys.argv[5]
-    gene_info = sys.argv[6]        # NSex: GSE92742_Broad_LINCS_pert_info.txt
-    min_idxs = int(sys.argv[7])    # was 10 in our case
+    pert_info = sys.argv[6]        # NSex: GSE92742_Broad_LINCS_pert_info.txt
+    sig_info = sys.argv[7]  # GSE92742_Broad_LINCS_sig_info.txt
+    min_idxs = int(sys.argv[8])    # was 10 in our case
 
     inputs = pickle.load(open(filename, 'rb'))  # contains signid: path_to_the sign h5 file
     sigs = inputs[task_id]                      # value for a particular task id, is a dict which values are themselves dict
-                                                # sigs is {signid1: {'file': pathtosignature1.h5}, signid2: {'file': pathtosignature2.h5},...}
 
+    ### EP: Obtain touchstone ### - Name of the trt_oe has change so we need to mapp
     touch = set()
-    with open(gene_info, "r") as f:
-    #pert_id>pert_iname>-----pert_type>------is_touchstone>--inchi_key_prefix>-------inchi_key>------canonical_smiles>-------pubchem_cid
-    #56582>--AKT2>---trt_oe>-0>-------666>----666>----666>----666
-        f.readline()   # skip file header
+    tou_oe = set()
+
+    with open(pert_info, "r") as f:
+        f.readline() # skip header
         for l in f:
             l = l.rstrip("\n").split("\t")
-            trt = l[2]                      # treatment type, ex: trt_oe
-            if trt not in ["trt_cp", "trt_sh.cgs", "trt_oe"]:
+            trt = l[2]
+            if (trt == "trt_oe") and (l[3] == '1'):
+                tou_oe.add(l[0])
+            # checks the treatment record (cp, sh)
+            if trt not in ["trt_cp", "trt_sh.cgs"]:
                 continue
-            if l[3] == '0':                 # If not touchstone
+            if l[3] == '0':
                 continue
-            touch.add(l[0])                 # Add the perturbagen's id to the touchstone set
+            touch.add(l[0])                              # Keep perturbagen ids belonging to the touchstone dataset
 
+    ### EP: Obtain new id of trt_oe touchstone ###
+    with open(sig_info, "r") as f:
+        f.readline() # skip header
+        for l in f:
+            l = l.rstrip("\n").split("\t")
+            if l[1] in tou_oe: 
+                touch.add(l[0].split(':')[1])
+        
     for k, v in sigs.items():               # k=signid1, v={'file': pathtosignature1.h5}
 
         output_h5 = os.path.join(connectivity_dir,k+'.h5')
@@ -213,8 +217,8 @@ if __name__ == '__main__':
                 dw = set(dw['gene'][dw['expr'] < -2]) # Then it is only an array of gene names
 
                 # decode the bytes into Py3 strings
-                up = {s.decode() for s in up}
-                dw = {s.decode() for s in dw}
+                up = list({s.decode() for s in up})
+                dw = list({s.decode() for s in dw})
 
                 #  main will take the list of up/down regulated-genes for this sign_id(k) and compare match it to all others
                 main(k, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touch, min_idxs, output_h5)

@@ -446,6 +446,6 @@ class Node2Vec():
         # stream output as it gets generated
         while True:
             line = process.stdout.readline().decode("utf-8").strip()
-            self.__log.info(line)
+            self.__log.debug(line)
             if line == '' and process.poll() is not None:
                 break

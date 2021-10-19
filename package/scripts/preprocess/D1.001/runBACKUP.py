@@ -578,7 +578,8 @@ def main(args):
 
     if args.method == "fit":
         with h5py.File(os.path.join(args.models_path, features_file), "w") as hf:
-            hf.create_dataset("features", data=np.array(orderwords, h5py.special_dtype(vlen=str)))
+            # getting strings instead of bytes from the h5 file
+            hf.create_dataset("features", data=np.array(orderwords, DataSignature.string_dtype()))
 
     if args.method == 'predict':
         #shutil.rmtree(mpath) # NS comment

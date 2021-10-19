@@ -45,7 +45,7 @@ class AdaNetWrapper(object):
         self.adanet_lambda = kwargs.get("adanet_lambda", 0.001)
         self.random_seed = int(kwargs.get("random_seed", 42))
         self.model_dir = kwargs.get("model_dir", None)
-        self.activation = kwargs.get("activation", tf.nn.relu)
+        self.activation = kwargs.get("activation", tf.nn.tanh)
         self.shuffles = int(kwargs.get("shuffles", 10))
         self.dropout_rate = float(kwargs.get("dropout_rate", 0.2))
         self.augmentation = kwargs.get("augmentation", False)
@@ -349,7 +349,7 @@ class AdaNetWrapper(object):
 
     @staticmethod
     def predict_online(h5_file, split, predict_fn=None,
-                       mask_fn=None, batch_size=10000, limit=None,
+                       mask_fn=None, batch_size=1000, limit=None,
                        probs=False, n_classes=None, model_dir=None):
         """Predict on given testset without killing the memory.
 
@@ -443,7 +443,7 @@ class AdaNetWrapper(object):
         return model_vars
 
     def save_performances(self, output_dir, plot,
-                          suffix=None, extra_predictors=None, do_plot=False):
+                          suffix=None, extra_predictors=None, do_plot=True):
         """Save stats and make plots."""
         # read input
         splits = ['train', 'test', 'validation']

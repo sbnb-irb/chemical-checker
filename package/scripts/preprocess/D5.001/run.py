@@ -91,7 +91,8 @@ def parse_cellosaurus(R, cellosaurus_obo):
                 G.add_node(child)
             if "relationship: derived_from " in l:
                 parent = l.split("derived_from ")[1].split(" !")[0]
-                G.add_edge(parent, child)
+                if parent is not None:
+                    G.add_edge(parent, child)
             # if "relationship: originate_from_same_individual_as" in l:
             #    parent = l.split("originate_from_same_individual_as ")[1].split(" !")[0]
             #    G.add_edge(parent, child)
@@ -100,7 +101,8 @@ def parse_cellosaurus(R, cellosaurus_obo):
 
     for n in list(G.nodes()):
         if not nx.ancestors(G, n):
-            G.add_edge(n, "*")
+            if n is not None:
+                G.add_edge(n, "*")
 
     # Cell hierarchy
 

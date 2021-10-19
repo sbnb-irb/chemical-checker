@@ -183,7 +183,8 @@ def process_activity_according_to_pharos(ACTS):
     G = nx.DiGraph()
 
     for r in R:
-        G.add_edge(r[1], r[0])  # The tree
+        if r[1] is not None:
+            G.add_edge(r[1], r[0])  # The tree
 
     kinase_idx = set([x for w in kinase_idx for k, v in nx.dfs_successors(
         G, w).items() for x in v] + kinase_idx)
@@ -237,7 +238,8 @@ def process_activity_according_to_pharos(ACTS):
     G = nx.DiGraph()
 
     for r in R:
-        G.add_edge(r[1], r[0])  # The tree
+        if r[1] is not None:
+            G.add_edge(r[1], r[0])  # The tree
 
     R = psql.qstring("SELECT cs.accession, cc.protein_class_id FROM component_sequences cs, component_class cc WHERE cs.component_id = cc.component_id AND cs.accession IS NOT NULL", chembl_dbname)
 
