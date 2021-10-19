@@ -76,7 +76,8 @@ def parse_chembl():
     G = nx.DiGraph()
 
     for s in S:
-        G.add_edge(s[1], s[0])  # The tree
+        if s[1] is not None:
+            G.add_edge(s[1], s[0])  # The tree
 
     S = psql.qstring("SELECT cs.accession, cc.protein_class_id FROM component_sequences cs, component_class cc WHERE cs.component_id = cc.component_id AND cs.accession IS NOT NULL", chembl_dbname)
 

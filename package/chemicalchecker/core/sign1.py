@@ -14,7 +14,6 @@ import h5py
 import uuid
 import shutil
 import pickle
-import datetime
 import numpy as np
 from tqdm import tqdm
 from numpy import linalg as LA
@@ -38,7 +37,7 @@ DEFAULT_T = 0.01
 class sign1(BaseSignature, DataSignature):
     """Signature type 1 class."""
 
-    def __init__(self, signature_path, dataset, **params):
+    def __init__(self, signature_path, dataset, **kwargs):
         """Initialize a Signature.
 
         Args:
@@ -46,7 +45,7 @@ class sign1(BaseSignature, DataSignature):
             model_path(str): Where the persistent model is.
         """
         # Calling init on the base class to trigger file existance checks
-        BaseSignature.__init__(self, signature_path, dataset, **params)
+        BaseSignature.__init__(self, signature_path, dataset, **kwargs)
         self.data_path = os.path.join(self.signature_path, "sign1.h5")
         DataSignature.__init__(self, self.data_path)
 
@@ -64,35 +63,19 @@ class sign1(BaseSignature, DataSignature):
                     "same molsets (reference or full)")
 
         self.__log.debug("Copying HDF5 dataset")
-        with h5py.File(s1.data_path, "w") as hf:
+        shutil.copyfile(s0.data_path, s1.data_path)
+        with h5py.File(s1.data_path, "a") as hf:
+            if 'name' in hf.keys():
+                del hf['name']
             hf.create_dataset("name", data=np.array(
                 [str(self.dataset) + "sig"], DataSignature.string_dtype()))
-            hf.create_dataset(
-                "date",
-                data=np.array([datetime.datetime.now().strftime(
-                    "%Y-%m-%d %H:%M:%S")], DataSignature.string_dtype()))
-            hf.create_dataset("V", data=s0[:])
-            hf.create_dataset("keys", data=np.array(
-                s0.keys, DataSignature.string_dtype()))
-            if is_basesig:
-                if s0.molset == "reference":
-                    mappings = s0.get_h5_dataset("mappings")
-                    hf.create_dataset("mappings", data=np.array(
-                        mappings, DataSignature.string_dtype()))
+
         if not just_data:
-            self.__log.debug("Copying triplets")
             fn0 = os.path.join(s0.model_path, "triplets.h5")
             if os.path.exists(fn0):
-                self.__log.debug("Triplets are available.")
+                self.__log.debug("Copying triplets")
                 fn1 = os.path.join(s1.model_path, "triplets.h5")
                 shutil.copyfile(fn0, fn1)
-            else:
-                self.__log.warn(
-                    "No triplets available! Please fit sign0 with "
-                    "option do_triplets=True")
-        self.refresh()
-        s0.refresh()
-        s1.refresh()
 
     def duplicate(self, s1):
         self.__log.debug("Duplicating V matrix to V_tmp")
@@ -100,7 +83,9 @@ class sign1(BaseSignature, DataSignature):
             if "V_tmp" in hf.keys():
                 self.__log.debug("Deleting V_tmp")
                 del hf["V_tmp"]
-            hf.create_dataset("V_tmp", data=hf["V"][:])
+            hf.create_dataset("V_tmp", hf["V"].shape, dtype=hf["V"].dtype)
+            for i in range(0, hf["V"].shape[0]):
+                hf["V_tmp"][i] = hf["V"][i][:]
 
     def was_sparse(self, max_keys=1000, zero_prop=0.5):
         """Guess if the matrix was sparse"""
@@ -125,7 +110,7 @@ class sign1(BaseSignature, DataSignature):
         with open(fn, "rb") as f:
             mod = pickle.load(f)
 
-        self.__log.debug("\n----> Loading model:"+fn)
+        self.__log.debug("\n----> Loading model:" + fn)
         return mod
 
     def delete_tmp(self, s1):
@@ -134,8 +119,9 @@ class sign1(BaseSignature, DataSignature):
             if "V_tmp" in hf.keys():
                 del hf["V_tmp"]
 
-    def fit(self, sign0=None, latent=True, scale=True, metric_learning=True,
-            semisupervised=False,  **params):
+    def fit(self, sign0=None, latent=True, scale=True, metric_learning=False,
+            semisupervised=False, scale_kwargs={}, pca_kwargs={}, 
+            lsi_kwargs={}, **kwargs):
         """Fit signature 1 given signature 0
 
             Args:
@@ -145,13 +131,12 @@ class sign1(BaseSignature, DataSignature):
             from chemicalchecker.util.transform.metric_learn import \
                 UnsupervisedMetricLearn, SemiSupervisedMetricLearn
         except ImportError:
-            raise ImportError("requires tensorflow " +
-                              "https://tensorflow.org")
+            raise ImportError("requires tensorflow https://tensorflow.org")
         try:
             from chemicalchecker.util.transform.lsi import Lsi
         except ImportError as ex:
             raise ex
-        BaseSignature.fit(self,  **params)
+        BaseSignature.fit(self, **kwargs)
         self.clear()
         # signature specific checks
         if sign0 is None:
@@ -186,9 +171,9 @@ class sign1(BaseSignature, DataSignature):
             self.__log.debug("Sparse matrix pipeline")
             if latent:
                 self.update_status("LSI")
-                self.__log.debug(
-                    "Looking for latent variables with TFIDF-LSI (done for tmp)")
-                mod = Lsi(self, tmp=tmp)
+                self.__log.debug("Looking for latent variables with"
+                                 "TFIDF-LSI (done for tmp)")
+                mod = Lsi(self, tmp=tmp, **lsi_kwargs)
                 mod.fit()
             else:
                 self.__log.debug("Not looking for latent variables")
@@ -196,13 +181,13 @@ class sign1(BaseSignature, DataSignature):
             self.__log.debug("Dense matrix pipeline")
             if scale:
                 self.update_status("Scaling")
-                mod = Scale(self, tmp=False)
+                mod = Scale(self, tmp=False, **scale_kwargs)
                 mod.fit()
             else:
                 self.__log.debug("Not scaling")
             if latent:
                 self.update_status("PCA")
-                mod = Pca(self, tmp=tmp)
+                mod = Pca(self, **pca_kwargs)
                 mod.fit()
             else:
                 self.__log.debug("Not looking for latent variables")
@@ -235,36 +220,40 @@ class sign1(BaseSignature, DataSignature):
             hf.create_dataset("metric", data=np.array(
                 ["cosine"], DataSignature.string_dtype()))
         # finalize signature
-        BaseSignature.fit_end(self,  **params)
+        BaseSignature.fit_end(self, **kwargs)
 
-    def predict(self, sign0, destination=None):
-        """Predict sign1 from sign0"""
+    def predict(self, sign0, destination):
+        """Use the learned model to predict the signature.
 
-        # #if type(sign0) is not DataSignature:
-        # if type(sign0) != type(DataSignature):
-        #     print("type(sign0)", type(sign0))
-        #     print("type(DataSignature)",type(DataSignature))
-        #     raise Exception(
-        #         "Predict requires a DataSignature as input parameter")
+        Args:
+            sign1(signature): A valid Signature type 1
+            destination(None|path|signature): If None the prediction results are
+                returned as dictionary, if str then is used as path for H5 data,
+                if empty Signature type 2 its data_path is used as destination.
+        """
+        if not isinstance(destination, BaseSignature):
+            """
+            tag = str(uuid.uuid4())
+            tmp_path = os.path.join(self.model_path, tag)
+            cc = ChemicalChecker(tmp_path)
+            s1 = cc.get_signature(self.cctype, self.molset, self.cctype)
+            destination = s1
+            """
+            raise NotImplementedError(
+                "'destination' must be a valid signature object.")
         if not os.path.isfile(sign0.data_path):
             raise Exception("The file " + sign0.data_path + " does not exist")
-        tag = str(uuid.uuid4())
-        tmp_path = os.path.join(self.model_path, tag)
-        #try:
-        cc = ChemicalChecker(tmp_path)
-        #s1 = cc.signature(self.dataset, "sign1")
-        s1 = cc.get_signature(self.cctype, self.molset, self.cctype)  # Nico, experiment
-        self.copy_sign0_to_sign1(sign0, s1, just_data=True)
+        self.copy_sign0_to_sign1(sign0, destination, just_data=True)
         self.__log.debug("Reading pipeline")
         fn = self.pipeline_file()
         with open(fn, "rb") as f:
             pipeline = pickle.load(f)
         self.__log.debug("Starting pipeline")
-        self.__log.debug("Scaling if necessary")
         if not pipeline["sparse"] and pipeline["scale"]:
+            self.__log.debug("Scaling")
             mod = self.load_model("scale")
-            mod.model_path = self.model_path 
-            mod.predict(s1)
+            mod.model_path = self.model_path
+            mod.predict(destination)
 
         self.__log.debug("Transformation")
         if pipeline["metric_learning"]:
@@ -281,35 +270,20 @@ class sign1(BaseSignature, DataSignature):
             else:
                 mod = None
         if mod is not None:
-            mod.model_path = self.model_path # avoid taking the info from pickle in case it is copied
-            mod.predict(s1)
+            # avoid taking the info from pickle in case it is copied
+            mod.model_path = self.model_path
+            mod.predict(destination)
 
+        destination.refresh()
         self.__log.debug("Prediction done!")
-        if destination is None:
-            self.__log.debug("Returning a V, keys dictionary")
-            results = {
-                "V": s1[:],
-                "keys": s1.keys
-            }
-        else:
-            self.__log.debug("Saving H5 file in %s" % destination)
-            shutil.copyfile(s1.data_path, destination)
-            results = None
-        # except Exception as e:
-        #     shutil.rmtree(tmp_path)
-        #     raise Exception(e)
-
-        self.__log.debug("Deleting tmp folder")
-        shutil.rmtree(tmp_path)
-        return results
 
     def neighbors(self, tmp, metric="cosine", k_neig=1000, cpu=4):
         """Neighbors"""
         try:
             import faiss
         except ImportError:
-            raise ImportError("requires faiss " +
-                              "https://github.com/facebookresearch/faiss")
+            raise ImportError(
+                "requires faiss  https://github.com/facebookresearch/faiss")
 
         s1 = self.get_molset("reference")
         if metric not in ["cosine", "euclidean"]:
@@ -325,7 +299,7 @@ class sign1(BaseSignature, DataSignature):
         with h5py.File(s1.data_path, 'r') as dh5, \
                 h5py.File(data_path, 'w') as dh5out:
             datasize = dh5[V_name].shape
-            data_type = dh5[V_name].dtype
+            # data_type = dh5[V_name].dtype
             self.__log.debug("...data size is (%d, %d)" %
                              (datasize[0], datasize[1]))
             k = min(datasize[0], k_neig)
@@ -488,7 +462,7 @@ class sign1(BaseSignature, DataSignature):
         """
         # lazily loading if already computed
         fname = os.path.join(
-                self.get_molset("reference").model_path, "opt_t.h5")
+            self.get_molset("reference").model_path, "opt_t.h5")
         if os.path.isfile(fname):
             with h5py.File(fname, "r") as hf:
                 opt_t = hf['opt_t'][0]
@@ -526,7 +500,7 @@ class sign1(BaseSignature, DataSignature):
         pairs = positives + negatives
         truth = [1] * len(positives) + [0] * len(negatives)
         self.__log.debug("Setting the range of search")
-        N = nn.shape[0]
+        # N = nn.shape[0]
         kranges = []
         for i in range(5, 10):
             kranges += [i]

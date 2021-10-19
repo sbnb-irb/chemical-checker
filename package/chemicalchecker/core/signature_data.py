@@ -104,7 +104,7 @@ class DataSignature(object):
             if hasattr(self, key):
                 delattr(self, key)
         except:
-            self.__log.warn("No %s in this signature" % key)
+            pass
 
     def refresh(self):
         """Refresh all cached properties"""
@@ -192,8 +192,8 @@ class DataSignature(object):
             self._check_dataset('mappings')
             return self._get_all('mappings')
         except Exception:
-            self.__log.warning('Mappings are not available,' +
-                               ' using implicit key-key mappings.')
+            self.__log.debug('Mappings are not available,' +
+                             ' using implicit key-key mappings.')
             return np.vstack([self.keys, self.keys]).T
 
     @property
@@ -217,12 +217,13 @@ class DataSignature(object):
     @staticmethod
     def string_dtype():
         if sys.version_info[0] == 2:
+            import unicode
             # this works in py2 and fails in py3
             return h5py.special_dtype(vlen=unicode)
         else:
             # because str is the new unicode in py3
-            #return h5py.special_dtype(vlen=str)
-            return h5py.string_dtype(encoding='utf-8', length=None) # NS test
+            # return h5py.special_dtype(vlen=str)
+            return h5py.string_dtype(encoding='utf-8', length=None)  # NS test
 
     @staticmethod
     def h5_str(lst):
@@ -248,7 +249,7 @@ class DataSignature(object):
     def make_filtered_copy(self, destination, mask, include_all=False,
                            data_file=None):
         """
-        Make a copy of applying a filtering mask.
+        Make a copy of applying a filtering mask on rows.
 
         destination (str): The destination file path.
         mask (bool array): A numpy mask array (e.g. result of `np.isin`)
@@ -264,21 +265,36 @@ class DataSignature(object):
         with h5py.File(data_file, 'r') as hf_in:
             with h5py.File(destination, 'w') as hf_out:
                 for dset in hf_in.keys():
-                    # skip all dataset that cannot be masked
+                    # skip dataset incompatible with mask (or copy unmasked)
                     if hf_in[dset].shape[0] != mask.shape[0]:
                         if not include_all:
                             continue
                         else:
                             masked = hf_in[dset][:][:]
+                            hf_out.create_dataset(dset, data=masked)
+                            self.__log.debug("Copy dataset %s of shape %s" %
+                                             (dset, str(masked.shape)))
+                            continue
+                    # never mask features
+                    if dset == 'features':
+                        masked = hf_in[dset][:][:]
+                        self.__log.debug("Copy dataset %s of shape %s" %
+                                         (dset, str(masked.shape)))
+                        hf_out.create_dataset(dset, data=masked)
+                        continue
+                    # memory safe masked copy for other datasets
+                    if len(hf_in[dset].shape) == 1:
+                        final_shape = (sum(mask),)
                     else:
-                        if dset == 'features':
-                            masked = hf_in[dset][:][:]
-                        else:
-                            masked = hf_in[dset][:][mask]
-
+                        final_shape = (sum(mask), hf_in[dset].shape[1])
+                    hf_out.create_dataset(
+                        dset, final_shape, dtype=hf_in[dset].dtype)
                     self.__log.debug("Copy dataset %s of shape %s" %
-                                     (dset, str(masked.shape)))
-                    hf_out.create_dataset(dset, data=masked)
+                                     (dset, str(final_shape)))
+                    idx_dst = 0
+                    for idx_src in np.argwhere(mask).ravel():
+                        hf_out[dset][idx_dst] = hf_in[dset][idx_src]
+                        idx_dst += 1
 
     @staticmethod
     def hstack_signatures(sign_list, destination, chunk_size=1000,
@@ -474,7 +490,7 @@ class DataSignature(object):
         keys (ideally, keep a set to do this)."""
         self._check_data()
         if isinstance(key, bytes):
-            key = key.decode("utf-8") 
+            key = key.decode("utf-8")
         if isinstance(key, slice):
             with h5py.File(self.data_path, 'r') as hf:
                 return hf[self.ds_data][key]
@@ -598,11 +614,12 @@ class DataSignature(object):
                V(matrix): A (samples, features) matrix.
                keys(array): The list of keys.
         """
-        self.__log.debug("Subsampling dataset (n=%d)" % n)
-        if n > len(self.keys):
+        if n >= len(self.keys):
+            self.__log.debug("Full dataset sampled (n=%d)" % len(self.keys))
             V = self[:]
             keys = self.keys
         else:
+            self.__log.debug("Subsampling dataset (n=%d)" % n)
             idxs = np.array(sorted(np.random.choice(
                 len(self.keys), n, replace=False)))
             with h5py.File(self.data_path, "r") as hf:
@@ -667,7 +684,7 @@ class DataSignature(object):
                 src_vectors = hf['V'][:]
             with h5py.File(out_file, "w") as hf:
                 hf.create_dataset('keys', data=np.array(
-                    src_keys, DataSignature.string_dtype()),dtype=DataSignature.string_dtype())
+                    src_keys, DataSignature.string_dtype()), dtype=DataSignature.string_dtype())
                 hf.create_dataset('V', data=src_vectors, dtype=np.float32)
                 hf.create_dataset("shape", data=src_vectors.shape)
             return
@@ -689,7 +706,7 @@ class DataSignature(object):
         sorted_idx = np.argsort(dst_keys)
         with h5py.File(out_file, "w") as hf:
             hf.create_dataset('keys', data=np.array(
-                dst_keys[sorted_idx],DataSignature.string_dtype()),dtype=DataSignature.string_dtype())
+                dst_keys[sorted_idx], DataSignature.string_dtype()), dtype=DataSignature.string_dtype())
             hf.create_dataset('V', data=matrix[sorted_idx], dtype=np.float32)
             hf.create_dataset("shape", data=matrix.shape)
 
@@ -713,7 +730,8 @@ class DataSignature(object):
 
         return _generator_fn
 
-    def export_features(self,destination='.'):
+    def export_features(self, destination='.'):
         features = self.features
         with h5py.File(os.path.join(destination, "features_sign.h5"), 'w') as hf_out:
-            hf_out.create_dataset("features", data=np.array(features, DataSignature.string_dtype()))
+            hf_out.create_dataset("features", data=np.array(
+                features, DataSignature.string_dtype()))

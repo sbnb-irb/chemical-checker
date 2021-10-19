@@ -8,6 +8,7 @@ measure assigned to them.
 import os
 import h5py
 import pickle
+import shutil
 import numpy as np
 from tqdm import tqdm
 from time import time
@@ -24,11 +25,13 @@ from sklearn.preprocessing import robust_scale, StandardScaler
 
 from .signature_base import BaseSignature
 from .signature_data import DataSignature
+from .preprocess import Preprocess
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
 from chemicalchecker.util.splitter import Traintest
 from chemicalchecker.util.remove_near_duplicates import RNDuplicates
+from chemicalchecker.util.parser.converter import Converter
 
 
 @logged
@@ -124,6 +127,10 @@ class sign3(BaseSignature, DataSignature):
         """
         # get sorted universe inchikeys and CC signatures
         sign3.__log.info("Generating signature 2 universe matrix.")
+        if os.path.isfile(destination):
+            sign3.__log.warning("Skipping as destination %s already exists." %
+                                destination)
+            return
         inchikeys = set()
         for sign in sign2_list:
             inchikeys.update(sign.unique_keys)
@@ -131,10 +138,6 @@ class sign3(BaseSignature, DataSignature):
         tot_inks = len(inchikeys)
         tot_ds = len(sign2_list)
         # build matrix stacking horizontally signature
-        if os.path.isfile(destination):
-            sign3.__log.warning("Skipping as destination %s already exists." %
-                                destination)
-            return
         with h5py.File(destination, "w") as fh:
             fh.create_dataset('x_test', (tot_inks, 128 * tot_ds),
                               dtype=np.float32)
@@ -157,6 +160,10 @@ class sign3(BaseSignature, DataSignature):
         """
         # get sorted universe inchikeys and CC signatures
         sign3.__log.info("Generating signature 2 coverage matrix.")
+        if os.path.isfile(destination):
+            sign3.__log.warning("Skipping as destination %s already exists." %
+                                destination)
+            return
         inchikeys = set()
         for sign in sign2_list:
             inchikeys.update(sign.unique_keys)
@@ -166,10 +173,6 @@ class sign3(BaseSignature, DataSignature):
         sign3.__log.info("Saving coverage for %s dataset and %s molecules." %
                          (tot_ds, tot_inks))
         # build matrix stacking horizontally signature
-        if os.path.isfile(destination):
-            sign3.__log.warning("Skipping as destination %s already exists." %
-                                destination)
-            return
         with h5py.File(destination, "w") as fh:
             fh.create_dataset('x_test', (tot_inks, tot_ds), dtype=np.float32)
             fh.create_dataset('keys', data=np.array(
@@ -183,11 +186,155 @@ class sign3(BaseSignature, DataSignature):
                                  (sign.dataset, np.count_nonzero(coverage)))
                 fh['x_test'][:, idx:(idx + 1)] = np.expand_dims(coverage, 1)
 
+    @staticmethod
+    def complete_sign2_universe(sign2_self, sign2_universe, sign2_coverage,
+                                tmp_path=None, calc_ds_idx=[0, 1, 2, 3, 4],
+                                calc_ds_names=['A1.001', 'A2.001', 'A3.001',
+                                               'A4.001', 'A5.001'],
+                                ref_cc=None):
+        """Completes the universe for extra molecules.
+
+        Important if the dataset we are fitting is defined on molecules
+        that largely do not overlap with CC molecules. In that case there is no
+        orthogonal information to derive sign3. We should always have at least
+        the chemistry (calculated) level available for all molecules of the
+        dataset.
+
+        Args:
+            sign2_self(sign2): Signature 2 of the current space.
+            sign2_universe(str): Path to the union of all signatures 2 for all
+                molecules in the CC universe. (~1M x 3200)
+            sign2_coverage(str): Path to the coverage of all signatures 2 for
+                all molecules in the CC universe. (~1M x 25)
+            tmp_path(str): Temporary path where to save extra molecules'
+                signatures.
+            calc_spaces(list): List of indexes for calculated spaces in
+                the coverage matrix.
+        Returns:
+            Paths ot the new sign2 universe and coverage file.
+        """
+        from chemicalchecker import ChemicalChecker
+
+        # make a copy of the sign2 universe and coverage
+        sign3.__log.info('Completing universe, making copy of original files')
+        sign2_universe_ext = sign2_universe + '.complete.h5'
+        sign2_coverage_ext = sign2_coverage + '.complete.h5'
+        # shortcut if already computed
+        if os.path.isfile(sign2_universe_ext):
+            if os.path.isfile(sign2_coverage_ext):
+                sign3.__log.debug('Completed universe already available')
+                return sign2_universe_ext, sign2_coverage_ext
+        shutil.copyfile(sign2_universe, sign2_universe_ext)
+        shutil.copyfile(sign2_coverage, sign2_coverage_ext)
+        # which molecules in which space should be calculated?
+        cov = DataSignature(sign2_coverage)
+        inks, cov_ds = cov.get_vectors(sign2_self.keys, dataset_name='x_test')
+        conv = Converter()
+        # check coverage of calculated spaces
+        missing = np.sum(~cov_ds[:, calc_ds_idx].astype(bool), axis=0).ravel().tolist()
+        sign3.__log.info(
+            "Completing universe for missing molecules: %s" %
+            ', '.join(['%s: %s' % a for a in zip(calc_ds_names, missing)]))
+        # reference CC
+        if ref_cc is not None:
+            cc_ref = ChemicalChecker(ref_cc)
+        else:
+            cc_ref = ChemicalChecker()
+        sign3.__log.info(
+            "Reference CC (for predict methods): %s" % cc_ref.cc_root)
+        # create CC instance to host signatures
+        cc_extra = ChemicalChecker(os.path.join(tmp_path, 'tmp_cc'))
+        # for each calculated space
+        for ds_id, ds in zip(calc_ds_idx, calc_ds_names):
+            # prepare input file with missing inchikeys
+            input_file = os.path.join(tmp_path, '%s_input.tsv' % ds)
+            if not os.path.isfile(input_file):
+                fh = open(input_file, 'w')
+                miss_ink = inks[cov_ds[:, ds_id] == 0]
+                mi = miss_ink
+                # new inks must be sorted
+                assert(all(mi[i] <= mi[i + 1] for i in range(len(mi) - 1)))
+                sign3.__log.info('Getting InChI for %s molecules' %
+                                 (len(miss_ink)))
+                miss_count = 0
+                for ink in miss_ink:
+                    try:
+                        inchi = conv.inchikey_to_inchi(ink)[0]["standardinchi"]
+                    except Exception as ex:
+                        sign3.__log.warning(
+                            "Molecule %s: %s" % (ink, str(ex)))
+                        continue
+                    fh.write('%s\t%s\n' % (ink, inchi))
+                    miss_count += 1
+                fh.close()
+                sign3.__log.info('Adding %s molecules to %s' %
+                                 (miss_count, ds))
+                if miss_count == 0:
+                    continue
+            # call preprocess with predict
+            s0_ref = cc_ref.get_signature('sign0', 'full', ds)
+            raw_file = os.path.join(tmp_path, '%s_raw.h5' % ds)
+            if not os.path.isfile(raw_file):
+                Preprocess.preprocess_predict(s0_ref, input_file, raw_file,
+                                              'inchi')
+            # run sign0 predict
+            s0_ext = cc_extra.get_signature('sign0', 'full', ds)
+            if not os.path.isfile(s0_ext.data_path):
+                s0_ref.predict(data_file=raw_file, destination=s0_ext)
+            # run sign1 predict
+            s1_ext = cc_extra.get_signature('sign1', 'full', ds)
+            s1_ref = cc_ref.get_signature('sign1', 'reference', ds)
+            if not os.path.isfile(s1_ext.data_path):
+                s1_ref.predict(s0_ext, destination=s1_ext)
+            # run sign2 predict
+            s2_ext = cc_extra.get_signature('sign2', 'full', ds)
+            s2_ref = cc_ref.get_signature('sign2', 'reference', ds)
+            if not os.path.isfile(s2_ext.data_path):
+                s2_ref.predict(s1_ext, destination=s2_ext)
+            # update sign2_universe and sign2_coverage
+            upd_uni = h5py.File(sign2_universe_ext, "a")
+            upd_cov = h5py.File(sign2_coverage_ext, "a")
+            rows = np.isin(upd_uni['keys'][:].astype(str), s2_ext.keys)
+            rows_idx = np.argwhere(rows).ravel()
+            sign3.__log.info('Updating %s universe rows in %s' %
+                             (len(rows_idx), ds))
+            # new keys must be a subset of universe
+            assert(len(rows_idx) == len(s2_ext.keys))
+            for rid, sig in zip(rows_idx, s2_ext[:]):
+                old_sig = upd_uni['x_test'][rid][ds_id * 128:(ds_id + 1) * 128]
+                # old signature in universe must be nan
+                assert(np.all(np.isnan(old_sig)))
+                new_row = np.copy(upd_uni['x_test'][rid])
+                new_row[ds_id * 128:(ds_id + 1) * 128] = sig
+                upd_uni['x_test'][rid] = new_row
+                new_row = np.copy(upd_cov['x_test'][rid])
+                new_row[ds_id:ds_id + 1] = 1
+                upd_cov['x_test'][rid] = new_row
+            upd_uni.close()
+            upd_cov.close()
+        # final report
+        upd_uni = h5py.File(sign2_universe_ext, "r")
+        upd_cov = h5py.File(sign2_coverage_ext, "r")
+        old_cov = h5py.File(sign2_coverage, "r")
+        sign3.__log.info('Checking updated universe...')
+        for col, name in enumerate(cc_ref.datasets):
+            tot_upd = sum(upd_cov['x_test'][:, col])
+            cov_delta = int(tot_upd - sum(old_cov['x_test'][:, col]))
+            if cov_delta == 0:
+                continue
+            sign3.__log.info('Added %s molecules to %s' % (cov_delta, name))
+            # check head and tail of signature
+            sig_head = upd_uni['x_test'][:, col * 128]
+            sig_tail = upd_uni['x_test'][:, (col + 1) * 128 - 1]
+            assert(sum(~np.isnan(sig_head)) == tot_upd)
+            assert(sum(~np.isnan(sig_tail)) == tot_upd)
+        return sign2_universe_ext, sign2_coverage_ext
+
     def save_sign2_matrix(self, destination):
         """Save matrix of pairs of horizontally stacked signature 2.
 
         This is the matrix for training the signature 3. It is defined for all
-        molecules or which we have a signature 2 in the current space.
+        molecules for which we have a signature 2 in the current space.
         It's a subset of the universe of stacked sign2 file.
 
         Args:
@@ -221,8 +368,7 @@ class sign3(BaseSignature, DataSignature):
         try:
             from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError:
-            raise ImportError("requires tensorflow " +
-                              "https://tensorflow.org")
+            raise ImportError("requires tensorflow https://tensorflow.org")
         # get params and set folder
         self.update_status("Training %s model" % suffix)
         self.__log.debug('Siamese suffix %s' % suffix)
@@ -297,7 +443,10 @@ class sign3(BaseSignature, DataSignature):
         if not evaluate:
             return siamese
         # save validation plots
-        self.plot_validations(siamese, dataset_idx, traintest_file)
+        try:
+            self.plot_validations(siamese, dataset_idx, traintest_file)
+        except Exception as ex:
+            self.__log.debug('Plot pproblem: %s' % str(ex))
         # when evaluating also save prior and confidence models
         prior_model, prior_sign_model, confidence_model = self.train_confidence(
             traintest_file, X, suffix, siamese)
@@ -359,14 +508,15 @@ class sign3(BaseSignature, DataSignature):
             confidence_path, p_self=p_self)
         return prior_model, prior_sign_model, confidence_model
 
-    def rerun_confidence(self, cc, suffix, train=True, update_sign=True, chunk_size=10000, sign2_universe=None, sign2_coverage=None):
+    def rerun_confidence(self, cc, suffix, train=True, update_sign=True,
+                         chunk_size=10000, sign2_universe=None,
+                         sign2_coverage=None):
         """Rerun confidence trainining and estimation"""
         try:
             import faiss
             from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError:
-            raise ImportError("requires tensorflow " +
-                              "https://tensorflow.org")
+            raise ImportError("requires tensorflow https://tensorflow.org")
         sign1_self = cc.get_signature("sign1", "full", self.dataset)
         sign2_self = cc.get_signature("sign2", "full", self.dataset)
         sign2_list = [cc.get_signature("sign2", "full", d)
@@ -507,8 +657,8 @@ class sign3(BaseSignature, DataSignature):
 
     def realistic_subsampling_fn(self):
         # realistic subsampling function
-        trim_mask, p_nr_unk, p_keep_unk, p_nr_kno, p_keep_kno = \
-            subsampling_probs(self.sign2_coverage, self.dataset_idx)
+        trim_mask, p_nr_unk, p_keep_unk, p_nr_kno, p_keep_kno = subsampling_probs(
+            self.sign2_coverage, self.dataset_idx)
         p_nr = (p_nr_unk, p_nr_kno)
         p_keep = (p_keep_unk, p_keep_kno)
         trim_dataset_idx = np.argwhere(
@@ -551,7 +701,7 @@ class sign3(BaseSignature, DataSignature):
                 z = np.ones(x.shape)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
-            ax.scatter(x, y, c=z, s=10, edgecolor='')
+            ax.scatter(x, y, c=z, s=10, linewidth=0)
             ax.set_xlabel("Pred")
             ax.set_ylabel("True")
             ax.set_xlim((-1, 1))
@@ -746,7 +896,7 @@ class sign3(BaseSignature, DataSignature):
                 z = np.ones(x.shape)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
-            ax.scatter(x, y, c=z, s=10, edgecolor='')
+            ax.scatter(x, y, c=z, s=10, linewidth=0)
             ax.set_xlabel("Pred")
             ax.set_ylabel("True")
             ax.set_xlim((-1, 1))
@@ -936,7 +1086,7 @@ class sign3(BaseSignature, DataSignature):
                 z = np.ones(x.shape)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
-            ax.scatter(x, y, c=z, s=10, edgecolor='')
+            ax.scatter(x, y, c=z, s=10, linewidth=0)
             ax.set_xlabel("Pred")
             ax.set_ylabel("True")
             ax.set_xlim((-1, 1))
@@ -1038,7 +1188,8 @@ class sign3(BaseSignature, DataSignature):
             # ax = fig.add_subplot(gs[1, 3])
             if plots:
                 try:
-                    plt.savefig(os.path.join(save_path, 'confidence_stats.png'))
+                    plt.savefig(os.path.join(
+                        save_path, 'confidence_stats.png'))
                     plt.close()
                 except Exception as ex:
                     self.__log.warning('SKIPPING PLOT: %s' % str(ex))
@@ -1132,9 +1283,8 @@ class sign3(BaseSignature, DataSignature):
 
         # do applicability domain prediction
         self.__log.info('Computing Applicability Domain')
-        applicability, app_range, _ = \
-            self.applicability_domain(
-                known_onlyself_neig, train_x, siamese, p_self=p_self)
+        applicability, app_range, _ = self.applicability_domain(
+            known_onlyself_neig, train_x, siamese, p_self=p_self)
         self.__log.info('Applicability Domain DONE')
 
         # do conformal prediction (dropout)
@@ -1214,7 +1364,8 @@ class sign3(BaseSignature, DataSignature):
 
         # Map the plots to the locations
         for split_name, split_frac, split_idx in splits:
-            grid = sns.PairGrid(data=df.loc[split_idx], vars=variables, size=4)
+            grid = sns.PairGrid(
+                data=df.loc[split_idx], vars=variables, height=4)
             grid = grid.map_upper(plt.scatter, color='darkred')
             grid = grid.map_upper(corr)
             grid = grid.map_lower(sns.kdeplot, cmap='Reds')
@@ -1300,8 +1451,8 @@ class sign3(BaseSignature, DataSignature):
         robustness = 1 - np.mean(np.std(samples, axis=1), axis=1).flatten()
         return intensities, robustness, consensus
 
-    def plot_validations(self, siamese, dataset_idx, traintest_file, chunk_size=10000,
-                         limit=1000, dist_limit=1000):
+    def plot_validations(self, siamese, dataset_idx, traintest_file,
+                         chunk_size=10000, imit=1000, dist_limit=1000):
 
         def no_mask(idxs, x1_data):
             return x1_data
@@ -1389,10 +1540,10 @@ class sign3(BaseSignature, DataSignature):
         for ax, (n1, n2) in zip(axes.flatten(), combos):
             scaled_corrs = row_wise_correlation(
                 pred['train'][n1], pred['train'][n2], scaled=True)
-            sns.distplot(scaled_corrs, ax=ax, label='Train')
+            sns.histplot(scaled_corrs, ax=ax, label='Train')
             scaled_corrs = row_wise_correlation(
                 pred['test'][n1], pred['test'][n2], scaled=True)
-            sns.distplot(scaled_corrs, ax=ax, label='Test')
+            sns.histplot(scaled_corrs, ax=ax, label='Test')
             ax.legend()
             ax.set_title(label='%s vs. %s' % (n1, n2))
         fname = 'known_unknown_correlations.png'
@@ -1408,14 +1559,14 @@ class sign3(BaseSignature, DataSignature):
                 ax.set_title(name)
                 dist_known = pdist(pred['train'][name][:dist_limit],
                                    metric=metric)
-                sns.distplot(dist_known, label='Train', ax=ax)
+                sns.histplot(dist_known, label='Train', ax=ax)
                 dist_known = pdist(pred['test'][name][:dist_limit],
                                    metric=metric)
-                sns.distplot(dist_known, label='Test', ax=ax)
+                sns.histplot(dist_known, label='Test', ax=ax)
                 if len(pred['unknown'][name]) > 0:
                     dist_unknown = pdist(pred['unknown'][name][:dist_limit],
                                          metric=metric)
-                    sns.distplot(dist_unknown, label='Unknown', ax=ax)
+                    sns.histplot(dist_unknown, label='Unknown', ax=ax)
                 ax.legend()
             fname = 'known_unknown_dist_%s.png' % metric
             plot_file = os.path.join(siamese.model_dir, fname)
@@ -1561,8 +1712,7 @@ class sign3(BaseSignature, DataSignature):
         try:
             from chemicalchecker.tool.smilespred import Smilespred
         except ImportError:
-            raise ImportError("requires tensorflow " +
-                              "https://tensorflow.org")
+            raise ImportError("requires tensorflow https://tensorflow.org")
         # get params and set folder
         model_path = os.path.join(self.model_path, 'smiles_%s' % suffix)
         if not os.path.isdir(model_path):
@@ -1604,8 +1754,7 @@ class sign3(BaseSignature, DataSignature):
         try:
             from chemicalchecker.tool.smilespred import ApplicabilityPredictor
         except ImportError:
-            raise ImportError("requires tensorflow " +
-                              "https://tensorflow.org")
+            raise ImportError("requires tensorflow https://tensorflow.org")
         # get params and set folder
         model_path = os.path.join(self.model_path,
                                   'smiles_applicability_%s' % suffix)
@@ -1841,7 +1990,7 @@ class sign3(BaseSignature, DataSignature):
         return inchikeys
 
     def fit(self, sign2_list=None, sign2_self=None, sign1_self=None,
-            sign2_universe=None, partial_universe=None,
+            sign2_universe=None, complete_universe='full',
             sign2_coverage=None, sign0=None,
             model_confidence=True, save_correlations=False,
             predict_novelty=False, update_preds=True,
@@ -1851,13 +2000,18 @@ class sign3(BaseSignature, DataSignature):
         Args:
             sign2_list(list): List of signature 2 objects to learn from.
             sign2_self(sign2): Signature 2 of the current space.
+            sign2_self(sign1): Signature 1 of the current space.
             sign2_universe(str): Path to the union of all signatures 2 for all
-                molecules in the CC universe. (800k x 3200)
+                molecules in the CC universe. (~1M x 3200)
+            complete_universe(str): add chemistry information for molecules not
+                in the universe. 'full' use all A* spaces while, 'fast' skips
+                A2 (3D conformation) which is slow. False by default, not
+                adding any signature to the universe.
             sign2_coverage(str): Path to the coverage of all signatures 2 for
-                all molecules in the CC universe. (800k x 25)
+                all molecules in the CC universe. (~1M x 25)
             sign0(sign): The signature 0 or any direct vector representation
                 of the molecule used to train a sign2 independendent sign3
-                predictor.
+                predictor (aka Signaturizer).
             model_confidence(bool): Whether to model confidence. That is based
                 on standard deviation of prediction with dropout.
             save_correlations(bool) Whether to save the correlation (average,
@@ -1866,19 +2020,23 @@ class sign3(BaseSignature, DataSignature):
             predict_novelty(bool) Whether to predict molecule novelty score.
             update_preds(bool): Whether to write or update the sign3.h5
             normalize_scores(bool): Whether to normalize confidence scores.
-            validations(bool): Whether to perform validation.
             chunk_size(int): Chunk size when writing to sign3.h5
+            suffix(str): Suffix of the generated model.
         """
         try:
             from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError:
-            raise ImportError("requires tensorflow " +
-                              "https://tensorflow.org")
+            raise ImportError("requires tensorflow https://tensorflow.org")
         try:
             import faiss
         except ImportError as err:
             raise err
-        BaseSignature.fit(self,  **params)
+        BaseSignature.fit(self, **params)
+
+        # signature specific checks
+        if self.molset != "full":
+            self.__log.debug("Fit will be done with the full sign3")
+            self = self.get_molset("full")
 
         # define datasets that will be used
         self.update_status("Getting data")
@@ -1909,16 +2067,28 @@ class sign3(BaseSignature, DataSignature):
         self.__log.debug('Siamese fit %s based on %s', self.dataset,
                          str(self.src_datasets))
 
-        # build input matrix if not provided (should be since is shared)
+        # build input universe sign2 matrix if not provided
+        # In the update pipeline this is pre-computed
         self.sign2_universe = sign2_universe
         if self.sign2_universe is None:
             self.sign2_universe = os.path.join(self.model_path, 'all_sign2.h5')
-        if partial_universe is not None:
-            sign3.complete_sign2_universe(
-                sign2_list, sign2_self,
-                partial_universe, self.sign2_universe)
         if not os.path.isfile(self.sign2_universe):
             sign3.save_sign2_universe(sign2_list, self.sign2_universe)
+
+        # check if molecules are missing from chemistry spaces, complete
+        if complete_universe:
+            if complete_universe == 'full':
+                calc_ds_idx = [0, 1, 2, 3, 4],
+                calc_ds_names = ['A1.001', 'A2.001',
+                                 'A3.001', 'A4.001', 'A5.001']
+            if complete_universe == 'fast':
+                calc_ds_idx = [0, 2, 3, 4],
+                calc_ds_names = ['A1.001', 'A3.001', 'A4.001', 'A5.001']
+            res = sign3.complete_sign2_universe(
+                sign2_self, self.sign2_universe, self.sign2_coverage,
+                tmp_path=self.model_path, calc_ds_idx=calc_ds_idx,
+                calc_ds_names=calc_ds_names)
+            self.sign2_universe, self.sign2_coverage = res
 
         # check if performance evaluations need to be done
         siamese = None
@@ -2119,7 +2289,7 @@ class sign3(BaseSignature, DataSignature):
         # save reference
         self.save_reference()
         # finalize signature
-        BaseSignature.fit_end(self,  **params)
+        BaseSignature.fit_end(self, **params)
 
     def predict_novelty(self, retrain=False, update_sign3=True, cpu=4):
         """Model novelty score via LocalOutlierFactor (semi-supervised).
@@ -2186,8 +2356,7 @@ class sign3(BaseSignature, DataSignature):
         try:
             from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError:
-            raise ImportError("requires tensorflow " +
-                              "https://tensorflow.org")
+            raise ImportError("requires tensorflow https://tensorflow.org")
 
         if model_path is None:
             model_path = os.path.join(self.model_path, 'siamese_debug')
@@ -2381,8 +2550,9 @@ def subsample(tensor, sign_width=128,
     return new_data
 
 
-def plot_subsample(sign, plot_file, sign2_coverage, traintest_file, ds='B1.001',
-                   p_self=.1, p_only_self=0., limit=10000, max_ds=25, sign2_list=None):
+def plot_subsample(sign, plot_file, sign2_coverage, traintest_file,
+                   ds='B1.001', p_self=.1, p_only_self=0., limit=10000,
+                   max_ds=25, sign2_list=None):
     import numpy as np
     import pandas as pd
     import seaborn as sns
@@ -2392,13 +2562,14 @@ def plot_subsample(sign, plot_file, sign2_coverage, traintest_file, ds='B1.001',
     cc = ChemicalChecker()
 
     # NICO sign2_list
-    sign2_ds_list = [s.dataset for s in sign2_list] if sign2_list is not None else list(cc.datasets_exemplary())
+    sign2_ds_list = [s.dataset for s in sign2_list] if sign2_list is not None else list(
+        cc.datasets_exemplary())
 
     # get triplet generator
     dataset_idx = np.argwhere(
         np.isin(sign2_ds_list, ds)).flatten()
-    trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = \
-        subsampling_probs(sign2_coverage, dataset_idx)
+    trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = subsampling_probs(
+        sign2_coverage, dataset_idx)
     trim_dataset_idx = np.argwhere(np.arange(len(trim_mask))[
         trim_mask] == dataset_idx).ravel()[0]
     augment_kwargs = {
@@ -2518,7 +2689,7 @@ def plot_subsample(sign, plot_file, sign2_coverage, traintest_file, ds='B1.001',
 
     # plot
 
-    fig = plt.figure(constrained_layout=True, figsize=(24, 12))
+    fig = plt.figure(figsize=(24, 12))
     gs = fig.add_gridspec(2, 2)
     ax = fig.add_subplot(gs[0, 0])
     sns.barplot(x="space", y="probabilities", hue='variable',

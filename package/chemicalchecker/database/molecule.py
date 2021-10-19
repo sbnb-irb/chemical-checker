@@ -11,6 +11,7 @@ Example::
 
 """
 from tqdm import trange
+import sqlalchemy
 from sqlalchemy import Column, Text, VARCHAR
 from sqlalchemy.dialects import postgresql
 
@@ -151,3 +152,13 @@ class Molecule(Base):
     def _create_table():
         engine = get_engine()
         Base.metadata.create_all(engine)
+
+    @staticmethod
+    def _table_exists():
+        engine = get_engine()
+        return sqlalchemy.inspect(engine).has_table(Molecule.__tablename__)
+
+    @staticmethod
+    def _drop_table():
+        engine = get_engine()
+        Molecule.__table__.drop(engine)

@@ -45,6 +45,8 @@ from chemicalchecker.database import Dataset, Datasource
 from chemicalchecker.database import Molrepo, Calcdata
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable
 from chemicalchecker.util.pipeline import CCFit, CCPredict
+from update_resources.create_database import create_db_dataset
+from chemicalchecker.core.diagnostics import Diagnosis
 
 # this is needed to export signaturizers at the end
 sys.path.insert(0, '/aloy/home/mbertoni/code/signaturizer')
@@ -64,7 +66,7 @@ def pipeline_parser():
         help='Directory where the pipeline will run '
         '(e.g. `/aloy/scratch/mbertoni/pipelines/cc_update_2020_01`)')
     parser.add_argument(
-        '-r', '--reference_cc', type=str, required=False,
+        '-r', '--reference_cc', type=str, default="", required=False,
         help='Root dir of the CC instance to use as reference '
         '(i.e. triplet sampling in sign0).')
     parser.add_argument(
@@ -169,14 +171,15 @@ def main(args):
         'proj3': 'reference'
     }
 
-    # dataset parameters
+    # initialize parameter holders (two dict, one for init and one for fit)
     datasets = [ds.code for ds in Dataset.get(exemplary=True)]
     sign_kwargs = {}
     fit_kwargs = {}
     for cctype in fit_order:
         fit_kwargs[cctype] = {}
         sign_kwargs[cctype] = {}
-    # sign3 shared parameters
+
+    # GENERAL FIT/INIT PARAMETERS
     cc = ChemicalChecker(args.cc_root)
     sign2_universe = os.path.join(pp.cachedir, "sign2_universe_stacked.h5")
     sign2_coverage = os.path.join(pp.cachedir, "sign2_universe_coverage.h5")
@@ -187,23 +190,27 @@ def main(args):
         fit_kwargs['sign0'][ds] = {
             'key_type': 'inchikey',
             'do_triplets': False,
-            'validations': True
+            'sanitize': True,
+            'validations': True,
+            'diagnostics': False,
+            'sanitizer_kwargs': {'max_features': 10000,'chunk_size': 10000}
         }
         fit_kwargs['sign1'][ds] = {
             'metric_learning': False,
+            'diagnostics': False
         }
         fit_kwargs['sign2'][ds] = {
             'validations': True,
-        }
-        sign_kwargs['sign2'][ds] = {
-            'node2vec': {'cpu': 4},
-            'adanet': {'cpu': hpc_kwargs['sign2']['cpu']}
+            'diagnostics': False,
+            'node2vec_kwargs': {'cpu': 4},
+            'adanet_kwargs': {'cpu': hpc_kwargs['sign2']['cpu']}
         }
         fit_kwargs['sign3'][ds] = {
             'sign2_list': sign2_list,
             'sign2_universe': sign2_universe,
             'sign2_coverage': sign2_coverage,
             'sign0': mfp,
+            'diagnostics': False
         }
         sign_kwargs['sign3'][ds] = {
             'sign2': {'cpu': hpc_kwargs['sign3']['cpu']}
@@ -228,6 +235,19 @@ def main(args):
             'cpu': hpc_kwargs['proj2']['cpu']
         }
 
+    # DATASET SPECIFIC FIT/INIT PARAMETERS
+    # we want to keep exactly 2048 features (Morgan fingerprint) for A1
+    fit_kwargs['sign0']['A1.001'] = {'sanitize': False}
+
+    # TASK: Create new CC DB
+    def create_db():
+        # Create a new database for the current CC update
+        create_db_dataset()
+
+    creating_db_task = PythonCallable(name="creating_db",
+                                    python_callable=create_db)
+    pp.add_task(creating_db_task)
+    # END TASK
     #############################################
     # TASK: Download all datasources
     def download_fn(tmpdir):
@@ -272,10 +292,9 @@ def main(args):
 
     #############################################
     # TASK: Generate Molrepos
-    job_path = tempfile.mkdtemp(prefix='jobs_molrepos_', dir=pp.tmpdir)
     molrepos_task = PythonCallable(name="molrepos",
                                    python_callable=Molrepo.molrepo_hpc,
-                                   op_args=[job_path],
+                                   op_args=[pp.tmpdir],
                                    op_kwargs={'only_essential': True})
     pp.add_task(molrepos_task)
     # END TASK
@@ -310,6 +329,18 @@ def main(args):
                  fit_kwargs=fit_kwargs[cctype],
                  sign_kwargs=sign_kwargs[cctype],
                  hpc_kwargs=hpc_kwargs[cctype])
+    pp.add_task(task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Calculate diagnostics plots of sign0 for derived spaces: the reference cc version is provided
+    # by the 'reference_cc' input parameter (only for sign0 case, for other signatures 
+    # the reference is args.cc_root itself)
+    cctype = 'sign0'
+    task = PythonCallable(name="diagnostics_sign0_BCDE",
+                         python_callable=Diagnosis.diagnostics_hpc,
+                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc])
     pp.add_task(task)
     # END TASK
     #############################################
@@ -355,6 +386,18 @@ def main(args):
     #############################################
 
     #############################################
+    # TASK: Calculate diagnostics plots of sign0 for A* spaces: the reference cc version is provided
+    # by the 'reference_cc' input parameter (only for sign0 case, for other signatures 
+    # the reference is args.cc_root itself)
+    cctype = 'sign0'
+    task = PythonCallable(name="diagnostics_sign0_A",
+                         python_callable=Diagnosis.diagnostics_hpc,
+                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc])
+    pp.add_task(task)
+    # END TASK
+    #############################################
+
+    #############################################
     # TASK: Calculate signatures 1-2 also clus, proj and neig
     dss = [ds.code for ds in Dataset.get(exemplary=True)]
     s0_idx = fit_order.index('sign0') + 1
@@ -365,6 +408,17 @@ def main(args):
                      fit_kwargs=fit_kwargs[cctype],
                      sign_kwargs=sign_kwargs[cctype],
                      hpc_kwargs=hpc_kwargs[cctype])
+        pp.add_task(task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: diagonistc plots for sign1-sign2
+    cctypes = ['sign1', 'sign2']
+    for cctype in cctypes:
+        task = PythonCallable(name="diagnostics_" + cctype,
+                            python_callable=Diagnosis.diagnostics_hpc,
+                            op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.cc_root])
         pp.add_task(task)
     # END TASK
     #############################################
@@ -396,6 +450,16 @@ def main(args):
                  fit_kwargs=fit_kwargs[cctype],
                  sign_kwargs=sign_kwargs[cctype],
                  hpc_kwargs=hpc_kwargs[cctype])
+    pp.add_task(task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Calculate diagnostics plots of sign3 for all spaces
+    cctype = 'sign3'
+    task = PythonCallable(name="diagnostics_" + cctype,
+                         python_callable=Diagnosis.diagnostics_hpc,
+                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc])
     pp.add_task(task)
     # END TASK
     #############################################

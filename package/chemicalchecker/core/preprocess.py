@@ -16,9 +16,9 @@ integers
 continous: "0.515,1.690,0.996" which is an array of floats
 """
 import os
-import imp
 import h5py
 import argparse
+import importlib
 import numpy as np
 
 from .signature_data import DataSignature
@@ -37,18 +37,19 @@ class Preprocess():
     def __init__(self, signature_path, dataset, **params):
         """Initialize a Preprocess instance.
 
+        This class handles calling the external run.py for each dataset and
+        provide shared methods.
+
         Args:
             signature_path(str): the path to the signature directory.
         """
-        # Calling init on the base class to trigger file existance checks
-        self.__log.debug('signature path is: %s', signature_path)
+        self.__log.info('Preprocess signature: %s', signature_path)
 
         self.raw_path = os.path.join(signature_path, "raw")
         self.raw_model_path = os.path.join(signature_path, "raw", "models")
-
         if not os.path.isdir(self.raw_path):
-            Preprocess.__log.info(
-                "Initializing new raw in: %s" % self.raw_path)
+            Preprocess.__log.debug(
+                "Initializing raw path: %s" % self.raw_path)
             original_umask = os.umask(0)
             os.makedirs(self.raw_path, 0o775)
             os.umask(original_umask)
@@ -58,9 +59,8 @@ class Preprocess():
             os.makedirs(self.raw_model_path, 0o775)
             os.umask(original_umask)
 
-        # NS what is returned by cc.preprocess(sign) after prepro.fit()
+        # where preprocess data will be saved if fit is called
         self.data_path = os.path.join(self.raw_path, "preprocess.h5")
-        self.__log.debug('data_path: %s', self.data_path)
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -72,10 +72,7 @@ class Preprocess():
             "run.py")
         if not os.path.isfile(self.preprocess_script):
             self.__log.warning(
-                "Pre-process script not found! %s", self.preprocess_script)
-
-        for param, value in params.items():
-            self.__log.debug('parameter %s : %s', param, value)
+                "Preprocess script not found! %s", self.preprocess_script)
 
     def is_fit(self):
         if os.path.exists(self.data_path):
@@ -83,8 +80,7 @@ class Preprocess():
         else:
             return False
 
-
-    def call_preprocess(self, output, method, infile=None, entry=None):
+    def call_preprocess(self, output, method, infile=None, entry=None, params = {}):
         """Call the external pre-process script."""
         # create argument list
         arglist = ["-o", output, "-mp", self.raw_model_path, "-m", method]
@@ -93,45 +89,50 @@ class Preprocess():
         if entry:
             arglist.extend(['-ep', entry])
         # import and run the run.py
-        preprocess = imp.load_source('main', self.preprocess_script)
+        loader = importlib.machinery.SourceFileLoader('preprocess_script',
+                                                      self.preprocess_script)
+        preprocess = loader.load_module()
+        # self.__log.debug('ARGS: %s' % str(arglist))
         preprocess.main(arglist)
 
     def fit(self):
-        """Call the external preprocess script to generate h5 data.
+        """Call the external preprocess script to generate H5 data.
 
         The preprocess script is invoked with the `fit` argument, which means
-        features are extracted from datasoruces and saved.
+        features are extracted from datasoruce and saved.
         """
         # check that preprocess script is available and call it
-        self.__log.debug('Calling pre-process script %s',
-                         self.preprocess_script)
+        self.__log.info('Calling preprocess script: %s',
+                        self.preprocess_script)
 
         if not os.path.isfile(self.preprocess_script):
-            raise Exception("Pre-process script not found! %s",
+            raise Exception("Preprocess script not found! %s",
                             self.preprocess_script)
 
-        self.call_preprocess(self.data_path, "fit")
+        self.call_preprocess(self.data_path, "fit", None, None, self.params)
 
-    def predict(self, input_data_file, destination):
-        """Call the external preprocess script to generate h5 data."""
+    def predict(self, input_data_file, destination, entry_point):
+        """Call the external preprocess script to generate H5 data."""
         """
         Args:
             input_data_file(str): Path to the file with the raw to generate
                 the signature 0.
-            destination(str): Path to a .h5 file where the predicted signature
+            destination(str): Path to a H5 file where the predicted signature
                 will be saved.
             entry_point(str): Entry point of the input data for the
                 signaturization process. It depends on the type of data passed
                 at the input_data_file.
         """
         # check that preprocess script is available and call it
-        self.__log.debug('Calling pre-process script %s',self.preprocess_script)
+        self.__log.info('Calling preprocess script: %s',
+                        self.preprocess_script)
 
         if not os.path.isfile(self.preprocess_script):
-            raise Exception("Pre-process script not found! %s", self.preprocess_script)
+            raise Exception("Pre-process script not found! %s",
+                            self.preprocess_script)
 
-        #self.call_preprocess(destination, "predict", input_data_file, self.entry_point) # NS: self.entry_point not defined anywhere
-        self.call_preprocess(destination, "predict", input_data_file)
+        self.call_preprocess(destination, "predict", infile=input_data_file,
+                             entry=entry_point)
 
     def to_features(self, signatures):
         """Convert signature to explicit feature names.
@@ -161,20 +162,80 @@ class Preprocess():
             result.append(dict(zip(keys, values)))
         return result
 
+    @classmethod
+    def preprocess(cls, sign, **params):
+        """Return the file with the raw data preprocessed.
+        Args:
+            sign: signature object (e.g. obtained from cc.get_signature)
+            params: specific parameters for a given preprocess script
+        Returns:
+            datafile(str): The name of the file where the data is saved.
+
+        ex:
+            os.path.join(self.raw_path, "preprocess.h5")
+        """
+
+        prepro = cls(sign.signature_path, sign.dataset, **params)
+        if not prepro.is_fit():
+            cls.__log.info(
+                "No raw data file found, calling the preprocessing script")
+            prepro.fit()
+        else:
+            cls.__log.info("Found {}".format(prepro.data_path))
+        return prepro.data_path
+
+    @classmethod
+    def preprocess_predict(cls, sign, input_file, destination, entry_point):
+        """Runs the preprocessing script 'predict'.
+
+        Run on an input file of raw data formatted correctly for the space of
+        interest
+
+        Args:
+            sign: signature object ( e.g. obtained from cc.get_signature)
+            input_file(str): path to the H5 file containing the data on which
+                to apply 'predict'
+            destination(str): Path to a H5 file where the predicted signature
+                will be saved.
+            entry_point(str): Entry point of the input data for the
+                signaturization process. It depends on the type of data passed
+                at the input_data_file.
+        Returns:
+            datafile(str): The H5 file containing the predicted data after
+                preprocess
+        """
+
+        input_file = os.path.abspath(input_file)
+        destination = os.path.abspath(destination)
+
+        # Checking the provided paths
+
+        if not os.path.exists(input_file):
+            raise Exception("Error, {} does not exist!".format(input_file))
+
+        prepro = cls(sign.signature_path, sign.dataset)
+        prepro.predict(input_file, destination, entry_point)
+
+        return destination
+
     @staticmethod
     def get_parser():
         description = 'Run preprocess script.'
         parser = argparse.ArgumentParser(description=description)
         parser.add_argument('-i', '--input_file', type=str,
-                            required=False, default='.', help='Input file only for predict method')
+                            required=False, default='.',
+                            help='Input file only for predict method')
         parser.add_argument('-o', '--output_file', type=str,
                             required=False, default='.', help='Output file')
         parser.add_argument('-m', '--method', type=str,
-                            required=False, default='fit', help='Method: fit or predict')
+                            required=False, default='fit',
+                            help='Method: fit or predict')
         parser.add_argument('-mp', '--models_path', type=str,
-                            required=False, default='', help='The models path')
+                            required=False, default='',
+                            help='The models path')
         parser.add_argument('-ep', '--entry_point', type=str,
-                            required=False, default=None, help='The predict entry point')
+                            required=False, default=None,
+                            help='The predict entry point')
         return parser
 
     @staticmethod
@@ -190,19 +251,44 @@ class Preprocess():
         return map_files
 
     @staticmethod
-    def save_output(output_file, inchikey_raw, method, models_path, discrete, features, features_int=False, chunk=2000):
-        # NS: inchikey_raw: dict of inchikey-> list of values (dense format)
+    def save_output(output_file, inchikey_raw, method, models_path, discrete,
+                    features, features_int=False, chunk=2000):
+        """Save raw data produced by the preprocess script as matrix.
+
+        The result of preprocess scripts are usually in compact format (e.g.
+        binary data only list features with value of 1) since data might be
+        sparse and memory intensive to handle. This method convert it to a
+        signature like (explicit, extended) format. The produced H5 will
+        contain 3 dataset:
+            * 'keys': identifier (usually inchikey),
+            * 'features': features names,
+            * 'X': the data matrix
+
+        Args:
+            output_file(str): Path to output H5 file.
+            inchikey_raw(dict): inchikey -> list of values (dense format).
+            method(str): Same as used in the preprocess script.
+            models_path(str): Path to signature models directory.
+            discrete(bool): True if data is binary/discrete, False for
+                continuous data.
+            features(list): List of feature names from original sign0,
+                None when method is 'fit'.
+            features_int(str): Features have no name, we can use integers as
+                feature names.
+            chunk(int): Chunk size for loading data.
+        """
         keys = []
 
         if discrete:
-
+            # check if categorical
             categ = False
-
             for k, v in inchikey_raw.items():
                 if len(v) > 0:
                     if isinstance(v[0], tuple):
                         categ = True
                     break
+
+            # words are all possible features
             words = set()
             for k in sorted(inchikey_raw.keys()):
                 keys.append(str(k))
@@ -212,11 +298,14 @@ class Preprocess():
                 else:
                     words.update(inchikey_raw[k])
 
+            # if we have features available ('predict' method) check overlap
             if features is not None:
                 orderwords = features
-                Preprocess.__log.info("Predict entries have a total of %s features," +
-                                      " %s overlap with trainset and will be considered.",
-                                      len(words), len(set(features) & words))
+                Preprocess.__log.debug(
+                    "Predict entries have a total of %s features,"
+                    " %s overlap with trainset and will be considered.",
+                    len(words), len(set(features) & words))
+            # otherwise deduce features from data provided and sort them
             else:
                 orderwords = list(words)
                 del words
@@ -225,6 +314,9 @@ class Preprocess():
                 else:
                     orderwords.sort()
 
+            # prepare output file
+            Preprocess.__log.info("Output file will be of shape: "
+                                  "%s" % [len(keys), len(orderwords)])
             with h5py.File(output_file, "w") as hf:
                 hf.create_dataset("keys", data=np.array(
                     keys, DataSignature.string_dtype()))
@@ -233,11 +325,12 @@ class Preprocess():
                 hf.create_dataset("features", data=np.array(
                     orderwords, DataSignature.string_dtype()))
 
+            # write data in H5
             raws = np.zeros((chunk, len(orderwords)), dtype=np.int8)
             wordspos = {k: v for v, k in enumerate(orderwords)}
             index = 0
-
             for i, k in enumerate(keys):
+                # prepare chunk
                 shared_features = set(inchikey_raw[k]) & set(orderwords)
                 if len(shared_features) == 0:
                     Preprocess.__log.warn(
@@ -249,6 +342,7 @@ class Preprocess():
                         raws[index][wordspos[word]] = 1
                 index += 1
 
+                # when chunk is complete or molecules are over, write to file
                 if index == chunk or i == len(keys) - 1:
                     end = i + 1
                     if index != chunk:
@@ -259,26 +353,25 @@ class Preprocess():
 
                     raws = np.zeros((chunk, len(orderwords)), dtype=np.int8)
                     index = 0
-
-            if method == "fit":
-                with h5py.File(os.path.join(models_path, features_file), "w") as hf:
-                    hf.create_dataset("features", data=np.array(
-                        orderwords, DataSignature.string_dtype()))
-
+            saving_features = orderwords
+        # continuous
         else:
-
+            # get molecules inchikeys
             for k in inchikey_raw.keys():
                 keys.append(str(k))
             keys = np.array(keys)
             inds = keys.argsort()
             data = []
 
+            # sorted data
             for i in inds:
                 data.append(inchikey_raw[keys[i]])
 
+            # define features if not available
             if features is None:
                 features = [str(i) for i in range(1, len(data[0]) + 1)]
 
+            # save data
             with h5py.File(output_file, "w") as hf:
                 hf.create_dataset("keys", data=np.array(
                     keys[inds], DataSignature.string_dtype()))
@@ -286,10 +379,14 @@ class Preprocess():
                 hf.create_dataset("features", data=np.array(
                     features, DataSignature.string_dtype()))
 
-            if method == "fit":
-                with h5py.File(os.path.join(models_path, features_file), "w") as hf:
-                    hf.create_dataset("features", data=np.array(
-                        features, DataSignature.string_dtype()))
+            saving_features = features 
+
+        # if fitting, we also save the features
+        if method == "fit":
+            fn = os.path.join(models_path, features_file)
+            with h5py.File(fn, "w") as hf:
+                hf.create_dataset("features", data=np.array(saving_features, DataSignature.string_dtype()))
+            
 
     def to_feature_string(self, signatures, string_func):
         """Covert signature to a string with feature names.
@@ -315,7 +412,7 @@ class Preprocess():
 
     @staticmethod
     def _feat_value_only(res_dict):
-        """Suited for continuos spaces."""
+        """Suited for continuous spaces."""
         strings = list()
         for k in sorted(res_dict.keys()):
             strings.append("%.3f" % res_dict[k])
@@ -410,7 +507,8 @@ class Preprocess():
     #         new_only_keys = self.unique_keys - old_keys
     #         shared_keys = self.unique_keys & old_keys
     #         frac_present = len(shared_keys) / float(len(old_keys))
-    #         self.__log.info("Among %s OLD molecules %.2f%% are still present:",
+    #         self.__log.info(
+    #    "Among %s OLD molecules %.2f%% are still present:",
     #                         len(old_keys),
     #                         100 * frac_present)
     #         self.__log.info("Old keys: %s", len(old_keys))
@@ -433,7 +531,8 @@ class Preprocess():
     #         'new_sign': None
     #     }
     #     to_sample = min(len(shared_keys), to_sample)
-    #     sample = np.random.choice(list(shared_keys), to_sample, replace=False)
+    #     sample = np.random.choice(list(shared_keys), to_sample,
+    #                               replace=False)
     #     res = psql.qstring(
     #         "SELECT inchikey,raw FROM %s WHERE inchikey =  ANY('{%s}');" %
     #         (table_name, ','.join(sample)), old_dbname)
@@ -458,7 +557,8 @@ class Preprocess():
     #                 most_diff['new_sign'] = feat_new
     #             total += len(feat_old)
     #     frac_equal = not_changed / float(to_sample)
-    #     self.__log.info("Among %s shared sampled signatures %.2f%% are equal:",
+    #     self.__log.info(
+    #    "Among %s shared sampled signatures %.2f%% are equal:",
     #                     to_sample, 100 * frac_equal)
     #     self.__log.info("Equal: %s Changed: %s", not_changed, changed)
     #     if changed == 0:

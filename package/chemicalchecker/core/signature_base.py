@@ -40,13 +40,13 @@ class BaseSignature(object):
     """BaseSignature class."""
 
     @abstractmethod
-    def __init__(self, signature_path, dataset, **params):
+    def __init__(self, signature_path, dataset, readyfile="fit.ready", **params):
         """Initialize a BaseSignature instance."""
         self.dataset = dataset
         self.cctype = signature_path.split("/")[-1]
         self.molset = signature_path.split("/")[-5]
         self.signature_path = os.path.abspath(signature_path)
-        self.readyfile = "fit.ready"
+        self.readyfile = readyfile
 
         if params:
             BaseSignature.__log.debug('PARAMS:')
@@ -55,14 +55,14 @@ class BaseSignature(object):
 
         # permissions 775 rwx for owner and group, rx for all
         if not os.path.isdir(self.signature_path):
-            BaseSignature.__log.info(
+            BaseSignature.__log.debug(
                 "New signature: %s" % self.signature_path)
             original_umask = os.umask(0)
             # Ns Does doing this change the sys umask?
             os.makedirs(self.signature_path, 0o775)
             os.umask(original_umask)
         else:
-            BaseSignature.__log.info(
+            BaseSignature.__log.debug(
                 "Loading signature: %s" % self.signature_path)
         # Creates the 'models', 'stats', 'diags' folders if they don't exist
         self.model_path = os.path.join(self.signature_path, "models")
@@ -106,10 +106,11 @@ class BaseSignature(object):
         self.background_distances("euclidean")
         validations = kwargs.get('validations', True)
         end_other_molset = kwargs.get('end_other_molset', True)
+        diagnostics = kwargs.get("diagnostics", False)
         # performing validations
         if validations:
             self.update_status("Validation")
-            self.validate()
+            self.validate(diagnostics)
         # Marking as ready
         self.__log.debug("Mark as ready")
         self.mark_ready()
@@ -121,7 +122,7 @@ class BaseSignature(object):
             other_self = self.get_molset(other_molset)
             if validations:
                 self.update_status("Validation %s" % other_molset)
-                other_self.validate()
+                other_self.validate(diagnostics)
             other_self.mark_ready()
         self.update_status("FIT END")
 
@@ -134,28 +135,36 @@ class BaseSignature(object):
         return True
 
     def clear(self):
-        self.__log.debug("Clearing signature")
+        """Remove everything from this signature."""
+        self.__log.debug("Clearing signature %s" % self.signature_path)
         if os.path.exists(self.data_path):
-            self.__log.debug("Removing %s" % self.data_path)
+            # self.__log.debug("Removing %s" % self.data_path)
             os.remove(self.data_path)
         if os.path.exists(self.model_path):
-            self.__log.debug("Removing %s" % self.model_path)
+            # self.__log.debug("Removing %s" % self.model_path)
             shutil.rmtree(self.model_path)
             original_umask = os.umask(0)
             os.makedirs(self.model_path, 0o775)
             os.umask(original_umask)
         if os.path.exists(self.stats_path):
-            self.__log.debug("Removing %s" % self.stats_path)
+            # self.__log.debug("Removing %s" % self.stats_path)
             shutil.rmtree(self.stats_path)
             original_umask = os.umask(0)
             os.makedirs(self.stats_path, 0o775)
             os.umask(original_umask)
         if os.path.exists(self.diags_path):
-            self.__log.debug("Removing %s" % self.diags_path)
+            # self.__log.debug("Removing %s" % self.diags_path)
             shutil.rmtree(self.diags_path)
             original_umask = os.umask(0)
             os.makedirs(self.diags_path, 0o775)
             os.umask(original_umask)
+
+    def clear_all(self):
+        """Remove everything from this signature for both referene and full."""
+        ref = self.get_molset('reference')
+        ref.clear()
+        full = self.get_molset('full')
+        full.clear()
 
     def validate_versus_signature(self, sign, n_samples=1000, n_neighbors=5,
                                   apply_mappings=True, metric='cosine'):
@@ -248,7 +257,7 @@ class BaseSignature(object):
         plot.roc_curve_plot(y_t, y_p, cctype, sign.dataset,
                             len(common_conn), frac_shared)
 
-    def validate(self, apply_mappings=True, metric='cosine', diagnostics=True):
+    def validate(self, apply_mappings=True, metric='cosine', diagnostics=False):
         """Perform validations.
 
         A validation file is an external resource basically presenting pairs of
@@ -310,15 +319,14 @@ class BaseSignature(object):
         plot.matrix_plot(self.data_path)
         # run diagnostics
         if diagnostics:
-            cc = self.get_cc()
-            diag = cc.diagnosis(self)
+            self.__log.info("Executing diagnostics")
+            diag = self.diagnosis()
             fig = diag.canvas()
             fig.savefig(os.path.join(self.diags_path, '%s.png' % diag.name))
         return results
 
-    def diagnosis(self, sign, **kwargs):
-        cc = self.get_cc()
-        return Diagnosis(cc, self, **kwargs)
+    def diagnosis(self, **kwargs):
+        return Diagnosis(self, **kwargs)
 
     def update_status(self, status):
         fname = os.path.join(self.signature_path, '.STATUS')
@@ -352,9 +360,11 @@ class BaseSignature(object):
         with open(fname, 'w') as fh:
             pass
 
-    def is_fit(self):
+    def is_fit(self, path=""):
+        if path == "":
+            path = self.model_path
         """The fit method was already called for this signature."""
-        if os.path.exists(os.path.join(self.model_path, self.readyfile)):
+        if os.path.exists(os.path.join(path, self.readyfile)):
             return True
         else:
             return False

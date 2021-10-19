@@ -18,9 +18,9 @@ N_DET = 1000
 class Sanitizer(object):
     """Sanitizer class."""
 
-    def __init__(self, trim, max_keys=1000, max_features=5000,
+    def __init__(self, *args, trim=True, max_keys=1000, max_features=10000,
                  min_feature_freq=5, max_feature_freq=0.8, min_key_freq=1,
-                 max_key_freq=0.8, chunk_size=10000):
+                 max_key_freq=0.8, chunk_size=10000, **kwargs):
         """Initialize a Sanitizer instance.
 
         Args:
@@ -28,7 +28,7 @@ class Sanitizer(object):
             max_keys (int): Maximum number of keys to be used when using a
                 sign as a reference (default=1000).
             max_features (int): Maximum number of features to keep
-                (default=5000).
+                (default=10000).
             min_feature_freq (int): Minimum number (counts) of occurrences
                 of feature, row-wise. Only applies to categorical data
                 (default=5).

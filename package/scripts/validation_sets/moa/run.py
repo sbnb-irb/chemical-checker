@@ -230,14 +230,13 @@ def parse_drugbank(ACTS=None, drugbank_xml=None):
 
 
 def put_hierarchy(ACTS):
-
     R = psql.qstring(
         "SELECT protein_class_id, parent_id, pref_name FROM protein_classification", chembl_dbname)
-
     G = nx.DiGraph()
 
     for r in R:
-        G.add_edge(r[1], r[0])  # The tree
+        if r[1] is not None:
+            G.add_edge(r[1], r[0])  # The tree
 
     R = psql.qstring("SELECT cs.accession, cc.protein_class_id FROM component_sequences cs, component_class cc WHERE cs.component_id = cc.component_id AND cs.accession IS NOT NULL", chembl_dbname)
 

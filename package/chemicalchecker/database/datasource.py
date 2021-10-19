@@ -6,6 +6,7 @@ using the :mod:`~chemicalchecker.util.download` class and interfacing them
 with the Dataset table.
 """
 import os
+import sqlalchemy
 from sqlalchemy import Column, Text, Boolean
 from sqlalchemy.orm import class_mapper, ColumnProperty, relationship
 
@@ -45,10 +46,12 @@ class Datasource(Base):
 
     datasets = relationship("Dataset",
                             secondary="dataset_has_datasource",
+                            back_populates="datasources",
                             lazy='joined')
 
     molrepos = relationship("Molrepo",
                             secondary="molrepo_has_datasource",
+                            back_populates="datasources",
                             lazy='joined')
 
     def __repr__(self):
@@ -68,7 +71,7 @@ class Datasource(Base):
     @staticmethod
     def _table_exists():
         engine = get_engine()
-        return engine.dialect.has_table(engine, Datasource.__tablename__)
+        return sqlalchemy.inspect(engine).has_table(Datasource.__tablename__)
 
     @staticmethod
     def _table_attributes():
@@ -224,7 +227,9 @@ class Datasource(Base):
         down.download()
 
     @staticmethod
-    def download_hpc(job_path, only_essential=False, *kwargs):
+    def download_hpc(job_path, only_essential=False, **kwargs):
+    #Error: Tuple doesn't have get atttribute
+    #def download_hpc(job_path, only_essential=False, *kwargs):
         """Run HPC jobs downloading the resources.
 
         Args:
