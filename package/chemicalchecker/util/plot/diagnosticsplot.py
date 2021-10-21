@@ -104,7 +104,7 @@ class DiagnosisPlot(object):
         df = pd.DataFrame(R, columns=["method", "description"])
         return df
 
-    #@safe_return(None)
+    # @safe_return(None)
     def cross_coverage(self, results=None, sign=None, ax=None, title=None,
                        color=None):
         ax = self._get_ax(ax)
@@ -132,15 +132,15 @@ class DiagnosisPlot(object):
         if color is None:
             color = coord_color(dataset_code)
         ax.plot(fpr, tpr, color=color, label=label)
-        ax.fill_between(fpr, tpr, color=color, alpha=alpha)
         ax.plot([0, 1], [0, 1], color="gray", linestyle="--")
+        ax.fill_between(fpr, tpr, color=color, alpha=alpha)
         ax.set_xlim(-0.05, 1.05)
         ax.set_ylim(-0.05, 1.05)
         ax.set_xlabel("FPR")
         ax.set_ylabel("TPR")
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def cross_roc(self, results=None, sign=None, ax=None, title=None,
                   color=None):
         ax = self._get_ax(ax)
@@ -156,7 +156,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def atc_roc(self, results=None, ax=None, title=None):
         ax = self._get_ax(ax)
         color = coord_color("E1.001")
@@ -168,7 +168,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def moa_roc(self, results=None, ax=None, title=None):
         ax = self._get_ax(ax)
         color = coord_color("B1.001")
@@ -180,7 +180,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def roc(self, ds, results=None, ax=None, title=None):
         ax = self._get_ax(ax)
         color = coord_color(ds)
@@ -192,7 +192,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def neigh_roc(self, ds, results=None, ax=None, title=None):
         ax = self._get_ax(ax)
         if results is None:
@@ -200,17 +200,23 @@ class DiagnosisPlot(object):
         for nn, res in results.items():
             if res is None:
                 continue
-            ax = self._roc(ax, res,
-                           label='NN {:<5} (AUC {:.3f})'.format(nn, res['auc']))
+            ax = self._roc(
+                ax, res, label='NN {:<5} (AUC {:.3f})'.format(nn, res['auc']))
         ax.legend()
         return ax
 
-    #@safe_return(None)
-    def image(self, results=None, ax=None, title=None, cmap="coolwarm"):
+    # @safe_return(None)
+    def image(self, results=None, ax=None, title=None, cmap="coolwarm",
+              cap_percentile=None):
         ax = self._get_ax(ax)
         if results is None:
             results = self.load_diagnosis_pickle("image.pkl")
-        ax.imshow(results["X"], cmap=cmap, aspect="auto")
+        X = results["X"]
+        eps = cap_percentile
+        if eps is None:
+            eps = np.std(X)
+        ax.imshow(X, cmap=cmap, aspect="auto", vmin=np.percentile(X, eps),
+                  vmax=np.percentile(X, 100 - eps), interpolation='nearest')
         if title is None:
             title = "Image"
         ax.set_ylabel("Keys")
@@ -230,7 +236,7 @@ class DiagnosisPlot(object):
         ylim[1] += yscale
         return xlim, ylim
 
-    #@safe_return(None)
+    # @safe_return(None)
     def projection(self, results=None, ax=None, density=True, color=None,
                    title=None, focus_keys=None):
         ax = self._get_ax(ax)
@@ -278,12 +284,13 @@ class DiagnosisPlot(object):
         ax = self._get_ax(ax)
         color = self._get_color(color)
         dists = results["dists"]
-        sns.kdeplot(dists, ax=ax, shade=True, color=color)
+        sns.kdeplot(dists, ax=ax, fill=True, color=color, alpha=0.25,
+                    linewidth=1.5)
         ax.set_ylabel("Density")
         ax.set_yticklabels([])
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def euclidean_distances(self, results=None, ax=None, color=None, title=None):
         if results is None:
             results = self.load_diagnosis_pickle("euclidean_distances.pkl")
@@ -293,7 +300,7 @@ class DiagnosisPlot(object):
             title = "Euclidean dist."
         ax.set_title(title)
 
-    #@safe_return(None)
+    # @safe_return(None)
     def cosine_distances(self, results=None, ax=None, color=None, title=None):
         if results is None:
             results = self.load_diagnosis_pickle("cosine_distances.pkl")
@@ -303,7 +310,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         ax.set_xlabel("Cosine")
 
-    #@safe_return(None)
+    # @safe_return(None)
     def values(self, results=None, ax=None, s=1, cmap="coolwarm", title=None):
         ax = self._get_ax(ax)
         if results is None:
@@ -333,7 +340,7 @@ class DiagnosisPlot(object):
         ax.axhline(0, color="black", lw=1)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def features_iqr(self, results=None, ax=None, title=None):
         if results is None:
             results = self.load_diagnosis_pickle("features_iqr.pkl")
@@ -343,7 +350,7 @@ class DiagnosisPlot(object):
             title = "Values by feat."
         ax.set_title(title)
 
-    #@safe_return(None)
+    # @safe_return(None)
     def keys_iqr(self, results=None, ax=None, title=None):
         if results is None:
             results = self.load_diagnosis_pickle("keys_iqr.pkl")
@@ -360,18 +367,17 @@ class DiagnosisPlot(object):
         bins = results["bins"]
         idxs = np.argsort(-p50)
         p50 = p50[idxs]
-        H = H[:, idxs]
         x_ = [i + 1 for i in range(0, H.shape[1])]
         y_ = [(bins[i - 1] + bins[i]) / 2 for i in range(1, len(bins))]
-        v = H.ravel()
         x = np.array(x_ * H.shape[0])
         y = np.array([[yy] * H.shape[1] for yy in y_]).ravel()
+        v = H.ravel()
         ax.scatter(x, y, c=v, s=np.sqrt(v) / scaling,
                    cmap=cmap, alpha=1, zorder=1)
-        ax.set_ylabel("Value")
+        ax.set_xlabel("Value")
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def features_bins(self, results=None, ax=None, title=None, scaling=30,
                       cmap="coolwarm"):
         if results is None:
@@ -382,7 +388,7 @@ class DiagnosisPlot(object):
             title = "Values by feature"
         ax.set_title(title)
 
-    #@safe_return(None)
+    # @safe_return(None)
     def keys_bins(self, results=None, ax=None, title=None, scaling=30,
                   cmap="coolwarm"):
         if results is None:
@@ -428,7 +434,7 @@ class DiagnosisPlot(object):
             ax.set_xlabel("Datasets")
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def across_coverage(self, results=None, ax=None, title=None, exemplary=True,
                         cctype="sign1", molset="full", vs=True):
         if results is None:
@@ -457,7 +463,7 @@ class DiagnosisPlot(object):
                 title = "Sign wrt CC"
         ax.set_title(title)
 
-    #@safe_return(None)
+    # @safe_return(None)
     def across_roc(self, results=None, ax=None, title=None, exemplary=True,
                    cctype="sign1", molset="full", vertical=False):
         if results is None:
@@ -482,7 +488,7 @@ class DiagnosisPlot(object):
             title = "ROC across CC"
         ax.set_title(title)
 
-    #@safe_return(None)
+    # @safe_return(None)
     def dimensions(self, results=None, ax=None, title=None, exemplary=True,
                    cctype="sign1", molset="full", highligth=True):
         ax = self._get_ax(ax)
@@ -502,8 +508,8 @@ class DiagnosisPlot(object):
         x = np.log10(x)
         y = np.log10(y)
         ax.scatter(x, y, color=colors)
-        max_x = np.max(x)
-        max_y = np.max(y)
+        # max_x = np.max(x)
+        # max_y = np.max(y)
         v = results["MY"]
         y = [v["keys"]]
         x = [v["features"]]
@@ -519,7 +525,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def redundancy(self, results=None, ax=None, title=None):
         ax = self._get_ax(ax)
         if results is None:
@@ -529,8 +535,8 @@ class DiagnosisPlot(object):
         y = [np.log10(c[1]) for c in counts]
         ax.scatter(x, y, c=y, cmap="Spectral", s=10, zorder=100)
         if title is None:
-            title = "Redund. (%.2f)" % (
-                1 - results["n_ref"] / results["n_full"])
+            title = "Redund. (%.1f%%)" % (
+                100 - results["n_ref"] / results["n_full"] * 100)
         yticks = sorted(set(np.array(ax.get_yticks(), np.int)))
         if len(yticks) == 1:
             yticks = [0, 1]
@@ -541,7 +547,7 @@ class DiagnosisPlot(object):
         ax.set_ylim(-0.1, max(1, np.max(y)) + 0.1)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def cluster_sizes(self, results=None, ax=None, max_clusters=20, s=5,
                       show_outliers=False, title=None):
         ax = self._get_ax(ax)
@@ -579,7 +585,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def clusters_projection(self, results=None, ax=None, max_clusters=20, s=1,
                             show_beyond=False, show_outliers=False,
                             title=None):
@@ -614,7 +620,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def intensities(self, results=None, ax=None, s=1, title=None,
                     cmap="Spectral"):
         ax = self._get_ax(ax)
@@ -635,7 +641,7 @@ class DiagnosisPlot(object):
         ax.set_yticklabels([])
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def confidences(self, results=None, ax=None, s=1, title=None,
                     cmap="Spectral"):
         ax = self._get_ax(ax)
@@ -704,7 +710,7 @@ class DiagnosisPlot(object):
         ax.set_ylabel("Dim 2")
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def intensities_projection(self, results=None, ax=None, s=10, title=None,
                                cmap="Spectral"):
         if results is None:
@@ -715,7 +721,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def confidences_projection(self, results=None, ax=None, s=10, title=None,
                                cmap="Spectral"):
         if results is None:
@@ -726,7 +732,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def key_coverage(self, results=None, ax=None, exemplary=True, s=5,
                      title=None, cmap="Spectral"):
         ax = self._get_ax(ax)
@@ -760,7 +766,7 @@ class DiagnosisPlot(object):
         ax.set_ylim(0, np.max(y) * 1.05)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def key_coverage_projection(self, results=None,  ax=None, exemplary=True,
                                 s=10, title=None, cmap="coolwarm"):
         if results is None:
@@ -778,7 +784,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def ranks_agreement(self, results=None, ax=None, stat="mean", s=1,
                         title=None, exemplary=True, cctype="sign1",
                         molset="full", cmap="Spectral"):
@@ -803,7 +809,7 @@ class DiagnosisPlot(object):
         ax.set_yticklabels([])
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def ranks_agreement_projection(self, results=None, ax=None, s=10,
                                    title=None, cmap="Spectral"):
         if results is None:
@@ -815,7 +821,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def global_ranks_agreement(self, results=None, ax=None, stat="mean", s=1,
                                title=None, cmap="Spectral"):
         ax = self._get_ax(ax)
@@ -839,7 +845,7 @@ class DiagnosisPlot(object):
         ax.set_yticklabels([])
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def global_ranks_agreement_projection(self, results=None, ax=None, s=10,
                                           title=None, cmap="Spectral"):
         if results is None:
@@ -851,7 +857,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
         return ax
 
-    #@safe_return(None)
+    # @safe_return(None)
     def orthogonality(self, results=None, ax=None, title=None, s=1,
                       cmap="coolwarm"):
         ax = self._get_ax(ax)
@@ -872,8 +878,9 @@ class DiagnosisPlot(object):
         ax.set_yticklabels([])
         return ax
 
-    #@safe_return(None)
-    def outliers(self, results=None, ax=None, title=None, s=1, cmap="coolwarm"):
+    # @safe_return(None)
+    def outliers(self, results=None, ax=None, title=None, s=1,
+                 cmap="coolwarm_r"):
         ax = self._get_ax(ax)
         if results is None:
             results = self.load_diagnosis_pickle("outliers.pkl")
@@ -884,15 +891,16 @@ class DiagnosisPlot(object):
         pds = pds[idxs]
         x = [i + 1 for i in range(0, len(scs))]
 
-        norm = mpl.colors.Normalize(vmin=0.3, vmax=0.7)
+        norm = mpl.colors.Normalize(vmin=-0.5, vmax=0.5)
         cmap = cm.get_cmap(cmap)
-        colors = cmap(norm(np.clip(scs, 0.3, 0.7)))
+        colors = cmap(norm(np.clip(scs, -0.5, 0.5)))
         ax.scatter(x=x, y=scs, color=colors, s=s)
         if title is None:
             title = "Outliers"
         ax.set_title(title)
         ax.set_xlabel("Keys")
-        ax.set_ylabel("Outlier score")
+        ax.set_ylabel("Anomaly score")
+        ax.axhline(0, color="gray", linestyle="--")
         xlim = ax.get_xlim()
         ax.set_xlim(xlim)
         return ax
@@ -915,9 +923,21 @@ class DiagnosisPlot(object):
         return ax
 
     def canvas_small(self, title):
-        fig = plt.figure(constrained_layout=True, figsize=(12, 8))
+        fig = plt.figure(figsize=(14, 4))
+        gs = fig.add_gridspec(2, 6, wspace=0.6, hspace=0.6)
 
-        fig.suptitle(title, fontweight="bold")
+        self.image(ax=fig.add_subplot(gs[0, :2]))
+        self.features_bins(ax=fig.add_subplot(gs[1, 0]))
+        self.keys_bins(ax=fig.add_subplot(gs[1, 1]))
+        self.values(ax=fig.add_subplot(gs[0, 2]))
+        self.redundancy(ax=fig.add_subplot(gs[1, 2]))
+        self.projection(ax=fig.add_subplot(gs[0:2, 3:5]))
+        self.euclidean_distances(ax=fig.add_subplot(gs[0, 5]))
+        self.cosine_distances(ax=fig.add_subplot(gs[1, 5]))
+
+        if title is None:
+            title = "%s %s" % (self.diag.sign.dataset, self.diag.sign.cctype)
+        fig.suptitle(title, fontweight="bold", y=1, size='xx-large')
         plt.close()
         return fig
 
