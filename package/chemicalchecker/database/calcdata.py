@@ -157,13 +157,10 @@ def Calcdata(table_name, cfg=os.environ["CC_CONFIG"]):
                         "Inchikey_inchi variable is not a list of tuples " +
                         "(InChIKey, InChI)")
                 inchikey_inchi_final = dict(inchikey_inchi)
-                print("here in isinstance")
             else:
                 inchikey_inchi_final = inchikey_inchi
-                print("there not in isinstance")
 
             if missing_only:
-                print("in missing_only")
                 set_inks = set(inchikey_inchi_final.keys())
                 GenericCalcdata.__log.debug(
                     "Size initial data to add: " + str(len(set_inks)))
@@ -173,7 +170,6 @@ def Calcdata(table_name, cfg=os.environ["CC_CONFIG"]):
                 dict_inchikey_inchi = {
                     k: inchikey_inchi_final[k] for k in todo_iks}
             else:
-                print("out missing_only")
                 dict_inchikey_inchi = inchikey_inchi_final
 
             Molecule.add_missing_only(inchikey_inchi_final)
@@ -183,7 +179,6 @@ def Calcdata(table_name, cfg=os.environ["CC_CONFIG"]):
             t_start = time()
             engine = get_engine(GenericCalcdata.dbname)
             for chunk in parse_fn(dict_inchikey_inchi, chunksize):
-                print("len chunk:{}".format(len(chunk)))
                 if len(chunk) == 0:
                     continue
                 GenericCalcdata.__log.debug(
@@ -194,7 +189,6 @@ def Calcdata(table_name, cfg=os.environ["CC_CONFIG"]):
                         index_elements=[GenericCalcdata.inchikey]))
             t_end = time()
             t_delta = str(datetime.timedelta(seconds=t_end - t_start))
-            print("t_delta:{}".format(t_delta))
             GenericCalcdata.__log.info(
                 "Loading Mol properties Name %s took %s",
                 GenericCalcdata.__tablename__, t_delta)
