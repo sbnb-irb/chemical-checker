@@ -20,7 +20,7 @@ class Sanitizer(object):
 
     def __init__(self, *args, trim=True, max_keys=1000, max_features=10000,
                  min_feature_freq=5, max_feature_freq=0.8, min_key_freq=1,
-                 max_key_freq=0.8, chunk_size=10000, **kwargs):
+                 max_key_freq=0.8, chunk_size=10000, config_path=None, **kwargs):
         """Initialize a Sanitizer instance.
 
         Args:
@@ -41,6 +41,7 @@ class Sanitizer(object):
             max_key_freq (float): Maximum proportion of non-zero
                 occurrences per row (column-wise). Only applies to
                 categorical data (default=0.8).
+            config_path (string): path to a .json configuration file
         """
         self.trim = trim
         self.max_keys = max_keys
@@ -50,6 +51,7 @@ class Sanitizer(object):
         self.min_key_freq = min_key_freq
         self.max_key_freq = max_key_freq
         self.chunk_size = chunk_size
+        self.config_path = config_path
 
     @staticmethod
     def data_n(data, name="V"):
@@ -138,7 +140,7 @@ class Sanitizer(object):
                 raise Exception(
                     "There is no data or V, keys, keys_raw, features provided...")
             tag = str(uuid.uuid4())
-            data = os.path.join(Config().PATH.CC_TMP, "%s.h5" % tag)
+            data = os.path.join(Config(self.config_path).PATH.CC_TMP, "%s.h5" % tag)
             self.__log.debug("Saving temporary data to %s" % data)
             with h5py.File(data, "w") as hf:
                 hf.create_dataset("V", data=V)
