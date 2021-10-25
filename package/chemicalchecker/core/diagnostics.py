@@ -32,7 +32,7 @@ class Diagnosis(object):
         """Initialize a Diagnosis instance.
 
         Args:
-            ref_cc (ChemicalChecker): A CC instance use d as reference.
+            ref_cc (ChemicalChecker): A CC instance used as reference.
             sign (CC signature): The CC signature object to be diagnosed.
             save (bool): Whether to save results in the `diags` folder of the
                 signature. (default=True)
@@ -231,40 +231,40 @@ class Diagnosis(object):
             dataset_params.append(
                 (sign_args, sign_kwargs))
         # create script file
-        script_lines = """
-        import sys, os
-        import pickle
-        from chemicalchecker import ChemicalChecker
-        from chemicalchecker.core.diagnostics import Diagnosis
-        task_id = sys.argv[1]
-        filename = sys.argv[2]
-        inputs = pickle.load(open(filename, 'rb'))
-        sign_args = inputs[task_id][0][0]
-        sign_kwargs = inputs[task_id][0][1]
-        cc = ChemicalChecker('{cc_root}')
-        sign = cc.get_signature(*sign_args, **sign_kwargs)
-        cc_ref = ChemicalChecker('{cc_reference}')
-        diag = Diagnosis(cc_ref,sign)
-        fig = diag.canvas()
-        fig.savefig(os.path.join(sign.diags_path, diag.name + '.png'))
-        print('JOB DONE')
-        """
+        script_lines = [
+        "import sys, os",
+        "import pickle",
+        "from chemicalchecker import ChemicalChecker",
+        "from chemicalchecker.core.diagnostics import Diagnosis",
+        "task_id = sys.argv[1]",
+        "filename = sys.argv[2]",
+        "inputs = pickle.load(open(filename, 'rb'))",
+        "sign_args = inputs[task_id][0][0]",
+        "sign_kwargs = inputs[task_id][0][1]",
+        "cc = ChemicalChecker('{cc_root}')",
+        "sign = cc.get_signature(*sign_args, **sign_kwargs)",
+        "cc_ref = ChemicalChecker('{cc_reference}')",
+        "diag = Diagnosis(sign, cc_ref)",
+        "fig = diag.canvas()",
+        "fig.savefig(os.path.join(sign.diags_path, diag.name + '.png'))",
+        "print('JOB DONE')"
+        ]
+        replacements = {"cc_root"}
         if cc_reference == "":
             cc_reference = cc_root
         script_name = os.path.join(job_path, 'diagnostics_script.py')
-        script_content = script_lines.format(
-            cc_root=cc_root, cc_reference=cc_reference)
         with open(script_name, 'w') as fh:
-            fh.write(script_content)
+            for line in script_lines: 
+                fh.write(line.format(cc_root=cc_root, cc_reference=cc_reference)  + '\n')
         # HPC parameters
         params = {}
         params["num_jobs"] = len(dataset_codes)
         params["jobdir"] = job_path
         params["job_name"] = "CC_" + cctype.upper() + "_DIAGNOSIS"
         params["elements"] = dataset_params
-        params["wait"] = True
+        params["wait"] = False
         params["check_error"] = False
-        params["memory"] = 4  # trial and error
+        # params["memory"] = 2  # trial and error
         # job command
         singularity_image = cfg.PATH.SINGULARITY_IMAGE
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" \
@@ -273,7 +273,7 @@ class Diagnosis(object):
             os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
             singularity_image, script_name)
         # submit jobs
-        cluster = HPC.from_config(Config())
+        cluster = HPC.from_config(cfg)
         cluster.submitMultiJob(command, **params)
         return cluster
 
@@ -898,7 +898,7 @@ class Diagnosis(object):
             for ds in datasets:
                 sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
                 results[ds] = self.cross_coverage(
-                    sign, save=False, redo=True, plot=False, **kwargs)
+                    sign, redo=True, **kwargs)
         else:
             results = None
         return self._returner(
@@ -1161,7 +1161,7 @@ class Diagnosis(object):
             for ds in datasets:
                 sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
                 results[ds] = self.cross_roc(
-                    sign, save=False, redo=True, **kwargs)
+                    sign, redo=True, **kwargs)
         else:
             results = None
         return self._returner(
@@ -1198,7 +1198,7 @@ class Diagnosis(object):
             sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
             for nn in n_neighbors:
                 results[nn] = self.cross_roc(
-                    sign, save=False, redo=True, n_neighbors=nn, **kwargs)
+                    sign, redo=True, n_neighbors=nn, **kwargs)
         else:
             results = None
         return self._returner(
@@ -1221,7 +1221,7 @@ class Diagnosis(object):
         if self._todo(fn):
             sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
             results = self.cross_roc(
-                sign, save=False, redo=True, **kwargs)
+                sign, redo=True, **kwargs)
         else:
             results = None
         return self._returner(
@@ -1241,7 +1241,7 @@ class Diagnosis(object):
         if self._todo(fn):
             sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
             results = self.cross_roc(
-                sign, save=False, redo=True, **kwargs)
+                sign, redo=True, **kwargs)
         else:
             results = None
         return self._returner(
@@ -1260,7 +1260,7 @@ class Diagnosis(object):
         if self._todo(fn) or redo:
             sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
             results = self.cross_roc(
-                sign, save=False, redo=redo, **kwargs)
+                sign, redo=redo, **kwargs)
         else:
             results = None
         return self._returner(

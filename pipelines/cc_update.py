@@ -72,11 +72,11 @@ def pipeline_parser():
     parser.add_argument(
         '-t', '--only_tasks', type=str, nargs="+", default=[],
         required=False,
-        help='Names of tasks that will `exclusively` run by the pipeline.')
+        help='Names of tasks that will `exclusively` run by the pipeline.')  # format like -t sign0 sign1 sign2
     parser.add_argument(
         '-s', '--exclude_tasks', type=str, nargs="+", default=[],
         required=False,
-        help='Names of tasks that will be skipped.')
+        help='Names of tasks that will be skipped.')  # format like -t sign0 sign1 sign2
     parser.add_argument(
         '-c', '--config', type=str, required=False,
         default=os.environ["CC_CONFIG"],
@@ -340,7 +340,8 @@ def main(args):
     cctype = 'sign0'
     task = PythonCallable(name="diagnostics_sign0_BCDE",
                          python_callable=Diagnosis.diagnostics_hpc,
-                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc])
+                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc],
+                         op_kwargs={'cc_config': args.config})
     pp.add_task(task)
     # END TASK
     #############################################
@@ -351,7 +352,7 @@ def main(args):
         main._log.info("Calculating data for " + type_data)
         job_path = tempfile.mkdtemp(
             prefix='jobs_molprop_' + type_data + "_", dir=tmpdir)
-        calculator = Calcdata(type_data)
+        calculator = Calcdata(type_data, args.config)
         # This method sends the job and waits for the job to finish
         calculator.calcdata_hpc(job_path, list(inchikey_inchi))
         missing = len(calculator.get_missing_from_set(inchikey_inchi))
@@ -392,7 +393,8 @@ def main(args):
     cctype = 'sign0'
     task = PythonCallable(name="diagnostics_sign0_A",
                          python_callable=Diagnosis.diagnostics_hpc,
-                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc])
+                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc],
+                         op_kwargs={'cc_config': args.config})
     pp.add_task(task)
     # END TASK
     #############################################
@@ -418,7 +420,8 @@ def main(args):
     for cctype in cctypes:
         task = PythonCallable(name="diagnostics_" + cctype,
                             python_callable=Diagnosis.diagnostics_hpc,
-                            op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.cc_root])
+                            op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.cc_root],
+                            op_kwargs={'cc_config': args.config})
         pp.add_task(task)
     # END TASK
     #############################################
@@ -459,7 +462,8 @@ def main(args):
     cctype = 'sign3'
     task = PythonCallable(name="diagnostics_" + cctype,
                          python_callable=Diagnosis.diagnostics_hpc,
-                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc])
+                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc],
+                         op_kwargs={'cc_config': args.config})
     pp.add_task(task)
     # END TASK
     #############################################

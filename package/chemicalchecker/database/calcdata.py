@@ -47,11 +47,10 @@ from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util.parser import DataCalculator
 
 
-def Calcdata(table_name):
+def Calcdata(table_name, cfg=os.environ["CC_CONFIG"]):
     """Factory for Generic table."""
 
     DynamicBase = declarative_base(class_registry=dict())
-    config = Config()
 
     @logged
     class GenericCalcdata(DynamicBase):
@@ -60,6 +59,8 @@ def Calcdata(table_name):
         __tablename__ = table_name
         inchikey = Column(Text, primary_key=True)
         raw = Column(Text)
+        config_path = cfg
+        config = Config(cfg)  
         dbname = config.DB.calcdata_dbname
 
         @staticmethod
@@ -138,8 +139,8 @@ def Calcdata(table_name):
 
             GenericCalcdata.__log.debug(
                 "Found already present: " + str(len(present)))
-
-            return keys.difference(present)
+            
+            return set(keys).difference(present)
 
         @staticmethod
         def from_inchikey(inchikey, **kwargs):
@@ -156,10 +157,13 @@ def Calcdata(table_name):
                         "Inchikey_inchi variable is not a list of tuples " +
                         "(InChIKey, InChI)")
                 inchikey_inchi_final = dict(inchikey_inchi)
+                print("here in isinstance")
             else:
                 inchikey_inchi_final = inchikey_inchi
+                print("there not in isinstance")
 
             if missing_only:
+                print("in missing_only")
                 set_inks = set(inchikey_inchi_final.keys())
                 GenericCalcdata.__log.debug(
                     "Size initial data to add: " + str(len(set_inks)))
@@ -169,6 +173,7 @@ def Calcdata(table_name):
                 dict_inchikey_inchi = {
                     k: inchikey_inchi_final[k] for k in todo_iks}
             else:
+                print("out missing_only")
                 dict_inchikey_inchi = inchikey_inchi_final
 
             Molecule.add_missing_only(inchikey_inchi_final)
@@ -178,6 +183,7 @@ def Calcdata(table_name):
             t_start = time()
             engine = get_engine(GenericCalcdata.dbname)
             for chunk in parse_fn(dict_inchikey_inchi, chunksize):
+                print("len chunk:{}".format(len(chunk)))
                 if len(chunk) == 0:
                     continue
                 GenericCalcdata.__log.debug(
@@ -188,6 +194,7 @@ def Calcdata(table_name):
                         index_elements=[GenericCalcdata.inchikey]))
             t_end = time()
             t_delta = str(datetime.timedelta(seconds=t_end - t_start))
+            print("t_delta:{}".format(t_delta))
             GenericCalcdata.__log.info(
                 "Loading Mol properties Name %s took %s",
                 GenericCalcdata.__tablename__, t_delta)
@@ -209,7 +216,6 @@ def Calcdata(table_name):
             # create job directory if not available
             if not os.path.isdir(job_path):
                 os.mkdir(job_path)
-
             cpu = kwargs.get("cpu", 1)
             wait = kwargs.get("wait", True)
             memory = kwargs.get("memory", 5)
@@ -226,7 +232,7 @@ def Calcdata(table_name):
                 "filename = sys.argv[2]",  # <FILE>
                 # load pickled data
                 "inchikey = pickle.load(open(filename, 'rb'))[task_id]",
-                "mol = Calcdata('" + GenericCalcdata.__tablename__ + "')",
+                "mol = Calcdata('" + GenericCalcdata.__tablename__ + "', '"+ GenericCalcdata.config_path +"')",
                 'mol.from_inchikey(inchikey, '
                 'missing_only=False, chunksize=%d)' % chunk_dbload,
                 "print('JOB DONE')"
@@ -246,17 +252,17 @@ def Calcdata(table_name):
             params["wait"] = wait
             params["cpu"] = cpu
             params["memory"] = memory
+            params["compress"] = False
             # job command
-            cfg = Config()
-            singularity_image = cfg.PATH.SINGULARITY_IMAGE
-            cc_config_path = cfg.config_path
-            cc_package = os.path.join(cfg.PATH.CC_REPO, 'package')
+            singularity_image = GenericCalcdata.config.PATH.SINGULARITY_IMAGE
+            cc_config_path = GenericCalcdata.config_path
+            cc_package = os.path.join(GenericCalcdata.config.PATH.CC_REPO, 'package')
             command = (
                 "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} "
                 "singularity exec {} python {} <TASK_ID> <FILE>").format(
                 cc_package, cc_config_path, singularity_image, script_name)
             # submit jobs
-            cluster = HPC.from_config(Config())
+            cluster = HPC.from_config(GenericCalcdata.config)
             cluster.submitMultiJob(command, **params)
 
     return GenericCalcdata
