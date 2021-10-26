@@ -29,7 +29,7 @@ class Diagnosis(object):
     """Diagnosis class."""
 
     def __init__(self, sign, ref_cc=None, ref_cctype='sign0', save=True,
-                 plot=True, overwrite=False, n=10000, seed=42):
+                 plot=True, overwrite=False, n=10000, seed=42, cpu=4):
         """Initialize a Diagnosis instance.
 
         Args:
@@ -54,6 +54,8 @@ class Diagnosis(object):
         self.sign = sign
         self.ref_cctype = ref_cctype
         self.subsample_n = n
+        self.cpu = cpu
+        self.memory = 4
         # check if reference CC has reference all cctype signatures
         available_sign = ref_cc.report_available(
             molset="full", signature=ref_cctype)
@@ -87,7 +89,7 @@ class Diagnosis(object):
             if not os.path.exists(fn):
                 self.__log.debug("Subsampling")
                 with open(fn, "wb") as f:
-                    V, keys = self.sign.subsample(self.subsample_n)
+                    V, keys = self.sign.subsample(self.subsample_n, seed=seed)
                     d = {"V": V, "keys": keys}
                     pickle.dump(d, f)
         self.__log.debug("Loading subsampled signatures")
@@ -135,14 +137,11 @@ class Diagnosis(object):
             else:
                 return results
 
-    def _apply_mappings(self, sign):
-        keys = sign.keys
-        inchikey_mappings = dict(self.sign.mappings)
-        keys = [inchikey_mappings[k] for k in keys]
-        return keys
+    def _shared_keys(self, sign):
+        return sorted(list(set(self.keys) & set(sign.keys)))
 
     def _paired_keys(self, my_keys, vs_keys):
-        keys = sorted(set(my_keys).intersection(vs_keys))
+        keys = sorted(set(my_keys) & set(vs_keys))
         my_keys = keys
         vs_keys = keys
         return np.array(my_keys), np.array(vs_keys)
@@ -150,7 +149,7 @@ class Diagnosis(object):
     def _paired_conn_layers(self, my_keys, vs_keys):
         vs_conn_set = set([ik.split("-")[0] for ik in vs_keys])
         my_conn_set = set([ik.split("-")[0] for ik in my_keys])
-        common_conn = my_conn_set.intersection(vs_conn_set)
+        common_conn = my_conn_set & vs_conn_set
         vs_keys_conn = dict(
             (ik.split("-")[0], ik) for ik in vs_keys if ik.split("-")[0] in common_conn)
         my_keys_conn = dict(
@@ -226,6 +225,64 @@ class Diagnosis(object):
             "dists": dists[order]
         }
         return results
+
+    def hpc_canvas(self, tmpdir, **kwargs):
+        """Run HPC jobs .
+
+        tmpdir(str): Folder (usually in scratch) where the job directory is
+            generated.
+        cc_root: CC root path
+        cctype:  CC type (sign0, sign1, sign2, sign3) on which the method is applied
+        molset: 'full' or 'reference'
+        dss: datasets to run the diagnostics on
+        cc_reference: another version of CC to use as diagnostic reference
+        """
+        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
+        cfg = Config(cc_config)
+        job_name = "_".join(["CC", self.sign.cctype.upper(), self.sign.dataset,
+                             "DIAGNOSIS"])
+        job_path = tempfile.mkdtemp("_" + job_name, dir=tmpdir)
+        # create job directory if not available
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+        # create script file
+        script_lines = """
+import sys, os
+import pickle
+from chemicalchecker import ChemicalChecker
+from chemicalchecker.core.diagnostics import Diagnosis
+ChemicalChecker.set_verbosity('DEBUG')
+task_id = sys.argv[1]
+filename = sys.argv[2]
+diag = pickle.load(open(filename, 'rb'))[task_id][0]
+diag.canvas(size='small', savefig=True)
+diag.canvas(size='medium', savefig=True)
+print('JOB DONE')
+        """
+        script_name = os.path.join(job_path, 'diagnostics_script.py')
+        with open(script_name, 'w') as fh:
+            fh.write(script_lines)
+        # HPC parameters
+        params = kwargs
+        params["num_jobs"] = 1
+        params["jobdir"] = job_path
+        params["job_name"] = kwargs.get('job_name', job_name)
+        params["elements"] = [self]
+        params["wait"] = kwargs.get('wait', False)
+        params["check_error"] = kwargs.get('check_error', False)
+        params["cpu"] = kwargs.get('cpu', self.cpu)
+        params["mem_by_core"] = kwargs.get('mem_by_core', 4)
+        # job command
+        singularity_image = cfg.PATH.SINGULARITY_IMAGE
+        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" \
+            " singularity exec {} python {} <TASK_ID> <FILE>"
+        command = command.format(
+            os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
+            singularity_image, script_name)
+        # submit jobs
+        cluster = HPC.from_config(Config())
+        cluster.submitMultiJob(command, **params)
+        return cluster
 
     @staticmethod
     def diagnostics_hpc(tmpdir, cc_root, cctype, molset, dss, cc_reference, **kwargs):
@@ -348,8 +405,8 @@ class Diagnosis(object):
             **kwargs)
 
     # @safe_return(None)
-    def cross_coverage(self, sign, *args, apply_mappings=False,
-                       try_conn_layer=False, redo=False, **kwargs):
+    def cross_coverage(self, sign, *args, try_conn_layer=False, redo=False,
+                       **kwargs):
         """Intersection of coverages.
 
         Args:
@@ -358,13 +415,8 @@ class Diagnosis(object):
         fn = os.path.join(self.path,
                           "cross_coverage_%s" % sign.qualified_name)
         if self._todo(fn) or redo:
-            # apply mappings if necessary
-            if apply_mappings:
-                my_keys = self._apply_mappings(self.sign)
-                vs_keys = self._apply_mappings(sign)
-            else:
-                my_keys = self.sign.keys
-                vs_keys = sign.keys
+            my_keys = self.sign.keys
+            vs_keys = sign.keys
             # apply inchikey connectivity layer if possible
             if try_conn_layer:
                 keys1, keys2 = self._paired_conn_layers(my_keys, vs_keys)
@@ -413,13 +465,8 @@ class Diagnosis(object):
             if r["inter"] < n_neighbors:
                 self.__log.warning("Not enough shared molecules")
                 return None
-            # apply mappings if necessary
-            if apply_mappings:
-                my_keys = self._apply_mappings(self.sign)
-                vs_keys = self._apply_mappings(sign)
-            else:
-                my_keys = self.sign.keys
-                vs_keys = sign.keys
+            my_keys = self.sign.keys
+            vs_keys = sign.keys
             # apply inchikey connectivity layer if possible
             if try_conn_layer:
                 keys1, keys2 = self._paired_conn_layers(my_keys, vs_keys)
@@ -436,7 +483,7 @@ class Diagnosis(object):
             vs_vectors = sign.get_vectors(keys2)[1]
             # do nearest neighbors
             nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric,
-                                  n_jobs=-1)
+                                  n_jobs=self.cpu)
             nn.fit(vs_vectors)
             neighs = nn.kneighbors(vs_vectors)[1][:, 1:]
             # sample positive and negative pairs
@@ -498,9 +545,9 @@ class Diagnosis(object):
                 projection. (default=10000)
         """
         self.__log.debug("Projection")
-        from MulticoreTSNE import MulticoreTSNE as TSNE
         fn = "projection"
         if self._todo(fn) or redo:
+            from MulticoreTSNE import MulticoreTSNE as TSNE
             X, keys = self._get_signatures(keys=keys, max_keys=max_keys)
             self.__log.debug("Fit-transforming t-SNE")
             if X.shape[1] > max_pca:
@@ -512,7 +559,7 @@ class Diagnosis(object):
                 perp = np.max([5, perp])
                 perp = np.min([50, perp])
             self.__log.debug("Chosen perplexity %d" % perp)
-            tsne = TSNE(perplexity=perp, init=init, n_jobs=-1)
+            tsne = TSNE(perplexity=perp, init=init, n_jobs=self.cpu)
             P_ = tsne.fit_transform(X)
             P = P_[:len(keys)]
             results = {
@@ -890,14 +937,16 @@ class Diagnosis(object):
         if keys is None or len(keys) < min_shared:
             return None
         n_neighbors = np.min([V1.shape[0], n_neighbors])
-        nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric)
+        nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric,
+                              n_jobs=self.cpu)
         nn.fit(V1)
         neighs1_ = nn.kneighbors(V1)[1][:, 1:]
         # do nearest neighbors for self
         keys_set = set(keys)
         idxs = [i for i, k in enumerate(self.keys) if k in keys_set]
         V0 = self.V[idxs]
-        nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric)
+        nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric,
+                              n_jobs=self.cpu)
         nn.fit(V0)
         neighs0_ = nn.kneighbors(V0)[1][:, 1:]
         # reindex
@@ -1226,13 +1275,13 @@ class Diagnosis(object):
             **kwargs)
 
     # @safe_return(None)
-    def redundancy(self, *args, cpu=4, **kwargs):
-        from chemicalchecker.util.remove_near_duplicates import RNDuplicates
+    def redundancy(self, *args, **kwargs):
         self.__log.debug("Redundancy")
         fn = "redundancy"
         if self._todo(fn):
+            from chemicalchecker.util.remove_near_duplicates import RNDuplicates
             self.__log.debug("Removing near duplicates")
-            rnd = RNDuplicates(cpu=cpu)
+            rnd = RNDuplicates(cpu=self.cpu)
             mappings = rnd.remove(self.sign.data_path,
                                   save_dest=None, just_mappings=True)
             mappings = np.array(sorted(mappings.items()))
@@ -1273,7 +1322,7 @@ class Diagnosis(object):
             n_neighbors = [n_neighbors]
 
         def do_clustering(n_neigh):
-            nn = NearestNeighbors(n_neigh + 1)
+            nn = NearestNeighbors(n_neighbors=n_neigh + 1, n_jobs=self.cpu)
             nn.fit(P)
             dists = nn.kneighbors(P)[0][:, n_neigh]
             h = np.histogram(dists, bins="auto")
@@ -1281,7 +1330,8 @@ class Diagnosis(object):
             x = h[1][1:]
             eps = x[np.where(y > expected_coverage)[0][0]]
             self.__log.debug("Running DBSCAN")
-            cl = DBSCAN(eps=eps, min_samples=min_samples).fit(P)
+            cl = DBSCAN(eps=eps, min_samples=min_samples,
+                        n_jobs=self.cpu).fit(P)
             labels = cl.labels_
             n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
             n_noise_ = list(labels).count(-1)
@@ -1353,16 +1403,13 @@ class Diagnosis(object):
             plotter_function=self.plotter.clusters_projection,
             **kwargs)
 
-    def _shared_keys(self, sign):
-        return sorted(list(set(self.keys) & set(sign.keys)))
-
     # @safe_return(None)
     def key_coverage(self, *args, datasets=None, exemplary=True, cctype=None,
                      **kwargs):
         self.__log.debug("Key coverages")
         fn = "key_coverage"
         if cctype is None:
-            cctype = self.sign.cctype
+            cctype = self.ref_cctype
         if self._todo(fn):
             datasets = self._select_datasets(datasets, exemplary)
             results_shared = {}
@@ -1445,7 +1492,7 @@ class Diagnosis(object):
             max_samples = min(1000, int(self.V.shape[0] / 2 + 1))
             mod = IsolationForest(n_estimators=n_estimators, contamination=0.1,
                                   max_samples=max_samples,
-                                  max_features=max_features, n_jobs=-1)
+                                  max_features=max_features, n_jobs=self.cpu)
             pred = mod.fit_predict(self.V)
             scores = mod.decision_function(self.V)
             results = {
@@ -1463,8 +1510,7 @@ class Diagnosis(object):
     def available(self):
         return self.plotter.available()
 
-    def canvas_small(self, ref_cctype, title):
-        self.__log.debug("Computing or retrieving all needed data.")
+    def canvas_small(self, title=None):
         shared_kw = dict(save=True, plot=False)
 
         self.cosine_distances(**shared_kw)
@@ -1476,12 +1522,10 @@ class Diagnosis(object):
         self.values(**shared_kw)
         self.redundancy(**shared_kw)
 
-        self.__log.debug("Plotting")
-        fig = self.plotter.canvas_small(title=title)
+        fig = self.plotter.canvas(size="small", title=title)
         return fig
 
-    def canvas_medium(self, ref_cctype, title):
-        self.__log.debug("Computing or retrieving all needed data.")
+    def canvas_medium(self, title=None):
         shared_kw = dict(save=True, plot=False)
 
         self.cosine_distances(**shared_kw)
@@ -1502,25 +1546,33 @@ class Diagnosis(object):
         self.clusters_projection(**shared_kw)
         self.outliers(**shared_kw)
 
-        self.dimensions(ref_cctype=self.sign.cctype, **shared_kw)
-        self.key_coverage(ref_cctype=ref_cctype, **shared_kw)
+        # these plots requires CC wide metadata
+        self.dimensions(**shared_kw)
+        self.key_coverage(**shared_kw)
         self.key_coverage_projection(**shared_kw)
         self.atc_roc(**shared_kw)
         self.moa_roc(**shared_kw)
-        self.across_coverage(ref_cctype=ref_cctype, **shared_kw)
+        self.across_coverage(**shared_kw)
         self.across_roc(**shared_kw)
-        self.global_ranks_agreement(ref_cctype=ref_cctype, **shared_kw)
+        self.global_ranks_agreement(**shared_kw)
         self.global_ranks_agreement_projection(**shared_kw)
-        self.__log.debug("Plotting")
-        fig = self.plotter.canvas_medium(title=title)
+
+        fig = self.plotter.canvas(size="medium", title=title)
         return fig
 
-    def canvas(self, ref_cctype="sign2", size="medium", title=None):
+    def canvas(self, size="medium", title=None, savefig=False):
+        self.__log.debug("Computing or retrieving data for canvas %s." % size)
         if size == "small":
-            return self.canvas_small(ref_cctype=ref_cctype, title=title)
+            fig = self.canvas_small(title=title)
         elif size == "medium":
-            return self.canvas_medium(ref_cctype=ref_cctype, title=title)
+            fig = self.canvas_medium(title=title)
         elif size == "large":
-            return self.canvas_large(ref_cctype=ref_cctype, title=title)
+            fig = self.canvas_large(title=title)
         else:
             return None
+        if savefig:
+            fn = "_".join(
+                [self.sign.dataset, self.sign.cctype, self.name, size]) + '.png'
+            dest = os.path.join(self.path, fn)
+            self.__log.debug("Saving plot to: %s" % dest)
+            fig.savefig(dest)
