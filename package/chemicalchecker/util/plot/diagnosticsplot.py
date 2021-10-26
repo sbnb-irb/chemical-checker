@@ -1008,6 +1008,7 @@ class DiagnosisPlot(object):
         pass
 
     def canvas(self, size="medium", title=None):
+        self.__log.debug("Plotting Canvas %s" % size)
         if size == "small":
             return self.canvas_small(title=title)
         elif size == "medium":
