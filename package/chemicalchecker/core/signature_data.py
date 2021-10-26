@@ -604,7 +604,7 @@ class DataSignature(object):
             hf.create_dataset("pvalue", data=bg_distances["pvalue"])
         return bg_distances
 
-    def subsample(self, n):
+    def subsample(self, n, seed=42):
         """Subsample from a signature without replacement.
 
             Args:
@@ -614,6 +614,7 @@ class DataSignature(object):
                V(matrix): A (samples, features) matrix.
                keys(array): The list of keys.
         """
+        np.random.seed(seed)
         if n >= len(self.keys):
             self.__log.debug("Full dataset sampled (n=%d)" % len(self.keys))
             V = self[:]
