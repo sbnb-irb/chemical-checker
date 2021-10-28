@@ -504,26 +504,37 @@ print('JOB DONE')
             flat_not_neighs = not_neighs.flatten()
             indexes = np.repeat(np.arange(0, not_neighs.shape[0]), n_neighbors)
             neg_pairs = np.vstack([indexes, flat_not_neighs]).T
-            if len(neg_pairs) > len(pos_pairs) * neg_pos_ratio:
-                np.random.shuffle(neg_pairs)
-                neg_pairs = neg_pairs[:int(len(pos_pairs) * neg_pos_ratio)]
+
             # calculate distances
             if metric == "cosine":
                 from scipy.spatial.distance import cosine as metric
             if metric == "euclidean":
                 from scipy.spatial.distance import euclidean as metric
-            y_t = np.array([1] * len(pos_pairs) + [0] * len(neg_pairs))
-            pairs = list(pos_pairs) + list(neg_pairs)
-            y_p = list()
-            for pair in pairs:
-                y_p.append(metric(my_vectors[pair[0]], my_vectors[pair[1]]))
-            # cosine distance in sparse matrices mightend up being NaN, drop it
-            y_p = np.array(y_p)
-            y_t = y_t[~np.isnan(y_p)]
-            y_p = y_p[~np.isnan(y_p)]
+
+            def _compute_dists(pairs):
+                dists = list()
+                for p1, p2 in pairs:
+                    dists.append(metric(my_vectors[p1], my_vectors[p2]))
+                dists = np.array(dists)
+                # cosine distance in sparse matrices might be NaN or inf
+                dists = dists[np.isfinite(dists)]
+                return dists
+
+            pos_dists = _compute_dists(pos_pairs)
+            neg_dists = _compute_dists(neg_pairs)
+            # correct negative/positive ratio
+            if len(neg_dists) > len(pos_dists) * neg_pos_ratio:
+                np.random.shuffle(neg_dists)
+                neg_dists = neg_dists[:int(len(pos_dists) * neg_pos_ratio)]
+            else:
+                np.random.shuffle(pos_dists)
+                pos_dists = pos_dists[:int(len(neg_dists) / neg_pos_ratio)]
+            # final arrays for performnce calculation
+            y_t = np.array([1] * len(pos_dists) + [0] * len(neg_dists))
+            y_p = np.hstack([pos_dists, neg_dists])
             # convert to similarity-respected order
             y_p = -np.abs(np.array(y_p))
-            # roc space
+            # roc calculation
             fpr, tpr, _ = roc_curve(y_t, y_p)
             results = {
                 "fpr": fpr,
