@@ -485,27 +485,32 @@ print('JOB DONE')
                     len(keys1), n_samples, replace=False))
                 keys1 = keys1[idxs]
                 keys2 = keys2[idxs]
-            # extract matrices
-            my_vectors = self.sign.get_vectors(keys1)[1]
+            # fit nearest neighbors on other signature
             vs_vectors = sign.get_vectors(keys2)[1]
-            # fit nearest neighbors
             nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric,
                                   n_jobs=self.cpu)
             nn.fit(vs_vectors)
             # get positive pairs
             neighs = nn.kneighbors(vs_vectors)[1]
+            del vs_vectors
             flat_neigh = neighs.flatten()
             indexes = np.repeat(np.arange(0, neighs.shape[0]), n_neighbors)
             pos_pairs = np.vstack([indexes, flat_neigh]).T
             # avoid identities
             pos_pairs = pos_pairs[pos_pairs[:, 0] != pos_pairs[:, 1]]
+            pos_pairs = set([tuple(p) for p in pos_pairs])
             # get negative pairs
-            not_neighs = nn.kneighbors(-1 * vs_vectors)[1]
-            flat_not_neighs = not_neighs.flatten()
-            indexes = np.repeat(np.arange(0, not_neighs.shape[0]), n_neighbors)
-            neg_pairs = np.vstack([indexes, flat_not_neighs]).T
+            idxs1 = np.repeat(np.arange(0, neighs.shape[0]), n_neighbors * 2)
+            idxs2 = np.repeat(np.arange(0, neighs.shape[0]), n_neighbors * 2)
+            np.random.shuffle(idxs2)
+            neg_pairs = np.vstack([idxs1, idxs2]).T
+            neg_pairs = neg_pairs[neg_pairs[:, 0] != neg_pairs[:, 1]]
+            neg_pairs = set([tuple(p) for p in neg_pairs])
+            neg_pairs = neg_pairs - pos_pairs
+            neg_pairs = list(neg_pairs)[:len(pos_pairs)]
 
-            # calculate distances
+            # calculate distances of same pairs but in out signature
+            my_vectors = self.sign.get_vectors(keys1)[1]
             if metric == "cosine":
                 from scipy.spatial.distance import cosine as metric
             if metric == "euclidean":
@@ -522,6 +527,7 @@ print('JOB DONE')
 
             pos_dists = _compute_dists(pos_pairs)
             neg_dists = _compute_dists(neg_pairs)
+            del my_vectors
             # correct negative/positive ratio
             if len(neg_dists) > len(pos_dists) * neg_pos_ratio:
                 np.random.shuffle(neg_dists)
