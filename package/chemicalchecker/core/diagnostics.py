@@ -29,7 +29,8 @@ class Diagnosis(object):
     """Diagnosis class."""
 
     def __init__(self, sign, ref_cc=None, ref_cctype='sign0', save=True,
-                 plot=True, overwrite=False, n=10000, seed=42, cpu=4):
+                 plot=True, overwrite=False, load=True, n=10000, seed=42,
+                 cpu=4):
         """Initialize a Diagnosis instance.
 
         Args:
@@ -45,6 +46,7 @@ class Diagnosis(object):
         """
         np.random.seed(seed)
         random.seed(seed)
+        self.seed = seed
         if ref_cc is None:
             ref_cc = sign.get_cc()
         self.ref_cc = ref_cc
@@ -55,7 +57,7 @@ class Diagnosis(object):
         self.ref_cctype = ref_cctype
         self.subsample_n = n
         self.cpu = cpu
-        self.memory = 4
+        self.memory = 5
         # check if reference CC has reference all cctype signatures
         available_sign = ref_cc.report_available(
             molset="full", signature=ref_cctype)
@@ -71,49 +73,54 @@ class Diagnosis(object):
         # define current diag_path
         self.name = '%s_%s' % (ref_cc.name, self.ref_cctype)
         self.path = os.path.join(sign.diags_path, self.name)
-        self.overwrite = overwrite
-        if self.overwrite:
-            if os.path.isdir(self.path):
-                self.__log.debug("Deleting %s" % self.path)
-                shutil.rmtree(self.path)
-                os.mkdir(self.path)
+        if os.path.isdir(self.path):
+            if overwrite:
+                self.clear()
         if not os.path.isdir(self.path):
             os.mkdir(self.path)
         if self.plot and not self.save:
             self.__log.warning(
                 "Saving is necessary to plot. Setting 'save' to True.")
             self.save = True
+        self._V = None
+        self._keys = None
 
+    @property
+    def V(self):
+        if self._V is None:
+            self._V, self._keys = self._subsample()
+        return self._V
+
+    @property
+    def keys(self):
+        if self._keys is None:
+            self._V, self._keys = self._subsample()
+        return self._keys
+
+    def _subsample(self):
         fn = os.path.join(self.path, "subsampled_data.pkl")
-        if self.save:
-            if not os.path.exists(fn):
-                self.__log.debug("Subsampling")
-                with open(fn, "wb") as f:
-                    V, keys = self.sign.subsample(self.subsample_n, seed=seed)
+        if not os.path.exists(fn):
+            self.__log.debug("Subsampling signature")
+            V, keys = self.sign.subsample(self.subsample_n, seed=self.seed)
+            if self.save:
+                self.__log.debug("Saving signature subsample %s" % fn)
+                with open(fn, "wb") as fh:
                     d = {"V": V, "keys": keys}
-                    pickle.dump(d, f)
-        self.__log.debug("Loading subsampled signatures")
+                    pickle.dump(d, fh)
+            return V, keys
+        self.__log.debug("Loading signature subsample")
         with open(fn, "rb") as f:
             d = pickle.load(f)
-            self.V = d["V"]
-            self.keys = d["keys"]
+        return d["V"], d["keys"]
 
     def clear(self):
         """Remove al diagnostic data."""
+        self.__log.debug("Deleting %s" % self.path)
         shutil.rmtree(self.path)
 
     def _todo(self, fn, inner=False):
         """Check if function is to be run."""
-        if os.path.exists(os.path.join(self.path, fn + ".pkl")):
-            if inner:
-                return False
-            else:
-                if self.overwrite:
-                    return True
-                else:
-                    return False
-        else:
-            return True
+        return not os.path.exists(os.path.join(self.path, fn + ".pkl"))
 
     def _load_diagnosis_pickle(self, fn):
         with open(os.path.join(self.path, fn), "rb") as f:
@@ -799,6 +806,10 @@ print('JOB DONE')
             V, keys = self._get_signatures(**kwargs)
             m = np.mean(V, axis=0)
             s = np.std(V, axis=0)
+            # if std is zero we would get NaN, costant columns are irrelevant
+            m = m[s != 0]
+            V = V[:, s != 0]
+            s = s[s != 0]
             norm = np.apply_along_axis(lambda v: np.abs((v - m) / s), 1, V)
             # for i in range(0, V.shape[0]):
             #     v = np.abs((V[i, :] - m) / s)
@@ -1152,7 +1163,7 @@ print('JOB DONE')
 
     # @safe_return(None)
     def across_roc(self, *args, datasets=None, exemplary=True, ref_cctype=None,
-                   **kwargs):
+                   redo=False, **kwargs):
         """Check coverage against a collection of other CC signatures.
 
         Args:
@@ -1169,7 +1180,7 @@ print('JOB DONE')
         fn = "across_roc"
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
-        if self._todo(fn):
+        if self._todo(fn) or redo:
             datasets = self._select_datasets(datasets, exemplary)
             results = {}
             for ds in datasets:
@@ -1209,7 +1220,7 @@ print('JOB DONE')
             sign = self.ref_cc.signature(ds, ref_cctype)
             for nn in n_neighbors:
                 results[nn] = self.cross_roc(
-                    sign, redo=True, n_neighbors=nn, **kwargs)
+                    sign, save=False, redo=True, n_neighbors=nn, plot=False)
         else:
             results = None
         return self._returner(
@@ -1217,17 +1228,17 @@ print('JOB DONE')
             fn=fn,
             plotter_function=self.plotter.neigh_roc,
             kw_plotter={
-                "cctype": ref_cctype},
+                "ds": ds},
             **kwargs)
 
     # @safe_return(None)
-    def atc_roc(self, *args, ref_cctype=None, **kwargs):
+    def atc_roc(self, *args, ref_cctype=None, redo=False, **kwargs):
         self.__log.debug("ATC ROC")
         fn = "atc_roc"
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
         ds = "E1.001"
-        if self._todo(fn):
+        if self._todo(fn) or redo:
             sign = self.ref_cc.signature(ds, ref_cctype)
             results = self.cross_roc(sign, redo=True, save=False, plot=False)
         else:
@@ -1239,13 +1250,13 @@ print('JOB DONE')
             **kwargs)
 
     # @safe_return(None)
-    def moa_roc(self, *args, ref_cctype=None, **kwargs):
+    def moa_roc(self, *args, ref_cctype=None, redo=False, **kwargs):
         self.__log.debug("MoA ROC")
         fn = "moa_roc"
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
         ds = "B1.001"
-        if self._todo(fn):
+        if self._todo(fn) or redo:
             sign = self.ref_cc.signature(ds, ref_cctype)
             results = self.cross_roc(sign, redo=True, save=False, plot=False)
         else:
@@ -1264,8 +1275,7 @@ print('JOB DONE')
             ref_cctype = self.ref_cctype
         if self._todo(fn) or redo:
             sign = self.ref_cc.signature(ds, ref_cctype)
-            results = self.cross_roc(
-                sign, redo=redo, **kwargs)
+            results = self.cross_roc(sign, redo=True, save=False, plot=False)
         else:
             results = None
         return self._returner(
