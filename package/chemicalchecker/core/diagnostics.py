@@ -481,38 +481,39 @@ print('JOB DONE')
             # extract matrices
             my_vectors = self.sign.get_vectors(keys1)[1]
             vs_vectors = sign.get_vectors(keys2)[1]
-            # do nearest neighbors
+            # fit nearest neighbors
             nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric,
                                   n_jobs=self.cpu)
             nn.fit(vs_vectors)
-            neighs = nn.kneighbors(vs_vectors)[1][:, 1:]
-            # sample positive and negative pairs
-            pos_pairs = set()
-            neg_pairs = set()
-            for i in range(0, len(neighs)):
-                for j in neighs[i]:
-                    pair = [i, j]
-                    pair = sorted(pair)
-                    pos_pairs.update([(pair[0], pair[1])])
-            for _ in range(0, int(len(pos_pairs) * 10)):
-                pair = np.random.choice(len(keys2), 2, replace=False)
-                pair = sorted(pair)
-                pair = (pair[0], pair[1])
-                if pair in pos_pairs:
-                    continue
-                neg_pairs.update([pair])
-                if len(neg_pairs) > len(pos_pairs) * neg_pos_ratio:
-                    break
-            # do distances
+            # get positive pairs
+            neighs = nn.kneighbors(vs_vectors)[1]
+            flat_neigh = neighs.flatten()
+            indexes = np.repeat(np.arange(0, neighs.shape[0]), n_neighbors)
+            pos_pairs = np.vstack([indexes, flat_neigh]).T
+            # avoid identities
+            pos_pairs = pos_pairs[pos_pairs[:, 0] != pos_pairs[:, 1]]
+            # get negative pairs
+            not_neighs = nn.kneighbors(-1 * vs_vectors)[1]
+            flat_not_neighs = not_neighs.flatten()
+            indexes = np.repeat(np.arange(0, not_neighs.shape[0]), n_neighbors)
+            neg_pairs = np.vstack([indexes, flat_not_neighs]).T
+            if len(neg_pairs) > len(pos_pairs) * neg_pos_ratio:
+                np.random.shuffle(neg_pairs)
+                neg_pairs = neg_pairs[:int(len(pos_pairs) * neg_pos_ratio)]
+            # calculate distances
             if metric == "cosine":
                 from scipy.spatial.distance import cosine as metric
             if metric == "euclidean":
                 from scipy.spatial.distance import euclidean as metric
             y_t = np.array([1] * len(pos_pairs) + [0] * len(neg_pairs))
             pairs = list(pos_pairs) + list(neg_pairs)
-            y_p = []
+            y_p = list()
             for pair in pairs:
-                y_p += [metric(my_vectors[pair[0]], my_vectors[pair[1]])]
+                y_p.append(metric(my_vectors[pair[0]], my_vectors[pair[1]]))
+            # cosine distance in sparse matrices mightend up being NaN, drop it
+            y_p = np.array(y_p)
+            y_t = y_t[~np.isnan(y_p)]
+            y_p = y_p[~np.isnan(y_p)]
             # convert to similarity-respected order
             y_p = -np.abs(np.array(y_p))
             # roc space
