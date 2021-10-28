@@ -195,13 +195,14 @@ class DiagnosisPlot(object):
     # @safe_return(None)
     def neigh_roc(self, ds, results=None, ax=None, title=None):
         ax = self._get_ax(ax)
+        color = coord_color(ds)
         if results is None:
             results = self.load_diagnosis_pickle("neigh_roc.pkl")
         for nn, res in results.items():
             if res is None:
                 continue
             ax = self._roc(
-                ax, res, label='NN {:<5} (AUC {:.3f})'.format(nn, res['auc']))
+                ax, res, color, label='NN {:<5} (AUC {:.3f})'.format(nn, res['auc']))
         ax.legend()
         return ax
 
@@ -214,7 +215,7 @@ class DiagnosisPlot(object):
         X = results["X"]
         eps = cap_percentile
         if eps is None:
-            eps = np.std(X)
+            eps = np.clip(np.std(X), 0, 1)
         ax.imshow(X, cmap=cmap, aspect="auto", vmin=np.percentile(X, eps),
                   vmax=np.percentile(X, 100 - eps), interpolation='nearest')
         if title is None:
@@ -272,8 +273,8 @@ class DiagnosisPlot(object):
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
         homogenous_ticks(ax, 4)
-        ax.set_xlabel("Dim 1")
-        ax.set_ylabel("Dim 2")
+        ax.set_xlabel("t-SNE 1")
+        ax.set_ylabel("t-SNE 2")
         if title is None:
             title = "2D projection"
         ax.set_title(title)
@@ -613,8 +614,8 @@ class DiagnosisPlot(object):
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
         homogenous_ticks(ax, 2)
-        ax.set_ylabel("Dim 2")
-        ax.set_xlabel("Dim 1")
+        ax.set_ylabel("t-SNE 2")
+        ax.set_xlabel("t-SNE 1")
         if title is None:
             title = "Top clusters"
         ax.set_title(title)
@@ -706,8 +707,8 @@ class DiagnosisPlot(object):
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
         homogenous_ticks(ax, 2)
-        ax.set_xlabel("Dim 1")
-        ax.set_ylabel("Dim 2")
+        ax.set_xlabel("t-SNE 1")
+        ax.set_ylabel("t-SNE 2")
         return ax
 
     # @safe_return(None)
