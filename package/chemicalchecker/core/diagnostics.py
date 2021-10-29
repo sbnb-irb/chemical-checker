@@ -233,7 +233,7 @@ class Diagnosis(object):
         }
         return results
 
-    def hpc_canvas(self, tmpdir, **kwargs):
+    def canvas_hpc(self, tmpdir, **kwargs):
         """Run HPC jobs .
 
         tmpdir(str): Folder (usually in scratch) where the job directory is
@@ -287,7 +287,7 @@ print('JOB DONE')
             os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
             singularity_image, script_name)
         # submit jobs
-        cluster = HPC.from_config(Config())
+        cluster = HPC.from_config(cfg)
         cluster.submitMultiJob(command, **params)
         return cluster
 

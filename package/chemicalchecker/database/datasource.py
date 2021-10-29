@@ -294,6 +294,6 @@ class Datasource(Base):
             os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
             singularity_image, script_name)
         # submit jobs
-        cluster = HPC.from_config(Config())
+        cluster = HPC.from_config(cfg)
         cluster.submitMultiJob(command, **params)
         return cluster
