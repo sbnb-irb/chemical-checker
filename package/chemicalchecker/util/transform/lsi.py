@@ -9,8 +9,7 @@ from sklearn.utils.sparsefuncs import mean_variance_axis
 
 from .base import BaseTransform
 
-from chemicalchecker.util import Config
-from chemicalchecker.util import logged
+from chemicalchecker.util import Config, logged
 
 
 class Corpus(object):
@@ -48,7 +47,7 @@ class Lsi(BaseTransform):
     def __init__(self, sign1, *args, tmp=False, variance_explained=0.9,
                  num_topics=None, B_val=10, N_val=1000, multipass=True,
                  min_freq=5, max_freq=0.25,
-                 max_keys=100000, **kwargs):
+                 max_keys=100000, tmp_path=None, **kwargs):
         """Initialize a Lsi instance."""
         BaseTransform.__init__(self, sign1, "lsi", max_keys, tmp)
         self.variance_explained = variance_explained
@@ -58,6 +57,9 @@ class Lsi(BaseTransform):
         self.num_topics = num_topics
         self.B_val = B_val
         self.N_val = N_val
+        if tmp_path is None:
+            tmp_path = Config().PATH.CC_TMP
+        self.tmp_path = tmp_path
 
     def _lsi_variance_explained(self, tfidf_corpus, lsi, num_topics):
         mm = corpora.MmCorpus(tfidf_corpus)
@@ -185,7 +187,7 @@ class Lsi(BaseTransform):
     def predict(self, sign1):
         self.predict_check(sign1)
         # corpus for the predict
-        tmp_dir = tempfile.mkdtemp(prefix="lsi_", dir=Config().PATH.CC_TMP)
+        tmp_dir = tempfile.mkdtemp(prefix="lsi_", dir=self.tmp_path)
         plain_corpus = os.path.join(tmp_dir, self.name + ".plain.txt")
         tfidf_corpus = os.path.join(tmp_dir, self.name + ".tfidf.mm")
         # write corpus (dense feature)
