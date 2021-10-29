@@ -164,7 +164,7 @@ class sign0(BaseSignature, DataSignature):
                 keys = dh5["keys"][:]
             if "features" in dh5.keys():
                 features = dh5["features"][:]
-            if features is None:
+            if features is None and pairs is None:
                 features = self.process_features(features, X.shape[1])
             dh5.close()
             if pairs is None and X is None:
@@ -178,8 +178,8 @@ class sign0(BaseSignature, DataSignature):
                     "If you input pairs, X should not be specified!")
             has_values = len(pairs[0]) != 2
             self.__log.debug("Processing keys and features")
-            keys = list(set([x[0] for x in pairs]))
-            features = list(set([x[1] for x in pairs]))
+            keys = list(set([x[0].decode() for x in pairs]))
+            features = list(set([x[1].decode() for x in pairs]))
             self.__log.debug("Before processing:")
             self.__log.debug("KEYS: {}".format(keys))
             self.__log.debug("key_type: {}".format(key_type))
