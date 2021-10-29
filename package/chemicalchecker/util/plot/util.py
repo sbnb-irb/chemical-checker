@@ -25,6 +25,8 @@ def predefined_cc_colors(coord, lighness=0):
         'D': ['#7CAF2A', '#96BF55', '#B0CF7F'],
         'E': ['#F39426', '#F5A951', '#F8BF7D'],
         'Z': ['#000000', '#666666', '#999999']}
+    if not coord in colors:
+        coord = 'Z'
     return colors[coord[:1]][lighness]
 
 
