@@ -352,7 +352,7 @@ def main(args):
         main._log.info("Calculating data for " + type_data)
         job_path = tempfile.mkdtemp(
             prefix='jobs_molprop_' + type_data + "_", dir=tmpdir)
-        calculator = Calcdata(type_data, args.config)
+        calculator = Calcdata(type_data)
         # This method sends the job and waits for the job to finish
         calculator.calcdata_hpc(job_path, list(inchikey_inchi))
         missing = len(calculator.get_missing_from_set(inchikey_inchi))
