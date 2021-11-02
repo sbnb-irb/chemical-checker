@@ -178,10 +178,16 @@ class sign0(BaseSignature, DataSignature):
                     "If you input pairs, X should not be specified!")
             has_values = len(pairs[0]) != 2
             self.__log.debug("Processing keys and features")
-            keys = list(set([x[0].decode() for x in pairs]))
-            features = list(set([x[1].decode() for x in pairs]))
+            if hasattr(pairs[0][0], 'decode'):
+                keys = list(set([x[0].decode() for x in pairs]))
+            else:
+                keys = list(set([x[0] for x in pairs]))
+            if hasattr(pairs[0][1], 'decode'):
+                features = list(set([x[1].decode() for x in pairs]))
+            else:
+                features = list(set([x[1] for x in pairs]))
             self.__log.debug("Before processing:")
-            self.__log.debug("KEYS: {}".format(keys))
+            self.__log.debug("KEYS example: {}".format(keys[:10]))
             self.__log.debug("key_type: {}".format(key_type))
 
             keys, keys_raw, _ = self.process_keys(keys, key_type)
@@ -461,7 +467,11 @@ class sign0(BaseSignature, DataSignature):
             raise Exception("Input type must be %s" % self.input_type)
         self.__log.debug(
             "Use same features arrangement as fitted signature.")
-        W = np.full((len(keys), len(features_)), np.nan)
+        if len(set(features_) & set(features)) < len(set(features_)):
+            self.__log.warning("Not all original features are covered, "
+                "Missing columns will be set to 0.")
+
+        W = np.full((len(keys), len(features_)), 0)
         for i in range(0, X.shape[0]):
             for j in range(0, X.shape[1]):
                 feat = features[j]
@@ -514,7 +524,7 @@ class sign0(BaseSignature, DataSignature):
                 hf.create_dataset(
                     "date",
                     data=np.array([sdate], DataSignature.string_dtype()))
-                hf.create_dataset("V", data=X)
+                hf.create_dataset("V", data=V)
                 hf.create_dataset("keys", data=np.array(
                     keys, DataSignature.string_dtype()))
                 hf.create_dataset("features", data=np.array(
