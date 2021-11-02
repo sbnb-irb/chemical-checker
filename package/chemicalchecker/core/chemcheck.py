@@ -657,3 +657,34 @@ class ChemicalChecker():
             self.__log.warning(mol_str + " NOT IN UNIVERSE")
 
         return None
+
+    def export_symlinks(self, dest_path=None):
+        """Creates symlinks for all available signatures in a single folder.
+
+        Args:
+            dest_path (str): The destination for symlink, if None then the
+                default under the cc_root is generated.
+        """
+        if dest_path is None:
+            dest_path = os.path.join(self.cc_root, 'sign_links')
+
+        if not os.path.exists(dest_path):
+            os.makedirs(dest_path)
+
+        for molset in ['full', 'reference']:
+            for cctype in ['sign0', 'sign1', 'sign2', 'sign3']:
+                for ds in self.coordinates:
+                    dataset_code = ds + '.001'
+                    sign = self.get_signature(cctype, molset, dataset_code)
+                    sign_file = sign.data_path
+
+                    if os.path.isfile(sign_file):
+                        dst_name = "_".join([cctype, dataset_code, molset])
+                        dst_name += ".h5"
+                        # Make a symlink into the destination
+                        symlink = os.path.join(dest_path, dst_name)
+                        try:
+                            os.symlink(sign_file, symlink)
+                        except Exception as ex:
+                            self.__log.warning(
+                                "Error creating %s: %s" % (symlink, str(ex)))
