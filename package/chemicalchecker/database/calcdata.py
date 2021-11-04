@@ -205,6 +205,7 @@ def Calcdata(table_name):
             num_jobs: Number of HPC jobs(default: 200)
             chunk_dbload: Number of elements loaded to the database
                 (default: 1000)
+            cc_config: configuration file (.json)
             """
             # create job directory if not available
             cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
