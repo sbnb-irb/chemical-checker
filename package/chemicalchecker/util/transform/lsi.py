@@ -217,6 +217,7 @@ class Lsi(BaseTransform):
         if len(keys) < len(sign1.keys):
             drop = len(sign1.keys) - len(keys)
             self.__log.warning('Dropped %s molecules (only zeros).' % drop)
+        # FIXME: instead of creating V we need to write iteratively to the H5
         V = np.empty((len(keys), self.cut_i + 1))
         only_zeros = 0
         for l in c_lsi:
