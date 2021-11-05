@@ -220,7 +220,7 @@ class ChemicalChecker():
                       (level.upper(), logger_name))
 
     def _available_sign_paths(self, molset='*', dataset='*', signature='*',
-                                  filename='*.h5'):
+                              filename='*.h5'):
         paths = glob(os.path.join(self.cc_root, molset, '*',
                                   '*', dataset, signature, filename))
         return paths
@@ -708,9 +708,9 @@ class ChemicalChecker():
             metadata = dict(cctype=sign, dataset_code=dataset, molset=molset)
             try:
                 with h5py.File(path, 'r+') as f:
-                    for k,v in metadata.items():
+                    for k, v in metadata.items():
                         if k not in f.attrs:
                             f.attrs.create(name=k, data=v)
-            except Exception as ex:
+            except Exception:
                 self.__log.warning("Could not add metadata to: %s" % path)
                 continue
