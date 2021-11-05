@@ -115,8 +115,7 @@ class ChemicalChecker():
 
         else:
             # if the directory exists get molsets and datasets
-            paths = glob(os.path.join(self.cc_root, '*',
-                                      '*', '*', '*', '*', 'sign*.h5'))
+            paths = self._available_sign_paths(filename='sign*.h5')
             self._molsets = set(x.split('/')[-6] for x in paths)
             self._datasets = set(x.split('/')[-3] for x in paths)
             if custom_data_path is not None:
@@ -220,6 +219,12 @@ class ChemicalChecker():
         log_fn[level]("Logging level %s for logger '%s'." %
                       (level.upper(), logger_name))
 
+    def _available_sign_paths(self, molset='*', dataset='*', signature='*',
+                                  filename='*.h5'):
+        paths = glob(os.path.join(self.cc_root, molset, '*',
+                                  '*', dataset, signature, filename))
+        return paths
+
     def report_available(self, molset='*', dataset='*', signature='*'):
         """Report available signatures in the CC.
 
@@ -235,8 +240,7 @@ class ChemicalChecker():
         Returns:
             Nested dictionary with molset, dataset and list of signatures
         """
-        paths = glob(os.path.join(self.cc_root, molset, '*',
-                                  '*', dataset, signature + '/*.h5'))
+        paths = self._available_sign_paths(molset, dataset, signature)
         molset_dataset_sign = dict()
         for path in paths:
             molset = path.split('/')[-6]
@@ -263,8 +267,7 @@ class ChemicalChecker():
         Returns:
             Nested dictionary with molset, dataset and list of signatures
         """
-        paths = glob(os.path.join(self.cc_root, molset, '*', '*', dataset,
-                                  signature + '/*.h5'))
+        paths = self._available_sign_paths(molset, dataset, signature)
         molset_dataset_sign = dict()
         for path in paths:
             molset = path.split('/')[-6]
@@ -295,8 +298,7 @@ class ChemicalChecker():
         Returns:
             Nested dictionary with molset, dataset and list of signatures
         """
-        paths = glob(os.path.join(self.cc_root, molset, '*', '*', dataset,
-                                  signature + '/*.h5'))
+        paths = self._available_sign_paths(molset, dataset, signature)
         molset_dataset_sign = dict()
         for path in paths:
             molset = path.split('/')[-6]
@@ -658,7 +660,7 @@ class ChemicalChecker():
 
         return None
 
-    def export_symlinks(self, dest_path=None):
+    def export_symlinks(self, dest_path=None, essential_only=True):
         """Creates symlinks for all available signatures in a single folder.
 
         Args:
@@ -688,3 +690,27 @@ class ChemicalChecker():
                         except Exception as ex:
                             self.__log.warning(
                                 "Error creating %s: %s" % (symlink, str(ex)))
+
+    def add_sign_metadata(self, molset='*', dataset='*', signature='*'):
+        """Add metadata to available signatures.
+
+        Args:
+            molset (str, optional): Filter for the moleculeset e.g. 'full' or
+                'reference'
+            dataset (str, optional): Filter for the dataset e.g. A1.001
+            signature (str, optional): Filter for signature type e.g. 'sign1'
+        """
+        paths = self._available_sign_paths(molset, dataset, signature)
+        for path in paths:
+            molset = path.split('/')[-6]
+            dataset = path.split('/')[-3]
+            sign = path.split('/')[-2]
+            metadata = dict(cctype=sign, dataset_code=dataset, molset=molset)
+            try:
+                with h5py.File(path, 'r+') as f:
+                    for k,v in metadata.items():
+                        if k not in f.attrs:
+                            f.attrs.create(name=k, data=v)
+            except Exception as ex:
+                self.__log.warning("Could not add metadata to: %s" % path)
+                continue
