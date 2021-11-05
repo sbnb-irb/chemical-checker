@@ -140,8 +140,8 @@ class Lsi(BaseTransform):
             onepass = True
         # lsi
         self.__log.info('Fitting LSI model.')
-        only_zeros = [1]
-        while len(only_zeros) > 0:
+        only_zeros = 0
+        while only_zeros > 0:
             self.__log.info('num_topics: %s', self.num_topics)
             lsi = models.LsiModel(c_tfidf, id2word=dictionary,
                                   num_topics=self.num_topics, onepass=onepass,
@@ -158,19 +158,16 @@ class Lsi(BaseTransform):
             c_lsi = lsi[c_tfidf]
             # get keys
             keys = np.array([k for k in c.keys()])
-            V = np.empty((len(keys), self.cut_i + 1))
-            i = 0
             for l in c_lsi:
                 v = np.zeros(self.cut_i + 1)
                 for x in l[:self.cut_i + 1]:
                     if x[0] > self.cut_i:
                         continue
                     v[x[0]] = x[1]
-                V[i, :] = v
-                i += 1
+                if np.sum(v) == 0:
+                    only_zeros += 1
             # in some corner cases we might get full zero rows after LSI
-            only_zeros = np.where(~V.any(axis=1))[0]
-            if len(only_zeros) > 0:
+            if only_zeros > 0:
                 self.__log.warning(
                     'Getting only zero rows: %s', str(only_zeros))
                 self.num_topics += 50
@@ -221,17 +218,18 @@ class Lsi(BaseTransform):
             drop = len(sign1.keys) - len(keys)
             self.__log.warning('Dropped %s molecules (only zeros).' % drop)
         V = np.empty((len(keys), self.cut_i + 1))
-        i = 0
+        only_zeros = 0
         for l in c_lsi:
             v = np.zeros(self.cut_i + 1)
             for x in l[:self.cut_i + 1]:
                 if x[0] > self.cut_i:
                     continue
                 v[x[0]] = x[1]
+                if np.sum(v) == 0:
+                    only_zeros += 1
             V[i, :] = v
             i += 1
         # in some corner cases we might get full zero rows after LSI
-        only_zeros = np.where(~V.any(axis=1))[0]
         if len(only_zeros) > 0:
             # in that case we soften the parameters
             self.__log.warning('Getting only zero rows: %s', str(only_zeros))
