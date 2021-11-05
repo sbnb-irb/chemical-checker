@@ -79,6 +79,8 @@ class neig(BaseSignature, DataSignature):
             self.__log.debug("Fit will be done with the reference sign1")
             sign1 = self.get_sign(
                 'sign' + self.cctype[-1]).get_molset("reference")
+        if not sign1.isfit():
+            raise Exception("sign1 is not fitted.")
 
         faiss.omp_set_num_threads(self.cpu)
 
