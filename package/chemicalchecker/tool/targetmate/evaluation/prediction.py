@@ -4,6 +4,8 @@ import re
 import shutil
 import joblib
 
+import h5py
+
 import numpy as np
 from chemicalchecker.util import logged
 
@@ -16,24 +18,7 @@ from chemicalchecker.util import Config
 import uuid
 from sklearn.preprocessing import RobustScaler
 
-MAXQUEUE = 10
-
-def _prepare_signaturize_signaturizer(datasets=None):
-    if datasets is None:
-        datasets = ['GLOBAL']
-    s3 = []
-    for dataset in datasets:
-        s3 += [SignaturizerExternal(dataset.split(".")[0])]
-    return s3
-
-def _prepare_cc(datasets, cctype):
-    cc = ChemicalChecker()
-    if datasets is None:
-        datasets = cc.datasets_exemplary()
-    sign = []
-    for dataset in datasets:
-        sign += [cc.signature(dataset, cctype)]
-    return sign
+MAXQUEUE = 15
 
 @logged
 class Prediction(HPCUtils):
@@ -67,11 +52,11 @@ class Prediction(HPCUtils):
                  is_classic=False,
                  keytype='InChiKey',
                  cctype="sign3",
-                 signature_type= None,
-                 pchembl = None,
-                 fold = None,
-                 running = False,
-                 ** kwargs):
+                 signature_type=None,
+                 pchembl=None,
+                 fold=None,
+                 running=False,
+                 **kwargs):
 
         HPCUtils.__init__(self, **kwargs)
 
@@ -117,20 +102,30 @@ class Prediction(HPCUtils):
         else:
             self.__log.info("Setting signature type from variables")
         if pchembl is not None:
-            self.pchembl = "pchembl_{:d}".format(pchembl*100)
+            self.pchembl = "pchembl_{:d}".format(pchembl * 100)
         else:
             self.pchembl = pchembl
         self.fold = fold
         self.running = running
 
-    def _signaturize_fingerprinter(smiles):
+    def _prepare_cc(self, datasets, cctype):
+        cc = ChemicalChecker()
+        if datasets is None:
+            datasets = cc.datasets_exemplary()
+        sign = []
+        for dataset in datasets:
+            sign += [cc.signature(dataset, cctype)]
+        return sign
+
+    def _signaturize_fingerprinter(self, smiles):
         """Calculate fingerprints"""
         V = chemistry.morgan_matrix(smiles)
         return V
 
     def _signaturize_signaturizer(self, molecules, moleculetype='SMILES'):
         V = None
-        for s3_ in self.s3:
+        for ds in self.datasets:
+            s3_ = SignaturizerExternal(ds.split(".")[0])
             s = s3_.predict(molecules, keytype=moleculetype)
             v = s.signature[~s.failed]
             if V is None:
@@ -155,7 +150,7 @@ class Prediction(HPCUtils):
 
     def model_iterator(self, mod_dir, uncalib):
         for m in os.listdir(mod_dir):
-            m_ = m[:-2]  # DELETE!! SHORT TERM SOLUTION SINCE MODELS ARE COMPRESSED
+            m_ = m.split(".z")[0]  # TODO: Consider additional variable so that can change type of compression
             if m_.split("---")[-1] == "base_model": continue
             if uncalib is False:
                 if m_.split("-")[1] == "uncalib": continue
@@ -180,7 +175,7 @@ class Prediction(HPCUtils):
                         dat.append(os.path.join(m, n))
         return dat
 
-    def get_models(self):
+    def get_models(self, targets):
         directories = self.search_models(self.root)
         self.depth -= 1
         while self.depth > 0:
@@ -189,6 +184,8 @@ class Prediction(HPCUtils):
         directories = [d for d in directories if os.path.isdir(os.path.join(d, "bases"))]
         if self.pchembl is not None:
             directories = [d for d in directories if self.pchembl in d]
+        if targets is not None:
+            directories = [d for d in directories for t in targets if t in d]
         if self.running:
             directories = [d for d in directories if os.path.exists(os.path.join(d, "bases", "Stacked---0.z"))]
         return directories
@@ -199,7 +196,7 @@ class Prediction(HPCUtils):
     def load_signatures(self, sign_f):
         with h5py.File(sign_f, "r") as f:
             # List all groups
-            X = f["V"][:]
+            X = f["signature"][:] # TODO: Currently only for signaturizer, apply to CC as well
         return X
 
     def _is_done(self, target):
@@ -209,7 +206,7 @@ class Prediction(HPCUtils):
         else:
             return False
 
-    def predict(self, mod, X, target, iteration=None):
+    def _predict(self, mod, X, target, iteration):
         if iteration is not None:
             destination_path = os.path.join(self.output, "%s_%d.pkl" % (target, iteration))
         else:
@@ -228,9 +225,12 @@ class Prediction(HPCUtils):
             mod_path = os.path.join(mod, "bases", self.fold)
         else:
             mod_path = os.path.join(mod, "bases")
-
+        smoothing = None
         for i, mod in enumerate(self.model_iterator(mod_path, uncalib=False)):
-            p = mod.predict(X)
+            if smoothing is None:
+                smoothing = np.random.uniform(0, 1, size=(
+                    len(X), len(mod.classes)))  # Added by Paula: Apply same smoothing to all ccp
+            p = mod.predict(X, smoothing=smoothing)
             if preds is None:
                 preds = p
             else:
@@ -238,6 +238,9 @@ class Prediction(HPCUtils):
         preds = preds / (i + 1)
         with open(destination_path, "wb") as f:
             pickle.dump(preds, f)
+
+    def predict(self, mod, X, target, iteration=None):
+        return self._predict(mod, X, target, iteration)
 
     def incorporate_background(self, X, mod):
         test_idx = len(X)
@@ -249,7 +252,7 @@ class Prediction(HPCUtils):
             if self.is_classic:
                 train = self._signaturize_fingerprinter(td.molecule)
             else:
-                train = self._signaturize_signaturizer(td.molecule,td.moleculetype)
+                train = self._signaturize_signaturizer(td.molecule, td.moleculetype)
 
         X = np.vstack([X, train])
         idx = np.zeros(len(X))
@@ -278,8 +281,13 @@ class Prediction(HPCUtils):
             mod_path = os.path.join(mod, "bases")
         X, test_idx = self.incorporate_background(X, mod)
         i = False
+        smoothing = None  # Added by Paula: currently set class size to 2, eed to make so that it depends on model
         for i, mod in enumerate(self.model_iterator(mod_path, uncalib=False)):
-            p = mod.predict(X)
+            if smoothing is None:
+                smoothing = np.random.uniform(0, 1, size=(
+                    len(X), len(mod.classes)))  # Added by Paula: Apply same smoothing to all ccp
+
+            p = mod.predict(X, smoothing=smoothing)
             if preds is None:
                 preds = p
             else:
@@ -299,7 +307,8 @@ class Prediction(HPCUtils):
         with open(destination_path, "wb") as f:
             pickle.dump(preds, f)
 
-    def run(self, target_name_location=-2, zscore=False, targets = None):
+    def run(self, target_name_location=-2, zscore=False, targets=None):
+
         if self.molrepo == 'CHEMBL':
             p = re.compile('CHEMBL[0-9]+')
         else:
@@ -309,26 +318,28 @@ class Prediction(HPCUtils):
         directories = self.get_models()
         self.__log.info("Will calculate predictions for {:d} proteins".format(len(directories)))
 
+
+
         self.__log.info("Loading compounds to predict")
         jobs = []
         if type(self.data) == str:
             self.__log.info("File to data used: loading signatures")
             self.data = os.path.abspath(self.data)
             data = self.load_signatures(self.data)
-        elif type(self.data) == np.ndarray:
-            # TODO: Change this - right now if introduce list of keys as np array it recognises it as signatures
+        elif (type(self.data) == np.ndarray) and (self.data.dtype == np.float32):
             self.__log.info("Signatures introduced")
             data = self.data
         elif type(self.data) == list:
             if self.use_cc:
-                self.sign = _prepare_cc(self.datasets, self.cctype)
+                self.sign = self._prepare_cc(self.datasets, self.cctype)
                 data, idx = self._read_signatures_by_inchikey_from_cc(self.data)
             else:
                 if self.is_classic:
                     data = self._signaturize_fingerprinter(self.data)
                 else:
-                    self.s3 = _prepare_signaturize_signaturizer(self.datasets)
                     data = self._signaturize_signaturizer(self.data, self.keytype)
+
+
 
         for d in directories:
             if self.molrepo == 'CHEMBL':
@@ -338,7 +349,6 @@ class Prediction(HPCUtils):
             if targets is not None:
                 if target not in targets: continue
 
-
             if not self.overwrite:
                 if self._is_done(target):
                     self.__log.warn("{:s} already exists".format(target))
@@ -346,19 +356,23 @@ class Prediction(HPCUtils):
 
             self.__log.info("Working on {:s}".format(target))
             self.__log.info("Predicting compounds")
+
             if self.hpc:
                 if zscore:
 
                     jobs += [
-                        self.func_hpc("predict_background", d, data, target, None, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
+                        self.func_hpc("predict_background", d, data, target, None, cpu=self.n_jobs_hpc,
+                                      job_base_path=self.tmp_path)]
                 else:
-                    if self.chunk_size:
+                    if self.chunk_size:  # TODO: Add alert so that if compound library is larger than X recommend using chunksize
                         for j, c in tqdm(enumerate(self.chunker(data, self.chunk_size))):
                             jobs += [
-                                self.func_hpc("predict", d, c, target, j, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
+                                self.func_hpc("predict", d, c, target, j, cpu=self.n_jobs_hpc,
+                                              job_base_path=self.tmp_path)]
                     else:
-                        jobs += [
-                            self.func_hpc("predict", d, data, target, None, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
+                        jobs += [self.func_hpc("predict", d, data, target, None, cpu=self.n_jobs_hpc,
+                                               job_base_path=self.tmp_path)]
+
 
                 if len(jobs) > MAXQUEUE:
                     self.waiter(jobs)
