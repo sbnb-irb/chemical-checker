@@ -80,7 +80,7 @@ class HyperOpt(object):
 
     def search(self, X, y, smiles):
         self.__log.info("Timeout: %d" % self.timeout)
-        self.__log.info("CV: %s, Stratified: %s" % (self.is_cv, self.is_stratified))
+        self.__log.info("CV: %s, Stratified: %s, Metric: %s" % (self.is_cv, self.is_stratified, self.metric))
 
         def objective(params):
             self.base_mod.set_params(**params)
