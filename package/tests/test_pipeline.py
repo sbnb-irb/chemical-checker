@@ -116,36 +116,4 @@ class TestPipeline(unittest.TestCase):
         sign2_ref_file = os.path.join(
             cc_root, 'reference/E/E1/E1.001/sign2/sign2.h5')
         self.assertTrue(os.path.isfile(sign2_ref_file))
-        """
 
-        s0_pred_task = CCPredict(cc_type='sign0', **s0_params)
-        pp.add_task(s0_pred_task)
-
-        s0_pred_task = CCPredict(cc_type='sign0', **s0_params)
-        pp.add_task(s0_pred_task)
-
-        s1_params = {"output_path": pipeline_dir, 'CC_ROOT': CC_ROOT,
-                     "datasets": ["E1.001"]}
-
-        s1_pred_task = CCPredict(cc_type='sign1', **s1_params)
-        pp.add_task(s1_pred_task)
-
-        s2_params = {"output_path": pipeline_dir, 'CC_ROOT': CC_ROOT,
-                     "datasets": ["E1.001"]}
-
-        s2_pred_task = CCPredict(cc_type='sign2', **s2_params)
-        pp.add_task(s2_pred_task)
-
-        s0_pred_task.mark_ready()
-        self.assertTrue(s0_pred_task.is_ready())
-
-        s1_pred_task.mark_ready()
-        self.assertTrue(s1_pred_task.is_ready())
-
-        s2_pred_task.mark_ready()
-        self.assertTrue(s2_pred_task.is_ready())
-        """
-        # This needs to be uncommented when the signatures predict work
-
-        # s2_pred_task.clean()
-        # self.assertFalse(s2_pred_task.is_ready())
