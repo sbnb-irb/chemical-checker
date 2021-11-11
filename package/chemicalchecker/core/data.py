@@ -30,6 +30,7 @@ class DataFactory():
         from .sign1 import sign1
         from .sign2 import sign2
         from .sign3 import sign3
+        from .sign4 import sign4
 
         from .clus import clus
         from .neig import neig  # nearest neighbour class
@@ -60,6 +61,7 @@ class DataFactory():
         from .sign1 import sign1
         from .sign2 import sign2
         from .sign3 import sign3
+        from .sign4 import sign4
         from .signature_data import DataSignature
 
         from .clus import clus
