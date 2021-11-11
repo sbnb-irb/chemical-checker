@@ -713,10 +713,11 @@ class ChemicalChecker():
             sign = path.split('/')[-2]
             metadata = dict(cctype=sign, dataset_code=dataset, molset=molset)
             try:
-                with h5py.File(path, 'r+') as f:
+                with h5py.File(path, 'a') as fh:
                     for k, v in metadata.items():
-                        if k not in f.attrs:
-                            f.attrs.create(name=k, data=v)
+                        if k in fh.attrs:
+                            del fh.attrs[k]
+                        fh.attrs.create(name=k, data=v)
             except Exception:
                 self.__log.warning("Could not add metadata to: %s" % path)
                 continue
