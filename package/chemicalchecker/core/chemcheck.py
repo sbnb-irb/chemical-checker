@@ -533,8 +533,7 @@ class ChemicalChecker():
         if version is not None:
             dst.create_dataset('version', data=[version])
 
-        # NS: Adding metadata so that they can be opened on local instances of
-        # the checker:
+        # adding metadata
         attributes = dict(dataset_code=signature.dataset,
                           cctype=signature.cctype, molset=signature.molset)
         if len(dst.attrs) != 3:
