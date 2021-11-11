@@ -442,6 +442,7 @@ class BaseSignature(object):
         from .sign1 import sign1
         from .sign2 import sign2
         from .sign3 import sign3
+        from .sign4 import sign4
         if sign_type not in ['sign%i' % i for i in range(5)]:
             raise ValueError('Wrong signature type: %s' % sign_type)
         folds = self.signature_path.split('/')
