@@ -2,8 +2,8 @@
 
 Fixed-length (e.g. 128-d) representation of the data, capturing and inferring
 the original (signature type 1) similarity of the data. Signatures type 3 are
-available for any molecule of interest and have a confidence/applicability
-measure assigned to them.
+available for all molecules of the ChemicalChecker univers (~1M molecules) and
+have a confidence/applicability measure assigned to them.
 """
 import os
 import h5py
