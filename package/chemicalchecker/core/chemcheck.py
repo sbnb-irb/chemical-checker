@@ -207,15 +207,21 @@ class ChemicalChecker():
                   'ERROR': ChemicalChecker.__log.error,
                   'CRITICAL': ChemicalChecker.__log.critical}
         logger = logging.getLogger(logger_name)
-        logger.handlers = []
-        logger.setLevel(levels[level])
         if level == 'DEBUG':
             ch = logging.StreamHandler()
             formatter = logging.Formatter(
                 '%(asctime)s %(name)-12s [%(levelname)-8s] %(message)s')
             ch.setFormatter(formatter)
+            logger.handlers = []
             logger.addHandler(ch)
-
+        else:
+            ch = logging.StreamHandler()
+            formatter = logging.Formatter(
+                '[%(levelname)-8s] %(message)s')
+            ch.setFormatter(formatter)
+            logger.handlers = []
+            logger.addHandler(ch)
+        logger.setLevel(levels[level])
         log_fn[level]("Logging level %s for logger '%s'." %
                       (level.upper(), logger_name))
 
