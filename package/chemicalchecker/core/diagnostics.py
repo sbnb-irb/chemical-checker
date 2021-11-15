@@ -328,30 +328,31 @@ print('JOB DONE')
                 (sign_args, sign_kwargs))
         # create script file
         script_lines = [
-        "import sys, os",
-        "import pickle",
-        "from chemicalchecker import ChemicalChecker",
-        "from chemicalchecker.core.diagnostics import Diagnosis",
-        "task_id = sys.argv[1]",
-        "filename = sys.argv[2]",
-        "inputs = pickle.load(open(filename, 'rb'))",
-        "sign_args = inputs[task_id][0][0]",
-        "sign_kwargs = inputs[task_id][0][1]",
-        "cc = ChemicalChecker('{cc_root}')",
-        "sign = cc.get_signature(*sign_args, **sign_kwargs)",
-        "cc_ref = ChemicalChecker('{cc_reference}')",
-        "diag = Diagnosis(sign, cc_ref)",
-        "fig = diag.canvas()",
-        "fig.savefig(os.path.join(sign.diags_path, diag.name + '.png'))",
-        "print('JOB DONE')"
+            "import sys, os",
+            "import pickle",
+            "from chemicalchecker import ChemicalChecker",
+            "from chemicalchecker.core.diagnostics import Diagnosis",
+            "task_id = sys.argv[1]",
+            "filename = sys.argv[2]",
+            "inputs = pickle.load(open(filename, 'rb'))",
+            "sign_args = inputs[task_id][0][0]",
+            "sign_kwargs = inputs[task_id][0][1]",
+            "cc = ChemicalChecker('{cc_root}')",
+            "sign = cc.get_signature(*sign_args, **sign_kwargs)",
+            "cc_ref = ChemicalChecker('{cc_reference}')",
+            "diag = Diagnosis(sign, cc_ref)",
+            "fig = diag.canvas()",
+            "fig.savefig(os.path.join(sign.diags_path, diag.name + '.png'))",
+            "print('JOB DONE')"
         ]
         replacements = {"cc_root"}
         if cc_reference == "":
             cc_reference = cc_root
         script_name = os.path.join(job_path, 'diagnostics_script.py')
         with open(script_name, 'w') as fh:
-            for line in script_lines: 
-                fh.write(line.format(cc_root=cc_root, cc_reference=cc_reference)  + '\n')
+            for line in script_lines:
+                fh.write(line.format(cc_root=cc_root,
+                                     cc_reference=cc_reference) + '\n')
         # HPC parameters
         params = {}
         params["num_jobs"] = len(dataset_codes)
@@ -1588,7 +1589,8 @@ print('JOB DONE')
         fig = self.plotter.canvas(size="medium", title=title)
         return fig
 
-    def canvas(self, size="medium", title=None, savefig=False):
+    def canvas(self, size="medium", title=None, savefig=False, dest_dir=None,
+               savefig_kwargs={'facecolor': 'white'}):
         self.__log.debug("Computing or retrieving data for canvas %s." % size)
         if size == "small":
             fig = self.canvas_small(title=title)
@@ -1599,8 +1601,11 @@ print('JOB DONE')
         else:
             return None
         if savefig:
-            fn = "_".join(
-                [self.sign.dataset, self.sign.cctype, self.name, size]) + '.png'
-            dest = os.path.join(self.path, fn)
-            self.__log.debug("Saving plot to: %s" % dest)
-            fig.savefig(dest)
+            fn = "_".join([self.sign.dataset, self.sign.cctype,
+                           self.name, size]) + '.png'
+            if dest_dir is None:
+                fn_dest = os.path.join(self.path, fn)
+            else:
+                fn_dest = os.path.join(dest_dir, fn)
+            self.__log.debug("Saving plot to: %s" % fn_dest)
+            fig.savefig(fn_dest, **savefig_kwargs)
