@@ -49,6 +49,7 @@ import shutil
 import itertools
 import numpy as np
 from glob import glob
+from pathlib import Path
 
 from .molkit import Mol
 from .data import DataFactory
@@ -471,6 +472,18 @@ class ChemicalChecker():
         for fn in h5files:
             res = filter_dataset(fn)
             if res:
+                h5tuples.append(res)
+            else:
+                # guess from filename
+                name = Path(fn).stem
+                cctype, dataset_code, molset = name.split('_')
+                res = []
+                res.append(molset.lower())
+                res.append(dataset_code[0])
+                res.append(dataset_code[:2])
+                res.append(dataset_code)
+                res.append(cctype.lower())
+                res.append(fn)
                 h5tuples.append(res)
 
         if len(h5tuples) == 0:
