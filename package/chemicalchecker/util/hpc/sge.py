@@ -174,7 +174,7 @@ fi
             jobParams.append("#$ -pe make " + str(cpu))
 
         jobParams.append("#$ -l mem_free=" + str(mem_need) +
-                         "G,h_vmem=" + str(memory + 0.2) + "G")
+                         "G,h_vmem=" + str(mem_need + 0.2) + "G")
 
         if maxtime is not None:
             jobParams.append(
