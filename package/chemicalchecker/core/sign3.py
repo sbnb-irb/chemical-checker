@@ -1720,11 +1720,11 @@ class sign3(BaseSignature, DataSignature):
         # check if molecules are missing from chemistry spaces, complete
         if complete_universe:
             if complete_universe == 'full':
-                calc_ds_idx = [0, 1, 2, 3, 4],
+                calc_ds_idx = [0, 1, 2, 3, 4]
                 calc_ds_names = ['A1.001', 'A2.001',
                                  'A3.001', 'A4.001', 'A5.001']
             if complete_universe == 'fast':
-                calc_ds_idx = [0, 2, 3, 4],
+                calc_ds_idx = [0, 2, 3, 4]
                 calc_ds_names = ['A1.001', 'A3.001', 'A4.001', 'A5.001']
             if complete_universe == 'custom':
             	calc_ds_idx = kwargs['calc_ds_idx']
