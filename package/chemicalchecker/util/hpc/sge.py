@@ -113,17 +113,24 @@ fi
         # get arguments or default values
         # ex: 1/10th of the size of the iterable to be processed
         num_jobs = int(kwargs.get("num_jobs", 1))
-        cpu = kwargs.get("cpu", 1)
         wait = kwargs.get("wait", True)
         self.jobdir = kwargs.get("jobdir", '')
         self.job_name = kwargs.get("job_name", 'hpc_cc_job')
         elements = kwargs.get("elements", [])
         compress_out = kwargs.get("compress", True)
         check_error = kwargs.get("check_error", True)
-        memory = kwargs.get("memory", 2)
         maxtime = kwargs.get("time", None)
         cpusafe = kwargs.get("cpusafe", True)
+        cpu = kwargs.get("cpu", 1)
+        # maximum memory before being killed is expressed per-core
+        # correspond to h_vmem
         membycore = int(kwargs.get("mem_by_core", 2))
+        # total memory that must be available when starting the job
+        # does not influence the job being killed or not
+        # correspond to mem_free
+        memory = kwargs.get("memory", membycore*cpu*0.8)
+        # when the job exceeds membycore*cpu il get killed, to start it
+        # we ask to have a node with at least 80% of the maximum we can reach
 
         submit_string = 'qsub -terse '
 
@@ -154,27 +161,14 @@ fi
             tmpname = command.replace("<TASK_ID>", "$SGE_TASK_ID")
             command = tmpname
 
-        mem_need = memory
-        if memory > membycore:
-            if cpu > 1:
-                newcpu = max(int(math.ceil(memory / membycore)), cpu)
-                memory = membycore
-            else:
-                newcpu = int(math.ceil(memory / membycore))
-                memory = membycore
-
-            if newcpu != cpu:
-                self.__log.warning(
-                    "The memory job requirements needs to "
-                    "change the number of cores needed by the job. "
-                    "(%d --> %d)" % (cpu, newcpu))
-                cpu = newcpu
-
         if cpu > 1:
             jobParams.append("#$ -pe make " + str(cpu))
 
-        jobParams.append("#$ -l mem_free=" + str(mem_need) +
-                         "G,h_vmem=" + str(memory + 0.2) + "G")
+        if memory:
+            jobParams.append("#$ -l mem_free=" + str(memory) +
+                             "G,h_vmem=" + str(membycore + 0.2) + "G")
+        else:
+            jobParams.append("#$ -l h_vmem=" + str(membycore) + "G")
 
         if maxtime is not None:
             jobParams.append(

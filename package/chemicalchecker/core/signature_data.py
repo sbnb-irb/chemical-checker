@@ -11,6 +11,7 @@ import h5py
 import numpy as np
 from bisect import bisect_left
 from scipy.spatial.distance import euclidean, cosine
+from scipy.spatial.distance import jaccard as tanimoto
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.decorator import cached_property
@@ -521,6 +522,7 @@ class DataSignature(object):
             bg_distances(dict): Dictionary with distances and Pvalues
         """
         # lazily read already computed distance
+        metric = metric.lower()
         if os.path.isfile(bg_file):
             self.__log.info("Reading bg_distances file for metric: " + metric)
             bg_distances = dict()
@@ -531,8 +533,12 @@ class DataSignature(object):
         # otherwise compute and save them
         self.__log.info("Background distances not available, computing them.")
         # set metric function
-        if metric not in ['cosine', 'euclidean']:
+        if metric not in ['cosine', 'euclidean', 'tanimoto', 'jaccard']:
             raise Exception("Specified metric %s not available." % metric)
+        # the 'tanimoto' distance is what is implemented in scipy as 'jaccard'
+        # but we prefere tanimoto as a name
+        if metric == 'jaccard':
+            metric = 'tanimoto'
         metric_fn = eval(metric)
         # sample distances
         if memory_safe:

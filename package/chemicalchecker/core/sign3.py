@@ -2,8 +2,8 @@
 
 Fixed-length (e.g. 128-d) representation of the data, capturing and inferring
 the original (signature type 1) similarity of the data. Signatures type 3 are
-available for any molecule of interest and have a confidence/applicability
-measure assigned to them.
+available for all molecules of the ChemicalChecker univers (~1M molecules) and
+have a confidence/applicability measure assigned to them.
 """
 import os
 import h5py
@@ -30,7 +30,6 @@ from .preprocess import Preprocess
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import NeighborTripletTraintest
 from chemicalchecker.util.splitter import Traintest
-from chemicalchecker.util.remove_near_duplicates import RNDuplicates
 from chemicalchecker.util.parser.converter import Converter
 
 
@@ -46,8 +45,6 @@ class sign3(BaseSignature, DataSignature):
             dataset(`Dataset`): `chemicalchecker.database.Dataset` object.
             params(): Parameters, expected keys are:
                 * 'sign2' for learning based on sign2
-                * 'sign0' for learning based on sign0 (Morgan Fingerprint)
-                * 'sign0_conf' for learning confidences based on MFP
                 * 'prior' for learning prior in predictions
         """
         # Calling init on the base class to trigger file existence checks
@@ -95,27 +92,6 @@ class sign3(BaseSignature, DataSignature):
         default_sign2.update(params.get('sign2', {}))
         self.params['sign2_lr'] = default_sign2.copy()
         self.params['sign2'] = default_sign2
-        # parameters to learn from sign0
-        default_sign0 = {
-            'epochs': 5,
-            'cpu': 8,
-            'learning_rate': 1e-3,
-            'layers': ['Dense', 'Dense', 'Dense', 'Dense'],
-            'layers_sizes': [1024, 512, 256, 128],
-            'activations': ['selu', 'selu', 'selu', 'tanh'],
-            'dropouts': [0.2, 0.2, 0.2, None],
-            'batch_size': 128,
-            'num_triplets': 100000,
-            'margin': 1.0,
-            'alpha': 0.5,
-        }
-        # default_sign0.update(params.get('sign0', {}))
-        self.params['sign0'] = default_sign0
-        # parameters to learn confidence from sign0
-        default_sign0_conf = {
-        }
-        default_sign0_conf.update(params.get('sign0_conf', {}))
-        self.params['sign0_conf'] = default_sign0_conf
 
     @staticmethod
     def save_sign2_universe(sign2_list, destination):
@@ -229,9 +205,11 @@ class sign3(BaseSignature, DataSignature):
         # which molecules in which space should be calculated?
         cov = DataSignature(sign2_coverage)
         inks, cov_ds = cov.get_vectors(sign2_self.keys, dataset_name='x_test')
+        sign3.__log.info('Coverage matrix shape: %s' % str(cov_ds.shape) )
         conv = Converter()
         # check coverage of calculated spaces
-        missing = np.sum(~cov_ds[:, calc_ds_idx].astype(bool), axis=0).ravel().tolist()
+        missing = np.sum(~cov_ds[:, calc_ds_idx].astype(bool), axis=0)
+        missing = missing.ravel().tolist()
         sign3.__log.info(
             "Completing universe for missing molecules: %s" %
             ', '.join(['%s: %s' % a for a in zip(calc_ds_names, missing)]))
@@ -448,8 +426,8 @@ class sign3(BaseSignature, DataSignature):
         except Exception as ex:
             self.__log.debug('Plot pproblem: %s' % str(ex))
         # when evaluating also save prior and confidence models
-        prior_model, prior_sign_model, confidence_model = self.train_confidence(
-            traintest_file, X, suffix, siamese)
+        conf_res = self.train_confidence(traintest_file, X, suffix, siamese)
+        prior_model, prior_sign_model, confidence_model = conf_res
         # update the parameters with the new nr_of epochs and lr
         self.params['sign2']['epochs'] = siamese.last_epoch
         return siamese, prior_model, prior_sign_model, confidence_model
@@ -657,12 +635,13 @@ class sign3(BaseSignature, DataSignature):
 
     def realistic_subsampling_fn(self):
         # realistic subsampling function
-        trim_mask, p_nr_unk, p_keep_unk, p_nr_kno, p_keep_kno = subsampling_probs(
-            self.sign2_coverage, self.dataset_idx)
+        res = subsampling_probs(self.sign2_coverage, self.dataset_idx)
+        trim_mask, p_nr_unk, p_keep_unk, p_nr_kno, p_keep_kno = res
         p_nr = (p_nr_unk, p_nr_kno)
         p_keep = (p_keep_unk, p_keep_kno)
         trim_dataset_idx = np.argwhere(
-            np.arange(len(trim_mask))[trim_mask] == self.dataset_idx).ravel()[0]
+            np.arange(len(trim_mask))[trim_mask] == self.dataset_idx)
+        trim_dataset_idx = trim_dataset_idx.ravel()[0]
         realistic_fn = partial(subsample, p_only_self=0.0, p_self=0.0,
                                dataset_idx=trim_dataset_idx,
                                p_nr=p_nr, p_keep=p_keep)
@@ -725,7 +704,7 @@ class sign3(BaseSignature, DataSignature):
         def importances(ax, mod, trim_mask):
             from chemicalchecker.util.plot import coord_color
             y = mod.feature_importances_
-            datasets = ["%s%s" % (x, y) for x in "ABCDE" for y in "12345"]
+            datasets = [s.dataset[:2] for s in self.sign2_list]
             if trim_mask is not None:
                 datasets = np.array(datasets)[trim_mask]
             else:
@@ -801,7 +780,7 @@ class sign3(BaseSignature, DataSignature):
                 Y = np.zeros((split_total_x, 1))
                 preds_onlyselfs = np.zeros((split_total_x, 128))
                 preds_noselfs = np.zeros((split_total_x, 128))
-                feats = np.zeros((split_total_x, 3200))
+                feats = np.zeros((split_total_x, 128*len(self.sign2_list)))
                 # prepare X and Y in chunks
                 chunk_size = max(10000, int(np.floor(available_x / 10)))
                 reached_max = False
@@ -991,7 +970,7 @@ class sign3(BaseSignature, DataSignature):
                 Y = np.zeros((split_total_x, 1))
                 preds_onlyselfs = np.zeros((split_total_x, 128))
                 preds_noselfs = np.zeros((split_total_x, 128))
-                feats = np.zeros((split_total_x, 3200))
+                feats = np.zeros((split_total_x, 128*len(self.sign2_list)))
                 # prepare X and Y in chunks
                 chunk_size = max(10000, int(np.floor(available_x / 10)))
                 reached_max = False
@@ -1488,11 +1467,12 @@ class sign3(BaseSignature, DataSignature):
         train_idxs = np.argwhere(np.isin(all_inchikeys, train_inks)).flatten()
         test_idxs = np.argwhere(np.isin(all_inchikeys, test_inks)).flatten()
         try:
+            all_idxs = set(np.arange(len(all_inchikeys)))
             unknown_idxs = np.array(
-                list(set(np.arange(len(all_inchikeys))) - (set(train_idxs) | set(test_idxs))))
+                list(all_idxs - (set(train_idxs) | set(test_idxs))))
             unknown_idxs = np.sort(np.random.choice(
                 unknown_idxs, 5000, replace=False))
-        except:
+        except Exception:
             unknown_idxs = np.array([])
 
         # predict
@@ -1644,341 +1624,6 @@ class sign3(BaseSignature, DataSignature):
         plot_subsample(self, plot_file, self.sign2_coverage, traintest_file,
                        ds=self.dataset, sign2_list=self.sign2_list)
 
-    def save_sign0_matrix(self, sign0, destination, include_confidence=True,
-                          chunk_size=1000):
-        """Save matrix of signature 0 and confidence values.
-
-        Args:
-            sign0(list): Signature 0 to learn from.
-            destination(str): Path where to save the matrix (HDF5 file).
-            include_confidence(bool): whether to include confidences.
-        """
-        self.__log.debug('Saving sign0 traintest to: %s' % destination)
-        mask = np.isin(list(self.keys), sign0.keys, assume_unique=True)
-        # the following work only if sign0 keys is a subset (or ==) of sign3
-        assert(np.all(np.isin(list(sign0.keys), self.keys, assume_unique=True)))
-        # shapes?
-        common_keys = np.count_nonzero(mask)
-        x_shape = (common_keys, sign0.shape[1])
-        y_shape = (common_keys, self.shape[1])
-        if include_confidence:
-            y_shape = (common_keys, self.shape[1] + 5)
-        with h5py.File(destination, 'w') as hf_out:
-            hf_out.create_dataset('x', x_shape, dtype=np.float32)
-            hf_out.create_dataset('y', y_shape, dtype=np.float32)
-            with h5py.File(self.data_path, 'r') as hf_in:
-                out_start = 0
-                for i in tqdm(range(0, self.shape[0], chunk_size)):
-                    chunk = slice(i, i + chunk_size)
-                    labels = hf_in['V'][chunk][mask[chunk]]
-                    if include_confidence:
-                        stddev = hf_in['stddev_norm'][chunk][mask[chunk]]
-                        stddev = np.expand_dims(stddev, 1)
-                        intensity = hf_in['intensity_norm'][chunk][mask[chunk]]
-                        intensity = np.expand_dims(intensity, 1)
-                        prior = hf_in['prior_norm'][chunk][mask[chunk]]
-                        prior = np.expand_dims(prior, 1)
-                        novelty = hf_in['novelty_norm'][chunk][mask[chunk]]
-                        novelty = np.expand_dims(novelty, 1)
-                        confidence = hf_in['confidence'][chunk][mask[chunk]]
-                        confidence = np.expand_dims(confidence, 1)
-                        labels = np.hstack((labels, stddev, intensity,
-                                            prior, novelty, confidence))
-                    out_size = labels.shape[0]
-                    out_chunk = slice(out_start, out_start + out_size)
-                    hf_out['y'][out_chunk] = labels
-                    del labels
-                    hf_out['x'][out_chunk] = sign0[out_chunk]
-                    out_start += out_size
-
-    def learn_sign0(self, sign0, suffix=None, evaluate=True):
-        """Learn the signature 3 from sign0.
-
-        This method is used twice. First to evaluate the performances of the
-        model. Second to train the final model on the full set of data.
-
-        Args:
-            sign0(list): Signature 0 object to learn from.
-            params(dict): Dictionary with algorithm parameters.
-            reuse(bool): Whether to reuse intermediate files (e.g. the
-                aggregated signature 3 matrix).
-            suffix(str): A suffix for the siamese model path (e.g.
-                'sign3/models/smiles_<suffix>').
-            evaluate(bool): Whether we are performing a train-test split and
-                evaluating the performances (N.B. this is required for complete
-                confidence scores)
-            include_confidence(bool): whether to include confidences.
-        """
-        try:
-            from chemicalchecker.tool.smilespred import Smilespred
-        except ImportError:
-            raise ImportError("requires tensorflow https://tensorflow.org")
-        # get params and set folder
-        model_path = os.path.join(self.model_path, 'smiles_%s' % suffix)
-        if not os.path.isdir(model_path):
-            os.makedirs(model_path)
-        # initialize model and start learning
-        shared_keys = sorted(list(sign0.unique_keys & self.unique_keys))
-        _, sign0_V = sign0.get_vectors(shared_keys)
-        _, sign3_V = self.get_vectors(shared_keys)
-        # sign0 A1 is not exactly like MFP! we need to reorder features as MFP
-        order = np.argsort(sign0.get_h5_dataset('features').astype(int))
-        sign0_V = sign0_V[:, order]
-        smpred = Smilespred(
-            model_dir=model_path, sign0=sign0_V, sign3=sign3_V,
-            evaluate=evaluate)
-        self.__log.debug('Smiles pred training on %s' % model_path)
-        smpred.fit()
-        self.smiles_predictor = smpred
-        self.__log.debug('model saved to %s' % model_path)
-        if evaluate:
-            smpred.evaluate()
-
-    def learn_sign0_conf(self, sign0, reuse=True, suffix=None, evaluate=True):
-        """Learn the signature 3 applicability from sign0.
-
-        This method is used twice. First to evaluate the performances of the
-        model. Second to train the final model on the full set of data.
-
-        Args:
-            sign0(list): Signature 0 object to learn from.
-            reuse(bool): Whether to reuse intermediate files (e.g. the
-                aggregated signature 3 matrix).
-            suffix(str): A suffix for the siamese model path (e.g.
-                'sign3/models/smiles_<suffix>').
-            evaluate(bool): Whether we are performing a train-test split and
-                evaluating the performances (N.B. this is required for complete
-                confidence scores)
-            include_confidence(bool): whether to include confidences.
-        """
-        try:
-            from chemicalchecker.tool.smilespred import ApplicabilityPredictor
-        except ImportError:
-            raise ImportError("requires tensorflow https://tensorflow.org")
-        # get params and set folder
-        model_path = os.path.join(self.model_path,
-                                  'smiles_applicability_%s' % suffix)
-        if not os.path.isdir(model_path):
-            reuse = False
-            os.makedirs(model_path)
-        shared_keys = sorted(list(sign0.unique_keys & self.unique_keys))
-        _, sign0_V = sign0.get_vectors(shared_keys)
-        _, sign3_app_V = self.get_vectors(shared_keys,
-                                          dataset_name='confidence')
-        sign3_app_V = sign3_app_V.ravel()
-        # sign0 A1 is not exactly like MFP! we need to reorder features as MFP
-        order = np.argsort(sign0.get_h5_dataset('features').astype(int))
-        sign0_V = sign0_V[:, order]
-        # initialize model and start learning
-        apppred = ApplicabilityPredictor(
-            model_dir=model_path, sign0=sign0_V,
-            applicability=sign3_app_V, evaluate=evaluate)
-        self.__log.debug('Applicability pred training on %s' % model_path)
-        if not reuse:
-            apppred.fit()
-        self.smiles_predictor = apppred
-        self.__log.debug('model saved to %s' % model_path)
-        if evaluate:
-            apppred.evaluate()
-
-    def fit_sign0(self, sign0, suffix=None, include_confidence=True,
-                  only_confidence=False):
-        """Fit signature 3 from Morgan Fingerprint.
-
-        This method is fitting a model that uses Morgan fingerprint as features
-        to predict signature 3. In future other featurization approaches can be
-        tested.
-
-        Args:
-            sign0(str): Path to the MF file.
-            include_confidence(bool): Whether to include confidence score in
-                regression problem.
-            only_confidence(bool): Whether to only train an additional
-                regressor exclusively devoted to confidence.
-        """
-
-        # check if performance evaluations need to be done
-        # Open sign0:
-        sign0 = DataSignature(sign0)
-        if not only_confidence:
-            if suffix is not None:
-                self.learn_sign0(sign0,
-                                 suffix=suffix,
-                                 evaluate=True)
-                return False
-            else:
-                self.learn_sign0(sign0,
-                                 suffix='eval',
-                                 evaluate=True)
-
-            # check if we have the final trained model
-            self.learn_sign0(sign0,
-                             suffix='final',
-                             evaluate=False)
-        if include_confidence:
-            if suffix is not None:
-                self.learn_sign0_conf(sign0,
-                                      suffix=suffix,
-                                      evaluate=True)
-                return False
-            else:
-
-                dest_file = os.path.join(self.model_path,
-                                         'smiles_applicability_eval',
-                                         'applicabilitypredictor.h5')
-                if not os.path.isfile(dest_file):
-                    self.learn_sign0_conf(sign0,
-                                          suffix='eval',
-                                          evaluate=True)
-
-            # check if we have the final trained model
-            dest_file = os.path.join(self.model_path,
-                                     'smiles_applicability_final',
-                                     'applicabilitypredictor.h5')
-            if not os.path.isfile(dest_file):
-                self.learn_sign0_conf(sign0,
-                                      suffix='final',
-                                      evaluate=False)
-
-    def get_predict_fn(self, smiles=True, model='smiles_final'):
-        try:
-            from chemicalchecker.tool.smilespred import Smilespred
-            from chemicalchecker.tool.siamese import SiameseTriplets
-        except ImportError as err:
-            raise err
-        model_path = os.path.join(self.model_path, model)
-        if smiles:
-            model = Smilespred(model_path)
-        else:
-            model = SiameseTriplets(model_path, predict_only=True)
-        return model.predict
-
-    def get_applicability_predict_fn(self, model='smiles_applicability_final'):
-        try:
-            from chemicalchecker.tool.smilespred import ApplicabilityPredictor
-        except ImportError as err:
-            raise err
-        model_path = os.path.join(self.model_path, model)
-        model = ApplicabilityPredictor(model_path)
-        return model.predict
-
-    def predict_from_smiles(self, smiles, dest_file, **kwargs):
-        return self.predict_from_string(smiles, dest_file, keytype='SMILES',
-                                        **kwargs)
-
-    def predict_from_string(self, molecules, dest_file, keytype='SMILES',
-                            chunk_size=1000, predict_fn=None,
-                            keys=None, components=128, applicability=True,
-                            y_order=None):
-        """Given molecuel string, generate MFP and predict sign3.
-
-        Args:
-            molecules(list): A list of molecules strings.
-            dest_file(str): File where to save the predictions.
-            keytype(str): Wether to interpret molecules as InChI or SMILES.
-        Returns:
-            pred_s3(DataSignature): The predicted signatures as DataSignature
-                object.
-        """
-        try:
-            from rdkit import Chem
-            from rdkit.Chem import AllChem
-        except ImportError as err:
-            raise err
-        # input must be a list, otherwise we make it so
-        if isinstance(molecules, str):
-            molecules = [molecules]
-        # reorder as sign0 A1 or leave it as is
-        if y_order is None:
-            y_order = np.arange(2048)
-        # convert input molecules to InChI
-        inchies = list()
-        if keytype.upper() == 'SMILES':
-            for smi in molecules:
-                if smi == '':
-                    smi = 'INVALID SMILES'
-                mol = Chem.MolFromSmiles(smi)
-                if mol is None:
-                    self.__log.warning(
-                        "Cannot get molecule from SMILES: %s." % smi)
-                    inchies.append('INVALID SMILES')
-                    continue
-                inchi = Chem.rdinchi.MolToInchi(mol)[0]
-                self.__log.debug('CONVERTED: %s %s', smi, inchi)
-                inchies.append(inchi)
-        elif keytype.upper() == 'INCHI':
-            inchies = molecules
-        else:
-            raise Exception('Keytype not recognized')
-        # load NN
-        if predict_fn is None:
-            predict_fn = self.get_predict_fn()
-        if applicability:
-            appl_fn = self.get_applicability_predict_fn()
-        # we return a simple DataSignature object (basic HDF5 access)
-        pred_s3 = DataSignature(dest_file)
-        # load novelty model for more accurate novelty scores (slower)
-        with h5py.File(dest_file, "w") as results:
-            # initialize V (with NaN in case of failing rdkit) and smiles keys
-            results.create_dataset('molecules', data=np.array(
-                molecules, DataSignature.string_dtype()))
-            if keys is not None:
-                results.create_dataset('keys', data=np.array(
-                    keys, DataSignature.string_dtype()))
-            else:
-                results.create_dataset('keys', data=np.array(
-                    molecules, DataSignature.string_dtype()))
-            if applicability:
-                results.create_dataset(
-                    'applicability', (len(molecules), 1), dtype=np.float32)
-            results.create_dataset(
-                'V', (len(molecules), components), dtype=np.float32)
-            results.create_dataset("shape", data=(len(molecules), components))
-            # compute sign0 (i.e. Morgan fingerprint)
-            nBits = 2048
-            radius = 2
-            # predict by chunk
-            for i in tqdm(range(0, len(molecules), chunk_size)):
-                chunk = slice(i, i + chunk_size)
-                sign0s = list()
-                failed = list()
-                for idx, inchi in enumerate(inchies[chunk]):
-                    try:
-                        # read molecules
-                        inchi = inchi.encode('ascii', 'ignore')
-                        mol = Chem.inchi.MolFromInchi(inchi)
-                        if mol is None:
-                            raise Exception("Cannot get molecule from string.")
-                        info = {}
-                        fp = AllChem.GetMorganFingerprintAsBitVect(
-                            mol, radius, nBits=nBits, bitInfo=info)
-                        bin_s0 = [fp.GetBit(i) for i in range(fp.GetNumBits())]
-                        calc_s0 = np.array(bin_s0).astype(np.float32)
-                    except Exception as err:
-                        # in case of failure append a NaN vector
-                        self.__log.warn("%s: %s", inchi, str(err))
-                        failed.append(idx)
-                        calc_s0 = np.full((nBits, ),  np.nan)
-                    finally:
-                        sign0s.append(calc_s0)
-                # stack input signatures and generate predictions
-                sign0s = np.vstack(sign0s)[:, y_order]
-                preds = predict_fn(sign0s)
-                # add NaN when SMILES conversion failed
-                if failed:
-                    preds[np.array(failed)] = np.full(
-                        (components, ),  np.nan)
-                # save chunk to H5
-                results['V'][chunk] = preds[:, :components]
-                # also run applicability prediction
-                if applicability:
-                    apreds = appl_fn(sign0s)
-                    if failed:
-                        apreds[np.array(failed)] = np.full(
-                            (1, ),  np.nan)
-                    results['applicability'][chunk] = apreds[:]
-        return pred_s3
-
     def get_universe_inchikeys(self):
         # get sorted universe inchikeys
         if hasattr(self, 'universe_inchikeys'):
@@ -1991,10 +1636,10 @@ class sign3(BaseSignature, DataSignature):
 
     def fit(self, sign2_list=None, sign2_self=None, sign1_self=None,
             sign2_universe=None, complete_universe='full',
-            sign2_coverage=None, sign0=None,
+            sign2_coverage=None,
             model_confidence=True, save_correlations=False,
             predict_novelty=False, update_preds=True,
-            chunk_size=1000, suffix=None, **params):
+            chunk_size=1000, suffix=None, **kwargs):
         """Fit signature 3 given a list of signature 2.
 
         Args:
@@ -2009,9 +1654,6 @@ class sign3(BaseSignature, DataSignature):
                 adding any signature to the universe.
             sign2_coverage(str): Path to the coverage of all signatures 2 for
                 all molecules in the CC universe. (~1M x 25)
-            sign0(sign): The signature 0 or any direct vector representation
-                of the molecule used to train a sign2 independendent sign3
-                predictor (aka Signaturizer).
             model_confidence(bool): Whether to model confidence. That is based
                 on standard deviation of prediction with dropout.
             save_correlations(bool) Whether to save the correlation (average,
@@ -2031,7 +1673,7 @@ class sign3(BaseSignature, DataSignature):
             import faiss
         except ImportError as err:
             raise err
-        BaseSignature.fit(self, **params)
+        BaseSignature.fit(self, **kwargs)
 
         # signature specific checks
         if self.molset != "full":
@@ -2078,12 +1720,15 @@ class sign3(BaseSignature, DataSignature):
         # check if molecules are missing from chemistry spaces, complete
         if complete_universe:
             if complete_universe == 'full':
-                calc_ds_idx = [0, 1, 2, 3, 4],
+                calc_ds_idx = [0, 1, 2, 3, 4]
                 calc_ds_names = ['A1.001', 'A2.001',
                                  'A3.001', 'A4.001', 'A5.001']
             if complete_universe == 'fast':
-                calc_ds_idx = [0, 2, 3, 4],
+                calc_ds_idx = [0, 2, 3, 4]
                 calc_ds_names = ['A1.001', 'A3.001', 'A4.001', 'A5.001']
+            if complete_universe == 'custom':
+            	calc_ds_idx = kwargs['calc_ds_idx']
+            	calc_ds_names = kwargs['calc_ds_names']
             res = sign3.complete_sign2_universe(
                 sign2_self, self.sign2_universe, self.sign2_coverage,
                 tmp_path=self.model_path, calc_ds_idx=calc_ds_idx,
@@ -2100,15 +1745,17 @@ class sign3(BaseSignature, DataSignature):
             eval_model_path = os.path.join(self.model_path, 'siamese_eval')
             eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
             if not os.path.isfile(eval_file):
-                siamese, prior_mdl, prior_sign_mdl, conf_mdl = self.learn_sign2(
+                res = self.learn_sign2(
                     self.params['sign2'].copy(), suffix='eval', evaluate=True)
+                siamese, prior_mdl, prior_sign_mdl, conf_mdl = res
         else:
             eval_model_path = os.path.join(self.model_path,
                                            'siamese_%s' % suffix)
             eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
             if not os.path.isfile(eval_file):
-                siamese, prior_mdl, prior_sign_mdl, conf_mdl = self.learn_sign2(
+                res = self.learn_sign2(
                     self.params['sign2'].copy(), suffix=suffix, evaluate=True)
+                siamese, prior_mdl, prior_sign_mdl, conf_mdl = res
             return False
 
         # check if we have the final trained model
@@ -2280,16 +1927,10 @@ class sign3(BaseSignature, DataSignature):
             self.update_status("Predicting novelty")
             self.predict_novelty()
 
-        # last step: learn how to get from A1 sign0 to sign3 directly
-        # in order to enable SMILES to sign3 predictions
-        if sign0 is not None:
-            self.update_status("Training SMILES predictor")
-            self.fit_sign0(sign0)
-
         # save reference
         self.save_reference()
         # finalize signature
-        BaseSignature.fit_end(self, **params)
+        BaseSignature.fit_end(self, **kwargs)
 
     def predict_novelty(self, retrain=False, update_sign3=True, cpu=4):
         """Model novelty score via LocalOutlierFactor (semi-supervised).
@@ -2339,8 +1980,8 @@ class sign3(BaseSignature, DataSignature):
             s3_outlier = model.predict(s3_pred_sign)
             assert(len(s3_inks) == s3_novelty.shape[0])
             ordered_scores = np.array(sorted(
-                list(zip(s2_idxs.flatten(), s2_novelty, s2_outlier)) +
-                list(zip(s3_idxs.flatten(), s3_novelty, s3_outlier))))
+                list(zip(s2_idxs.flatten(), s2_novelty, s2_outlier))
+                + list(zip(s3_idxs.flatten(), s3_novelty, s3_outlier))))
             ordered_novelty = ordered_scores[:, 1]
             ordered_outlier = ordered_scores[:, 2]
             with h5py.File(self.data_path, "r+") as results:
@@ -2562,14 +2203,16 @@ def plot_subsample(sign, plot_file, sign2_coverage, traintest_file,
     cc = ChemicalChecker()
 
     # NICO sign2_list
-    sign2_ds_list = [s.dataset for s in sign2_list] if sign2_list is not None else list(
-        cc.datasets_exemplary())
+    if sign2_list is not None:
+        sign2_ds_list = [s.dataset for s in sign2_list]
+    else:
+        sign2_ds_list = list(cc.datasets_exemplary())
 
     # get triplet generator
     dataset_idx = np.argwhere(
         np.isin(sign2_ds_list, ds)).flatten()
-    trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = subsampling_probs(
-        sign2_coverage, dataset_idx)
+    res = subsampling_probs(sign2_coverage, dataset_idx)
+    trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known = res
     trim_dataset_idx = np.argwhere(np.arange(len(trim_mask))[
         trim_mask] == dataset_idx).ravel()[0]
     augment_kwargs = {
@@ -2584,7 +2227,7 @@ def plot_subsample(sign, plot_file, sign2_coverage, traintest_file,
         batch_size=10,
         replace_nan=np.nan,
         augment_fn=realistic_fn,
-        augment_kwargs={'dataset_idx': [trim_dataset_idx]},
+        augment_kwargs=augment_kwargs,
         trim_mask=trim_mask,
         train=True,
         standard=False)
