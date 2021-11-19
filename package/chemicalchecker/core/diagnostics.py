@@ -360,7 +360,7 @@ print('JOB DONE')
         params["elements"] = dataset_params
         params["wait"] = False
         params["check_error"] = False
-        # params["memory"] = 2  # trial and error
+        params["memory"] = 5  # trial and error
         # job command
         singularity_image = cfg.PATH.SINGULARITY_IMAGE
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" \
