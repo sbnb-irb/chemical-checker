@@ -2227,7 +2227,7 @@ def plot_subsample(sign, plot_file, sign2_coverage, traintest_file,
         batch_size=10,
         replace_nan=np.nan,
         augment_fn=realistic_fn,
-        augment_kwargs={augment_kwargs['dataset_idx']},
+        augment_kwargs=augment_kwargs,
         trim_mask=trim_mask,
         train=True,
         standard=False)
