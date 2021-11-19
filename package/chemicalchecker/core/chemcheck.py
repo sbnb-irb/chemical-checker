@@ -44,7 +44,9 @@ Main goals of this class are:
 """
 import re
 import os
+import gzip
 import h5py
+import json
 import shutil
 import itertools
 import numpy as np
@@ -88,7 +90,8 @@ class ChemicalChecker():
         self._basic_molsets = ['reference', 'full']
         self._datasets = set()
         self._molsets = set(self._basic_molsets)
-        self.reference_code = "001"
+        self._exemplary_id = "001"
+        self._metadata = None
         self.__log.debug("ChemicalChecker with root: %s", self.cc_root)
 
         # If non-existing CC_root
@@ -153,6 +156,52 @@ class ChemicalChecker():
     def name(self):
         """Return the name of the Chemical Checker."""
         return os.path.basename(os.path.normpath(self.cc_root))
+
+    @property
+    def metadata(self):
+        """Return the metadata of the Chemical Checker."""
+        if self._metadata is None:
+            self._metadata = self._get_metadata()
+        return self._metadata
+
+    def sign_metadata(self, key, molset, dataset, cctype):
+        """Return the metadata of the Chemical Checker."""
+        if self._metadata is None:
+            self._metadata = self._get_metadata()
+        if key not in self._metadata:
+            raise Exception("Key `%s` not found in metadata" % key)
+        if molset in self._metadata[key]:
+            if dataset in self._metadata[key][molset]:
+                if cctype in self._metadata[key][molset][dataset]:
+                    return self._metadata[key][molset][dataset][cctype]
+        try:
+            sign = self.get_signature(cctype, molset, dataset)
+        except Exception:
+            self.__log.debug(
+                "Signature not found, skipping: %s %s %s %s" %
+                (self.name, *cctype, molset, dataset))
+            return None
+        if key == 'dimensions':
+            return sign.shape
+        if key == 'keys':
+            return sign.keys
+
+    def _get_metadata(self, overwrite=False):
+        fn = os.path.join(self.cc_root, "metadata.json.zip")
+        metadata = dict()
+        if not os.path.exists(fn) or overwrite:
+            metadata['dimensions'] = self.report_dimensions()
+            metadata['keys'] = self.report_keys()
+            json_str = json.dumps(metadata) + "\n"
+            json_bytes = json_str.encode('utf-8')
+            with gzip.open(fn, "w") as fh:
+                fh.write(json_bytes)
+            return metadata
+        with gzip.open(fn, "r") as fh:
+            json_bytes = fh.read()
+        json_str = json_bytes.decode('utf-8')
+        metadata = json.loads(json_str)
+        return metadata
 
     def datasets_exemplary(self):
         """Iterator on Chemical Checker exemplary datasets."""
@@ -261,12 +310,46 @@ class ChemicalChecker():
             molset_dataset_sign[molset][dataset].sort()
         return molset_dataset_sign
 
-    def report_sizes(self, molset='*', dataset='*', signature='*', matrix='V'):
-        """Report sizes of available signatures in the CC.
+    def report_keys(self, molset='full', dataset='*', signature='sign1'):
+        """Report keys of all available signatures in the CC.
 
         Get the moleculeset/dataset combination where signatures are available.
-        Report the size of the 'V' matrix.
-        Use arguments to apply filters.
+        Report the list of keys. Use arguments to apply filters.
+        Args:
+            molset(str): Filter for the moleculeset e.g. 'full' or 'reference'
+            dataset(str) Filter for the dataset e.g. A1.001
+            signature(str): Filter for signature type e.g. 'sign1'
+        Returns:
+            Nested dictionary with molset, dataset and list of signatures
+        """
+        paths = self._available_sign_paths(molset, dataset, signature)
+        molset_dataset_sign = dict()
+        for path in paths:
+            molset = path.split('/')[-6]
+            dataset = path.split('/')[-3]
+            sign = path.split('/')[-2]
+            if molset not in molset_dataset_sign:
+                molset_dataset_sign[molset] = dict()
+            if dataset not in molset_dataset_sign[molset]:
+                molset_dataset_sign[molset][dataset] = dict()
+            try:
+                with h5py.File(path, 'r') as fh:
+                    if 'keys' not in fh.keys():
+                        continue
+                    decoder = np.vectorize(lambda x: x.decode())
+                    molset_dataset_sign[molset][
+                        dataset][sign] = decoder(fh['keys'][:]).tolist()
+            except Exception as ex:
+                self.__log.warning(
+                    'problem reading file %s: %s' % (path, str(ex)))
+        return molset_dataset_sign
+
+    def report_dimensions(self, molset='*', dataset='*', signature='*',
+                          matrix='V'):
+        """Report dimensions of all available signatures in the CC.
+
+        Get the moleculeset/dataset combination where signatures are available.
+        Report the size of the 'V' matrix. Use arguments to apply filters.
         Args:
             molset(str): Filter for the moleculeset e.g. 'full' or 'reference'
             dataset(str) Filter for the dataset e.g. A1.001
@@ -384,7 +467,7 @@ class ChemicalChecker():
         kwargs = {}
         molset = "full"
         if len(dataset_code) == 2:
-            dataset_code = dataset_code + "." + self.reference_code
+            dataset_code = dataset_code + "." + self._exemplary_id
         signature_path = self.get_signature_path(cctype, molset, dataset_code)
         # the factory will return the signature with the right class
         data = DataFactory.make_data(
