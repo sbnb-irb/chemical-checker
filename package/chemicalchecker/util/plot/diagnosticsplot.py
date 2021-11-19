@@ -105,12 +105,12 @@ class DiagnosisPlot(object):
         return df
 
     # @safe_return(None)
-    def cross_coverage(self, results=None, sign=None, ax=None, title=None,
-                       color=None):
+    def cross_coverage(self, results=None, sign_qualified_name=None, ax=None,
+                       title=None, color=None):
         ax = self._get_ax(ax)
         color = self._get_color(color)
         fn = os.path.join(self.diag.path,
-                          "cross_coverage_%s.pkl" % sign.qualified_name)
+                          "cross_coverage_%s.pkl" % sign_qualified_name)
         if results is None:
             results = self.load_diagnosis_pickle(fn)
         ax.bar([0, 1], [results["my_overlap"], results["vs_overlap"]],
@@ -121,7 +121,7 @@ class DiagnosisPlot(object):
         ax.set_xticklabels(["T / R", "R / T"])
         if title is None:
             title = "T = %s | R = %s" % (self.diag.sign.qualified_name,
-                                         sign.qualified_name)
+                                         sign_qualified_name)
         ax.set_title(title)
 
     def _roc(self, ax, results, color, dataset_code=None, alpha=0.25,
