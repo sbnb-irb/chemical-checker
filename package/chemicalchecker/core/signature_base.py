@@ -42,8 +42,8 @@ class BaseSignature(object):
                  **params):
         """Initialize a BaseSignature instance."""
         self.dataset = dataset
-        self.cctype = signature_path.split("/")[-1]
-        self.molset = signature_path.split("/")[-5]
+        self.cctype = params.get('cctype', signature_path.split("/")[-1])
+        self.molset = params.get('molset', signature_path.split("/")[-5])
         self.signature_path = os.path.abspath(signature_path)
         self.readyfile = readyfile
 
@@ -93,6 +93,16 @@ class BaseSignature(object):
                             "passing overwrite=True")
         return True
 
+    def _add_metadata(self, metadata=None):
+        if metadata is None:
+            metadata = dict(cctype=self.cctype, dataset_code=self.dataset,
+                            molset=self.molset)
+        with h5py.File(self.data_path, 'a') as fh:
+            for k, v in metadata.items():
+                if k in fh.attrs:
+                    del fh.attrs[k]
+                fh.attrs.create(name=k, data=v)
+
     def fit_end(self, **kwargs):
         """Conclude fit method.
 
@@ -100,12 +110,7 @@ class BaseSignature(object):
         and finally marking the signature as ready.
         """
         # add metadata
-        metadata = dict(
-            cctype=self.cctype, dataset_code=self.dataset, molset=self.molset)
-        with h5py.File(self.data_path, 'r+') as fh:
-            for k, v in metadata.items():
-                if k not in fh.attrs:
-                    fh.attrs.create(name=k, data=v)
+        self._add_metadata()
         # save background distances
         self.update_status("Background distances")
         self.background_distances("cosine")
@@ -437,6 +442,7 @@ class BaseSignature(object):
         from .sign1 import sign1
         from .sign2 import sign2
         from .sign3 import sign3
+        from .sign4 import sign4
         if sign_type not in ['sign%i' % i for i in range(5)]:
             raise ValueError('Wrong signature type: %s' % sign_type)
         folds = self.signature_path.split('/')
