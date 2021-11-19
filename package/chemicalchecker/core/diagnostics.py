@@ -328,30 +328,31 @@ print('JOB DONE')
                 (sign_args, sign_kwargs))
         # create script file
         script_lines = [
-        "import sys, os",
-        "import pickle",
-        "from chemicalchecker import ChemicalChecker",
-        "from chemicalchecker.core.diagnostics import Diagnosis",
-        "task_id = sys.argv[1]",
-        "filename = sys.argv[2]",
-        "inputs = pickle.load(open(filename, 'rb'))",
-        "sign_args = inputs[task_id][0][0]",
-        "sign_kwargs = inputs[task_id][0][1]",
-        "cc = ChemicalChecker('{cc_root}')",
-        "sign = cc.get_signature(*sign_args, **sign_kwargs)",
-        "cc_ref = ChemicalChecker('{cc_reference}')",
-        "diag = Diagnosis(sign, cc_ref)",
-        "fig = diag.canvas()",
-        "fig.savefig(os.path.join(sign.diags_path, diag.name + '.png'))",
-        "print('JOB DONE')"
+            "import sys, os",
+            "import pickle",
+            "from chemicalchecker import ChemicalChecker",
+            "from chemicalchecker.core.diagnostics import Diagnosis",
+            "task_id = sys.argv[1]",
+            "filename = sys.argv[2]",
+            "inputs = pickle.load(open(filename, 'rb'))",
+            "sign_args = inputs[task_id][0][0]",
+            "sign_kwargs = inputs[task_id][0][1]",
+            "cc = ChemicalChecker('{cc_root}')",
+            "sign = cc.get_signature(*sign_args, **sign_kwargs)",
+            "cc_ref = ChemicalChecker('{cc_reference}')",
+            "diag = Diagnosis(sign, cc_ref)",
+            "fig = diag.canvas()",
+            "fig.savefig(os.path.join(sign.diags_path, diag.name + '.png'))",
+            "print('JOB DONE')"
         ]
         replacements = {"cc_root"}
         if cc_reference == "":
             cc_reference = cc_root
         script_name = os.path.join(job_path, 'diagnostics_script.py')
         with open(script_name, 'w') as fh:
-            for line in script_lines: 
-                fh.write(line.format(cc_root=cc_root, cc_reference=cc_reference)  + '\n')
+            for line in script_lines:
+                fh.write(line.format(cc_root=cc_root,
+                                     cc_reference=cc_reference) + '\n')
         # HPC parameters
         params = {}
         params["num_jobs"] = len(dataset_codes)
@@ -412,18 +413,23 @@ print('JOB DONE')
             **kwargs)
 
     # @safe_return(None)
-    def cross_coverage(self, sign, *args, try_conn_layer=False, redo=False,
-                       **kwargs):
+    def cross_coverage(self, dataset, *args, ref_cctype='sign1', molset="full",
+                       try_conn_layer=False, redo=False, **kwargs):
         """Intersection of coverages.
 
         Args:
             sign (signature): A CC signature object to check against.
         """
-        fn = os.path.join(self.path,
-                          "cross_coverage_%s" % sign.qualified_name)
+        if ref_cctype is None:
+            ref_cctype = self.ref_cctype
+        qualified_name = '_'.join([dataset, ref_cctype, molset])
+        fn = os.path.join(self.path, "cross_coverage_%s" % qualified_name)
         if self._todo(fn) or redo:
+            metadata = self.ref_cc.sign_metadata(
+                'keys', molset, dataset, ref_cctype)
+            if metadata is not None:
+                vs_keys = metadata
             my_keys = self.sign.keys
-            vs_keys = sign.keys
             # apply inchikey connectivity layer if possible
             if try_conn_layer:
                 keys1, keys2 = self._paired_conn_layers(my_keys, vs_keys)
@@ -440,7 +446,7 @@ print('JOB DONE')
             results=results,
             fn=fn,
             plotter_function=self.plotter.cross_coverage,
-            kw_plotter={"sign": sign},
+            kw_plotter={"sign_qualified_name": qualified_name},
             **kwargs)
 
     # @safe_return(None)
@@ -466,7 +472,9 @@ print('JOB DONE')
         fn = os.path.join(self.path, "cross_roc_%s" %
                           sign.qualified_name)
         if self._todo(fn) or redo:
-            r = self.cross_coverage(sign, apply_mappings=apply_mappings,
+            r = self.cross_coverage(sign.dataset, ref_cctype=sign.cctype,
+                                    molset=sign.molset,
+                                    apply_mappings=apply_mappings,
                                     try_conn_layer=try_conn_layer, save=False,
                                     redo=redo, plot=False)
             if r["inter"] < n_neighbors:
@@ -885,11 +893,10 @@ print('JOB DONE')
         return results
 
     # @safe_return(None)
-    def dimensions(self, *args, datasets=None, exemplary=True, ref_cctype=None,
-                   molset="full", **kwargs):
+    def dimensions(self, *args, datasets=None, exemplary=True,
+                   ref_cctype='sign1', molset="full", **kwargs):
         """Get dimensions of the signature and compare to other signatures."""
         self.__log.debug("Dimensions")
-
         fn = "dimensions"
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
@@ -897,12 +904,14 @@ print('JOB DONE')
             datasets = self._select_datasets(datasets, exemplary)
             results = {}
             for ds in datasets:
-                self.__log.debug("Dimensions for dataset %s" % ds)
-                sign = self.ref_cc.get_signature(ref_cctype, molset, ds)
-                results[ds] = {
-                    "keys": sign.shape[0],
-                    "features": sign.shape[1]
-                }
+                metadata = self.ref_cc.sign_metadata(
+                    'dimensions', molset, ds, ref_cctype)
+                if metadata is not None:
+                    nr_keys, nr_feats = metadata
+                    results[ds] = {
+                        "keys": nr_keys,
+                        "features": nr_feats
+                    }
             results["MY"] = {
                 "keys": self.sign.shape[0],
                 "features": self.sign.shape[1]
@@ -923,7 +932,7 @@ print('JOB DONE')
 
     # @safe_return(None)
     def across_coverage(self, *args, datasets=None, exemplary=True,
-                        ref_cctype=None, **kwargs):
+                        ref_cctype='sign1', **kwargs):
         """Check coverage against a collection of other CC signatures.
 
         Args:
@@ -944,9 +953,9 @@ print('JOB DONE')
             datasets = self._select_datasets(datasets, exemplary)
             results = {}
             for ds in datasets:
-                sign = self.ref_cc.signature(ds, ref_cctype)
                 results[ds] = self.cross_coverage(
-                    sign, save=False, redo=True, plot=False)
+                    ds, ref_cctype=ref_cctype, save=False, redo=True,
+                    plot=False)
         else:
             results = None
         return self._returner(
@@ -971,9 +980,8 @@ print('JOB DONE')
         nn.fit(V1)
         neighs1_ = nn.kneighbors(V1)[1][:, 1:]
         # do nearest neighbors for self
-        keys_set = set(keys)
-        idxs = [i for i, k in enumerate(self.keys) if k in keys_set]
-        V0 = self.V[idxs]
+        mask = np.isin(list(self.keys), list(shared_keys), assume_unique=True)
+        V0 = self.V[mask]
         nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric,
                               n_jobs=self.cpu)
         nn.fit(V0)
@@ -1432,22 +1440,26 @@ print('JOB DONE')
             **kwargs)
 
     # @safe_return(None)
-    def key_coverage(self, *args, datasets=None, exemplary=True, cctype=None,
-                     **kwargs):
+    def key_coverage(self, *args, datasets=None, exemplary=True,
+                     ref_cctype='sign1', molset='full', **kwargs):
         self.__log.debug("Key coverages")
         fn = "key_coverage"
-        if cctype is None:
-            cctype = self.ref_cctype
+        if ref_cctype is None:
+            ref_cctype = self.ref_cctype
         if self._todo(fn):
             datasets = self._select_datasets(datasets, exemplary)
             results_shared = {}
             for ds in datasets:
-                sign = self.ref_cc.signature(ds, cctype)
-                results_shared[ds] = self._shared_keys(sign)
+                metadata = self.ref_cc.sign_metadata(
+                    'keys', molset, ds, ref_cctype)
+                if metadata is not None:
+                    sign_keys = metadata
+                    results_shared[ds] = sorted(
+                        list(set(self.keys) & set(sign_keys)))
             results_counts = {}
             for k in self.keys:
                 results_counts[k] = 0
-            for k, v in results_shared.items():
+            for ds, v in results_shared.items():
                 for k in v:
                     results_counts[k] += 1
             results = {
@@ -1578,9 +1590,10 @@ print('JOB DONE')
         self.dimensions(**shared_kw)
         self.key_coverage(**shared_kw)
         self.key_coverage_projection(**shared_kw)
+        self.across_coverage(**shared_kw)
+        # these plots requires CC wide signatures
         self.atc_roc(**shared_kw)
         self.moa_roc(**shared_kw)
-        self.across_coverage(**shared_kw)
         self.across_roc(**shared_kw)
         self.global_ranks_agreement(**shared_kw)
         self.global_ranks_agreement_projection(**shared_kw)
@@ -1588,7 +1601,8 @@ print('JOB DONE')
         fig = self.plotter.canvas(size="medium", title=title)
         return fig
 
-    def canvas(self, size="medium", title=None, savefig=False):
+    def canvas(self, size="medium", title=None, savefig=False, dest_dir=None,
+               savefig_kwargs={'facecolor': 'white'}):
         self.__log.debug("Computing or retrieving data for canvas %s." % size)
         if size == "small":
             fig = self.canvas_small(title=title)
@@ -1599,8 +1613,11 @@ print('JOB DONE')
         else:
             return None
         if savefig:
-            fn = "_".join(
-                [self.sign.dataset, self.sign.cctype, self.name, size]) + '.png'
-            dest = os.path.join(self.path, fn)
-            self.__log.debug("Saving plot to: %s" % dest)
-            fig.savefig(dest)
+            fn = "_".join([self.sign.dataset, self.sign.cctype,
+                           self.name, size]) + '.png'
+            if dest_dir is None:
+                fn_dest = os.path.join(self.path, fn)
+            else:
+                fn_dest = os.path.join(dest_dir, fn)
+            self.__log.debug("Saving plot to: %s" % fn_dest)
+            fig.savefig(fn_dest, **savefig_kwargs)
