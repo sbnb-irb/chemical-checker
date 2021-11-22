@@ -34,7 +34,7 @@ features_file = "features.h5"
 class Preprocess():
     """Preprocess class."""
 
-    def __init__(self, signature_path, dataset, **params):
+    def __init__(self, signature_path, dataset, *args, **kwargs):
         """Initialize a Preprocess instance.
 
         This class handles calling the external run.py for each dataset and
@@ -43,6 +43,7 @@ class Preprocess():
         Args:
             signature_path(str): the path to the signature directory.
         """
+        # TODO check is kwargs are needed (D1)
         self.__log.info('Preprocess signature: %s', signature_path)
 
         self.raw_path = os.path.join(signature_path, "raw")
@@ -80,7 +81,7 @@ class Preprocess():
         else:
             return False
 
-    def call_preprocess(self, output, method, infile=None, entry=None, params = {}):
+    def call_preprocess(self, output, method, infile=None, entry=None): #params = {}
         """Call the external pre-process script."""
         # create argument list
         arglist = ["-o", output, "-mp", self.raw_model_path, "-m", method]
@@ -109,7 +110,7 @@ class Preprocess():
             raise Exception("Preprocess script not found! %s",
                             self.preprocess_script)
 
-        self.call_preprocess(self.data_path, "fit", None, None, self.params)
+        self.call_preprocess(self.data_path, "fit", None, None) #self.params
 
     def predict(self, input_data_file, destination, entry_point):
         """Call the external preprocess script to generate H5 data."""

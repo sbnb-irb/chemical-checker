@@ -290,14 +290,18 @@ class DataCalculator():
                 DataCalculator.__log.debug("Skipping molecule %s" % k)
                 DataCalculator.__log.debug(str(ex))
                 continue
-            P = descriptors(mol)
-            raw = "mw(%.2f),heavy(%d),hetero(%d),rings(%d),ringaliph(%d),ringarom(%d),alogp(%.3f),mr(%.3f)" + \
+            try:
+                P = descriptors(mol)
+                raw = "mw(%.2f),heavy(%d),hetero(%d),rings(%d),ringaliph(%d),ringarom(%d),alogp(%.3f),mr(%.3f)" + \
                 ",hba(%d),hbd(%d),psa(%.3f),rotb(%d),alerts_qed(%d),alerts_chembl(%d),ro5(%d),ro3(%d),qed(%.3f)"
-            raw = raw % (P['mw'], P['heavy'], P['hetero'],
-                         P['rings'], P['ringaliph'], P['ringarom'],
-                         P['alogp'], P['mr'], P['hba'], P['hbd'], P['psa'],
-                         P['rotb'], P['alerts_qed'], P['alerts_chembl'],
-                         P['ro5'], P['ro3'], P['qed'])
+                raw = raw % (P['mw'], P['heavy'], P['hetero'],
+                            P['rings'], P['ringaliph'], P['ringarom'],
+                            P['alogp'], P['mr'], P['hba'], P['hbd'], P['psa'],
+                            P['rotb'], P['alerts_qed'], P['alerts_chembl'],
+                            P['ro5'], P['ro3'], P['qed'])
+            except:
+                raw = None
+                
             result = {
                 "inchikey": k,
                 "raw": raw

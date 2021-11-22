@@ -666,7 +666,8 @@ class NeighborTripletTraintest(object):
                      replace_nan=None,
                      augment_fn=None, augment_kwargs={},
                      mask_fn=None, shuffle=True, trim_mask=None,
-                     sharedx=None, train=True, standard=True):
+                     sharedx=None, train=True, standard=True,
+                     sharedx_trim=None):
         """Return the generator function that we can query for batches.
 
         file_name(str): The H5 generated via `create`
@@ -684,6 +685,7 @@ class NeighborTripletTraintest(object):
                 x1_data_transf[:, col_slice] = np.nan
             return x1_data_transf
 
+        NeighborTripletTraintest.__log.debug('Generator for %s' % split)
         reader = NeighborTripletTraintest(file_name, split)
         reader.open()
         # read shapes
@@ -693,18 +695,24 @@ class NeighborTripletTraintest(object):
         # no batch size -> return everything
         if not batch_size:
             batch_size = t_shape[0]
-        # keep X in memory for resolving tripets quickly
+        # keep X in memory for resolving triplets quickly
         if sharedx is not None:
             if trim_mask is None:
                 X = sharedx
             else:
-                X = sharedx[:, np.argwhere(np.repeat(trim_mask, 128)).ravel()]
+                if sharedx_trim is not None:
+                    X = sharedx_trim
+                else:
+                    X = sharedx[:, np.argwhere(np.repeat(trim_mask, 128)).ravel()]
         else:
             NeighborTripletTraintest.__log.debug('Reading X in memory')
             if trim_mask is None:
                 X = reader.get_all_x()
             else:
-                X = reader.get_x_columns(np.argwhere(np.repeat(trim_mask, 128)).ravel())
+                if sharedx_trim is not None:
+                    X = sharedx_trim
+                else:
+                    X = reader.get_x_columns(np.argwhere(np.repeat(trim_mask, 128)).ravel())
         NeighborTripletTraintest.__log.debug('X shape: %s' % str(X.shape))
         # default mask is not masking
         if mask_fn is None:

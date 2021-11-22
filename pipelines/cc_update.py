@@ -72,11 +72,11 @@ def pipeline_parser():
     parser.add_argument(
         '-t', '--only_tasks', type=str, nargs="+", default=[],
         required=False,
-        help='Names of tasks that will `exclusively` run by the pipeline.')
+        help='Names of tasks that will `exclusively` run by the pipeline.')  # format like -t sign0 sign1 sign2
     parser.add_argument(
         '-s', '--exclude_tasks', type=str, nargs="+", default=[],
         required=False,
-        help='Names of tasks that will be skipped.')
+        help='Names of tasks that will be skipped.')  # format like -t sign0 sign1 sign2
     parser.add_argument(
         '-c', '--config', type=str, required=False,
         default=os.environ["CC_CONFIG"],
@@ -102,7 +102,8 @@ def main(args):
 
     fit_order = ['sign0', 'sign1', 'clus1', 'proj1', 'neig1',
                  'sign2', 'clus2', 'proj2', 'neig2', 'sign3',
-                 'clus3', 'proj3', 'neig3']
+                 'clus3', 'proj3', 'neig3', 'sign4', 'clus4',
+                 'proj4', 'neig4']
 
     data_calculators = [
         'morgan_fp_r2_2048',
@@ -133,25 +134,28 @@ def main(args):
         # A1 is using the most memory with ~59GB
         # A1 is the one taking longer with ~186000s (52h)
         'sign3': {'mem_by_core': 7, 'memory': 56, 'cpu': 8},
-        # predicting sign3 based on signaturizer
-        'sign3_pred': {'cpu': 4},
+        # sign3
+        'sign4': {'cpu': 4},
         # neig1 paralelize very well and require very few memory
         # A2 is the one taking longer with ~9100s (2.5h)
         'neig1': {'memory': 3, 'cpu': 16},
         'neig2': {'memory': 3, 'cpu': 16},
         'neig3': {'memory': 3, 'cpu': 16},
+        'neig4': {'memory': 3, 'cpu': 16},
         # clus1 does not paralelize very well and require memory
         # A1 is using the most memory ~28Gb
         # A1 is the one taking longer with ~10700s (3h)
         'clus1': {'memory': 30, 'cpu': 4},
         'clus2': {'memory': 30, 'cpu': 4},
         'clus3': {'memory': 30, 'cpu': 4},
+        'clus4': {'memory': 30, 'cpu': 4},
         # proj1 paralelize very well and require few memory
         # A1 is using the most memory ~13Gb
         # A1 is the one taking longer with ~4500s (1.5h)
         'proj1': {'memory': 20, 'cpu': 16},
         'proj2': {'memory': 20, 'cpu': 16},
-        'proj3': {'memory': 20, 'cpu': 16}
+        'proj3': {'memory': 20, 'cpu': 16},
+        'proj4': {'memory': 20, 'cpu': 16}
     }
 
     # on which signature molset to call the fit?
@@ -160,15 +164,19 @@ def main(args):
         'sign1': 'full',
         'sign2': 'reference',
         'sign3': 'full',
+        'sign4': 'full',
         'neig1': 'reference',
         'neig2': 'reference',
         'neig3': 'reference',
+        'neig4': 'reference',
         'clus1': 'reference',
         'clus2': 'reference',
         'clus3': 'reference',
+        'clus4': 'reference',
         'proj1': 'reference',
         'proj2': 'reference',
-        'proj3': 'reference'
+        'proj3': 'reference',
+        'proj4': 'reference'
     }
 
     # initialize parameter holders (two dict, one for init and one for fit)
@@ -340,7 +348,8 @@ def main(args):
     cctype = 'sign0'
     task = PythonCallable(name="diagnostics_sign0_BCDE",
                          python_callable=Diagnosis.diagnostics_hpc,
-                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc])
+                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc],
+                         op_kwargs={'cc_config': args.config})
     pp.add_task(task)
     # END TASK
     #############################################
@@ -353,7 +362,7 @@ def main(args):
             prefix='jobs_molprop_' + type_data + "_", dir=tmpdir)
         calculator = Calcdata(type_data)
         # This method sends the job and waits for the job to finish
-        calculator.calcdata_hpc(job_path, list(inchikey_inchi))
+        calculator.calcdata_hpc(job_path, list(inchikey_inchi), cc_config=args.config)
         missing = len(calculator.get_missing_from_set(inchikey_inchi))
         if missing > 0:
             raise Exception(
@@ -392,7 +401,8 @@ def main(args):
     cctype = 'sign0'
     task = PythonCallable(name="diagnostics_sign0_A",
                          python_callable=Diagnosis.diagnostics_hpc,
-                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc])
+                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc],
+                         op_kwargs={'cc_config': args.config})
     pp.add_task(task)
     # END TASK
     #############################################
@@ -418,7 +428,8 @@ def main(args):
     for cctype in cctypes:
         task = PythonCallable(name="diagnostics_" + cctype,
                             python_callable=Diagnosis.diagnostics_hpc,
-                            op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.cc_root])
+                            op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.cc_root],
+                            op_kwargs={'cc_config': args.config})
         pp.add_task(task)
     # END TASK
     #############################################
@@ -459,7 +470,8 @@ def main(args):
     cctype = 'sign3'
     task = PythonCallable(name="diagnostics_" + cctype,
                          python_callable=Diagnosis.diagnostics_hpc,
-                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc])
+                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc],
+                         op_kwargs={'cc_config': args.config})
     pp.add_task(task)
     # END TASK
     #############################################
@@ -468,7 +480,8 @@ def main(args):
     # TASK: Calculate clus3, proj3 and neig3
     dss = [ds.code for ds in Dataset.get(exemplary=True)]
     s3_idx = fit_order.index('sign3') + 1
-    for cctype in fit_order[s3_idx:]:
+    s4_idx = fit_order.index('sign4')
+    for cctype in fit_order[s3_idx:s4_idx]:
         task = CCFit(args.cc_root, cctype, molset[cctype],
                      datasets=dss,
                      fit_kwargs=fit_kwargs[cctype],
@@ -479,34 +492,40 @@ def main(args):
     #############################################
 
     #############################################
-    # TASK: Predict signatures 3 (signaturizer like)
-    cctype = 'sign3'
-    task_name = 'sign3_pred'
-    # get inchies for cc universe
-    uni_inchi_path = os.path.join(pp.cachedir, 'universe_inchi.json')
-    if os.path.isfile(uni_inchi_path):
-        universe_inchi = json.load(open(uni_inchi_path, 'r'))
-    else:
-        universe_inchi = cc.get_universe_inchi()
-        json.dump(universe_inchi, open(uni_inchi_path, 'w'))
-    predict_args = dict()
-    predict_args[task_name] = dict()
-    predict_kwargs = dict()
-    predict_kwargs[task_name] = dict()
+    # TASK: Calculate signatures 4
+    cctype = 'sign4'
     dss = [ds.code for ds in Dataset.get(exemplary=True)]
-    for ds in dss:
-        s3_dest = cc.get_signature('sign3', 'predicted', ds)
-        predict_args[task_name][ds] = [universe_inchi, s3_dest.data_path]
-        predict_kwargs[task_name][ds] = {'keytype': 'INCHI',
-                                         'keys': cc.universe}
-    task = CCPredict(args.cc_root, cctype, molset[cctype],
-                     name=task_name,
-                     datasets=dss,
-                     predict_fn='predict_from_string',
-                     predict_args=predict_args[task_name],
-                     predict_kwargs=predict_kwargs[task_name],
-                     hpc_kwargs=hpc_kwargs[task_name])
+    task = CCFit(args.cc_root, cctype, molset[cctype],
+                 datasets=dss,
+                 fit_kwargs=fit_kwargs[cctype],
+                 sign_kwargs=sign_kwargs[cctype],
+                 hpc_kwargs=hpc_kwargs[cctype])
     pp.add_task(task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Calculate diagnostics plots of sign4 for all spaces
+    cctype = 'sign4'
+    task = PythonCallable(name="diagnostics_" + cctype,
+                         python_callable=Diagnosis.diagnostics_hpc,
+                         op_args=[pp.tmpdir, args.cc_root, cctype, molset[cctype], dss, args.reference_cc],
+                         op_kwargs={'cc_config': args.config})
+    pp.add_task(task)
+    # END TASK
+    #############################################
+
+    #############################################
+    # TASK: Calculate clus4, proj4 and neig4
+    dss = [ds.code for ds in Dataset.get(exemplary=True)]
+    s4_idx = fit_order.index('sign4') + 1
+    for cctype in fit_order[s4_idx:]:
+        task = CCFit(args.cc_root, cctype, molset[cctype],
+                     datasets=dss,
+                     fit_kwargs=fit_kwargs[cctype],
+                     sign_kwargs=sign_kwargs[cctype],
+                     hpc_kwargs=hpc_kwargs[cctype])
+        pp.add_task(task)
     # END TASK
     #############################################
 

@@ -27,7 +27,8 @@ class BaseTransform(object):
             raise Exception("Transformations are only allowed for signature 1")
         if self.sign.molset != "full":
             raise Exception(
-                "This is a high level functionality of the CC. Only 'full' molset is allowed.")
+                "This is a high level functionality of the CC. "
+                "Only 'full' molset is allowed.")
         self.sign_ref = self.sign.get_molset("reference")
         self.name = name
         self.model_path = self.sign_ref.model_path
@@ -80,7 +81,7 @@ class BaseTransform(object):
             return
         mappings = s1_ref.get_h5_dataset("mappings")
         keys = s1_full.keys
-        
+
         temp_keys = keys
         temp_map = mappings[:, 0]
         if mappings[:, 0].shape[0] != keys.shape[0]:

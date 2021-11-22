@@ -5,12 +5,12 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from tensorflow import keras
-from keras import backend as K
-from keras.models import Sequential
+from tensorflow.keras import backend as K
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dropout, Lambda, Dense, Activation
+
 from MulticoreTSNE import MulticoreTSNE
 from scipy.spatial.distance import cosine
-from keras.layers import Dropout, Lambda, Dense, Activation
 
 import seaborn as sns
 from matplotlib import pyplot as plt
