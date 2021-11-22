@@ -401,7 +401,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
 
     def _across(self, values, datasets, ax, title, exemplary, cctype, molset,
-                vertical=False):
+                vertical=False, numeral_marker=True):
         ax = self._get_ax(ax)
         datasets = np.array(datasets)
         values = np.array(values)
@@ -410,17 +410,34 @@ class DiagnosisPlot(object):
         ).astype(np.int)
         datasets = datasets[idxs]
         values = values[idxs]
-        colors = [coord_color(ds) for ds in datasets]
-        x = [i + 1 for i in range(0, len(values))]
-        if vertical:
-            ax.scatter(values, x, color=colors)
-        else:
-            ax.scatter(x, values, color=colors)
-        for i, x_ in enumerate(x):
+        colors = np.array([coord_color(ds) for ds in datasets])
+        x = np.array([i + 1 for i in range(0, len(values))])
+        if numeral_marker:
             if vertical:
-                ax.plot([-1, values[i]], [x_, x_], color=colors[i])
+                for num in ['1', '2', '3', '4', '5']:
+                    mask = np.array([ds[1] == num for ds in datasets])
+                    ax.scatter(values[mask], x[mask], color=colors[
+                               mask], marker='$%s$' % num)
             else:
-                ax.plot([x_, x_], [-1, values[i]], color=colors[i])
+                for num in ['1', '2', '3', '4', '5']:
+                    mask = np.array([ds[1] == num for ds in datasets])
+                    ax.scatter(x[mask], values[mask], color=colors[
+                               mask], marker='$%s$' % num)
+            for i, x_ in enumerate(x):
+                if vertical:
+                    ax.plot([-1, values[i]], [x_, x_], color=colors[i])
+                else:
+                    ax.plot([x_, x_], [-1, values[i]], color=colors[i])
+        else:
+            if vertical:
+                ax.scatter(values, x, color=colors)
+            else:
+                ax.scatter(x, values, color=colors)
+            for i, x_ in enumerate(x):
+                if vertical:
+                    ax.plot([-1, values[i]], [x_, x_], color=colors[i])
+                else:
+                    ax.plot([x_, x_], [-1, values[i]], color=colors[i])
         if title is None:
             title = "%s | %s_%s" % (
                 self.diag.sign.qualified_name, cctype, molset)
@@ -466,7 +483,8 @@ class DiagnosisPlot(object):
 
     # @safe_return(None)
     def across_roc(self, results=None, ax=None, title=None, exemplary=True,
-                   cctype="sign1", molset="full", vertical=False):
+                   cctype="sign1", molset="full", vertical=False,
+                   numeral_marker=False):
         if results is None:
             results = self.load_diagnosis_pickle("across_roc.pkl")
         datasets = []
@@ -478,7 +496,7 @@ class DiagnosisPlot(object):
             rocs += [v["auc"]]
         ax = self._across(rocs, datasets, ax=ax, title=title,
                           exemplary=exemplary, cctype=cctype, molset=molset,
-                          vertical=vertical)
+                          vertical=vertical,numeral_marker=numeral_marker)
         if vertical:
             ax.set_xlabel("ROC-AUC")
             ax.set_xlim(0.45, 1.05)
