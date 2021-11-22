@@ -1,5 +1,6 @@
 """Do TFIDF-LSI."""
 import os
+import h5py
 import random
 import tempfile
 import numpy as np
@@ -9,8 +10,8 @@ from sklearn.utils.sparsefuncs import mean_variance_axis
 
 from .base import BaseTransform
 
-from chemicalchecker.util import Config
-from chemicalchecker.util import logged
+from chemicalchecker.util import Config, logged
+from chemicalchecker.core.signature_data import DataSignature
 
 
 class Corpus(object):
@@ -48,7 +49,7 @@ class Lsi(BaseTransform):
     def __init__(self, sign1, *args, tmp=False, variance_explained=0.9,
                  num_topics=None, B_val=10, N_val=1000, multipass=True,
                  min_freq=5, max_freq=0.25,
-                 max_keys=100000, **kwargs):
+                 max_keys=100000, tmp_path=None, **kwargs):
         """Initialize a Lsi instance."""
         BaseTransform.__init__(self, sign1, "lsi", max_keys, tmp)
         self.variance_explained = variance_explained
@@ -58,6 +59,9 @@ class Lsi(BaseTransform):
         self.num_topics = num_topics
         self.B_val = B_val
         self.N_val = N_val
+        if tmp_path is None:
+            tmp_path = Config().PATH.CC_TMP
+        self.tmp_path = tmp_path
 
     def _lsi_variance_explained(self, tfidf_corpus, lsi, num_topics):
         mm = corpora.MmCorpus(tfidf_corpus)
@@ -138,8 +142,8 @@ class Lsi(BaseTransform):
             onepass = True
         # lsi
         self.__log.info('Fitting LSI model.')
-        only_zeros = [1]
-        while len(only_zeros) > 0:
+        only_zeros = 1
+        while only_zeros > 0:
             self.__log.info('num_topics: %s', self.num_topics)
             lsi = models.LsiModel(c_tfidf, id2word=dictionary,
                                   num_topics=self.num_topics, onepass=onepass,
@@ -156,19 +160,17 @@ class Lsi(BaseTransform):
             c_lsi = lsi[c_tfidf]
             # get keys
             keys = np.array([k for k in c.keys()])
-            V = np.empty((len(keys), self.cut_i + 1))
-            i = 0
-            for l in c_lsi:
+            only_zeros = 0
+            for line in c_lsi:
                 v = np.zeros(self.cut_i + 1)
-                for x in l[:self.cut_i + 1]:
+                for x in line[:self.cut_i + 1]:
                     if x[0] > self.cut_i:
                         continue
                     v[x[0]] = x[1]
-                V[i, :] = v
-                i += 1
+                if np.sum(v) == 0:
+                    only_zeros += 1
             # in some corner cases we might get full zero rows after LSI
-            only_zeros = np.where(~V.any(axis=1))[0]
-            if len(only_zeros) > 0:
+            if only_zeros > 0:
                 self.__log.warning(
                     'Getting only zero rows: %s', str(only_zeros))
                 self.num_topics += 50
@@ -185,7 +187,7 @@ class Lsi(BaseTransform):
     def predict(self, sign1):
         self.predict_check(sign1)
         # corpus for the predict
-        tmp_dir = tempfile.mkdtemp(prefix="lsi_", dir=Config().PATH.CC_TMP)
+        tmp_dir = tempfile.mkdtemp(prefix="lsi_", dir=self.tmp_path)
         plain_corpus = os.path.join(tmp_dir, self.name + ".plain.txt")
         tfidf_corpus = os.path.join(tmp_dir, self.name + ".tfidf.mm")
         # write corpus (dense feature)
@@ -218,19 +220,44 @@ class Lsi(BaseTransform):
         if len(keys) < len(sign1.keys):
             drop = len(sign1.keys) - len(keys)
             self.__log.warning('Dropped %s molecules (only zeros).' % drop)
-        V = np.empty((len(keys), self.cut_i + 1))
-        i = 0
-        for l in c_lsi:
-            v = np.zeros(self.cut_i + 1)
-            for x in l[:self.cut_i + 1]:
-                if x[0] > self.cut_i:
-                    continue
-                v[x[0]] = x[1]
-            V[i, :] = v
-            i += 1
-        # in some corner cases we might get full zero rows after LSI
-        only_zeros = np.where(~V.any(axis=1))[0]
-        if len(only_zeros) > 0:
-            # in that case we soften the parameters
-            self.__log.warning('Getting only zero rows: %s', str(only_zeros))
-        self.overwrite(sign1=sign1, V=V, keys=keys)
+        # instead of creating V we need to write iteratively to the H5
+        # we run here the operations of the overwrite function
+        with h5py.File(sign1.data_path, "r+") as hf:
+            if self.tmp:
+                del hf["V_tmp"]
+                del hf["V"]
+            else:
+                del hf["V"]
+                if "V_tmp" in hf.keys():
+                    self.__log.debug("Overwriting tmp with the actual dataset")
+                    del hf["V_tmp"]
+            del hf["keys"]
+            hf.create_dataset("keys", data=np.array(
+                keys, DataSignature.string_dtype()))
+            hf.create_dataset("V", (len(keys), self.cut_i + 1),
+                              dtype=np.float32)
+            hf.create_dataset("V_tmp", (len(keys), self.cut_i + 1),
+                              dtype=np.float32)
+
+            only_zeros = 0
+            for idx, line in enumerate(c_lsi):
+                v = np.zeros(self.cut_i + 1)
+                for x in line[:self.cut_i + 1]:
+                    if x[0] > self.cut_i:
+                        continue
+                    v[x[0]] = x[1]
+                    if np.sum(v) == 0:
+                        only_zeros += 1
+                hf["V"][idx] = v
+                hf["V_tmp"][idx] = v
+
+            # in some corner cases we might get full zero rows after LSI
+            if only_zeros > 0:
+                self.__log.warning(
+                    'Getting only zero rows: %s', str(only_zeros))
+
+        sign1.refresh()
+        self.reindex_triplets(sign1, keys)
+        self.remap(sign1)
+
+        # self.overwrite(sign1=sign1, V=V, keys=keys)

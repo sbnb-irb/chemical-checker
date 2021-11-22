@@ -6,7 +6,8 @@ the ``fit`` and ``predict`` methods.
 At initialization this class enforce the signature internal directory
 organization:
 
-  * **signature_path**: the signature root (e.g. ``/root/full/A/A1/A1.001/sign2/``)
+  * **signature_path**: the signature root (e.g.
+            ``/root/full/A/A1/A1.001/sign2/``)
   * **model_path** ``./models``: where models learned at fit time are stored
   * **stats_path** ``./stats``: where statistic are collected
   * **diags_path** ``./diags``: where diagnostics are saved
@@ -16,16 +17,13 @@ functions, and provide functions to "move" in the CC (e.g. getting same
 signature for different space, different molset, CC instance, etc...).
 """
 import os
-import sys
 import h5py
 import json
 import shutil
 import pickle
 import tempfile
 import datetime
-import numpy as np
 from tqdm import tqdm
-from bisect import bisect_left
 from abc import abstractmethod
 
 from chemicalchecker.core.diagnostics import Diagnosis
@@ -40,11 +38,12 @@ class BaseSignature(object):
     """BaseSignature class."""
 
     @abstractmethod
-    def __init__(self, signature_path, dataset, readyfile="fit.ready", **params):
+    def __init__(self, signature_path, dataset, readyfile="fit.ready",
+                 **params):
         """Initialize a BaseSignature instance."""
         self.dataset = dataset
-        self.cctype = signature_path.split("/")[-1]
-        self.molset = signature_path.split("/")[-5]
+        self.cctype = params.get('cctype', signature_path.split("/")[-1])
+        self.molset = params.get('molset', signature_path.split("/")[-5])
         self.signature_path = os.path.abspath(signature_path)
         self.readyfile = readyfile
 
@@ -94,12 +93,24 @@ class BaseSignature(object):
                             "passing overwrite=True")
         return True
 
+    def _add_metadata(self, metadata=None):
+        if metadata is None:
+            metadata = dict(cctype=self.cctype, dataset_code=self.dataset,
+                            molset=self.molset)
+        with h5py.File(self.data_path, 'a') as fh:
+            for k, v in metadata.items():
+                if k in fh.attrs:
+                    del fh.attrs[k]
+                fh.attrs.create(name=k, data=v)
+
     def fit_end(self, **kwargs):
         """Conclude fit method.
 
         We compute background distances, run validations (including diagnostic)
         and finally marking the signature as ready.
         """
+        # add metadata
+        self._add_metadata()
         # save background distances
         self.update_status("Background distances")
         self.background_distances("cosine")
@@ -166,98 +177,8 @@ class BaseSignature(object):
         full = self.get_molset('full')
         full.clear()
 
-    def validate_versus_signature(self, sign, n_samples=1000, n_neighbors=5,
-                                  apply_mappings=True, metric='cosine'):
-        """Perform validations.
-
-        Args:
-            sign(signature object): A CC signature object to validate against
-            apply_mappings(bool): Whether to use mappings to compute
-                validation. Signature which have been redundancy-reduced
-                (i.e. `reference`) have fewer molecules. The key are moleules
-                from the `full` signature and values are moleules from the
-                `reference` set.
-        """
-        from sklearn.neighbors import NearestNeighbors
-        # from sklearn.metrics import roc_curve, auc
-        import random
-        # check if we apply mapping (i.e. the signature is a 'reference')
-        if apply_mappings:
-            if 'mappings' not in self.info_h5:
-                self.__log.warning("Cannot apply mappings in validation.")
-                inchikey_mappings = None
-            else:
-                inchikey_mappings = dict(self.mappings)
-        else:
-            inchikey_mappings = None
-        plot = Plot(self.dataset, self.stats_path, None)
-        cctype = self.__class__.__name__
-        # select pairs
-        # first look for the intersection of inchikeys
-        vs_keys = sign.keys
-        if inchikey_mappings is None:
-            my_keys = self.keys
-        else:
-            my_keys = [inchikey_mappings[k] for k in self.keys]
-        # consider connectivity layer to increase converage
-        vs_conn_set = set([ik.split("-")[0] for ik in vs_keys])
-        my_conn_set = set([ik.split("-")[0] for ik in my_keys])
-        common_conn = my_conn_set.intersection(vs_conn_set)
-
-        frac_shared = 100 * len(common_conn) / float(len(my_conn_set))
-
-        if n_samples < len(common_conn):
-            common_conn = set(random.sample(list(common_conn), n_samples))
-        # extract matrices
-        vs_keys_conn = dict(
-            (ik.split("-")[0], ik) for ik in vs_keys if ik.split("-")[0] in common_conn)
-        my_keys_conn = dict(
-            (ik.split("-")[0], ik) for ik in my_keys if ik.split("-")[0] in common_conn)
-        common_conn = sorted(common_conn)
-        vs_vectors = sign.get_vectors(
-            [vs_keys_conn[c] for c in common_conn])[1]
-        my_vectors = self.get_vectors(
-            [my_keys_conn[c] for c in common_conn])[1]
-        # do nearest neighbors
-        nn = NearestNeighbors(n_neighbors=n_neighbors, metric=metric)
-        nn.fit(vs_vectors)
-        neighs = nn.kneighbors(vs_vectors)[1][:, 1:]
-        # sample positive and negative pairs
-        pos_pairs = set()
-        neg_pairs = set()
-        for i in range(0, len(neighs)):
-            for j in neighs[i]:
-                pair = [common_conn[i], common_conn[j]]
-                pair = sorted(pair)
-                pos_pairs.update([(pair[0], pair[1])])
-        for _ in range(0, len(pos_pairs) * 10):
-            pair = random.sample(common_conn, 2)
-            pair = sorted(pair)
-            pair = (pair[0], pair[1])
-            if pair in pos_pairs:
-                continue
-            neg_pairs.update([pair])
-            if len(neg_pairs) > len(pos_pairs):
-                break
-        # do distances
-        if metric == "cosine":
-            from scipy.spatial.distance import cosine as metric
-        if metric == "euclidean":
-            from scipy.spatial.distance import euclidean as metric
-        y_t = np.array([1] * len(pos_pairs) + [0] * len(neg_pairs))
-        pairs = list(pos_pairs) + list(neg_pairs)
-        y_p = []
-        for pair in pairs:
-            idx1 = bisect_left(common_conn, pair[0])
-            idx2 = bisect_left(common_conn, pair[1])
-            y_p += [metric(my_vectors[idx1], my_vectors[idx2])]
-        # convert to similarity-respected order
-        y_p = -np.abs(np.array(y_p))
-
-        plot.roc_curve_plot(y_t, y_p, cctype, sign.dataset,
-                            len(common_conn), frac_shared)
-
-    def validate(self, apply_mappings=True, metric='cosine', diagnostics=False):
+    def validate(self, apply_mappings=True, metric='cosine',
+                 diagnostics=False):
         """Perform validations.
 
         A validation file is an external resource basically presenting pairs of
@@ -357,7 +278,7 @@ class BaseSignature(object):
 
     def mark_ready(self):
         fname = os.path.join(self.model_path, self.readyfile)
-        with open(fname, 'w') as fh:
+        with open(fname, 'w'):
             pass
 
     def is_fit(self, path=""):
@@ -437,7 +358,7 @@ class BaseSignature(object):
             os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
             singularity_image, script_name, pickle_file)
         # submit jobs
-        cluster = HPC.from_config(Config())
+        cluster = HPC.from_config(cfg)
         cluster.submitMultiJob(command, **params)
         return cluster
 
@@ -521,6 +442,7 @@ class BaseSignature(object):
         from .sign1 import sign1
         from .sign2 import sign2
         from .sign3 import sign3
+        from .sign4 import sign4
         if sign_type not in ['sign%i' % i for i in range(5)]:
             raise ValueError('Wrong signature type: %s' % sign_type)
         folds = self.signature_path.split('/')
