@@ -11,6 +11,7 @@ from ..utils import HPCUtils
 from ..utils import splitters
 from ..io import data_from_disk, read_data
 from ..ml import tm_from_disk
+import joblib
 from datetime import datetime
 
 SEED = 42
@@ -32,6 +33,67 @@ class PrecomputedSplitter:
 
     def split(X=None, y=None):
         yield self.train_idx, self.test_idx
+
+
+@logged
+class thOpt:
+    "Apply out-of-bag thresholding from ____"  # TODO: Include reference to GHOST paper
+
+    def __init__(self, tm, is_tmp, thresholds=None):
+        if thresholds is None:
+            self.thresholds = np.round(np.arange(0.00, 0.550, 0.005), 3)
+        else:
+            self.thresholds = thresholds
+        if is_tmp:
+            mod_path = tm.bases_tmp_path
+        else:
+            mod_path = tm.bases_models_path
+
+        mod = joblib.load(os.path.join(mod_path, "Stacked-uncalib---complete"))
+        oob_probs = mod.oob_decision_function_
+        self.oob_probs = [x[1] for x in oob_probs]
+
+    def calculate(self, labels_train, ThOpt_metrics='Kappa'):
+        """Optimize the decision threshold based on the prediction probabilities of the out-of-bag set of random forest.
+        The threshold that maximizes the Cohen's kappa coefficient or a ROC-based criterion
+        on the out-of-bag set is chosen as optimal.
+
+        Parameters
+        ----------
+        oob_probs : list of floats
+            Positive prediction probabilities for the out-of-bag set of a trained random forest model
+        labels_train: list of int
+            True labels for the training set
+        thresholds: list of floats
+            List of decision thresholds to screen for classification
+        ThOpt_metrics: str
+            Optimization metric. Choose between "Kappa" and "ROC"
+
+        Returns
+        ----------
+        thresh: float
+            Optimal decision threshold for classification
+        """
+        # Optmize the decision threshold based on the Cohen's Kappa coefficient
+
+        if ThOpt_metrics == 'Kappa':
+            tscores = []
+            # evaluate the score on the oob using different thresholds
+            for thresh in self.thresholds:
+                scores = [1 if x >= thresh else 0 for x in self.oob_probs]
+                kappa = metrics.cohen_kappa_score(labels_train, scores)
+                tscores.append((np.round(kappa, 3), thresh))
+            # select the threshold providing the highest kappa score as optimal
+            tscores.sort(reverse=True)
+            thresh = tscores[0][-1]
+        # Optmize the decision threshold based on the ROC-curve
+        elif ThOpt_metrics == 'ROC':
+            # ROC optimization with thresholds determined by the roc_curve function of sklearn
+            fpr, tpr, thresholds_roc = metrics.roc_curve(labels_train, self.oob_probs, pos_label=1)
+            specificity = 1 - fpr
+            roc_dist_01corner = (2 * tpr * specificity) / (tpr + specificity)
+            thresh = thresholds_roc[np.argmax(roc_dist_01corner)]
+        return np.float32(thresh)
 
 
 @logged
@@ -145,37 +207,55 @@ class Gatherer:
         self.is_ensemble = is_ensemble
         self.train_idx = []
         self.test_idx = []
+        self.putative_idx = []
         self.y_true_train = []
         self.y_true_test = []
         self.y_pred_train = []
         self.y_pred_test = []
         self.shaps_train = []
         self.shaps_test = []
+        self.y_pred_train_uncalib = []
+        self.y_pred_test_uncalib = []
+        self.thopt_kappa = []
+        self.thopt_roc = []
+
         if self.is_ensemble:
             self.y_pred_ens_train = []
             self.y_pred_ens_test = []
 
-    def gather(self, tm, data, splits, is_tmp, already_scored=False):
+    def gather(self, tm, data, splits, is_tmp, is_tmp_bases, only_train=False, already_scored=False):
         self.__log.info("Gathering data (splits, samples, outcomes[, datasets])")
         self.__log.debug("Iterating over splits")
+        self.putative_idx = tm.putative_idx
+
         i = 0
         for tr_idx, te_idx in splits:
-            tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=True, is_tmp=is_tmp, reset=True)
+            tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=True, is_tmp=is_tmp, reset=True, only_train = only_train)
             pred_train = tm.load_predictions()
             expl_train = tm.load_explanations()
-            tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=False, is_tmp=is_tmp, reset=True)
-            pred_test = tm.load_predictions()
-            expl_test = tm.load_explanations()
+            if not only_train:
+                tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=False, is_tmp=is_tmp, reset=True)
+                pred_test = tm.load_predictions()
+                expl_test = tm.load_explanations()
+                tm.repath_bases_by_fold(fold_number=i, is_tmp=is_tmp_bases, reset=True)
+            thopt = thOpt(tm, is_tmp_bases)
             self.train_idx += [tr_idx]
-            self.test_idx += [te_idx]
             self.y_true_train += [pred_train.y_true]
-            self.y_true_test += [pred_test.y_true]
-            self.y_pred_train += [pred_train.y_pred]
-            self.y_pred_test += [pred_test.y_pred]
+            self.y_pred_train += [pred_train.y_pred.astype('float32')]
+            self.y_pred_train_uncalib += [pred_train.y_pred_uncalib.astype('float32')[:,1]]
             if expl_train:
                 self.shaps_train += [expl_train.shaps]
-            if expl_test:
-                self.shaps_test += [expl_test.shaps]
+            self.thopt_kappa += [thopt.calculate(pred_train.y_true, 'Kappa')]
+            self.thopt_roc += [thopt.calculate(pred_train.y_true, 'ROC')]
+            if not only_train:
+                self.test_idx += [te_idx]
+                self.y_true_test += [pred_test.y_true]
+                self.y_pred_test += [pred_test.y_pred.astype('float32')]
+                self.y_pred_test_uncalib += [pred_test.y_pred_uncalib.astype('float32')[:,1]]
+                if expl_test:
+                    self.shaps_test += [expl_test.shaps]
+
+
             if self.is_ensemble:
                 self.y_pred_ens_train += [pred_train.y_pred_ens]
                 self.y_pred_ens_test += [pred_test.y_pred_ens]
@@ -186,13 +266,15 @@ class Gatherer:
 class Scorer:
     """Run performances"""
 
-    def __init__(self, is_classifier, is_ensemble):
+    def __init__(self, is_classifier, is_ensemble, only_train = False):
         self.is_classifier = is_classifier
         self.is_ensemble = is_ensemble
+        self.only_train = only_train
 
     def score(self, g):
         self.perfs_train = Performances(self.is_classifier).compute(g.y_true_train, g.y_pred_train)
-        self.perfs_test = Performances(self.is_classifier).compute(g.y_true_test, g.y_pred_test)
+        if not self.only_train:
+            self.perfs_test = Performances(self.is_classifier).compute(g.y_true_test, g.y_pred_test)
         if self.is_ensemble:
             self.perfs_ens_train = Performances(self.is_classifier).compute(g.y_true_train, g.y_pred_ens_train)
             self.perfs_ens_test = Performances(self.is_classifier).compute(g.y_true_test, g.y_pred_ens_test)
@@ -212,6 +294,9 @@ class BaseValidation(object):
                  n_splits,
                  test_size,
                  explain,
+                 model_type,
+                 only_train,
+                 only_validation,
                  train_size=None,
                  is_tmp=False,
                  is_tmp_bases=True,
@@ -231,6 +316,7 @@ class BaseValidation(object):
             is_tmp_bases|signatures|predictions(bool): Store bases|signatures|predictions in temporary path
 
         """
+
         self.splitter = splitter
         self.is_cv = is_cv
         self._n_splits = n_splits
@@ -238,6 +324,9 @@ class BaseValidation(object):
         self.train_size = train_size
         self.is_stratified = is_stratified
         self.explain = explain
+        self.only_train = only_train
+        self.only_validation = only_validation
+
         if is_tmp:
             self.is_tmp_bases = is_tmp
             self.is_tmp_signatures = is_tmp
@@ -247,7 +336,21 @@ class BaseValidation(object):
             self.is_tmp_signatures = is_tmp_signatures
             self.is_tmp_predictions = is_tmp_predictions
 
-        # self.is_tmp=is_tmp
+        if (model_type == 'only_train') | (model_type == 'val_store'):
+            self.is_tmp = False
+            self.is_tmp_bases = False
+            self.is_tmp_signatures = True
+            if model_type == 'only_train':
+                self.only_train = True
+            elif model_type == 'val_store':
+                self.only_validation = False
+        elif model_type == 'val':
+            pass
+        elif type(model_type) == str:
+            self.__log.info("Model type {:s} not available".format(model_type))
+        else:
+            self.__log.info("Setting model type from variables")
+
         self.models_path = []
         self.tmp_path = []
         self.gather_path = []
@@ -299,13 +402,13 @@ class BaseValidation(object):
         self.n_splits += [len(splits)]
         return splits
 
-    def fit(self, tm, data, splits, scramble = False, only_train=False):
+    def fit(self, tm, data, splits, scramble=False):
         self.__log.info("Fitting")
         i = 0
         jobs = []
         for train_idx, test_idx in splits:
             self.__log.info("Fold %02d" % i)
-            tm.repath_bases_by_fold(fold_number=i, is_tmp=self.is_tmp_bases, reset=True)
+            tm.repath_bases_by_fold(fold_number=i, is_tmp=self.is_tmp_bases, reset=True, only_train=self.only_train)
             self.__log.info(tm.bases_tmp_path)
             jobs += tm.fit(data, idxs=train_idx, is_tmp=self.is_tmp_bases, wait=False, scramble=scramble)
             i += 1
@@ -327,9 +430,9 @@ class BaseValidation(object):
             if external:
                 idx = list(range(len(data.molecule)))
             self.__log.info("Fold %02d" % i)
-            tm.repath_bases_by_fold(fold_number=i, is_tmp=self.is_tmp_bases, reset=True)
+            tm.repath_bases_by_fold(fold_number=i, is_tmp=self.is_tmp_bases, reset=True, only_train=self.only_train)
             tm.repath_predictions_by_fold_and_set(fold_number=i, is_train=is_train, is_tmp=self.is_tmp_predictions,
-                                                  reset=True)
+                                                  reset=True, only_train=self.only_train)
             self.__log.info(tm.predictions_tmp_path)
             jobs += tm.predict(data, idxs=idx, is_tmp=self.is_tmp_predictions, wait=False)
             if self.explain and not is_train:
@@ -341,7 +444,7 @@ class BaseValidation(object):
     def gather(self, tm, data, splits):
         # Gather data
         gather = Gatherer(is_ensemble=tm.is_ensemble)
-        gather.gather(tm, data, splits, self.is_tmp_predictions)
+        gather.gather(tm, data, splits, self.is_tmp_predictions, self.is_tmp_bases, self.only_train)
         gather_path = os.path.join(tm.tmp_path, "validation_gather.pkl")
         with open(gather_path, "wb") as f:
             pickle.dump(gather, f)
@@ -353,7 +456,7 @@ class BaseValidation(object):
                                                                      self.is_classifier, self.is_ensemble):
             with open(gather_path, "rb") as f:
                 gather = pickle.load(f)
-            scores = Scorer(is_classifier=is_classifier, is_ensemble=is_ensemble)
+            scores = Scorer(is_classifier=is_classifier, is_ensemble=is_ensemble, only_train=self.only_train)
             scores.score(gather)
             scores_path = os.path.join(tmp_path, "validation_scores.pkl")
             with open(scores_path, "wb") as f:
@@ -364,6 +467,7 @@ class BaseValidation(object):
         self.__log.debug("Reading gatherer")
         with open(self.gather_path[i], "rb") as f:
             gather = pickle.load(f)
+
         self.__log.debug("Reading scores")
         with open(self.scores_path[i], "rb") as f:
             scores = pickle.load(f)
@@ -377,21 +481,28 @@ class BaseValidation(object):
             "datasets": self.datasets[i],
             "weights": self.weights[i],
             "models_path": self.models_path[i],
+            "thOpt": {"Kappa": gather.thopt_kappa,
+                      "ROC": gather.thopt_roc},
+            "putative_idx": gather.putative_idx,
             "train": {
                 "idx": gather.train_idx,
                 "y_true": gather.y_true_train,
-                "y_pred": gather.y_pred_train,
+                "y_pred": {"calibrated": gather.y_pred_train},
                 "shaps": gather.shaps_train,
                 "perfs": scores.perfs_train.as_dict()
-            },
-            "test": {
+            }
+        }
+
+        if not self.only_train:
+            valid["test"] = {
                 "idx": gather.test_idx,
                 "y_true": gather.y_true_test,
-                "y_pred": gather.y_pred_test,
+                "y_pred": {"calibrated": gather.y_pred_test,
+                           "uncalibrated": gather.y_pred_test_uncalib},
                 "shaps": gather.shaps_test,
                 "perfs": scores.perfs_test.as_dict()
             }
-        }
+
         if self.is_ensemble[i]:
             valid["ens_train"] = {
                 "y_true": gather.y_true_train,
@@ -404,9 +515,11 @@ class BaseValidation(object):
                 "perfs": scores.perfs_ens_test.as_dict()
             }
         self.__log.debug("Train AUROC", valid["train"]["perfs"]["auroc"])
-        self.__log.debug("Test  AUROC", valid["test"]["perfs"]["auroc"])
+        if not self.only_train:
+            self.__log.debug("Test  AUROC", valid["test"]["perfs"]["auroc"])
         print("Train AUROC", valid["train"]["perfs"]["auroc"])
-        print("Test  AUROC", valid["test"]["perfs"]["auroc"])
+        if not self.only_train:
+            print("Test  AUROC", valid["test"]["perfs"]["auroc"])
         return valid
 
     def as_dict(self):
@@ -415,13 +528,17 @@ class BaseValidation(object):
 
     def save(self):
         for valid in self.as_dict():
-            filename = os.path.join(valid["models_path"], "validation.pkl")
+            if not self.only_train:
+                filename = os.path.join(valid["models_path"], "validation.pkl")
+            else:
+                filename = os.path.join(valid["models_path"], "only_train.pkl")
             with open(filename, "wb") as f:
                 pickle.dump(valid, f)
-            filename_txt = os.path.join(valid["models_path"], "validation.txt")
-            with open(filename_txt, "w") as f:
-                f.write("Train AUROC: %s\n" % valid["train"]["perfs"]["auroc"])
-                f.write("Test  AUROC: %s\n" % valid["test"]["perfs"]["auroc"])
+            if not self.only_train:
+                filename_txt = os.path.join(valid["models_path"], "validation.txt")
+                with open(filename_txt, "w") as f:
+                    f.write("Train AUROC: %s\n" % valid["train"]["perfs"]["auroc"])
+                    f.write("Test  AUROC: %s\n" % valid["test"]["perfs"]["auroc"])
 
 
 @logged
@@ -434,9 +551,14 @@ class Validation(BaseValidation, HPCUtils):
                  n_splits=3,
                  test_size=0.2,
                  explain=False,
+                 model_type=None,
+                 only_train=False,
+                 only_validation=True,
                  **kwargs):
         HPCUtils.__init__(self, **kwargs)
-        BaseValidation.__init__(self, splitter, is_cv, is_stratified, n_splits, test_size, explain)
+        BaseValidation.__init__(self, splitter, is_cv, is_stratified, n_splits, test_size, explain, model_type,
+                 only_train,
+                 only_validation)
 
     def single_validate(self, tm, data, train_idx, test_idx, wipe, **kwargs):
         # Initialize
@@ -445,7 +567,7 @@ class Validation(BaseValidation, HPCUtils):
         self.setup(tm)
         # Signaturize
         self.__log.info("Signaturizing all data")
-        tm.signaturize(smiles=data.molecule, is_tmp=self.is_tmp_signatures, wait=True, moleculetype = data.moleculetype)
+        tm.signaturize(smiles=data.molecule, is_tmp=self.is_tmp_signatures, wait=True, moleculetype=data.moleculetype)
         # Splits
         self.__log.info("Getting splits")
         splits = self.get_splits(tm, data, train_idx, test_idx)
@@ -474,7 +596,7 @@ class Validation(BaseValidation, HPCUtils):
         if wipe:
             tm.wipe()
 
-    def multi_validate(self, tm_list, data_list, wipe, only_validation, scramble, **kwargs):
+    def multi_validate(self, tm_list, data_list, wipe, scramble, **kwargs):
         # Signaturize
         self.__log.info("Signaturizing all data")
         jobs = []
@@ -483,7 +605,8 @@ class Validation(BaseValidation, HPCUtils):
             tm = tm_from_disk(tm)
             data = data_from_disk(data)
             jobs += tm.signaturize(smiles=data.molecule, is_tmp=self.is_tmp_signatures,
-                                   wait=False, moleculetype = data.moleculetype)  # Added by Paula: Way to stack signaturizer
+                                   wait=False,
+                                   moleculetype=data.moleculetype)  # Added by Paula: Way to stack signaturizer
             if len(jobs) > MAXQUEUE:
                 self.waiter(jobs)
                 jobs = []
@@ -596,9 +719,9 @@ class Validation(BaseValidation, HPCUtils):
             self.__log.info("Wiping files")
             for tm in tm_list:
                 tm = tm_from_disk(tm)
-                if only_validation:
+                if self.only_validation:
                     for path in os.listdir(tm.models_path):
-                        if path == "validation.pkl" or path == "validation.txt":
+                        if path == "validation.pkl" or path == "validation.txt" or path == "tm.pkl" or path == "trained_data.pkl":
                             continue
                         path = os.path.join(tm.models_path, path)
                         if os.path.isdir(path):
@@ -616,15 +739,19 @@ class Validation(BaseValidation, HPCUtils):
                 self.__log.info("Wiping temporary directories")
                 tm.wipe()
 
-    def multi_validate_onlytrain(self, tm_list, data_list, wipe, scramble, **kwargs):  # Added by Paula: creates model using all data as train
-        # Signaturizeon
+    def multi_validate_onlytrain(self, tm_list, data_list, wipe, scramble,
+                                 **kwargs):  # Added by Paula: creates model using all data as train
+        # Signaturize
+        self.__log.info("Only train") # TODO: Make this more explicit
         self.__log.info("Signaturizing all data")
+
         jobs = []
         i = 0
         for tm, data in zip(tm_list, data_list):
             tm = tm_from_disk(tm)
             data = data_from_disk(data)
-            jobs += tm.signaturize(smiles=data.molecule, is_tmp=self.is_tmp_signatures, wait=False, moleculetype = data.moleculetype)
+            jobs += tm.signaturize(smiles=data.molecule, is_tmp=self.is_tmp_signatures, wait=False,
+                                   moleculetype=data.moleculetype)
             if len(jobs) > MAXQUEUE:
                 self.waiter(jobs)
                 jobs = []
@@ -640,14 +767,16 @@ class Validation(BaseValidation, HPCUtils):
             tm = tm_from_disk(tm)
             self.setup(tm)
             tm.on_disk()
+            self.n_splits += [None]
             i += 1
+
         # Fit
         self.__log.info("Fit with train")
         jobs = []
         for tm, data in zip(tm_list, data_list):
             tm = tm_from_disk(tm)
             data = data_from_disk(data)
-            jobs += self.fit(tm, data, [(None, None)], scramble, only_train=True) # CHANGE BACK TO TRUE ONCE CONFIRMED
+            jobs += self.fit(tm, data, [(None, None)], scramble)  # CHANGE BACK TO TRUE ONCE CONFIRMED
             if len(jobs) > MAXQUEUE:
                 self.waiter(jobs)
                 jobs = []
@@ -667,25 +796,42 @@ class Validation(BaseValidation, HPCUtils):
             i += 0
         self.waiter(jobs)
 
+        # Gather
+        self.__log.info("Gather")
+        i = 0
+        for tm, data in zip(tm_list, data_list):
+            tm = tm_from_disk(tm)
+            data = data_from_disk(data)
+            self.gather(tm, data, [(None, None)])
+            tm.on_disk()
+            i += 1
+        # Score
+        self.__log.info("Scores")
+        self.score()
+        # Save
+        self.__log.info("Save")
+        self.save()
+
         # Wipe
         if wipe:
             self.__log.info("Wiping files")
             for tm in tm_list:
-               tm = tm_from_disk(tm)
-               self.__log.info("Wiping temporary directories")
-               tm.wipe()
-               for path in os.listdir(tm.models_path):
-                   path = os.path.join(tm.models_path, path)
-                   if os.path.isfile(path):
-                       continue
-                   if not os.listdir(path):
-                       shutil.rmtree(path)
+                tm = tm_from_disk(tm)
+                self.__log.info("Wiping temporary directories")
+                tm.wipe()
+                for path in os.listdir(tm.models_path):
+                    path = os.path.join(tm.models_path, path)
+                    if os.path.isfile(path):
+                        continue
+                    if not os.listdir(path):
+                        shutil.rmtree(path)
 
         for tm in tm_list:
             tm = tm_from_disk(tm)
             tm.compress_models()
 
-    def validate(self, tm, data, train_idx=None, test_idx=None, wipe=True, only_validation=True, only_train=False, scramble = False, set_train_idx=None, set_test_idx = None):
+    def validate(self, tm, data, train_idx=None, test_idx=None, wipe=True, scramble=False,
+                 set_train_idx=None, set_test_idx=None):
         """Validate a TargetMate model using train-test splits.
 
         Args:
@@ -700,8 +846,9 @@ class Validation(BaseValidation, HPCUtils):
         if type(tm) != list:
             self.single_validate(tm=tm, data=data, train_idx=train_idx, test_idx=test_idx, wipe=wipe)
         else:
-            if only_train:
-                self.multi_validate_onlytrain(tm_list=tm, data_list=data, wipe=wipe,
-                                              only_validation=only_validation, scramble =scramble, set_train_idx = set_train_idx, set_test_idx = set_test_idx)
+            if self.only_train:
+                self.multi_validate_onlytrain(tm_list=tm, data_list=data, wipe=wipe, scramble=scramble,
+                                              set_train_idx=set_train_idx, set_test_idx=set_test_idx)
             else:
-                self.multi_validate(tm_list=tm, data_list=data, wipe=wipe, only_validation=only_validation, scramble =scramble)
+                self.multi_validate(tm_list=tm, data_list=data, wipe=wipe,
+                                    scramble=scramble)
