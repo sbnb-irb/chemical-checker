@@ -93,6 +93,7 @@ class sign3(BaseSignature, DataSignature):
         self.params['sign2_lr'] = default_sign2.copy()
         self.params['sign2'] = default_sign2
         self._sharedx = None
+        self._sharedx_trim = None
         self.traintest_file = None
         self.trim_mask = None
 
@@ -104,7 +105,9 @@ class sign3(BaseSignature, DataSignature):
                 return None
             self.__log.debug("Reading sign2 universe lookup,"
                              " this should only be loaded once.")
-            self._sharedx = self.traintest_file.get_h5_dataset('x')
+            traintest_ds = DataSignature(self.traintest_file)
+            self._sharedx = traintest_ds.get_h5_dataset('x')
+        self.__log.debug("sharedx shape: %s" % str(self._sharedx.shape))
         return self._sharedx
 
     @property
@@ -118,6 +121,8 @@ class sign3(BaseSignature, DataSignature):
                 return None
             full_trim = np.argwhere(np.repeat(self.trim_mask, 128))
             self._sharedx_trim = self.sharedx[:, full_trim.ravel()]
+        self.__log.debug("sharedx_trim shape: %s" % 
+                         str(self._sharedx_trim.shape))
         return self._sharedx_trim
 
     @staticmethod
@@ -489,6 +494,7 @@ class sign3(BaseSignature, DataSignature):
         s2_test = self.sign2_self.get_h5_dataset('V', mask=test_mask)
         s2_test_x = confidence_train_x[:, self.dataset_idx[0]
                                        * 128: (self.dataset_idx[0] + 1) * 128]
+        self.__log.debug('self.dataset_idx: %s' % str(self.dataset_idx))
         assert(np.all(s2_test == s2_test_x))
         # siamese train is going to be used for appticability domain
         known_x = self.sharedx[train_mask]
