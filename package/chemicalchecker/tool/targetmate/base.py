@@ -193,6 +193,14 @@ class Model(ModelSetup):
             else:
                 self.__log.debug("Calibrated and uncalibrated models are the same %s" % destdir_uncalib)
                 os.symlink(destdir, destdir_uncalib)
+        self.__log.info("Fitting full model, but without calibration")
+
+        if type(mod_uncalib).__name__ == 'RandomForestClassifier':
+            mod_uncalib.oob_score = True
+            mod_uncalib.fit(X, y)
+            destdir_uncalib = self.mod_uncalib_dir + "---complete"
+            with open(destdir_uncalib, "wb") as f:
+                joblib.dump(mod_uncalib, f)
 
     def model_iterator(self, uncalib):
         if uncalib:
@@ -218,9 +226,12 @@ class Model(ModelSetup):
         X = self.check_array_from_disk(X)
         self.__log.info("Predicting")
         preds = None
+        smoothing = None
         for i, mod in enumerate(self.model_iterator(uncalib=False)):
+            if smoothing is None:
+                smoothing = np.random.uniform(0, 1, size=(len(X), len(mod.classes)))  # Added by Paula: Apply same smoothing to all ccp
             if self.conformity:
-                p = mod.predict(X)
+                p = mod.predict(X, smoothing = smoothing)
             else:
                 p = mod.predict_proba(X)
             if preds is None:
@@ -230,6 +241,26 @@ class Model(ModelSetup):
         preds = preds / (i + 1)
         if destination_dir:
             self.__log.debug("Saving prediction in %s" % destination_dir)
+            with open(destination_dir, "wb") as f:
+                pickle.dump(preds, f)
+        else:
+            return preds
+
+    def _predict_uncalib(self, X, destination_dir=None):
+        """Make predictions
+
+        Returns:
+            A (n_samples, n_classes) array. For now, n_classes = 2.
+        """
+        X = self.check_array_from_disk(X)
+        self.__log.info("Predicting")
+        path = self.mod_uncalib_dir + "---complete"
+
+        with open(path, "rb") as f:
+            mod = joblib.load(f)
+        preds = mod.predict_proba(X)
+        if destination_dir:
+            self.__log.debug("Saving uncalibrated prediction in %s" % destination_dir)
             with open(destination_dir, "wb") as f:
                 pickle.dump(preds, f)
         else:
@@ -402,14 +433,18 @@ class StackedModel(SignaturedModel):
         if not wait:
             return jobs
 
-    def _predict_(self, X, dest):
+    def _predict_(self, X, dest, dest_uncalib):
         self.__log.info("saving paths for stacked")
         if self.is_tmp_bases:
             dest_ = os.path.join(self.bases_tmp_path, "Stacked")
+            dest_uncalib_ = os.path.join(self.bases_tmp_path, "Stacked-uncalib")
         else:
             dest_ = os.path.join(self.bases_models_path, "Stacked")
+            dest_uncalib_ = os.path.join(self.bases_models_path, "Stacked-uncalib")
         self.mod_dir = dest_
+        self.mod_uncalib_dir = dest_uncalib_
         self._predict(X, dest)
+        self._predict_uncalib(X, dest_uncalib)
 
     def _prepare_predict_stack(self, data, idxs):
         self.__log.info("Reading signatures from data")
@@ -417,10 +452,13 @@ class StackedModel(SignaturedModel):
         X = res["X"]
         y = res["y"]
         # X = self.pca_transform(X)
+
         if self.is_tmp_predictions:
             dest = os.path.join(self.predictions_tmp_path, "Stacked")
+            dest_uncalib = os.path.join(self.predictions_tmp_path, "Stacked_uncalib")
         else:
             dest = os.path.join(self.predictions_models_path, "Stacked")
+            dest_uncalib = os.path.join(self.predictions_models_path, "Stacked_uncalib")
         self.__log.info("Saving metadata in %s-meta" % dest)
         meta = {
             "y": self.check_array_from_disk(y),
@@ -428,11 +466,11 @@ class StackedModel(SignaturedModel):
         }
         with open(dest + "-meta", "wb") as f:
             pickle.dump(meta, f)
-        return X, dest
+        return X, dest, dest_uncalib
 
     def _predict_stack(self, data, idxs):
-        X, dest = self._prepare_predict_stack(data, idxs)
-        return self._predict_(X, dest)
+        X, dest, dest_uncalib = self._prepare_predict_stack(data, idxs)
+        return self._predict_(X, dest, dest_uncalib)
 
     def predict_stack(self, data, idxs, wait):
         jobs = []
@@ -442,27 +480,32 @@ class StackedModel(SignaturedModel):
             else:
                 self._predict_stack(data, idxs)
         else:
-            X, dest = self._prepare_predict_stack(data, idxs)
+            X, dest, dest_uncalib = self._prepare_predict_stack(data, idxs)
             self.__log.info("Starting predictions")
             jobs = []
             if self.hpc:
-                jobs += [self.func_hpc("_predict_", X, dest, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
+                jobs += [self.func_hpc("_predict_", X, dest, dest_uncalib, cpu=self.n_jobs_hpc, job_base_path=self.tmp_path)]
             else:
-                self._predict_(X, dest)
+                self._predict_(X, dest, dest_uncalib)
         if wait:
             self.waiter(jobs)
         return jobs
 
     def load_predictions(self, datasets=None):
         datasets = self.get_datasets(datasets)
-        y_pred = []
+        # y_pred_calibrated = []
+        #
         if self.is_tmp_predictions:
             dest = os.path.join(self.predictions_tmp_path, "Stacked")
+            dest_uncalib = os.path.join(self.predictions_tmp_path, "Stacked_uncalib")
         else:
             dest = os.path.join(self.predictions_models_path, "Stacked")
+            dest_uncalib = os.path.join(self.predictions_models_path, "Stacked_uncalib")
 
         with open(dest, "rb") as f:
-            y_pred = pickle.load(f)
+            y_pred_calibrated = pickle.load(f)
+        with open(dest_uncalib, "rb") as f:
+            y_pred_uncalibrated = pickle.load(f)
         with open(dest + "-meta", "rb") as f:
             meta = pickle.load(f)
             y_true = meta["y"]
@@ -470,7 +513,8 @@ class StackedModel(SignaturedModel):
         return Prediction(
             datasets=datasets,
             y_true=y_true,
-            y_pred=y_pred,
+            y_pred_calibrated=y_pred_calibrated,
+            y_pred_uncalibrated=y_pred_uncalibrated,
             is_ensemble=self.is_ensemble,
             weights=None
         )
@@ -478,7 +522,7 @@ class StackedModel(SignaturedModel):
     def predict(self, data, idxs=None, datasets=None, is_tmp=True, wait=True):
         # self.is_tmp = is_tmp
         datasets = self.get_datasets(datasets)
-        self.signaturize(smiles=data.molecule, datasets=datasets, moleculetype=data.moleculetype)
+        # self.signaturize(smiles=data.molecule, datasets=datasets, moleculetype=data.moleculetype)
         jobs = self.predict_stack(data, idxs=idxs, wait=wait)
         if wait:
             return self.load_predictions(datasets)

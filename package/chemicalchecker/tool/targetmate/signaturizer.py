@@ -10,7 +10,7 @@ from .tmsetup import TargetMateSetup
 from .utils import HPCUtils
 from .utils import chemistry
 
-MAXQUEUE = 10
+MAXQUEUE = 15
 
 @logged
 class BaseSignaturizer(TargetMateSetup, HPCUtils):
@@ -342,7 +342,6 @@ class Signaturizer(BaseSignaturizer):
             destination_dir = self.get_destination_dir(dataset, is_tmp)
             if os.path.exists(destination_dir):
                 self.__log.debug("Signature %s file already exists: %s" % (dataset, destination_dir))
-
                 continue
             else:
                 self.__log.debug("Calculating sign for %s" % dataset)

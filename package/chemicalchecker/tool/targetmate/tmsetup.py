@@ -56,7 +56,6 @@ class TargetMateSetup(HPCUtils):
                  shuffle = False,
                  log = "INFO",
                  use_stacked_signature=False,
-                 is_tmp=False,
                  is_tmp_bases=True,
                  is_tmp_signatures=True,
                  is_tmp_predictions=True,
@@ -111,14 +110,10 @@ class TargetMateSetup(HPCUtils):
                 Config().PATH.CC_TMP, "targetmate", subpath, str(uuid.uuid4()))
         else:
             self.tmp_path = os.path.join(os.path.abspath(tmp_path), str(uuid.uuid4()))
-        if is_tmp:
-            self.is_tmp_bases = is_tmp
-            self.is_tmp_signatures= is_tmp
-            self.is_tmp_predictions= is_tmp
-        else:
-            self.is_tmp_bases = is_tmp_bases
-            self.is_tmp_signatures = is_tmp_signatures
-            self.is_tmp_predictions = is_tmp_predictions
+
+        self.is_tmp_bases = is_tmp_bases
+        self.is_tmp_signatures = is_tmp_signatures
+        self.is_tmp_predictions = is_tmp_predictions
         if not os.path.exists(self.tmp_path): os.makedirs(self.tmp_path, exist_ok = True)
         self.bases_tmp_path, self.signatures_tmp_path, self.predictions_tmp_path = self.directory_tree(self.tmp_path)
         self._bases_tmp_path, self._signatures_tmp_path, self._predictions_tmp_path = self.bases_tmp_path, self.signatures_tmp_path, self.predictions_tmp_path
@@ -211,16 +206,17 @@ class TargetMateSetup(HPCUtils):
         else:
             self.bases_models_path = self._bases_models_path
 
-    def repath_bases_by_fold(self, fold_number, is_tmp = True, reset=True):
+    def repath_bases_by_fold(self, fold_number, is_tmp = True, reset=True, only_train = False):
         """Redefine path of a TargetMate instance. Used by the Validation class."""
         if reset:
             self.reset_path_bases()
-        if is_tmp:
-            self.bases_tmp_path = os.path.join(self.bases_tmp_path, "%02d" % fold_number)
-            if not os.path.exists(self.bases_tmp_path): os.mkdir(self.bases_tmp_path)
-        else:
-            self.bases_models_path = os.path.join(self.bases_models_path, "%02d" % fold_number)
-            if not os.path.exists(self.bases_models_path): os.mkdir(self.bases_models_path)
+        if not only_train:
+            if is_tmp:
+                self.bases_tmp_path = os.path.join(self.bases_tmp_path, "%02d" % fold_number)
+                if not os.path.exists(self.bases_tmp_path): os.mkdir(self.bases_tmp_path)
+            else:
+                self.bases_models_path = os.path.join(self.bases_models_path, "%02d" % fold_number)
+                if not os.path.exists(self.bases_models_path): os.mkdir(self.bases_models_path)
 
     def reset_path_predictions(self, is_tmp=True):
         """Reset predictions path"""
@@ -255,9 +251,12 @@ class TargetMateSetup(HPCUtils):
             self.predictions_models_path = os.path.join(self.predictions_models_path, s)
             if not os.path.exists(self.predictions_models_path): os.mkdir(self.predictions_models_path)
 
-    def repath_predictions_by_fold_and_set(self, fold_number, is_train, is_tmp=True, reset=True):
-        self.repath_predictions_by_fold(fold_number=fold_number, is_tmp=is_tmp, reset=reset)
-        self.repath_predictions_by_set(is_train=is_train, is_tmp=is_tmp, reset=False)
+    def repath_predictions_by_fold_and_set(self, fold_number, is_train, is_tmp=True, reset=True, only_train = False):
+        if not only_train:
+            self.repath_predictions_by_fold(fold_number=fold_number, is_tmp=is_tmp, reset=reset)
+            self.repath_predictions_by_set(is_train=is_train, is_tmp=is_tmp, reset=False)
+        else:
+            self.repath_predictions_by_set(is_train=is_train, is_tmp=is_tmp, reset=True)
 
     # Read input data
     def read_data(self, data, smiles_idx, inchi_idx, inchikey_idx, activity_idx, srcid_idx, use_inchikey, standardize=None, valid_inchikeys=None):
@@ -335,7 +334,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
                  active_value=1,
                  inactive_value=None,
                  inactives_per_active=100,
-                 metric="auroc",
+                 metric="bacc",
                  universe_path=None,
                  naive_sampling=False,
                  biased_universe=0,
@@ -441,7 +440,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
         self.naive_sampling = naive_sampling
         # Others
         self.cross_conformal_func = conformal.get_cross_conformal_classifier
-        self.biased_universe =biased_universe
+        self.biased_universe = biased_universe
         self.universe_random_state = universe_random_state
         self.maximum_potential_actives = maximum_potential_actives
 
@@ -477,7 +476,7 @@ class TargetMateClassifierSetup(TargetMateSetup):
                 else:
                     if d.activity == self.inactive_value:
                         inactives.update([(d.molecule, d.idx, d.inchikey)])
-        act, inact, putinact = self.universe.predict(actives, inactives,
+        act, inact, putinact, self.putative_idx = self.universe.predict(actives, inactives,
                                                      inactives_per_active=self.inactives_per_active,
                                                      min_actives=self.min_class_size_active, # Added by Paula: change to specifically active class
                                                      naive=self.naive_sampling,

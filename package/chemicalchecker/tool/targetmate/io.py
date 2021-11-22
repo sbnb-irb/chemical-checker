@@ -154,6 +154,7 @@ def reassemble_activity_sets(act, inact, putinact, valid_inchikeys=None, inchi =
     else:
         for i, x in enumerate(list(putinact)):
             data += [(i + n, 0, x[1], x[-1])]
+
     idx      = []
     molecule   = []
     inchikey = []
@@ -394,7 +395,7 @@ class InchiData(object):
 class Prediction(object):
     """A simple prediction class"""
 
-    def __init__(self, datasets, y_true, y_pred, is_ensemble, weights=None):
+    def __init__(self, datasets, y_true, y_pred_calibrated, y_pred_uncalibrated, is_ensemble, weights=None):
         self.is_ensemble = is_ensemble
         self.datasets = datasets
         self.y_true = y_true
@@ -403,7 +404,9 @@ class Prediction(object):
             self.weights = weights
             self.y_pred = self.metapredict(self.datasets)
         else:
-            self.y_pred = y_pred
+            self.y_pred = y_pred_calibrated
+            self.y_pred_uncalib = y_pred_uncalibrated
+
 
     def metapredict(self, datasets=None):
         """Metapredict using a double weighting scheme"""

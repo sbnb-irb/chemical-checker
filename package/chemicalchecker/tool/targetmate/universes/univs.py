@@ -215,7 +215,7 @@ class Universe:
         inactives = set(
             [smi for smi in inactives if smi[-1] not in common_iks])
         if not inactives_per_active:
-            return actives, inactives, set()
+            return actives, inactives, set(), np.array([])
         # Inchikeys
         actives_iks = set([smi[-1] for smi in actives])
         inactives_iks = set([smi[-1] for smi in inactives])
@@ -223,7 +223,7 @@ class Universe:
         N = int(len(actives) * inactives_per_active) + 1
         if len(inactives) >= N:
             # return actives, random.sample(inactives, N), set()
-            return actives, inactives, set() # Added by Paula: Prioritze real data, if there are more known inactives than actives mantain all compounds
+            return actives, inactives, set(), np.array(set()) # Added by Paula: Prioritze real data, if there are more known inactives than actives mantain all compounds
         N = N - len(inactives)
         # Load relevant data
         smiles = self.smiles()
@@ -232,11 +232,12 @@ class Universe:
             # Select permitted candidates
             candidates_iks = set([smi[-1] for smi in smiles]).difference(actives_iks.union(inactives_iks))
             if not candidates_iks:
-                return actives, inactives, set()
-            candidates_dict = dict((smi[-1], (smi[0], smi[1], smi[2])) for smi in smiles)
+                return actives, inactives, set(), np.array([])
+            candidates_dict = dict((smi[-1], (smi[0], smi[1], smi[2], j)) for j, smi in enumerate(smiles))
             candidates_iks = random.sample(candidates_iks, int(np.min([N, len(candidates_iks)])))
             candidates = set([(candidates_dict[ik][0], candidates_dict[ik][1], candidates_dict[ik][2], ik) for ik in candidates_iks])
-            return actives, inactives, candidates
+            candidate_idx = set(candidates_dict[ik][-1] for ik in candidates_iks)
+            return actives, inactives, candidates, np.array(candidate_idx)
         else:
             # Load relevant data
             self.__log.debug("Loading relevant data")
@@ -254,7 +255,7 @@ class Universe:
             # Predicting using one-class SVM
 
             if biased_universe: # Added by Paula 31/10/2020
-                print("using biased universe")
+                self.__log.info("Using biased universe")
                 dec = clf.decision_function(sim_mat)
 
                 # biased_weight_dict = collections.defaultdict(int)
@@ -288,7 +289,9 @@ class Universe:
             # Sample from candidates
             trials = self.trials
             t = 0
-            candidates = set()
+            # candidates = set()
+            candidates = []
+            candidate_idx = []
 
             if biased_universe: # Added by Paula
                 # vals = np.array(list(biased_weight_dict.values()))
@@ -324,7 +327,10 @@ class Universe:
                     i = random.choice(clusters_dict[c])
                     cand = smiles[i]
                     if cand[-1] not in actives_iks and cand[-1] not in inactives_iks:
-                        candidates.update([cand])
+                        # candidates.update([cand])
+                        if cand not in candidates:
+                            candidates.extend([cand])
+                            candidate_idx.extend([i])
                     t += 1
 
             count = collections.defaultdict(int)
@@ -337,17 +343,24 @@ class Universe:
                 cand = smiles[i]
                 count[c] = count[c] + 1
                 if cand[-1] not in actives_iks and cand[-1] not in inactives_iks:
-                    candidates.update([cand])
+                    # candidates.update([cand])
+                    if cand not in candidates:
+                        candidates.extend([cand])
+                        candidate_idx.extend([i])
                 t += 1
 
             if len(candidates) < N:
                 all_iks = actives_iks.union(inactives_iks).union(
                     [cc[-1] for cc in candidates])
                 remaining_universe = [
-                    smi for smi in smiles if smi[-1] not in all_iks]
+                    [j, smi] for j, smi in enumerate(smiles) if smi[-1] not in all_iks]
                 N = N - len(candidates)
                 if N >= len(remaining_universe):
-                    candidates.update(remaining_universe)
+                    candidates.update([ru[-1] for ru in remaining_universe])
+                    candidate_idx.extend([ru[0] for ru in remaining_universe])
                 else:
-                    candidates.update(random.sample(remaining_universe, k=N))
-        return actives, inactives, candidates
+                    remaining_universe = random.sample(remaining_universe, k=N)
+                    candidates.extend([ru[-1] for ru in remaining_universe])
+                    candidate_idx.extend([ru[0] for ru in remaining_universe])
+
+        return actives, inactives, candidates, np.array(candidate_idx)
