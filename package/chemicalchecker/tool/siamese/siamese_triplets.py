@@ -133,7 +133,8 @@ class SiameseTriplets(object):
             os.mkdir(self.model_dir)
 
         # check input path
-        self.sharedx = None
+        self.sharedx = kwargs.get("sharedx", None)
+        self.sharedx_trim = kwargs.get("sharedx_trim", None)
         if self.traintest_file is not None:
             traintest_data = DataSignature(self.traintest_file)
             if not predict_only:
@@ -144,7 +145,11 @@ class SiameseTriplets(object):
                 # initialize train generator
                 if generator is None:
                     if self.sharedx is None:
+                        self.__log.info("Reading sign2 universe lookup,"
+                                        " this should only be loaded once.")
                         self.sharedx = traintest_data.get_h5_dataset('x')
+                        full_trim = np.argwhere(np.repeat(self.trim_mask, 128))
+                        self.sharedx_trim = self.sharedx[:, full_trim.ravel()]
                     tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
                         self.traintest_file,
                         'train_train',
@@ -155,7 +160,8 @@ class SiameseTriplets(object):
                         augment_fn=self.augment_fn,
                         augment_kwargs=self.augment_kwargs,
                         train=True, standard=self.standard,
-                        trim_mask=self.trim_mask)
+                        trim_mask=self.trim_mask,
+                        sharedx_trim=self.sharedx_trim)
                 else:
                     tr_shape_type_gen = generator
                 self.generator = tr_shape_type_gen
@@ -183,7 +189,11 @@ class SiameseTriplets(object):
         if evaluate:
             traintest_data = DataSignature(self.traintest_file)
             if self.sharedx is None:
+                self.__log.info("Reading sign2 universe lookup,"
+                                " this should only be loaded once.")
                 self.sharedx = traintest_data.get_h5_dataset('x')
+                full_trim = np.argwhere(np.repeat(self.trim_mask, 128))
+                self.sharedx_trim = self.sharedx[:, full_trim.ravel()]
             val_shape_type_gen = NeighborTripletTraintest.generator_fn(
                 self.traintest_file,
                 'test_test',
@@ -194,7 +204,9 @@ class SiameseTriplets(object):
                 sharedx=self.sharedx,
                 train=False,
                 shuffle=False,
-                standard=self.standard, trim_mask=self.trim_mask)
+                standard=self.standard, 
+                trim_mask=self.trim_mask,
+                sharedx_trim=self.sharedx_trim)
             self.val_shapes = val_shape_type_gen[0]
             self.val_gen = val_shape_type_gen[2]()
             if self.validation_steps is None:
@@ -244,7 +256,7 @@ class SiameseTriplets(object):
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
 
         if self.learning_rate == 'auto':
-            self.__log.debug("Searching for optimal larning rates.")
+            self.__log.debug("Searching for optimal learning rates.")
             lr = self.find_lr(kwargs, generator=self.generator)
             self.learning_rate = lr
             kwargs['learning_rate'] = self.learning_rate
@@ -317,7 +329,8 @@ class SiameseTriplets(object):
         assert(len(self.layers) == len(self.layers_sizes) ==
                len(self.activations) == len(self.dropouts))
         basenet = Sequential()
-        for i, tple in enumerate(zip(self.layers, self.layers_sizes, self.activations, self.dropouts)):
+        for i, tple in enumerate(zip(self.layers, self.layers_sizes,
+                                     self.activations, self.dropouts)):
             layer, layer_size, activation, dropout = tple
             i_shape = None
             if i == 0:
@@ -598,7 +611,8 @@ class SiameseTriplets(object):
             lr_params['learning_rate'] = lr
             siamese = SiameseTriplets(
                 self.model_dir, evaluate=True, plot=True, save_params=False,
-                generator=generator, **lr_params)
+                generator=generator, sharedx=self.sharedx,
+                sharedx_trim=self.sharedx_trim, **lr_params)
             siamese.fit(save=False)
             h_file = os.path.join(
                 self.model_dir, 'siamesetriplets_history.pkl')
@@ -610,8 +624,9 @@ class SiameseTriplets(object):
             lr_iters.append([loss, val_loss, val_acc])
 
         lr_iters = np.array(lr_iters)
-        lr_scores = np.mean(np.array([rankdata(1 / col) if i > 1 else rankdata(col)
-                                      for i, col in enumerate(lr_iters.T)]).T, axis=1)
+        lr_scores = [rankdata(1 / col) if i > 1 else rankdata(col)
+                     for i, col in enumerate(lr_iters.T)]
+        lr_scores = np.mean(np.array(lr_scores).T, axis=1)
         lr_index = np.argmin(lr_scores)
         lr = lrs[lr_index]
         lr_results = {'lr_iters': lr_iters,
@@ -745,7 +760,9 @@ class SiameseTriplets(object):
                         augment_fn=self.augment_fn,
                         train=False,
                         shuffle=False,
-                        standard=self.standard, trim_mask=self.trim_mask)
+                        standard=self.standard,
+                        trim_mask=self.trim_mask,
+                        sharedx_trim=self.sharedx_trim)
                     validation_sets.append((gen, shapes, name))
             additional_vals = AdditionalValidationSets(
                 validation_sets, self.model, batch_size=self.batch_size,

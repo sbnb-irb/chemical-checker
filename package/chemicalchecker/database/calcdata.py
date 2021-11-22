@@ -138,8 +138,8 @@ def Calcdata(table_name):
 
             GenericCalcdata.__log.debug(
                 "Found already present: " + str(len(present)))
-
-            return keys.difference(present)
+            
+            return set(keys).difference(present)
 
         @staticmethod
         def from_inchikey(inchikey, **kwargs):
@@ -205,11 +205,13 @@ def Calcdata(table_name):
             num_jobs: Number of HPC jobs(default: 200)
             chunk_dbload: Number of elements loaded to the database
                 (default: 1000)
+            cc_config: configuration file (.json)
             """
             # create job directory if not available
+            cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
+            cfg = Config(cc_config)
             if not os.path.isdir(job_path):
                 os.mkdir(job_path)
-
             cpu = kwargs.get("cpu", 1)
             wait = kwargs.get("wait", True)
             memory = kwargs.get("memory", 5)
@@ -246,17 +248,16 @@ def Calcdata(table_name):
             params["wait"] = wait
             params["cpu"] = cpu
             params["memory"] = memory
+            params["compress"] = False
             # job command
-            cfg = Config()
             singularity_image = cfg.PATH.SINGULARITY_IMAGE
-            cc_config_path = cfg.config_path
-            cc_package = os.path.join(cfg.PATH.CC_REPO, 'package')
-            command = (
-                "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} "
-                "singularity exec {} python {} <TASK_ID> <FILE>").format(
-                cc_package, cc_config_path, singularity_image, script_name)
+            command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
+                " singularity exec {} python {} <TASK_ID> <FILE>"
+            command = command.format(
+                os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
+                singularity_image, script_name)
             # submit jobs
-            cluster = HPC.from_config(Config())
+            cluster = HPC.from_config(cfg)
             cluster.submitMultiJob(command, **params)
 
     return GenericCalcdata
