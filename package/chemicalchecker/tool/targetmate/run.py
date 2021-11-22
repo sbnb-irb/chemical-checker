@@ -14,9 +14,8 @@ class MultiValidation(MultiSetup):
                  models_path,
                  overwrite,
                  wipe=True,
-                 model_type = None,
-                 only_validation=True,
-                 only_train=False,
+                 # only_validation=True,
+                 # only_train=False,
                  **kwargs):
         """Initialize multi-validation.
 
@@ -35,14 +34,10 @@ class MultiValidation(MultiSetup):
         MultiSetup.__init__(self, data=data, models_path=models_path, **kwargs)
         self.validation = Validation(**kwargs)
         self.wipe=wipe
-        self.only_validation=only_validation
-        self.only_train=only_train
-
-        if model_type == 'only_train':
-            self.only_train = True
-        elif model_type == 'val_store':
-            self.only_validation = False
-        self.model_type = model_type
+        # self.only_validation=only_validation
+        # self.only_train=only_train
+        #
+        # self.model_type = model_type
 
     def _is_done(self, models_path):
         if os.path.exists(os.path.join(models_path, "validation.txt")):
@@ -51,6 +46,7 @@ class MultiValidation(MultiSetup):
         elif os.path.exists(os.path.join(models_path, "bases")):
             for mod in os.listdir(os.path.join(models_path, "bases")):
                 if mod.endswith((".z")):
+                    self.__log.info("Only train model exists in %s" % models_path)
                     return True
             return False
         else:
@@ -71,20 +67,6 @@ class MultiValidation(MultiSetup):
             self.__log.info("Setting signature type from variables")
         return parameters
 
-    def _get_model_type(self, parameters):
-        if (self.model_type == 'only_train') | (self.model_type == 'val_store'):
-            parameters['is_tmp'] = False
-            parameters['is_tmp_bases'] = False
-            parameters['is_tmp_signatures'] = True
-        elif self.model_type == 'val':
-            pass
-        elif type(self.model_type) == str:
-            self.__log.info("Model type {:s} not available".format(self.model_type))
-            return None
-        else:
-            self.__log.info("Setting model type from variables")
-        return parameters
-
     def run(self, TargetMate, use_inchikey, signature_type = None, scramble=False, set_train_idx= None, set_test_idx = None, **kwargs):
         """ Create instances of TargetMate
 
@@ -102,9 +84,7 @@ class MultiValidation(MultiSetup):
         kwargs = self._get_signature_type(signature_type, kwargs)
         if kwargs is None:
             return None
-        kwargs = self._get_model_type(kwargs)
-        if kwargs is None:
-            return None
+
         self.__log.info("Multiple trainings")
         tm_list   = []
         data_list = []
@@ -114,7 +94,11 @@ class MultiValidation(MultiSetup):
                 if self._is_done(models_path):
                     continue
             tm = TargetMate(models_path=models_path, use_inchikey=use_inchikey,
-                            master_sign_paths=sign_paths, **kwargs)
+                            master_sign_paths=sign_paths,
+                            is_tmp_bases = self.validation.is_tmp_bases,
+                            is_tmp_signatures=self.validation.is_tmp_signatures,
+                            is_tmp_predictions=self.validation.is_tmp_predictions,
+                            **kwargs)
             dat = tm.get_data_fit(data, use_inchikey=use_inchikey, **kwargs) # Edited by Paula: inchikey_idx was set to -1, removed so that user must input it
             if dat is not None:
 
@@ -124,8 +108,7 @@ class MultiValidation(MultiSetup):
 
         if len(tm_list) > 0:
             self.validation.validate(tm=tm_list, data=data_list, wipe=self.wipe,
-                                     only_validation=self.only_validation,
-                                     only_train=self.only_train, scramble = scramble,
+                                     scramble = scramble,
                                      set_train_idx = set_train_idx, set_test_idx= set_test_idx)
 
 
@@ -151,7 +134,7 @@ class CompleteModel:
     def run_full(self, **kwargs):
         mv = MultiValidation(models_path=self.directories[0], model_type = 'val', **self.kwargs)
         mv.run(**kwargs)
-        mv_full = MultiValidation(models_path=self.directories[1], model_type = 'onlt_train', **self.kwargs)
+        mv_full = MultiValidation(models_path=self.directories[1], model_type = 'only_train', **self.kwargs)
         mv_full.run(**kwargs)
 
 class MultiFit(MultiSetup):
