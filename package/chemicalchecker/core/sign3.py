@@ -92,6 +92,33 @@ class sign3(BaseSignature, DataSignature):
         default_sign2.update(params.get('sign2', {}))
         self.params['sign2_lr'] = default_sign2.copy()
         self.params['sign2'] = default_sign2
+        self._sharedx = None
+        self.traintest_file = None
+        self.trim_mask = None
+
+    @property
+    def sharedx(self):
+        if self._sharedx is None:
+            if self.traintest_file is None:
+                self.__log.debug("traintest_file is not set.")
+                return None
+            self.__log.debug("Reading sign2 universe lookup,"
+                             " this should only be loaded once.")
+            self._sharedx = self.traintest_file.get_h5_dataset('x')
+        return self._sharedx
+
+    @property
+    def sharedx_trim(self):
+        if self._sharedx_trim is None:
+            if self.traintest_file is None:
+                self.__log.debug("traintest_file is not set.")
+                return None
+            if self.trim_mask is None:
+                self.__log.debug("trim_mask is not set.")
+                return None
+            full_trim = np.argwhere(np.repeat(self.trim_mask, 128))
+            self._sharedx_trim = self.sharedx[:, full_trim.ravel()]
+        return self._sharedx_trim
 
     @staticmethod
     def save_sign2_universe(sign2_list, destination):
@@ -205,7 +232,7 @@ class sign3(BaseSignature, DataSignature):
         # which molecules in which space should be calculated?
         cov = DataSignature(sign2_coverage)
         inks, cov_ds = cov.get_vectors(sign2_self.keys, dataset_name='x_test')
-        sign3.__log.info('Coverage matrix shape: %s' % str(cov_ds.shape) )
+        sign3.__log.info('Coverage matrix shape: %s' % str(cov_ds.shape))
         conv = Converter()
         # check coverage of calculated spaces
         missing = np.sum(~cov_ds[:, calc_ds_idx].astype(bool), axis=0)
@@ -327,11 +354,13 @@ class sign3(BaseSignature, DataSignature):
             hf['x'] = hf['x_test']
             del hf['x_test']
 
-    def learn_sign2(self, params, reuse=True, suffix=None, evaluate=True):
-        """Learn the signature 3 model.
+    def train_SNN(self, params, reuse=True, suffix=None, evaluate=True):
+        """Train the Siamese Neural Network model.
 
         This method is used twice. First to evaluate the performances of the
         Siamese model. Second to train the final model on the full set of data.
+        Triplets file are generated and SNN are trained. When evaluating also
+        save the confidence model.
 
         Args:
             params(dict): Dictionary with algorithm parameters.
@@ -367,14 +396,14 @@ class sign3(BaseSignature, DataSignature):
         if not reuse or not os.path.isfile(sign2_matrix):
             self.save_sign2_matrix(sign2_matrix)
         # if evaluating, perform the train-test split
-        traintest_file = params.get('traintest_file')
+        self.traintest_file = params.get('traintest_file')
         X = DataSignature(sign2_matrix)
         if evaluate:
             num_triplets = params.get('num_triplets', 1e6)
             cpu = params.get('cpu', 1)
-            if not reuse or not os.path.isfile(traintest_file):
+            if not reuse or not os.path.isfile(self.traintest_file):
                 NeighborTripletTraintest.create(
-                    X, traintest_file, self.neig_sign,
+                    X, self.traintest_file, self.neig_sign,
                     split_names=['train', 'test'],
                     split_fractions=[.8, .2],
                     suffix=suffix,
@@ -385,9 +414,9 @@ class sign3(BaseSignature, DataSignature):
         else:
             num_triplets = params.get('num_triplets', 1e6)
             cpu = params.get('cpu', 1)
-            if not reuse or not os.path.isfile(traintest_file):
+            if not reuse or not os.path.isfile(self.traintest_file):
                 NeighborTripletTraintest.create(
-                    X, traintest_file, self.neig_sign,
+                    X, self.traintest_file, self.neig_sign,
                     split_names=['train'],
                     split_fractions=[1.0],
                     suffix=suffix,
@@ -412,11 +441,14 @@ class sign3(BaseSignature, DataSignature):
             params['augment_kwargs']['dataset_idx'] = [trim_dataset_idx]
             params['augment_kwargs']['p_only_self'] = 0.0
             params['trim_mask'] = trim_mask
+            self.trim_mask = trim_mask
         # train siamese network
         self.__log.debug('Siamese training on %s' % traintest_file)
-        siamese = SiameseTriplets(siamese_path, evaluate=evaluate, **params)
+        siamese = SiameseTriplets(
+            siamese_path, evaluate=evaluate, sharedx=self.sharedx,
+            sharedx_trim=self.sharedx_trim, **params)
         siamese.fit()
-        self.__log.debug('model saved to: %s' % siamese_path)
+        self.__log.debug('Model saved to: %s' % siamese_path)
         # if final we are done
         if not evaluate:
             return siamese
@@ -424,20 +456,26 @@ class sign3(BaseSignature, DataSignature):
         try:
             self.plot_validations(siamese, dataset_idx, traintest_file)
         except Exception as ex:
-            self.__log.debug('Plot pproblem: %s' % str(ex))
+            self.__log.debug('Plot problem: %s' % str(ex))
         # when evaluating also save prior and confidence models
-        conf_res = self.train_confidence(traintest_file, X, suffix, siamese)
+        conf_res = self.train_confidence(siamese)
         prior_model, prior_sign_model, confidence_model = conf_res
         # update the parameters with the new nr_of epochs and lr
         self.params['sign2']['epochs'] = siamese.last_epoch
         return siamese, prior_model, prior_sign_model, confidence_model
 
-    def train_confidence(self, traintest_file, X, suffix, siamese,
+    def train_confidence(self, siamese, suffix='eval', traintest_file=None,
                          max_x=10000, max_neig=50000, p_self=0.0):
         """Train confidence and prior models."""
         # get sorted keys from siamese traintest file
         self.update_status('Training applicability')
-        tt = DataSignature(traintest_file)
+        if traintest_file is None:
+            traintest_file = os.path.join(self.model_path,
+                                          'traintest_%s.h5' % suffix)
+        if not os.path.isfile(traintest_file):
+            raise Exception('Traintest_file not found: %s' % traintest_file)
+        self.traintest_file = traintest_file
+        tt = DataSignature(self.traintest_file)
         test_inks = tt.get_h5_dataset('keys_test')[:max_x]
         test_inks = np.sort(test_inks)
         train_inks = tt.get_h5_dataset('keys_train')[:max_neig]
@@ -447,13 +485,13 @@ class sign3(BaseSignature, DataSignature):
         train_mask = np.isin(list(self.sign2_self.keys), list(train_inks),
                              assume_unique=True)
         # confidence is going to be trained only on siamese test data
-        confidence_train_x = X.get_h5_dataset('x', mask=test_mask)
+        confidence_train_x = self.sharedx[test_mask]
         s2_test = self.sign2_self.get_h5_dataset('V', mask=test_mask)
         s2_test_x = confidence_train_x[:, self.dataset_idx[0]
                                        * 128: (self.dataset_idx[0] + 1) * 128]
         assert(np.all(s2_test == s2_test_x))
         # siamese train is going to be used for appticability domain
-        known_x = X.get_h5_dataset('x', mask=train_mask)
+        known_x = self.sharedx[train_mask]
         # generate train-test split for confidence estimation
         split_names = ['train', 'test']
         split_fractions = [0.8, 0.2]
@@ -519,11 +557,8 @@ class sign3(BaseSignature, DataSignature):
         siamese_cp = SiameseTriplets(siamese.model_dir, predict_only=True)
 
         if train:
-            traintest_file = os.path.join(
-                self.model_path, 'traintest_%s.h5' % suffix)
-            X = DataSignature(os.path.join(self.model_path, 'train.h5'))
             prior_mdl, prior_sign_mdl, conf_mdl = self.train_confidence(
-                traintest_file, X, suffix, siamese)
+                siamese, suffix=suffix)
             if not update_sign:
                 return
         else:
@@ -780,7 +815,7 @@ class sign3(BaseSignature, DataSignature):
                 Y = np.zeros((split_total_x, 1))
                 preds_onlyselfs = np.zeros((split_total_x, 128))
                 preds_noselfs = np.zeros((split_total_x, 128))
-                feats = np.zeros((split_total_x, 128*len(self.sign2_list)))
+                feats = np.zeros((split_total_x, 128 * len(self.sign2_list)))
                 # prepare X and Y in chunks
                 chunk_size = max(10000, int(np.floor(available_x / 10)))
                 reached_max = False
@@ -970,7 +1005,7 @@ class sign3(BaseSignature, DataSignature):
                 Y = np.zeros((split_total_x, 1))
                 preds_onlyselfs = np.zeros((split_total_x, 128))
                 preds_noselfs = np.zeros((split_total_x, 128))
-                feats = np.zeros((split_total_x, 128*len(self.sign2_list)))
+                feats = np.zeros((split_total_x, 128 * len(self.sign2_list)))
                 # prepare X and Y in chunks
                 chunk_size = max(10000, int(np.floor(available_x / 10)))
                 reached_max = False
@@ -1727,8 +1762,8 @@ class sign3(BaseSignature, DataSignature):
                 calc_ds_idx = [0, 2, 3, 4]
                 calc_ds_names = ['A1.001', 'A3.001', 'A4.001', 'A5.001']
             if complete_universe == 'custom':
-            	calc_ds_idx = kwargs['calc_ds_idx']
-            	calc_ds_names = kwargs['calc_ds_names']
+                calc_ds_idx = kwargs['calc_ds_idx']
+                calc_ds_names = kwargs['calc_ds_names']
             res = sign3.complete_sign2_universe(
                 sign2_self, self.sign2_universe, self.sign2_coverage,
                 tmp_path=self.model_path, calc_ds_idx=calc_ds_idx,
@@ -1745,7 +1780,7 @@ class sign3(BaseSignature, DataSignature):
             eval_model_path = os.path.join(self.model_path, 'siamese_eval')
             eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
             if not os.path.isfile(eval_file):
-                res = self.learn_sign2(
+                res = self.train_SNN(
                     self.params['sign2'].copy(), suffix='eval', evaluate=True)
                 siamese, prior_mdl, prior_sign_mdl, conf_mdl = res
         else:
@@ -1753,7 +1788,7 @@ class sign3(BaseSignature, DataSignature):
                                            'siamese_%s' % suffix)
             eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
             if not os.path.isfile(eval_file):
-                res = self.learn_sign2(
+                res = self.train_SNN(
                     self.params['sign2'].copy(), suffix=suffix, evaluate=True)
                 siamese, prior_mdl, prior_sign_mdl, conf_mdl = res
             return False
@@ -1763,9 +1798,9 @@ class sign3(BaseSignature, DataSignature):
         final_file = os.path.join(final_model_path, 'siamesetriplets.h5')
         if not os.path.isfile(final_file):
             # get the learning rate from the siamese eval
-            siamese_eval = SiameseTriplets(eval_model_path)
+            siamese_eval = SiameseTriplets(eval_model_path, predict_only=True)
             self.params['sign2']['learning_rate'] = siamese_eval.learning_rate
-            siamese = self.learn_sign2(
+            siamese = self.train_SNN(
                 self.params['sign2'].copy(), suffix='final', evaluate=False)
 
         # load models if not already available
@@ -1781,10 +1816,7 @@ class sign3(BaseSignature, DataSignature):
                 # if prior model is not there, retrain confidence
                 if not os.path.isfile(prior_file):
                     siamese_eval = SiameseTriplets(eval_model_path)
-                    sign2_matrix = os.path.join(self.model_path, 'train.h5')
-                    self.train_confidence(siamese_eval.traintest_file,
-                                          DataSignature(sign2_matrix), 'eval',
-                                          siamese_eval)
+                    self.train_confidence(siamese_eval)
                 prior_mdl = pickle.load(open(prior_file, 'rb'))
 
             # part of confidence is the priors based on signatures
