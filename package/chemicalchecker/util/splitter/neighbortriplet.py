@@ -198,7 +198,7 @@ class NeighborTripletTraintest(object):
             'NeighborTripletTraintest saved to %s', out_file)
 
     @staticmethod
-    def create(X, out_file, neigbors_sign, f_per=0.1, t_per=0.01,
+    def create(X, out_file, neighbors_sign, f_per=0.1, t_per=0.01,
                mean_center_x=True, shuffle=True, check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
                suffix='eval', x_dtype=np.float32, y_dtype=np.float32,
@@ -208,8 +208,8 @@ class NeighborTripletTraintest(object):
         Args:
             X(numpy.ndarray): features to train from.
             out_file(str): path of the h5 file to write.
-            neigbors_matrix(numpy.ndarray): matrix for computing neighbors.
-            neigbors(int): Number of positive neighbors to include.
+            neighbors_matrix(numpy.ndarray): matrix for computing neighbors.
+            neighbors(int): Number of positive neighbors to include.
             mean_center_x(bool): center each feature on its mean?
             shuffle(bool): Shuffle positive and negatives.
             split_names(list(str)): names for the split of data.
@@ -230,16 +230,17 @@ class NeighborTripletTraintest(object):
             raise Exception("Split names and fraction should be same amount.")
 
         # Load neigh matrix and shuffle it
-        neigbors_matrix = neigbors_sign[:]
-        shuffle_idx = np.arange(neigbors_matrix.shape[0])
+        neighbors_matrix = neighbors_sign[:]
+        shuffle_idx = np.arange(neighbors_matrix.shape[0])
         np.random.shuffle(shuffle_idx)
 
-        neigbors_matrix = neigbors_matrix[shuffle_idx]
-        X = X.get_h5_dataset('x')[shuffle_idx]
-        X_inks = np.array(neigbors_sign.keys)[shuffle_idx]
+        NeighborTripletTraintest.__log.debug(str(X.info_h5))
+        if len(neighbors_matrix) != X.info_h5['x'][0]:
+            raise Exception("neighbors_matrix should be same length as X.")
 
-        if len(neigbors_matrix) != len(X):
-            raise Exception("neigbors_matrix should be same length as X.")
+        neighbors_matrix = neighbors_matrix[shuffle_idx]
+        X = X.get_h5_dataset('x')[shuffle_idx]
+        X_inks = np.array(neighbors_sign.keys)[shuffle_idx]
 
         NeighborTripletTraintest.__log.debug(
             "{:<20} shape: {:>10}".format("input X", str(X.shape)))
@@ -251,7 +252,7 @@ class NeighborTripletTraintest(object):
         NeighborTripletTraintest.__log.info("Reducing redundancy")
         rnd = RNDuplicates(cpu=cpu)
         _, ref_matrix, full_ref_map = rnd.remove(
-            neigbors_matrix.astype(np.float32))
+            neighbors_matrix.astype(np.float32))
         ref_full_map = dict()
         for key, value in full_ref_map.items():
             ref_full_map.setdefault(value, list()).append(key)
@@ -616,9 +617,9 @@ class NeighborTripletTraintest(object):
                     dis_limit = min(50000, len(shuffle_idxs))
                     dists = np.empty((dis_limit, 3))
                     for idx, row in enumerate(shuffle_idxs[:dis_limit]):
-                        anchor = neigbors_matrix[triplets[row][0]]
-                        positive = neigbors_matrix[triplets[row][1]]
-                        negative = neigbors_matrix[triplets[row][2]]
+                        anchor = neighbors_matrix[triplets[row][0]]
+                        positive = neighbors_matrix[triplets[row][1]]
+                        negative = neighbors_matrix[triplets[row][2]]
                         category = y[row]
 
                         dis_ap = euclidean(anchor, positive)

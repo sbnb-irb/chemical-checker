@@ -6,7 +6,7 @@ import functools
 
 from chemicalchecker.core.sign3 import subsample
 from chemicalchecker import ChemicalChecker
-#ChemicalChecker.set_verbosity('DEBUG')
+ChemicalChecker.set_verbosity('DEBUG')
 
 
 def skip_if_import_exception(function):
