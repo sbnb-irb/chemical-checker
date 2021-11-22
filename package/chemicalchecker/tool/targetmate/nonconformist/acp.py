@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """
 Aggregated conformal predictors
 """
@@ -53,7 +52,7 @@ class CrossSampler(object):
 
     def gen_samples(self, y, n_samples, problem_type):
         if problem_type == 'classification':
-            kf = StratifiedKFold(n_splits=n_samples)
+            kf = StratifiedKFold(n_splits=n_samples, shuffle=True)  # Added by Paula: Shuffle calibration sets before
         else:
             kf = KFold(n_splits=n_samples)
         for train, cal in kf.split(X=np.zeros(len(y)), y=y):
@@ -292,15 +291,16 @@ class CrossConformalClassifier(AggregatedCp):
 
         super(CrossConformalClassifier, self).__init__(predictor, CrossSampler(), False, n_models=n_models)
 
-    def predict(self, x, significance=None):
+    def predict(self, x, significance=None, smoothing=None): # Added by Paula: applies same smoothing across models
         ncal_ngt_neq = np.stack([p._get_stats(x) for p in self.predictors],
                                 axis=3)
         ncal_ngt_neq = ncal_ngt_neq.sum(axis=3)
-
         p = calc_p(ncal_ngt_neq[:, :, 0],
                    ncal_ngt_neq[:, :, 1],
                    ncal_ngt_neq[:, :, 2],
-                   smoothing=self.predictors[0].smoothing)
+                   smoothing=self.predictors[0].smoothing,
+                   f=smoothing
+                   )
 
         if significance:
             return p > significance
