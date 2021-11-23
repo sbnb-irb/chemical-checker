@@ -44,9 +44,7 @@ def connectivity_score(up, dw, signature_file, signatures_dir, min_idxs):
 
     with h5py.File("%s/%s" % (signatures_dir, signature_file), "r") as hf:
         expr = hf["expr"][:]  # i.e [ 5.02756786,  4.73850965,  4.49766302 ..]
-        gene = hf["gene"][:]  #i.e ['AGR2', 'RBKS', 'HERC6', ..., 'SLC25A46', 'ATP6V0B', 'SRGN']
-
-    gene = list({g.decode() for g in gene})
+        gene = hf["gene"][:].astype(str)  #i.e ['AGR2', 'RBKS', 'HERC6', ..., 'SLC25A46', 'ATP6V0B', 'SRGN']
 
     up_idxs = np.where(np.in1d(gene,up))[0]
     dw_idxs = np.where(np.in1d(gene,dw))[0]
