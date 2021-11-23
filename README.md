@@ -1,4 +1,4 @@
-# Chemical Checker Repository
+# Chemical Checker Repository 
 
 The **Chemical Checker (CC)** is a resource of small molecule signatures. In the CC, compounds are described from multiple viewpoints, spanning every aspect of the drug discovery pipeline, from chemical properties to clinical outcomes.
 
