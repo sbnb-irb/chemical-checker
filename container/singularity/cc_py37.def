@@ -140,6 +140,7 @@ faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     pip install pydot                             # python graphviz interface
 
     # Dimensionality reduction
+    pip install cmake
     pip install MulticoreTSNE                     # tSNE algo
     pip install umap-learn                        # UMAP algo
 
