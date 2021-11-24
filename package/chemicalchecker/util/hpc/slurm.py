@@ -84,12 +84,20 @@ fi
                 ssh.close()
 
     def _chunks(self, l, n):
-        """Yield successive n-sized chunks from l."""
+        """Yields n successive chunks from l."""
         if isinstance(l, list) or isinstance(l, np.ndarray):
+            # a list of 60 000 entries split in 6000 chunks
             for i in np.array_split(l, n):
-                yield i
+                yield i   # yields one of the 6000 chunks of 10 elements
         elif isinstance(l, dict):
-            keys = l.keys()
+            keys = list(l.keys())
+            keys.sort()
+            for i in np.array_split(keys, n):
+                yield {k: l[k] for k in i}
+
+        # NS: to correct a bug on D1 sign0 calculation
+        elif isinstance(l, type(dict().keys())):
+            keys = list(l).sort()
             for i in np.array_split(keys, n):
                 yield {k: l[k] for k in i}
         else:
