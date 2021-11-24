@@ -152,7 +152,7 @@ class sign4(BaseSignature, DataSignature):
         if evaluate:
             apppred.evaluate()
 
-    def fit(self, sign0, sign3, suffix=None, include_confidence=True,
+    def fit(self, sign0=None, sign3=None, suffix=None, include_confidence=True,
             only_confidence=False, **kwargs):
         """Fit signature 4 from Morgan Fingerprint.
 
@@ -178,6 +178,10 @@ class sign4(BaseSignature, DataSignature):
         if sign3.molset != "full":
             self.__log.debug("Fit will be done using full sign3")
             sign3 = sign3.get_molset("full")
+        if sign3 is None:
+            sign3 = self.get_sign('sign3').get_molset("full")
+        if sign0 is None:
+            sign0 = self.get_cc().signature('A1.001', 'sign0')
 
         # check if performance evaluations need to be done
         if not only_confidence:
