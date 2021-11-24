@@ -9,7 +9,7 @@ import matplotlib as mpl
 from matplotlib import cm
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
-
+from matplotlib.font_manager import FontProperties
 from .util import coord_color, set_style, homogenous_ticks
 
 from chemicalchecker.util import logged
@@ -402,6 +402,8 @@ class DiagnosisPlot(object):
 
     def _across(self, values, datasets, ax, title, exemplary, cctype, molset,
                 vertical=False, numeral_marker=True):
+        from matplotlib.path import Path
+        from matplotlib.textpath import TextPath
         ax = self._get_ax(ax)
         datasets = np.array(datasets)
         values = np.array(values)
@@ -413,31 +415,41 @@ class DiagnosisPlot(object):
         colors = np.array([coord_color(ds) for ds in datasets])
         x = np.array([i + 1 for i in range(0, len(values))])
         if numeral_marker:
+            top_pad = 0.03
             if vertical:
                 for num in ['1', '2', '3', '4', '5']:
+                    fp = FontProperties(family="monospace",
+                                        weight='bold',
+                                        style='normal', size=16)
+                    path_num = TextPath((0, 0), num, size=50, prop=fp,)
+                    path_num_centered = Path(path_num.vertices
+                                             - path_num.vertices.mean(axis=0))
                     mask = np.array([ds[1] == num for ds in datasets])
-                    ax.scatter(values[mask], x[mask], color=colors[
-                               mask], marker='$%s$' % num)
+                    ax.scatter(values[mask]+top_pad, x[mask], color=colors[mask],
+                               marker=path_num_centered,
+                               linewidths=0.02, edgecolors='k', zorder=2)
             else:
                 for num in ['1', '2', '3', '4', '5']:
+                    fp = FontProperties(family="monospace",
+                                        weight='bold',
+                                        style='normal', size=16)
+                    path_num = TextPath((0, 0), num, size=50, prop=fp)
+                    path_num_centered = Path(path_num.vertices
+                                             - path_num.vertices.mean(axis=0))
                     mask = np.array([ds[1] == num for ds in datasets])
-                    ax.scatter(x[mask], values[mask], color=colors[
-                               mask], marker='$%s$' % num)
-            for i, x_ in enumerate(x):
-                if vertical:
-                    ax.plot([-1, values[i]], [x_, x_], color=colors[i])
-                else:
-                    ax.plot([x_, x_], [-1, values[i]], color=colors[i])
+                    ax.scatter(x[mask], values[mask]+top_pad, color=colors[mask],
+                               marker=path_num_centered,
+                               linewidths=0.04, edgecolors='k', zorder=2)
         else:
             if vertical:
-                ax.scatter(values, x, color=colors)
+                ax.scatter(values, x, color=colors, zorder=1)
             else:
-                ax.scatter(x, values, color=colors)
-            for i, x_ in enumerate(x):
-                if vertical:
-                    ax.plot([-1, values[i]], [x_, x_], color=colors[i])
-                else:
-                    ax.plot([x_, x_], [-1, values[i]], color=colors[i])
+                ax.scatter(x, values, color=colors, zorder=1)
+        for i, x_ in enumerate(x):
+            if vertical:
+                ax.plot([-1, values[i]], [x_, x_], color=colors[i], zorder=1)
+            else:
+                ax.plot([x_, x_], [-1, values[i]], color=colors[i], zorder=1)
         if title is None:
             title = "%s | %s_%s" % (
                 self.diag.sign.qualified_name, cctype, molset)
@@ -496,7 +508,7 @@ class DiagnosisPlot(object):
             rocs += [v["auc"]]
         ax = self._across(rocs, datasets, ax=ax, title=title,
                           exemplary=exemplary, cctype=cctype, molset=molset,
-                          vertical=vertical,numeral_marker=numeral_marker)
+                          vertical=vertical, numeral_marker=numeral_marker)
         if vertical:
             ax.set_xlabel("ROC-AUC")
             ax.set_xlim(0.45, 1.05)
