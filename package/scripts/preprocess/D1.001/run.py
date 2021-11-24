@@ -536,7 +536,7 @@ def main(args):
         params = {}
         num_entries = len(sig_map.keys())
         # If there are less tasks to send than the numb of tasks per job then num_jobs is just num_entries (otherwise bug since dividing by CHUNK_SIZE tells it to send 0 jobs)
-        params["num_jobs"] = num_entries / CHUNK_SIZE if num_entries > CHUNK_SIZE else num_entries
+        params["num_jobs"] = int(num_entries / CHUNK_SIZE) if num_entries > CHUNK_SIZE else num_entries
         params["jobdir"] = job_path
         params["job_name"] = "CC_D1_conn"
         params["elements"] = sig_map  
