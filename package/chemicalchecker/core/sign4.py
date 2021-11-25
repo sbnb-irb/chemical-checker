@@ -172,16 +172,16 @@ class sign4(BaseSignature, DataSignature):
         if self.molset != "full":
             self.__log.debug("Fit will be done for the full sign4")
             self = self.get_molset("full")
+        if sign3 is None:
+            sign3 = self.get_sign('sign3').get_molset("full")
+        if sign0 is None:
+            sign0 = self.get_cc().signature('A1.001', 'sign0')
         if sign0.molset != "full":
             self.__log.debug("Fit will be done using full sign0")
             sign0 = sign0.get_molset("full")
         if sign3.molset != "full":
             self.__log.debug("Fit will be done using full sign3")
             sign3 = sign3.get_molset("full")
-        if sign3 is None:
-            sign3 = self.get_sign('sign3').get_molset("full")
-        if sign0 is None:
-            sign0 = self.get_cc().signature('A1.001', 'sign0')
 
         # check if performance evaluations need to be done
         if not only_confidence:
