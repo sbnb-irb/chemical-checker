@@ -104,7 +104,7 @@ class TestPipeline(unittest.TestCase):
                 'oos_predictor': False
             }
         }
-        s2_task = CCFit(cc_root, 'sign2', 'reference',
+        s2_task = CCFit(cc_root, 'sign2', 'full',
                         datasets=['E1.001'], fit_kwargs=s2_fit_kwargs)
         pp.add_task(s2_task)
         pp.run()
