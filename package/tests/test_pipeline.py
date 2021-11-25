@@ -104,15 +104,12 @@ class TestPipeline(unittest.TestCase):
                 'oos_predictor': False
             }
         }
-        s2_task = CCFit(cc_root, 'sign2', 'full',
+        s2_task = CCFit(cc_root, 'sign2', 'reference',
                         datasets=['E1.001'], fit_kwargs=s2_fit_kwargs)
         pp.add_task(s2_task)
         pp.run()
 
         # SIGN 2
-        sign2_full_file = os.path.join(
-            cc_root, 'full/E/E1/E1.001/sign2/sign2.h5')
-        self.assertTrue(os.path.isfile(sign2_full_file))
         sign2_ref_file = os.path.join(
             cc_root, 'reference/E/E1/E1.001/sign2/sign2.h5')
         self.assertTrue(os.path.isfile(sign2_ref_file))
