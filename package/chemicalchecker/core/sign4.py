@@ -59,6 +59,32 @@ class sign4(BaseSignature, DataSignature):
         default_sign0_conf.update(params.get('sign0_conf', {}))
         self.params['sign0_conf'] = default_sign0_conf
 
+
+    @property
+    def shared_keys(self):
+        return sorted(list(self.sign0.unique_keys & self.sign3.unique_keys))
+
+    @property
+    def sign0_vectors(self):
+        if self._sign0_V is None:
+            self.__log.debug("Reading sign0, this should only be loaded once.")
+            _, self._sign0_V = self.sign0.get_vectors(self.shared_keys)
+            # make sure the order of features is correct
+            if 'features' in self.sign0.info_h5:
+                order = np.argsort(
+                    self.sign0.get_h5_dataset('features').astype(int))
+                self._sign0_V = self._sign0_V[:, order]
+        self.__log.debug("sign0 shape: %s" % str(self._sign0_V.shape))
+        return self._sign0_V
+
+    @property
+    def sign3_vectors(self):
+        if self._sign3_V is None:
+            self.__log.debug("Reading sign3, this should only be loaded once.")
+            _, self._sign3_V = self.sign3.get_vectors(self.shared_keys)
+        self.__log.debug("sign3 shape: %s" % str(self._sign3_V.shape))
+        return self._sign3_V
+
     def learn_sign0(self, sign0, sign3, suffix=None, evaluate=True):
         """Learn the signature 3 from sign0.
 
@@ -86,16 +112,9 @@ class sign4(BaseSignature, DataSignature):
         if not os.path.isdir(model_path):
             os.makedirs(model_path)
         # initialize model and start learning
-        shared_keys = sorted(list(sign0.unique_keys & sign3.unique_keys))
-        _, sign0_V = sign0.get_vectors(shared_keys)
-        _, sign3_V = sign3.get_vectors(shared_keys)
-        # sign0 A1 is not exactly like MFP! we need to reorder features as MFP
-        if 'features' in sign0.info_h5:
-            order = np.argsort(sign0.get_h5_dataset('features').astype(int))
-            sign0_V = sign0_V[:, order]
         smpred = Smilespred(
-            model_dir=model_path, sign0=sign0_V, sign3=sign3_V,
-            evaluate=evaluate)
+            model_dir=model_path, sign0=self.sign0_vectors, 
+            sign3=self.sign3_vectors, evaluate=evaluate)
         self.__log.debug('Smiles pred training on %s' % model_path)
         smpred.fit()
         self.smiles_predictor = smpred
@@ -131,18 +150,12 @@ class sign4(BaseSignature, DataSignature):
         if not os.path.isdir(model_path):
             reuse = False
             os.makedirs(model_path)
-        shared_keys = sorted(list(sign0.unique_keys & sign3.unique_keys))
-        _, sign0_V = sign0.get_vectors(shared_keys)
-        _, sign3_app_V = sign3.get_vectors(shared_keys,
-                                           dataset_name='confidence')
+        _, sign3_app_V = self.sign3.get_vectors(self.shared_keys, 
+            dataset_name='confidence')
         sign3_app_V = sign3_app_V.ravel()
-        # sign0 A1 is not exactly like MFP! we need to reorder features as MFP
-        if 'features' in sign0.info_h5:
-            order = np.argsort(sign0.get_h5_dataset('features').astype(int))
-            sign0_V = sign0_V[:, order]
         # initialize model and start learning
         apppred = ApplicabilityPredictor(
-            model_dir=model_path, sign0=sign0_V,
+            model_dir=model_path, sign0=self.sign0_vectors,
             applicability=sign3_app_V, evaluate=evaluate)
         self.__log.debug('Applicability pred training on %s' % model_path)
         if not reuse:
@@ -179,9 +192,11 @@ class sign4(BaseSignature, DataSignature):
         if sign0.molset != "full":
             self.__log.debug("Fit will be done using full sign0")
             sign0 = sign0.get_molset("full")
+            self.sign0 = sign0
         if sign3.molset != "full":
             self.__log.debug("Fit will be done using full sign3")
             sign3 = sign3.get_molset("full")
+            self.sign3 = sign3
 
         # check if performance evaluations need to be done
         if not only_confidence:
