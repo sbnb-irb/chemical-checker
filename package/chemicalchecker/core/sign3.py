@@ -194,9 +194,9 @@ class sign3(BaseSignature, DataSignature):
                                  (sign.dataset, np.count_nonzero(coverage)))
                 fh['x_test'][:, idx:(idx + 1)] = np.expand_dims(coverage, 1)
 
-    @staticmethod
-    def complete_sign2_universe(sign2_self, sign2_universe, sign2_coverage,
-                                tmp_path=None, calc_ds_idx=[0, 1, 2, 3, 4],
+    def complete_sign2_universe(self, sign2_self, sign2_universe, 
+                                sign2_coverage, tmp_path=None, 
+                                calc_ds_idx=[0, 1, 2, 3, 4],
                                 calc_ds_names=['A1.001', 'A2.001', 'A3.001',
                                                'A4.001', 'A5.001'],
                                 ref_cc=None):
@@ -488,7 +488,6 @@ class sign3(BaseSignature, DataSignature):
         traintest = DataSignature(self.traintest_file)
         test_inks = traintest.get_h5_dataset('keys_test')[:max_x]
         train_inks = traintest.get_h5_dataset('keys_train')[:max_neig]
-
         # confidence is going to be trained only on siamese test data
         test_mask = np.isin(list(self.sign2_self.keys), list(test_inks),
                                   assume_unique=True)
@@ -500,7 +499,6 @@ class sign3(BaseSignature, DataSignature):
         _, s2_test = self.sign2_self.get_vectors(test_inks)
         s2_test_x = confidence_train_x[:, self.dataset_idx[0]
                                        * 128: (self.dataset_idx[0] + 1) * 128]
-
         assert(np.all(s2_test == s2_test_x))
         # siamese train is going to be used for appticability domain
         known_x = train.get_h5_dataset('x', mask=train_mask)
@@ -1776,7 +1774,7 @@ class sign3(BaseSignature, DataSignature):
             if complete_universe == 'custom':
                 calc_ds_idx = kwargs['calc_ds_idx']
                 calc_ds_names = kwargs['calc_ds_names']
-            res = sign3.complete_sign2_universe(
+            res = self.complete_sign2_universe(
                 sign2_self, self.sign2_universe, self.sign2_coverage,
                 tmp_path=self.model_path, calc_ds_idx=calc_ds_idx,
                 calc_ds_names=calc_ds_names)
