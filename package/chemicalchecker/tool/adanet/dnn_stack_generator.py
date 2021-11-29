@@ -1,8 +1,11 @@
 import functools
 import adanet
-import tensorflow.compat.v1 as tf
-from tensorflow.compat.v1 import layers
-from tensorflow.compat.v1.layers import Dense, Dropout
+#import tensorflow.compat.v1 as tf
+#from tensorflow.compat.v1 import layers
+#from tensorflow.compat.v1.layers import Dense, Dropout
+import tensorflow as tf
+from tensorflow.keras import layers
+from tensorflow.keras.layers import Dense, Dropout
 from chemicalchecker.util import logged
 
 
