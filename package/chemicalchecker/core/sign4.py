@@ -58,6 +58,8 @@ class sign4(BaseSignature, DataSignature):
         default_sign0_conf = {}
         default_sign0_conf.update(params.get('sign0_conf', {}))
         self.params['sign0_conf'] = default_sign0_conf
+        self._sign0_V = None
+        self._sign3_V = None
 
 
     @property
