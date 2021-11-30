@@ -466,7 +466,7 @@ class DiagnosisPlot(object):
 
     # @safe_return(None)
     def across_coverage(self, results=None, ax=None, title=None, exemplary=True,
-                        cctype="sign1", molset="full", vs=True):
+                        cctype="sign1", molset="full", vs=True, numeral_marker=False):
         if results is None:
             results = self.load_diagnosis_pickle("across_coverage.pkl")
         datasets = []
@@ -479,7 +479,8 @@ class DiagnosisPlot(object):
             datasets += [k]
             covs += [v["%s_overlap" % pref]]
         ax = self._across(covs, datasets, ax=ax, title=title,
-                          exemplary=exemplary, cctype=cctype, molset=molset)
+                          exemplary=exemplary, cctype=cctype, molset=molset,
+                          numeral_marker=numeral_marker)
         ax.set_ylabel("Coverage")
         if vs:
             ax.set_ylim(-np.max(covs) * 0.05,
