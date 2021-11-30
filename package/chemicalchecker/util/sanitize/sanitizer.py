@@ -137,9 +137,8 @@ class Sanitizer(object):
                                 "present in reference: %s" % str(add_features))
             # we assume that features are in the same order
             mask = np.isin(list(features), list(ref_features))
-            with h5py.File(data, "a") as hf:
-                self.filter_h5_dataset(data, mask, axis=1, name="V")
-                self.rewrite_features_h5(data, mask)
+            data.filter_h5_dataset('V', keep, axis=1)
+            data.filter_h5_dataset('features', keep, axis=1)
 
         # check features frequencies
         if self.check_features:
@@ -266,11 +265,11 @@ class Sanitizer(object):
 
         # return if input was raw data
         if not was_data:
-            with h5py.File(data, "r") as hf:
+            with h5py.File(data.data_path, "r") as hf:
                 V = hf["V"][:]
                 keys = hf["keys"][:].astype(str)
                 keys_raw = hf["keys_raw"][:].astype(str)
                 features = hf["features"][:].astype(str)
-            os.remove(data)
+            os.remove(data.data_path)
             return V, keys, keys_raw, features
 
