@@ -611,8 +611,7 @@ class SiameseTriplets(object):
             lr_params['learning_rate'] = lr
             siamese = SiameseTriplets(
                 self.model_dir, evaluate=True, plot=True, save_params=False,
-                generator=generator, sharedx=self.sharedx,
-                sharedx_trim=self.sharedx_trim, **lr_params)
+                generator=generator, **lr_params)
             siamese.fit(save=False)
             h_file = os.path.join(
                 self.model_dir, 'siamesetriplets_history.pkl')
