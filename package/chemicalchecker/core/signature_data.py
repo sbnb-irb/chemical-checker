@@ -9,6 +9,7 @@ import os
 import sys
 import h5py
 import numpy as np
+from tqdm import tqdm
 from bisect import bisect_left
 from scipy.spatial.distance import euclidean, cosine
 from scipy.spatial.distance import jaccard as tanimoto
@@ -87,28 +88,28 @@ class DataSignature(object):
                 return data.astype(str)
             return data
 
-    def _get_data_chunk(self, key, chunk, axis=0):
+    def _get_data_chunk(self, handle, key, chunk, axis=0):
         """Get chunk of dataset"""
-        with h5py.File(self.data_path, 'r') as hf:
-            if axis == 0:
-                data = hf[key][chunk]
-            else:
-                data = hf[key][:, chunk]
-            if hasattr(data.flat[0], 'decode'):
-                return data.astype(str)
-            return data
+        if axis == 0:
+            data = handle[key][chunk]
+        else:
+            data = handle[key][:, chunk]
+        if hasattr(data.flat[0], 'decode'):
+            return data.astype(str)
+        return data
 
-    def chunk_iter(self, key, chunk_size, axis=0, chunk=False):
+    def chunk_iter(self, key, chunk_size, axis=0, chunk=False, bar=True):
         """Iterator on chunks of data"""
         self._check_data()
         self._check_dataset(key)
         tot_size = self._get_shape(key, axis)
-        for i in range(0, tot_size, chunk_size):
-            mychunk = slice(i, i + chunk_size)
-            if chunk:
-                yield mychunk, self._get_data_chunk(key, mychunk, axis)
-            else:
-                yield self._get_data_chunk(key, mychunk, axis)
+        with h5py.File(self.data_path, 'r') as hf:
+            for i in tqdm(range(0, tot_size, chunk_size), disable=not bar):
+                mychunk = slice(i, i + chunk_size)
+                if chunk:
+                    yield mychunk, self._get_data_chunk(hf, key, mychunk, axis)
+                else:
+                    yield self._get_data_chunk(hf, key, mychunk, axis)
 
     def __iter__(self):
         """By default iterate on signatures V."""
@@ -241,6 +242,14 @@ class DataSignature(object):
         self._check_dataset(self.ds_data)
         with h5py.File(self.data_path, 'r') as hf:
             return hf[self.ds_data].shape
+
+    @property
+    def size(self):
+        """Get the V matrix size."""
+        self._check_data()
+        self._check_dataset(self.ds_data)
+        with h5py.File(self.data_path, 'r') as hf:
+            return hf[self.ds_data].size
 
     @staticmethod
     def string_dtype():
