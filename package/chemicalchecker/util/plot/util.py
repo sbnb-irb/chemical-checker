@@ -194,7 +194,8 @@ def make_cbar_ax(ax, cmap=plt.get_cmap('viridis'), title=''):
     cbar.ax.set_aspect(0.04)
 
 
-def projection(front, back=None, front_kwargs=[], back_kwargs={}, ax=None):
+def projection(front, back=None, front_kwargs=[], back_kwargs={}, ax=None,
+               density_subsample=1000):
 
     def _proj_lims(P):
         xlim = [np.min(P[:, 0]), np.max(P[:, 0])]
@@ -231,7 +232,7 @@ def projection(front, back=None, front_kwargs=[], back_kwargs={}, ax=None):
             color = 'black'
         if density:
             xy = np.vstack([x, y])
-            z = gaussian_kde(xy)(xy)
+            z = gaussian_kde(xy[:, :density_subsample])(xy)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
             ax.scatter(x, y, c=z, s=minmax_scale(z, (s_min, s_max)),
