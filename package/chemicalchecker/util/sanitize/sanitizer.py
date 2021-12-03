@@ -112,14 +112,20 @@ class Sanitizer(object):
         self.__log.debug("Data size: %s" % str(self.data.size))
         if self.data.size > 1e9:
             self.__log.debug("Data size exceeds 1e9, reducing `chunk_size`.")
-            self.chunk_size = 100
+            self.chunk_size = 1000
         cs = self.chunk_size
         vals = data[:self.sample_size].ravel()
-        unique_vals = np.unique(vals[np.isfinite(vals)])
+        unique_vals, unique_counts = np.unique(vals[np.isfinite(vals)],
+                                               return_counts=True)
         if len(unique_vals) <= self.max_categories:
             self.is_categorical = True
             self.categories = unique_vals
+            unique_freqs = {k: v/vals.size for k,
+                            v in zip(unique_vals, unique_counts)}
             self.__log.debug("Data is categorical: %s" % str(unique_vals))
+            freq_str = ', '.join(['%s : %.3f' % (k, v)
+                                  for k, v in unique_freqs.items()])
+            self.__log.debug("Category frequency: [%s]" % freq_str)
         else:
             self.is_categorical = False
             self.__log.debug("Data is continuous.")
