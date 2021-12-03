@@ -104,7 +104,9 @@ class DataSignature(object):
         self._check_dataset(key)
         tot_size = self._get_shape(key, axis)
         with h5py.File(self.data_path, 'r') as hf:
-            for i in tqdm(range(0, tot_size, chunk_size), disable=not bar):
+            myrange = range(0, tot_size, chunk_size)
+            desc = 'Iterating on `%s` axis %s' % (key, axis)
+            for i in tqdm(myrange, disable=not bar, desc=desc):
                 mychunk = slice(i, i + chunk_size)
                 if chunk:
                     yield mychunk, self._get_data_chunk(hf, key, mychunk, axis)
@@ -332,7 +334,7 @@ class DataSignature(object):
                         hf_out[dset][idx_dst] = hf_in[dset][idx_src]
                         idx_dst += 1
 
-    def filter_h5_dataset(self, key, mask, axis):
+    def filter_h5_dataset(self, key, mask, axis, chunk_size=1000):
         """Apply a maks to a dataset, dropping columns or rows.
 
         key (str): The H5 dataset to filter.
@@ -359,11 +361,10 @@ class DataSignature(object):
                 new_shape[axis] = sum(mask)
                 hf.create_dataset(key_tmp, new_shape, dtype=hf[key].dtype)
                 # if we filter out rows we iterate on smaller vertical slices
-                cs = 10
+                cs = chunk_size
                 it_axis = 1
                 if axis == 1:
                     it_axis = 0
-                    cs = 1000
                 for chunk, data in self.chunk_iter(key, cs, it_axis, True):
                     if axis == 1:
                         hf[key_tmp][chunk] = data[:, mask]
