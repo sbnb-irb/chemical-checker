@@ -277,15 +277,16 @@ class sign4(BaseSignature, DataSignature):
             results.create_dataset( 
                 'V', (len(sign0.keys), 128), dtype=np.float32)
             results.create_dataset("shape", data=(len(sign0.keys), 128))
-
-            for i in tqdm(range(0, len(sign0.keys), chunk_size)):
-                chunk = slice(i, i + chunk_size)
-                sign0s = sign0[chunk]
-                preds = predict_fn(sign0s)
+            # sign0 must be reordered
+            order = np.argsort(sign0.get_h5_dataset('features').astype(int))
+            cs = chunk_size
+            for chunk, rows in sign0.chunk_iter('V', cs, axis=0, chunk=True):
+                rows = rows[:, order]
+                preds = predict_fn(rows)
                 # save chunk to H5
                 results['V'][chunk] = preds[:]
                 # also run applicability prediction
-                apreds = appl_fn(sign0s)
+                apreds = appl_fn(rows)
                 results['applicability'][chunk] = apreds[:]
         return pred_s3
 
