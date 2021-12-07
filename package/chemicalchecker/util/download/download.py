@@ -51,7 +51,20 @@ class Downloader():
         # validating url
         parsed = urlparse(url)
         if parsed.scheme == 'ftp':
-            f = FTP(parsed.netloc)
+            attempts = 0
+            connected = False
+            while attempts < 5:
+                try:
+                    f = FTP(parsed.netloc)
+                    connected = True
+                    break
+                except Exception as err:
+                    attempts += 1
+                    Downloader.__log.warning('Attempt failed: %s', str(err))
+                    request.urlcleanup()
+                    sleep(5)
+            if not connected:
+                raise Exception('All attempts to connect failed.')
             f.login()
             files = f.nlst(parsed.path)
             if len(files) > 1:
