@@ -85,7 +85,8 @@ class SiameseTriplets(object):
         # check if parameter file exists
         param_file = os.path.join(model_dir, 'params.pkl')
         if os.path.isfile(param_file):
-            kwargs = pickle.load(open(param_file, 'rb'))
+            with open(param_file, 'rb') as h:
+                kwargs = pickle.load(h)
             self.__log.info('Parameters loaded from: %s' % param_file)
         # read parameters
         self.epochs = int(kwargs.get("epochs", 10))
@@ -181,7 +182,7 @@ class SiameseTriplets(object):
                     scaler_path_tt = traintest_data.get_h5_dataset('scaler')[0]
                     self.__log.info("Using scaler: %s", scaler_path_tt)
                     self.scaler = pickle.load(open(scaler_path_tt, 'rb'))
-                    pickle.dump(self.scaler, open(scaler_path, 'wb'))
+                    pickle.dump(self.scaler, open(scaler_path, 'wb'),protocol=pickle.HIGHEST_PROTOCOL)
                 else:
                     self.__log.warning("No scaler has been loaded")
 
@@ -264,7 +265,7 @@ class SiameseTriplets(object):
         if not os.path.isfile(param_file) and save_params:
             self.__log.debug("Saving parameters to %s" % param_file)
             with open(param_file, "wb") as f:
-                pickle.dump(kwargs, f)
+                pickle.dump(kwargs, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     def build_model(self, input_shape, load=False, cp=None):
         """Compile Keras model
@@ -633,7 +634,7 @@ class SiameseTriplets(object):
 
         fname = 'lr_score.pkl'
         pkl_file = os.path.join(self.model_dir, fname)
-        pickle.dump(lr_results, open(pkl_file, "wb"))
+        pickle.dump(lr_results, open(pkl_file, "wb"),protocol=pickle.HIGHEST_PROTOCOL)
 
         fig, axes = plt.subplots(1, 3, figsize=(9, 3))
         ax = axes.flatten()
@@ -871,7 +872,7 @@ class SiameseTriplets(object):
         # save and plot history
         history_file = os.path.join(
             self.model_dir, "%s_history.pkl" % self.name)
-        pickle.dump(self.history.history, open(history_file, 'wb'))
+        pickle.dump(self.history.history, open(history_file, 'wb'),protocol=pickle.HIGHEST_PROTOCOL)
         history_file = os.path.join(self.model_dir, "history.png")
         anchor_file = os.path.join(self.model_dir, "anchor_distr.png")
         if self.evaluate and self.plot:
