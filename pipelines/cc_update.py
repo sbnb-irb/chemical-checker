@@ -134,8 +134,8 @@ def main(args):
         # A1 is using the most memory with ~59GB
         # A1 is the one taking longer with ~186000s (52h)
         'sign3': {'mem_by_core': 7, 'memory': 56, 'cpu': 8},
-        # sign3
-        'sign4': {'cpu': 4},
+        # sign4
+        'sign4': {'mem_by_core': 7, 'cpu': 8},
         # neig1 paralelize very well and require very few memory
         # A2 is the one taking longer with ~9100s (2.5h)
         'neig1': {'memory': 3, 'cpu': 16},
