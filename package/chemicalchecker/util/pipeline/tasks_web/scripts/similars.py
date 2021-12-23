@@ -37,11 +37,10 @@ save_file_path = sys.argv[5]
 dbname = sys.argv[6]
 version = sys.argv[7]
 CC_ROOT = sys.argv[8]
-overwrite = True
+overwrite = False
 
 # input is a chunk of universe inchikey
 inchikeys = pickle.load(open(filename, 'rb'))[task_id]
-
 # for each molecule check if json is already available
 if not overwrite:
     notdone = list()
@@ -61,7 +60,7 @@ if not overwrite:
         print('All molecules already present, nothing to do.')
         sys.exit()
     else:
-        inchikey = notdone
+        inchikeys = notdone
 
 # for each molecule which spaces are available in sign1?
 print('for each molecule which spaces are available in sign1?')
