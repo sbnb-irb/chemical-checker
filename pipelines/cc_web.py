@@ -172,11 +172,12 @@ def main(args):
         universe_list = cc.get_signature('sign3', 'full', 'A1.001').keys
         universe_file = os.path.join(cachedir, "universe.h5")
         with h5py.File(universe_file, "w") as h5:
-            h5.create_dataset("keys", data=np.array(
-                universe_list, DataSignature.string_dtype()))
+            h5.create_dataset("keys", data=DataSignature.h5_str(universe_list))
+            # h5.create_dataset("keys", data=np.array(
+            #     universe_list, DataSignature.string_dtype()))
         # also save as json (used by the web)
         bioactive_mol_set = os.path.join(cachedir, "bioactive_mol_set.json")
-        json.dump(universe_list, open(bioactive_mol_set, 'w'))
+        json.dump(universe_list.tolist(), open(bioactive_mol_set, 'w'))
 
     universe_task = PythonCallable(name="create_universe",
                                    python_callable=create_uni_fn,
@@ -240,14 +241,8 @@ def main(args):
                           libraries=libraries)
     pp.add_task(libs_task)
 
-    # TASK: Create json of similar molecules for explore page
-    similars_task = Similars(name='similars',
-                             DB=args.new_web_db, CC_ROOT=args.cc_root,
-                             MOLECULES_PATH=args.molecule_path)
-    pp.add_task(similars_task)
-
     # TASK: Link/copy generated files to webpage repository (mosaic)
-    def links_to_web_repo(cc_root, web_repo_path, tmpdir):
+    def links_to_web_repo(cc_root, web_repo_path, tmpdir, cachedir):
         # link plots dir
         src_dir = os.path.join(cc_root, 'plots_web')
         if not os.path.isdir(src_dir):
@@ -269,7 +264,7 @@ def main(args):
             os.remove(dst_dir)
         os.symlink(src_dir, dst_dir)
         # copy bioactive_mol_set.json (aka cc universe)
-        src_path = os.path.join(tmpdir, 'bioactive_mol_set.json')
+        src_path = os.path.join(cachedir, 'bioactive_mol_set.json')
         dst_path = os.path.join(web_repo_path, 'app',
                                 'shared', 'data', 'bioactive_mol_set.json')
         shutil.copyfile(src_path, dst_path)
@@ -291,7 +286,7 @@ def main(args):
     links_task = PythonCallable(
         name="links_to_web_repo",
         python_callable=links_to_web_repo,
-        op_args=[args.cc_root, args.web_repo_path, pp.tmpdir])
+        op_args=[args.cc_root, args.web_repo_path, pp.tmpdir, pp.cachedir])
     pp.add_task(links_task)
 
     # TASK: Export signature 3 to ftp directory
@@ -307,6 +302,12 @@ def main(args):
                                  python_callable=export_sign3_ftp,
                                  op_args=[args.cc_root])
     pp.add_task(export_task)
+
+     # TASK: Create json of similar molecules for explore page
+    similars_task = Similars(name='similars',
+                             DB=args.new_web_db, CC_ROOT=args.cc_root,
+                             MOLECULES_PATH=args.molecule_path)
+    pp.add_task(similars_task)
 
     # RUN the pipeline!
     main._log.info('TASK SEQUENCE: %s' % ', '.join([t.name for t in pp.tasks]))
