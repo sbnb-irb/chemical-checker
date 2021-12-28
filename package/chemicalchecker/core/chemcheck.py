@@ -775,7 +775,7 @@ class ChemicalChecker():
             os.makedirs(dest_path)
 
         for molset in ['full', 'reference']:
-            for cctype in ['sign0', 'sign1', 'sign2', 'sign3']:
+            for cctype in ['sign0', 'sign1', 'sign2', 'sign3', 'sign4']:
                 for ds in self.coordinates:
                     dataset_code = ds + '.001'
                     sign = self.get_signature(cctype, molset, dataset_code)
