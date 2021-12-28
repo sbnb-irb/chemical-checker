@@ -530,12 +530,12 @@ def main(args):
     #############################################
 
     #############################################
-    # TASK: Create sym links for exemplary plots
-    def create_exemplary_links_fn(cc, sign_ref):
+    # TASK: Create sym links for exemplary signatures
+    def create_symlinks_fn(cc, sign_ref):
+        # link to exmplary signatures
         target_path = os.path.join(args.cc_root, "exemplary")
         if not os.path.isdir(target_path):
             os.mkdir(target_path)
-
         for ds in Dataset.get(exemplary=True):
             signature_path = cc.get_signature_path(sign_ref, "full", ds.code)
             source_path = signature_path[:-6]
@@ -544,12 +544,16 @@ def main(args):
                 os.mkdir(target_dir)
             if not os.path.exists(os.path.join(target_dir, ds.code[:2])):
                 os.symlink(source_path, os.path.join(target_dir, ds.code[:2]))
+        # link to single folder for all signatures
+        cc.export_symlinks()
+        # add metadata to signatures
+        cc.add_sign_metadata()
 
-    links_task = PythonCallable(
-        name="exemplary_links",
-        python_callable=create_exemplary_links_fn,
+    symlinks_task = PythonCallable(
+        name="symlinks",
+        python_callable=create_symlinks_fn,
         op_args=[cc, 'sign1'])
-    pp.add_task(links_task)
+    pp.add_task(symlinks_task)
     # END TASK
     #############################################
 
