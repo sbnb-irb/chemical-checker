@@ -467,6 +467,9 @@ class sign0(BaseSignature, DataSignature):
             raise Exception("Input type must be %s" % self.input_type)
         self.__log.debug(
             "Use same features arrangement as fitted signature.")
+        if len(set(features_) & set(features)) == 0:
+            raise Exception("No overlap between provided features and "
+                            "expected ones. Check your feature names.")
         if len(set(features_) & set(features)) < len(set(features_)):
             self.__log.warning("Not all original features are covered, "
                 "Missing columns will be set to 0.")
