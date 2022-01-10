@@ -32,4 +32,4 @@ from .util import Config
 
 __author__ = """SBNB"""
 __email__ = 'sbnb@irbbarcelona.org'
-__version__ = '1.0.1'
+__version__ = '1.0.2'
