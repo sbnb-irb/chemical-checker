@@ -212,3 +212,27 @@ To do so you can add a `pip install <package_of_your_dreams>` line to the follow
 
 Don't forget to also add a short comment on why and where this new dependency is used, also in the commit message. E.g. "Added dependency used in preprocessing for space B5.003". The idea is that whenever B5.003 is obsoleted we can also safely remove the dependency.
 
+
+## Release a new package version
+
+Publication of the package on PyPI is automated in the CI pipeline, however bumping the version and creating a release tag (that triggers publication) is manual and should be performed as follows:
+
+Be sure that all unit tests are passing.
+
+Select the new version number. Consider that it is not possible to re-publish with the same version nor it is possible to reduce it.
+
+Bump (e.g. 1.0.1 -> 1.0.2 or 1.1.0) the version number in the following files:
+
+* [package/chemicalchecker/__init__.py](http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker/-/blob/master/package/chemicalchecker/__init__.py)
+* [package/setup.py](http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker/-/blob/master/package/setup.py)
+
+Push these changes.
+
+Create a release tag and push it:
+
+```bash
+git tag v1.0.2
+git push origin v1.0.2
+```
+
+This will trigger CI pipeline to publish the package officially (and definetively) on (PyPI)[https://pypi.org/project/chemicalchecker/#history]
