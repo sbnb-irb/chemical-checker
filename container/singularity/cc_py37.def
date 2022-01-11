@@ -145,7 +145,7 @@ faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     pip install shap                              # SHapley Additive exPlanations for ML models
 
     # integration of D1
-    pip install git+git://github.com/Maayanlab/geode.git   # Python implementation of the R package GeoDE
+    pip install git+https://github.com/Maayanlab/geode.git   # Python implementation of the R package GeoDE
     
 
     # Clone the chemical checker package (used as fallback)
