@@ -1,5 +1,5 @@
-BootStrap: docker
-From: centos
+Bootstrap: docker
+From: ubuntu:20.04
 
 %environment
     # PATHS
@@ -16,28 +16,26 @@ From: centos
     mkdir -p /aloy/web_checker
     mkdir -p /slgpfs
     
-    # update yum
-    yum update -y
+    # update apt
+    apt update -y
 
-    # basic packages
-    yum install -y gcc \
-                   gcc-c++ \
-                   gcc-gfortran \
+    # basic packages (~2 min)
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tzdata
+    apt install -y build-essential  \
+                   gcc \
+                   graphviz \
                    cmake \
-                   make \
                    git \
                    wget \
                    curl \
-                   which \
                    vim \
                    bzip2 \
-                   bzip2-devel \
+                   libbz2-dev \
                    file \
-                   libXrender \
-                   libXext \
-                   postgresql-server \
-                   postgresql-contrib \
-                   epel-release 
+                   libxrender-dev \
+                   libxext-dev \
+                   postgresql \
+                   postgresql-contrib
 
     # conda
     mkdir -p /opt/miniconda3
@@ -49,8 +47,9 @@ From: centos
 
     # create and activate conda enviroment
     conda update conda -y
+    . /opt/miniconda3/etc/profile.d/conda.sh
     conda create --name=py37 python=3.7 -y
-    source activate py37
+    conda activate py37
 
     # basic requirements
     pip install numpy
