@@ -42,7 +42,7 @@ All the dependencies for the CC will be bundled within a singularity image gener
 Generating such an image requires roughly 20 minutes:
 
 
-1. [Install Singularity](https://sylabs.io/guides/3.8/admin-guide/admin_quickstart.html#installation-from-source)
+1. [Install Singularity (version > 3.6)](https://sylabs.io/guides/3.8/admin-guide/admin_quickstart.html#installation-from-source)
 
                 $ sudo apt-get update && sudo apt-get install -y \
                     build-essential \
@@ -207,8 +207,7 @@ Not re-inventing the wheel is a great philosophy, but each dependency we introdu
 
 To do so you can add a `pip install <package_of_your_dreams>` line to the following files in container/singularity:
 
-* cc-full.def (the definition file used by setup_chemicalchecker.sh)
-* cc_py36.def (unit-testing Python 3 environment)
+* cc_py37.def (unit-testing Python 3 environment)
 
 Don't forget to also add a short comment on why and where this new dependency is used, also in the commit message. E.g. "Added dependency used in preprocessing for space B5.003". The idea is that whenever B5.003 is obsoleted we can also safely remove the dependency.
 
@@ -235,4 +234,4 @@ git tag v1.0.2
 git push origin v1.0.2
 ```
 
-This will trigger CI pipeline to publish the package officially (and definetively) on (PyPI)[https://pypi.org/project/chemicalchecker/#history]
+This will trigger CI pipeline to publish the package officially (and definetively) on [PyPI](https://pypi.org/project/chemicalchecker/#history)
