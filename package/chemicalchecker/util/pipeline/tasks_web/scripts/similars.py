@@ -71,6 +71,7 @@ metric_prd = None
 map_coords_obs = collections.defaultdict(list)
 dataset_pairs = {}
 for ds in Dataset.get(exemplary=True):
+    print(ds)
     dataset_pairs[ds.coordinate] = ds.dataset_code
     if metric_obs is None:
         neig1 = cc.get_signature("neig1", "reference", ds.dataset_code)
@@ -84,17 +85,23 @@ for ds in Dataset.get(exemplary=True):
         map_coords_obs[ik] += [ds.coordinate]
 print('took', time.time() - t0)
 
-# get relevant background distances
+# get relevant background distances and mappings
 print('get relevant background distances')
 t0 = time.time()
 bg_vals = dict()
 bg_vals['obs'] = dict()
 bg_vals['prd'] = dict()
+signatures = dict()
+signatures['obs'] = dict()
+signatures['prd'] = dict()
 for coord in dataset_pairs.keys():
+    print(coord)
     sign1 = cc.get_signature("sign1", "reference", dataset_pairs[coord])
     bg_vals['obs'][coord] = sign1.background_distances(metric_obs)["distance"]
+    signatures['obs'][coord] = sign1
     sign3 = cc.get_signature("sign3", "reference", dataset_pairs[coord])
     bg_vals['prd'][coord] = sign3.background_distances(metric_prd)["distance"]
+    signatures['prd'][coord] = sign3
 print('took', time.time() - t0)
 
 # for both observed (sign1) and predicted (sign3) get significant neighbors
@@ -108,6 +115,7 @@ neig_cctype = {
     'prd': 'neig3',
 }
 for dataset in keys:
+    print(dataset)
     coord, type_data = dataset.split("_")
     dist_cutoffs = bg_vals[type_data][coord]
     neig = cc.get_signature(
@@ -117,13 +125,36 @@ for dataset in keys:
     _, nn_inks = neig.get_vectors(
         inchikeys, include_nan=True, dataset_name='indices')
     # mask to keep only neighbors below cutoff
-    mask = nn_dist <= dist_cutoffs[cutoff_idx]
+    masks = nn_dist <= dist_cutoffs[cutoff_idx]
     # get binned data according to distance cutoffs
     dist_bin = np.digitize(nn_dist, dist_cutoffs)
-    # get actual neighbors inchikeys and distance bins
-    inks = [v[m].tolist() for v, m in zip(nn_inks, mask)]
-    dbins = [v[m].tolist() for v, m in zip(dist_bin, mask)]
-    ds_inks_bin[dataset] = (inks, dbins)
+    # get close neighbors inchikeys and distance bins and apply mapping
+    mappings = signatures[type_data][coord].get_h5_dataset('mappings')
+    all_inks = list()
+    all_dbins = list()
+    # couldn't find a way to avoid iterating on molecules
+    for ref_nn_ink, ref_dbin, mask in zip(nn_inks, dist_bin, masks):
+        # apply distance cutoff
+        ref_nn_ink = ref_nn_ink[mask]
+        ref_dbin = ref_dbin[mask]
+        # iterate on bins to aggregate mappings
+        full_inks = list()
+        full_dbins = list()
+        for dbin in np.unique(ref_dbin):
+            # get inks in the bin
+            ink_dbin = ref_nn_ink[ref_dbin == dbin]
+            # get idx bassed on redundant 'reference' column
+            full_idxs = np.isin(mappings[:,1], ink_dbin)
+            # get non redundnt 'full' inks
+            full_nn_ink = mappings[:,0][full_idxs]
+            # append to molecule lists
+            full_inks.extend(full_nn_ink)
+            full_dbins.extend([dbin] * len(full_nn_ink))
+        all_inks.append(full_inks)
+        all_dbins.append(full_dbins)
+
+    # keep neighbors and bins for later
+    ds_inks_bin[dataset] = (all_inks, all_dbins)
 print('took', time.time() - t0)
 
 # read inchikey to pubmed names mapping
@@ -154,7 +185,8 @@ for index, inchikey in enumerate(inchikeys):
         if len(inks) == 0:
             empty_spaces.append(dataset)
             continue
-        all_neig.update(inks)
+        # iterate on each neighbor and expand to full set
+        all_neig.update(set(inks))
         dbins = ds_inks_bin[dataset][1][index]
         neig_ds[dataset] = dict(zip(inks, dbins))
     for ds in empty_spaces:
