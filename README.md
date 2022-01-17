@@ -7,7 +7,7 @@ The **Chemical Checker (CC)** is a resource of small molecule signatures. In the
 * Concepts and methods are best described in the original CC publication, [Duran-Frigola et al. 2019](https://biorxiv.org/content/10.1101/745703v1).
 * For more information about this repository, discussion, notes, etc... please refer to our [Wiki page](http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker/wikis/home).
 
-The **Chemical Checker Repository** holds the current implementation of the CC in our `SB&NB` laboratory. As such, the repository contains a significant number of functionalities and data not presented in the primary CC manuscript. The repository follows this directory structure:
+The **Chemical Checker Repository** holds the current implementation of the CC in our `SB&NB` laboratory. As such the repository contains a significant number of functionalities and data not presented in the primary CC manuscript. The repository follows this directory structure:
 
 * `container`: Deal with containerization of the CC, contains the definition files for Singularity image.
 * `notebook`: Contains exemplary Jupyter Notebooks that showcase some CC features.
