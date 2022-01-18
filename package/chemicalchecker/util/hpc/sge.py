@@ -43,6 +43,7 @@ then
   source $HOME/.bashrc
 fi
 
+
 %(command)s
 
     """
@@ -131,6 +132,7 @@ fi
         memory = kwargs.get("memory", membycore*cpu*0.8)
         # when the job exceeds membycore*cpu il get killed, to start it
         # we ask to have a node with at least 80% of the maximum we can reach
+        max_jobs = kwargs.get("max_jobs", None)
 
         submit_string = 'qsub -terse '
 
@@ -173,7 +175,10 @@ fi
         if maxtime is not None:
             jobParams.append(
                 "#$ -l h_rt=" + str(datetime.timedelta(minutes=maxtime)))
-
+        
+        if max_jobs is not None:
+            jobParams.append("#$ -tc " + str(max_jobs))
+            
         # NS, where elements turns into <FILE>
         if len(elements) > 0:
             self.__log.debug("Num elements submitted " + str(len(elements)))
