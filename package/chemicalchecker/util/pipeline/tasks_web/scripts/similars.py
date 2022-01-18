@@ -31,6 +31,7 @@ def index_sign(dataset):
     col = offset[char] + num
     return col, sign, pts
 
+
 def get_parser():
     description = 'This script will produce the json of each molecule with '
     'the information reported in the `explore` page of individual'
@@ -130,10 +131,12 @@ def main(args):
     for coord in dataset_pairs.keys():
         main._log.info('  %s', coord)
         sign1 = cc.get_signature("sign1", "reference", dataset_pairs[coord])
-        bg_vals['obs'][coord] = sign1.background_distances(metric_obs)["distance"]
+        bg_vals['obs'][coord] = sign1.background_distances(metric_obs)[
+            "distance"]
         signatures['obs'][coord] = sign1
         sign3 = cc.get_signature("sign3", "reference", dataset_pairs[coord])
-        bg_vals['prd'][coord] = sign3.background_distances(metric_prd)["distance"]
+        bg_vals['prd'][coord] = sign3.background_distances(metric_prd)[
+            "distance"]
         signatures['prd'][coord] = sign3
     main._log.info('2. took %.3f secs', time.time() - t0)
 
@@ -165,21 +168,44 @@ def main(args):
         # get close neighbors inchikeys and distance bins and apply mapping
         main._log.info('  Fetched reference NN, mapping to full')
         mappings = signatures[type_data][coord].get_h5_dataset('mappings')
-        ref_mapping = list(mappings[:,1])
+        ref_mapping = list(mappings[:, 1])
         all_inks = list()
         all_dbins = list()
         # couldn't find a way to avoid iterating on molecules
         c = 0
         t2 = time.time()
+        t3 = time.time()
         for ref_nn_ink, ref_dbin, mask in zip(nn_inks, dist_bin, masks):
+            # print progress
             if not(c % 10):
-                main._log.info('  %s out of %s, took %.3f' % (c, len(nn_inks),
-                    time.time() - t2))
+                avg = 0
+                if c != 0:
+                    avg = (time.time() - t3) / c
+                main._log.info('  %s out of %s, took %.3f (avg/mol: %.3f s.)' %
+                               (c, len(nn_inks), time.time() - t2, avg))
                 t2 = time.time()
             # apply distance cutoff
             ref_nn_ink = ref_nn_ink[mask]
             ref_dbin = ref_dbin[mask]
-            # iterate on bins to aggregate mappings
+            ref_dbin_mapping = dict(zip(ref_nn_ink, ref_dbin))
+
+            # get idx bassed on redundant 'reference' column
+            full_idxs = np.isin(ref_mapping, list(ref_nn_ink))
+            # get ref to full mapping (redundat mols as lists)
+            full_ref_mapping = dict(mappings[full_idxs])
+            ref_full_mapping = collections.defaultdict(list)
+            for k, v in full_ref_mapping.items():
+                ref_full_mapping[v].append(k)
+            # aggregate mappings
+            full_inks = [ref_full_mapping[i] for i in ref_nn_ink]
+            full_inks = [item for sublist in full_inks for item in sublist]
+            full_dbins = [[ref_dbin_mapping[i]] *
+                          len(ref_full_mapping[i]) for i in ref_nn_ink]
+            full_dbins = [item for sublist in full_dbins for item in sublist]
+
+            """
+            # this iterate on bins to aggregate mappings (removed to avoid 
+            # multiple call npis that is slow)
             full_inks = list()
             full_dbins = list()
             unique_dbin = np.unique(ref_dbin)
@@ -193,6 +219,7 @@ def main(args):
                 # append to molecule lists
                 full_inks.extend(full_nn_ink)
                 full_dbins.extend([dbin] * len(full_nn_ink))
+            """
             all_inks.append(full_inks)
             all_dbins.append(full_dbins)
             c += 1
