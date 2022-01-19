@@ -3,6 +3,7 @@ import sys
 import time
 import json
 import pickle
+import psutil
 import logging
 import argparse
 import collections
@@ -16,6 +17,23 @@ cutoff_idx = 5  # what we consider similar (dist < p-value 0.02)
 best = 20  # top molecules in libraries
 dummy = 999  # distance bin for non-similar
 overwrite = True  # we will overwrite existing json files
+max_neig = 1000  # we only take top N neighbours foreach space (memory reason)
+
+
+class MemMonitor:
+
+    def __init__(self):
+        self.last = 0
+
+    def memused(self):
+        """Returns memory used in GB."""
+        return psutil.Process().memory_info().rss / (1024 * 1024 * 1024)
+
+    def __call__(self):
+        curr = self.memused()
+        inc = curr - self.last
+        self.last = curr
+        return curr, inc
 
 
 def index_sign(dataset):
@@ -70,9 +88,12 @@ def main(args):
     dbname = args.dbname
     version = args.version
     CC_ROOT = args.CC_ROOT
+    mem = MemMonitor()
 
     # input is a chunk of universe inchikey
     inchikeys = pickle.load(open(filename, 'rb'))[task_id]
+    main._log.info("MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
+
     # for each molecule check if json is already available
     if not overwrite:
         notdone = list()
@@ -117,6 +138,7 @@ def main(args):
         for ik in keys:
             map_coords_obs[ik] += [ds.coordinate]
     main._log.info('1. took %.3f secs', time.time() - t0)
+    main._log.info("MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
 
     # get relevant background distances and mappings
     main._log.info('')
@@ -139,6 +161,7 @@ def main(args):
             "distance"]
         signatures['prd'][coord] = sign3
     main._log.info('2. took %.3f secs', time.time() - t0)
+    main._log.info("MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
 
     # for both observed (sign1) and predicted (sign3) get significant neighbors
     main._log.info('')
@@ -183,6 +206,8 @@ def main(args):
                     avg = (time.time() - t3) / c
                 main._log.info('  %s out of %s, took %.3f (avg/mol: %.3f s.)' %
                                (c, len(nn_inks), time.time() - t2, avg))
+                main._log.info("  MEM USED: {:>5.1f} GB "
+                               "(\u0394 {:>5.3f} GB)".format(*mem()))
                 t2 = time.time()
             # apply distance cutoff
             ref_nn_ink = ref_nn_ink[mask]
@@ -220,13 +245,14 @@ def main(args):
                 full_inks.extend(full_nn_ink)
                 full_dbins.extend([dbin] * len(full_nn_ink))
             """
-            all_inks.append(full_inks)
-            all_dbins.append(full_dbins)
+            all_inks.append(full_inks[:max_neig])
+            all_dbins.append(full_dbins[:max_neig])
             c += 1
 
         # keep neighbors and bins for later
         ds_inks_bin[dataset] = (all_inks, all_dbins)
     main._log.info('3. took %.3f secs', time.time() - t0)
+    main._log.info("MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
 
     # read inchikey to pubmed names mapping
     with open(names_jason) as json_data:
@@ -306,7 +332,8 @@ def main(args):
                         if ik in map_coords_obs:
                             M[t, pos] = sign * dummy
 
-            # select top neighbors in current space that are also part of libraries
+            # select top neighbors in current space that are also part of
+            # libraries
             for ik in neig_ds[dataset]:
                 # never select self
                 if ik == inchikey:
@@ -345,7 +372,10 @@ def main(args):
             json.dump(inchies, outfile)
 
         main._log.info('  %s took %.3f secs', inchikey, time.time() - t0)
+        main._log.info(
+            "  MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
     main._log.info('4. Saving all took %.3f secs', time.time() - t0_tot)
+    main._log.info("MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
 
 
 if __name__ == '__main__':
