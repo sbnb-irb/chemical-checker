@@ -100,7 +100,7 @@ class clus(BaseSignature, DataSignature):
             if "significance" in params:
                 self.significance = params["significance"]
             if "type" in params:
-                self.significance = params["type"]
+                self.type = params["type"]
 
     def fit(self, sign1=None, validations=True):
         """Fit cluster model given a signature."""
