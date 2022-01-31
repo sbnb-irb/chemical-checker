@@ -1601,6 +1601,21 @@ print('JOB DONE')
         fig = self.plotter.canvas(size="medium", title=title)
         return fig
 
+    def custom_comparative_vertical(self, title=None):
+        shared_kw = dict(save=True, plot=False)
+
+        self.projection(**shared_kw)
+        self.intensities(**shared_kw)
+        if self.sign.cctype == 'sign3':
+            self.confidences(**shared_kw)
+        self.clusters_projection(**shared_kw)
+        self.atc_roc(**shared_kw)
+        self.moa_roc(**shared_kw)
+        self.across_roc(**shared_kw)
+
+        fig = self.plotter.canvas(size="compare_v", title=title)
+        return fig
+
     def canvas(self, size="medium", title=None, savefig=False, dest_dir=None,
                savefig_kwargs={'facecolor': 'white'}):
         self.__log.debug("Computing or retrieving data for canvas %s." % size)
@@ -1610,6 +1625,9 @@ print('JOB DONE')
             fig = self.canvas_medium(title=title)
         elif size == "large":
             fig = self.canvas_large(title=title)
+        elif size == "compare_v":
+            self.__log.debug("In compare_v, about to enter the method")
+            fig = self.custom_comparative_vertical(title=title)
         else:
             return None
         if savefig:
