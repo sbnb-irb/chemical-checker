@@ -1002,7 +1002,7 @@ class DiagnosisPlot(object):
         self.global_ranks_agreement_projection(ax=ax)
         ax = fig.add_subplot(gs[0, 4])
         self.global_ranks_agreement(ax=ax)
-        ax = fig.add_subplot(gs[1, 3])
+        ax = fig.add_subplot(gs[1, 3])  
         self.clusters_projection(ax=ax)
         ax = fig.add_subplot(gs[1, 4])
         self.cluster_sizes(ax=ax)
@@ -1039,6 +1039,32 @@ class DiagnosisPlot(object):
     def canvas_large(self, title):
         pass
 
+    def custom_comparative_vertical(self, title):
+        fig = plt.figure(figsize=(9, 9))
+        gs = fig.add_gridspec(4, 4, wspace=0.6, hspace=0.6)
+        ax = fig.add_subplot(gs[0:2, 0:2])
+        self.projection(ax=ax)
+        ax = fig.add_subplot(gs[2, 1])
+        self.legend(ax=ax)
+        ax = fig.add_subplot(gs[0, 2])
+        if self.diag.sign.cctype == 'sign3':
+            self.confidences(ax=ax)
+        else:
+            self.intensities(ax=ax)
+        ax = fig.add_subplot(gs[0, 3])
+        self.clusters_projection(ax=ax)
+        ax = fig.add_subplot(gs[1, 2])
+        self.moa_roc(ax=ax)
+        ax = fig.add_subplot(gs[1, 3])
+        self.atc_roc(ax=ax)
+        ax = fig.add_subplot(gs[2:4, 2:4])
+        self.across_roc(ax=ax)
+        if title is None:
+            title = "%s %s" % (self.diag.sign.dataset, self.diag.sign.cctype)
+        fig.suptitle(title, fontweight="bold", y=0.95, size='xx-large')
+        plt.close()
+        return fig
+
     def canvas(self, size="medium", title=None):
         self.__log.debug("Plotting Canvas %s" % size)
         if size == "small":
@@ -1047,5 +1073,7 @@ class DiagnosisPlot(object):
             return self.canvas_medium(title=title)
         elif size == "large":
             return self.canvas_large(title=title)
+        elif size == "compare_v":
+            return self.custom_comparative_vertical(title=title)
         else:
             return None
