@@ -229,7 +229,6 @@ def projection(front, back=None, front_kwargs=[], back_kwargs={}, ax=None,
         s_max = kwargs.pop('s_max', 500)
         if len(x) <= 2:
             density = False
-            color = 'black'
         if density:
             xy = np.vstack([x, y])
             z = gaussian_kde(xy[:, :density_subsample])(xy)
