@@ -1188,7 +1188,7 @@ print('JOB DONE')
 
     # @safe_return(None)
     def across_roc(self, *args, datasets=None, exemplary=True, ref_cctype=None,
-                   redo=False, **kwargs):
+                   redo=False, include_datasets=None, **kwargs):
         """Check coverage against a collection of other CC signatures.
 
         Args:
@@ -1196,10 +1196,11 @@ print('JOB DONE')
                 (default=None).
             exemplary (bool): Whether to use only exemplary datasets
                 (recommended). (default=True)
-            cctype (str): CC signature type. (default='sign0')
-            molset (str): Molecule set to use. Full is recommended.
-                (default='full')
-            kwargs (dict): Parameters of hte cross_coverage method.
+            ref_cctype (str): CC signature type. (default='sign0')
+            redo (bool): redo the plot
+            include_datasets (list): specific datasets to add when exemplary 
+                                     is set to True (default=None)
+            kwargs (dict): Parameters of the cross_roc method.
         """
         self.__log.debug("Across ROC")
         fn = "across_roc"
@@ -1211,6 +1212,11 @@ print('JOB DONE')
             for ds in datasets:
                 sign = self.ref_cc.signature(ds, ref_cctype)
                 results[ds] = self.cross_roc(sign, save=False, redo=True,
+                                             plot=False)
+            if include_datasets and exemplary:
+                for incl_ds in include_datasets:
+                    sign = self.ref_cc.signature(incl_ds, ref_cctype)
+                    results[incl_ds] = self.cross_roc(sign, save=False, redo=True,
                                              plot=False)
         else:
             results = None
@@ -1626,7 +1632,6 @@ print('JOB DONE')
         elif size == "large":
             fig = self.canvas_large(title=title)
         elif size == "compare_v":
-            self.__log.debug("In compare_v, about to enter the method")
             fig = self.custom_comparative_vertical(title=title)
         else:
             return None
