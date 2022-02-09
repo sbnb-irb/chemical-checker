@@ -13,7 +13,7 @@ from sklearn.cluster import DBSCAN
 from scipy.stats import gaussian_kde
 from scipy.spatial.distance import pdist
 from sklearn.decomposition import PCA
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
 from sklearn.preprocessing import normalize
 from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import NearestNeighbors
@@ -452,7 +452,7 @@ print('JOB DONE')
     # @safe_return(None)
     def cross_roc(self, sign, *args, n_samples=10000, n_neighbors=5,
                   neg_pos_ratio=1, apply_mappings=False, try_conn_layer=False,
-                  metric='cosine', redo=False, **kwargs):
+                  metric='cosine', redo=False, val_type='roc', **kwargs):
         """Perform validations.
 
         Args:
@@ -466,6 +466,7 @@ print('JOB DONE')
             try_conn_layer (bool): Try with the inchikey connectivity layer.
                 (default=False)
             metric (str): 'cosine' or 'euclidean'. (default='cosine')
+            val_type (str): 'roc' or 'pr'. (default='roc')
             save (bool): Specific save parameter. If not specified, the global
                 is set. (default=None).
         """
@@ -543,24 +544,34 @@ print('JOB DONE')
             else:
                 np.random.shuffle(pos_dists)
                 pos_dists = pos_dists[:int(len(neg_dists) / neg_pos_ratio)]
-            # final arrays for performnce calculation
+            # final arrays for performance calculation
             y_t = np.array([1] * len(pos_dists) + [0] * len(neg_dists))
             y_p = np.hstack([pos_dists, neg_dists])
             # convert to similarity-respected order
             y_p = -np.abs(np.array(y_p))
             # roc calculation
             fpr, tpr, _ = roc_curve(y_t, y_p)
+            # pr calculation
+            precision, recall, _ = precision_recall_curve(y_t, y_p)
+            # write results dictionary
             results = {
                 "fpr": fpr,
                 "tpr": tpr,
                 "auc": auc(fpr, tpr),
+                "precision": precision,
+                "recall": recall,
+                "average_precision_score": average_precision_score(y_t, y_p)
             }
         else:
             results = None
+        if val_type == 'pr':
+            plotter_function_arg=self.plotter.cross_pr
+        else:
+            plotter_function_arg=self.plotter.cross_roc
         return self._returner(
             results=results,
             fn=fn,
-            plotter_function=self.plotter.cross_roc,
+            plotter_function=plotter_function_arg,
             kw_plotter={"sign": sign},
             **kwargs)
 
@@ -1306,13 +1317,31 @@ print('JOB DONE')
             ref_cctype = self.ref_cctype
         if self._todo(fn) or redo:
             sign = self.ref_cc.signature(ds, ref_cctype)
-            results = self.cross_roc(sign, redo=True, save=False, plot=False)
+            results = self.cross_roc(sign, redo=True, save=False, plot=False, val_type='roc')
         else:
             results = None
         return self._returner(
             results=results,
             fn=fn,
             plotter_function=self.plotter.roc,
+            kw_plotter={"ds": ds},
+            **kwargs)
+
+    # @safe_return(None)
+    def pr(self, ds, *args, ref_cctype=None, redo=False, **kwargs):
+        self.__log.debug("PrecisionRecall")
+        fn = "pr"
+        if ref_cctype is None:
+            ref_cctype = self.ref_cctype
+        if self._todo(fn) or redo:
+            sign = self.ref_cc.signature(ds, ref_cctype)
+            results = self.cross_roc(sign, redo=True, save=False, plot=False, val_type='pr')
+        else:
+            results = None
+        return self._returner(
+            results=results,
+            fn=fn,
+            plotter_function=self.plotter.pr,
             kw_plotter={"ds": ds},
             **kwargs)
 
@@ -1632,6 +1661,7 @@ print('JOB DONE')
         elif size == "large":
             fig = self.canvas_large(title=title)
         elif size == "compare_v":
+            self.__log.debug("In compare_v, about to enter the method")
             fig = self.custom_comparative_vertical(title=title)
         else:
             return None
