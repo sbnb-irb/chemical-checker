@@ -1661,7 +1661,6 @@ print('JOB DONE')
         elif size == "large":
             fig = self.canvas_large(title=title)
         elif size == "compare_v":
-            self.__log.debug("In compare_v, about to enter the method")
             fig = self.custom_comparative_vertical(title=title)
         else:
             return None
