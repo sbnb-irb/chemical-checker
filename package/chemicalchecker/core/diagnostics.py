@@ -585,6 +585,10 @@ print('JOB DONE')
             self.__log.debug("Fit-transforming t-SNE")
             if X.shape[1] > max_pca:
                 self.__log.debug("First doing a PCA")
+                # check on max_pca value
+                min_samples_features = min(X.shape[0], X.shape[1])
+                if min_samples_features <= max_pca: 
+                    max_pca = min_samples_features
                 X = PCA(n_components=max_pca).fit_transform(X)
             init = PCA(n_components=2).fit_transform(X)
             if perplexity is None:
@@ -1015,6 +1019,13 @@ print('JOB DONE')
         """
         self.__log.debug("Sample-specific agreement to the rest of CC")
         fn = "ranks_agreement"
+        
+        if self.sign.shape[0] < min_shared:
+            min_shared = 0.7*self.sign.shape[0]
+            #self.__log.debug("Not enough molecules in the dataset to generate ranks agreement: \n\
+            #        dataset molecules {}, min_shared molecules {} ".format(self.sign.shape[0], min_shared))
+            #return None
+
         if ref_cctype is None:
             ref_cctype = self.sign.cctype
 
@@ -1107,6 +1118,15 @@ print('JOB DONE')
             "Sample-specific agreement to the rest of CC,"
             " based on a Z-global ranking")
         fn = "global_ranks_agreement"
+
+        # to take into consideration the case of very small datasets 
+        # with less than min_shared molecules
+        if self.sign.shape[0] < min_shared:
+            # TODO: is this plot significant anyways?
+            min_shared = 0.7*self.sign.shape[0]
+            #self.__log.debug("Not enough molecules in the dataset to generate global ranks agreement: \n\
+            #        dataset molecules {}, min_shared molecules {} ".format(self.sign.shape[0], min_shared))
+            #return None
 
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
@@ -1556,7 +1576,7 @@ print('JOB DONE')
     def available(self):
         return self.plotter.available()
 
-    def canvas_small(self, title=None):
+    def canvas_small(self, title=None, skip_plots=[]):
         shared_kw = dict(save=True, plot=False)
 
         self.cosine_distances(**shared_kw)
@@ -1568,10 +1588,10 @@ print('JOB DONE')
         self.values(**shared_kw)
         self.redundancy(**shared_kw)
 
-        fig = self.plotter.canvas(size="small", title=title)
+        fig = self.plotter.canvas(size="small", title=title, skip_plots=skip_plots)
         return fig
 
-    def canvas_medium(self, title=None):
+    def canvas_medium(self, title=None, skip_plots=[]):
         shared_kw = dict(save=True, plot=False)
 
         self.cosine_distances(**shared_kw)
@@ -1601,13 +1621,16 @@ print('JOB DONE')
         self.atc_roc(**shared_kw)
         self.moa_roc(**shared_kw)
         self.across_roc(**shared_kw)
-        self.global_ranks_agreement(**shared_kw)
-        self.global_ranks_agreement_projection(**shared_kw)
+        if self.global_ranks_agreement(**shared_kw) is None:
+            self.__log.debug("Skipping plots Global Ranks Agreement and Global Ranks Agreement Projection")
+            skip_plots.extend("global_ranks_agreement", "global_ranks_agreement_projection")
+        else:
+            self.global_ranks_agreement_projection(**shared_kw)
 
-        fig = self.plotter.canvas(size="medium", title=title)
+        fig = self.plotter.canvas(size="medium", title=title, skip_plots=skip_plots)
         return fig
 
-    def custom_comparative_vertical(self, title=None):
+    def custom_comparative_vertical(self, title=None, skip_plots=[]):
         shared_kw = dict(save=True, plot=False)
 
         self.projection(**shared_kw)
@@ -1619,20 +1642,24 @@ print('JOB DONE')
         self.moa_roc(**shared_kw)
         self.across_roc(**shared_kw)
 
-        fig = self.plotter.canvas(size="compare_v", title=title)
+        fig = self.plotter.canvas(size="compare_v", title=title, skip_plots=skip_plots)
         return fig
 
+    def canvas_large(self, title=None, skip_plots=[]):
+        pass
+
     def canvas(self, size="medium", title=None, savefig=False, dest_dir=None,
-               savefig_kwargs={'facecolor': 'white'}):
+               savefig_kwargs={'facecolor': 'white'}, skip_plots=[]):
         self.__log.debug("Computing or retrieving data for canvas %s." % size)
+        self.__log.debug("Skipping the following plots: %s" % skip_plots)
         if size == "small":
-            fig = self.canvas_small(title=title)
+            fig = self.canvas_small(title=title, skip_plots=skip_plots)
         elif size == "medium":
-            fig = self.canvas_medium(title=title)
+            fig = self.canvas_medium(title=title, skip_plots=skip_plots)
         elif size == "large":
-            fig = self.canvas_large(title=title)
+            fig = self.canvas_large(title=title, skip_plots=skip_plots)
         elif size == "compare_v":
-            fig = self.custom_comparative_vertical(title=title)
+            fig = self.custom_comparative_vertical(title=title, skip_plots=skip_plots)
         else:
             return None
         if savefig:
