@@ -66,6 +66,7 @@ class DiagnosisPlot(object):
             "atc_roc": "ROC for the ATC CC space (E1)",
             "cosine_distances": "Cosine distance distribution",
             "cross_coverage": "Coverage of another signature",
+            "cross_pr": "PR curve against another signature",
             "cross_roc": "ROC curve against another signature",
             "cluster_sizes": "Size of identified clusters",
             "clusters_projection": "Projection of the clusters",
@@ -91,6 +92,7 @@ class DiagnosisPlot(object):
             "roc": "ROC for any specified space",
             "orthogonality": "Orthogonality of features",
             "outliers": "Detected outliers",
+            "pr": "Precision recall for any specified space",
             "projection": "tSNE 2D projection",
             "ranks_agreement":
             "Agreement between similarity ranks across the CC",
@@ -140,6 +142,21 @@ class DiagnosisPlot(object):
         ax.set_ylabel("TPR")
         return ax
 
+    def _pr(self, ax, results, color, dataset_code=None, alpha=0.25,
+            label=None):
+        recall = results["recall"]
+        precision = results["precision"]
+        if color is None:
+            color = coord_color(dataset_code)
+        ax.plot(recall, precision, color=color, label=label)
+        ax.axhline(0.5, color="gray", linestyle="--")
+        ax.fill_between(recall, precision, color=color, alpha=alpha)
+        ax.set_xlim(-0.05, 1.05)
+        ax.set_ylim(-0.05, 1.05)
+        ax.set_xlabel("Recall")
+        ax.set_ylabel("Precision")
+        return ax
+
     # @safe_return(None)
     def cross_roc(self, results=None, sign=None, ax=None, title=None,
                   color=None):
@@ -153,6 +170,22 @@ class DiagnosisPlot(object):
         if title is None:
             title = "%s | %s (%.3f)" % (self.diag.sign.qualified_name,
                                         sign.qualified_name, results["auc"])
+        ax.set_title(title)
+        return ax
+
+    # @safe_return(None)
+    def cross_pr(self, results=None, sign=None, ax=None, title=None,
+                 color=None):
+        ax = self._get_ax(ax)
+        color = self._get_color(color)
+        fn = os.path.join(self.diag.path,
+                          "cross_roc_%s.pkl" % sign.qualified_name)
+        if results is None:
+            results = self.load_diagnosis_pickle(fn)
+        ax = self._pr(ax, results, color)
+        if title is None:
+            title = "%s | %s (%.3f)" % (self.diag.sign.qualified_name,
+                                        sign.qualified_name, results["average_precision_score"])
         ax.set_title(title)
         return ax
 
@@ -189,6 +222,18 @@ class DiagnosisPlot(object):
         ax = self._roc(ax, results, color)
         if title is None:
             title = "AUROC (%.3f)" % results["auc"]
+        ax.set_title(title)
+        return ax
+
+    # @safe_return(None)
+    def pr(self, ds, results=None, ax=None, title=None):
+        ax = self._get_ax(ax)
+        color = coord_color(ds)
+        if results is None:
+            results = self.load_diagnosis_pickle("pr.pkl")
+        ax = self._pr(ax, results, color)
+        if title is None:
+            title = "Average precision score (%.3f)" % results["average_precision_score"]
         ax.set_title(title)
         return ax
 
