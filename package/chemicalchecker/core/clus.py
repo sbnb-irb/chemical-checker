@@ -102,7 +102,7 @@ class clus(BaseSignature, DataSignature):
             if "type" in params:
                 self.type = params["type"]
 
-    def fit(self, sign1=None, validations=True):
+    def fit(self, sign=None, validations=True):
         """Fit cluster model given a signature."""
         try:
             import faiss
@@ -120,17 +120,17 @@ class clus(BaseSignature, DataSignature):
 
         mappings = None
 
-        if sign1 is None:
-            sign1 = self.get_sign(
+        if sign is None:
+            sign = self.get_sign(
                 'sign' + self.cctype[-1]).get_molset("reference")
 
-        if os.path.isfile(sign1.data_path):
-            self.data = sign1.data.astype(np.float32)
+        if os.path.isfile(sign.data_path):
+            self.data = sign.data.astype(np.float32)
             self.data_type = self.data.dtype
-            self.keys = sign1.keys
-            mappings = sign1.mappings
+            self.keys = sign.keys
+            mappings = sign.mappings
         else:
-            raise Exception("The file " + sign1.data_path + " does not exist")
+            raise Exception("The file " + sign.data_path + " does not exist")
 
         tmp_dir = tempfile.mkdtemp(
             prefix='clus_' + self.dataset + "_", dir=Config().PATH.CC_TMP)
@@ -197,7 +197,7 @@ class clus(BaseSignature, DataSignature):
 
             faiss.omp_set_num_threads(self.cpu)
 
-            with h5py.File(sign1.data_path, 'r') as dh5:
+            with h5py.File(sign.data_path, 'r') as dh5:
                 if "elbow" not in dh5.keys():
                     Vn, Vm = self.data.shape[0], self.data.shape[1] / 2
                 else:
@@ -226,7 +226,7 @@ class clus(BaseSignature, DataSignature):
 
                 inertias = []
                 disps = []
-                bg_distances = sign1.background_distances(self.metric)
+                bg_distances = sign.background_distances(self.metric)
 
                 pvals = bg_distances["pvalue"]
                 distance = bg_distances["distance"]
@@ -350,7 +350,7 @@ class clus(BaseSignature, DataSignature):
             self.predict(sign_full, self.get_molset("full").data_path)
         self.mark_ready()
 
-    def predict(self, sign1, destination=None, validations=False):
+    def predict(self, sign, destination=None, validations=False):
         """Use the fitted models to go from input to output."""
         try:
             import faiss
@@ -367,20 +367,20 @@ class clus(BaseSignature, DataSignature):
 
         mappings = None
 
-        if os.path.isfile(sign1.data_path):
-            self.data = sign1.data.astype(np.float32)
+        if os.path.isfile(sign.data_path):
+            self.data = sign.data.astype(np.float32)
             self.data_type = self.data.dtype
-            self.keys = sign1.keys
-            mappings = sign1.mappings
+            self.keys = sign.keys
+            mappings = sign.mappings
         else:
-            raise Exception("The file " + sign1.data_path + " does not exist")
+            raise Exception("The file " + sign.data_path + " does not exist")
 
         if destination is None:
             raise Exception(
                 "Predict method requires a destination file to output results")
 
         tmp_dir = tempfile.mkdtemp(
-            prefix='sign1_' + self.dataset + "_", dir=Config().PATH.CC_TMP)
+            prefix='sign_' + self.dataset + "_", dir=Config().PATH.CC_TMP)
 
         self.__log.debug("Temporary files saved in " + tmp_dir)
 
