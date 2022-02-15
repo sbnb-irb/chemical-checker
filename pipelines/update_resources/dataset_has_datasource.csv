@@ -1,7 +1,6 @@
 dataset_code,datasource_name
 B1.001,chembl
 B1.001,drugbank
-B1.001,chembl_target_predictions
 B2.001,chembl
 B2.001,drugbank
 B3.001,ecod
@@ -10,12 +9,13 @@ B4.001,bindingdb
 B4.001,chembl
 B4.001,chembl_drugtargets
 B4.001,chembl_indications
+B4.002,chembl_target_predictions
 B5.001,chembl
 C1.001,chebi
 C1.001,chebi_lite
 C3.001,human_proteome
 C3.001,metaphors_9606
-C3.001,uniprot2reatome
+C3.001,uniprot2reactome
 C4.001,goa_human
 C4.001,gobasic
 C4.001,human_proteome
