@@ -96,6 +96,7 @@ class sign3(BaseSignature, DataSignature):
         self._sharedx_trim = None
         self.traintest_file = None
         self.trim_mask = None
+        #np.seterr(divide='ignore', invalid='ignore')
 
     @property
     def sharedx(self):
@@ -696,7 +697,7 @@ class sign3(BaseSignature, DataSignature):
                           max_x=10000, n_samples=5, p_self=0.0, plots=True):
         """Train prior predictor."""
         def get_weights(y, p=2):
-            h, b = np.histogram(y, 20)
+            h, b = np.histogram(y[~np.isnan(y)], 20)
             b = [np.mean([b[i], b[i + 1]]) for i in range(0, len(h))]
             w = np.interp(y, b, h).ravel()
             w = -(w / np.sum(w)) + 1e-10
@@ -716,7 +717,7 @@ class sign3(BaseSignature, DataSignature):
 
         def scatter(ax, yp, yt, joint_lim=True):
             x = yp
-            y = yt
+            y = yt                                
             xy = np.vstack([x, y])
             try:
                 z = gaussian_kde(xy)(xy)
@@ -816,6 +817,7 @@ class sign3(BaseSignature, DataSignature):
         realistic_fn, trim_mask = self.realistic_subsampling_fn()
         # generate train test split
         out_file = os.path.join(save_path, 'data.h5')
+        # TODO: CHECK this file generation
         with h5py.File(out_file, "w") as fh:
             for split_name, split_frac, split_idx in splits:
                 split_x = train_x[split_idx]
@@ -861,7 +863,7 @@ class sign3(BaseSignature, DataSignature):
                         # the X is the dataset presence in the not-self
                         presence = ~np.isnan(feat[:, ::128])[:, trim_mask]
                         X[dst_chunk] = presence.astype(int)
-                        # check if enought
+                        # check if enough
                         if reached_max:
                             break
                 variables = [X, Y, feat, preds_onlyselfs, preds_noselfs]
@@ -875,6 +877,11 @@ class sign3(BaseSignature, DataSignature):
         y_tr = traintest.get_h5_dataset('y_train').ravel()
         x_te = traintest.get_h5_dataset('x_test')
         y_te = traintest.get_h5_dataset('y_test').ravel()
+        if np.isnan(y_tr).any() or np.isnan(y_te).any():
+            nans_ytr = np.argwhere(np.isnan(y_tr))
+            print("Nan in y_tr: {}".format(len(nans_ytr)))
+            nans_yte = np.argwhere(np.isnan(y_te))
+            print("Nan in y_te: {}".format(len(nans_yte)))
         # fit model
         model = RandomForestRegressor(n_estimators=1000, max_features=None,
                                       min_samples_leaf=0.01, n_jobs=4)
@@ -891,7 +898,7 @@ class sign3(BaseSignature, DataSignature):
                                     p_self=0.0, plots=True):
         """Train prior predictor."""
         def get_weights(y, p=2):
-            h, b = np.histogram(y, 20)
+            h, b = np.histogram(y[~np.isnan(y)], 20)
             b = [np.mean([b[i], b[i + 1]]) for i in range(0, len(h))]
             w = np.interp(y, b, h).ravel()
             w = -(w / np.sum(w)) + 1e-10
