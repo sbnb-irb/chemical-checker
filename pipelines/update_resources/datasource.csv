@@ -4,11 +4,11 @@ repohub,"Drug Repurposing Hub database, accessible from https://clue.io/repurpos
 chembl_uniprot_mapping,Mapping between ChEMBL target IDs and Uniprot ACs.,f,ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_uniprot_mapping.txt,,,chembl_uniprot_mapping.txt,f
 kegg_br,,f,http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=,,,br08303.keg,f
 deepcodex_map,DeepCodex uses a deep-learned embedding of gene expression profiles to find chemical and genetic perturbations with similar biological effects.,f,file:///aloy/web_checker/repo_data/deepcodex/dcx_map.csv,,,dcx_map.csv,f
-bindingdb,,f,file:///aloy/scratch/sbnb-adm/checker/local_downloads/BindingDB_All.tsv.zip,,,BindingDB_All.tsv,f
+bindingdb,,f,http://www.bindingdb.org/bind/downloads/BindingDB_All_2022m0.tsv.zip,,,BindingDB_All.tsv,f
 chebi_lite,,f,ftp://ftp.ebi.ac.uk/pub/databases/chebi/SDF/ChEBI_lite_3star.sdf.gz,,,ChEBI_lite_3star.sdf,f
 chembl,,t,ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_*_postgresql.tar.gz,,,chembl_*_postgresql/chembl_*_postgresql.dmp,f
 CTD_chemicals_diseases,,f,http://ctdbase.org/reports/CTD_chemicals_diseases.tsv.gz,,,CTD_chemicals_diseases.tsv,f
-drugbank,,f,https://www.drugbank.ca/releases/5-1-0/downloads/all-full-database,oriol.guitart@irbbarcelona.org,sbnbAloy,full database.xml,f
+drugbank,,f,https://www.drugbank.ca/releases/5-1-9/downloads/all-full-database,oriol.guitart@irbbarcelona.org,sbnbAloy,full database.xml,f
 GSE92742_Broad_LINCS_pert_info,,f,https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE92742&format=file&file=GSE92742%5FBroad%5FLINCS%5Fpert%5Finfo%2Etxt%2Egz,,,GSE92742_Broad_LINCS_pert_info.txt,f
 GSE70138_Broad_LINCS_pert_info,,f,ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_pert_info.txt.gz,,,,f
 mosaic_all_collections,,f,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/compound_information/sdf/Structural_Data_Files_combined.zip,,,All_Collections.sdf,f
@@ -46,14 +46,14 @@ pathwaycommons_hgnc,,f,http://www.pathwaycommons.org/archives/PC2/v9/PathwayComm
 repodb,,f,file:///aloy/scratch/sbnb-adm/checker/local_downloads/repodb.csv,,,,f
 DTP_NCI60_ZSCORE,,f,https://discover.nci.nih.gov/cellminerdata/normalizedArchives/DTP_NCI60_ZSCORE.zip,,,,f
 uniprot_HUMAN_9606,,f,ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/idmapping/by_organism/HUMAN_9606_idmapping_selected.tab.gz,,,,f
-uniprot2reatome,,f,https://reactome.org/download/current/UniProt2Reactome_All_Levels.txt,,,,f
+uniprot2reactome,,f,https://reactome.org/download/current/UniProt2Reactome_All_Levels.txt,,,,f
 biur_real,ChemistryX Biur real library,f,file:///aloy/scratch/sbnb-adm/checker/local_downloads/BIUR_20100326.sdf,,,BIUR_20100326.sdf,f
 biur_virtual,ChemistryX Biur virtual library,f,file:///aloy/scratch/sbnb-adm/checker/local_downloads/VIRTUAL_BIUR_POR_MW.tar.gz,,,,f
 human_proteome,,f,https://www.uniprot.org/uniprot/?query=proteome:UP000005640&format=tab,,,human_proteome.tab,f
 molpathways,Molpathways ,f,http://www.pathwaycommons.org/archives/PC2/v11/PathwayCommons11.All.hgnc.sif,,,PathwayCommons11.All.hgnc.sif,f
 string,String network ,f,https://stringdb-static.org/download/protein.links.v11.0/9606.protein.links.v11.0.txt.gz,,,9606.protein.links.txt,f
 snai_riera,library of 89 molecules designed by Pep,f,file:///home/jrojo/Documents/snai1/SMILES.csv,,,SMILES.csv,f
-chembl_target_predictions,Target prediction multitask naive bayes models trained by ChEMBL team.,f,ftp://ftp.ebi.ac.uk/pub/databases/chembl/target_predictions/NB/chembl_23_models.tar.gz,,,,f
+chembl_target_predictions,Target prediction multitask naive bayes models trained by ChEMBL team.,f,ftp://ftp.ebi.ac.uk/pub/databases/chembl/target_predictions/NB/chembl_25_models.tar.gz,,,,f
 hmdb_metabolites,"The Human Metabolome Database (HMDB) is a database containing detailed information about small molecule metabolites found in the human body. It is intended to be used for applications in metabolomics, clinical chemistry, biomarker discovery and general education. The database is designed to contain or link three kinds of data: 1) chemical data, 2) clinical data, and 3) molecular biology/biochemistry data.",f,http://www.hmdb.ca/system/downloads/current/hmdb_metabolites.zip,,,hmdb_metabolites.xml,f
 e3fp_3conf_1024,The fp3d molecular properties calculated,f,,,,,t
 morphlincs_LDS-1195,,f,http://lincsportal.ccs.miami.edu/dcic/api/download?path=LINCS_Data/Broad_Therapeutics&file=LDS-1195.tar.gz,,,,f
