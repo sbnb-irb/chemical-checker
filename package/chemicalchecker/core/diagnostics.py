@@ -172,7 +172,8 @@ class Diagnosis(object):
         dss = []
         for ds in datasets:
             if exemplary:
-                if ds[0] in "ABCDE" and ds[-3:] == "001":
+                #TODO: to change in case of CC expansion from 25 spaces
+                if ds[0] in "ABCDE" and ds[1] in "12345" and ds[-3:] == "001":
                     dss += [ds]
             else:
                 dss += [ds]
