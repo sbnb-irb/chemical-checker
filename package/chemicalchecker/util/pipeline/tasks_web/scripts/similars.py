@@ -230,7 +230,7 @@ def main(args):
 
             """
             # this iterate on bins to aggregate mappings (removed to avoid 
-            # multiple call npis that is slow)
+            # multiple call np.isin that is slow)
             full_inks = list()
             full_dbins = list()
             unique_dbin = np.unique(ref_dbin)
