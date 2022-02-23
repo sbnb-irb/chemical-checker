@@ -1033,7 +1033,7 @@ print('JOB DONE')
         """
         self.__log.debug("Sample-specific agreement to the rest of CC")
         fn = "ranks_agreement"
-        
+
         if self.sign.shape[0] < min_shared:
             min_shared = 0.7 * self.sign.shape[0]
             # self.__log.debug("Not enough molecules in the dataset to generate ranks agreement: \n\
@@ -1137,10 +1137,10 @@ print('JOB DONE')
         # with less than min_shared molecules
         if self.sign.shape[0] < min_shared:
             # TODO: is this plot significant anyways?
-            min_shared = 0.7*self.sign.shape[0]
-            #self.__log.debug("Not enough molecules in the dataset to generate global ranks agreement: \n\
+            min_shared = 0.7 * self.sign.shape[0]
+            # self.__log.debug("Not enough molecules in the dataset to generate global ranks agreement: \n\
             #        dataset molecules {}, min_shared molecules {} ".format(self.sign.shape[0], min_shared))
-            #return None
+            # return None
 
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
