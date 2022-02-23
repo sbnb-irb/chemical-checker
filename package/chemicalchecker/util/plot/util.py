@@ -32,16 +32,17 @@ def rgb2hex(r, g, b):
 def predefined_cc_colors(coord, lighness=0):
     """Predefined CC colors."""
     colors = {
-        'A': '#EA5A49', # '#EE7B6D', '#F7BDB6'],
-        'B': '#B16BA8', # '#C189B9', '#D0A6CB'],
-        'C': '#5A72B5', # '#7B8EC4', '#9CAAD3'],
-        'D': '#7CAF2A', # '#96BF55', '#B0CF7F'],
-        'E': '#F39426', # '#F5A951', '#F8BF7D'],
-        'Z': '#000000', # '#666666', '#999999']
+        'A': '#EA5A49',  # '#EE7B6D', '#F7BDB6'],
+        'B': '#B16BA8',  # '#C189B9', '#D0A6CB'],
+        'C': '#5A72B5',  # '#7B8EC4', '#9CAAD3'],
+        'D': '#7CAF2A',  # '#96BF55', '#B0CF7F'],
+        'E': '#F39426',  # '#F5A951', '#F8BF7D'],
+        'Z': '#000000',  # '#666666', '#999999']
     }
     if not coord in colors:
         coord = 'Z'
-    return lighten_color(colors[coord[:1]], amount=1-lighness)
+    return lighten_color(colors[coord[:1]], amount=1 - lighness)
+
 
 def lighten_color(color, amount=0):
     if amount == 0:
@@ -52,6 +53,7 @@ def lighten_color(color, amount=0):
         c = color
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     return colorsys.hls_to_rgb(c[0], 1 - amount * (1 - c[1]), c[2])
+
 
 def cc_colors(coordinate, lighness=0, alternate=False, dark_first=True):
     """CC coordinate to CC color."""
@@ -82,6 +84,40 @@ def cc_coords():
     for name, code in itertools.product("ABCDE", "12345"):
         coords.append(name + code)
     return coords
+
+
+def cc_coords_name(ds):
+    fullnames = {
+        "A1": "2D fingerprints",
+        "A2": "3D fingerprints",
+        "A3": "Scaffolds",
+        "A4": "Structural keys",
+        "A5": "Physicochemistry",
+        "B1": "Mechanism of action",
+        "B2": "Metabolic genes",
+        "B3": "Crystals",
+        "B4": "Binding",
+        "B5": "HTS bioassays",
+        "C1": "Small molecule roles",
+        "C2": "Small molecule pahtways",
+        "C3": "Signaling pathways",
+        "C4": "Biological processes",
+        "C5": "Networks",
+        "D1": "Gene expression",
+        "D2": "Cancer cell lines",
+        "D3": "Chemical genetics",
+        "D4": "Morphology",
+        "D5": "Cell bioassays",
+        "E1": "Therapeutic areas",
+        "E2": "Indications",
+        "E3": "Side effects",
+        "E4": "Diseases and toxicology",
+        "E5": "Drug-drug interactions"
+    }
+    if ds[:2] in fullnames:
+        return fullnames[ds[:2]]
+    else:
+        return 'New space'
 
 
 def lighten_color(color, amount=0.5):
@@ -155,16 +191,18 @@ def canvas(width=None, columns=2, height=10, grid=(1, 1),
     return fig, grid
 
 
-def cc_grid(fig, grid, legend_out=True):
+def cc_grid(fig, grid, legend_out=True, cc_space_names=False, wspace=0, 
+            hspace=0, shared_xlabel=None, shared_ylabel=None):
     axes = list()
     if legend_out:
         subgrid = grid[:, :].subgridspec(
-            2, 1, height_ratios=(1, 40), wspace=0, hspace=0.02)
+            2, 1, height_ratios=(1, 40), wspace=wspace, hspace=hspace + 0.02)
         ax_legend = fig.add_subplot(subgrid[0])
         axes.append(ax_legend)
-        subgrid = subgrid[1].subgridspec(5, 5, wspace=-0.15, hspace=0)
+        subgrid = subgrid[1].subgridspec(
+            5, 5, wspace=wspace - 0.15, hspace=hspace)
     else:
-        subgrid = grid[:, :].subgridspec(5, 5, wspace=0, hspace=0)
+        subgrid = grid[:, :].subgridspec(5, 5, wspace=wspace, hspace=hspace)
     for idx, (gs, ds) in enumerate(zip(subgrid, cc_coords())):
         ax = fig.add_subplot(gs)
         ax.set_aspect('equal')
@@ -175,11 +213,20 @@ def cc_grid(fig, grid, legend_out=True):
             ax.tick_params(axis='y', left=True)
             ax.set_ylabel(ds[0], labelpad=2, rotation='horizontal',
                           va='center', ha='center')
+
         if idx >= 20:
             ax.tick_params(axis='x', bottom=True)
             # ax.xaxis.set_label_position('top')
             ax.set_xlabel(ds[1], labelpad=-1)
+        if cc_space_names:
+            ax.set_title(cc_coords_name(ds))
+            ax.set_ylabel('')
+            ax.set_xlabel('')
         axes.append(ax)
+    if shared_xlabel:
+        fig.text(0.5, 0.02, shared_xlabel, ha='center')
+    if shared_ylabel:
+        fig.text(0.02, 0.5, shared_ylabel, va='center', rotation='vertical')
     return axes
 
 
@@ -195,7 +242,7 @@ def make_cbar_ax(ax, cmap=plt.get_cmap('viridis'), title=''):
 
 
 def projection(front, back=None, front_kwargs=[], back_kwargs={}, ax=None,
-               density_subsample=1000):
+               density_subsample=1000, update_proj_limits=True):
 
     def _proj_lims(P):
         xlim = [np.min(P[:, 0]), np.max(P[:, 0])]
@@ -207,7 +254,7 @@ def projection(front, back=None, front_kwargs=[], back_kwargs={}, ax=None,
         ylim[0] -= yscale
         ylim[1] += yscale
         abs_lim = np.max(np.abs(np.vstack([xlim, ylim])))
-        return (-abs_lim, abs_lim),(-abs_lim, abs_lim)
+        return (-abs_lim, abs_lim), (-abs_lim, abs_lim)
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(7, 7))
@@ -237,12 +284,13 @@ def projection(front, back=None, front_kwargs=[], back_kwargs={}, ax=None,
             ax.scatter(x, y, c=z, s=minmax_scale(z, (s_min, s_max)),
                        cmap=cmap, lw=lw, **kwargs)
         else:
-            ax.scatter(x, y, c=color, **kwargs)
+            ax.scatter(x, y, **kwargs)
 
     all_projs = np.vstack(front)
     if back is not None:
         all_projs = np.vstack([all_projs, back])
-    xlim, ylim = _proj_lims(all_projs)
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
+    if update_proj_limits:
+        xlim, ylim = _proj_lims(all_projs)
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
     return ax
