@@ -127,7 +127,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
 
     def _roc(self, ax, results, color, dataset_code=None, alpha=0.25,
-             label=None):
+             label=None, xylabels=True):
         step = 0.001
         fpr = np.arange(0, 1 + step, step)
         tpr = np.interp(fpr, results["fpr"], results["tpr"])
@@ -138,12 +138,13 @@ class DiagnosisPlot(object):
         ax.fill_between(fpr, tpr, color=color, alpha=alpha)
         ax.set_xlim(-0.05, 1.05)
         ax.set_ylim(-0.05, 1.05)
-        ax.set_xlabel("FPR")
-        ax.set_ylabel("TPR")
+        if xylabels:
+            ax.set_xlabel("FPR")
+            ax.set_ylabel("TPR")
         return ax
 
     def _pr(self, ax, results, color, dataset_code=None, alpha=0.25,
-            label=None):
+            label=None, xylabels=True):
         recall = results["recall"]
         precision = results["precision"]
         if color is None:
@@ -153,64 +154,74 @@ class DiagnosisPlot(object):
         ax.fill_between(recall, precision, color=color, alpha=alpha)
         ax.set_xlim(-0.05, 1.05)
         ax.set_ylim(-0.05, 1.05)
-        ax.set_xlabel("Recall")
-        ax.set_ylabel("Precision")
+        if xylabels:
+            ax.set_xlabel("Recall")
+            ax.set_ylabel("Precision")
         return ax
 
     # @safe_return(None)
     def cross_roc(self, results=None, sign=None, ax=None, title=None,
-                  color=None):
+                  color=None, xylabels=True):
         ax = self._get_ax(ax)
         color = self._get_color(color)
         fn = os.path.join(self.diag.path,
                           "cross_roc_%s.pkl" % sign.qualified_name)
         if results is None:
             results = self.load_diagnosis_pickle(fn)
-        ax = self._roc(ax, results, color)
-        if title is None:
-            title = "%s | %s (%.3f)" % (self.diag.sign.qualified_name,
-                                        sign.qualified_name, results["auc"])
+        ax = self._roc(ax, results, color, xylabels=xylabels)
+        if title != False:
+            if title is None:
+                title = "%s | %s (%.3f)" % (self.diag.sign.qualified_name,
+                                            sign.qualified_name, results["auc"])
         ax.set_title(title)
         return ax
 
     # @safe_return(None)
     def cross_pr(self, results=None, sign=None, ax=None, title=None,
-                 color=None):
+                 color=None, xylabels=True):
         ax = self._get_ax(ax)
         color = self._get_color(color)
         fn = os.path.join(self.diag.path,
                           "cross_roc_%s.pkl" % sign.qualified_name)
         if results is None:
             results = self.load_diagnosis_pickle(fn)
-        ax = self._pr(ax, results, color)
-        if title is None:
-            title = "%s | %s (%.3f)" % (self.diag.sign.qualified_name,
-                                        sign.qualified_name, results["average_precision_score"])
+        ax = self._pr(ax, results, color, xylabels=xylabels)
+        if title != False:
+            if title is None:
+                title = "%s | %s (%.3f)" % (self.diag.sign.qualified_name,
+                                            sign.qualified_name,
+                                            results["average_precision_score"])
         ax.set_title(title)
         return ax
 
     # @safe_return(None)
-    def atc_roc(self, results=None, ax=None, title=None):
+    def atc_roc(self, results=None, ax=None, title=None, color=None,
+                xylabels=True):
         ax = self._get_ax(ax)
-        color = coord_color("E1.001")
+        if color is None:
+            color = coord_color("E1.001")
         if results is None:
             results = self.load_diagnosis_pickle("atc_roc.pkl")
-        ax = self._roc(ax, results, color)
-        if title is None:
-            title = "ATC (%.3f)" % results["auc"]
+        ax = self._roc(ax, results, color, xylabels=xylabels)
+        if title != False:
+            if title is None:
+                title = "ATC (%.3f)" % results["auc"]
         ax.set_title(title)
         return ax
 
     # @safe_return(None)
-    def moa_roc(self, results=None, ax=None, title=None):
+    def moa_roc(self, results=None, ax=None, title=None, color=None,
+                xylabels=True):
         ax = self._get_ax(ax)
-        color = coord_color("B1.001")
+        if color is None:
+            color = coord_color("B1.001")
         if results is None:
             results = self.load_diagnosis_pickle("moa_roc.pkl")
-        ax = self._roc(ax, results, color)
-        if title is None:
-            title = "MoA (%.3f)" % results["auc"]
-        ax.set_title(title)
+        ax = self._roc(ax, results, color, xylabels=xylabels)
+        if title != False:
+            if title is None:
+                title = "MoA (%.3f)" % results["auc"]
+            ax.set_title(title)
         return ax
 
     # @safe_return(None)
@@ -247,7 +258,8 @@ class DiagnosisPlot(object):
             if res is None:
                 continue
             ax = self._roc(
-                ax, res, color, label='NN {:<5} (AUC {:.3f})'.format(nn, res['auc']))
+                ax, res, color,
+                label='NN {:<5} (AUC {:.3f})'.format(nn, res['auc']))
         ax.legend()
         return ax
 
@@ -1064,7 +1076,7 @@ class DiagnosisPlot(object):
             ax = fig.add_subplot(gs[0, 4])
             self.global_ranks_agreement(ax=ax)
         if "clusters_projection" not in skip_plots:
-            ax = fig.add_subplot(gs[1, 3])  
+            ax = fig.add_subplot(gs[1, 3])
             self.clusters_projection(ax=ax)
         if "cluster_sizes" not in skip_plots:
             ax = fig.add_subplot(gs[1, 4])
