@@ -1051,36 +1051,38 @@ class DiagnosisPlot(object):
         if "values" not in skip_plots:
             ax = fig.add_subplot(gs[1, 0])
             self.values(ax=ax)
-        if "confidences" and "intensities" not in skip_plots:
+        if "confidences" or "intensities" not in skip_plots:
             ax = fig.add_subplot(gs[0, 1])
             if self.diag.sign.cctype == 'sign3':
-                self.confidences(ax=ax)
+                if "confidences" not in skip_plots:
+                    self.confidences(ax=ax)
+                    if "confidences_projection" not in skip_plots:
+                        ax = fig.add_subplot(gs[0, 2])
+                        self.confidences_projection(ax=ax)
             else:
-                self.intensities(ax=ax)
-        if "confidences_projection" and "intensities_projection" not in skip_plots:
-            ax = fig.add_subplot(gs[0, 2])
-            if self.diag.sign.cctype == 'sign3':
-                self.confidences_projection(ax=ax)
-            else:
-                self.intensities_projection(ax=ax)
+                if "intensities" not in skip_plots:
+                    self.intensities(ax=ax)
+                    if "intensities_projection" not in skip_plots:
+                        ax = fig.add_subplot(gs[0, 2])
+                        self.intensities_projection(ax=ax)
         if "key_coverage" not in skip_plots:
             ax = fig.add_subplot(gs[1, 1])
             self.key_coverage(ax=ax)
-        if "key_coverage_projection" not in skip_plots:
-            ax = fig.add_subplot(gs[1, 2])
-            self.key_coverage_projection(ax=ax)
-        if "global_ranks_agreement_projection" not in skip_plots:
-            ax = fig.add_subplot(gs[0, 3])
-            self.global_ranks_agreement_projection(ax=ax)
+            if "key_coverage_projection" not in skip_plots:
+                ax = fig.add_subplot(gs[1, 2])
+                self.key_coverage_projection(ax=ax)
         if "global_ranks_agreement" not in skip_plots:
             ax = fig.add_subplot(gs[0, 4])
             self.global_ranks_agreement(ax=ax)
-        if "clusters_projection" not in skip_plots:
-            ax = fig.add_subplot(gs[1, 3])
-            self.clusters_projection(ax=ax)
+            if "global_ranks_agreement_projection" not in skip_plots:
+                ax = fig.add_subplot(gs[0, 3])
+                self.global_ranks_agreement_projection(ax=ax)
         if "cluster_sizes" not in skip_plots:
             ax = fig.add_subplot(gs[1, 4])
             self.cluster_sizes(ax=ax)
+            if "clusters_projection" not in skip_plots:
+                ax = fig.add_subplot(gs[1, 3])
+                self.clusters_projection(ax=ax)
         if "euclidean_distances" not in skip_plots:
             ax = fig.add_subplot(gs[2, 4])
             self.euclidean_distances(ax=ax)
