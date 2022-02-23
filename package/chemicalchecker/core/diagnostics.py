@@ -172,7 +172,7 @@ class Diagnosis(object):
         dss = []
         for ds in datasets:
             if exemplary:
-                #TODO: to change in case of CC expansion from 25 spaces
+                # TODO: to change in case of CC expansion from 25 spaces
                 if ds[0] in "ABCDE" and ds[1] in "12345" and ds[-3:] == "001":
                     dss += [ds]
             else:
@@ -566,9 +566,9 @@ print('JOB DONE')
         else:
             results = None
         if val_type == 'pr':
-            plotter_function_arg=self.plotter.cross_pr
+            plotter_function_arg = self.plotter.cross_pr
         else:
-            plotter_function_arg=self.plotter.cross_roc
+            plotter_function_arg = self.plotter.cross_roc
         return self._returner(
             results=results,
             fn=fn,
@@ -599,7 +599,7 @@ print('JOB DONE')
                 self.__log.debug("First doing a PCA")
                 # check on max_pca value
                 min_samples_features = min(X.shape[0], X.shape[1])
-                if min_samples_features <= max_pca: 
+                if min_samples_features <= max_pca:
                     max_pca = min_samples_features
                 X = PCA(n_components=max_pca).fit_transform(X)
             init = PCA(n_components=2).fit_transform(X)
@@ -1031,12 +1031,12 @@ print('JOB DONE')
         """
         self.__log.debug("Sample-specific agreement to the rest of CC")
         fn = "ranks_agreement"
-        
+
         if self.sign.shape[0] < min_shared:
-            min_shared = 0.7*self.sign.shape[0]
-            #self.__log.debug("Not enough molecules in the dataset to generate ranks agreement: \n\
+            min_shared = 0.7 * self.sign.shape[0]
+            # self.__log.debug("Not enough molecules in the dataset to generate ranks agreement: \n\
             #        dataset molecules {}, min_shared molecules {} ".format(self.sign.shape[0], min_shared))
-            #return None
+            # return None
 
         if ref_cctype is None:
             ref_cctype = self.sign.cctype
@@ -1131,14 +1131,14 @@ print('JOB DONE')
             " based on a Z-global ranking")
         fn = "global_ranks_agreement"
 
-        # to take into consideration the case of very small datasets 
+        # to take into consideration the case of very small datasets
         # with less than min_shared molecules
         if self.sign.shape[0] < min_shared:
             # TODO: is this plot significant anyways?
-            min_shared = 0.7*self.sign.shape[0]
-            #self.__log.debug("Not enough molecules in the dataset to generate global ranks agreement: \n\
+            min_shared = 0.7 * self.sign.shape[0]
+            # self.__log.debug("Not enough molecules in the dataset to generate global ranks agreement: \n\
             #        dataset molecules {}, min_shared molecules {} ".format(self.sign.shape[0], min_shared))
-            #return None
+            # return None
 
         if ref_cctype is None:
             ref_cctype = self.ref_cctype
@@ -1249,7 +1249,7 @@ print('JOB DONE')
                 for incl_ds in include_datasets:
                     sign = self.ref_cc.signature(incl_ds, ref_cctype)
                     results[incl_ds] = self.cross_roc(sign, save=False, redo=True,
-                                             plot=False)
+                                                      plot=False)
         else:
             results = None
         return self._returner(
@@ -1338,7 +1338,8 @@ print('JOB DONE')
             ref_cctype = self.ref_cctype
         if self._todo(fn) or redo:
             sign = self.ref_cc.signature(ds, ref_cctype)
-            results = self.cross_roc(sign, redo=True, save=False, plot=False, val_type='roc')
+            results = self.cross_roc(
+                sign, redo=True, save=False, plot=False, val_type='roc')
         else:
             results = None
         return self._returner(
@@ -1356,7 +1357,8 @@ print('JOB DONE')
             ref_cctype = self.ref_cctype
         if self._todo(fn) or redo:
             sign = self.ref_cc.signature(ds, ref_cctype)
-            results = self.cross_roc(sign, redo=True, save=False, plot=False, val_type='pr')
+            results = self.cross_roc(
+                sign, redo=True, save=False, plot=False, val_type='pr')
         else:
             results = None
         return self._returner(
@@ -1417,7 +1419,9 @@ print('JOB DONE')
             nn = NearestNeighbors(n_neighbors=n_neigh + 1, n_jobs=self.cpu)
             nn.fit(P)
             dists = nn.kneighbors(P)[0][:, n_neigh]
-            h = np.histogram(dists, bins="auto")
+            # FIXME: bins='auto' is preferable, but might trigger memory
+            # errors e.g. C3 sign1
+            h = np.histogram(dists, bins=100)
             y = np.cumsum(h[0]) / np.sum(h[0])
             x = h[1][1:]
             eps = x[np.where(y > expected_coverage)[0][0]]
@@ -1618,7 +1622,8 @@ print('JOB DONE')
         self.values(**shared_kw)
         self.redundancy(**shared_kw)
 
-        fig = self.plotter.canvas(size="small", title=title, skip_plots=skip_plots)
+        fig = self.plotter.canvas(
+            size="small", title=title, skip_plots=skip_plots)
         return fig
 
     def canvas_medium(self, title=None, skip_plots=[]):
@@ -1652,12 +1657,15 @@ print('JOB DONE')
         self.moa_roc(**shared_kw)
         self.across_roc(**shared_kw)
         if self.global_ranks_agreement(**shared_kw) is None:
-            self.__log.debug("Skipping plots Global Ranks Agreement and Global Ranks Agreement Projection")
-            skip_plots.extend("global_ranks_agreement", "global_ranks_agreement_projection")
+            self.__log.debug(
+                "Skipping plots Global Ranks Agreement and Global Ranks Agreement Projection")
+            skip_plots.extend("global_ranks_agreement",
+                              "global_ranks_agreement_projection")
         else:
             self.global_ranks_agreement_projection(**shared_kw)
 
-        fig = self.plotter.canvas(size="medium", title=title, skip_plots=skip_plots)
+        fig = self.plotter.canvas(
+            size="medium", title=title, skip_plots=skip_plots)
         return fig
 
     def custom_comparative_vertical(self, title=None, skip_plots=[]):
@@ -1672,7 +1680,8 @@ print('JOB DONE')
         self.moa_roc(**shared_kw)
         self.across_roc(**shared_kw)
 
-        fig = self.plotter.canvas(size="compare_v", title=title, skip_plots=skip_plots)
+        fig = self.plotter.canvas(
+            size="compare_v", title=title, skip_plots=skip_plots)
         return fig
 
     def canvas_large(self, title=None, skip_plots=[]):
@@ -1689,7 +1698,8 @@ print('JOB DONE')
         elif size == "large":
             fig = self.canvas_large(title=title, skip_plots=skip_plots)
         elif size == "compare_v":
-            fig = self.custom_comparative_vertical(title=title, skip_plots=skip_plots)
+            fig = self.custom_comparative_vertical(
+                title=title, skip_plots=skip_plots)
         else:
             return None
         if savefig:
