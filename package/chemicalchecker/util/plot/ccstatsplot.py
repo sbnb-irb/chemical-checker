@@ -2,13 +2,11 @@
 import os
 import copy
 import inspect
-import itertools
 import numpy as np
+import pandas as pd
 import seaborn as sns
-import matplotlib as mpl
 from matplotlib import cm
 from matplotlib import patches
-import matplotlib.pyplot as plt
 from .util import canvas, cc_grid, cc_colors, homogenous_ticks, set_style, cc_coords_name
 
 from chemicalchecker.util import logged
@@ -37,7 +35,15 @@ class CCStatsPlot(object):
         self.save_format = save_format
         self.save_dir = save_dir
 
+    def plot_all(self):
+        """Run all plots reported in the 'available' table."""
+        # TODO: take kwargs dict for each plot
+        for method, _ in self.available().values:
+            self.__log.info('Plotting: %s' % method)
+            eval('self.%s()' % method)
+
     def available(self):
+        """Resume of possible plots."""
         d = {
             "dimension": "Number of molecules and signature lengths in each of the 25 Chemical Checker datasets. Signature lengths can be read as a measure of complexity or sparsity of the data.",
             "moa": "Chemical Checker datasets correlates with mechanisms of action (MoA). The receiver-operating characteristic (ROC) curves measure how similar molecules tend to share MoA. Note that the almost-perfect performance in the 'Mechanism of action' dataset is trivial.",
@@ -65,7 +71,8 @@ class CCStatsPlot(object):
         dims = dict()
         for ds in self.cc.datasets_exemplary():
             try:
-                nr_mol, nr_feat = self.cc.metadata['dimensions'][molset][ds][cctype]
+                nr_mol, nr_feat = self.cc.metadata[
+                    'dimensions'][molset][ds][cctype]
             except Exception as ex:
                 self.__log.error('Cannot fetch cc.metadata: %s' % str(ex))
                 continue
