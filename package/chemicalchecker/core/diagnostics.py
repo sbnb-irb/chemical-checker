@@ -172,7 +172,7 @@ class Diagnosis(object):
         dss = []
         for ds in datasets:
             if exemplary:
-                #TODO: to change in case of CC expansion from 25 spaces
+                # TODO: to change in case of CC expansion from 25 spaces
                 if ds[0] in "ABCDE" and ds[1] in "12345" and ds[-3:] == "001":
                     dss += [ds]
             else:
@@ -253,8 +253,10 @@ class Diagnosis(object):
         # create job directory if not available
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
+        # in case some plots of the canvases must be skipped
+        skip_plots = kwargs.get("skip_plots", [])
         # create script file
-        script_lines = """
+        script_lines = f"""
 import sys, os
 import pickle
 from chemicalchecker import ChemicalChecker
@@ -263,8 +265,8 @@ ChemicalChecker.set_verbosity('DEBUG')
 task_id = sys.argv[1]
 filename = sys.argv[2]
 diag = pickle.load(open(filename, 'rb'))[task_id][0]
-diag.canvas(size='small', savefig=True)
-diag.canvas(size='medium', savefig=True)
+diag.canvas(size='small', savefig=True, skip_plots={skip_plots})
+diag.canvas(size='medium', savefig=True, skip_plots={skip_plots})
 print('JOB DONE')
         """
         script_name = os.path.join(job_path, 'diagnostics_script.py')
@@ -566,9 +568,9 @@ print('JOB DONE')
         else:
             results = None
         if val_type == 'pr':
-            plotter_function_arg=self.plotter.cross_pr
+            plotter_function_arg = self.plotter.cross_pr
         else:
-            plotter_function_arg=self.plotter.cross_roc
+            plotter_function_arg = self.plotter.cross_roc
         return self._returner(
             results=results,
             fn=fn,
@@ -599,7 +601,7 @@ print('JOB DONE')
                 self.__log.debug("First doing a PCA")
                 # check on max_pca value
                 min_samples_features = min(X.shape[0], X.shape[1])
-                if min_samples_features <= max_pca: 
+                if min_samples_features <= max_pca:
                     max_pca = min_samples_features
                 X = PCA(n_components=max_pca).fit_transform(X)
             init = PCA(n_components=2).fit_transform(X)
@@ -1033,10 +1035,10 @@ print('JOB DONE')
         fn = "ranks_agreement"
         
         if self.sign.shape[0] < min_shared:
-            min_shared = 0.7*self.sign.shape[0]
-            #self.__log.debug("Not enough molecules in the dataset to generate ranks agreement: \n\
+            min_shared = 0.7 * self.sign.shape[0]
+            # self.__log.debug("Not enough molecules in the dataset to generate ranks agreement: \n\
             #        dataset molecules {}, min_shared molecules {} ".format(self.sign.shape[0], min_shared))
-            #return None
+            # return None
 
         if ref_cctype is None:
             ref_cctype = self.sign.cctype
@@ -1131,7 +1133,7 @@ print('JOB DONE')
             " based on a Z-global ranking")
         fn = "global_ranks_agreement"
 
-        # to take into consideration the case of very small datasets 
+        # to take into consideration the case of very small datasets
         # with less than min_shared molecules
         if self.sign.shape[0] < min_shared:
             # TODO: is this plot significant anyways?
@@ -1249,7 +1251,7 @@ print('JOB DONE')
                 for incl_ds in include_datasets:
                     sign = self.ref_cc.signature(incl_ds, ref_cctype)
                     results[incl_ds] = self.cross_roc(sign, save=False, redo=True,
-                                             plot=False)
+                                                      plot=False)
         else:
             results = None
         return self._returner(
@@ -1338,7 +1340,8 @@ print('JOB DONE')
             ref_cctype = self.ref_cctype
         if self._todo(fn) or redo:
             sign = self.ref_cc.signature(ds, ref_cctype)
-            results = self.cross_roc(sign, redo=True, save=False, plot=False, val_type='roc')
+            results = self.cross_roc(
+                sign, redo=True, save=False, plot=False, val_type='roc')
         else:
             results = None
         return self._returner(
@@ -1356,7 +1359,8 @@ print('JOB DONE')
             ref_cctype = self.ref_cctype
         if self._todo(fn) or redo:
             sign = self.ref_cc.signature(ds, ref_cctype)
-            results = self.cross_roc(sign, redo=True, save=False, plot=False, val_type='pr')
+            results = self.cross_roc(
+                sign, redo=True, save=False, plot=False, val_type='pr')
         else:
             results = None
         return self._returner(
@@ -1417,7 +1421,9 @@ print('JOB DONE')
             nn = NearestNeighbors(n_neighbors=n_neigh + 1, n_jobs=self.cpu)
             nn.fit(P)
             dists = nn.kneighbors(P)[0][:, n_neigh]
-            h = np.histogram(dists, bins="auto")
+            # FIXME: bins='auto' is preferable, but might trigger memory
+            # errors e.g. C3 sign1
+            h = np.histogram(dists, bins=100)
             y = np.cumsum(h[0]) / np.sum(h[0])
             x = h[1][1:]
             eps = x[np.where(y > expected_coverage)[0][0]]
@@ -1608,56 +1614,88 @@ print('JOB DONE')
 
     def canvas_small(self, title=None, skip_plots=[]):
         shared_kw = dict(save=True, plot=False)
+        if "cosine_distances" not in skip_plots:
+            self.cosine_distances(**shared_kw)
+        if "euclidean_distances" not in skip_plots:
+            self.euclidean_distances(**shared_kw)
+        if "projection" not in skip_plots:
+            self.projection(**shared_kw)
+        if "image" not in skip_plots:
+            self.image(**shared_kw)
+        if "features_bins" not in skip_plots:
+            self.features_bins(**shared_kw)
+        if "keys_bins" not in skip_plots:
+            self.keys_bins(**shared_kw)
+        if "values" not in skip_plots:
+            self.values(**shared_kw)
+        if "redundancy" not in skip_plots:
+            self.redundancy(**shared_kw)
 
-        self.cosine_distances(**shared_kw)
-        self.euclidean_distances(**shared_kw)
-        self.projection(**shared_kw)
-        self.image(**shared_kw)
-        self.features_bins(**shared_kw)
-        self.keys_bins(**shared_kw)
-        self.values(**shared_kw)
-        self.redundancy(**shared_kw)
-
-        fig = self.plotter.canvas(size="small", title=title, skip_plots=skip_plots)
+        fig = self.plotter.canvas(
+            size="small", title=title, skip_plots=skip_plots)
         return fig
 
     def canvas_medium(self, title=None, skip_plots=[]):
         shared_kw = dict(save=True, plot=False)
 
-        self.cosine_distances(**shared_kw)
-        self.euclidean_distances(**shared_kw)
-        self.projection(**shared_kw)
-        self.image(**shared_kw)
-        self.features_bins(**shared_kw)
-        self.keys_bins(**shared_kw)
-        self.values(**shared_kw)
-        self.redundancy(**shared_kw)
-
-        self.intensities(**shared_kw)
-        self.intensities_projection(**shared_kw)
+        if "cosine_distances" not in skip_plots:
+            self.cosine_distances(**shared_kw)
+        if "euclidean_distances" not in skip_plots:
+            self.euclidean_distances(**shared_kw)
+        if "projection" not in skip_plots:
+            self.projection(**shared_kw)
+        if "image" not in skip_plots:
+            self.image(**shared_kw)
+        if "features_bins" not in skip_plots:
+            self.features_bins(**shared_kw)
+        if "keys_bins" not in skip_plots:
+            self.keys_bins(**shared_kw)
+        if "values" not in skip_plots:
+            self.values(**shared_kw)
+        if "redundancy" not in skip_plots:
+            self.redundancy(**shared_kw)
+        if "intensities" and "intensities_projection" not in skip_plots:
+            self.intensities(**shared_kw)
+            if "intensities_projection" not in skip_plots:
+                self.intensities_projection(**shared_kw)
         if self.sign.cctype == 'sign3':
-            self.confidences(**shared_kw)
-            self.confidences_projection(**shared_kw)
-        self.cluster_sizes(**shared_kw)
-        self.clusters_projection(**shared_kw)
-        self.outliers(**shared_kw)
+            if "confidences" not in skip_plots:
+                self.confidences(**shared_kw)
+                if "confidences_projection" not in skip_plots:
+                    self.confidences_projection(**shared_kw)
+        if "cluster_sizes" not in skip_plots:
+            self.cluster_sizes(**shared_kw)
+            if "clusters_projection" not in skip_plots:
+                self.clusters_projection(**shared_kw)
+        if "outliers" not in skip_plots:
+            self.outliers(**shared_kw)
 
         # these plots requires CC wide metadata
-        self.dimensions(**shared_kw)
-        self.key_coverage(**shared_kw)
-        self.key_coverage_projection(**shared_kw)
-        self.across_coverage(**shared_kw)
+        if "dimensions" not in skip_plots:
+            self.dimensions(**shared_kw)
+        if "key_coverage" not in skip_plots:
+            self.key_coverage(**shared_kw)
+            if "key_coverage_projection" not in skip_plots:
+                self.key_coverage_projection(**shared_kw)
+        if "across_coverage" not in skip_plots:
+            self.across_coverage(**shared_kw)
         # these plots requires CC wide signatures
-        self.atc_roc(**shared_kw)
-        self.moa_roc(**shared_kw)
-        self.across_roc(**shared_kw)
+        if "atc_roc" not in skip_plots:
+            self.atc_roc(**shared_kw)
+        if "moa_roc" not in skip_plots:
+            self.moa_roc(**shared_kw)
+        if "across_roc" not in skip_plots:
+            self.across_roc(**shared_kw)
         if self.global_ranks_agreement(**shared_kw) is None:
-            self.__log.debug("Skipping plots Global Ranks Agreement and Global Ranks Agreement Projection")
-            skip_plots.extend("global_ranks_agreement", "global_ranks_agreement_projection")
+            self.__log.debug(
+                "Skipping plots Global Ranks Agreement and Global Ranks Agreement Projection")
+            skip_plots.extend("global_ranks_agreement", 
+                              "global_ranks_agreement_projection")
         else:
             self.global_ranks_agreement_projection(**shared_kw)
 
-        fig = self.plotter.canvas(size="medium", title=title, skip_plots=skip_plots)
+        fig = self.plotter.canvas(
+            size="medium", title=title, skip_plots=skip_plots)
         return fig
 
     def custom_comparative_vertical(self, title=None, skip_plots=[]):
@@ -1672,7 +1710,8 @@ print('JOB DONE')
         self.moa_roc(**shared_kw)
         self.across_roc(**shared_kw)
 
-        fig = self.plotter.canvas(size="compare_v", title=title, skip_plots=skip_plots)
+        fig = self.plotter.canvas(
+            size="compare_v", title=title, skip_plots=skip_plots)
         return fig
 
     def canvas_large(self, title=None, skip_plots=[]):
@@ -1689,7 +1728,8 @@ print('JOB DONE')
         elif size == "large":
             fig = self.canvas_large(title=title, skip_plots=skip_plots)
         elif size == "compare_v":
-            fig = self.custom_comparative_vertical(title=title, skip_plots=skip_plots)
+            fig = self.custom_comparative_vertical(
+                title=title, skip_plots=skip_plots)
         else:
             return None
         if savefig:
