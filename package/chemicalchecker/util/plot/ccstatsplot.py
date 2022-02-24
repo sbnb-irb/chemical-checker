@@ -18,8 +18,8 @@ set_style()
 class CCStatsPlot(object):
     """CCStatsPlot class."""
 
-    def __init__(self, cc, width=30, height=30, dpi=70, save=True,
-                 save_format='png', save_dir='./'):
+    def __init__(self, cc, width=30, height=30, dpi=70, transparent=True,
+                 save=True, save_format='png', save_dir='./'):
         """Initialize a CCStatsPlot instance.
 
         The plotter works on data precomputed mainly using
@@ -32,6 +32,7 @@ class CCStatsPlot(object):
         self.width = width
         self.height = height
         self.dpi = dpi
+        self.transparent = transparent
         self.save_format = save_format
         self.save_dir = save_dir
 
@@ -45,9 +46,9 @@ class CCStatsPlot(object):
     def available(self):
         """Resume of possible plots."""
         d = {
-            "dimension": "Number of molecules and signature lengths in each of the 25 Chemical Checker datasets. Signature lengths can be read as a measure of complexity or sparsity of the data.",
-            "moa": "Chemical Checker datasets correlates with mechanisms of action (MoA). The receiver-operating characteristic (ROC) curves measure how similar molecules tend to share MoA. Note that the almost-perfect performance in the 'Mechanism of action' dataset is trivial.",
-            "correlation": "Degree of correlation between data types measured as the ability to use one signature (x-axis) to recover neighbors defined with another signature (y-axis). Red denotes high correlation and blue denotes low correlation.",
+            "matrices": "Number of molecules and signature lengths in each of the 25 Chemical Checker datasets. Signature lengths can be read as a measure of complexity or sparsity of the data.",
+            "moa_validations": "Chemical Checker datasets correlates with mechanisms of action (MoA). The receiver-operating characteristic (ROC) curves measure how similar molecules tend to share MoA. Note that the almost-perfect performance in the 'Mechanism of action' dataset is trivial.",
+            "correlations": "Degree of correlation between data types measured as the ability to use one signature (x-axis) to recover neighbors defined with another signature (y-axis). Red denotes high correlation and blue denotes low correlation.",
         }
         R = []
         for k in sorted(d.keys()):
@@ -57,9 +58,10 @@ class CCStatsPlot(object):
 
     def save(self, fig):
         filename = '%s.%s' % (inspect.stack()[1][3], self.save_format)
-        fig.savefig(os.path.join(self.save_dir, filename), bbox_inches='tight')
+        fig.savefig(os.path.join(self.save_dir, filename),
+                    bbox_inches='tight', transparent=self.transparent)
 
-    def dimension(self, cctype='sign0', molset='full', max_mols=6.5,
+    def matrices(self, cctype='sign0', molset='full', max_mols=6.5,
                   max_feat=4.5):
         # create the grid
         fig, grid = canvas(width=self.width, height=self.height, dpi=self.dpi)
@@ -104,7 +106,7 @@ class CCStatsPlot(object):
         else:
             return fig
 
-    def moa(self, cctype='sign1'):
+    def moa_validations(self, cctype='sign1'):
         fig, grid = canvas(width=self.width, height=self.height, dpi=self.dpi)
         axes = cc_grid(fig, grid, legend_out=False, cc_space_names=True,
                        hspace=0.2, wspace=0.2,
@@ -121,18 +123,21 @@ class CCStatsPlot(object):
                 self.__log.error('Cannot fetch moa_roc: %s' % str(ex))
                 continue
             ax.set_aspect('auto')
+            ax.set_xticks([0,0.5,1])
+            ax.set_xticklabels(['0','0.5','1'])
+            ax.set_yticks([0,0.5,1])
+            ax.set_yticklabels(['0','0.5','1'])
             if 'E' not in ds[:2]:
                 ax.set_xticklabels('')
             if '1' not in ds[:2]:
                 ax.set_yticklabels('')
-            homogenous_ticks(ax, 4)
         # save or return
         if self.save:
             self.save(fig)
         else:
             return fig
 
-    def correlation(self, cctype='sign1'):
+    def correlations(self, cctype='sign1'):
         rocauc_matrix = np.full((25, 25), np.nan)
         for row, ds1 in enumerate(self.cc.datasets_exemplary()):
             sign = self.cc.signature(ds1, cctype)
