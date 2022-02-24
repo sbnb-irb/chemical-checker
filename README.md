@@ -146,7 +146,7 @@ When properly configured the CC can be updated or generated from scratch. This o
 
 1. Add bind paths to singularity config file:
 
-        sudo echo "bind path = /aloy/web_checker" >> /etc/singularity/singularity.conf
+        sudo echo "bind path = /aloy/web_checker" >> /usr/local/etc/singularity/singularity.conf
 
 
 2. Make sure that `/aloy/web_checker` is available on your workstation (e.g. `ls /aloy/web_checker` should give a list of directories) if **not**:
