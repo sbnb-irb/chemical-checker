@@ -124,9 +124,9 @@ class CCStatsPlot(object):
                 continue
             ax.set_aspect('auto')
             ax.set_xticks([0,0.5,1])
-            ax.set_xticklabels(['0','0.5','1'])
+            ax.set_xticklabels(['0','.5','1'])
             ax.set_yticks([0,0.5,1])
-            ax.set_yticklabels(['0','0.5','1'])
+            ax.set_yticklabels(['0','.5','1'])
             if 'E' not in ds[:2]:
                 ax.set_xticklabels('')
             if '1' not in ds[:2]:
