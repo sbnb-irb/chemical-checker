@@ -42,7 +42,7 @@ from chemicalchecker.util import logged, Config
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem
 from chemicalchecker.util.pipeline import ShowTargets, Libraries, Similars
 from chemicalchecker.util.pipeline import Coordinates, Projections, Plots
-from chemicalchecker.util.pipeline import MolecularInfo
+from chemicalchecker.util.pipeline import MolecularInfo, StatsPlots
 
 
 def pipeline_parser():
@@ -241,27 +241,47 @@ def main(args):
                           libraries=libraries)
     pp.add_task(libs_task)
 
+    # TASK: Create statistics plots
+    stats_plots_task = StatsPlots(name='stats_plots',
+                                  CC_ROOT=args.cc_root)
+    pp.add_task(stats_plots_task)
+
     # TASK: Link/copy generated files to webpage repository (mosaic)
     def links_to_web_repo(cc_root, web_repo_path, tmpdir, cachedir):
+        plots_web = os.path.join(cc_root, 'plots_web')
+        if not os.path.isdir(plots_web):
+            raise Exception(
+                "%s not found! Did cc_web.py finish correctly?" %
+                plots_web)
         # link plots dir
-        src_dir = os.path.join(cc_root, 'plots_web')
+        src_dir = os.path.join(plots_web, 'plots_home')
         if not os.path.isdir(src_dir):
             raise Exception(
-                "%s not found! Did cc_update.py finish correctly?" %
+                "%s not found! Did cc_web.py finish correctly?" %
                 src_dir)
         dst_dir = os.path.join(web_repo_path, 'app', 'images', 'plots')
         if os.path.isdir(dst_dir):
-            os.remove(dst_dir)
+            os.unlink(dst_dir)
+        os.symlink(src_dir, dst_dir)
+        # link statistics dir
+        src_dir = os.path.join(plots_web, 'plots_stats')
+        if not os.path.isdir(src_dir):
+            raise Exception(
+                "%s not found! Did cc_web.py finish correctly?" %
+                src_dir)
+        dst_dir = os.path.join(web_repo_path, 'app', 'images', 'statistics')
+        if os.path.isdir(dst_dir):
+            os.unlink(dst_dir)
         os.symlink(src_dir, dst_dir)
         # link molecule dir
         src_dir = args.molecule_path
         if not os.path.isdir(src_dir):
             raise Exception(
-                "%s not found! Did cc_update.py finish correctly?" %
+                "%s not found! Did cc_web.py finish correctly?" %
                 src_dir)
         dst_dir = os.path.join(web_repo_path, 'app', 'images', 'molecules')
         if os.path.isdir(dst_dir):
-            os.remove(dst_dir)
+           os.unlink(dst_dir)
         os.symlink(src_dir, dst_dir)
         # copy bioactive_mol_set.json (aka cc universe)
         src_path = os.path.join(cachedir, 'bioactive_mol_set.json')
