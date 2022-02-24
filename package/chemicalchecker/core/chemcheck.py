@@ -83,9 +83,10 @@ class ChemicalChecker():
             dbconnect (True, Bool): if True, try to connect to the DB
         """
         # Default cc_root is taken from config file
-        self.cc_root = cc_root
-        if self.cc_root is None:
-            self.cc_root = Config().PATH.CC_ROOT
+        if cc_root is None:
+            self.cc_root = os.path.realpath(Config().PATH.CC_ROOT)
+        else:
+            self.cc_root = os.path.realpath(cc_root)
 
         self._basic_molsets = ['reference', 'full']
         self._datasets = set()
