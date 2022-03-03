@@ -22,6 +22,7 @@ from scipy.spatial.distance import cosine
 from sklearn.metrics import accuracy_score
 
 from .chemcheck import ChemicalChecker
+from chemicalchecker.util import Config
 from .signature_data import DataSignature
 from .signature_base import BaseSignature
 
@@ -253,6 +254,8 @@ class sign1(BaseSignature, DataSignature):
             self.__log.debug("Scaling")
             mod = self.load_model("scale")
             mod.model_path = self.model_path
+            # using the config path for the CC_TMP and not the generated model one
+            mod.tmp_path = Config().PATH.CC_TMP
             mod.predict(destination)
 
         self.__log.debug("Transformation")
@@ -272,6 +275,8 @@ class sign1(BaseSignature, DataSignature):
         if mod is not None:
             # avoid taking the info from pickle in case it is copied
             mod.model_path = self.model_path
+            # using the config path for the CC_TMP and not the generated model one
+            mod.tmp_path = Config().PATH.CC_TMP
             mod.predict(destination)
 
         destination.refresh()
