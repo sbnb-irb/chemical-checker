@@ -307,6 +307,7 @@ class BaseSignature(object):
         # read config file,# NS: get the cc_config var otherwise set it to
         # os.environ['CC_CONFIG']
         cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
+        self.__log.debug("CC_Config for function {} is: {}".format(func_name, cc_config))
         cfg = Config(cc_config)
 
         # create job directory if not available
@@ -320,6 +321,8 @@ class BaseSignature(object):
         # create script file
         script_lines = [
             "import os, sys",
+            "from chemicalchecker import ChemicalChecker",
+            "ChemicalChecker.set_verbosity('DEBUG')",
             "os.environ['OMP_NUM_THREADS'] = str(%s)" % cpu,
             "import pickle",
             "sign, args = pickle.load(open(sys.argv[1], 'rb'))",
