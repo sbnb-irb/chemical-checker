@@ -328,7 +328,8 @@ class sign3(BaseSignature, DataSignature):
         upd_cov = h5py.File(sign2_coverage_ext, "r")
         old_cov = h5py.File(sign2_coverage, "r")
         sign3.__log.info('Checking updated universe...')
-        for col, name in enumerate(cc_ref.datasets):
+       
+        for col, name in enumerate(self.src_datasets): # cc_ref.datasets
             tot_upd = sum(upd_cov['x_test'][:, col])
             cov_delta = int(tot_upd - sum(old_cov['x_test'][:, col]))
             if cov_delta == 0:
