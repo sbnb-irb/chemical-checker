@@ -309,7 +309,20 @@ def main(args):
         op_args=[args.cc_root, args.web_repo_path, pp.tmpdir, pp.cachedir])
     pp.add_task(links_task)
 
-    # TASK: Export signature 3 to ftp directory
+    # TASK: Export to ftp directory the minimum CC to be able 
+    # to run a complete CC protocol: a zipped folder is created
+    def export_cc_ftp(cc_root, ftp_path='/aloy/web_checker/ftp_data'): 
+        cc = ChemicalChecker(cc_root) 
+        cc.export_cc(ftp_path, cc.name)
+
+    export_cc_task = PythonCallable(name="export_cc_ftp",
+                                 python_callable=export_cc_ftp,
+                                 op_args=[args.cc_root])
+    pp.add_task(export_cc_task)
+
+    # TASK: Export signatures 3 to ftp directory 
+    # leaving this task so if users want to download single sign3 instead of 
+    # zipped CC, they can
     def export_sign3_ftp(cc_root, ftp_path='/aloy/web_checker/ftp_data'):
         cc = ChemicalChecker(args.cc_root)
         for ds in cc.datasets_exemplary():
@@ -323,7 +336,7 @@ def main(args):
                                  op_args=[args.cc_root])
     pp.add_task(export_task)
 
-     # TASK: Create json of similar molecules for explore page
+    # TASK: Create json of similar molecules for explore page
     similars_task = Similars(name='similars',
                              DB=args.new_web_db, CC_ROOT=args.cc_root,
                              MOLECULES_PATH=args.molecule_path)
