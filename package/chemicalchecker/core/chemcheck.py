@@ -60,6 +60,7 @@ from .signature_data import DataSignature
 from chemicalchecker.database import Dataset, Molecule
 from chemicalchecker.database.database import test_connection
 from chemicalchecker.util import logged, Config
+from chemicalchecker.util.filesystem import FileSystem
 from chemicalchecker.util.decorator import cached_property
 
 
@@ -640,11 +641,119 @@ class ChemicalChecker():
         src.close()
         dst.close()
 
+    # Export minimum CC zipped folder
+    def export_cc(self, root_destination, folder_destination):
+        """Export a zipped folder containing the minimum files necessary 
+           to run a complete CC protocol
+
+        It includes:
+            - full: all sign0 (.h5 files + fit.ready file in models folder)
+            - reference: sign1 models folder (.pkl files only) 
+              --> sign1 are going to be generated based on sign0
+                  at the initialization of the ChemicalChecker instance
+            - reference: sign2 models (savedmodel folder only) 
+              --> sign2 are going to be generated based on sign1 and neig1
+              (also generated once sign1 is ready)
+
+        Args:
+            root_destination(str): An export destination path
+            folder_destination(str): additional path to append to root_destination
+                --> used to define the base_dir when zipping
+        """
+        destination = os.path.join(root_destination, folder_destination)
+        self.__log.debug('Exporting CC {} to {}'.format(self.cc_root, destination))
+
+        for molset in self._basic_molsets:
+            self.__log.debug('Molset: {}'.format(molset))
+            for dataset in self.datasets_exemplary():
+                self.__log.debug('Dataset: {}'.format(dataset))
+                # 0) root dir of a dataset: full/reference
+                # adding an additional layer inside the folder_destination so that when the
+                # folder is zipped, it remains inside the CC version directory at the same level as
+                # the exported sign3
+                new_dir = os.path.join(
+                    destination, folder_destination, molset, dataset[:1], dataset[:2], dataset)
+                FileSystem.check_dir_existance_create(new_dir)
+                # 1) sign0 
+                if molset == 'full':
+                    sign_type = 'sign0'
+                    sign = self.get_signature(sign_type, molset, dataset)
+                    sign_dir = os.path.join(new_dir, '%s' % sign_type)
+                    FileSystem.check_dir_existance_create(sign_dir)
+                    FileSystem.check_dir_existance_create(sign_dir, ['models'])
+                    dst = os.path.join(sign_dir, '%s.h5' % sign_type)
+                    if not os.path.isfile(dst):
+                        self.__log.debug("Copying {} to {}".format(sign, sign_dir))
+                        self.export(dst, sign)
+                    fit_file = os.path.join(sign_dir, 'models', 'fit.ready')
+                    FileSystem.check_file_existance_create(fit_file)
+                # 2) sign1
+                if molset == 'reference':
+                    sign_type = 'sign1'
+                    sign = self.get_signature(sign_type, molset, dataset)
+                    sign_dir = os.path.join(new_dir, '%s' % sign_type)
+                    dst_models_path = FileSystem.check_dir_existance_create(sign_dir, ['models'])
+                    regex = re.compile('(.*pkl$)')
+                    for _, _, src_files in os.walk(sign.model_path):
+                        for src_file in src_files:
+                            self.__log.debug("Exporting files of {} from \
+                                        {} to {}".format(sign_type, sign.model_path, dst_models_path))
+                            if regex.match(src_file):
+                                dst_file = os.path.join(dst_models_path, '%s' % src_file)
+                                FileSystem.check_file_existance_create(dst_file)
+                                shutil.copyfile(os.path.join(sign.model_path, src_file), dst_file)
+                # 3) sign2
+                if molset == 'reference':
+                    sign_type = 'sign2'
+                    model = 'adanet'
+                    sign = self.get_signature(sign_type, molset, dataset)
+                    sign_dir = os.path.join(new_dir, '%s' % sign_type)
+                    dst_models_adanet_path = FileSystem.check_dir_existance_create(sign_dir, ['models', model])
+                    if os.path.isdir(os.path.join(dst_models_adanet_path, 'savedmodel')):
+                        self.__log.debug("savedmodel folder already exists in {} models directory\n \
+                                Removing it".format(sign_type))
+                        shutil.rmtree(os.path.join(dst_models_adanet_path, 'savedmodel'))
+                    src_path = os.path.join(sign.model_path, model, 'savedmodel')
+                    self.__log.debug("Copying savedmodel folder from {} to {}".format(
+                            os.path.join(sign.model_path, model), dst_models_adanet_path))
+                    shutil.copytree(src_path, os.path.join(dst_models_adanet_path, 'savedmodel'))
+        
+        # zipping the destination folder
+        complete_destination = os.path.join(destination, folder_destination)
+        self.__log.debug('Zipping exported CC folder {}'.format(complete_destination))
+        shutil.make_archive(complete_destination, 'gztar', destination, folder_destination)
+                    
+
+    def check_dir_existance_create(dir_path, additional_path=None):
+        """Args:
+            dir_path(str): root path
+            additional_path(list) : list of strings including additional
+                                    path parts to append to the root path
+        """
+        path = dir_path
+        if additional_path:
+            for element in additional_path:
+                path = os.path.join(path, element)
+        if not os.path.isdir(path):
+            original_umask = os.umask(0)
+            os.makedirs(path, 0o775)
+            os.umask(original_umask)
+        return path
+
+    def check_file_existance_create(file_path):
+        """
+            This method create an empty file if it doesn't exist already
+        """
+        if not os.path.isfile(file_path):
+            with open(file_path, 'w'):
+                pass
+        
+        
     def symlink_to(self, source_cc, cctypes=['sign0'],
                    molsets=['reference', 'full'], datasets='exemplary'):
-        """Link current CC instane to other via symlinks.
+        """Link current CC instance to other via symlinks.
 
-        When experimenting with signature parameters it's usefull to have
+        When experimenting with signature parameters it's useful to have
         low cctype (e.g. sign0, sign1) not copied but simply linked.
 
         Args:
