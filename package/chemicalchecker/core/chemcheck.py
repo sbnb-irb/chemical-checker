@@ -668,11 +668,8 @@ class ChemicalChecker():
             for dataset in self.datasets_exemplary():
                 self.__log.debug('Dataset: {}'.format(dataset))
                 # 0) root dir of a dataset: full/reference
-                # adding an additional layer inside the folder_destination so that when the
-                # folder is zipped, it remains inside the CC version directory at the same level as
-                # the exported sign3
                 new_dir = os.path.join(
-                    destination, folder_destination, molset, dataset[:1], dataset[:2], dataset)
+                    destination, molset, dataset[:1], dataset[:2], dataset)
                 FileSystem.check_dir_existance_create(new_dir)
                 # 1) sign0 
                 if molset == 'full':
