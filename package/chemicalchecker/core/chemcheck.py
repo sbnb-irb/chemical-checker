@@ -694,10 +694,10 @@ class ChemicalChecker():
                     sign_dir = os.path.join(new_dir, '%s' % sign_type)
                     dst_models_path = FileSystem.check_dir_existance_create(sign_dir, ['models'])
                     regex = re.compile('(.*pkl$)')
-                    for _, _, src_files in os.walk(sign.model_path):
-                        for src_file in src_files:
-                            self.__log.debug("Exporting files of {} from \
+                    self.__log.debug("Exporting files of {} from \
                                         {} to {}".format(sign_type, sign.model_path, dst_models_path))
+                    for _, _, src_files in os.walk(sign.model_path):
+                        for src_file in src_files: 
                             if regex.match(src_file):
                                 dst_file = os.path.join(dst_models_path, '%s' % src_file)
                                 FileSystem.check_file_existance_create(dst_file)
@@ -722,7 +722,8 @@ class ChemicalChecker():
         complete_destination = os.path.join(destination, folder_destination)
         self.__log.debug('Zipping exported CC folder {}'.format(complete_destination))
         shutil.make_archive(complete_destination, 'gztar', destination, folder_destination)
-                    
+        if os.path.isfile(os.path.join(destination, folder_destination + '.tar.gz')):
+            shutil.rmtree(complete_destination)            
 
     def check_dir_existance_create(dir_path, additional_path=None):
         """Args:
