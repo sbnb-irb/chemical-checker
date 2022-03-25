@@ -15,6 +15,7 @@ STARTED = "started"
 DONE = "done"
 READY = "ready"
 ERROR = "error"
+min_cpu = 5
 
 
 @logged
@@ -46,7 +47,7 @@ source /apps/manual/software/Singularity/3.9.6/etc/profile
 # for DB servers connection
 export PATH=/apps/manual/software/PostgreSQL/14.2/bin:$PATH
 export LD_LIBRARY_PATH=/apps/manual/software/PostgreSQL/14.2/lib:$LD_LIBRARY_PATH
-# TensorFlow libraries
+# CUDA drivers
 export LD_LIBRARY_PATH=/apps/manual/software/CUDA/11.6.1/lib64:/apps/manual/software/CUDA/11.6.1/targets/x86_64-linux/lib:/apps/manual/software/CUDA/11.6.1/extras/CUPTI/lib64/:/apps/manual/software/CUDA/11.6.1/nvvm/lib64/:/apps/manual/software/CUDNN/8.3.2/lib:$LD_LIBRARY_PATH
 export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
 
@@ -116,16 +117,14 @@ export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
         # get arguments or default values
         num_jobs = kwargs.get("num_jobs", 1)
         gpu = kwargs.get("gpu", 1)
-        cpu = kwargs.get("cpu", 1)
+        cpu = kwargs.get("cpu", min_cpu) #benchmarked: at least 4 mainly for memory needs
         wait = kwargs.get("wait", True)
         self.jobdir = kwargs.get("jobdir", '')
         self.job_name = kwargs.get("job_name", 'hpc_cc_job')
         elements = kwargs.get("elements", [])
         compress_out = kwargs.get("compress", True)
         check_error = kwargs.get("check_error", True)
-        #memory = kwargs.get("memory", 2)
         maxtime = kwargs.get("time", None)
-        safe = kwargs.get("safe", True)
 
         submit_string = 'sbatch --parsable '
 
@@ -156,13 +155,16 @@ export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
             tmpname = command.replace("<TASK_ID>", "$SLURM_ARRAY_TASK_ID")
             command = tmpname
 
-        #TODO: test!
         jobParams.append("#SBATCH --ntasks=1")
+        if gpu > 1:
+            self.__log.warning("Number of requested GPUs {} is more than 1 "
+                                "Are you sure you are really parallelizing on multiple GPUs?".format(gpu))
         jobParams.append("#SBATCH --gpus=" + str(gpu))
+        if cpu < min_cpu:
+            self.__log.warning("Number of requested CPUs {} is not enough. "
+                                "Set to the minimum of {}".format(cpu, min_cpu))
+            cpu = min_cpu
         jobParams.append("#SBATCH --cpus-per-task=" + str(cpu))
-
-        #if memory > 1:
-        #    jobParams.append("#SBATCH --mem=" + str(memory) + "G")
 
         if maxtime is not None:
             jobParams.append(
@@ -179,21 +181,6 @@ export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
             with open(input_path, 'wb') as fh:
                 pickle.dump(input_dict, fh)
             command = command.replace("<FILE>", input_path)
-
-        #TODO: see if these variables are needed
-        # if safe:
-        #     # set environment variable that limit common libraries CPU
-        #     # subscription for the command
-        #     env_vars = [
-        #         'OMP_NUM_THREADS',
-        #         'OPENBLAS_NUM_THREADS',
-        #         'MKL_NUM_THREADS',
-        #         'VECLIB_MAXIMUM_THREADS',
-        #         'NUMEXPR_NUM_THREADS',
-        #         'NUMEXPR_MAX_THREADS'
-        #     ]
-        #     command = ' '.join(["%s=%s" % (v, str(gpu))
-        #                         for v in env_vars] + [command])
 
         # adding --nv to the command in case it is not present already
         singArg = "--nv"
