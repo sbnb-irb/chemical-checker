@@ -29,6 +29,10 @@ def rgb2hex(r, g, b):
     return '#%02x%02x%02x' % (r, g, b)
 
 
+def cc_palette(order='ABCDE', lighness=0):
+    return [predefined_cc_colors(s, lighness) for s in order]
+
+
 def predefined_cc_colors(coord, lighness=0):
     """Predefined CC colors."""
     colors = {
@@ -191,7 +195,7 @@ def canvas(width=None, columns=2, height=10, grid=(1, 1),
     return fig, grid
 
 
-def cc_grid(fig, grid, legend_out=True, cc_space_names=False, wspace=0, 
+def cc_grid(fig, grid, legend_out=True, cc_space_names=False, wspace=0,
             hspace=0, shared_xlabel=None, shared_ylabel=None):
     axes = list()
     if legend_out:
@@ -241,7 +245,7 @@ def make_cbar_ax(ax, cmap=plt.get_cmap('viridis'), title=''):
     cbar.ax.set_aspect(0.04)
 
 
-def projection(front, back=None, front_kwargs=[], back_kwargs={}, ax=None,
+def projection(front, back=None, front_kwargs=[], ax=None,
                density_subsample=1000, update_proj_limits=True):
 
     def _proj_lims(P):
@@ -262,33 +266,52 @@ def projection(front, back=None, front_kwargs=[], back_kwargs={}, ax=None,
     if not isinstance(front, list):
         front = [front]
 
-    if back is not None:
-        ax.scatter(back[:, 0], back[:, 1], **back_kwargs)
+    if not isinstance(front_kwargs, list):
+        front_kwargs = [front_kwargs]
 
     for proj, kwargs in zip(front, front_kwargs):
         x = proj[:, 0]
         y = proj[:, 1]
+
         density = kwargs.pop('density', False)
-        color = kwargs.pop('color', 'black')
-        cmap = kwargs.pop('cmap', 'viridis')
-        lw = kwargs.pop('lw', 0)
-        s_min = kwargs.pop('s_min', 5)
-        s_max = kwargs.pop('s_max', 500)
+        density_kw = dict(cmap='viridis', s_min=5, s_max=20,
+                          lw=0, density_subsample=1000)
+        density_kw.update(kwargs.pop('density_kwargs', {}))
+
+        contour = kwargs.pop('contour', False)
+        contour_kw = dict(thresh=0, linewidths=0.8, levels=10,
+                          contour_subsample=1000)
+        contour_kw.update(kwargs.pop('contour_kwargs', {}))
+
+        scatter_kw = dict()
+        scatter_kw.update(kwargs.pop('scatter_kwargs', {}))
+
         if len(x) <= 2:
             density = False
+            contour = False
+
         if density:
             xy = np.vstack([x, y])
+            density_subsample = density_kw.pop('density_subsample')
             z = gaussian_kde(xy[:, :density_subsample])(xy)
             idx = z.argsort()
             x, y, z = x[idx], y[idx], z[idx]
-            ax.scatter(x, y, c=z, s=minmax_scale(z, (s_min, s_max)),
-                       cmap=cmap, lw=lw, **kwargs)
+            if 'c' not in density_kw:
+                density_kw['c'] = z
+            if 's' not in density_kw:
+                s_min = density_kw.pop('s_min')
+                s_max = density_kw.pop('s_max')
+                density_kw['s'] = minmax_scale(z, (s_min, s_max))
+            ax.scatter(x, y, **density_kw)
+        elif contour:
+            contour_subsample = contour_kw.pop('contour_subsample')
+            sns.kdeplot(x=x[:contour_subsample], y=y[:contour_subsample],
+                        ax=ax, **contour_kw)
         else:
-            ax.scatter(x, y, **kwargs)
+            ax.scatter(x, y, **scatter_kw)
 
     all_projs = np.vstack(front)
-    if back is not None:
-        all_projs = np.vstack([all_projs, back])
+
     if update_proj_limits:
         xlim, ylim = _proj_lims(all_projs)
         ax.set_xlim(xlim)
