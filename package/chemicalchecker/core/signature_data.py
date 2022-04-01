@@ -17,6 +17,10 @@ from scipy.spatial.distance import jaccard as tanimoto
 from chemicalchecker.util import logged
 from chemicalchecker.util.decorator import cached_property
 
+try:
+    import torch
+except:
+    pass
 
 @logged
 class DataSignature(object):
@@ -557,6 +561,18 @@ class DataSignature(object):
         idx = bisect_left(self.keys, key)
         return idx
 
+    def open_hdf5(self):
+        self.hdf5 = h5py.File(self.data_path, 'r')
+
+    def __del__(self):
+        if hasattr(self, 'hdf5'):
+            self.hdf5.close()
+
+    def __len__(self):
+        if not hasattr(self, 'hdf5'):
+            self.open_hdf5()
+        return len(self.hdf5[self.ds_data])
+
     def __getitem__(self, key):
         """Return the vector corresponding to the key.
 
@@ -565,20 +581,23 @@ class DataSignature(object):
         Works fast with bisect, but should return None if the key is not in
         keys (ideally, keep a set to do this)."""
         self._check_data()
+        #self.__log.debug("__getitem__  key: %s type: %s" % (key, type(key)))
+        if not hasattr(self, 'hdf5'):
+            self.open_hdf5()
+        if isinstance(key, int):
+            self.hdf5[self.ds_data][key]
+            return self.hdf5[self.ds_data][key]
+        if isinstance(key, list):
+            key = slice(min(key), max(key))
         if isinstance(key, bytes):
             key = key.decode("utf-8")
         if isinstance(key, slice):
-            with h5py.File(self.data_path, 'r') as hf:
-                return hf[self.ds_data][key]
-        elif isinstance(key, str):
+            return self.hdf5[self.ds_data][key]
+        if isinstance(key, str):
             if key not in self.unique_keys:
                 raise Exception("Key '%s' not found." % key)
             idx = bisect_left(self.keys, key)
-            with h5py.File(self.data_path, 'r') as hf:
-                return hf[self.ds_data][idx]
-        elif isinstance(key, int):
-            with h5py.File(self.data_path, 'r') as hf:
-                return hf[self.ds_data][key]
+            self.hdf5[self.ds_data][idx]
         else:
             raise Exception("Key type %s not recognized." % type(key))
 
@@ -792,13 +811,15 @@ class DataSignature(object):
             hf.create_dataset('V', data=matrix[sorted_idx], dtype=np.float32)
             hf.create_dataset("shape", data=matrix.shape)
 
-    def generator_fn(self, batch_size=None):
+    def generator_fn(self, weak_shuffle=False, batch_size=None):
         """Return the generator function that we can query for batches."""
         hf = h5py.File(self.data_path, 'r')
         dset = hf['V']
         total = dset.shape[0]
         if not batch_size:
             batch_size = total
+            weak_shuffle = False
+        n_batches = total / batch_size
 
         def _generator_fn():
             beg_idx, end_idx = 0, batch_size
@@ -817,3 +838,55 @@ class DataSignature(object):
         with h5py.File(os.path.join(destination, "features_sign.h5"), 'w') as hf_out:
             hf_out.create_dataset("features", data=np.array(
                 features, DataSignature.string_dtype()))
+
+    def dataloader(self, batch_size=32, num_workers=1, shuffle=False, weak_shuffle=False, drop_last=False):
+        """Return a pytorch DataLoader object for quick signature iterations."""
+        if weak_shuffle:
+            return torch.utils.data.DataLoader(
+                self,
+                batch_size=None, # must be disabled when using samplers
+                num_workers=num_workers,
+                shuffle=False,
+                sampler=torch.utils.data.BatchSampler(
+                    RandomBatchSampler(self, batch_size), batch_size=batch_size, drop_last=drop_last)
+            )
+        else:
+            return torch.utils.data.DataLoader(
+                self,
+                batch_size=batch_size,
+                num_workers=num_workers,
+                shuffle=shuffle
+            )
+
+
+class RandomBatchSampler(torch.utils.data.Sampler):
+    """Sampling class to create random sequential batches from a given dataset
+    E.g. if data is [1,2,3,4] with bs=2. Then first batch, [[1,2], [3,4]] then shuffle batches -> [[3,4],[1,2]]
+    This is useful for cases when you are interested in 'weak shuffling'
+    https://towardsdatascience.com/reading-h5-files-faster-with-pytorch-datasets-3ff86938cc
+    
+    :param dataset: dataset you want to batch
+    :type dataset: torch.utils.data.Dataset
+    :param batch_size: batch size
+    :type batch_size: int
+    :returns: generator object of shuffled batch indices
+    """
+    def __init__(self, dataset, batch_size):
+        self.batch_size = batch_size
+        self.dataset_length = len(dataset)
+        self.n_batches = self.dataset_length / self.batch_size
+        self.batch_ids = torch.randperm(int(self.n_batches))
+
+    def __len__(self):
+        return self.batch_size
+
+    def __iter__(self):
+        for id in self.batch_ids:
+            idx = torch.arange(id * self.batch_size, (id + 1) * self.batch_size)
+            for index in idx:
+                yield int(index)
+        if int(self.n_batches) < self.n_batches:
+            idx = torch.arange(int(self.n_batches) * self.batch_size, self.dataset_length)
+            for index in idx:
+                yield int(index)
+
