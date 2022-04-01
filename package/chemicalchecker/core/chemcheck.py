@@ -277,7 +277,7 @@ class ChemicalChecker():
         log_fn[level]("Logging level %s for logger '%s'." %
                       (level.upper(), logger_name))
 
-    def _available_sign_paths(self, molset='*', dataset='*', signature='*',
+    def _available_sign_paths(self, molset='[!exemplary]*', dataset='*', signature='*',
                               filename='*.h5'):
         paths = glob(os.path.join(self.cc_root, molset, '*',
                                   '*', dataset, signature, filename))
