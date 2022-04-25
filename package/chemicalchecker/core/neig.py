@@ -236,7 +236,7 @@ class neig(BaseSignature, DataSignature):
             with h5py.File(self.data_path, 'r') as hf:
                 predictions["indices"] = hf['indices'][key]
                 predictions["distances"] = hf['distances'][key]
-                keys = hf['col_keys'][:]
+                keys = hf['col_keys'][:].astype(str)
                 predictions["keys"] = keys[predictions["indices"]]
         elif isinstance(key, str):
             if key not in self.unique_keys:
@@ -245,13 +245,13 @@ class neig(BaseSignature, DataSignature):
             with h5py.File(self.data_path, 'r') as hf:
                 predictions["indices"] = hf['indices'][idx]
                 predictions["distances"] = hf['distances'][idx]
-                keys = hf['col_keys'][:]
+                keys = hf['col_keys'][:].astype(str)
                 predictions["keys"] = keys[predictions["indices"]]
         elif isinstance(key, int):
             with h5py.File(self.data_path, 'r') as hf:
                 predictions["indices"] = hf['indices'][key]
                 predictions["distances"] = hf['distances'][key]
-                keys = hf['col_keys'][:]
+                keys = hf['col_keys'][:].astype(str)
                 predictions["keys"] = keys[predictions["indices"]]
         else:
             raise Exception("Key type %s not recognized." % type(key))
