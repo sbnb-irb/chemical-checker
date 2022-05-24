@@ -371,7 +371,8 @@ class DataSignature(object):
             raise Exception("Shape mismatch:", self._get_shape(
                 key, axis), mask.shape[0])
         key_tmp = "%s_tmp" % key
-        with h5py.File(self.data_path, "a") as hf:
+        self.close_hdf5()
+        with h5py.File(self.data_path, 'a') as hf:
             if key_tmp in hf.keys():
                 self.__log.debug('Deleting pre-existing `%s`' % key_tmp)
                 del hf[key_tmp]
@@ -588,6 +589,7 @@ class DataSignature(object):
     def close_hdf5(self):
         if hasattr(self, 'hdf5'):
             self.hdf5.close()
+            del self.hdf5
 
     def __del__(self):
         self.close_hdf5()
