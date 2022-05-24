@@ -105,7 +105,7 @@ faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
 
     # ML packages
     pip install scikit-learn                      # entry level ML in python
-    pip install gensim                            # topic modelling word2vec
+    pip install gensim --no-binary :all:          # topic modelling word2vec (avoid importing binary that are compiled probably on different numpy versions)
     if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
     pip install tensorflow==2.5.0                        # neural network library, fixed version because of AdaNet
     if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
