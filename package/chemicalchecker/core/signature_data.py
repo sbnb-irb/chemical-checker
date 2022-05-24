@@ -583,7 +583,7 @@ class DataSignature(object):
         return idx
 
     def open_hdf5(self):
-        self.hdf5 = h5py.File(self.data_path, 'r')
+        self.hdf5 = h5py.File(self.data_path, 'r', rdcc_nbytes=100*1024**2)
 
     def close_hdf5(self):
         if hasattr(self, 'hdf5'):
@@ -612,7 +612,7 @@ class DataSignature(object):
             self.hdf5[self.ds_data][key]
             return self.hdf5[self.ds_data][key]
         if isinstance(key, list):
-            key = slice(min(key), max(key))
+            key = slice(min(key), max(key)+1)
         if isinstance(key, slice):
             return self.hdf5[self.ds_data][key]
         if isinstance(key, bytes):
