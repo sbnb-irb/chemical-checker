@@ -36,6 +36,7 @@ class BaseTransform(object):
         self.categorical = self.is_categorical()
         self.tmp = tmp
 
+
     def reindex_triplets(self, sign1, keys):
         fn = os.path.join(sign1.model_path, "triplets.h5")
         if not os.path.exists(fn):
@@ -139,9 +140,9 @@ class BaseTransform(object):
             self.__log.debug("Considering all reference data")
             keys = self.sign_ref.keys
             if self.tmp:
-                V = self.sign_ref.get_h5_dataset("V_tmp")[:]
+                V = self.sign_ref.get_h5_dataset("V_tmp")
             else:
-                V = self.sign_ref[:]
+                V = self.sign_ref.get_h5_dataset("V")
         else:
             self.__log.debug(
                 "Subsampling data (ensuring coverage of at least one feature)")
@@ -191,10 +192,12 @@ class BaseTransform(object):
     def is_categorical(self, n=1000):
         self.__log.debug("Checking continuous or categorical")
         V = self.sign_ref[:n]
+        self.sign_ref.close_hdf5()
         is_cat = np.all(V == V.astype(np.int))
         if not is_cat:
             return False
         V = self.sign[:n]
+        self.sign.close_hdf5()
         is_cat = np.all(V == V.astype(np.int))
         if is_cat:
             return True
