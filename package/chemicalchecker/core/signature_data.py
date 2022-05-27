@@ -74,26 +74,26 @@ class DataSignature(object):
         """Get shape of dataset"""
         with h5py.File(self.data_path, 'r') as hf:
             data = hf[key].shape
-            if axis != None:
-                if len(data) == axis:
-                    return data[0]
-                return data[axis]
-            else:
-                return data
+        if axis != None:
+            if len(data) == axis:
+                return data[0]
+            return data[axis]
+        else:
+            return data
 
     def _get_dtype(self, key):
         """Get shape of dataset"""
         with h5py.File(self.data_path, 'r') as hf:
             data = hf[key][0].flat[0].dtype
-            return data
+        return data
 
     def _get_all(self, key):
         """Get complete dataset"""
         with h5py.File(self.data_path, 'r') as hf:
             data = hf[key][:]
-            if hasattr(data.flat[0], 'decode'):
-                return data.astype(str)
-            return data
+        if hasattr(data.flat[0], 'decode'):
+            return data.astype(str)
+        return data
 
     def _get_data_chunk(self, handle, key, chunk, axis=0):
         """Get chunk of dataset"""
@@ -252,7 +252,8 @@ class DataSignature(object):
         self._check_data()
         self._check_dataset(self.ds_data)
         with h5py.File(self.data_path, 'r') as hf:
-            return hf[self.ds_data].shape
+            shape = hf[self.ds_data].shape
+        return shape
 
     @property
     def size(self):
@@ -260,7 +261,8 @@ class DataSignature(object):
         self._check_data()
         self._check_dataset(self.ds_data)
         with h5py.File(self.data_path, 'r') as hf:
-            return hf[self.ds_data].size
+            size = hf[self.ds_data].size
+        return size
 
     @staticmethod
     def string_dtype():
@@ -468,18 +470,19 @@ class DataSignature(object):
             if mask is None:
                 ndim = hf[h5_dataset_name].ndim
                 if hasattr(hf[h5_dataset_name][(0,) * ndim], 'decode'):
-                    return hf[h5_dataset_name][:].astype(str)
+                    data = hf[h5_dataset_name][:].astype(str)
                 else:
-                    return hf[h5_dataset_name][:]
+                    data = hf[h5_dataset_name][:]
             else:
                 tmp = mask.ravel()[0]
                 if isinstance(tmp, np.bool_) or isinstance(tmp, bool):
                     mask = np.argwhere(mask.ravel()).ravel()
                 ndim = hf[h5_dataset_name].ndim
                 if hasattr(hf[h5_dataset_name][(0,) * ndim], 'decode'):
-                    return hf[h5_dataset_name][mask].astype(str)
+                    data = hf[h5_dataset_name][mask].astype(str)
                 else:
-                    return hf[h5_dataset_name][mask, :]
+                    data = hf[h5_dataset_name][mask, :]
+        return data
 
     def get_vectors(self, keys, include_nan=False, dataset_name='V',
                     output_missing=False):
