@@ -586,8 +586,9 @@ class DataSignature(object):
         idx = bisect_left(self.keys, key)
         return idx
 
-    def open_hdf5(self):
-        self.hdf5 = h5py.File(self.data_path, 'r', rdcc_nbytes=100*1024**2)
+    def open_hdf5(self, mode='r'):
+        self.close_hdf5()
+        self.hdf5 = h5py.File(self.data_path, mode, rdcc_nbytes=100*1024**2)
 
     def close_hdf5(self):
         if hasattr(self, 'hdf5'):
@@ -746,7 +747,7 @@ class DataSignature(object):
         np.random.seed(seed)
         if n >= len(self.keys):
             self.__log.debug("Full dataset sampled (n=%d)" % len(self.keys))
-            V = self[:]
+            V = self.get_h5_dataset('V')
             keys = self.keys
         else:
             self.__log.debug("Subsampling dataset (n=%d)" % n)
@@ -802,8 +803,7 @@ class DataSignature(object):
         """Map signature throught mappings."""
         if "mappings" not in self.info_h5:
             raise Exception("Data file has no mappings.")
-        with h5py.File(self.data_path, 'r') as hf:
-            mappings_raw = hf['mappings'][:]
+        mappings_raw = self.get_h5_dataset('mappings')
         mappings = dict(mappings_raw)
         # avoid trivial mappings (where key==value)
         to_map = list(set(mappings.keys()) - set(mappings.values()))
@@ -825,6 +825,7 @@ class DataSignature(object):
         for dst_key in sorted(to_map):
             dst_keys.append(dst_key)
             dst_vectors.append(self[mappings[dst_key]])
+        self.close_hdf5()
         # to numpy arrays
         dst_keys = np.array(dst_keys)
         matrix = np.vstack(dst_vectors)
