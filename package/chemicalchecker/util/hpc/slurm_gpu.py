@@ -50,6 +50,7 @@ export LD_LIBRARY_PATH=/apps/manual/software/PostgreSQL/14.2/lib:$LD_LIBRARY_PAT
 # CUDA drivers
 export LD_LIBRARY_PATH=/apps/manual/software/CUDA/11.6.1/lib64:/apps/manual/software/CUDA/11.6.1/targets/x86_64-linux/lib:/apps/manual/software/CUDA/11.6.1/extras/CUPTI/lib64/:/apps/manual/software/CUDA/11.6.1/nvvm/lib64/:/apps/manual/software/CUDNN/8.3.2/lib:$LD_LIBRARY_PATH
 export SINGULARITYENV_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
+export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_checker,/aloy/web_repository"
 
 %(command)s
 
