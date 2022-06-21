@@ -127,7 +127,7 @@ class DiagnosisPlot(object):
         ax.set_title(title)
 
     def _roc(self, ax, results, color, dataset_code=None, alpha=0.25,
-             label=None):
+             label=None, xylabels=True):
         step = 0.001
         fpr = np.arange(0, 1 + step, step)
         tpr = np.interp(fpr, results["fpr"], results["tpr"])
@@ -138,8 +138,25 @@ class DiagnosisPlot(object):
         ax.fill_between(fpr, tpr, color=color, alpha=alpha)
         ax.set_xlim(-0.05, 1.05)
         ax.set_ylim(-0.05, 1.05)
-        ax.set_xlabel("FPR")
-        ax.set_ylabel("TPR")
+        if xylabels:
+            ax.set_xlabel("FPR")
+            ax.set_ylabel("TPR")
+        return ax
+
+    def _pr(self, ax, results, color, dataset_code=None, alpha=0.25,
+            label=None, xylabels=True):
+        recall = results["recall"]
+        precision = results["precision"]
+        if color is None:
+            color = coord_color(dataset_code)
+        ax.plot(recall, precision, color=color, label=label)
+        ax.axhline(0.5, color="gray", linestyle="--")
+        ax.fill_between(recall, precision, color=color, alpha=alpha)
+        ax.set_xlim(-0.05, 1.05)
+        ax.set_ylim(-0.05, 1.05)
+        if xylabels:
+            ax.set_xlabel("Recall")
+            ax.set_ylabel("Precision")
         return ax
 
     def _pr(self, ax, results, color, dataset_code=None, alpha=0.25,
@@ -159,58 +176,67 @@ class DiagnosisPlot(object):
 
     # @safe_return(None)
     def cross_roc(self, results=None, sign=None, ax=None, title=None,
-                  color=None):
+                  color=None, xylabels=True):
         ax = self._get_ax(ax)
         color = self._get_color(color)
         fn = os.path.join(self.diag.path,
                           "cross_roc_%s.pkl" % sign.qualified_name)
         if results is None:
             results = self.load_diagnosis_pickle(fn)
-        ax = self._roc(ax, results, color)
-        if title is None:
-            title = "%s | %s (%.3f)" % (self.diag.sign.qualified_name,
-                                        sign.qualified_name, results["auc"])
+        ax = self._roc(ax, results, color, xylabels=xylabels)
+        if title != False:
+            if title is None:
+                title = "%s | %s (%.3f)" % (self.diag.sign.qualified_name,
+                                            sign.qualified_name, results["auc"])
         ax.set_title(title)
         return ax
 
     # @safe_return(None)
     def cross_pr(self, results=None, sign=None, ax=None, title=None,
-                 color=None):
+                 color=None, xylabels=True):
         ax = self._get_ax(ax)
         color = self._get_color(color)
         fn = os.path.join(self.diag.path,
                           "cross_roc_%s.pkl" % sign.qualified_name)
         if results is None:
             results = self.load_diagnosis_pickle(fn)
-        ax = self._pr(ax, results, color)
-        if title is None:
-            title = "%s | %s (%.3f)" % (self.diag.sign.qualified_name,
-                                        sign.qualified_name, results["average_precision_score"])
+        ax = self._pr(ax, results, color, xylabels=xylabels)
+        if title != False:
+            if title is None:
+                title = "%s | %s (%.3f)" % (self.diag.sign.qualified_name,
+                                            sign.qualified_name,
+                                            results["average_precision_score"])
         ax.set_title(title)
         return ax
 
     # @safe_return(None)
-    def atc_roc(self, results=None, ax=None, title=None):
+    def atc_roc(self, results=None, ax=None, title=None, color=None,
+                xylabels=True):
         ax = self._get_ax(ax)
-        color = coord_color("E1.001")
+        if color is None:
+            color = coord_color("E1.001")
         if results is None:
             results = self.load_diagnosis_pickle("atc_roc.pkl")
-        ax = self._roc(ax, results, color)
-        if title is None:
-            title = "ATC (%.3f)" % results["auc"]
+        ax = self._roc(ax, results, color, xylabels=xylabels)
+        if title != False:
+            if title is None:
+                title = "ATC (%.3f)" % results["auc"]
         ax.set_title(title)
         return ax
 
     # @safe_return(None)
-    def moa_roc(self, results=None, ax=None, title=None):
+    def moa_roc(self, results=None, ax=None, title=None, color=None,
+                xylabels=True):
         ax = self._get_ax(ax)
-        color = coord_color("B1.001")
+        if color is None:
+            color = coord_color("B1.001")
         if results is None:
             results = self.load_diagnosis_pickle("moa_roc.pkl")
-        ax = self._roc(ax, results, color)
-        if title is None:
-            title = "MoA (%.3f)" % results["auc"]
-        ax.set_title(title)
+        ax = self._roc(ax, results, color, xylabels=xylabels)
+        if title != False:
+            if title is None:
+                title = "MoA (%.3f)" % results["auc"]
+            ax.set_title(title)
         return ax
 
     # @safe_return(None)
@@ -247,7 +273,8 @@ class DiagnosisPlot(object):
             if res is None:
                 continue
             ax = self._roc(
-                ax, res, color, label='NN {:<5} (AUC {:.3f})'.format(nn, res['auc']))
+                ax, res, color,
+                label='NN {:<5} (AUC {:.3f})'.format(nn, res['auc']))
         ax.legend()
         return ax
 
@@ -999,18 +1026,25 @@ class DiagnosisPlot(object):
         ax.set_title("CC levels")
         return ax
 
-    def canvas_small(self, title):
+    def canvas_small(self, title, skip_plots):
         fig = plt.figure(figsize=(14, 4))
         gs = fig.add_gridspec(2, 6, wspace=0.6, hspace=0.6)
-
-        self.image(ax=fig.add_subplot(gs[0, :2]))
-        self.features_bins(ax=fig.add_subplot(gs[1, 0]))
-        self.keys_bins(ax=fig.add_subplot(gs[1, 1]))
-        self.values(ax=fig.add_subplot(gs[0, 2]))
-        self.redundancy(ax=fig.add_subplot(gs[1, 2]))
-        self.projection(ax=fig.add_subplot(gs[0:2, 3:5]))
-        self.euclidean_distances(ax=fig.add_subplot(gs[0, 5]))
-        self.cosine_distances(ax=fig.add_subplot(gs[1, 5]))
+        if "image" not in skip_plots:
+            self.image(ax=fig.add_subplot(gs[0, :2]))
+        if "features_bins" not in skip_plots:
+            self.features_bins(ax=fig.add_subplot(gs[1, 0]))
+        if "keys_bins" not in skip_plots:
+            self.keys_bins(ax=fig.add_subplot(gs[1, 1]))
+        if "values" not in skip_plots:
+            self.values(ax=fig.add_subplot(gs[0, 2]))
+        if "redundancy" not in skip_plots:
+            self.redundancy(ax=fig.add_subplot(gs[1, 2]))
+        if "projection" not in skip_plots:
+            self.projection(ax=fig.add_subplot(gs[0:2, 3:5]))
+        if "euclidean_distances" not in skip_plots:
+            self.euclidean_distances(ax=fig.add_subplot(gs[0, 5]))
+        if "cosine_distances" not in skip_plots:
+            self.cosine_distances(ax=fig.add_subplot(gs[1, 5]))
 
         if title is None:
             title = "%s %s" % (self.diag.sign.dataset, self.diag.sign.cctype)
@@ -1018,79 +1052,135 @@ class DiagnosisPlot(object):
         plt.close()
         return fig
 
-    def canvas_medium(self, title):
+    def canvas_medium(self, title, skip_plots):
         fig = plt.figure(figsize=(14, 14))
         gs = fig.add_gridspec(6, 6, wspace=0.6, hspace=0.6)
         ax = fig.add_subplot(gs[0, 0])
         self.legend(ax=ax)
-        ax = fig.add_subplot(gs[1, 5])
-        self.redundancy(ax=ax)
-        ax = fig.add_subplot(gs[0, 5])
-        self.outliers(ax=ax)
-        ax = fig.add_subplot(gs[1, 0])
-        self.values(ax=ax)
-        ax = fig.add_subplot(gs[0, 1])
-        if self.diag.sign.cctype == 'sign3':
-            self.confidences(ax=ax)
-        else:
-            self.intensities(ax=ax)
-        ax = fig.add_subplot(gs[0, 2])
-        if self.diag.sign.cctype == 'sign3':
-            self.confidences_projection(ax=ax)
-        else:
-            self.intensities_projection(ax=ax)
-        ax = fig.add_subplot(gs[1, 1])
-        self.key_coverage(ax=ax)
-        ax = fig.add_subplot(gs[1, 2])
-        self.key_coverage_projection(ax=ax)
-        ax = fig.add_subplot(gs[0, 3])
-        self.global_ranks_agreement_projection(ax=ax)
-        ax = fig.add_subplot(gs[0, 4])
-        self.global_ranks_agreement(ax=ax)
-        ax = fig.add_subplot(gs[1, 3])
-        self.clusters_projection(ax=ax)
-        ax = fig.add_subplot(gs[1, 4])
-        self.cluster_sizes(ax=ax)
-        ax = fig.add_subplot(gs[2, 4])
-        self.euclidean_distances(ax=ax)
-        ax = fig.add_subplot(gs[2, 5])
-        self.cosine_distances(ax=ax)
-        ax = fig.add_subplot(gs[3, 0])
-        self.features_bins(ax=ax)
-        ax = fig.add_subplot(gs[3, 1])
-        self.keys_bins(ax=ax)
-        ax = fig.add_subplot(gs[2:4, 2:4])
-        self.projection(ax=ax)
-        ax = fig.add_subplot(gs[2, :2])
-        self.image(ax=ax)
-        ax = fig.add_subplot(gs[3, 4])
-        self.moa_roc(ax=ax)
-        ax = fig.add_subplot(gs[3, 5])
-        self.atc_roc(ax=ax)
-        ax = fig.add_subplot(gs[-2:, :2])
-        self.dimensions(ax=ax)
-        ax = fig.add_subplot(gs[-2, 2:4])
-        self.across_coverage(ax=ax, vs=True)
-        ax = fig.add_subplot(gs[-1, 2:4])
-        self.across_coverage(ax=ax, vs=False)
-        ax = fig.add_subplot(gs[-2:, 4:6])
-        self.across_roc(ax=ax)
+        if "redundancy" not in skip_plots:
+            ax = fig.add_subplot(gs[1, 5])
+            self.redundancy(ax=ax)
+        if "outliers" not in skip_plots:
+            ax = fig.add_subplot(gs[0, 5])
+            self.outliers(ax=ax)
+        if "values" not in skip_plots:
+            ax = fig.add_subplot(gs[1, 0])
+            self.values(ax=ax)
+        if "confidences" or "intensities" not in skip_plots:
+            ax = fig.add_subplot(gs[0, 1])
+            if self.diag.sign.cctype == 'sign3':
+                if "confidences" not in skip_plots:
+                    self.confidences(ax=ax)
+                    if "confidences_projection" not in skip_plots:
+                        ax = fig.add_subplot(gs[0, 2])
+                        self.confidences_projection(ax=ax)
+            else:
+                if "intensities" not in skip_plots:
+                    self.intensities(ax=ax)
+                    if "intensities_projection" not in skip_plots:
+                        ax = fig.add_subplot(gs[0, 2])
+                        self.intensities_projection(ax=ax)
+        if "key_coverage" not in skip_plots:
+            ax = fig.add_subplot(gs[1, 1])
+            self.key_coverage(ax=ax)
+            if "key_coverage_projection" not in skip_plots:
+                ax = fig.add_subplot(gs[1, 2])
+                self.key_coverage_projection(ax=ax)
+        if "global_ranks_agreement" not in skip_plots:
+            ax = fig.add_subplot(gs[0, 4])
+            self.global_ranks_agreement(ax=ax)
+            if "global_ranks_agreement_projection" not in skip_plots:
+                ax = fig.add_subplot(gs[0, 3])
+                self.global_ranks_agreement_projection(ax=ax)
+        if "cluster_sizes" not in skip_plots:
+            ax = fig.add_subplot(gs[1, 4])
+            self.cluster_sizes(ax=ax)
+            if "clusters_projection" not in skip_plots:
+                ax = fig.add_subplot(gs[1, 3])
+                self.clusters_projection(ax=ax)
+        if "euclidean_distances" not in skip_plots:
+            ax = fig.add_subplot(gs[2, 4])
+            self.euclidean_distances(ax=ax)
+        if "cosine_distances" not in skip_plots:
+            ax = fig.add_subplot(gs[2, 5])
+            self.cosine_distances(ax=ax)
+        if "features_bins" not in skip_plots:
+            ax = fig.add_subplot(gs[3, 0])
+            self.features_bins(ax=ax)
+        if "keys_bins" not in skip_plots:
+            ax = fig.add_subplot(gs[3, 1])
+            self.keys_bins(ax=ax)
+        if "projection" not in skip_plots:
+            ax = fig.add_subplot(gs[2:4, 2:4])
+            self.projection(ax=ax)
+        if "image" not in skip_plots:
+            ax = fig.add_subplot(gs[2, :2])
+            self.image(ax=ax)
+        if "moa_roc" not in skip_plots:
+            ax = fig.add_subplot(gs[3, 4])
+            self.moa_roc(ax=ax)
+        if "atc_roc" not in skip_plots:
+            ax = fig.add_subplot(gs[3, 5])
+            self.atc_roc(ax=ax)
+        if "dimensions" not in skip_plots:
+            ax = fig.add_subplot(gs[-2:, :2])
+            self.dimensions(ax=ax)
+        if "across_coverage" not in skip_plots:
+            ax = fig.add_subplot(gs[-2, 2:4])
+            self.across_coverage(ax=ax, vs=True)
+            ax = fig.add_subplot(gs[-1, 2:4])
+            self.across_coverage(ax=ax, vs=False)
+        if "across_roc" not in skip_plots:
+            ax = fig.add_subplot(gs[-2:, 4:6])
+            self.across_roc(ax=ax)
         if title is None:
             title = "%s %s" % (self.diag.sign.dataset, self.diag.sign.cctype)
         fig.suptitle(title, fontweight="bold", y=0.92, size='xx-large')
         plt.close()
         return fig
 
-    def canvas_large(self, title):
+    def canvas_large(self, title, skip_plots):
         pass
 
-    def canvas(self, size="medium", title=None):
+    def custom_comparative_vertical(self, title, skip_plots):
+        fig = plt.figure(figsize=(9, 9))
+        gs = fig.add_gridspec(4, 4, wspace=0.6, hspace=0.6)
+        #plt.figtext(0.02, 0.5, 'TEST', fontsize=12, fontweight="bold")
+        ax = fig.add_subplot(gs[0:2, 0:2])
+        self.projection(ax=ax)
+        #text = ax.text(-55,45,"A)",fontsize=12, fontweight="bold")
+        ax = fig.add_subplot(gs[2, 1])
+        self.legend(ax=ax)
+        ax = fig.add_subplot(gs[0, 2])
+        if self.diag.sign.cctype == 'sign3':
+            self.confidences(ax=ax)
+        else:
+            self.intensities(ax=ax)
+        #text1 = ax.text(-1,1,"B)",fontsize=12, fontweight="bold")
+        ax = fig.add_subplot(gs[0, 3])
+        self.clusters_projection(ax=ax)
+        #text1 = ax.text(-50,-50,"C)",fontsize=12, fontweight="bold")
+        ax = fig.add_subplot(gs[1, 2])
+        self.moa_roc(ax=ax)
+        ax = fig.add_subplot(gs[1, 3])
+        self.atc_roc(ax=ax)
+        ax = fig.add_subplot(gs[2:4, 2:4])
+        self.across_roc(ax=ax)
+        if title is None:
+            title = "%s %s" % (self.diag.sign.dataset, self.diag.sign.cctype)
+        fig.suptitle(title, fontweight="bold", y=0.95, size='xx-large')
+        plt.close()
+        return fig
+
+    def canvas(self, size="medium", title=None, skip_plots=[]):
         self.__log.debug("Plotting Canvas %s" % size)
         if size == "small":
-            return self.canvas_small(title=title)
+            return self.canvas_small(title=title, skip_plots=skip_plots)
         elif size == "medium":
-            return self.canvas_medium(title=title)
+            return self.canvas_medium(title=title, skip_plots=skip_plots)
         elif size == "large":
-            return self.canvas_large(title=title)
+            return self.canvas_large(title=title, skip_plots=skip_plots)
+        elif size == "compare_v":
+            return self.custom_comparative_vertical(title=title, skip_plots=skip_plots)
         else:
             return None

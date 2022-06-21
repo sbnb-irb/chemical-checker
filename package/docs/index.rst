@@ -111,14 +111,21 @@ so-called *CC signatures*:
 |             |             |             | similarity  |             |
 |             |             |             | network.    |             |
 +-------------+-------------+-------------+-------------+-------------+
-| Type 3      | ``sign3``   | Networ      | Fixed       | Possibly    |
-|             |             | k-embedding | dimension   | very noisy, |
-|             |             | of the      | and         | hence       |
-|             |             | inferred    | available   | useless,    |
-|             |             | similarity  | for *any*   | especially  |
-|             |             | network.    | molecule.   | for         |
-|             |             |             |             | low-data    |
+| Type 3      | ``sign3``   | Siamese     | Fixed       | Possibly    |
+|             |             | Neural      | dimension   | very noisy, |
+|             |             | Network     | and         | hence       |
+|             |             | embedding   | available   | useless,    |
+|             |             | derived from| for *many*  | especially  |
+|             |             | all 25      | molecule.   | for         |
+|             |             | spaces.     |             | low-data    |
 |             |             |             |             | datasets.   |
++-------------+-------------+-------------+-------------+-------------+
+| Type 4      | ``sign4``   | DNN         | Fixed       | Possibly    |
+|             |             | multioutput | dimension   | very noisy, |
+|             |             | regression  | and         | subject to  |
+|             |             | of sign3.   | available   | out of      |
+|             |             |             | for *any*   | distribution|
+|             |             |             | molecule.   | bias.       |
 +-------------+-------------+-------------+-------------+-------------+
 
 For further details see the :doc:`Signaturization <signaturization>` section.

@@ -60,7 +60,7 @@ class neig(BaseSignature, DataSignature):
             if "chunk" in params:
                 self.chunk = params["chunk"]
 
-    def fit(self, sign1=None):
+    def fit(self, sign=None):
         """Fit neighbor model given a signature."""
         try:
             import faiss
@@ -72,23 +72,23 @@ class neig(BaseSignature, DataSignature):
         if self.molset != "reference":
             self.__log.debug("Fit will be done with the reference neig1")
             self = self.get_molset("reference")
-        if sign1 is None:
-            sign1 = self.get_sign(
+        if sign is None:
+            sign = self.get_sign(
                 'sign' + self.cctype[-1]).get_molset("reference")
-        if sign1.molset != "reference":
-            self.__log.debug("Fit will be done with the reference sign1")
-            sign1 = self.get_sign(
+        if sign.molset != "reference":
+            self.__log.debug("Fit will be done with the reference sign")
+            sign = self.get_sign(
                 'sign' + self.cctype[-1]).get_molset("reference")
-        if not sign1.is_fit():
-            raise Exception("sign1 is not fitted.")
+        if not sign.is_fit():
+            raise Exception("sign is not fitted.")
 
         faiss.omp_set_num_threads(self.cpu)
 
-        if os.path.isfile(sign1.data_path):
-            with h5py.File(sign1.data_path, 'r') as dh5, h5py.File(self.data_path, 'w') as dh5out:
+        if os.path.isfile(sign.data_path):
+            with h5py.File(sign.data_path, 'r') as dh5, h5py.File(self.data_path, 'w') as dh5out:
                 if "keys" not in dh5.keys() or "V" not in dh5.keys():
                     raise Exception(
-                        "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
+                        "H5 file " + sign.data_path + " does not contain datasets 'keys' and 'V'")
 
                 self.datasize = dh5["V"].shape
                 self.data_type = dh5["V"].dtype
@@ -112,7 +112,7 @@ class neig(BaseSignature, DataSignature):
                 else:
                     index = faiss.IndexFlatIP(self.datasize[1])
 
-                for chunk in sign1.chunker():
+                for chunk in sign.chunker():
                     data_temp = np.array(dh5["V"][chunk], dtype=np.float32)
                     if self.metric == "cosine":
                         normst = LA.norm(data_temp, axis=1)
@@ -120,7 +120,7 @@ class neig(BaseSignature, DataSignature):
                     else:
                         index.add(data_temp)
 
-                for chunk in sign1.chunker():
+                for chunk in sign.chunker():
                     data_temp = np.array(dh5["V"][chunk], dtype=np.float32)
                     if self.metric == "cosine":
                         normst = LA.norm(data_temp, axis=1)
@@ -135,7 +135,7 @@ class neig(BaseSignature, DataSignature):
                         dh5out["distances"][chunk] = Dt
 
         else:
-            raise Exception("The file " + sign1.data_path + " does not exist")
+            raise Exception("The file " + sign.data_path + " does not exist")
 
         faiss.write_index(index, self.index_filename)
 
@@ -145,7 +145,7 @@ class neig(BaseSignature, DataSignature):
             self.predict(sign_full, self.get_molset("full").data_path)
         self.mark_ready()
 
-    def predict(self, sign1, destination=None, validations=False):
+    def predict(self, sign, destination=None, validations=False):
         """Use the fitted models to go from input to output."""
         try:
             import faiss
@@ -158,11 +158,11 @@ class neig(BaseSignature, DataSignature):
 
         faiss.omp_set_num_threads(self.cpu)
 
-        if os.path.isfile(sign1.data_path):
-            with h5py.File(sign1.data_path, 'r') as dh5, h5py.File(destination, 'w') as dh5out:
+        if os.path.isfile(sign.data_path):
+            with h5py.File(sign.data_path, 'r') as dh5, h5py.File(destination, 'w') as dh5out:
                 if "keys" not in dh5.keys() or "V" not in dh5.keys():
                     raise Exception(
-                        "H5 file " + sign1.data_path + " does not contain datasets 'keys' and 'V'")
+                        "H5 file " + sign.data_path + " does not contain datasets 'keys' and 'V'")
 
                 self.datasize = dh5["V"].shape
                 self.data_type = dh5["V"].dtype
@@ -184,7 +184,7 @@ class neig(BaseSignature, DataSignature):
                 dh5out.create_dataset(
                     "metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
 
-                for chunk in sign1.chunker():
+                for chunk in sign.chunker():
                     data_temp = np.array(dh5["V"][chunk], dtype=np.float32)
 
                     if self.metric == "cosine":
@@ -200,7 +200,7 @@ class neig(BaseSignature, DataSignature):
                         dh5out["distances"][chunk] = Dt
 
         else:
-            raise Exception("The file " + sign1.data_path + " does not exist")
+            raise Exception("The file " + sign.data_path + " does not exist")
 
     @cached_property
     def keys(self):
@@ -236,7 +236,7 @@ class neig(BaseSignature, DataSignature):
             with h5py.File(self.data_path, 'r') as hf:
                 predictions["indices"] = hf['indices'][key]
                 predictions["distances"] = hf['distances'][key]
-                keys = hf['col_keys'][:]
+                keys = hf['col_keys'][:].astype(str)
                 predictions["keys"] = keys[predictions["indices"]]
         elif isinstance(key, str):
             if key not in self.unique_keys:
@@ -245,13 +245,13 @@ class neig(BaseSignature, DataSignature):
             with h5py.File(self.data_path, 'r') as hf:
                 predictions["indices"] = hf['indices'][idx]
                 predictions["distances"] = hf['distances'][idx]
-                keys = hf['col_keys'][:]
+                keys = hf['col_keys'][:].astype(str)
                 predictions["keys"] = keys[predictions["indices"]]
         elif isinstance(key, int):
             with h5py.File(self.data_path, 'r') as hf:
                 predictions["indices"] = hf['indices'][key]
                 predictions["distances"] = hf['distances'][key]
-                keys = hf['col_keys'][:]
+                keys = hf['col_keys'][:].astype(str)
                 predictions["keys"] = keys[predictions["indices"]]
         else:
             raise Exception("Key type %s not recognized." % type(key))

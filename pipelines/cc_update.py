@@ -532,7 +532,7 @@ def main(args):
     #############################################
     # TASK: Create sym links for exemplary signatures
     def create_symlinks_fn(cc, sign_ref):
-        # link to exmplary signatures
+        # link to exemplary signatures
         target_path = os.path.join(args.cc_root, "exemplary")
         if not os.path.isdir(target_path):
             os.mkdir(target_path)

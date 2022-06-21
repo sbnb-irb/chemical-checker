@@ -96,6 +96,7 @@ class sign3(BaseSignature, DataSignature):
         self._sharedx_trim = None
         self.traintest_file = None
         self.trim_mask = None
+        #np.seterr(divide='ignore', invalid='ignore')
 
     @property
     def sharedx(self):
@@ -327,7 +328,8 @@ class sign3(BaseSignature, DataSignature):
         upd_cov = h5py.File(sign2_coverage_ext, "r")
         old_cov = h5py.File(sign2_coverage, "r")
         sign3.__log.info('Checking updated universe...')
-        for col, name in enumerate(cc_ref.datasets):
+       
+        for col, name in enumerate(self.src_datasets): # cc_ref.datasets
             tot_upd = sum(upd_cov['x_test'][:, col])
             cov_delta = int(tot_upd - sum(old_cov['x_test'][:, col]))
             if cov_delta == 0:
@@ -359,7 +361,7 @@ class sign3(BaseSignature, DataSignature):
             hf['x'] = hf['x_test']
             del hf['x_test']
 
-    def train_SNN(self, params, reuse=True, suffix=None, evaluate=True):
+    def train_SNN(self, params, reuse=True, suffix=None, evaluate=True, plots_train=True):
         """Train the Siamese Neural Network model.
 
         This method is used twice. First to evaluate the performances of the
@@ -376,6 +378,7 @@ class sign3(BaseSignature, DataSignature):
             evaluate(bool): Whether we are performing a train-test split and
                 evaluating the performances (N.B. this is required for complete
                 confidence scores)
+            plots_train(bool): plotting outcomes of train models.
         """
         try:
             from chemicalchecker.tool.siamese import SiameseTriplets
@@ -408,7 +411,7 @@ class sign3(BaseSignature, DataSignature):
             cpu = params.get('cpu', 1)
             if not reuse or not os.path.isfile(self.traintest_file):
                 NeighborTripletTraintest.create(
-                    X, self.traintest_file, self.neig_sign,
+                    X, self.traintest_file, self.triplet_sign,
                     split_names=['train', 'test'],
                     split_fractions=[.8, .2],
                     suffix=suffix,
@@ -421,7 +424,7 @@ class sign3(BaseSignature, DataSignature):
             cpu = params.get('cpu', 1)
             if not reuse or not os.path.isfile(self.traintest_file):
                 NeighborTripletTraintest.create(
-                    X, self.traintest_file, self.neig_sign,
+                    X, self.traintest_file, self.triplet_sign,
                     split_names=['train'],
                     split_fractions=[1.0],
                     suffix=suffix,
@@ -463,7 +466,7 @@ class sign3(BaseSignature, DataSignature):
         except Exception as ex:
             self.__log.debug('Plot problem: %s' % str(ex))
         # when evaluating also save prior and confidence models
-        conf_res = self.train_confidence(siamese)
+        conf_res = self.train_confidence(siamese, plots_train=plots_train)
         prior_model, prior_sign_model, confidence_model = conf_res
         # update the parameters with the new nr_of epochs and lr
         self.params['sign2']['epochs'] = siamese.last_epoch
@@ -471,7 +474,7 @@ class sign3(BaseSignature, DataSignature):
 
     def train_confidence(self, siamese, suffix='eval', traintest_file=None,
                          train_file=None, max_x=10000, max_neig=50000,
-                         p_self=0.0):
+                         p_self=0.0, plots_train=True):
         """Train confidence and prior models."""
         # get sorted keys from siamese traintest file
         self.update_status('Training applicability')
@@ -514,7 +517,7 @@ class sign3(BaseSignature, DataSignature):
         os.makedirs(prior_path, exist_ok=True)
         prior_model = self.train_prior_model(siamese, confidence_train_x,
                                              splits, prior_path,
-                                             max_x=max_x, p_self=p_self)
+                                             max_x=max_x, p_self=p_self, plots=plots_train)
 
         # train prior signature model
         prior_sign_path = os.path.join(self.model_path,
@@ -522,7 +525,7 @@ class sign3(BaseSignature, DataSignature):
         os.makedirs(prior_sign_path, exist_ok=True)
         prior_sign_model = self.train_prior_signature_model(
             siamese, confidence_train_x, splits, prior_sign_path,
-            max_x=max_x, p_self=p_self)
+            max_x=max_x, p_self=p_self, plots=plots_train)
 
         # train confidence model
         confidence_path = os.path.join(self.model_path,
@@ -531,19 +534,19 @@ class sign3(BaseSignature, DataSignature):
         confidence_model = self.train_confidence_model(
             siamese, known_x, confidence_train_x, splits,
             prior_model, prior_sign_model,
-            confidence_path, p_self=p_self)
+            confidence_path, p_self=p_self, plots=plots_train)
         return prior_model, prior_sign_model, confidence_model
 
     def rerun_confidence(self, cc, suffix, train=True, update_sign=True,
                          chunk_size=10000, sign2_universe=None,
-                         sign2_coverage=None):
+                         sign2_coverage=None, plots_train=True):
         """Rerun confidence trainining and estimation"""
         try:
             import faiss
             from chemicalchecker.tool.siamese import SiameseTriplets
         except ImportError:
             raise ImportError("requires tensorflow https://tensorflow.org")
-        sign1_self = cc.get_signature("sign1", "full", self.dataset)
+        triplet_sign = cc.get_signature("sign1", "full", self.dataset)
         sign2_self = cc.get_signature("sign2", "full", self.dataset)
         sign2_list = [cc.get_signature("sign2", "full", d)
                       for d in cc.datasets_exemplary()]
@@ -554,7 +557,7 @@ class sign3(BaseSignature, DataSignature):
                 cc.cc_root, 'full', 'all_sign2_coverage.h5')
 
         self.src_datasets = [sign.dataset for sign in sign2_list]
-        self.neig_sign = sign1_self
+        self.triplet_sign = triplet_sign
         self.sign2_self = sign2_self
         self.sign2_list = sign2_list
         self.sign2_coverage = sign2_coverage
@@ -568,7 +571,7 @@ class sign3(BaseSignature, DataSignature):
 
         if train:
             prior_mdl, prior_sign_mdl, conf_mdl = self.train_confidence(
-                siamese, suffix=suffix)
+                siamese, suffix=suffix, plots_train=plots_train)
             if not update_sign:
                 return
         else:
@@ -696,7 +699,7 @@ class sign3(BaseSignature, DataSignature):
                           max_x=10000, n_samples=5, p_self=0.0, plots=True):
         """Train prior predictor."""
         def get_weights(y, p=2):
-            h, b = np.histogram(y, 20)
+            h, b = np.histogram(y[~np.isnan(y)], 20)
             b = [np.mean([b[i], b[i + 1]]) for i in range(0, len(h))]
             w = np.interp(y, b, h).ravel()
             w = -(w / np.sum(w)) + 1e-10
@@ -716,7 +719,7 @@ class sign3(BaseSignature, DataSignature):
 
         def scatter(ax, yp, yt, joint_lim=True):
             x = yp
-            y = yt
+            y = yt                                
             xy = np.vstack([x, y])
             try:
                 z = gaussian_kde(xy)(xy)
@@ -742,7 +745,8 @@ class sign3(BaseSignature, DataSignature):
             line = slope * x + intercept
             ax.plot(x, line, 'r',
                     label='y={:.2f}x+{:.2f}'.format(slope, intercept))
-            title = "rho = %.2f" % pearsonr(x, y)[0]
+            nas = np.logical_or(np.isnan(x), np.isnan(y))
+            title = "rho = %.2f" % pearsonr(x[~nas], y[~nas])[0]
             ax.set_title(title)
             ax.legend()
 
@@ -778,9 +782,11 @@ class sign3(BaseSignature, DataSignature):
             ax = fig.add_subplot(gs[0, 1])
             histograms(ax, y_te_p, y_te, "Test")
             ax = fig.add_subplot(gs[1, 0])
-            scatter(ax, y_tr_p, y_tr)
+            nas = np.logical_or(np.isnan(y_tr_p), np.isnan(y_tr))
+            scatter(ax, y_tr_p[~nas], y_tr[~nas])
             ax = fig.add_subplot(gs[1, 1])
-            scatter(ax, y_te_p, y_te)
+            nas = np.logical_or(np.isnan(y_te_p), np.isnan(y_te))
+            scatter(ax, y_te_p[~nas], y_te[~nas])
             ax = fig.add_subplot(gs[0:2, 2])
             importances(ax, mod, trim_mask)
             if plots:
@@ -861,7 +867,7 @@ class sign3(BaseSignature, DataSignature):
                         # the X is the dataset presence in the not-self
                         presence = ~np.isnan(feat[:, ::128])[:, trim_mask]
                         X[dst_chunk] = presence.astype(int)
-                        # check if enought
+                        # check if enough
                         if reached_max:
                             break
                 variables = [X, Y, feat, preds_onlyselfs, preds_noselfs]
@@ -875,6 +881,20 @@ class sign3(BaseSignature, DataSignature):
         y_tr = traintest.get_h5_dataset('y_train').ravel()
         x_te = traintest.get_h5_dataset('x_test')
         y_te = traintest.get_h5_dataset('y_test').ravel()
+        #TODO: check the generation of data.h5 file: NaNs?
+        if np.isnan(x_tr).any():
+            nans_xtr = np.argwhere(np.isnan(x_tr))
+            self.__log.debug("Len NaNs in x_tr: {}".format(len(nans_xtr)))
+        if np.isnan(y_tr).any():
+            nans_ytr = np.argwhere(np.isnan(y_tr))
+            self.__log.debug("Len NaNs in y_tr: {}".format(len(nans_ytr)))
+        if np.isnan(x_te).any():
+            nans_xte = np.argwhere(np.isnan(x_te))
+            self.__log.debug("Len NaNs in x_te: {}".format(len(nans_xte)))
+        if np.isnan(y_te).any():
+            nans_yte = np.argwhere(np.isnan(y_te))
+            self.__log.debug("Len NaNs in y_te: {}".format(len(nans_yte)))
+        
         # fit model
         model = RandomForestRegressor(n_estimators=1000, max_features=None,
                                       min_samples_leaf=0.01, n_jobs=4)
@@ -891,7 +911,7 @@ class sign3(BaseSignature, DataSignature):
                                     p_self=0.0, plots=True):
         """Train prior predictor."""
         def get_weights(y, p=2):
-            h, b = np.histogram(y, 20)
+            h, b = np.histogram(y[~np.isnan(y)], 20)
             b = [np.mean([b[i], b[i + 1]]) for i in range(0, len(h))]
             w = np.interp(y, b, h).ravel()
             w = -(w / np.sum(w)) + 1e-10
@@ -937,7 +957,8 @@ class sign3(BaseSignature, DataSignature):
             line = slope * x + intercept
             ax.plot(x, line, 'r',
                     label='y={:.2f}x+{:.2f}'.format(slope, intercept))
-            title = "rho = %.2f" % pearsonr(x, y)[0]
+            nas = np.logical_or(np.isnan(x), np.isnan(y))
+            title = "rho = %.2f" % pearsonr(x[~nas], y[~nas])[0]
             ax.set_title(title)
             ax.legend()
 
@@ -968,9 +989,11 @@ class sign3(BaseSignature, DataSignature):
             ax = fig.add_subplot(gs[0, 1])
             histograms(ax, y_te_p, y_te, "Test")
             ax = fig.add_subplot(gs[1, 0])
-            scatter(ax, y_tr_p, y_tr)
+            nas = np.logical_or(np.isnan(y_tr_p), np.isnan(y_tr))
+            scatter(ax, y_tr_p[~nas], y_tr[~nas])
             ax = fig.add_subplot(gs[1, 1])
-            scatter(ax, y_te_p, y_te)
+            nas = np.logical_or(np.isnan(y_te_p), np.isnan(y_te))
+            scatter(ax, y_te_p[~nas], y_te[~nas])
             ax = fig.add_subplot(gs[0:2, 2])
             importances(ax, mod)
             if plots:
@@ -1063,6 +1086,19 @@ class sign3(BaseSignature, DataSignature):
         y_tr = traintest.get_h5_dataset('y_train').ravel()
         x_te = traintest.get_h5_dataset('x_test')
         y_te = traintest.get_h5_dataset('y_test').ravel()
+        #TODO: check the generation of data.h5 file: NaNs?
+        if np.isnan(x_tr).any():
+            nans_xtr = np.argwhere(np.isnan(x_tr))
+            self.__log.debug("Len NaNs in x_tr: {}".format(len(nans_xtr)))
+        if np.isnan(y_tr).any():
+            nans_ytr = np.argwhere(np.isnan(y_tr))
+            self.__log.debug("Len NaNs in y_tr: {}".format(len(nans_ytr)))
+        if np.isnan(x_te).any():
+            nans_xte = np.argwhere(np.isnan(x_te))
+            self.__log.debug("Len NaNs in x_te: {}".format(len(nans_xte)))
+        if np.isnan(y_te).any():
+            nans_yte = np.argwhere(np.isnan(y_te))
+            self.__log.debug("Len NaNs in y_te: {}".format(len(nans_yte)))
         # fit model
         model = RandomForestRegressor(n_estimators=1000, max_features='sqrt',
                                       min_samples_leaf=0.01, n_jobs=4)
@@ -1406,7 +1442,7 @@ class sign3(BaseSignature, DataSignature):
                              p_self=0.0, subsampling=False):
         # applicability is whether not-self preds is close to only-self preds
         # neighbors between 5 and 25 depending on the size of the dataset
-        app_thr = int(np.clip(np.log10(self.neig_sign.shape[0])**2, 5, 25))
+        app_thr = int(np.clip(np.log10(self.triplet_sign.shape[0])**2, 5, 25))
         if subsampling:
             if dropout_fn is None:
                 dropout_fn, _ = self.realistic_subsampling_fn()
@@ -1679,18 +1715,19 @@ class sign3(BaseSignature, DataSignature):
         inchikeys = sorted(list(inchikeys))
         return inchikeys
 
-    def fit(self, sign2_list=None, sign2_self=None, sign1_self=None,
+    def fit(self, sign2_list=None, sign2_self=None, triplet_sign=None,
             sign2_universe=None, complete_universe='full',
             sign2_coverage=None,
             model_confidence=True, save_correlations=False,
             predict_novelty=False, update_preds=True,
-            chunk_size=1000, suffix=None, **kwargs):
+            chunk_size=1000, suffix=None, plots_train=True, **kwargs):
         """Fit signature 3 given a list of signature 2.
 
         Args:
             sign2_list(list): List of signature 2 objects to learn from.
             sign2_self(sign2): Signature 2 of the current space.
-            sign2_self(sign1): Signature 1 of the current space.
+            triplet_sign(sign1): Signature used to define acnhor positive and 
+                negative in triplets.
             sign2_universe(str): Path to the union of all signatures 2 for all
                 molecules in the CC universe. (~1M x 3200)
             complete_universe(str): add chemistry information for molecules not
@@ -1709,6 +1746,10 @@ class sign3(BaseSignature, DataSignature):
             normalize_scores(bool): Whether to normalize confidence scores.
             chunk_size(int): Chunk size when writing to sign3.h5
             suffix(str): Suffix of the generated model.
+            plots_train(bool): plotting trained models outcomes defaulted to True.
+                               it applies to train_prior_model, 
+                               train_prior_signature_model,
+                               train_confidence_model
         """
         try:
             from chemicalchecker.tool.siamese import SiameseTriplets
@@ -1738,9 +1779,9 @@ class sign3(BaseSignature, DataSignature):
         if sign2_self is None:
             sign2_self = self.get_sign('sign2')
         self.sign2_self = sign2_self
-        if sign1_self is None:
-            sign1_self = self.get_sign('sign1')
-        self.neig_sign = sign1_self
+        if triplet_sign is None:
+            triplet_sign = self.get_sign('sign1')
+        self.triplet_sign = triplet_sign
 
         self.sign2_coverage = sign2_coverage
         self.dataset_idx = np.argwhere(
@@ -1791,7 +1832,7 @@ class sign3(BaseSignature, DataSignature):
             eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
             if not os.path.isfile(eval_file):
                 res = self.train_SNN(
-                    self.params['sign2'].copy(), suffix='eval', evaluate=True)
+                    self.params['sign2'].copy(), suffix='eval', evaluate=True, plots_train=plots_train)
                 siamese, prior_mdl, prior_sign_mdl, conf_mdl = res
         else:
             eval_model_path = os.path.join(self.model_path,
@@ -1799,7 +1840,7 @@ class sign3(BaseSignature, DataSignature):
             eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
             if not os.path.isfile(eval_file):
                 res = self.train_SNN(
-                    self.params['sign2'].copy(), suffix=suffix, evaluate=True)
+                    self.params['sign2'].copy(), suffix=suffix, evaluate=True, plots_train=plots_train)
                 siamese, prior_mdl, prior_sign_mdl, conf_mdl = res
             return False
 
@@ -1826,7 +1867,7 @@ class sign3(BaseSignature, DataSignature):
                 # if prior model is not there, retrain confidence
                 if not os.path.isfile(prior_file):
                     siamese_eval = SiameseTriplets(eval_model_path)
-                    self.train_confidence(siamese_eval)
+                    self.train_confidence(siamese_eval, plots_train=plots_train)
                 prior_mdl = pickle.load(open(prior_file, 'rb'))
 
             # part of confidence is the priors based on signatures
@@ -1845,7 +1886,7 @@ class sign3(BaseSignature, DataSignature):
                     self.rerun_confidence(
                         cc, 'eval', train=True, update_sign=False,
                         sign2_universe=self.sign2_universe,
-                        sign2_coverage=self.sign2_coverage)
+                        sign2_coverage=self.sign2_coverage, plots_train=plots_train)
                 calibration_file = os.path.join(
                     confidence_path, 'calibration.pkl')
                 conf_mdl = (pickle.load(open(confidence_file, 'rb')),
