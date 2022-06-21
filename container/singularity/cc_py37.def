@@ -63,7 +63,7 @@ From: ubuntu:20.04
     conda install -y -c conda-forge rdkit            # Open-Source Cheminformatics Software
     conda install -y -c openbabel openbabel          # chemical toolbox
     conda install -y mkl-service                     # change the number of CPU’s MKL is using
-    conda install -y anaconda-client                 # client that provides an interface to Anaconda Cloud
+    #conda install -y anaconda-client                 # client that provides an interface to Anaconda Cloud
     conda install -y -c conda-forge hdbscan          # clustering
     conda install -y -c efelix fpsim2                # fast compound similarity searches (used in TargetMate)
     conda install -y -c conda-forge jupyterlab       # Jupyter notebooks
