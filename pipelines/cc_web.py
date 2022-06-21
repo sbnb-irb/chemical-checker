@@ -42,7 +42,7 @@ from chemicalchecker.util import logged, Config
 from chemicalchecker.util.pipeline import Pipeline, PythonCallable, Pubchem
 from chemicalchecker.util.pipeline import ShowTargets, Libraries, Similars
 from chemicalchecker.util.pipeline import Coordinates, Projections, Plots
-from chemicalchecker.util.pipeline import MolecularInfo
+from chemicalchecker.util.pipeline import MolecularInfo, StatsPlots
 
 
 def pipeline_parser():
@@ -241,27 +241,47 @@ def main(args):
                           libraries=libraries)
     pp.add_task(libs_task)
 
+    # TASK: Create statistics plots
+    stats_plots_task = StatsPlots(name='stats_plots',
+                                  CC_ROOT=args.cc_root)
+    pp.add_task(stats_plots_task)
+
     # TASK: Link/copy generated files to webpage repository (mosaic)
     def links_to_web_repo(cc_root, web_repo_path, tmpdir, cachedir):
+        plots_web = os.path.join(cc_root, 'plots_web')
+        if not os.path.isdir(plots_web):
+            raise Exception(
+                "%s not found! Did cc_web.py finish correctly?" %
+                plots_web)
         # link plots dir
-        src_dir = os.path.join(cc_root, 'plots_web')
+        src_dir = os.path.join(plots_web, 'plots_home')
         if not os.path.isdir(src_dir):
             raise Exception(
-                "%s not found! Did cc_update.py finish correctly?" %
+                "%s not found! Did cc_web.py finish correctly?" %
                 src_dir)
         dst_dir = os.path.join(web_repo_path, 'app', 'images', 'plots')
         if os.path.isdir(dst_dir):
-            os.remove(dst_dir)
+            os.unlink(dst_dir)
+        os.symlink(src_dir, dst_dir)
+        # link statistics dir
+        src_dir = os.path.join(plots_web, 'plots_stats')
+        if not os.path.isdir(src_dir):
+            raise Exception(
+                "%s not found! Did cc_web.py finish correctly?" %
+                src_dir)
+        dst_dir = os.path.join(web_repo_path, 'app', 'images', 'statistics')
+        if os.path.isdir(dst_dir):
+            os.unlink(dst_dir)
         os.symlink(src_dir, dst_dir)
         # link molecule dir
         src_dir = args.molecule_path
         if not os.path.isdir(src_dir):
             raise Exception(
-                "%s not found! Did cc_update.py finish correctly?" %
+                "%s not found! Did cc_web.py finish correctly?" %
                 src_dir)
         dst_dir = os.path.join(web_repo_path, 'app', 'images', 'molecules')
         if os.path.isdir(dst_dir):
-            os.remove(dst_dir)
+           os.unlink(dst_dir)
         os.symlink(src_dir, dst_dir)
         # copy bioactive_mol_set.json (aka cc universe)
         src_path = os.path.join(cachedir, 'bioactive_mol_set.json')
@@ -289,7 +309,20 @@ def main(args):
         op_args=[args.cc_root, args.web_repo_path, pp.tmpdir, pp.cachedir])
     pp.add_task(links_task)
 
-    # TASK: Export signature 3 to ftp directory
+    # TASK: Export to ftp directory the minimum CC to be able 
+    # to run a complete CC protocol: a zipped folder is created
+    def export_cc_ftp(cc_root, ftp_path='/aloy/web_checker/ftp_data'): 
+        cc = ChemicalChecker(cc_root) 
+        cc.export_cc(ftp_path, cc.name)
+
+    export_cc_task = PythonCallable(name="export_cc_ftp",
+                                 python_callable=export_cc_ftp,
+                                 op_args=[args.cc_root])
+    pp.add_task(export_cc_task)
+
+    # TASK: Export signatures 3 to ftp directory 
+    # leaving this task so if users want to download single sign3 instead of 
+    # zipped CC, they can
     def export_sign3_ftp(cc_root, ftp_path='/aloy/web_checker/ftp_data'):
         cc = ChemicalChecker(args.cc_root)
         for ds in cc.datasets_exemplary():
@@ -303,7 +336,7 @@ def main(args):
                                  op_args=[args.cc_root])
     pp.add_task(export_task)
 
-     # TASK: Create json of similar molecules for explore page
+    # TASK: Create json of similar molecules for explore page
     similars_task = Similars(name='similars',
                              DB=args.new_web_db, CC_ROOT=args.cc_root,
                              MOLECULES_PATH=args.molecule_path)

@@ -8,6 +8,7 @@ The support queing system are:
 
   * **SGE**: :mod:`~chemicalchecker.util.hpc.sge` for Sun Grid Engine
   * **SLURM**: :mod:`~chemicalchecker.util.hpc.slurm` for Slurm Workload
+  * **SLURM**: :mod:`~chemicalchecker.util.hpc.slurm_gpu` for Slurm Workload using GPU server
     Manager
   * **local**: :mod:`~chemicalchecker.util.hpc.local` for local processes.
 """

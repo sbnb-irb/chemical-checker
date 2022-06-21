@@ -9,6 +9,7 @@ import shutil
 import pathlib
 from .sge import sge
 from .slurm import slurm
+from .slurm_gpu import slurmGPU
 from .local import local
 
 from chemicalchecker.util import logged

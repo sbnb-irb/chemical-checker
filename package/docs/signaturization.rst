@@ -3,12 +3,13 @@ Signaturization
 
 The main feature of the CC is the automatic conversion of virtually any compound-related data into a standard format ready-to-be-used by machine learning algorithms. All CC data is stored as ``HDF5`` files following a folder structure organized by datasets (described in :mod:`chemicalchecker.core.chemcheck`).
 
-The central type of data is the **signature** (one numerical vector per molecule). There are 4 types of signatures:
+The central type of data is the **signature** (one numerical vector per molecule). There are 5 types of signatures:
 
     * **Signatures type 0** :class:`~chemicalchecker.core.sign0`: A sufficiently-processed version of the raw data. They usually show explicit knowledge, which enables connectivity and interpretation.
     * **Signatures type 1** :class:`~chemicalchecker.core.sign1`: A mildly compressed (usually latent) representation of the signatures, with a dimensionality that typically retains 90% of the original variance. They keep most of the complexity of the original data and they can be used for similarity calculations.
     * **Signatures type 2** :class:`~chemicalchecker.core.sign2`: Network embedding of the similarity matrix derived from signatures type 1. These signatures have a fixed length (e.g. 128-d), which is convenient for machine learning, and capture both explicit *and* implicit similarity relationships in the data.
-    * **Signatures type 3** :class:`~chemicalchecker.core.sign3`: Fixed-length (e.g. 128-d) representation of the data, capturing *and* inferring the original (signature type 1) similarity of the data. Signatures type 3 are available for any molecule of interest and have a confidence measure assigned to them.
+    * **Signatures type 3** :class:`~chemicalchecker.core.sign3`: Fixed-length (e.g. 128-d) representation of the data, capturing *and* inferring the original (signature type 1) similarity of the data. Signatures type 3 are available for any molecule in the Chemical Checker universe (~1 Million) and have a confidence measure assigned to them.
+    * **Signatures type 4** :class:`~chemicalchecker.core.sign4`: Fixed-length (e.g. 128-d) representation of the data, inferring the signature type 3. Signatures type 4 are available for any molecule of interest and have a confidence measure assigned to them. Are convinently generated with the *signaturizer* tool.
 
 Besides, there are other auxiliary types of data that can be computed for each of the signature types. 
 
@@ -83,7 +84,7 @@ See implementation details in :mod:`~chemicalchecker.core.sign2`
 Signatures type 3
 '''''''''''''''''
 
-These signatures are fixed-length vectors available for *any* molecule of interest. Thus, they are mostly *inferred* properties.
+These signatures are fixed-length vectors available for all molecules of the Chemical Checker universe (~1 Million). Thus, they are mostly *inferred* properties.
 
 To learn signatures type 3:
 
@@ -114,3 +115,14 @@ specific signature type 3. This accuracy estimate is based on:
   absence/presence features as covariates and prediction accuracy as outcome.
 
 See implementation details in :mod:`~chemicalchecker.core.sign3`
+
+
+Signatures type 4
+'''''''''''''''''
+
+These signatures are fixed-length vectors available for *any* molecule of interest. They are completely *inferred*.
+
+To learn signatures type 4:
+
+* A DNN for multi-output regression problem is trained to predict signatures type 3 from a simple ECFP4 (Morgan fingerprint) representation.
+* These signatures correspond to *signaturizer* produced signatures

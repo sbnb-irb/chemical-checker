@@ -54,10 +54,12 @@ def main(args):
 
         ACTS = []
         data = []
-        with h5py.File(os.path.join(args.models_path, features_file)) as hf:
-            features_list = hf["features"][:]
-            features = list([f.decode() for f in features_list])
-        main._log.debug("Loaded %s features" % len(features))
+        features_path = os.path.join(args.models_path, features_file)
+        if os.path.isfile(features_path):
+            with h5py.File(features_path) as hf:
+                features_list = hf["features"][:]
+                features = list([f.decode() for f in features_list])
+            main._log.debug("Loaded %s features" % len(features))
 
         with open(args.input_file) as fh:
             for line in fh:

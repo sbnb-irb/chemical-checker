@@ -179,7 +179,6 @@ class Lsi(BaseTransform):
                 self.__log.warning(
                     'Repeating LSI with: variance_explained: %.2f num_topics: %s',
                     self.variance_explained, str(self.num_topics))
-
         self.predict(self.sign_ref)
         self.predict(self.sign)
         self.save()
@@ -203,6 +202,7 @@ class Lsi(BaseTransform):
                     mask = np.argwhere(row > 0).ravel()
                     val = ",".join(self.features[mask])
                     f.write("%s %s\n" % (ks[i], val))
+            sign1.close_hdf5()
         # load dictionary
         dictionary = corpora.Dictionary.load(
             os.path.join(self.model_path, self.name + ".dict.pkl"))
