@@ -968,7 +968,7 @@ class Plot():
             keys = np.random.choice(sign.keys, max_samples, replace=False)
             matrix = sign.get_vectors(keys)[1]
         else:
-            matrix = sign[:]
+            matrix = sign.get_h5_dataset('V')
         df = pd.DataFrame(matrix).melt()
 
         coord = self.dataset_code

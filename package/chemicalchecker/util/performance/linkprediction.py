@@ -51,7 +51,7 @@ class LinkPrediction():
         if limit_nodes:
             all_nodes_set = all_nodes_set & limit_nodes
         all_nodes = list(all_nodes_set)
-        matrix = self.sign2[:]
+        matrix = self.sign2.get_h5_dataset('V')
         if len(all_nodes) < 100:
             raise Exception(
                 "Insufficient nodes for validation: %s" % len(all_nodes))

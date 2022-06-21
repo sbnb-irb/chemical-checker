@@ -93,7 +93,7 @@ if [ "$SINGULARITY_SHELL" = true ]
 then
     printf -- 'Starting Singularity Shell... (Press CTRL+D to exit)\n';
     echo "Command: SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity shell --cleanenv $LOCAL_IMAGE;"
-    SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity shell --cleanenv $LOCAL_IMAGE;
+    SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity shell --nv --cleanenv $LOCAL_IMAGE;
 else
     printf -- 'Starting Jupyter Notebook... (Press CTRL+C to terminate)\n';
     # preapare jupyter notebook dir
@@ -114,5 +114,5 @@ else
             exit 4;
         fi
     fi
-    SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity exec --cleanenv -B $JUPYTER_DIR:/run/user $LOCAL_IMAGE jupyter lab --ip=0.0.0.0;
+    SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity exec --nv --cleanenv -B $JUPYTER_DIR:/run/user $LOCAL_IMAGE jupyter lab --ip=0.0.0.0;
 fi

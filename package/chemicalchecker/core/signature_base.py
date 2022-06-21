@@ -307,6 +307,7 @@ class BaseSignature(object):
         # read config file,# NS: get the cc_config var otherwise set it to
         # os.environ['CC_CONFIG']
         cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
+        self.__log.debug("CC_Config for function {} is: {}".format(func_name, cc_config))
         cfg = Config(cc_config)
 
         # create job directory if not available
@@ -320,6 +321,8 @@ class BaseSignature(object):
         # create script file
         script_lines = [
             "import os, sys",
+            "from chemicalchecker import ChemicalChecker",
+            "ChemicalChecker.set_verbosity('DEBUG')",
             "os.environ['OMP_NUM_THREADS'] = str(%s)" % cpu,
             "import pickle",
             "sign, args = pickle.load(open(sys.argv[1], 'rb'))",
@@ -415,11 +418,20 @@ class BaseSignature(object):
 
     def get_molset(self, molset):
         '''Return a signature from a different molset'''
+        from .sign0 import sign0
+        from .sign1 import sign1
+        from .sign2 import sign2
+        from .sign3 import sign3
+        from .sign4 import sign4
+        from .neig import neig
         folds = self.signature_path.split('/')
         folds[-5] = molset
         new_path = '/'.join(folds)
-        newsign = self.__class__(new_path, self.dataset)
-        return newsign
+        if self.cctype.startswith('sign'):
+            sign_molset = eval(self.cctype)(new_path, self.dataset)
+        else:
+            sign_molset = eval(self.cctype[:-1])(new_path, self.dataset)
+        return sign_molset
 
     def get_neig(self):
         '''Return the neighbors signature, given a signature'''
