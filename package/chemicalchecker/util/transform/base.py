@@ -104,6 +104,7 @@ class BaseTransform(object):
         sign1.refresh()
         self.reindex_triplets(sign1, keys)
         data_path = sign1.data_path
+        sign1.close_hdf5()
         with h5py.File(data_path, "r+") as hf:
             if self.tmp:
                 keys_ = hf["keys"][:]
