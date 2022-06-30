@@ -35,9 +35,10 @@ class DataFactory():
         from .clus import clus
         from .neig import neig  # nearest neighbour class
         from .proj import proj
+        from .char import char  # CC space charts
 
         # DataFactory.__log.debug("initializing object %s", cctype)
-        if cctype[:4] in ['clus', 'neig', 'proj','diag']:
+        if cctype[:4] in ['clus', 'neig', 'proj', 'diag', 'char']:
             # NS, will return an instance of neig or of sign0 etc
             return eval(cctype[:4])(*args, **kwargs)
         else:
@@ -67,6 +68,7 @@ class DataFactory():
         from .clus import clus
         from .neig import neig
         from .proj import proj
+        from .char import char
 
         data_path = os.path.join(signature_path, '%s.h5' % cctype)
         if not keys:
