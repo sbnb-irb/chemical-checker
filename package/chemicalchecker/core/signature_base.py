@@ -351,7 +351,7 @@ class BaseSignature(object):
         params["num_jobs"] = 1
         params["jobdir"] = job_path
         params["job_name"] = script_name
-        params["wait"] = False
+        params["wait"] = kwargs.get("wait", False)
 
         # job command
         singularity_image = cfg.PATH.SINGULARITY_IMAGE
