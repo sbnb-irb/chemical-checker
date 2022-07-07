@@ -138,13 +138,20 @@ class NeighborTripletTraintest(object):
         return np.split(idxs, splits)
 
     @staticmethod
-    def precomputed_triplets(X, triplets, out_file,
+    def precomputed_triplets(X, ink_keys, triplets, out_file,
                              mean_center_x=True,
                              shuffle=True,
                              split_names=['train', 'test'],
                              split_fractions=[.8, .2],
-                             suffix='eval',
+                             suffix='eval', cpu=1,
                              x_dtype=np.float32, y_dtype=np.float32):
+        
+        try:
+            import faiss
+            from chemicalchecker.core.signature_data import DataSignature
+        except ImportError as err:
+            raise err
+        faiss.omp_set_num_threads(cpu)
 
         # mean centering columns
         if mean_center_x:
@@ -163,26 +170,57 @@ class NeighborTripletTraintest(object):
         if shuffle:
             np.random.shuffle(shuffle_idxs)
         triplets = np.array(triplets)[shuffle_idxs]
-
-        # do traintest split for triplets (np.unique of indeces)
+        
+        # do traintest split on keys
         split_idxs = NeighborTripletTraintest.get_split_indeces(
-            len(triplets), split_fractions)
-        '''
+            X.shape[0], split_fractions)
+
+        ## do traintest split for triplets (np.unique of indeces)
+        #split_idxs = NeighborTripletTraintest.get_split_indeces(
+        #    len(triplets), split_fractions)
         split_idxs = dict(zip(split_names, split_idxs))
-        # find triplets having test-test train-trani and train-test
+
+        # find triplets having test-test train-train and train-test
         combos = itertools.combinations_with_replacement(split_names, 2)
-        for split1, split2 in combos:
-            split1_idxs = split_idxs[split1]
-            split2_idxs = split_idxs[split2]
-            if split1 != split2:
-                split1_mask = ~np.all(np.isin(triplets, split1_idxs), axis=1)
-                split2_mask = ~np.all(np.isin(triplets, split2_idxs), axis=1)
-                combo_mask = np.logical_and(split1_mask, split2_mask)
-            else:
-                combo_mask = np.all(np.isin(triplets, split1_idxs), axis=1)
-            print(split1, split2, np.count_nonzero(combo_mask),
-            combo_mask.shape)
+        
+        # reverse split names to first write test keys
+        split_names.reverse()
+        
+        # create dataset
+        NeighborTripletTraintest.__log.info('Traintest saving to %s', out_file)
+        with h5py.File(out_file, "w") as fh:
+            for split_n in split_names:
+                fh.create_dataset('keys_%s' % split_n, 
+                        data=np.array(ink_keys[split_idxs[split_n]],
+                            dtype=DataSignature.string_dtype()))
+            if mean_center_x:
+                fh.create_dataset(
+                        'scaler',
+                        data=np.array([scaler_file],
+                            dtype=DataSignature.string_dtype()))
+
+            fh.create_dataset('x', data=X, dtype=x_dtype)
+            fh.create_dataset('x_ink', 
+                    data=np.array(ink_keys, 
+                              dtype=DataSignature.string_dtype()))
+          
+            for split1, split2 in combos:
+                split1_idxs = split_idxs[split1]
+                split2_idxs = split_idxs[split2]
+                if split1 != split2:
+                    split1_mask = ~np.all(np.isin(triplets, split1_idxs), axis=1)
+                    split2_mask = ~np.all(np.isin(triplets, split2_idxs), axis=1)
+                    combo_mask = np.logical_and(split1_mask, split2_mask)
+                else:
+                    combo_mask = np.all(np.isin(triplets, split1_idxs), axis=1)
+                fh.create_dataset('t_%s_%s' % (split1, split2),
+                                data=triplets[combo_mask])
+                fh.create_dataset('y_%s_%s' % (split1, split2),
+                                data=np.zeros((len(triplets[combo_mask]), 1)))
+        NeighborTripletTraintest.__log.info(
+                'NeighborTripletTraintest saved to %s', out_file)
         '''
+        # old export of train and test split only
         # create dataset
         NeighborTripletTraintest.__log.info('Traintest saving to %s', out_file)
         with h5py.File(out_file, "w") as fh:
@@ -196,6 +234,7 @@ class NeighborTripletTraintest(object):
                                   data=np.zeros((len(split_triplets), 1)))
         NeighborTripletTraintest.__log.info(
             'NeighborTripletTraintest saved to %s', out_file)
+        '''
 
     @staticmethod
     def create(X, out_file, neighbors_sign, f_per=0.1, t_per=0.01,
