@@ -231,7 +231,7 @@ class NeighborTripletTraintest(object):
                 fh.create_dataset('t_%s' % split_name,
                                   data=split_triplets)
                 fh.create_dataset('y_%s' % split_name,
-                                  data=np.zeros((len(split_triplets), 1)))
+                                  data=np.zeros((len(split_triplets),)))
         NeighborTripletTraintest.__log.info(
             'NeighborTripletTraintest saved to %s', out_file)
         '''
