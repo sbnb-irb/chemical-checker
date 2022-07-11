@@ -49,7 +49,6 @@ from update_resources.create_database import create_db_dataset
 from chemicalchecker.core.diagnostics import Diagnosis
 
 # this is needed to export signaturizers at the end
-sys.path.insert(0, '/aloy/home/mbertoni/code/signaturizer')
 from signaturizer.exporter import export_batch
 
 
