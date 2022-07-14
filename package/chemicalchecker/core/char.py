@@ -15,7 +15,7 @@ from chemicalchecker.util import Config, logged
 from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util.parser import Converter
 from chemicalchecker.util.plot.util import *
-from signaturizer import Signaturizer
+#from signaturizer import Signaturizer
 
 from matplotlib import cm
 import matplotlib.pyplot as plt
