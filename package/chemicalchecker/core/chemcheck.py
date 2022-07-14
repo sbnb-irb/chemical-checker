@@ -50,6 +50,7 @@ import json
 import shutil
 import itertools
 import numpy as np
+import pandas as pd
 from glob import glob
 from pathlib import Path
 
@@ -448,10 +449,13 @@ class ChemicalChecker():
                 on the cctype passed.
         """
         signature_path = self.get_signature_path(cctype, molset, dataset_code)
-
+        as_dataframe = kwargs.pop('as_dataframe', False)
         # the factory will return the signature with the right class
         data = DataFactory.make_data(
             cctype, signature_path, dataset_code, *args, **kwargs)
+        if as_dataframe:
+            df = pd.DataFrame(data[:],columns=data.features, index=data.keys)
+            return df
         return data
 
     def get_data_signature(self, cctype, dataset_code):
@@ -481,9 +485,10 @@ class ChemicalChecker():
             return None
         return DataSignature(data.data_path)
 
-    def signature(self, dataset, cctype):
+    def signature(self, dataset, cctype, as_dataframe=False):
         return self.get_signature(cctype=cctype, molset="full",
-                                  dataset_code=dataset)
+                                  dataset_code=dataset, 
+                                  as_dataframe=as_dataframe)
 
     def link_h5(self, custom_data_path):
         """Link H5 files from a given custom directory.
