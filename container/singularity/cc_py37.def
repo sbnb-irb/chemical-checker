@@ -145,6 +145,8 @@ faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     pip install hyperopt                          # Hyperparameters optimization
     pip install shap                              # SHapley Additive exPlanations for ML models
 
+    pip install signaturizer                      # ChemicalChecker Signaturizer
+
     # integration of D1
     pip install git+https://github.com/Maayanlab/geode.git   # Python implementation of the R package GeoDE
     
