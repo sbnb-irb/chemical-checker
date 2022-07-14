@@ -756,7 +756,8 @@ class ChemicalChecker():
         
         
     def symlink_to(self, source_cc, cctypes=['sign0'],
-                   molsets=['reference', 'full'], datasets='exemplary'):
+                   molsets=['reference', 'full'], datasets='exemplary',
+                   rename_dataset=None):
         """Link current CC instance to other via symlinks.
 
         When experimenting with signature parameters it's useful to have
@@ -765,22 +766,29 @@ class ChemicalChecker():
         Args:
             source_cc(ChemicalChecker): A different CC instance to link.
             cctypes(list): The signature (i.e. sign*) to link.
-            molsets(list): The molecule set name to link .
+            molsets(list): The molecule set name to link.
             datasets(list): The codes of dataset to link.
+            rename_dataset(dict): None by default which to no renaming.
+                Otherwise a mapping of source to destination name should be
+                provided.
         """
         if datasets == 'exemplary':
             datasets = list(self.datasets_exemplary())
 
+        if rename_dataset is None:
+            rename_dataset = dict(zip(datasets, datasets))
         for molset in molsets:
             for ds in datasets:
+                dst_ds = rename_dataset[ds]
                 dst_ds_dir = os.path.join(
-                    self.cc_root, molset, ds[:1], ds[:2], ds)
+                    self.cc_root, molset, dst_ds[:1], dst_ds[:2], dst_ds)
                 src_ds_dir = os.path.join(
                     source_cc.cc_root, molset, ds[:1], ds[:2], ds)
                 for cctype in cctypes:
                     dst_dir = os.path.join(dst_ds_dir, cctype)
                     src_dir = os.path.join(src_ds_dir, cctype)
                     self.__log.debug("Link %s --> %s", dst_dir, src_dir)
+                    os.makedirs(dst_ds_dir, exist_ok=True)
                     if os.path.isdir(dst_dir):
                         self.__log.warning("%s already present", dst_dir)
                         continue
