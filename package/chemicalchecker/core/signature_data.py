@@ -9,6 +9,7 @@ import os
 import sys
 import h5py
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 from bisect import bisect_left
 from scipy.spatial.distance import euclidean, cosine
@@ -483,6 +484,10 @@ class DataSignature(object):
                 else:
                     data = hf[h5_dataset_name][mask, :]
         return data
+
+    def as_dataframe(self):
+        df = pd.DataFrame(self[:],columns=self.features, index=self.keys)
+        return df
 
     def get_vectors(self, keys, include_nan=False, dataset_name='V',
                     output_missing=False):
