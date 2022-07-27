@@ -444,6 +444,7 @@ class ChemicalChecker():
             params(dict): Optional. The set of parameters to initialize and
                 compute the signature. If the signature is already initialized
                 this argument will be ignored.
+            as_dataframe(bool): True to get the signature as pandas DataFrame.
         Returns:
             data(Signature): A `Signature` object, the specific type depends
                 on the cctype passed.
@@ -454,8 +455,7 @@ class ChemicalChecker():
         data = DataFactory.make_data(
             cctype, signature_path, dataset_code, *args, **kwargs)
         if as_dataframe:
-            df = pd.DataFrame(data[:],columns=data.features, index=data.keys)
-            return df
+            return data.as_dataframe()
         return data
 
     def get_data_signature(self, cctype, dataset_code):
