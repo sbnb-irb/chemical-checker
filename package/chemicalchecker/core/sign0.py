@@ -435,7 +435,6 @@ class sign0(BaseSignature, DataSignature):
             destination(str): Path to the H5 file. If none specified, a
                 (V, keys, features) tuple is returned.
         """
-        assert self.is_fit(), "Signature is not fitted yet"
         self.__log.info("Predict START")
         if merge:
             self.__log.info("Merging. Loading existing signature.")
