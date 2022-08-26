@@ -55,7 +55,10 @@ class HPC():
     @classmethod
     def from_config(cls, config):
         if "HPC" in config.keys():
-            return cls(**config.HPC.asdict())
+            if isinstance(config, dict):
+                return cls(**config["HPC"])
+            else:
+                return cls(**config.HPC.asdict())
         else:
             raise Exception("Config does not contain HPC fields")
 
