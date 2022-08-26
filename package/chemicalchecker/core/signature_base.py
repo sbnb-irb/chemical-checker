@@ -361,7 +361,8 @@ class BaseSignature(object):
             os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
             singularity_image, script_name, pickle_file)
         # submit jobs
-        cluster = HPC.from_config(cfg)
+        hpc_cfg = kwargs.get("hpc_cfg", cfg)
+        cluster = HPC.from_config(hpc_cfg)
         cluster.submitMultiJob(command, **params)
         return cluster
 
