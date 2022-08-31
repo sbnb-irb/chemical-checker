@@ -153,19 +153,19 @@ class BaseSignature(object):
             os.remove(self.data_path)
         if os.path.exists(self.model_path):
             # self.__log.debug("Removing %s" % self.model_path)
-            shutil.rmtree(self.model_path)
+            shutil.rmtree(self.model_path, ignore_errors=True)
             original_umask = os.umask(0)
             os.makedirs(self.model_path, 0o775)
             os.umask(original_umask)
         if os.path.exists(self.stats_path):
             # self.__log.debug("Removing %s" % self.stats_path)
-            shutil.rmtree(self.stats_path)
+            shutil.rmtree(self.stats_path, ignore_errors=True)
             original_umask = os.umask(0)
             os.makedirs(self.stats_path, 0o775)
             os.umask(original_umask)
         if os.path.exists(self.diags_path):
             # self.__log.debug("Removing %s" % self.diags_path)
-            shutil.rmtree(self.diags_path)
+            shutil.rmtree(self.diags_path, ignore_errors=True)
             original_umask = os.umask(0)
             os.makedirs(self.diags_path, 0o775)
             os.umask(original_umask)
