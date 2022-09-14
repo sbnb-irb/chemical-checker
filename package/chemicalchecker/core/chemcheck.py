@@ -757,7 +757,7 @@ class ChemicalChecker():
         
     def symlink_to(self, source_cc, cctypes=['sign0'],
                    molsets=['reference', 'full'], datasets='exemplary',
-                   rename_dataset=None):
+                   rename_dataset=None, models=False):
         """Link current CC instance to other via symlinks.
 
         When experimenting with signature parameters it's useful to have
@@ -771,6 +771,9 @@ class ChemicalChecker():
             rename_dataset(dict): None by default which to no renaming.
                 Otherwise a mapping of source to destination name should be
                 provided.
+            models(bool): If True, models directory will also be linked.
+                This will delete the local models for the specified
+                datasets.
         """
         if datasets == 'exemplary':
             datasets = list(self.datasets_exemplary())
@@ -791,8 +794,20 @@ class ChemicalChecker():
                     os.makedirs(dst_ds_dir, exist_ok=True)
                     if os.path.isdir(dst_dir):
                         self.__log.warning("%s already present", dst_dir)
+                        if models:
+                            dst_model_dir = os.path.join(dst_dir, 'models')
+                            if os.path.exists(dst_model_dir):
+                                shutil.rmtree(dst_model_dir)
+                            src_model_dir = os.path.join(src_dir, 'models')
+                            os.symlink(src_model_dir, dst_model_dir)
                         continue
                     os.symlink(src_dir, dst_dir)
+                    if models:
+                        dst_model_dir = os.path.join(dst_dir, 'models')
+                        if os.path.exists(dst_model_dir):
+                            shutil.rmtree(dst_model_dir)
+                        src_model_dir = os.path.join(src_dir, 'models')
+                        os.symlink(src_model_dir, dst_model_dir)
 
     def copy_signature_from(self, source_cc, cctype, molset, dataset_code,
                             overwrite=False):
