@@ -37,7 +37,7 @@ setup(
     long_description=open('README.rst').read().strip(),
     long_description_content_type='text/x-rst',
     url='http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker',
-    packages=find_packages(),
+    packages=find_packages(exclude=["tests","scripts","docs"]),
     install_requires=requirements,
     setup_requires=setup_requirements,
     tests_require=test_requirements,
