@@ -28,8 +28,8 @@ from .signature_data import DataSignature
 from .preprocess import Preprocess
 
 from chemicalchecker.util import logged
-from chemicalchecker.util.splitter import NeighborTripletTraintest
-from chemicalchecker.util.splitter import Traintest
+from chemicalchecker.util.splitter import OldTripletSampler, TripletIterator
+from chemicalchecker.util.splitter import BaseTripletSampler
 from chemicalchecker.util.parser.converter import Converter
 
 
@@ -70,7 +70,7 @@ class sign3(BaseSignature, DataSignature):
             'alpha': 1.0,
             'num_triplets': 1000000,
             't_per': 0.01,
-            'standard': False,
+            'onlyself_notself': True,
             'augment_fn': subsample,
             'augment_kwargs': {
                 'dataset': [dataset],
@@ -195,8 +195,8 @@ class sign3(BaseSignature, DataSignature):
                                  (sign.dataset, np.count_nonzero(coverage)))
                 fh['x_test'][:, idx:(idx + 1)] = np.expand_dims(coverage, 1)
 
-    def complete_sign2_universe(self, sign2_self, sign2_universe, 
-                                sign2_coverage, tmp_path=None, 
+    def complete_sign2_universe(self, sign2_self, sign2_universe,
+                                sign2_coverage, tmp_path=None,
                                 calc_ds_idx=[0, 1, 2, 3, 4],
                                 calc_ds_names=['A1.001', 'A2.001', 'A3.001',
                                                'A4.001', 'A5.001'],
@@ -328,8 +328,8 @@ class sign3(BaseSignature, DataSignature):
         upd_cov = h5py.File(sign2_coverage_ext, "r")
         old_cov = h5py.File(sign2_coverage, "r")
         sign3.__log.info('Checking updated universe...')
-       
-        for col, name in enumerate(self.src_datasets): # cc_ref.datasets
+
+        for col, name in enumerate(self.src_datasets):  # cc_ref.datasets
             tot_upd = sum(upd_cov['x_test'][:, col])
             cov_delta = int(tot_upd - sum(old_cov['x_test'][:, col]))
             if cov_delta == 0:
@@ -361,7 +361,8 @@ class sign3(BaseSignature, DataSignature):
             hf['x'] = hf['x_test']
             del hf['x_test']
 
-    def train_SNN(self, params, reuse=True, suffix=None, evaluate=True, plots_train=True):
+    def train_SNN(self, params, reuse=True, suffix=None, evaluate=True,
+                  plots_train=True, triplets_sampler=None):
         """Train the Siamese Neural Network model.
 
         This method is used twice. First to evaluate the performances of the
@@ -399,40 +400,52 @@ class sign3(BaseSignature, DataSignature):
             siamese_path = params.get('model_dir')
         if not reuse or not os.path.isdir(siamese_path):
             os.makedirs(siamese_path)
-        # generate input matrix
+        # generate input matrix, how molecules will be represented
         sign2_matrix = os.path.join(self.model_path, 'train.h5')
         if not reuse or not os.path.isfile(sign2_matrix):
             self.save_sign2_matrix(sign2_matrix)
-        # if evaluating, perform the train-test split
-        self.traintest_file = params.get('traintest_file')
         X = DataSignature(sign2_matrix)
-        if evaluate:
-            num_triplets = params.get('num_triplets', 1e6)
-            cpu = params.get('cpu', 1)
-            if not reuse or not os.path.isfile(self.traintest_file):
-                NeighborTripletTraintest.create(
-                    X, self.traintest_file, self.triplet_sign,
-                    split_names=['train', 'test'],
-                    split_fractions=[.8, .2],
-                    suffix=suffix,
-                    num_triplets=num_triplets,
-                    t_per=params['t_per'],
-                    cpu=cpu,
-                    limit=params['limit_mols'])
+        # initialize triplet sampler
+        self.traintest_file = params.get('traintest_file')
+        num_triplets = params.get('num_triplets', 1e6)
+        cpu = params.get('cpu', 1)
+        if triplets_sampler is None:
+            sampler_class = OldTripletSampler
+            sampler_args = (self.triplet_sign, X, self.traintest_file)
+            sample_obj = sampler_class(*sampler_args)
+            sampler_kwargs = {'t_per': params['t_per'],
+                              'limit': params['limit_mols'], 'cpu': cpu,
+                              'num_triplets': num_triplets}
         else:
-            num_triplets = params.get('num_triplets', 1e6)
-            cpu = params.get('cpu', 1)
-            if not reuse or not os.path.isfile(self.traintest_file):
-                NeighborTripletTraintest.create(
-                    X, self.traintest_file, self.triplet_sign,
-                    split_names=['train'],
-                    split_fractions=[1.0],
-                    suffix=suffix,
-                    num_triplets=num_triplets,
-                    t_per=params['t_per'],
-                    cpu=cpu,
-                    limit=params['limit_mols'])
-        # update the subsampling parameter
+            sampler_class = triplets_sampler[0]
+            sampler_args = triplets_sampler[1]
+            if sampler_args is None:
+                sampler_args = (self.triplet_sign, X, self.traintest_file)
+            sample_obj = sampler_class(*sampler_args)
+            sampler_kwargs = triplets_sampler[2]
+        # if evaluating, perform the train-test split
+        if evaluate:
+            save_kwargs = {
+                'mean_center_x': True,
+                'shuffle': True,
+                'split_names': ['train', 'test'],
+                'split_fractions': [.8, .2],
+                'suffix': suffix
+            }
+        else:
+            save_kwargs = {
+                'mean_center_x': True,
+                'shuffle': True,
+                'split_names': ['train'],
+                'split_fractions': [1.0],
+                'suffix': suffix
+            }
+        # generate triplets
+        sample_obj = sampler_class(*sampler_args, save_kwargs=save_kwargs)
+        if not reuse or not os.path.isfile(self.traintest_file):
+            sample_obj.generate_triplets(**sampler_kwargs)
+
+        # define the augment with the dataset subsampling parameter
         if 'augment_kwargs' in params:
             ds = params['augment_kwargs']['dataset']
             dataset_idx = np.argwhere(np.isin(self.src_datasets, ds)).flatten()
@@ -455,6 +468,11 @@ class sign3(BaseSignature, DataSignature):
         siamese = SiameseTriplets(
             siamese_path, evaluate=evaluate, sharedx=self.sharedx,
             sharedx_trim=self.sharedx_trim, **params)
+        self.__log.info('Plot Subsampling (what the SNN will get).')
+        fname = 'known_unknown_sampling.png'
+        plot_file = os.path.join(siamese.model_dir, fname)
+        plot_subsample(self, plot_file, self.sign2_coverage, traintest_file,
+                       ds=self.dataset, sign2_list=self.sign2_list)
         siamese.fit()
         self.__log.debug('Model saved to: %s' % siamese_path)
         # if final we are done
@@ -493,9 +511,9 @@ class sign3(BaseSignature, DataSignature):
         train_inks = traintest.get_h5_dataset('keys_train')[:max_neig]
         # confidence is going to be trained only on siamese test data
         test_mask = np.isin(list(self.sign2_self.keys), list(test_inks),
-                                  assume_unique=True)
+                            assume_unique=True)
         train_mask = np.isin(list(self.sign2_self.keys), list(train_inks),
-                                   assume_unique=True)
+                             assume_unique=True)
         train = DataSignature(train_file)
         confidence_train_x = train.get_h5_dataset('x', mask=test_mask)
         #s2_test = self.sign2_self.get_h5_dataset('V', mask=test_mask)
@@ -508,8 +526,22 @@ class sign3(BaseSignature, DataSignature):
         # generate train-test split for confidence estimation
         split_names = ['train', 'test']
         split_fractions = [0.8, 0.2]
-        split_idxs = Traintest.get_split_indeces(
-            confidence_train_x.shape[0], split_fractions, random_state=42)
+
+        def get_split_indeces(rows, fractions):
+            """Get random indexes for different splits."""
+            if not sum(fractions) == 1.0:
+                raise Exception("Split fractions should sum to 1.0")
+            # shuffle indexes
+            idxs = list(range(rows))
+            np.random.shuffle(idxs)
+            # from frequencies to indices
+            splits = np.cumsum(fractions)
+            splits = splits[:-1]
+            splits *= len(idxs)
+            splits = splits.round().astype(np.int)
+            return np.split(idxs, splits)
+
+        split_idxs = get_split_indeces(confidence_train_x.shape[0], split_fractions)
         splits = list(zip(split_names, split_fractions, split_idxs))
 
         # train prior model
@@ -719,7 +751,7 @@ class sign3(BaseSignature, DataSignature):
 
         def scatter(ax, yp, yt, joint_lim=True):
             x = yp
-            y = yt                                
+            y = yt
             xy = np.vstack([x, y])
             try:
                 z = gaussian_kde(xy)(xy)
@@ -881,7 +913,7 @@ class sign3(BaseSignature, DataSignature):
         y_tr = traintest.get_h5_dataset('y_train').ravel()
         x_te = traintest.get_h5_dataset('x_test')
         y_te = traintest.get_h5_dataset('y_test').ravel()
-        #TODO: check the generation of data.h5 file: NaNs?
+        # TODO: check the generation of data.h5 file: NaNs?
         if np.isnan(x_tr).any():
             nans_xtr = np.argwhere(np.isnan(x_tr))
             self.__log.debug("Len NaNs in x_tr: {}".format(len(nans_xtr)))
@@ -894,7 +926,7 @@ class sign3(BaseSignature, DataSignature):
         if np.isnan(y_te).any():
             nans_yte = np.argwhere(np.isnan(y_te))
             self.__log.debug("Len NaNs in y_te: {}".format(len(nans_yte)))
-        
+
         # fit model
         model = RandomForestRegressor(n_estimators=1000, max_features=None,
                                       min_samples_leaf=0.01, n_jobs=4)
@@ -1086,7 +1118,7 @@ class sign3(BaseSignature, DataSignature):
         y_tr = traintest.get_h5_dataset('y_train').ravel()
         x_te = traintest.get_h5_dataset('x_test')
         y_te = traintest.get_h5_dataset('y_test').ravel()
-        #TODO: check the generation of data.h5 file: NaNs?
+        # TODO: check the generation of data.h5 file: NaNs?
         if np.isnan(x_tr).any():
             nans_xtr = np.argwhere(np.isnan(x_tr))
             self.__log.debug("Len NaNs in x_tr: {}".format(len(nans_xtr)))
@@ -1699,11 +1731,6 @@ class sign3(BaseSignature, DataSignature):
         plt.savefig(plot_file)
         plt.close()
 
-        self.__log.info('VALIDATION: Plot Subsampling.')
-        fname = 'known_unknown_sampling.png'
-        plot_file = os.path.join(siamese.model_dir, fname)
-        plot_subsample(self, plot_file, self.sign2_coverage, traintest_file,
-                       ds=self.dataset, sign2_list=self.sign2_list)
 
     def get_universe_inchikeys(self):
         # get sorted universe inchikeys
@@ -1720,7 +1747,8 @@ class sign3(BaseSignature, DataSignature):
             sign2_coverage=None,
             model_confidence=True, save_correlations=False,
             predict_novelty=False, update_preds=True,
-            chunk_size=1000, suffix=None, plots_train=True, **kwargs):
+            chunk_size=1000, suffix=None, plots_train=True,
+            triplets_sampler=None, **kwargs):
         """Fit signature 3 given a list of signature 2.
 
         Args:
@@ -1832,7 +1860,8 @@ class sign3(BaseSignature, DataSignature):
             eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
             if not os.path.isfile(eval_file):
                 res = self.train_SNN(
-                    self.params['sign2'].copy(), suffix='eval', evaluate=True, plots_train=plots_train)
+                    self.params['sign2'].copy(), suffix='eval', evaluate=True,
+                    plots_train=plots_train, triplets_sampler=triplets_sampler)
                 siamese, prior_mdl, prior_sign_mdl, conf_mdl = res
         else:
             eval_model_path = os.path.join(self.model_path,
@@ -1840,7 +1869,8 @@ class sign3(BaseSignature, DataSignature):
             eval_file = os.path.join(eval_model_path, 'siamesetriplets.h5')
             if not os.path.isfile(eval_file):
                 res = self.train_SNN(
-                    self.params['sign2'].copy(), suffix=suffix, evaluate=True, plots_train=plots_train)
+                    self.params['sign2'].copy(), suffix=suffix, evaluate=True,
+                    plots_train=plots_train, triplets_sampler=triplets_sampler)
                 siamese, prior_mdl, prior_sign_mdl, conf_mdl = res
             return False
 
@@ -1852,7 +1882,8 @@ class sign3(BaseSignature, DataSignature):
             siamese_eval = SiameseTriplets(eval_model_path, predict_only=True)
             self.params['sign2']['learning_rate'] = siamese_eval.learning_rate
             siamese = self.train_SNN(
-                self.params['sign2'].copy(), suffix='final', evaluate=False)
+                self.params['sign2'].copy(), suffix='final', evaluate=False,
+                triplets_sampler=triplets_sampler)
 
         # load models if not already available
         if siamese is None:
@@ -1867,7 +1898,8 @@ class sign3(BaseSignature, DataSignature):
                 # if prior model is not there, retrain confidence
                 if not os.path.isfile(prior_file):
                     siamese_eval = SiameseTriplets(eval_model_path)
-                    self.train_confidence(siamese_eval, plots_train=plots_train)
+                    self.train_confidence(
+                        siamese_eval, plots_train=plots_train)
                 prior_mdl = pickle.load(open(prior_file, 'rb'))
 
             # part of confidence is the priors based on signatures
@@ -2277,6 +2309,7 @@ def subsample(tensor, sign_width=128,
 def plot_subsample(sign, plot_file, sign2_coverage, traintest_file,
                    ds='B1.001', p_self=.1, p_only_self=0., limit=10000,
                    max_ds=25, sign2_list=None):
+    """ Validation plot for the subsampling procedure."""
     import numpy as np
     import pandas as pd
     import seaborn as sns
@@ -2285,7 +2318,6 @@ def plot_subsample(sign, plot_file, sign2_coverage, traintest_file,
 
     cc = sign.get_cc()
 
-    # NICO sign2_list
     if sign2_list is not None:
         sign2_ds_list = [s.dataset for s in sign2_list]
     else:
@@ -2304,16 +2336,15 @@ def plot_subsample(sign, plot_file, sign2_coverage, traintest_file,
         'dataset_idx': [trim_dataset_idx],
         'p_only_self': 0.0}
     realistic_fn, trim_mask = sign.realistic_subsampling_fn()
-    tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
+    tr_shape_type_gen = TripletIterator.generator_fn(
         traintest_file,
         'train_train',
         batch_size=10,
-        replace_nan=np.nan,
+        train=True,
         augment_fn=realistic_fn,
         augment_kwargs=augment_kwargs,
         trim_mask=trim_mask,
-        train=True,
-        standard=False)
+        onlyself_notself=True)
     tr_gen = tr_shape_type_gen[2]
 
     # get known unknown

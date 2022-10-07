@@ -11,7 +11,7 @@ from tensorflow.keras.callbacks import EarlyStopping, Callback
 from tensorflow.keras.layers import Input, Dropout, Lambda, Dense
 
 from chemicalchecker.util import logged
-from chemicalchecker.util.splitter import NeighborPairTraintest
+#from chemicalchecker.util.splitter import NeighborPairTraintest
 
 
 @logged
