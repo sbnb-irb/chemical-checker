@@ -4,6 +4,7 @@ import numpy as np
 from time import time
 from functools import partial
 
+import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from tensorflow.keras.layers import concatenate
@@ -15,7 +16,7 @@ from tensorflow.keras.layers import GaussianNoise, AlphaDropout, GaussianDropout
 from tensorflow.keras import regularizers
 
 from chemicalchecker.util import logged
-from chemicalchecker.util.splitter import NeighborTripletTraintest
+from chemicalchecker.util.splitter import TripletIterator
 from .callbacks import CyclicLR, LearningRateFinder
 
 MIN_LR = 1e-8
@@ -114,7 +115,7 @@ class SiameseTriplets(object):
         self.alpha = float(kwargs.get("alpha", 1.0))
         self.patience = float(kwargs.get("patience", self.epochs))
         self.traintest_file = kwargs.get("traintest_file", None)
-        self.standard = kwargs.get("standard", True)
+        self.onlyself_notself = kwargs.get("onlyself_notself", False)
         self.trim_mask = kwargs.get("trim_mask", None)
         self.steps_per_epoch = kwargs.get("steps_per_epoch", None)
         self.validation_steps = kwargs.get("validation_steps", None)
@@ -151,18 +152,18 @@ class SiameseTriplets(object):
                         self.sharedx = traintest_data.get_h5_dataset('x')
                         full_trim = np.argwhere(np.repeat(self.trim_mask, 128))
                         self.sharedx_trim = self.sharedx[:, full_trim.ravel()]
-                    tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
+                    tr_shape_type_gen = TripletIterator.generator_fn(
                         self.traintest_file,
                         'train_train',
-                        epochs=self.epochs,
                         batch_size=self.batch_size,
                         replace_nan=self.replace_nan,
-                        sharedx=self.sharedx,
+                        train=True, 
                         augment_fn=self.augment_fn,
                         augment_kwargs=self.augment_kwargs,
-                        train=True, standard=self.standard,
                         trim_mask=self.trim_mask,
-                        sharedx_trim=self.sharedx_trim)
+                        sharedx=self.sharedx,
+                        sharedx_trim=self.sharedx_trim,
+                        onlyself_notself=self.onlyself_notself)
                 else:
                     tr_shape_type_gen = generator
                 self.generator = tr_shape_type_gen
@@ -173,7 +174,7 @@ class SiameseTriplets(object):
                         self.tr_shapes[0][0] / self.batch_size)
 
             # load the scaler
-            if not self.standard:
+            if self.onlyself_notself:
                 scaler_path = os.path.join(self.model_dir, 'scaler.pkl')
                 if os.path.isfile(scaler_path):
                     self.scaler = pickle.load(open(scaler_path, 'rb'))
@@ -195,19 +196,19 @@ class SiameseTriplets(object):
                 self.sharedx = traintest_data.get_h5_dataset('x')
                 full_trim = np.argwhere(np.repeat(self.trim_mask, 128))
                 self.sharedx_trim = self.sharedx[:, full_trim.ravel()]
-            val_shape_type_gen = NeighborTripletTraintest.generator_fn(
+            val_shape_type_gen = TripletIterator.generator_fn(
                 self.traintest_file,
                 'test_test',
                 batch_size=self.batch_size,
+                shuffle=False,
+                train=False,
                 replace_nan=self.replace_nan,
                 augment_kwargs=self.augment_kwargs,
                 augment_fn=self.augment_fn,
-                sharedx=self.sharedx,
-                train=False,
-                shuffle=False,
-                standard=self.standard, 
                 trim_mask=self.trim_mask,
-                sharedx_trim=self.sharedx_trim)
+                sharedx=self.sharedx,
+                sharedx_trim=self.sharedx_trim,
+                onlyself_notself=self.onlyself_notself)
             self.val_shapes = val_shape_type_gen[0]
             self.val_gen = val_shape_type_gen[2]()
             if self.validation_steps is None:
@@ -224,16 +225,14 @@ class SiameseTriplets(object):
         if self.traintest_file is not None and not predict_only:
             self.__log.info("{:<22}: {:>12}".format(
                 "traintest_file", self.traintest_file))
-            tmp = NeighborTripletTraintest(self.traintest_file, 'train_train')
+            tmp = TripletIterator(self.traintest_file, 'train_train')
             self.__log.info("{:<22}: {:>12}".format(
                 'train_train', str(tmp.get_ty_shapes())))
             if evaluate:
-                tmp = NeighborTripletTraintest(
-                    self.traintest_file, 'train_test')
+                tmp = TripletIterator(self.traintest_file, 'train_test')
                 self.__log.info("{:<22}: {:>12}".format(
                     'train_test', str(tmp.get_ty_shapes())))
-                tmp = NeighborTripletTraintest(
-                    self.traintest_file, 'test_test')
+                tmp = TripletIterator(self.traintest_file, 'test_test')
                 self.__log.info("{:<22}: {:>12}".format(
                     'test_test', str(tmp.get_ty_shapes())))
         self.__log.info("{:<22}: {:>12}".format(
@@ -255,6 +254,11 @@ class SiameseTriplets(object):
         self.__log.info("{:<22}: {:>12}".format(
             "augment_kwargs", str(self.augment_kwargs)))
         self.__log.info("**** %s Parameters: ***" % self.__class__.__name__)
+
+        if not os.path.isfile(param_file) and save_params:
+            self.__log.debug("Saving temporary parameters to %s" % param_file)
+            with open(param_file+'.tmp', "wb") as f:
+                pickle.dump(kwargs, f, protocol=pickle.HIGHEST_PROTOCOL)
 
         if self.learning_rate == 'auto':
             self.__log.debug("Searching for optimal learning rates.")
@@ -317,7 +321,7 @@ class SiameseTriplets(object):
         input_a = Input(shape=input_shape)
         input_p = Input(shape=input_shape)
         input_n = Input(shape=input_shape)
-        if not self.standard:
+        if self.onlyself_notself:
             input_o = Input(shape=input_shape)
             input_s = Input(shape=input_shape)
 
@@ -361,38 +365,33 @@ class SiameseTriplets(object):
         encodeds.append(basenet(input_a))
         encodeds.append(basenet(input_p))
         encodeds.append(basenet(input_n))
-        if not self.standard:
+        if self.onlyself_notself:
             encodeds.append(basenet(input_o))
             encodeds.append(basenet(input_s))
         merged_vector = concatenate(encodeds, axis=-1, name='merged_layer')
 
         inputs = [input_a, input_p, input_n]
-        if not self.standard:
+        if self.onlyself_notself:
             inputs.extend([input_o, input_s])
         model = Model(inputs=inputs, outputs=merged_vector)
 
-        # TODO NEED TO CHANGE IF WE USE 4 INPUTS INSTEAD OF 3
-        if self.standard:
+        def split_array(array, sections):
+            length = array.shape.as_list()[-1]
+            splitted = list()
+            for i in range(sections):
+                start = int(length * i / sections)
+                end = int(length * (i+1) / sections)
+                splitted.append(array[:, start:end])
+            return splitted
+
+        if self.onlyself_notself:
             def split_output(y_pred):
-                total_lenght = y_pred.shape.as_list()[-1]
-                anchor = y_pred[:, 0: int(total_lenght * 1 / 3)]
-                positive = y_pred[
-                    :, int(total_lenght * 1 / 3): int(total_lenght * 2 / 3)]
-                negative = y_pred[
-                    :, int(total_lenght * 2 / 3): int(total_lenght * 3 / 3)]
-                return anchor, positive, negative, None, None
+                anchor, positive, negative, only, n_self = split_array(y_pred, 5)
+                return anchor, positive, negative, only, n_self
         else:
             def split_output(y_pred):
-                total_lenght = y_pred.shape.as_list()[-1]
-                anchor = y_pred[:, 0: int(total_lenght * 1 / 5)]
-                positive = y_pred[
-                    :, int(total_lenght * 1 / 5): int(total_lenght * 2 / 5)]
-                negative = y_pred[
-                    :, int(total_lenght * 2 / 5): int(total_lenght * 3 / 5)]
-                only = y_pred[
-                    :, int(total_lenght * 3 / 5): int(total_lenght * 4 / 5)]
-                n_self = y_pred[
-                    :, int(total_lenght * 4 / 5): int(total_lenght * 5 / 5)]
+                anchor, positive, negative, = split_array(y_pred, 3)
+                only, n_self = None, None
                 return anchor, positive, negative, only, n_self
 
         # define monitored metrics
@@ -458,7 +457,7 @@ class SiameseTriplets(object):
             return pearson_r(not_self, only_self)
 
         metrics = [accTot]
-        if not self.standard:
+        if self.onlyself_notself:
             metrics.extend([accE,
                             accM,
                             accH,
@@ -750,19 +749,19 @@ class SiameseTriplets(object):
             for split in vsets:
                 for set_name, mask_fn in mask_fns.items():
                     name = '_'.join([split, set_name])
-                    shapes, dtypes, gen = NeighborTripletTraintest.generator_fn(
+                    shapes, dtypes, gen = TripletIterator.generator_fn(
                         self.traintest_file, split,
                         batch_size=self.batch_size,
+                        shuffle=False,
                         replace_nan=self.replace_nan,
-                        mask_fn=mask_fn,
-                        sharedx=self.sharedx,
+                        train=False,
                         augment_kwargs=self.augment_kwargs,
                         augment_fn=self.augment_fn,
-                        train=False,
-                        shuffle=False,
-                        standard=self.standard,
+                        mask_fn=mask_fn,
                         trim_mask=self.trim_mask,
-                        sharedx_trim=self.sharedx_trim)
+                        sharedx=self.sharedx,
+                        sharedx_trim=self.sharedx_trim,
+                        onlyself_notself=self.onlyself_notself)
                     validation_sets.append((gen, shapes, name))
             additional_vals = AdditionalValidationSets(
                 validation_sets, self.model, batch_size=self.batch_size,
@@ -877,7 +876,7 @@ class SiameseTriplets(object):
         anchor_file = os.path.join(self.model_dir, "anchor_distr.png")
         if self.evaluate and self.plot:
             self._plot_history(self.history.history, vsets, history_file)
-        if not self.standard and self.plot:
+        if self.onlyself_notself and self.plot:
             self._plot_anchor_dist(anchor_file)
 
     def predict(self, x_matrix, dropout_fn=None, dropout_samples=10, cp=False):
@@ -964,45 +963,45 @@ class SiameseTriplets(object):
             return -(cosine(a, b) - 1)
 
         # Need to create a new train_train generator without train=False
-        tr_shape_type_gen = NeighborTripletTraintest.generator_fn(
+        tr_shape_type_gen = TripletIterator.generator_fn(
             self.traintest_file,
             'train_train',
             batch_size=self.batch_size,
+            shuffle=False,
             replace_nan=self.replace_nan,
-            sharedx=self.sharedx,
+            train=False,
             augment_fn=self.augment_fn,
             augment_kwargs=self.augment_kwargs,
-            train=False,
-            shuffle=False,
-            standard=self.standard)
+            sharedx=self.sharedx,
+            onlyself_notself=self.onlyself_notself)
 
         tr_gen = tr_shape_type_gen[2]()
 
         if self.evaluate:
-            trval_shape_type_gen = NeighborTripletTraintest.generator_fn(
+            trval_shape_type_gen = TripletIterator.generator_fn(
                 self.traintest_file,
                 'train_test',
                 batch_size=self.batch_size,
+                shuffle=False,
                 replace_nan=self.replace_nan,
-                sharedx=self.sharedx,
+                train=False,
                 augment_fn=self.augment_fn,
                 augment_kwargs=self.augment_kwargs,
-                train=False,
-                shuffle=False,
-                standard=self.standard)
+                sharedx=self.sharedx,
+                onlyself_notself=self.onlyself_notself)
             trval_gen = trval_shape_type_gen[2]()
 
-            val_shape_type_gen = NeighborTripletTraintest.generator_fn(
+            val_shape_type_gen = TripletIterator.generator_fn(
                 self.traintest_file,
                 'test_test',
                 batch_size=self.batch_size,
+                shuffle=False,
                 replace_nan=self.replace_nan,
-                sharedx=self.sharedx,
+                train=False,
                 augment_fn=self.augment_fn,
                 augment_kwargs=self.augment_kwargs,
-                train=False,
-                shuffle=False,
-                standard=self.standard)
+                sharedx=self.sharedx,
+                onlyself_notself=self.onlyself_notself)
             val_gen = val_shape_type_gen[2]()
 
             vset_dict = {'train_train': tr_gen,
