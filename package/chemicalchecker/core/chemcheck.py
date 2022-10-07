@@ -796,16 +796,22 @@ class ChemicalChecker():
                         self.__log.warning("%s already present", dst_dir)
                         if models:
                             dst_model_dir = os.path.join(dst_dir, 'models')
-                            if os.path.exists(dst_model_dir):
-                                shutil.rmtree(dst_model_dir)
+                            if os.path.isdir(dst_model_dir):
+                                if os.path.islink(dst_model_dir):
+                                    os.remove(dst_model_dir)
+                                else:
+                                    shutil.rmtree(dst_model_dir)
                             src_model_dir = os.path.join(src_dir, 'models')
                             os.symlink(src_model_dir, dst_model_dir)
                         continue
                     os.symlink(src_dir, dst_dir)
                     if models:
                         dst_model_dir = os.path.join(dst_dir, 'models')
-                        if os.path.exists(dst_model_dir):
-                            shutil.rmtree(dst_model_dir)
+                        if os.path.isdir(dst_model_dir):
+                            if os.path.islink(dst_model_dir):
+                                os.remove(dst_model_dir)
+                            else:
+                                shutil.rmtree(dst_model_dir)
                         src_model_dir = os.path.join(src_dir, 'models')
                         os.symlink(src_model_dir, dst_model_dir)
 
