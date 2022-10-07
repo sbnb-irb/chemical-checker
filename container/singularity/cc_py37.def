@@ -90,6 +90,7 @@ faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     pip install wget                              # download library
     pip install tqdm                              # handy progress-bar
     pip install munch                             # dictionary that supports attribute-style access
+    pip install joblib==1.1.0                     # lightweight pipelining (constrained by hdbscan 0.8.28)
 
     # raw data packages
     pip install lxml                              # xml parser
