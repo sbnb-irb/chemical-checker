@@ -223,7 +223,8 @@ class TripletIterator(object):
             only_args['p_only_self'] = 1.0
             ds_index = augment_kwargs['dataset_idx']
 
-        TripletIterator.__log.debug('Generator ready, onlyself_notself %s' % onlyself_notself)
+        TripletIterator.__log.debug(
+            'Generator ready, onlyself_notself %s' % onlyself_notself)
 
         def example_generator_fn():
             """Generator function yields data in batches"""
@@ -415,8 +416,9 @@ class BaseTripletSampler(object):
                     combo_mask = np.logical_and(split1_mask, split2_mask)
                 else:
                     combo_mask = np.all(np.isin(triplets, split1_idxs), axis=1)
-                self.__log.debug('t_%s_%s %s' % (split1, split2, 
-                    str(triplets[combo_mask].shape)))
+                self.__log.debug('t_%s_%s %s' %
+                                 (split1, split2,
+                                  str(triplets[combo_mask].shape)))
                 fh.create_dataset('t_%s_%s' % (split1, split2),
                                   data=triplets[combo_mask])
                 fh.create_dataset('y_%s_%s' % (split1, split2),
@@ -500,8 +502,9 @@ class PrecomputedTripletSampler(BaseTripletSampler):
                     combo_mask = np.logical_and(split1_mask, split2_mask)
                 else:
                     combo_mask = np.all(np.isin(triplets, split1_idxs), axis=1)
-                self.__log.debug('t_%s_%s %s' % (split1, split2, 
-                    str(triplets[combo_mask].shape)))
+                self.__log.debug('t_%s_%s %s' %
+                                 (split1, split2,
+                                  str(triplets[combo_mask].shape)))
                 fh.create_dataset('t_%s_%s' % (split1, split2),
                                   data=triplets[combo_mask])
                 fh.create_dataset('y_%s_%s' % (split1, split2),
@@ -516,17 +519,40 @@ class AdriaTripletSampler(BaseTripletSampler):
     def __init__(self, *args, **kwargs):
         BaseTripletSampler.__init__(self, *args, **kwargs)
 
-    def generate_triplets(self, frac_neig=0.05, low_jc=0.1, high_jc=0.5,
-                          num_triplets=1e6, frac_hard=0.3):
+    def generate_triplets(self, num_triplets=1e6, frac_hard=0.3,
+                          frac_neig=0.05, metric='jaccard', low_thr=0.1,
+                          high_thr=0.5, plot=True):
+        """Generate triplets.
+
+        This function generate triplets defining positive and negatives
+        assuming a binary triplet signature (e.g. sign0) and computing all the
+        similarities across molecules.
+
+        Args:
+            num_triplets(int): Total number of triplets to generate.
+            frac_hard(float): Fraction of triplets to be of the hard case.
+            frac_neig(float): Fraction of neighbor we will consider.
+            metric(std): Metric to compute similarities, must be a distance
+                metric that can be converted to similarity by (1-dist)
+            low_thr(float): Low similarity threshold, any pair below this is
+                negative.
+            high_thr(float): High similarity threshold, any pair above this is 
+                positive.
+            plot(bool): Save plots of the sampling.
+        """
         self.__log.info('Generating Triplets...')
+        self.__log.info('Triplets generated based on: %s' %
+                        self.triplet_signature.data_path)
+        self.__log.info('Triplets representation: %s' %
+                        self.mol_signature.data_path)
         # this works with triplet signature being sign0
         df = self.triplet_signature.as_dataframe()
-        # later we will be saving the molecular represation in a different
+        # later we will be saving the molecular representation in a different
         # signature (e.g. sign2), we need to use only those molecules
         df = df.loc[self.mol_signature.keys]
         # Getting similarities
-        jc_similarities = 1 - pdist(df, 'jaccard')
-        df2 = pd.DataFrame(squareform(jc_similarities), index=df.index.values,
+        all_similarities = 1 - pdist(df, metric)
+        df2 = pd.DataFrame(squareform(all_similarities), index=df.index.values,
                            columns=df.index.values)
 
         # Defining derived parameters
@@ -535,7 +561,7 @@ class AdriaTripletSampler(BaseTripletSampler):
         n_trip = int(np.round(num_triplets*frac_soft/df2.shape[0]))
         n_hard_trip = int(np.round(num_triplets*frac_hard/df2.shape[0]))
 
-        ixs = np.array(df2.max()) >= low_jc
+        ixs = np.array(df2.max()) >= low_thr
         df2 = df2.iloc[ixs, ixs]
 
         dgs = np.array(df2.columns)
@@ -545,15 +571,15 @@ class AdriaTripletSampler(BaseTripletSampler):
             _triplets = []
             _hard_triplets = {0: [], 1: [], 2: []}
 
-            # Getting jaccard similarity vector
+            # Getting similarity vector
             v = np.array(df2.iloc[ix])
             v[ix] = np.nan  # masking itself
 
             # Getting pos
-            ixs = np.where(v >= high_jc)[0]
+            ixs = np.where(v >= high_thr)[0]
             if len(ixs) < n_neigh:
                 ixs = np.argsort(v)[::-1]
-                ixs = ixs[v[ixs] >= low_jc]
+                ixs = ixs[v[ixs] >= low_thr]
                 if len(ixs) == 0:
                     continue
                 cutoff = v[ixs][min([n_neigh-1, len(ixs)-1])]
@@ -568,9 +594,7 @@ class AdriaTripletSampler(BaseTripletSampler):
             negs = np.array(list(set(dgs)-set(neighs.tolist()+[dg])))
 
             # --Getting triplets
-
             # ----Negs
-
             # the soft triplets (easy) 70%
             for _ in range(n_trip):
                 _triplets.append([dg, np.random.choice(neighs, p=probs),
@@ -612,14 +636,15 @@ class AdriaTripletSampler(BaseTripletSampler):
 
         self.__log.info('triplets:      %i' % len(all_triplets))
         self.__log.info('easy triplets: %i (%.2f%%)' %
-              (len(triplets), (100*(len(triplets))/len(all_triplets))))
+                        (len(triplets),
+                            (100*(len(triplets))/len(all_triplets))))
         total_hard = np.sum([len(hard_triplets[g]) for g in hard_triplets])
         self.__log.info('hard triplets: %i (%.2f%%)' %
-              (total_hard, (100*(total_hard/len(all_triplets)))))
+                        (total_hard, (100*(total_hard/len(all_triplets)))))
         for g in hard_triplets:
             self.__log.info('\t--> Q%i vs Q4: %i (%.2f%%)' %
-                  (g+1, len(hard_triplets[g]),
-                   100*len(hard_triplets[g])/len(all_triplets)))
+                            (g+1, len(hard_triplets[g]),
+                             100*len(hard_triplets[g])/len(all_triplets)))
 
         all_triplets = pd.DataFrame(
             all_triplets,
@@ -627,6 +652,74 @@ class AdriaTripletSampler(BaseTripletSampler):
             ['anchor', 'pos', 'neg']).reset_index(drop=True)
         ink_pos = dict(zip(self.mol_signature.keys, np.arange(len(df))))
         all_triplets_idxs = np.vectorize(ink_pos.get)(all_triplets.values)
+
+        if plot:
+            self.__log.info('Generating Triplets Plot...')
+            import matplotlib.pyplot as plt
+            import seaborn as sns
+            fig, axes = plt.subplots(2, 2, figsize=(10, 10), dpi=100)
+            ax1, ax2, ax3, ax4 = axes.flat
+
+            # which fraction of mols as a give # of features?
+            sns.ecdfplot(df.sum(1), ax=ax1)
+            ax1.set_title('# Features distribution')
+
+            # what is the distribution of similarities?
+            # which similarity will we always consider as positive or negative?
+            ax2.set_title('Similarity distribution, pos./neg. definition')
+            pc = int((1 - frac_neig) * 100)
+            pc_val = np.percentile(all_similarities, pc)
+            ax2.axvline(low_thr, label='low_thr %.2f' % low_thr, ls='-.',
+                        color='.5')
+            ax2.axvline(pc_val, label='%.2f (P%i)' % (pc_val, pc), color='.7')
+            ax2.axvline(high_thr, label='high_thr %.2f' % high_thr, ls='--',
+                        color='.5')
+            sns.histplot(all_similarities, kde=True, ax=ax2)
+            ax2.legend()
+
+            # what fraction of mols would we loose (closest neigh < low_thr)?
+            sns.ecdfplot(df2.max(axis=1), ax=ax3)
+            ax3.set_xlabel('Similarity to closest neighbor')
+            ax3.axvline(low_thr, ls='-.', color='.5')
+            ax3.axvline(high_thr, ls='--', color='.5')
+            ax3.set_title('Closest neighbor of each mol.')
+            lost_mols = np.sum(df2.max() < low_thr)
+            if lost_mols > 0:
+                ax3.annotate('Lost Mols.: %i' % lost_mols,
+                             xy=(low_thr-(low_thr/10), 0), xycoords='data',
+                             xytext=(-10, -40), textcoords='offset points',
+                             arrowprops=dict(facecolor='red', shrink=0.05),
+                             horizontalalignment='right',
+                             verticalalignment='bottom')
+
+            # What's the difference in similarity between A-P and A-N?
+            ax4.set_title('Triplet difficulty and Anchor-Pos. vs. Anchor-Neg.')
+            k = df2.melt(ignore_index=False).reset_index().values
+            pair2sim = dict(zip(zip(k[:, 0], k[:, 1]), k[:, 2]))
+            v = []
+            for x in triplets:
+                pos = x[0], x[1]
+                neg = x[0], x[2]
+                if (pos in pair2sim) & (neg in pair2sim):
+                    pos = pair2sim[pos]
+                    neg = pair2sim[neg]
+                    v.append(pos-neg)
+            sns.ecdfplot(v, label='easy triplets', ax=ax4)
+            for g in hard_triplets:
+                v2 = []
+                for x in hard_triplets[g]:
+                    pos = x[0], x[1]
+                    neg = x[0], x[2]
+                    if (pos in pair2sim) & (neg in pair2sim):
+                        pos = pair2sim[pos]
+                        neg = pair2sim[neg]
+                        v2.append(pos-neg)
+                sns.ecdfplot(v2, label='hard triplets (Q%i vs Q4)' %
+                             (g+1), ax=ax4)
+            ax4.set_xlabel('pos.-neg. similarity delta')
+            ax4.legend()
+            plt.savefig(self.out_file + '.png')
+
         self.save_triplets(all_triplets_idxs, **self.save_kwargs)
 
 
@@ -672,7 +765,8 @@ class OldTripletSampler(BaseTripletSampler):
         shuffle_idx = np.arange(neighbors_matrix.shape[0])
         np.random.shuffle(shuffle_idx)
 
-        OldTripletSampler.__log.debug('%s %s' %(len(neighbors_matrix), str(X.shape)))
+        OldTripletSampler.__log.debug('%s %s' % (
+            len(neighbors_matrix), str(X.shape)))
         if len(neighbors_matrix) != X.shape[0]:
             raise Exception("neighbors_matrix should be same length as X.")
 
@@ -1082,10 +1176,10 @@ class OldTripletSampler(BaseTripletSampler):
                     cat_mask = dists[:, 2] == cat_id
                     ax = axes.flatten()[ax_idx]
                     ax.set_title('%s %s' % (combo, cat_names[cat_id]))
-                    sns.histplot(dists[cat_mask, 0], label='AP', 
-                        color='green', kde=True, ax=ax)
-                    sns.histplot(dists[cat_mask, 1], label='AN', 
-                        color='red', kde=True, ax=ax)
+                    sns.histplot(dists[cat_mask, 0], label='AP',
+                                 color='green', kde=True, ax=ax)
+                    sns.histplot(dists[cat_mask, 1], label='AN',
+                                 color='red', kde=True, ax=ax)
                     ax.legend()
                     ax_idx += 1
 
