@@ -461,11 +461,11 @@ class PrecomputedTripletSampler(BaseTripletSampler):
             np.random.shuffle(shuffle_idxs)
         triplets = np.array(triplets)[shuffle_idxs]
 
-        # do traintest split on keys
+        # do train-test split on keys
         split_idxs = self.get_split_indeces(
             X.shape[0], split_fractions)
 
-        # do traintest split for triplets (np.unique of indeces)
+        # do train-test split for triplets (np.unique of indexes)
         split_idxs = dict(zip(split_names, split_idxs))
 
         # find triplets having test-test train-train and train-test

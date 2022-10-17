@@ -11,7 +11,7 @@ from .base import BaseTransform
 
 from chemicalchecker.util import logged
 from chemicalchecker.tool.siamese import SiameseTriplets
-from chemicalchecker.util.splitter import NeighborTripletTraintest
+from chemicalchecker.util.splitter import PrecomputedTripletSampler
 
 
 @logged
@@ -52,8 +52,10 @@ class MetricLearn(BaseTransform):
         V = self.sign_ref[:]
         dest_h5 = os.path.join(self.model_path, self.name + "_eval.h5")
         # generate traintest file
-        NeighborTripletTraintest.precomputed_triplets(
-            V, triplets, dest_h5,
+        triplet_sampler = PrecomputedTripletSampler(
+            None, self.sign_ref, dest_h5)
+        triplet_sampler.generate_triplets(
+            V, self.sign_ref.keys, triplets,
             mean_center_x=True,  shuffle=True,
             split_names=['train_train', 'train_test', 'test_test'],
             split_fractions=[.8, .1, .1])
@@ -64,6 +66,8 @@ class MetricLearn(BaseTransform):
         mod.fit()
         # generate traintest file for the final model
         dest_h5 = os.path.join(self.model_path, self.name + ".h5")
+        triplet_sampler = PrecomputedTripletSampler(
+            None, self.sign_ref, dest_h5)
         NeighborTripletTraintest.precomputed_triplets(
             V, triplets, dest_h5,
             mean_center_x=True,  shuffle=True,
