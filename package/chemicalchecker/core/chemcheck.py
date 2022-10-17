@@ -785,15 +785,19 @@ class ChemicalChecker():
                 dst_ds = rename_dataset[ds]
                 dst_ds_dir = os.path.join(
                     self.cc_root, molset, dst_ds[:1], dst_ds[:2], dst_ds)
+                os.makedirs(dst_ds_dir, exist_ok=True)
                 src_ds_dir = os.path.join(
                     source_cc.cc_root, molset, ds[:1], ds[:2], ds)
                 for cctype in cctypes:
                     dst_dir = os.path.join(dst_ds_dir, cctype)
                     src_dir = os.path.join(src_ds_dir, cctype)
                     self.__log.debug("Link %s --> %s", dst_dir, src_dir)
-                    os.makedirs(dst_ds_dir, exist_ok=True)
+                    # if the destination already a folder then the user has
+                    # full ownership over it, otherwise just symlink the ref.
                     if os.path.isdir(dst_dir):
                         self.__log.warning("%s already present", dst_dir)
+                        # in case the directory already exists try to link
+                        # the reference model dir
                         if models:
                             dst_model_dir = os.path.join(dst_dir, 'models')
                             if os.path.isdir(dst_model_dir):
@@ -804,16 +808,8 @@ class ChemicalChecker():
                             src_model_dir = os.path.join(src_dir, 'models')
                             os.symlink(src_model_dir, dst_model_dir)
                         continue
-                    os.symlink(src_dir, dst_dir)
-                    if models:
-                        dst_model_dir = os.path.join(dst_dir, 'models')
-                        if os.path.isdir(dst_model_dir):
-                            if os.path.islink(dst_model_dir):
-                                os.remove(dst_model_dir)
-                            else:
-                                shutil.rmtree(dst_model_dir)
-                        src_model_dir = os.path.join(src_dir, 'models')
-                        os.symlink(src_model_dir, dst_model_dir)
+                    else:
+                        os.symlink(src_dir, dst_dir)
 
     def copy_signature_from(self, source_cc, cctype, molset, dataset_code,
                             overwrite=False):
