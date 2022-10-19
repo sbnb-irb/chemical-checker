@@ -130,14 +130,14 @@ class ChemicalChecker():
                                 "ignoring 'custom_data_path'.")
                 custom_data_path = None
 
-        # import one or several custom h5 files
+        # import one or several custom signature files and models
         if custom_data_path is not None:
             if os.path.isfile(custom_data_path):
                 raise Exception("'custom_data_path' must be a directory")
 
             custom_data_path = os.path.abspath(custom_data_path)
             self.__log.debug("Linking files from: %s" % custom_data_path)
-            self.link_h5(custom_data_path)
+            self.link(custom_data_path)
 
         self._molsets = sorted(list(self._molsets))
         self._datasets = [x for x in sorted(
@@ -487,118 +487,163 @@ class ChemicalChecker():
 
     def signature(self, dataset, cctype, as_dataframe=False):
         return self.get_signature(cctype=cctype, molset="full",
-                                  dataset_code=dataset, 
+                                  dataset_code=dataset,
                                   as_dataframe=as_dataframe)
 
-    def link_h5(self, custom_data_path):
-        """Link H5 files from a given custom directory.
+    @staticmethod
+    def get_h5_metadata(fn, format_dict):
+        """ Return H5 metadata.
 
-        Populates local CC instance with symlinks to external signatures H5s.
-
-        Args:
-            custom_data_path(str): Path to a directory signature containing H5s
+        Returns:
+            tuple of the type ('full', 'A', 'A1', 'A1.001','sign3', h5_path) 
+            or None if something's wrong
         """
-        h5files = glob(os.path.join(custom_data_path, "*.h5"))
-
-        if len(h5files) == 0:
-            self.__log.warning("No h5 file found in %s, "
-                               "CC instance will be empty." % custom_data_path)
-            return
-
-        available_files = ", ".join([os.path.basename(f) for f in h5files])
-        self.__log.debug("Found h5 files {}: in {}".format(
-            available_files, custom_data_path))
-
-        # check the format of the imported info data
-        # dataset code (ex: A1.001)
-        formatDC = re.compile(r"[A-Z]\d\.\d\d\d")
-        formatCCTYPE = re.compile(r"sign\d")
-        formatMolset = re.compile(r"(full|reference)", re.IGNORECASE)
-
-        # mapping info and required format
-        formatDict = dict(dataset_code=formatDC,
-                          cctype=formatCCTYPE, molset=formatMolset)
-
-        def filter_dataset(path2h5file):
-            """ returns a tuple of the type ('full', 'A', 'A1', 'A1.001',
-            'sign3', path_to_h5file') or None if something's wrong
-            """
-            out = []
-            with h5py.File(path2h5file, 'r') as ccfile:
-
-                # check if the required info is presents in the h5 file
-                # attrs dict
-                # iterates over ('dataset_code', 'cctype', 'molset') and
-                # the required format for each of them
-                for requiredKey, requiredFormat in formatDict.items():
-                    if requiredKey not in ccfile.attrs:
-                        self.__log.warning(
-                            "Attribute {} cannot be retrieved from {},"
-                            " skipping this file".format(
-                                requiredKey, ccfile))
-                        return None
-
-                    else:
-                        # check the format of the provided info
-                        matching = requiredFormat.match(
+        out = []
+        with h5py.File(fn, 'r') as ccfile:
+            # check if the required info is presents in the h5 file
+            for requiredKey, requiredFormat in format_dict.items():
+                if requiredKey not in ccfile.attrs:
+                    ChemicalChecker.__log.warning(
+                        "Attribute {} cannot be retrieved from {},"
+                        " skipping this file".format(
+                            requiredKey, ccfile))
+                    return None
+                else:
+                    # check the format of the provided info
+                    matching = requiredFormat.match(
+                        ccfile.attrs[requiredKey])
+                    if matching is None:
+                        ChemicalChecker.__log.warning(
+                            "Problem with format",
                             ccfile.attrs[requiredKey])
-                        if matching is None:
-                            self.__log.warning(
-                                "Problem with format",
-                                ccfile.attrs[requiredKey])
-                            return None
+                        return None
+            # Prepare the signature file name and path
+            out.append(ccfile.attrs['molset'].lower())
+            out.append(ccfile.attrs['dataset_code'][0])
+            out.append(ccfile.attrs['dataset_code'][:2])
+            out.append(ccfile.attrs['dataset_code'])
+            out.append(ccfile.attrs['cctype'].lower())
+            out.append(fn)
+        return tuple(out)
 
-                # Prepare the signature file name and path
-                out.append(ccfile.attrs['molset'].lower())
-                out.append(ccfile.attrs['dataset_code'][0])
-                out.append(ccfile.attrs['dataset_code'][:2])
-                out.append(ccfile.attrs['dataset_code'])
-                out.append(ccfile.attrs['cctype'].lower())
-                out.append(path2h5file)
-            return tuple(out)
+    @staticmethod
+    def get_model_metadata(fn, format_dict):
+        """ Return model metadata.
 
-        # Keep h5 files containing the required info in the correct format
-        h5tuples = list()
-        for fn in h5files:
-            res = filter_dataset(fn)
-            if res:
-                h5tuples.append(res)
+        Returns:
+            tuple of the type ('full', 'A', 'A1', 'A1.001','sign3', h5_path) 
+            or None if something's wrong
+        """
+        out = []
+        mdl_meta = json.load(open(os.path.join(fn, 'metadata.json'), 'r'))
+        # check if the required info is presents in the model file
+        for requiredKey, requiredFormat in format_dict.items():
+            if requiredKey not in mdl_meta.keys():
+                ChemicalChecker.__log.warning(
+                    "Attribute {} cannot be retrieved from {},"
+                    " skipping this file".format(
+                        requiredKey, mdl_meta))
+                return None
             else:
-                # guess from filename
-                name = Path(fn).stem
+                # check the format of the provided info
+                matching = requiredFormat.match(
+                    mdl_meta[requiredKey])
+                if matching is None:
+                    ChemicalChecker.__log.warning(
+                        "Problem with format",
+                        mdl_meta[requiredKey])
+                    return None
+        # Prepare the model file name and path
+        out.append(mdl_meta['molset'].lower())
+        out.append(mdl_meta['dataset_code'][0])
+        out.append(mdl_meta['dataset_code'][:2])
+        out.append(mdl_meta['dataset_code'])
+        out.append(mdl_meta['cctype'].lower())
+        out.append(fn)
+        return tuple(out)
+
+    @staticmethod
+    def get_metadatas(files, metadata_func, format_dict):
+        """Extract the metadata from files using a function."""
+        if len(files) == 0:
+            ChemicalChecker.__log.warning("No file found, "
+                                          "CC instance will be empty.")
+            return
+        available_files = ", ".join([os.path.basename(f) for f in files])
+        ChemicalChecker.__log.debug(
+            "Importing files {}".format(available_files))
+        # Keep files containing the required info in the correct format
+        metadatas = list()
+        for file in files:
+            res = metadata_func(file, format_dict)
+            if res:
+                metadatas.append(res)
+            else:  # guess from filename
+                name = Path(file).stem
                 cctype, dataset_code, molset = name.split('_')
-                res = []
+                res = list()
                 res.append(molset.lower())
                 res.append(dataset_code[0])
                 res.append(dataset_code[:2])
                 res.append(dataset_code)
                 res.append(cctype.lower())
-                res.append(fn)
-                h5tuples.append(res)
-
-        if len(h5tuples) == 0:
+                res.append(file)
+                metadatas.append(res)
+        if len(metadatas) == 0:
             raise Exception(
                 "None of the provided h5 datasets have sufficient info in"
                 " its attributes! Please ensure myh5file.attrs has the"
                 "folllowing keys: 'dataset_code', 'cctype', 'molset'")
+        return metadatas
 
-        # Now creating the instance folder structure
-        original_umask = os.umask(0)
-        for h5t in h5tuples:
-            # ex: ../../full/A/A1/A1.001/sign3
-            path2sign = os.path.join(self.cc_root, *h5t[:-1])
-            self.__log.debug("Creating: %s", path2sign)
+    def link(self, custom_data_path):
+        """Link H5 files and models from a given custom directory.
 
-            # The signature should not exist
-            if os.path.exists(path2sign):
-                self.__log.debug("Skipping as path exists: %s", path2sign)
-                continue
+        Populates local CC instance with symlinks to external signatures H5s
+        or models.
 
+        Args:
+            custom_data_path(str): Path to a directory signature containing H5s
+                models or symlinks.
+        """
+        # define required format for metadata fields
+        ds_fmt = re.compile(r"[A-Z]\d\.\d\d\d")  # dataset code (ex: A1.001)
+        cctype_fmt = re.compile(r"sign\d")
+        molset_fmt = re.compile(r"(full|reference)", re.IGNORECASE)
+        format_dict = dict(dataset_code=ds_fmt,
+                           cctype=cctype_fmt, molset=molset_fmt)
+
+        # get H5 files metadata
+        files = glob(os.path.join(custom_data_path, "*.h5"))
+        metadatas = self.get_metadatas(
+            files, self.get_h5_metadata, format_dict)
+
+        # Create the CC instance folder structure
+        for meta in metadatas:
+            sign_path = os.path.join(self.cc_root, *meta[:-1])
             # create dir
-            os.makedirs(path2sign, 0o775)
+            os.makedirs(sign_path, exist_ok=True)
             # symbolic link to the h5 file in the cc_repo as signx.h5
-            os.symlink(h5t[-1], os.path.join(path2sign, h5t[-2] + '.h5'))
-        os.umask(original_umask)
+            src = meta[-1]
+            dst = os.path.join(sign_path, meta[-2] + '.h5')
+            self.__log.debug("%s ==> %s" % (src, dst))
+            os.symlink(src, dst)
+
+        # get models metadata
+        files = glob(os.path.join(custom_data_path, "*.models"))
+        metadatas = self.get_metadatas(
+            files, self.get_model_metadata, format_dict)
+
+        # add symlinks to models
+        for meta in metadatas:
+            sign_path = os.path.join(self.cc_root, *meta[:-1])
+            # create dir
+            os.makedirs(sign_path, exist_ok=True)
+            # symbolic link to the models path in the cc_repo as models folder
+            src = meta[-1]
+            dst = os.path.join(sign_path, 'models')
+            self.__log.debug("%s ==> %s" % (src, dst))
+            os.symlink(src, dst)
 
     def export(self, destination, signature, h5_filter=None,
                h5_names_map={}, overwrite=False, version=None):
@@ -666,7 +711,8 @@ class ChemicalChecker():
                 --> used to define the base_dir when zipping
         """
         destination = os.path.join(root_destination, folder_destination)
-        self.__log.debug('Exporting CC {} to {}'.format(self.cc_root, destination))
+        self.__log.debug('Exporting CC {} to {}'.format(
+            self.cc_root, destination))
 
         for molset in self._basic_molsets:
             self.__log.debug('Molset: {}'.format(molset))
@@ -679,7 +725,7 @@ class ChemicalChecker():
                 new_dir = os.path.join(
                     destination, folder_destination, molset, dataset[:1], dataset[:2], dataset)
                 FileSystem.check_dir_existance_create(new_dir)
-                # 1) sign0 
+                # 1) sign0
                 if molset == 'full':
                     sign_type = 'sign0'
                     sign = self.get_signature(sign_type, molset, dataset)
@@ -688,7 +734,8 @@ class ChemicalChecker():
                     FileSystem.check_dir_existance_create(sign_dir, ['models'])
                     dst = os.path.join(sign_dir, '%s.h5' % sign_type)
                     if not os.path.isfile(dst):
-                        self.__log.debug("Copying {} to {}".format(sign, sign_dir))
+                        self.__log.debug(
+                            "Copying {} to {}".format(sign, sign_dir))
                         self.export(dst, sign)
                     fit_file = os.path.join(sign_dir, 'models', 'fit.ready')
                     FileSystem.check_file_existance_create(fit_file)
@@ -697,38 +744,48 @@ class ChemicalChecker():
                     sign_type = 'sign1'
                     sign = self.get_signature(sign_type, molset, dataset)
                     sign_dir = os.path.join(new_dir, '%s' % sign_type)
-                    dst_models_path = FileSystem.check_dir_existance_create(sign_dir, ['models'])
+                    dst_models_path = FileSystem.check_dir_existance_create(sign_dir, [
+                                                                            'models'])
                     regex = re.compile('(.*pkl$)')
                     self.__log.debug("Exporting files of {} from \
                                         {} to {}".format(sign_type, sign.model_path, dst_models_path))
                     for _, _, src_files in os.walk(sign.model_path):
-                        for src_file in src_files: 
+                        for src_file in src_files:
                             if regex.match(src_file):
-                                dst_file = os.path.join(dst_models_path, '%s' % src_file)
-                                FileSystem.check_file_existance_create(dst_file)
-                                shutil.copyfile(os.path.join(sign.model_path, src_file), dst_file)
+                                dst_file = os.path.join(
+                                    dst_models_path, '%s' % src_file)
+                                FileSystem.check_file_existance_create(
+                                    dst_file)
+                                shutil.copyfile(os.path.join(
+                                    sign.model_path, src_file), dst_file)
                 # 3) sign2
                 if molset == 'reference':
                     sign_type = 'sign2'
                     model = 'adanet'
                     sign = self.get_signature(sign_type, molset, dataset)
                     sign_dir = os.path.join(new_dir, '%s' % sign_type)
-                    dst_models_adanet_path = FileSystem.check_dir_existance_create(sign_dir, ['models', model])
+                    dst_models_adanet_path = FileSystem.check_dir_existance_create(sign_dir, [
+                                                                                   'models', model])
                     if os.path.isdir(os.path.join(dst_models_adanet_path, 'savedmodel')):
                         self.__log.debug("savedmodel folder already exists in {} models directory\n \
                                 Removing it".format(sign_type))
-                        shutil.rmtree(os.path.join(dst_models_adanet_path, 'savedmodel'))
-                    src_path = os.path.join(sign.model_path, model, 'savedmodel')
+                        shutil.rmtree(os.path.join(
+                            dst_models_adanet_path, 'savedmodel'))
+                    src_path = os.path.join(
+                        sign.model_path, model, 'savedmodel')
                     self.__log.debug("Copying savedmodel folder from {} to {}".format(
-                            os.path.join(sign.model_path, model), dst_models_adanet_path))
-                    shutil.copytree(src_path, os.path.join(dst_models_adanet_path, 'savedmodel'))
-        
+                        os.path.join(sign.model_path, model), dst_models_adanet_path))
+                    shutil.copytree(src_path, os.path.join(
+                        dst_models_adanet_path, 'savedmodel'))
+
         # zipping the destination folder
         complete_destination = os.path.join(destination, folder_destination)
-        self.__log.debug('Zipping exported CC folder {}'.format(complete_destination))
-        shutil.make_archive(complete_destination, 'gztar', destination, folder_destination)
+        self.__log.debug(
+            'Zipping exported CC folder {}'.format(complete_destination))
+        shutil.make_archive(complete_destination, 'gztar',
+                            destination, folder_destination)
         if os.path.isfile(os.path.join(destination, folder_destination + '.tar.gz')):
-            shutil.rmtree(complete_destination)            
+            shutil.rmtree(complete_destination)
 
     def check_dir_existance_create(dir_path, additional_path=None):
         """Args:
@@ -753,8 +810,7 @@ class ChemicalChecker():
         if not os.path.isfile(file_path):
             with open(file_path, 'w'):
                 pass
-        
-        
+
     def symlink_to(self, source_cc, cctypes=['sign0'],
                    molsets=['reference', 'full'], datasets='exemplary',
                    rename_dataset=None, models=False):
@@ -902,12 +958,15 @@ class ChemicalChecker():
 
         return None
 
-    def export_symlinks(self, dest_path=None, essential_only=True):
-        """Creates symlinks for all available signatures in a single folder.
+    def export_symlinks(self, dest_path=None, signatures=True, models=False):
+        """Creates symlinks for all available signatures H5 or models path
+           in a single folder.
 
         Args:
             dest_path (str): The destination for symlink, if None then the
                 default under the cc_root is generated.
+            signatures (bool): export signature files.
+            models (bool): export models paths.
         """
         if dest_path is None:
             dest_path = os.path.join(self.cc_root, 'sign_links')
@@ -915,23 +974,36 @@ class ChemicalChecker():
         if not os.path.exists(dest_path):
             os.makedirs(dest_path)
 
-        for molset in ['full', 'reference']:
-            for cctype in ['sign0', 'sign1', 'sign2', 'sign3', 'sign4']:
-                for ds in self.coordinates:
-                    dataset_code = ds + '.001'
-                    sign = self.get_signature(cctype, molset, dataset_code)
-                    sign_file = sign.data_path
+        molsets = ['full', 'reference']
+        cctypes = ['sign0', 'sign1', 'sign2', 'sign3', 'sign4']
+        ds = self.coordinates
+        for molset, cctype, ds in itertools.product(molsets, cctypes, ds):
+            dataset_code = ds + '.001'
+            sign = self.get_signature(cctype, molset, dataset_code)
+            sign_file = sign.data_path
 
-                    if os.path.isfile(sign_file):
-                        dst_name = "_".join([cctype, dataset_code, molset])
-                        dst_name += ".h5"
-                        # Make a symlink into the destination
-                        symlink = os.path.join(dest_path, dst_name)
-                        try:
-                            os.symlink(sign_file, symlink)
-                        except Exception as ex:
-                            self.__log.warning(
-                                "Error creating %s: %s" % (symlink, str(ex)))
+            if signatures and os.path.isfile(sign_file):
+                dst_name = "_".join([cctype, dataset_code, molset])
+                dst_name += ".h5"
+                # Make a symlink into the destination
+                symlink = os.path.join(dest_path, dst_name)
+                try:
+                    os.symlink(sign_file, symlink)
+                except Exception as ex:
+                    self.__log.warning(
+                        "Error creating %s: %s" % (symlink, str(ex)))
+
+            model_path = os.path.join(sign.signature_path, 'models')
+            if models and os.path.isdir(model_path):
+                dst_name = "_".join([cctype, dataset_code, molset])
+                dst_name += ".models"
+                # Make a symlink into the destination
+                symlink = os.path.join(dest_path, dst_name)
+                try:
+                    os.symlink(model_path, symlink)
+                except Exception as ex:
+                    self.__log.warning(
+                        "Error creating %s: %s" % (symlink, str(ex)))
 
     def add_sign_metadata(self, molset='*', dataset='*', signature='*'):
         """Add metadata to available signatures.
@@ -954,6 +1026,33 @@ class ChemicalChecker():
                         if k in fh.attrs:
                             del fh.attrs[k]
                         fh.attrs.create(name=k, data=v)
+            except Exception:
+                self.__log.warning("Could not add metadata to: %s" % path)
+                continue
+
+    def add_model_metadata(self, molsets=['full', 'reference'], dataset='*',
+                           signature='sign*'):
+        """Add metadata to available models.
+
+        Args:
+            molset (str, optional): Filter for the moleculeset e.g. 'full' or
+                'reference'
+            dataset (str, optional): Filter for the dataset e.g. A1.001
+            signature (str, optional): Filter for signature type e.g. 'sign1'
+        """
+        paths = list()
+        for molset in molsets:
+            paths.extend(self._available_sign_paths(molset, dataset, signature,
+                                                    'models'))
+        for path in paths:
+            molset = path.split('/')[-6]
+            dataset = path.split('/')[-3]
+            sign = path.split('/')[-2]
+            metadata = dict(cctype=sign, dataset_code=dataset, molset=molset)
+            metadata_file = os.path.join(path, 'metadata.json')
+            try:
+                with open(metadata_file, 'w') as fh:
+                    json.dump(metadata, fh)
             except Exception:
                 self.__log.warning("Could not add metadata to: %s" % path)
                 continue
