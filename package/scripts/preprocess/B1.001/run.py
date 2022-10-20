@@ -343,16 +343,16 @@ def main(args):
 
     # save raw values
     main._log.info("Saving raws.")
-    inchikey_raw = list()
+    inchikey_raw = collections.defaultdict(list)
+    features = set()
     for k, v in ACTS.items():
-        inchikey_raw.append((k[0], k[1] + "(" + str(v) + ")"))
+        feat = k[1] + "(" + str(v) + ")"
+        inchikey_raw[k[0]] += [(feat, 1)]
+        features.add(feat)
+    features = list(features)
 
-    with h5py.File(args.output_file, "w") as hf:
-        # getting strings instead of bytes from the h5 file
-        hf.create_dataset("pairs", data=DataSignature.h5_str(inchikey_raw))
-     # they keep being bytes...    
-    # with h5py.File(args.output_file, "r") as hf:
-    #     main._log.info(hf['pairs'][:10])
+    Preprocess.save_output(args.output_file, inchikey_raw, args.method,
+                args.models_path, dataset.discrete, features)
 
 
 if __name__ == '__main__':
