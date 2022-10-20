@@ -118,6 +118,20 @@ class Converter():
                 "Cannot fetch SMILES from Chemical Name", chem_name)
 
     @staticmethod
+    def chemical_name_to_inchi(chem_name):
+        """From chemical name to InChI."""
+        try:
+            chem_name = quote(chem_name)
+            url = 'http://cactus.nci.nih.gov/chemical/' + \
+                'structure/%s/stdinchi' % chem_name
+            return urlopen(url).read().rstrip().decode()
+        except Exception as ex:
+            Converter.__log.warning(str(ex))
+            raise ConversionError(
+                "Cannot fetch InChI from Chemical Name", chem_name)
+
+
+    @staticmethod
     def inchikey_to_inchi(inchikey):
         """From InChIKey to InChI."""
         try:
