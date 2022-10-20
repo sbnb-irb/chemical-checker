@@ -62,6 +62,10 @@ class Converter():
             mol = self.Chem.rdinchi.InchiToMol(inchi_ascii)[0]
         except Exception as ex:
             raise ConversionError("'InchiToMol' exception:", ex.message)
+        try:
+            mol = self.standardize(mol)
+        except Exception as ex:
+            raise ConversionError("'standardize' exception", ex.message)
         return self.Chem.MolToSmiles(mol, isomericSmiles=True)
 
     def inchi_to_inchikey(self, inchi):
@@ -80,6 +84,10 @@ class Converter():
             mol = self.Chem.rdinchi.InchiToMol(inchi_ascii)[0]
         except Exception as ex:
             raise ConversionError("'InchiToMol' exception:", ex.message)
+        try:
+            mol = self.standardize(mol)
+        except Exception as ex:
+            raise ConversionError("'standardize' exception", ex.message)
         return mol
 
     @staticmethod
