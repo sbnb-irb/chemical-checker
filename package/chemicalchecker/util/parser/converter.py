@@ -2,6 +2,7 @@
 import json
 from six.moves.urllib.request import urlopen
 from six.moves.urllib.parse import quote
+import pubchempy as pcp
 
 from chemicalchecker.util import logged
 
@@ -106,30 +107,93 @@ class Converter():
 
     @staticmethod
     def chemical_name_to_smiles(chem_name):
-        """From chemical name to SMILES."""
-        try:
-            chem_name = quote(chem_name)
-            url = 'http://cactus.nci.nih.gov/chemical/' + \
-                'structure/%s/smiles' % chem_name
-            return urlopen(url).read().rstrip().decode()
-        except Exception as ex:
-            Converter.__log.warning(str(ex))
+        """From Chemical Name to SMILES via cactus.nci or pubchem."""
+        smiles = None
+        chem_name_quoted = quote(chem_name)
+        smiles = Converter._chemical_name_to_smiles_cactus(chem_name_quoted)
+        if smiles is not None:
+            return smiles
+        smiles = Converter._chemical_name_to_smiles_pubchem(chem_name)
+        if smiles is None:
             raise ConversionError(
                 "Cannot fetch SMILES from Chemical Name", chem_name)
+        return smiles
 
     @staticmethod
     def chemical_name_to_inchi(chem_name):
-        """From chemical name to InChI."""
-        try:
-            chem_name = quote(chem_name)
-            url = 'http://cactus.nci.nih.gov/chemical/' + \
-                'structure/%s/stdinchi' % chem_name
-            return urlopen(url).read().rstrip().decode()
-        except Exception as ex:
-            Converter.__log.warning(str(ex))
+        """From Chemical Name to InChI via cactus.nci or pubchem."""
+        inchi = None
+        chem_name_quoted = quote(chem_name)
+        inchi = Converter._chemical_name_to_inchi_cactus(chem_name_quoted)
+        if inchi is not None:
+            return inchi
+        inchi = Converter._chemical_name_to_inchi_pubchem(chem_name)
+        if inchi is None:
             raise ConversionError(
                 "Cannot fetch InChI from Chemical Name", chem_name)
+        return inchi
 
+    @staticmethod
+    def _chemical_name_to_smiles_cactus(chem_name):
+        """From chemical name to SMILES."""
+        try:
+            url = 'http://cactus.nci.nih.gov/chemical/' + \
+                'structure/%s/smiles' % chem_name
+            smiles = urlopen(url).read().rstrip().decode()
+            return smiles
+        except Exception as ex:
+            Converter.__log.warning(
+                "Cannot convert Chemical Name to SMILES (cactus.nci): %s" % chem_name)
+            return None
+
+    @staticmethod
+    def _chemical_name_to_inchi_cactus(chem_name):
+        """From chemical name to InChI."""
+        try:
+            url = 'http://cactus.nci.nih.gov/chemical/' + \
+                'structure/%s/stdinchi' % chem_name
+            inchi = urlopen(url).read().rstrip().decode()
+            return inchi
+        except Exception as ex:
+            Converter.__log.warning(
+                "Cannot convert Chemical Name to InChI (cactus.nci): %s" % chem_name)
+            return None
+
+    @staticmethod
+    def _chemical_name_to_smiles_pubchem(chem_name):
+        """From chemical name to SMILES."""
+        try:
+            cpds = pcp.get_compounds(chem_name, 'name')
+            if len(cpds) == 0:
+                Converter.__log.warning(
+                    "Cannot convert Chemical Name to SMILES (pubchem): %s" % chem_name)
+                return None
+            if len(cpds) > 1:
+                Converter.__log.warning(
+                    "Multiple CIDs found, using first: %s" % str(cpds))
+            return cpds[0].isomeric_smiles
+        except Exception as ex:
+            Converter.__log.warning(
+                "Cannot convert Chemical Name to SMILES (pubchem): %s" % chem_name)
+            return None
+
+    @staticmethod
+    def _chemical_name_to_inchi_pubchem(chem_name):
+        """From chemical name to InChI."""
+        try:
+            cpds = pcp.get_compounds(chem_name, 'name')
+            if len(cpds) == 0:
+                Converter.__log.warning(
+                    "Cannot convert Chemical Name to InChI (pubchem): %s" % chem_name)
+                return None
+            if len(cpds) > 1:
+                Converter.__log.warning(
+                    "Multiple CIDs found, using first: %s" % str(cpds))
+            return cpds[0].inchi
+        except Exception as ex:
+            Converter.__log.warning(
+                "Cannot convert Chemical Name to InChI (pubchem): %s" % chem_name)
+            return None
 
     @staticmethod
     def inchikey_to_inchi(inchikey):
