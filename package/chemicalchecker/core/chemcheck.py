@@ -565,10 +565,6 @@ class ChemicalChecker():
     @staticmethod
     def get_metadatas(files, metadata_func, format_dict):
         """Extract the metadata from files using a function."""
-        if len(files) == 0:
-            ChemicalChecker.__log.warning("No file found, "
-                                          "CC instance will be empty.")
-            return
         available_files = ", ".join([os.path.basename(f) for f in files])
         ChemicalChecker.__log.debug(
             "Importing files {}".format(available_files))
@@ -615,35 +611,43 @@ class ChemicalChecker():
 
         # get H5 files metadata
         files = glob(os.path.join(custom_data_path, "*.h5"))
-        metadatas = self.get_metadatas(
-            files, self.get_h5_metadata, format_dict)
+        if len(files) == 0:
+            ChemicalChecker.__log.warning(f"No *.h5 file found in {custom_data_path}, "
+                                          "CC instance will be without data.")
+        else:
+            metadatas = self.get_metadatas(
+                files, self.get_h5_metadata, format_dict)
 
-        # Create the CC instance folder structure
-        for meta in metadatas:
-            sign_path = os.path.join(self.cc_root, *meta[:-1])
-            # create dir
-            os.makedirs(sign_path, exist_ok=True)
-            # symbolic link to the h5 file in the cc_repo as signx.h5
-            src = meta[-1]
-            dst = os.path.join(sign_path, meta[-2] + '.h5')
-            self.__log.debug("%s ==> %s" % (src, dst))
-            os.symlink(src, dst)
+            # Create the CC instance folder structure
+            for meta in metadatas:
+                sign_path = os.path.join(self.cc_root, *meta[:-1])
+                # create dir
+                os.makedirs(sign_path, exist_ok=True)
+                src = meta[-1]
+                # symbolic link to the h5 file in the cc_repo as signx.h5
+                dst = os.path.join(sign_path, meta[-2] + '.h5')
+                self.__log.debug("%s ==> %s" % (src, dst))
+                os.symlink(src, dst)
 
         # get models metadata
         files = glob(os.path.join(custom_data_path, "*.models"))
-        metadatas = self.get_metadatas(
-            files, self.get_model_metadata, format_dict)
+        if len(files) == 0:
+            ChemicalChecker.__log.warning(f"No *.model found in {custom_data_path}, "
+                                          "CC instance will be without models.")
+        else:
+            metadatas = self.get_metadatas(
+                files, self.get_model_metadata, format_dict)
 
-        # add symlinks to models
-        for meta in metadatas:
-            sign_path = os.path.join(self.cc_root, *meta[:-1])
-            # create dir
-            os.makedirs(sign_path, exist_ok=True)
-            # symbolic link to the models path in the cc_repo as models folder
-            src = meta[-1]
-            dst = os.path.join(sign_path, 'models')
-            self.__log.debug("%s ==> %s" % (src, dst))
-            os.symlink(src, dst)
+            # add symlinks to models
+            for meta in metadatas:
+                sign_path = os.path.join(self.cc_root, *meta[:-1])
+                # create dir
+                os.makedirs(sign_path, exist_ok=True)
+                src = meta[-1]
+                # symbolic link to the models path in the cc_repo as models folder
+                dst = os.path.join(sign_path, 'models')
+                self.__log.debug("%s ==> %s" % (src, dst))
+                os.symlink(src, dst)
 
     def export(self, destination, signature, h5_filter=None,
                h5_names_map={}, overwrite=False, version=None):
