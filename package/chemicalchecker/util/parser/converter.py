@@ -2,7 +2,6 @@
 import json
 from six.moves.urllib.request import urlopen
 from six.moves.urllib.parse import quote
-import pubchempy as pcp
 
 from chemicalchecker.util import logged
 
@@ -33,6 +32,11 @@ class Converter():
             self.standardize = standardize_mol
         except ImportError:
             raise ImportError("requires chembl_structure_pipeline")
+        try:
+            import pubchempy as pcp
+            self.pcp = pcp
+        except ImportError:
+            raise ImportError("requires pubchempy")
 
     def smiles_to_inchi(self, smiles):
         """From SMILES to InChIKey and InChI."""
@@ -171,7 +175,7 @@ class Converter():
     def _chemical_name_to_smiles_pubchem(chem_name):
         """From chemical name to SMILES."""
         try:
-            cpds = pcp.get_compounds(chem_name, 'name')
+            cpds = self.pcp.get_compounds(chem_name, 'name')
             if len(cpds) == 0:
                 Converter.__log.warning(
                     "Cannot convert Chemical Name to SMILES (pubchem): %s" % chem_name)
@@ -189,7 +193,7 @@ class Converter():
     def _chemical_name_to_inchi_pubchem(chem_name):
         """From chemical name to InChI."""
         try:
-            cpds = pcp.get_compounds(chem_name, 'name')
+            cpds = self.pcp.get_compounds(chem_name, 'name')
             if len(cpds) == 0:
                 Converter.__log.warning(
                     "Cannot convert Chemical Name to InChI (pubchem): %s" % chem_name)
