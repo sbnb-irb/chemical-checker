@@ -63,11 +63,12 @@ class TestSign3(unittest.TestCase):
             'alpha': 1.0,
             'num_triplets': 1000,
             't_per': 0.01,
-            'standard': False,
+            'onlyself_notself': True,
             'limit_mols': 1000,
             'augment_fn': subsample,
             'augment_kwargs': {
                 'dataset': ['E1.001'],
+                'p_self': 0.1
             },
         }
         s3.params['sign2'] = siamese_args
