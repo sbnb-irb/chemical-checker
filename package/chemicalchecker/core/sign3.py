@@ -74,6 +74,7 @@ class sign3(BaseSignature, DataSignature):
             'augment_fn': subsample,
             'augment_kwargs': {
                 'dataset': [dataset],
+                'p_self': 0.1,
             },
             'limit_mols': 100000
         }
@@ -2214,6 +2215,7 @@ def subsampling_probs(sign2_coverage, dataset_idx, trim_threshold=0.1,
             cov = cov_matrix['x_test'][:]
     else:
         cov = sign2_coverage
+    max_ds = cov.shape[1]
     unknown = cov[(cov[:, dataset_idx] == 0).ravel()]
     known = cov[(cov[:, dataset_idx] == 1).ravel()]
     if unknown.shape[0] < min_unknown:
@@ -2241,9 +2243,9 @@ def subsampling_probs(sign2_coverage, dataset_idx, trim_threshold=0.1,
         p_keep = np.sum(coverage, axis=0) / coverage.shape[0]
         return min_p_nr, p_keep
 
-    p_nr_known, p_keep_known = compute_probs(known[:, trim_mask])
+    p_nr_known, p_keep_known = compute_probs(known[:, trim_mask], max_nr=max_ds)
     unknown[:, dataset_idx] = 0
-    p_nr_unknown, p_keep_unknown = compute_probs(unknown[:, trim_mask])
+    p_nr_unknown, p_keep_unknown = compute_probs(unknown[:, trim_mask], max_nr=max_ds)
     return trim_mask, p_nr_unknown, p_keep_unknown, p_nr_known, p_keep_known
 
 
@@ -2307,21 +2309,21 @@ def subsample(tensor, sign_width=128,
 
 
 def plot_subsample(sign, plot_file, sign2_coverage, traintest_file,
-                   ds='B1.001', p_self=.1, p_only_self=0., limit=10000,
-                   max_ds=25, sign2_list=None):
+                   ds='B1.001', p_self=0.1, p_only_self=0.0, limit=10000,
+                   sign2_list=None):
     """ Validation plot for the subsampling procedure."""
     import numpy as np
     import pandas as pd
     import seaborn as sns
     import matplotlib.pyplot as plt
     from chemicalchecker import ChemicalChecker
-
     cc = sign.get_cc()
 
     if sign2_list is not None:
         sign2_ds_list = [s.dataset for s in sign2_list]
     else:
         sign2_ds_list = list(cc.datasets_exemplary())
+    max_ds = len(sign2_list)
 
     # get triplet generator
     dataset_idx = np.argwhere(
@@ -2355,7 +2357,7 @@ def plot_subsample(sign, plot_file, sign2_coverage, traintest_file,
 
     # get dataset probabilities
     probs_ds = {
-        'space': np.array([d[:2] for d in cc.datasets_exemplary()])[trim_mask],
+        'space': np.array([d[:2] for d in sign2_ds_list])[trim_mask],
         'p_keep_known': p_keep_known,
         'p_keep_unknown': p_keep_unknown}
     df_probs_ds = pd.DataFrame(probs_ds)
@@ -2395,7 +2397,7 @@ def plot_subsample(sign, plot_file, sign2_coverage, traintest_file,
         batch += 1
         if batch == 1000:
             break
-    trimmed_ds = np.array(list(cc.datasets_exemplary()))[trim_mask]
+    trimmed_ds = np.array(sign2_ds_list)[trim_mask]
     sampled_ds = {
         'space': np.array([d[:2] for d in trimmed_ds]),
         'anchor': ds_a,
