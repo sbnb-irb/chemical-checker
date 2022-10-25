@@ -345,18 +345,6 @@ class SiameseTriplets(object):
             add_layer(basenet, layer, layer_size, activation,
                       dropout, input_shape=i_shape)
 
-        # first layer
-        """add_layer(basenet, self.layers[0], self.layers_sizes[0],
-                  self.activations[0], self.dropouts[0],
-                  input_shape=input_shape)
-        hidden_layers = zip(self.layers[1:-1],
-                            self.layers_sizes[1:-1],
-                            self.activations[1:-1],
-                            self.dropouts[1:-1])
-        for layer, layer_size, activation, dropout in hidden_layers:
-            add_layer(basenet, layer, layer_size, activation, dropout)
-        add_layer(basenet, self.layers[-1], self.layers_sizes[-1],
-                  self.activations[-1], None)"""
         # last normalization layer for loss
         basenet.add(Lambda(lambda x: K.l2_normalize(x, axis=-1)))
         basenet.summary()
@@ -401,7 +389,7 @@ class SiameseTriplets(object):
                          euclidean_distance(anchor, negative), anchor.dtype)
             return K.mean(acc)
 
-        def accE(y_true, y_pred):
+        def AccEasy(y_true, y_pred):
             anchor, positive, negative, _, _ = split_output(y_pred)
             msk = K.cast(K.equal(y_true, 0), 'float32')
             prd = self.batch_size / K.sum(msk)
@@ -410,7 +398,7 @@ class SiameseTriplets(object):
                 euclidean_distance(anchor * msk, negative * msk), anchor.dtype)
             return K.mean(acc) * prd
 
-        def accM(y_true, y_pred):
+        def AccMed(y_true, y_pred):
             anchor, positive, negative, _, _ = split_output(y_pred)
             msk = K.cast(K.equal(y_true, 1), 'float32')
             prd = self.batch_size / K.sum(msk)
@@ -419,7 +407,7 @@ class SiameseTriplets(object):
                 euclidean_distance(anchor * msk, negative * msk), anchor.dtype)
             return K.mean(acc) * prd
 
-        def accH(y_true, y_pred):
+        def AccHard(y_true, y_pred):
             anchor, positive, negative, _, _ = split_output(y_pred)
             msk = K.cast(K.equal(y_true, 2), 'float32')
             prd = self.batch_size / K.sum(msk)
@@ -441,29 +429,29 @@ class SiameseTriplets(object):
             r = r_num / r_den
             return K.mean(r)
 
-        def cor1(y_true, y_pred):
+        def CorANotself(y_true, y_pred):
             anchor, positive, negative, only_self, not_self = split_output(
                 y_pred)
             return pearson_r(anchor, not_self)
 
-        def cor2(y_true, y_pred):
+        def CorAOnlyself(y_true, y_pred):
             anchor, positive, negative, only_self, not_self = split_output(
                 y_pred)
             return pearson_r(anchor, only_self)
 
-        def cor3(y_true, y_pred):
+        def CorNotselfOnlyself(y_true, y_pred):
             anchor, positive, negative, only_self, not_self = split_output(
                 y_pred)
             return pearson_r(not_self, only_self)
 
         metrics = [accTot]
         if self.onlyself_notself:
-            metrics.extend([accE,
-                            accM,
-                            accH,
-                            cor1,
-                            cor2,
-                            cor3])
+            metrics.extend([AccEasy,
+                            AccMed,
+                            AccHard,
+                            CorANotself,
+                            CorAOnlyself,
+                            CorNotselfOnlyself])
 
         def tloss(y_true, y_pred):
             anchor, positive, negative, _, _ = split_output(y_pred)
