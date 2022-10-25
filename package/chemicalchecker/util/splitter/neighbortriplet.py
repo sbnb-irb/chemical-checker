@@ -140,7 +140,7 @@ class TripletIterator(object):
                      train=True, augment_fn=None, augment_kwargs={},
                      mask_fn=None,  trim_mask=None,
                      sharedx=None, sharedx_trim=None,
-                     onlyself_notself=False):
+                     onlyself_notself=False, p_self_decay=False):
         """Return the generator function that iterates on batches.
 
         A TripletIterator on the specified file and split is initialized,
@@ -161,6 +161,8 @@ class TripletIterator(object):
             sharedx_trim(matrix): The preloaded and pre-trimmed X matrix.
             onlyself_notself(bool): when True the iterator will return a 
                 quintuplet with also only_self and not_self.
+            p_self_decay(bool): when True the p_self probability will decay 
+                within the batch, and restart at each batch.
         """
         def notself(idxs, x1_data):
             x1_data_transf = np.copy(x1_data)
@@ -221,18 +223,19 @@ class TripletIterator(object):
         if onlyself_notself:
             only_args = augment_kwargs.copy()
             only_args['p_only_self'] = 1.0
-            ds_index = augment_kwargs['dataset_idx']
 
         TripletIterator.__log.debug(
             'Generator ready, onlyself_notself %s' % onlyself_notself)
 
         def example_generator_fn():
             """Generator function yields data in batches"""
-            if onlyself_notself:
-                step_size = int(min(1000, len(batch_beg_end) / 10)) + 1
-                p_self_decay = (1.0 / step_size)
-                p_factor = -1
-                augment_kwargs['p_self'] = 1.0
+            batch_kwargs = augment_kwargs.copy()
+            if p_self_decay:
+                # we leave a p_self > 0 for the first 10th of batches
+                # then it will linearly decrease
+                nr_steps = int(len(batch_beg_end) / 10) + 1
+                p_self_current = augment_kwargs.get("p_self", 0.1)
+                decay_step = p_self_current / nr_steps
 
             epoch = 0
             batch_idx = 0
@@ -243,9 +246,8 @@ class TripletIterator(object):
                     epoch += 1
                     if shuffle:
                         np.random.shuffle(batch_beg_end)
-                    if onlyself_notself:
-                        p_factor = -1
-                        augment_kwargs['p_self'] = 1.0
+                    if p_self_decay:
+                        p_self_current = augment_kwargs.get("p_self", 0.1)
                 # select the batch start/end and fetch triplets
                 beg_idx, end_idx = batch_beg_end[batch_idx]
                 tripets = reader.get_t(beg_idx, end_idx)
@@ -255,12 +257,12 @@ class TripletIterator(object):
                 x3 = X[tripets[:, 2]]
                 if train and onlyself_notself:
                     # at train time we want to apply subsampling
-                    x1 = augment_fn(x1, **augment_kwargs)
-                    x2 = augment_fn(x2, **augment_kwargs)
-                    x3 = augment_fn(x3, **augment_kwargs)
+                    x1 = augment_fn(x1, **batch_kwargs)
+                    x2 = augment_fn(x2, **batch_kwargs)
+                    x3 = augment_fn(x3, **batch_kwargs)
                 if onlyself_notself:
                     x4 = augment_fn(X[tripets[:, 0]], **only_args)
-                    x5 = notself(ds_index, x1)
+                    x5 = notself(augment_kwargs['dataset_idx'], x1)
                 # apply the mask function
                 x1, x2, x3 = mask_fn(x1, x2, x3)
                 # replace NaNs with specified value
@@ -279,16 +281,9 @@ class TripletIterator(object):
                 # go to next batch
                 batch_idx += 1
                 # update subsampling parameters
-                if onlyself_notself:
-                    p_score = p_self_decay * p_factor
-                    if p_factor > 0:
-                        augment_kwargs['p_self'] = min(
-                            1.0, augment_kwargs['p_self'] + p_score)
-                    else:
-                        augment_kwargs['p_self'] = max(
-                            0.0, augment_kwargs['p_self'] + p_score)
-                    if batch_idx % step_size == 0 and batch_idx != 0:
-                        p_factor = -p_factor
+                if p_self_decay:
+                    p_self_current -= decay_step
+                    batch_kwargs['p_self'] = max(0.0, p_self_current)
 
         # return shapes and dtypes along with iterator
         triplet_shape = (t_shape[0], X.shape[1])
