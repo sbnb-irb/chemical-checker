@@ -61,7 +61,7 @@ From: ubuntu:20.04
     pip install scipy
     pip install sqlalchemy
     pip install paramiko
-    pip install sklearn
+    pip install scikit-learn
     pip install csvsort
     pip install seaborn
     pip install tqdm
