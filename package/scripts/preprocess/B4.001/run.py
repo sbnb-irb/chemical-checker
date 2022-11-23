@@ -22,6 +22,7 @@ graph_file = "graph.gpickle"
 features_file = "features.h5"
 class_prot_file = "class_prot.pickl"
 class_path_file = "class_path.pickl"
+class_name_file = "class_name.pickl"
 class_prot_cutoff_file = "prot_cutoff.pickl"
 entry_point_full = "proteins"
 entry_point_class = "classes"
@@ -238,6 +239,7 @@ def create_class_prot():
 
     R = psql.qstring(
         "SELECT protein_class_id, parent_id, pref_name FROM protein_classification", chembl_dbname)
+    class_names = {r[0]: r[2] for r in R}
 
     G = nx.DiGraph()
 
@@ -260,7 +262,7 @@ def create_class_prot():
             path.update(sp)
         class_path[c] = path
 
-    return class_prot, protein_cutoffs, class_path, G
+    return class_prot, protein_cutoffs, class_path, G, class_names
 
 
 def process_activity_according_to_pharos(ACTS, class_prot, protein_cutoffs, class_path, G):
@@ -333,7 +335,7 @@ def main(args):
 
         ACTS = parse_bindingdb(ACTS, bindingdb_file)
 
-        class_prot, protein_cutoffs, class_path, G = create_class_prot()
+        class_prot, protein_cutoffs, class_path, G, class_names = create_class_prot()
 
         nx.write_gpickle(G, os.path.join(args.models_path, graph_file))
 
@@ -341,6 +343,8 @@ def main(args):
             pickle.dump(class_prot, fh)
         with open(os.path.join(args.models_path, class_path_file), 'wb') as fh:
             pickle.dump(class_path, fh)
+        with open(os.path.join(args.models_path, class_name_file), 'wb') as fh:
+            pickle.dump(class_names, fh)
 
     if args.method == "predict":
 
