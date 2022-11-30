@@ -12,6 +12,7 @@ from collections import defaultdict
 
 from chemicalchecker.util import logged
 from .signature_data import DataSignature
+from chemicalchecker.util.psql import psql
 from chemicalchecker.util.keytype import KeyTypeDetector
 from chemicalchecker.util.parser.converter import Converter
 
@@ -132,7 +133,7 @@ class Molset(object):
             self.df['InChI'] = self.df[mol_col].dropna().apply(
                 lambda x: self.conv.smiles_to_inchi(x)[1])
 
-    def annotate(self, dataset_code, shorten_dscode=True, 
+    def annotate(self, dataset_code, shorten_dscode=True,
                  include_features=False, feature_map=None,
                  include_values=False, features_from_raw=False):
         """Annotate the DataFrame with features fetched CC spaces.
@@ -203,6 +204,8 @@ class Molset(object):
                     self.df[feat_name] = self.df[feat_name].apply(
                         lambda x: [feature_map[i] for i in x if isinstance(
                             x, list)]).tolist()
+                    self.df[feat_name] = self.df[feat_name].apply(
+                        lambda x: [i for i in x if i is not None]).tolist()
                 # add the corresponding feature value if required
                 if include_values:
                     ink_val = defaultdict(list)
@@ -362,6 +365,45 @@ class Molset(object):
             return stats_df, nn_molset
         else:
             return nn_molset
+
+    @staticmethod
+    def get_uniprot_annotation(entries):
+        """Get information on Uniprot entries."""
+        from bioservices import UniProt
+        uniprot = UniProt()
+        df = list()
+        for up in tqdm(entries):
+            try:
+                df.append(uniprot.get_df(f'accession:{up}'))
+            except Exception:
+                print(up, 'NOT FOUND!')
+        df = pd.concat(df)
+        df = df.reset_index(drop=True)
+        return df
+
+    @staticmethod
+    def get_chembl_protein_classes(chembldb='chembl_27'):
+        """Get protein class id to name dictionary."""
+        R = psql.qstring(
+            "SELECT protein_class_id, parent_id, pref_name "
+            "FROM protein_classification", chembldb)
+        class_names = defaultdict(lambda: None)
+        class_names.update({'Class:%i' % r[0]: r[2] for r in R})
+        return class_names
+
+    @staticmethod
+    def get_chebi(chebi_obo):
+        """Get CHEBI id to name dictionary."""
+        chebi_dict = defaultdict(str)
+        f = open(chebi_obo, "r")
+        terms = f.read().split("[Term]\n")
+        for term in terms[1:]:
+            term = term.split("\n")
+            chebi_id = term[0].split("id: ")[1]
+            chebi_name = term[1].split("name: ")[1]
+            chebi_dict[chebi_id] = chebi_name
+        f.close()
+        return chebi_dict
 
 
 @logged
