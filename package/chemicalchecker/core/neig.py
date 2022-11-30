@@ -306,7 +306,7 @@ class neig(BaseSignature, DataSignature):
         sort_idx = np.argsort(inks)
         return inks[sort_idx], signs[sort_idx]
 
-    def get_kth_nearest(self, signatures, k=None, distances=True, keys=True):
+    def get_kth_nearest(self, signatures, k=1000, distances=True, keys=True):
         """Return up to the k-th nearest neighbor.
 
         This function returns the k-th closest neighbor.
@@ -361,7 +361,7 @@ class neig(BaseSignature, DataSignature):
         if keys:
             with h5py.File(self.data_path, 'r') as hf:
                 keys = hf['col_keys'][:]
-            predictions["keys"] = keys[idx]
+            predictions["keys"] = keys[idx].astype(str)
         if distances:
 
             predictions["distances"] = dists
