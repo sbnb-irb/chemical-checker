@@ -69,7 +69,7 @@ class Converter():
         try:
             mol = self.standardize(mol)
         except Exception as ex:
-            raise ConversionError("'standardize' exception", ex.message)
+            raise ConversionError("'standardize' exception", inchi)
         return self.Chem.MolToSmiles(mol, isomericSmiles=True)
 
     def inchi_to_inchikey(self, inchi):
