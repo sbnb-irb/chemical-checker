@@ -135,7 +135,8 @@ class Molset(object):
 
     def annotate(self, dataset_code, shorten_dscode=True,
                  include_features=False, feature_map=None,
-                 include_values=False, features_from_raw=False):
+                 include_values=False, features_from_raw=False,
+                 filter_values=True):
         """Annotate the DataFrame with features fetched CC spaces.
 
         The minimal annotation if whether the molecule is present or not in the
@@ -164,6 +165,8 @@ class Molset(object):
                 raw sign0 which includes all features for all molecules. If
                 False sign0 features are used, so after the Sanitizer step
                 which possibly removes features or molecules.
+            filter_values (bool): If True values == 0 are filtered. False is
+                recomended when the dataset is continuous data.
         """
         # get raw preprocess data
         s0 = self.cc.signature(dataset_code, 'sign0')
@@ -206,20 +209,30 @@ class Molset(object):
                             x, list)]).tolist()
                     self.df[feat_name] = self.df[feat_name].apply(
                         lambda x: [i for i in x if i is not None]).tolist()
-                # add the corresponding feature value if required
-                if include_values:
-                    ink_val = defaultdict(list)
-                    for ink, val in zip(sorted_inks, values):
-                        feat_idxs = np.argwhere(val).flatten()
-                        ink_val[ink] = list(zip(
-                            feat_ref.features[feat_idxs].tolist(),
-                            val[feat_idxs]))
-                    val_name = dscode + '_values'
-                    self.df[val_name] = self.df['InChIKey'].map(ink_val)
-                    if feature_map is not None:
-                        self.df[val_name] = self.df[val_name].apply(
-                            lambda x: [(feature_map[k], v) for k, v in x if
-                                       isinstance(x, list)]).tolist()
+        # add the corresponding feature value if required
+        if include_values:
+            if not include_features:
+                if features_from_raw:
+                    sorted_inks, values = s0_raw.get_vectors(available_inks,
+                                                             dataset_name='X')
+                    feat_ref = s0_raw
+                else:
+                    sorted_inks, values = s0.get_vectors(available_inks)
+                    feat_ref = s0
+            ink_val = defaultdict(list)
+            for ink, val in zip(sorted_inks, values):
+                feat_idxs = np.arange(len(val))
+                if filter_values:
+                    feat_idxs = np.argwhere(val != 0).flatten()
+                ink_val[ink] = list(zip(
+                    feat_ref.features[feat_idxs].tolist(),
+                    val[feat_idxs]))
+            val_name = dscode + '_values'
+            self.df[val_name] = self.df['InChIKey'].map(ink_val)
+            if feature_map is not None:
+                self.df[val_name] = self.df[val_name].apply(
+                    lambda x: [(feature_map[k], v) for k, v in x if
+                               isinstance(x, list)]).tolist()
 
     def predict(self, dataset_code, shorten_dscode=True,
                 applicability_thr_query=0, applicability_thr_nn=0,
