@@ -237,7 +237,7 @@ class Molset(object):
     def predict(self, dataset_code, shorten_dscode=True,
                 applicability_thr_query=0, applicability_thr_nn=0,
                 max_nr_nn=1000, pvalue_thr_nn=1e-4, limit_top_nn=1000,
-                return_stats=False, return_sign0=False):
+                return_stats=False, return_sign0=False, blacklist=[]):
         """Annotate the DataFrame with predicted features based on neighbors.
 
         In this case we can potentially get annotation for every molecules.
@@ -266,6 +266,9 @@ class Molset(object):
                 on the NN search filtering steps.
             return_sign0 (bool): if True return sign0 format prediction (only
                 for binary spaces).
+            blacklist (list): List of inchikeys of molecules to disregard
+                during neighbors search. Used for comparison to other
+                prediction approach where these molecules are the test set.
         """
         dscode = dataset_code
         if shorten_dscode:
@@ -330,6 +333,9 @@ class Molset(object):
             # remove the query itself in case is found
             nn_inks = np.delete(nn_inks, np.argwhere(nn_inks == query_ink))
             len_mapp_noself = len(nn_inks)
+            # filter blacklisted neighbors (e.g. test set molcules)
+            nn_inks = np.delete(nn_inks, np.isin(nn_inks, blacklist))
+            len_blacklist = len(nn_inks)
             # limit to neighbors with good applicability
             nn_inks = [i for i in nn_inks if s4_app[i] > applicability_thr_nn]
             nn_inks = np.array(nn_inks)
@@ -343,7 +349,8 @@ class Molset(object):
             query_nn_dict_map[query_ink] = nn_inks.tolist()
             len_topn = len(nn_inks)
             stats.append({'query_ink': query_ink, 'distance': len_dist,
-                          'full': len_mapp_noself, 'applicability': len_app,
+                          'full': len_mapp_noself, 'blacklist':len_blacklist,
+                          'applicability': len_app,
                           'in_sign0': len_s0, 'limit_topN': len_topn})
         stats_df = pd.DataFrame(stats)
         self.df['%s_NN' % dscode] = self.df['InChIKey'].map(query_nn_dict_map)
