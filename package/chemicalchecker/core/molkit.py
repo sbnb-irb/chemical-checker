@@ -237,7 +237,7 @@ class Molset(object):
     def predict(self, dataset_code, shorten_dscode=True,
                 applicability_thr_query=0, applicability_thr_nn=0,
                 max_nr_nn=1000, pvalue_thr_nn=1e-4, limit_top_nn=1000,
-                return_stats=False):
+                return_stats=False, return_sign0=False):
         """Annotate the DataFrame with predicted features based on neighbors.
 
         In this case we can potentially get annotation for every molecules.
@@ -264,6 +264,8 @@ class Molset(object):
                 predictions.
             return_stats (bool): if True return a dataframe with statistics
                 on the NN search filtering steps.
+            return_sign0 (bool): if True return sign0 format prediction (only
+                for binary spaces).
         """
         dscode = dataset_code
         if shorten_dscode:
@@ -374,6 +376,10 @@ class Molset(object):
             all_feats = sorted(list(all_feats))
             aggregated[ink] = all_feats
         self.df['%s_predicted' % dscode] = self.df['InChIKey'].map(aggregated)
+        if return_sign0:
+            s0_col = '%s_predicted_sign0' % dscode
+            self.df[s0_col] = self.df['%s_predicted' % dscode].apply(
+                lambda x: np.isin(s0.features, x).astype(int))
         if return_stats:
             return stats_df, nn_molset
         else:
