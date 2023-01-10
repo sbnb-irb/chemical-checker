@@ -110,7 +110,7 @@ class SiameseTriplets(object):
             "dropouts", [None])
         self.augment_fn = kwargs.get("augment_fn", None)
         self.augment_kwargs = kwargs.get("augment_kwargs", {})
-        self.loss_func = str(kwargs.get("loss_func", 'orthogonal_tloss'))
+        self.loss_func = str(kwargs.get("loss_func", 'only_self_loss'))
         self.margin = float(kwargs.get("margin", 1.0))
         self.alpha = float(kwargs.get("alpha", 1.0))
         self.patience = float(kwargs.get("patience", self.epochs))
