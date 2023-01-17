@@ -287,6 +287,8 @@ class Molset(object):
             blacklist (list): List of inchikeys of molecules to disregard
                 during neighbors search. Used for comparison to other
                 prediction approach where these molecules are the test set.
+            return_probas (bool): if True the probability for each predicted
+                class are also returned.
         """
         dscode = dataset_code
         if shorten_dscode:
