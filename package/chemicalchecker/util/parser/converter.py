@@ -23,7 +23,9 @@ class Converter():
         """Initialize a Converter instance."""
         try:
             import rdkit.Chem as Chem
+            from rdkit.Chem.Scaffolds import MurckoScaffold
             self.Chem = Chem
+            self.scaffold = MurckoScaffold
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
@@ -37,6 +39,11 @@ class Converter():
             self.pcp = pcp
         except ImportError:
             raise ImportError("requires pubchempy")
+
+    def smiles_to_scaffold(self, smiles):
+        """From SMILES to the SMILES of its scaffold."""
+        scaffold_smiles = self.scaffold.MurckoScaffoldSmiles(smiles)
+        return scaffold_smiles
 
     def smiles_to_inchi(self, smiles):
         """From SMILES to InChIKey and InChI."""
