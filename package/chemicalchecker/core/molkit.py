@@ -87,6 +87,7 @@ class Molset(object):
             self._add_inchi(mol_col)
             self._add_inchikeys()
             self.df = self.df[['InChIKey', 'InChI', 'SMILES']]
+        self._add_scaffold()
         self.inchikeys = self.df[self.df['InChIKey']
                                  != '']['InChIKey'].tolist()
         self.df = self.df.sort_values('InChIKey')
@@ -133,18 +134,24 @@ class Molset(object):
             self.df['InChI'] = self.df[mol_col].dropna().apply(
                 lambda x: self.conv.smiles_to_inchi(x)[1])
 
+    def _add_scaffold(self):
+        """Bemis-Murcko scaffold"""
+        if 'Scaffold' not in self.df.columns:
+            self.df['Scaffold'] = self.df['SMILES'].dropna().apply(
+                self.conv.smiles_to_scaffold)
+
     def annotate(self, dataset_code, shorten_dscode=True,
                  include_features=False, feature_map=None,
                  include_values=False, features_from_raw=False,
-                 filter_values=True):
+                 filter_values=True, include_sign0=False):
         """Annotate the DataFrame with features fetched CC spaces.
 
         The minimal annotation if whether the molecule is present or not in the
         dataset of interest. The features, values and predictions are
         optionally available.  Features and values are fetched from the raw
-        preprocess file of a given space (before dropping any data). 
+        preprocess file of a given space (before dropping any data).
         The prediction is based on NN at the sign4 level and depends on
-        several parameters: 1) the applicability threshold for considering the 
+        several parameters: 1) the applicability threshold for considering the
         sign4 as reliable, 2) the p-value threshold (on sign4 distance) to
         define the neighbors 3) the number of NN to consider.
 
@@ -167,6 +174,8 @@ class Molset(object):
                 which possibly removes features or molecules.
             filter_values (bool): If True values == 0 are filtered. False is
                 recomended when the dataset is continuous data.
+            include_sign0 (bool): If True the full sign0 for each molecule is
+                included in the dataframe.
         """
         # get raw preprocess data
         s0 = self.cc.signature(dataset_code, 'sign0')
@@ -185,6 +194,7 @@ class Molset(object):
         available_inks = np.array(self.inchikeys)[incc]
         idx_df = self.df[self.df['InChIKey'].isin(available_inks)].index
         self.df.at[idx_df, dscode] = 1
+        sorted_inks, values = None, None
         # get the features if requested
         if include_features:
             if features_from_raw:
@@ -211,7 +221,7 @@ class Molset(object):
                         lambda x: [i for i in x if i is not None]).tolist()
         # add the corresponding feature value if required
         if include_values:
-            if not include_features:
+            if sorted_inks is None:
                 if features_from_raw:
                     sorted_inks, values = s0_raw.get_vectors(available_inks,
                                                              dataset_name='X')
@@ -233,16 +243,24 @@ class Molset(object):
                 self.df[val_name] = self.df[val_name].apply(
                     lambda x: [(feature_map[k], v) for k, v in x if
                                isinstance(x, list)]).tolist()
+        # add sign0
+        if include_sign0:
+            sorted_inks, values = s0.get_vectors(available_inks)
+            feat_ref = s0
+            s0_name = dscode + '_sign0'
+            s0_dict = dict(zip(sorted_inks, values))
+            self.df[s0_name] = self.df['InChIKey'].map(s0_dict)
 
     def predict(self, dataset_code, shorten_dscode=True,
                 applicability_thr_query=0, applicability_thr_nn=0,
                 max_nr_nn=1000, pvalue_thr_nn=1e-4, limit_top_nn=1000,
-                return_stats=False, return_sign0=False, blacklist=[]):
+                return_stats=False, return_sign0=False, blacklist=[],
+                aggregation_thr=0.0, return_probas=False):
         """Annotate the DataFrame with predicted features based on neighbors.
 
         In this case we can potentially get annotation for every molecules.
         The molecules are first signaturized (sign4) filtered by applicability
-        and then searched against molecules within the CC sign4. 
+        and then searched against molecules within the CC sign4.
         Nearest neighbors are selected for each molecule based on user
         specified parameters. Only NN that are found in the sign0 of the space
         are preserved. The annotations of these NN are aggregated (multiple
@@ -252,15 +270,15 @@ class Molset(object):
             dataset_code (str): the CC dataset code: e.g. B4.001.
             shorten_dscode (bool): If True get rid of the .001 part of the
                 dataset code
-            applicability_thr_query (float): Only query with a sign4 
-                applicability above this threshold will be searched for 
+            applicability_thr_query (float): Only query with a sign4
+                applicability above this threshold will be searched for
                 neighbors.
-            applicability_thr_nn (float): Only neighbors with a sign4 
+            applicability_thr_nn (float): Only neighbors with a sign4
                 applicability above this threshold will be used for features
                 inference.
             max_nr_nn (int): Maximum number of neighbors to possibly consider.
             pvalue_thr (float): Filter neighbors based on distance.
-            limit_top_nn (int): Only keep topN neighbors for feature 
+            limit_top_nn (int): Only keep topN neighbors for feature
                 predictions.
             return_stats (bool): if True return a dataframe with statistics
                 on the NN search filtering steps.
@@ -275,7 +293,8 @@ class Molset(object):
             dscode = dataset_code[:2]
         # signaturize get sign4
         s4 = self.cc.signature(dataset_code, 'sign4')
-        s4_app = dict(zip(s4.keys, s4.get_h5_dataset('applicability').ravel()))
+        s4_app_keys = s4.keys
+        s4_app = s4.get_h5_dataset('applicability').ravel()
         tmp_pred_file = './tmp.h5'
         query_inks = self.df['InChIKey'].tolist()
         query_inchies = self.df['InChI'].tolist()
@@ -320,25 +339,26 @@ class Molset(object):
         # for rid in tqdm(range(len(query_inks)), desc='get NN'):
         for query_ink, nn_inks in tqdm(query_nn_dict.items(), desc='get NN'):
             # filter by distance, now precomputed
-            #query_ink = query_inks[rid]
-            #nn_inks = nn['keys'][rid]
-            #nn_dists = nn['distances'][rid]
-            #len_orig = len(nn_inks)
-            #nn_inks = nn_inks[nn_dists < dst_thr]
+            # query_ink = query_inks[rid]
+            # nn_inks = nn['keys'][rid]
+            # nn_dists = nn['distances'][rid]
+            # len_orig = len(nn_inks)
+            # nn_inks = nn_inks[nn_dists < dst_thr]
             len_dist = len(nn_inks)
             # expand neighbors list to include redundant molecules
+            # this is important because thing that are redundant in sign4
+            # might not be reduntant in sign0
+            # FIXME: how do vectorize this kind of operation?
             nn_inks_mapped_idx = np.isin(s4_ref.mappings[:, 1], nn_inks)
             nn_inks = s4_ref.mappings[:, 0][nn_inks_mapped_idx]
             len_mapp = len(nn_inks)
-            # remove the query itself in case is found
-            nn_inks = np.delete(nn_inks, np.argwhere(nn_inks == query_ink))
-            len_mapp_noself = len(nn_inks)
-            # filter blacklisted neighbors (e.g. test set molcules)
-            nn_inks = np.delete(nn_inks, np.isin(nn_inks, blacklist))
+            # remove the query itself and filter blacklisted neighbors
+            nn_inks = nn_inks[~np.isin(nn_inks, np.hstack([blacklist,
+                                                           query_ink]))]
             len_blacklist = len(nn_inks)
             # limit to neighbors with good applicability
-            nn_inks = [i for i in nn_inks if s4_app[i] > applicability_thr_nn]
-            nn_inks = np.array(nn_inks)
+            nn_apps = s4_app[np.isin(s4_app_keys, nn_inks)]
+            nn_inks = nn_inks[nn_apps > applicability_thr_nn]
             len_app = len(nn_inks)
             # limit to neighbors with sign0
             s0_mask = np.isin(nn_inks, s0.keys)
@@ -349,8 +369,7 @@ class Molset(object):
             query_nn_dict_map[query_ink] = nn_inks.tolist()
             len_topn = len(nn_inks)
             stats.append({'query_ink': query_ink, 'distance': len_dist,
-                          'full': len_mapp_noself, 'blacklist':len_blacklist,
-                          'applicability': len_app,
+                          'blacklist': len_blacklist, 'applicability': len_app,
                           'in_sign0': len_s0, 'limit_topN': len_topn})
         stats_df = pd.DataFrame(stats)
         self.df['%s_NN' % dscode] = self.df['InChIKey'].map(query_nn_dict_map)
@@ -370,23 +389,39 @@ class Molset(object):
             inchies.append(inchi)
         nn_molset = Molset(self.cc, inchies, mol_type='inchi')
         nn_molset.annotate(dataset_code, include_features=True,
-                           features_from_raw=False)
+                           features_from_raw=False, include_sign0=True)
 
         # aggregate NN features
-        aggregated = defaultdict(list)
+        probas = defaultdict(list)
+        preds = defaultdict(list)
         for ink, nn_inks in tqdm(query_nn_dict_map.items(), desc='preds'):
             if len(nn_inks) == 0:
                 continue
             neighs = nn_molset.df[nn_molset.df['InChIKey'].isin(nn_inks)]
-            features = neighs['%s_features' % dscode].tolist()
-            all_feats = set.union(*[set(f) for f in features])
-            all_feats = sorted(list(all_feats))
-            aggregated[ink] = all_feats
-        self.df['%s_predicted' % dscode] = self.df['InChIKey'].map(aggregated)
-        if return_sign0:
-            s0_col = '%s_predicted_sign0' % dscode
-            self.df[s0_col] = self.df['%s_predicted' % dscode].apply(
-                lambda x: np.isin(s0.features, x).astype(int))
+            nn_s0 = np.vstack(neighs['%s_sign0' % dscode].values)
+            # binarize (e.g. B4 is multiclass)
+            nn_s0 = (nn_s0 > 0).astype(int)
+            if np.sum(nn_s0) > 0:
+                s0_probas = np.mean(nn_s0, axis=0)
+                probas[ink] = s0_probas
+                preds[ink] = (s0_probas > aggregation_thr).astype(int)
+        self.df['%s_probas_sign0' % dscode] = self.df['InChIKey'].map(probas)
+        self.df['%s_predicted_sign0' % dscode] = self.df['InChIKey'].map(preds)
+
+        # get radable list of features
+        ink_feat = defaultdict(list)
+        for idx, row in self.df.iterrows():
+            ink = row['InChIKey']
+            val = row['%s_predicted_sign0' % dscode]
+            feat_idxs = np.argwhere(val).flatten()
+            ink_feat[ink] = s0.features[feat_idxs].tolist()
+        feat_name = dscode + '_features'
+        self.df[feat_name] = self.df['InChIKey'].map(ink_feat)
+
+        if not return_sign0:
+            del self.df['%s_predicted_sign0' % dscode]
+        if not return_probas:
+            del self.df['%s_probas_sign0' % dscode]
         if return_stats:
             return stats_df, nn_molset
         else:
@@ -436,7 +471,7 @@ class Molset(object):
 class Mol(object):
     """Mol class.
 
-    Given a CC instance, provides access to signatures of a input molecule. 
+    Given a CC instance, provides access to signatures of a input molecule.
     """
 
     def __init__(self, cc, mol_str, str_type=None):
