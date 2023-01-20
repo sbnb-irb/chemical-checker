@@ -8,6 +8,7 @@ import numpy as np
 import collections
 import pandas as pd
 from tqdm import tqdm
+from functools import partial
 from collections import defaultdict
 
 from chemicalchecker.util import logged
@@ -91,6 +92,9 @@ class Molset(object):
         self.inchikeys = self.df[self.df['InChIKey']
                                  != '']['InChIKey'].tolist()
         self.df = self.df.sort_values('InChIKey')
+        self.df.dropna(inplace=True)
+        if len(self.df) == 0:
+            raise Exception('No valid molcules passed.')
         self.df.reset_index(inplace=True, drop=True)
         if add_image:
             from rdkit.Chem import PandasTools
@@ -119,26 +123,35 @@ class Molset(object):
             ink_inchi[ink] = inchi
         return ink_inchi
 
+    def _safe_func(self, fn, arg, default=np.nan):
+        try:
+            return fn(arg)
+        except:
+            fn_name = fn.__name__
+            self.__log.warning(f'Problems calling `{fn_name}` for mol {arg}')
+            return default
+
     def _add_inchikeys(self):
         if 'InChIKey' not in self.df.columns:
-            self.df['InChIKey'] = self.df['InChI'].dropna().apply(
-                self.conv.inchi_to_inchikey)
+            fn = partial(self._safe_func, self.conv.inchi_to_inchikey)
+            self.df['InChIKey'] = self.df['InChI'].dropna().apply(fn)
 
     def _add_smiles(self):
         if 'SMILES' not in self.df.columns:
-            self.df['SMILES'] = self.df['InChI'].dropna().apply(
-                self.conv.inchi_to_smiles)
+            fn = partial(self._safe_func, self.conv.inchi_to_smiles)
+            self.df['SMILES'] = self.df['InChI'].dropna().apply(fn)
 
     def _add_inchi(self, mol_col):
         if 'InChI' not in self.df.columns:
-            self.df['InChI'] = self.df[mol_col].dropna().apply(
-                lambda x: self.conv.smiles_to_inchi(x)[1])
+            fn = partial(self._safe_func,
+                         lambda x: self.conv.smiles_to_inchi(x)[1])
+            self.df['InChI'] = self.df[mol_col].dropna().apply(fn)
 
     def _add_scaffold(self):
         """Bemis-Murcko scaffold"""
         if 'Scaffold' not in self.df.columns:
-            self.df['Scaffold'] = self.df['SMILES'].dropna().apply(
-                self.conv.smiles_to_scaffold)
+            fn = partial(self._safe_func, self.conv.smiles_to_scaffold)
+            self.df['Scaffold'] = self.df['SMILES'].dropna().apply(fn)
 
     def annotate(self, dataset_code, shorten_dscode=True,
                  include_features=False, feature_map=None,
@@ -400,6 +413,8 @@ class Molset(object):
             if len(nn_inks) == 0:
                 continue
             neighs = nn_molset.df[nn_molset.df['InChIKey'].isin(nn_inks)]
+            if len(neighs) == 0:
+                continue
             nn_s0 = np.vstack(neighs['%s_sign0' % dscode].values)
             # binarize (e.g. B4 is multiclass)
             nn_s0 = (nn_s0 > 0).astype(int)
