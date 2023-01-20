@@ -53,7 +53,7 @@ class Converter():
         try:
             mol = self.standardize(mol)
         except Exception as ex:
-            raise ConversionError("'standardize' exception", ex.message)
+            raise ConversionError("'standardize' exception:", smiles)
         inchi = self.Chem.rdinchi.MolToInchi(mol)[0]
         if not inchi:
             raise ConversionError("'MolToInchi' returned None.", smiles)
@@ -63,7 +63,7 @@ class Converter():
         try:
             mol = self.Chem.rdinchi.InchiToMol(inchi)[0]
         except Exception as ex:
-            raise ConversionError("'InchiToMol' exception:", ex.message)
+            raise ConversionError("'InchiToMol' exception:", smiles)
         return inchikey, inchi
 
     def inchi_to_smiles(self, inchi):
@@ -72,11 +72,11 @@ class Converter():
             inchi_ascii = inchi.encode('ascii', 'ignore')
             mol = self.Chem.rdinchi.InchiToMol(inchi_ascii)[0]
         except Exception as ex:
-            raise ConversionError("'InchiToMol' exception:", ex.message)
+            raise ConversionError("'InchiToMol' exception:", inchi)
         try:
             mol = self.standardize(mol)
         except Exception as ex:
-            raise ConversionError("'standardize' exception", inchi)
+            raise ConversionError("'standardize' exception:", inchi)
         return self.Chem.MolToSmiles(mol, isomericSmiles=True)
 
     def inchi_to_inchikey(self, inchi):
@@ -85,7 +85,7 @@ class Converter():
             inchi_ascii = inchi.encode('ascii', 'ignore')
             inchikey = self.Chem.rdinchi.InchiToInchiKey(inchi_ascii)
         except Exception as ex:
-            raise ConversionError("'InchiToInchiKey' exception:", ex.message)
+            raise ConversionError("'InchiToInchiKey' exception:", inchi)
         return inchikey
 
     def inchi_to_mol(self, inchi):
@@ -94,11 +94,11 @@ class Converter():
             inchi_ascii = inchi.encode("ascii", "ignore")
             mol = self.Chem.rdinchi.InchiToMol(inchi_ascii)[0]
         except Exception as ex:
-            raise ConversionError("'InchiToMol' exception:", ex.message)
+            raise ConversionError("'InchiToMol' exception:", inchi)
         try:
             mol = self.standardize(mol)
         except Exception as ex:
-            raise ConversionError("'standardize' exception", ex.message)
+            raise ConversionError("'standardize' exception:", inchi)
         return mol
 
     @staticmethod
