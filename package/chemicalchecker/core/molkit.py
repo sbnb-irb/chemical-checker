@@ -43,59 +43,64 @@ class Molset(object):
             mol_col (str): The name of the columns in the DataFrame.
             add_image (bool): If True a molecule image is added
         """
-        if mol_type is None:
-            mol_type = KeyTypeDetector.type(molecules[0])
-            if mol_type is None:
-                self.__log.warning(
-                    "Molecule '%s' not recognized as either"
-                    " 'inchikey', 'inchi' or 'smiles'. "
-                    "Considering type as 'name'." %
-                    molecules[0])
-                mol_type = 'name'
         self.cc = cc
-        molecules = sorted([x.strip() for x in set(molecules)])
-        self.__log.info('%s unique molecules provided' % len(molecules))
-        self.df = pd.DataFrame()
-        if mol_type.lower() == 'inchi':
-            mol_col = 'InChI'
-        elif mol_type.lower() == 'smiles':
-            mol_col = 'SMILES'
-        elif mol_type.lower() == 'name':
-            mol_col = 'Name'
-        elif mol_type.lower() == 'inchikey':
-            mol_col = 'InChIKey'
-        else:
-            raise Exception("Molecule type '%' not supported" % mol_type)
-        self.df[mol_col] = molecules
         self.conv = Converter()
+        if isinstance(molecules, pd.DataFrame):
+            self.df = molecules.copy()
+            self.inchikeys = self.df[self.df['InChIKey']
+                                     != '']['InChIKey'].tolist()
+        else:
+            if mol_type is None:
+                mol_type = KeyTypeDetector.type(molecules[0])
+                if mol_type is None:
+                    self.__log.warning(
+                        "Molecule '%s' not recognized as either"
+                        " 'inchikey', 'inchi' or 'smiles'. "
+                        "Considering type as 'name'." %
+                        molecules[0])
+                    mol_type = 'name'
+            molecules = sorted([x.strip() for x in set(molecules)])
+            self.__log.info('%s unique molecules provided' % len(molecules))
+            self.df = pd.DataFrame()
+            if mol_type.lower() == 'inchi':
+                mol_col = 'InChI'
+            elif mol_type.lower() == 'smiles':
+                mol_col = 'SMILES'
+            elif mol_type.lower() == 'name':
+                mol_col = 'Name'
+            elif mol_type.lower() == 'inchikey':
+                mol_col = 'InChIKey'
+            else:
+                raise Exception("Molecule type '%' not supported" % mol_type)
+            self.df[mol_col] = molecules
 
-        if mol_type.lower() == 'name':
-            name_inchi = self.get_name_inchi_map(molecules)
-            self.df['InChI'] = self.df[mol_col].map(name_inchi)
-            self._add_inchikeys()
-            self._add_smiles()
-            self.df = self.df[['Name', 'InChIKey', 'InChI', 'SMILES']]
-        elif mol_type.lower() == 'inchikey':
-            ink_inchi = self.get_inchikey_inchi_map(molecules)
-            self.df['InChI'] = self.df[mol_col].map(ink_inchi)
-            self._add_smiles()
-            self.df = self.df[['InChIKey', 'InChI', 'SMILES']]
-        elif mol_type.lower() == 'inchi':
-            self._add_inchikeys()
-            self._add_smiles()
-            self.df = self.df[['InChIKey', 'InChI', 'SMILES']]
-        elif mol_type.lower() == 'smiles':
-            self._add_inchi(mol_col)
-            self._add_inchikeys()
-            self.df = self.df[['InChIKey', 'InChI', 'SMILES']]
-        self._add_scaffold()
-        self.inchikeys = self.df[self.df['InChIKey']
-                                 != '']['InChIKey'].tolist()
-        self.df = self.df.sort_values('InChIKey')
-        self.df.dropna(inplace=True)
-        if len(self.df) == 0:
-            raise Exception('No valid molcules passed.')
-        self.df.reset_index(inplace=True, drop=True)
+            if mol_type.lower() == 'name':
+                name_inchi = self.get_name_inchi_map(molecules)
+                self.df['InChI'] = self.df[mol_col].map(name_inchi)
+                self._add_inchikeys()
+                self._add_smiles()
+                self.df = self.df[['Name', 'InChIKey', 'InChI', 'SMILES']]
+            elif mol_type.lower() == 'inchikey':
+                ink_inchi = self.get_inchikey_inchi_map(molecules)
+                self.df['InChI'] = self.df[mol_col].map(ink_inchi)
+                self._add_smiles()
+                self.df = self.df[['InChIKey', 'InChI', 'SMILES']]
+            elif mol_type.lower() == 'inchi':
+                self._add_inchikeys()
+                self._add_smiles()
+                self.df = self.df[['InChIKey', 'InChI', 'SMILES']]
+            elif mol_type.lower() == 'smiles':
+                self._add_inchi(mol_col)
+                self._add_inchikeys()
+                self.df = self.df[['InChIKey', 'InChI', 'SMILES']]
+            self._add_scaffold()
+            self.inchikeys = self.df[self.df['InChIKey']
+                                     != '']['InChIKey'].tolist()
+            self.df = self.df.sort_values('InChIKey')
+            self.df.dropna(inplace=True)
+            if len(self.df) == 0:
+                raise Exception('No valid molcules passed.')
+            self.df.reset_index(inplace=True, drop=True)
         if add_image:
             from rdkit.Chem import PandasTools
             self.df.fillna('', inplace=True)
