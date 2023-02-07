@@ -95,7 +95,8 @@ class Molecule(Base):
 
         session = get_session()
         desc = 'Fetching InChIKey-InChI mapping'
-        for idx in trange(0, len(inchikeys), batch, desc=desc):
+        dis = len(inchikeys) < batch
+        for idx in trange(0, len(inchikeys), batch, desc=desc, disable=dis):
             query = session.query(Molecule).filter(
                 Molecule.inchikey.in_(inchikeys[idx:idx + batch]))
             res = query.with_entities(Molecule.inchikey, Molecule.inchi).all()
