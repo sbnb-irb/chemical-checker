@@ -271,10 +271,9 @@ class sign3(BaseSignature, DataSignature):
                 miss_count = 0
                 for ink in miss_ink:
                     try:
-                        inchi = conv.inchikey_to_inchi(ink)[0]["standardinchi"]
+                        inchi = conv.inchikey_to_inchi(ink)
                     except Exception as ex:
-                        sign3.__log.warning(
-                            "Molecule %s: %s" % (ink, str(ex)))
+                        sign3.__log.warning(str(ex))
                         continue
                     fh.write('%s\t%s\n' % (ink, inchi))
                     miss_count += 1

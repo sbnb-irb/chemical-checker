@@ -1004,7 +1004,7 @@ class char(BaseSignature, DataSignature):
             
         # If working with signature 4 the molecule can be signaturized
         if self.cctype[-1] == '4':
-            inchi = Converter().inchikey_to_inchi(inchikey)[0]['standardinchi']
+            inchi = Converter().inchikey_to_inchi(inchikey)
             if self.dataset == 'P1.001':        
                 signature = Signaturizer('E1').predict(inchi, keytype='InChI').signature
             else:
@@ -1198,7 +1198,7 @@ class char(BaseSignature, DataSignature):
             
         # If working with signature 4 the molecule can be signaturized
         elif self.cctype[-1] == '4':
-            inchi = Converter().inchikey_to_inchi(query)[0]['standardinchi']
+            inchi = Converter().inchikey_to_inchi(query)
             if self.dataset[:2]=='P1':
                 self.dataset = 'E1.001'
             signature = Signaturizer(self.dataset[:2]).predict(inchi, keytype='InChI').signature
