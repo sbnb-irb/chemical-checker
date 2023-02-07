@@ -121,7 +121,7 @@ class Molset(object):
         ink_inchi = dict()
         for ink in tqdm(inks, desc='getting InChIKey-InChI map'):
             try:
-                inchi = self.conv.inchikey_to_inchi(ink)[0]['standardinchi']
+                inchi = self.conv.inchikey_to_inchi(ink)
             except Exception:
                 self.__log.warning('%s has no InChI' % ink)
                 continue
@@ -402,7 +402,7 @@ class Molset(object):
         inchies = list()
         for ink in tqdm(all_nn_inks, desc='get NN InChI'):
             try:
-                inchi = conv.inchikey_to_inchi(ink)[0]['standardinchi']
+                inchi = conv.inchikey_to_inchi(ink)
             except Exception:
                 self.__log.warning('%s has no InChI' % ink)
                 continue
@@ -515,8 +515,7 @@ class Mol(object):
         conv = Converter()
         if str_type == "inchikey":
             self.inchikey = mol_str
-            self.inchi = conv.inchikey_to_inchi(
-                self.inchikey)[0]["standardinchi"]
+            self.inchi = conv.inchikey_to_inchi(self.inchikey)
         if str_type == "inchi":
             self.inchi = mol_str
             self.inchikey = conv.inchi_to_inchikey(self.inchi)
