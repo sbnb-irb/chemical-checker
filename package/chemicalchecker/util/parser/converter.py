@@ -162,7 +162,8 @@ class Converter():
             return smiles
         except Exception as ex:
             Converter.__log.warning(
-                "Cannot convert Chemical Name to SMILES (cactus.nci): %s" % chem_name)
+                "Cannot convert Chemical Name "
+                "to SMILES (cactus.nci): %s" % chem_name)
             return None
 
     @staticmethod
@@ -175,7 +176,8 @@ class Converter():
             return inchi
         except Exception as ex:
             Converter.__log.warning(
-                "Cannot convert Chemical Name to InChI (cactus.nci): %s" % chem_name)
+                "Cannot convert Chemical Name "
+                "to InChI (cactus.nci): %s" % chem_name)
             return None
 
     @staticmethod
@@ -185,7 +187,8 @@ class Converter():
             cpds = self.pcp.get_compounds(chem_name, 'name')
             if len(cpds) == 0:
                 Converter.__log.warning(
-                    "Cannot convert Chemical Name to SMILES (pubchem): %s" % chem_name)
+                    "Cannot convert Chemical Name "
+                    "to SMILES (pubchem): %s" % chem_name)
                 return None
             if len(cpds) > 1:
                 Converter.__log.warning(
@@ -193,7 +196,8 @@ class Converter():
             return cpds[0].isomeric_smiles
         except Exception as ex:
             Converter.__log.warning(
-                "Cannot convert Chemical Name to SMILES (pubchem): %s" % chem_name)
+                "Cannot convert Chemical Name "
+                "to SMILES (pubchem): %s" % chem_name)
             return None
 
     @staticmethod
@@ -203,7 +207,8 @@ class Converter():
             cpds = self.pcp.get_compounds(chem_name, 'name')
             if len(cpds) == 0:
                 Converter.__log.warning(
-                    "Cannot convert Chemical Name to InChI (pubchem): %s" % chem_name)
+                    "Cannot convert Chemical Name "
+                    "to InChI (pubchem): %s" % chem_name)
                 return None
             if len(cpds) > 1:
                 Converter.__log.warning(
@@ -211,17 +216,95 @@ class Converter():
             return cpds[0].inchi
         except Exception as ex:
             Converter.__log.warning(
-                "Cannot convert Chemical Name to InChI (pubchem): %s" % chem_name)
+                "Cannot convert Chemical Name "
+                "to InChI (pubchem): %s" % chem_name)
             return None
 
     @staticmethod
-    def inchikey_to_inchi(inchikey):
-        """From InChIKey to InChI."""
+    def _resove_inchikey_unichem(inchikey):
         try:
             inchikey = quote(inchikey)
             url = 'https://www.ebi.ac.uk/unichem/rest/inchi/%s' % inchikey
-            return json.loads(urlopen(url).read().rstrip().decode())
+            res = json.loads(urlopen(url).read().rstrip().decode())
+        except Exception as ex:
+            # Converter.__log.warning(str(ex))
+            raise ConversionError(
+                "No response from unichem: %s" % url, inchikey)
+
+        if isinstance(res, dict):
+            err_msg = '; '.join(['%s: %s' % (k, v)
+                                 for k, v in res.items()])
+            raise ConversionError(err_msg, inchikey)
+        elif isinstance(res, list):
+            if len(res) != 1:
+                raise ConversionError(
+                    'No results from unichem: %s' % str(res), inchikey)
+            if 'standardinchi' not in res[0]:
+                raise ConversionError(
+                    'No results from unichem: %s' % str(res), inchikey)
+            inchi = res[0]['standardinchi']
+            return inchi
+
+    @staticmethod
+    def _resove_inchikey_cactus(inchikey):
+        try:
+            inchikey = quote(inchikey)
+            url = ("https://cactus.nci.nih.gov/"
+                   "chemical/structure/%s/stdinchi" % inchikey)
+            res = urlopen(url).read().rstrip().decode()
+            return res
+        except Exception as ex:
+            # Converter.__log.warning(str(ex))
+            raise ConversionError(
+                "No response from cactus: %s" % url, inchikey)
+
+    @staticmethod
+    def _resove_inchikey_pubchem(inchikey):
+        try:
+            cpds = Converter().pcp.get_compounds(inchikey, 'inchikey')
+            if len(cpds) == 0:
+                raise ConversionError("No results from pubchem", inchikey)
+            if len(cpds) > 1:
+                pass
+                # Converter.__log.debug(
+                #    "Multiple CIDs found, using first: %s" % str(cpds))
+            return cpds[0].inchi
         except Exception as ex:
             Converter.__log.warning(str(ex))
             raise ConversionError(
-                "Cannot fetch SMILES from Chemical Name", inchikey)
+                "No response from pubchem: %s" % url, inchikey)
+
+    @staticmethod
+    def inchikey_to_inchi(inchikey, local_db=True, save_local=True):
+        """From InChIKey to InChI.
+        
+        Precedence is given to the local db that will be the fastest option.
+        If it is not found locally several provider are contacted, and we
+        possibly want to add the it to the Molecule table.
+        """
+        if local_db:
+            from chemicalchecker.database import Molecule
+            res = Molecule.get_inchikey_inchi_mapping([inchikey])
+            if res[inchikey] is not None:
+                return res[inchikey]
+
+        resolve_fns = {
+            'unichem': Converter._resove_inchikey_unichem,
+            'cactus': Converter._resove_inchikey_cactus,
+            'pubchem': Converter._resove_inchikey_pubchem,
+        }
+        inchi = None
+        for provider, func in resolve_fns.items():
+            try:
+                inchi = func(inchikey)
+                break
+            except:
+                Converter.__log.debug(
+                    'InChIKey %s not found via %s' % (inchikey, provider))
+                continue
+        if inchi is None:
+            raise ConversionError('Unable to resolve', inchikey)
+        if save_local:
+            from chemicalchecker.database import Molecule
+            Molecule.add_bulk([[inchikey, inchi]])
+        return inchi
