@@ -691,6 +691,8 @@ class DataSignature(object):
         done = set()
         tries = 1e6
         tr = 0
+        identical = 0
+        nan = 0
         while len(bg) < sample_pairs and tr < tries:
             tr += 1
             i = np.random.randint(0, matrix.shape[0] - 1)
@@ -698,13 +700,20 @@ class DataSignature(object):
             if (i, j) not in done:
                 dist = metric_fn(matrix[i], matrix[j])
                 if dist == 0.0:
-                    self.__log.warn("Identical signatures for %s %s" % (i, j))
+                    identical += 1
+                    continue
                 if np.isnan(dist):
-                    self.__log.warn("NaN distance for %s %s" % (i, j))
+                    nan += 1
                     continue
                 bg.append(dist)
                 done.add((i, j))
-        # pavalues as percentiles
+            if identical > 10000:
+                self.__log.warn("Identical signatures for 1000 pairs")
+                identical = 0
+            if nan > 10000:
+                self.__log.warn("NaN distances for 1000 pairs")
+                nan = 0
+        # pvalues as percentiles
         i = 0
         PVALS = [(0, 0., i)]  # DISTANCE, RANK, INTEGER
         i += 1
