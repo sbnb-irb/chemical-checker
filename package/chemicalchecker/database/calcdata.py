@@ -37,7 +37,7 @@ from time import time
 
 from sqlalchemy import Column, Text
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 from .database import get_session, get_engine
 from .molecule import Molecule
