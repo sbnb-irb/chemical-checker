@@ -7,6 +7,7 @@ import os
 import numpy as np
 import collections
 import pandas as pd
+import networkx as nx
 from tqdm import tqdm
 from functools import partial
 from collections import defaultdict
@@ -465,13 +466,21 @@ class Molset(object):
         return df
 
     @staticmethod
-    def get_chembl_protein_classes(chembldb='chembl_27'):
+    def get_chembl_protein_classes(chembldb='chembl_27', prefix_level=False):
         """Get protein class id to name dictionary."""
         R = psql.qstring(
             "SELECT protein_class_id, parent_id, pref_name "
             "FROM protein_classification", chembldb)
         class_names = defaultdict(lambda: None)
-        class_names.update({'Class:%i' % r[0]: r[2] for r in R})
+        if prefix_level:
+            edgelist = [(n[0], n[1]) for n in R[1:]]
+            nodes = [n[0] for n in R]
+            G = nx.Graph(edgelist)
+            level = {n: len(nx.shortest_path(G, n, 0))-1 for n in nodes}
+            class_names.update(
+                {'Class:%i' % r[0]: 'L%s:%s' % (level[r[0]], r[2]) for r in R})
+        else:
+            class_names.update({'Class:%i' % r[0]: r[2] for r in R})
         return class_names
 
     @staticmethod
@@ -540,7 +549,7 @@ class Mol(object):
         return sign[self.inchikey]
 
     def report_available(self, dataset_code="*", cctype="*", molset="full"):
-        """Check in what datasets the key is present"""
+        """Check in what datasets the molecule is present"""
         available = self.cc.report_available(molset, dataset_code, cctype)
         d0 = {}
         for molset, datasets in available.items():
@@ -552,8 +561,3 @@ class Mol(object):
             if d1:
                 d0[molset] = dict((k, v) for k, v in d1.items())
         return d0
-
-    def show(self):
-        """Simply display the molecule in a Jupyter notebook"""
-        from rdkit.Chem.Draw import IPythonConsole
-        return self.mol
