@@ -497,6 +497,55 @@ class Molset(object):
         f.close()
         return chebi_dict
 
+    def signaturize(self, datasets='exemplary'):
+        """Annotate the DataFrame with predicted sign4 signatures.
+
+        Args:
+            datasets (list): the CC datasets code: e.g. ['B4.001'].
+                Use 'exemplary' to get signatures for all exemplary CC spaces.
+        """
+        query_inks = self.df['InChIKey'].tolist()
+        query_inchies = self.df['InChI'].tolist()
+        tmp_pred_file = './tmp.h5'
+        if datasets == 'exemplary':
+            datasets = self.cc.datasets_exemplary()
+        for ds in datasets:
+            s4 = self.cc.signature(ds, 'sign4')
+            pred = s4.predict_from_string(query_inchies, tmp_pred_file,
+                                          keytype='InChI', keys=query_inks)
+            pred_sign = pred[:]
+            pred_appl = pred.get_h5_dataset('applicability').ravel()
+            self.df['%s_sign' % ds] = [r for r in pred_sign]
+            self.df['%s_appl' % ds] = pred_appl
+            os.remove(tmp_pred_file)
+
+    def project(self, projector, projector_name=None, datasets='exemplary'):
+        """Annotate the DataFrame with projection of the signatures.
+
+        Args:
+            projector (object): Any preinitialized projector exposing the
+                'fit_transform' function.
+            projector_name (str): The name of the projector, used to define the
+                new DataFrame columns.
+            datasets (list): the CC datasets code: e.g. ['B4.001'].
+                Use 'exemplary' to get signatures for all exemplary CC spaces.
+        """
+        if datasets == 'exemplary':
+            datasets = self.cc.datasets_exemplary()
+        if projector_name is None:
+            projector_name = type(projector).__name__
+        for ds in datasets:
+            if '%s_sign' % ds not in self.df.columns:
+                self.signaturize(datasets=[ds])
+            sign = np.vstack(self.df['%s_sign' % ds].values)
+            proj = projector.fit_transform(sign)
+            x_name = '%s_%s1' % (ds, projector_name)
+            self.df = pd.concat(
+                [self.df, pd.Series(proj[:, 0], name=x_name)], axis=1)
+            y_name = '%s_%s2' % (ds, projector_name)
+            self.df = pd.concat(
+                [self.df, pd.Series(proj[:, 1], name=y_name)], axis=1)
+
 
 @logged
 class Mol(object):
