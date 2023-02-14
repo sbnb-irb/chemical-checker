@@ -61,20 +61,21 @@ class Molecule(Base):
             chunk(int): The size of the chunks to load data to the database.
         """
         engine = get_engine()
-        for pos in range(0, len(data), chunk):
-            if on_conflict_do_nothing:
-                engine.execute(
-                    postgresql.insert(Molecule.__table__).values(
+        with engine.connect() as conn:
+            for pos in range(0, len(data), chunk):
+                if on_conflict_do_nothing:
+                    conn.execute(
+                        postgresql.insert(Molecule.__table__).values(
+                            [{"inchikey": row[0], "inchi": row[1]}
+                             for row in data[pos:pos + chunk]]
+                        ).on_conflict_do_nothing(
+                            index_elements=[Molecule.inchikey]))
+                else:
+                    conn.execute(
+                        Molecule.__table__.insert(),
                         [{"inchikey": row[0], "inchi": row[1]}
-                         for row in data[pos:pos + chunk]]
-                    ).on_conflict_do_nothing(
-                        index_elements=[Molecule.inchikey]))
-            else:
-                engine.execute(
-                    Molecule.__table__.insert(),
-                    [{"inchikey": row[0], "inchi": row[1]}
-                        for row in data[pos:pos + chunk]]
-                )
+                            for row in data[pos:pos + chunk]]
+                    )
 
     @staticmethod
     def get(key):
