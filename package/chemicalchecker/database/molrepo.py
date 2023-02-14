@@ -53,9 +53,9 @@ class Molrepo(Base):
     essential = Column(Boolean)
 
     datasources = relationship("Datasource",
-                            secondary="molrepo_has_datasource",
-                            back_populates="molrepos",
-                            lazy='joined')
+                               secondary="molrepo_has_datasource",
+                               back_populates="molrepos",
+                               lazy='joined')
 
     def __repr__(self):
         """String representation."""
@@ -142,11 +142,12 @@ class Molrepo(Base):
         """
         import pandas as pd
         molecules = Molrepo.get_by_molrepo_name(molrepo_name)
-        df = pd.DataFrame(molecules, columns=['molrepo','source_id','SMILES','InChIKey','InChI'])
+        df = pd.DataFrame(molecules, columns=['molrepo', 'source_id',
+                                              'SMILES', 'InChIKey', 'InChI'])
         df.dropna(inplace=True)
         df.sort_values('InChIKey', inplace=True)
-        df[['InChIKey', 'source_id', 'SMILES','InChI']].to_csv(filename, index=False)
-
+        df[['InChIKey', 'source_id', 'SMILES', 'InChI']].to_csv(
+            filename, index=False)
 
     @staticmethod
     def from_csv(filename):
@@ -160,7 +161,8 @@ class Molrepo(Base):
         # The boolean columns must be changed to boolean values otherwise
         # SQLalchmy passes strings
         df.universe = df.universe.apply(lambda x: False if x == 'f' else True)
-        df.essential = df.essential.apply(lambda x: False if x == 'f' else True)
+        df.essential = df.essential.apply(
+            lambda x: False if x == 'f' else True)
 
         # check columns
         needed_cols = Molrepo._table_attributes()
@@ -246,8 +248,10 @@ class Molrepo(Base):
             return None
 
         session = get_session()
-        query = session.query(MolrepoHasMolecule).outerjoin(Molecule, Molecule.inchikey == MolrepoHasMolecule.inchikey).filter(
-            MolrepoHasMolecule.molrepo_name == molrepo_name, MolrepoHasMolecule.inchikey.isnot(None))
+        query = session.query(MolrepoHasMolecule).outerjoin(
+            Molecule, Molecule.inchikey == MolrepoHasMolecule.inchikey).filter(
+            MolrepoHasMolecule.molrepo_name ==
+            molrepo_name, MolrepoHasMolecule.inchikey.isnot(None))
         res = query.with_entities(*[eval(f) for f in query_fields]).all()
 
         session.close()
@@ -296,22 +300,27 @@ class Molrepo(Base):
         # profile time
         t_start = time()
         engine = get_engine()
-        for chunk in parse_fn(map_files, molrepo_name, 1000):
-            if len(chunk) == 0:
-                continue
-            chunk_inchi = []
-            chunk_molrepo = []
-            for data in chunk:
-                if data["inchikey"] is not None:
-                    chunk_inchi.append(
-                        {"inchikey": data["inchikey"], "inchi": data["inchi"]})
-                del data["inchi"]
-                chunk_molrepo.append(data)
-            if len(chunk_inchi) > 0:
-                engine.execute(postgresql.insert(Molecule.__table__).values(
-                    chunk_inchi).on_conflict_do_nothing(index_elements=[Molecule.inchikey]))
-            engine.execute(postgresql.insert(MolrepoHasMolecule.__table__).values(
-                chunk_molrepo).on_conflict_do_nothing(index_elements=[MolrepoHasMolecule.id]))
+        with engine.connect() as conn:
+            for chunk in parse_fn(map_files, molrepo_name, 1000):
+                if len(chunk) == 0:
+                    continue
+                chunk_inchi = []
+                chunk_molrepo = []
+                for data in chunk:
+                    if data["inchikey"] is not None:
+                        chunk_inchi.append({"inchikey": data["inchikey"],
+                                            "inchi": data["inchi"]})
+                    del data["inchi"]
+                    chunk_molrepo.append(data)
+                if len(chunk_inchi) > 0:
+                    conn.execute(postgresql.insert(
+                        Molecule.__table__).values(
+                        chunk_inchi).on_conflict_do_nothing(
+                        index_elements=[Molecule.inchikey]))
+                conn.execute(postgresql.insert(
+                    MolrepoHasMolecule.__table__).values(
+                    chunk_molrepo).on_conflict_do_nothing(
+                    index_elements=[MolrepoHasMolecule.id]))
         t_end = time()
         t_delta = str(datetime.timedelta(seconds=t_end - t_start))
         Molrepo.__log.info(
@@ -353,7 +362,7 @@ class Molrepo(Base):
         molrepos_names = set()
         molrepos = Molrepo.get()
         for molrepo in molrepos:
-            if only_essential and not molrepo.essential: 
+            if only_essential and not molrepo.essential:
                 continue
             molrepos_names.add(molrepo.molrepo_name)
 
@@ -421,7 +430,8 @@ class MolrepoHasMolecule(Base):
     @staticmethod
     def _table_exists():
         engine = get_engine()
-        return sqlalchemy.inspect(engine).has_table(MolrepoHasMolecule.__tablename__)
+        return sqlalchemy.inspect(engine).has_table(
+            MolrepoHasMolecule.__tablename__)
 
     @staticmethod
     def _table_attributes():
@@ -453,10 +463,10 @@ class MolrepoHasDatasource(Base):
     """
 
     __tablename__ = 'molrepo_has_datasource'
-    molrepo_name = Column(Text,
-                          ForeignKey("molrepo.molrepo_name"), primary_key=True)
-    datasource_name = Column(Text,
-                             ForeignKey("datasource.datasource_name"), primary_key=True)
+    molrepo_name = Column(Text, ForeignKey("molrepo.molrepo_name"),
+                          primary_key=True)
+    datasource_name = Column(Text, ForeignKey("datasource.datasource_name"),
+                             primary_key=True)
 
     def __repr__(self):
         """String representation."""
@@ -476,7 +486,8 @@ class MolrepoHasDatasource(Base):
     @staticmethod
     def _table_exists():
         engine = get_engine()
-        return sqlalchemy.inspect(engine).has_table(MolrepoHasDatasource.__tablename__)
+        return sqlalchemy.inspect(engine).has_table(
+            MolrepoHasDatasource.__tablename__)
 
     @staticmethod
     def _table_attributes():

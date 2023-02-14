@@ -48,17 +48,19 @@ class Pubchem(Base):
             chunk(int): The size of the chunks to load data to the database.
         """
         engine = get_engine()
-        for pos in range(0, len(data), chunk):
-
-            engine.execute(
-                Pubchem.__table__.insert(),
-                [{"cid": row[0], "inchikey_pubchem": row[1], "inchikey": row[2], "name": row[3],
-                  "synonyms": row[4]}
-                    for row in data[pos:pos + chunk]]
-            )
+        with engine.connect() as conn:
+            for pos in range(0, len(data), chunk):
+                conn.execute(
+                    Pubchem.__table__.insert(),
+                    [{"cid": row[0], "inchikey_pubchem": row[1],
+                      "inchikey": row[2], "name": row[3],
+                      "synonyms": row[4]}
+                        for row in data[pos:pos + chunk]]
+                )
 
     @staticmethod
-    def get(cid=None, inchikey_pubchem=None, inchikey=None, name=None, synonyms=None):
+    def get(cid=None, inchikey_pubchem=None, inchikey=None, name=None,
+            synonyms=None):
         """Method to query table.
 
         Args:

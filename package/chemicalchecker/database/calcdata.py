@@ -138,7 +138,7 @@ def Calcdata(table_name):
 
             GenericCalcdata.__log.debug(
                 "Found already present: " + str(len(present)))
-            
+
             return set(keys).difference(present)
 
         @staticmethod
@@ -177,15 +177,17 @@ def Calcdata(table_name):
             # profile time
             t_start = time()
             engine = get_engine(GenericCalcdata.dbname)
-            for chunk in parse_fn(dict_inchikey_inchi, chunksize):
-                if len(chunk) == 0:
-                    continue
-                GenericCalcdata.__log.debug(
-                    "Loading chunk of size: " + str(len(chunk)))
-                engine.execute(
-                    postgresql.insert(GenericCalcdata.__table__).values(
-                        chunk).on_conflict_do_nothing(
-                        index_elements=[GenericCalcdata.inchikey]))
+            with engine.connect() as conn:
+                for chunk in parse_fn(dict_inchikey_inchi, chunksize):
+                    if len(chunk) == 0:
+                        continue
+                    GenericCalcdata.__log.debug(
+                        "Loading chunk of size: " + str(len(chunk)))
+
+                    conn.execute(
+                        postgresql.insert(GenericCalcdata.__table__).values(
+                            chunk).on_conflict_do_nothing(
+                            index_elements=[GenericCalcdata.inchikey]))
             t_end = time()
             t_delta = str(datetime.timedelta(seconds=t_end - t_start))
             GenericCalcdata.__log.info(
@@ -251,8 +253,9 @@ def Calcdata(table_name):
             params["compress"] = False
             # job command
             singularity_image = cfg.PATH.SINGULARITY_IMAGE
-            command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\
-                " singularity exec {} python {} <TASK_ID> <FILE>"
+            command = ("SINGULARITYENV_PYTHONPATH={}"
+                       "SINGULARITYENV_CC_CONFIG={}"
+                       " singularity exec {} python {} <TASK_ID> <FILE>")
             command = command.format(
                 os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
                 singularity_image, script_name)
