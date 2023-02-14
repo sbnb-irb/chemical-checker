@@ -287,8 +287,14 @@ def projection(front, back=None, front_kwargs=[], ax=None,
         scatter_kw.update(kwargs.pop('scatter_kwargs', {}))
 
         if len(x) <= 2:
-            density = False
-            contour = False
+            if contour:
+                contour = False
+            if density:
+                density = False
+                cmap = density_kw['cmap']
+                if not callable(cmap):
+                    cmap = matplotlib.cm.get_cmap(cmap)
+                scatter_kw = {'c':cmap(1.0), 's':density_kw['s_max']}
 
         if density:
             xy = np.vstack([x, y])
