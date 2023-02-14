@@ -246,7 +246,8 @@ def make_cbar_ax(ax, cmap=plt.get_cmap('viridis'), title=''):
 
 
 def projection(front, back=None, front_kwargs=[], ax=None,
-               density_subsample=1000, update_proj_limits=True):
+               density_subsample=1000, update_proj_limits=True,
+               min_point=5):
 
     def _proj_lims(P):
         xlim = [np.min(P[:, 0]), np.max(P[:, 0])]
@@ -286,15 +287,16 @@ def projection(front, back=None, front_kwargs=[], ax=None,
         scatter_kw = dict()
         scatter_kw.update(kwargs.pop('scatter_kwargs', {}))
 
-        if len(x) <= 2:
+        if len(x) <= min_point and (contour or density):
             if contour:
                 contour = False
+                cmap = contour_kw['cmap']
             if density:
                 density = False
                 cmap = density_kw['cmap']
-                if not callable(cmap):
-                    cmap = matplotlib.cm.get_cmap(cmap)
-                scatter_kw = {'c':cmap(1.0), 's':density_kw['s_max']}
+            if not callable(cmap):
+                cmap = matplotlib.cm.get_cmap(cmap)
+            scatter_kw = {'c':cmap(1.0), 's':density_kw['s_max']}
 
         if density:
             xy = np.vstack([x, y])
