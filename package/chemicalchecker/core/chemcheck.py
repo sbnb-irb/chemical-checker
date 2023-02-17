@@ -485,10 +485,10 @@ class ChemicalChecker():
             return None
         return DataSignature(data.data_path)
 
-    def signature(self, dataset, cctype, as_dataframe=False):
+    def signature(self, dataset, cctype, as_dataframe=False, **kwargs):
         return self.get_signature(cctype=cctype, molset="full",
                                   dataset_code=dataset,
-                                  as_dataframe=as_dataframe)
+                                  as_dataframe=as_dataframe, **kwargs)
 
     @staticmethod
     def get_h5_metadata(fn, format_dict):
