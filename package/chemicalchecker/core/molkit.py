@@ -4,6 +4,7 @@ A simple class to inspect small molecules, easily convert between different
 identifier, and ultimately find if signatures available.
 """
 import os
+import pickle
 import numpy as np
 import collections
 import pandas as pd
@@ -107,6 +108,39 @@ class Molset(object):
             self.df.fillna('', inplace=True)
             PandasTools.AddMoleculeColumnToFrame(
                 self.df, smilesCol='SMILES', molCol='Structure')
+
+    def save(self, destination, overwrite=False):
+        """Save a Molset instance.
+
+        Args:
+            destination (str): The destination path
+            overwrite (bool): Whether to overwrite in case the file exists.
+        """
+        persist = (self.cc.cc_root, self.df)
+        if os.path.isfile(destination):
+            if overwrite:
+                pickle.dump(persist, open(destination, 'wb'))
+            else:
+                self.__log.warning('file %s already present!' % destination)
+        else:
+            pickle.dump(persist, open(destination, 'wb'))
+
+    @classmethod
+    def load(cls, cc, filename, add_image=False):
+        """Load a Molset instance.
+
+        Args:
+            cc (Chemicalchecker): Chemical Checker instance.
+            filename (str): The path of the file to load.
+            add_image (bool): If True a molecule image is added.
+        """
+        cc_root, df = pickle.load(open(filename, 'rb'))
+        if cc.cc_root != cc_root:
+            self.__log.warning(
+                ('The CC instance used for generating the Molset'
+                 ' (%s) is different from the currently used (%s)'
+                 % (cc_root, cc.cc_root)))
+        return cls(cc, df, add_image=add_image)
 
     def get_name_inchi_map(self, names):
         cpd_inchi = dict()
