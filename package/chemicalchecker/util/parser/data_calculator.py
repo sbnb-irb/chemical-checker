@@ -9,6 +9,7 @@ These methods are used to populate the
 database where the table has the same name as functions defined here.
 """
 import os
+import numpy as np
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.decorator import timeout
@@ -29,7 +30,7 @@ class DataCalculator():
             raise ex
 
     @staticmethod
-    def morgan_fp_r2_2048(inchikey_inchi, chunks=1000):
+    def morgan_fp_r2_2048(inchikey_inchi, chunks=1000, dense=True):
         try:
             from rdkit.Chem import AllChem as Chem
         except ImportError:
@@ -53,12 +54,18 @@ class DataCalculator():
             # print mol
             fp = Chem.GetMorganFingerprintAsBitVect(
                 mol, radius, nBits=nBits, bitInfo=info)
-            dense = ",".join("%d" % s for s in sorted(
-                [x for x in fp.GetOnBits()]))
-            result = {
-                "inchikey": ik,
-                "raw": dense
-            }
+            if dense:
+                dense = ",".join("%d" % s for s in sorted(
+                    [x for x in fp.GetOnBits()]))
+                result = {
+                    "inchikey": ik,
+                    "raw": dense
+                }
+            else:
+                result = {
+                    "inchikey": ik,
+                    "raw": np.array(fp)
+                }
             chunk.append(result)
             if len(chunk) == chunks:
                 yield chunk
