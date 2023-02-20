@@ -3,11 +3,21 @@ import faiss
 import pickle
 import numpy as np
 import pandas as pd
+from time import time
 from tqdm import tqdm
+from functools import partial
 
+import tensorflow as tf
+from tensorflow import keras
 from tensorflow.keras import backend as K
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dropout, Lambda, Dense, Activation
+from tensorflow.keras.layers import concatenate
+from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras.callbacks import EarlyStopping, Callback
+from tensorflow.keras.layers import Input, Dropout, Lambda, Dense
+from tensorflow.keras.layers import Activation, Masking, BatchNormalization
+from tensorflow.keras.layers import GaussianNoise, GaussianDropout
+from tensorflow.keras.layers import AlphaDropout
+from tensorflow.keras import regularizers
 
 from MulticoreTSNE import MulticoreTSNE
 from scipy.spatial.distance import cosine
@@ -21,7 +31,8 @@ from chemicalchecker.util import logged
 @logged
 class Smilespred(object):
 
-    def __init__(self, model_dir, sign0=[], sign3=[], evaluate=False):
+    def __init__(self, model_dir, sign0=[], sign3=[], evaluate=False,
+                 **kwargs):
         self.sign0 = sign0
         self.sign3 = sign3[:]
         self.name = self.__class__.__name__.lower()
@@ -34,6 +45,21 @@ class Smilespred(object):
             self.e_split = 0
             self.t_split = 1
         self.model = None
+
+        self.epochs = int(kwargs.get("epochs", 10))
+        self.learning_rate = kwargs.get("learning_rate", 1e-3)
+        self.layers_sizes = kwargs.get("layers_sizes", [1024, 512, 256, 128])
+        self.layers = list()
+        # we can pass layers type as strings
+        layers = kwargs.get("layers", ['Dense', 'Dense', 'Dense', 'Dense'])
+        for l in layers:
+            if isinstance(l, str):
+                self.layers.append(eval(l))
+            else:
+                self.layers.append(l)
+        self.activations = kwargs.get(
+            "activations", ['relu', 'relu', 'relu', 'tanh'])
+        self.dropouts = kwargs.get("dropouts", [0.1, 0.1, 0.1, None])
 
     def build_model(self, load=False):
         def corr(y_true, y_pred):
@@ -49,25 +75,60 @@ class Smilespred(object):
             r = r_num / r_den
             return K.mean(r)
 
+        def add_layer(net, layer, layer_size, activation, dropout,
+                      use_bias=True, input_shape=False):
+            if input_shape is not None:
+                if activation == 'selu':
+                    net.add(GaussianDropout(rate=0.1, input_shape=input_shape))
+                    net.add(layer(layer_size, use_bias=use_bias,
+                                  kernel_initializer='lecun_normal'))
+                else:
+                    net.add(layer(layer_size, use_bias=use_bias,
+                                  input_shape=input_shape))
+            else:
+                if activation == 'selu':
+                    net.add(layer(layer_size, use_bias=use_bias,
+                                  kernel_initializer='lecun_normal'))
+                else:
+                    net.add(layer(layer_size, use_bias=use_bias))
+            net.add(Activation(activation))
+            if dropout is not None:
+                net.add(Dropout(dropout))
+
+        def get_model_arch(input_dim, space_dim=128, num_layers=3):
+            if input_dim >= space_dim * (2**num_layers):
+                layers = [int(space_dim * 2**i)
+                          for i in reversed(range(num_layers))]
+            else:
+                layers = [max(128, int(input_dim / 2**i))
+                          for i in range(1, num_layers + 1)]
+            return layers
+
+        # Update layers
+        if self.layers_sizes == None:
+            self.layers_sizes = get_model_arch(
+                2048, num_layers=len(self.layers))
+
+        # each goes to a network with the same architechture
+        assert(len(self.layers) == len(self.layers_sizes) ==
+               len(self.activations) == len(self.dropouts))
         model = Sequential()
-        drop = 0.1
-        model.add(Dense(1024, input_dim=2048))
-        model.add(Dropout(drop))
-        model.add(Activation('relu'))
+        for i, tple in enumerate(zip(self.layers, self.layers_sizes,
+                                     self.activations, self.dropouts)):
+            layer, layer_size, activation, dropout = tple
+            i_shape = None
+            if i == 0:
+                i_shape = (2048,)
+            if i == (len(self.layers) - 1):
+                dropout = None
+            add_layer(model, layer, layer_size, activation,
+                      dropout, input_shape=i_shape)
 
-        model.add(Dense(512))
-        model.add(Dropout(drop))
-        model.add(Activation('relu'))
-
-        model.add(Dense(256))
-        model.add(Dropout(drop))
-        model.add(Activation('relu'))
-
-        model.add(Dense(128))
-        model.add(Activation('tanh'))
+        # last normalization layer for loss
         model.add(Lambda(lambda x: K.l2_normalize(x, axis=-1)))
 
-        model.compile(loss='mse', optimizer='adam', metrics=[corr])
+        opt = keras.optimizers.Adam(learning_rate=self.learning_rate)
+        model.compile(loss='mse', optimizer=opt, metrics=[corr])
         if load:
             model.load_weights(self.model_file)
         else:
@@ -76,8 +137,9 @@ class Smilespred(object):
 
     def fit(self, save=True):
         self.build_model()
-        self.history = self.model.fit(x=self.sign0, y=self.sign3, epochs=30,
-                                      batch_size=128, validation_split=self.e_split, verbose=2)
+        self.history = self.model.fit(
+            x=self.sign0, y=self.sign3, epochs=self.epochs,
+            batch_size=128, validation_split=self.e_split, verbose=2)
         if save:
             self.model.save(self.model_file)
         history_file = os.path.join(

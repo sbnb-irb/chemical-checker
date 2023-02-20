@@ -26,10 +26,9 @@ class sign4(BaseSignature, DataSignature):
             signature_path(str): The signature root directory.
             dataset(`Dataset`): `chemicalchecker.database.Dataset` object.
             params(): Parameters, expected keys are:
-                * 'sign2' for learning based on sign2
-                * 'sign0' for learning based on sign0 (Morgan Fingerprint)
-                * 'sign0_conf' for learning confidences based on MFP
-                * 'prior' for learning prior in predictions
+                * 'sign0_params' for learning based on sign0 
+                    (Morgan Fingerprint)
+                * 'sign0_conf_params' for learning confidences based on MFP
         """
         # Calling init on the base class to trigger file existence checks
         BaseSignature.__init__(self, signature_path,
@@ -40,27 +39,30 @@ class sign4(BaseSignature, DataSignature):
         self.params = dict()
         # parameters to learn from sign0
         default_sign0 = {
-            'epochs': 5,
+            'epochs': 30,
             'cpu': 8,
             'learning_rate': 1e-3,
             'layers': ['Dense', 'Dense', 'Dense', 'Dense'],
             'layers_sizes': [1024, 512, 256, 128],
-            'activations': ['selu', 'selu', 'selu', 'tanh'],
-            'dropouts': [0.2, 0.2, 0.2, None],
-            'batch_size': 128,
-            'num_triplets': 100000,
-            'margin': 1.0,
-            'alpha': 0.5,
+            'activations': ['relu', 'relu', 'relu', 'tanh'],
+            'dropouts': [0.1, 0.1, 0.1, None],
         }
-        # default_sign0.update(params.get('sign0', {}))
+        default_sign0.update(params.get('sign0_params', {}))
         self.params['sign0'] = default_sign0
         # parameters to learn confidence from sign0
-        default_sign0_conf = {}
-        default_sign0_conf.update(params.get('sign0_conf', {}))
+        default_sign0_conf = {
+            'epochs': 30,
+            'cpu': 8,
+            'learning_rate': 1e-3,
+            'layers': ['Dense', 'Dense', 'Dense'],
+            'layers_sizes': [1024, 512, 256],
+            'activations': ['relu', 'relu', 'relu'],
+            'dropouts': [0.2, 0.2, 0.2]
+        }
+        default_sign0_conf.update(params.get('sign0_conf_params', {}))
         self.params['sign0_conf'] = default_sign0_conf
         self._sign0_V = None
         self._sign3_V = None
-
 
     @property
     def shared_keys(self):
@@ -87,7 +89,7 @@ class sign4(BaseSignature, DataSignature):
         self.__log.debug("sign3 shape: %s" % str(self._sign3_V.shape))
         return self._sign3_V
 
-    def learn_sign0(self, sign0, sign3, suffix=None, evaluate=True):
+    def learn_sign0(self, sign0, sign3, params, suffix=None, evaluate=True):
         """Learn the signature 3 from sign0.
 
         This method is used twice. First to evaluate the performances of the
@@ -115,8 +117,8 @@ class sign4(BaseSignature, DataSignature):
             os.makedirs(model_path)
         # initialize model and start learning
         smpred = Smilespred(
-            model_dir=model_path, sign0=self.sign0_vectors, 
-            sign3=self.sign3_vectors, evaluate=evaluate)
+            model_dir=model_path, sign0=self.sign0_vectors,
+            sign3=self.sign3_vectors, evaluate=evaluate, **params)
         self.__log.debug('Smiles pred training on %s' % model_path)
         smpred.fit()
         self.smiles_predictor = smpred
@@ -124,7 +126,7 @@ class sign4(BaseSignature, DataSignature):
         if evaluate:
             smpred.evaluate()
 
-    def learn_sign0_conf(self, sign0, sign3, reuse=True, suffix=None,
+    def learn_sign0_conf(self, sign0, sign3, params, reuse=True, suffix=None,
                          evaluate=True):
         """Learn the signature 3 applicability from sign0.
 
@@ -152,13 +154,13 @@ class sign4(BaseSignature, DataSignature):
         if not os.path.isdir(model_path):
             reuse = False
             os.makedirs(model_path)
-        _, sign3_app_V = self.sign3.get_vectors(self.shared_keys, 
-            dataset_name='confidence')
+        _, sign3_app_V = self.sign3.get_vectors(self.shared_keys,
+                                                dataset_name='confidence')
         sign3_app_V = sign3_app_V.ravel()
         # initialize model and start learning
         apppred = ApplicabilityPredictor(
             model_dir=model_path, sign0=self.sign0_vectors,
-            applicability=sign3_app_V, evaluate=evaluate)
+            applicability=sign3_app_V, evaluate=evaluate, **params)
         self.__log.debug('Applicability pred training on %s' % model_path)
         if not reuse:
             apppred.fit()
@@ -204,18 +206,22 @@ class sign4(BaseSignature, DataSignature):
         if not only_confidence:
             self.update_status("Training SMILES-based signature predictor")
             if suffix is not None:
-                self.learn_sign0(sign0, sign3, suffix=suffix, evaluate=True)
+                self.learn_sign0(sign0, sign3, self.params['sign0'].copy(),
+                                 suffix=suffix, evaluate=True)
                 return False
             else:
-                self.learn_sign0(sign0, sign3, suffix='eval', evaluate=True)
+                self.learn_sign0(sign0, sign3, self.params['sign0'].copy(),
+                                 suffix='eval', evaluate=True)
             # check if we have the final trained model
             self.update_status("Fitting final SMILES model")
-            self.learn_sign0(sign0, sign3, suffix='final', evaluate=False)
+            self.learn_sign0(sign0, sign3, self.params['sign0'].copy(),
+                             suffix='final', evaluate=False)
         if include_confidence:
             self.update_status("Training SMILES-based confidence predictor")
             if suffix is not None:
                 self.learn_sign0_conf(
-                    sign0, sign3, suffix=suffix, evaluate=True)
+                    sign0, sign3, self.params['sign0_conf'].copy(),
+                    suffix=suffix, evaluate=True)
                 return False
             else:
                 dest_file = os.path.join(
@@ -223,7 +229,8 @@ class sign4(BaseSignature, DataSignature):
                     'applicabilitypredictor.h5')
                 if not os.path.isfile(dest_file):
                     self.learn_sign0_conf(
-                        sign0, sign3, suffix='eval', evaluate=True)
+                        sign0, sign3, self.params['sign0_conf'].copy(),
+                        suffix='eval', evaluate=True)
             # check if we have the final trained model
             dest_file = os.path.join(self.model_path,
                                      'smiles_applicability_final',
@@ -231,7 +238,8 @@ class sign4(BaseSignature, DataSignature):
             if not os.path.isfile(dest_file):
                 self.update_status("Fitting final confidence model")
                 self.learn_sign0_conf(
-                    sign0, sign3, suffix='final', evaluate=False)
+                    sign0, sign3, self.params['sign0_conf'].copy(),
+                    suffix='final', evaluate=False)
         # predict for CC universe
         self.update_status("Predicting for CC universe")
         self.predict_from_sign0(sign0, self.data_path)
@@ -271,10 +279,10 @@ class sign4(BaseSignature, DataSignature):
         # load novelty model for more accurate novelty scores (slower)
         with h5py.File(dest_file, "w") as results:
             results.create_dataset('keys', data=np.array(
-                    sign0.keys, DataSignature.string_dtype()))
+                sign0.keys, DataSignature.string_dtype()))
             results.create_dataset(
-                    'applicability', (len(sign0.keys), 1), dtype=np.float32)
-            results.create_dataset( 
+                'applicability', (len(sign0.keys), 1), dtype=np.float32)
+            results.create_dataset(
                 'V', (len(sign0.keys), 128), dtype=np.float32)
             results.create_dataset("shape", data=(len(sign0.keys), 128))
             # sign0 must be reordered
@@ -290,9 +298,9 @@ class sign4(BaseSignature, DataSignature):
                 results['applicability'][chunk] = apreds[:]
         return pred_s3
 
-    def predict_from_string(self, molecules, dest_file, keytype='SMILES', 
-                chunk_size=1000, predict_fn=None, keys=None, components=128,
-                applicability=True, y_order=None):
+    def predict_from_string(self, molecules, dest_file, keytype='SMILES',
+                            chunk_size=1000, predict_fn=None, keys=None,
+                            components=128, applicability=True, y_order=None):
         """Given molecuel string, generate MFP and predict sign3.
 
         Args:
