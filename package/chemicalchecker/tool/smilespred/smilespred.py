@@ -211,30 +211,30 @@ class Smilespred(object):
 
         fig, axes = plt.subplots(2, 3, figsize=(15, 10), sharex='col')
         axes[0][0].set_title('Train Euclidean distances', fontsize=19)
-        sns.distplot(tr_e_o, label='original', ax=axes[0][0])
-        sns.distplot(tr_e_p, label='predicted', ax=axes[0][0])
+        sns.histplot(tr_e_o, label='original', ax=axes[0][0])
+        sns.histplot(tr_e_p, label='predicted', ax=axes[0][0])
         axes[0][0].legend(fontsize=15)
 
         axes[0][1].set_title('Train Cosine sims', fontsize=19)
-        sns.distplot(tr_s_o, label='original', ax=axes[0][1])
-        sns.distplot(tr_s_p, label='predicted', ax=axes[0][1])
+        sns.histplot(tr_s_o, label='original', ax=axes[0][1])
+        sns.histplot(tr_s_p, label='predicted', ax=axes[0][1])
         axes[0][1].legend(fontsize=15)
 
         axes[0][2].set_title('Train Distance original-predicted', fontsize=19)
-        sns.distplot(tr_dif, ax=axes[0][2])
+        sns.histplot(tr_dif, ax=axes[0][2])
 
         axes[1][0].set_title('Test Euclidean distances', fontsize=19)
-        sns.distplot(ts_e_o, label='original', ax=axes[1][0])
-        sns.distplot(ts_e_p, label='predicted', ax=axes[1][0])
+        sns.histplot(ts_e_o, label='original', ax=axes[1][0])
+        sns.histplot(ts_e_p, label='predicted', ax=axes[1][0])
         axes[1][0].legend(fontsize=15)
 
         axes[1][1].set_title('Test Cosine sims', fontsize=19)
-        sns.distplot(ts_s_o, label='original', ax=axes[1][1])
-        sns.distplot(ts_s_p, label='predicted', ax=axes[1][1])
+        sns.histplot(ts_s_o, label='original', ax=axes[1][1])
+        sns.histplot(ts_s_p, label='predicted', ax=axes[1][1])
         axes[1][1].legend(fontsize=15)
 
         axes[1][2].set_title('Test Distance original-predicted', fontsize=19)
-        sns.distplot(ts_dif, ax=axes[1][2])
+        sns.histplot(ts_dif, ax=axes[1][2])
 
         fname = 'distances.png'
         plot_file = os.path.join(self.model_dir, fname)
@@ -310,19 +310,19 @@ class Smilespred(object):
 
         fig, axes = plt.subplots(2, 2, figsize=(10, 10))
         axes[0][0].set_title('5 NN')
-        sns.distplot(shared_nn[:, 0], ax=axes[0][0])
+        sns.histplot(shared_nn[:, 0], ax=axes[0][0])
         axes[0][0].set_xlabel('Num overlap NN')
 
         axes[0][1].set_title('20 NN')
-        sns.distplot(shared_nn[:, 1], ax=axes[0][1], color='#ff7f0e')
+        sns.histplot(shared_nn[:, 1], ax=axes[0][1], color='#ff7f0e')
         axes[0][1].set_xlabel('Num overlap NN')
 
         axes[1][0].set_title('50 NN')
-        sns.distplot(shared_nn[:, 2], ax=axes[1][0], color='#2ca02c')
+        sns.histplot(shared_nn[:, 2], ax=axes[1][0], color='#2ca02c')
         axes[1][0].set_xlabel('Num overlap NN')
 
         axes[1][1].set_title('100 NN')
-        sns.distplot(shared_nn[:, 3], ax=axes[1][1], color='#d62728')
+        sns.histplot(shared_nn[:, 3], ax=axes[1][1], color='#d62728')
         axes[1][1].set_xlabel('Num overlap NN')
         fname = 'NN_overlap.png'
         plot_file = os.path.join(self.model_dir, fname)
