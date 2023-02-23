@@ -54,10 +54,10 @@ class sign4(BaseSignature, DataSignature):
             'epochs': 30,
             'cpu': 8,
             'learning_rate': 1e-3,
-            'layers': ['Dense', 'Dense', 'Dense'],
-            'layers_sizes': [1024, 512, 256],
-            'activations': ['relu', 'relu', 'relu'],
-            'dropouts': [0.2, 0.2, 0.2]
+            'layers': ['Dense', 'Dense', 'Dense', 'Dense'],
+            'layers_sizes': [1024, 512, 256, 1],
+            'activations': ['relu', 'relu', 'relu', 'linear'],
+            'dropouts': [0.5, 0.2, 0.2, None]
         }
         default_sign0_conf.update(params.get('sign0_conf_params', {}))
         self.params['sign0_conf'] = default_sign0_conf
