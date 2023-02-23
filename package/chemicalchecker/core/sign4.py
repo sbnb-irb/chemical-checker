@@ -244,7 +244,7 @@ class sign4(BaseSignature, DataSignature):
         self.update_status("Predicting for CC universe")
         self.predict_from_sign0(sign0, self.data_path)
         # save reference
-        self.save_reference()
+        self.save_reference(overwrite=True)
         # finalize signature
         BaseSignature.fit_end(self, **kwargs)
 
