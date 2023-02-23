@@ -404,8 +404,7 @@ class sign0(BaseSignature, DataSignature):
 
         self.refresh()
         # save reference
-        overwrite = kwargs.get('overwrite', False)
-        self.save_reference(overwrite=overwrite)
+        self.save_reference(overwrite=True)
         # Making triplets
         if do_triplets:
             self.update_status("Sampling triplets")
