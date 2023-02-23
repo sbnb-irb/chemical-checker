@@ -813,12 +813,13 @@ class DataSignature(object):
         except Exception:
             raise Exception("`reference` to `full` mismatch.")
 
-    def map(self, out_file):
+    def apply_mappings(self, out_file, mappings=None):
         """Map signature throught mappings."""
-        if "mappings" not in self.info_h5:
-            raise Exception("Data file has no mappings.")
-        mappings_raw = self.get_h5_dataset('mappings')
-        mappings = dict(mappings_raw)
+        if mappings is None:
+            if "mappings" not in self.info_h5:
+                raise Exception("Data file has no mappings.")
+            mappings_raw = self.get_h5_dataset('mappings')
+            mappings = dict(mappings_raw)
         # avoid trivial mappings (where key==value)
         to_map = list(set(mappings.keys()) - set(mappings.values()))
         if len(to_map) == 0:
