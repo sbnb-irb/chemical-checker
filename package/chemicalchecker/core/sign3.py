@@ -2043,7 +2043,7 @@ class sign3(BaseSignature, DataSignature):
             self.predict_novelty()
 
         # save reference
-        self.save_reference()
+        self.save_reference(overwrite=True)
         # finalize signature
         BaseSignature.fit_end(self, **kwargs)
 
