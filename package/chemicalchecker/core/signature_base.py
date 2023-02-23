@@ -521,6 +521,24 @@ class BaseSignature(object):
                 hf.create_dataset('features', data=features)
         return sign_ref
 
+    def save_full(self, overwrite=False):
+        """Map the non redundant signature in explicit full molset.
+
+        It generates a new signature in the full folders.
+
+        Args:
+            overwrite(bool): Overwrite existing (default=False).
+        """
+        if "sign" not in self.cctype:
+            raise Exception("Only sign* are allowed.")
+        if self.molset == 'full':
+            raise Exception("This is already `full` molset.")
+        sign_full = self.get_molset("full")
+        if os.path.exists(sign_full.data_path):
+            if not overwrite:
+                raise Exception("%s exists" % sign_full.data_path)
+        self.apply_mappings(sign_full.data_path)
+
     def background_distances(self, metric):
         """Return the background distances according to the selected metric.
 

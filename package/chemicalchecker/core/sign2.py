@@ -186,7 +186,7 @@ class sign2(BaseSignature, DataSignature):
             self.predict(sign1_full, sign2_full.data_path)
             self.predict(sign1_ref, sign2_ref.data_path)
         else:
-            self.map(sign2_full.data_path)
+            self.save_full(sign2_full.data_path)
         # finalize signature
         BaseSignature.fit_end(self,  **kwargs)
 
