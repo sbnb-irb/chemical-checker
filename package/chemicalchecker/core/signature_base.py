@@ -307,12 +307,17 @@ class BaseSignature(object):
         # read config file,# NS: get the cc_config var otherwise set it to
         # os.environ['CC_CONFIG']
         cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
-        self.__log.debug("CC_Config for function {} is: {}".format(func_name, cc_config))
+        self.__log.debug(
+            "CC_Config for function {} is: {}".format(func_name, cc_config))
         cfg = Config(cc_config)
 
         # create job directory if not available
         job_base_path = cfg.PATH.CC_TMP
-        tmp_dir = tempfile.mktemp(prefix='tmp_', dir=job_base_path)
+
+        job_name = "_".join(["CC", self.cctype.upper(), self.dataset,
+                             func_name, '_'])
+        tmp_dir = tempfile.mktemp(prefix=job_name, dir=job_base_path)
+
         job_path = kwargs.get("job_path", tmp_dir)
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
@@ -350,7 +355,7 @@ class BaseSignature(object):
         params = kwargs
         params["num_jobs"] = 1
         params["jobdir"] = job_path
-        params["job_name"] = script_name
+        params["job_name"] = job_name
         params["wait"] = kwargs.get("wait", False)
 
         # job command
