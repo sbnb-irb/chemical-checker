@@ -29,7 +29,7 @@ build_singularity_image_py37:
   only:
     changes:
       - container/singularity/cc_py37.def
-  timeout: 2 hours
+  timeout: 4 hours
 
 build_singularity_image_py37_lite:
   stage: image
