@@ -178,7 +178,7 @@ class sign4(BaseSignature, DataSignature):
         tested.
 
         Args:
-            sign0(str): Path to the MF file (e.g. sign0 of A1.001).
+            sign0(str): Path to the MFP file (i.e. sign0 of A1.001).
             include_confidence(bool): Whether to include confidence score in
                 regression problem.
             only_confidence(bool): Whether to only train an additional
@@ -201,6 +201,9 @@ class sign4(BaseSignature, DataSignature):
             self.__log.debug("Fit will be done using full sign3")
             sign3 = sign3.get_molset("full")
         self.sign3 = sign3
+        if sign0.shape[0] != sign3.shape[0]:
+            self.__log.warning("sign3 and MFP do not have the same nr of "
+                               "molecules. This might give bad sign0 recap.")
 
         # check if performance evaluations need to be done
         if not only_confidence:
