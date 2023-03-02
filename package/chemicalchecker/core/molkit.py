@@ -53,8 +53,8 @@ class Molset(object):
         self.conv = Converter()
         if isinstance(molecules, pd.DataFrame):
             self.df = molecules.copy()
-            self.inchikeys = self.df[self.df['InChIKey']
-                                     != '']['InChIKey'].tolist()
+            all_inks = self.df[self.df['InChIKey'] != '']['InChIKey'].tolist()
+            self.inchikeys = sorted(list(set(all_inks)))
         else:
             if mol_type is None:
                 mol_type = KeyTypeDetector.type(molecules[0])
@@ -108,10 +108,7 @@ class Molset(object):
                 raise Exception('No valid molcules passed.')
             self.df.reset_index(inplace=True, drop=True)
         if add_image:
-            from rdkit.Chem import PandasTools
-            self.df.fillna('', inplace=True)
-            PandasTools.AddMoleculeColumnToFrame(
-                self.df, smilesCol='SMILES', molCol='Structure')
+            Molset.add_image(self.df)
 
     def save(self, destination, overwrite=False):
         """Save a Molset instance.
@@ -145,6 +142,66 @@ class Molset(object):
                  ' (%s) is different from the currently used (%s)'
                  % (cc_root, cc.cc_root)))
         return cls(cc, df, add_image=add_image)
+
+    @staticmethod
+    def add_image(df):
+        from rdkit.Chem import PandasTools
+        df['SMILES'].fillna('', inplace=True)
+        PandasTools.AddMoleculeColumnToFrame(
+            df, smilesCol='SMILES', molCol='Structure')
+
+    @classmethod
+    def combine(cls, cc, molset1, molset2, add_image=False):
+        # we merge the dataframes on inchi
+        mol_cols = ['SMILES', 'Scaffold', 'Structure']
+        cols1 = [i for i in molset1.df.columns if i not in mol_cols]
+        cols2 = [i for i in molset2.df.columns if i not in mol_cols]
+        df = pd.merge(molset1.df[cols1], molset2.df[cols2],
+                      on=['InChIKey', 'InChI'], how='outer')
+        # add the inchikeyes and smiles
+        mix = cls(cc, df, add_image=False)
+        mix._add_smiles()
+        mix._add_inchikeys()
+        mix._add_scaffold()
+        if add_image:
+            Molset.add_image(mix.df)
+        df = mix.df
+        # take care of other annotation columns
+        all_mol_cols = mol_cols + ['InChI']
+        anno_cols1 = [i for i in molset1.df.columns if i not in all_mol_cols]
+        anno_cols2 = [i for i in molset2.df.columns if i not in all_mol_cols]
+        # handle disjoint annotation columns
+        disjoint = set(anno_cols1) ^ set(anno_cols2)
+        for col in disjoint:
+            #print('disjoint:', col)
+            # if columns does not contain list we make a single element list
+            if not isinstance(df[col].dropna().iloc[0], list):
+                df[col] = df[col].apply(lambda x: x if pd.isnull(x) else [x])
+            # we replace NaNs with empty lists
+            df[col] = df[col].apply(lambda x: x if isinstance(x, list) else [])
+        # combine shared annotation columns as a list
+        shared = (set(anno_cols1) & set(anno_cols2)) - {'InChIKey'}
+        for col in shared:
+            #print('shared:', col)
+            colx = col + '_x'
+            coly = col + '_y'
+            if not isinstance(df[colx].dropna().iloc[0], list):
+                df[colx] = df[colx].apply(lambda x: x if pd.isnull(x) else [x])
+            df[colx] = df[colx].apply(
+                lambda x: x if isinstance(x, list) else [])
+            if not isinstance(df[coly].dropna().iloc[0], list):
+                df[coly] = df[coly].apply(lambda x: x if pd.isnull(x) else [x])
+            df[coly] = df[coly].apply(
+                lambda x: x if isinstance(x, list) else [])
+            df[col] = df[colx] + df[coly]
+            df[col] = df[col].apply(set)
+            df[col] = df[col].apply(list)
+            #df[col] = df[col].apply(lambda x: [e for e in x if not np.isnan(e)])
+            if all(df[col].apply(len) == 1):
+                df[col] = df[col].apply(lambda x: x[0])
+        mols_col = ['InChIKey', 'InChI', 'SMILES', 'Scaffold']
+        mix.df = df[mols_col + sorted(list(shared)) + sorted(list(disjoint))]
+        return mix
 
     def get_name_inchi_map(self, names):
         cpd_inchi = dict()
