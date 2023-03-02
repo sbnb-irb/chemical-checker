@@ -283,7 +283,7 @@ class DataSignature(object):
     def h5_str(lst):
         return np.array(lst, dtype=DataSignature.string_dtype())
 
-    def copy_from(self, sign, key):
+    def copy_from(self, sign, key, chunk=None):
         """Copy dataset 'key' to current signature.
 
         Args:
@@ -293,7 +293,10 @@ class DataSignature(object):
         sign._check_data()
         sign._check_dataset(key)
         with h5py.File(sign.data_path, 'r') as hf:
-            src = hf[key][:]
+            if chunk is not None:
+                src = hf[key][chunk]
+            else:
+                src = hf[key][:]
         with h5py.File(self.data_path, 'a') as hf:
             # delete if already there
             if key in hf:
