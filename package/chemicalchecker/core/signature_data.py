@@ -442,22 +442,30 @@ class DataSignature(object):
                     results.create_dataset(key, data=np.vstack(tmp).T)
 
     @staticmethod
-    def vstack_signatures(sign_list, destination, chunk_size=1000):
-        """Merge horizontally a list of signatures."""
+    def vstack_signatures(sign_list, destination, chunk_size=10000,
+                          vchunk_size=100):
+        """Merge vertically a list of signatures."""
         hsizes = [s.shape[1] for s in sign_list]
         vsizes = [s.shape[0] for s in sign_list]
         if not all([hsizes[0] == h for h in hsizes]):
             raise ValueError('All signatures must have same features.')
+        # the set of keys must be disjoint
+        all_keys = [s.keys for s in sign_list]
+        if len(set.intersection(*[set(x) for x in all_keys])) != 0:
+            raise ValueError('All signatures must have different molecules.')
 
         with h5py.File(destination, "w") as results:
-            results.create_dataset('keys', data=np.array(
-                np.hstack([s.keys for s in sign_list]),
-                DataSignature.string_dtype()))
+            # we reorder already keys
+            all_keys_array = np.array(np.hstack(all_keys),
+                                      DataSignature.string_dtype())
+            order = np.argsort(all_keys_array)
+            results.create_dataset('keys', data=all_keys_array[order])
             results.create_dataset("V", (sum(vsizes), hsizes[0]))
-
+            # copy the stacked V matrices
             for idx, sign in enumerate(sign_list):
                 with h5py.File(sign.data_path, 'r') as hf_in:
-                    for i in range(0, vsizes[idx], chunk_size):
+                    for i in tqdm(range(0, vsizes[idx], chunk_size),
+                                  desc='copying V'):
                         if i + chunk_size > vsizes[idx]:
                             end = vsizes[idx]
                         else:
@@ -466,6 +474,11 @@ class DataSignature(object):
                         vchunk_dst = slice(sum(vsizes[:idx]) + i,
                                            sum(vsizes[:idx]) + end)
                         results['V'][vchunk_dst] = hf_in['V'][vchunk_src]
+            # reorder vertical chunks
+            vrange = range(0, hsizes[0], vchunk_size)
+            for i in tqdm(vrange, desc='reordering rows'):
+                vchunk = slice(i, i + vchunk_size)
+                results['V'][:, vchunk] = results['V'][:, vchunk][order]
 
     def get_h5_dataset(self, h5_dataset_name, mask=None):
         """Get a specific dataset in the signature."""
