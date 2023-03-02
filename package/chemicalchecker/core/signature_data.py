@@ -48,10 +48,13 @@ class DataSignature(object):
                         self.__log.info('Skipping `%s~`: already there')
                         continue
                 if isinstance(v, list):
-                    if hasattr(v[0], 'decode') or isinstance(v[0], str) or isinstance(v[0], np.str_):
+                    if (hasattr(v[0], 'decode') or isinstance(v[0], str) or
+                            isinstance(v[0], np.str_)):
                         v = self.h5_str(v)
                 else:
-                    if hasattr(v.flat[0], 'decode') or isinstance(v.flat[0], str) or isinstance(v.flat[0], np.str_):
+                    if (hasattr(v.flat[0], 'decode')
+                        or isinstance(v.flat[0], str)
+                            or isinstance(v.flat[0], np.str_)):
                         v = self.h5_str(v)
                 hf.create_dataset(k, data=v, chunks=chunks,
                                   compression=compression)
@@ -328,7 +331,7 @@ class DataSignature(object):
                         else:
                             masked = hf_in[dset][:][:]
                             hf_out.create_dataset(dst_dset, data=masked,
-                                compression=compression)
+                                                  compression=compression)
                             self.__log.debug("Copy dataset %s of shape %s" %
                                              (dset, str(masked.shape)))
                             continue
@@ -339,7 +342,7 @@ class DataSignature(object):
                         self.__log.debug("Copy dataset %s of shape %s" %
                                          (dset, str(masked.shape)))
                         hf_out.create_dataset(dst_dset, data=masked,
-                            compression=compression)
+                                              compression=compression)
                         continue
 
                     # mask single value dataset all at once
@@ -348,7 +351,7 @@ class DataSignature(object):
                         self.__log.debug("Copy dataset %s of shape %s" %
                                          (dset, str(masked.shape)))
                         hf_out.create_dataset(dst_dset, data=masked,
-                            compression=compression)
+                                              compression=compression)
                         continue
 
                     # memory safe masked copy for other datasets
@@ -486,7 +489,7 @@ class DataSignature(object):
         return data
 
     def as_dataframe(self):
-        df = pd.DataFrame(self[:],columns=self.features, index=self.keys)
+        df = pd.DataFrame(self[:], columns=self.features, index=self.keys)
         return df
 
     def get_vectors(self, keys, include_nan=False, dataset_name='V',
@@ -538,7 +541,6 @@ class DataSignature(object):
 
     def get_vectors_lite(self, keys, chunk_size=2000, chunk_above=10000):
         """Iterate on signatures."""
-        from tqdm import tqdm
         keys = set(keys)
         idxs = []
         mask = []
