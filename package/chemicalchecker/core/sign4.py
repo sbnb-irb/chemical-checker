@@ -273,7 +273,8 @@ class sign4(BaseSignature, DataSignature):
         return self.predict_from_string(smiles, dest_file, keytype='SMILES',
                                         **kwargs)
 
-    def predict_from_sign0(self, sign0, dest_file, chunk_size=1000, **kwargs):
+    def predict_from_sign0(self, sign0, dest_file, chunk_size=1000, y_order=None,
+                           **kwargs):
         # load NN
         predict_fn = self.get_predict_fn()
         appl_fn = self.get_applicability_predict_fn()
@@ -288,11 +289,14 @@ class sign4(BaseSignature, DataSignature):
             results.create_dataset(
                 'V', (len(sign0.keys), 128), dtype=np.float32)
             results.create_dataset("shape", data=(len(sign0.keys), 128))
-            # sign0 must be reordered
-            order = np.argsort(sign0.get_h5_dataset('features').astype(int))
+            # sign0 reorder
+            if y_order is None:
+                y_order = np.arange(2048)
+            if 'features' in sign0.info_h5:
+                y_order = np.argsort(sign0.get_h5_dataset('features').astype(int))
             cs = chunk_size
             for chunk, rows in sign0.chunk_iter('V', cs, axis=0, chunk=True):
-                rows = rows[:, order]
+                rows = rows[:, y_order]
                 preds = predict_fn(rows)
                 # save chunk to H5
                 results['V'][chunk] = preds[:]
