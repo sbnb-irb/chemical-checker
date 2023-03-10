@@ -40,9 +40,12 @@ class Converter():
         except ImportError:
             raise ImportError("requires pubchempy")
 
-    def smiles_to_scaffold(self, smiles):
+    def smiles_to_scaffold(self, smiles, generic=False):
         """From SMILES to the SMILES of its scaffold."""
         scaffold_smiles = self.scaffold.MurckoScaffoldSmiles(smiles)
+        if generic:
+            scaffold_smiles = self.scaffold.MakeScaffoldGeneric(
+                Chem.MolFromSmiles(scaffold_smiles))
         return scaffold_smiles
 
     def smiles_to_inchi(self, smiles):
@@ -277,7 +280,7 @@ class Converter():
     @staticmethod
     def inchikey_to_inchi(inchikey, local_db=True, save_local=True):
         """From InChIKey to InChI.
-        
+
         Precedence is given to the local db that will be the fastest option.
         If it is not found locally several provider are contacted, and we
         possibly want to add the it to the Molecule table.
