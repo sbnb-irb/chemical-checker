@@ -44,8 +44,9 @@ class Converter():
         """From SMILES to the SMILES of its scaffold."""
         scaffold_smiles = self.scaffold.MurckoScaffoldSmiles(smiles)
         if generic:
-            scaffold_smiles = self.scaffold.MakeScaffoldGeneric(
-                Chem.MolFromSmiles(scaffold_smiles))
+            scaffold_mol = self.scaffold.MakeScaffoldGeneric(
+                self.Chem.MolFromSmiles(scaffold_smiles))
+            scaffold_smiles = self.Chem.MolToSmiles(scaffold_mol)
         return scaffold_smiles
 
     def smiles_to_inchi(self, smiles):
