@@ -5,6 +5,7 @@ identifier, and ultimately find if signatures available.
 """
 import os
 import pickle
+import tempfile
 import numpy as np
 import collections
 import pandas as pd
@@ -13,9 +14,10 @@ from tqdm import tqdm
 from functools import partial
 from collections import defaultdict
 
-from chemicalchecker.util import logged
+from chemicalchecker.util.hpc import HPC
 from .signature_data import DataSignature
 from chemicalchecker.util.psql import psql
+from chemicalchecker.util import logged, Config
 from chemicalchecker.util.keytype import KeyTypeDetector
 from chemicalchecker.util.parser.converter import Converter
 
@@ -640,6 +642,106 @@ class Molset(object):
             y_name = '%s_%s2' % (ds, projector_name)
             self.df = pd.concat(
                 [self.df, pd.Series(proj[:, 1], name=y_name)], axis=1)
+
+    def func_hpc(self, func_name, func_args, func_kwargs, hpc_kwargs,
+                 data_path=None):
+        """Execute the *any* method on the configured HPC.
+
+        Args:
+            func_name(str): the name of the function.
+            func_args(tuple): the arguments for of the function to be called.
+            func_kwargs(tuple): the keyworded arguments for of the function
+                to be called.
+            hpc_kwargs(dict): arguments for the HPC class.
+            data_path(str): the path to the Molset object, if None a copy of
+                the data in the job folder will be made.
+        """
+        # qualified name
+        qual_name = '_'.join([self.__class__.__name__, func_name])
+
+        # get cc config
+        cc_config = hpc_kwargs.get("cc_config", os.environ['CC_CONFIG'])
+        self.__log.debug("cc_config used: {}".format(cc_config))
+        cfg = Config(cc_config)
+
+        # create job directory
+        job_base_path = cfg.PATH.CC_TMP
+        job_name = "_".join(["CC", qual_name])
+        tmp_dir = tempfile.mktemp(prefix=job_name, dir=job_base_path)
+        job_path = hpc_kwargs.get("job_path", tmp_dir)
+        if not os.path.isdir(job_path):
+            os.mkdir(job_path)
+
+        # pickle function args and kwargs
+        pkl_args_fn = '%s_args.pkl' % qual_name
+        pkl_args_path = os.path.join(job_path, pkl_args_fn)
+        pickle.dump((func_args, func_kwargs), open(pkl_args_path, 'wb'))
+
+        # pickle the data
+        if data_path is None:
+            pkl_data_fn = '%s_data.pkl' % qual_name
+            data_path = os.path.join(job_path, pkl_data_fn)
+            self.save(data_path)
+        self.__log.info('data will be saved to: %s' % data_path)
+
+        # hpc parameters
+        hpc = dict()
+        hpc["cpu"] = hpc_kwargs.get("cpu", 1)
+        hpc["wait"] = hpc_kwargs.get("wait", False)
+        hpc["jobdir"] = hpc_kwargs.get("job_path", job_path)
+        hpc["num_jobs"] = hpc_kwargs.get("num_jobs", 1)
+        hpc["job_name"] = hpc_kwargs.get("job_name", job_name)
+        hpc["verbosity"] = hpc_kwargs.get("verbosity", "DEBUG")
+
+        # create script file
+        script_lines = [
+            "import os, sys, pickle",
+            "from chemicalchecker import ChemicalChecker",
+            "from chemicalchecker.core import Molset",
+            "ChemicalChecker.set_verbosity('%s')" % hpc["verbosity"],
+            "cc = ChemicalChecker('%s')" % self.cc.cc_root,
+            "molset = Molset.load(cc, sys.argv[1])",
+            "args, kwargs = pickle.load(open(sys.argv[2], 'rb'))",
+            "molset.%s(*args, **kwargs)" % func_name,
+            "molset.save('%s', overwrite=True)" % data_path,
+            "print('JOB DONE')"
+        ]
+        if hpc_kwargs.get("delete_job_path", False):
+            script_lines.append("print('DELETING JOB PATH: %s')" % job_path)
+            script_lines.append("os.system('rm -rf %s')" % job_path)
+
+        # save the HPC script
+        script_name = '%s_%s_hpc.py' % (self.__class__.__name__, func_name)
+        script_name = hpc_kwargs.get("script_name", script_name)
+        script_path = os.path.join(job_path, script_name)
+        with open(script_path, 'w') as fh:
+            for line in script_lines:
+                fh.write(line + '\n')
+
+        # job command
+        singularity_image = cfg.PATH.SINGULARITY_IMAGE
+        command = ("SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}"
+                   " singularity exec {} python {} {} {}")
+        command = command.format(
+            os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
+            singularity_image, script_name, data_path, pkl_args_path)
+
+        # set environment variable that avoid cpu over-subscription
+        env_vars = [
+            'OMP_NUM_THREADS',
+            'OPENBLAS_NUM_THREADS',
+            'MKL_NUM_THREADS',
+            'VECLIB_MAXIMUM_THREADS',
+            'NUMEXPR_NUM_THREADS'
+        ]
+        command = ' '.join(["%s=%s" % (v, str(hpc["cpu"]))
+                            for v in env_vars] + [command])
+
+        # submit jobs
+        hpc_cfg = hpc_kwargs.get("hpc_cfg", cfg)
+        cluster = HPC.from_config(hpc_cfg)
+        cluster.submitMultiJob(command, **hpc)
+        return cluster
 
 
 @logged
