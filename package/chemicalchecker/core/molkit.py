@@ -252,10 +252,11 @@ class Molset(object):
                          lambda x: self.conv.smiles_to_inchi(x)[1])
             self.df['InChI'] = self.df[mol_col].dropna().apply(fn)
 
-    def _add_scaffold(self):
+    def _add_scaffold(self, generic=False):
         """Bemis-Murcko scaffold"""
         if 'Scaffold' not in self.df.columns:
-            fn = partial(self._safe_func, self.conv.smiles_to_scaffold)
+            conv_fn = partial(self.conv.smiles_to_scaffold, generic=generic)
+            fn = partial(self._safe_func, conv_fn)
             self.df['Scaffold'] = self.df['SMILES'].dropna().apply(fn)
 
     def annotate(self, dataset_code, shorten_dscode=True,
