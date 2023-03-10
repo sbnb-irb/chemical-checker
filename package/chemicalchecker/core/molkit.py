@@ -583,6 +583,34 @@ class Molset(object):
         return class_names
 
     @staticmethod
+    def get_chembl_hierarchy(chembldb='chembl_27'):
+        """Get protein class and proteins in tree format."""
+        pc_query = ("SELECT protein_class_id, parent_id, pref_name"
+                    "FROM protein_classification")
+        R = psql.qstring(pc_query, chembldb)
+        class_names = defaultdict(lambda: None)
+        edges = [(0, 1)] + [(p, c) for c, p, _ in R[1:]]
+        nodes = [(n[0], {'id': 'Class:%s' % n[0], 'name':n[2]}) for n in R]
+        G = nx.DiGraph()
+        G.update(nodes=nodes, edges=edges)
+        trg_query = (
+            "SELECT c.accession, pc.protein_class_id "
+            "FROM component_sequences c "
+            "JOIN component_class cc ON c.component_id = cc.component_id "
+            "JOIN protein_classification pc "
+            "ON cc.protein_class_id = pc.protein_class_id;")
+        R = psql.qstring(trg_query, chembldb)
+        trg_label = set(ac for ac, pc in R)
+        id_offset = max([n[0] for n in nodes])+1
+        tid_label = {i+id_offset: {'id': t}
+                     for i, t in enumerate(sorted([x for x in trg_label if x]))}
+        label_tid = {t: i+id_offset for i,
+                     t in enumerate(sorted([x for x in trg_label if x]))}
+        trg_parent = [(pc, label_tid[ac]) for ac, pc in R if ac in label_tid]
+        G.update(nodes=tuple(tid_label.items()), edges=trg_parent)
+        return G
+
+    @staticmethod
     def get_chebi(chebi_obo):
         """Get CHEBI id to name dictionary."""
         chebi_dict = defaultdict(str)
