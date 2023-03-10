@@ -32,7 +32,8 @@ class Molset(object):
     observed and/or predicted features by simple kNN inference.
     """
 
-    def __init__(self, cc, molecules, mol_type=None, add_image=True):
+    def __init__(self, cc, molecules, mol_type=None, add_image=True,
+                 generic_scaffold=False):
         """Initialize a Mol instance.
 
         Args:
@@ -101,7 +102,7 @@ class Molset(object):
                 self._add_inchi(mol_col)
                 self._add_inchikeys()
                 self.df = self.df[['InChIKey', 'InChI', 'SMILES']]
-            self._add_scaffold()
+            self._add_scaffold(generic=generic_scaffold)
             self.inchikeys = self.df[self.df['InChIKey']
                                      != '']['InChIKey'].tolist()
             self.df = self.df.sort_values('InChIKey')
@@ -155,7 +156,8 @@ class Molset(object):
             df, smilesCol='SMILES', molCol='Structure')
 
     @classmethod
-    def combine(cls, cc, molset1, molset2, add_image=False):
+    def combine(cls, cc, molset1, molset2, add_image=False,
+                generic_scaffold=False):
         # we merge the dataframes on inchi
         mol_cols = ['SMILES', 'Scaffold', 'Structure']
         cols1 = [i for i in molset1.df.columns if i not in mol_cols]
@@ -166,7 +168,7 @@ class Molset(object):
         mix = cls(cc, df, add_image=False)
         mix._add_smiles()
         mix._add_inchikeys()
-        mix._add_scaffold()
+        mix._add_scaffold(generic=generic_scaffold)
         if add_image:
             Molset.add_image(mix.df)
         df = mix.df
@@ -679,7 +681,7 @@ class Molset(object):
 
     def func_hpc(self, func_name, func_args, func_kwargs, hpc_kwargs,
                  data_path=None):
-        """Execute the *any* method on the configured HPC.
+        """Execute the *any* object method on the configured HPC.
 
         Args:
             func_name(str): the name of the function.
