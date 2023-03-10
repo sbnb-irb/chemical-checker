@@ -119,6 +119,7 @@ class Molset(object):
             destination (str): The destination path
             overwrite (bool): Whether to overwrite in case the file exists.
         """
+        self.__log.debug("saving to {}".format(destination))
         persist = (self.cc.cc_root, self.df)
         if os.path.isfile(destination):
             if overwrite:
@@ -137,9 +138,10 @@ class Molset(object):
             filename (str): The path of the file to load.
             add_image (bool): If True a molecule image is added.
         """
+        cls.__log.debug("loading from {}".format(filename))
         cc_root, df = pickle.load(open(filename, 'rb'))
         if cc.cc_root != cc_root:
-            self.__log.warning(
+            cls.__log.warning(
                 ('The CC instance used for generating the Molset'
                  ' (%s) is different from the currently used (%s)'
                  % (cc_root, cc.cc_root)))
@@ -606,7 +608,8 @@ class Molset(object):
         tmp_pred_file = './tmp.h5'
         if datasets == 'exemplary':
             datasets = self.cc.datasets_exemplary()
-        for ds in datasets:
+        self.__log.debug("signaturizing {} with {}".format(str(datasets)))
+        for ds in tqdm(datasets, disable=len(datasets) == 1):
             s4 = self.cc.signature(ds, 'sign4')
             pred = s4.predict_from_string(query_inchies, tmp_pred_file,
                                           keytype='InChI', keys=query_inks)
@@ -631,7 +634,9 @@ class Molset(object):
             datasets = self.cc.datasets_exemplary()
         if projector_name is None:
             projector_name = type(projector).__name__
-        for ds in datasets:
+        self.__log.debug("projecting {} with {}".format(
+            str(datasets), projector_name))
+        for ds in tqdm(datasets, disable=len(datasets) == 1):
             if '%s_sign' % ds not in self.df.columns:
                 self.signaturize(datasets=[ds])
             sign = np.vstack(self.df['%s_sign' % ds].values)
