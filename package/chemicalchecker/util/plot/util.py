@@ -247,19 +247,15 @@ def make_cbar_ax(ax, cmap=plt.get_cmap('viridis'), title=''):
 
 def projection(front, back=None, front_kwargs=[], ax=None,
                density_subsample=1000, update_proj_limits=True,
-               min_point=5):
+               min_point=5, proj_margin_perc=0.05):
 
-    def _proj_lims(P):
+    def _proj_range(P, margin_perc):
         xlim = [np.min(P[:, 0]), np.max(P[:, 0])]
         ylim = [np.min(P[:, 1]), np.max(P[:, 1])]
-        xscale = (xlim[1] - xlim[0]) * 0.05
-        yscale = (ylim[1] - ylim[0]) * 0.05
-        xlim[0] -= xscale
-        xlim[1] += xscale
-        ylim[0] -= yscale
-        ylim[1] += yscale
         abs_lim = np.max(np.abs(np.vstack([xlim, ylim])))
-        return (-abs_lim, abs_lim), (-abs_lim, abs_lim)
+        margin = abs_lim * 2 * margin_perc
+        proj_range = (- abs_lim - margin, abs_lim + margin)
+        return proj_range, proj_range
 
     if ax is None:
         fig, ax = plt.subplots(1, 1, figsize=(7, 7))
@@ -321,7 +317,7 @@ def projection(front, back=None, front_kwargs=[], ax=None,
     all_projs = np.vstack(front)
 
     if update_proj_limits:
-        xlim, ylim = _proj_lims(all_projs)
+        xlim, ylim = _proj_range(all_projs, margin_perc=proj_margin_perc)
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
     return ax
