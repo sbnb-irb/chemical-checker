@@ -512,6 +512,7 @@ class Molset(object):
             inchies.append(inchi)
         nn_molset = Molset(self.cc, inchies, mol_type='inchi')
         nn_molset.annotate(dataset_code, include_features=True,
+                           shorten_dscode=shorten_dscode,
                            features_from_raw=False, include_sign0=True)
 
         # aggregate NN features
