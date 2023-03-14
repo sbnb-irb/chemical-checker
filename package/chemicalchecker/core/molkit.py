@@ -541,7 +541,7 @@ class Molset(object):
             val = row['%s_predicted_sign0' % dscode]
             feat_idxs = np.argwhere(val).flatten()
             ink_feat[ink] = s0.features[feat_idxs].tolist()
-        feat_name = dscode + '_features'
+        feat_name = dscode + '_predicted_features'
         self.df[feat_name] = self.df['InChIKey'].map(ink_feat)
 
         if not return_sign0:
