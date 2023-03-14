@@ -638,8 +638,8 @@ class Molset(object):
         query_inchies = self.df['InChI'].tolist()
         tmp_pred_file = './tmp.h5'
         if datasets == 'exemplary':
-            datasets = self.cc.datasets_exemplary()
-        self.__log.debug("signaturizing {} with {}".format(str(datasets)))
+            datasets = list(self.cc.datasets_exemplary())
+        self.__log.debug("signaturizing datasets: {}".format(str(datasets)))
         for ds in tqdm(datasets, disable=len(datasets) == 1):
             s4 = self.cc.signature(ds, 'sign4')
             pred = s4.predict_from_string(query_inchies, tmp_pred_file,
@@ -662,10 +662,10 @@ class Molset(object):
                 Use 'exemplary' to get signatures for all exemplary CC spaces.
         """
         if datasets == 'exemplary':
-            datasets = self.cc.datasets_exemplary()
+            datasets = list(self.cc.datasets_exemplary())
         if projector_name is None:
             projector_name = type(projector).__name__
-        self.__log.debug("projecting {} with {}".format(
+        self.__log.debug("projecting datasets {} with {}".format(
             str(datasets), projector_name))
         for ds in tqdm(datasets, disable=len(datasets) == 1):
             if '%s_sign' % ds not in self.df.columns:
