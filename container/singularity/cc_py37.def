@@ -58,20 +58,28 @@ From: ubuntu:20.04
     conda create --name=py37 python=3.7 -y
     conda activate py37
 
+    # using mamba for speedup
+    conda install -n base -c conda-forge mamba
+    conda config --add channels defaults
+    conda config --add channels bioconda
+    conda config --add channels conda-forge
+    mamba update -n base mamba
+
+
     # conda-specific packages (~1 min)
-    conda install -y numpy==1.19.2                   # we fix numpy version because of TF
-    conda install -y -c conda-forge rdkit            # Open-Source Cheminformatics Software
-    conda install -y -c openbabel openbabel          # chemical toolbox
-    conda install -y mkl-service                     # change the number of CPU’s MKL is using
+    mamba install -y numpy==1.19.2                   # we fix numpy version because of TF
+    mamba install -y -c conda-forge rdkit            # Open-Source Cheminformatics Software
+    mamba install -y -c openbabel openbabel          # chemical toolbox
+    mamba install -y mkl-service                     # change the number of CPU’s MKL is using
     #conda install -y anaconda-client                 # client that provides an interface to Anaconda Cloud
-    conda install -y -c conda-forge hdbscan          # clustering
-    conda install -y -c efelix fpsim2                # fast compound similarity searches (used in TargetMate)
-    conda install -y -c conda-forge jupyterlab       # Jupyter notebooks
-    conda install -y -c anaconda ipython">7.19"      # interactive python
-    conda install -y -c anaconda cython              # C extensions
-    conda install -y -c pytorch faiss-cpu            # efficient similarity search and clustering
-    conda install -y -c conda-forge chembl_structure_pipeline    # standardizing molecules the ChEMBL way
-    conda install -y -c pytorch pytorch torchvision torchaudio cudatoolkit=11.3  # pytorch and cuda
+    mamba install -y -c conda-forge hdbscan          # clustering
+    mamba install -y -c efelix fpsim2                # fast compound similarity searches (used in TargetMate)
+    mamba install -y -c conda-forge jupyterlab       # Jupyter notebooks
+    mamba install -y -c anaconda ipython">7.19"      # interactive python
+    mamba install -y -c anaconda cython              # C extensions
+    mamba install -y -c conda-forge chembl_structure_pipeline    # standardizing molecules the ChEMBL way
+    mamba install -y -c pytorch pytorch torchvision torchaudio cudatoolkit=11.3  # pytorch and cuda
+    mamba install -y -c pytorch faiss-cpu            # efficient similarity search and clustering
     alias test_faiss='python -c "import faiss, numpy
 faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
