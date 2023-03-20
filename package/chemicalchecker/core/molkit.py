@@ -207,6 +207,8 @@ class Molset(object):
                 df[col] = df[col].apply(lambda x: x[0])
         mols_col = ['InChIKey', 'InChI', 'SMILES', 'Scaffold']
         mix.df = df[mols_col + sorted(list(shared)) + sorted(list(disjoint))]
+        mix.df = mix.df.sort_values('InChIKey')
+        mix.df.reset_index(inplace=True, drop=True)
         return mix
 
     def get_name_inchi_map(self, names):
