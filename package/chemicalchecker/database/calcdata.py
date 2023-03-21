@@ -177,7 +177,7 @@ def Calcdata(table_name):
             # profile time
             t_start = time()
             engine = get_engine(GenericCalcdata.dbname)
-            with engine.connect() as conn:
+            with engine.begin() as conn:
                 for chunk in parse_fn(dict_inchikey_inchi, chunksize):
                     if len(chunk) == 0:
                         continue
