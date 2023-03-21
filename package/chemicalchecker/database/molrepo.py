@@ -300,7 +300,7 @@ class Molrepo(Base):
         # profile time
         t_start = time()
         engine = get_engine()
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             for chunk in parse_fn(map_files, molrepo_name, 1000):
                 if len(chunk) == 0:
                     continue

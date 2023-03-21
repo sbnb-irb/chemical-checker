@@ -48,7 +48,7 @@ class Pubchem(Base):
             chunk(int): The size of the chunks to load data to the database.
         """
         engine = get_engine()
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             for pos in range(0, len(data), chunk):
                 conn.execute(
                     Pubchem.__table__.insert(),
