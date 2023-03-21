@@ -61,7 +61,7 @@ class Molecule(Base):
             chunk(int): The size of the chunks to load data to the database.
         """
         engine = get_engine()
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             for pos in range(0, len(data), chunk):
                 if on_conflict_do_nothing:
                     conn.execute(
