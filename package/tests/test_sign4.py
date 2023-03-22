@@ -45,15 +45,23 @@ class TestSign4(unittest.TestCase):
         sign3 = cc_local.signature('A1.001', 'sign3')
 
         sign0_params = {
-            'epochs': 30,
-            'cpu': 8,
+            'epochs': 10,
             'learning_rate': 1e-3,
             'layers': ['Dense', 'Dense'],
             'layers_sizes': [256, 128],
             'activations': ['relu', 'tanh'],
             'dropouts': [0.1,  None],
         }
-        s4 = cc_local.signature('A1.001', 'sign4', sign0_params=sign0_params)
+        sign0_conf_params = {
+            'epochs': 10,
+            'learning_rate': 1e-3,
+            'layers': ['Dense', 'Dense'],
+            'layers_sizes': [256, 1],
+            'activations': ['relu', 'linear'],
+            'dropouts': [0.2, None]
+        }
+        s4 = cc_local.signature('A1.001', 'sign4', sign0_params=sign0_params,
+                                sign0_conf_params=sign0_conf_params)
         s4.fit(sign0, sign3)
 
         self.assertTrue(os.path.isfile(s4.data_path))
