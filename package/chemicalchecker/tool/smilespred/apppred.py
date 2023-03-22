@@ -33,7 +33,7 @@ from chemicalchecker.util import logged
 class ApplicabilityPredictor(object):
 
     def __init__(self, model_dir, sign0=[], applicability=[], evaluate=False,
-                 **kwargs):
+                 save_params=True, **kwargs):
         self.sign0 = sign0
         self.applicability = applicability[:]
         self.name = self.__class__.__name__.lower()
@@ -48,6 +48,12 @@ class ApplicabilityPredictor(object):
             self.t_split = 1
         self.model = None
 
+        # check if parameter file exists
+        param_file = os.path.join(model_dir, 'params.pkl')
+        if os.path.isfile(param_file):
+            with open(param_file, 'rb') as h:
+                kwargs = pickle.load(h)
+            self.__log.info('Parameters loaded from: %s' % param_file)
         self.epochs = int(kwargs.get("epochs", 10))
         self.learning_rate = kwargs.get("learning_rate", 1e-3)
         self.layers_sizes = kwargs.get("layers_sizes", [1024, 512, 256, 1])
@@ -62,6 +68,12 @@ class ApplicabilityPredictor(object):
         self.activations = kwargs.get(
             "activations", ['relu', 'relu', 'relu', 'linear'])
         self.dropouts = kwargs.get("dropouts", [0.2, 0.2, 0.2, None])
+
+        # save params
+        if not os.path.isfile(param_file) and save_params:
+            self.__log.debug("Saving parameters to %s" % param_file)
+            with open(param_file, "wb") as f:
+                pickle.dump(kwargs, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     def build_model(self, load=False):
         def corr(y_true, y_pred):
@@ -126,7 +138,6 @@ class ApplicabilityPredictor(object):
                 dropout = None
             add_layer(model, layer, layer_size, activation,
                       dropout, input_shape=i_shape)
-
 
         opt = keras.optimizers.Adam(learning_rate=self.learning_rate)
         model.compile(loss='mse', optimizer=opt,
