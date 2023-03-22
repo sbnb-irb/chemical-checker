@@ -65,25 +65,22 @@ From: ubuntu:20.04
     mamba create --name=py37 python=3.7 -y
     conda activate py37
 
-
     # conda-specific packages (~1 min)
-    #mamba install  -y numpy==1.21.5                   # we fix numpy version because of TF
-    mamba install  -y -c conda-forge rdkit            # Open-Source Cheminformatics Software
-    mamba install  -y -c openbabel openbabel          # chemical toolbox
-    mamba install  -y mkl-service                     # change the number of CPU’s MKL is using
-    mamba install  -y -c conda-forge hdbscan          # clustering
-    mamba install  -y -c efelix fpsim2                # fast compound similarity searches (used in TargetMate)
-    mamba install  -y -c conda-forge jupyterlab       # Jupyter notebooks
-    mamba install  -y -c anaconda ipython">7.19"      # interactive python
-    mamba install  -y -c anaconda cython              # C extensions
-    mamba install  -y -c conda-forge chembl_structure_pipeline    # standardizing molecules the ChEMBL way
-    mamba install  -y -c pytorch pytorch torchvision torchaudio cudatoolkit=11.3  # pytorch and cuda
-    mamba install  -y -c conda-forge faiss-gpu            # efficient similarity search and clustering
+    mamba install  -y -c conda-forge rdkit                                            # Open-Source Cheminformatics Software
+    mamba install  -y -c openbabel openbabel                                          # chemical toolbox
+    mamba install  -y mkl-service                                                     # change the number of CPU’s MKL is using
+    mamba install  -y -c conda-forge hdbscan                                          # clustering
+    mamba install  -y -c efelix fpsim2                                                # fast compound similarity searches (used in TargetMate)
+    mamba install  -y -c conda-forge jupyterlab                                       # Jupyter notebooks
+    mamba install  -y -c anaconda ipython">7.19"                                      # interactive python
+    mamba install  -y -c anaconda cython                                              # C extensions
+    mamba install  -y -c conda-forge chembl_structure_pipeline                        # standardizing molecules the ChEMBL way
+    mamba install  -y -c pytorch pytorch torchvision torchaudio cudatoolkit=11.3      # pytorch and cuda
+    mamba install  -y -c conda-forge faiss-gpu                                        # efficient similarity search and clustering
 
-    alias test_faiss='python -c "import faiss, numpy
-faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
+    # the package which break more easily is faiss so we test it after installing packages that might uninstall and change numpy
+    alias test_faiss='python -c "import faiss, numpy; faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
-
 
     # utility packages (~2 min)
     pip install six                               # py2/py3 compatibility
@@ -112,19 +109,23 @@ faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     pip install pubchempy                         # Pubchem rest api
     pip install standardiser                      # standardising molecules
     pip install chembl_webresource_client         # Chembl API
+    pip install signaturizer                      # ChemicalChecker Signaturizer
 
     # ML packages
     pip install scikit-learn                      # entry level ML in python
     pip install gensim --no-binary :all:          # topic modelling word2vec (avoid importing binary that are compiled probably on different numpy versions)
+
     if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
-    pip install tensorflow==2.5.0                        # neural network library, fixed version because of AdaNet
+
+    pip install tensorflow                        # neural network library
+
     if ! test_faiss; then printf -- "\033[31m ERROR: faiss is failing! \033[0m\n"; else printf -- '\033[32m SUCCESS: faiss is working correctly. \033[0m\n'; fi
+
     pip install tensorflow-hub                    # repository of trained machine learning models
     pip install adanet                            # automl for NN
     pip install keras                             # NN API
 
     # numerical packages
-    pip install numpy                             # best numerical library ever
     pip install pandas                            # handles table-like datastracture
     pip install openpyxl                          # open xlsx
     pip install scipy                             # scientific python
@@ -148,19 +149,16 @@ faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
     pip install MulticoreTSNE                     # tSNE algo
     pip install umap-learn                        # UMAP algo
 
-    # additional TargetMate packages
+    # additional ML packages
     pip install tpot                              # Auto ML tool with Genetic Programming
     pip install mlflow                            # Platform for the ML lifecycle
     pip install xgboost                           # Gradient Boosting framework
     pip install hyperopt                          # Hyperparameters optimization
     pip install shap                              # SHapley Additive exPlanations for ML models
 
-    pip install signaturizer                      # ChemicalChecker Signaturizer
-
     # integration of D1
     pip install git+https://github.com/Maayanlab/geode.git   # Python implementation of the R package GeoDE
     
-
     # Clone the chemical checker package (used as fallback)
     cd /opt
     git clone http://gitlabsbnb.irbbarcelona.org/packages/chemical_checker.git
