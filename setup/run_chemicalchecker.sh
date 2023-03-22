@@ -15,6 +15,7 @@ usage () {
     echo "  -d      use external Chemical Checker (develop mode)"
     echo "  -c      use external Chemical Checker config file"
     echo "  -h      print this help"
+    echo "  -l      use locally installed (~/home/.local) Python packages"
     echo "  -i      </absolute/path/to/my_image.simg>: run the singularity image of your choice"
     echo ""
     exit 1
@@ -25,7 +26,8 @@ unset SINGULARITY_SHELL
 SINGULARITY_SHELL=false
 EXTERNAL_CCREPO=false
 EXTERNAL_CCCONFIG=false
-while getopts ':sc:d:i:hD' c
+PYTHON_LOCAL=1 # False, local site packages disabled
+while getopts ':sc:d:i:hDl' c
 do
   case $c in
     s) SINGULARITY_SHELL=true ;;
@@ -33,7 +35,8 @@ do
     c) EXTERNAL_CCCONFIG=true; PATH_CCCONFIG=$OPTARG ;;
     D) DEBUG=true ;;
     h) usage ;;
-    i) LOCAL_IMAGE=$OPTARG;;
+    i) LOCAL_IMAGE=$OPTARG ;;
+    l) PYTHON_LOCAL=0 ;;
   esac
 done
 
@@ -47,6 +50,7 @@ then
     echo PATH_CCREPO $PATH_CCREPO;
     echo EXTERNAL_CCCONFIG $EXTERNAL_CCCONFIG;
     echo PATH_CCCONFIG $PATH_CCCONFIG;
+    echo PYTHON_LOCAL $PYTHON_LOCAL;
     exit 1;
 fi
 
@@ -92,8 +96,8 @@ fi
 if [ "$SINGULARITY_SHELL" = true ]
 then
     printf -- 'Starting Singularity Shell... (Press CTRL+D to exit)\n';
-    echo "Command: SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity shell --cleanenv $LOCAL_IMAGE;"
-    SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity shell --nv --cleanenv $LOCAL_IMAGE;
+    echo "Command: SINGULARITYENV_PYTHONNOUSERSITE=$PYTHON_LOCAL SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity shell --nv --cleanenv $LOCAL_IMAGE;"
+    SINGULARITYENV_PYTHONNOUSERSITE=$PYTHON_LOCAL SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity shell --nv --cleanenv $LOCAL_IMAGE;
 else
     printf -- 'Starting Jupyter Notebook... (Press CTRL+C to terminate)\n';
     # preapare jupyter notebook dir
@@ -114,5 +118,6 @@ else
             exit 4;
         fi
     fi
-    SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity exec --nv --cleanenv -B $JUPYTER_DIR:/run/user $LOCAL_IMAGE jupyter lab --ip=0.0.0.0;
+    echo "Command: SINGULARITYENV_PYTHONNOUSERSITE=$PYTHON_LOCAL SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity exec --nv --cleanenv -B $JUPYTER_DIR:/run/user $LOCAL_IMAGE jupyter lab --ip=0.0.0.0;"
+    SINGULARITYENV_PYTHONNOUSERSITE=$PYTHON_LOCAL SINGULARITYENV_PYTHONPATH=$PATH_CCREPO SINGULARITYENV_CC_CONFIG=$PATH_CCCONFIG singularity exec --nv --cleanenv -B $JUPYTER_DIR:/run/user $LOCAL_IMAGE jupyter lab --ip=0.0.0.0;
 fi
