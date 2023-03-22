@@ -6,7 +6,7 @@ import adanet
 import numpy as np
 import tensorflow.compat.v1 as tf
 from tensorflow.compat.v1 import layers
-from tensorflow.compat.v1.layers import Dense, Dropout
+#from tensorflow.compat.v1.layers import Dense, Dropout
 from chemicalchecker.util import logged
 
 
@@ -75,13 +75,13 @@ class ExtendDNNBuilder(adanet.subnetwork.Builder):
         if self._nan_mask_value is not None:
             last_layer = NanMaskingLayer(self._nan_mask_value)(last_layer)
         for layer_size in self._layer_sizes:
-            last_layer = Dense(
+            last_layer = layers.Dense(
                 layer_size * self._layer_block_size,
                 activation=self._activation)(last_layer)
-            last_layer = Dropout(
+            last_layer = layers.Dropout(
                 rate=self._dropout,
                 seed=self._seed)(last_layer, training=training)(last_layer)
-        logits = Dense(logits_dimension)(last_layer)
+        logits = layers.Dense(logits_dimension)(last_layer)
 
         shared_tensors = {
             "num_layers": tf.constant(self._num_layers),
