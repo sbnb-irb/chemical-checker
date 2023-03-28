@@ -1,5 +1,4 @@
 import os
-import faiss
 import pickle
 import numpy as np
 import pandas as pd
@@ -187,6 +186,7 @@ class Smilespred(object):
         plt.close('all')
 
     def evaluate(self):
+        import faiss
         def sim(a, b):
             return -(cosine(a, b) - 1)
         self.__log.info('Predicting all sign0')
