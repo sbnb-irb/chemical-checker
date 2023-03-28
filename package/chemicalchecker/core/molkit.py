@@ -12,6 +12,7 @@ import pandas as pd
 import networkx as nx
 from tqdm import tqdm
 from functools import partial
+from rdkit.Chem import PandasTools
 from collections import defaultdict
 
 from chemicalchecker.util.hpc import HPC
@@ -130,17 +131,58 @@ class Molset(object):
         else:
             pickle.dump(persist, open(destination, 'wb'))
 
+    def __getitem__(self, keys):
+        """Forward accessing Dataframe columns.
+
+        This allows accessing DataFrame column and keeping the molucule
+        structure visualization.
+
+        Args:
+            keys(list): a list of column of the Dataframe.
+        """
+        df = self.df[keys]
+        PandasTools.ChangeMoleculeRendering(df)
+        return df
+
     @classmethod
-    def load(cls, cc, filename, add_image=False):
+    def load(cls, filename, cc=None, cc_root=None, add_image=False):
         """Load a Molset instance.
 
         Args:
-            cc (Chemicalchecker): Chemical Checker instance.
             filename (str): The path of the file to load.
+            cc (ChemicalChecker): An already initialized CC instance.
+            cc_root (str): Path to the root of a Chemical Checker. If None
+                we try using the saved path. If that is not reachable we use
+                the default (default is cc_config dependent) CC.
             add_image (bool): If True a molecule image is added.
         """
+        from .chemcheck import ChemicalChecker
         cls.__log.debug("loading from {}".format(filename))
-        cc_root, df = pickle.load(open(filename, 'rb'))
+        cc_root_pkl, df = pickle.load(open(filename, 'rb'))
+        if cc != None:
+            if cc.cc_root != cc_root_pkl:
+                cls.__log.warning(
+                    ('The CC instance used for generating the Molset'
+                     ' (%s) is different from the currently used (%s)'
+                     % (cc_root_pkl, cc.cc_root)))
+            return cls(cc, df, add_image=add_image)
+        if cc_root == None:
+            try:
+                cc_root = cc_root_pkl
+                cc = ChemicalChecker(cc_root)
+            except Exception:
+                cls.__log.warning(
+                    ('The CC instance used for generating the Molset cannot be'
+                     ' reached. The default CC will be used'))
+                cc = ChemicalChecker()
+        else:
+            try:
+                cc = ChemicalChecker(cc_root)
+            except Exception:
+                cls.__log.warning(
+                    ('The `cc_root` provided does not point to a valid CC '
+                     'instance. The default CC will be used'))
+                cc = ChemicalChecker()
         if cc.cc_root != cc_root:
             cls.__log.warning(
                 ('The CC instance used for generating the Molset'
@@ -150,7 +192,6 @@ class Molset(object):
 
     @staticmethod
     def add_image(df):
-        from rdkit.Chem import PandasTools
         df['SMILES'].fillna('', inplace=True)
         PandasTools.AddMoleculeColumnToFrame(
             df, smilesCol='SMILES', molCol='Structure')
@@ -164,7 +205,7 @@ class Molset(object):
         cols2 = [i for i in molset2.df.columns if i not in mol_cols]
         df = pd.merge(molset1.df[cols1], molset2.df[cols2],
                       on=['InChIKey', 'InChI'], how='outer')
-        # add the inchikeyes and smiles
+        # add the inchikeys and smiles
         mix = cls(cc, df, add_image=False)
         mix._add_smiles()
         mix._add_inchikeys()
@@ -179,6 +220,8 @@ class Molset(object):
         # handle disjoint annotation columns
         disjoint = set(anno_cols1) ^ set(anno_cols2)
         for col in disjoint:
+            if col == 'Structure':
+                continue
             #print('disjoint:', col)
             # if columns does not contain list we make a single element list
             if not isinstance(df[col].dropna().iloc[0], list):
@@ -188,6 +231,8 @@ class Molset(object):
         # combine shared annotation columns as a list
         shared = (set(anno_cols1) & set(anno_cols2)) - {'InChIKey'}
         for col in shared:
+            if col == 'Structure':
+                continue
             #print('shared:', col)
             colx = col + '_x'
             coly = col + '_y'
@@ -206,6 +251,8 @@ class Molset(object):
             if all(df[col].apply(len) == 1):
                 df[col] = df[col].apply(lambda x: x[0])
         mols_col = ['InChIKey', 'InChI', 'SMILES', 'Scaffold']
+        if add_image:
+            mols_col.append('Structure')
         mix.df = df[mols_col + sorted(list(shared)) + sorted(list(disjoint))]
         mix.df = mix.df.sort_values('InChIKey')
         mix.df.reset_index(inplace=True, drop=True)
