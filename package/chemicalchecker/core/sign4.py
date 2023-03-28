@@ -257,7 +257,7 @@ class sign4(BaseSignature, DataSignature):
         except ImportError as err:
             raise err
         model_path = os.path.join(self.model_path, model)
-        model = Smilespred(model_path)
+        model = Smilespred(model_path, save_params=False)
         return model.predict
 
     def get_applicability_predict_fn(self, model='smiles_applicability_final'):
@@ -266,7 +266,7 @@ class sign4(BaseSignature, DataSignature):
         except ImportError as err:
             raise err
         model_path = os.path.join(self.model_path, model)
-        model = ApplicabilityPredictor(model_path)
+        model = ApplicabilityPredictor(model_path, save_params=False)
         return model.predict
 
     def predict_from_smiles(self, smiles, dest_file, **kwargs):
