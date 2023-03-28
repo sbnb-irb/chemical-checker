@@ -66,17 +66,18 @@ From: ubuntu:20.04
     conda activate py37
 
     # conda-specific packages (~1 min)
-    mamba install  -y -c conda-forge rdkit                                            # Open-Source Cheminformatics Software
-    mamba install  -y -c openbabel openbabel                                          # chemical toolbox
-    mamba install  -y mkl-service                                                     # change the number of CPU’s MKL is using
-    mamba install  -y -c conda-forge hdbscan                                          # clustering
-    mamba install  -y -c efelix fpsim2                                                # fast compound similarity searches (used in TargetMate)
-    mamba install  -y -c conda-forge jupyterlab                                       # Jupyter notebooks
-    mamba install  -y -c anaconda ipython">7.19"                                      # interactive python
-    mamba install  -y -c anaconda cython                                              # C extensions
-    mamba install  -y -c conda-forge chembl_structure_pipeline                        # standardizing molecules the ChEMBL way
-    mamba install  -y -c pytorch pytorch torchvision torchaudio cudatoolkit=11.3      # pytorch and cuda
-    mamba install  -y -c conda-forge faiss-gpu                                        # efficient similarity search and clustering
+    mamba install -y -c conda-forge rdkit                                            # Open-Source Cheminformatics Software
+    mamba install -y -c openbabel openbabel                                          # chemical toolbox
+    mamba install -y mkl-service                                                     # change the number of CPU’s MKL is using
+    mamba install -y -c conda-forge hdbscan                                          # clustering
+    mamba install -y -c efelix fpsim2                                                # fast compound similarity searches (used in TargetMate)
+    mamba install -y -c conda-forge jupyterlab                                       # Jupyter-lab and notebooks
+    mamba install -y -c conda-forge ipywidgets                                       # Jupyter-lab widgets
+    mamba install -y -c anaconda ipython">7.19"                                      # interactive python
+    mamba install -y -c anaconda cython                                              # C extensions
+    mamba install -y -c conda-forge chembl_structure_pipeline                        # standardizing molecules the ChEMBL way
+    mamba install -y -c pytorch pytorch torchvision torchaudio cudatoolkit=11.3      # pytorch and cuda
+    mamba install -y -c conda-forge faiss-gpu                                        # efficient similarity search and clustering
 
     # the package which break more easily is faiss so we test it after installing packages that might uninstall and change numpy
     alias test_faiss='python -c "import faiss, numpy; faiss.Kmeans(10, 20).train(numpy.random.rand(1000, 10).astype(numpy.float32))"'
@@ -107,6 +108,7 @@ From: ubuntu:20.04
     # chemistry packages
     pip install e3fp                              # 3D molecular fingreprints
     pip install pubchempy                         # Pubchem rest api
+    pip install bioservices                       # Access to biological web services programmatically
     pip install standardiser                      # standardising molecules
     pip install chembl_webresource_client         # Chembl API
     pip install signaturizer                      # ChemicalChecker Signaturizer
