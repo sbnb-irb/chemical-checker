@@ -12,7 +12,6 @@ import pandas as pd
 import networkx as nx
 from tqdm import tqdm
 from functools import partial
-from rdkit.Chem import PandasTools
 from collections import defaultdict
 
 from chemicalchecker.util.hpc import HPC
@@ -140,6 +139,7 @@ class Molset(object):
         Args:
             keys(list): a list of column of the Dataframe.
         """
+        from rdkit.Chem import PandasTools
         df = self.df[keys]
         PandasTools.ChangeMoleculeRendering(df)
         return df
@@ -192,6 +192,7 @@ class Molset(object):
 
     @staticmethod
     def add_image(df):
+        from rdkit.Chem import PandasTools
         df['SMILES'].fillna('', inplace=True)
         PandasTools.AddMoleculeColumnToFrame(
             df, smilesCol='SMILES', molCol='Structure')
