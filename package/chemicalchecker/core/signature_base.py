@@ -539,7 +539,7 @@ class BaseSignature(object):
                 raise Exception("%s exists" % sign_full.data_path)
         self.apply_mappings(sign_full.data_path)
 
-    def background_distances(self, metric):
+    def background_distances(self, metric, limit_inks=None, name=None):
         """Return the background distances according to the selected metric.
 
         Args:
@@ -548,6 +548,12 @@ class BaseSignature(object):
         sign_ref = self
         if self.molset != 'reference':
             sign_ref = self.get_molset("reference")
-        bg_file = os.path.join(sign_ref.model_path,
-                               "bg_%s_distances.h5" % metric)
-        return sign_ref.compute_distance_pvalues(bg_file, metric)
+        if limit_inks is None and name is None:
+            bg_file = os.path.join(sign_ref.model_path,
+                                   "bg_%s_distances.h5" % metric)
+            return sign_ref.compute_distance_pvalues(bg_file, metric)
+        else:
+            bg_file = os.path.join(sign_ref.model_path,
+                                   "bg_%s_%s_distances.h5" % (metric, name))
+            return sign_ref.compute_distance_pvalues(bg_file, metric,
+                                                     limit_inks=limit_inks)
