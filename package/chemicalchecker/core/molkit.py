@@ -467,7 +467,7 @@ class Molset(object):
         s4 = self.cc.signature(dataset_code, 'sign4')
         s4_app_keys = s4.keys
         s4_app = s4.get_h5_dataset('applicability').ravel()
-        tmp_pred_file = './tmp.h5'
+        tmp_pred_file = tempfile.NamedTemporaryFile().name
         query_inks = self.df['InChIKey'].tolist()
         query_inchies = self.df['InChI'].tolist()
         pred = s4.predict_from_string(query_inchies, tmp_pred_file,
@@ -491,7 +491,9 @@ class Molset(object):
 
         # identify distance threshold based on requested pvalue
         metric = neig4.get_h5_dataset('metric')[0]
-        bg_dist = s4.background_distances(metric)
+        # this always returns the distances based on the non-redundant set
+        bg_dist = s4.background_distances(
+            metric, limit_inks=s0.keys, name='s0')
         dst_thr_idx = np.argwhere(bg_dist['pvalue'] == pvalue_thr_nn).ravel()
         dst_thr = bg_dist['distance'][dst_thr_idx][0]
         self.__log.info("bg_distance '%s' thr %.4f" % (metric, dst_thr))
@@ -511,16 +513,18 @@ class Molset(object):
         # for rid in tqdm(range(len(query_inks)), desc='get NN'):
         for query_ink, nn_inks in tqdm(query_nn_dict.items(), desc='get NN'):
             # filter by distance, now precomputed
-            # query_ink = query_inks[rid]
-            # nn_inks = nn['keys'][rid]
-            # nn_dists = nn['distances'][rid]
-            # len_orig = len(nn_inks)
-            # nn_inks = nn_inks[nn_dists < dst_thr]
+            """
+            query_ink = query_inks[rid]
+            nn_inks = nn['keys'][rid]
+            nn_dists = nn['distances'][rid]
+            len_orig = len(nn_inks)
+            nn_inks = nn_inks[nn_dists < dst_thr]
+            """
             len_dist = len(nn_inks)
             # expand neighbors list to include redundant molecules
-            # this is important because thing that are redundant in sign4
-            # might not be reduntant in sign0
-            # FIXME: how do vectorize this kind of operation?
+            # this is important because things that are redundant in sign4
+            # might not be redundant in sign0
+            # FIXME: how to vectorize this kind of operation?
             nn_inks_mapped_idx = np.isin(s4_ref.mappings[:, 1], nn_inks)
             nn_inks = s4_ref.mappings[:, 0][nn_inks_mapped_idx]
             len_mapp = len(nn_inks)
@@ -583,7 +587,7 @@ class Molset(object):
         self.df['%s_probas_sign0' % dscode] = self.df['InChIKey'].map(probas)
         self.df['%s_predicted_sign0' % dscode] = self.df['InChIKey'].map(preds)
 
-        # get radable list of features
+        # get readable list of features
         ink_feat = defaultdict(list)
         for idx, row in self.df.iterrows():
             ink = row['InChIKey']

@@ -655,7 +655,8 @@ class DataSignature(object):
             raise Exception("Key type %s not recognized." % type(key))
 
     def compute_distance_pvalues(self, bg_file, metric, sample_pairs=None,
-                                 unflat=True, memory_safe=False):
+                                 unflat=True, memory_safe=False,
+                                 limit_inks=None):
         """Compute the distance pvalues according to the selected metric.
 
         Args:
@@ -665,6 +666,8 @@ class DataSignature(object):
             unflat(bool): Remove flat regions whenever we observe them.
             memory_safe(bool): Computing distances is much faster if we can
                 load the full matrix in memory.
+            limit_inks(list): Compute distances only for this subset on
+                inchikeys.
         Returns:
             bg_distances(dict): Dictionary with distances and Pvalues
         """
@@ -688,7 +691,13 @@ class DataSignature(object):
             metric = 'tanimoto'
         metric_fn = eval(metric)
         # sample distances
-        if memory_safe:
+        keys = self.keys
+        nr_mols = len(keys)
+        if limit_inks is not None:
+            nr_mols = len(limit_inks)
+            mask = np.isin(keys, limit_inks)
+            matrix = self[:][mask]
+        elif memory_safe:
             matrix = self
         else:
             matrix = self[:]
@@ -696,15 +705,15 @@ class DataSignature(object):
         if sample_pairs is None:
             # p and q are fixed parameters
             p, q = 0.5, 0.5
-            # 5% confidence, 95% precision
+            # 5% confidence, 95% precision (1.96 is stddev for 95% AUC)
             d, Z = 0.05, 1.96
             coef = Z**2 * p * q
-            k = (coef * len(self.keys)) / (d**2 * (len(self.keys) - 1) + coef)
+            k = (coef * nr_mols) / (d**2 * (nr_mols - 1) + coef)
             sample_pairs = int(np.ceil(k**2))
         self.__log.info("Background distances sample_pairs: %s" % sample_pairs)
-        if matrix.shape[0]**2 < sample_pairs:
+        if nr_mols**2 < sample_pairs:
             self.__log.warn("Requested more pairs then possible combinations")
-            sample_pairs = matrix.shape[0]**2 - matrix.shape[0]
+            sample_pairs = nr_mols**2 - nr_mols
         bg = list()
         done = set()
         tries = 1e6
@@ -731,6 +740,10 @@ class DataSignature(object):
             if nan > 10000:
                 self.__log.warn("NaN distances for 1000 pairs")
                 nan = 0
+        if tr == tries:
+            self.__log.warn("Something went wrong... we reached the maximum "
+                            "number of trials in computing distances. "
+                            "Please disregard the thresholds, double check!")
         # pvalues as percentiles
         i = 0
         PVALS = [(0, 0., i)]  # DISTANCE, RANK, INTEGER
@@ -900,13 +913,14 @@ class DataSignature(object):
 
     def export_features(self, destination='.'):
         features = self.features
-        with h5py.File(os.path.join(destination, "features_sign.h5"), 'w') as hf_out:
+        with h5py.File(os.path.join(destination,
+                                    "features_sign.h5"), 'w') as hf_out:
             hf_out.create_dataset("features", data=np.array(
                 features, DataSignature.string_dtype()))
 
     def dataloader(self, batch_size=32, num_workers=1, shuffle=False,
                    weak_shuffle=False, drop_last=False):
-        """Return a pytorch DataLoader object for quick signature iterations."""
+        """Return a pytorch DataLoader object for quick signature iteration."""
         if weak_shuffle:
             return torch.utils.data.DataLoader(
                 self,
@@ -914,7 +928,8 @@ class DataSignature(object):
                 num_workers=num_workers,
                 shuffle=False,
                 sampler=torch.utils.data.BatchSampler(
-                    RandomBatchSampler(self, batch_size), batch_size=batch_size,
+                    RandomBatchSampler(self, batch_size),
+                    batch_size=batch_size,
                     drop_last=drop_last)
             )
         else:
