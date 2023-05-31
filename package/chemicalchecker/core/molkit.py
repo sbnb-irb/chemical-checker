@@ -33,7 +33,7 @@ class Molset(object):
     """
 
     def __init__(self, cc, molecules, mol_type=None, add_image=True,
-                 generic_scaffold=False):
+                 generic_scaffold=False, molecules_ids=None):
         """Initialize a Mol instance.
 
         Args:
@@ -59,6 +59,9 @@ class Molset(object):
             all_inks = self.df[self.df['InChIKey'] != '']['InChIKey'].tolist()
             self.inchikeys = sorted(list(set(all_inks)))
         else:
+            if len(molecules) != len(set(molecules)):
+                self.__log.warning('molecules provided are not unique'
+                    ', IDs might be off')
             if mol_type is None:
                 mol_type = KeyTypeDetector.type(molecules[0])
                 if mol_type is None:
@@ -68,7 +71,9 @@ class Molset(object):
                         "Considering type as 'name'." %
                         molecules[0])
                     mol_type = 'name'
-            molecules = sorted([x.strip() for x in set(molecules)])
+            if molecules_ids is None:
+                molecules_ids = list(range(len(molecules)))
+            molecules = [x.strip() for x in molecules]
             self.__log.info('%s unique molecules provided' % len(molecules))
             self.df = pd.DataFrame()
             if mol_type.lower() == 'inchi':
@@ -82,26 +87,27 @@ class Molset(object):
             else:
                 raise Exception("Molecule type '%' not supported" % mol_type)
             self.df[mol_col] = molecules
+            self.df['ID'] = molecules_ids
 
             if mol_type.lower() == 'name':
                 name_inchi = self.get_name_inchi_map(molecules)
                 self.df['InChI'] = self.df[mol_col].map(name_inchi)
                 self._add_inchikeys()
                 self._add_smiles()
-                self.df = self.df[['Name', 'InChIKey', 'InChI', 'SMILES']]
+                self.df = self.df[['Name', 'InChIKey', 'InChI', 'SMILES', 'ID']]
             elif mol_type.lower() == 'inchikey':
                 ink_inchi = self.get_inchikey_inchi_map(molecules)
                 self.df['InChI'] = self.df[mol_col].map(ink_inchi)
                 self._add_smiles()
-                self.df = self.df[['InChIKey', 'InChI', 'SMILES']]
+                self.df = self.df[['InChIKey', 'InChI', 'SMILES', 'ID']]
             elif mol_type.lower() == 'inchi':
                 self._add_inchikeys()
                 self._add_smiles()
-                self.df = self.df[['InChIKey', 'InChI', 'SMILES']]
+                self.df = self.df[['InChIKey', 'InChI', 'SMILES', 'ID']]
             elif mol_type.lower() == 'smiles':
                 self._add_inchi(mol_col)
                 self._add_inchikeys()
-                self.df = self.df[['InChIKey', 'InChI', 'SMILES']]
+                self.df = self.df[['InChIKey', 'InChI', 'SMILES', 'ID']]
             self._add_scaffold(generic=generic_scaffold)
             self.inchikeys = self.df[self.df['InChIKey']
                                      != '']['InChIKey'].tolist()
@@ -284,7 +290,9 @@ class Molset(object):
         try:
             return fn(arg)
         except:
-            fn_name = fn.__name__
+            fn_name = 'None'
+            if hasattr(fn, '__name__'):
+                fn_name = fn.__name__
             self.__log.warning(f'Problems calling `{fn_name}` for mol {arg}')
             return default
 
