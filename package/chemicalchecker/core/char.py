@@ -23,13 +23,12 @@ import seaborn as sns
 
 import numpy as np
 import pandas as pd
+from scipy.spatial.distance import pdist
 
 from scipy.stats import fisher_exact
 from sklearn.metrics import accuracy_score, precision_score, hamming_loss, f1_score, recall_score
 from sklearn.neighbors import NearestNeighbors
 
-import hdbscan
-from hdbscan import HDBSCAN, approximate_predict
 
 import logging
 from tqdm import tqdm
@@ -143,6 +142,7 @@ class char(BaseSignature, DataSignature):
             sign1(object): Signature 1 of the dataset of interest.
             back_dist_pvalue(float): Distance p-value threshold for a molecule to be considered as close when searching for 
             neighbors in the SAFE analysis (default: 0.01)."""
+        from hdbscan import HDBSCAN, approximate_predict
         
         BaseSignature.fit(self, overwrite=True)
         
@@ -651,14 +651,13 @@ class char(BaseSignature, DataSignature):
     def cluster_analysis(self, min_cluster_size=25):
 
         import mpld3
-        from hdbscan import all_points_membership_vectors
+        from hdbscan import HDBSCAN, all_points_membership_vectors
         
         scores = self.get_h5_dataset('scores')
         enriched = self.get_h5_dataset('enriched')
         safe_coords = self.get_h5_dataset('safe_coords')
         thr = self.get_h5_attr('thr')
                     
-        from scipy.spatial.distance import pdist
         
         # Get the median of the neighborhood sizes as the
         # minimum cluster size
@@ -1216,7 +1215,7 @@ class char(BaseSignature, DataSignature):
         
         labels = clusterer.labels_
 
-        cluster = hdbscan.approximate_predict(clusterer, point_coords)[0]
+        cluster = approximate_predict(clusterer, point_coords)[0]
         
         with open(os.path.join(self.diags_path, 'space_chart.pkl'), 'rb') as fh:
             fig = pickle.load(fh)
