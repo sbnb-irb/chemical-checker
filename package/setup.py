@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 __author__ = """SBNB"""
 __email__ = 'sbnb@irbbarcelona.org'
-__version__ = '1.0.2'
+__version__ = '1.0.3'
 
 requirements = [
     'numpy',
@@ -14,7 +14,7 @@ requirements = [
     'scipy',
     'sqlalchemy',
     'paramiko',
-    'sklearn',
+    'scikit-learn',
     'csvsort',
     'matplotlib<3.0',
     'seaborn',
