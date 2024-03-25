@@ -5,7 +5,7 @@ From: ubuntu:20.04
     # PATHS
     export PATH=/opt/miniconda3/bin:$PATH
     . /opt/miniconda3/etc/profile.d/conda.sh
-    conda activate py37
+    conda activate cc_env
 
 %files
     #add node2vec pre-compiled binaries
@@ -51,6 +51,9 @@ From: ubuntu:20.04
     bash Miniconda3-latest-Linux-x86_64.sh -p /opt/miniconda3 -b -f
     rm Miniconda3-latest-Linux-x86_64.sh
     export PATH=/opt/miniconda3/bin:$PATH
+    export MAMBA_NO_LOW_SPEED_LIMIT=1   # no timeout on mamba commands
+    export PIPENV_INSTALL_TIMEOUT=3600   # 1h timeout on pip install commands 
+    export PIP_DEFAULT_TIMEOUT=3600
 
     # create and activate conda
     conda update conda -y
@@ -62,8 +65,8 @@ From: ubuntu:20.04
     mamba update -q -n base mamba
 
     # create venv
-    mamba create --name=py37 python=3.7 -y
-    conda activate py37
+    mamba create --name=cc_env python=3.10 -y
+    conda activate cc_env
 
     # conda-specific packages (~1 min)
     mamba install -y -c conda-forge rdkit                                            # Open-Source Cheminformatics Software
