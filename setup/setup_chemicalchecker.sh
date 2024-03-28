@@ -108,18 +108,20 @@ then
     fi
     mkdir $INSTALL_DIR;
     cd $INSTALL_DIR;
-    SINGULARITY_DEFINITION="$LOCAL_REPO/container/singularity/cc_py37.def"
+    SINGULARITY_DEFINITION="$LOCAL_REPO/container/singularity/cc_py310.def"
     BINARIES_FOLDER="$LOCAL_REPO/container/singularity/binaries/"
+    SNAP_MAKEFILE="$LOCAL_REPO/container/snap_makefile.config"
     cp $SINGULARITY_DEFINITION $INSTALL_DIR;  # Node2vec binary
     mkdir -p ./container/singularity/; 
-    cp -r $BINARIES_FOLDER ./container/singularity/;    
+    cp -r $BINARIES_FOLDER ./container/singularity;   
+    cp -r $SNAP_MAKEFILE ./container/snap_makefile.config;    
 
     printf -- 'Removing old singularity image...\n';
     sudo rm -f $LOCAL_IMAGE;
     sudo rm -rf $LOCAL_IMAGE_SANDBOX;
 
     printf -- 'Creating singularity sandbox image... \n';
-    sudo singularity build --sandbox $LOCAL_IMAGE_SANDBOX cc_py37.def;
+    sudo singularity build --sandbox $LOCAL_IMAGE_SANDBOX $SINGULARITY_DEFINITION  #cc_py37.def;
     if [ $? -eq 0 ]; then
         printf -- '\033[32m SUCCESS: Image sandbox created correctly. \033[0m\n';
     else
@@ -194,3 +196,4 @@ then
         exit 8;
     fi
 fi
+
