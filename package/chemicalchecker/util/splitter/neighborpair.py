@@ -136,7 +136,7 @@ class NeighborPairTraintest(object):
         splits = np.cumsum(fractions)
         splits = splits[:-1]
         splits *= len(idxs)
-        splits = splits.round().astype(np.int)
+        splits = splits.round().astype(int)
         return np.split(idxs, splits)
 
     @staticmethod
@@ -145,7 +145,7 @@ class NeighborPairTraintest(object):
                mean_center_x=True, shuffle=True,
                check_distances=True,
                split_names=['train', 'test'], split_fractions=[.8, .2],
-               x_dtype=np.float32, y_dtype=np.float32, debug_test=False):
+               x_dtype=float, y_dtype=float, debug_test=False):
         """Create the HDF5 file with validation splits.
 
         Args:
@@ -158,8 +158,8 @@ class NeighborPairTraintest(object):
             split_names(list(str)): names for the split of data.
             split_fractions(list(float)): fraction of data in each split.
             x_dtype(type): numpy data type for X.
-            y_dtype(type): numpy data type for Y (np.float32 for regression,
-                np.int32 for classification.
+            y_dtype(type): numpy data type for Y (float for regression,
+                int32 for classification.
         """
         try:
             import faiss

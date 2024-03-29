@@ -98,9 +98,9 @@ class neig(BaseSignature, DataSignature):
                 dh5out.create_dataset("row_keys", data=dh5["keys"][:])
                 dh5out["col_keys"] = h5py.SoftLink('/row_keys')
                 dh5out.create_dataset(
-                    "indices", (self.datasize[0], k), dtype=np.int32)
+                    "indices", (self.datasize[0], k), dtype=int )
                 dh5out.create_dataset(
-                    "distances", (self.datasize[0], k), dtype=np.float32)
+                    "distances", (self.datasize[0], k), dtype=float)
                 dh5out.create_dataset("shape", data=(self.datasize[0], k))
                 dh5out.create_dataset(
                     "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
@@ -113,7 +113,7 @@ class neig(BaseSignature, DataSignature):
                     index = faiss.IndexFlatIP(self.datasize[1])
 
                 for chunk in sign.chunker():
-                    data_temp = np.array(dh5["V"][chunk], dtype=np.float32)
+                    data_temp = np.array(dh5["V"][chunk], dtype=float)
                     if self.metric == "cosine":
                         normst = LA.norm(data_temp, axis=1)
                         index.add(data_temp / normst[:, None])
@@ -121,7 +121,7 @@ class neig(BaseSignature, DataSignature):
                         index.add(data_temp)
 
                 for chunk in sign.chunker():
-                    data_temp = np.array(dh5["V"][chunk], dtype=np.float32)
+                    data_temp = np.array(dh5["V"][chunk], dtype=float)
                     if self.metric == "cosine":
                         normst = LA.norm(data_temp, axis=1)
                         Dt, It = index.search(data_temp / normst[:, None], k)
@@ -175,9 +175,9 @@ class neig(BaseSignature, DataSignature):
                 with h5py.File(self.data_path, 'r') as hr5:
                     dh5out.create_dataset("col_keys", data=hr5["row_keys"][:])
                 dh5out.create_dataset(
-                    "indices", (self.datasize[0], k), dtype=np.int32)
+                    "indices", (self.datasize[0], k), dtype=int )
                 dh5out.create_dataset(
-                    "distances", (self.datasize[0], k), dtype=np.float32)
+                    "distances", (self.datasize[0], k), dtype=float)
                 dh5out.create_dataset("shape", data=(self.datasize[0], k))
                 dh5out.create_dataset(
                     "date", data=[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S").encode(encoding='UTF-8', errors='strict')])
@@ -185,7 +185,7 @@ class neig(BaseSignature, DataSignature):
                     "metric", data=[self.metric.encode(encoding='UTF-8', errors='strict')])
 
                 for chunk in sign.chunker():
-                    data_temp = np.array(dh5["V"][chunk], dtype=np.float32)
+                    data_temp = np.array(dh5["V"][chunk], dtype=float)
 
                     if self.metric == "cosine":
                         normst = LA.norm(data_temp, axis=1)
@@ -347,7 +347,7 @@ class neig(BaseSignature, DataSignature):
             self.__log.warning("Maximum k is %s.", max_k)
             k = max_k
         # convert signatures to float32 as faiss is very picky
-        data = np.array(signatures, dtype=np.float32)
+        data = np.array(signatures, dtype=float)
         self.__log.info("Searching %s neighbors" % k)
         # get neighbors idx and distances
         if "cosine" in metric_orig:

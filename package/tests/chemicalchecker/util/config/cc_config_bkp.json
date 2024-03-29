@@ -1,0 +1,33 @@
+{
+    "PATH": {
+        "CC_ROOT": "'/aloy/web_checker/current'",
+        "CC_DATA": "'/aloy/scratch/oguitart/download/'",
+        "CC_TMP": "'/tmp/'",
+        "CC_REPO": "'/opt/chemical_checker'",
+        "SINGULARITY_IMAGE": "'/aloy/web_checker/images/cc.simg'",
+        "validation_path": "'/aloy/web_checker/package_cc/validation_sets/'"
+    },
+    "VERBOSITY": {
+        "level":"'warning'"
+    },
+    "DB": {
+        "dialect": "'postgresql'",
+        "port":  "'5432'",
+        "host": "'10.5.4.240'",
+        "user": "'cc_user'",
+        "password": "'checker'",
+        "database": "'cc_package'",
+        "calcdata_dbname": "'cc_calcdata'",
+        "uniprot_db_version" : "'2019_01'"
+    },
+    "HPC": {
+        "system" : "'sge'",
+        "host": "'pac-one-head'",
+        "queue": "'all.q'",
+        "username": "'cc_user'"
+    },
+    "TOOLS": {
+        "node2vec_exec" : "'/aloy/home/mbertoni/code/snap/examples/node2vec/node2vec'"
+    }
+
+}
