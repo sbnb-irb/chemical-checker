@@ -161,7 +161,7 @@ if __name__ == '__main__':
 
         rows = sorted(set([k[0] for k in neses.keys()]))   # neses keys are (sigid, pert_id), take signid and sort-> sorted list of sigids
         rows_d = dict((rows[i], i) for i in range(len(rows)))     # {sigid:i}
-        X = np.zeros((len(rows), len(cols))).astype(np.int16)     #  all sigid for this pertb x all sorted pert_id in signatures.tsv
+        X = np.zeros((len(rows), len(cols))).astype(int)     #  all sigid for this pertb x all sorted pert_id in signatures.tsv
 
         for x, y in neses.items():                                # for all  (sigid, pert_id): 66-percentile-nes
             i = rows_d[x[0]]                                      # rows_d[sigid] is the index of sorted sigid

@@ -132,7 +132,7 @@ class AE_SiameseTraintest(object):
         splits = np.cumsum(fractions)
         splits = splits[:-1]
         splits *= len(idxs)
-        splits = splits.round().astype(np.int)
+        splits = splits.round().astype(int)
         split_left = np.split(idxs, splits)
         split_right = []
         for i in range(len(split_left)):

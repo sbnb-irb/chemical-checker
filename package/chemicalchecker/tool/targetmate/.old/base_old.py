@@ -644,8 +644,8 @@ class ApplicabilityDomainOld(TargetMateSetup):
             neighs += [results[:k]]
         if N is None:
             N = len(query_smi)
-        sims = np.zeros((N, k), dtype=np.float32)
-        idxs = np.zeros((N, k), dtype=np.int)
+        sims = np.zeros((N, k), dtype=float)
+        idxs = np.zeros((N, k), dtype=int)
         for q_idx, hits in enumerate(neighs):
             sims_ = []
             idxs_ = []

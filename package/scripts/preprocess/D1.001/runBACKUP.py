@@ -277,7 +277,7 @@ def do_consensus(ik_matrices, consensus):
         with h5py.File("%s/%s.h5" % (ik_matrices, ik), "r") as hf:
             X = hf["X"][:]
         # It could be max, min...
-        return [np.int16(get_summary(X[:, j])) for j in range(X.shape[1])]
+        return [ int(get_summary(X[:, j])) for j in range(X.shape[1])]
 
     X = np.array([consensus_signature(ik) for ik in inchikeys])
 
@@ -564,7 +564,7 @@ def main(args):
     else:
         orderwords = list(words)
         orderwords.sort()
-    raws = np.zeros((len(keys), len(orderwords)), dtype=np.int8)
+    raws = np.zeros((len(keys), len(orderwords)), dtype=int )
     wordspos = {k: v for v, k in enumerate(orderwords)}
 
     for i, k in enumerate(keys):

@@ -65,7 +65,7 @@ class ConvMol(object):
         self.atom_features = atom_features
         self.n_atoms, self.n_feat = atom_features.shape
         self.deg_list = np.array([len(nbrs)
-                                  for nbrs in adj_list], dtype=np.int32)
+                                  for nbrs in adj_list], dtype=int )
         self.canon_adj_list = adj_list
         self.deg_adj_lists = []
         self.deg_slice = []
@@ -163,11 +163,11 @@ class ConvMol(object):
 
             else:
                 self.deg_adj_lists[deg - self.min_deg] = np.zeros(
-                    [0, deg], dtype=np.int32)
+                    [0, deg], dtype=int )
 
         # Construct the slice information
         deg_slice = np.zeros(
-            [self.max_deg + 1 - self.min_deg, 2], dtype=np.int32)
+            [self.max_deg + 1 - self.min_deg, 2], dtype=int )
 
         for deg in range(self.min_deg, self.max_deg + 1):
             if deg == 0:
@@ -339,7 +339,7 @@ class ConvMol(object):
 
         # Initialize the new degree separated adjacency lists
         deg_adj_lists = [
-            np.zeros([deg_sizes[deg], deg], dtype=np.int32)
+            np.zeros([deg_sizes[deg], deg], dtype=int )
             for deg in range(min_deg, max_deg + 1)
         ]
 

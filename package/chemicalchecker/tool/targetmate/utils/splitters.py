@@ -94,7 +94,7 @@ class ToppedSampler(object):
 
     def brute_sample(self, y):
         if len(y) <= self.max_samples:
-            idx = np.array([i for i in range(0, len(y))], dtype=np.int)
+            idx = np.array([i for i in range(0, len(y))], dtype=int)
             np.random.shuffle(idx)
             return idx
         y0_idx = np.argwhere(y == 0).ravel()
@@ -117,7 +117,7 @@ class ToppedSampler(object):
             if n1 > n:
                 y1_idx = np.random.choice(y1_idx, n, replace=False)
         idx = list(y0_idx) + list(y1_idx)
-        idx = np.array(idx, dtype=np.int)
+        idx = np.array(idx, dtype=int)
         np.random.shuffle(idx)
         self.__log.info("...1: %d total: %d" % (np.sum(y[idx]), len(idx)))
         return idx
@@ -302,8 +302,8 @@ class OutOfUniverseStratified(Splitter):
                 np.random.seed(seed)
                 train_idxs += list(np.random.choice(eligible, size=n, replace=False))
         # Sort
-        train_idxs = np.array(train_idxs).astype(np.int)
-        test_idxs  = np.array(test_idxs).astype(np.int)
+        train_idxs = np.array(train_idxs).astype(int)
+        test_idxs  = np.array(test_idxs).astype(int)
         np.random.seed(seed)
         np.random.shuffle(train_idxs)
         np.random.seed(seed)
@@ -368,8 +368,8 @@ class ShuffleScaffoldSplit(Splitter):
                     cur_train_idx = train_idx
                     cur_test_idx  = test_idx
                     cur_prop      = prop
-        train_idx = np.array(cur_train_idx).astype(np.int)
-        test_idx  = np.array(cur_test_idx).astype(np.int)
+        train_idx = np.array(cur_train_idx).astype(int)
+        test_idx  = np.array(cur_test_idx).astype(int)
         random.seed(seed)
         random.shuffle(train_idx)
         random.seed(seed)
@@ -432,8 +432,8 @@ class StratifiedShuffleScaffoldSplit(Splitter):
                     cur_test_idx      = test_idx
                     cur_prop          = prop
                     cur_balance_train = balance_train
-        train_idx = np.array(cur_train_idx).astype(np.int)
-        test_idx  = np.array(cur_test_idx).astype(np.int)
+        train_idx = np.array(cur_train_idx).astype(int)
+        test_idx  = np.array(cur_test_idx).astype(int)
         random.seed(seed)
         random.shuffle(train_idx)
         random.seed(seed)
@@ -470,8 +470,8 @@ class DeepchemScaffoldSplit(Splitter):
                 test_idx  += idxs
             else:
                 train_idx += idxs
-        train_idx = np.array(train_idx).astype(np.int)
-        test_idx  = np.array(test_idx).astype(np.int)
+        train_idx = np.array(train_idx).astype(int)
+        test_idx  = np.array(test_idx).astype(int)
         random.seed(seed)
         random.shuffle(train_idx)
         random.seed(seed)

@@ -153,8 +153,8 @@ def main(SIG, up, dw, mini_sig_info_file, signatures_dir, connectivity_dir, touc
 
     # Each signature will show its connectivity to all other signatures in this h5 file
     with h5py.File("%s/%s.h5" % (connectivity_dir, SIG), "w") as hf:
-        es = np.array([s[1] * 1000 for s in S]).astype(np.int16)   # connectivity score
-        nes = np.array([s[2] * 1000 for s in S]).astype(np.int16)  # normalized connectivity score
+        es = np.array([s[1] * 1000 for s in S]).astype(int)   # connectivity score
+        nes = np.array([s[2] * 1000 for s in S]).astype(int)  # normalized connectivity score
         hf.create_dataset("es", data=es)
         hf.create_dataset("nes", data=nes)
 
@@ -198,7 +198,7 @@ if __name__ == '__main__':
                 gene = hf["gene"][:]                   # i.e ['AGR2', 'RBKS', 'HERC6', ..., 'SLC25A46', 'ATP6V0B', 'SRGN']
 
             # Make a np array of (gene, diff expression), sorted by epr level
-            R = np.array(sorted(zip(gene, expr), key=lambda tup: -tup[1]), dtype=np.dtype([('gene', '|S300'), ('expr', np.float)]))
+            R = np.array(sorted(zip(gene, expr), key=lambda tup: -tup[1]), dtype=np.dtype([('gene', '|S300'), ('expr', float)]))
             # R contains 12328 genes
               #       array([(b'AGR2',  5.02756786), (b'RBKS',  4.73850965),
               #  (b'HERC6',  4.49766302), ..., (b'SLC25A46', -6.47712374),
