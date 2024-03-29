@@ -180,6 +180,7 @@ From: ubuntu:20.04
     pip install xgboost                           # Gradient Boosting framework
     pip install hyperopt                          # Hyperparameters optimization
     pip install shap                              # SHapley Additive exPlanations for ML models
+    pip install tensorflow_estimator
 
     # integration of D1
     pip install git+https://github.com/Maayanlab/geode.git   # Python implementation of the R package GeoDE
