@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign0__d719ham/sign0_script.py", line 6, in <module>
+    import chemicalchecker
+ModuleNotFoundError: No module named 'chemicalchecker'

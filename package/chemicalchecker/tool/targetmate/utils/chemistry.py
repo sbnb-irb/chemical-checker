@@ -13,7 +13,7 @@ from FPSim2.io import create_db_file
 
 
 def maccs_matrix(smiles):
-    fps = np.zeros((len(smiles), 167)).astype(np.int8)
+    fps = np.zeros((len(smiles), 167)).astype(int)
     for i, smi in enumerate(smiles):
         mol = Chem.MolFromSmiles(smi)
         fpon = sorted(MACCSkeys.GenMACCSKeys(mol).GetOnBits())
@@ -25,10 +25,10 @@ def maccs_matrix(smiles):
 
 def morgan_matrix(smiles, radius = 2, nBits = 2048):
     smiles = list(smiles)
-    fps = np.zeros((len(smiles), nBits), dtype = np.int8)
+    fps = np.zeros((len(smiles), nBits), dtype = int)
     for i, smi in enumerate(smiles):
         try:
-            arr = np.zeros((0,), dtype=np.int8)
+            arr = np.zeros((0,), dtype=int)
             mol = Chem.MolFromSmiles(smi)
             fp  = Chem.GetMorganFingerprintAsBitVect(mol, radius, nBits)
             DataStructs.ConvertToNumpyArray(fp, arr)

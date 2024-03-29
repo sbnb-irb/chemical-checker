@@ -31,11 +31,13 @@ class TestDownloader(unittest.TestCase):
         self.dest_path = os.path.join(self.data_dir, 'test_download_dest')
 
     def tearDown(self):
+        """
         if os.path.isdir(self.tmp_path):
             shutil.rmtree(self.tmp_path)
         if os.path.isdir(self.dest_path):
             shutil.rmtree(self.dest_path)
-
+        """
+        print('exited')
     @skip_if_import_exception
     def test_download(self):
         url = 'http://www.disgenet.org/static/disgenet_ap1/files/downloads/disease_mappings.tsv.gz'
@@ -47,17 +49,17 @@ class TestDownloader(unittest.TestCase):
 
     @skip_if_import_exception
     def test_wildchar(self):
-        url = 'ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz'
+        url = 'http://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz'
         downloader = Downloader(url, self.dest_path, self.tmp_path)
         downloader.download()
         self.assertTrue(os.path.isdir(self.dest_path))
         self.assertTrue(os.path.isfile(
             os.path.join(self.dest_path, 'goa_human.gaf')))
 
-        url = 'ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/*.gz'
+        url = 'http://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/*.gz'
         with self.assertRaises(RuntimeError):
             Downloader.validate_url(url)
-        url = 'ftp://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/*asdfasdf.gz'
+        url = 'http://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/*asdfasdf.gz'
         with self.assertRaises(RuntimeError):
             Downloader.validate_url(url)
 

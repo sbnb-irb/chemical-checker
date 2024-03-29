@@ -153,7 +153,7 @@ class TripletSampler(object):
     def save_triplets(self, triplets, fn):
         """Save triplets"""
         self.__log.debug("Writing triplets to %s" % fn)
-        triplets = np.array(sorted(triplets), dtype=np.int)
+        triplets = np.array(sorted(triplets), dtype=int)
         with h5py.File(fn, "w") as hf:
             hf.create_dataset("triplets", data=triplets)
 
