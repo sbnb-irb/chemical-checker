@@ -45,7 +45,7 @@ class TestDownloader(unittest.TestCase):
         downloader.download()
         self.assertTrue(os.path.isdir(self.dest_path))
         self.assertTrue(os.path.isfile(
-            os.path.join(self.dest_path, 'disease_mappings.tsv')))
+            os.path.join(self.dest_path, 'disease_mappings', 'disease_mappings.tsv')))
 
     @skip_if_import_exception
     def test_wildchar(self):
@@ -54,7 +54,7 @@ class TestDownloader(unittest.TestCase):
         downloader.download()
         self.assertTrue(os.path.isdir(self.dest_path))
         self.assertTrue(os.path.isfile(
-            os.path.join(self.dest_path, 'goa_human.gaf')))
+            os.path.join(self.dest_path, 'goa_human', 'goa_human.gaf')))
 
         url = 'http://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/*.gz'
         with self.assertRaises(RuntimeError):
