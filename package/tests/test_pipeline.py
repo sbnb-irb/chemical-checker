@@ -3,6 +3,7 @@ import pytest
 import unittest
 import functools
 
+import sys
 sys.path.insert(0, '/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/' )
 from chemicalchecker.util import Config
 
