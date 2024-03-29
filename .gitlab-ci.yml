@@ -18,7 +18,7 @@ build_singularity_image:
   script:
     - mkdir images -p
     - rm -f images/cc.simg
-    - singularity build images/cc.simg container/singularity/cc_py310.def
+    - singularity build images/cc.simg container/singularity/cc_py39.def
   cache:
     paths:
       - images
@@ -28,7 +28,7 @@ build_singularity_image:
     expire_in: 1 week
   only:
     changes:
-      - container/singularity/cc_py310.def
+      - container/singularity/cc_py39.def
   timeout: 6 hours
 
 build_singularity_image_lite:
@@ -36,7 +36,7 @@ build_singularity_image_lite:
   script:
     - mkdir images -p
     - rm -f images/cc_lite.simg
-    - singularity build images/cc_lite.simg container/singularity/cc_py310_lite.def
+    - singularity build images/cc_lite.simg container/singularity/cc_py39_lite.def
   cache:
     paths:
       - images
@@ -46,7 +46,7 @@ build_singularity_image_lite:
     expire_in: 1 week
   only:
     changes:
-      - container/singularity/cc_py310_lite.def
+      - container/singularity/cc_py39_lite.def
 
 ################
 # unittest
