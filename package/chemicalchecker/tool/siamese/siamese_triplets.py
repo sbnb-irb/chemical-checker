@@ -1117,7 +1117,7 @@ class AdditionalValidationSets(Callback):
         self.history = {}
         self.verbose = verbose
         self.batch_size = batch_size
-        self.model = model
+        self.set_model( model )
 
     def on_train_begin(self, logs=None):
         self.epoch = []
