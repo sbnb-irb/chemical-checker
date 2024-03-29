@@ -109,7 +109,7 @@ class GlobalNeighborTripletTraintest(object):
         splits = np.cumsum(fractions)
         splits = splits[:-1]
         splits *= len(idxs)
-        splits = splits.round().astype(np.int)
+        splits = splits.round().astype(int)
         return np.split(idxs, splits)
 
     def acceptable_split(self, keys, split_fractions):

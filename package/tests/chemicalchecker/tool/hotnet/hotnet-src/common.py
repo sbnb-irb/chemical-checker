@@ -101,7 +101,7 @@ def convert_edge_list_to_adjacency_matrix(edge_list):
     k = min(min(edge) for edge in edge_list)
     l = max(max(edge) for edge in edge_list)
 
-    A = np.zeros((l-k+1, l-k+1), dtype=np.int)
+    A = np.zeros((l-k+1, l-k+1), dtype=int)
     for i, j in edge_list:
         A[i-k, j-k] = A[j-k, i-k] = 1
 

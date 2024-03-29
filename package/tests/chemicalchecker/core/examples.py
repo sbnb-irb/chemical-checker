@@ -86,13 +86,13 @@ class BaseExample(object):
 
     def add_nans(self, X):
         if not self.force:
-            if isinstance(X[0, 0], np.integer):
+            if isinstance(X[0, 0], int):
                 return X
         num = int(X.shape[0] * X.shape[1] * self.nan_prop)
         if num == 0:
             return X
         else:
-            X = X.astype(np.float)
+            X = X.astype(float)
             idxs1 = np.random.choice(X.shape[0], num, replace=True)
             idxs2 = np.random.choice(X.shape[1], num, replace=True)
             for i1, i2 in zip(idxs1, idxs2):
@@ -101,13 +101,13 @@ class BaseExample(object):
 
     def add_infs(self, X):
         if not self.force:
-            if isinstance(X[0, 0], np.integer):
+            if isinstance(X[0, 0], int):
                 return X
         num = int(X.shape[0] * X.shape[1] * self.nan_prop)
         if num == 0:
             return X
         else:
-            X = X.astype(np.float)
+            X = X.astype(float)
             idxs1 = np.random.choice(X.shape[0], num, replace=True)
             idxs2 = np.random.choice(X.shape[1], num, replace=True)
             dires = np.random.choice(2, num, replace=True)

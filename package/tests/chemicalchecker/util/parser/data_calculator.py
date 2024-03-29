@@ -369,7 +369,7 @@ class DataCalculator():
             mol = Chem.rdinchi.InchiToMol(inchi)[0]
             fp = Chem.GetMorganFingerprintAsBitVect( mol, 2, nBits=2048, bitInfo={})
             
-            res = np.zeros(len(fp), np.int32)
+            res = np.zeros(len(fp), int )
             DataStructs.ConvertToNumpyArray(fp, res)
             
             probas = list(morgan_nb.predict_proba(res.reshape(1, -1))[0])
