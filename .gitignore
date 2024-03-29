@@ -1,3 +1,6 @@
+# Tmp test
+packages/tests/chemicalchecker
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

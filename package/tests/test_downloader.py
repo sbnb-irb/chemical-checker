@@ -31,13 +31,11 @@ class TestDownloader(unittest.TestCase):
         self.dest_path = os.path.join(self.data_dir, 'test_download_dest')
 
     def tearDown(self):
-        """
         if os.path.isdir(self.tmp_path):
             shutil.rmtree(self.tmp_path)
         if os.path.isdir(self.dest_path):
             shutil.rmtree(self.dest_path)
-        """
-        print('exited')
+
     @skip_if_import_exception
     def test_download(self):
         url = 'http://www.disgenet.org/static/disgenet_ap1/files/downloads/disease_mappings.tsv.gz'
