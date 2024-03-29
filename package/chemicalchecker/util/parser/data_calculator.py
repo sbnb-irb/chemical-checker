@@ -11,9 +11,8 @@ database where the table has the same name as functions defined here.
 import os
 import numpy as np
 
-from chemicalchecker.util import logged
+from chemicalchecker.util import logged, Config
 from chemicalchecker.util.decorator import timeout
-
 
 @logged
 class DataCalculator():
@@ -331,18 +330,30 @@ class DataCalculator():
         import collections
         import numpy as np
         import pandas as pd
+        import glob
         from chemicalchecker.database import Datasource
         # Variables
         max_targets = 20
         min_targets = 1
         min_proba = 0.5
         # Paths
-        models_path = Datasource.get("chembl_target_predictions")[0].data_path
-        uniprot_mapping_path = Datasource.get(
-            "chembl_uniprot_mapping")[0].data_path
+        config = Config()
+        maindb = config.DB.database
+        models_path = Datasource.get("chembl_target_predictions", maindb)[0].data_path
+        uniprot_mapping_path = Datasource.get("chembl_uniprot_mapping", maindb)[0].data_path
+        
+        hint = models_path
+        res = glob.glob( hint+'/*', recursive=False)
+        flag = len(list( filter( lambda x: x.endswith('.pkl'), res))) == 0
+        while (flag) :
+            hint+='/*'
+            res = glob.glob( hint+'/*', recursive=False)
+            flag = ( len(list( filter( lambda x: x.endswith('.pkl'), res))) == 0 ) and ( len(res) > 0 )
+        fs = list( filter( lambda x: x.endswith('mNB_10uM_all.pkl'), res))[0]
+        
         # Load models
-        morgan_nb = joblib.load(
-            models_path + "/models_23/10uM/mNB_10uM_all.pkl")
+        #morgan_nb = joblib.load( models_path + "/models_23/10uM/mNB_10uM_all.pkl" )
+        morgan_nb = joblib.load( fs )
         classes = list(morgan_nb.targets)
         # Read target-to-uniprot mapping
         chembltarg2prot = collections.defaultdict(set)
@@ -356,15 +367,15 @@ class DataCalculator():
 
         def predict_targets(inchi):
             mol = Chem.rdinchi.InchiToMol(inchi)[0]
-            fp = Chem.GetMorganFingerprintAsBitVect(
-                mol, 2, nBits=2048, bitInfo={})
+            fp = Chem.GetMorganFingerprintAsBitVect( mol, 2, nBits=2048, bitInfo={})
+            
             res = np.zeros(len(fp), np.int32)
             DataStructs.ConvertToNumpyArray(fp, res)
+            
             probas = list(morgan_nb.predict_proba(res.reshape(1, -1))[0])
-            predictions = pd.DataFrame(
-                zip(classes, probas), columns=['id', 'proba'])
-            top_preds = predictions.sort_values(
-                by='proba', ascending=False).head(max_targets)
+            predictions = pd.DataFrame( zip(classes, probas), columns=['id', 'proba'])
+            
+            top_preds = predictions.sort_values( by='proba', ascending=False ).head(max_targets)
             top_preds = top_preds[top_preds["proba"] >= min_proba]
             prots = []
             for r in np.array(top_preds):
@@ -375,6 +386,7 @@ class DataCalculator():
             if len(prots) < min_targets:
                 return None
             return prots
+            
         # Start iterating
         iks = inchikey_inchi.keys()
         chunk = list()

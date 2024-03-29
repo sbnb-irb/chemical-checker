@@ -1,0 +1,68 @@
+datasource_name,description,is_db,url,username,password,filename,calcdata
+cmaup,CMAUP Natural Products Database. This database is a meta-resource.,f,https://bidd.group/CMAUP/downloadFiles/CMAUPv2.0_download_Ingredients_All.txt,,,CMAUPv2.0_download_Ingredients_All.txt,f
+repohub,"Drug Repurposing Hub database, accessible from https://clue.io/repurposing-app, is a curated resource of approved and experimental drugs. It has the advantage of being tighthly integrated within the Broad LINCS environment.",f,file:///aloy/web_checker/repo_data/Repurposing_Hub_export_201904.txt,,,Repurposing_Hub_export_201904.txt,f
+chembl_uniprot_mapping,Mapping between ChEMBL target IDs and Uniprot ACs.,f,http://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_uniprot_mapping.txt,,,chembl_uniprot_mapping.txt,f
+kegg_br,,f,http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=,,,br08303.keg,f
+deepcodex_map,DeepCodex uses a deep-learned embedding of gene expression profiles to find chemical and genetic perturbations with similar biological effects.,f,file:///aloy/web_checker/repo_data/deepcodex/dcx_map.csv,,,dcx_map.csv,f
+bindingdb,,f,http://www.bindingdb.org/bind/downloads/BindingDB_All_2022m0.tsv.zip,,,BindingDB_All.tsv,f
+chebi_lite,,f,http://ftp.ebi.ac.uk/pub/databases/chebi/SDF/ChEBI_lite_3star.sdf.gz,,,ChEBI_lite_3star.sdf,f
+chembl,,t,https://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_33_postgresql.tar.gz,,,chembl_33/chembl_33_postgresql/chembl_33_postgresql.dmp,f
+CTD_chemicals_diseases,,f,http://ctdbase.org/reports/CTD_chemicals_diseases.tsv.gz,,,CTD_chemicals_diseases.tsv,f
+drugbank,,f,file:///aloy/web_checker/repo_data/full-database.xml,,,,f
+GSE92742_Broad_LINCS_pert_info,,f,https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE92742&format=file&file=GSE92742_Broad_LINCS_pert_info.txt.gz,,,GSE92742_Broad_LINCS_pert_info.txt,f
+GSE70138_Broad_LINCS_pert_info,,f,http://ftp.ncbi.nlm.nih.gov/geo/series/GSE70nnn/GSE70138/suppl/GSE70138_Broad_LINCS_pert_info.txt.gz,,,GSE70138_Broad_LINCS_pert_info.txt,f
+mosaic_all_collections,,f,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/compound_information/sdf/Structural_Data_Files_combined.zip,,,All_Collections.sdf,f
+pdb_components,,f,http://ligand-expo.rcsb.org/dictionaries/Components-smiles-stereo-oe.smi,,,Components-smiles-stereo-oe.smi,f
+chemicals,,f,http://stitch4.embl.de/download/chemicals.v4.0.tsv.gz,,,chemicals.v4.0.tsv,f
+meddra_all_se,,f,http://sideeffects.embl.de/media/download/meddra_all_se.tsv.gz,,,meddra_all_se.tsv,f
+smpdb_structures,,f,http://smpdb.ca/downloads/smpdb_structures.zip,,,,f
+cellosaurus,,f,http://ftp.expasy.org/databases/cellosaurus/cellosaurus.obo,,,,f
+chebi,,f,http://ftp.ebi.ac.uk/pub/databases/chebi/ontology/chebi.obo,,,,f
+gobasic,,f,http://snapshot.geneontology.org/ontology/go-basic.obo,,,,f
+GSE92742_Broad_LINCS_sig_info,,f, https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE92742&format=file&file=GSE92742_Broad_LINCS_sig_info.txt.gz,,,GSE92742_Broad_LINCS_sig_info.txt,f
+cellinfo_beta,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/cellinfo_beta.txt,,,cellinfo_beta.txt,f
+geneinfo_beta,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/geneinfo_beta.txt,,,geneinfo_beta.txt,f
+compoundinfo_beta,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/compoundinfo_beta.txt,,,compoundinfo_beta.txt,f
+instinfo_beta,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/instinfo_beta.txt,,,instinfo_beta.txt,f
+siginfo_beta,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/siginfo_beta.txt,,,siginfo_beta.txt,f
+level5_beta_trt_cp_n720216x12328,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/level5/level5_beta_trt_cp_n720216x12328.gctx,,,level5_beta_trt_cp_n720216x12328.gctx,f
+level5_beta_trt_oe_n34171x12328,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/level5/level5_beta_trt_oe_n34171x12328.gctx,,,level5_beta_trt_oe_n34171x12328.gctx,f
+level5_beta_trt_sh_n238351x12328,,f,https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/level5/level5_beta_trt_sh_n238351x12328.gctx,,,level5_beta_trt_sh_n238351x12328.gctx,f
+hgnc_complete,,f,http://ftp.ebi.ac.uk/pub/databases/genenames/new/tsv/hgnc_complete_set.txt,,,,f
+disease_mappings,,f,http://www.disgenet.org/static/disgenet_ap1/files/downloads/disease_mappings.tsv.gz,,,,f
+chembl_drugtargets,,f,file:///aloy/web_checker/repo_data/chembl_drugtargets.tsv,,,,f
+chembl_indications,,f,file:///aloy/web_checker/repo_data/chembl_indications.tsv,,,,f
+CTD_chemicals,,f,http://ctdbase.org/reports/CTD_chemicals.tsv.gz,,,,f
+CTD_diseases,,f,http://ctdbase.org/reports/CTD_diseases.tsv.gz,,,,f
+ecod,,f,http://prodata.swmed.edu/ecod/distributions/ecod.latest.domains.txt,,,,f
+goa_human,,f,http://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz,,,goa_human.gaf,f
+inBio_Map_core,,f,file:///aloy/scratch/sbnb-adm/checker/local_downloads/inBio_Map_core_2016_09_12.tar.gz,,,,f
+metaphors_9606,,f,file:///aloy/web_checker/repo_data/9606.txt.gz,,,,f
+metaphors_id_conversion,,f,file:///aloy/web_checker/repo_data/id_conversion.txt.gz,,,,f
+mosaic,,f,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/tables/combined/combined_gene-target-predictions.zip,,,,f
+mosaic_all_conditions,,f,http://mosaic.cs.umn.edu/downloads/RIKEN-Clinical_FINAL/matrices_and_cdts/matrices/All_conditions.txt,,,,f
+pathwaycommons_hgnc,,f,http://www.pathwaycommons.org/archives/PC2/v9/PathwayCommons9.All.hgnc.txt.gz,,,,f
+repodb,,f,file:///aloy/scratch/sbnb-adm/checker/local_downloads/repodb.csv,,,,f
+DTP_NCI60_ZSCORE,,f,https://discover.nci.nih.gov/cellminer/download/processeddataset/DTP_NCI60_ZSCORE.zip,,,,f
+uniprot_HUMAN_9606,,f,http://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/idmapping/by_organism/HUMAN_9606_idmapping_selected.tab.gz,,,HUMAN_9606_idmapping_selected.tab,f
+uniprot2reactome,,f,https://reactome.org/download/current/UniProt2Reactome_All_Levels.txt,,,,f
+biur_real,ChemistryX Biur real library,f,file:///aloy/scratch/sbnb-adm/checker/local_downloads/BIUR_20100326.sdf,,,BIUR_20100326.sdf,f
+biur_virtual,ChemistryX Biur virtual library,f,file:///aloy/scratch/sbnb-adm/checker/local_downloads/VIRTUAL_BIUR_POR_MW.tar.gz,,,,f
+human_proteome,,f,https://www.ebi.ac.uk/proteins/api/proteomes/UP000005640,,,human_proteome.tab,f
+molpathways,Molpathways ,f,http://www.pathwaycommons.org/archives/PC2/v11/PathwayCommons11.All.hgnc.sif,,,PathwayCommons11.All.hgnc.sif,f
+string,String network ,f,https://stringdb-downloads.org/download/protein.links.v12.0/9606.protein.links.v12.0.txt.gz,,,9606.protein.links.txt,f
+chembl_target_predictions,Target prediction multitask naive bayes models trained by ChEMBL team.,f,http://ftp.ebi.ac.uk/pub/databases/chembl/target_predictions/NB/chembl_25_models.tar.gz,,,,f
+hmdb_metabolites,"The Human Metabolome Database (HMDB) is a database containing detailed information about small molecule metabolites found in the human body. It is intended to be used for applications in metabolomics, clinical chemistry, biomarker discovery and general education. The database is designed to contain or link three kinds of data: 1) chemical data, 2) clinical data, and 3) molecular biology/biochemistry data.",f,http://www.hmdb.ca/system/downloads/current/hmdb_metabolites.zip,,,hmdb_metabolites.xml,f
+e3fp_3conf_1024,The fp3d molecular properties calculated,f,,,,,t
+morphlincs_LDS-1195,,f,http://lincsportal.ccs.miami.edu/dcic/api/download?path=LINCS_Data/Broad_Therapeutics&file=LDS-1195.tar.gz,,,,f
+pharmacodb,PharmacoDB assembling the largest in vitro drug sensitivity screens in a single database.,t,file:///aloy/web_checker/repo_data/pharmacodb_development.psql,mduran,123mdfmdf,pharmacodb_development.psql,f
+touchstone_conn_HEPG2,Touchstone HEPG2 connectivities of version 1.1. Touchstone is the reference gene expression datataset of the L1000 connectivity map.,f,https://s3.amazonaws.com/macchiato.clue.io/builds/touchstone/v1.1/introspect/ps_HEPG2_n7345x7345.gct,"","",ps_HEPG2_n7345x7345.gct,f
+touchstone_conn_VCAP,Touchstone VCAP connectivities of version 1.1. Touchstone is the reference gene expression datataset of the L1000 connectivity map.,f,https://s3.amazonaws.com/macchiato.clue.io/builds/touchstone/v1.1/introspect/ps_VCAP_n4571x4571.gct,"","",ps_VCAP_n4571x4571.gct,f
+touchstone_conn_HCC515,Touchstone HCC515 connectivities of version 1.1. Touchstone is the reference gene expression datataset of the L1000 connectivity map.,f,https://s3.amazonaws.com/macchiato.clue.io/builds/touchstone/v1.1/introspect/ps_HCC515_n6784x6784.gct,"","",ps_HCC515_n6784x6784.gct,f
+touchstone_conn_A375,Touchstone A375 connectivities of version 1.1. Touchstone is the reference gene expression datataset of the L1000 connectivity map.,f,https://s3.amazonaws.com/macchiato.clue.io/builds/touchstone/v1.1/introspect/ps_A375_n8471x8471.gct,"","",ps_A375_n8471x8471.gct,f
+touchstone_conn_SUMMLY,Touchstone SUMMLY connectivities of version 1.1. Touchstone is the reference gene expression datataset of the L1000 connectivity map.,f,https://s3.amazonaws.com/macchiato.clue.io/builds/touchstone/v1.1/introspect/ps_SUMMLY_n8798x8798.gct,"","",ps_SUMMLY_n8798x8798.gct,f
+touchstone_conn_HT29,Touchstone HT29 connectivities of version 1.1. Touchstone is the reference gene expression datataset of the L1000 connectivity map.,f,https://s3.amazonaws.com/macchiato.clue.io/builds/touchstone/v1.1/introspect/ps_HT29_n8234x8234.gct,"","",ps_HT29_n8234x8234.gct,f
+touchstone_conn_PC3,Touchstone PC3 connectivities of version 1.1. Touchstone is the reference gene expression datataset of the L1000 connectivity map.,f,https://s3.amazonaws.com/macchiato.clue.io/builds/touchstone/v1.1/introspect/ps_PC3_n8318x8318.gct,"","",ps_PC3_n8318x8318.gct,f
+touchstone_conn_HA1E,Touchstone HA1E connectivities of version 1.1. Touchstone is the reference gene expression datataset of the L1000 connectivity map.,f,https://s3.amazonaws.com/macchiato.clue.io/builds/touchstone/v1.1/introspect/ps_HA1E_n8546x8546.gct,"","",ps_HA1E_n8546x8546.gct,f
+touchstone_conn_MCF7,Touchstone MCF7 connectivities of version 1.1. Touchstone is the reference gene expression datataset of the L1000 connectivity map.,f,https://s3.amazonaws.com/macchiato.clue.io/builds/touchstone/v1.1/introspect/ps_MCF7_n8238x8238.gct,"","",ps_MCF7_n8238x8238.gct,f
+touchstone_conn_A549,Touchstone A549 connectivities of version 1.1. Touchstone is the reference gene expression datataset of the L1000 connectivity map.,f,https://s3.amazonaws.com/macchiato.clue.io/builds/touchstone/v1.1/introspect/ps_A549_n8142x8142.gct,"","",ps_A549_n8142x8142.gct,f

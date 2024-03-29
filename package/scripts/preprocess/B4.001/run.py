@@ -174,6 +174,8 @@ def parse_bindingdb(ACTS=None, bindingdb_file=None):
         uniprot_ac = l[uniprot_ac_idx]
         if not uniprot_ac:
             continue
+        if( uniprot_ac.find('[')!=-1 ):
+            uniprot_ac = uniprot_ac['['][0]
         for p in uniprot_ac.split(","):
             ACTS[(inchikey, p, inchikey_inchi[inchikey])] += [act]
     f.close()

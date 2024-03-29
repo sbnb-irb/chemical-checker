@@ -1,6 +1,5 @@
 """Pipeline to generate a full CC update.
-
-The steps (a.k.a. tasks) for a full CC update are the following:
+steps (a.k.a. tasks) for a full CC update are the following:
 
 1. Download Datasources (raw input including any external DB)
 2. Generate Molrepos (parse downloaded files and save molecules identifiers)
@@ -110,7 +109,7 @@ def main(args):
         'murcko_1024_cframe_1024',
         'maccs_keys_166',
         'general_physchem_properties',
-        'chembl_target_predictions_v23_10um'
+        #'chembl_target_predictions_v23_10um'
     ]
 
     validation_sets = ['moa', 'atc']
@@ -120,7 +119,7 @@ def main(args):
         # sign0
         #  is using the most memory with ~GB
         #  is the one taking longer with ~s (h)
-        'sign0': {'memory': 44, 'cpu': 22},
+        'sign0': {'mem_by_core': 30, 'memory': 60, 'cpu': 22},
         # sign1 (w/o metric_learning) does not parallelize
         # B4 is using the most memory with ~12GB
         # C5 is the one taking longer with ~59000s (16.5h)
@@ -178,6 +177,15 @@ def main(args):
         'proj4': 'reference'
     }
 
+    # TASK: Create new CC DB
+#    def create_db():
+        # Create a new database for the current CC update
+    create_db_dataset()
+
+#    creating_db_task = PythonCallable(name="creating_db", python_callable=create_db)
+#    pp.add_task(creating_db_task)
+    # END TASK --- i ut in here because the next line needs the table dataset and the db is empty
+
     # initialize parameter holders (two dict, one for init and one for fit)
     datasets = [ds.code for ds in Dataset.get(exemplary=True)]
     sign_kwargs = {}
@@ -193,6 +201,7 @@ def main(args):
     sign2_list = [cc.get_signature('sign2', 'full', ds)
                   for ds in cc.datasets_exemplary()]
     mfp = cc.get_signature('sign0', 'full', 'A1.001').data_path
+   
     for ds in datasets:
         fit_kwargs['sign0'][ds] = {
             'key_type': 'inchikey',
@@ -246,17 +255,8 @@ def main(args):
     # we want to keep exactly 2048 features (Morgan fingerprint) for A1
     fit_kwargs['sign0']['A1.001'] = {'sanitize': False}
 
-    # TASK: Create new CC DB
-    def create_db():
-        # Create a new database for the current CC update
-        create_db_dataset()
-
-    creating_db_task = PythonCallable(name="creating_db",
-                                    python_callable=create_db)
-    pp.add_task(creating_db_task)
-    # END TASK
-    #############################################
     # TASK: Download all datasources
+    os.environ['CC_CONFIG'] = "/aloy/home/ymartins/Documents/cc_update/chemical_checker/pipelines/configs/cc_package.json"
     def download_fn(tmpdir):
         # Generate the Chembl files drugtargets and drugindications via
         # Chembl Python API in /aloy/web_checker/repo_data
@@ -269,9 +269,10 @@ def main(args):
         if job.status() == HPC.ERROR:
             main._log.error(
                 "There are errors in some of the downloads jobs")
-
+        
+        flagDownload = Datasource.test_all_downloaded(only_essential=True)
         # check if the downloads are really done
-        if not Datasource.test_all_downloaded(only_essential=True):
+        if not flagDownload:
             main._log.error(
                 "Something went WRONG while DOWNLOADING, please retry")
             # print the faulty one
@@ -289,27 +290,32 @@ def main(args):
                 if not ds.available:
                     main._log.error("Datasource %s not available" % ds)
             raise Exception('Not all datasources were downloaded correctly')
-
-    downloads_task = PythonCallable(name="downloads",
+    
+    flagDownload = Datasource.test_all_downloaded(only_essential=True)
+    if( not flagDownload ):
+        downloads_task = PythonCallable(name="downloads",
                                     python_callable=download_fn,
                                     op_args=[pp.tmpdir])
-    pp.add_task(downloads_task)
+        pp.add_task(downloads_task)
     # END TASK
     #############################################
 
     #############################################
     # TASK: Generate Molrepos
     molrepos_task = PythonCallable(name="molrepos",
-                                   python_callable=Molrepo.molrepo_hpc,
+                                   #python_callable=Molrepo.molrepo_hpc,
+                                   python_callable=Molrepo.molrepo_sequential,
                                    op_args=[pp.tmpdir],
                                    op_kwargs={'only_essential': True})
-    pp.add_task(molrepos_task)
+    #pp.add_task(molrepos_task)
+    
     # END TASK
     #############################################
 
     #############################################
     # TASK: Generate validation sets
     def create_val_set_fn(set_name):
+        main._log.info("Creating validation set for " + set_name)
         print("Creating validation set for " + set_name)
         val = Validation(Config(args.config).PATH.validation_path, set_name)
         try:
@@ -330,9 +336,10 @@ def main(args):
     #############################################
     # TASK: Calculate signatures 0 for derived spaces only (i.e. BCDE levels)
     cctype = 'sign0'
-    dss = [ds.code for ds in Dataset.get(exemplary=True) if ds.derived]
+    dss = [ds.code for ds in Dataset.get(exemplary=True) if ( ds.derived and not ds.code.startswith('D1') ) ]
     task = CCFit(args.cc_root, cctype, molset[cctype],
                  datasets=dss,
+                 name = 'sign0_BCDE',
                  fit_kwargs=fit_kwargs[cctype],
                  sign_kwargs=sign_kwargs[cctype],
                  hpc_kwargs=hpc_kwargs[cctype])
@@ -371,12 +378,14 @@ def main(args):
     # after running the first tranche of sign0 we known the CC universe
     universe = cc.universe
     main._log.info('CC Universe will include %s molecules.' % len(universe))
+    
+    # Restarting from where it stopped
     for data_calc in data_calculators:
         calc_data_task = PythonCallable(
             name="calc_data_" + data_calc,
             python_callable=calculate_data_fn,
             op_args=[data_calc, pp.tmpdir, universe])
-        pp.add_task(calc_data_task)
+        #pp.add_task(calc_data_task)
     # END TASK
     #############################################
 
@@ -386,13 +395,15 @@ def main(args):
     dss = [ds.code for ds in Dataset.get(exemplary=True) if not ds.derived]
     task = CCFit(args.cc_root, cctype, molset[cctype],
                  datasets=dss,
+                 name = 'sign0_A',
                  fit_kwargs=fit_kwargs[cctype],
                  sign_kwargs=sign_kwargs[cctype],
                  hpc_kwargs=hpc_kwargs[cctype])
     pp.add_task(task)
     # END TASK
     #############################################
-
+    
+    
     #############################################
     # TASK: Calculate diagnostics plots of sign0 for A* spaces: the reference cc version is provided
     # by the 'reference_cc' input parameter (only for sign0 case, for other signatures 
@@ -571,7 +582,7 @@ def main(args):
     pp.add_task(export_task)
     # END TASK
     #############################################
-
+    
     #############################################
     # RUN the pipeline!
     main._log.info('TASK SEQUENCE: %s' % ', '.join([t.name for t in pp.tasks]))

@@ -79,7 +79,7 @@ def parse_repodb(repodb, umls2mesh, IND=None):
                                 phase = 0
                             else:
                                 continue
-            IND[(dbid_inchikey[l[1]], meshid)] += [phase]
+            IND[(dbid_inchikey[l[1]], meshid)] += [ float(phase) ]
     f.close()
     return IND
 
@@ -110,7 +110,7 @@ def parse_chembl(IND=None):
     for r in R:
         if r[0] not in chemblid_inchikey:
             continue
-        IND[(chemblid_inchikey[r[0]], r[1])] += [r[2]]
+        IND[(chemblid_inchikey[r[0]], r[1])] += [ float(r[2]) ]
 
     IND = dict((k, np.max(v)) for k, v in IND.items())
 
@@ -135,16 +135,19 @@ def include_mesh(ctd_diseases, IND):
 
     classIND = collections.defaultdict(list)
     for k, v in tqdm(IND.items()):
-        classIND[k] = [v]
+        classIND[k] = [ float(v) ]
         node = "MESH:" + k[1]
         if node not in G:
             continue
         path = nx.all_simple_paths(G, "ROOT", node)
         dis = [d.split("MESH:")[1] for p in path for d in p if "MESH:" in d]
         for d in dis:
-            classIND[(k[0], d)] += [v]
+            classIND[(k[0], d)] += [ float(v) ]
 
-    classIND = dict((k, np.max(v)) for k, v in classIND.items())
+    #for k, v in classIND.items():
+    #    print(k, v)
+    #    print( '\t----', np.max(v) )
+    classIND = dict( (k, np.max(v)) for k, v in classIND.items())
 
     return classIND
 
