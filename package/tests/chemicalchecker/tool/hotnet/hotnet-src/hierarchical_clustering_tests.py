@@ -65,9 +65,9 @@ def edges_to_adjacency_matrix(edges):
 
     weight_type = set(type(edge[2]) for edge in edges if len(edge)>2)
     if weight_type==set([int]):
-        dtype = np.int
+        dtype = int
     else:
-        dtype = np.float64
+        dtype = float
 
     A = np.zeros((num_nodes, num_nodes), dtype=dtype)
     for edge in edges:
@@ -121,7 +121,7 @@ def random_adjacency_matrix(n,seed=np.random.randint(0,4294967295),sparsity=0.0,
         # the correct dimensions.
 
         B = np.random.rand(unique_elements)
-        C = np.zeros(n**2-unique_elements,dtype=np.float)
+        C = np.zeros(n**2-unique_elements,dtype=float)
 
         tally = 0
         while tally<repeated_elements:

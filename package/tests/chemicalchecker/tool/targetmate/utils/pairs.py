@@ -68,7 +68,7 @@ class Pairs:
             if p[1] not in kr: continue
             self.known_pairs += [(kl[p[0]], kr[p[1]], p[2])]
         self.known_pairs = list(set(self.known_pairs))
-        self.known_pairs = np.array(self.known_pairs).astype(np.int)
+        self.known_pairs = np.array(self.known_pairs).astype(int)
         self.__log.debug("Original pairs: %d, Remaining pairs: %d" % (len(pairs), len(self.known_pairs)))
         self.__log.debug("Original left : %d, Remaining left : %d" % (len(set([p[0] for p in pairs])), len(set(self.known_pairs[:,0]))))
         self.__log.debug("Original right: %d, Remaining right: %d" % (len(set([p[1] for p in pairs])), len(set(self.known_pairs[:,1]))))
@@ -152,9 +152,9 @@ class Pairs:
                     #f.write("%d\t%d\t%d\n" % (k, x, 1))
                     pairs += [(k, x, 0)]
         #return 
-        pairs = np.array(pairs, dtype=np.int)
+        pairs = np.array(pairs, dtype=int)
         self.__log.debug("Shuffling pairs")
-        idxs = np.array([i for i in range(0, pairs.shape[0])], dtype=np.int)
+        idxs = np.array([i for i in range(0, pairs.shape[0])], dtype=int)
         random.shuffle(idxs)
         self.pairs = pairs[idxs]
         self.__log.debug("Number of pairs: %d" % len(self.pairs))
@@ -185,8 +185,8 @@ class Pairs:
             pairs += [(self.known_pairs[i,0], self.known_pairs[i,1], self.known_pairs[i,2])]
         for s in list(sampled):
             pairs += [(s[0],s[1],0)]
-        pairs = np.array(pairs, dtype=np.int)
-        idxs = np.array([i for i in range(0, pairs.shape[0])], dtype=np.int)
+        pairs = np.array(pairs, dtype=int)
+        idxs = np.array([i for i in range(0, pairs.shape[0])], dtype=int)
         random.shuffle(idxs)
         self.pairs = pairs[idxs]
         self.__log.debug("Number of pairs: %d" % len(self.pairs))
@@ -256,7 +256,7 @@ class Pairs:
         for k in ks:
             self.pairs += [t for t in self._tupler(k, A[k], 1)]
             self.pairs += [t for t in self._tupler(k, I[k], 0)]
-        self.pairs = np.array(self.pairs).astype(np.int)
+        self.pairs = np.array(self.pairs).astype(int)
         self.__log.debug("Shuffling")             
         idxs = np.array([i for i in range(0, self.pairs.shape[0])])
         random.shuffle(idxs)
@@ -290,7 +290,7 @@ class Pairs:
                     t += [to_tuple(k, x[0], x[1])]
             idxs_ = [i for i in range(0, len(t))]
             random.shuffle(idxs_)
-            return np.array(t).astype(np.int)[idxs_]
+            return np.array(t).astype(int)[idxs_]
         idxs = list(set([p[col] for p in self.pairs]))
         d = self._to_dict(col)
         spl = ShuffleSplit(n_splits=self.n_splits, test_size=self.test_size, random_state=self.random_state)
@@ -344,7 +344,7 @@ def onehot_proteins_signature():
         for r in reader:
             keys += [r[0]]
     keys = np.array(keys)
-    V = np.identity(len(keys)).astype(np.int)
+    V = np.identity(len(keys)).astype(int)
     with h5py.File("/aloy/home/mduran/myscripts/dream-ctd2-targetmate/paired_targetmate/X_r_1h.h5", "w") as hf:
         hf.create_dataset("keys", data=np.array(keys, DataSignature.string_dtype()))
         hf.create_dataset("V", data=V)

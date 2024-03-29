@@ -322,12 +322,12 @@ class Preprocess():
                 hf.create_dataset("keys", data=np.array(
                     keys, DataSignature.string_dtype()))
                 hf.create_dataset(
-                    "X", (len(keys), len(orderwords)), dtype=np.int8)
+                    "X", (len(keys), len(orderwords)), dtype=int )
                 hf.create_dataset("features", data=np.array(
                     orderwords, DataSignature.string_dtype()))
 
             # write data in H5
-            raws = np.zeros((chunk, len(orderwords)), dtype=np.int8)
+            raws = np.zeros((chunk, len(orderwords)), dtype=int )
             wordspos = {k: v for v, k in enumerate(orderwords)}
             index = 0
             for i, k in enumerate(keys):
