@@ -108,7 +108,7 @@ then
     fi
     mkdir $INSTALL_DIR;
     cd $INSTALL_DIR;
-    SINGULARITY_DEFINITION="$LOCAL_REPO/container/singularity/cc_py310.def"
+    SINGULARITY_DEFINITION="$LOCAL_REPO/container/singularity/cc_py39.def"
     BINARIES_FOLDER="$LOCAL_REPO/container/singularity/binaries/"
     SNAP_MAKEFILE="$LOCAL_REPO/container/snap_makefile.config"
     cp $SINGULARITY_DEFINITION $INSTALL_DIR;  # Node2vec binary
