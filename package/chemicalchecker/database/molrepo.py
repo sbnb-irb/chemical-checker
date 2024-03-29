@@ -291,7 +291,7 @@ class Molrepo(Base):
             if ds.filename is not None and ds.is_db is False:
                 path = os.path.join(path, ds.filename)
             map_files[ds.datasource_name] = path
-            Molrepo.__log.debug("Importing Datasource %s", ds.datasource_name)
+            #Molrepo._log.debug("Importing Datasource %s", ds.datasource_name)
             ds.download()
         molrepo_parser = molrepo_name
 
@@ -299,7 +299,7 @@ class Molrepo(Base):
         parse_fn = Parser.parse_fn(molrepo_parser)
         # profile time
         t_start = time()
-        engine = get_engine()
+        engine = get_engine(  ) 
         with engine.begin() as conn:
             for chunk in parse_fn(map_files, molrepo_name, 1000):
                 if len(chunk) == 0:
@@ -326,6 +326,20 @@ class Molrepo(Base):
         Molrepo.__log.info(
             "Importing Molrepo Name %s took %s", molrepo_name, t_delta)
 
+    @staticmethod
+    def molrepo_sequential(tmpdir, only_essential=False, **kwargs):
+        #Molrepo._log.info("Generating mol repositories - sequential" )
+        
+        molrepos_names = set()
+        molrepos = Molrepo.get()
+        for molrepo in molrepos:
+            if only_essential and not molrepo.essential:
+                continue
+            molrepos_names.add(molrepo.molrepo_name)
+        
+        for ds in molrepos_names:
+            Molrepo.from_molrepo_name(ds)
+    
     @staticmethod
     def molrepo_hpc(tmpdir, only_essential=False, **kwargs):
         """Run HPC jobs importing all molrepos.

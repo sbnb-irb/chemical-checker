@@ -364,7 +364,7 @@ print('JOB DONE')
         params["elements"] = dataset_params
         params["wait"] = False
         params["check_error"] = False
-        params["memory"] = 5  # trial and error
+        params["memory"] = 30  # trial and error
         # job command
         singularity_image = cfg.PATH.SINGULARITY_IMAGE
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" \
@@ -1741,3 +1741,4 @@ print('JOB DONE')
                 fn_dest = os.path.join(dest_dir, fn)
             self.__log.debug("Saving plot to: %s" % fn_dest)
             fig.savefig(fn_dest, **savefig_kwargs)
+        return fig

@@ -62,14 +62,21 @@ fi
         self.password = kwargs.get("password", '')
         self.error_finder = kwargs.get("error_finder", self.__find_error)
         dry_run = kwargs.get("dry_run", False)
-        self.specificNode = kwargs.get("specificNode", None)
-        if self.specificNode:
-            defaultOptions = """\
+        self.specificNode = kwargs.get("specificNode", None )
+        
+        # Specific addition for the cc update, remove later
+        if( self.specificNode == None or self.specificNode == '' ):
+            self.specificNode = ['pac-one107', 'pac-one109', 'pac-one301', 'pac-one401']
+            
+        if self.specificNode != None:
+            nodes = ','.join( [ f'all.q@{n}' for n in  self.specificNode] )
+            self.queue = nodes
+            self.defaultOptions = """\
 #$ -S /bin/bash
 #$ -r yes
 #$ -j yes
-#$ -q all.q@{}
-""".format(self.specificNode)
+#$ -q {}
+""".format(nodes)
 
         self.statusFile = None
         self.status_id = None
@@ -93,8 +100,12 @@ fi
         """Yields n successive chunks from l."""
         if isinstance(l, list) or isinstance(l, np.ndarray):
             # a list of 60 000 entries split in 6000 chunks
-            for i in np.array_split(l, n):
-                yield i   # yields one of the 6000 chunks of 10 elements
+            ind = list( range( len(l) ) )
+            for i in np.array_split(ind, n):
+                tmp = []
+                for idx in i:
+                    tmp.append( l[idx] )
+                yield tmp   # yields one of the 6000 chunks of 10 elements
         elif isinstance(l, dict):
             keys = list(l.keys())
             keys.sort()
@@ -122,10 +133,10 @@ fi
         check_error = kwargs.get("check_error", True)
         maxtime = kwargs.get("time", None)
         cpusafe = kwargs.get("cpusafe", True)
-        cpu = kwargs.get("cpu", 1)
+        cpu = kwargs.get("cpu", 4)
         # maximum memory before being killed is expressed per-core
         # correspond to h_vmem
-        membycore = int(kwargs.get("mem_by_core", 2))
+        membycore = int(kwargs.get("mem_by_core", 40))
         # total memory that must be available when starting the job
         # does not influence the job being killed or not
         # correspond to mem_free
@@ -348,8 +359,12 @@ fi
                     'qstat -j ' + self.job_id)
                 message = stdout.readlines()
                 self.__log.debug(message)
+                
+                flag = (len(message) == 0)
+                if( not flag and len(message)>0 ):
+                    flag = (message[0].find("do not exist") != -1 )
                 # if message[0].find("do not exist") != -1:
-                if len(message) == 0:
+                if flag:
                     self.status_id = DONE
                     with open(self.statusFile, "w") as f:
                         f.write(self.status_id)

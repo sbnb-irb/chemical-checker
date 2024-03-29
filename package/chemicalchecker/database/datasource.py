@@ -123,7 +123,7 @@ class Datasource(Base):
                     "Error in line %s: %s", row_nr, str(err))
 
     @staticmethod
-    def get(name=None):
+    def get(name=None, dbname=None):
         """Get Datasources associated to the given dataset.
 
         Args:
@@ -133,9 +133,12 @@ class Datasource(Base):
 
         if name is not None:
             params["datasource_name"] = name
-
-        session = get_session()
-
+        
+        if(dbname!=None):
+            session = get_session(dbname)
+        else:
+            session = get_session()
+            
         if len(params) == 0:
             query = session.query(Datasource).distinct(
                 Datasource.datasource_name)
@@ -210,6 +213,7 @@ class Datasource(Base):
             self.__log.warning("Datasource available, skipping download.")
             return
         # create download string
+        """
         if self.username and self.password:
             protocol, address = self.url.split('//')
             url = "{}//{}:{}@{}".format(protocol,
@@ -217,13 +221,17 @@ class Datasource(Base):
                                         self.password, address)
         else:
             url = self.url
+        """
+        url = self.url
         # call the downloader
         if self.is_db:
             dbname = self.datasource_name
         else:
             dbname = None
+        cc_config = os.environ['CC_CONFIG']
+        cfg = Config(cc_config)
         down = Downloader(url, self.data_path, dbname=dbname,
-                          file=self.filename)
+                          file=self.filename, tmp_dir=cfg.PATH.CC_TMP, username= self.username, password=self.password)
         down.download()
 
     @staticmethod
@@ -286,6 +294,8 @@ class Datasource(Base):
         params["job_name"] = "CC_DOWNLOAD"
         params["elements"] = ds_names
         params["wait"] = True
+        params["cpu"] = 4
+        params["mem_by_core"] = 20
         # job command
         singularity_image = cfg.PATH.SINGULARITY_IMAGE
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={}" +\

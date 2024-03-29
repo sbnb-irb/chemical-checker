@@ -1,7 +1,7 @@
 {
     "PATH": {
-        "CC_ROOT": "'/aloy/web_checker/package_2024_update/'",
-        "CC_DATA": "'/aloy/web_checker/2024_02_test/'",
+        "CC_ROOT": "'/aloy/home/ymartins/Documents/cc_update/cc_newpy_version_test/package/'",
+        "CC_DATA": "'/aloy/home/ymartins/Documents/cc_update/cc_newpy_version_test/data/'",
         "CC_TMP": "'/aloy/scratch/ymartins/CC/tmp_jobs/'",
         "CC_REPO": "'/aloy/home/ymartins/Documents/cc_update/chemical_checker/'",
         "SINGULARITY_IMAGE": "'/aloy/home/ymartins/Documents/cc_update/cc_image/cc.simg'",
@@ -13,8 +13,8 @@
     	"host": "'10.5.4.240'",
     	"user": "'sbnb-adm'",
     	"password": "'db_adm'",
-    	"database": "'cc_package_2024_02'",
-        "calcdata_dbname": "'cc_calcdata'",
+    	"database": "'cc_package_2024_02_test'",
+        "calcdata_dbname": "'cc_calcdata_test'",
         "uniprot_db_version" : "'2022_01'"
     },
     "HPC": {

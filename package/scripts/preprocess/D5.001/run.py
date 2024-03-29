@@ -89,6 +89,12 @@ def parse_cellosaurus(R, cellosaurus_obo):
             if l[:4] == "id: ":
                 child = l.split("id: ")[1]
                 G.add_node(child)
+                
+            if( l.find("xref: PubChem_Cell_line") != -1 ): # Increase vocabulary using cross references to other database synonyms cell lines
+                child = l.split("PubChem_Cell_line:")[1]
+                if( child.startswith('CVCL_') ):
+                    G.add_node(child)
+                
             if "relationship: derived_from " in l:
                 parent = l.split("derived_from ")[1].split(" !")[0]
                 if parent is not None:
@@ -98,8 +104,8 @@ def parse_cellosaurus(R, cellosaurus_obo):
             #    G.add_edge(parent, child)
 
     # Add a root *
-
-    for n in list(G.nodes()):
+    nodes = list(G.nodes())
+    for n in nodes:
         if not nx.ancestors(G, n):
             if n is not None:
                 G.add_edge(n, "*")
@@ -110,11 +116,12 @@ def parse_cellosaurus(R, cellosaurus_obo):
     cell_hier = collections.defaultdict(set)
 
     for cell in cells:
-        for c in nx.all_simple_paths(G, cell, "*"):
-            if c == "*":
-                continue
-            for x in c:
-                cell_hier[cell].update([x])
+        if( cell in nodes ):
+            for c in nx.all_simple_paths(G, cell, "*"):
+                if c == "*":
+                    continue
+                for x in c:
+                    cell_hier[cell].update([x])
 
     return cell_hier
 

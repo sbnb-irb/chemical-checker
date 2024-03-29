@@ -80,9 +80,16 @@ def main(args):
     features_list = None
 
     if args.method == "fit":
+    
+        file_path = map_files["drugbank"]
+        if( os.path.isdir(file_path) ):
+            fxml = ''
+            for fs in os.listdir(file_path) :
+                if( fs.endswith('.xml') ):
+                    fxml = fs
+            drugbank_xml = os.path.join(file_path, fxml)
 
-        drugbank_xml = os.path.join(
-            map_files["drugbank"], "full database.xml")
+        #drugbank_xml = os.path.join( map_files["drugbank"], "full database.xml")
 
         main._log.info("Parsing DDIs...")
         inchikey_ddi = parse_ddis(drugbank_xml)

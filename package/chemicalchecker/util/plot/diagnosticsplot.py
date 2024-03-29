@@ -481,7 +481,7 @@ class DiagnosisPlot(object):
         values = np.array(values)
         idxs = np.array(list(pd.DataFrame(
             {"ds": datasets, "vl": -values}).sort_values(["vl", "ds"]).index)
-        ).astype(np.int)
+        ).astype(int)
         datasets = datasets[idxs]
         values = values[idxs]
         colors = np.array([coord_color(ds) for ds in datasets])
@@ -641,7 +641,7 @@ class DiagnosisPlot(object):
         if title is None:
             title = "Redund. (%.1f%%)" % (
                 100 - results["n_ref"] / results["n_full"] * 100)
-        yticks = sorted(set(np.array(ax.get_yticks(), np.int)))
+        yticks = sorted(set(np.array(ax.get_yticks(), int)))
         if len(yticks) == 1:
             yticks = [0, 1]
         ax.set_yticks(yticks)

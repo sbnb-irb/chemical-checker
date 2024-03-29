@@ -429,7 +429,11 @@ class BaseSignature(object):
         from .sign2 import sign2
         from .sign3 import sign3
         from .sign4 import sign4
+        
         from .neig import neig
+        from .clus import clus
+        from .proj import proj
+        
         folds = self.signature_path.split('/')
         folds[-5] = molset
         new_path = '/'.join(folds)

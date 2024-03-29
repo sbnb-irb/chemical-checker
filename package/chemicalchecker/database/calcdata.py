@@ -46,7 +46,6 @@ from chemicalchecker.util import logged, Config
 from chemicalchecker.util.hpc import HPC
 from chemicalchecker.util.parser import DataCalculator
 
-
 def Calcdata(table_name):
     """Factory for Generic table."""
 
@@ -253,9 +252,7 @@ def Calcdata(table_name):
             params["compress"] = False
             # job command
             singularity_image = cfg.PATH.SINGULARITY_IMAGE
-            command = ("SINGULARITYENV_PYTHONPATH={}"
-                       "SINGULARITYENV_CC_CONFIG={}"
-                       " singularity exec {} python {} <TASK_ID> <FILE>")
+            command = ("SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE>")
             command = command.format(
                 os.path.join(cfg.PATH.CC_REPO, 'package'), cc_config,
                 singularity_image, script_name)

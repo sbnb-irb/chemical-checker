@@ -58,6 +58,8 @@ class MultiEdgeNetwork():
     def __init__(self, network):
         """Initialize a MultiEdgeNetwork instance."""
         try:
+            import sys
+            sys.path.append("swig")
             import snap
             self.snap = snap
         except ImportError:
@@ -369,6 +371,7 @@ class HotnetNetwork():
         f.close()
 
         # Calculate beta
+        print('Compute beta - ', 'edges:', len( list(G.edges()) ), 'nodes:', len( list(G.nodes()) ) )
 
         HotnetNetwork.__log.info("Computing beta")
 
