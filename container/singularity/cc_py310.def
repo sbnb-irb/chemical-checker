@@ -4,6 +4,7 @@ From: ubuntu:20.04
 %environment
     # PATHS
     export PATH=/opt/miniconda3/bin:$PATH
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/miniconda3/lib/
     . /opt/miniconda3/etc/profile.d/conda.sh
     conda activate cc_env
 
@@ -75,7 +76,8 @@ From: ubuntu:20.04
     mamba install -q -y -c conda-forge rdkit                                            # Open-Source Cheminformatics Software
     mamba install -q -y -c openbabel openbabel                                          # chemical toolbox
     mamba install -q -y mkl-service                                                     # change the number of CPU’s MKL is using
-    mamba install -q -y -c conda-forge hdbscan                                          # clustering
+    #mamba install -q -y -c conda-forge hdbscan                                          # clustering
+    pip install hdbscan
     mamba install -q -y -c efelix fpsim2                                                # fast compound similarity searches (used in TargetMate)
     mamba install -q -y -c conda-forge jupyterlab                                       # Jupyter-lab and notebooks
     mamba install -q -y -c conda-forge ipywidgets                                       # Jupyter-lab widgets
@@ -149,12 +151,13 @@ From: ubuntu:20.04
     pip install networkx                          # graph data stracture and algos
 #    pip install snap-stanford                     # Python interface for SNAP
     
-    #git clone https://github.com/snap-stanford/snap-python.git
-    #git clone https://github.com/snap-stanford/snap.git
-    #cp /opt/Makefile.config snap-python/Makefile.config
-    #cd snap-python
-    #make
-    #cd ..
+    cd /opt
+    git clone https://github.com/snap-stanford/snap-python.git
+    git clone https://github.com/snap-stanford/snap.git
+    cp /opt/Makefile.config snap-python/Makefile.config
+    cd snap-python
+    make
+    cd ..
     
     # visualization packages
     pip install matplotlib                        # chart library :)
