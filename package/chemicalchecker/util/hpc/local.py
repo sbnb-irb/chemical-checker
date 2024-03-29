@@ -30,7 +30,10 @@ class local():
 
     def _chunks(self, l, n):
         """Yield successive n-sized chunks from l."""
-        if isinstance(l, list) or isinstance(l, np.ndarray):
+        if isinstance(l, list):
+            for i in np.array_split(np.array(l, dtype='object'), n):
+                yield i
+        elif isinstance(l, np.ndarray):
             for i in np.array_split(l, n):
                 yield i
         elif isinstance(l, dict):
