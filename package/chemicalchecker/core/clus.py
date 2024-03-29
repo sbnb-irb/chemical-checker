@@ -548,8 +548,7 @@ class clus(BaseSignature, DataSignature):
     def _inertia(self, V_pqcode, labels, centroids):
         ines = 0
         for i in range(V_pqcode.shape[0]):
-            print( V_pqcode.shape, centroids.shape )
-            ines += euclidean(V_pqcode[i], centroids[labels[i]] )
+            ines += euclidean(V_pqcode[i], centroids[labels[i]][0] )
         return ines
 
     def _dispersion(self, centroids, sig_dist, metric):
