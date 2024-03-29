@@ -24,8 +24,11 @@ import sys
 import os
 import pickle
 import logging
+
+sys.path.insert(0, '/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/' )
 import chemicalchecker
 from chemicalchecker import ChemicalChecker, Config
+
 logging.log(logging.DEBUG, 'chemicalchecker: {{}}'.format(
     chemicalchecker.__path__))
 logging.log(logging.DEBUG, 'CWD: {{}}'.format(os.getcwd()))
