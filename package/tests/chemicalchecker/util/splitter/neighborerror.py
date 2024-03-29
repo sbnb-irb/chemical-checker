@@ -124,13 +124,13 @@ class NeighborErrorTraintest(object):
         splits = np.cumsum(fractions)
         splits = splits[:-1]
         splits *= len(idxs)
-        splits = splits.round().astype(np.int)
+        splits = splits.round().astype(int)
         return np.split(idxs, splits)
 
     @staticmethod
     def create(to_predict, out_file, predict_fn, subsample_fn, max_x=10000,
                split_names=['train', 'test'], split_fractions=[.8, .2],
-               suffix='eval', x_dtype=np.float32, y_dtype=np.float32):
+               suffix='eval', x_dtype=float, y_dtype=float):
         """Create the HDF5 file with validation splits.
 
         Args:
@@ -143,8 +143,8 @@ class NeighborErrorTraintest(object):
             split_names(list(str)): names for the split of data.
             split_fractions(list(float)): fraction of data in each split.
             x_dtype(type): numpy data type for X.
-            y_dtype(type): numpy data type for Y (np.float32 for regression,
-                np.int32 for classification.
+            y_dtype(type): numpy data type for Y (float for regression,
+                int32 for classification.
         """
         NeighborErrorTraintest.__log.debug(
             "{:<20} shape: {:>10}".format("input to_predict",

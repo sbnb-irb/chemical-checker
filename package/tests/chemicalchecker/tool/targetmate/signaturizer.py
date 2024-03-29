@@ -78,8 +78,8 @@ class BaseSignaturizer(TargetMateSetup, HPCUtils):
             if key not in master_idxs: continue
             idxs0 += [i]
             idxs1 += [master_idxs[key]]
-        idxs0 = np.array(idxs0).astype(np.int)
-        idxs1 = np.array(idxs1).astype(np.int)
+        idxs0 = np.array(idxs0).astype(int)
+        idxs1 = np.array(idxs1).astype(int)
         return idxs0, idxs1
 
     # Signature readers
@@ -93,7 +93,7 @@ class BaseSignaturizer(TargetMateSetup, HPCUtils):
         self.__log.info("...data path: %s" % sign.data_path)
         keys, V = sign.get_vectors_lite(inchikeys)
         self.__log.info("Signature read")
-        idxs = np.array([iks_dict[k] for k in keys if k in iks_dict]).astype(np.int)
+        idxs = np.array([iks_dict[k] for k in keys if k in iks_dict]).astype(int)
         return V, idxs
 
 
@@ -109,7 +109,7 @@ class BaseSignaturizer(TargetMateSetup, HPCUtils):
         keys, V = sign.get_vectors_lite(inchikeys)
         self.__log.info("Signature read")
 
-        idxs = np.array([iks_dict[k] for k in keys if k in iks_dict]).astype(np.int)
+        idxs = np.array([iks_dict[k] for k in keys if k in iks_dict]).astype(int)
 
         return V, idxs
 
@@ -148,15 +148,15 @@ class BaseSignaturizer(TargetMateSetup, HPCUtils):
         with h5py.File(destination_dir, "r") as hf:
             if idxs is None:
                 V = hf[name][:]
-                idxs = np.array([i for i in range(V.shape[0])]).astype(np.int)
+                idxs = np.array([i for i in range(V.shape[0])]).astype(int)
             else:
                 V = hf[name][:][idxs]
                 if name == "signature":
                     failed = hf["failed"][:][idxs]
                     V = V[~failed]
-                    idxs = np.array([i for i, f in enumerate(~failed) if f]).astype(np.int)
+                    idxs = np.array([i for i, f in enumerate(~failed) if f]).astype(int)
                 else:
-                    idxs = np.array([i for i in range(V.shape[0])]).astype(np.int)
+                    idxs = np.array([i for i in range(V.shape[0])]).astype(int)
         return V, idxs
 
     def read_signatures(self, dataset, smiles, inchikeys, sign_folder, is_tmp, idxs=None):
@@ -206,7 +206,7 @@ class Fingerprinter(BaseSignaturizer):
     def featurizer(self, smiles, destination_dir):
         V = self.featurizer_func(smiles)
         with h5py.File(destination_dir, "w") as hf:
-            hf.create_dataset("V", data = V.astype(np.int8))
+            hf.create_dataset("V", data = V.astype(int))
             hf.create_dataset("keys", data = np.array(smiles, DataSignature.string_dtype()))
 
     def _signaturize_fingerprinter(self, smiles, is_tmp=None, wait=True, **kwargs):
