@@ -303,11 +303,11 @@ class Smilespred(object):
         subs_nn = 100000
         o_nn = faiss.IndexFlatL2(self.sign3.shape[1])
         o_nn.add( np.array( self.sign3[:subs_nn], dtype='float32') )
-        o_n_dist, o_n_idxs = o_nn.search(self.sign3[:subs_nn], 100)
+        o_n_dist, o_n_idxs = o_nn.search( np.array(self.sign3[:subs_nn], dtype='float32'), 100)
 
         p_nn = faiss.IndexFlatL2(signp.shape[1])
         p_nn.add( np.array( signp[:subs_nn], dtype='float32') )
-        p_n_dist, p_n_idxs = p_nn.search(signp[:subs_nn], 100)
+        p_n_dist, p_n_idxs = p_nn.search( np.array(signp[:subs_nn], dtype='float32'), 100)
 
         shared_nn = []
         for i in tqdm(range(len(o_n_idxs))):

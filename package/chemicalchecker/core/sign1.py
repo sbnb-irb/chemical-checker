@@ -333,9 +333,9 @@ class sign1(BaseSignature, DataSignature):
                 data_temp = np.array(dh5[V_name][chunk], dtype=float)
                 if metric == "cosine":
                     normst = LA.norm(data_temp, axis=1)
-                    Dt, It = index.search(data_temp / normst[:, None], k)
+                    Dt, It = index.search( np.array(data_temp / normst[:, None], dtype='float32'), k)
                 else:
-                    Dt, It = index.search(data_temp, k)
+                    Dt, It = index.search( np.array(data_temp, dtype='float32'), k)
                 dh5out["indices"][chunk] = It
                 if metric == "cosine":
                     dh5out["distances"][chunk] = np.maximum(0.0, 1.0 - Dt)

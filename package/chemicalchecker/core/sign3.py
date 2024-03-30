@@ -1485,7 +1485,7 @@ class sign3(BaseSignature, DataSignature):
                                            dropout_fn, p_self=p_self),
                                        dropout_samples=1)
                 pred = np.mean(pred, axis=1)
-                only_self_dists, _ = neig_index.search(pred, app_thr)
+                only_self_dists, _ = neig_index.search( np.array(pred, dtype='float32'), app_thr)
                 if app_range is None:
                     d_min = np.min(only_self_dists)
                     d_max = np.max(only_self_dists)
@@ -1511,7 +1511,7 @@ class sign3(BaseSignature, DataSignature):
             return applicability, app_range, consensus
         else:
             pred = siamese.predict(mask_exclude(self.dataset_idx, features))
-            dists, _ = neig_index.search(pred, app_thr)
+            dists, _ = neig_index.search( np.array(pred, dtype='float32'), app_thr)
             d_min = np.min(dists)
             d_max = np.max(dists)
             app_range = np.array([d_min, d_max])

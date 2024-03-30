@@ -1747,17 +1747,17 @@ class MultiPlot():
                 print('test_confidence', test_confidence.shape)
                 # make train sign1 neig
                 train_signref_neig = faiss.IndexFlatL2(train_signref.shape[1])
-                train_signref_neig.add(train_signref.astype(float))
+                train_signref_neig.add( np.array(train_signref, dtype='float32') )
                 # make train sign4 neig
                 train_sign_neig = faiss.IndexFlatL2(train_sign.shape[1])
-                train_sign_neig.add(train_sign.astype(float))
+                train_sign_neig.add( np.array(train_sign, dtype='float32') )
                 # find test sign1 neighbors
                 signref_neig_dist, signref_neig_idx = train_signref_neig.search(
-                    test_signref.astype(float), 100)
+                    np.array( test_signref, dtype='float32'), 100)
                 signref_neig_dist = np.sqrt(signref_neig_dist)
                 # find test sign4 neighbors
                 sign_neig_dist, sign_neig_idx = train_sign_neig.search(
-                    test_sign.astype(float), 100)
+                    np.array( test_sign, dtype='float32'), 100)
                 sign_neig_dist = np.sqrt(sign_neig_dist)
                 # check various thresholds
                 # get sign ref background distances thresholds
