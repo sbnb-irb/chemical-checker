@@ -116,9 +116,9 @@ class neig(BaseSignature, DataSignature):
                     data_temp = np.array(dh5["V"][chunk], dtype=float)
                     if self.metric == "cosine":
                         normst = LA.norm(data_temp, axis=1)
-                        index.add(data_temp / normst[:, None])
+                        index.add( np.array( data_temp / normst[:, None], dtype='float32') )
                     else:
-                        index.add(data_temp)
+                        index.add( np.array(data_temp, dtype='float32') )
 
                 for chunk in sign.chunker():
                     data_temp = np.array(dh5["V"][chunk], dtype=float)

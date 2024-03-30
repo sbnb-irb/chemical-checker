@@ -881,7 +881,7 @@ class OldTripletSampler(BaseTripletSampler):
             # create faiss index
             NN[split_name] = faiss.IndexFlatL2(nr_matrix[split_name].shape[1])
             # add data
-            NN[split_name].add(nr_matrix[split_name])
+            NN[split_name].add( np.array(nr_matrix[split_name], dtype='float32') )
 
         # mean centering columns
         if mean_center_x:

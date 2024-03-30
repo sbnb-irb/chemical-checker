@@ -185,9 +185,9 @@ class Default(BaseSignature, DataSignature):
 
                 norms = LA.norm(kmeans.centroids[final_indexes], axis=1)
 
-                index.add(kmeans.centroids[final_indexes] / norms[:, None])
+                index.add( np.array( kmeans.centroids[final_indexes] / norms[:, None], dtype='float32') )
             else:
-                index.add(kmeans.centroids[final_indexes])
+                index.add( np.array(kmeans.centroids[final_indexes], dtype='float32') )
 
             points_proj = {}
 
@@ -217,13 +217,13 @@ class Default(BaseSignature, DataSignature):
 
             if self.metric == "euclidean":
                 index = faiss.IndexFlatL2(self.data.shape[1])
-                index.add(self.data)
+                index.add( np.array( self.data, dtype='float32') )
             else:
                 index = faiss.IndexFlatIP(self.data.shape[1])
 
                 norms = LA.norm(self.data, axis=1)
 
-                index.add(self.data / norms[:, None])
+                index.add( np.array(self.data / norms[:, None], dtype='float32') )
 
             xlim, ylim = plot.projection_plot(final_Proj, bw=0.1, levels=10)
 

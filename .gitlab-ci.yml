@@ -30,6 +30,7 @@ build_singularity_image_py37:
     changes:
       - container/singularity/cc_py37.def
   timeout: 6 hours
+  when: manual
 
 build_singularity_image_py37_lite:
   stage: image
@@ -47,6 +48,7 @@ build_singularity_image_py37_lite:
   only:
     changes:
       - container/singularity/cc_py37_lite.def
+  when: manual
 
 ################
 # unittest
@@ -59,6 +61,7 @@ unittest_python_3.7:
   cache:
     paths:
       - images
+  when: manual
 
 unittest_python_3.7_lite:
   stage: unittest
@@ -67,6 +70,7 @@ unittest_python_3.7_lite:
   cache:
     paths:
       - images
+  when: manual
 
 ################
 # docs
@@ -85,6 +89,7 @@ pages:
     - mv package/docs/_build/html/ public/
   only:
     - master
+  when: manual
 
 ################
 # publish
@@ -99,6 +104,7 @@ test_pypi_publish:
     - twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
   only:
     - tags
+  when: manual
 
 pypi_publish:
   stage: publish
@@ -109,3 +115,4 @@ pypi_publish:
     - twine upload --verbose dist/*
   only:
     - tags
+  when: manual
