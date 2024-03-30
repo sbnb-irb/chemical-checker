@@ -98,7 +98,7 @@ class RNDuplicates():
         if self.only_duplicates:
             indexl2 = faiss.IndexFlatL2(self.data.shape[1])
 
-            indexl2.add(self.data)
+            indexl2.add( np.array( self.data, dtype='float32' ) )
 
             self.__log.debug("Done adding in L2 space")
 
@@ -143,12 +143,12 @@ class RNDuplicates():
                 for start in starts:
 
                     indexlsh.add(
-                        np.array(dh5["V"][start:start + self.chunk], dtype=float))
+                        np.array(dh5["V"][start:start + self.chunk], dtype='float32') )
                 dh5.close()
 
             else:
 
-                indexlsh.add(self.data)
+                indexlsh.add( np.array( self.data, dtype='float32' ) )
 
             indexes = faiss.vector_to_array(
                 indexlsh.codes).reshape(-1, int(indexlsh.nbits / 8))
