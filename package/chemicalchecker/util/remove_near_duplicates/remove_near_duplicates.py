@@ -102,7 +102,7 @@ class RNDuplicates():
 
             self.__log.debug("Done adding in L2 space")
 
-            D, I = indexl2.search(self.data, 1000)
+            D, I = indexl2.search( np.array(self.data, dtype='float32'), 1000)
 
             self.__log.debug("Done searching in L2 space")
 
