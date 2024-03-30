@@ -37,7 +37,7 @@ class TestPipeline(unittest.TestCase):
         if os.path.isdir(self.pipeline_dir):
             os.system("chmod -R 777 " + self.pipeline_dir)
             os.system("rm -rf " + self.pipeline_dir)
-             shutil.rmtree(self.pipeline_dir)
+            shutil.rmtree(self.pipeline_dir)
         print('exited')
 
     @skip_if_import_exception
