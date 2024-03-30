@@ -7,7 +7,7 @@ import json
 import numpy as np
 import networkx as nx
 
-from chemicalchecker.util import logged
+from chemicalchecker.util import logged, Config
 
 
 @logged
@@ -59,7 +59,7 @@ class MultiEdgeNetwork():
         """Initialize a MultiEdgeNetwork instance."""
         try:
             import sys
-            sys.path.append("swig")
+            sys.path.append( os.path.join(Config().TOOLS.snap, "swig") )
             import snap
             self.snap = snap
         except ImportError:
@@ -176,7 +176,7 @@ class SNAPNetwork():
         """Initialize a SNAPNetwork instance."""
         try:
             import sys
-            sys.path.append("swig")
+            sys.path.append( os.path.join(Config().TOOLS.snap, "swig") )
             import snap
             self.snap = snap
         except ImportError:
@@ -190,7 +190,7 @@ class SNAPNetwork():
     def from_file(cls, filename, delimiter=' ', read_weights=True):
         try:
             import sys
-            sys.path.append("swig")
+            sys.path.append( os.path.join(Config().TOOLS.snap, "swig") )
             import snap
         except ImportError:
             raise ImportError("requires snap " +
