@@ -180,6 +180,8 @@ class Downloader():
                         sleep(5)
                 if not downloaded:
                     if( self.url.endswith('.gz') ):
+                        if( self.file is None and tmp_file.endswith('.gz') ):
+                            self.file = ('.'.join( tmp_file.split('.')[:-1] ) ).split('/')[-1]
                         if not os.path.exists(self.data_path):
                             os.makedirs(self.data_path, 0o775)
                         destination = os.path.join( self.data_path, self.file)
@@ -194,11 +196,13 @@ class Downloader():
         # not a clear way to check if file is compressed, just try
         mime, compression = mimetypes.guess_type(tmp_file)
         self.__log.debug("MIME %s COMPRESSION %s", mime, compression)
-        if mime not in patoolib.ArchiveMimetypes:
+        if compression not in patoolib.ArchiveMimetypes.values():
             self.__log.debug('no need to uncompress %s, copying', tmp_file)
             shutil.move(tmp_file, tmp_unzip_dir)
         else:
             try:
+                if(self.file is None):
+                    self.file = ('.'.join( tmp_file.split('.')[:-1] )).split('/')[-1]
                 patoolib.extract_archive(tmp_file, outdir=tmp_unzip_dir)
             except patoolib.util.PatoolError as err:
                 self.__log.error('problem uncompressing %s', tmp_file)
