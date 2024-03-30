@@ -1362,7 +1362,7 @@ class sign3(BaseSignature, DataSignature):
         known_onlyself = mask_keep(self.dataset_idx, known_x)
         known_onlyself_pred = siamese.predict(known_onlyself)
         known_onlyself_neig = faiss.IndexFlatL2(known_onlyself_pred.shape[1])
-        known_onlyself_neig.add(known_onlyself_pred.astype(float))
+        known_onlyself_neig.add( np.array( known_onlyself_pred, dtype='float32') )
         known_onlyself_neig_file = os.path.join(save_path, 'neig.index')
         faiss.write_index(known_onlyself_neig, known_onlyself_neig_file)
         self.__log.info('Neighbor Index saved: %s' % known_onlyself_neig_file)
