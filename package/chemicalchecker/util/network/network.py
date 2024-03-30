@@ -175,6 +175,8 @@ class SNAPNetwork():
     def __init__(self, network):
         """Initialize a SNAPNetwork instance."""
         try:
+            import sys
+            sys.path.append("swig")
             import snap
             self.snap = snap
         except ImportError:
@@ -187,6 +189,8 @@ class SNAPNetwork():
     @classmethod
     def from_file(cls, filename, delimiter=' ', read_weights=True):
         try:
+            import sys
+            sys.path.append("swig")
             import snap
         except ImportError:
             raise ImportError("requires snap " +
