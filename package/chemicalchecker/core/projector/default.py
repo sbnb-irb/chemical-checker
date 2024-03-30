@@ -369,18 +369,18 @@ class Default(BaseSignature, DataSignature):
 
             norms = LA.norm(data, axis=1)
 
-            D, I = index.search(data / norms[:, None], neigh)
+            D, I = index.search( np.array(data / norms[:, None], dtype='float32'), neigh)
 
             # Convert to [0,1]
             D = np.maximum(0.0, (1.0 + D) / 2.0)
 
         else:
 
-            D, I = index.search(data[np.array(random.sample(
-                range(0, data.shape[0]), 10))], index.ntotal)
+            D, I = index.search( np.array( data[np.array(random.sample(
+                range(0, data.shape[0]), 10))], dtype='float32'), index.ntotal)
             max_val = np.max(D)
 
-            D, I = index.search(data, neigh)
+            D, I = index.search( np.array(data, dtype='float32'), neigh)
 
             D[:, :] = np.maximum((max_val - D[:, :]) / max_val, 0)
 

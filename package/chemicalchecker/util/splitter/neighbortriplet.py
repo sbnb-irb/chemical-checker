@@ -948,7 +948,7 @@ class OldTripletSampler(BaseTripletSampler):
                     for i in tqdm(range(0, len(nr_matrix[split2]), csize)):
                         chunk = slice(i, i + csize)
                         _, neig_idxs_chunk = NN[split1].search(
-                            nr_matrix[split2][chunk], F + 1)
+                            np.array( nr_matrix[split2][chunk], dtype='float32'), F + 1)
                         neig_idxs.append(neig_idxs_chunk)
                     neig_idxs = np.vstack(neig_idxs)
                     # the nearest neig between same groups is the molecule
@@ -958,7 +958,7 @@ class OldTripletSampler(BaseTripletSampler):
                     neig_idxs = neig_idxs[:, 1:]
                 else:
                     _, neig_idxs = NN[split1].search(
-                        nr_matrix[split2], F)
+                        np.array( nr_matrix[split2], dtype='float32'), F)
 
                 # get probabilities for T
                 t_prob = ((np.arange(T + 1)[::-1]) /

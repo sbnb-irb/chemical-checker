@@ -198,7 +198,7 @@ class NeighborPairTraintest(object):
             for key, value in full_ref_map.items():
                 tmp.setdefault(value, list()).append(key)
             max_repeated = max([len(x) for x in tmp.values()])
-            _, test_neig = test.search(neigbors_matrix, max_repeated + 1)
+            _, test_neig = test.search( np.array(neigbors_matrix, dtype='float32'), max_repeated + 1)
 
         # split chunks, get indeces of chunks for each split
         chunk_size = np.floor(rows / 100)
@@ -285,7 +285,7 @@ class NeighborPairTraintest(object):
                 # remove self neighbors when splits are the same
                 if split1 == split2:
                     # search NN
-                    dists, neig_idxs = NN[split1].search(nr_matrix[split2],
+                    dists, neig_idxs = NN[split1].search( np.array(nr_matrix[split2], dtype='float32'),
                                                          combo_neig + 1)
                     # the nearest neig between same groups is the molecule
                     # itself
@@ -294,10 +294,10 @@ class NeighborPairTraintest(object):
                     neig_idxs = neig_idxs[:, 1:]
                 else:
                     _, neig_idxs = NN[split1].search(
-                        nr_matrix[split2], combo_neig)
+                        np.array( nr_matrix[split2], dtype='float32'), combo_neig)
                 if debug_test:
                     _, neig_idxs = NN[split1].search(
-                        nr_matrix[split2], combo_neig)
+                        np.array( nr_matrix[split2], dtype='float32'), combo_neig)
                 # get positive pairs
                 # get first pair element idxs
                 idxs1 = np.repeat(
