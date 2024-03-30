@@ -193,7 +193,7 @@ class NeighborPairTraintest(object):
         if debug_test:
             # we'll use this to later check that the mapping went fine
             test = faiss.IndexFlatL2(neigbors_matrix.shape[1])
-            test.add(neigbors_matrix)
+            test.add( np.array(neigbors_matrix, dtype='float32') )
             tmp = dict()
             for key, value in full_ref_map.items():
                 tmp.setdefault(value, list()).append(key)
@@ -255,7 +255,7 @@ class NeighborPairTraintest(object):
             # create faiss index
             NN[split_name] = faiss.IndexFlatL2(nr_matrix[split_name].shape[1])
             # add data
-            NN[split_name].add(nr_matrix[split_name])
+            NN[split_name].add( np.array( nr_matrix[split_name], dtype='float32') )
 
         # mean centering columns
         if mean_center_x:
