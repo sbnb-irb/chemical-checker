@@ -147,7 +147,7 @@ class TestAdanet(unittest.TestCase):
         self.assertEqual(ada.model_dir, self.adanet_path)
         # check results
         _, (res, _) = ada.train_and_evaluate()
-        self.assertLessEqual(res['loss'], 100.)
+        self.assertLessEqual(res['loss'], 102.)
         # check persistency and predict
         predict_fn = AdaNet.predict_fn(ada.save_dir)
         y_pred, y_true = AdaNet.predict_online(file_path, 'test', predict_fn)

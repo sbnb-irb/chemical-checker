@@ -124,9 +124,9 @@ class neig(BaseSignature, DataSignature):
                     data_temp = np.array(dh5["V"][chunk], dtype=float)
                     if self.metric == "cosine":
                         normst = LA.norm(data_temp, axis=1)
-                        Dt, It = index.search(data_temp / normst[:, None], k)
+                        Dt, It = index.search( np.array(data_temp / normst[:, None], dtype='float32'), k)
                     else:
-                        Dt, It = index.search(data_temp, k)
+                        Dt, It = index.search( np.array(data_temp, dtype='float32'), k)
 
                     dh5out["indices"][chunk] = It
                     if self.metric == "cosine":
@@ -189,9 +189,9 @@ class neig(BaseSignature, DataSignature):
 
                     if self.metric == "cosine":
                         normst = LA.norm(data_temp, axis=1)
-                        Dt, It = index.search(data_temp / normst[:, None], k)
+                        Dt, It = index.search( np.array(data_temp / normst[:, None], dtype='float32'), k)
                     else:
-                        Dt, It = index.search(data_temp, k)
+                        Dt, It = index.search( np.array(data_temp, dtype='float32'), k)
 
                     dh5out["indices"][chunk] = It
                     if self.metric == "cosine":
@@ -352,9 +352,9 @@ class neig(BaseSignature, DataSignature):
         # get neighbors idx and distances
         if "cosine" in metric_orig:
             normst = LA.norm(data, axis=1)
-            dists, idx = index.search(data / normst[:, None], k)
+            dists, idx = index.search( np.array(data / normst[:, None], dtype='float32'), k)
         else:
-            dists, idx = index.search(data, k)
+            dists, idx = index.search( np.array(data, dtype='float32'), k)
 
         predictions = dict()
         predictions["indices"] = idx
