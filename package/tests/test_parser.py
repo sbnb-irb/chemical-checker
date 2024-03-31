@@ -4,8 +4,9 @@ import shutil
 import unittest
 import functools
 
+import sys
+sys.path.insert(0, '/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/' )
 from chemicalchecker.util.parser import Parser
-
 
 def skip_if_import_exception(function):
     """Assist in skipping tests failing because of missing dependencies."""
