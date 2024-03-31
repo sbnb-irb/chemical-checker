@@ -279,7 +279,7 @@ class Parser():
     @staticmethod
     def kegg(map_paths, molrepo_name, chunks=1000):
         try:
-            import pybel
+            from openbabel import pybel
         except ImportError:
             raise ImportError("requires pybel " +
                               "http://openbabel.org")
@@ -387,7 +387,7 @@ class Parser():
     @staticmethod
     def mosaic(map_paths, molrepo_name, chunks=1000):
         try:
-            import pybel
+            from openbabel import pybel
         except ImportError:
             raise ImportError("requires pybel " +
                               "http://openbabel.org")
@@ -591,7 +591,7 @@ class Parser():
     @staticmethod
     def smpdb(map_paths, molrepo_name, chunks=1000):
         try:
-            import pybel
+            from openbabel import pybel
         except ImportError:
             raise ImportError("requires pybel " +
                               "http://openbabel.org")
