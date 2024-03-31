@@ -148,7 +148,7 @@ class TestParser(unittest.TestCase):
 
         expected = {'smiles': 'O[C@H](COP(=O)(OC[C@H](OC(=O)CCCCCCCCCCC(C)C)COC(=O)CCCCCCCCCCCC(C)C)O)COP(=O)(OC[C@H](OC(=O)CCCCCCCCCCCCCCCCCC(C)C)COC(=O)CCCCCCCCCC(C)C)O',
                     'inchikey': 'COCUQPOIFLKBJQ-ODOYRBSSSA-N', 'src_id': "1'-[1-11-methyldodecanoyl,2-19-methyleicosanoyl-sn-glycero-3-phospho],3'-[1-13-methyltetradecanoyl,2-12-methyltridecanoyl-sn-glycero-3-phospho]-sn-glycerol CL(i-13:0/i-21:0/i-15:0/i-14:0)",
-                    'molrepo_name': 'smpdb',
+                    'molrepo_name': 'smpdb_structures',
                     'inchi': 'InChI=1S/C72H140O17P2/c1-62(2)48-40-32-24-17-14-12-10-9-11-13-15-19-29-38-46-54-71(76)88-68(59-83-70(75)53-45-37-31-23-27-35-43-51-65(7)8)61-87-91(80,81)85-57-66(73)56-84-90(78,79)86-60-67(89-72(77)55-47-39-30-22-21-26-34-42-50-64(5)6)58-82-69(74)52-44-36-28-20-16-18-25-33-41-49-63(3)4/h62-68,73H,9-61H2,1-8H3,(H,78,79)(H,80,81)/t66-,67-,68-/m1/s1',
-                    'id': "smpdb_1'-[1-11-methyldodecanoyl,2-19-methyleicosanoyl-sn-glycero-3-phospho],3'-[1-13-methyltetradecanoyl,2-12-methyltridecanoyl-sn-glycero-3-phospho]-sn-glycerol CL(i-13:0/i-21:0/i-15:0/i-14:0)_COCUQPOIFLKBJQ-ODOYRBSSSA-N"}
+                    'id': "smpdb_structures_1'-[1-11-methyldodecanoyl,2-19-methyleicosanoyl-sn-glycero-3-phospho],3'-[1-13-methyltetradecanoyl,2-12-methyltridecanoyl-sn-glycero-3-phospho]-sn-glycerol CL(i-13:0/i-21:0/i-15:0/i-14:0)_COCUQPOIFLKBJQ-ODOYRBSSSA-N"}
         self.assertDictEqual(expected, results[1])
