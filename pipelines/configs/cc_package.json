@@ -25,7 +25,8 @@
         "password": "'Kalinka1*_KfG&317'"
     },
     "TOOLS": {
-        "node2vec_exec" : "'/aloy/home/mbertoni/code/snap/examples/node2vec/node2vec'"
+        "node2vec_exec" : "'/aloy/home/mbertoni/code/snap/examples/node2vec/node2vec'",
+        "snap": "'/opt/snap'"
     }
 
 }
