@@ -10,7 +10,7 @@ From: ubuntu:20.04
 %files
     #add node2vec pre-compiled binaries
     container/singularity/binaries/node2vec /opt
-    container/snap/* /opt/snap/
+    container/snap /opt
     #container/snap_makefile.config /opt/Makefile.config
 
 %post
