@@ -30,8 +30,7 @@ class TestPipeline(unittest.TestCase):
         if os.path.isdir(self.pipeline_dir):
             os.system("chmod -R 777 " + self.pipeline_dir)
             os.system("rm -rf " + self.pipeline_dir)
-        os.environ["CC_CONFIG"] = os.path.join(
-            self.data_dir, 'config.json')
+        os.environ["CC_CONFIG"] = os.path.join( self.data_dir, 'config.json')
 
     def tearDown(self):
         if os.path.isdir(self.pipeline_dir):
