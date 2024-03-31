@@ -140,7 +140,7 @@ class TestParser(unittest.TestCase):
     @skip_if_import_exception
     def test_smpdb(self):
         file_path = {"smpdb_structures": self.data_dir}
-        chunks = list(Parser.smpdb(file_path, 'smpdb'))
+        chunks = list(Parser.smpdb(file_path, 'smpdb_structures'))
         self.assertEqual(len(chunks), 1)
         results = chunks[0]
         self.assertEqual(len(results), 2)

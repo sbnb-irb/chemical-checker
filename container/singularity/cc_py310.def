@@ -10,7 +10,8 @@ From: ubuntu:20.04
 %files
     #add node2vec pre-compiled binaries
     container/singularity/binaries/node2vec /opt
-    container/snap_makefile.config /opt/Makefile.config
+    container/singularity/packages/snap /opt
+    #container/snap_makefile.config /opt/Makefile.config
 
 %post
     # bind paths
@@ -160,12 +161,12 @@ From: ubuntu:20.04
     pip install networkx                          # graph data stracture and algos
 #    pip install snap-stanford                     # Python interface for SNAP
     
-    git clone https://github.com/snap-stanford/snap-python.git
-    git clone https://github.com/snap-stanford/snap.git
-    cp /opt/Makefile.config snap-python/Makefile.config
-    cd snap-python
-    make
-    cd ..
+    #git clone https://github.com/snap-stanford/snap-python.git
+    #git clone https://github.com/snap-stanford/snap.git
+    #cp /opt/Makefile.config snap-python/Makefile.config
+    #cd snap-python
+    #make
+    #cd ..
     
     # visualization packages
     pip install matplotlib                        # chart library :)
@@ -184,6 +185,8 @@ From: ubuntu:20.04
     pip install xgboost                           # Gradient Boosting framework
     pip install hyperopt                          # Hyperparameters optimization
     pip install shap                              # SHapley Additive exPlanations for ML models
+    
+    pip install pybel
 
     # integration of D1
     pip install git+https://github.com/Maayanlab/geode.git   # Python implementation of the R package GeoDE
