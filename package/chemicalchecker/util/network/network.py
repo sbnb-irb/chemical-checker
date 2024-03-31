@@ -58,8 +58,6 @@ class MultiEdgeNetwork():
     def __init__(self, network):
         """Initialize a MultiEdgeNetwork instance."""
         try:
-            import sys
-            sys.path.append( os.path.join(Config().TOOLS.snap, "swig") )
             import snap
             self.snap = snap
         except ImportError:
@@ -175,8 +173,6 @@ class SNAPNetwork():
     def __init__(self, network):
         """Initialize a SNAPNetwork instance."""
         try:
-            import sys
-            sys.path.append( os.path.join(Config().TOOLS.snap, "swig") )
             import snap
             self.snap = snap
         except ImportError:
@@ -189,14 +185,12 @@ class SNAPNetwork():
     @classmethod
     def from_file(cls, filename, delimiter=' ', read_weights=True):
         try:
-            import sys
-            sys.path.append( os.path.join(Config().TOOLS.snap, "swig") )
             import snap
         except ImportError:
             raise ImportError("requires snap " +
                               "http://snap.stanford.edu/")
         filename = os.path.abspath(filename)
-        network = snap.LoadEdgeList(snap.PNEANet, filename, 0, 1, delimiter)
+        network = snap.LoadEdgeList(snap.TNEANet, filename, 0, 1, delimiter)
         # add weigths
         if read_weights:
             with open(filename, 'r') as fh:
