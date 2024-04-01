@@ -124,8 +124,8 @@ class proj(BaseSignature, DataSignature):
             self_full = self.get_molset("full")
             self_full = proj(self_full.signature_path,
                              self_full.dataset, proj_type=self.proj_type)
-            #self.predict(sign_full, self_full.data_path)
-            self.map(self_full.data_path)
+            self.predict(sign_full, self_full.data_path)
+            #self.map(self_full.data_path) --> not implemented
 
     def predict(self, signature, destination, *args, **kwargs):
         """Predict projection for new data."""
