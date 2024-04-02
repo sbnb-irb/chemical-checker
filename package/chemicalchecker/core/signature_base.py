@@ -329,7 +329,7 @@ class BaseSignature(object):
             "sign, args, kwargs = pickle.load(open(sys.argv[1], 'rb'))",
             "sign.%s(*args, **kwargs)" % func_name,
             "print('JOB DONE')"
-        ]
+       
         if kwargs.pop("delete_job_path", False):
             script_lines.append("print('DELETING JOB PATH: %s')" % job_path)
             script_lines.append("os.system('rm -rf %s')" % job_path)
