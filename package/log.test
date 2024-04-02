@@ -1,0 +1,1084 @@
+============================= test session starts ==============================
+platform linux -- Python 3.10.14, pytest-8.1.1, pluggy-1.4.0
+rootdir: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package
+plugins: anyio-4.3.0
+collected 45 items
+
+tests/test_adanet.py sFFF                                                [  8%]
+tests/test_calcProp.py s....                                             [ 20%]
+tests/test_chemcheck.py .                                                [ 22%]
+tests/test_clus.py .                                                     [ 24%]
+tests/test_config.py ..                                                  [ 28%]
+tests/test_converter.py s..                                              [ 35%]
+tests/test_database.py ..                                                [ 40%]
+tests/test_deepchem_feat.py sssssssss                                    [ 60%]
+tests/test_downloader.py F.F                                             [ 66%]
+tests/test_hpc.py .                                                      [ 68%]
+tests/test_neig.py .                                                     [ 71%]
+tests/test_parser.py ....s.s                                             [ 86%]
+tests/test_pipeline.py F                                                 [ 88%]
+tests/test_proj.py .                                                     [ 91%]
+tests/test_remove_duplicates.py ..                                       [ 95%]
+tests/test_sign3.py F                                                    [ 97%]
+tests/test_sign4.py .                                                    [100%]
+
+=================================== FAILURES ===================================
+_____________________ TestAdanet.test_classifiation_multi ______________________
+
+self = <test_adanet.TestAdanet testMethod=test_classifiation_multi>
+
+    @skip_if_import_exception
+    def test_classifiation_multi(self):
+>       from chemicalchecker.tool.adanet import AdaNet
+
+tests/test_adanet.py:72: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+chemicalchecker/tool/adanet/__init__.py:6: in <module>
+    from .adanet_wrap import AdaNetWrapper as AdaNet
+chemicalchecker/tool/adanet/adanet_wrap.py:20: in <module>
+    import adanet
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/__init__.py:21: in <module>
+    from adanet import distributed
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/distributed/__init__.py:26: in <module>
+    from adanet.distributed.placement import PlacementStrategy
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/distributed/placement.py:24: in <module>
+    from adanet import tf_compat
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/tf_compat/__init__.py:28: in <module>
+    from tensorflow_estimator.python.estimator.head import regression_head
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/python/estimator/head/regression_head.py:24: in <module>
+    from tensorflow_estimator.python.estimator import model_fn
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/python/estimator/model_fn.py:29: in <module>
+    from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/python/estimator/mode_keys.py:24: in <module>
+    estimator_export('estimator.ModeKeys')(ModeKeys)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tensorflow_estimator.python.estimator.estimator_export.estimator_export object at 0x7f0edd124f70>
+v1 = None, args = ('estimator.ModeKeys',)
+
+    def __init__(self, *args: str, v1: Optional[Sequence[str]] = None):
+      """Export under the names *args (first one is considered canonical).
+    
+      All symbols exported by this decorator are exported under the `estimator`
+      API name.
+    
+      Args:
+        *args: API names in dot delimited format.
+        v1: Names for the TensorFlow V1 API. If not set, we will use V2 API names
+          both for TensorFlow V1 and V2 APIs.
+      """
+>     super().__init__(*args, api_name=tf_export.ESTIMATOR_API_NAME, v1=v1)
+E     AttributeError: module 'tensorflow.python.util.tf_export' has no attribute 'ESTIMATOR_API_NAME'
+
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/python/estimator/estimator_export.py:63: AttributeError
+_______________________ TestAdanet.test_regression_multi _______________________
+
+self = <test_adanet.TestAdanet testMethod=test_regression_multi>
+
+    @skip_if_import_exception
+    def test_regression_multi(self):
+>       from chemicalchecker.tool.adanet import AdaNet
+
+tests/test_adanet.py:132: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+chemicalchecker/tool/adanet/__init__.py:6: in <module>
+    from .adanet_wrap import AdaNetWrapper as AdaNet
+chemicalchecker/tool/adanet/adanet_wrap.py:20: in <module>
+    import adanet
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/__init__.py:21: in <module>
+    from adanet import distributed
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/distributed/__init__.py:26: in <module>
+    from adanet.distributed.placement import PlacementStrategy
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/distributed/placement.py:24: in <module>
+    from adanet import tf_compat
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/tf_compat/__init__.py:28: in <module>
+    from tensorflow_estimator.python.estimator.head import regression_head
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/python/estimator/head/regression_head.py:24: in <module>
+    from tensorflow_estimator.python.estimator import model_fn
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/python/estimator/model_fn.py:29: in <module>
+    from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/python/estimator/mode_keys.py:24: in <module>
+    estimator_export('estimator.ModeKeys')(ModeKeys)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tensorflow_estimator.python.estimator.estimator_export.estimator_export object at 0x7f0edce8f580>
+v1 = None, args = ('estimator.ModeKeys',)
+
+    def __init__(self, *args: str, v1: Optional[Sequence[str]] = None):
+      """Export under the names *args (first one is considered canonical).
+    
+      All symbols exported by this decorator are exported under the `estimator`
+      API name.
+    
+      Args:
+        *args: API names in dot delimited format.
+        v1: Names for the TensorFlow V1 API. If not set, we will use V2 API names
+          both for TensorFlow V1 and V2 APIs.
+      """
+>     super().__init__(*args, api_name=tf_export.ESTIMATOR_API_NAME, v1=v1)
+E     AttributeError: module 'tensorflow.python.util.tf_export' has no attribute 'ESTIMATOR_API_NAME'
+
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/python/estimator/estimator_export.py:63: AttributeError
+______________________ TestAdanet.test_regression_single _______________________
+
+self = <test_adanet.TestAdanet testMethod=test_regression_single>
+
+    @skip_if_import_exception
+    def test_regression_single(self):
+>       from chemicalchecker.tool.adanet import AdaNet
+
+tests/test_adanet.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+chemicalchecker/tool/adanet/__init__.py:6: in <module>
+    from .adanet_wrap import AdaNetWrapper as AdaNet
+chemicalchecker/tool/adanet/adanet_wrap.py:20: in <module>
+    import adanet
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/__init__.py:21: in <module>
+    from adanet import distributed
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/distributed/__init__.py:26: in <module>
+    from adanet.distributed.placement import PlacementStrategy
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/distributed/placement.py:24: in <module>
+    from adanet import tf_compat
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/tf_compat/__init__.py:28: in <module>
+    from tensorflow_estimator.python.estimator.head import regression_head
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/python/estimator/head/regression_head.py:24: in <module>
+    from tensorflow_estimator.python.estimator import model_fn
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/python/estimator/model_fn.py:29: in <module>
+    from tensorflow_estimator.python.estimator.mode_keys import ModeKeys
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/python/estimator/mode_keys.py:24: in <module>
+    estimator_export('estimator.ModeKeys')(ModeKeys)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tensorflow_estimator.python.estimator.estimator_export.estimator_export object at 0x7f0edcde9e40>
+v1 = None, args = ('estimator.ModeKeys',)
+
+    def __init__(self, *args: str, v1: Optional[Sequence[str]] = None):
+      """Export under the names *args (first one is considered canonical).
+    
+      All symbols exported by this decorator are exported under the `estimator`
+      API name.
+    
+      Args:
+        *args: API names in dot delimited format.
+        v1: Names for the TensorFlow V1 API. If not set, we will use V2 API names
+          both for TensorFlow V1 and V2 APIs.
+      """
+>     super().__init__(*args, api_name=tf_export.ESTIMATOR_API_NAME, v1=v1)
+E     AttributeError: module 'tensorflow.python.util.tf_export' has no attribute 'ESTIMATOR_API_NAME'
+
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/python/estimator/estimator_export.py:63: AttributeError
+_________________________ TestDownloader.test_download _________________________
+
+self = <test_downloader.TestDownloader testMethod=test_download>
+
+    @skip_if_import_exception
+    def test_download(self):
+        url = 'http://www.disgenet.org/static/disgenet_ap1/files/downloads/disease_mappings.tsv.gz'
+        downloader = Downloader(url, self.dest_path, self.tmp_path)
+        downloader.download()
+        self.assertTrue(os.path.isdir(self.dest_path))
+>       self.assertTrue(os.path.isfile(
+            os.path.join(self.dest_path, 'disease_mappings', 'disease_mappings.tsv')))
+E       AssertionError: False is not true
+
+tests/test_downloader.py:47: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Downloading datasource http://www.disgenet.org/static/disgenet_ap1/files/downloads/disease_mappings.tsv.gz
+----------------------------- Captured stderr call -----------------------------
+2024-03-29 23:10:07,090 chemicalchecker.util.download.download.Downloader [DEBUG   ] http://www.disgenet.org/static/disgenet_ap1/files/downloads/disease_mappings.tsv.gz to /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/test_download_dest
+2024-03-29 23:10:07,141 chemicalchecker.util.download.download.Downloader [DEBUG   ] temp download dir /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/test_download_tmp/tmp_dh6f4zc6
+2024-03-29 23:10:07,310 chemicalchecker.util.download.download.Downloader [DEBUG   ] temp unzip dir /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/test_download_tmp/tmp_dh6f4zc6/unzip
+2024-03-29 23:10:07,310 chemicalchecker.util.download.download.Downloader [DEBUG   ] MIME text/tab-separated-values COMPRESSION gzip
+2024-03-29 23:10:07,310 chemicalchecker.util.download.download.Downloader [DEBUG   ] no need to uncompress /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/test_download_tmp/tmp_dh6f4zc6/disease_mappings.tsv.gz, copying
+2024-03-29 23:10:07,315 chemicalchecker.util.download.download.Downloader [DEBUG   ] downloaded to  /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/test_download_dest
+2024-03-29 23:10:07,317 chemicalchecker.util.download.download.Downloader [DEBUG   ] removed temp dir /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/test_download_tmp/tmp_dh6f4zc6
+_________________________ TestDownloader.test_wildchar _________________________
+
+self = <test_downloader.TestDownloader testMethod=test_wildchar>
+
+    @skip_if_import_exception
+    def test_wildchar(self):
+        url = 'http://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz'
+        downloader = Downloader(url, self.dest_path, self.tmp_path)
+        downloader.download()
+        self.assertTrue(os.path.isdir(self.dest_path))
+>       self.assertTrue(os.path.isfile(
+            os.path.join(self.dest_path, 'goa_human', 'goa_human.gaf')))
+E       AssertionError: False is not true
+
+tests/test_downloader.py:56: AssertionError
+----------------------------- Captured stdout call -----------------------------
+Downloading datasource http://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz
+----------------------------- Captured stderr call -----------------------------
+2024-03-29 23:10:07,364 chemicalchecker.util.download.download.Downloader [DEBUG   ] http://ftp.ebi.ac.uk/pub/databases/GO/goa/HUMAN/goa_human.gaf.gz to /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/test_download_dest
+2024-03-29 23:10:07,453 chemicalchecker.util.download.download.Downloader [DEBUG   ] temp download dir /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/test_download_tmp/tmp_bb346vcf
+2024-03-29 23:10:16,356 chemicalchecker.util.download.download.Downloader [DEBUG   ] temp unzip dir /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/test_download_tmp/tmp_bb346vcf/unzip
+2024-03-29 23:10:16,356 chemicalchecker.util.download.download.Downloader [DEBUG   ] MIME None COMPRESSION gzip
+2024-03-29 23:10:16,356 chemicalchecker.util.download.download.Downloader [DEBUG   ] no need to uncompress /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/test_download_tmp/tmp_bb346vcf/goa_human.gaf.gz, copying
+2024-03-29 23:10:16,382 chemicalchecker.util.download.download.Downloader [DEBUG   ] downloaded to  /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/test_download_dest
+2024-03-29 23:10:16,394 chemicalchecker.util.download.download.Downloader [DEBUG   ] removed temp dir /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/test_download_tmp/tmp_bb346vcf
+_____________________ TestPipeline.test_pipeline_fit_sign0 _____________________
+
+self = <test_pipeline.TestPipeline testMethod=test_pipeline_fit_sign0>
+
+    @skip_if_import_exception
+    def test_pipeline_fit_sign0(self):
+        import faiss  # will be required by jobs
+        from chemicalchecker.util.pipeline import Pipeline, CCFit
+    
+        pipeline_dir = self.pipeline_dir
+        data_file = os.path.join(self.data_dir, 'E1_preprocess.h5')
+        cc_root = os.path.join(pipeline_dir, 'cc')
+    
+        pp = Pipeline(pipeline_path=pipeline_dir, config=Config())
+        self.assertTrue(os.path.isdir(pp.readydir))
+    
+        # SIGN 0
+        s0_fit_kwargs = {
+            "E1.001": {
+                'key_type': 'inchikey',
+                'data_file': data_file,
+                'do_triplets': False,
+                'validations': False
+            }
+        }
+        s0_task = CCFit(cc_root, 'sign0', 'full',
+                        datasets=['E1.001'], fit_kwargs=s0_fit_kwargs)
+        pp.add_task(s0_task)
+        pp.run()
+    
+        sign0_full_file = os.path.join(
+            cc_root, 'full/E/E1/E1.001/sign0/sign0.h5')
+        self.assertTrue(os.path.isfile(sign0_full_file))
+        sign0_ref_file = os.path.join(
+            cc_root, 'reference/E/E1/E1.001/sign0/sign0.h5')
+        self.assertTrue(os.path.isfile(sign0_ref_file))
+    
+        # SIGN 1
+        s1_fit_kwargs = {
+            "E1.001": {
+                'metric_learning': False,
+                'validations': False
+            }
+        }
+        s1_task = CCFit(cc_root, 'sign1', 'full',
+                        datasets=['E1.001'], fit_kwargs=s1_fit_kwargs)
+        pp.add_task(s1_task)
+        pp.run()
+    
+        sign1_full_file = os.path.join(
+            cc_root, 'full/E/E1/E1.001/sign1/sign1.h5')
+        self.assertTrue(os.path.isfile(sign1_full_file))
+        sign1_ref_file = os.path.join(
+            cc_root, 'reference/E/E1/E1.001/sign1/sign1.h5')
+        self.assertTrue(os.path.isfile(sign1_ref_file))
+    
+        # NEIG 1
+        s1_neig_task = CCFit(cc_root, 'neig1', 'reference',
+                             datasets=['E1.001'])
+        pp.add_task(s1_neig_task)
+        pp.run()
+        neig1_ref_file = os.path.join(
+            cc_root, 'reference/E/E1/E1.001/neig1/neig.h5')
+        self.assertTrue(os.path.isfile(neig1_ref_file))
+    
+        s2_fit_kwargs = {
+            "E1.001": {
+                'validations': False,
+                'oos_predictor': False
+            }
+        }
+        s2_task = CCFit(cc_root, 'sign2', 'reference',
+                        datasets=['E1.001'], fit_kwargs=s2_fit_kwargs)
+        pp.add_task(s2_task)
+        pp.run()
+    
+        # SIGN 2
+        sign2_ref_file = os.path.join(
+            cc_root, 'reference/E/E1/E1.001/sign2/sign2.h5')
+>       self.assertTrue(os.path.isfile(sign2_ref_file))
+E       AssertionError: False is not true
+
+tests/test_pipeline.py:118: AssertionError
+----------------------------- Captured stdout call -----------------------------
+*  
+*  Iterating on `V` axis 1:   0%|          | 0/1 [00:00<?, ?it/s]
+*  Iterating on `V` axis 1: 100%|██████████| 1/1 [00:00<00:00, 159.93it/s]
+*  
+*  Iterating on `V` axis 0:   0%|          | 0/1 [00:00<?, ?it/s]
+*  Iterating on `V` axis 0: 100%|██████████| 1/1 [00:00<00:00, 1139.14it/s]
+*  Features frequency (476, 145)
+*  
+*  Iterating on `V` axis 0:   0%|          | 0/1 [00:00<?, ?it/s]
+*  Iterating on `V` axis 0: 100%|██████████| 1/1 [00:00<00:00, 1119.68it/s]
+*  
+*  Iterating on `V` axis 0:   0%|          | 0/1 [00:00<?, ?it/s]
+*  Iterating on `V` axis 0: 100%|██████████| 1/1 [00:00<00:00, 922.43it/s]
+*  [INFO    ] Loading faiss with AVX2 support.
+*  [INFO    ] Successfully loaded faiss with AVX2 support.
+*  Flter nans and inf (476, 145)
+*  Filter too many features (476, 145)
+*  JOB DONE
+*  2024-03-29 23:10:37.262958: I external/local_tsl/tsl/cuda/cudart_stub.cc:32] Could not find cuda drivers on your machine, GPU will not be used.
+*  2024-03-29 23:10:37.265887: I external/local_tsl/tsl/cuda/cudart_stub.cc:32] Could not find cuda drivers on your machine, GPU will not be used.
+*  2024-03-29 23:10:37.304852: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+*  To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+*  2024-03-29 23:10:38.175515: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+*  JOB DONE
+*  [INFO    ] Loading faiss with AVX2 support.
+*  [INFO    ] Successfully loaded faiss with AVX2 support.
+*  JOB DONE
+*  2024-03-29 23:10:59.964174: I external/local_tsl/tsl/cuda/cudart_stub.cc:32] Could not find cuda drivers on your machine, GPU will not be used.
+*  2024-03-29 23:10:59.967090: I external/local_tsl/tsl/cuda/cudart_stub.cc:32] Could not find cuda drivers on your machine, GPU will not be used.
+*  2024-03-29 23:11:00.006123: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+*  To enable the following instructions: AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+*  2024-03-29 23:11:00.875130: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+*  Traceback (most recent call last):
+*  File "/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/tool/adanet/adanet_wrap.py", line 20, in <module>
+*  import adanet
+*  File "/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/__init__.py", line 21, in <module>
+*  from adanet import distributed
+*  File "/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/distributed/__init__.py", line 26, in <module>
+*  from adanet.distributed.placement import PlacementStrategy
+*  File "/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/distributed/placement.py", line 24, in <module>
+*  from adanet import tf_compat
+*  File "/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/adanet/tf_compat/__init__.py", line 28, in <module>
+*  from tensorflow_estimator.python.estimator.head import regression_head
+*  File "/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/__init__.py", line 8, in <module>
+*  from tensorflow_estimator._api.v1 import estimator
+*  File "/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/_api/v1/estimator/__init__.py", line 8, in <module>
+*  from tensorflow_estimator._api.v1.estimator import experimental
+*  File "/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/_api/v1/estimator/experimental/__init__.py", line 8, in <module>
+*  from tensorflow_estimator.python.estimator.canned.dnn import dnn_logit_fn_builder # line: 45
+*  File "/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/python/estimator/canned/dnn.py", line 26, in <module>
+*  from tensorflow_estimator.python.estimator import estimator
+*  File "/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow_estimator/python/estimator/estimator.py", line 34, in <module>
+*  from tensorflow.python.distribute import estimator_training as distribute_coordinator_training
+*  ImportError: cannot import name 'estimator_training' from 'tensorflow.python.distribute' (/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow/python/distribute/__init__.py)
+*  
+*  During handling of the above exception, another exception occurred:
+*  
+*  Traceback (most recent call last):
+*  File "/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign2_37ato3z9/sign2_script.py", line 24, in <module>
+*  sign.fit(*fit_args, **fit_kwargs)
+*  File "/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/core/sign2.py", line 71, in fit
+*  raise err
+*  File "/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/core/sign2.py", line 68, in fit
+*  from chemicalchecker.tool.adanet import AdaNet
+*  File "/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/tool/adanet/__init__.py", line 6, in <module>
+*  from .adanet_wrap import AdaNetWrapper as AdaNet
+*  File "/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/tool/adanet/adanet_wrap.py", line 22, in <module>
+*  raise ImportError("requires adanet " +
+*  ImportError: requires adanet https://github.com/tensorflow/adanet
+exited
+----------------------------- Captured stderr call -----------------------------
+2024-03-29 23:10:26,994 chemicalchecker.util.config.config.Config [DEBUG   ] Loading config from: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/config.json
+2024-03-29 23:10:26,995 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] PIPELINE PATH: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test
+2024-03-29 23:10:27,074 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Task INCLUDED: 'sign0'
+2024-03-29 23:10:27,075 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Starting task: 'sign0' ...
+2024-03-29 23:10:27,075 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] ChemicalChecker with root: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc
+2024-03-29 23:10:27,076 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] Empty root directory,creating root and dataset dirs
+2024-03-29 23:10:27,076 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] Testing DB connection.
+2024-03-29 23:10:27,361 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] New signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc/full/E/E1/E1.001/sign0
+2024-03-29 23:10:27,368 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 sign_args: ['sign0', 'full', 'E1.001']
+2024-03-29 23:10:27,368 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 sign_kwargs: {}
+2024-03-29 23:10:27,368 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 fit_args: []
+2024-03-29 23:10:27,368 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 fit_kwargs: {'key_type': 'inchikey', 'data_file': '/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/E1_preprocess.h5', 'do_triplets': False, 'validations': False}
+2024-03-29 23:10:27,371 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [DEBUG   ] CMD CCFIT: SINGULARITYENV_PYTHONPATH=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/util/config/../../../../package SINGULARITYENV_CC_CONFIG=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/config.json singularity exec /aloy/home/ymartins/Documents/cc_update/cc_image/cc.simg python /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign0_4470pck_/sign0_script.py <TASK_ID> <FILE>
+2024-03-29 23:10:27,372 chemicalchecker.util.hpc.hpc.HPC [DEBUG   ] HPC system to use: local
+2024-03-29 23:10:27,372 chemicalchecker.util.hpc.hpc.HPC [DEBUG   ] initializing object local
+2024-03-29 23:10:27,372 chemicalchecker.util.hpc.local.local [DEBUG   ] Job name is: CC_SIGN0
+2024-03-29 23:10:27,372 chemicalchecker.util.hpc.local.local [DEBUG   ] Num elements submitted 1
+2024-03-29 23:10:27,374 chemicalchecker.util.hpc.local.local [INFO    ] Writing script file for in dir /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign0_4470pck_
+2024-03-29 23:10:27,374 chemicalchecker.util.hpc.local.local [INFO    ] Running job 1/1
+2024-03-29 23:10:27,374 chemicalchecker.util.hpc.local.local [DEBUG   ] CMD: OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 VECLIB_MAXIMUM_THREADS=2 NUMEXPR_NUM_THREADS=2 PYTHONPATH=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/util/config/../../../../package CC_CONFIG=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/config.json python /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign0_4470pck_/sign0_script.py 1 /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign0_4470pck_/1308544d-bf0e-4837-8193-ca5452caaaa5
+2024-03-29 23:10:33,307 chemicalchecker.util.hpc.local.local [DEBUG   ] Checking errors in job
+2024-03-29 23:10:33,308 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:10:33,308 chemicalchecker.util.hpc.local.local [DEBUG   ] *   START log for: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign0_4470pck_/log1.txt
+2024-03-29 23:10:33,308 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:10:33,309 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:10:33,309 chemicalchecker.util.hpc.local.local [DEBUG   ] *   END log for: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign0_4470pck_/log1.txt
+2024-03-29 23:10:33,309 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:10:33,311 chemicalchecker.util.hpc.local.local [DEBUG   ] Compressing output job files...
+2024-03-29 23:10:33,318 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] Job with jobid 'None' ended.
+2024-03-29 23:10:33,319 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] Loading signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc/full/E/E1/E1.001/sign0
+2024-03-29 23:10:33,319 chemicalchecker.util.pipeline.task_base.BaseTask [DEBUG   ] mark_ready
+2024-03-29 23:10:33,320 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] Deleting job path: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign0_4470pck_
+2024-03-29 23:10:33,324 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Done task: 'sign0' ...
+2024-03-29 23:10:33,406 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Task INCLUDED: 'sign1'
+2024-03-29 23:10:33,406 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Task: 'sign0' already done. Skipping...
+2024-03-29 23:10:33,407 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Starting task: 'sign1' ...
+2024-03-29 23:10:33,407 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] ChemicalChecker with root: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc
+2024-03-29 23:10:33,454 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] New signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc/full/E/E1/E1.001/sign1
+2024-03-29 23:10:33,469 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 sign_args: ['sign1', 'full', 'E1.001']
+2024-03-29 23:10:33,469 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 sign_kwargs: {}
+2024-03-29 23:10:33,469 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 fit_args: []
+2024-03-29 23:10:33,469 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 fit_kwargs: {'metric_learning': False, 'validations': False}
+2024-03-29 23:10:33,477 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [DEBUG   ] CMD CCFIT: SINGULARITYENV_PYTHONPATH=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/util/config/../../../../package SINGULARITYENV_CC_CONFIG=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/config.json singularity exec /aloy/home/ymartins/Documents/cc_update/cc_image/cc.simg python /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign1_u34pd1vz/sign1_script.py <TASK_ID> <FILE>
+2024-03-29 23:10:33,477 chemicalchecker.util.hpc.hpc.HPC [DEBUG   ] HPC system to use: local
+2024-03-29 23:10:33,477 chemicalchecker.util.hpc.hpc.HPC [DEBUG   ] initializing object local
+2024-03-29 23:10:33,477 chemicalchecker.util.hpc.local.local [DEBUG   ] Job name is: CC_SIGN1
+2024-03-29 23:10:33,477 chemicalchecker.util.hpc.local.local [DEBUG   ] Num elements submitted 1
+2024-03-29 23:10:33,481 chemicalchecker.util.hpc.local.local [INFO    ] Writing script file for in dir /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign1_u34pd1vz
+2024-03-29 23:10:33,481 chemicalchecker.util.hpc.local.local [INFO    ] Running job 1/1
+2024-03-29 23:10:33,481 chemicalchecker.util.hpc.local.local [DEBUG   ] CMD: OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 VECLIB_MAXIMUM_THREADS=2 NUMEXPR_NUM_THREADS=2 PYTHONPATH=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/util/config/../../../../package CC_CONFIG=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/config.json python /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign1_u34pd1vz/sign1_script.py 1 /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign1_u34pd1vz/54d1efd6-9d53-48db-80b8-6c690a704478
+2024-03-29 23:10:52,342 chemicalchecker.util.hpc.local.local [DEBUG   ] Checking errors in job
+2024-03-29 23:10:52,343 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:10:52,343 chemicalchecker.util.hpc.local.local [DEBUG   ] *   START log for: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign1_u34pd1vz/log1.txt
+2024-03-29 23:10:52,343 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:10:52,344 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:10:52,344 chemicalchecker.util.hpc.local.local [DEBUG   ] *   END log for: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign1_u34pd1vz/log1.txt
+2024-03-29 23:10:52,344 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:10:52,346 chemicalchecker.util.hpc.local.local [DEBUG   ] Compressing output job files...
+2024-03-29 23:10:52,352 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] Job with jobid 'None' ended.
+2024-03-29 23:10:52,352 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] Loading signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc/full/E/E1/E1.001/sign1
+2024-03-29 23:10:52,352 chemicalchecker.util.pipeline.task_base.BaseTask [DEBUG   ] mark_ready
+2024-03-29 23:10:52,353 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] Deleting job path: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign1_u34pd1vz
+2024-03-29 23:10:52,358 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Done task: 'sign1' ...
+2024-03-29 23:10:52,429 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Task INCLUDED: 'neig1'
+2024-03-29 23:10:52,429 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Task: 'sign0' already done. Skipping...
+2024-03-29 23:10:52,429 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Task: 'sign1' already done. Skipping...
+2024-03-29 23:10:52,430 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Starting task: 'neig1' ...
+2024-03-29 23:10:52,430 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] ChemicalChecker with root: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc
+2024-03-29 23:10:52,467 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] New signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc/reference/E/E1/E1.001/neig1
+2024-03-29 23:10:52,472 chemicalchecker.core.neig.neig [DEBUG   ] signature path is: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc/reference/E/E1/E1.001/neig1
+2024-03-29 23:10:52,472 chemicalchecker.core.neig.neig [DEBUG   ] data_path: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc/reference/E/E1/E1.001/neig1/neig.h5
+2024-03-29 23:10:52,473 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 sign_args: ['neig1', 'reference', 'E1.001']
+2024-03-29 23:10:52,473 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 sign_kwargs: {}
+2024-03-29 23:10:52,473 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 fit_args: []
+2024-03-29 23:10:52,473 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 fit_kwargs: {}
+2024-03-29 23:10:52,476 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [DEBUG   ] CMD CCFIT: SINGULARITYENV_PYTHONPATH=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/util/config/../../../../package SINGULARITYENV_CC_CONFIG=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/config.json singularity exec /aloy/home/ymartins/Documents/cc_update/cc_image/cc.simg python /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_neig1_frc9v362/neig1_script.py <TASK_ID> <FILE>
+2024-03-29 23:10:52,477 chemicalchecker.util.hpc.hpc.HPC [DEBUG   ] HPC system to use: local
+2024-03-29 23:10:52,477 chemicalchecker.util.hpc.hpc.HPC [DEBUG   ] initializing object local
+2024-03-29 23:10:52,477 chemicalchecker.util.hpc.local.local [DEBUG   ] Job name is: CC_NEIG1
+2024-03-29 23:10:52,477 chemicalchecker.util.hpc.local.local [DEBUG   ] Num elements submitted 1
+2024-03-29 23:10:52,479 chemicalchecker.util.hpc.local.local [INFO    ] Writing script file for in dir /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_neig1_frc9v362
+2024-03-29 23:10:52,479 chemicalchecker.util.hpc.local.local [INFO    ] Running job 1/1
+2024-03-29 23:10:52,479 chemicalchecker.util.hpc.local.local [DEBUG   ] CMD: OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 VECLIB_MAXIMUM_THREADS=2 NUMEXPR_NUM_THREADS=2 PYTHONPATH=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/util/config/../../../../package CC_CONFIG=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/config.json python /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_neig1_frc9v362/neig1_script.py 1 /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_neig1_frc9v362/bff8ea0b-b627-4828-ae11-970a8bb70c31
+2024-03-29 23:10:56,502 chemicalchecker.util.hpc.local.local [DEBUG   ] Checking errors in job
+2024-03-29 23:10:56,503 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:10:56,503 chemicalchecker.util.hpc.local.local [DEBUG   ] *   START log for: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_neig1_frc9v362/log1.txt
+2024-03-29 23:10:56,504 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:10:56,505 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:10:56,505 chemicalchecker.util.hpc.local.local [DEBUG   ] *   END log for: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_neig1_frc9v362/log1.txt
+2024-03-29 23:10:56,505 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:10:56,508 chemicalchecker.util.hpc.local.local [DEBUG   ] Compressing output job files...
+2024-03-29 23:10:56,513 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] Job with jobid 'None' ended.
+2024-03-29 23:10:56,514 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] Loading signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc/reference/E/E1/E1.001/neig1
+2024-03-29 23:10:56,514 chemicalchecker.core.neig.neig [DEBUG   ] signature path is: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc/reference/E/E1/E1.001/neig1
+2024-03-29 23:10:56,514 chemicalchecker.core.neig.neig [DEBUG   ] data_path: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc/reference/E/E1/E1.001/neig1/neig.h5
+2024-03-29 23:10:56,514 chemicalchecker.util.pipeline.task_base.BaseTask [DEBUG   ] mark_ready
+2024-03-29 23:10:56,515 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] Deleting job path: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_neig1_frc9v362
+2024-03-29 23:10:56,519 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Done task: 'neig1' ...
+2024-03-29 23:10:56,585 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Task INCLUDED: 'sign2'
+2024-03-29 23:10:56,585 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Task: 'sign0' already done. Skipping...
+2024-03-29 23:10:56,586 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Task: 'sign1' already done. Skipping...
+2024-03-29 23:10:56,586 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Task: 'neig1' already done. Skipping...
+2024-03-29 23:10:56,587 chemicalchecker.util.pipeline.pipeline.Pipeline [INFO    ] Starting task: 'sign2' ...
+2024-03-29 23:10:56,587 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] ChemicalChecker with root: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc
+2024-03-29 23:10:56,637 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] New signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc/reference/E/E1/E1.001/sign2
+2024-03-29 23:10:56,645 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 sign_args: ['sign2', 'reference', 'E1.001']
+2024-03-29 23:10:56,645 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 sign_kwargs: {}
+2024-03-29 23:10:56,645 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 fit_args: []
+2024-03-29 23:10:56,645 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] E1.001 fit_kwargs: {'validations': False, 'oos_predictor': False}
+2024-03-29 23:10:56,649 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [DEBUG   ] CMD CCFIT: SINGULARITYENV_PYTHONPATH=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/util/config/../../../../package SINGULARITYENV_CC_CONFIG=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/config.json singularity exec /aloy/home/ymartins/Documents/cc_update/cc_image/cc.simg python /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign2_37ato3z9/sign2_script.py <TASK_ID> <FILE>
+2024-03-29 23:10:56,649 chemicalchecker.util.hpc.hpc.HPC [DEBUG   ] HPC system to use: local
+2024-03-29 23:10:56,650 chemicalchecker.util.hpc.hpc.HPC [DEBUG   ] initializing object local
+2024-03-29 23:10:56,650 chemicalchecker.util.hpc.local.local [DEBUG   ] Job name is: CC_SIGN2
+2024-03-29 23:10:56,650 chemicalchecker.util.hpc.local.local [DEBUG   ] Num elements submitted 1
+2024-03-29 23:10:56,652 chemicalchecker.util.hpc.local.local [INFO    ] Writing script file for in dir /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign2_37ato3z9
+2024-03-29 23:10:56,652 chemicalchecker.util.hpc.local.local [INFO    ] Running job 1/1
+2024-03-29 23:10:56,653 chemicalchecker.util.hpc.local.local [DEBUG   ] CMD: OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 VECLIB_MAXIMUM_THREADS=2 NUMEXPR_NUM_THREADS=2 PYTHONPATH=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/util/config/../../../../package CC_CONFIG=/aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/config.json python /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign2_37ato3z9/sign2_script.py 1 /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign2_37ato3z9/0783f32e-e482-4dda-a74c-bed5d08771e8
+2024-03-29 23:11:02,245 chemicalchecker.util.hpc.local.local [DEBUG   ] Checking errors in job
+2024-03-29 23:11:02,250 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:11:02,250 chemicalchecker.util.hpc.local.local [DEBUG   ] *   START log for: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign2_37ato3z9/log1.txt
+2024-03-29 23:11:02,250 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:11:02,256 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:11:02,256 chemicalchecker.util.hpc.local.local [DEBUG   ] *   END log for: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign2_37ato3z9/log1.txt
+2024-03-29 23:11:02,256 chemicalchecker.util.hpc.local.local [DEBUG   ] ****************************************
+2024-03-29 23:11:02,256 chemicalchecker.util.hpc.local.local [DEBUG   ] Found errors in job
+2024-03-29 23:11:02,266 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [INFO    ] Job with jobid 'None' ended.
+2024-03-29 23:11:02,269 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] Loading signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/pipeline_test/cc/reference/E/E1/E1.001/sign2
+2024-03-29 23:11:02,270 chemicalchecker.util.pipeline.tasks.task_cc_fit.CCFit [WARNING ] sign2 fit failed for dataset code: E1.001
+2024-03-29 23:11:02,270 chemicalchecker.util.pipeline.pipeline.Pipeline [ERROR   ] Pipeline failed in task sign2. Please, check errors.
+_____________________________ TestSign3.test_sign3 _____________________________
+
+self = <test_sign3.TestSign3 testMethod=test_sign3>
+
+    @skip_if_import_exception
+    def test_sign3(self):
+        data_path = os.path.join(self.data_dir, 'sign3')
+        cc_local = ChemicalChecker(self.cc_local, custom_data_path=data_path)
+    
+        sign2_list = list()
+        for ds in ['A1.001', 'E1.001', 'E2.001']:
+            sign2_list.append(cc_local.signature(ds, 'sign2'))
+        sign1_self = cc_local.signature('E1.001', 'sign1')
+        sign2_self = cc_local.signature('E1.001', 'sign2')
+    
+        s3 = cc_local.signature('E1.001', 'sign3')
+        siamese_args = {
+            'epochs': 1,
+            'cpu': 1,
+            'layers': ['Dense', 'Dense'],
+            'layers_sizes': [1024, 128],
+            'activations': ['selu', 'tanh'],
+            'dropouts': [0.2, None],
+            'learning_rate': 1e-3,
+            'batch_size': 128,
+            'patience': 200,
+            'loss_func': 'only_self_loss',
+            'margin': 1.0,
+            'alpha': 1.0,
+            'num_triplets': 1000,
+            't_per': 0.01,
+            'onlyself_notself': True,
+            'limit_mols': 1000,
+            'augment_fn': subsample,
+            'augment_kwargs': {
+                'dataset': ['E1.001'],
+                'p_self': 0.1
+            },
+        }
+        s3.params['sign2'] = siamese_args
+>       s3.fit(sign2_list=sign2_list, sign2_self=sign2_self,
+               sign1_self=sign1_self, validations=False,
+               complete_universe=False)
+
+tests/test_sign3.py:78: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+chemicalchecker/core/sign3.py:1862: in fit
+    res = self.train_SNN(
+chemicalchecker/core/sign3.py:476: in train_SNN
+    siamese.fit()
+chemicalchecker/tool/siamese/siamese_triplets.py:839: in fit
+    self.history = self.model.fit(
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/keras/src/utils/traceback_utils.py:122: in error_handler
+    raise e.with_traceback(filtered_tb) from None
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+generator = <function GeneratorDataAdapter.get_tf_dataset.<locals>.get_tf_iterator at 0x7f0ea4119510>
+output_types = None, output_shapes = None, args = None
+output_signature = ([TensorSpec(shape=(None, 384), dtype=tf.float64, name=None), TensorSpec(shape=(None, 384), dtype=tf.float64, name=Non...ne), TensorSpec(shape=(None, 384), dtype=tf.float64, name=None)], TensorSpec(shape=(None,), dtype=tf.int64, name=None))
+name = None
+
+    def _from_generator(generator, output_types, output_shapes, args,
+                        output_signature, name):
+      """Creates a `Dataset` whose elements are generated by `generator`.
+    
+      Note: The current implementation of `Dataset.from_generator()` uses
+      `tf.numpy_function` and inherits the same constraints. In particular, it
+      requires the dataset and iterator related operations to be placed
+      on a device in the same process as the Python program that called
+      `Dataset.from_generator()`. In particular, using `from_generator` will
+      preclude the use of tf.data service for scaling out dataset processing.
+      The body of `generator` will not be serialized in a `GraphDef`, and you
+      should not use this method if you need to serialize your model and restore
+      it in a different environment.
+    
+      The `generator` argument must be a callable object that returns
+      an object that supports the `iter()` protocol (e.g. a generator function).
+    
+      The elements generated by `generator` must be compatible with either the
+      given `output_signature` argument or with the given `output_types` and
+      (optionally) `output_shapes` arguments, whichever was specified.
+    
+      The recommended way to call `from_generator` is to use the
+      `output_signature` argument. In this case the output will be assumed to
+      consist of objects with the classes, shapes and types defined by
+      `tf.TypeSpec` objects from `output_signature` argument:
+    
+      >>> def gen():
+      ...   ragged_tensor = tf.ragged.constant([[1, 2], [3]])
+      ...   yield 42, ragged_tensor
+      >>>
+      >>> dataset = tf.data.Dataset.from_generator(
+      ...      gen,
+      ...      output_signature=(
+      ...          tf.TensorSpec(shape=(), dtype=tf.int32),
+      ...          tf.RaggedTensorSpec(shape=(2, None), dtype=tf.int32)))
+      >>>
+      >>> list(dataset.take(1))
+      [(<tf.Tensor: shape=(), dtype=int32, numpy=42>,
+      <tf.RaggedTensor [[1, 2], [3]]>)]
+    
+      There is also a deprecated way to call `from_generator` by either with
+      `output_types` argument alone or together with `output_shapes` argument.
+      In this case the output of the function will be assumed to consist of
+      `tf.Tensor` objects with the types defined by `output_types` and with the
+      shapes which are either unknown or defined by `output_shapes`.
+    
+      Note: If `generator` depends on mutable global variables or other external
+      state, be aware that the runtime may invoke `generator` multiple times
+      (in order to support repeating the `Dataset`) and at any time
+      between the call to `Dataset.from_generator()` and the production of the
+      first element from the generator. Mutating global variables or external
+      state can cause undefined behavior, and we recommend that you explicitly
+      cache any external state in `generator` before calling
+      `Dataset.from_generator()`.
+    
+      Note: While the `output_signature` parameter makes it possible to yield
+      `Dataset` elements, the scope of `Dataset.from_generator()` should be
+      limited to logic that cannot be expressed through tf.data operations. Using
+      tf.data operations within the generator function is an anti-pattern and may
+      result in incremental memory growth.
+    
+      Args:
+        generator: A callable object that returns an object that supports the
+          `iter()` protocol. If `args` is not specified, `generator` must take no
+          arguments; otherwise it must take as many arguments as there are values in
+          `args`.
+        output_types: (Optional.) A (nested) structure of `tf.DType` objects
+          corresponding to each component of an element yielded by `generator`.
+        output_shapes: (Optional.) A (nested) structure of `tf.TensorShape` objects
+          corresponding to each component of an element yielded by `generator`.
+        args: (Optional.) A tuple of `tf.Tensor` objects that will be evaluated and
+          passed to `generator` as NumPy-array arguments.
+        output_signature: (Optional.) A (nested) structure of `tf.TypeSpec` objects
+          corresponding to each component of an element yielded by `generator`.
+        name: (Optional.) A name for the tf.data operations used by
+          `from_generator`.
+    
+      Returns:
+        Dataset: A `Dataset`.
+      """
+      if not callable(generator):
+        raise TypeError("`generator` must be a Python callable.")
+    
+      if output_signature is not None:
+        if output_types is not None:
+          raise TypeError("The `output_types` argument can not be used together "
+                          "with the `output_signature` argument.")
+        if output_shapes is not None:
+          raise TypeError("The `output_shapes` argument can not be used together "
+                          "with the `output_signature` argument.")
+        for spec in nest.flatten(output_signature):
+          if not isinstance(spec, type_spec.TypeSpec):
+>           raise TypeError(f"`output_signature` must contain objects that are "
+                            f"subclass of `tf.TypeSpec` but found {type(spec)} "
+                            f"which is not.")
+E           TypeError: `output_signature` must contain objects that are subclass of `tf.TypeSpec` but found <class 'list'> which is not.
+
+/opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/tensorflow/python/data/ops/from_generator_op.py:124: TypeError
+----------------------------- Captured stdout call -----------------------------
+Model: "sequential_1"
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━┓
+┃ Layer (type)                    ┃ Output Shape           ┃       Param # ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━┩
+│ gaussian_dropout                │ (None, 384)            │             0 │
+│ (GaussianDropout)               │                        │               │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ dense_2 (Dense)                 │ (None, 1024)           │       394,240 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ activation (Activation)         │ (None, 1024)           │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ alpha_dropout_cp                │ (None, 1024)           │             0 │
+│ (AlphaDropoutCP)                │                        │               │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ dense_3 (Dense)                 │ (None, 128)            │       131,200 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ activation_1 (Activation)       │ (None, 128)            │             0 │
+├─────────────────────────────────┼────────────────────────┼───────────────┤
+│ lambda (Lambda)                 │ (None, 128)            │             0 │
+└─────────────────────────────────┴────────────────────────┴───────────────┘
+ Total params: 525,440 (2.00 MB)
+ Trainable params: 525,440 (2.00 MB)
+ Non-trainable params: 0 (0.00 B)
+Model: "functional_9"
+┏━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━┓
+┃ Layer (type)        ┃ Output Shape      ┃    Param # ┃ Connected to      ┃
+┡━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━┩
+│ input_layer_1       │ (None, 384)       │          0 │ -                 │
+│ (InputLayer)        │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ input_layer_2       │ (None, 384)       │          0 │ -                 │
+│ (InputLayer)        │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ input_layer_3       │ (None, 384)       │          0 │ -                 │
+│ (InputLayer)        │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ input_layer_4       │ (None, 384)       │          0 │ -                 │
+│ (InputLayer)        │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ input_layer_5       │ (None, 384)       │          0 │ -                 │
+│ (InputLayer)        │                   │            │                   │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ sequential_1        │ (None, 128)       │    525,440 │ input_layer_1[0]… │
+│ (Sequential)        │                   │            │ input_layer_2[0]… │
+│                     │                   │            │ input_layer_3[0]… │
+│                     │                   │            │ input_layer_4[0]… │
+│                     │                   │            │ input_layer_5[0]… │
+├─────────────────────┼───────────────────┼────────────┼───────────────────┤
+│ merged_layer        │ (None, 640)       │          0 │ sequential_1[0][… │
+│ (Concatenate)       │                   │            │ sequential_1[1][… │
+│                     │                   │            │ sequential_1[2][… │
+│                     │                   │            │ sequential_1[3][… │
+│                     │                   │            │ sequential_1[4][… │
+└─────────────────────┴───────────────────┴────────────┴───────────────────┘
+ Total params: 525,440 (2.00 MB)
+ Trainable params: 525,440 (2.00 MB)
+ Non-trainable params: 0 (0.00 B)
+----------------------------- Captured stderr call -----------------------------
+2024-03-29 23:11:08,328 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] ChemicalChecker with root: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local
+2024-03-29 23:11:08,328 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] Empty root directory,creating root and dataset dirs
+2024-03-29 23:11:08,329 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] Testing DB connection.
+2024-03-29 23:11:08,634 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] Linking files from: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3
+2024-03-29 23:11:08,636 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] Importing files A1_sign2_full.h5, E1_sign1_full.h5, E1_sign2_full.h5, E2_sign2_full.h5
+2024-03-29 23:11:08,662 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/A1_sign2_full.h5 ==> /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/A/A1/A1.001/sign2/sign2.h5
+2024-03-29 23:11:08,664 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/E1_sign1_full.h5 ==> /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign1/sign1.h5
+2024-03-29 23:11:08,665 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/E1_sign2_full.h5 ==> /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign2/sign2.h5
+2024-03-29 23:11:08,667 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/E2_sign2_full.h5 ==> /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E2/E2.001/sign2/sign2.h5
+2024-03-29 23:11:08,669 chemicalchecker.core.chemcheck.ChemicalChecker [WARNING ] No *.model found in /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3, CC instance will be without models.
+2024-03-29 23:11:08,669 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] Loading signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/A/A1/A1.001/sign2
+2024-03-29 23:11:08,673 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] Loading signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign2
+2024-03-29 23:11:08,676 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] Loading signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E2/E2.001/sign2
+2024-03-29 23:11:08,679 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] Loading signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign1
+2024-03-29 23:11:08,682 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] Loading signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign2
+2024-03-29 23:11:08,683 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] New signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign3
+2024-03-29 23:11:08,688 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] Loading signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign1
+2024-03-29 23:11:08,689 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] New signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/reference/E/E1/E1.001/sign1
+2024-03-29 23:11:08,694 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] Loading signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/reference/E/E1/E1.001/sign1
+2024-03-29 23:11:08,695 chemicalchecker.core.sign1.sign1 [DEBUG   ] Reading triplets
+2024-03-29 23:11:08,695 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] Loading signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/reference/E/E1/E1.001/sign1
+2024-03-29 23:11:08,695 chemicalchecker.core.sign1.sign1 [DEBUG   ] No triplets were found. Returning 
+2024-03-29 23:11:08,700 chemicalchecker.core.signature_base.BaseSignature [INFO    ] STATUS: FIT START
+2024-03-29 23:11:08,702 chemicalchecker.core.signature_base.BaseSignature [INFO    ] STATUS: Getting data
+2024-03-29 23:11:08,703 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] ChemicalChecker with root: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local
+2024-03-29 23:11:08,808 chemicalchecker.core.signature_base.BaseSignature [DEBUG   ] Loading signature: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign1
+2024-03-29 23:11:08,809 chemicalchecker.core.sign3.sign3 [INFO    ] Generating signature 2 coverage matrix.
+2024-03-29 23:11:08,865 chemicalchecker.core.sign3.sign3 [INFO    ] Saving coverage for 3 dataset and 3543 molecules.
+2024-03-29 23:11:08,870 chemicalchecker.core.sign3.sign3 [INFO    ] Fetching from /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/A/A1/A1.001/sign2/sign2.h5
+2024-03-29 23:11:08,873 chemicalchecker.core.sign3.sign3 [INFO    ] A1.001 has 2774 Signature 2.
+2024-03-29 23:11:08,873 chemicalchecker.core.sign3.sign3 [INFO    ] Fetching from /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign2/sign2.h5
+2024-03-29 23:11:08,876 chemicalchecker.core.sign3.sign3 [INFO    ] E1.001 has 2776 Signature 2.
+2024-03-29 23:11:08,877 chemicalchecker.core.sign3.sign3 [INFO    ] Fetching from /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E2/E2.001/sign2/sign2.h5
+2024-03-29 23:11:08,879 chemicalchecker.core.sign3.sign3 [INFO    ] E2.001 has 2530 Signature 2.
+2024-03-29 23:11:08,887 chemicalchecker.core.sign3.sign3 [DEBUG   ] Siamese fit E1.001 based on ['A1.001', 'E1.001', 'E2.001']
+2024-03-29 23:11:08,887 chemicalchecker.core.sign3.sign3 [INFO    ] Generating signature 2 universe matrix.
+2024-03-29 23:11:08,893 chemicalchecker.core.sign3.sign3 [INFO    ] Fetching from /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/A/A1/A1.001/sign2/sign2.h5
+2024-03-29 23:11:08,893 chemicalchecker.core.signature_data.DataSignature [DEBUG   ] Fetching 3543 rows from dataset V
+2024-03-29 23:11:08,954 chemicalchecker.core.signature_data.DataSignature [INFO    ] NaN for 769 requested keys as are not available.
+2024-03-29 23:11:08,968 chemicalchecker.core.sign3.sign3 [INFO    ] Fetching from /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign2/sign2.h5
+2024-03-29 23:11:08,968 chemicalchecker.core.signature_data.DataSignature [DEBUG   ] Fetching 3543 rows from dataset V
+2024-03-29 23:11:09,025 chemicalchecker.core.signature_data.DataSignature [INFO    ] NaN for 767 requested keys as are not available.
+2024-03-29 23:11:09,037 chemicalchecker.core.sign3.sign3 [INFO    ] Fetching from /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E2/E2.001/sign2/sign2.h5
+2024-03-29 23:11:09,037 chemicalchecker.core.signature_data.DataSignature [DEBUG   ] Fetching 3543 rows from dataset V
+2024-03-29 23:11:09,090 chemicalchecker.core.signature_data.DataSignature [INFO    ] NaN for 1013 requested keys as are not available.
+2024-03-29 23:11:09,203 chemicalchecker.core.signature_base.BaseSignature [INFO    ] STATUS: Training eval model
+2024-03-29 23:11:09,205 chemicalchecker.core.sign3.sign3 [DEBUG   ] Siamese suffix eval
+2024-03-29 23:11:09,206 chemicalchecker.core.sign3.sign3 [DEBUG   ] Saving sign2 traintest to: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign3/models/train.h5
+2024-03-29 23:11:09,251 chemicalchecker.core.signature_data.DataSignature [DEBUG   ] Copy dataset keys of shape (2776,)
+2024-03-29 23:11:09,254 chemicalchecker.core.signature_data.DataSignature [DEBUG   ] Copy dataset x_test of shape (2776, 384)
+Iterating on `x_test` axis 1:   0%|          | 0/4 [00:00<?, ?it/s]Iterating on `x_test` axis 1:  25%|██▌       | 1/4 [00:00<00:00,  9.34it/s]Iterating on `x_test` axis 1: 100%|██████████| 4/4 [00:00<00:00, 32.39it/s]
+2024-03-29 23:11:09,476 chemicalchecker.core.signature_data.DataSignature [DEBUG   ] Fetching 2776 rows from dataset x
+2024-03-29 23:11:09,596 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] 2776 (2776, 384)
+2024-03-29 23:11:09,601 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] input X              shape: (2776, 384)
+2024-03-29 23:11:09,602 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Reducing redundancy
+2024-03-29 23:11:09,602 chemicalchecker.util.remove_near_duplicates.remove_near_duplicates.RNDuplicates [DEBUG   ] RNDuplicates to use 128 bits
+2024-03-29 23:11:09,602 chemicalchecker.util.remove_near_duplicates.remove_near_duplicates.RNDuplicates [INFO    ] Removing near duplicates.
+2024-03-29 23:11:09,602 chemicalchecker.util.remove_near_duplicates.remove_near_duplicates.RNDuplicates [INFO    ] Size before removing: 2776
+2024-03-29 23:11:09,610 chemicalchecker.util.remove_near_duplicates.remove_near_duplicates.RNDuplicates [INFO    ] Size after removing: 732
+2024-03-29 23:11:09,611 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Original size ref_matrix: 732
+2024-03-29 23:11:09,611 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Limit of 1000
+2024-03-29 23:11:09,612 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Final size: 732
+2024-03-29 23:11:09,612 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Triplet_per_mol: 3
+2024-03-29 23:11:09,612 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] E triplet per mol: 3
+2024-03-29 23:11:09,612 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] M triplet per mol: 1
+2024-03-29 23:11:09,612 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] H triplet per mol: 1
+2024-03-29 23:11:09,612 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Triplet_per_mol: 5
+2024-03-29 23:11:09,612 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Fractions used: 0.80 0.20
+  0%|          | 0/84 [00:00<?, ?it/s]2024-03-29 23:11:09,612 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (0, 7)  to dst: (0, 7)
+2024-03-29 23:11:09,612 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (7, 14)  to dst: (7, 14)
+2024-03-29 23:11:09,612 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (21, 28)  to dst: (14, 21)
+2024-03-29 23:11:09,612 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (28, 35)  to dst: (21, 28)
+2024-03-29 23:11:09,612 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (35, 42)  to dst: (28, 35)
+2024-03-29 23:11:09,612 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (42, 49)  to dst: (35, 42)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (49, 56)  to dst: (42, 49)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (56, 63)  to dst: (49, 56)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (70, 77)  to dst: (56, 63)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (77, 84)  to dst: (63, 70)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (84, 91)  to dst: (70, 77)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (91, 98)  to dst: (77, 84)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (98, 105)  to dst: (84, 91)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (105, 112)  to dst: (91, 98)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (112, 119)  to dst: (98, 105)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (126, 133)  to dst: (105, 112)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (133, 140)  to dst: (112, 119)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (140, 147)  to dst: (119, 126)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (147, 154)  to dst: (126, 133)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (154, 161)  to dst: (133, 140)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (161, 168)  to dst: (140, 147)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (168, 175)  to dst: (147, 154)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (182, 189)  to dst: (154, 161)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (189, 196)  to dst: (161, 168)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (196, 203)  to dst: (168, 175)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (203, 210)  to dst: (175, 182)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (210, 217)  to dst: (182, 189)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (224, 231)  to dst: (189, 196)
+2024-03-29 23:11:09,613 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (231, 238)  to dst: (196, 203)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (238, 245)  to dst: (203, 210)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (245, 252)  to dst: (210, 217)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (252, 259)  to dst: (217, 224)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (259, 266)  to dst: (224, 231)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (266, 273)  to dst: (231, 238)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (280, 287)  to dst: (238, 245)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (287, 294)  to dst: (245, 252)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (301, 308)  to dst: (252, 259)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (308, 315)  to dst: (259, 266)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (322, 329)  to dst: (266, 273)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (329, 336)  to dst: (273, 280)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (336, 343)  to dst: (280, 287)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (343, 350)  to dst: (287, 294)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (350, 357)  to dst: (294, 301)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (364, 371)  to dst: (301, 308)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (371, 378)  to dst: (308, 315)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (385, 392)  to dst: (315, 322)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (392, 399)  to dst: (322, 329)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (399, 406)  to dst: (329, 336)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (406, 413)  to dst: (336, 343)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (420, 427)  to dst: (343, 350)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (441, 448)  to dst: (350, 357)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (448, 455)  to dst: (357, 364)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (455, 462)  to dst: (364, 371)
+2024-03-29 23:11:09,614 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (469, 476)  to dst: (371, 378)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (476, 483)  to dst: (378, 385)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (483, 490)  to dst: (385, 392)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (490, 497)  to dst: (392, 399)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (497, 504)  to dst: (399, 406)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (525, 532)  to dst: (406, 413)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (532, 539)  to dst: (413, 420)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (539, 546)  to dst: (420, 427)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (546, 553)  to dst: (427, 434)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (553, 560)  to dst: (434, 441)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (567, 574)  to dst: (441, 448)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (574, 581)  to dst: (448, 455)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (581, 588)  to dst: (455, 462)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (588, 595)  to dst: (462, 469)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (595, 602)  to dst: (469, 476)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (602, 609)  to dst: (476, 483)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (609, 616)  to dst: (483, 490)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (616, 623)  to dst: (490, 497)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (630, 637)  to dst: (497, 504)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (637, 644)  to dst: (504, 511)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (644, 651)  to dst: (511, 518)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (651, 658)  to dst: (518, 525)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (658, 665)  to dst: (525, 532)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (665, 672)  to dst: (532, 539)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (672, 679)  to dst: (539, 546)
+2024-03-29 23:11:09,615 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (679, 686)  to dst: (546, 553)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (686, 693)  to dst: (553, 560)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (700, 707)  to dst: (560, 567)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (707, 714)  to dst: (567, 574)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (714, 721)  to dst: (574, 581)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (721, 728)  to dst: (581, 588)
+100%|██████████| 84/84 [00:00<00:00, 23811.94it/s]
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] nr_matrix train (588, 128)
+  0%|          | 0/21 [00:00<?, ?it/s]2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (14, 21)  to dst: (0, 7)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (63, 70)  to dst: (7, 14)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (119, 126)  to dst: (14, 21)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (175, 182)  to dst: (21, 28)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (217, 224)  to dst: (28, 35)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (273, 280)  to dst: (35, 42)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (294, 301)  to dst: (42, 49)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (315, 322)  to dst: (49, 56)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (357, 364)  to dst: (56, 63)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (378, 385)  to dst: (63, 70)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (413, 420)  to dst: (70, 77)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (427, 434)  to dst: (77, 84)
+2024-03-29 23:11:09,616 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (434, 441)  to dst: (84, 91)
+2024-03-29 23:11:09,617 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (462, 469)  to dst: (91, 98)
+2024-03-29 23:11:09,617 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (504, 511)  to dst: (98, 105)
+2024-03-29 23:11:09,617 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (511, 518)  to dst: (105, 112)
+2024-03-29 23:11:09,617 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (518, 525)  to dst: (112, 119)
+2024-03-29 23:11:09,617 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (560, 567)  to dst: (119, 126)
+2024-03-29 23:11:09,617 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (623, 630)  to dst: (126, 133)
+2024-03-29 23:11:09,617 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (693, 700)  to dst: (133, 140)
+2024-03-29 23:11:09,617 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] writing src: (728, 732)  to dst: (140, 144)
+100%|██████████| 21/21 [00:00<00:00, 27388.18it/s]
+2024-03-29 23:11:09,617 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] nr_matrix test (144, 128)
+2024-03-29 23:11:09,617 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Generating NN indexes
+2024-03-29 23:11:09,617 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Mean centering X
+2024-03-29 23:11:09,726 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Traintest saving to /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign3/models/traintest_eval.h5
+2024-03-29 23:11:09,734 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] SPLIT: train_train
+2024-03-29 23:11:09,734 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] T per: 0.01
+2024-03-29 23:11:09,734 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] F and T: 200 10
+2024-03-29 23:11:09,734 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Searching Neighbors
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [00:00<00:00, 74.55it/s]
+2024-03-29 23:11:09,748 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Generating triplets
+  0%|          | 0/588 [00:00<?, ?it/s] 94%|█████████▎| 550/588 [00:00<00:00, 5494.97it/s]100%|██████████| 588/588 [00:00<00:00, 5489.21it/s]
+2024-03-29 23:11:09,855 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Mapping triplets
+2024-03-29 23:11:09,856 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Resolving multiple options
+2024-03-29 23:11:09,934 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Stacking triplets
+2024-03-29 23:11:09,935 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Using 1859 molecules in triplets
+2024-03-29 23:11:09,938 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Using 2940 unique triplets
+2024-03-29 23:11:09,938 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] writing Name: t_train_train E: 1764 M: 588 H: 588 T: 2940
+2024-03-29 23:11:09,975 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [WARNING ] TOTAL DIST ERRORS:  13
+2024-03-29 23:11:09,976 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] SPLIT: train_test
+2024-03-29 23:11:09,976 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] T per: 0.01
+2024-03-29 23:11:09,976 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] F and T: 143 10
+2024-03-29 23:11:09,976 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Searching Neighbors
+2024-03-29 23:11:09,978 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Generating triplets
+  0%|          | 0/144 [00:00<?, ?it/s]100%|██████████| 144/144 [00:00<00:00, 5408.90it/s]
+2024-03-29 23:11:10,005 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Mapping triplets
+2024-03-29 23:11:10,006 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Resolving multiple options
+2024-03-29 23:11:10,025 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Stacking triplets
+2024-03-29 23:11:10,025 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Using 1037 molecules in triplets
+2024-03-29 23:11:10,025 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Using 720 unique triplets
+2024-03-29 23:11:10,026 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] writing Name: t_train_test E: 432 M: 144 H: 144 T: 720
+2024-03-29 23:11:10,035 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [WARNING ] TOTAL DIST ERRORS:  3
+2024-03-29 23:11:10,035 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [DEBUG   ] SPLIT: test_test
+2024-03-29 23:11:10,035 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] T per: 0.01
+2024-03-29 23:11:10,035 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] F and T: 143 10
+2024-03-29 23:11:10,035 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Searching Neighbors
+  0%|          | 0/1 [00:00<?, ?it/s]100%|██████████| 1/1 [00:00<00:00, 784.57it/s]
+2024-03-29 23:11:10,037 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Generating triplets
+  0%|          | 0/144 [00:00<?, ?it/s]100%|██████████| 144/144 [00:00<00:00, 5092.79it/s]
+2024-03-29 23:11:10,066 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Mapping triplets
+2024-03-29 23:11:10,066 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Resolving multiple options
+2024-03-29 23:11:10,085 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Stacking triplets
+2024-03-29 23:11:10,085 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Using 419 molecules in triplets
+2024-03-29 23:11:10,086 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] Using 720 unique triplets
+2024-03-29 23:11:10,086 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] writing Name: t_test_test E: 432 M: 144 H: 144 T: 720
+2024-03-29 23:11:10,096 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [WARNING ] TOTAL DIST ERRORS:  11
+2024-03-29 23:11:12,158 chemicalchecker.util.splitter.neighbortriplet.OldTripletSampler [INFO    ] OldTripletSampler saved to /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign3/models/traintest_eval.h5
+2024-03-29 23:11:12,165 chemicalchecker.core.sign3.sign3 [DEBUG   ] Siamese training on /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign3/models/traintest_eval.h5
+2024-03-29 23:11:12,165 chemicalchecker.core.sign3.sign3 [DEBUG   ] Reading sign2 universe lookup, this should only be loaded once.
+2024-03-29 23:11:12,165 chemicalchecker.core.signature_data.DataSignature [DEBUG   ] Fetching dataset x
+2024-03-29 23:11:12,254 chemicalchecker.core.sign3.sign3 [DEBUG   ] sharedx shape: (2776, 384)
+2024-03-29 23:11:12,254 chemicalchecker.core.sign3.sign3 [DEBUG   ] sharedx shape: (2776, 384)
+2024-03-29 23:11:12,262 chemicalchecker.core.sign3.sign3 [DEBUG   ] sharedx_trim shape: (2776, 384)
+2024-03-29 23:11:12,264 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator for train_train
+2024-03-29 23:11:12,275 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] X shape: (2776, 384)
+2024-03-29 23:11:12,275 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator ready, onlyself_notself True
+2024-03-29 23:11:12,278 chemicalchecker.core.signature_data.DataSignature [DEBUG   ] Fetching dataset scaler
+2024-03-29 23:11:12,280 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] Using scaler: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign3/models/scaler_eval.pkl
+2024-03-29 23:11:12,283 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator for test_test
+2024-03-29 23:11:12,285 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] X shape: (2776, 384)
+2024-03-29 23:11:12,285 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator ready, onlyself_notself True
+2024-03-29 23:11:12,285 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] **** SiameseTriplets Parameters: ***
+2024-03-29 23:11:12,285 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] model_dir             : /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign3/models/siamese_eval
+2024-03-29 23:11:12,285 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] traintest_file        : /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign3/models/traintest_eval.h5
+2024-03-29 23:11:12,287 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] train_train           : ((2940, 3), (2940,))
+2024-03-29 23:11:12,288 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] train_test            : ((720, 3), (720,))
+2024-03-29 23:11:12,290 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] test_test             : ((720, 3), (720,))
+2024-03-29 23:11:12,290 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] learning_rate         :        0.001
+2024-03-29 23:11:12,290 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] epochs                :            1
+2024-03-29 23:11:12,290 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] batch_size            :          128
+2024-03-29 23:11:12,290 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] layers                : [<class 'keras.src.layers.core.dense.Dense'>, <class 'keras.src.layers.core.dense.Dense'>]
+2024-03-29 23:11:12,290 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] layers_sizes          :  [1024, 128]
+2024-03-29 23:11:12,290 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] activations           : ['selu', 'tanh']
+2024-03-29 23:11:12,290 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] dropouts              :  [0.2, None]
+2024-03-29 23:11:12,290 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] augment_fn            : <function subsample at 0x7f0edd0f1360>
+2024-03-29 23:11:12,291 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] augment_kwargs        : {'dataset': ['E1.001'], 'p_self': 0.1, 'p_nr': (array([0.        , 0.36563401, 0.63436599, 0.        ]), array([0.        , 0.26773938, 0.26773938, 0.46452123])), 'p_keep': (array([0.99927954, 0.        , 0.63508646]), array([0.99927954, 1.        , 0.63508646])), 'dataset_idx': [1], 'p_only_self': 0.0}
+2024-03-29 23:11:12,291 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] **** SiameseTriplets Parameters: ***
+2024-03-29 23:11:12,291 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [DEBUG   ] Saving temporary parameters to /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign3/models/siamese_eval/params.pkl
+2024-03-29 23:11:12,449 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [DEBUG   ] Saving parameters to /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local/full/E/E1/E1.001/sign3/models/siamese_eval/params.pkl
+2024-03-29 23:11:12,607 chemicalchecker.core.sign3.sign3 [INFO    ] Plot Subsampling (what the SNN will get).
+2024-03-29 23:11:12,608 chemicalchecker.core.chemcheck.ChemicalChecker [DEBUG   ] ChemicalChecker with root: /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/tests/data/sign3/cc_local
+2024-03-29 23:11:12,658 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator for train_train
+2024-03-29 23:11:12,660 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Reading X in memory
+2024-03-29 23:11:12,744 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] X shape: (2776, 384)
+2024-03-29 23:11:12,744 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator ready, onlyself_notself True
+2024-03-29 23:11:23,559 chemicalchecker.tool.siamese.siamese_triplets.SiameseTriplets [INFO    ] Loss function: only_self_loss
+2024-03-29 23:11:23,568 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator for train_test
+2024-03-29 23:11:23,570 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] X shape: (2776, 384)
+2024-03-29 23:11:23,570 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator ready, onlyself_notself True
+2024-03-29 23:11:23,570 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator for train_test
+2024-03-29 23:11:23,571 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] X shape: (2776, 384)
+2024-03-29 23:11:23,572 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator ready, onlyself_notself True
+2024-03-29 23:11:23,572 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator for train_test
+2024-03-29 23:11:23,574 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] X shape: (2776, 384)
+2024-03-29 23:11:23,574 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator ready, onlyself_notself True
+2024-03-29 23:11:23,574 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator for test_test
+2024-03-29 23:11:23,576 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] X shape: (2776, 384)
+2024-03-29 23:11:23,576 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator ready, onlyself_notself True
+2024-03-29 23:11:23,576 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator for test_test
+2024-03-29 23:11:23,578 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] X shape: (2776, 384)
+2024-03-29 23:11:23,578 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator ready, onlyself_notself True
+2024-03-29 23:11:23,578 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator for test_test
+2024-03-29 23:11:23,580 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] X shape: (2776, 384)
+2024-03-29 23:11:23,580 chemicalchecker.util.splitter.neighbortriplet.TripletIterator [DEBUG   ] Generator ready, onlyself_notself True
+=============================== warnings summary ===============================
+../../../../../../../opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/keras/src/layers/reshaping/flatten.py:37
+  /opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/keras/src/layers/reshaping/flatten.py:37: UserWarning: Do not pass an `input_shape`/`input_dim` argument to a layer. When using Sequential models, prefer using an `Input(shape)` object as the first layer in the model instead.
+    super().__init__(**kwargs)
+
+../../../../../../../opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/faiss/loader.py:28
+  /opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/faiss/loader.py:28: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(numpy.__version__) >= "1.19":
+
+../../../../../../../opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/setuptools/_distutils/version.py:345
+  /opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/setuptools/_distutils/version.py:345: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    other = LooseVersion(other)
+
+tests/test_converter.py::TestConverter::test_smiles_to_inchi
+  /opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/rdkit/Chem/MolStandardize/__init__.py:20: DeprecationWarning: The module rdkit.Chem.MolStandardize.standardize is deprecated and will be removed in the next release.
+    from .standardize import (Standardizer, canonicalize_tautomer_smiles,
+
+tests/test_converter.py::TestConverter::test_smiles_to_inchi
+  /opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/rdkit/Chem/MolStandardize/standardize.py:23: DeprecationWarning: The module rdkit.Chem.MolStandardize.charge is deprecated and will be removed in the next release.
+    from .charge import ACID_BASE_PAIRS, CHARGE_CORRECTIONS, Reionizer, Uncharger
+
+tests/test_converter.py::TestConverter::test_smiles_to_inchi
+  /opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/rdkit/Chem/MolStandardize/standardize.py:24: DeprecationWarning: The module rdkit.Chem.MolStandardize.fragment is deprecated and will be removed in the next release.
+    from .fragment import PREFER_ORGANIC, FragmentRemover, LargestFragmentChooser
+
+tests/test_converter.py::TestConverter::test_smiles_to_inchi
+  /opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/rdkit/Chem/MolStandardize/standardize.py:25: DeprecationWarning: The module rdkit.Chem.MolStandardize.metal is deprecated and will be removed in the next release.
+    from .metal import MetalDisconnector
+
+tests/test_converter.py::TestConverter::test_smiles_to_inchi
+  /opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/rdkit/Chem/MolStandardize/standardize.py:26: DeprecationWarning: The module rdkit.Chem.MolStandardize.normalize is deprecated and will be removed in the next release.
+    from .normalize import MAX_RESTARTS, NORMALIZATIONS, Normalizer
+
+tests/test_converter.py::TestConverter::test_smiles_to_inchi
+  /opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/rdkit/Chem/MolStandardize/standardize.py:27: DeprecationWarning: The module rdkit.Chem.MolStandardize.tautomer is deprecated and will be removed in the next release.
+    from .tautomer import (MAX_TAUTOMERS, TAUTOMER_SCORES, TAUTOMER_TRANSFORMS, TautomerCanonicalizer,
+
+tests/test_converter.py::TestConverter::test_smiles_to_inchi
+  /opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/rdkit/Chem/MolStandardize/__init__.py:22: DeprecationWarning: The module rdkit.Chem.MolStandardize.validate is deprecated and will be removed in the next release.
+    from .validate import Validator, validate_smiles
+
+tests/test_converter.py::TestConverter::test_smiles_to_inchi
+  /opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/rdkit/Chem/MolStandardize/validate.py:24: DeprecationWarning: The module rdkit.Chem.MolStandardize.validations is deprecated and will be removed in the next release.
+    from .validations import VALIDATIONS
+
+tests/test_downloader.py::TestDownloader::test_download
+tests/test_downloader.py::TestDownloader::test_file
+tests/test_downloader.py::TestDownloader::test_wildchar
+  /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/util/download/download.py:153: DeprecationWarning: MyOpener style of invoking requests is deprecated. Use newer urlopen functions/methods
+    wget.ulib.urlretrieve = MyOpener().retrieve
+
+tests/test_sign3.py::TestSign3::test_sign3
+  /opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/keras/src/layers/regularization/gaussian_dropout.py:28: UserWarning: Do not pass an `input_shape`/`input_dim` argument to a layer. When using Sequential models, prefer using an `Input(shape)` object as the first layer in the model instead.
+    super().__init__(**kwargs)
+
+tests/test_sign4.py::TestSign4::test_sign4
+tests/test_sign4.py::TestSign4::test_sign4
+tests/test_sign4.py::TestSign4::test_sign4
+tests/test_sign4.py::TestSign4::test_sign4
+  /opt/miniconda3/envs/cc_env/lib/python3.10/site-packages/keras/src/layers/core/dense.py:88: UserWarning: Do not pass an `input_shape`/`input_dim` argument to a layer. When using Sequential models, prefer using an `Input(shape)` object as the first layer in the model instead.
+    super().__init__(activity_regularizer=activity_regularizer, **kwargs)
+
+tests/test_sign4.py::TestSign4::test_sign4
+tests/test_sign4.py::TestSign4::test_sign4
+  /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/core/signature_base.py:212: DeprecationWarning: The 'warn' method is deprecated, use 'warning' instead
+    self.__log.warn(
+
+tests/test_sign4.py::TestSign4::test_sign4
+tests/test_sign4.py::TestSign4::test_sign4
+tests/test_sign4.py::TestSign4::test_sign4
+tests/test_sign4.py::TestSign4::test_sign4
+  /aloy/home/ymartins/Documents/cc_update/chemical_checker/package/chemicalchecker/util/plot/plot.py:407: DeprecationWarning: The 'warn' method is deprecated, use 'warning' instead
+    self.__log.warn("Not enough pairs to validate...")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_adanet.py::TestAdanet::test_classifiation_multi - Attribute...
+FAILED tests/test_adanet.py::TestAdanet::test_regression_multi - AttributeErr...
+FAILED tests/test_adanet.py::TestAdanet::test_regression_single - AttributeEr...
+FAILED tests/test_downloader.py::TestDownloader::test_download - AssertionErr...
+FAILED tests/test_downloader.py::TestDownloader::test_wildchar - AssertionErr...
+FAILED tests/test_pipeline.py::TestPipeline::test_pipeline_fit_sign0 - Assert...
+FAILED tests/test_sign3.py::TestSign3::test_sign3 - TypeError: `output_signat...
+====== 7 failed, 24 passed, 14 skipped, 25 warnings in 142.98s (0:02:22) =======

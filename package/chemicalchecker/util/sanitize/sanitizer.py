@@ -221,7 +221,7 @@ class Sanitizer(object):
         # impute NaN & infs
         if self.impute_missing and nan_counts['all'] != 0:
             self.__log.info('Imputing missing values.')
-            hf = h5py.File(data.data_path, 'a')
+            #hf = h5py.File(data.data_path, 'a')
             for chunk, cols in data.chunk_iter('V', cs, axis=1, chunk=True):
                 # get values for replacements
                 ref_cols = cols
@@ -245,8 +245,9 @@ class Sanitizer(object):
                 cols[idxs] = np.take(posinf_vals, idxs[1])
                 idxs = np.where(np.isneginf(cols))
                 cols[idxs] = np.take(neginf_vals, idxs[1])
-                hf['V'][:, chunk] = cols
-            hf.close()
+                data['V'][:, chunk] = cols
+            #hf.close()
+
 
         # count NaN & infs
         if nan_counts['all'] != 0:
