@@ -134,6 +134,7 @@ From: ubuntu:20.04
     # Copying libc to the system to find cython GLIBCXX_3.4.29
     cp /opt/miniconda3/envs/cc_env/lib/libstdc++.so.6 /lib/x86_64-linux-gnu/libstdc++.so.6
     
+    # Installing gensim library from source with the freezed version that contains the correction for new numpy lib
     cd /opt/gensim
     pip install .
     cd /opt/miniconda3
