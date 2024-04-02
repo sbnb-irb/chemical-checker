@@ -1,24 +1,0 @@
-Iterating on `V` axis 1:   0%|          | 0/1 [00:00<?, ?it/s]Iterating on `V` axis 1: 100%|██████████| 1/1 [00:00<00:00, 134.17it/s]
-Iterating on `V` axis 0:   0%|          | 0/1 [00:00<?, ?it/s]Iterating on `V` axis 0: 100%|██████████| 1/1 [00:00<00:00, 1088.58it/s]
-Features frequency (476, 145)
-Iterating on `V` axis 0:   0%|          | 0/1 [00:00<?, ?it/s]Iterating on `V` axis 0: 100%|██████████| 1/1 [00:00<00:00, 942.12it/s]
-Iterating on `V` axis 0:   0%|          | 0/1 [00:00<?, ?it/s]Iterating on `V` axis 0: 100%|██████████| 1/1 [00:00<00:00, 805.51it/s]
-Flter nans and inf (476, 145)
-Filter too many features (476, 145)
-Traceback (most recent call last):
-  File "/mnt/085dd464-7946-4395-acfd-e22026d52e9d/home/yasmmin/backup/irbBCN_job/chemicalChecker/chemical_checker/package/chemicalchecker/util/remove_near_duplicates/remove_near_duplicates.py", line 56, in remove
-    import faiss
-ModuleNotFoundError: No module named 'faiss'
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/mnt/085dd464-7946-4395-acfd-e22026d52e9d/home/yasmmin/backup/irbBCN_job/chemicalChecker/chemical_checker/package/tests/data/pipeline_test/tmp/jobs_sign0_fp7w322u/sign0_script.py", line 24, in <module>
-    sign.fit(*fit_args, **fit_kwargs)
-  File "/mnt/085dd464-7946-4395-acfd-e22026d52e9d/home/yasmmin/backup/irbBCN_job/chemicalChecker/chemical_checker/package/chemicalchecker/core/sign0.py", line 407, in fit
-    self.save_reference(overwrite=True)
-  File "/mnt/085dd464-7946-4395-acfd-e22026d52e9d/home/yasmmin/backup/irbBCN_job/chemicalChecker/chemical_checker/package/chemicalchecker/core/signature_base.py", line 519, in save_reference
-    rnd.remove(self.data_path, save_dest=sign_ref.data_path)
-  File "/mnt/085dd464-7946-4395-acfd-e22026d52e9d/home/yasmmin/backup/irbBCN_job/chemicalChecker/chemical_checker/package/chemicalchecker/util/remove_near_duplicates/remove_near_duplicates.py", line 58, in remove
-    raise ImportError("requires faiss " +
-ImportError: requires faiss https://github.com/facebookresearch/faiss
