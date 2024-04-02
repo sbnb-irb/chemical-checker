@@ -305,6 +305,7 @@ class BaseSignature(object):
             args(tuple): the arguments for of the fit method
             kwargs(dict): arguments for the HPC method.
         """
+        
         # read config file,# NS: get the cc_config var otherwise set it to
         # os.environ['CC_CONFIG']
         cc_config = kwargs.pop("cc_config", os.environ['CC_CONFIG'])
