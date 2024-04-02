@@ -139,6 +139,7 @@ From: ubuntu:20.04
     cd /opt/miniconda3
 
     #pip install git+https://github.com/piskvorky/gensim.git@develop
+    
     #git config --global http.postBuffer 1048576000
     #git clone https://github.com/piskvorky/gensim.git
     #cd gensim
