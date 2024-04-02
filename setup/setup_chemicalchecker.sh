@@ -1,7 +1,6 @@
 #!/bin/sh
 
-#INSTALL_DIR=$HOME/chemical_checker
-INSTALL_DIR=/home/ymartins/chemical_checker
+INSTALL_DIR=$HOME/chemical_checker
 
 #LOCAL_REPO="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 LOCAL_REPO="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; cd ../ >/dev/null 2>&1 ; pwd -P )"
