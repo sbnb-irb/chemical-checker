@@ -308,7 +308,7 @@ class BaseSignature(object):
         
         # read config file,# NS: get the cc_config var otherwise set it to
         # os.environ['CC_CONFIG']
-        cc_config = kwargs.pop("cc_config", os.environ['CC_CONFIG'])
+        cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
         self.__log.debug(
             "CC_Config for function {} is: {}".format(func_name, cc_config))
         cfg = Config(cc_config)
@@ -320,7 +320,7 @@ class BaseSignature(object):
                              func_name, '_'])
         tmp_dir = tempfile.mktemp(prefix=job_name, dir=job_base_path)
 
-        job_path = kwargs.pop("job_path", tmp_dir)
+        job_path = kwargs.get("job_path", tmp_dir)
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         # check cpus
@@ -331,7 +331,7 @@ class BaseSignature(object):
             "sign.%s(*args, **kwargs)" % func_name,
             "print('JOB DONE')"
        
-        if kwargs.pop("delete_job_path", False):
+        if kwargs.get("delete_job_path", False):
             script_lines.append("print('DELETING JOB PATH: %s')" % job_path)
             script_lines.append("os.system('rm -rf %s')" % job_path)
 
@@ -349,12 +349,12 @@ class BaseSignature(object):
         pickle.dump((self, args), open(pickle_path, 'wb'))
 
         # hpc parameters
-        hpc_cfg = kwargs.pop("hpc_cfg", cfg)
+        hpc_cfg = kwargs.get("hpc_cfg", cfg)
         params = kwargs
         params["num_jobs"] = 1
         params["jobdir"] = job_path
         params["job_name"] = job_name
-        params["wait"] = kwargs.pop("wait", False)
+        params["wait"] = kwargs.get("wait", False)
 
         # pickle self (the data) and fit args, and kwargs
         pickle_file = '%s_%s_hpc.pkl' % (self.__class__.__name__, func_name)
