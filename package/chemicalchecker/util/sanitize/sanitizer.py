@@ -245,7 +245,8 @@ class Sanitizer(object):
                 cols[idxs] = np.take(posinf_vals, idxs[1])
                 idxs = np.where(np.isneginf(cols))
                 cols[idxs] = np.take(neginf_vals, idxs[1])
-                data['V'][:, chunk] = cols
+                data.set_data_h5_dataset( 'V', chunk, cols, 0 )
+                #data['V'][:, chunk] = cols
             #hf.close()
 
 

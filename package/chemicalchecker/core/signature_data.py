@@ -408,6 +408,32 @@ class DataSignature(object):
             hf[key] = hf[key_tmp]
             del hf[key_tmp]
 
+    def set_data_h5_dataset(self, key, index_range, values, axis):
+        """Set data according to ndexes of cols or rows.
+
+        key (str): The H5 dataset to set the new values.
+        index_range (np.array): An integer one dimensional index array. 
+        values (np.array): the new values of the partition predeined in the index_range passed.
+        axis (int): Wether the mask refers to rows (0) or columns (1).
+        """
+        self._check_dataset(key)
+        key_tmp = "%s_tmp" % key
+        self.close_hdf5()
+        with h5py.File(self.data_path, 'a') as hf:
+            if key_tmp in hf.keys():
+                self.__log.debug('Deleting pre-existing `%s`' % key_tmp)
+                del hf[key_tmp]
+            # if we have a list directly apply the mask
+            hf.create_dataset(key_tmp, hf[key].shape, dtype=hf[key].dtype)
+            if axis == 1:
+                hf[key_tmp][index_range] = values
+            else:
+                hf[key_tmp][:, index_range] = values
+                
+            del hf[key]
+            hf[key] = hf[key_tmp]
+            del hf[key_tmp]
+
     @staticmethod
     def hstack_signatures(sign_list, destination, chunk_size=1000,
                           aggregate_keys=None):
