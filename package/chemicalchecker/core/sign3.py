@@ -1748,7 +1748,7 @@ class sign3(BaseSignature, DataSignature):
             model_confidence=True, save_correlations=False,
             predict_novelty=False, update_preds=True,
             chunk_size=1000, suffix=None, plots_train=True,
-            triplets_sampler=None, **kwargs):
+            triplets_sampler=None, hpc_args = {}, **kwargs):
         """Fit signature 3 given a list of signature 2.
 
         Args:
@@ -1787,7 +1787,7 @@ class sign3(BaseSignature, DataSignature):
             import faiss
         except ImportError as err:
             raise err
-        BaseSignature.fit(self, **kwargs)
+        BaseSignature.fit(self, hpc_args)
 
         # signature specific checks
         if self.molset != "full":
