@@ -1787,7 +1787,7 @@ class sign3(BaseSignature, DataSignature):
             import faiss
         except ImportError as err:
             raise err
-        BaseSignature.fit(self, hpc_args)
+        BaseSignature.fit(self, kwargs=hpc_args )
 
         # signature specific checks
         if self.molset != "full":
