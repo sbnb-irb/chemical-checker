@@ -309,9 +309,8 @@ class BaseSignature(object):
         # read config file,# NS: get the cc_config var otherwise set it to
         # os.environ['CC_CONFIG']
         original_kwargs = kwargs
-        hpc_args = {}
-        if( 'hpc_args' in kwargs):
-            hpc_args = kwargs.get('hpc_args')
+        #if( 'hpc_args' in kwargs):
+        #    hpc_args = kwargs.get('hpc_args')
             kwargs = hpc_args
             
         cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
@@ -330,12 +329,14 @@ class BaseSignature(object):
         if not os.path.isdir(job_path):
             os.mkdir(job_path)
         # check cpus
+        script_lines = [
             "ChemicalChecker.set_verbosity('DEBUG')",
-            "os.environ['OMP_NUM_THREADS'] = str(%s)" % hpc_args.get("cpu", 4),
+            "os.environ['OMP_NUM_THREADS'] = str(%s)" % kwargs.get("cpu", 4),
             "import pickle",
             "sign, args, kwargs = pickle.load(open(sys.argv[1], 'rb'))",
             "sign.%s(*args, **kwargs)" % func_name,
             "print('JOB DONE')"
+        ]
        
         if kwargs.get("delete_job_path", False):
             script_lines.append("print('DELETING JOB PATH: %s')" % job_path)
