@@ -359,6 +359,7 @@ class BaseSignature(object):
         hpc_cfg = kwargs.get("hpc_cfg", cfg)
         params = kwargs
         params["cpu"] = hpc_args.get("cpu", 4)
+        params["mem_by_core"] = hpc_args.get("mem_by_core", 5)
         params["num_jobs"] = 1
         params["jobdir"] = job_path
         params["job_name"] = job_name
