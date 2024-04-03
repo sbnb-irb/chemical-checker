@@ -308,6 +308,10 @@ class BaseSignature(object):
         
         # read config file,# NS: get the cc_config var otherwise set it to
         # os.environ['CC_CONFIG']
+        if( 'hpc_args' in kwargs):
+            hpc_args = kwargs.get('hpc_args')
+            kwargs = hpc_args
+            
         cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
         self.__log.debug(
             "CC_Config for function {} is: {}".format(func_name, cc_config))
