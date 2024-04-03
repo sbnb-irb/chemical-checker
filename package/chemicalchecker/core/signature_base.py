@@ -309,9 +309,9 @@ class BaseSignature(object):
         # read config file,# NS: get the cc_config var otherwise set it to
         # os.environ['CC_CONFIG']
         original_kwargs = kwargs
-        #if( 'hpc_args' in kwargs):
-        #    hpc_args = kwargs.get('hpc_args')
-            kwargs = hpc_args
+        hpc_args = {}
+        if( 'hpc_args' in kwargs):
+            hpc_args = kwargs.get('hpc_args')
             
         cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
         self.__log.debug(
@@ -331,7 +331,7 @@ class BaseSignature(object):
         # check cpus
         script_lines = [
             "ChemicalChecker.set_verbosity('DEBUG')",
-            "os.environ['OMP_NUM_THREADS'] = str(%s)" % kwargs.get("cpu", 4),
+            "os.environ['OMP_NUM_THREADS'] = str(%s)" % hpc_args.get("cpu", 4),
             "import pickle",
             "sign, args, kwargs = pickle.load(open(sys.argv[1], 'rb'))",
             "sign.%s(*args, **kwargs)" % func_name,
