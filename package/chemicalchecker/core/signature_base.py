@@ -308,6 +308,7 @@ class BaseSignature(object):
         
         # read config file,# NS: get the cc_config var otherwise set it to
         # os.environ['CC_CONFIG']
+        original_kwargs = kwargs
         if( 'hpc_args' in kwargs):
             hpc_args = kwargs.get('hpc_args')
             kwargs = hpc_args
@@ -363,7 +364,7 @@ class BaseSignature(object):
         # pickle self (the data) and fit args, and kwargs
         pickle_file = '%s_%s_hpc.pkl' % (self.__class__.__name__, func_name)
         pickle_path = os.path.join(job_path, pickle_file)
-        pickle.dump((self, args, kwargs), open(pickle_path, 'wb'))
+        pickle.dump((self, args, original_kwargs), open(pickle_path, 'wb'))
 
         # job command
         singularity_image = cfg.PATH.SINGULARITY_IMAGE
