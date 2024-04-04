@@ -531,7 +531,7 @@ class AdaNetWrapper(object):
             rows[split] = _update_row(
                 rows[split], "architecture", self.architecture())
             rows[split] = _update_row(rows[split], "coverage", 1.0)
-            df = df.append(pd.DataFrame(rows[split]), ignore_index=True)
+            df = pd.concat([ df, pd.DataFrame(rows[split], columns=df.columns) ], ignore_index=True)
         with open(output_pkl, 'wb') as fh:
             pickle.dump(df, fh)
         df.to_csv(output_csv)
@@ -565,7 +565,7 @@ class AdaNetWrapper(object):
                         y_true, y_pred, "_".join(list(name) + [split]))
             # save rows
             for split in rows:
-                df = df.append(pd.DataFrame(rows[split]), ignore_index=True)
+                df = pd.concat([ df, pd.DataFrame(rows[split], columns=df.columns) ], ignore_index=True)
             with open(output_pkl, 'wb') as fh:
                 pickle.dump(df, fh)
             df.to_csv(output_csv)
