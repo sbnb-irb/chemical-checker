@@ -363,7 +363,6 @@ class BaseSignature(object):
         params["num_jobs"] = 1
         params["jobdir"] = job_path
         params["job_name"] = job_name
-        params["wait"] = kwargs.get("wait", False)
 
         # pickle self (the data) and fit args, and kwargs
         pickle_file = '%s_%s_hpc.pkl' % (self.__class__.__name__, func_name)
