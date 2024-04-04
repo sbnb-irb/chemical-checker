@@ -277,14 +277,14 @@ fi
             raise Exception(
                 "Unable to establish SSH connection: %s" % sshException)
 
-        t=0
-        while (self.status_id == STARTED):
-            self.status()
-            time.sleep(30)
-            t+=30
-            print(t)
-        
         if wait:
+            t=0
+            while (self.status_id == STARTED):
+                self.status()
+                time.sleep(30)
+                t+=30
+                print(t)
+                
             errors = None
             with open(self.statusFile, "w") as f:
                 f.write(DONE)
