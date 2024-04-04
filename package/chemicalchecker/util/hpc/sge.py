@@ -248,11 +248,18 @@ fi
         self.__log.debug("HPC submission: " + submit_string)
 
         time.sleep(2)
-
+        
         try:
             ssh = paramiko.SSHClient()
             ssh.load_system_host_keys()
             ssh.connect(self.host, **self.conn_params)
+            
+            self.statusFile = os.path.join(
+            self.jobdir, self.job_name + sge.jobStatusSuffix)
+            with open(self.statusFile, "w") as f:
+                f.write(STARTED)
+            self.status_id = STARTED
+            
             stdin, stdout, stderr = ssh.exec_command(
                 submit_string, get_pty=True)
 
@@ -265,21 +272,17 @@ fi
 
             self.job_id = self.job_id.rstrip()
             self.__log.debug('Job id: %s' % self.job_id)
+            ssh.close()
         except paramiko.SSHException as sshException:
             raise Exception(
                 "Unable to establish SSH connection: %s" % sshException)
 
-        finally:
-            ssh.close()
-            self.statusFile = os.path.join(
-                self.jobdir, self.job_name + sge.jobStatusSuffix)
-            with open(self.statusFile, "w") as f:
-                f.write(STARTED)
-            self.status_id = STARTED
-        
+        t=0
         while (self.status_id == STARTED):
             self.status()
             time.sleep(30)
+            t+=30
+            print(t)
         
         if wait:
             errors = None

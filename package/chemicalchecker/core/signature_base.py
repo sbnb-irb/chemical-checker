@@ -285,7 +285,6 @@ class BaseSignature(object):
         if path == "":
             path = self.model_path
         """The fit method was already called for this signature."""
-        print(os.path.join(path, self.readyfile) )
         if os.path.exists(os.path.join(path, self.readyfile)):
             return True
         else:
@@ -360,6 +359,7 @@ class BaseSignature(object):
         params = kwargs
         params["cpu"] = hpc_args.get("cpu", 4)
         params["mem_by_core"] = hpc_args.get("mem_by_core", 5)
+        params["wait"] = hpc_args.get("wait", True)
         params["num_jobs"] = 1
         params["jobdir"] = job_path
         params["job_name"] = job_name

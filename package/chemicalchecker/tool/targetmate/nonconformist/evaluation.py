@@ -202,7 +202,7 @@ def cross_val_score(model,x, y, iterations=10, folds=10, fit_params=None,
 						  for scoring_func in scoring_funcs]
 				df_score = pd.DataFrame([[i, j, s] + scores],
 											columns=columns)
-				df = df.append(df_score, ignore_index=True)
+				df = pd.concat([ df, df_score ], ignore_index=True)
 
 	return df
 
@@ -282,7 +282,7 @@ def run_experiment(models, csv_files, iterations=10, folds=10, fit_params=None,
 			except:
 				ds_df['data_set'] = csv_file
 
-			df = df.append(ds_df)
+			df = pd.concat([ df, ds_df ] )
 
 	return df
 
