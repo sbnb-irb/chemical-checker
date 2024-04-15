@@ -2359,7 +2359,7 @@ class MultiPlot():
             s3_conf_new_w = np.average(
                 [s3_intensity, (1 - s3_stddev), (1 - s3_experr)], axis=0, weights=[1, 1, pc_experr])
 
-            df = pd.DataFrame({'train': True, 'confidence': 0[
+            df = pd.DataFrame({'train': True, 'confidence': s3_conf[
                               train_idxs], 'kind': 'old'})
             df = pd.concat([ df, pd.DataFrame({'train': False, 'confidence': s3_conf[
                            test_idxs], 'kind': 'old'}) ], ignore_index=True)
