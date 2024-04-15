@@ -68,6 +68,9 @@ def pipeline_parser():
         help='Root dir of the CC instance to use as reference '
         '(i.e. triplet sampling in sign0).')
     parser.add_argument(
+        '-m', '--mode_complete_universe', type=str, default="full", required=False,
+        help='Choose between the full mode (all chemical spaces) or fast (skipping A2.001 space)')
+    parser.add_argument(
         '-t', '--only_tasks', type=str, nargs="+", default=[],
         required=False,
         help='Names of tasks that will `exclusively` run by the pipeline.')  # format like -t sign0 sign1 sign2
@@ -223,13 +226,15 @@ def main(args):
         }
         fit_kwargs['sign3'][ds] = {
             'sign2_list': sign2_list,
+            'complete_universe': False,
             'sign2_universe': sign2_universe,
             'sign2_coverage': sign2_coverage,
             'sign0': mfp,
             'diagnostics': False
         }
         sign_kwargs['sign3'][ds] = {
-            'sign2': {'cpu': hpc_kwargs['sign3']['cpu']}
+            'sign2': {'cpu': hpc_kwargs['sign3']['cpu']},
+            'hpc_args': hpc_kwargs['sign3']
         }
         sign_kwargs['neig1'][ds] = {
             'cpu': hpc_kwargs['neig1']['cpu']
@@ -459,6 +464,27 @@ def main(args):
         python_callable=sign2_universe_fn,
         op_args=[sign2_list, sign2_universe, sign2_coverage])
     pp.add_task(sign2_universe_task)
+    # END TASK
+    #############################################
+    
+    #############################################
+    # TASK: Complete universe, calculating physical-chemical features for the molecules that exist in the other cc spaces but are not in the original set of the A spaces.
+    tmpCC = pp.tmpdir
+    sign2_src_dataset_list = [sign.dataset for sign in sign2_list]
+    
+    refcc = None
+    if( args.reference_cc != "" ):
+        refcc = args.reference_cc
+    
+    calc_idx_chemical_spaces=[0,1,2,3,4]
+    if( args.mode_complete_universe == 'fast' ):
+        calc_idx_chemical_spaces=[0,2,3,4]    
+    
+    task = PythonCallable(name="complete_sign2_universe_global",
+                         python_callable = sign3.complete_sign2_universe_global_pipeline,
+                         op_args=[sign2_universe, sign2_coverage],
+                         op_kwargs={'tmp_path': pp.tmpdir, 'root_cc': args.cc_root, 'ref_cc': refcc, 'calc_idx_chemical_spaces': calc_idx_chemical_spaces, 'sign2_src_dataset_list': sign2_src_dataset_list })
+    pp.add_task(task)
     # END TASK
     #############################################
 

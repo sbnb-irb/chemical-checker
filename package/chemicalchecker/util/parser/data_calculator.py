@@ -32,6 +32,7 @@ class DataCalculator():
     def morgan_fp_r2_2048(inchikey_inchi, chunks=1000, dense=True):
         try:
             from rdkit.Chem import AllChem as Chem
+            from rdkit.Chem import rdFingerprintGenerator
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
@@ -51,8 +52,9 @@ class DataCalculator():
                 continue
             info = {}
             # print mol
-            fp = Chem.GetMorganFingerprintAsBitVect(
-                mol, radius, nBits=nBits, bitInfo=info)
+            #fp = Chem.GetMorganFingerprintAsBitVect( mol, radius, nBits=nBits, bitInfo=info)
+            mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=nBits)
+            fp = mfpgen.GetFingerprint(mol)
             if dense:
                 dense = ",".join("%d" % s for s in sorted(
                     [x for x in fp.GetOnBits()]))
@@ -94,8 +96,7 @@ class DataCalculator():
                                fprint_params={}, save=False):
             mol = Chem.rdinchi.InchiToMol(inchi)[0]
 
-            if Descriptors.MolWt(mol) > 800 or \
-                    rdMolDescriptors.CalcNumRotatableBonds(mol) > 11:
+            if Descriptors.MolWt(mol) > 800 or rdMolDescriptors.CalcNumRotatableBonds(mol) > 11:
                 return None
 
             smiles = Chem.MolToSmiles(mol, isomericSmiles=True)
@@ -109,8 +110,7 @@ class DataCalculator():
             if k is None:
                 continue
             try:
-                fps = fprints_from_inchi(
-                    str(inchikey_inchi[k]), str(k), params[0], params[1])
+                fps = fprints_from_inchi( str(inchikey_inchi[k]), str(k), params[0], params[1])
             except Exception:
                 DataCalculator.__log.warning('Timeout inchikey: ' + k)
                 fps = None
@@ -136,6 +136,7 @@ class DataCalculator():
         try:
             from rdkit.Chem import AllChem as Chem
             from rdkit.Chem.Scaffolds import MurckoScaffold
+            from rdkit.Chem import rdFingerprintGenerator
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
@@ -150,10 +151,13 @@ class DataCalculator():
                 core = mol
             fw = MurckoScaffold.MakeScaffoldGeneric(core)
             info = {}
-            c_fp = Chem.GetMorganFingerprintAsBitVect(
-                core, radius, nBits=nBits, bitInfo=info).GetOnBits()
-            f_fp = Chem.GetMorganFingerprintAsBitVect(
-                fw, radius, nBits=nBits, bitInfo=info).GetOnBits()
+            mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=nBits)
+            c_fp = mfpgen.GetFingerprint( core ).GetOnBits()
+            f_fp = mfpgen.GetFingerprint( fw ).GetOnBits()
+            
+            #c_fp = Chem.GetMorganFingerprintAsBitVect( core, radius, nBits=nBits, bitInfo=info).GetOnBits()
+            #f_fp = Chem.GetMorganFingerprintAsBitVect( fw, radius, nBits=nBits, bitInfo=info).GetOnBits()
+            
             fp = ["c%d" % x for x in c_fp] + ["f%d" % y for y in f_fp]
             return ",".join(fp)
 
@@ -323,6 +327,7 @@ class DataCalculator():
         try:
             from rdkit.Chem import AllChem as Chem
             from rdkit import DataStructs
+            from rdkit.Chem import rdFingerprintGenerator
         except ImportError:
             raise ImportError("requires rdkit " +
                               "https://www.rdkit.org/")
@@ -367,7 +372,9 @@ class DataCalculator():
 
         def predict_targets(inchi):
             mol = Chem.rdinchi.InchiToMol(inchi)[0]
-            fp = Chem.GetMorganFingerprintAsBitVect( mol, 2, nBits=2048, bitInfo={})
+            mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+            fp = mfpgen.GetFingerprint( mol )
+            #fp = Chem.GetMorganFingerprintAsBitVect( mol, 2, nBits=2048, bitInfo={})
             
             res = np.zeros(len(fp), int )
             DataStructs.ConvertToNumpyArray(fp, res)

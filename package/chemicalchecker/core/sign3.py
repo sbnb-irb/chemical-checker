@@ -31,7 +31,7 @@ from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import OldTripletSampler, TripletIterator
 from chemicalchecker.util.splitter import BaseTripletSampler
 from chemicalchecker.util.parser.converter import Converter
-
+from chemicalchecker.database import Dataset
 
 @logged
 class sign3(BaseSignature, DataSignature):
@@ -196,6 +196,173 @@ class sign3(BaseSignature, DataSignature):
                                  (sign.dataset, np.count_nonzero(coverage)))
                 fh['x_test'][:, idx:(idx + 1)] = np.expand_dims(coverage, 1)
 
+    @staticmethod
+    def complete_sign2_universe_global_pipeline(sign2_universe, sign2_coverage, tmp_path=None, root_cc=None, ref_cc=None, calc_idx_chemical_spaces=[0,1,2,3,4], sign2_src_dataset_list=None ):
+        """Completes the universe for extra molecules.
+
+        Important if the dataset we are fitting is defined on molecules
+        that largely do not overlap with CC molecules. In that case there is no
+        orthogonal information to derive sign3. We should always have at least
+        the chemistry (calculated) level available for all molecules of the
+        dataset.
+
+        Args:
+            sign2_universe(str): Path to the union of all signatures 2 for all
+                molecules in the CC universe. (~1M x 3200)
+            sign2_coverage(str): Path to the coverage of all signatures 2 for
+                all molecules in the CC universe. (~1M x 25)
+            tmp_path(str): Temporary path where to save extra molecules'
+                signatures.
+            calc_idx_chemical_spaces(list): List of indexes to complete in concerning the A chemical space (For example: [0,2,3] would mean ['A1.001', 'A3.001', 'A4.001'])
+            sign2_src_dataset_list: List of sign2 dataset paths
+        Returns:
+            Paths ot the new sign2 universe and coverage file.
+        """
+        from chemicalchecker import ChemicalChecker
+        
+        cc_ref = ChemicalChecker(root_cc)
+        
+        merged_sign2_keys = set()
+        datasets = [ds.code for ds in Dataset.get(exemplary=True)]
+        for d in datasets:
+            sign2 = cc_ref.get_signature('sign2', 'full', d)
+            merged_sign2_keys.update( sign2.keys )
+           
+        calc_ds_names = []
+        chem_ds_names=['A1.001', 'A2.001', 'A3.001', 'A4.001', 'A5.001']   
+        for ic in calc_idx_chemical_spaces:
+            calc_ds_names.append( chem_ds_names[ic] )
+        
+        # make a copy of the sign2 universe and coverage
+        sign3.__log.info('Completing universe, making copy of original files')
+        sign2_universe_ext = sign2_universe + '.complete.h5'
+        sign2_coverage_ext = sign2_coverage + '.complete.h5'
+        
+        # shortcut if already computed
+        if os.path.isfile(sign2_universe_ext):
+            if os.path.isfile(sign2_coverage_ext):
+                sign3.__log.debug('Completed universe already available')
+                return sign2_universe_ext, sign2_coverage_ext
+                
+        if not os.path.isfile(sign2_universe_ext):
+            shutil.copyfile(sign2_universe, sign2_universe_ext)
+        shutil.copyfile(sign2_coverage, sign2_coverage_ext)
+        
+        # which molecules in which space should be calculated?
+        cov = DataSignature(sign2_coverage)
+        inks, cov_ds = cov.get_vectors( merged_sign2_keys, dataset_name='x_test')
+        sign3.__log.info('Coverage matrix shape: %s' % str(cov_ds.shape))
+        conv = Converter()
+        # check coverage of calculated spaces
+        missing = np.sum(~cov_ds[:, calc_idx_chemical_spaces].astype(bool), axis=0)
+        missing = missing.ravel().tolist()
+        sign3.__log.info(
+            "Completing universe for missing molecules: %s" %
+            ', '.join(['%s: %s' % a for a in zip(calc_ds_names, missing)]))
+        # reference CC
+        if ref_cc is not None:
+            cc_ref = ChemicalChecker(ref_cc)
+            
+        # create CC instance to host signatures
+        cc_extra = ChemicalChecker(os.path.join(tmp_path, 'tmp_cc'))
+        # for each calculated space
+        for ds_id, ds in zip(calc_idx_chemical_spaces, calc_ds_names):
+            print('Calculating ', ds)
+            
+            print('--- Preparing molecule identifiers - converting inchikey to inchi')
+            # prepare input file with missing inchikeys
+            input_file = os.path.join(tmp_path, '%s_input.tsv' % ds)
+            if not os.path.isfile(input_file):
+                fh = open(input_file, 'w')
+                miss_ink = inks[cov_ds[:, ds_id] == 0]
+                mi = miss_ink
+                # new inks must be sorted
+                assert(all(mi[i] <= mi[i + 1] for i in range(len(mi) - 1)))
+                sign3.__log.info('Getting InChI for %s molecules' %
+                                 (len(miss_ink)))
+                miss_count = 0
+                for ink in miss_ink:
+                    try:
+                        inchi = conv.inchikey_to_inchi(ink)
+                    except Exception as ex:
+                        sign3.__log.warning(str(ex))
+                        continue
+                    fh.write('%s\t%s\n' % (ink, inchi))
+                    miss_count += 1
+                fh.close()
+                sign3.__log.info('Adding %s molecules to %s' %
+                                 (miss_count, ds))
+                if miss_count == 0:
+                    continue
+            
+            print('--- Running preprocessing')
+            # call preprocess with predict
+            s0_ref = cc_ref.get_signature('sign0', 'full', ds)
+            raw_file = os.path.join(tmp_path, '%s_raw.h5' % ds)
+            if not os.path.isfile(raw_file):
+                Preprocess.preprocess_predict(s0_ref, input_file, raw_file,
+                                              'inchi')
+            print('--- Predicting sign0')
+            # run sign0 predict
+            s0_ext = cc_extra.get_signature('sign0', 'full', ds)
+            if not os.path.isfile(s0_ext.data_path):
+                s0_ref.predict(data_file=raw_file, destination=s0_ext)
+            
+            print('--- Predicting sign1')
+            # run sign1 predict
+            s1_ext = cc_extra.get_signature('sign1', 'full', ds)
+            s1_ref = cc_ref.get_signature('sign1', 'reference', ds)
+            if not os.path.isfile(s1_ext.data_path):
+                s1_ref.predict(s0_ext, destination=s1_ext)
+            
+            print('--- Predicting sign2')
+            # run sign2 predict
+            s2_ext = cc_extra.get_signature('sign2', 'full', ds)
+            s2_ref = cc_ref.get_signature('sign2', 'reference', ds)
+            
+            if not os.path.isfile(s2_ext.data_path):
+                s2_ref.predict(s1_ext, destination=s2_ext)
+                
+            # update sign2_universe and sign2_coverage
+            upd_uni = h5py.File(sign2_universe_ext, "a")
+            upd_cov = h5py.File(sign2_coverage_ext, "a")
+            rows = np.isin(upd_uni['keys'][:].astype(str), s2_ext.keys)
+            rows_idx = np.argwhere(rows).ravel()
+            sign3.__log.info('Updating %s universe rows in %s' %
+                             (len(rows_idx), ds))
+            # new keys must be a subset of universe
+            print('--- Updating coverage and universe')
+            assert(len(rows_idx) == len(s2_ext.keys))
+            for rid, sig in zip(rows_idx, s2_ext[:]):
+                old_sig = upd_uni['x_test'][rid][ds_id * 128:(ds_id + 1) * 128]
+                # old signature in universe must be nan
+                assert(np.all(np.isnan(old_sig)))
+                new_row = np.copy(upd_uni['x_test'][rid])
+                new_row[ds_id * 128:(ds_id + 1) * 128] = sig
+                upd_uni['x_test'][rid] = new_row
+                new_row = np.copy(upd_cov['x_test'][rid])
+                new_row[ds_id:ds_id + 1] = 1
+                upd_cov['x_test'][rid] = new_row
+            upd_uni.close()
+            upd_cov.close()
+        # final report
+        upd_uni = h5py.File(sign2_universe_ext, "r")
+        upd_cov = h5py.File(sign2_coverage_ext, "r")
+        old_cov = h5py.File(sign2_coverage, "r")
+        sign3.__log.info('Checking updated universe...')
+
+        for col, name in enumerate( sign2_src_dataset_list ):  # cc_ref.datasets
+            tot_upd = sum(upd_cov['x_test'][:, col])
+            cov_delta = int(tot_upd - sum(old_cov['x_test'][:, col]))
+            if cov_delta == 0:
+                continue
+            sign3.__log.info('Added %s molecules to %s' % (cov_delta, name))
+            # check head and tail of signature
+            sig_head = upd_uni['x_test'][:, col * 128]
+            sig_tail = upd_uni['x_test'][:, (col + 1) * 128 - 1]
+            assert(sum(~np.isnan(sig_head)) == tot_upd)
+            assert(sum(~np.isnan(sig_tail)) == tot_upd)
+        
     def complete_sign2_universe(self, sign2_self, sign2_universe,
                                 sign2_coverage, tmp_path=None,
                                 calc_ds_idx=[0, 1, 2, 3, 4],
@@ -300,6 +467,7 @@ class sign3(BaseSignature, DataSignature):
             # run sign2 predict
             s2_ext = cc_extra.get_signature('sign2', 'full', ds)
             s2_ref = cc_ref.get_signature('sign2', 'reference', ds)
+            
             if not os.path.isfile(s2_ext.data_path):
                 s2_ref.predict(s1_ext, destination=s2_ext)
             # update sign2_universe and sign2_coverage
@@ -1743,7 +1911,7 @@ class sign3(BaseSignature, DataSignature):
         return inchikeys
 
     def fit(self, sign2_list=None, sign2_self=None, triplet_sign=None,
-            sign2_universe=None, complete_universe='full',
+            sign2_universe=None, complete_universe=False,
             sign2_coverage=None,
             model_confidence=True, save_correlations=False,
             predict_novelty=False, update_preds=True,
@@ -1788,7 +1956,6 @@ class sign3(BaseSignature, DataSignature):
         except ImportError as err:
             raise err
         BaseSignature.fit(self, kwargs=hpc_args )
-
         # signature specific checks
         if self.molset != "full":
             self.__log.debug("Fit will be done with the full sign3")
@@ -1842,7 +2009,7 @@ class sign3(BaseSignature, DataSignature):
                 calc_ds_names = ['A1.001', 'A3.001', 'A4.001', 'A5.001']
             if complete_universe == 'custom':
                 calc_ds_idx = kwargs['calc_ds_idx']
-                calc_ds_names = kwargs['calc_ds_names']
+                calc_ds_names = kwargs['calc_ds_names'] 
             res = self.complete_sign2_universe(
                 sign2_self, self.sign2_universe, self.sign2_coverage,
                 tmp_path=self.model_path, calc_ds_idx=calc_ds_idx,
