@@ -80,7 +80,7 @@ fi
 
         self.statusFile = None
         self.status_id = None
-        self.conn_params = {}
+        self.conn_params = { }
 
         if self.username != '' and self.password != '':
             self.conn_params["username"] = self.username
@@ -150,8 +150,8 @@ fi
         if self.queue is not None:
             submit_string += " -q " + self.queue + " "
 
-        if wait:
-            submit_string += " -sync y "
+        #if wait:
+        #    submit_string += " -sync y "
 
         self.__log.debug("Job name is: " + self.job_name)
 
@@ -259,7 +259,7 @@ fi
             with open(self.statusFile, "w") as f:
                 f.write(STARTED)
             self.status_id = STARTED
-            
+            print('wait', wait)
             stdin, stdout, stderr = ssh.exec_command(
                 submit_string, get_pty=True)
 
@@ -281,8 +281,8 @@ fi
             t=0
             while (self.status_id == STARTED):
                 self.status()
-                time.sleep(30)
-                t+=30
+                time.sleep(60)
+                t+=60
                 print(t)
                 
             errors = None
@@ -362,8 +362,7 @@ fi
                 ssh = paramiko.SSHClient()
                 ssh.load_system_host_keys()
                 ssh.connect(self.host, **self.conn_params)
-                stdin, stdout, stderr = ssh.exec_command(
-                    'qstat -j ' + self.job_id)
+                stdin, stdout, stderr = ssh.exec_command( 'qstat -j ' + self.job_id)
                 message = stdout.readlines()
                 self.__log.debug(message)
                 
