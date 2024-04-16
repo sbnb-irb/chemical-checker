@@ -1439,6 +1439,7 @@ print('JOB DONE')
             lab_counts = [(k, v) for k, v in sorted(
                 lab_counts.items(), key=lambda item: -item[1])]
             return (labels, lab_counts, eps, n_clusters_, n_noise_)
+            
         best_score = 0
         best_n_neigh = None
         for n_neigh in n_neighbors:

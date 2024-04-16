@@ -66,18 +66,21 @@ class DataSignature(object):
 
     def _check_dataset(self, key):
         """Test if dataset is available"""
-        with h5py.File(self.data_path, 'r') as hf:
-            if key not in hf.keys():
-                raise Exception("No '%s' dataset in this signature!" % key)
+        hf = h5py.File(self.data_path, 'r')
+        if key not in hf.keys():
+            raise Exception("No '%s' dataset in this signature!" % key)
+        hf.close()
 
     def clear(self):
-        with h5py.File(self.data_path, 'w') as hf:
-            pass
+        hf = h5py.File(self.data_path, 'w')
+        hf.close()
 
     def _get_shape(self, key, axis=None):
         """Get shape of dataset"""
-        with h5py.File(self.data_path, 'r') as hf:
-            data = hf[key].shape
+        hf = h5py.File(self.data_path, 'r')
+        data = hf[key].shape
+        hf.close()
+        
         if axis != None:
             if len(data) == axis:
                 return data[0]
@@ -87,14 +90,18 @@ class DataSignature(object):
 
     def _get_dtype(self, key):
         """Get shape of dataset"""
-        with h5py.File(self.data_path, 'r') as hf:
-            data = hf[key][0].flat[0].dtype
+        hf = h5py.File(self.data_path, 'r')
+        data = hf[key][0].flat[0].dtype
+        hf.close()
+        
         return data
 
     def _get_all(self, key):
         """Get complete dataset"""
-        with h5py.File(self.data_path, 'r') as hf:
-            data = hf[key][:]
+        hf = h5py.File(self.data_path, 'r')
+        data = hf[key][:]
+        hf.close()
+        
         if hasattr(data.flat[0], 'decode'):
             return data.astype(str)
         return data
