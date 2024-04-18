@@ -4,6 +4,8 @@ import collections
 import h5py
 import logging
 
+from chemicalchecker.core.chemcheck import ChemicalChecker
+from chemicalchecker.util import logged, Config
 from chemicalchecker.util import logged
 from chemicalchecker.database import Calcdata
 from chemicalchecker.database import Molrepo
@@ -37,17 +39,27 @@ def main(args):
     features = None
 
     if args.method == "fit":
-
-        molrepos = Molrepo.get_universe_molrepos()
-        main._log.info("Querying molrepos")
+        ccinstance = ChemicalChecker( os.path.realpath(Config().PATH.CC_ROOT) )
+        universe = set( ccinstance.universe )
+        
         ACTS = []
         inchikeys = set()
+        key_list = []
         molprop = Calcdata(name)
-        for molrepo in molrepos:
-            molrepo = str(molrepo[0])
-            inchikeys.update(Molrepo.get_fields_by_molrepo_name(
-                molrepo, ["inchikey"]))
-        props = molprop.get_properties_from_list([i[0] for i in inchikeys])
+        if( len(universe) == 0 ):
+            molrepos = Molrepo.get_universe_molrepos()
+            main._log.info("Querying molrepos")
+            
+            for molrepo in molrepos:
+                molrepo = str(molrepo[0])
+                inchikeys.update(Molrepo.get_fields_by_molrepo_name(
+                    molrepo, ["inchikey"]))
+                key_list = [ i[0] for i in inchikeys ]
+        else:
+            inchikeys = universe
+            key_list = [i for i in inchikeys]
+            
+        props = molprop.get_properties_from_list( key_list )
         ACTS.extend(props)
 
     if args.method == "predict":

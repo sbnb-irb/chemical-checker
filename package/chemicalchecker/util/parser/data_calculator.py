@@ -74,7 +74,7 @@ class DataCalculator():
         yield chunk
 
     @staticmethod
-    def e3fp_3conf_1024(inchikey_inchi, chunks=1000):
+    def e3fp_3conf_1024(inchikey_inchi, chunks=1000, cores=None):
         try:
             from rdkit.Chem import AllChem as Chem
             from rdkit.Chem import Descriptors, rdMolDescriptors
@@ -130,6 +130,61 @@ class DataCalculator():
                 yield chunk
                 chunk = list()
         yield chunk
+
+    @staticmethod
+    def e3fp_3conf_1024_parallel(inchikey_inchi, chunks=1000, cores=4):
+        try:
+            from rdkit.Chem import AllChem as Chem
+            from rdkit.Chem import Descriptors, rdMolDescriptors
+            from python_utilities.parallel import Parallelizer
+        except ImportError:
+            raise ImportError("requires rdkit " +
+                              "https://www.rdkit.org/")
+        try:
+            from e3fp import pipeline
+        except ImportError:
+            raise ImportError("requires e3fp " +
+                              "https://github.com/keiserlab/e3fp")
+
+        root = os.path.dirname(os.path.realpath(__file__))
+
+        params = pipeline.params_to_dicts(root + "/data/defaults.cfg")
+
+        @timeout(100, use_signals=False)
+        def fprints_from_inchi(inchi, inchikey, confgen_params={}, fprint_params={}, save=False):
+            try:
+                result = None
+                if(inchi != None):
+                    mol = Chem.rdinchi.InchiToMol(inchi)[0]
+                    if(mol != None):
+                        if Descriptors.MolWt(mol) > 800 or rdMolDescriptors.CalcNumRotatableBonds(mol) > 11:
+                            result = None
+                        else:
+                            smiles = Chem.MolToSmiles(mol, isomericSmiles=True)
+                            result = pipeline.fprints_from_smiles( smiles, inchikey, confgen_params, fprint_params, save )
+            except Exception:
+                result = None
+            if not result:
+                result = {
+                    "inchikey": inchikey,
+                    "raw": result
+                }
+            else:
+                s = ",".join([str(x) for fp in result for x in fp.indices])
+                result = {
+                    "inchikey": inchikey,
+                    "raw": result
+                }
+            return result
+        
+        kwargs = {"confgen_params": params[0], "fprint_params": params[1] }
+        parallelizer = Parallelizer(parallel_mode="processes", num_proc=cores)
+        items = inchikey_inchi.items()
+        for i in range(0, len(items), chunks):
+            part = items[i:i+chunks]
+            inchi_iter = ( (inchi, key) for key, inchi in part )
+            chunk = parallelizer.run(fprints_from_inchi, inchi_iter, kwargs=kwargs) 
+            yield chunk
 
     @staticmethod
     def murcko_1024_cframe_1024(inchikey_inchi, chunks=1000):

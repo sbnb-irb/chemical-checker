@@ -305,6 +305,11 @@ class BaseSignature(object):
             kwargs(dict): arguments for the HPC method.
         """
         
+        exec_universe_in_parallel = kwargs.get('exec_universe_in_parallel', False)
+        pcores = hpc_args.get("cpu", 4)
+        if( self.cctype == 'sign3' and exec_universe_in_parallel ):
+            pcores = 1
+        
         # read config file,# NS: get the cc_config var otherwise set it to
         # os.environ['CC_CONFIG']
         original_kwargs = kwargs
@@ -357,7 +362,7 @@ class BaseSignature(object):
         # hpc parameters
         hpc_cfg = kwargs.get("hpc_cfg", cfg)
         params = kwargs
-        params["cpu"] = hpc_args.get("cpu", 4)
+        params["cpu"] = pcores
         params["mem_by_core"] = hpc_args.get("mem_by_core", 5)
         params["wait"] = hpc_args.get("wait", True)
         params["num_jobs"] = 1
