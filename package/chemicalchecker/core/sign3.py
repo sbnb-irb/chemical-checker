@@ -368,7 +368,7 @@ class sign3(BaseSignature, DataSignature):
                                 calc_ds_idx=[0, 1, 2, 3, 4],
                                 calc_ds_names=['A1.001', 'A2.001', 'A3.001',
                                                'A4.001', 'A5.001'],
-                                ref_cc=None):
+                                ref_cc=None, exec_in_parallel=False, cores=None):
         """Completes the universe for extra molecules.
 
         Important if the dataset we are fitting is defined on molecules
@@ -453,8 +453,13 @@ class sign3(BaseSignature, DataSignature):
             s0_ref = cc_ref.get_signature('sign0', 'full', ds)
             raw_file = os.path.join(tmp_path, '%s_raw.h5' % ds)
             if not os.path.isfile(raw_file):
+                pcores = None
+                if( exec_in_parallel ):
+                    pcores = 4
+                    if(cores != None):
+                        pcores = cores
                 Preprocess.preprocess_predict(s0_ref, input_file, raw_file,
-                                              'inchi')
+                                              'inchi', cores=pcores)
             # run sign0 predict
             s0_ext = cc_extra.get_signature('sign0', 'full', ds)
             if not os.path.isfile(s0_ext.data_path):
@@ -1911,7 +1916,7 @@ class sign3(BaseSignature, DataSignature):
         return inchikeys
 
     def fit(self, sign2_list=None, sign2_self=None, triplet_sign=None,
-            sign2_universe=None, complete_universe=False,
+            sign2_universe=None, complete_universe=False, exec_universe_in_parallel=False,
             sign2_coverage=None,
             model_confidence=True, save_correlations=False,
             predict_novelty=False, update_preds=True,
@@ -2010,10 +2015,14 @@ class sign3(BaseSignature, DataSignature):
             if complete_universe == 'custom':
                 calc_ds_idx = kwargs['calc_ds_idx']
                 calc_ds_names = kwargs['calc_ds_names'] 
+            
+            pcores = None
+            if( exec_universe_in_parallel ):
+                pcores = hpc_args.get("cpu", 4)
             res = self.complete_sign2_universe(
                 sign2_self, self.sign2_universe, self.sign2_coverage,
                 tmp_path=self.model_path, calc_ds_idx=calc_ds_idx,
-                calc_ds_names=calc_ds_names)
+                calc_ds_names=calc_ds_names, exec_universe_in_parallel = exec_universe_in_parallel, cores = pcores)
             self.sign2_universe, self.sign2_coverage = res
 
         # check if performance evaluations need to be done
