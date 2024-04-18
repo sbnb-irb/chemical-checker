@@ -81,7 +81,7 @@ class Preprocess():
         else:
             return False
 
-    def call_preprocess(self, output, method, infile=None, entry=None): #params = {}
+    def call_preprocess(self, output, method, infile=None, entry=None, cores=None): #params = {}
         """Call the external pre-process script."""
         # create argument list
         arglist = ["-o", output, "-mp", self.raw_model_path, "-m", method]
@@ -89,6 +89,8 @@ class Preprocess():
             arglist.extend(['-i', infile])
         if entry:
             arglist.extend(['-ep', entry])
+        if cores:
+            arglist.extend(['-c', cores])
         # import and run the run.py
         loader = importlib.machinery.SourceFileLoader('preprocess_script',
                                                       self.preprocess_script)
@@ -112,7 +114,7 @@ class Preprocess():
 
         self.call_preprocess(self.data_path, "fit", None, None) #self.params
 
-    def predict(self, input_data_file, destination, entry_point):
+    def predict(self, input_data_file, destination, entry_point, cores):
         """Call the external preprocess script to generate H5 data."""
         """
         Args:
@@ -133,7 +135,7 @@ class Preprocess():
                             self.preprocess_script)
 
         self.call_preprocess(destination, "predict", infile=input_data_file,
-                             entry=entry_point)
+                             entry=entry_point, cores)
 
     def to_features(self, signatures):
         """Convert signature to explicit feature names.
@@ -186,7 +188,7 @@ class Preprocess():
         return prepro.data_path
 
     @classmethod
-    def preprocess_predict(cls, sign, input_file, destination, entry_point):
+    def preprocess_predict(cls, sign, input_file, destination, entry_point, cores=None):
         """Runs the preprocessing script 'predict'.
 
         Run on an input file of raw data formatted correctly for the space of
@@ -215,7 +217,7 @@ class Preprocess():
             raise Exception("Error, {} does not exist!".format(input_file))
 
         prepro = cls(sign.signature_path, sign.dataset)
-        prepro.predict(input_file, destination, entry_point)
+        prepro.predict(input_file, destination, entry_point, cores)
 
         return destination
 
@@ -237,6 +239,9 @@ class Preprocess():
         parser.add_argument('-ep', '--entry_point', type=str,
                             required=False, default=None,
                             help='The predict entry point')
+        parser.add_argument('-c', '--cores', type=int,
+                            required=False, default=None,
+                            help='Number of cores to use for chemical properties calculation')
         return parser
 
     @staticmethod

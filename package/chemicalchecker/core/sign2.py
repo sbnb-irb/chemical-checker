@@ -107,7 +107,7 @@ class sign2(BaseSignature, DataSignature):
             lines = fh.readlines()
         graph_mol = set(l.split()[0] for l in lines)
         # we can just compare the total nr
-        if not len(graph_mol) == len(sign1.unique_keys):
+        if not len(graph_mol) == len(neig1.unique_keys):
             raise Exception("Graph %s is missing nodes." % graph_file)
         # save graph stats
         graph_stat_file = os.path.join(self.stats_path, 'graph_stats.json')
