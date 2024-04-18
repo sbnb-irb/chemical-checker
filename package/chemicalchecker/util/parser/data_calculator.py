@@ -56,8 +56,7 @@ class DataCalculator():
             mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=nBits)
             fp = mfpgen.GetFingerprint(mol)
             if dense:
-                dense = ",".join("%d" % s for s in sorted(
-                    [x for x in fp.GetOnBits()]))
+                dense = ",".join( "%d" % s for s in sorted( [x for x in fp.GetOnBits()] ) )
                 result = {
                     "inchikey": ik,
                     "raw": dense
