@@ -112,7 +112,7 @@ class Preprocess():
             raise Exception("Preprocess script not found! %s",
                             self.preprocess_script)
 
-        self.call_preprocess(self.data_path, "fit", None, None) #self.params
+        self.call_preprocess(self.data_path, "fit", None, None, None) #self.params
 
     def predict(self, input_data_file, destination, entry_point, cores):
         """Call the external preprocess script to generate H5 data."""
@@ -135,7 +135,7 @@ class Preprocess():
                             self.preprocess_script)
 
         self.call_preprocess(destination, "predict", infile=input_data_file,
-                             entry=entry_point, cores)
+                             entry=entry_point, cores=cores )
 
     def to_features(self, signatures):
         """Convert signature to explicit feature names.

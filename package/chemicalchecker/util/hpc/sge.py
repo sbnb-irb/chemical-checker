@@ -66,8 +66,9 @@ fi
         
         # Specific addition for the cc update, remove later
         if( self.specificNode == None or self.specificNode == '' ):
-            #self.specificNode = ['pac-one107', 'pac-one109', 'pac-one301', 'pac-one401']
-            self.specificNode = [ 'pac-one301', 'pac-one401']
+            self.specificNode = ['pac-one107', 'pac-one109', 'pac-one301', 'pac-one401']
+            #self.specificNode = [ 'pac-one301', 'pac-one401']
+            self.specificNode = ['pac-one109', 'pac-one301', 'pac-one401']
             
         if self.specificNode != None:
             nodes = ','.join( [ f'all.q@{n}' for n in  self.specificNode] )

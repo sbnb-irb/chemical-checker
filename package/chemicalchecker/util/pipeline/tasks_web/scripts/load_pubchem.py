@@ -38,7 +38,11 @@ def formatting(text):
             if t is None:
                 t = ''
             new_text.append("'" + t.replace("'", "''") + "'")
-    return "(" + ','.join(new_text) + ")"
+    
+    row = "(" + ','.join(new_text) + ")"
+    row = row.replace("('', '',", "(null, '',")
+    
+    return row
 
 
 def query_direct(ik):
@@ -141,8 +145,10 @@ for chunk in slices:
     # read chunk of inchikeys
     with h5py.File(universe, "r") as h5:
         keys = list(h5["keys"][chunk])
+    keys = [ k.decode('utf8') for k in keys ]
     # query old db
     query = SELECT % ', '.join("'%s'" % k for k in keys)
+    
     rows = psql.qstring(query, OLD_DB)
     for row in rows:
         # check if what was in the db is valid!
@@ -163,6 +169,8 @@ for chunk in slices:
         psql.query(INSERT % values, DB)
     except Exception as e:
         print(str(e))
-        for row in rows:
-            print('DEBUG:', row)
-        print(str(e))
+        pass
+        #print(str(e))
+        #for row in rows:
+        #    print('DEBUG:', row)
+        #print(str(e))

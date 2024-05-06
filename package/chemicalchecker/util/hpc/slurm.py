@@ -31,6 +31,7 @@ class slurm():
 #
 #
 
+#SBATCH --partition=long    # Partition or queue name
 # Options for sbatch
 %(options)s
 # End of qsub options
