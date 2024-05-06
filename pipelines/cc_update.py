@@ -64,6 +64,10 @@ def pipeline_parser():
         help='Directory where the pipeline will run '
         '(e.g. `/aloy/scratch/mbertoni/pipelines/cc_update_2020_01`)')
     parser.add_argument(
+        '-p', '--signaturizer_version_path', type=str, default="/aloy/web_checker/signaturizers/", required=False,
+        help='Path to the new version to export signaturizers '
+        '(i.e. /aloy/web_checker/signaturizers/ ).')
+    parser.add_argument(
         '-r', '--reference_cc', type=str, default="", required=False,
         help='Root dir of the CC instance to use as reference '
         '(i.e. triplet sampling in sign0).')
@@ -134,9 +138,11 @@ def main(args):
         # sign3
         # A1 is using the most memory with ~59GB
         # A1 is the one taking longer with ~186000s (52h)
-        'sign3': {'mem_by_core': 40, 'memory': 160, 'cpu': 8},
+        'sign3': {'memory': 200, 'cpu': 8},
         # sign4
-        'sign4': {'mem_by_core': 7, 'cpu': 8},
+        'sign4': { 'memory': 200, 'cpu': 20 },
+        #'sign4': {'memory': 100, 'cpu': 8},
+        
         # neig1 paralelize very well and require very few memory
         # A2 is the one taking longer with ~9100s (2.5h)
         'neig1': {'memory': 3, 'cpu': 16},
@@ -604,7 +610,8 @@ def main(args):
 
     export_task = PythonCallable(name="export_signaturizers",
                                  python_callable=export_signaturizers,
-                                 op_args=[args.cc_root])
+                                 op_args=[args.cc_root],
+                                 op_kwargs= { 'path': args.signaturizer_version_path } )
     pp.add_task(export_task)
     # END TASK
     #############################################
