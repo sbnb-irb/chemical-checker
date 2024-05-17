@@ -188,11 +188,11 @@ class Downloader():
                 if not downloaded:
                     if not os.path.exists(self.data_path):
                         os.makedirs(self.data_path, 0o775)
-                    destination = os.path.join( self.data_path, self.file)
                     
                     if( self.url.endswith('.gz') ):
                         if( self.file is None and tmp_file.endswith('.gz') ):
                             self.file = ('.'.join( tmp_file.split('.')[:-1] ) ).split('/')[-1]
+                        destination = os.path.join( self.data_path, self.file)
                         self._download_and_decompress_file( self.url, destination )
                     else:
                         try:
