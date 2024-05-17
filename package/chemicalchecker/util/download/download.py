@@ -188,6 +188,7 @@ class Downloader():
                 if not downloaded:
                     if not os.path.exists(self.data_path):
                         os.makedirs(self.data_path, 0o775)
+                    destination = os.path.join( self.data_path, self.file)
                     
                     if( self.url.endswith('.gz') ):
                         if( self.file is None and tmp_file.endswith('.gz') ):
