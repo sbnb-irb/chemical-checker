@@ -169,7 +169,7 @@ class DataCalculator():
                     "raw": result
                 }
             else:
-                s = ",".join([str(x) for fp in result for x in fp.indices])
+                s = ",".join([str(x) for fp in result for x in fp.indices ])
                 result = {
                     "inchikey": inchikey,
                     "raw": result
