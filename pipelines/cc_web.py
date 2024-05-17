@@ -228,7 +228,7 @@ def main(args):
     plots_task = Plots(name='plots',
                        DB=args.new_web_db, CC_ROOT=args.cc_root,
                        MOLECULES_PATH=args.molecule_path)
-    pp.add_task(plots_task)
+    #pp.add_task(plots_task)
 
     # TASK: Generate molecular info
     minfo_task = MolecularInfo(name='molinfo',
