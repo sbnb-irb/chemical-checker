@@ -43,7 +43,7 @@ class Downloader():
         self.username = username
         self.password = password
         if not tmp_dir:
-            cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
+            cc_config = os.environ['CC_CONFIG']
             tmp_dir = Config(cc_config).PATH.CC_TMP
         self.tmp_dir = tmp_dir
         try:
