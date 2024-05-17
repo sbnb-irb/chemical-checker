@@ -118,6 +118,13 @@ class Downloader():
                     f.write(string)
                 except:
                     pass
+        
+    def _download_file(self, url, filename):
+        response = requests.get(url, stream=True)
+        chsize = 1024 # 4096
+        with open(filename, 'wb') as f:
+            for chunk in response.iter_content( chunk_size=chsize ):
+                f.write(chunk)
                 
     def download(self):
         """Perform the download."""
@@ -179,15 +186,19 @@ class Downloader():
                         request.urlcleanup()
                         sleep(5)
                 if not downloaded:
+                    if not os.path.exists(self.data_path):
+                        os.makedirs(self.data_path, 0o775)
+                    destination = os.path.join( self.data_path, self.file)
+                    
                     if( self.url.endswith('.gz') ):
                         if( self.file is None and tmp_file.endswith('.gz') ):
                             self.file = ('.'.join( tmp_file.split('.')[:-1] ) ).split('/')[-1]
-                        if not os.path.exists(self.data_path):
-                            os.makedirs(self.data_path, 0o775)
-                        destination = os.path.join( self.data_path, self.file)
                         self._download_and_decompress_file( self.url, destination )
                     else:
-                        raise Exception('All attempts to download failed.')
+                        try:
+                            self._download_file( self.url, destination )
+                        except:
+                            raise Exception('All attempts to download failed.')
 
         # Decompressing pssible zip files
         tmp_unzip_dir = os.path.join(tmp_dir, 'unzip')
