@@ -93,7 +93,7 @@ class Libraries(BaseTask):
             psql.query(INSERT_DESC % s, self.DB)
             i += 1
 
-        self.__log.info("Genretaing libraries for " +
+        self.__log.info("Generating libraries for " +
                         str(len(self.libraries.keys())) + " libraries")
         job_path = tempfile.mkdtemp(
             prefix='jobs_libraries_', dir=self.tmpdir)
