@@ -51,12 +51,14 @@ class Plots(BaseTask):
                 raise Exception("Projection plot for dataset " +
                                 ds.dataset_code + " is not available.")
             copyfile(src_plot_file, dest_plot_file)
-
+        
+        """
         self.__log.info("Finding missing molecule plots")
         universe_file = os.path.join(self.cachedir, "universe.h5")
         with h5py.File(universe_file, 'r') as h5:
             keys = h5["keys"][:]
         datasize = keys.shape[0]
+        keys = [ x.decode('utf-8') for x in keys ]
         keys.sort()
 
         job_path = tempfile.mkdtemp(
@@ -89,7 +91,8 @@ class Plots(BaseTask):
                     "Some molecules did not get the plots right.")
             else:
                 self.__log.error("Some molecules did not get the plots right.")
-
+        """
+        
     def execute(self, context):
         """Run the molprops step."""
         self.tmpdir = context['params']['tmpdir']
