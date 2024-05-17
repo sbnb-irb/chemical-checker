@@ -120,7 +120,7 @@ class Downloader():
                     pass
         
     def _download_file(self, url, filename):
-        response = requests.get(url, stream=True)
+        response = reqs.get(url, stream=True)
         chsize = 1024 # 4096
         with open(filename, 'wb') as f:
             for chunk in response.iter_content( chunk_size=chsize ):
