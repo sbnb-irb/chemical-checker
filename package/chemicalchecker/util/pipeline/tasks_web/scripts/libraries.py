@@ -33,7 +33,7 @@ def select_landmarks(inchikeys, N, dbname):
     pop = np.array(
         [r for r in psql.qstring(SELECT_INFO % s, dbname)],
         dtype=np.dtype(
-            [('ik', h5py.special_dtype(vlen=str)), ('pop', np.float)]))
+            [('ik', h5py.special_dtype(vlen=str)), ('pop', 'float' )]))
     pop = np.sort(pop, order="pop")[::-1]
     ik = pop['ik'][0]
     landmarks = set([ik])
@@ -65,7 +65,7 @@ def select_landmarks(inchikeys, N, dbname):
             [(i, len(clusts[i].intersection(done_clusts)) / len(clusts[i]))
              for i in pop_score],
             dtype=np.dtype(
-                [('ik', h5py.special_dtype(vlen=str)), ('o', np.float)]))
+                [('ik', h5py.special_dtype(vlen=str)), ('o', 'float' )]))
         clust_score = [r['ik'] for r in np.sort(clust_score, order="o")]
 
         # Merge the two rankings
