@@ -102,10 +102,8 @@ class MolecularInfo(BaseTask):
                         str(keys.shape[0]) + " molecules")
         keys.sort()
 
-        job_path = "/aloy/scratch/ymartins/pipelines/cc_update_2024_02/tmp/jobs_molinfo_3qnnx1ae"
-        data_files_path = "/aloy/scratch/ymartins/pipelines/cc_update_2024_02/tmp/molinfo_data_8m73c9fq"
 
-        """
+        
         job_path = tempfile.mkdtemp(
             prefix='jobs_molinfo_', dir=self.tmpdir)
         data_files_path = tempfile.mkdtemp(
@@ -130,7 +128,7 @@ class MolecularInfo(BaseTask):
         # submit jobs
         cluster = HPC.from_config(self.config)
         jobs = cluster.submitMultiJob(command, **params)
-        """
+        
         
         V = []
         iks = []
