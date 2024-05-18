@@ -95,7 +95,7 @@ class Similars(BaseTask):
         rows = psql.qstring( SELECT_CHECK, self.DB)
         done = set( [el[0] for el in rows] )
         universe_keys = list( set(temp) - done )
-        universe_keys = np.array( keys )
+        #universe_keys = np.array( universe_keys )
           
         # get all bioactive compounds from libraries (with pubchem names)
         lib_bio_file = os.path.join(self.tmpdir, "lib_bio.json")
