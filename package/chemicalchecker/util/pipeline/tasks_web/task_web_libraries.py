@@ -66,7 +66,23 @@ class Libraries(BaseTask):
         self.libraries = params.get('libraries', None)
         if self.libraries is None:
             raise Exception('libraries parameter is not set')
-
+    
+    def _prepare_lib_file(self ):
+        # get all bioactive compounds from libraries (with pubchem names)
+        lib_bio_file = os.path.join(self.tmpdir, "lib_bio.json")
+        if not os.path.exists(lib_bio_file):
+            text_bio = "select  library_description.name as lib,lib.inchikey from libraries as lib INNER JOIN library_description on lib.lib = library_description.lib   where lib.is_bioactive = '1' order by  library_description.rank"
+            lib_bio = psql.qstring(text_bio, self.DB)
+            ref_bioactive = dict()
+            for lib in lib_bio:
+                if lib[0] not in ref_bioactive:
+                    ref_bioactive[lib[0]] = set()
+                ref_bioactive[lib[0]].add(lib[1])
+            for lib in lib_bio:
+                ref_bioactive[lib[0]] = list(ref_bioactive[lib[0]])
+            with open(lib_bio_file, 'w') as outfile:
+                json.dump(ref_bioactive, outfile)
+    
     def run(self):
         """Run the molecular info step."""
         script_path = os.path.join(os.path.dirname(
@@ -136,6 +152,10 @@ class Libraries(BaseTask):
                 self.__log.info("Indexing table")
                 psql.query(CREATE_INDEX, self.DB)
                 psql.query(CREATE_INDEX_DESC, self.DB)
+                
+                # get all bioactive compounds from libraries (with pubchem names)
+                self._prepare_lib_file()
+                
                 shutil.rmtree(job_path, ignore_errors=True)
                 self.mark_ready()
         except Exception as e:

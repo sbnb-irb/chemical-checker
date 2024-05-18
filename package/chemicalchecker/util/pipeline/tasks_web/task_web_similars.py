@@ -99,43 +99,9 @@ class Similars(BaseTask):
           
         # get all bioactive compounds from libraries (with pubchem names)
         lib_bio_file = os.path.join(self.tmpdir, "lib_bio.json")
-        if not os.path.exists(lib_bio_file):
-            text_bio = "select  library_description.name as lib,lib.inchikey from libraries as lib INNER JOIN library_description on lib.lib = library_description.lib   where lib.is_bioactive = '1' order by  library_description.rank"
-            lib_bio = psql.qstring(text_bio, self.DB)
-            ref_bioactive = dict()
-            for lib in lib_bio:
-                if lib[0] not in ref_bioactive:
-                    ref_bioactive[lib[0]] = set()
-                ref_bioactive[lib[0]].add(lib[1])
-            for lib in lib_bio:
-                ref_bioactive[lib[0]] = list(ref_bioactive[lib[0]])
-            with open(lib_bio_file, 'w') as outfile:
-                json.dump(ref_bioactive, outfile)
 
         # save chunks of inchikey pubmed synonyms
         ik_names_file = os.path.join(self.tmpdir, "inchies_names.json")
-        if not os.path.exists(ik_names_file):
-            names_map = {}
-            for input_data in self.__chunker(universe_keys):
-                data = psql.qstring("select inchikey_pubchem as inchikey,name from pubchem INNER JOIN( VALUES " +
-                                    ', '.join('(\'{0}\')'.format(w) for w in input_data) + ") vals(v) ON (inchikey_pubchem = v)", self.DB)
-                for i in range(0, len(data)):
-                    inchi = data[i][0]
-                    name = data[i][1]
-                    if name is None:
-                        name = inchi
-                    names_map[inchi] = name
-            if len(names_map) > 0:
-                with open(ik_names_file, 'w') as outfile:
-                    json.dump(names_map, outfile)
-            else:
-                if not self.custom_ready():
-                    raise Exception(
-                        "Inchikeys name JSON file was not created")
-                else:
-                    self.__log.error(
-                        "Inchikeys name JSON file was not created")
-                    return
 
         self.__log.info("Launching jobs to create json files for " +
                         str(len(universe_keys)) + " molecules")
@@ -192,10 +158,6 @@ class Similars(BaseTask):
         if( os.path.isdir(job_path) ):
             shutil.rmtree(job_path, ignore_errors=True)
         self.mark_ready()
-
-    def __chunker(self, data, size=2000):
-        for i in range(0, len(data), size):
-            yield data[slice(i, i + size)]
 
     def execute(self, context):
         """Run the molprops step."""
