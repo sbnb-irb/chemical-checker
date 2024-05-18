@@ -169,8 +169,8 @@ class Similars(BaseTask):
         cluster = HPC.from_config(self.config)
         jobs = cluster.submitMultiJob(command, **params)
         
-        for i in tqdm(range(len(universe_keys))):
-            self.
+        # Importing sqls created in each task job
+        self._import_similar_sql_files( universe_keys, sql_path  )
         
         """
         self.__log.info("Checking results")
@@ -183,16 +183,15 @@ class Similars(BaseTask):
                 missing_keys.append(inchikey)
         """
         
-        if len(missing_keys) != 0:
-            if not self.custom_ready():
-                raise Exception(
-                    "Not all molecules have their json explore file (%d/%d)" % (len(missing_keys), len(universe_keys)))
-            else:
-                self.__log.error(
-                    "Not all molecules have their json explore file (%d/%d)" % (len(missing_keys), len(universe_keys)))
-        else:
+        self.__log.info("Indexing table")
+        try:
+            psql.query(CREATE_INDEX, self.DB)
+        except:
+            self.__log.info("Indexes already created")
+            
+        if( os.path.isdir(job_path) ):
             shutil.rmtree(job_path, ignore_errors=True)
-            self.mark_ready()
+        self.mark_ready()
 
     def __chunker(self, data, size=2000):
         for i in range(0, len(data), size):
