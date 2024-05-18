@@ -126,20 +126,17 @@ def main(args):
         "met": [
             'Human metabolites',
             'Endogenous metabolites from Human Metabolome Database (HMDb)',
-            'http://zinc15.docking.org/catalogs/hmdbendo/'
-            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'file:///aloy/web_checker/repo_data/zinc_libs/met/met_1.smi',
             'zinc'],
         "tcm": [
             'Tradicional Chinese medicines',
             'Compounds extracted from traditional Chinese medicinal plants',
-            'http://zinc15.docking.org/catalogs/tcmnp/'
-            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'file:///aloy/web_checker/repo_data/zinc_libs/tcm/tcm_1.smi',
             'zinc'],
         "lincs": [
             'LINCS compounds',
             'Collection of compounds of the LINCS initiative',
-            'http://zinc15.docking.org/catalogs/lincs/'
-            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'file:///aloy/web_checker/repo_data/zinc_libs/lincs/lincs_1.smi',
             'zinc'],
         "pwck": [
             'Prestwick chemical library',
@@ -156,8 +153,7 @@ def main(args):
         "ncidiv": [
             'NCI diversity collection',
             'NCI diversity collection',
-            'http://zinc15.docking.org/catalogs/ncidiv/'
-            'items.txt?count=all&output_fields=smiles%20zinc_id',
+            'http://zinc15.docking.org/catalogs/ncidiv/items.txt?count=all&output_fields=smiles%20zinc_id',
             'zinc'],
         "tool": [
             'Tool compounds',

@@ -129,7 +129,7 @@ class Pubchem(BaseTask):
         if( not found_record ):
             os.remove( outfile )  
 
-    def import_key_data_from_old_db( keys ):
+    def import_key_data_from_old_db( self, keys ):
         c = Config()
         host = c.DB.host
         user = c.DB.user
