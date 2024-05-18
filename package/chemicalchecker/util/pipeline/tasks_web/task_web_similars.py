@@ -3,9 +3,11 @@ import h5py
 import json
 import shutil
 import tempfile
+import numpy as np
 from tqdm import tqdm
 
 from chemicalchecker.util import psql
+from chemicalchecker.util import Config
 from chemicalchecker.util.pipeline import BaseTask
 from chemicalchecker.util import logged, HPC
 
@@ -13,6 +15,17 @@ from chemicalchecker.util import logged, HPC
 # We got these strings by doing: pg_dump -t 'scores' --schema-only mosaic
 # -h aloy-dbsrv
 
+DROP_TABLE = "DROP TABLE IF EXISTS public.similars"
+
+CREATE_TABLE = """CREATE TABLE public.similars (
+    inchikey text,
+    version text,
+    explore_data jsonb
+);"""
+
+CREATE_INDEX = """
+CREATE INDEX inchikey_similars_idx ON public.similars USING btree (inchikey);
+"""
 
 @logged
 class Similars(BaseTask):
@@ -33,6 +46,28 @@ class Similars(BaseTask):
         if self.MOLECULES_PATH is None:
             raise Exception('MOLECULES_PATH parameter is not set')
 
+    def _restore_similar_data_from_chunks( self, host_name,database_name,user_name,database_password, outfile):
+
+        if( os.path.isfile(outfile) ):
+            command = 'PGPASSWORD={4} psql -h {0} -d {1} -U {2} -f {3}'\
+                      .format(host_name, database_name, user_name, outfile, database_password)
+            os.system( command )
+
+    def _import_similar_sql_files(self, keys, sql_path):
+        c = Config()
+        host = c.DB.host
+        user = c.DB.user
+        passwd = c.DB.password
+        table_new = 'similars'
+        db_new = self.DB
+        
+        keys = set(keys)
+        self.__log.info("Importing explore version data")
+        for f in tqdm( os.listdir(sql_path) ):
+            outfile = os.path.join( sql_path, f )
+            self._restore_similar_data_from_chunks( host, db_new, user, passwd, outfile)
+        shutil.rmtree( sql_path, ignore_errors=True)
+
     def run(self):
         """Run the molecular info step."""
         script_path = os.path.join(os.path.dirname(
@@ -41,7 +76,27 @@ class Similars(BaseTask):
 
         with h5py.File(universe_file, 'r') as hf:
             universe_keys = hf["keys"][:]
-
+        temp = [ k.decode('utf-8') for k in universe_keys ]
+        
+        try:
+            self.__log.info("Creating table")
+            psql.query(DROP_TABLE, self.DB)
+            psql.query(CREATE_TABLE, self.DB)
+        except Exception as e:
+            self.__log.error("Error while creating similars table")
+            if not self.custom_ready():
+                raise Exception(e)
+            else:
+                self.__log.error(e)
+                return
+        
+        # query to see if there is some data filled in new db
+        SELECT_CHECK = "SELECT DISTINCT (inchikey) FROM similars ;" 
+        rows = psql.qstring( SELECT_CHECK, self.DB)
+        done = set( [el[0] for el in rows] )
+        universe_keys = list( set(temp) - done )
+        universe_keys = np.array( keys )
+          
         # get all bioactive compounds from libraries (with pubchem names)
         lib_bio_file = os.path.join(self.tmpdir, "lib_bio.json")
         if not os.path.exists(lib_bio_file):
@@ -87,12 +142,16 @@ class Similars(BaseTask):
 
         job_path = tempfile.mkdtemp(
             prefix='jobs_similars_', dir=self.tmpdir)
-
+        
+        sql_path = os.path.join( job_path, 'temporary_sql' )
+        if( not os.path.isdir( sql_path ) ):
+            os.mkdir( sql_path )
+        
         version = self.DB.replace("cc_web_", '')
         mol_path = self.MOLECULES_PATH
 
         params = {}
-        params["num_jobs"] = len(universe_keys) / 200
+        params["num_jobs"] = len(universe_keys) / 500 # previous was 200
         params["jobdir"] = job_path
         params["job_name"] = "CC_JSONSIM"
         params["elements"] = universe_keys
@@ -105,11 +164,15 @@ class Similars(BaseTask):
         command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {} {}"
         command = command.format(
             cc_package, cc_config_path, singularity_image, script_path, 
-            ik_names_file, lib_bio_file, mol_path, self.DB, version, self.CC_ROOT)
+            ik_names_file, lib_bio_file, sql_path, self.DB, version, self.CC_ROOT)
         # submit jobs
         cluster = HPC.from_config(self.config)
         jobs = cluster.submitMultiJob(command, **params)
-
+        
+        for i in tqdm(range(len(universe_keys))):
+            self.
+        
+        """
         self.__log.info("Checking results")
         missing_keys = list()
         for i in tqdm(range(len(universe_keys))):
@@ -118,7 +181,8 @@ class Similars(BaseTask):
                 inchikey[:2], inchikey[2:4], inchikey, 'explore_' + version + '.json')
             if not os.path.exists(PATH):
                 missing_keys.append(inchikey)
-
+        """
+        
         if len(missing_keys) != 0:
             if not self.custom_ready():
                 raise Exception(
