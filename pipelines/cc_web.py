@@ -250,7 +250,8 @@ def main(args):
                 "%s not found! Did cc_web.py finish correctly?" %
                 plots_web)
         # link plots dir
-        src_dir = os.path.join(plots_web, 'plots_home')
+        #src_dir = os.path.join(plots_web, 'plots_home')
+        src_dir = plots_web
         if not os.path.isdir(src_dir):
             raise Exception(
                 "%s not found! Did cc_web.py finish correctly?" %
