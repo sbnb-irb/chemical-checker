@@ -159,6 +159,28 @@ class Pubchem(BaseTask):
         
         os.remove(infile)
         os.remove(outfile)
+
+    def __chunker(self, data, size=2000):
+        for i in range(0, len(data), size):
+            yield data[slice(i, i + size)]
+    
+    def _prepare_inchikey_names(self, keys):
+        # save chunks of inchikey pubmed synonyms
+        ik_names_file = os.path.join(self.tmpdir, "inchies_names.json")
+        if not os.path.exists(ik_names_file):
+            names_map = {}
+            for input_data in self.__chunker(keys):
+                data = psql.qstring("select inchikey_pubchem as inchikey,name from pubchem INNER JOIN( VALUES " +
+                                    ', '.join('(\'{0}\')'.format(w) for w in input_data) + ") vals(v) ON (inchikey_pubchem = v)", self.DB)
+                for i in range(0, len(data)):
+                    inchi = data[i][0]
+                    name = data[i][1]
+                    if name is None:
+                        name = inchi
+                    names_map[inchi] = name
+            if len(names_map) > 0:
+                with open(ik_names_file, 'w') as outfile:
+                    json.dump(names_map, outfile)
     
     def run(self):
         """Run the pubchem step."""
@@ -178,10 +200,10 @@ class Pubchem(BaseTask):
         with h5py.File(universe_file, 'r') as h5:
             all_data_size = h5["keys"].shape[0]
             keys = list( h5['keys'][:] )
-        temp = [ k.decode('utf8') for k in keys ]
+        universe = [ k.decode('utf8') for k in keys ]
         
         # Importing data from previous CC web db version
-        self.import_key_data_from_old_db( temp )
+        self.import_key_data_from_old_db( universe )
         
         # query to see if there is some data filled in new db
         SELECT_CHECK = "SELECT DISTINCT (inchikey) FROM pubchem ;" 
@@ -240,8 +262,13 @@ class Pubchem(BaseTask):
                 self.__log.info("Indexing table")
                 try:
                     psql.query(CREATE_INDEX, self.DB)
+                    
                 except:
                     self.__log.info("Indexes already created")
+                
+                # save chunks of inchikey pubmed synonyms
+                self._prepare_inchikey_names( universe )
+                
                 if( os.path.isdir(job_path) ):
                     shutil.rmtree(job_path, ignore_errors=True)
                 self.mark_ready()
