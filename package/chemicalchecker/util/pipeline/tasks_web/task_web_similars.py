@@ -115,9 +115,11 @@ class Similars(BaseTask):
         
         version = self.DB.replace("cc_web_", '')
         mol_path = self.MOLECULES_PATH
-
+        
+        n_jobs = len(universe_keys) / 500
+        
         params = {}
-        params["num_jobs"] = len(universe_keys) / 500 # previous was 200
+        params["num_jobs"] = n_jobs # previous was 200
         params["jobdir"] = job_path
         params["job_name"] = "CC_JSONSIM"
         params["elements"] = universe_keys
@@ -135,8 +137,6 @@ class Similars(BaseTask):
         cluster = HPC.from_config(self.config)
         jobs = cluster.submitMultiJob(command, **params)
         
-        # Importing sqls created in each task job
-        self._import_similar_sql_files( universe_keys, sql_path  )
         
         """
         self.__log.info("Checking results")
@@ -149,16 +149,26 @@ class Similars(BaseTask):
                 missing_keys.append(inchikey)
         """
         
-        self.__log.info("Indexing table")
-        try:
-            psql.query(CREATE_INDEX, self.DB)
-        except:
-            self.__log.info("Indexes already created")
+        self.__log.info("Checking results")
+        qty_sql_files = len( os.listdir(sql_path) )
+        if( qty_sql_files == n_jobs ):
+            # Importing sqls created in each task job
+            self._import_similar_sql_files( universe_keys, sql_path  )
+        
+            self.__log.info("Indexing table")
+            try:
+                psql.query(CREATE_INDEX, self.DB)
+            except:
+                self.__log.info("Indexes already created")
+                
+            if( os.path.isdir(job_path) ):
+                shutil.rmtree(job_path, ignore_errors=True)
+            self.mark_ready()
+        else:
+            e = "Error while saving similars data"
+            self.__log.error(e)
+            raise Exception(e)
             
-        if( os.path.isdir(job_path) ):
-            shutil.rmtree(job_path, ignore_errors=True)
-        self.mark_ready()
-
     def execute(self, context):
         """Run the molprops step."""
         self.tmpdir = context['params']['tmpdir']
