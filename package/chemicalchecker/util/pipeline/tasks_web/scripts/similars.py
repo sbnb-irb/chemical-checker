@@ -267,7 +267,7 @@ def main(args):
     libs.add("All Bioactive Molecules")
     
     PATH = os.path.join( save_file_path, f"sql_{task_id}.tsv" )
-    tempfile = open(PATH, "w")
+    tempfile = open(PATH, "wb")
     tempfile.write("""
     --
     -- PostgreSQL database dump
@@ -286,7 +286,7 @@ def main(args):
     SET default_tablespace = '';
 
     COPY public.similars (inchikey, version, explore_data) FROM stdin;
-    """)
+    """.encode('UTF-8') )
     
     main._log.info('')
     main._log.info('4. Save explore json')
@@ -397,7 +397,7 @@ def main(args):
             json.dump(inchies, outfile)
         """
         jsontxt = json.dumps(inchies).replace("'","\\'")
-        tempfile.write(f"{ inchikey }\t{ version }\t{ jsontxt }\n")
+        tempfile.write(f"{ inchikey }\t{ version }\t{ jsontxt }\n".encode('UTF-8') )
         
         main._log.info('  %s took %.3f secs', inchikey, time.time() - t0)
         main._log.info(
@@ -405,7 +405,7 @@ def main(args):
     main._log.info('4. Saving all took %.3f secs', time.time() - t0_tot)
     main._log.info("MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
     
-    tempfile.write("\\.\n")
+    tempfile.write("\\.\n".encode('UTF-8') )
     tempfile.close()
     
 if __name__ == '__main__':
