@@ -266,7 +266,7 @@ def main(args):
     libs = set(ref_bioactive.keys())
     libs.add("All Bioactive Molecules")
     
-    PATH = os.path.join( save_file_path, f"sql_{task_id}.tsv" )
+    PATH = os.path.join( save_file_path, f"lines_task-{task_id}.sql" )
     tempfile = open(PATH, "wb")
     tempfile.write("""
     --
