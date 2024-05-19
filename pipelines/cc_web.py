@@ -249,6 +249,7 @@ def main(args):
             raise Exception(
                 "%s not found! Did cc_web.py finish correctly?" %
                 plots_web)
+        
         # link plots dir
         #src_dir = os.path.join(plots_web, 'plots_home')
         src_dir = plots_web
@@ -260,6 +261,7 @@ def main(args):
         if os.path.isdir(dst_dir):
             os.unlink(dst_dir)
         os.symlink(src_dir, dst_dir)
+        
         # link statistics dir
         src_dir = os.path.join(plots_web, 'plots_stats')
         if not os.path.isdir(src_dir):
@@ -270,6 +272,7 @@ def main(args):
         if os.path.isdir(dst_dir):
             os.unlink(dst_dir)
         os.symlink(src_dir, dst_dir)
+        
         # link molecule dir
         src_dir = args.molecule_path
         if not os.path.isdir(src_dir):
@@ -280,16 +283,19 @@ def main(args):
         if os.path.isdir(dst_dir):
            os.unlink(dst_dir)
         os.symlink(src_dir, dst_dir)
+        
         # copy bioactive_mol_set.json (aka cc universe)
         src_path = os.path.join(cachedir, 'bioactive_mol_set.json')
         dst_path = os.path.join(web_repo_path, 'app',
                                 'shared', 'data', 'bioactive_mol_set.json')
         shutil.copyfile(src_path, dst_path)
+        
         # copy inchies_names.json (aka molecule common names)
         src_path = os.path.join(tmpdir, 'inchies_names.json')
         dst_path = os.path.join(web_repo_path, 'app',
                                 'shared', 'data', 'inchies_names.json')
         shutil.copyfile(src_path, dst_path)
+        
         # generate all inchikeys per coordinate
         cc = ChemicalChecker(args.cc_root)
         ink_coord = {}
@@ -321,7 +327,7 @@ def main(args):
     # TASK: Export signatures 3 to ftp directory 
     # leaving this task so if users want to download single sign3 instead of 
     # zipped CC, they can
-    def export_sign3_ftp(cc_root, ftp_path='/aloy/web_checker/cpy_ftp_data'):
+    def export_sign3_ftp(cc_root, ftp_path='/aloy/web_checker/ftp_data'):
         cc = ChemicalChecker(args.cc_root)
         for ds in cc.datasets_exemplary():
             s3 = cc.get_signature('sign3', 'full', ds)
