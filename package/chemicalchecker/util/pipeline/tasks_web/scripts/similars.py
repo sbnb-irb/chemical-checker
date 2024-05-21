@@ -12,6 +12,7 @@ import numpy as np
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import logged
+from chemicalchecker.util import Config
 
 cutoff_idx = 5  # what we consider similar (dist < p-value 0.02)
 best = 20  # top molecules in libraries
@@ -35,6 +36,11 @@ class MemMonitor:
         self.last = curr
         return curr, inc
 
+def _restore_similar_data_from_chunks( host_name,database_name,user_name,database_password, outfile):
+    command = 'PGPASSWORD={4} psql -h {0} -d {1} -U {2} -f {3}'\
+              .format(host_name, database_name, user_name, outfile, database_password)
+    os.system( command )
+    os.remove( outfile )
 
 def index_sign(dataset):
     offset = {'A': 0, 'B': 5, 'C': 10, 'D': 15, 'E': 20}
@@ -180,12 +186,10 @@ def main(args):
         main._log.info('  %s', dataset)
         coord, type_data = dataset.split("_")
         dist_cutoffs = bg_vals[type_data][coord]
-        neig = cc.get_signature(
-            neig_cctype[type_data], "full", dataset_pairs[coord])
-        _, nn_dist = neig.get_vectors(
-            inchikeys, include_nan=True, dataset_name='distances')
-        _, nn_inks = neig.get_vectors(
-            inchikeys, include_nan=True, dataset_name='indices')
+        
+        neig = cc.get_signature( neig_cctype[type_data], "full", dataset_pairs[coord])
+        _, nn_dist = neig.get_vectors( inchikeys, include_nan=True, dataset_name='distances')
+        _, nn_inks = neig.get_vectors( inchikeys, include_nan=True, dataset_name='indices')
         # mask to keep only neighbors below cutoff
         masks = nn_dist <= dist_cutoffs[cutoff_idx]
         # get binned data according to distance cutoffs
@@ -407,6 +411,15 @@ def main(args):
     
     tempfile.write("\\.\n".encode('UTF-8') )
     tempfile.close()
+    
+    c = Config()
+    host = c.DB.host
+    user = c.DB.user
+    passwd = c.DB.password
+    table_new = 'similars'
+    db_new = dbname
+    
+    _restore_similar_data_from_chunks( host, db_new, user, passwd, PATH)
     
 if __name__ == '__main__':
     main(sys.argv[1:])

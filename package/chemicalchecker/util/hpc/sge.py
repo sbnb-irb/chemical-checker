@@ -131,6 +131,8 @@ fi
         self.jobdir = kwargs.get("jobdir", '')
         self.job_name = kwargs.get("job_name", 'hpc_cc_job')
         elements = kwargs.get("elements", [])
+        custom_elements = kwargs.get("custom_chunks", [])
+        
         compress_out = kwargs.get("compress", True)
         check_error = kwargs.get("check_error", True)
         maxtime = kwargs.get("time", None)
@@ -193,7 +195,7 @@ fi
             jobParams.append("#$ -tc " + str(max_jobs))
             
         # NS, where elements turns into <FILE>
-        if len(elements) > 0:
+        if ( (len(elements) > 0) or (len(custom_elements) > 0) ):
             self.__log.debug("Num elements submitted " + str(len(elements)))
             self.__log.debug("Num Job submitted " + str(num_jobs))
 
@@ -203,9 +205,14 @@ fi
             # If some jobs fail, recover their index from the pickle, '535' :
             # {'REP.A028_YAPC_24H:K01': {'file':
             # '/aloy/web_checker/package_cc/2020_01/full/D/D1/D1.001/sign0/raw/models/signatures/REP.A028_YAPC_24H:K01.h5'},.....}
-            for cid, chunk in enumerate(self._chunks(elements, num_jobs), 1):
-                input_dict[str(cid)] = chunk
-
+            
+            if( len(elements) > 0 ):
+                for cid, chunk in enumerate(self._chunks(elements, num_jobs), 1):
+                    input_dict[str(cid)] = chunk
+            
+            if( len(custom_elements) > 0 ):
+                input_dict = custom_elements
+            
             # i.e a random name input file:
             # d8e918f5-4817-4df5-9ab9-5efbf23f63c7
             input_path = os.path.join(self.jobdir, str(uuid.uuid4()))
