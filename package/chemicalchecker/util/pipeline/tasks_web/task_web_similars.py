@@ -109,7 +109,7 @@ class Similars(BaseTask):
         job_path = tempfile.mkdtemp(
             prefix='jobs_similars_', dir=self.tmpdir)
         
-        sql_path = os.path.join( job_path, 'temporary_sql' )
+        sql_path = os.path.join( self.tmpdir, 'similars_temporary_sql' )
         if( not os.path.isdir( sql_path ) ):
             os.mkdir( sql_path )
         
