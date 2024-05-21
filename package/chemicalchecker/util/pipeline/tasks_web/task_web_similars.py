@@ -3,8 +3,13 @@ import h5py
 import json
 import shutil
 import tempfile
+import collections
+
 import numpy as np
 from tqdm import tqdm
+
+from chemicalchecker.core import ChemicalChecker
+from chemicalchecker.database import Dataset
 
 from chemicalchecker.util import psql
 from chemicalchecker.util import Config
@@ -42,12 +47,47 @@ class Similars(BaseTask):
         self.CC_ROOT = params.get('CC_ROOT', None)
         if self.CC_ROOT is None:
             raise Exception('CC_ROOT parameter is not set')
+        self.cc = ChemicalChecker(CC_ROOT)    
+            
         self.MOLECULES_PATH = params.get('MOLECULES_PATH', None)
         if self.MOLECULES_PATH is None:
             raise Exception('MOLECULES_PATH parameter is not set')
 
-    def _restore_similar_data_from_chunks( self, host_name,database_name,user_name,database_password, outfile):
+    def _check_keys_presence_on_spaces( self ):
+        metric_obs = None
+        metric_prd = None
+        map_coords_obs = collections.defaultdict(list)
+        dataset_pairs = {}
+        for ds in Dataset.get(exemplary=True):
+            dataset_pairs[ds.coordinate] = ds.dataset_code
+            if metric_obs is None:
+                neig1 = self.cc.get_signature("neig1", "reference", ds.dataset_code)
+                metric_obs = neig1.get_h5_dataset('metric')[0]
+            if metric_prd is None:
+                neig3 = cc.get_signature("neig3", "reference", ds.dataset_code)
+                metric_prd = neig3.get_h5_dataset('metric')[0]
+            sign1 = cc.get_signature("sign1", "full", ds.dataset_code)
+            keys = sign1.unique_keys
+            for ik in keys:
+                map_coords_obs[ik] += [ds.coordinate]
+        return metric_obs, metric_prd, map_coords_obs, dataset_pairs
+        
+    def _compute_dist_cutoffs( self, dataset_pairs, metric_obs, metric_prd ):
+        dss = { 'obs': 'sign1', 'prd': 'sign3' }
+        bg_vals = dict()
+        signatures = dict()
+        for k in dss:
+            bg_vals[k] = {}
+            signatures[k] = {}
+        for coord in dataset_pairs.keys():
+            for k in dss:
+                cctype = dss[k]
+                sign = self.cc.get_signature( cctype, "reference", dataset_pairs[coord])
+                bg_vals[k][coord] = sign.background_distances( eval( f"metric_{k}" ) )["distance"]
+                signatures[k][coord] = sign
+        return bg_vals, signatures            
 
+    def _restore_similar_data_from_chunks( self, host_name,database_name,user_name,database_password, outfile):
         if( os.path.isfile(outfile) ):
             command = 'PGPASSWORD={4} psql -h {0} -d {1} -U {2} -f {3}'\
                       .format(host_name, database_name, user_name, outfile, database_password)
@@ -67,7 +107,21 @@ class Similars(BaseTask):
             outfile = os.path.join( sql_path, f )
             self._restore_similar_data_from_chunks( host, db_new, user, passwd, outfile)
         shutil.rmtree( sql_path, ignore_errors=True)
-
+    
+    def _custom_chunker(self, keys, additional_data, n_jobs):
+        keys = np.array(keys)
+        
+        dat = {}
+        st = 1
+        ind = range( len(keys) )
+        for ck in np.array_split( ind, n_jobs ):
+            dat[st] = {}
+            dat[st]['keys'] = keys[ck]
+            for k in additional_data:
+                dat[st][k] = additional_data[k]
+            st += 1
+        return dat
+    
     def run(self):
         """Run the molecular info step."""
         script_path = os.path.join(os.path.dirname(
@@ -80,7 +134,7 @@ class Similars(BaseTask):
         
         try:
             self.__log.info("Creating table")
-            psql.query(DROP_TABLE, self.DB)
+            #psql.query(DROP_TABLE, self.DB)
             psql.query(CREATE_TABLE, self.DB)
         except Exception as e:
             self.__log.error("Error while creating similars table")
@@ -90,52 +144,62 @@ class Similars(BaseTask):
                 self.__log.error(e)
                 return
         
+        version = self.DB.replace("cc_web_", '')
+        mol_path = self.MOLECULES_PATH
+        
         # query to see if there is some data filled in new db
-        SELECT_CHECK = "SELECT DISTINCT (inchikey) FROM similars ;" 
+        SELECT_CHECK = f"SELECT DISTINCT (inchikey) FROM similars where version = '{ version }';" 
         rows = psql.qstring( SELECT_CHECK, self.DB)
         done = set( [el[0] for el in rows] )
         universe_keys = list( set(temp) - done )
         #universe_keys = np.array( universe_keys )
-          
-        # get all bioactive compounds from libraries (with pubchem names)
-        lib_bio_file = os.path.join(self.tmpdir, "lib_bio.json")
+        
+        if( len(universe_keys) > 0 ):  
+            # get all bioactive compounds from libraries (with pubchem names)
+            lib_bio_file = os.path.join(self.tmpdir, "lib_bio.json")
 
-        # save chunks of inchikey pubmed synonyms
-        ik_names_file = os.path.join(self.tmpdir, "inchies_names.json")
+            # save chunks of inchikey pubmed synonyms
+            ik_names_file = os.path.join(self.tmpdir, "inchies_names.json")
 
-        self.__log.info("Launching jobs to create json files for " +
-                        str(len(universe_keys)) + " molecules")
+            self.__log.info("Launching jobs to create json files for " +
+                            str(len(universe_keys)) + " molecules")
 
-        job_path = tempfile.mkdtemp(
-            prefix='jobs_similars_', dir=self.tmpdir)
-        
-        sql_path = os.path.join( self.tmpdir, 'similars_temporary_sql' )
-        if( not os.path.isdir( sql_path ) ):
-            os.mkdir( sql_path )
-        
-        version = self.DB.replace("cc_web_", '')
-        mol_path = self.MOLECULES_PATH
-        
-        n_jobs = len(universe_keys) / 500
-        
-        params = {}
-        params["num_jobs"] = n_jobs # previous was 200
-        params["jobdir"] = job_path
-        params["job_name"] = "CC_JSONSIM"
-        params["elements"] = universe_keys
-        params["memory"] = 2
-        params["wait"] = True
-        # job command
-        cc_config_path = self.config.config_path
-        cc_package = os.path.join(self.config.PATH.CC_REPO, 'package')
-        singularity_image = self.config.PATH.SINGULARITY_IMAGE
-        command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {} {}"
-        command = command.format(
-            cc_package, cc_config_path, singularity_image, script_path, 
-            ik_names_file, lib_bio_file, sql_path, self.DB, version, self.CC_ROOT)
-        # submit jobs
-        cluster = HPC.from_config(self.config)
-        jobs = cluster.submitMultiJob(command, **params)
+            job_path = tempfile.mkdtemp(
+                prefix='jobs_similars_', dir=self.tmpdir)
+            
+            sql_path = os.path.join( job_path, 'temporary_sql' )
+            if( not os.path.isdir( sql_path ) ):
+                os.mkdir( sql_path )
+            
+            
+            n_jobs = len(universe_keys) / 1000
+            metric_obs, metric_prd, map_coords_obs, dataset_pairs = self._check_keys_presence_on_spaces( )
+            bg_vals, signatures = self._compute_dist_cutoffs( dataset_pairs, metric_obs, metric_prd )
+            vals = ['metric_obs ','metric_prd ','map_coords_obs ','dataset_pairs ','bg_vals ','signatures']
+            additional_data = {  }
+            for v in vals:
+                additional_data[v] = eval(v)
+            custom_elements = self._custom_chunker( universe_keys, additional_data, n_jobs):
+            
+            params = {}
+            params["num_jobs"] = n_jobs # previous was 200
+            params["jobdir"] = job_path
+            params["job_name"] = "CC_JSONSIM"
+            #params["elements"] = universe_keys
+            params["custom_chunks"] = custom_elements
+            params["memory"] = 2
+            params["wait"] = True
+            # job command
+            cc_config_path = self.config.config_path
+            cc_package = os.path.join(self.config.PATH.CC_REPO, 'package')
+            singularity_image = self.config.PATH.SINGULARITY_IMAGE
+            command = "SINGULARITYENV_PYTHONPATH={} SINGULARITYENV_CC_CONFIG={} singularity exec {} python {} <TASK_ID> <FILE> {} {} {} {} {} {}"
+            command = command.format(
+                cc_package, cc_config_path, singularity_image, script_path, 
+                ik_names_file, lib_bio_file, sql_path, self.DB, version, self.CC_ROOT)
+            # submit jobs
+            cluster = HPC.from_config(self.config)
+            jobs = cluster.submitMultiJob(command, **params)
         
         
         """
@@ -150,10 +214,17 @@ class Similars(BaseTask):
         """
         
         self.__log.info("Checking results")
-        qty_sql_files = len( os.listdir(sql_path) )
-        if( qty_sql_files == n_jobs ):
+        #qty_sql_files = len( os.listdir(sql_path) )
+        
+        # query to see if there is some data filled in new db
+        SELECT_CHECK = f"SELECT DISTINCT (inchikey) FROM similars where version = '{ version }';" 
+        rows = psql.qstring( SELECT_CHECK, self.DB)
+        done = set( [el[0] for el in rows] )
+        qty_keys = len( done )
+        if( qty_keys == len(temp) ):
+        #if( qty_sql_files == n_jobs ):
             # Importing sqls created in each task job
-            self._import_similar_sql_files( universe_keys, sql_path  )
+            #self._import_similar_sql_files( universe_keys, sql_path  )
         
             self.__log.info("Indexing table")
             try:
@@ -173,3 +244,4 @@ class Similars(BaseTask):
         """Run the molprops step."""
         self.tmpdir = context['params']['tmpdir']
         self.run()
+
