@@ -295,7 +295,6 @@ def main(args):
         dst_path = os.path.join(web_repo_path, 'app',
                                 'shared', 'data', 'inchies_names.json')
         shutil.copyfile(src_path, dst_path)
-        
         # generate all inchikeys per coordinate
         cc = ChemicalChecker(args.cc_root)
         ink_coord = {}
