@@ -12,7 +12,6 @@ import numpy as np
 from chemicalchecker.core import ChemicalChecker
 from chemicalchecker.database import Dataset
 from chemicalchecker.util import logged
-from chemicalchecker.util import Config
 
 cutoff_idx = 5  # what we consider similar (dist < p-value 0.02)
 best = 20  # top molecules in libraries
@@ -36,11 +35,6 @@ class MemMonitor:
         self.last = curr
         return curr, inc
 
-def _restore_similar_data_from_chunks( host_name,database_name,user_name,database_password, outfile):
-    command = 'PGPASSWORD={4} psql -h {0} -d {1} -U {2} -f {3}'\
-              .format(host_name, database_name, user_name, outfile, database_password)
-    os.system( command )
-    os.remove( outfile )
 
 def index_sign(dataset):
     offset = {'A': 0, 'B': 5, 'C': 10, 'D': 15, 'E': 20}
@@ -70,7 +64,7 @@ def get_parser():
     parser.add_argument('lib_bio_file', type=str,
                         help='bioactive molecules lists')
     parser.add_argument('save_file_path', type=str,
-                        help='Root of sql temporary directory')
+                        help='Root of molecules directory')
     parser.add_argument('dbname', type=str,
                         help='name of the DB (not used)')
     parser.add_argument('version', type=str,
@@ -101,7 +95,6 @@ def main(args):
     main._log.info("MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
 
     # for each molecule check if json is already available
-    """
     if not overwrite:
         notdone = list()
         for index, inchikey in enumerate(inchikeys):
@@ -121,8 +114,7 @@ def main(args):
             sys.exit()
         else:
             inchikeys = notdone
-    """
-    
+
     # for each molecule which spaces are available in sign1?
     main._log.info('')
     main._log.info('1. Determine available spaces in sign1 for each molecule.')
@@ -186,10 +178,12 @@ def main(args):
         main._log.info('  %s', dataset)
         coord, type_data = dataset.split("_")
         dist_cutoffs = bg_vals[type_data][coord]
-        
-        neig = cc.get_signature( neig_cctype[type_data], "full", dataset_pairs[coord])
-        _, nn_dist = neig.get_vectors( inchikeys, include_nan=True, dataset_name='distances')
-        _, nn_inks = neig.get_vectors( inchikeys, include_nan=True, dataset_name='indices')
+        neig = cc.get_signature(
+            neig_cctype[type_data], "full", dataset_pairs[coord])
+        _, nn_dist = neig.get_vectors(
+            inchikeys, include_nan=True, dataset_name='distances')
+        _, nn_inks = neig.get_vectors(
+            inchikeys, include_nan=True, dataset_name='indices')
         # mask to keep only neighbors below cutoff
         masks = nn_dist <= dist_cutoffs[cutoff_idx]
         # get binned data according to distance cutoffs
@@ -269,29 +263,7 @@ def main(args):
         ref_bioactive = json.load(json_data)
     libs = set(ref_bioactive.keys())
     libs.add("All Bioactive Molecules")
-    
-    PATH = os.path.join( save_file_path, f"lines_task-{task_id}.sql" )
-    tempfile = open(PATH, "wb")
-    tempfile.write("""
-    --
-    -- PostgreSQL database dump
-    --
 
-    SET statement_timeout = 0;
-    SET lock_timeout = 0;
-    SET client_encoding = 'UTF8';
-    SET standard_conforming_strings = on;
-    SELECT pg_catalog.set_config('search_path', '', false);
-    SET check_function_bodies = false;
-    SET xmloption = content;
-    SET client_min_messages = warning;
-    SET row_security = off;
-
-    SET default_tablespace = '';
-
-    COPY public.similars (inchikey, version, explore_data) FROM stdin;
-    """.encode('UTF-8') )
-    
     main._log.info('')
     main._log.info('4. Save explore json')
     t0_tot = time.time()
@@ -394,32 +366,18 @@ def main(args):
                 inchies[sel]["name"] = inchies_names[sel]
             else:
                 inchies[sel]["name"] = ""
-        """
         PATH = save_file_path + "/%s/%s/%s/" % (
             inchikey[:2], inchikey[2:4], inchikey)
         with open(PATH + '/explore_' + version + '.json', 'w') as outfile:
             json.dump(inchies, outfile)
-        """
-        jsontxt = json.dumps(inchies).replace("'","\\'")
-        tempfile.write(f"{ inchikey }\t{ version }\t{ jsontxt }\n".encode('UTF-8') )
-        
+
         main._log.info('  %s took %.3f secs', inchikey, time.time() - t0)
         main._log.info(
             "  MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
     main._log.info('4. Saving all took %.3f secs', time.time() - t0_tot)
     main._log.info("MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
-    
-    tempfile.write("\\.\n".encode('UTF-8') )
-    tempfile.close()
-    
-    c = Config()
-    host = c.DB.host
-    user = c.DB.user
-    passwd = c.DB.password
-    table_new = 'similars'
-    db_new = dbname
-    
-    _restore_similar_data_from_chunks( host, db_new, user, passwd, PATH)
-    
+
+
 if __name__ == '__main__':
     main(sys.argv[1:])
+
