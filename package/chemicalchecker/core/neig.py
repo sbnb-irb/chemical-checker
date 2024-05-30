@@ -343,6 +343,7 @@ class neig(BaseSignature, DataSignature):
                     data[d]['signs'] = np.array( data[d]['signs'] )
         
         missed_inks = set( list(keys) ) - set(valid_keys)
+        print( 'missed', len(missed_inks), missed_inks )
         # if missing signatures are requested add NaNs
             
         for d in dataset_names:
@@ -355,7 +356,7 @@ class neig(BaseSignature, DataSignature):
                     dimensions = ( len(missed_inks), ncols )
                     nan_matrix = np.zeros(dimensions) * np.nan
                     inks, signs = np.array( inks ), np.vstack( (signs, nan_matrix) )
-                    
+            print(include_nan, inks, signs)
             data[d]['inks'], data[d]['signs'] = inks, signs
             sort_idx = np.argsort( data[d]['inks'] )
             data[d]['inks'], data[d]['signs'] = data[d]['inks'][sort_idx], data[d]['signs'][sort_idx]
