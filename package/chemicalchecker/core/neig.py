@@ -35,6 +35,7 @@ class neig(BaseSignature, DataSignature):
             cpu(int): The number of cores to use (default:1)
             chunk(int): The size of the chunk to read the data (default:1000)
         """
+        
         # Calling init on the base class to trigger file existance checks
         BaseSignature.__init__(
             self, signature_path, dataset, **params)
@@ -305,6 +306,61 @@ class neig(BaseSignature, DataSignature):
         inks, signs = np.stack(inks), np.vstack(signs)
         sort_idx = np.argsort(inks)
         return inks[sort_idx], signs[sort_idx]
+
+    def get_vectors_multiple_datasets(self, keys, include_nan=False, dataset_names = [], max_neighbors=500 ):
+        """Get vectors for a list of keys, sorted by default.
+
+        Args:
+            keys(list): a List of string, only the overlapping subset to the
+                signature keys is considered.
+            dataset_name(str): return any datasets in the h5 which is organized
+                by sorted keys.
+        """
+        self.__log.debug("Fetching %s rows from datasets" %
+                         ( len(keys) ) )
+        valid_keys = list(self.unique_keys & set(keys))
+        idxs = np.argwhere( np.isin(list(self.keys), list(valid_keys), assume_unique=True) )
+        idxs = idxs.flatten()
+        oidxs = sorted(idxs)
+        
+        ncols = max_neighbors
+        data = {}
+        for d in dataset_names:
+            data[d] = { 'inks': np.array([]), 'signs': np.full( ( 0, ncols ), np.nan ) }
+        
+        if( len(oidxs) > 0 ):
+            data[d]['inks'] = np.array( self.row_keys[ oidxs ].astype(str) )
+            
+            with h5py.File(self.data_path, 'r') as hf:
+                col_keys = hf['col_keys'][:].astype(str)
+                
+                for d in dataset_names:
+                    temp = hf[d][oidxs, :max_neighbors]
+                    if( d == 'indices' ):
+                        data[d]['signs'] = list( map( lambda x: col_keys[ x ], temp ) )
+                    else:
+                        data[d]['signs'] = temp
+                    data[d]['signs'] = np.array( data[d]['signs'] )
+        
+        missed_inks = set( list(keys) ) - set(valid_keys)
+        # if missing signatures are requested add NaNs
+            
+        for d in dataset_names:
+            inks, signs = data[d]['inks'], data[d]['signs']
+            
+            if include_nan:
+                if( len(missed_inks) > 0 ):
+                    inks = inks.tolist()
+                    inks.extend( list(missed_inks) )
+                    dimensions = ( len(missed_inks), ncols )
+                    nan_matrix = np.zeros(dimensions) * np.nan
+                    inks, signs = np.array( inks ), np.vstack( (signs, nan_matrix) )
+                    
+            data[d]['inks'], data[d]['signs'] = inks, signs
+            sort_idx = np.argsort( data[d]['inks'] )
+            data[d]['inks'], data[d]['signs'] = data[d]['inks'][sort_idx], data[d]['signs'][sort_idx]
+            
+        return data
 
     def get_kth_nearest(self, signatures, k=1000, distances=True, keys=True):
         """Return up to the k-th nearest neighbor.
