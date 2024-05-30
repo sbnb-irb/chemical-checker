@@ -227,13 +227,20 @@ class DataSignature(object):
     @cached_property
     def features(self):
         """Get the list of features in the signature."""
+        
+        replacement = np.array([i for i in range(0, self.shape[1])])
         self._check_data()
         try:
             self._check_dataset('features')
-            return self._get_all('features')
+            features = self.features
+            mat_col_number = self.shape[1]
+            if( len(features) > mat_col_number ):
+                return replacement
+            else:
+                return features
         except Exception:
             self.__log.warning("Features are not available")
-            return np.array([i for i in range(0, self.shape[1])])
+            return replacement
 
     @cached_property
     def mappings(self):
@@ -552,20 +559,25 @@ class DataSignature(object):
                 molecule signatures as NaNs.
             dataset_name(str): return any dataset in the h5 which is organized
                 by sorted keys.
+            output_missing(bool): whether to include the list of missing keys from query as a third output argument
         """
         self.__log.debug("Fetching %s rows from dataset %s" %
                          (len(keys), dataset_name))
         valid_keys = list(self.unique_keys & set(keys))
-        idxs = np.argwhere(
-            np.isin(list(self.keys), list(valid_keys), assume_unique=True))
+        idxs = np.argwhere( np.isin(list(self.keys), list(valid_keys), assume_unique=True) )
         inks, signs = list(), list()
-
+        
+        oidxs = sorted(idxs.flatten())
+        inks = self.keys[oidxs]
+        
         with h5py.File(self.data_path, 'r') as hf:
-            dset = hf[dataset_name]
+            signs = hf[dataset_name][oidxs]
             dset_shape = dset.shape
+            """
             for idx in sorted(idxs.flatten()):
                 inks.append(self.keys[idx])
                 signs.append(dset[idx])
+            """
         missed_inks = set(keys) - set(inks)
         # if missing signatures are requested add NaNs
         if include_nan:
