@@ -40,7 +40,7 @@ def _restore_similar_data_from_chunks( host_name,database_name,user_name,databas
     command = 'PGPASSWORD={4} psql -h {0} -d {1} -U {2} -f {3}'\
               .format(host_name, database_name, user_name, outfile, database_password)
     os.system( command )
-    os.remove( outfile )
+    #os.remove( outfile )
 
 def index_sign(dataset):
     offset = {'A': 0, 'B': 5, 'C': 10, 'D': 15, 'E': 20}
@@ -97,9 +97,18 @@ def main(args):
     mem = MemMonitor()
 
     # input is a chunk of universe inchikey
-    inchikeys = pickle.load(open(filename, 'rb'))[task_id]
+    datIn = pickle.load(open(filename, 'rb'))[task_id]
     main._log.info("MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
-
+    inchikeys = datIn['keys']
+    metric_obs  = datIn['metric_obs']
+    metric_prd  = datIn['metric_prd']
+    map_coords_obs  = datIn['map_coords_obs']
+    dataset_pairs  = datIn['dataset_pairs']
+    bg_vals  = datIn['bg_vals']
+    signatures = datIn['signatures']
+    
+    cc = ChemicalChecker( CC_ROOT )
+    
     # for each molecule check if json is already available
     """
     if not overwrite:
@@ -123,6 +132,7 @@ def main(args):
             inchikeys = notdone
     """
     
+    """
     # for each molecule which spaces are available in sign1?
     main._log.info('')
     main._log.info('1. Determine available spaces in sign1 for each molecule.')
@@ -170,7 +180,7 @@ def main(args):
         signatures['prd'][coord] = sign3
     main._log.info('2. took %.3f secs', time.time() - t0)
     main._log.info("MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
-
+    """
     # for both observed (sign1) and predicted (sign3) get significant neighbors
     main._log.info('')
     main._log.info('3. Pre-fetch significant neighbors')
@@ -225,14 +235,18 @@ def main(args):
             # get ref to full mapping (redundat mols as lists)
             full_ref_mapping = dict(mappings[full_idxs])
             ref_full_mapping = collections.defaultdict(list)
+            
+            aux = set()
+            full_inks = []
+            full_dbins = []
             for k, v in full_ref_mapping.items():
-                ref_full_mapping[v].append(k)
-            # aggregate mappings
-            full_inks = [ref_full_mapping[i] for i in ref_nn_ink]
-            full_inks = [item for sublist in full_inks for item in sublist]
-            full_dbins = [[ref_dbin_mapping[i]] *
-                          len(ref_full_mapping[i]) for i in ref_nn_ink]
-            full_dbins = [item for sublist in full_dbins for item in sublist]
+                if( len(full_dbins) < max_neig ):
+                    if( not k in aux ):
+                        aux.add(k)
+                        full_inks.append( k )
+                        full_dbins.append( ref_dbin_mapping[v] )
+                else:
+                    break
 
             """
             # this iterate on bins to aggregate mappings (removed to avoid 
@@ -332,13 +346,14 @@ def main(args):
             inchies[lib] = set()
 
         # rank all neighbors
+        
         selected = set()
-        for dataset in keys:
-            square, type_data = dataset.split("_")
-            pos, sign, pts = index_sign(dataset)
-
+        for t, ik in enumerate(all_neig):
             # iterate on all generic neigbors
-            for t, ik in enumerate(all_neig):
+            for dataset in keys:
+                square, type_data = dataset.split("_")
+                pos, sign, pts = index_sign(dataset)
+            
                 val = M[t, pos]
                 # if generic neighbor has value from obs leave it
                 if val > 0:
@@ -360,24 +375,19 @@ def main(args):
                         if ik in map_coords_obs:
                             M[t, pos] = sign * dummy
 
-            # select top neighbors in current space that are also part of
-            # libraries
-            for ik in neig_ds[dataset]:
-                # never select self
-                if ik == inchikey:
-                    continue
-                for lib in libs:
-                    # if we already selected enought stop
-                    if ref_counts[lib][pos] >= best:
-                        break
-                    if lib == 'All Bioactive Molecules':
-                        found = True
-                    else:
-                        found = ik in ref_bioactive[lib]
-                    if found:
-                        ref_counts[lib][pos] += 1
-                        selected.add(ik)
-                        inchies[lib].add(ik)
+                if ( (ik in neig_ds[dataset]) and (ik != inchikey) ):
+                    for lib in libs:
+                        # if we already selected enought stop
+                        if ref_counts[lib][pos] >= best:
+                            break
+                        if lib == 'All Bioactive Molecules':
+                            found = True
+                        else:
+                            found = ik in ref_bioactive[lib]
+                        if found:
+                            ref_counts[lib][pos] += 1
+                            selected.add(ik)
+                            inchies[lib].add(ik)
 
         # convert to lists
         selected = list(selected)
@@ -391,7 +401,7 @@ def main(args):
             inchies[sel]["data"] = [None if np.isnan(x) else x for x in M[
                 ink_pos[sel]]]
             if sel in inchies_names:
-                inchies[sel]["name"] = inchies_names[sel]
+                inchies[sel]["name"] = inchies_names[sel].replace('\\', '').replace('"', '').replace("'", '')
             else:
                 inchies[sel]["name"] = ""
         """

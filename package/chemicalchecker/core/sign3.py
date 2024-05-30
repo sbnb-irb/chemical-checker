@@ -29,7 +29,7 @@ from .preprocess import Preprocess
 
 from chemicalchecker.util import logged
 from chemicalchecker.util.splitter import OldTripletSampler, TripletIterator
-from chemicalchecker.util.splitter import BaseTripletSampler
+from chemicalchecker.util.splitter import BaseTripletSampler, AdriaTripletSampler
 from chemicalchecker.util.parser.converter import Converter
 from chemicalchecker.database import Dataset
 
@@ -596,6 +596,8 @@ class sign3(BaseSignature, DataSignature):
                 sampler_args = (self.triplet_sign, X, self.traintest_file)
             sample_obj = sampler_class(*sampler_args)
             sampler_kwargs = triplets_sampler[2]
+            if( sampler_kwargs is None ):
+                sampler_kwargs = {}
         # if evaluating, perform the train-test split
         if evaluate:
             save_kwargs = {
