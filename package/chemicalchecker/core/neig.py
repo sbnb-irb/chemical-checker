@@ -329,12 +329,14 @@ class neig(BaseSignature, DataSignature):
             data[d] = { 'inks': np.array([]), 'signs': np.full( ( 0, ncols ), np.nan ) }
         
         if( len(oidxs) > 0 ):
-            data[d]['inks'] = np.array( self.row_keys[ oidxs ].astype(str) )
+            inks = np.array( self.row_keys[ oidxs ].astype(str) )
             
             with h5py.File(self.data_path, 'r') as hf:
                 col_keys = hf['col_keys'][:].astype(str)
                 
                 for d in dataset_names:
+                    data[d]['inks'] = inks
+                    
                     temp = hf[d][oidxs, :max_neighbors]
                     if( d == 'indices' ):
                         data[d]['signs'] = list( map( lambda x: col_keys[ x ], temp ) )
@@ -343,7 +345,6 @@ class neig(BaseSignature, DataSignature):
                     data[d]['signs'] = np.array( data[d]['signs'] )
         
         missed_inks = set( list(keys) ) - set(valid_keys)
-        print( 'missed', len(missed_inks), missed_inks )
         # if missing signatures are requested add NaNs
             
         for d in dataset_names:
@@ -356,7 +357,7 @@ class neig(BaseSignature, DataSignature):
                     dimensions = ( len(missed_inks), ncols )
                     nan_matrix = np.zeros(dimensions) * np.nan
                     inks, signs = np.array( inks ), np.vstack( (signs, nan_matrix) )
-            print(include_nan, inks, signs)
+            
             data[d]['inks'], data[d]['signs'] = inks, signs
             sort_idx = np.argsort( data[d]['inks'] )
             data[d]['inks'], data[d]['signs'] = data[d]['inks'][sort_idx], data[d]['signs'][sort_idx]
