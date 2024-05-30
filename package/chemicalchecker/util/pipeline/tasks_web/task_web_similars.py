@@ -47,7 +47,7 @@ class Similars(BaseTask):
         self.CC_ROOT = params.get('CC_ROOT', None)
         if self.CC_ROOT is None:
             raise Exception('CC_ROOT parameter is not set')
-        self.cc = ChemicalChecker(CC_ROOT)    
+        self.cc = ChemicalChecker( self.CC_ROOT )    
             
         self.MOLECULES_PATH = params.get('MOLECULES_PATH', None)
         if self.MOLECULES_PATH is None:
@@ -64,9 +64,9 @@ class Similars(BaseTask):
                 neig1 = self.cc.get_signature("neig1", "reference", ds.dataset_code)
                 metric_obs = neig1.get_h5_dataset('metric')[0]
             if metric_prd is None:
-                neig3 = cc.get_signature("neig3", "reference", ds.dataset_code)
+                neig3 = self.cc.get_signature("neig3", "reference", ds.dataset_code)
                 metric_prd = neig3.get_h5_dataset('metric')[0]
-            sign1 = cc.get_signature("sign1", "full", ds.dataset_code)
+            sign1 = self.cc.get_signature("sign1", "full", ds.dataset_code)
             keys = sign1.unique_keys
             for ik in keys:
                 map_coords_obs[ik] += [ds.coordinate]
@@ -115,10 +115,11 @@ class Similars(BaseTask):
         st = 1
         ind = range( len(keys) )
         for ck in np.array_split( ind, n_jobs ):
-            dat[st] = {}
-            dat[st]['keys'] = keys[ck]
+            idx = str(st)
+            dat[idx] = {}
+            dat[idx]['keys'] = keys[ck]
             for k in additional_data:
-                dat[st][k] = additional_data[k]
+                dat[idx][k] = additional_data[k]
             st += 1
         return dat
     
@@ -137,12 +138,7 @@ class Similars(BaseTask):
             #psql.query(DROP_TABLE, self.DB)
             psql.query(CREATE_TABLE, self.DB)
         except Exception as e:
-            self.__log.error("Error while creating similars table")
-            if not self.custom_ready():
-                raise Exception(e)
-            else:
-                self.__log.error(e)
-                return
+            self.__log.debug("Table similars already exists")
         
         version = self.DB.replace("cc_web_", '')
         mol_path = self.MOLECULES_PATH
@@ -159,7 +155,7 @@ class Similars(BaseTask):
             lib_bio_file = os.path.join(self.tmpdir, "lib_bio.json")
 
             # save chunks of inchikey pubmed synonyms
-            ik_names_file = os.path.join(self.tmpdir, "inchies_names.json")
+            ik_names_file = os.path.join(self.tmpdir, "inchi_names.json")
 
             self.__log.info("Launching jobs to create json files for " +
                             str(len(universe_keys)) + " molecules")
@@ -167,7 +163,7 @@ class Similars(BaseTask):
             job_path = tempfile.mkdtemp(
                 prefix='jobs_similars_', dir=self.tmpdir)
             
-            sql_path = os.path.join( job_path, 'temporary_sql' )
+            sql_path = os.path.join( self.tmpdir, 'temporary_sql' )
             if( not os.path.isdir( sql_path ) ):
                 os.mkdir( sql_path )
             
@@ -175,11 +171,11 @@ class Similars(BaseTask):
             n_jobs = len(universe_keys) / 1000
             metric_obs, metric_prd, map_coords_obs, dataset_pairs = self._check_keys_presence_on_spaces( )
             bg_vals, signatures = self._compute_dist_cutoffs( dataset_pairs, metric_obs, metric_prd )
-            vals = ['metric_obs ','metric_prd ','map_coords_obs ','dataset_pairs ','bg_vals ','signatures']
+            vals = ['metric_obs','metric_prd','map_coords_obs','dataset_pairs','bg_vals','signatures']
             additional_data = {  }
             for v in vals:
                 additional_data[v] = eval(v)
-            custom_elements = self._custom_chunker( universe_keys, additional_data, n_jobs):
+            custom_elements = self._custom_chunker( universe_keys, additional_data, n_jobs)
             
             params = {}
             params["num_jobs"] = n_jobs # previous was 200
@@ -187,7 +183,7 @@ class Similars(BaseTask):
             params["job_name"] = "CC_JSONSIM"
             #params["elements"] = universe_keys
             params["custom_chunks"] = custom_elements
-            params["memory"] = 2
+            params["memory"] = 20
             params["wait"] = True
             # job command
             cc_config_path = self.config.config_path
