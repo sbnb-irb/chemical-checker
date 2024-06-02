@@ -55,82 +55,6 @@ def index_sign(dataset):
     col = offset[char] + num
     return col, sign, pts
 
-def _get_matrix_value_batch( info, dataset, iks, dists, flag_isInCurrent, map_coords_obs ):
-    coord, type_data = dataset.split("_")
-    pos, sign, pts = index_sign(dataset)
-    
-    M = info['matrix']
-    
-    def _search_coord(ik):
-        return ( type_data=='prd' or ( type_data=='obs' and coord in map_coords_obs[ik] ) )
-    
-    iks = list(iks)
-    all_keys = np.array( list(info['ink_pos_mat']) )
-    all_idx = np.array( list(info['ink_pos_mat'].values()) )
-    bin_idxs = _is_in_set_nb( all_keys, np.array(iks) )
-    filt_keys = all_keys[ bin_idxs ]
-    filt_idx = all_idx[ bin_idxs ]
-    aux = dict( zip(filt_keys, filt_idx) )
-    
-    def _check_prior_val(ik):
-        return ( not( M[ aux[ik], pos] > 0 ) )
-    bin_idx0 = np.vectorize(_check_prior_val)( iks )
-    bin_idxs = np.array( [True]*len(filt_idx) )
-    bin_idxs = bin_idxs & bin_idx0
-    
-    if( np.all( bin_idxs == False ) ):
-        return info
-    else:
-        val = dists
-        # otherwise check if we can say they are different
-        if(not flag_isInCurrent):
-            bin_idx2 = np.vectorize(_search_coord)(iks)
-            bin_idxs = bin_idxs & bin_idx2
-            val = dummy
-        else:
-            temp = dict( zip(iks, dists.tolist() ) )
-            new_keys = filt_keys[ bin_idxs ]
-            dists = list( map( lambda x: temp[x], new_keys))
-            val = np.array( dists )
-            
-        t = filt_idx[ bin_idxs ]
-        M[t, pos] = sign * val
-        
-        if( flag_isInCurrent ):
-            M[t, 25] += pts
-        
-        info['matrix'] = M
-    
-    return info
-
-def _load_presence_libs(universe, ref_bioactive):
-    u = set(universe)
-    b = [True]*len(u)
-    all_ = dict( zip(list(u), b) )
-    dc = { 'All Bioactive Molecules': all_ }
-    for l in ref_bioactive:
-        ok = u.intersection( ref_bioactive[l] )
-        nok = u.difference( ref_bioactive[l] )
-        a = list(ok)
-        a.extend( list(nok) )
-        b = ( [True]*len(ok) )
-        c = ( [False]*len(nok) )
-        b.extend( c )
-        
-        dc[l] = dict( zip( a,b ) )
-        
-    return dc
-
-def _is_in_set_nb(a, b):
-    shape = a.shape
-    a = a.ravel()
-    n = len(a)
-    result = np.full(n, False)
-    set_b = set(b)
-    for i in range(n):
-        if a[i] in set_b:
-            result[i] = True
-    return result.reshape(shape)
 
 def get_parser():
     description = 'This script will produce the json of each molecule with '
@@ -182,19 +106,6 @@ def main(args):
     dataset_pairs  = datIn['dataset_pairs']
     bg_vals  = datIn['bg_vals']
     signatures = datIn['signatures']
-    
-    # read inchikey to pubmed names mapping
-    with open(names_jason) as json_data:
-        inchies_names = json.load(json_data)
-
-    # read library bioactive
-    with open(lib_bio_file) as json_data:
-        ref_bioactive = json.load(json_data)
-    libs = set(ref_bioactive.keys())
-    libs.add("All Bioactive Molecules")
-    
-    universe = set(map_coords_obs)
-    found = _load_presence_libs(universe, ref_bioactive)
     
     cc = ChemicalChecker( CC_ROOT )
     
@@ -274,99 +185,105 @@ def main(args):
     main._log.info('')
     main._log.info('3. Pre-fetch significant neighbors')
     t0 = time.time()
-    
-    matrix = np.full( ( 0, 26 ), np.nan )
-    temp_info = {}
-    for index, inchikey in enumerate(inchikeys):
-        temp_info[inchikey] = { 'selected': list(), 'matrix': [], 'ink_pos_mat': {}, "ref_counts": {}, 'inchies': {}, "all_neig": set(), 'inks_by_ds': {}  }
-        #temp_info[inchikey]['matrix'][:, 25] = 0
-        for lib in libs:
-            temp_info[inchikey]['ref_counts'][lib] = [0] * 25
-            temp_info[inchikey]['inchies'][lib] = list()
-    
     keys = [k + "_obs" for k in dataset_pairs.keys()] + \
-            [k + "_prd" for k in dataset_pairs.keys()]
+        [k + "_prd" for k in dataset_pairs.keys()]
     ds_inks_bin = {}
     neig_cctype = {
         'obs': 'neig1',
         'prd': 'neig3',
     }
-    
-    t00 = time.time()
-    dc=0
-    tempdata = {}
-    #keys = ['A3_obs']
     for dataset in keys:
-        pos, sign, pts = index_sign(dataset)
-        
-        print( 'processing dataset ', dataset )
-        t0 = time.time()
-        #dataset = keys[1]
+        main._log.info('  %s', dataset)
         coord, type_data = dataset.split("_")
         dist_cutoffs = bg_vals[type_data][coord]
-
+        
         neig = cc.get_signature( neig_cctype[type_data], "full", dataset_pairs[coord])
-        dat = neig.get_vectors_multiple_datasets( inchikeys, True, ['distances', 'indices'], max_neig )
-        nn_dist = dat['distances']['signs']
-        nn_inks = dat['indices']['signs']
-        
-        tempinchikeys = dat['distances']['inks'].tolist()
-        
-        #_, nn_dist = neig.get_vectors( inchikeys, include_nan=True, dataset_name='distances')
-        #_, nn_inks = neig.get_vectors( inchikeys, include_nan=True, dataset_name='indices')
-       
+        _, nn_dist = neig.get_vectors( inchikeys, include_nan=True, dataset_name='distances')
+        _, nn_inks = neig.get_vectors( inchikeys, include_nan=True, dataset_name='indices')
         # mask to keep only neighbors below cutoff
         masks = nn_dist <= dist_cutoffs[cutoff_idx]
         # get binned data according to distance cutoffs
         dist_bin = np.digitize(nn_dist, dist_cutoffs)
         # get close neighbors inchikeys and distance bins and apply mapping
+        main._log.info('  Fetched reference NN, mapping to full')
         mappings = signatures[type_data][coord].get_h5_dataset('mappings')
         ref_mapping = list(mappings[:, 1])
-        
-        #t0 = time.time()
+        all_inks = list()
+        all_dbins = list()
         # couldn't find a way to avoid iterating on molecules
-        index_ik = 0
+        c = 0
+        t2 = time.time()
+        t3 = time.time()
         for ref_nn_ink, ref_dbin, mask in zip(nn_inks, dist_bin, masks):
-            inchikey = tempinchikeys[index_ik]
-
+            # print progress
+            if not(c % 10):
+                avg = 0
+                if c != 0:
+                    avg = (time.time() - t3) / c
+                main._log.info('  %s out of %s, took %.3f (avg/mol: %.3f s.)' %
+                               (c, len(nn_inks), time.time() - t2, avg))
+                main._log.info("  MEM USED: {:>5.1f} GB "
+                               "(\u0394 {:>5.3f} GB)".format(*mem()))
+                t2 = time.time()
             # apply distance cutoff
             ref_nn_ink = ref_nn_ink[mask]
-            ref_dbin = ref_dbin[mask].tolist()
-            ref_dbin_mapping = dict( zip(ref_nn_ink, ref_dbin) )
-            
-            # get idx bassed on redundant 'reference' column
-            #full_idxs = np.isin(ref_mapping, list(ref_nn_ink) )
-            full_idxs = _is_in_set_nb( np.array(ref_mapping), np.array(ref_nn_ink) )
-            
-            # get ref to full mapping (redundat mols as lists)
-            #full_ref_mapping = dict( mappings[full_idxs] )
-            
-            #ref_full_mapping = collections.defaultdict(list)
-            
-            filtered = mappings[full_idxs]
-            ks = filtered[:, 0]
-            aux = set( ks )
-            dist = list( map( lambda x: ref_dbin_mapping[x], filtered[:, 1] ) )
-            distances = dict( zip( ks, dist ) )
-            
-            temp_info[inchikey]['all_neig'].update( list(aux) )
-            if( len(aux) > 0 ):
-                temp_info[inchikey]['inks_by_ds'][dataset] = distances
-            
-            index_ik += 1
-            
-            if( index_ik % 10 == 0 ):
-                print('Last 10: ', index_ik, time.time()-t0)
-            #main._log.info( f"{index_ik} - {inchikey} key: {time.time()-t0}" )
-            
-            #print(temp_info[inchikey])
-        print(dataset, ' dataset took %.3f secs', time.time() - t0)
-        main._log.info( f' {dataset} dataset took { time.time() - t0 } secs')
-        
-        dc += 1
-    print( ' first part took %.3f secs', time.time() - t00)
-    main._log.info( f'first part took { time.time() - t00 } secs')
+            ref_dbin = ref_dbin[mask]
+            ref_dbin_mapping = dict(zip(ref_nn_ink, ref_dbin))
 
+            # get idx bassed on redundant 'reference' column
+            full_idxs = np.isin(ref_mapping, list(ref_nn_ink))
+            # get ref to full mapping (redundat mols as lists)
+            full_ref_mapping = dict(mappings[full_idxs])
+            ref_full_mapping = collections.defaultdict(list)
+            
+            aux = set()
+            full_inks = []
+            full_dbins = []
+            for k, v in full_ref_mapping.items():
+                if( len(full_dbins) < max_neig ):
+                    if( not k in aux ):
+                        aux.add(k)
+                        full_inks.append( k )
+                        full_dbins.append( ref_dbin_mapping[v] )
+                else:
+                    break
+
+            """
+            # this iterate on bins to aggregate mappings (removed to avoid 
+            # multiple call np.isin that is slow)
+            full_inks = list()
+            full_dbins = list()
+            unique_dbin = np.unique(ref_dbin)
+            for dbin in unique_dbin:
+                # get inks in the bin
+                ink_dbin = ref_nn_ink[ref_dbin == dbin]
+                # get idx bassed on redundant 'reference' column
+                full_idxs = np.isin(ref_mapping, list(ink_dbin))
+                # get non redundnt 'full' inks
+                full_nn_ink = mappings[:,0][full_idxs]
+                # append to molecule lists
+                full_inks.extend(full_nn_ink)
+                full_dbins.extend([dbin] * len(full_nn_ink))
+            """
+            all_inks.append(full_inks[:max_neig])
+            all_dbins.append(full_dbins[:max_neig])
+            c += 1
+
+        # keep neighbors and bins for later
+        ds_inks_bin[dataset] = (all_inks, all_dbins)
+    main._log.info('3. took %.3f secs', time.time() - t0)
+    main._log.info("MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
+
+    # read inchikey to pubmed names mapping
+    with open(names_jason) as json_data:
+        inchies_names = json.load(json_data)
+
+    # read library bioactive
+    with open(lib_bio_file) as json_data:
+        ref_bioactive = json.load(json_data)
+    libs = set(ref_bioactive.keys())
+    libs.add("All Bioactive Molecules")
+    
     PATH = os.path.join( save_file_path, f"lines_task-{task_id}.sql" )
     tempfile = open(PATH, "wb")
     tempfile.write("""
@@ -389,82 +306,121 @@ def main(args):
     COPY public.similars (inchikey, version, explore_data) FROM stdin;
     """.encode('UTF-8') )
     
-    t00 = time.time()
+    main._log.info('')
+    main._log.info('4. Save explore json')
+    t0_tot = time.time()
+    # save in each molecule path the file the explore json (ranked neighbors)
     for index, inchikey in enumerate(inchikeys):
         t0 = time.time()
-        
-        all_neigh = set( temp_info[inchikey]['all_neig'] )
-        all_neig = np.array( sorted( list(all_neigh) ) )
-        temp_info[inchikey]['ink_pos_mat'] = dict( zip( all_neig, np.arange(len(all_neig)) ) )
-        temp_info[inchikey]['matrix'] = np.full( ( len(all_neig), 26 ), np.nan )
-        temp_info[inchikey]['matrix'][:, 25] = 0
-        
-        temp_info[inchikey]['selected'] = set()
-        
-        keys = set( temp_info[inchikey]['inks_by_ds'] )
-        print(inchikey, 'all neig length', len(all_neig) )
-        
-        t1 = time.time()
+        # only consider spaces where the molecule is present
+        keys = [k + "_obs" for k in map_coords_obs[inchikey]] + \
+            [k + "_prd" for k in dataset_pairs.keys()]
+
+        # check if there are neighbors and keep their distance bin
+        all_neig = set()
+        neig_ds = dict()
+        empty_spaces = list()
         for dataset in keys:
-            coord, type_data = dataset.split("_")
-            pos, sign, pts = index_sign(dataset)
-            
-            in_dataset = set(temp_info[inchikey]['inks_by_ds'][dataset])
-            dists = np.array( list( map( lambda x: temp_info[inchikey]['inks_by_ds'][dataset][x], in_dataset ) ) )
-            temp_info[inchikey] = _get_matrix_value_batch( temp_info[inchikey], dataset, in_dataset, dists, True, map_coords_obs )
-            out_dataset = all_neigh - in_dataset
-            temp_info[inchikey] = _get_matrix_value_batch( temp_info[inchikey], dataset, out_dataset, None, False, map_coords_obs )
-            
-            aux = np.array( list( in_dataset ) )
-            for lib in libs:
-                temp_info[inchikey]['inchies'][lib] = set()
-                if temp_info[inchikey]['ref_counts'][lib][pos] >= best:
-                    break
-                    
-                def _check_lib(ik):
-                    return found[lib][ik]
-                    
-                bin_lib = np.vectorize( _check_lib )( aux )
-                ok_lib = aux[ bin_lib ][:best]
-                temp_info[inchikey]['ref_counts'][lib][pos] += len(ok_lib)
-                temp_info[inchikey]['inchies'][lib].update( ok_lib.tolist() )
-                temp_info[inchikey]['selected'].update( ok_lib.tolist() )
-                
-                 
-        print( ' iterating over all neig took %.3f secs', time.time() - t1)
-        main._log.info( f' iterating over all neig took { time.time() - t1 } secs')        
-           
-        max_selected = best * len(keys) * len(libs) 
-        # convert to lists
-        selected = temp_info[inchikey]['selected']
-        selected = list(selected)[:max_selected]
+            inks = ds_inks_bin[dataset][0][index]
+            if len(inks) == 0:
+                empty_spaces.append(dataset)
+                continue
+            # iterate on each neighbor and expand to full set
+            all_neig.update(set(inks))
+            dbins = ds_inks_bin[dataset][1][index]
+            neig_ds[dataset] = dict(zip(inks, dbins))
+        for ds in empty_spaces:
+            keys.remove(ds)
+
+        # join and sort all neighbors from all spaces obs and pred
+        all_neig = np.array(sorted(list(all_neig)))
+        ink_pos = dict(zip(all_neig, np.arange(len(all_neig))))
+        M = np.full((len(all_neig), 26), np.nan)
+        M[:, 25] = 0
+
+        # keep track of neigbors in reference libraries
+        inchies = dict()
+        ref_counts = dict()
         for lib in libs:
-            temp_info[inchikey]['inchies'][lib] = list( temp_info[inchikey]['inchies'][lib])
+            ref_counts[lib] = [0] * 25
+            inchies[lib] = set()
+
+        # rank all neighbors
         
-        M = temp_info[inchikey]['matrix']
-        ink_pos = temp_info[inchikey]['ink_pos_mat']
-        
-        inchies = temp_info[inchikey]['inchies']
+        selected = set()
+        for t, ik in enumerate(all_neig):
+            # iterate on all generic neigbors
+            for dataset in keys:
+                square, type_data = dataset.split("_")
+                pos, sign, pts = index_sign(dataset)
+            
+                val = M[t, pos]
+                # if generic neighbor has value from obs leave it
+                if val > 0:
+                    continue
+                # if generic neighbor doesn't have a value set it
+                # if it is in current space, update points matrix
+                if ik in neig_ds[dataset]:
+                    dist = neig_ds[dataset][ik]
+                    M[t, pos] = sign * dist
+                    M[t, 25] += pts
+                # otherwise check if we can say they are different
+                else:
+                    # if dataset is obs check against molecules in sign1
+                    if type_data == 'obs':
+                        if square in map_coords_obs[ik]:
+                            M[t, pos] = sign * dummy
+                    # if dataset is prd check against universe
+                    else:
+                        if ik in map_coords_obs:
+                            M[t, pos] = sign * dummy
+
+                if ( (ik in neig_ds[dataset]) and (ik != inchikey) ):
+                    for lib in libs:
+                        # if we already selected enought stop
+                        if ref_counts[lib][pos] >= best:
+                            break
+                        if lib == 'All Bioactive Molecules':
+                            found = True
+                        else:
+                            found = ik in ref_bioactive[lib]
+                        if found:
+                            ref_counts[lib][pos] += 1
+                            selected.add(ik)
+                            inchies[lib].add(ik)
+
+        # convert to lists
+        selected = list(selected)
+        for lib in libs:
+            inchies[lib] = list(inchies[lib])
+
         # save neigbors data for explore page
         for sel in selected:
             inchies[sel] = {}
             inchies[sel]["inchikey"] = sel
-            inchies[sel]["data"] = [None if np.isnan(x) else x for x in M[ ink_pos[sel] ] ]
+            inchies[sel]["data"] = [None if np.isnan(x) else x for x in M[
+                ink_pos[sel]]]
             if sel in inchies_names:
                 inchies[sel]["name"] = inchies_names[sel].replace('\\', '').replace('"', '').replace("'", '')
             else:
                 inchies[sel]["name"] = ""
-        
-        jsontxt = json.dumps(inchies)
+        """
+        PATH = save_file_path + "/%s/%s/%s/" % (
+            inchikey[:2], inchikey[2:4], inchikey)
+        with open(PATH + '/explore_' + version + '.json', 'w') as outfile:
+            json.dump(inchies, outfile)
+        """
+        jsontxt = json.dumps(inchies).replace("'","\\'")
         tempfile.write(f"{ inchikey }\t{ version }\t{ jsontxt }\n".encode('UTF-8') )
         
-        print( inchikey, ' ik took %.3f secs', time.time() - t0)
-        main._log.info( f' {inchikey} ik took { time.time() - t0 } secs')
-     
+        main._log.info('  %s took %.3f secs', inchikey, time.time() - t0)
+        main._log.info(
+            "  MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
+    main._log.info('4. Saving all took %.3f secs', time.time() - t0_tot)
+    main._log.info("MEM USED: {:>5.1f} GB (\u0394 {:>5.3f} GB)".format(*mem()))
+    
     tempfile.write("\\.\n".encode('UTF-8') )
-    tempfile.close() 
-    print( ' second part took %.3f secs', time.time() - t00)
-    main._log.info( f'second part took { time.time() - t00 } secs')
+    tempfile.close()
     
     c = Config()
     host = c.DB.host
