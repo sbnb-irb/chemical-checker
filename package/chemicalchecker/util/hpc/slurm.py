@@ -31,7 +31,12 @@ class slurm():
 #
 #
 
-#SBATCH --partition=long    # Partition or queue name
+#SBATCH -p sbnb_cpu_zen3,irb_cpu_iclk
+#SBATCH --nodelist=irbccn[05-08],irbccn16
+#SBATCH --nice=2147483645
+
+#SBATCH --qos=long
+
 # Options for sbatch
 %(options)s
 # End of qsub options
@@ -76,8 +81,8 @@ fi
                 cfg = ssh_config.lookup(self.host)
                 ssh = paramiko.SSHClient()
                 ssh.load_system_host_keys()
-                ssh.connect(cfg['hostname'], username=cfg[
-                            'user'], key_filename=cfg['identityfile'][0])
+                #ssh.connect(cfg['hostname'], username=cfg['user'], key_filename=cfg['identityfile'][0])
+                ssh.connect(self.host, **self.conn_params)
             except paramiko.SSHException as sshException:
                 self.__log.warning(
                     "Unable to establish SSH connection: %s" % sshException)
@@ -122,9 +127,11 @@ fi
         #memory = kwargs.get("memory", 2)
         maxtime = kwargs.get("time", None)
         cpusafe = kwargs.get("cpusafe", True)
-
+        membycore = int(kwargs.get("mem_by_core", None))
+        custom_elements = kwargs.get("custom_chunks", [])
+        
         submit_string = 'sbatch --parsable '
-
+            
         if wait:
             submit_string += " --wait "
 
@@ -136,7 +143,10 @@ fi
         jobParams = ["#SBATCH -J " + self.job_name]
         jobParams.append("#SBATCH --chdir=" + self.jobdir)
 
-        if (len(elements) == 0 and num_jobs > 1):
+        if( membycore != None ):
+            jobParams.append( f"#SBATCH --mem-per-cpu={ membycore }G" )
+
+        if ( len(custom_elements) == 0 and len(elements) == 0 and num_jobs > 1):
             raise Exception(
                 "Number of specified jobs does not match to the number of elements")
 
@@ -159,13 +169,18 @@ fi
             jobParams.append(
                 "#SBATCH --time=" + str(maxtime))
 
+        input_dict = dict()
         if len(elements) > 0:
             self.__log.debug("Num elements submitted " + str(len(elements)))
             self.__log.debug("Num Job submitted " + str(num_jobs))
 
-            input_dict = dict()
             for cid, chunk in enumerate(self._chunks(elements, num_jobs), 1):
                 input_dict[str(cid)] = chunk
+            
+        if( len(custom_elements) > 0 ):
+            input_dict = custom_elements
+        
+        if( len(elements) > 0 or len(custom_elements) > 0 ):    
             input_path = os.path.join(self.jobdir, str(uuid.uuid4()))
             with open(input_path, 'wb') as fh:
                 pickle.dump(input_dict, fh)
@@ -212,8 +227,9 @@ fi
             cfg = ssh_config.lookup(self.host)
             ssh = paramiko.SSHClient()
             ssh.load_system_host_keys()
-            ssh.connect(cfg['hostname'], username=cfg[
-                        'user'], key_filename=cfg['identityfile'][0])
+            #ssh.connect(cfg['hostname'], username=cfg['user'], key_filename=cfg['identityfile'][0])
+            ssh.connect(self.host, **self.conn_params)
+            
             stdin, stdout, stderr = ssh.exec_command(
                 submit_string, get_pty=True)
 

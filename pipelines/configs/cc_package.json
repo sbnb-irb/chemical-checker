@@ -18,8 +18,8 @@
         "uniprot_db_version" : "'2022_01'"
     },
     "HPC": {
-    	"system" : "'sge'",
-    	"host": "'pac-one-head'",
+    	"system" : "'slurm'",
+    	"host": "'irblogin01'",
     	"queue": "'all.q'",
     	"username": "'ymartins'",
         "password": "'Kalinka1*_KfG&317'"

@@ -1,6 +1,8 @@
 import os
+import math
 import h5py
 import json
+import pickle
 import shutil
 import tempfile
 import collections
@@ -52,6 +54,9 @@ class Similars(BaseTask):
         self.MOLECULES_PATH = params.get('MOLECULES_PATH', None)
         if self.MOLECULES_PATH is None:
             raise Exception('MOLECULES_PATH parameter is not set')
+            
+        c = Config()
+        self.hpc_env = c.HPC.system
 
     def _check_keys_presence_on_spaces( self ):
         metric_obs = None
@@ -147,10 +152,22 @@ class Similars(BaseTask):
         SELECT_CHECK = f"SELECT DISTINCT (inchikey) FROM similars where version = '{ version }';" 
         rows = psql.qstring( SELECT_CHECK, self.DB)
         done = set( [el[0] for el in rows] )
+        """
+        inprogress = set()
+        d = pickle.load( open('/aloy/scratch/ymartins/pipelines/cc_update_2024_02/tmp/jobs_similars_j8j4j9c4/d86515b4-8a12-4a9d-9a0a-f6ac4a693f5d', 'rb') )
+        for k in d:
+            inprogress.update( d[k]['keys'] )
+        d = pickle.load( open('/aloy/scratch/ymartins/pipelines/cc_update_2024_02/tmp/jobs_similars_w4q2pq90/e8fb65ff-5b98-4380-acb4-81cceaac62a6', 'rb') )
+        for k in d:
+            inprogress.update( d[k]['keys'] )
+
+        done = done.union( inprogress )
+        """
         universe_keys = list( set(temp) - done )
         #universe_keys = np.array( universe_keys )
-        
-        if( len(universe_keys) > 0 ):  
+
+
+        if( len(universe_keys) > 0 ):
             # get all bioactive compounds from libraries (with pubchem names)
             lib_bio_file = os.path.join(self.tmpdir, "lib_bio.json")
 
@@ -166,13 +183,25 @@ class Similars(BaseTask):
             sql_path = os.path.join( self.tmpdir, 'temporary_sql' )
             if( not os.path.isdir( sql_path ) ):
                 os.mkdir( sql_path )
-            
-            
-            n_jobs = len(universe_keys) / 1000
+
+            nchunks = 1000
+            """
+            to-do - allow spreading jobs in more than one environment
+            ssplit = round( len(universe_keys) * 0.2 )
+            if( self.hpc_env == 'sge' ):
+                nchunks = 1000
+                universe_keys = universe_keys[:ssplit]
+            if( self.hpc_env == 'slurm' ):
+                nchunks = 1500
+                universe_keys = universe_keys[ssplit:]
+            """ 
+            n_jobs = math.ceil( len(universe_keys) / nchunks ) #500
+            if(  len(universe_keys) < nchunks ):
+                n_jobs = 1
             metric_obs, metric_prd, map_coords_obs, dataset_pairs = self._check_keys_presence_on_spaces( )
             bg_vals, signatures = self._compute_dist_cutoffs( dataset_pairs, metric_obs, metric_prd )
             vals = ['metric_obs','metric_prd','map_coords_obs','dataset_pairs','bg_vals','signatures']
-            additional_data = {  }
+            additional_data = { 'hpc_env': self.hpc_env  }
             for v in vals:
                 additional_data[v] = eval(v)
             custom_elements = self._custom_chunker( universe_keys, additional_data, n_jobs)
@@ -183,7 +212,10 @@ class Similars(BaseTask):
             params["job_name"] = "CC_JSONSIM"
             #params["elements"] = universe_keys
             params["custom_chunks"] = custom_elements
-            params["memory"] = 20
+            #params["memory"] = 20
+            params["cpu"] = 8
+            params["mem_by_core"] = 5 # sge
+            params["time"] = '30-00:00:00' 
             params["wait"] = True
             # job command
             cc_config_path = self.config.config_path
@@ -208,33 +240,34 @@ class Similars(BaseTask):
             if not os.path.exists(PATH):
                 missing_keys.append(inchikey)
         """
-        
+
         self.__log.info("Checking results")
         #qty_sql_files = len( os.listdir(sql_path) )
-        
+
         # query to see if there is some data filled in new db
         SELECT_CHECK = f"SELECT DISTINCT (inchikey) FROM similars where version = '{ version }';" 
         rows = psql.qstring( SELECT_CHECK, self.DB)
         done = set( [el[0] for el in rows] )
-        qty_keys = len( done )
-        if( qty_keys == len(temp) ):
+        qty_keys_inter = done.intersection( set(temp) )
+        if( len(qty_keys_inter) == len(temp) ):
         #if( qty_sql_files == n_jobs ):
             # Importing sqls created in each task job
             #self._import_similar_sql_files( universe_keys, sql_path  )
-        
+
             self.__log.info("Indexing table")
             try:
                 psql.query(CREATE_INDEX, self.DB)
             except:
                 self.__log.info("Indexes already created")
-                
+
             if( os.path.isdir(job_path) ):
                 shutil.rmtree(job_path, ignore_errors=True)
             self.mark_ready()
         else:
             e = "Error while saving similars data"
+            "There are still keys to calculate the similars"
             self.__log.error(e)
-            raise Exception(e)
+            #raise Exception(e)
             
     def execute(self, context):
         """Run the molprops step."""
