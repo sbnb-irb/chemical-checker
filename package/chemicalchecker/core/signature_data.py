@@ -567,16 +567,19 @@ class DataSignature(object):
         idxs = np.argwhere( np.isin(list(self.keys), list(valid_keys), assume_unique=True) )
         inks, signs = list(), list()
         
-        oidxs = sorted(idxs.flatten())
-        inks = self.keys[oidxs]
+        #oidxs = sorted(idxs.flatten())
+        #inks = self.keys[oidxs]
         
         with h5py.File(self.data_path, 'r') as hf:
-            signs = hf[dataset_name][oidxs]
+            dset = hf[dataset_name]
             dset_shape = dset.shape
-            """
             for idx in sorted(idxs.flatten()):
                 inks.append(self.keys[idx])
                 signs.append(dset[idx])
+
+            """
+            signs = hf[dataset_name][oidxs]
+            dset_shape = dset.shape
             """
         missed_inks = set(keys) - set(inks)
         # if missing signatures are requested add NaNs

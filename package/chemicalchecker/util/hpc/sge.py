@@ -66,7 +66,7 @@ fi
         
         # Specific addition for the cc update, remove later
         if( self.specificNode == None or self.specificNode == '' ):
-            self.specificNode = ['pac-one103', 'pac-one107', 'pac-one109', 'pac-one301', 'pac-one401']
+            self.specificNode = [ 'pac-one103', 'pac-one104', 'pac-one107', 'pac-one109', 'pac-one301', 'pac-one401']
             #self.specificNode = [ 'pac-one301', 'pac-one401']
             #self.specificNode = ['pac-one109', 'pac-one301', 'pac-one401']
             
@@ -187,6 +187,7 @@ fi
         else:
             jobParams.append("#$ -l h_vmem=" + str(membycore) + "G")
 
+        maxtime = None
         if maxtime is not None:
             jobParams.append(
                 "#$ -l h_rt=" + str(datetime.timedelta(minutes=maxtime)))

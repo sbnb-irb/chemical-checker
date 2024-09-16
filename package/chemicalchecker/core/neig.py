@@ -316,10 +316,10 @@ class neig(BaseSignature, DataSignature):
             dataset_name(str): return any datasets in the h5 which is organized
                 by sorted keys.
         """
-        self.__log.debug("Fetching %s rows from datasets" %
-                         ( len(keys) ) )
-        valid_keys = list(self.unique_keys & set(keys))
-        idxs = np.argwhere( np.isin(list(self.keys), list(valid_keys), assume_unique=True) )
+        self.__log.debug("Fetching %s rows from datasets" % ( len(keys) ) )
+        
+        valid_keys = list( set( self.row_keys ) & set( keys ) )
+        idxs = np.argwhere( np.isin( list(self.row_keys), list(valid_keys), assume_unique=True) )
         idxs = idxs.flatten()
         oidxs = sorted(idxs)
         
@@ -335,6 +335,7 @@ class neig(BaseSignature, DataSignature):
                 col_keys = hf['col_keys'][:].astype(str)
                 
                 for d in dataset_names:
+                    ncols = hf[d].shape[1]
                     data[d]['inks'] = inks
                     
                     temp = hf[d][oidxs, :max_neighbors]
