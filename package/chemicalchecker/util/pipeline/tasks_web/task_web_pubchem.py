@@ -96,8 +96,11 @@ class Pubchem(BaseTask):
                     
                 lst = line.split('\t')
                 if( len(lst) > 2 ):
-                    key = lst[2]
+                    key = lst[1]
                     if( key in keys ):
+                        if( lst[3].lower() not in lst[4].lower() ):
+                            lst[4] += lst[3] + '; '
+                        line = '\t'.join(lst)
                         g.write( line.encode('UTF-8') )
                         found_record = True
                     
