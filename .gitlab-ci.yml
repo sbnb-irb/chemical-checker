@@ -56,17 +56,17 @@ unittest:
   stage: unittest
   script:
     - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc.simg make -C /test/package test
-  cache:
-    paths:
-      - images
+  #cache:
+  #  paths:
+  #    - images
 
 unittest_lite:
   stage: unittest
   script:
     - SINGULARITYENV_PYTHONPATH=/test/package singularity exec --cleanenv -B $PWD:/test images/cc_lite.simg make -C /test/package test
-  cache:
-    paths:
-      - images
+  #cache:
+  #  paths:
+  #    - images
 
 ################
 # docs
