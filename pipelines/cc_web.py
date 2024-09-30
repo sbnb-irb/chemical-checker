@@ -321,7 +321,7 @@ def main(args):
     export_cc_task = PythonCallable(name="export_cc_ftp",
                                  python_callable=export_cc_ftp,
                                  op_args=[args.cc_root],
-                                 op_kwargs={ 'ftp_path': '/aloy/web_checker/cpy_ftp_data' } )
+                                 op_kwargs={ 'ftp_path': '/aloy/web_checker/ftp_data' } )
     pp.add_task(export_cc_task)
 
     # TASK: Export signatures 3 to ftp directory 
@@ -338,7 +338,24 @@ def main(args):
     export_task = PythonCallable(name="export_sign3_ftp",
                                  python_callable=export_sign3_ftp,
                                  op_args=[args.cc_root],
-                                 op_kwargs={ 'ftp_path': '/aloy/web_checker/cpy_ftp_data' } )
+                                 op_kwargs={ 'ftp_path': '/aloy/web_checker/ftp_data' } )
+    
+    def export_cc_sign012(cc_root, ftp_path='/aloy/web_checker/ftp_data'): 
+        a = ['A','B','C','D','E']
+        b = [1,2,3,4,5]
+        c = [0,1,2]
+        scr = f'{args.cc_root}/full/_sa_/_space_/_space_.001/_sign_/_sign_.h5'
+        dest = f'{ftp_path}/2024_02/signature_s_/_space___sign_.h5'
+        for i in a:
+            for j in b:
+                for k in c:
+                    os.system( 'ln -sF '+( scr.replace('_sa_', str(i)).replace('_space_', f'{i}{j}').replace('_sign_', f'sign{k}') )+' '+( dest.replace('_s_', str(k)) ).replace('_space_', f'{i}{j}').replace('_sign_', f'sign{k}') )
+
+    export_cc_s012_task = PythonCallable(name="export_cc_sign012",
+                                 python_callable=export_cc_ftp,
+                                 op_args=[args.cc_root])
+    pp.add_task(export_cc_task)
+    
     pp.add_task(export_task)
 
     # TASK: Create json of similar molecules for explore page
