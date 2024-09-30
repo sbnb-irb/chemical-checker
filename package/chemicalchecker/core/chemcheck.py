@@ -367,7 +367,7 @@ class ChemicalChecker():
             else:
                 self.__log.warning(
                         'Invalid signature option: %s. This function is compatible with sign0, sign1, sign2 and sign3' % ( type_sign ) )
-       else:
+        else:
             self.__log.warning(
                         'Output directory does not exist: %s' % ( out_directory ) )
         
