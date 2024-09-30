@@ -351,7 +351,7 @@ class ChemicalChecker():
 
     def download_all_ftp_signatures(self, out_directory, type_sign='sign2'):
         if( os.path.isdir(out_directory) ):
-            if( type_sign in ['sign0', 'sign1', 'sign2'] ):
+            if( type_sign in ['sign0', 'sign1', 'sign2', 'sign3'] ):
                 prefix = f"signature{ type_sign[-1] }"
                 spaces = ['A','B', 'C', 'D', 'E']
                 combinations = []
@@ -360,10 +360,13 @@ class ChemicalChecker():
                         combinations.append( s+str(i) )
                 
                 for c in tqdm(combinations):
-                    wget.download( f"https://chemicalchecker.com/downloads/{prefix}/{ c }_{ type_sign }.h5", out=out_directory )
+                    if( type_sign == 'sign3' ):
+                        wget.download( f"https://chemicalchecker.com/downloads/{prefix}/{ c }.h5", out=out_directory )
+                    else:
+                        wget.download( f"https://chemicalchecker.com/downloads/{prefix}/{ c }_{ type_sign }.h5", out=out_directory )
             else:
                 self.__log.warning(
-                        'Invalid signature option: %s. This function is compatible with sign0, sign' % ( type_sign ) )
+                        'Invalid signature option: %s. This function is compatible with sign0, sign1, sign2 and sign3' % ( type_sign ) )
        else:
             self.__log.warning(
                         'Output directory does not exist: %s' % ( out_directory ) )
