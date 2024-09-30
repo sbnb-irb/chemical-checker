@@ -128,7 +128,7 @@ From: ubuntu:20.04
     # ML packages
     pip install scikit-learn                      # entry level ML in python
     pip install numpy                             # numerical library - required previoous to gensim
-    pip install scipy                             # scientific python - required previoous to gensim
+    pip install scipy==1.11.4                             # scientific python - required previoous to gensim
 #    pip install gensim --no-binary :all:          # topic modelling word2vec (avoid importing binary that are compiled probably on different numpy versions)
     
     # Copying libc to the system to find cython GLIBCXX_3.4.29
