@@ -49,8 +49,10 @@ import h5py
 import json
 import shutil
 import itertools
+import wget
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from glob import glob
 from pathlib import Path
 
@@ -347,6 +349,25 @@ class ChemicalChecker():
                     'problem reading file %s: %s' % (path, str(ex)))
         return molset_dataset_sign
 
+    def download_all_ftp_signatures(self, out_directory, type_sign='sign2'):
+        if( os.path.isdir(out_directory) ):
+            if( type_sign in ['sign0', 'sign1', 'sign2'] ):
+                prefix = f"signature{ type_sign[-1] }"
+                spaces = ['A','B', 'C', 'D', 'E']
+                combinations = []
+                for s in spaces:
+                    for i in range(1, 6):
+                        combinations.append( s+str(i) )
+                
+                for c in tqdm(combinations):
+                    wget.download( f"https://chemicalchecker.com/downloads/{prefix}/{ c }_{ type_sign }.h5", out=out_directory )
+            else:
+                self.__log.warning(
+                        'Invalid signature option: %s. This function is compatible with sign0, sign' % ( type_sign ) )
+       else:
+            self.__log.warning(
+                        'Output directory does not exist: %s' % ( out_directory ) )
+        
     def report_dimensions(self, molset='*', dataset='*', signature='*',
                           matrix='V'):
         """Report dimensions of all available signatures in the CC.
