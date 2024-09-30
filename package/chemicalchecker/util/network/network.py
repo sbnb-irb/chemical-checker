@@ -59,7 +59,9 @@ class MultiEdgeNetwork():
         """Initialize a MultiEdgeNetwork instance."""
         try:
             import sys
-            sys.path.append( Config().TOOLS.snap )
+            snapPath = Config().TOOLS.asdict()['snap']
+            sys.path.append( snapPath )
+            
             import snap
             self.snap = snap
         except ImportError:

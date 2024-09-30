@@ -306,9 +306,6 @@ class BaseSignature(object):
         """
         
         exec_universe_in_parallel = kwargs.get('exec_universe_in_parallel', False)
-        pcores = hpc_args.get("cpu", 4)
-        if( self.cctype == 'sign3' and exec_universe_in_parallel ):
-            pcores = 1
         
         # read config file,# NS: get the cc_config var otherwise set it to
         # os.environ['CC_CONFIG']
@@ -316,6 +313,9 @@ class BaseSignature(object):
         hpc_args = {}
         if( 'hpc_args' in kwargs):
             hpc_args = kwargs.get('hpc_args')
+        pcores = hpc_args.get("cpu", 4)
+        if( self.cctype == 'sign3' and exec_universe_in_parallel ):
+            pcores = 1
             
         cc_config = kwargs.get("cc_config", os.environ['CC_CONFIG'])
         self.__log.debug(
