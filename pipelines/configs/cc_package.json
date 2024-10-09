@@ -25,8 +25,8 @@
         "password": "'Kalinka1*_KfG&317'"
     },
     "TOOLS": {
-        "node2vec_exec" : "'/opt/node2vec'",
-        "snap": "'/opt'"
+        "node2vec_exec" : "'/aloy/home/ymartins/Documents/cc_update/chemical_checker/container/singularity/binaries/node2vec'",
+        "snap": "'/aloy/home/ymartins/Documents/cc_update/chemical_checker/container'"
     }
 
 }
