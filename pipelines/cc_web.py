@@ -340,6 +340,8 @@ def main(args):
                                  op_args=[args.cc_root],
                                  op_kwargs={ 'ftp_path': '/aloy/web_checker/ftp_data' } )
     
+    pp.add_task(export_task)
+    
     def export_cc_sign012(cc_root, ftp_path='/aloy/web_checker/ftp_data'): 
         a = ['A','B','C','D','E']
         b = [1,2,3,4,5]
@@ -352,11 +354,21 @@ def main(args):
                     os.system( 'ln -sF '+( scr.replace('_sa_', str(i)).replace('_space_', f'{i}{j}').replace('_sign_', f'sign{k}') )+' '+( dest.replace('_s_', str(k)) ).replace('_space_', f'{i}{j}').replace('_sign_', f'sign{k}') )
 
     export_cc_s012_task = PythonCallable(name="export_cc_sign012",
-                                 python_callable=export_cc_ftp,
+                                 python_callable=export_cc_sign012,
                                  op_args=[args.cc_root])
-    pp.add_task(export_cc_task)
+    pp.add_task(export_cc_s012_task)
     
-    pp.add_task(export_task)
+    def linkNew_cc_current(cc_root, new_version): 
+        os.system( 'unlink /aloy/web_checker/signaturizers/current' )
+        os.system( f'ln -s /aloy/web_checker/signaturizers/{ new_version } /aloy/web_checker/signaturizers/current' )
+        
+        os.system( 'unlink /aloy/web_checker/current' )
+        os.system( f'ln -s /aloy/web_checker/package_cc/{ new_version } /aloy/web_checker/current' )
+
+    link_cc_current_task = PythonCallable(name="linkNew_cc_current",
+                                 python_callable=linkNew_cc_current,
+                                 op_args= [ args.cc_root, args.new_web_db.replace('cc_web_', '') ] )
+    pp.add_task( linkNew_cc_current_task )
 
     # TASK: Create json of similar molecules for explore page
     similars_task = Similars(name='similars',

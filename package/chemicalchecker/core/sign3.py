@@ -368,7 +368,7 @@ class sign3(BaseSignature, DataSignature):
                                 calc_ds_idx=[0, 1, 2, 3, 4],
                                 calc_ds_names=['A1.001', 'A2.001', 'A3.001',
                                                'A4.001', 'A5.001'],
-                                ref_cc=None, exec_in_parallel=False, cores=None):
+                                ref_cc=None, exec_universe_in_parallel=False, cores=None):
         """Completes the universe for extra molecules.
 
         Important if the dataset we are fitting is defined on molecules
@@ -454,7 +454,7 @@ class sign3(BaseSignature, DataSignature):
             raw_file = os.path.join(tmp_path, '%s_raw.h5' % ds)
             if not os.path.isfile(raw_file):
                 pcores = None
-                if( exec_in_parallel ):
+                if( exec_universe_in_parallel ):
                     pcores = 4
                     if(cores != None):
                         pcores = cores
@@ -1929,7 +1929,7 @@ class sign3(BaseSignature, DataSignature):
         Args:
             sign2_list(list): List of signature 2 objects to learn from.
             sign2_self(sign2): Signature 2 of the current space.
-            triplet_sign(sign1): Signature used to define acnhor positive and 
+            triplet_sign(sign1): Signature used to define anchor positive and 
                 negative in triplets.
             sign2_universe(str): Path to the union of all signatures 2 for all
                 molecules in the CC universe. (~1M x 3200)
