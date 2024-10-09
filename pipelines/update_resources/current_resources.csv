@@ -4,7 +4,7 @@ repohub,"Drug Repurposing Hub database, accessible from https://clue.io/repurpos
 chembl_uniprot_mapping,Mapping between ChEMBL target IDs and Uniprot ACs.,f,http://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_uniprot_mapping.txt,,,chembl_uniprot_mapping.txt,f
 kegg_br,,f,http://www.genome.jp/kegg-bin/download_htext?htext=br08303.keg&format=htext&filedir=,,,br08303.keg,f
 deepcodex_map,DeepCodex uses a deep-learned embedding of gene expression profiles to find chemical and genetic perturbations with similar biological effects.,f,file:///aloy/web_checker/repo_data/deepcodex/dcx_map.csv,,,dcx_map.csv,f
-bindingdb,,f,http://www.bindingdb.org/bind/downloads/BindingDB_All_2022m0.tsv.zip,,,BindingDB_All.tsv,f
+bindingdb,,f,https://www.bindingdb.org/bind/downloads/BindingDB_All_202404_tsv.zip,,,BindingDB_All.tsv,f
 chebi_lite,,f,http://ftp.ebi.ac.uk/pub/databases/chebi/SDF/ChEBI_lite_3star.sdf.gz,,,ChEBI_lite_3star.sdf,f
 chembl,,t,https://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_33_postgresql.tar.gz,,,chembl_33/chembl_33_postgresql/chembl_33_postgresql.dmp,f
 CTD_chemicals_diseases,,f,http://ctdbase.org/reports/CTD_chemicals_diseases.tsv.gz,,,CTD_chemicals_diseases.tsv,f
