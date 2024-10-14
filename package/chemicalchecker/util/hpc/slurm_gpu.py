@@ -56,6 +56,33 @@ export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_check
 
     """
 
+    templateScript = """\
+#!/bin/bash
+#
+#
+
+#SBATCH -p irb_gpu_3090
+#SBATCH --nodelist=irbgcn01
+#SBATCH --gres=gpu:1
+
+#SBATCH --time=10-00:00:00
+
+#SBATCH --qos=long
+
+# Options for sbatch
+%(options)s
+# End of qsub options
+
+# Loads default environment configuration
+if [[ -f $HOME/.bashrc ]]
+then
+  source $HOME/.bashrc
+fi
+
+%(command)s
+
+    """
+    
     defaultOptions = """\
 #$ -S /bin/bash
 #$ -r yes
@@ -130,6 +157,7 @@ export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_check
         compress_out = kwargs.get("compress", True)
         check_error = kwargs.get("check_error", True)
         maxtime = kwargs.get("time", None)
+        membycore = int(kwargs.get("mem_by_core", None))
 
         submit_string = 'sbatch --parsable '
 
@@ -143,6 +171,10 @@ export SINGULARITY_BINDPATH="/aloy/home,/aloy/data,/aloy/scratch,/aloy/web_check
 
         jobParams = ["#SBATCH -J " + self.job_name]
         jobParams.append("#SBATCH --chdir=" + self.jobdir)
+        
+        self.__log.debug( f"memory : { membycore }" )
+        if( membycore != None ):
+            jobParams.append( f"#SBATCH --mem-per-cpu={ membycore }G" )
 
         # the right partition for SBNB
         if self.queue is not None:

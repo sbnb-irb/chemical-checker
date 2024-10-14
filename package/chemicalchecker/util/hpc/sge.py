@@ -116,9 +116,13 @@ fi
 
         # NS: to correct a bug on D1 sign0 calculation
         elif isinstance(l, type(dict().keys())):
-            keys = list(l).sort()
-            for i in np.array_split(keys, n):
-                yield {k: l[k] for k in i}
+            l = list(l)
+            ind = list( range( len(l) ) )
+            for i in np.array_split(ind, n):
+                tmp = []
+                for idx in i:
+                    tmp.append( l[idx] )
+                yield tmp 
         else:
             raise Exception("Element datatype not supported: %s" % type(l))
 
