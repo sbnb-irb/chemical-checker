@@ -164,6 +164,8 @@ class sign0(BaseSignature, DataSignature):
                 keys = dh5["keys"][:]
             if "features" in dh5.keys():
                 features = dh5["features"][:]
+                replacement = np.array( [ i for i in range(0, features.shape[0]) ] )
+                features = replacement.tolist()
             if features is None and pairs is None:
                 features = self.process_features(features, X.shape[1])
             dh5.close()
@@ -460,7 +462,8 @@ class sign0(BaseSignature, DataSignature):
         keys = res["keys"]
         keys_raw = res["keys_raw"]
         input_type = res["input_type"]
-        features = res["features"]
+        features = np.array( [ int(i) for i in res["features"] ], dtype=int ).tolist()
+        print( features[:4], features_[:4] )
         if input_type != self.input_type:
             raise Exception("Input type must be %s" % self.input_type)
         self.__log.debug(
@@ -485,6 +488,7 @@ class sign0(BaseSignature, DataSignature):
         agg = Aggregate(method=self.agg_method, input_type=input_type)
         X, keys, keys_raw = agg.transform(V=X, keys=keys, keys_raw=keys_raw)
         features = res["features"]
+        features_ = np.array( [ str(i) for i in features_ ], dtype=str ).tolist()
         features = features_
         if V_ is None:
             V = X
