@@ -358,6 +358,9 @@ class ChemicalChecker():
         return molset_dataset_sign
 
     def download_all_ftp_signatures(self, out_directory, type_sign='sign2'):
+        if( not os.path.isdir(out_directory) ):
+            os.mkdir(out_directory)
+            
         if( os.path.isdir(out_directory) ):
             if( type_sign in ['sign0', 'sign1', 'sign2', 'sign3'] ):
                 prefix = f"signature{ type_sign[-1] }"
@@ -369,9 +372,9 @@ class ChemicalChecker():
                 
                 for c in tqdm(combinations):
                     if( type_sign == 'sign3' ):
-                        wget.download( f"https://chemicalchecker.com/downloads/{ c }.h5", out=out_directory )
+                        wget.download( f"https://chemicalchecker.com/api/db/getFile/root/{ c }.h5", out=out_directory )
                     else:
-                        wget.download( f"https://chemicalchecker.com/downloads/{prefix}/{ c }_{ type_sign }.h5", out=out_directory )
+                        wget.download( f"https://chemicalchecker.com/api/db/getFile/{prefix}/{ c }_{ type_sign }.h5", out=out_directory )
             else:
                 self.__log.warning(
                         'Invalid signature option: %s. This function is compatible with sign0, sign1, sign2 and sign3' % ( type_sign ) )
@@ -1025,7 +1028,7 @@ class ChemicalChecker():
 
         return None
 
-    def export_symlinks(self, dest_path=None, signatures=True, models=False):
+    def export_symlinks(self, dest_path=None, signatures=True, models=True):
         """Creates symlinks for all available signatures H5 or models path
            in a single folder.
 

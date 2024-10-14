@@ -359,6 +359,11 @@ def main(args):
     pp.add_task(export_cc_s012_task)
     
     def linkNew_cc_current(cc_root, new_version): 
+        cc = ChemicalChecker(args.cc_root)
+        cc.add_sign_metadata()
+        cc.add_model_metadata()
+        cc.export_symlinks()
+    
         os.system( 'unlink /aloy/web_checker/signaturizers/current' )
         os.system( f'ln -s /aloy/web_checker/signaturizers/{ new_version } /aloy/web_checker/signaturizers/current' )
         

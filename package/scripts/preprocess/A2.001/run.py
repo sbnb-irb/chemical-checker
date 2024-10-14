@@ -94,8 +94,8 @@ def main(args):
             inchikey_inchi = dict(data)
 
         if args.entry_point != entry_point_keys:
-            if( args.cores != None ):
-                name = f'{name}_parallel'
+            #if( args.cores != None ):
+            #    name = f'{name}_parallel'
             parse_fn = DataCalculator.calc_fn(name)
             for chunk in parse_fn(inchikey_inchi, 1000, cores=args.cores):
                 for prop in chunk:
