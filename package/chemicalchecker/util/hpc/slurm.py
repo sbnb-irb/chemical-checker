@@ -35,6 +35,7 @@ class slurm():
 #SBATCH --nodelist=irbccn[05-08],irbccn16
 #SBATCH --nice=2147483645
 
+#SBATCH --time=10-00:00:00
 #SBATCH --qos=long
 
 # Options for sbatch
