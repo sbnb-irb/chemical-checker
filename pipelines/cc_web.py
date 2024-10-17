@@ -341,10 +341,15 @@ def main(args):
     
     pp.add_task(export_task)
     
-    def export_cc_sign012(cc_root, ftp_path='/aloy/web_checker/ftp_data'): 
+    def export_cc_sign0123(cc_root, ftp_path='/aloy/web_checker/ftp_data'): 
         a = ['A','B','C','D','E']
         b = [1,2,3,4,5]
-        c = [0,1,2]
+        c = [0, 1, 2, 3]
+        for s in c:
+            dest = f'{ftp_path}/2024_02/signature{s}'
+            if( not os.path.isdir(dest) ):
+                os.mkdir(dest)
+            
         scr = f'{args.cc_root}/full/_sa_/_space_/_space_.001/_sign_/_sign_.h5'
         dest = f'{ftp_path}/2024_02/signature_s_/_space___sign_.h5'
         for i in a:
@@ -355,10 +360,10 @@ def main(args):
                     if( not os.path.exists( destination ) ):
                         os.system( 'ln -sF '+source+' '+destination )
 
-    export_cc_s012_task = PythonCallable(name="export_cc_sign012",
-                                 python_callable=export_cc_sign012,
+    export_cc_s0123_task = PythonCallable(name="export_cc_sign0123",
+                                 python_callable=export_cc_sign0123,
                                  op_args=[args.cc_root])
-    pp.add_task(export_cc_s012_task)
+    pp.add_task(export_cc_s0123_task)
     
     def linkNew_cc_current(cc_root, new_version): 
         cc = ChemicalChecker(args.cc_root)
