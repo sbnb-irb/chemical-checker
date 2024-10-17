@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 __author__ = """SBNB"""
 __email__ = 'sbnb@irbbarcelona.org'
-__version__ = '1.0.3'
+__version__ = '1.0.4'
 
 requirements = [
     'numpy',
@@ -57,6 +57,8 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
         'Operating System :: OS Independent',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
         'Topic :: Scientific/Engineering :: Chemistry',
